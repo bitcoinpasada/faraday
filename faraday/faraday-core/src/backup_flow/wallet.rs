@@ -900,7 +900,7 @@ impl Faraday {
         for &(v, o) in &opens {
             let (salt, vname) = {
                 let open = &self.vaults.open[o];
-                (open.vault_id(), open.name.clone())
+                (open.vault_id(), String::from(open.name.as_str()))
             };
             let f = &mut self.flows.all[i];
             if f.plan.vaults.len() <= v {
@@ -1960,12 +1960,14 @@ impl Faraday {
                 // A record of the words alone, and one with a passphrase,
                 // are two records: told apart.
                 if r.has(field::KEY_PASSPHRASE) {
-                    vec![format!("p{fp}")]
+                    vec![format!("p{}", fp.as_str())]
                 } else {
-                    vec![format!("k{fp}")]
+                    vec![format!("k{}", fp.as_str())]
                 }
             }
-            rkind::WALLET => sum().map(|s| vec![format!("w{s}")]).unwrap_or_default(),
+            rkind::WALLET => sum()
+                .map(|s| vec![format!("w{}", s.as_str())])
+                .unwrap_or_default(),
             rkind::PASSPHRASE => r
                 .public(field::PASSPHRASE_KEY)
                 .and_then(|b| <[u8; 4]>::try_from(b).ok())
@@ -1977,7 +1979,7 @@ impl Faraday {
                     .and_then(|b| b.first())
                     .copied();
                 match (sum(), n) {
-                    (Some(s), Some(n)) => vec![format!("s{s}:{n}")],
+                    (Some(s), Some(n)) => vec![format!("s{}:{n}", s.as_str())],
                     _ => Vec::new(),
                 }
             }

@@ -20,6 +20,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_keys::{PartsRefused, UnlockParts};
+use faraday_text::Text;
 use faraday_vault::kdbx::keyfile::KeyFileError;
 
 /// The mark that takes a chip's or a field's content away.
@@ -112,7 +113,7 @@ pub(crate) fn parts(app: &Faraday) -> Result<UnlockParts, Bad> {
 /// A vault opened with the key file: it leaves Files, wiped as it drops.
 pub(crate) fn used(app: &mut Faraday) {
     if let Some(name) = app.vaults.state.unlock_key.take() {
-        app.inbox.retain(|i| i.name != name);
+        app.inbox.retain(|i| i.name != *name);
         app.save_boxes();
     }
     app.vaults.clear_unlock_parts();
@@ -125,7 +126,7 @@ pub(crate) fn ask(app: &mut Faraday) {
         .vaults
         .unlock_key
         .as_ref()
-        .and_then(|n| files.iter().position(|f| &f.0 == n));
+        .and_then(|n| files.iter().position(|f| f.0 == n.as_str()));
     app.vaults.state.key_pick = chosen.unwrap_or(0);
     app.vaults.state.more = None;
     app.vaults.state.key_for_create = false;
@@ -149,11 +150,11 @@ pub(crate) fn choose(app: &mut Faraday) {
     if let Some((name, _)) = files.get(app.vaults.key_pick) {
         if app.vaults.key_for_create {
             if let Some(c) = app.vaults.state.create.as_mut() {
-                c.key = super::KeyChoice::File(name.clone());
+                c.key = super::KeyChoice::File(Text::of(name));
                 c.error = None;
             }
         } else {
-            app.vaults.state.unlock_key = Some(name.clone());
+            app.vaults.state.unlock_key = Some(Text::of(name));
             app.vaults.state.unlock_error = None;
         }
     }

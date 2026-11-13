@@ -754,7 +754,7 @@ impl View<'_> {
     /// taken when it came in. Costs a hash of a file whose hash was not
     /// taken.
     pub fn vault_changed(&self) -> Option<String> {
-        self.kept(|c| self.app.vault_changed(c))
+        self.kept(|c| self.app.vault_changed(c).map(|t| String::from(t.as_str())))
     }
 
     /// Where vault file `f` stands against the last write
@@ -801,7 +801,11 @@ impl View<'_> {
     /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
     /// the first time.
     pub(crate) fn vault_key_wallet(&self, v: usize, r: usize) -> Option<String> {
-        self.kept(|c| self.app.vault_key_wallet(c, v, r))
+        self.kept(|c| {
+            self.app
+                .vault_key_wallet(c, v, r)
+                .map(|t| String::from(t.as_str()))
+        })
     }
 
     /// The keys open vaults hold that are not loaded

@@ -7,9 +7,9 @@
 
 use super::{SealSeen, SealWarn};
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{OpenVaults, RecordView, Records, Room, VaultId};
+use faraday_text::{Text, text};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{self as fv, Cost, Record};
 use std::collections::VecDeque;
@@ -807,7 +807,7 @@ impl VaultArea {
     }
 
     /// What Secure Boot's check found.
-    pub(crate) fn set_sb_checked(&mut self, line: String) {
+    pub(crate) fn set_sb_checked(&mut self, line: Text) {
         self.state.sb_checked = Some(line);
     }
 
@@ -833,7 +833,7 @@ impl VaultArea {
     pub(crate) fn rename_open(&mut self, salt: &[u8; 32], from: &str, to: &str) {
         for v in &mut self.state.open {
             if v.vault_id() == *salt && v.name == from {
-                v.name = to.to_string();
+                v.name = Text::of(to);
             }
         }
     }
@@ -901,7 +901,7 @@ pub struct Prompt {
     /// The passphrase typed again, where the prompt makes one (`pair`).
     pub again: TextBox,
     /// Why the last try failed.
-    pub error: Option<String>,
+    pub error: Option<Text>,
 }
 
 impl Prompt {
@@ -959,7 +959,7 @@ pub enum Focus {
 /// One vault file the Inbox or Outbox holds.
 pub struct VaultFile {
     /// Its file name.
-    pub name: String,
+    pub name: Text,
     /// It waits in the Outbox (made or sealed here), rather than having
     /// come from a stick.
     pub in_outbox: bool,
@@ -975,7 +975,7 @@ pub struct VaultFile {
     /// The names of the other files in Files that are known copies of
     /// this vault (their SHA-256 are among its summary's copies), which
     /// it is listed once for.
-    pub copies: Vec<String>,
+    pub copies: Vec<Text>,
 }
 
 /// A wallet in an open vault that holds some of its seeds too.
@@ -984,7 +984,7 @@ pub struct VaultWallet {
     /// The wallet's record.
     pub record: usize,
     /// Its name.
-    pub name: String,
+    pub name: Text,
     /// The records of its seeds in the same vault.
     pub keys: Vec<usize>,
     /// Signatures it needs.
@@ -1003,9 +1003,9 @@ pub struct VaultRow {
     /// Its record's place in the slot.
     pub record: usize,
     /// Its label or name.
-    pub name: String,
+    pub name: Text,
     /// A seed's fingerprint, a wallet's shape.
-    pub detail: String,
+    pub detail: Text,
     /// A seed rather than a wallet.
     pub seed: bool,
     /// The session has it already.
@@ -1023,20 +1023,20 @@ pub struct Described {
     pub policy: faraday_bip::policy::WalletPolicy,
     /// [`crate::wallet::same_wallet`] of it: what tells two descriptions
     /// of one wallet apart from another wallet's.
-    pub same: String,
+    pub same: Text,
     /// Its descriptor checksum.
-    pub checksum: String,
+    pub checksum: Text,
     /// Its shape as the session names one: "Single key", "2 of 3".
-    pub shape: String,
+    pub shape: Text,
 }
 
 impl Described {
     /// What is kept of a parsed description.
     pub(super) fn of(policy: faraday_bip::policy::WalletPolicy) -> Described {
         Described {
-            same: crate::wallet::same_wallet(&policy),
-            checksum: policy.checksum().to_string(),
-            shape: crate::vault::screen::policy_shape(policy.clone()),
+            same: Text::of(&crate::wallet::same_wallet(&policy)),
+            checksum: Text::of(policy.checksum()),
+            shape: Text::of(&crate::vault::screen::policy_shape(policy.clone())),
             policy,
         }
     }
@@ -1074,7 +1074,7 @@ pub(super) struct Read {
     past: Past,
     /// Why this computer cannot seal it now for memory
     /// ([`Vaults::seal_refusal`]); read only for a vault with changes.
-    refusal: Option<String>,
+    refusal: Option<Text>,
 }
 
 /// Whether the plaintext of a seal is past the ceiling, decided on the exact
@@ -1088,7 +1088,7 @@ pub(super) enum Past {
     /// Not known: the exact count needs a copy of the document that what is
     /// free does not hold. What memory needs, in words; nothing is past
     /// anything, trimmed or lost.
-    Short(String),
+    Short(Text),
 }
 
 /// What stops a lock's seals ([`Vaults::lock_blocks_seen`]): every vault a
@@ -1099,7 +1099,7 @@ pub struct LockBlocks {
     pub named: Vec<VaultId>,
     /// One line for each: past the ceiling, short of memory (with what it
     /// needs), or holding an item moved to another named vault.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
     /// Some named vault is past the ceiling or cannot be written: a lock
     /// that tries again cannot go on, only one that lets them go. A vault
     /// named only for an item moved to a short one does not count.
@@ -1114,7 +1114,7 @@ pub(crate) enum Stuck {
     /// The seal ran out of memory half way, with what it needed and what
     /// was free in `why`: kept, whatever free memory reads after, until the
     /// vault changes, a seal of it succeeds, or it is let go or closed.
-    Short { why: String },
+    Short { why: Text },
     /// The store gave no job to seal the vault: kept until it changes.
     Unwritable,
 }
@@ -1122,7 +1122,7 @@ pub(crate) enum Stuck {
 /// Why a seal cannot be made.
 pub(crate) struct Cannot {
     /// What stops it, in words.
-    pub(crate) why: String,
+    pub(crate) why: Text,
     /// Memory is short, the changes are not past the ceiling: the vault stays
     /// open with its changes and a lock loses nothing.
     pub(crate) short: bool,
@@ -1138,7 +1138,7 @@ impl Vaults {
 
     /// Costs what [`Vaults::words_id`] costs. The label of the open vault
     /// with a key record of the words whose id is `id`, from any list.
-    pub(crate) fn words_vault(&self, c: &Compute, id: &[u8; 32]) -> Option<String> {
+    pub(crate) fn words_vault(&self, c: &Compute, id: &[u8; 32]) -> Option<Text> {
         self.open.iter().find_map(|v| {
             let mut keys = self.records(v.id).of(kind::KEY);
             keys.any(|(i, _)| self.words_id(c, v.id, i) == Some(id))
@@ -1149,7 +1149,7 @@ impl Vaults {
     /// The label of the open vault holding a key record whose id
     /// ([`faraday_keys::vault::key_record_id`]) is `id`: where a key of a
     /// master seed (codex32, SLIP-39) is kept. A hash per key record.
-    pub(crate) fn seed_vault(&self, id: [u8; 32]) -> Option<String> {
+    pub(crate) fn seed_vault(&self, id: [u8; 32]) -> Option<Text> {
         self.open.iter().find_map(|v| {
             let mut keys = self.records(v.id).of(kind::KEY);
             keys.any(|(_, r)| faraday_keys::vault::key_record_id(r) == Some(id))
@@ -1238,7 +1238,7 @@ impl Vaults {
     /// they do not fit, a document write (through `used`). Why `records`
     /// do not fit open vault `id`: the bytes they take and the room left
     /// under the ceiling; None when they fit.
-    pub(crate) fn no_room(&self, c: &Compute, id: VaultId, records: &[Record]) -> Option<String> {
+    pub(crate) fn no_room(&self, c: &Compute, id: VaultId, records: &[Record]) -> Option<Text> {
         let refs: Vec<&Record> = records.iter().collect();
         match self.store.fit(c, id, &[], &refs) {
             Room::Fits => return None,
@@ -1246,8 +1246,11 @@ impl Vaults {
             Room::Full => {}
         }
         let room = self.slot_limit(id).saturating_sub(self.records(id).used(c));
-        let need = records.iter().map(|r| r.size()).sum::<usize>().to_string();
-        Some(fill(EN.vaults_those_entries, &[&need, &room.to_string()]))
+        let need = Text::num(records.iter().map(|r| r.size()).sum::<usize>() as u64);
+        Some(Text::fill(
+            EN.vaults_those_entries,
+            &[&need, &Text::num(room as u64)],
+        ))
     }
 
     /// The most plaintext a seal of open vault `id` may take: the ceiling
@@ -1277,7 +1280,7 @@ impl Vaults {
     /// bytes, or the whole seal where that needs more, against what is free
     /// now. "Needs 1.6 GiB. This computer has 1 GiB free."  Reads the costs
     /// the vault has kept.
-    pub(crate) fn short_text(&self, id: VaultId, len: usize) -> String {
+    pub(crate) fn short_text(&self, id: VaultId, len: usize) -> Text {
         let free = self
             .memory_reader
             .map_or(self.memory_free_mib, |read| read())
@@ -1290,7 +1293,7 @@ impl Vaults {
             }),
             _ => 0,
         };
-        fill(
+        Text::fill(
             EN.vaults_needs_this_computer,
             &[&mib_text(need.max(copy_need_mib(len))), &mib_text(free)],
         )
@@ -1341,20 +1344,23 @@ impl Vaults {
         let why = if past == usize::MAX {
             // The store reads a vault it cannot write as full: it is not
             // a number of bytes over.
-            fill(EN.vault_lock_unwritable, &[&v.name])
+            Text::fill(EN.vault_lock_unwritable, &[&v.name])
         } else {
             let slot = self.slot_limit(v.id);
             if past <= slot {
                 return None;
             }
-            fill(EN.vault_cannot_seal, &[&v.name, &(past - slot).to_string()])
+            Text::fill(
+                EN.vault_cannot_seal,
+                &[&v.name, &Text::num((past - slot) as u64)],
+            )
         };
         Some(Cannot { why, short: false })
     }
 
     /// Costs what [`Vaults::cannot_seal`] costs, for each open vault. Why
     /// the first open vault that cannot be sealed cannot be. Reads only.
-    pub fn seal_blocked(&self, c: &Compute) -> Option<String> {
+    pub fn seal_blocked(&self, c: &Compute) -> Option<Text> {
         (0..self.open.len()).find_map(|i| self.cannot_seal(c, i).map(|n| n.why))
     }
 
@@ -1405,10 +1411,10 @@ impl Vaults {
     /// cannot be sealed and why its seal is refused for memory.
     fn lock_blocks_of(
         &self,
-        find: impl Fn(usize, &OpenVault) -> (Option<Cannot>, Option<String>),
+        find: impl Fn(usize, &OpenVault) -> (Option<Cannot>, Option<Text>),
     ) -> LockBlocks {
         let mut out = LockBlocks::default();
-        let mut lines: Vec<(VaultId, String)> = Vec::new();
+        let mut lines: Vec<(VaultId, Text)> = Vec::new();
         for (i, v) in self.open.iter().enumerate() {
             if v.changes == 0 {
                 continue;
@@ -1420,17 +1426,17 @@ impl Vaults {
                 }
                 (Some(Cannot { why: need, .. }), _) | (None, Some(need)) => {
                     out.short = true;
-                    fill(EN.vault_lock_short, &[&v.name, &need])
+                    Text::fill(EN.vault_lock_short, &[&v.name, &need])
                 }
                 // A seal that stopped part way, not found by the estimates.
                 (None, None) => match self.stuck_of(v.id) {
                     Some(Stuck::Short { why, .. }) => {
                         out.short = true;
-                        fill(EN.vault_lock_short, &[&v.name, why])
+                        Text::fill(EN.vault_lock_short, &[&v.name, why])
                     }
                     Some(Stuck::Unwritable) => {
                         out.loses = true;
-                        fill(EN.vault_lock_unwritable, &[&v.name])
+                        Text::fill(EN.vault_lock_unwritable, &[&v.name])
                     }
                     None => continue,
                 },
@@ -1453,10 +1459,10 @@ impl Vaults {
                 .into_iter()
                 .filter(|t| lines.iter().any(|(id, _)| id == t))
                 .find_map(|t| self.open.iter().find(|o| o.id == t))
-                .map_or_else(String::new, |o| o.name.clone());
+                .map_or_else(Text::new, |o| o.name.clone());
             // Not `loses`: the target it waits for is named for what stops
             // it, and where that is only memory, Lock tries again.
-            lines.push((v.id, fill(EN.vault_lock_moved, &[&v.name, &target])));
+            lines.push((v.id, Text::fill(EN.vault_lock_moved, &[&v.name, &target])));
         }
         // The open vaults' order.
         lines.sort_by_key(|(id, _)| self.open.iter().position(|o| o.id == *id));
@@ -1836,18 +1842,18 @@ pub(super) fn form_part(kind_: u8, number: u8) -> Option<faraday_keys::Part> {
 /// A key record's identity, kept once worked out: the record's id (a
 /// hash of its payload and passphrase), its fingerprint, and its master
 /// key's [`crate::wallet::master_id`].
-pub type KeyIdentity = ([u8; 32], String, [u8; 32]);
+pub type KeyIdentity = ([u8; 32], Text, [u8; 32]);
 
 /// A key record's account key at a path, kept once worked out: the
 /// record's id, the path as text, and the account key's public key and
 /// chain code.
-pub(crate) type KeyAccount = ([u8; 32], String, Option<[u8; 65]>);
+pub(crate) type KeyAccount = ([u8; 32], Text, Option<[u8; 65]>);
 
 /// One open slot of one vault: what the screens say of it. Its slot key
 /// and records are in [`Vaults::store`], under [`OpenVault::id`].
 pub struct OpenVault {
     /// The file name it came under, and goes back under.
-    pub name: String,
+    pub name: Text,
     /// Which slot of [`Vaults::store`] it is.
     pub id: VaultId,
     /// What the header and length of the file it was opened from stated,
@@ -1875,10 +1881,10 @@ pub struct OpenVault {
     /// can be edited. Kept at unlock.
     pub(super) read_only: Option<&'static str>,
     /// What the file's size says, as the head shows it: kept at unlock.
-    pub(super) size: String,
+    pub(super) size: Text,
     /// The head's line for settings other than Faraday writes, kept at
     /// unlock; empty when they are Faraday's.
-    pub(super) settings: String,
+    pub(super) settings: Text,
 }
 
 /// What an open vault keeps worked out from its records: what is read of
@@ -1894,14 +1900,13 @@ pub(super) struct Kept {
 impl OpenVault {
     /// The slot's label, or "Vault". `store` is the [`Vaults::store`] it
     /// is in.
-    pub fn label(&self, store: &OpenVaults) -> String {
+    pub fn label(&self, store: &OpenVaults) -> Text {
         store
             .records(self.id)
             .of(kind::SLOT_LABEL)
             .next()
             .and_then(|(_, r)| r.public_text(field::LABEL))
-            .unwrap_or(EN.vaults_vault)
-            .to_string()
+            .map_or_else(|| Text::of(EN.vaults_vault), Text::of)
     }
 
     /// What the header and length of the file it was opened from stated.
@@ -1968,12 +1973,12 @@ pub struct CreateForm {
     pub phrases: Vec<(TextBox, TextBox)>,
     /// For each passphrase the dice made, what they made and its bits:
     /// its strength holds while the field still holds those words.
-    pub from_dice: Vec<Option<(zeroize::Zeroizing<String>, f32, crate::fresh::roller::Sim)>>,
+    pub from_dice: Vec<Option<(Text, f32, crate::fresh::roller::Sim)>>,
     /// The passphrases are shown in the clear, not masked: a person
     /// cannot accept one on faith, only on seeing it.
     pub shown: bool,
     /// What stops the vault being made.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The key file the vault will need, if one was added.
     pub key: KeyChoice,
 }
@@ -1988,7 +1993,7 @@ pub enum KeyChoice {
     /// A key file drawn at Create.
     Make,
     /// This file in Files, read at Create.
-    File(String),
+    File(Text),
 }
 
 impl Default for CreateForm {
@@ -2147,17 +2152,17 @@ pub struct Vaults {
     /// The unlock passphrase.
     pub passphrase: TextBox,
     /// Why the last unlock failed.
-    pub unlock_error: Option<String>,
+    pub unlock_error: Option<Text>,
     /// Unlock's page is to bring a refusal or failure just said into
     /// view, once ([`crate::vault::screen`]'s small panel).
     pub unlock_follow: std::cell::Cell<bool>,
     /// The key file chosen to unlock with: its name in Files. Nothing of
     /// it is read until Unlock.
-    pub unlock_key: Option<String>,
+    pub unlock_key: Option<Text>,
     /// The YubiKey secret field, while it is shown.
     pub yubikey: Option<TextBox>,
     /// What the YubiKey secret was refused for, under its field.
-    pub secret_error: Option<String>,
+    pub secret_error: Option<Text>,
     /// The file the key file dialog has marked, by its place in the list.
     pub key_pick: usize,
     /// The key file dialog is Create a vault's: its Choose sets the form's
@@ -2170,10 +2175,10 @@ pub struct Vaults {
     pub more: Option<super::more::More>,
     /// The file of Files the open vault's pending key file was read from,
     /// by vault: it leaves Files once the seal that writes it succeeds.
-    pub key_chosen: Option<(VaultId, String)>,
+    pub key_chosen: Option<(VaultId, Text)>,
     /// The Outbox name of the `.keyx` made for a vault's pending key file,
     /// until a seal writes that key or the key is replaced or taken back.
-    pub key_outbox: Vec<(VaultId, String)>,
+    pub key_outbox: Vec<(VaultId, Text)>,
     /// Whether the unlock last tried used a key file and a YubiKey secret.
     pub unlock_tried: (bool, bool),
     /// The open vault on the contents screen.
@@ -2223,10 +2228,10 @@ pub struct Vaults {
     pub(crate) pressed_at: u64,
     /// The vault just made, by file name, until it is unlocked or the
     /// person leaves the list.
-    pub just_made: Option<String>,
+    pub just_made: Option<Text>,
     /// The wallet a vault load left out and why (name, reason), until the
     /// load's toast has told the person.
-    pub(crate) refused: Option<(String, String)>,
+    pub(crate) refused: Option<(Text, Text)>,
     /// The press being acted on, to be run again when a load it started
     /// has answered ([`crate::vault::load_job`]).
     pub(crate) acting: Option<crate::Action>,
@@ -2239,7 +2244,7 @@ pub struct Vaults {
     /// The key a load for one key record added, until its press takes it.
     pub(crate) key_added: Option<[u8; 4]>,
     /// Why the last load left a key out, as the person is told.
-    pub(crate) key_refused: Option<String>,
+    pub(crate) key_refused: Option<Text>,
     /// Where an unlock or a creation started from another flow returns.
     pub back_to: Option<Screen>,
     /// Create a vault was opened from Home: Back goes to Home, not the
@@ -2286,7 +2291,7 @@ pub struct Vaults {
     /// file replaced by a stick visit is no longer ticked. Set to its
     /// default (the only file ticked, several none) whenever the page
     /// opens.
-    pub sign_ticked: Vec<(String, [u8; 32])>,
+    pub sign_ticked: Vec<(Text, [u8; 32])>,
     /// The small text files, by SHA-256, whose text the signing page shows
     /// now: each starts hidden behind its eye, and a lock, the idle
     /// warning and leaving the page hide them again.
@@ -2306,7 +2311,7 @@ pub struct Vaults {
     /// What is typed into passphrase fields is shown in the clear.
     pub typed_shown: bool,
     /// The owner name Secure Boot keys are being made under.
-    pub sb_owner: String,
+    pub sb_owner: Text,
     /// Enrolment adds the owner's keys alone, not Microsoft's.
     pub sb_own_only: bool,
     /// The Inbox's EFI images are shown, to sign or check.
@@ -2315,7 +2320,7 @@ pub struct Vaults {
     /// then (F134), for the page; the hold checks the Inbox again.
     pub sb_sign: Option<(usize, crate::secure_boot::Checked)>,
     /// What the last check said.
-    pub sb_checked: Option<String>,
+    pub sb_checked: Option<Text>,
     /// Key fingerprints worked out for the contents screen, by the
     /// SHA-256 of the key's payload and the passphrase stored with it:
     /// deriving one takes 2048 rounds. In memory only.
@@ -2380,7 +2385,7 @@ pub struct Vaults {
     /// moved record that is one, as (target, subject): a flow dropping a
     /// place spares that record in the target, which holds it for no one
     /// else.
-    moved_subjects: Vec<(VaultId, String)>,
+    moved_subjects: Vec<(VaultId, Text)>,
     /// What the search bars hold ([`super::search`]).
     pub(super) search: super::search::Searches,
 }
@@ -2495,29 +2500,41 @@ pub(crate) struct Shown {
     pub(crate) fields: u64,
 }
 
+/// `parts` with `sep` between them.
+pub(crate) fn join_text(parts: &[Text], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(part);
+    }
+    out
+}
+
 /// Memory in MiB as a person reads it.
-pub fn mib_text(mib: u32) -> String {
+pub fn mib_text(mib: u32) -> Text {
     if mib >= 1024 {
         if mib.is_multiple_of(1024) {
-            fill(EN.vaults_gib, &[&(mib / 1024).to_string()])
+            Text::fill(EN.vaults_gib, &[&Text::num(u64::from(mib / 1024))])
         } else {
-            fill(EN.vaults_gib, &[&format!("{:.1}", f64::from(mib) / 1024.0)])
+            Text::fill(EN.vaults_gib, &[&text!("{:.1}", f64::from(mib) / 1024.0)])
         }
     } else {
-        fill(EN.vaults_mib, &[&mib.to_string()])
+        Text::fill(EN.vaults_mib, &[&Text::num(u64::from(mib))])
     }
 }
 
 /// A file size as a person reads it: [`crate::screens::size_text`].
-pub fn file_text(len: usize) -> String {
-    String::from(&*crate::screens::size_text(len as u64))
+pub fn file_text(len: usize) -> Text {
+    Text::of(&crate::screens::size_text(len as u64))
 }
 
 /// A cost as a person reads it.
-pub fn cost_text(cost: &Cost) -> String {
-    format!(
+pub fn cost_text(cost: &Cost) -> Text {
+    text!(
         "{} · {} {}",
-        mib_text(cost.memory_kib / 1024),
+        &*mib_text(cost.memory_kib / 1024),
         cost.passes,
         if cost.passes == 1 {
             EN.vaults_pass
@@ -2554,7 +2571,7 @@ impl Vaults {
 
     /// An item moved from `from` into `to` waits for `to`'s seal.
     /// `subject` is the record's identity for a backup flow, if it is one.
-    pub(crate) fn moved_add(&mut self, from: VaultId, to: VaultId, subject: Option<String>) {
+    pub(crate) fn moved_add(&mut self, from: VaultId, to: VaultId, subject: Option<Text>) {
         self.moved.push((from, to));
         if let Some(s) = subject {
             self.moved_subjects.push((to, s));
@@ -2563,7 +2580,7 @@ impl Vaults {
 
     /// The record of backup subject `subject` left vault `id` (deleted, or
     /// moved on): it is no longer one moved there.
-    pub(crate) fn moved_forget(&mut self, id: VaultId, subject: Option<String>) {
+    pub(crate) fn moved_forget(&mut self, id: VaultId, subject: Option<Text>) {
         if let Some(s) = subject {
             self.moved_subjects.retain(|(t, x)| !(*t == id && *x == s));
         }
@@ -2690,11 +2707,11 @@ impl Vaults {
     }
 
     /// "about 1.8 s", or that it is not measured yet.
-    pub fn time_text(&self, memory_mib: u32, passes: u32) -> String {
+    pub fn time_text(&self, memory_mib: u32, passes: u32) -> Text {
         match self.seconds(memory_mib, passes) {
-            Some(s) if s < 10.0 => fill(EN.vaults_about_s, &[&format!("{s:.1}")]),
-            Some(s) => fill(EN.vaults_about_s, &[&(s.round() as u64).to_string()]),
-            None => EN.vaults_not_measured.to_string(),
+            Some(s) if s < 10.0 => Text::fill(EN.vaults_about_s, &[&text!("{s:.1}")]),
+            Some(s) => Text::fill(EN.vaults_about_s, &[&Text::num(s.round() as u64)]),
+            None => Text::of(EN.vaults_not_measured),
         }
     }
 
@@ -2728,7 +2745,7 @@ impl Vaults {
     /// memory and a file of `len` bytes, by what it has free; `None` when it
     /// does. Not knowing what it has free, it unlocks only Light's, which
     /// opens anywhere (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
-    pub(crate) fn unlock_memory_refusal(&self, cost: Cost, len: usize) -> Option<String> {
+    pub(crate) fn unlock_memory_refusal(&self, cost: Cost, len: usize) -> Option<Text> {
         let refusal = self.unlock_refusal(cost, len);
         work::refused(
             VaultAct::Unlocked,
@@ -2740,20 +2757,20 @@ impl Vaults {
 
     /// [`Vaults::unlock_memory_refusal`] without the note: a lookup, for
     /// drawing and for what a step is allowed.
-    pub(crate) fn unlock_refusal(&self, cost: Cost, len: usize) -> Option<String> {
+    pub(crate) fn unlock_refusal(&self, cost: Cost, len: usize) -> Option<Text> {
         self.open_refusal(cost.memory_kib / 1024, len)
     }
 
     /// The same test for any file of `len` bytes whose key takes
     /// `memory_mib` MiB to work out, a QR vault code's included. A lookup.
-    pub(crate) fn open_refusal(&self, memory_mib: u32, len: usize) -> Option<String> {
+    pub(crate) fn open_refusal(&self, memory_mib: u32, len: usize) -> Option<Text> {
         let need = vault_need_mib(memory_mib, len);
         match self.memory_free_mib {
-            Some(free) if need > free => Some(fill(
+            Some(free) if need > free => Some(Text::fill(
                 EN.vaults_needs_this_computer,
                 &[&mib_text(need), &mib_text(free)],
             )),
-            None if memory_mib > LIGHT_MIB => Some(fill(
+            None if memory_mib > LIGHT_MIB => Some(Text::fill(
                 EN.vaults_memory_unknown_unlock,
                 &[&mib_text(LIGHT_MIB), &mib_text(memory_mib)],
             )),
@@ -2764,7 +2781,7 @@ impl Vaults {
     /// Why open vault `id`'s next seal may not use the memory step
     /// `kib`: this computer could not unlock the file it makes, by the
     /// test Unlock applies ([`Vaults::unlock_memory_refusal`]). A lookup.
-    pub(crate) fn step_refusal(&self, id: VaultId, kib: u32) -> Option<String> {
+    pub(crate) fn step_refusal(&self, id: VaultId, kib: u32) -> Option<Text> {
         let store = self.store();
         let facts = store.facts(id)?;
         let mut cost = store.next_cost(id)?;
@@ -2785,7 +2802,7 @@ impl Vaults {
     /// where the exact count cannot be made because the memory free then does
     /// not hold the copy, the bound's figure is the one shown, and the seal
     /// is refused, never allowed.
-    pub(crate) fn seal_refusal(&self, c: &Compute, id: VaultId) -> Option<String> {
+    pub(crate) fn seal_refusal(&self, c: &Compute, id: VaultId) -> Option<Text> {
         let free = self.memory_free_mib?;
         let store = self.store();
         let cost = store.next_cost(id)?;
@@ -2812,7 +2829,7 @@ impl Vaults {
             need = need_of(exact);
         }
         (need > free).then(|| {
-            fill(
+            Text::fill(
                 EN.vaults_needs_this_computer,
                 &[&mib_text(need), &mib_text(free)],
             )
@@ -2823,7 +2840,7 @@ impl Vaults {
     /// free ([`Need::Read`]); `None` for a file that is not a vault's, and
     /// when it fits. Not knowing what it has free, a vault file of over 4
     /// MiB is not read (`docs/VAULT.md` §3.1). A lookup.
-    pub fn read_refusal(&self, is_vault: bool, size: u64) -> Option<String> {
+    pub fn read_refusal(&self, is_vault: bool, size: u64) -> Option<Text> {
         const UNKNOWN_FREE_MAX: u64 = 4 * 1024 * 1024;
         if !is_vault {
             return None;
@@ -2832,11 +2849,11 @@ impl Vaults {
             len: usize::try_from(size).unwrap_or(usize::MAX),
         });
         match self.memory_free_mib {
-            Some(free) if need > free => Some(fill(
+            Some(free) if need > free => Some(Text::fill(
                 EN.vaults_needs_this_computer,
                 &[&mib_text(need), &mib_text(free)],
             )),
-            None if size > UNKNOWN_FREE_MAX => Some(EN.visit_file_memory_unknown.to_string()),
+            None if size > UNKNOWN_FREE_MAX => Some(Text::of(EN.visit_file_memory_unknown)),
             _ => None,
         }
     }
@@ -2844,13 +2861,13 @@ impl Vaults {
     /// Why the Create form's cost is not made here, by what this computer
     /// has free; `None` when it is. Not knowing what it has free, it makes
     /// only Light's (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
-    pub(crate) fn create_memory_refusal(&self) -> Option<String> {
+    pub(crate) fn create_memory_refusal(&self) -> Option<Text> {
         let (_, mem, passes) = self.form_cost()?;
         let refusal = match self.memory_free_mib {
             Some(free) if vault_need_mib(mem, new_file_len()) > free => {
-                Some(EN.vaults_choose_a_cost.to_string())
+                Some(Text::of(EN.vaults_choose_a_cost))
             }
-            None if mem > LIGHT_MIB => Some(fill(
+            None if mem > LIGHT_MIB => Some(Text::fill(
                 EN.vaults_memory_unknown_create,
                 &[&mib_text(LIGHT_MIB)],
             )),
@@ -2893,7 +2910,7 @@ impl Vaults {
     /// those chosen, label and MiB: this computer what it has free (see
     /// `here_limit`), any other half of its memory. With none chosen,
     /// this computer.
-    pub fn weakest(&self) -> (String, u32) {
+    pub fn weakest(&self) -> (Text, u32) {
         match self.create.as_ref() {
             Some(c) => Self::weakest_of(self.here_limit(), c.not_here, &c.on),
             None => Self::weakest_of(self.here_limit(), false, &[false; 5]),
@@ -2903,12 +2920,12 @@ impl Vaults {
     /// The weakest of the machines ticked, as Create states it: `here` is
     /// what this computer gives, `not_here` drops it, `on` are the
     /// machines in `MACHINES` order. With none ticked, this computer.
-    pub fn weakest_of(here: u32, not_here: bool, on: &[bool; 5]) -> (String, u32) {
-        let here = (EN.vaults_this_computer_name.to_string(), here);
-        let mut w: Option<(String, u32)> = (!not_here).then_some(here.clone());
+    pub fn weakest_of(here: u32, not_here: bool, on: &[bool; 5]) -> (Text, u32) {
+        let here = (Text::of(EN.vaults_this_computer_name), here);
+        let mut w: Option<(Text, u32)> = (!not_here).then_some(here.clone());
         for (k, m) in MACHINES.iter().enumerate() {
             if on[k] && w.as_ref().is_none_or(|w| m.3 / 2 < w.1) {
-                w = Some((m.0.to_string(), m.3 / 2));
+                w = Some((Text::of(m.0), m.3 / 2));
             }
         }
         w.unwrap_or(here)
@@ -2923,7 +2940,7 @@ impl Vaults {
 
     /// The Memory dialog's weakest machine over its own ticks, for open
     /// vault `id`.
-    pub fn memory_weakest(&self, id: VaultId) -> (String, u32) {
+    pub fn memory_weakest(&self, id: VaultId) -> (Text, u32) {
         let t = &self.memory_ticks;
         Self::weakest_of(self.memory_here_limit(id), t.not_here, &t.on)
     }
@@ -3015,7 +3032,7 @@ pub const LABEL_MAX: usize = 64;
 /// letters, digits, hyphens and underscores, spaces made hyphens,
 /// anything else left out; `vault` when that leaves nothing, and a
 /// Windows device name (`con`, `com1`) with `-vault` after it.
-pub fn vault_stem(typed: &str) -> String {
+pub fn vault_stem(typed: &str) -> Text {
     /// Whether Windows takes a name for a device, in any case.
     fn windows_device(name: &str) -> bool {
         let n = name.as_bytes();
@@ -3029,7 +3046,7 @@ pub fn vault_stem(typed: &str) -> String {
             || numbered(b"lpt")
     }
 
-    let mut out = String::new();
+    let mut out = Text::new();
     for c in typed.trim().chars() {
         if out.chars().count() >= NAME_MAX {
             break;
@@ -3042,13 +3059,13 @@ pub fn vault_stem(typed: &str) -> String {
     }
     let out = out.trim_matches('-');
     if out.is_empty() {
-        "vault".to_string()
+        Text::of("vault")
     } else if windows_device(out) {
         // A name Windows keeps for a device (`con`, `aux`, `com1`) cannot
         // be a file's.
-        format!("{out}-vault")
+        text!("{out}-vault")
     } else {
-        out.to_string()
+        Text::of(out)
     }
 }
 
@@ -3066,11 +3083,11 @@ pub fn multiline(kind: u8, number: u8) -> bool {
 pub struct KeptWiped {
     /// Kept: one line per vault with its currency, then the files For
     /// the stick.
-    pub kept: Vec<String>,
+    pub kept: Vec<Text>,
     /// Wiped from memory, or lost at power-off: one line each, `true` for
     /// what is nowhere else, and for a key or wallet in no open vault
     /// while one is open, the Save that puts it in that vault.
-    pub wiped: Vec<(String, bool, Option<Action>)>,
+    pub wiped: Vec<(Text, bool, Option<Action>)>,
 }
 
 /// A vault file's currency (`docs/history/SIMPLIFY.md` §3.5), computed from the
@@ -3081,7 +3098,7 @@ pub enum Currency {
     NeverWritten,
     /// The last receipt that names it wrote the bytes it has now: on the
     /// stick of this label.
-    Current(String),
+    Current(Text),
     /// Open with unsaved changes, or sealed bytes that differ from the
     /// receipt's.
     Changed,
@@ -3092,12 +3109,12 @@ pub enum Currency {
 impl Currency {
     /// The line a person reads: "Never written", "On STICK · current",
     /// "Changed since written", "Unchanged".
-    pub fn line(&self) -> String {
+    pub fn line(&self) -> Text {
         match self {
-            Currency::NeverWritten => EN.vaults_never_written.to_string(),
-            Currency::Current(label) => fill(EN.vaults_on_current, &[&label.to_string()]),
-            Currency::Changed => EN.vaults_changed_since.to_string(),
-            Currency::Unchanged => EN.vaults_unchanged.to_string(),
+            Currency::NeverWritten => Text::of(EN.vaults_never_written),
+            Currency::Current(label) => Text::fill(EN.vaults_on_current, &[label]),
+            Currency::Changed => Text::of(EN.vaults_changed_since),
+            Currency::Unchanged => Text::of(EN.vaults_unchanged),
         }
     }
 }
@@ -3108,7 +3125,7 @@ impl Currency {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VaultSummary {
     /// The file it was opened from.
-    pub file: String,
+    pub file: Text,
     /// The vault's identifier: its root group's UUID in hex
     /// (`docs/VAULT.md` §7). A file has no identifier Files can read, so
     /// a file is linked to a vault by [`VaultSummary::copies`].
@@ -3118,15 +3135,15 @@ pub struct VaultSummary {
     /// is a copy of the vault when its SHA-256 is among them.
     pub copies: Vec<[u8; 32]>,
     /// The open slot's name.
-    pub name: String,
+    pub name: Text,
     /// Its wallets: name and shape.
-    pub wallets: Vec<(String, String)>,
+    pub wallets: Vec<(Text, Text)>,
     /// Its wallets' descriptor checksums, in the same order.
-    pub sums: Vec<String>,
+    pub sums: Vec<Text>,
     /// The descriptor checksums of the wallets it keeps a plan for.
-    pub planned: Vec<String>,
+    pub planned: Vec<Text>,
     /// Its keys' fingerprints.
-    pub keys: Vec<String>,
+    pub keys: Vec<Text>,
     /// Its keys' [`crate::wallet::master_id`]s, in the same order: what
     /// says a seed is one of its keys while it is locked, where the
     /// fingerprint only finds a candidate (F65). `None` for a key a
@@ -3136,7 +3153,7 @@ pub struct VaultSummary {
     pub entries: usize,
     /// Its backup maps' lines: where each place is and what it holds
     /// (record type 11, field 4).
-    pub map: Vec<String>,
+    pub map: Vec<Text>,
     /// When it was last seen open, Unix seconds, when the clock is known.
     pub seen: Option<u64>,
     /// The highest seal count seen of it since power-on
@@ -3148,60 +3165,60 @@ impl VaultSummary {
     /// The line a locked vault's row and Home's Unlock lead read under
     /// its name: "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen
     /// 14:02". `tz_min` is the device's time zone (`docs/TOTP.md` §2.3).
-    pub fn line(&self, tz_min: i16) -> String {
-        let mut parts: Vec<String> = Vec::new();
+    pub fn line(&self, tz_min: i16) -> Text {
+        let mut parts: Vec<Text> = Vec::new();
         // One or two wallets by name and the shape's first part ("2 of
         // 3", "Single key"); more, by count.
         if self.wallets.len() <= 2 {
             for (name, shape) in &self.wallets {
                 let short = shape.split(" · ").next().unwrap_or(shape);
-                parts.push(format!("{name} {short}"));
+                parts.push(text!("{} {short}", &**name));
             }
         } else {
-            parts.push(fill(
+            parts.push(Text::fill(
                 EN.vaults_wallets_n,
-                &[&self.wallets.len().to_string()],
+                &[&Text::num(self.wallets.len() as u64)],
             ));
         }
         // The same for keys: one or two by fingerprint, more by count.
         match self.keys.len() {
             0 => {}
-            1 => parts.push(fill(EN.vaults_key, &[&self.keys[0].to_string()])),
-            2 => parts.push(fill(
+            1 => parts.push(Text::fill(EN.vaults_key, &[&self.keys[0]])),
+            2 => parts.push(Text::fill(
                 EN.vaults_keys_inline,
-                &[&self.keys.join(", ").to_string()],
+                &[&join_text(&self.keys, ", ")],
             )),
-            n => parts.push(fill(EN.vaults_keys, &[&n.to_string()])),
+            n => parts.push(Text::fill(EN.vaults_keys, &[&Text::num(n as u64)])),
         }
         match self.entries {
             0 => {}
-            1 => parts.push(EN.vaults_1_entry.to_string()),
-            n => parts.push(fill(EN.vaults_entries_n, &[&n.to_string()])),
+            1 => parts.push(Text::of(EN.vaults_1_entry)),
+            n => parts.push(Text::fill(EN.vaults_entries_n, &[&Text::num(n as u64)])),
         }
         if let Some(t) = self.seen {
-            parts.push(fill(
+            parts.push(Text::fill(
                 EN.vaults_seen,
-                &[&time_of_day(local_secs(t, tz_min)).to_string()],
+                &[&time_of_day(local_secs(t, tz_min))],
             ));
         }
         if parts.is_empty() {
-            return EN.vaults_empty_line.to_string();
+            return Text::of(EN.vaults_empty_line);
         }
-        parts.join(" · ")
+        join_text(&parts, " · ")
     }
 }
 
 /// A time of day from local Unix-style seconds ([`local_secs`]), hh:mm.
-pub fn time_of_day(unix_secs: u64) -> String {
+pub fn time_of_day(unix_secs: u64) -> Text {
     let s = unix_secs % 86_400;
-    format!("{:02}:{:02}", s / 3600, (s / 60) % 60)
+    text!("{:02}:{:02}", s / 3600, (s / 60) % 60)
 }
 
 /// [`time_of_day`], with seconds: hh:mm:ss, for Settings' and Set the
 /// time's Now row.
-pub fn time_of_day_secs(unix_secs: u64) -> String {
+pub fn time_of_day_secs(unix_secs: u64) -> Text {
     let s = unix_secs % 86_400;
-    format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+    text!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
 }
 
 /// A record type 11 map line (field 4) with a leading place name
@@ -3210,17 +3227,17 @@ pub fn time_of_day_secs(unix_secs: u64) -> String {
 /// field 3 values, in place order. A line already naming the place by
 /// number, or one for a vault, files, software or an away seed, is
 /// returned unchanged.
-pub(crate) fn redact_place_name(line: &str, names: &[String]) -> String {
+pub(crate) fn redact_place_name(line: &str, names: &[Text]) -> Text {
     for (p, name) in names.iter().enumerate() {
         let name = name.trim();
         if name.is_empty() {
             continue;
         }
         if let Some(rest) = line.strip_prefix(name).and_then(|r| r.strip_prefix(':')) {
-            return fill(EN.vaults_place, &[&(p + 1).to_string(), rest]);
+            return Text::fill(EN.vaults_place, &[&Text::num(p as u64 + 1), rest]);
         }
     }
-    line.to_string()
+    Text::of(line)
 }
 
 /// A clock reading below this is not known: the Pi has no real-time
@@ -3239,10 +3256,10 @@ pub fn local_secs(unix_secs: u64, tz_min: i16) -> u64 {
 /// A time zone offset, minutes east of UTC, as `+02:00`, `-03:30` or
 /// `+00:00` (`docs/TOTP.md` §2.1 and §2.2): the sign always written, two
 /// digits each of hours and minutes.
-pub fn tz_offset_text(tz_min: i16) -> String {
+pub fn tz_offset_text(tz_min: i16) -> Text {
     let sign = if tz_min < 0 { '-' } else { '+' };
     let abs = tz_min.unsigned_abs();
-    format!("{sign}{:02}:{:02}", abs / 60, abs % 60)
+    text!("{sign}{:02}:{:02}", abs / 60, abs % 60)
 }
 
 /// `s` as a time zone offset `tz_offset_text` writes: the sign, two
@@ -3845,7 +3862,7 @@ impl Vaults {
         c: &Compute,
         network: faraday_bip::keys::Network,
         r: RecordView<'_>,
-    ) -> Option<(String, [u8; 32])> {
+    ) -> Option<(Text, [u8; 32])> {
         let id = faraday_keys::vault::key_record_id(r)?;
         self.kept_identity(id, || faraday_keys::vault::key_identity(c, network, r))
     }
@@ -3866,7 +3883,7 @@ impl Vaults {
         c: &Compute,
         network: faraday_bip::keys::Network,
         r: RecordView<'_>,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         self.key_identity(c, network, r).map(|(fp, _)| fp)
     }
 
@@ -3876,12 +3893,12 @@ impl Vaults {
         &self,
         id: [u8; 32],
         work: impl FnOnce() -> Option<(faraday_bip::keys::Fingerprint, [u8; 32])>,
-    ) -> Option<(String, [u8; 32])> {
+    ) -> Option<(Text, [u8; 32])> {
         if let Some((_, fp, mid)) = self.fingerprints.borrow().iter().find(|(k, ..)| *k == id) {
             return Some((fp.clone(), *mid));
         }
         let (fingerprint, mid) = work()?;
-        let fp = crate::wallet::fp_text(fingerprint);
+        let fp = Text::of(&crate::wallet::fp_text(fingerprint));
         let mut kept = self.fingerprints.borrow_mut();
         if kept.len() >= FINGERPRINTS_KEPT {
             kept.remove(0);
@@ -3912,10 +3929,10 @@ impl Vaults {
                 continue;
             }
             let loaded =
-                described.is_some_and(|d| session.wallets.iter().any(|w| w.same() == d.same));
+                described.is_some_and(|d| session.wallets.iter().any(|w| w.same() == &*d.same));
             rows.push(VaultRow {
                 record: i,
-                name: wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
+                name: Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet)),
                 detail: described.map(|d| d.shape.clone()).unwrap_or_default(),
                 seed: false,
                 loaded,
@@ -3929,14 +3946,14 @@ impl Vaults {
             let loaded = session
                 .keys
                 .all()
-                .any(|k| crate::wallet::fp_text(k.fingerprint) == fp);
+                .any(|k| crate::wallet::fp_text(k.fingerprint) == *fp);
             rows.push(VaultRow {
                 record: i,
                 name: r
                     .public_text(field::KEY_LABEL)
-                    .map(str::to_string)
-                    .or_else(|| crate::bip85::record_child_mark(r).map(|t| String::from(&*t)))
-                    .unwrap_or_else(|| EN.vaults_seed.to_string()),
+                    .map(Text::of)
+                    .or_else(|| crate::bip85::record_child_mark(r))
+                    .unwrap_or_else(|| Text::of(EN.vaults_seed)),
                 detail: fp,
                 seed: true,
                 loaded,
@@ -3953,13 +3970,13 @@ impl Vaults {
         &self,
         c: &Compute,
         session: &crate::wallet::Session,
-    ) -> (Vec<String>, Vec<String>) {
-        let held_wallets: Vec<String> = self
+    ) -> (Vec<Text>, Vec<Text>) {
+        let held_wallets: Vec<Text> = self
             .open
             .iter()
             .flat_map(|v| {
                 self.described_of(c, v.id, kind::WALLET)
-                    .map(|(_, _, d)| d.policy.to_descriptor())
+                    .map(|(_, _, d)| Text::of(&d.policy.to_descriptor()))
             })
             .collect();
         let keys = session
@@ -3967,13 +3984,13 @@ impl Vaults {
             .all()
             .enumerate()
             .filter(|(i, _)| !self.store().holds_session_words(c, &session.keys, *i))
-            .map(|(_, k)| String::from(&*k.label))
+            .map(|(_, k)| Text::of(&k.label))
             .collect();
         let wallets = session
             .wallets
             .iter()
-            .filter(|w| !held_wallets.contains(&w.policy().to_descriptor()))
-            .map(|w| w.name.clone())
+            .filter(|w| !held_wallets.contains(&Text::of(&w.policy().to_descriptor())))
+            .map(|w| Text::of(&w.name))
             .collect();
         (keys, wallets)
     }
@@ -3987,7 +4004,7 @@ impl Vaults {
         c: &Compute,
         session: &crate::wallet::Session,
         in_files: &dyn Fn(&str) -> bool,
-        wiped: &mut Vec<(String, bool, Option<Action>)>,
+        wiped: &mut Vec<(Text, bool, Option<Action>)>,
     ) {
         let in_vault = |descriptor: &str| {
             self.open.iter().find_map(|v| {
@@ -4002,33 +4019,36 @@ impl Vaults {
             let save =
                 (can_save && vault.is_none()).then_some(Action::Vault(VaultAction::SaveWallet(i)));
             let (state, nowhere) = match vault {
-                Some(v) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
-                None if in_files(&w.source) => (EN.vaults_in_files.to_string(), false),
-                None => (EN.vaults_nowhere_else.to_string(), true),
+                Some(v) => (Text::fill(EN.vaults_kept_in_vault, &[&v]), false),
+                None if in_files(&w.source) => (Text::of(EN.vaults_in_files), false),
+                None => (Text::of(EN.vaults_nowhere_else), true),
             };
-            wiped.push((format!("{} · {state}", w.name), nowhere, save));
+            wiped.push((text!("{} · {}", &*w.name, &*state), nowhere, save));
         }
     }
 }
 
 /// The head's size line of a file: the size its length shows, or that
 /// another program saved it (no padding) with its length in KiB.
-pub(super) fn size_line(facts: &fv::file::Facts) -> String {
+pub(super) fn size_line(facts: &fv::file::Facts) -> Text {
     match facts.size {
-        Some(n) => fill(EN.vault_holds_up_to, &[&file_text(n)]),
-        None => fill(
+        Some(n) => Text::fill(EN.vault_holds_up_to, &[&file_text(n)]),
+        None => Text::fill(
             EN.vault_saved_by_other,
-            &[&fill(EN.vault_kib, &[&(facts.len / 1024).to_string()])],
+            &[&Text::fill(
+                EN.vault_kib,
+                &[&Text::num(facts.len as u64 / 1024)],
+            )],
         ),
     }
 }
 
 /// The head's line for settings other than Faraday writes, else empty:
 /// the version too when it is not 4.0 (`docs/VAULT.md` §7.1).
-pub(super) fn settings_line(facts: &fv::file::Facts) -> String {
+pub(super) fn settings_line(facts: &fv::file::Facts) -> Text {
     use fv::kdbx::{Cipher, Compression, Kdf};
     if !facts.other_settings() {
-        return String::new();
+        return Text::new();
     }
     let h = &facts.header;
     let cipher = match h.cipher {
@@ -4045,16 +4065,16 @@ pub(super) fn settings_line(facts: &fv::file::Facts) -> String {
     };
     // The version is named where it is what differs.
     let version = if h.minor == 0 {
-        String::new()
+        Text::new()
     } else {
-        format!(
+        text!(
             "{} / ",
-            fill(EN.vault_setting_version, &[&h.minor.to_string()])
+            &*Text::fill(EN.vault_setting_version, &[&Text::num(u64::from(h.minor))])
         )
     };
-    fill(
+    Text::fill(
         EN.vault_other_settings,
-        &[&format!("{version}{cipher} / {kdf} / {zip}")],
+        &[&text!("{}{cipher} / {kdf} / {zip}", &*version)],
     )
 }
 

@@ -175,10 +175,13 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             // By its name, with what it held when last seen open (§3.4),
             // when it was.
             let (name, line) = match app.vault_summary(f) {
-                Some(s) => (s.name.clone(), s.line(app.tz_min())),
+                Some(s) => (
+                    String::from(s.name.as_str()),
+                    String::from(s.line(app.tz_min()).as_str()),
+                ),
                 None => (
-                    f.name.clone(),
-                    fill(EN.home_job_in_files, &[&f.name.to_string()]),
+                    String::from(f.name.as_str()),
+                    fill(EN.home_job_in_files, &[f.name.as_str()]),
                 ),
             };
             let lead = if app.stick.is_empty() {
@@ -211,7 +214,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                     EN.home_job_write_target,
                     &[&name.to_string(), app.medium.a()],
                 ),
-                crate::vault::Currency::Changed.line(),
+                String::from(crate::vault::Currency::Changed.line().as_str()),
                 Action::Nav(Screen::Files),
                 true,
             ),

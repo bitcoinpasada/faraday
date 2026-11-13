@@ -66,7 +66,7 @@ fn memory_unknown_a_vault_above_light_is_not_unlocked_and_says_why() {
     try_unlock(&mut app, "big.kdbx");
     assert!(app.vaults().open.is_empty(), "unlocked with memory unknown");
     let e = app.vaults().unlock_error.clone().unwrap_or_default();
-    assert!(e.starts_with(UNKNOWN), "{e}");
+    assert!(e.starts_with(UNKNOWN), "{}", e.as_str());
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn memory_unknown_a_vault_above_light_is_not_made_and_light_is_offered() {
         .as_ref()
         .and_then(|c| c.error.clone())
         .unwrap_or_default();
-    assert!(e.starts_with(UNKNOWN), "{e}");
+    assert!(e.starts_with(UNKNOWN), "{}", e.as_str());
     assert_eq!(
         app.vaults().suggested(),
         0,

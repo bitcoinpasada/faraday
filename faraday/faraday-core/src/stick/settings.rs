@@ -259,7 +259,7 @@ impl Settings {
             self.qr_frame_ms,
             self.idle_lock_min,
             self.idle_off_min,
-            crate::vault::tz_offset_text(self.tz_min),
+            crate::vault::tz_offset_text(self.tz_min).as_str(),
         )
     }
 

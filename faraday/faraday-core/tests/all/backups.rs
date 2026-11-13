@@ -215,7 +215,7 @@ fn answer_writes(app: &mut Faraday) {
 #[test]
 fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     let mut app = backed_up(2);
-    let file = app.vault_files()[0].name.clone();
+    let file = String::from(app.vault_files()[0].name.as_str());
     let before = line(&lines(&mut app), "Vault").state.clone();
     assert_eq!(before, format!("{file} · for the stick"));
 
@@ -270,7 +270,7 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveKey(1)));
-    let file = app.vault_files()[0].name.clone();
+    let file = String::from(app.vault_files()[0].name.as_str());
     crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
@@ -297,9 +297,17 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     // gone from the summary.
     faraday_core::testkit::change_vault_summaries(&mut app, |summaries| {
         let s = &mut summaries[0];
-        let i1 = s.keys.iter().position(|k| *k == fp1).expect("test key 1");
-        let i2 = s.keys.iter().position(|k| *k == fp2).expect("test key 2");
-        s.keys[i2] = fp1.clone();
+        let i1 = s
+            .keys
+            .iter()
+            .position(|k| k.as_str() == fp1)
+            .expect("test key 1");
+        let i2 = s
+            .keys
+            .iter()
+            .position(|k| k.as_str() == fp2)
+            .expect("test key 2");
+        s.keys[i2] = faraday_text::Text::of(&fp1);
         s.keys.remove(i1);
         s.ids.remove(i1);
     });
@@ -340,7 +348,7 @@ fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
 #[test]
 fn the_wallet_card_of_a_backed_up_wallet_says_where_its_backup_is() {
     let mut app = backed_up(2);
-    let file = app.vault_files()[0].name.clone();
+    let file = String::from(app.vault_files()[0].name.as_str());
     app.press(Action::Nav(Screen::Wallets));
     let texts = app.drawn_texts();
     let want = format!("Backup: paper ×2 checked · {file} · for the stick");

@@ -18,6 +18,7 @@ use crate::wallet::{Session, fp_text, key_line};
 use std::collections::{BTreeMap, BTreeSet};
 
 use faraday_bip::keys::Fingerprint;
+use faraday_text::Text;
 
 /// The sheet's state while it is up.
 #[derive(Debug, Clone)]
@@ -215,7 +216,7 @@ impl super::Vaults {
                 let Some(fp) = self.key_fingerprint(c, session.network(), r) else {
                     continue;
                 };
-                let loaded = session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
+                let loaded = session.keys.all().any(|k| fp_text(k.fingerprint) == *fp);
                 if loaded || self.key_wallet(c, session.network(), v, i).is_some() {
                     continue;
                 }
@@ -223,8 +224,8 @@ impl super::Vaults {
                 out.push(PassSeed {
                     vault: v,
                     record: i,
-                    vault_name: open.label(self.store()),
-                    line: fp_of(&fp).map_or_else(|| fp.clone(), |f| key_line(f, label)),
+                    vault_name: open.label(self.store()).as_str().into(),
+                    line: fp_of(&fp).map_or_else(|| fp.as_str().into(), |f| key_line(f, label)),
                 });
             }
         }
@@ -234,7 +235,7 @@ impl super::Vaults {
     /// The open vault the sheet is for, by its place.
     pub(crate) fn load_sheet_vault(&self) -> Option<usize> {
         let s = self.load.as_ref()?;
-        self.open.iter().position(|o| o.name == s.name)
+        self.open.iter().position(|o| *o.name == *s.name)
     }
 
     /// Costs what `key_fingerprint` and `described` cost. Works out the
@@ -253,7 +254,7 @@ impl super::Vaults {
         let Some(open) = self.open.get(v) else {
             return LoadView::default();
         };
-        let held = |fp: &str| session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
+        let held = |fp: &str| session.keys.all().any(|k| fp_text(k.fingerprint) == *fp);
         // Passphrases are looked for only where some open vault keeps one:
         // finding them parses each key's words.
         let any_passphrase = self
@@ -267,8 +268,9 @@ impl super::Vaults {
             .map(|(i, r)| {
                 (
                     i,
-                    self.key_fingerprint(c, session.network(), r),
-                    r.public_text(field::KEY_LABEL).unwrap_or("").to_string(),
+                    self.key_fingerprint(c, session.network(), r)
+                        .map(|f| f.as_str().into()),
+                    r.public_text(field::KEY_LABEL).unwrap_or("").into(),
                 )
             })
             .collect();
@@ -303,13 +305,13 @@ impl super::Vaults {
                 });
                 let loaded = self
                     .described(c, open.id, i)
-                    .is_some_and(|d| session.wallets.iter().any(|w| w.same() == d.same));
+                    .is_some_and(|d| session.wallets.iter().any(|w| w.same() == &*d.same));
                 W {
                     record: i,
                     name,
                     kind: self
                         .described(c, open.id, i)
-                        .map(|d| d.shape.clone())
+                        .map(|d| d.shape.as_str().into())
                         .unwrap_or_default(),
                     fps,
                     loaded,
@@ -464,7 +466,7 @@ impl super::VaultFile {
         open: Option<usize>,
     ) -> Self {
         Self {
-            name: it.name.clone(),
+            name: Text::of(&it.name),
             in_outbox,
             facts,
             sha: it.sha,

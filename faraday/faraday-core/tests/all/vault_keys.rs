@@ -199,7 +199,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
     }
     app.press(Action::Vault(V::LoadWithKeys(0)));
     assert_eq!(app.session.wallets.len(), 1);
-    assert_eq!(app.session.wallets[0].name, together[0].name);
+    assert_eq!(app.session.wallets[0].name, together[0].name.as_str());
 }
 
 // ---------------------------------------------------------------------

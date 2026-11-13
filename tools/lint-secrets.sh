@@ -415,6 +415,8 @@ faraday/faraday-guide/src/how.rs
 faraday/faraday-guide/src/block.rs
 faraday/faraday-core/src/wallet_backup/shown.rs
 faraday/faraday-core/src/vault/screen/secret.rs
+faraday/faraday-core/src/vault/area.rs
+faraday/faraday-core/src/vault/mod.rs
 faraday/faraday-core/src/nav/mod.rs
 faraday/faraday-core/src/fresh/roller/five.rs
 faraday/faraday-core/src/codex32/walk.rs

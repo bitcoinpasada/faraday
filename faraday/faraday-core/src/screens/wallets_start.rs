@@ -172,7 +172,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 8.0;
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            let line = fill(EN.start_is_in_files_locked, &[&files[i].name.to_string()]);
+            let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);
             y += crate::compact::screen::row(
                 ui,
                 x,
@@ -279,7 +279,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += card_h + 28.0;
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            let line = fill(EN.start_is_in_files_locked, &[&files[i].name.to_string()]);
+            let line = fill(EN.start_is_in_files_locked, &[&files[i].name]);
             ui.text_mid_as((x, y, 40.0), BODY_M, Role::OnSurfaceVariant, &line);
             let lw = ui.measure_as(BODY_M, &line);
             ui.button(

@@ -467,7 +467,7 @@ fn restore_at_make(app: &mut Faraday, from: RestoreFrom) {
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(name);
+    plan.vaults[0].file = Some(String::from(name.as_str()));
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::restoring(&c, from);
     f.plan = plan;
@@ -491,7 +491,7 @@ fn a_key_already_in_an_open_vault_is_not_saved_again() {
         type_line(&mut app, &l);
     }
     app.press(Action::Flow(F::Restore(R::Restore)));
-    let name = app.vaults().open[0].name.clone();
+    let name = String::from(app.vaults().open[0].name.as_str());
     assert!(
         has(&mut app, &format!("This key is in {name}")),
         "{:?}",

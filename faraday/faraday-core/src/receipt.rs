@@ -45,7 +45,7 @@ impl Receipt {
                 EN.heading_written_to_time,
                 &[
                     &self.label.to_string(),
-                    &vault::time_of_day(vault::local_secs(t, tz_min)).to_string(),
+                    &vault::time_of_day(vault::local_secs(t, tz_min)),
                 ],
             ),
             None => fill(EN.heading_written_to_label, &[&self.label.to_string()]),

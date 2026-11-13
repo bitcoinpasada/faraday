@@ -106,9 +106,14 @@ pub(crate) fn missing_keys_line(
     }
     let files = app.vault_files();
     let locked = files.iter().position(|f| f.open.is_none());
-    let open_names: Vec<String> = app.vaults.open.iter().map(|v| v.name.clone()).collect();
+    let open_names: Vec<String> = app
+        .vaults
+        .open
+        .iter()
+        .map(|v| String::from(v.name.as_str()))
+        .collect();
     let line = match (locked, open_names.is_empty()) {
-        (Some(i), _) => fill(EN.missing_keys_line_locked, &[&files[i].name.to_string()]),
+        (Some(i), _) => fill(EN.missing_keys_line_locked, &[&files[i].name]),
         (None, false) => fill(
             EN.missing_keys_line_not_open,
             &[&open_names.join(", ").to_string()],

@@ -10,6 +10,7 @@ use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 
 use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
@@ -455,16 +456,13 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y + 40.0,
             BODY_S,
             muted,
-            &format!("{where_} · {}", file_text(f.len)),
+            &format!("{where_} · {}", &*file_text(f.len)),
         );
         let mem = f.facts.header.cost.memory_kib / 1024;
         let cost = cost_text(&f.facts.header.cost);
         let time = fill(
             EN.vault_unlock_time_here,
-            &[&app
-                .vaults
-                .time_text(mem, f.facts.header.cost.passes)
-                .to_string()],
+            &[&app.vaults.time_text(mem, f.facts.header.cost.passes)],
         );
         ui.text_right_as((x + w - 18.0, y + 10.0, 24.0), LABEL_L, ink, &cost);
         ui.text_right_as((x + w - 18.0, y + 36.0, 24.0), BODY_S, muted, &time);
@@ -506,7 +504,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .unwrap_or_default();
-        let line = fill(EN.vault_unlocking, &[&t.to_string()]);
+        let line = fill(EN.vault_unlocking, &[&t]);
         crate::screens::working_line(ui, (x, y, w, 46.0), &line);
     } else {
         let style = Style::Primary.when(app.may_load_keys());
@@ -520,7 +518,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::Unlock),
         );
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m).to_string()]),
+            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m)]),
             None => EN.vault_this_computer_memory.to_string(),
         };
         ui.text_mid_as((x + 180.0, y, 46.0), BODY_S, muted, &free);
@@ -533,18 +531,18 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Strin
     let line = if f.open.is_some() {
         format!(
             "{where_} · {} · {}",
-            file_text(f.len),
-            cost_text(&f.facts.header.cost)
+            &*file_text(f.len),
+            &*cost_text(&f.facts.header.cost)
         )
     } else {
         match app.vault_summary(f) {
-            Some(s) => s.line(app.tz_min()),
+            Some(s) => s.line(app.tz_min()).as_str().into(),
             None => EN.vault_unlock_to_see.to_string(),
         }
     };
     // Its currency first (§3.5): never written, current on a stick, or changed since written.
     match app.currency(f) {
-        Some(c) => format!("{} · {line}", c.line()),
+        Some(c) => format!("{} · {line}", c.line().as_str()),
         None => line,
     }
 }
@@ -738,16 +736,14 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             app.medium.from_box()
         };
-        let line = ui.fit_as(BODY_S, &format!("{where_} · {}", file_text(f.len)), room);
+        let line = ui.fit_as(BODY_S, &format!("{where_} · {}", &*file_text(f.len)), room);
         ui.text_as(x + 60.0, y + 32.0, BODY_S, muted, &line);
         let mem = f.facts.header.cost.memory_kib / 1024;
         let cost = fill(
             EN.vault_here,
             &[
-                &cost_text(&f.facts.header.cost).to_string(),
-                &app.vaults
-                    .time_text(mem, f.facts.header.cost.passes)
-                    .to_string(),
+                &cost_text(&f.facts.header.cost),
+                &app.vaults.time_text(mem, f.facts.header.cost.passes),
             ],
         );
         let cost = ui.fit_as(LABEL_M, &cost, w - 24.0);
@@ -803,7 +799,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .unwrap_or_default();
-        let line = fill(EN.vault_unlocking, &[&t.to_string()]);
+        let line = fill(EN.vault_unlocking, &[&t]);
         crate::screens::working_line(ui, (x, y, w, 44.0), &line);
         y += 52.0;
     } else {
@@ -821,7 +817,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += 52.0;
         }
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m).to_string()]),
+            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m)]),
             None => EN.vault_this_computer_memory.to_string(),
         };
         y += ui.wrap_as((x, y, w), BODY_S, muted, &free) + 12.0;
@@ -952,15 +948,11 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
     let size = match app.vaults.size_row() {
         Some(r) => fill(
             EN.vault_cost_row,
-            &[
-                (SIZES[r].0),
-                &mib_text(mem).to_string(),
-                &passes.to_string(),
-            ],
+            &[(SIZES[r].0), &mib_text(mem), &passes.to_string()],
         ),
         None => fill(
             EN.vault_cost_row,
-            &[name, &mib_text(mem).to_string(), &passes.to_string()],
+            &[name, &mib_text(mem), &passes.to_string()],
         ),
     };
     let ok = (0..n).all(|i| vault::Vaults::phrase_ok(c, i));
@@ -971,13 +963,13 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
         places.join(", "),
         fill(
             EN.vault_cost_row,
-            &[name, &mib_text(mem).to_string(), &passes.to_string()],
+            &[name, &mib_text(mem), &passes.to_string()],
         ),
         {
             let line = fill(
                 EN.vault_kdbx,
                 &[
-                    &vault::vault_stem(&c.name.text).to_string(),
+                    &vault::vault_stem(&c.name.text),
                     (if ok {
                         EN.vault_match
                     } else {
@@ -999,10 +991,7 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
 /// and what it has free.
 pub(super) fn here_text(app: &View, limit: u32) -> String {
     match app.vaults.memory_free_mib {
-        Some(free) => fill(
-            EN.vault_free,
-            &[&mib_text(limit).to_string(), &mib_text(free).to_string()],
-        ),
+        Some(free) => fill(EN.vault_free, &[&mib_text(limit), &mib_text(free)]),
         None => EN.vault_memory_not_reported.to_string(),
     }
 }
@@ -1111,7 +1100,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 } else if fits {
                     (EN.vault_fits.to_string(), muted)
                 } else {
-                    (fill(EN.vault_too_large, &[&weakest.to_string()]), warn)
+                    (fill(EN.vault_too_large, &[&weakest]), warn)
                 };
                 let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
                 let color = on_selected(on, color);
@@ -1127,7 +1116,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let detail = fill(
                     EN.vault_passes_bits,
                     &[
-                        &mib_text(m).to_string(),
+                        &mib_text(m),
                         &p.to_string(),
                         &format!("{:.1}", vault::cost_bits(m, p)),
                     ],
@@ -1174,15 +1163,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
             // The unlock memory against the most the weakest machine
             // gives a vault.
-            let needs = fill(EN.vault_unlock_memory_n, &[&mib_text(mem).to_string()]);
+            let needs = fill(EN.vault_unlock_memory_n, &[&mib_text(mem)]);
             ui.text_as(x, cy, LABEL_L, ink, &needs);
             let room = w - ui.measure_as(LABEL_L, &needs) - 12.0;
             let has = ui.fit_as(
                 BODY_S,
-                &fill(
-                    EN.vault_memory_limit,
-                    &[&weakest.to_string(), &mib_text(limit).to_string()],
-                ),
+                &fill(EN.vault_memory_limit, &[&weakest, &mib_text(limit)]),
                 room,
             );
             ui.text_right_as((x + w, cy - 4.0, 24.0), BODY_S, muted, &has);
@@ -1205,7 +1191,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 muted,
                 &fill(
                     EN.vault_unlocks_in_here,
-                    &[&app.vaults.time_text(mem, passes).to_string()],
+                    &[&app.vaults.time_text(mem, passes)],
                 ),
             );
             cy += ui.advance_as(BODY_S, 22.0);
@@ -1242,14 +1228,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 ui.fill(x, cy, w, row_h, 8.0, selected_or(on, inset));
                 let edge = selected_or(on, Role::OutlineVariant);
                 ui.stroke(x, cy, w, row_h, 8.0, edge);
-                let cost = fill(
-                    EN.vault_passes,
-                    &[&mib_text(mem).to_string(), &passes.to_string()],
-                );
+                let cost = fill(EN.vault_passes, &[&mib_text(mem), &passes.to_string()]);
                 let time = match app.vaults.seconds(mem, passes) {
                     Some(_) => fill(
                         EN.vault_unlocks_in_here,
-                        &[&app.vaults.time_text(mem, passes).to_string()],
+                        &[&app.vaults.time_text(mem, passes)],
                     ),
                     None => EN.vault_unlock_time_unmeasured.to_string(),
                 };
@@ -1264,17 +1247,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     let here = match app.vaults.seconds(mem, passes) {
                         Some(_) => fill(
                             EN.vault_here,
-                            &[
-                                &cost.to_string(),
-                                &app.vaults.time_text(mem, passes).to_string(),
-                            ],
+                            &[&cost.to_string(), &app.vaults.time_text(mem, passes)],
                         ),
                         None => cost.clone(),
                     };
                     let here = ui.fit_as(BODY_S, &here, w - 28.0);
                     ui.text_as(x + 14.0, cy + 26.0, BODY_S, muted, &here);
                     if let Some(f) = short {
-                        let has = fill(EN.vault_this_computer_has, &[&mib_text(f).to_string()]);
+                        let has = fill(EN.vault_this_computer_has, &[&mib_text(f)]);
                         let has = ui.fit_as(BODY_S, &has, w - 28.0);
                         ui.text_as(x + 14.0, cy + 46.0, BODY_S, warn, &has);
                     }
@@ -1282,7 +1262,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     ui.text_as(x + 14.0, cy + 8.0, LABEL_L, ink, label);
                     ui.text_right_as((x + w - 14.0, cy + 5.0, 24.0), LABEL_L, ink, &cost);
                     let line = match short {
-                        Some(f) => fill(EN.vault_this_computer_has, &[&mib_text(f).to_string()]),
+                        Some(f) => fill(EN.vault_this_computer_has, &[&mib_text(f)]),
                         None => time,
                     };
                     let line = ui.fit_as(BODY_S, &line, w - 28.0);
@@ -1332,10 +1312,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 app.vaults.focus == Some(Focus::Name),
                 va(V::CName),
             );
-            let file = fill(
-                EN.vault_file_kdbx,
-                &[&vault::vault_stem(&c.name.text).to_string()],
-            );
+            let file = fill(EN.vault_file_kdbx, &[&vault::vault_stem(&c.name.text)]);
             if nw + 16.0 + ui.measure_as(BODY_S, &file) <= w {
                 ui.text_mid_as((x + nw + 16.0, cy, FIELD_H), BODY_S, muted, &file);
                 cy += FIELD_H + 16.0;
@@ -1605,7 +1582,7 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             let name = super::wallet_name_in(r, field::WALLET_NAME, EN.vault_wallet).into_owned();
             let mut line = app
                 .record_described(r)
-                .map_or_else(|| EN.vault_wallet.into(), |d| d.shape.clone());
+                .map_or_else(|| EN.vault_wallet.into(), |d| d.shape.as_str().into());
             if !r.loads_at_unlock() {
                 line = format!("{line} · {}", EN.vault_not_loaded_at_unlock_inline);
             }
@@ -1746,7 +1723,9 @@ pub(crate) fn key_identity(
     app: &Faraday,
     r: RecordView<'_>,
 ) -> Option<(String, [u8; 32])> {
-    app.vaults.key_identity(c, app.session.network(), r)
+    app.vaults
+        .key_identity(c, app.session.network(), r)
+        .map(|(f, m)| (f.as_str().into(), m))
 }
 
 /// Costs a parse of the words, and a PBKDF2 and two elliptic-curve
@@ -1757,6 +1736,7 @@ pub(crate) fn words_identity(c: &Compute, app: &Faraday, k: usize) -> Option<(St
     let id = app.session.keys.words_record_id(c, k)?;
     app.vaults
         .kept_identity(id, || app.session.keys.words_identity(c, k))
+        .map(|(f, m)| (f.as_str().into(), m))
 }
 
 /// Costs a PBKDF2 and a key derivation the first time for a record
@@ -1789,7 +1769,7 @@ pub(crate) fn record_is_policy_key(
         .accounts
         .borrow()
         .iter()
-        .find(|(k, p, _)| *k == id && *p == at)
+        .find(|(k, p, _)| *k == id && p.as_str() == at)
     {
         return kept.is_some_and(|b| b == want);
     }
@@ -1799,7 +1779,7 @@ pub(crate) fn record_is_policy_key(
     if kept.len() >= vault::ACCOUNTS_KEPT {
         kept.remove(0);
     }
-    kept.push((id, at, got));
+    kept.push((id, Text::of(&at), got));
     got.is_some_and(|b| b == want)
 }
 
@@ -1963,8 +1943,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += BUTTON_H + tokens::GAP;
     let sub = format!(
         "{} · {} · {}",
-        v.name,
-        cost_text(&v.facts().header.cost),
+        &*v.name,
+        &*cost_text(&v.facts().header.cost),
         v.size_text()
     );
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
@@ -2361,8 +2341,8 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += ui.advance_as(LABEL_L, 22.0);
     let sub = format!(
         "{} · {} · {}",
-        v.name,
-        cost_text(&v.facts().header.cost),
+        &*v.name,
+        &*cost_text(&v.facts().header.cost),
         v.size_text()
     );
     y += ui.wrap_as((x, y, w), BODY_S.mono(), muted, &sub) + faraday_draw::tokens::GAP_SMALL;
@@ -2419,7 +2399,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .vaults
             .open
             .iter()
-            .map(|o| o.label(app.vaults.store()))
+            .map(|o| o.label(app.vaults.store()).as_str().into())
             .collect();
         let items: Vec<(&str, Style, Action)> = labels
             .iter()

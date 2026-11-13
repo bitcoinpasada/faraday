@@ -31,10 +31,7 @@ pub(crate) fn more_ways(
     for (v, r, fp) in app.vault_seeds() {
         let name = &app.vaults.open[v].name;
         labels.push((
-            fill(
-                EN.seeds_load_from_vault,
-                &[&fp.to_string(), &name.to_string()],
-            ),
+            fill(EN.seeds_load_from_vault, &[&fp.to_string(), name]),
             Style::Secondary,
             sa(S::FromVault(v, r)),
         ));
@@ -44,7 +41,7 @@ pub(crate) fn more_ways(
         && let Some((label, a)) = app.vault_way(crate::Screen::Restore)
         && !matches!(a, Action::Vault(crate::vault::VaultAction::CreateFrom(_)))
     {
-        labels.push((label, Style::Secondary, a));
+        labels.push((String::from(label.as_str()), Style::Secondary, a));
     }
     for k in &app.session.keys {
         let f = k.fingerprint;

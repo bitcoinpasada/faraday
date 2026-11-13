@@ -560,7 +560,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     assert!(app.import().is_some());
     let error = app.vaults().unlock_error.clone().expect("no error said");
     assert!(
-        drawn(&mut app).contains(&error),
+        drawn(&mut app).contains(error.as_str()),
         "the error is not on the sheet"
     );
     // And the right one, typed again, unlocks: its Load sheet, then the

@@ -696,7 +696,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             None,
             BUTTON_H,
-            &fill(EN.restore_sources_unlock, &[&f.name.to_string()]),
+            &fill(EN.restore_sources_unlock, &[&f.name]),
             Style::Secondary,
             Action::Vault(V::OpenFrom(k, Screen::Restore)),
         ) + 8.0;
@@ -711,7 +711,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 None,
                 BUTTON_H,
-                &format!("{name} · {}", open.name),
+                &format!("{name} · {}", open.name.as_str()),
                 Style::Secondary,
                 Action::RFromVault(v, r),
             ) + 8.0;
@@ -787,7 +787,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         .filter(|(_, f)| f.open.is_none())
         .map(|(k, f)| {
             (
-                fill(EN.restore_sources_unlock, &[&f.name.to_string()]),
+                fill(EN.restore_sources_unlock, &[&f.name]),
                 Action::Vault(V::OpenFrom(k, Screen::Restore)),
             )
         })
@@ -796,7 +796,10 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         for (r, rec) in app.vaults.records(open.id).of(kind::WALLET) {
             let name =
                 crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.restore_sources_wallet);
-            labels.push((format!("{name} · {}", open.name), Action::RFromVault(v, r)));
+            labels.push((
+                format!("{name} · {}", open.name.as_str()),
+                Action::RFromVault(v, r),
+            ));
         }
     }
     if labels.is_empty() {

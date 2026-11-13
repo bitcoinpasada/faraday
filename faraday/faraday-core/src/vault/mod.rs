@@ -61,9 +61,9 @@ pub(crate) use summaries::{summaries_decode, summaries_encode};
 
 use crate::stick;
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{IntoRecord, RecordView, Room, Staged, VaultId};
+use faraday_text::{Text, text};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
 use related::SaveHold;
@@ -121,7 +121,7 @@ impl Faraday {
     /// frame is drawn (`docs/SPEED.md` §3.3).
     ///
     /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
-    pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
+    pub fn unsaved_now(&self, c: &Compute) -> (Vec<Text>, Vec<Text>) {
         self.vaults.unsaved(c, &self.session)
     }
 
@@ -141,11 +141,11 @@ impl Faraday {
         // Make a new wallet before its keys are kept anywhere ends with
         // the lock or the power-off (`docs/history/NEW-WALLET.md` §18).
         if self.lock_held(c) {
-            out.wiped.push((EN.lock_held_ends.to_string(), true, None));
+            out.wiped.push((Text::of(EN.lock_held_ends), true, None));
         }
         if power_off {
             for line in self.flows.power_lines() {
-                out.wiped.push((line, true, None));
+                out.wiped.push((Text::of(&line), true, None));
             }
         }
         for f in self.vault_files() {
@@ -157,26 +157,26 @@ impl Faraday {
             let currency = self.currency(c, &f);
             let state = currency
                 .as_ref()
-                .map_or_else(|| self.medium.from_box().to_string(), Currency::line);
-            let line = format!("{title} · {state}");
+                .map_or_else(|| Text::of(self.medium.from_box()), Currency::line);
+            let line = text!("{} · {}", &*title, &*state);
             let lost =
                 power_off && matches!(currency, Some(Currency::NeverWritten | Currency::Changed));
             // A lock with no seed to seal with loses the changes.
             let unsealed = !power_off && !self.seeded() && open.is_some_and(|v| v.changes > 0);
             if unsealed {
                 out.wiped.push((
-                    format!("{title} · {}", EN.vaults_changes_not_sealed),
+                    text!("{} · {}", &*title, EN.vaults_changes_not_sealed),
                     true,
                     None,
                 ));
             } else if lost {
-                out.wiped.push((line, true, None));
+                out.wiped.push((Text::of(&line), true, None));
             } else {
                 out.kept.push(line);
             }
         }
         let n = self.outbox.len();
-        let files = format!(
+        let files = text!(
             "{n} {} {}",
             if n == 1 {
                 EN.vaults_file
@@ -212,20 +212,21 @@ impl Faraday {
             .then_some(Action::Vault(VaultAction::SaveKey(i)));
             let copy = self.seed_copy_checked(c, k.fingerprint.0);
             let (state, nowhere) = match (vault, copy) {
-                (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
-                (Some(v), false) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
-                (None, true) => (EN.vaults_copy_checked.to_string(), false),
-                (None, false) => (EN.vaults_nowhere_else.to_string(), true),
+                (Some(v), true) => (Text::fill(EN.vaults_in_copy_checked, &[&v]), false),
+                (Some(v), false) => (Text::fill(EN.vaults_kept_in_vault, &[&v]), false),
+                (None, true) => (Text::of(EN.vaults_copy_checked), false),
+                (None, false) => (Text::of(EN.vaults_nowhere_else), true),
             };
             // A key with no name of its own goes by "Seed {fingerprint}",
             // as the backup map writes it.
             let fp = crate::wallet::fp_text(k.fingerprint);
             let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&fp) {
-                fill(EN.vaults_seed_n, &[&fp.to_string()])
+                Text::fill(EN.vaults_seed_n, &[&fp])
             } else {
-                String::from(&*k.label)
+                Text::of(&k.label)
             };
-            out.wiped.push((format!("{name} · {state}"), nowhere, save));
+            out.wiped
+                .push((text!("{} · {}", &*name, &*state), nowhere, save));
         }
         let in_files = |source: &str| {
             self.inbox
@@ -254,7 +255,7 @@ impl Faraday {
                     .iter_mut()
                     .find(|v| self.vaults.same_vault_files(v.sha, it.sha))
                 {
-                    v.copies.push(it.name.clone());
+                    v.copies.push(Text::of(&it.name));
                     continue;
                 }
                 let open = self
@@ -272,13 +273,13 @@ impl Faraday {
     /// back to `back`: Make a vault when there is no vault file, Unlock
     /// {name} when one is locked, Unlock a vault, through the list, when
     /// several are. `None` while a vault is open.
-    pub fn vault_way(&self, back: Screen) -> Option<(String, crate::Action)> {
+    pub fn vault_way(&self, back: Screen) -> Option<(Text, crate::Action)> {
         if self.vaults.open.get(self.vaults.current).is_some() {
             return None;
         }
         Some(self.vault_unlock_way(back).unwrap_or_else(|| {
             (
-                EN.vaults_make_a_vault.to_string(),
+                Text::of(EN.vaults_make_a_vault),
                 crate::Action::Vault(VaultAction::CreateFrom(back)),
             )
         }))
@@ -287,7 +288,7 @@ impl Faraday {
     /// The way to a vault already on a stick read this power-on, whether
     /// or not another is open: Unlock {name} for the one locked, Unlock a
     /// vault, through the list, for several. `None` with none locked.
-    pub fn vault_unlock_way(&self, back: Screen) -> Option<(String, crate::Action)> {
+    pub fn vault_unlock_way(&self, back: Screen) -> Option<(Text, crate::Action)> {
         let files = self.vault_files();
         let locked: Vec<usize> = (0..files.len())
             .filter(|&i| files[i].open.is_none())
@@ -295,13 +296,10 @@ impl Faraday {
         let (label, a) = match locked[..] {
             [] => return None,
             [k] => (
-                fill(EN.vaults_unlock, &[&files[k].name.to_string()]),
+                Text::fill(EN.vaults_unlock, &[&files[k].name]),
                 VaultAction::OpenFrom(k, back),
             ),
-            _ => (
-                EN.vaults_unlock_way.to_string(),
-                VaultAction::ListFrom(back),
-            ),
+            _ => (Text::of(EN.vaults_unlock_way), VaultAction::ListFrom(back)),
         };
         Some((label, crate::Action::Vault(a)))
     }
@@ -358,7 +356,7 @@ impl Faraday {
         };
         items
             .iter()
-            .find(|i| i.name == f.name)
+            .find(|i| i.name == *f.name)
             .map(|i| (i.bytes.to_vec(), i.sha))
     }
 
@@ -455,13 +453,10 @@ impl Faraday {
                 if let Some((v, i)) = found {
                     let then: load_job::Then = Box::new(move |app, k, _| {
                         if k > 0 {
-                            let name = app.vaults.open.get(v).map(|o| o.name.to_string());
-                            app.toast(&fill(
+                            let name = app.vaults.open.get(v).map(|o| o.name.duplicate());
+                            app.toast(&Text::fill(
                                 EN.vaults_loaded_note,
-                                &[
-                                    &crate::wallet::fp_text(fp).to_string(),
-                                    &name.unwrap_or_default(),
-                                ],
+                                &[&crate::wallet::fp_text(fp), &name.unwrap_or_default()],
                             ));
                         }
                     });
@@ -489,16 +484,16 @@ impl Faraday {
                         app.spend_backup_vault_loaded();
                         app.spend_backup_opened();
                     }
-                    let counts = fill(
+                    let counts = Text::fill(
                         EN.vaults_and_loaded,
                         &[
-                            &wallets.to_string(),
+                            &Text::num(wallets as u64),
                             (if wallets == 1 {
                                 EN.vaults_wallet_inline
                             } else {
                                 EN.vaults_wallets_inline
                             }),
-                            &keys.to_string(),
+                            &Text::num(keys as u64),
                             (if keys == 1 {
                                 EN.vaults_seed_inline
                             } else {
@@ -565,16 +560,16 @@ impl Faraday {
                         app.spend_backup_vault_loaded();
                         app.spend_backup_opened();
                     }
-                    let counts = fill(
+                    let counts = Text::fill(
                         EN.vaults_and_loaded,
                         &[
-                            &keys.to_string(),
+                            &Text::num(keys as u64),
                             (if keys == 1 {
                                 EN.vaults_seed_inline
                             } else {
                                 EN.vaults_seeds
                             }),
-                            &wallets.to_string(),
+                            &Text::num(wallets as u64),
                             (if wallets == 1 {
                                 EN.vaults_wallet_inline
                             } else {
@@ -892,10 +887,10 @@ impl Faraday {
         self.vaults.state.form = None;
         self.vaults.state.saving = false;
         self.screen = Screen::VaultContents;
-        self.toast(&fill(
+        self.toast(&Text::fill(
             EN.vaults_added,
             &[
-                &n.to_string(),
+                &Text::num(n as u64),
                 (if n == 1 {
                     EN.vaults_entry_inline
                 } else {
@@ -907,7 +902,7 @@ impl Faraday {
 
     /// A TOTP setup code the camera read, into a new entry's form; text of
     /// several entries, into the vault.
-    pub(crate) fn vault_scanned_entry(&mut self, text: &str) -> Result<(), String> {
+    pub(crate) fn vault_scanned_entry(&mut self, text: &str) -> Result<(), Text> {
         let t = text.trim();
         // Scanned from the codes screen (`docs/TOTP.md` §5.3): back to
         // it, with the new row in the list. Scanned from the Add… menu
@@ -951,10 +946,10 @@ impl Faraday {
                 self.vaults.changed(id);
                 self.vaults.state.category = 2;
                 self.screen = back;
-                self.toast(&fill(
+                self.toast(&Text::fill(
                     EN.vaults_added,
                     &[
-                        &n.to_string(),
+                        &Text::num(n as u64),
                         (if n == 1 {
                             EN.vaults_entry_inline
                         } else {
@@ -965,7 +960,7 @@ impl Faraday {
                 return Ok(());
             }
         }
-        Err(EN.vaults_not_a_totp_setup.to_string())
+        Err(Text::of(EN.vaults_not_a_totp_setup))
     }
 
     fn vault_prompt_go(&mut self) {
@@ -984,13 +979,13 @@ impl Faraday {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
             Purpose::Kdbx => {
                 if p.text.text.chars().count() < area::KDBX_PASSPHRASE_MIN {
-                    p.error = Some(EN.vaults_a_passphrase.to_string());
+                    p.error = Some(Text::of(EN.vaults_a_passphrase));
                 } else {
                     stretch::defer(self, Work::Kdbx);
                 }
             }
             Purpose::KeyPassphrase => {
-                let passphrase = Zeroizing::new(p.text.text.to_string());
+                let passphrase = Text::of(&p.text.text);
                 let Some(at) = self.vault_selected_index() else {
                     return;
                 };
@@ -1013,14 +1008,14 @@ impl Faraday {
                         self.vaults.state.prompt = None;
                         self.vaults.state.focus = None;
                         self.refresh_spend();
-                        self.toast(&fill(
+                        self.toast(&Text::fill(
                             EN.vaults_key_is_loaded,
-                            &[&crate::wallet::fp_text(fp).to_string()],
+                            &[&crate::wallet::fp_text(fp)],
                         ));
                     }
                     Err(e) => {
                         if let Some(p) = self.vaults.state.prompt.as_mut() {
-                            p.error = Some(String::from(&*e.text()));
+                            p.error = Some(Text::of(&e.text()));
                         }
                     }
                 }
@@ -1111,11 +1106,8 @@ impl Faraday {
     /// the Create form's warning, and which vault files a line says this
     /// computer cannot unlock. A change of the figure that shows the same
     /// text, and no line appearing, draws nothing. Lookups only.
-    fn memory_key(&self) -> (String, (u32, bool), Vec<bool>) {
-        let free = self
-            .vaults
-            .memory_free_mib
-            .map_or_else(String::new, mib_text);
+    fn memory_key(&self) -> (Text, (u32, bool), Vec<bool>) {
+        let free = self.vaults.memory_free_mib.map_or_else(Text::new, mib_text);
         let refused = self
             .vault_files()
             .iter()
@@ -1136,19 +1128,22 @@ impl Faraday {
         };
         self.vaults.state.secret_error = None;
         let mut error = if !self.may_load_keys() {
-            Some(fill(EN.vaults_remove_to_unlock, &[self.medium.noun()]))
+            Some(Text::fill(
+                EN.vaults_remove_to_unlock,
+                &[self.medium.noun()],
+            ))
         } else if self.vaults.passphrase.text.is_empty() {
-            Some(EN.vaults_type_the_passphrase.to_string())
+            Some(Text::of(EN.vaults_type_the_passphrase))
         } else {
             None
         };
         if error.is_none() {
             match unlock_keys::parts(self) {
                 Ok(_) => {}
-                Err(unlock_keys::Bad::KeyFile(e)) => error = Some(e),
+                Err(unlock_keys::Bad::KeyFile(e)) => error = Some(Text::of(&e)),
                 Err(unlock_keys::Bad::Secret(e)) => {
-                    self.vaults.state.secret_error = Some(e);
-                    error = Some(String::new());
+                    self.vaults.state.secret_error = Some(Text::of(&e));
+                    error = Some(Text::new());
                 }
             }
         }
@@ -1224,9 +1219,9 @@ impl Faraday {
         self.nonce_spend_sync();
         // The vault just made opens on its contents, empty, with what to do next.
         let made = self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
-        self.toast(&fill(
+        self.toast(&Text::fill(
             EN.vaults_unlocked,
-            &[&self.vaults.open[v].name.to_string()],
+            &[&self.vaults.open[v].name],
         ));
         // One toast for the items this build could not read.
         let id = self.vaults.open[v].id;
@@ -1234,9 +1229,12 @@ impl Faraday {
         if unread > 0 {
             let label = self.vaults.open[v].label(self.vaults.store());
             let said = if unread == 1 {
-                fill(EN.vault_not_read_toast_one, &[&label])
+                Text::fill(EN.vault_not_read_toast_one, &[&label])
             } else {
-                fill(EN.vault_not_read_toast, &[&unread.to_string(), &label])
+                Text::fill(
+                    EN.vault_not_read_toast,
+                    &[&Text::num(unread as u64), &label],
+                )
             };
             self.toast(&said);
         }
@@ -1336,14 +1334,14 @@ impl Faraday {
             _ => file,
         };
         let what = match loaded.len() {
-            1 => self.session.wallets[first].name.clone(),
-            n => fill(EN.vaults_wallets_n, &[&n.to_string()]),
+            1 => Text::of(&self.session.wallets[first].name),
+            n => Text::fill(EN.vaults_wallets_n, &[&Text::num(n as u64)]),
         };
-        let note = fill(EN.vaults_loaded_note, &[&what.to_string(), from]);
+        let note = Text::fill(EN.vaults_loaded_note, &[&what, from]);
         // A kept wallet this device cannot load follows the line, with
         // its reason.
         match self.vaults.state.refused.take() {
-            Some((w, why)) => self.toast(&fill(EN.vaults_loaded_refused, &[&note, &w, &why])),
+            Some((w, why)) => self.toast(&Text::fill(EN.vaults_loaded_refused, &[&note, &w, &why])),
             None => self.toast(&note),
         }
     }
@@ -1401,9 +1399,9 @@ impl Faraday {
             SlotOf::Vault(v, r, k) => {
                 let d = self.vaults.described(c, self.vaults.open.get(v)?.id, r)?;
                 let wallet = crate::wallet::Wallet::new(
-                    String::new(),
+                    Default::default(),
                     d.policy.clone(),
-                    String::new(),
+                    Default::default(),
                     crate::wallet::Origin::Named,
                 );
                 self.session.slots(&wallet).into_iter().nth(k)?
@@ -1420,7 +1418,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
-        let seeds: Vec<(usize, String)> = self
+        let seeds: Vec<(usize, _)> = self
             .vaults
             .records(open.id)
             .of(kind::KEY)
@@ -1431,14 +1429,14 @@ impl Faraday {
         let mut out = Vec::new();
         for (i, r, d) in self.vaults.described_of(c, open.id, kind::WALLET) {
             let policy = d.policy.clone();
-            let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
+            let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
             let wallet = crate::wallet::Wallet::new(
-                name.clone(),
+                name.as_str().into(),
                 policy,
-                String::new(),
+                Default::default(),
                 crate::wallet::Origin::Named,
             );
-            let fps: Vec<String> = wallet
+            let fps: Vec<_> = wallet
                 .policy()
                 .keys()
                 .iter()
@@ -1498,7 +1496,7 @@ impl Faraday {
         let want = described.same.clone();
         let mut set = BTreeSet::from([r]);
         if self.may_load_keys() {
-            let fps: Vec<String> = policy
+            let fps: Vec<_> = policy
                 .keys()
                 .iter()
                 .filter_map(|k| k.fingerprint())
@@ -1526,10 +1524,10 @@ impl Faraday {
         }
         let after: load_job::Then = Box::new(|app, keys, _| {
             let counts = (keys > 0).then(|| {
-                fill(
+                Text::fill(
                     EN.vaults_loaded,
                     &[
-                        &keys.to_string(),
+                        &Text::num(keys as u64),
                         (if keys == 1 {
                             EN.vaults_seed_inline
                         } else {
@@ -1546,15 +1544,15 @@ impl Faraday {
             return None;
         }
         self.vault_loaded_toast(None);
-        self.session.wallets.iter().position(|w| w.same() == want)
+        self.session.wallets.iter().position(|w| w.same() == &*want)
     }
 
     /// Shows `counts` (what a load brought in) and, after it, the wallet
     /// that load left out and why, if there was one.
-    pub(crate) fn vault_loaded_toast(&mut self, counts: Option<String>) {
+    pub(crate) fn vault_loaded_toast(&mut self, counts: Option<Text>) {
         let text = match (counts, self.vaults.state.refused.take()) {
-            (Some(n), Some((w, why))) => fill(EN.vaults_loaded_refused, &[&n, &w, &why]),
-            (None, Some((w, why))) => fill(EN.vaults_refused, &[&w, &why]),
+            (Some(n), Some((w, why))) => Text::fill(EN.vaults_loaded_refused, &[&n, &w, &why]),
+            (None, Some((w, why))) => Text::fill(EN.vaults_refused, &[&w, &why]),
             (Some(n), None) => n,
             (None, None) => return,
         };
@@ -1603,7 +1601,7 @@ impl Faraday {
             .vaults
             .load
             .as_ref()
-            .filter(|s| s.name == open.name)
+            .filter(|s| s.name == *open.name)
             .map(|s| s.choice.clone())
             .unwrap_or_default();
         let mut descs: Vec<LoadWallet> = Vec::new();
@@ -1617,7 +1615,7 @@ impl Faraday {
             if let Some(d) = self.vaults.described(c, open.id, i) {
                 descs.push((
                     d.policy.clone(),
-                    wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
+                    (&*wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet)).into(),
                 ));
             }
         }
@@ -1653,7 +1651,7 @@ impl Faraday {
                     e @ (crate::wallet::Refusal::MuSigOneSeed
                     | crate::wallet::Refusal::NotYourKey(_)),
                 ) => {
-                    self.vaults.state.refused = Some((name.clone(), String::from(&*e.text())));
+                    self.vaults.state.refused = Some((Text::of(&name), Text::of(&e.text())));
                 }
                 other => self.silent_refused(other),
             }
@@ -1708,9 +1706,9 @@ impl Faraday {
                     if keys > 0 {
                         let fp = app.session.keys.all().last().map(|k| k.fingerprint);
                         if let Some(fp) = fp {
-                            app.toast(&fill(
+                            app.toast(&Text::fill(
                                 EN.vaults_key_is_loaded,
-                                &[&crate::wallet::fp_text(fp).to_string()],
+                                &[&crate::wallet::fp_text(fp)],
                             ));
                         }
                     } else if let Some(why) = app.vaults.state.key_refused.take() {
@@ -1724,8 +1722,8 @@ impl Faraday {
                 return;
             }
             kind::WALLET => {
-                let text = r.public_text(field::WALLET).unwrap_or("").to_string();
-                let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
+                let text = Text::of(r.public_text(field::WALLET).unwrap_or(""));
+                let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
                 match self.session.add_wallet(
                     &c,
                     &name,
@@ -1831,12 +1829,12 @@ impl Faraday {
         &self,
         id: Option<VaultId>,
         why: faraday_keys::vault::NotSet,
-    ) -> String {
+    ) -> Text {
         use faraday_keys::vault::NotSet;
         match (why, id) {
-            (NotSet::Full, _) => EN.vaults_slot_too_small.to_string(),
-            (NotSet::Short(_), None) => EN.vaults_memory_short.to_string(),
-            (NotSet::Unwritable, _) => EN.vaults_cannot_write.to_string(),
+            (NotSet::Full, _) => Text::of(EN.vaults_slot_too_small),
+            (NotSet::Short(_), None) => Text::of(EN.vaults_memory_short),
+            (NotSet::Unwritable, _) => Text::of(EN.vaults_cannot_write),
             (NotSet::Short(len), Some(id)) => self.vaults.short_text(id, len),
         }
     }
@@ -1874,7 +1872,7 @@ impl Faraday {
         if form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3) {
             let reason = faraday_pgp::Reason::from_menu(self.vaults.revoke_reason)
                 .unwrap_or(faraday_pgp::Reason::Unspecified);
-            let text = form.fields[0].2.text.to_string();
+            let text = Text::of(&form.fields[0].2.text);
             self.gpg_make_revocation(reason, &text);
             return;
         }
@@ -1882,11 +1880,11 @@ impl Faraday {
             return;
         };
         if form.kind == kind::SLOT_LABEL {
-            let name = form.fields[0].2.text.trim().to_string();
+            let name = Text::of(form.fields[0].2.text.trim());
             self.vaults.edit(id, |s| {
                 s.remove_where(id, |r| r.kind() == kind::SLOT_LABEL);
                 if !name.is_empty() {
-                    let mut name: String = name.chars().take(64).collect();
+                    let mut name: Text = name.chars().take(64).collect();
                     while name.len() > 64 {
                         name.pop();
                     }
@@ -1915,7 +1913,7 @@ impl Faraday {
             .iter()
             .find(|(n, ..)| *n == field::TOTP)
             .map(|(_, _, b, _)| {
-                let mut t = Zeroizing::new(String::with_capacity(b.text.len()));
+                let mut t = Text::with_room(b.text.len());
                 t.push_str(&b.text);
                 t
             });
@@ -2005,10 +2003,10 @@ impl Faraday {
         let (record, said, category) = match it.kind {
             FileKind::Text => {
                 // A note's first line is its title.
-                let note = Zeroizing::new(format!("{stem}\n{}", text.trim_end()));
+                let note = text!("{stem}\n{}", text.trim_end());
                 (
                     Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    fill(EN.vaults_is_in_the_vault_as_a_note, &[&it.name.to_string()]),
+                    Text::fill(EN.vaults_is_in_the_vault_as_a_note, &[&it.name]),
                     3,
                 )
             }
@@ -2023,7 +2021,7 @@ impl Faraday {
                     Record::new(kind::KEY)
                         .with(field::KEY, &records::words_payload(&m))
                         .with(field::KEY_LABEL, stem.as_bytes()),
-                    fill(EN.vaults_file_added_as_key, &[&it.name.to_string()]),
+                    Text::fill(EN.vaults_file_added_as_key, &[&it.name]),
                     0,
                 )
             }
@@ -2031,7 +2029,7 @@ impl Faraday {
                 Record::new(kind::WALLET)
                     .with(field::WALLET, text.trim().as_bytes())
                     .with(field::WALLET_NAME, stem.as_bytes()),
-                fill(EN.vaults_is_in_the_vault_as, &[&it.name.to_string()]),
+                Text::fill(EN.vaults_is_in_the_vault_as, &[&it.name]),
                 1,
             ),
             _ => return,
@@ -2045,10 +2043,7 @@ impl Faraday {
 
     fn vault_save_key_with(&mut self, k: usize, with_passphrase: bool, without: &[u8]) {
         if let Some((record, label)) = self.key_record(k, with_passphrase, without) {
-            self.vault_push(
-                record,
-                &fill(EN.vaults_is_in_the_vault, &[&label.to_string()]),
-            );
+            self.vault_push(record, &Text::fill(EN.vaults_is_in_the_vault, &[&label]));
         }
     }
 
@@ -2062,7 +2057,7 @@ impl Faraday {
         k: usize,
         with_passphrase: bool,
         without: &[u8],
-    ) -> Option<(faraday_keys::Held<Record>, String)> {
+    ) -> Option<(faraday_keys::Held<Record>, Text)> {
         let c = self.compute();
         let key = self.session.keys.info(k)?;
         if !key.has_words() && !self.session.keys.holds_seed_bytes(k) {
@@ -2086,7 +2081,7 @@ impl Faraday {
             without,
             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
         )?;
-        Some((record, String::from(&*label)))
+        Some((record, Text::of(&label)))
     }
 
     fn vault_save_wallet(&mut self, k: usize) {
@@ -2096,17 +2091,14 @@ impl Faraday {
         // A silent payments wallet is its record: it has no descriptor
         // that reads back as it.
         let text = match w.policy().silent() {
-            Some(s) => s.to_text(),
-            None => w.policy().to_descriptor_checksummed(),
+            Some(s) => Text::of(&s.to_text()),
+            None => Text::of(&w.policy().to_descriptor_checksummed()),
         };
         let record = Record::new(kind::WALLET)
             .with(field::WALLET, text.as_bytes())
             .with(field::WALLET_NAME, w.name.as_bytes());
         let name = w.name.clone();
-        self.vault_push(
-            record,
-            &fill(EN.vaults_is_in_the_vault, &[&name.to_string()]),
-        );
+        self.vault_push(record, &Text::fill(EN.vaults_is_in_the_vault, &[&name]));
     }
 
     pub(crate) fn vault_push(&mut self, record: impl IntoRecord, said: &str) {
@@ -2141,17 +2133,17 @@ impl Faraday {
         id: VaultId,
         remove: &[usize],
         add: &[&R],
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let store = self.vaults.store();
         match store.fit(c, id, remove, add) {
             Room::Fits => None,
             Room::Short(len) => Some(self.vaults.short_text(id, len)),
-            Room::Full if store.read_only(id).is_some() => Some(EN.vaults_cannot_write.to_string()),
+            Room::Full if store.read_only(id).is_some() => Some(Text::of(EN.vaults_cannot_write)),
             // One more count, which memory may now be short for: never
             // said full for it.
             Room::Full => match store.records(id).counted(c) {
-                Some(usize::MAX) => Some(EN.vaults_cannot_write.to_string()),
-                Some(_) => Some(EN.vaults_slot_too_small.to_string()),
+                Some(usize::MAX) => Some(Text::of(EN.vaults_cannot_write)),
+                Some(_) => Some(Text::of(EN.vaults_slot_too_small)),
                 None => Some(
                     self.vaults
                         .short_text(id, store.held(id).map_or(0, |h| h.0)),
@@ -2198,12 +2190,12 @@ impl Faraday {
 
     /// What refuses Create as it stands: the step it opens (if any) and
     /// the line it shows. `None` when Create goes on to make the vault.
-    pub(crate) fn create_refusal(&self) -> Option<(Option<u8>, String)> {
+    pub(crate) fn create_refusal(&self) -> Option<(Option<u8>, Text)> {
         let c = self.vaults.state.create.as_ref()?;
         if !self.stick.is_empty() {
             return Some((
                 None,
-                fill(EN.vaults_remove_the_first, &[self.medium.noun()]),
+                Text::fill(EN.vaults_remove_the_first, &[self.medium.noun()]),
             ));
         }
         if let Some(n) = c
@@ -2211,24 +2203,24 @@ impl Faraday {
             .iter()
             .position(|&i| !c.done[i as usize] && i != vstep::PHRASES)
         {
-            let text = fill(EN.vaults_finish_step, &[&(n + 1).to_string()]);
+            let text = Text::fill(EN.vaults_finish_step, &[&Text::num(n as u64 + 1)]);
             return Some((Some(c.steps()[n]), text));
         }
         if c.phrases.iter().any(|(a, _)| a.text.is_empty()) {
-            return Some((Some(vstep::PHRASES), EN.vaults_every_passphrase.to_string()));
+            return Some((Some(vstep::PHRASES), Text::of(EN.vaults_every_passphrase)));
         }
         if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
-            return Some((Some(vstep::PHRASES), EN.vaults_each_passphrase.to_string()));
+            return Some((Some(vstep::PHRASES), Text::of(EN.vaults_each_passphrase)));
         }
         // A chosen key file is read here, on the press, never in drawing.
         if let Err(e) = create_key::chosen(self) {
-            return Some((None, e));
+            return Some((None, Text::of(&e)));
         }
         self.vaults.create_memory_refusal().map(|t| (None, t))
     }
 
     /// `stem.kdbx`, or the first `stem-n.kdbx` no box holds.
-    pub(crate) fn free_vault_name(&self, stem: &str) -> String {
+    pub(crate) fn free_vault_name(&self, stem: &str) -> Text {
         // A name is taken by a file of it or by its key file's name, so a
         // made key file never stands in for another one.
         let held = |n: &str| {
@@ -2238,15 +2230,15 @@ impl Faraday {
                 .any(|i| i.name.eq_ignore_ascii_case(n))
         };
         let taken =
-            |n: &str| held(n) || held(&format!("{}.keyx", n.strip_suffix(".kdbx").unwrap_or(n)));
-        let first = format!("{stem}.kdbx");
+            |n: &str| held(n) || held(&text!("{}.keyx", n.strip_suffix(".kdbx").unwrap_or(n)));
+        let first = text!("{stem}.kdbx");
         if !taken(&first) {
             return first;
         }
         (2..100)
-            .map(|n| format!("{stem}-{n}.kdbx"))
+            .map(|n| text!("{stem}-{n}.kdbx"))
             .find(|n| !taken(n))
-            .unwrap_or_else(|| format!("{stem}-100.kdbx"))
+            .unwrap_or_else(|| text!("{stem}-100.kdbx"))
     }
 
     /// Whether a lock would lose an open vault's changes: the session's
@@ -2507,10 +2499,10 @@ impl Faraday {
                 };
                 let same = boxes
                     .iter()
-                    .find(|i| i.name == f.name)
+                    .find(|i| i.name == *f.name)
                     .is_some_and(|i| r.holds(&i.name, &i.hash(c)));
                 Some(if same && !changed {
-                    Currency::Current(r.label.clone())
+                    Currency::Current(Text::of(&r.label))
                 } else {
                     Currency::Changed
                 })
@@ -2521,20 +2513,20 @@ impl Faraday {
             // from, as it is, when that stick is known.
             // A vault file's hash was taken when it came in
             // ([`crate::Item::sha`]): drawing asks this on every frame.
-            None if !self.visit.vault_from().iter().any(|(n, ..)| *n == f.name) => {
+            None if !self.visit.vault_from().iter().any(|(n, ..)| *n == *f.name) => {
                 Some(Currency::Unchanged)
             }
             None => {
                 let hash = self
                     .inbox
                     .iter()
-                    .find(|i| i.name == f.name)
+                    .find(|i| i.name == *f.name)
                     .map(|i| i.hash(c));
                 Some(
                     self.visit
-                        .vault_from_find(|(n, h, _)| *n == f.name && Some(*h) == hash)
+                        .vault_from_find(|(n, h, _)| *n == *f.name && Some(*h) == hash)
                         .map_or(Currency::Unchanged, |(.., label)| {
-                            Currency::Current(label.clone())
+                            Currency::Current(Text::of(label))
                         }),
                 )
             }
@@ -2544,7 +2536,7 @@ impl Faraday {
     /// Costs a hash of a whole file (through `currency`). The first vault
     /// changed since it was written, by the name it goes by: Home's lead
     /// rule 6 and the session strip's Write out.
-    pub fn vault_changed(&self, c: &Compute) -> Option<String> {
+    pub fn vault_changed(&self, c: &Compute) -> Option<Text> {
         self.vault_files().iter().find_map(|f| {
             (self.currency(c, f) == Some(Currency::Changed)).then(|| {
                 f.open
@@ -2662,10 +2654,10 @@ impl Faraday {
 
 /// Glue of the vault's GPG keys (`crate::gpg`).
 impl Faraday {
-    fn clock(&self) -> Result<u32, String> {
+    fn clock(&self) -> Result<u32, Text> {
         self.clock_now()
             .map(|t| t as u32)
-            .ok_or_else(|| EN.gpg_this_computer_s.to_string())
+            .ok_or_else(|| Text::of(EN.gpg_this_computer_s))
     }
 
     /// The GPG key selected in the open vault: its vault, its record's
@@ -2704,20 +2696,20 @@ impl Faraday {
     /// expiry. The record every vault of the plan takes and the public
     /// certificate For the stick; the revocation certificate, as GnuPG 2.1
     /// and later do, is kept with the key.
-    pub(crate) fn gpg_build(&mut self, name: &str, email: &str) -> Result<Built, String> {
+    pub(crate) fn gpg_build(&mut self, name: &str, email: &str) -> Result<Built, Text> {
         let now = self.clock()?;
         // `gpg --quick-generate-key` takes one string, trims it, and
         // refuses only an empty one ("Invalid user ID"); it checks no
         // address and no length.
         let uid = match (name.trim(), email.trim()) {
-            ("", "") => return Err(EN.gpg_a_key_needs_a_name.to_string()),
+            ("", "") => return Err(Text::of(EN.gpg_a_key_needs_a_name)),
             (n, "") => faraday_text::Text::of(n),
             ("", e) => faraday_text::text!("<{e}>"),
             (n, e) => faraday_text::text!("{n} <{e}>"),
         };
         let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
         else {
-            return Err(EN.no_randomness.to_string());
+            return Err(Text::of(EN.no_randomness));
         };
         let primary = Zeroizing::new(primary);
         let subkey = Zeroizing::new(subkey);
@@ -2733,12 +2725,12 @@ impl Faraday {
             record: made.key,
             subject: made.facts.fingerprint.to_vec(),
             name: if name.trim().is_empty() {
-                String::from(&*uid)
+                uid.as_str().into()
             } else {
-                name.trim().to_string()
+                name.trim().into()
             },
             outbox: vec![(
-                format!("{stem}.asc"),
+                text!("{stem}.asc").as_str().into(),
                 armor(Armor::PublicKey, &made.certificate)
                     .as_bytes()
                     .to_vec(),
@@ -2787,7 +2779,7 @@ impl Faraday {
     }
 
     /// The selected key's public certificate, armoured, with the key.
-    fn gpg_certificate(&self) -> Option<(Facts, String)> {
+    fn gpg_certificate(&self) -> Option<(Facts, Text)> {
         let (id, at, key) = self.gpg_selected()?;
         let r = self.gpg_record(id, at)?;
         let cert = match r.public(f::CERTIFICATE) {
@@ -2799,7 +2791,7 @@ impl Faraday {
                 None,
             )?,
         };
-        Some((key, String::from(&*armor(Armor::PublicKey, &cert))))
+        Some((key, Text::of(&armor(Armor::PublicKey, &cert))))
     }
 
     /// The selected key's public certificate to the Outbox.
@@ -2807,76 +2799,76 @@ impl Faraday {
         let Some((key, text)) = self.gpg_certificate() else {
             return;
         };
-        let name = format!("{}.asc", gpg::file_stem(&key));
-        if self.put_unless_taken(&name, text.into_bytes(), |i| {
+        let name = text!("{}.asc", gpg::file_stem(&key));
+        if self.put_unless_taken(&name, text.as_bytes().to_vec(), |i| {
             faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
         }) {
             self.toast_out(&name);
         } else {
-            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
+            self.toast(&Text::fill(EN.gpg_exists, &[&name]));
         }
     }
 
     /// Costs what `gpg_files` and `text` cost and a file's hash: the QR view of the selected
     /// key's certificate or its signature over an Inbox file, with its picture's name and label.
-    pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
+    pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, Text> {
         use crate::Code;
-        let (id, at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
+        let (id, at, key) = self
+            .gpg_selected()
+            .ok_or_else(|| Text::of(EN.gpg_no_gpg_key_is_selected))?;
         let stem = gpg::file_stem(&key);
-        let fp = fill(
+        let fp = Text::fill(
             EN.gpg_fingerprint,
             &[&*faraday_pgp::fingerprint_text(&key.fingerprint)],
         );
-        let who = key
-            .user_ids
-            .first()
-            .map_or_else(String::new, |u| String::from(&**u));
+        let who = key.user_ids.first().map_or_else(Text::new, |u| Text::of(u));
         let (title, text, name, lines) = match code {
             Code::GpgKey => {
                 let (_, text) = self
                     .gpg_certificate()
-                    .ok_or(EN.gpg_no_gpg_key_is_selected)?;
+                    .ok_or_else(|| Text::of(EN.gpg_no_gpg_key_is_selected))?;
                 (
-                    EN.gpg_gpg_public_key.to_string(),
+                    Text::of(EN.gpg_gpg_public_key),
                     text,
-                    format!("{stem}.png"),
-                    vec![who, fp, EN.gpg_public_checks_signatures.to_string()],
+                    text!("{stem}.png"),
+                    vec![who, fp, Text::of(EN.gpg_public_checks_signatures)],
                 )
             }
             Code::GpgSignature(prefix) => {
                 // A key that waits for its backup signs nothing, a code of a
                 // signature included (`docs/BACKUP-FLOW.md` §8).
                 if self.selected_waits().is_some() {
-                    return Err(EN.backup_flow_first.to_string());
+                    return Err(Text::of(EN.backup_flow_first));
                 }
                 let now = self.clock()?;
-                gpg::usable(&key, self.gpg_record(id, at).and_then(gpg::revoked_at), now)?;
+                gpg::usable(&key, self.gpg_record(id, at).and_then(gpg::revoked_at), now)
+                    .map_err(|e| Text::of(&e))?;
                 let item = self
                     .gpg_files(c)
                     .into_iter()
                     .find(|f| f.hash[..8] == prefix)
                     .and_then(|f| self.inbox.get(f.index))
                     .filter(|i| crate::sha256_of(c, &i.bytes)[..8] == prefix) // hashed again
-                    .ok_or(EN.gpg_file_gone)?;
+                    .ok_or_else(|| Text::of(EN.gpg_file_gone))?;
                 (
-                    fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
+                    Text::fill(EN.gpg_gpg_signature, &[&item.name]),
                     self.vaults
                         .store()
                         .gpg_sign_armored(id, at, &item.bytes, now)
-                        .map(|t| String::from(&*t))
-                        .ok_or(EN.gpg_no_gpg_key_is_selected)?,
-                    format!("{}.asc.png", item.name),
+                        .map(|t| Text::of(&t))
+                        .ok_or_else(|| Text::of(EN.gpg_no_gpg_key_is_selected))?,
+                    text!("{}.asc.png", item.name),
                     vec![
-                        fill(EN.gpg_signs, &[&item.name.to_string()]),
-                        fill(EN.gpg_signer_line, &[&who.to_string()]),
+                        Text::fill(EN.gpg_signs, &[&item.name]),
+                        Text::fill(EN.gpg_signer_line, &[&who]),
                         fp,
                     ],
                 )
             }
-            _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
+            _ => return Err(Text::of(EN.gpg_not_a_gpg_file)),
         };
         Ok(crate::QrView::text(c, &title, &text)
-            .map_err(|e| String::from(&*e))?
+            .map_err(|e| Text::of(&e))?
             .public(&name, lines))
     }
 
@@ -2985,7 +2977,7 @@ impl Faraday {
         };
         let (revoked, certified) = (gpg::revoked_at(r), gpg::certified_at(r));
         if revoked.is_some() {
-            return self.toast(&fill(
+            return self.toast(&Text::fill(
                 EN.gpg_revoked,
                 &[&gpg::date(u64::from(revoked.unwrap_or(0)))],
             ));
@@ -3009,7 +3001,7 @@ impl Faraday {
         else {
             return;
         };
-        let name = format!("{}.asc", gpg::file_stem(&key));
+        let name = text!("{}.asc", gpg::file_stem(&key));
         let c = self.compute();
         let renewed = self.vaults.edit(id, |s| {
             s.set_publics_in(
@@ -3033,12 +3025,12 @@ impl Faraday {
             armor(Armor::PublicKey, &cert).as_bytes().to_vec(),
             |i| faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey),
         ) {
-            self.toast(&fill(
+            self.toast(&Text::fill(
                 EN.gpg_renewed_waits,
-                &[&name.to_string(), self.medium.for_the()],
+                &[&name, self.medium.for_the()],
             ));
         } else {
-            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
+            self.toast(&Text::fill(EN.gpg_exists, &[&name]));
         }
     }
 
@@ -3092,7 +3084,7 @@ impl Faraday {
         self.vaults
             .sign_ticked
             .iter()
-            .any(|(n, h)| *n == f.name && *h == f.hash)
+            .any(|(n, h)| *n == *f.name && *h == f.hash)
     }
 
     /// The signing page's ticks at their default: the only signable file
@@ -3101,7 +3093,7 @@ impl Faraday {
         let c = self.compute();
         let files = self.gpg_files(&c);
         self.vaults.state.sign_ticked = match files.as_slice() {
-            [one] => vec![(one.name.clone(), one.hash)],
+            [one] => vec![(Text::of(&one.name), one.hash)],
             _ => Vec::new(),
         };
     }
@@ -3112,7 +3104,7 @@ impl Faraday {
         let Some(f) = self.gpg_files(&c).into_iter().nth(k) else {
             return;
         };
-        let tick = (f.name, f.hash);
+        let tick = (Text::of(&f.name), f.hash);
         match self.vaults.sign_ticked.iter().position(|t| *t == tick) {
             Some(at) => {
                 self.vaults.state.sign_ticked.remove(at);
@@ -3136,7 +3128,10 @@ impl Faraday {
         if files.iter().all(|f| self.gpg_ticked(f)) {
             self.vaults.state.sign_ticked.clear();
         } else {
-            self.vaults.state.sign_ticked = files.into_iter().map(|f| (f.name, f.hash)).collect();
+            self.vaults.state.sign_ticked = files
+                .into_iter()
+                .map(|f| (Text::of(&f.name), f.hash))
+                .collect();
         }
     }
 
@@ -3161,14 +3156,14 @@ impl Faraday {
 
     /// The selected key's first user ID, which Sign with {key} names it
     /// by.
-    pub(crate) fn gpg_user_id(&self) -> Option<String> {
+    pub(crate) fn gpg_user_id(&self) -> Option<Text> {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
             .records(self.vaults.open.get(self.vaults.current)?.id)
             .get(at)?;
         let id = r.public_all(f::USER_ID).next()?;
-        Some(String::from_utf8_lossy(id).into_owned())
+        Some(Text::from_utf8_lossy(id))
     }
 
     /// Costs a hash of a whole file (through `gpg_files`). The listed files
@@ -3234,20 +3229,20 @@ impl Faraday {
         }
         let ticked = std::mem::take(&mut self.vaults.state.sign_ticked);
         let (mut written, mut changed) = (0usize, 0usize);
-        let mut failure: Option<String> = None;
+        let mut failure: Option<Text> = None;
         for (name, hash) in ticked {
             let found = self
                 .inbox
                 .iter()
-                .position(|i| i.name == name && crate::sha256_of(&c, &i.bytes) == hash);
+                .position(|i| i.name == *name && crate::sha256_of(&c, &i.bytes) == hash);
             let Some(k) = found else {
                 changed += 1;
-                failure.get_or_insert_with(|| fill(EN.gpg_changed, &[&name.to_string()]));
+                failure.get_or_insert_with(|| Text::fill(EN.gpg_changed, &[&name]));
                 continue;
             };
-            let out = format!("{name}.asc");
-            if self.outbox.iter().any(|i| i.name == out) {
-                failure.get_or_insert_with(|| fill(EN.gpg_exists, &[&out.to_string()]));
+            let out = text!("{}.asc", &*name);
+            if self.outbox.iter().any(|i| i.name == *out) {
+                failure.get_or_insert_with(|| Text::fill(EN.gpg_exists, &[&out]));
                 continue;
             }
             let Some(sig) = self
@@ -3264,10 +3259,10 @@ impl Faraday {
         let text = match (written, failure) {
             (0, Some(e)) => e,
             (0, None) => return,
-            (1, _) => fill(EN.gpg_1_signature_waits, &[self.medium.for_the()]),
-            (n, _) => fill(
+            (1, _) => Text::fill(EN.gpg_1_signature_waits, &[self.medium.for_the()]),
+            (n, _) => Text::fill(
                 EN.gpg_signatures_wait,
-                &[&n.to_string(), self.medium.for_the()],
+                &[&Text::num(n as u64), self.medium.for_the()],
             ),
         };
         self.toast(&text);
@@ -3279,8 +3274,10 @@ impl Faraday {
     /// Costs what `key_fingerprint` and `described_of` cost. The first
     /// wallet of open vault `v` that key record `r` is a seed of, by name
     /// ([`Vaults::key_wallet`]).
-    pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<String> {
-        self.vaults.key_wallet(c, self.session.network(), v, r)
+    pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<Text> {
+        self.vaults
+            .key_wallet(c, self.session.network(), v, r)
+            .map(|n| Text::of(&n))
     }
 
     /// Costs a parse of each open vault's wallet records. The seeds open
@@ -3378,12 +3375,11 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return;
         };
-        let passphrase = zeroize::Zeroizing::new(
+        let passphrase = Text::of(
             self.vaults
                 .prompt
                 .as_ref()
-                .map(|p| p.text.text.to_string())
-                .unwrap_or_default(),
+                .map_or("", |p| p.text.text.as_str()),
         );
         let wanted = |fp: Fingerprint| missing.contains(&fp.0);
         let Some(loaded) = self.vaults.store().load_key_with_passphrase(
@@ -3401,10 +3397,13 @@ impl Faraday {
                     .session
                     .wallets
                     .get(w)
-                    .map_or_else(String::new, |x| x.name.clone());
+                    .map_or_else(Text::new, |x| Text::of(&x.name));
                 if let Some(p) = self.vaults.state.prompt.as_mut() {
                     p.text.clear();
-                    p.error = Some(fill(EN.pass_seeds_not_a_key, &[&fp_text(fp), &wallet]));
+                    p.error = Some(Text::fill(
+                        EN.pass_seeds_not_a_key,
+                        &[&fp_text(fp), &wallet],
+                    ));
                 }
                 return;
             }
@@ -3414,11 +3413,11 @@ impl Faraday {
             Ok(fp) => {
                 self.pass_seeds_close();
                 self.refresh_spend();
-                self.toast(&fill(EN.vaults_key_is_loaded, &[&fp_text(fp)]));
+                self.toast(&Text::fill(EN.vaults_key_is_loaded, &[&fp_text(fp)]));
             }
             Err(e) => {
                 if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.error = Some(String::from(&*e.text()));
+                    p.error = Some(Text::of(&e.text()));
                 }
             }
         }
@@ -3494,7 +3493,7 @@ impl Faraday {
             return false;
         };
         self.vaults.state.load = Some(load::LoadSheet {
-            name: open.name.clone(),
+            name: open.name.as_str().into(),
             boot,
             wallets_before,
             ticked,
@@ -3583,10 +3582,10 @@ impl Faraday {
     /// `v`: the toast says what, and the sheet is done with.
     pub(crate) fn load_sheet_loaded(&mut self, v: usize, keys: usize, wallets: usize) {
         let counts = (wallets == 0 && keys > 0).then(|| {
-            fill(
+            Text::fill(
                 EN.vaults_loaded,
                 &[
-                    &keys.to_string(),
+                    &Text::num(keys as u64),
                     (if keys == 1 {
                         EN.vaults_seed_inline
                     } else {
@@ -3816,17 +3815,17 @@ impl Faraday {
     ) -> Option<T> {
         let c = self.compute();
         let (_, r) = self.vault_record_of(kind::WALLET)?;
-        let text = r.public_text(field::WALLET)?.to_string();
-        let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
+        let text = Text::of(r.public_text(field::WALLET)?);
+        let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
         let policy = crate::wallet::read_wallet(&c, &text).ok()?;
         let same = crate::wallet::same_wallet(&policy);
         if let Some(i) = self.session.wallets.iter().position(|w| w.same() == same) {
             return Some(f(self, i));
         }
         self.session.wallets.push(crate::wallet::Wallet::new(
-            name,
+            name.as_str().into(),
             policy,
-            EN.vaults_vault.to_string(),
+            EN.vaults_vault.into(),
             crate::wallet::Origin::Vault,
         ));
         let i = self.session.wallets.len() - 1;
@@ -3877,7 +3876,7 @@ impl Faraday {
                 }
                 if let Some(name) = crate::backup_flow::wallet::seed_stick_name(form, &fp) {
                     files.push(out::SaveFile {
-                        label: label.to_string(),
+                        label: label.into(),
                         what,
                         names: vec![name],
                         made: Vec::new(),
@@ -3918,27 +3917,13 @@ impl Faraday {
         };
         let software = Self::backup_public_for(w, &every);
         let mut files = Vec::new();
-        let mut add = |label: String, made: Vec<(String, Vec<u8>)>, ticked: bool| {
+        let mut add = |label: Text, made: Vec<_>, ticked: bool| {
             if !made.is_empty() {
-                files.push(out::SaveFile {
-                    label,
-                    what: out::SaveWhat::Public,
-                    names: made.iter().map(|(n, _)| n.clone()).collect(),
-                    made,
-                    ticked,
-                });
+                files.push(out::SaveFile::public(label.as_str(), made, ticked));
             }
         };
-        add(
-            EN.vault_descriptor.to_string(),
-            self.public_made(i, 1),
-            true,
-        );
-        add(
-            EN.board_qr_picture.to_string(),
-            self.public_made(i, 8),
-            false,
-        );
+        add(Text::of(EN.vault_descriptor), self.public_made(i, 1), true);
+        add(Text::of(EN.board_qr_picture), self.public_made(i, 8), false);
         for x in software.into_iter().filter(|x| *x != 1) {
             let name = match x {
                 5 => EN.app_sparrow,
@@ -3947,7 +3932,7 @@ impl Faraday {
                 _ => EN.app_bitcoin_core,
             };
             add(
-                fill(EN.board_software_file, &[name]),
+                Text::fill(EN.board_software_file, &[name]),
                 self.public_made(i, x),
                 false,
             );
@@ -3965,7 +3950,7 @@ impl Faraday {
             return;
         };
         self.sheet = None;
-        let mut out: Vec<String> = Vec::new();
+        let mut out = Vec::new();
         let words = self
             .vaults
             .open
@@ -4015,7 +4000,10 @@ impl Faraday {
             ([], _) => {}
             ([name], true) => self.toast_waits(EN.secrets_waits_unprotected, &[name]),
             (more, true) => {
-                self.toast_waits(EN.secrets_wait_unprotected, &[&more.len().to_string()]);
+                self.toast_waits(
+                    EN.secrets_wait_unprotected,
+                    &[&Text::num(more.len() as u64)],
+                );
             }
             (names, false) => self.toast_out_files(names),
         }
@@ -4029,7 +4017,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.iter().find(|o| o.id == id) else {
             return;
         };
-        let line = fill(EN.vault_holds_share, &[&open.label(self.vaults.store())]);
+        let line = Text::fill(EN.vault_holds_share, &[&open.label(self.vaults.store())]);
         let hold = self.vaults.state.save_hold.get_or_insert_with(|| {
             Box::new(SaveHold {
                 id,
@@ -4044,9 +4032,9 @@ impl Faraday {
             hold.moved = None;
             hold.id = id;
         }
-        hold.pending.push((record, said.to_string()));
-        if !hold.why.contains(&line) {
-            hold.why.push(line);
+        hold.pending.push((record, said.into()));
+        if !hold.why.iter().any(|w| *w == *line) {
+            hold.why.push(line.as_str().into());
         }
         self.sheet = Some(Sheet::SaveAlso);
     }
@@ -4083,9 +4071,9 @@ impl Faraday {
             let stays = hold.moved.is_some_and(|m| m.2 == k) && !leaves;
             let said = if stays {
                 let name = self.vaults.open[v].label(self.vaults.store());
-                fill(EN.vault_copied_to, &[&name])
+                Text::fill(EN.vault_copied_to, &[&name])
             } else {
-                said
+                Text::of(&said)
             };
             saved.push(self.vault_put_in(v, record, &said));
         }
@@ -4128,7 +4116,7 @@ impl Faraday {
         // What the record is, for a wallet flow that keeps what a vault held
         // before it: worked out while it is still in `from`.
         let c = self.compute();
-        let mut tokens: Vec<String> = self
+        let mut tokens = self
             .vaults
             .records(from)
             .get(at)
@@ -4167,7 +4155,7 @@ impl Faraday {
 
     /// What a backup flow knows the record at place `at` of vault `id` by,
     /// if it is one it keeps.
-    fn moved_subject_at(&self, id: VaultId, at: usize) -> Option<String> {
+    fn moved_subject_at(&self, id: VaultId, at: usize) -> Option<Text> {
         self.vaults.store().records(id).get(at).and_then(|r| {
             [
                 crate::backup_flow::Kind::Gpg,
@@ -4176,6 +4164,7 @@ impl Faraday {
             .into_iter()
             .find(|k| r.kind() == k.record_kind())
             .and_then(|k| crate::backup_flow::subject_of(k, r))
+            .map(|s| Text::of(&s))
         })
     }
 
@@ -4305,12 +4294,12 @@ impl Faraday {
 /// A file's bytes as text, a run that is not UTF-8 read as U+FFFD, in a
 /// buffer that is wiped when it drops; its room is measured and reserved
 /// first, so it never grows.
-fn wiped_text(bytes: &[u8]) -> Zeroizing<String> {
+fn wiped_text(bytes: &[u8]) -> Text {
     let room = bytes
         .utf8_chunks()
         .map(|c| c.valid().len() + if c.invalid().is_empty() { 0 } else { 3 })
         .sum();
-    let mut text = Zeroizing::new(String::with_capacity(room));
+    let mut text = Text::with_room(room);
     for chunk in bytes.utf8_chunks() {
         text.push_str(chunk.valid());
         if !chunk.invalid().is_empty() {
@@ -4372,10 +4361,10 @@ impl Faraday {
     }
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
-    pub(crate) fn wallet_text(w: &crate::wallet::Wallet) -> String {
+    pub(crate) fn wallet_text(w: &crate::wallet::Wallet) -> Text {
         match w.policy().silent() {
-            Some(s) => s.to_text(),
-            None => w.policy().to_descriptor_checksummed(),
+            Some(s) => Text::of(&s.to_text()),
+            None => Text::of(&w.policy().to_descriptor_checksummed()),
         }
     }
 }

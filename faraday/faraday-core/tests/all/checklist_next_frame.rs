@@ -189,7 +189,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     let i = app
         .vault_files()
         .iter()
-        .position(|f| f.name == earlier_name)
+        .position(|f| f.name.as_str() == earlier_name)
         .expect("the earlier vault is listed");
     app.press(Action::Vault(V::Open(i)));
     app.press(Action::Vault(V::FocusPassphrase));

@@ -3,6 +3,7 @@
 //! process.
 
 use super::{SealSeen, VaultSummary};
+use faraday_text::Text;
 
 /// One text field of the kept summaries: no tab or line break.
 fn kept_field(s: &str) -> String {
@@ -89,8 +90,8 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                     }
                 }
                 skipping = false;
-                s.file = file.to_string();
-                s.name = name.to_string();
+                s.file = Text::of(file);
+                s.name = Text::of(name);
                 s.entries = entries.parse().unwrap_or(0);
                 s.seen = seen.parse().ok();
                 out.push(s);
@@ -102,34 +103,34 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
             }
             ["wallet", name, shape] => {
                 if let Some(s) = out.last_mut() {
-                    s.wallets.push((name.to_string(), shape.to_string()));
+                    s.wallets.push((Text::of(name), Text::of(shape)));
                 }
             }
             ["key", fp] => {
                 if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
+                    s.keys.push(Text::of(fp));
                     s.ids.push(None);
                 }
             }
             ["key", fp, id] => {
                 if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
+                    s.keys.push(Text::of(fp));
                     s.ids.push(crate::backups::read_hex32(id));
                 }
             }
             ["sum", c] => {
                 if let Some(s) = out.last_mut() {
-                    s.sums.push(c.to_string());
+                    s.sums.push(Text::of(c));
                 }
             }
             ["planned", c] => {
                 if let Some(s) = out.last_mut() {
-                    s.planned.push(c.to_string());
+                    s.planned.push(Text::of(c));
                 }
             }
             ["map", m] => {
                 if let Some(s) = out.last_mut() {
-                    s.map.push(m.to_string());
+                    s.map.push(Text::of(m));
                 }
             }
             ["seal", count, digest, planned] => {
@@ -161,7 +162,7 @@ mod tests {
     fn summary(id: u8, copy: u8) -> VaultSummary {
         VaultSummary {
             id: [b'a' + id; 32],
-            file: format!("{id}.kdbx"),
+            file: faraday_text::Text::of(&format!("{id}.kdbx")),
             copies: vec![[copy; 32]],
             ..VaultSummary::default()
         }

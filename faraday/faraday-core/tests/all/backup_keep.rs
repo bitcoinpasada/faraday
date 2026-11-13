@@ -244,7 +244,7 @@ fn the_keep_sheet_of_a_backups_save_names_the_vault_the_seed_goes_into() {
     assert!(!sheets.is_empty(), "no Keep sheet came up");
     for (v, shown) in sheets {
         let o = &app.vaults().open[usize::from(v)];
-        let want = format!("Save into {}", o.label(app.vaults().store()));
+        let want = format!("Save into {}", o.label(app.vaults().store()).as_str());
         assert!(shown.contains(&want), "{want}: {shown:?}");
     }
 }

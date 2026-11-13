@@ -187,7 +187,7 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
                 title,
                 account,
                 vault_name: if many {
-                    ov.label(app.vaults.store())
+                    String::from(ov.label(app.vaults.store()).as_str())
                 } else {
                     String::new()
                 },

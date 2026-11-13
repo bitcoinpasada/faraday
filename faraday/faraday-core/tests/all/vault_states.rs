@@ -559,7 +559,7 @@ fn the_line_for_a_short_vault_says_the_memory_free_after_the_seal_failed() {
     let figures: Vec<u32> = (1..=200u32).map(|n| 60_000 - n * 250).collect();
     let mut app = short_vault_sheet(Some(&figures));
     let free = app.vaults().memory_free_mib.unwrap();
-    let said = format!("has {} free", faraday_core::vault::mib_text(free));
+    let said = format!("has {} free", faraday_core::vault::mib_text(free).as_str());
     let text = app.drawn_texts().join(" ");
     assert!(text.contains(&said), "{said}: {text}");
     assert!(
@@ -664,7 +664,7 @@ fn an_idle_lock_that_runs_out_of_memory_again_corrects_the_line_a_person_s_lock_
     testkit::settle(&mut app);
     let said = format!(
         "has {} free",
-        faraday_core::vault::mib_text(app.vaults().memory_free_mib.unwrap())
+        faraday_core::vault::mib_text(app.vaults().memory_free_mib.unwrap()).as_str()
     );
     let text = page(&mut app);
     assert!(text.contains(&said), "{said}: {text}");
@@ -1585,7 +1585,7 @@ fn a_vault_made_with_a_chosen_file_opens_with_it_and_the_file_leaves_files_at_cr
         app.vaults()
             .create
             .as_ref()
-            .is_some_and(|c| c.key == KeyChoice::File("mine.keyx".into()))
+            .is_some_and(|c| c.key == KeyChoice::File(faraday_text::Text::of("mine.keyx")))
     );
     press_create(&mut app);
     assert!(!in_files(&app, "mine.keyx"));

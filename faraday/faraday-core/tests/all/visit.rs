@@ -1149,10 +1149,10 @@ fn the_sheet_names_a_file_known_as_another_vault_and_only_then() {
         for (id, copy, name) in known {
             faraday_core::testkit::change_vault_summaries(&mut app, |summaries| {
                 summaries.push(faraday_core::vault::VaultSummary {
-                    file: "any.kdbx".into(),
+                    file: faraday_text::Text::of("any.kdbx"),
                     id: [*id; 32],
                     copies: vec![*copy],
-                    name: (*name).into(),
+                    name: faraday_text::Text::of(name),
                     ..Default::default()
                 });
             });

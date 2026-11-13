@@ -1116,7 +1116,7 @@ impl Faraday {
                         } else {
                             EN.restore_from_vault_keys
                         }),
-                        &source.to_string(),
+                        &source,
                     ],
                 ));
             }

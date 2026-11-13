@@ -27,6 +27,7 @@ use super::errors;
 use crate::strings::{EN, fill};
 use crate::worker::Job;
 use crate::{Command, Faraday};
+use faraday_text::Text;
 
 /// The seals of a lock, waiting and running. Kept in [`super::Vaults`].
 pub(crate) struct SealRun {
@@ -228,7 +229,9 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
             .open
             .iter()
             .find(|o| o.id == target)
-            .map_or_else(String::new, |o| o.label(app.vaults.store()));
+            .map_or_else(String::new, |o| {
+                String::from(o.label(app.vaults.store()).as_str())
+            });
         app.toast(&fill(EN.vault_moved_lock_first, &[&name]));
         return false;
     }
@@ -530,7 +533,8 @@ fn seal_work(app: &mut Faraday, id: VaultId) -> Result<SealWork, NoJob> {
         .find(|o| o.id == id)
         .ok_or(NoJob::Unwritable)?
         .name
-        .clone();
+        .as_str()
+        .into();
     let job = app
         .vaults
         .state
@@ -569,7 +573,12 @@ fn seal_stopped(app: &mut Faraday, short: Option<(VaultId, faraday_vault::file::
         let text = errors::stopped_text(&why, &name, free);
         app.toast(&text);
         if app.idle_locked_after().is_none() || app.vaults.state.has_short(id) {
-            app.vaults.state.set_stuck(id, Stuck::Short { why: text });
+            app.vaults.state.set_stuck(
+                id,
+                Stuck::Short {
+                    why: Text::of(&text),
+                },
+            );
         }
     }
     app.vaults.state.reread_seals();

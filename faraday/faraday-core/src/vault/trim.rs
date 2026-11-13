@@ -51,7 +51,7 @@ pub(crate) fn ask_yubikey(app: &mut Faraday) {
         .open
         .iter()
         .find(|o| o.id == id)
-        .map_or_else(String::new, |o| o.label(store));
+        .map_or_else(Default::default, |o| o.label(store).as_str().into());
     let version = store.version(id);
     app.vaults.state.more = None;
     app.vaults.state.trim = Some(Trim {
@@ -83,7 +83,7 @@ pub(crate) fn ask(app: &mut Faraday, number: u8) {
         .open
         .iter()
         .find(|o| o.id == id)
-        .map_or_else(String::new, |o| o.label(store));
+        .map_or_else(Default::default, |o| o.label(store).as_str().into());
     let version = store.version(id);
     app.vaults.state.trim = Some(Trim {
         id,

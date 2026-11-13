@@ -313,6 +313,6 @@ impl Faraday {
         };
         let line = format!("{}: {said}", item.name);
         self.toast(&line);
-        self.vaults.set_sb_checked(line);
+        self.vaults.set_sb_checked(faraday_text::Text::of(&line));
     }
 }

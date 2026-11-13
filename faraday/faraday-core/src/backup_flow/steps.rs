@@ -812,7 +812,7 @@ impl Faraday {
             }
             match self.vaults.read_refusal(true, *size) {
                 None => kdbx.push(n.clone()),
-                Some(why) => short = short.or(Some(why)),
+                Some(why) => short = short.or(Some(String::from(why.as_str()))),
             }
         }
         // A file that does not fit is left unread, and the stick is refused
@@ -1710,19 +1710,19 @@ impl Faraday {
         let own = if clash {
             self.free_vault_name(&crate::stem(name))
         } else {
-            name.to_string()
+            faraday_text::Text::of(name)
         };
         let gone: Vec<bool> = self
             .inbox
             .iter()
-            .map(|it| it.name == own || same_vault(it))
+            .map(|it| it.name == own.as_str() || same_vault(it))
             .collect();
         self.vault_read_from(&own, &bytes, label);
         let mut gone = gone.into_iter();
         self.inbox.retain(|_| !gone.next().unwrap_or(false));
         self.inbox.push(Item::new(&c, &own, bytes));
         self.save_boxes();
-        own
+        String::from(own.as_str())
     }
 
     // ---- the stick arriving and going ----
@@ -2027,10 +2027,9 @@ impl Faraday {
                 }
                 _ => {
                     if opened
-                        && let Some(o) =
-                            self.vaults.open.iter().rposition(|o| {
-                                o.vault_id() == id && o.name == name && o.changes == 0
-                            })
+                        && let Some(o) = self.vaults.open.iter().rposition(|o| {
+                            o.vault_id() == id && o.name.as_str() == name.as_str() && o.changes == 0
+                        })
                     {
                         self.vaults.close_at(o);
                         self.nonces_sync_open();
@@ -2183,7 +2182,9 @@ impl Faraday {
         }
         let built = match kind_ {
             Kind::Gpg => self.gpg_build(&texts[0], &texts[1]),
-            Kind::SecureBoot => self.sb_build(&texts[0]),
+            Kind::SecureBoot => self
+                .sb_build(&texts[0])
+                .map_err(|e| faraday_text::Text::of(&e)),
             Kind::Wallet => return,
         };
         match built {
@@ -3537,7 +3538,7 @@ impl Faraday {
                     &crate::vault::time_of_day(crate::vault::local_secs(t, self.tz_min())),
                 ],
             ),
-            None => s.name.clone(),
+            None => String::from(s.name.as_str()),
         })
     }
 }

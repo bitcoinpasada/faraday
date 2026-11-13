@@ -106,7 +106,7 @@ fn an_unlock_shows_each_keys_fingerprint_and_stretches_no_key_to_show_them() {
         let (fp, mid) = faraday_keys::vault::key_identity(&c, network, r).expect("a key");
         assert!(
             kept.iter()
-                .any(|(k, f, m)| *k == id && *f == crate::wallet::fp_text(fp) && *m == mid),
+                .any(|(k, f, m)| *k == id && f.as_str() == crate::wallet::fp_text(fp) && *m == mid),
             "the fingerprint shown is the one worked out fresh"
         );
     }

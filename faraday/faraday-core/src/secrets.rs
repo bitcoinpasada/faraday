@@ -442,14 +442,11 @@ impl Faraday {
                     .info(key)
                     .map(|k| k.label.clone())
                     .unwrap_or_default();
-                self.toast(&fill(
-                    EN.secrets_saved_to_vault,
-                    &[&*label, &vault.to_string()],
-                ));
+                self.toast(&fill(EN.secrets_saved_to_vault, &[&*label, &vault]));
             }
             Keep::Note => self.toast(&fill(
                 EN.secrets_saved_to_vault,
-                &[&out.name.to_string(), &vault.to_string()],
+                &[&out.name.to_string(), &vault],
             )),
             Keep::None => {}
         }

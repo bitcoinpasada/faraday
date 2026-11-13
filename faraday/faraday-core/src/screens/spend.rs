@@ -1231,7 +1231,7 @@ pub(crate) fn step_body(
                     .filter(|(_, f)| f.open.is_none())
                     .map(|(k, f)| {
                         (
-                            fill(EN.step_unlock, &[&f.name.to_string()]),
+                            fill(EN.step_unlock, &[&f.name]),
                             Action::Vault(crate::vault::VaultAction::OpenFrom(k, Screen::Spend)),
                         )
                     })

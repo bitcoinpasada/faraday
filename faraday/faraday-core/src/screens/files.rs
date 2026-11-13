@@ -982,10 +982,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         Role::OnSurface,
         &fill(
             EN.vault_panel_open,
-            &[
-                &open.name.to_string(),
-                &open.label(app.vaults.store()).to_string(),
-            ],
+            &[&open.name, &open.label(app.vaults.store())],
         ),
     );
     // Select all: every row not loaded yet, or none when all are chosen.
@@ -1159,7 +1156,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         let detail = if row.loaded {
             EN.vault_panel_loaded.to_string()
         } else {
-            row.detail.clone()
+            String::from(row.detail.as_str())
         };
         let face = if row.seed && !row.loaded {
             BODY_S.mono()
@@ -1497,10 +1494,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         ui.icon(ix, ty, 20.0, Icon::Lock, 13.0, Role::Primary);
         let title = fill(
             EN.vault_open,
-            &[
-                &open.name.to_string(),
-                &open.label(app.vaults.store()).to_string(),
-            ],
+            &[&open.name, &open.label(app.vaults.store())],
         );
         let lines = ui.wrapped_as(TITLE_M, &title, iw - 28.0);
         ui.draw_wrapped((ix + 28.0, ty), Role::OnSurface, &lines);
@@ -1644,7 +1638,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             let detail = if row.loaded {
                 EN.vault_loaded.to_string()
             } else {
-                row.detail.clone()
+                String::from(row.detail.as_str())
             };
             let face = if row.seed && !row.loaded {
                 BODY_S.mono()
@@ -2241,9 +2235,10 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// a For the stick file of its name that is another vault; `None` when it
 /// is neither. A lookup.
 fn vault_at(files: &[crate::vault::VaultFile], item: &crate::Item) -> Option<usize> {
-    files
-        .iter()
-        .position(|f| (f.name == item.name && !f.in_outbox) || f.copies.contains(&item.name))
+    files.iter().position(|f| {
+        (f.name == item.name.as_str() && !f.in_outbox)
+            || f.copies.iter().any(|x| x.as_str() == item.name.as_str())
+    })
 }
 
 /// [`vault_at`]'s vault file.

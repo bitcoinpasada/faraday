@@ -245,14 +245,14 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             let mut row: Vec<(String, Style, Action)> = Vec::new();
             match app.vaults.open.get(app.vaults.current) {
                 Some(v) => row.push((
-                    fill(EN.silent_save_into, &[&v.name.to_string()]),
+                    fill(EN.silent_save_into, &[&v.name]),
                     Style::Primary,
                     Action::SScanVault,
                 )),
                 // Make or unlock one, and back to this step.
                 None => row.extend(
                     app.vault_way(crate::Screen::Silent)
-                        .map(|(label, a)| (label, Style::Primary, a)),
+                        .map(|(label, a)| (String::from(label.as_str()), Style::Primary, a)),
                 ),
             }
             row.push((

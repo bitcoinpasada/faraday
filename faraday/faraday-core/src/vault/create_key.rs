@@ -17,6 +17,7 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, DIALOG_MAX, GAP, GAP_SMALL, LIST_1, PAD, RADIUS_SMALL,
 };
 use faraday_keys::UnlockParts;
+use faraday_text::Text;
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -63,13 +64,13 @@ pub(crate) fn drop_key(app: &mut Faraday) {
 /// The key file Create has been given, read now: the chosen file's name
 /// and key, `None` for none or a made one; why a chosen file is refused
 /// otherwise, naming it.
-pub(crate) fn chosen(app: &Faraday) -> Result<Option<(String, UnlockParts)>, String> {
+pub(crate) fn chosen(app: &Faraday) -> Result<Option<(Text, UnlockParts)>, Text> {
     let Some(KeyChoice::File(name)) = app.vaults.create.as_ref().map(|c| &c.key) else {
         return Ok(None);
     };
     match unlock_keys::file_parts(app, name) {
-        Ok(parts) => Ok(Some((name.clone(), parts))),
-        Err(Bad::KeyFile(e) | Bad::Secret(e)) => Err(e),
+        Ok(parts) => Ok(Some((Text::of(name), parts))),
+        Err(Bad::KeyFile(e) | Bad::Secret(e)) => Err(Text::of(&e)),
     }
 }
 
@@ -81,9 +82,9 @@ pub(crate) fn chip(app: &View) -> Option<String> {
         KeyChoice::None => None,
         KeyChoice::Make => Some(fill(
             EN.vault_keyx_made_at_create,
-            &[&crate::vault::vault_stem(&c.name.text).to_string()],
+            &[&crate::vault::vault_stem(&c.name.text)],
         )),
-        KeyChoice::File(name) => Some(name.clone()),
+        KeyChoice::File(name) => Some(name.as_str().into()),
     }
 }
 

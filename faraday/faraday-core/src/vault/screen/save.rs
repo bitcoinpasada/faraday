@@ -21,7 +21,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let now = app.clock_now();
     let when = match now {
         Some(_) => {
-            let zone = format!("UTC{}", vault::tz_offset_text(app.tz_min()));
+            let zone = format!("UTC{}", &*vault::tz_offset_text(app.tz_min()));
             format!("{} {zone}", app.now_local_text())
         }
         None => EN.set_time_not_known.to_string(),

@@ -315,7 +315,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
     };
     let vault_open = app.vaults.open.get(app.vaults.current).is_some();
     let vault_way = || match app.vault_way(back) {
-        Some((label, a)) => Some(row(label, "", Some(a))),
+        Some((label, a)) => Some(row(String::from(label.as_str()), "", Some(a))),
         None => matches!(press, Press::Loaded(_)).then(|| {
             row(
                 EN.glance_sheet_open_vault,

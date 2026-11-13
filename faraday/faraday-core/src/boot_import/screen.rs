@@ -195,7 +195,7 @@ fn unlock(
     ui.text_as(x + 28.0, cy + 2.0, BODY_M.mono(), Role::OnSurface, &name);
     let line = fill(
         EN.boot_import_locked,
-        &[&crate::vault::file_text(vault.len).to_string()],
+        &[&crate::vault::file_text(vault.len)],
     );
     let line = ui.fit_as(BODY_S, &line, w - 28.0);
     ui.text_as(x + 28.0, cy + 24.0, BODY_S, Role::OnSurfaceVariant, &line);
@@ -249,7 +249,7 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
     let (line, tone) = if app.vaults.working == Some(Work::Unlock) {
         (unlocking(app, file), Role::Primary)
     } else if let Some(e) = &app.vaults.unlock_error {
-        (e.clone(), Role::Error)
+        (String::from(e.as_str()), Role::Error)
     } else {
         (title.to_string(), Role::OnSurfaceVariant)
     };
@@ -285,7 +285,7 @@ fn unlocking(app: &View, file: usize) -> String {
             )
         })
         .unwrap_or_default();
-    fill(EN.boot_import_unlocking, &[&time.to_string()])
+    fill(EN.boot_import_unlocking, &[&time])
 }
 
 /// Every file the stick held, each with its checkbox. Returns their

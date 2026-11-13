@@ -133,7 +133,7 @@ pub(crate) fn open(app: &mut Faraday, mv: bool) {
         .open
         .iter()
         .find(|o| o.id == from)
-        .map_or_else(String::new, |o| o.label(store));
+        .map_or_else(String::new, |o| String::from(o.label(store).as_str()));
     let mut rows: Vec<CopyRow> = app
         .vaults
         .open
@@ -141,7 +141,7 @@ pub(crate) fn open(app: &mut Faraday, mv: bool) {
         .filter(|o| o.id != from)
         .map(|o| CopyRow {
             to: Dest::Open(o.id),
-            name: o.label(store),
+            name: o.label(store).as_str().into(),
             why: judge(app, &c, (from, record), (o.id, &from_name), mv, &staged),
         })
         .collect();
@@ -263,9 +263,9 @@ fn judge(
         // id, so cannot answer with the old identity.
         app.vaults.key_identity(c, app.session.network(), r)
     }) {
-        Some(EN.vault_copy_holds.to_string())
+        Some(EN.vault_copy_holds.into())
     } else if let Some(why) = app.vault_refuses(c, to, &[], &[staged]) {
-        Some(why)
+        Some(why.as_str().into())
     } else if mv && app.vaults.state.moved_ring(from, to) {
         Some(fill(EN.vault_move_ring, &[from_name]))
     } else {
@@ -617,7 +617,7 @@ pub(crate) fn unlocked(app: &mut Faraday) {
         version: w.version,
         rows: vec![CopyRow {
             to: Dest::Open(to),
-            name,
+            name: name.as_str().into(),
             why: None,
         }],
         ask: None,

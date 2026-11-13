@@ -1015,7 +1015,10 @@ fn with_one_file_it_starts_ticked() {
     app.press(Action::Vault(V::GpgSignPick));
     assert_eq!(
         app.vaults().sign_ticked,
-        vec![("SHA256SUMS".to_string(), gpg::sha256(&c, b"hello"))]
+        vec![(
+            faraday_text::Text::of("SHA256SUMS"),
+            gpg::sha256(&c, b"hello")
+        )]
     );
     sign(&mut app);
     assert!(
@@ -1590,7 +1593,12 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
 fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     for (name, _) in files {
         let k = listed(app, name);
-        if !app.vaults().sign_ticked.iter().any(|(n, _)| n == name) {
+        if !app
+            .vaults()
+            .sign_ticked
+            .iter()
+            .any(|(n, _)| n.as_str() == name.as_str())
+        {
             app.press(Action::Vault(V::GpgTick(k)));
         }
     }

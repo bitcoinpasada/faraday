@@ -34,6 +34,20 @@ pub struct SaveFile {
     pub ticked: bool,
 }
 
+impl SaveFile {
+    /// The line of a wallet's public form `label`, ticked or not, made as
+    /// the files `made`.
+    pub(crate) fn public(label: &str, made: Vec<(String, Vec<u8>)>, ticked: bool) -> SaveFile {
+        SaveFile {
+            label: label.into(),
+            what: SaveWhat::Public,
+            names: made.iter().map(|m| m.0.clone()).collect(),
+            made,
+            ticked,
+        }
+    }
+}
+
 /// Save to a stick's popup.
 pub struct StickSave {
     /// The vault record it is for, by index into the open vault's records.

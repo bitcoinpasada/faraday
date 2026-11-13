@@ -297,14 +297,14 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             )];
             match app.vaults.open.get(app.vaults.current) {
                 Some(v) => row.push((
-                    fill(EN.bip85_save_into, &[&v.name.to_string()]),
+                    fill(EN.bip85_save_into, &[&v.name]),
                     Style::Primary,
                     Action::PVault,
                 )),
                 // Make or unlock one, and back to this value.
                 None => row.extend(
                     app.vault_way(crate::Screen::Bip85)
-                        .map(|(label, a)| (label, Style::Primary, a)),
+                        .map(|(label, a)| (String::from(label.as_str()), Style::Primary, a)),
                 ),
             }
             if b.app == Bip85App::Words {

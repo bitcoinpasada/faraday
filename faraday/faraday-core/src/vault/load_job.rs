@@ -14,6 +14,7 @@ use faraday_keys::vault::VaultId;
 use crate::Faraday;
 use crate::strings::EN;
 use crate::worker::Job;
+use faraday_text::Text;
 
 /// A wallet to add after the keys: its description and its name. Public.
 pub(crate) type LoadWallet = (faraday_bip::policy::WalletPolicy, String);
@@ -160,7 +161,7 @@ pub(crate) fn loaded(app: &mut Faraday, done: LoadKeysDone) {
         return;
     }
     let (added, derived, refused) = app.session.keys.adopt_loaded_derived(&c, loaded);
-    app.vaults.state.key_refused = refused.first().map(|e| String::from(&*e.text()));
+    app.vaults.state.key_refused = refused.first().map(|e| Text::of(&e.text()));
     let wallets = app.vault_load_wallets(&c, plan.wallets, &derived);
     (plan.then)(app, added.len(), wallets);
 }

@@ -22,6 +22,7 @@ use crate::{Action, Faraday, Sheet};
 use faraday_draw::tokens::{BODY_M, BODY_S, DIALOG_MAX, GAP, GAP_SMALL, LIST_1, PAD, RADIUS_SMALL};
 use faraday_draw::widgets::Icon;
 use faraday_keys::vault::VaultId;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 fn va(a: V) -> Action {
@@ -123,12 +124,18 @@ pub(crate) fn written(app: &mut Faraday, name: &str) {
 }
 
 /// The open vault's id and name where it may be changed.
-fn target(app: &Faraday) -> Option<(VaultId, String)> {
+fn target(app: &Faraday) -> Option<(VaultId, Text)> {
     let id = app.vaults.current_id()?;
     if app.vaults.store().read_only(id).is_some() || super::screen::writing(app) {
         return None;
     }
-    let name = app.vaults.open.iter().find(|o| o.id == id)?.name.clone();
+    let name = app
+        .vaults
+        .open
+        .iter()
+        .find(|o| o.id == id)?
+        .name
+        .duplicate();
     Some((id, name))
 }
 
@@ -139,7 +146,7 @@ fn unkeep(app: &mut Faraday, id: VaultId) {
         return;
     };
     let (_, name) = app.vaults.state.key_outbox.remove(at);
-    app.outbox.retain(|i| i.name != name);
+    app.outbox.retain(|i| i.name != *name);
     app.save_boxes();
 }
 
@@ -254,7 +261,7 @@ pub(crate) fn make(app: &mut Faraday) {
     let keyx = free_keyx(app, &name);
     let item = crate::Item::new(&app.compute(), &keyx, document.to_vec());
     app.outbox_secret(crate::secrets::OutReason::KeyFile, item);
-    app.vaults.state.key_outbox.push((id, keyx));
+    app.vaults.state.key_outbox.push((id, Text::of(&keyx)));
     app.vaults.state.key_chosen = None;
     count_key_change(app, id, was);
     done(app);
@@ -285,7 +292,7 @@ pub(crate) fn chosen(app: &mut Faraday) {
         Ok(taken) => {
             if taken {
                 unkeep(app, id);
-                app.vaults.state.key_chosen = Some((id, file));
+                app.vaults.state.key_chosen = Some((id, Text::of(&file)));
                 count_key_change(app, id, was);
                 app.toast(EN.vault_key_file_next_seal);
             }
@@ -318,7 +325,7 @@ pub(crate) fn sealed(app: &mut Faraday, id: VaultId) {
     if app.vaults.key_chosen.as_ref().is_some_and(|c| c.0 == id)
         && let Some((_, name)) = app.vaults.state.key_chosen.take()
     {
-        app.inbox.retain(|i| i.name != name);
+        app.inbox.retain(|i| i.name != *name);
         app.save_boxes();
     }
 }

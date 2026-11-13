@@ -652,10 +652,11 @@ fn a_wrong_passphrase_loads_nothing_and_says_what_it_gave() {
     let error = app.vaults().prompt.as_ref().unwrap().error.clone().unwrap();
     assert!(
         error.starts_with("This passphrase gives ") && error.ends_with(", not a key of Trio"),
-        "{error}"
+        "{}",
+        error.as_str()
     );
     let _ = app.frame();
-    assert!(app.drawn_texts().contains(&error));
+    assert!(app.drawn_texts().iter().any(|t| t == error.as_str()));
     try_passphrase(&mut app, "kept apart");
     assert_eq!(held(&app), 3);
     // Never stored in the vault.
@@ -793,7 +794,7 @@ fn a_musig2_wallet_of_one_seed_is_not_listed_and_the_load_sheet_loads_the_rest()
     let rows: Vec<String> = app
         .vault_rows_now(&c, 0)
         .into_iter()
-        .map(|r| r.name)
+        .map(|r| String::from(r.name.as_str()))
         .collect();
     assert!(!rows.contains(&"Pair".to_string()), "{rows:?}");
     app.press(Action::Vault(V::LoadTicked));

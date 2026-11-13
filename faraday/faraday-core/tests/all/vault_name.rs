@@ -108,7 +108,11 @@ fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
 fn a_vault_named_for_a_windows_device_is_written_under_a_safe_name() {
     use faraday_core::vault::vault_stem;
     for typed in ["con", "AUX", "Nul", "prn", "com1", "LPT9"] {
-        assert_eq!(vault_stem(typed), format!("{typed}-vault"), "{typed}");
+        assert_eq!(
+            vault_stem(typed).as_str(),
+            format!("{typed}-vault"),
+            "{typed}"
+        );
     }
     assert_eq!(vault_stem("console"), "console");
     assert_eq!(vault_stem("com10"), "com10");

@@ -47,7 +47,7 @@ pub(crate) fn look(app: &View, f: &vault::VaultFile) -> Look {
     let remembered = app.vault_summary(f).map(|s| s.name.as_str());
     let (title, state, tone, icon, edge) = match open {
         Some(v) if v.changes > 0 => (
-            v.label(app.vaults.store()),
+            String::from(v.label(app.vaults.store()).as_str()),
             fill(
                 EN.vault_open_unsaved,
                 &[
@@ -64,7 +64,7 @@ pub(crate) fn look(app: &View, f: &vault::VaultFile) -> Look {
             rule,
         ),
         Some(v) => (
-            v.label(app.vaults.store()),
+            String::from(v.label(app.vaults.store()).as_str()),
             EN.vault_open_button.to_string(),
             good,
             primary,

@@ -32,7 +32,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
         .expect("the test vault keeps a wallet");
     let other = testkit::kits()
         .into_iter()
-        .find(|k| shape_of(&c, &k.descriptor) != row.detail)
+        .find(|k| row.detail.as_str() != shape_of(&c, &k.descriptor))
         .expect("a test wallet of another shape");
     let id = app.vaults.open[v].id;
     app.vaults.edit(id, |s| {
@@ -45,7 +45,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
         .find(|r| r.record == row.record)
         .expect("the record is listed");
     assert_eq!(
-        now.detail,
+        now.detail.as_str(),
         shape_of(&c, &other.descriptor),
         "the vault's list shows the wallet the record now holds"
     );
@@ -206,8 +206,8 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
         .expect("the vault's key record");
     assert_eq!(record_fp, fp_text(kept));
     for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
-        if e.1 == record_fp {
-            e.1 = fp_text(other);
+        if e.1.as_str() == record_fp {
+            e.1 = faraday_text::Text::of(&fp_text(other));
         }
     }
     assert!(
@@ -263,8 +263,8 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
     let other_fp = other.fingerprint.expect("a fingerprint");
     // The vault's record now looks up as the other slot's fingerprint.
     for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
-        if e.1 == record_fp {
-            e.1 = fp_text(other_fp);
+        if e.1.as_str() == record_fp {
+            e.1 = faraday_text::Text::of(&fp_text(other_fp));
         }
     }
     assert!(
@@ -309,7 +309,7 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
     );
     assert_eq!(
         app.backup_vault_fits(&c, 0),
-        Some(name.clone()),
+        Some(String::from(name.as_str())),
         "the locked vault is done"
     );
     let sha = app
@@ -341,11 +341,15 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
     let fp = fp_text(own[0]);
     app.vaults.change_summaries(|v| {
         let s = &mut v[at];
-        let mine = s.keys.iter().position(|k| *k == fp).expect("the seed");
+        let mine = s
+            .keys
+            .iter()
+            .position(|k| k.as_str() == fp)
+            .expect("the seed");
         let other = (0..s.keys.len())
             .find(|&i| i != mine && s.ids[i].is_some())
             .expect("another seed in the vault");
-        s.keys[other] = fp;
+        s.keys[other] = faraday_text::Text::of(&fp);
         s.keys.remove(mine);
         s.ids.remove(mine);
     });

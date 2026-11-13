@@ -1707,7 +1707,7 @@ fn plan_in_a_wallet_in_b() -> (Files, Files, String, String) {
     fresh_vault(&mut app);
     // Vault A keeps the plan.
     planned(&mut app, w, 2);
-    let a_name = app.vaults().open[0].name.clone();
+    let a_name = String::from(app.vaults().open[0].name.as_str());
     // Vault B keeps the seed and the wallet.
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
@@ -1726,7 +1726,7 @@ fn plan_in_a_wallet_in_b() -> (Files, Files, String, String) {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| a.vaults().open.len() == 2);
     assert_eq!(app.vaults().open.len(), 2, "vault B did not open");
-    let b_name = app.vaults().open[1].name.clone();
+    let b_name = String::from(app.vaults().open[1].name.as_str());
     testkit::vault_current(&mut app, 1);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);

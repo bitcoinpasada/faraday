@@ -97,7 +97,7 @@ impl Faraday {
             if !keys.is_empty() {
                 out.open.push(VaultKeys {
                     vault: v,
-                    name: open.name.clone(),
+                    name: String::from(open.name.as_str()),
                     keys,
                 });
             }
@@ -107,7 +107,7 @@ impl Faraday {
             .into_iter()
             .enumerate()
             .filter(|(_, f)| f.open.is_none())
-            .map(|(i, f)| (i, f.name))
+            .map(|(i, f)| (i, String::from(f.name.as_str())))
             .collect();
         out
     }

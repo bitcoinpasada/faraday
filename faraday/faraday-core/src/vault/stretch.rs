@@ -11,6 +11,7 @@ use faraday_crypto::work::Compute;
 use faraday_keys::UnlockParts;
 use faraday_keys::job::{Budget, KdbxJob, Parsed, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
+use faraday_text::Text;
 use faraday_vault::file::STEPS_KIB;
 use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
@@ -217,7 +218,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
             act: VaultAct::Unlocked,
             cost,
             plan: Plan::Unlock {
-                name,
+                name: name.as_str().into(),
                 sha,
                 for_import,
             },
@@ -230,7 +231,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
 /// The create form says the system has not given enough randomness yet.
 fn say_no_randomness(app: &mut Faraday) {
     if let Some(c) = app.vaults.state.create.as_mut() {
-        c.error = Some(EN.no_randomness.to_string());
+        c.error = Some(Text::of(EN.no_randomness));
     }
 }
 
@@ -323,7 +324,7 @@ fn create_start(app: &mut Faraday) -> bool {
     let (job, key) = match (drawn, chosen) {
         (Some(random), _) => (job.making_key_file(&random), Made::Drawn),
         (None, Some((name, parts))) => match job.keyed(parts) {
-            Ok(job) => (job, Made::Chosen(name)),
+            Ok(job) => (job, Made::Chosen(String::from(name.as_str()))),
             // Only a YubiKey's secret is refused, and Create offers none.
             Err(_) => return false,
         },
@@ -380,8 +381,10 @@ fn unlocked(
     // The answer is dropped, and wiped as it drops.
     if !app.may_load_keys() {
         drop(stretched);
-        app.vaults.state.unlock_error =
-            Some(fill(EN.vaults_remove_to_unlock, &[app.medium.noun()]));
+        app.vaults.state.unlock_error = Some(Text::of(&fill(
+            EN.vaults_remove_to_unlock,
+            &[app.medium.noun()],
+        )));
         app.vaults.unlock_follow.set(true);
         return;
     }
@@ -398,7 +401,7 @@ fn unlocked(
                     &[&open.label(app.vaults.state.store()), &open.name],
                 );
                 app.vaults.state.drop_adopted(id);
-                app.vaults.state.unlock_error = Some(said);
+                app.vaults.state.unlock_error = Some(Text::of(&said));
                 return;
             }
             let read_only = app
@@ -416,7 +419,7 @@ fn unlocked(
             app.vaults.state.typed_shown = false;
             app.vaults.state.focus = None;
             app.vaults.state.open.push(super::OpenVault {
-                name,
+                name: Text::of(&name),
                 id,
                 facts,
                 vault_id,
@@ -443,15 +446,14 @@ fn unlocked(
             app.vaults.state.unlock_error = Some(match e {
                 // What was tried says what to try again.
                 faraday_vault::file::Error::Kdbx(faraday_vault::kdbx::Error::Passphrase) => {
-                    match app.vaults.unlock_tried {
+                    Text::of(match app.vaults.unlock_tried {
                         (false, false) => EN.vault_error_wrong,
                         (true, false) => EN.vault_error_wrong_key_file,
                         (false, true) => EN.vault_error_wrong_yubikey,
                         (true, true) => EN.vault_error_wrong_both,
-                    }
-                    .to_string()
+                    })
                 }
-                e => errors::stopped_text(&e, &name, app.vaults.memory_free_mib),
+                e => Text::of(&errors::stopped_text(&e, &name, app.vaults.memory_free_mib)),
             });
             app.vaults.unlock_follow.set(true);
         }
@@ -473,7 +475,7 @@ fn created(
         drop(stretched);
         let said = fill(EN.vaults_remove_the_first, &[app.medium.noun()]);
         if let Some(c) = app.vaults.state.create.as_mut() {
-            c.error = Some(said);
+            c.error = Some(Text::of(&said));
         }
         return;
     }
@@ -489,7 +491,7 @@ fn created(
                 None if stretched.error().is_some() => None,
                 None => {
                     if let Some(c) = app.vaults.state.create.as_mut() {
-                        c.error = Some(EN.vault_key_file_not_kept.to_string());
+                        c.error = Some(Text::of(EN.vault_key_file_not_kept));
                     }
                     return;
                 }
@@ -525,7 +527,7 @@ fn created(
             let sha = app
                 .outbox
                 .iter()
-                .find(|it| it.name == name)
+                .find(|it| it.name == *name)
                 .and_then(|it| it.sha);
             if let Some(sha) = sha {
                 let mut vault_id = [0u8; 32];
@@ -567,7 +569,7 @@ fn created(
         }
         Err(e) => {
             if let Some(c) = app.vaults.state.create.as_mut() {
-                c.error = Some(errors::error_text(&e));
+                c.error = Some(Text::of(&errors::error_text(&e)));
             }
         }
     }
@@ -635,7 +637,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         app.fresh_bytes(b"vault entries", 32),
     ) else {
         if let Some(p) = app.vaults.state.prompt.as_mut() {
-            p.error = Some(EN.no_randomness.to_string());
+            p.error = Some(Text::of(EN.no_randomness));
         }
         return false;
     };
@@ -693,9 +695,9 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
             if let Some(p) = app.vaults.state.prompt.as_mut() {
                 p.error = Some(match why {
                     faraday_vault::file::Error::Full { .. } => {
-                        EN.vaults_entry_too_large_kdbx.to_string()
+                        Text::of(EN.vaults_entry_too_large_kdbx)
                     }
-                    e => errors::error_text(&e),
+                    e => Text::of(&errors::error_text(&e)),
                 });
             }
         }

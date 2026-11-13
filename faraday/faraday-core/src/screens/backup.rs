@@ -1619,19 +1619,19 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
                 Action::BNewVault(v.min(255) as u8),
             ),
             Some(cur) => (
-                fill(
-                    EN.item_action_save_into,
-                    &[&app.vaults.open[cur].name.to_string()],
-                ),
+                fill(EN.item_action_save_into, &[&app.vaults.open[cur].name]),
                 Action::BVaultSave(v.min(255) as u8),
             ),
             // A vault of the plan with none set up for it, whether or not
             // another is open: a new one on an empty stick (written at the
             // write step as an added copy is).
-            None => app.vault_way(Screen::Backup).unwrap_or((
-                EN.vaults_make_a_vault.to_string(),
-                Action::Vault(crate::vault::VaultAction::CreateFrom(Screen::Backup)),
-            )),
+            None => app
+                .vault_way(Screen::Backup)
+                .map(|(l, a)| (String::from(l.as_str()), a))
+                .unwrap_or((
+                    EN.vaults_make_a_vault.to_string(),
+                    Action::Vault(crate::vault::VaultAction::CreateFrom(Screen::Backup)),
+                )),
         },
         Item::SeedFiles => (EN.item_action_make.to_string(), Action::BFile),
         // The form on the card has its own presses.
@@ -1826,13 +1826,13 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
     if let Some(o) = open
         && app.backup_vault_taken(v, cur)
     {
-        let line = fill(EN.vault_item_holds_another, &[&o.name.to_string()]);
+        let line = fill(EN.vault_item_holds_another, &[&o.name]);
         let line = ui.fit_as(LABEL_L, &line, w);
         ui.text_as(x, cy + 4.0, LABEL_L, Role::Warning, &line);
         cy += ui.advance_as(LABEL_L, 32.0);
     }
     let head = match open {
-        Some(o) => fill(EN.vault_item_into, &[&o.name.to_string()]),
+        Some(o) => fill(EN.vault_item_into, &[&o.name]),
         None => EN.vault_item_into_vault.to_string(),
     };
     let head = ui.fit_as(LABEL_L, &head, w);

@@ -1336,7 +1336,7 @@ fn an_identifier_a_record_of_an_open_vault_carries_is_refused_naming_the_vault()
         vault_of(PHRASE, vec![share_record(D)], 7),
     )]);
     unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
-    let line = format!("Used in vault {}", app.vaults().open[0].name);
+    let line = format!("Used in vault {}", app.vaults().open[0].name.as_str());
     assert_eq!(identifier_typed(&mut app, "name", &line), (false, true));
     // An identifier no set carries is taken.
     let mut app = on(1366, 768, 160);
@@ -1364,6 +1364,6 @@ fn an_identifier_the_set_of_a_key_record_of_an_open_vault_carries_is_refused_nam
     )]);
     unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     assert_eq!(app.session.keys.len(), 0, "the key is not loaded");
-    let line = format!("Used in vault {}", app.vaults().open[0].name);
+    let line = format!("Used in vault {}", app.vaults().open[0].name.as_str());
     assert_eq!(identifier_typed(&mut app, "cash", &line), (false, true));
 }

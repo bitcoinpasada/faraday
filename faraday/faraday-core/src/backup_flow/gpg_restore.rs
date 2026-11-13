@@ -592,7 +592,7 @@ impl BackupFlowArea {
             .find(|&o| super::record_in(vaults, o, super::Kind::Gpg, &fp).is_some());
         let r = self.restoring_mut(i)?;
         if let Some(o) = held {
-            r.refuse_in_vault(o, vaults.open[o].name.clone());
+            r.refuse_in_vault(o, String::from(vaults.open[o].name.as_str()));
             return None;
         }
         r.finish(c).map(built)

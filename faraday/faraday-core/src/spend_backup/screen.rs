@@ -892,7 +892,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|f| f.open.is_none())
             .or(locked.first().copied())
         {
-            let head = fill(EN.spend_backup_unlock_n, &[&f.name.to_string()]);
+            let head = fill(EN.spend_backup_unlock_n, &[&f.name]);
             cy += ui.wrap_as((x, cy, w), TITLE_M, Role::OnSurface, &head) + 12.0;
         }
         cy += vault(app, ui, x, cy, w);
@@ -1292,14 +1292,11 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             fill(EN.spend_backup_copied_from_medium, &[app.medium.a()])
         };
-        let where_ = format!("{where_} · {}", file_text(f.len));
+        let where_ = format!("{where_} · {}", file_text(f.len).as_str());
         let mem = f.facts.header.cost.memory_kib / 1024;
         let time = fill(
             EN.spend_backup_unlock_time,
-            &[&app
-                .vaults()
-                .time_text(mem, f.facts.header.cost.passes)
-                .to_string()],
+            &[&app.vaults().time_text(mem, f.facts.header.cost.passes)],
         );
         if compact {
             let room = w - 62.0 - 12.0;
@@ -1362,7 +1359,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         let style = Style::Primary.when(app.may_load_keys());
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.spend_backup_this_computer, &[&mib_text(m).to_string()]),
+            Some(m) => fill(EN.spend_backup_this_computer, &[&mib_text(m)]),
             None => String::new(),
         };
         if compact {
@@ -2106,7 +2103,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|(_, f)| f.open.is_none())
             .map(|(k, f)| {
                 (
-                    fill(EN.spend_backup_unlock_n, &[&f.name.to_string()]),
+                    fill(EN.spend_backup_unlock_n, &[&f.name]),
                     Action::Vault(VaultAction::OpenFrom(k, crate::Screen::SpendBackup)),
                 )
             })

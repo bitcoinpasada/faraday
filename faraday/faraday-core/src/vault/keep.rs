@@ -257,7 +257,7 @@ pub(crate) fn gate(app: &mut Faraday, asks: Vec<Ask>, then: Then, into: &[usize]
     let into = into
         .iter()
         .filter_map(|&o| app.vaults.open.get(o))
-        .map(|o| o.label(app.vaults.store()))
+        .map(|o| o.label(app.vaults.store()).as_str().into())
         .collect();
     app.vaults.state.keep_save = Some(KeepSave {
         asks: list,

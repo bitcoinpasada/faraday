@@ -7,6 +7,7 @@
 
 use super::*;
 use crate::plan::text::{SealLine, seals_in, with_seals};
+use crate::strings::fill;
 use faraday_keys::vault::OpenVaults;
 
 /// The highest seal count seen of a vault since power-on, with the
@@ -187,7 +188,7 @@ impl Vaults {
             let planned = std::mem::take(&mut e.planned);
             *e = seen;
             if e.planned.is_empty() {
-                e.planned = planned;
+                e.planned = planned.iter().map(|p| p.as_str().into()).collect();
             }
             SealOrder::Current
         } else if seen.count < e.count {
@@ -207,7 +208,7 @@ impl Vaults {
             if let Some(s) = self.summaries.iter_mut().find(|s| s.id == id) {
                 let planned = s.planned.clone();
                 if let Some(e) = s.seal.as_mut() {
-                    e.planned = planned;
+                    e.planned = planned.iter().map(|p| p.as_str().into()).collect();
                 }
             }
         }
@@ -264,7 +265,7 @@ impl Vaults {
             let label = o.label(self.store());
             for (_, r) in self.records(o.id).of(kind::PLAN) {
                 if let Some(t) = r.public_text(field::PLAN_ANSWERS) {
-                    lines.extend(seals_in(t).into_iter().map(|l| (label.clone(), l)));
+                    lines.extend(seals_in(t).into_iter().map(|l| (label.as_str().into(), l)));
                 }
             }
         }
@@ -330,7 +331,11 @@ impl Vaults {
             let kept = seals_in(old);
             let mut lines = kept.clone();
             for s in self.summaries.iter().filter(|s| s.id != own) {
-                let Some(e) = s.seal.as_ref().filter(|e| e.planned.contains(&d.checksum)) else {
+                let Some(e) = s
+                    .seal
+                    .as_ref()
+                    .filter(|e| e.planned.iter().any(|p| *p == *d.checksum))
+                else {
                     continue;
                 };
                 let new = SealLine {
@@ -365,10 +370,10 @@ impl Vaults {
         let Some(o) = self.open.iter_mut().find(|o| o.id == id) else {
             return;
         };
-        o.name = name.to_string();
+        o.name = Text::of(name);
         let vault_id = o.vault_id;
         if let Some(s) = self.summaries.iter_mut().find(|s| s.id == vault_id) {
-            s.file = name.to_string();
+            s.file = Text::of(name);
         }
     }
 

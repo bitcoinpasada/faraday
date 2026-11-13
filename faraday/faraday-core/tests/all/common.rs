@@ -915,10 +915,10 @@ pub fn know_files(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
                     }
                 }
                 None => summaries.push(faraday_core::vault::VaultSummary {
-                    file: name.clone(),
+                    file: faraday_text::Text::of(name),
                     id: vault_id,
                     copies: vec![sha],
-                    name: label,
+                    name: faraday_text::Text::of(&label),
                     ..Default::default()
                 }),
             }
@@ -1070,7 +1070,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(name);
+    plan.vaults[0].file = Some(String::from(name.as_str()));
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(&c, kind, plan);
     f.step = Step::Make;
@@ -1709,7 +1709,7 @@ pub fn contents(app: &Faraday, o: usize) -> &[faraday_vault::Record] {
 }
 
 /// Why the last unlock failed, for an assertion's message.
-pub fn unlock_error(app: &Faraday) -> &Option<String> {
+pub fn unlock_error(app: &Faraday) -> &Option<faraday_text::Text> {
     &app.vaults().unlock_error
 }
 

@@ -876,7 +876,7 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
             crate::vault::VaultAction::OpenFrom(k, back)
         });
     Backup::Locked {
-        vault: s.name.clone(),
+        vault: String::from(s.name.as_str()),
         unlock: Action::Vault(unlock),
     }
 }

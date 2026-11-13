@@ -297,7 +297,11 @@ pub(crate) fn wallet_share_record(
         if !crate::restore::sheets_rebuild(c, app.session.network(), wl, &plan) {
             return Some(Err(FEN.backup_sheets_rebuild_another));
         }
-        Some(Ok((share, plan.len(), crate::Faraday::wallet_text(wl))))
+        Some(Ok((
+            share,
+            plan.len(),
+            String::from(crate::Faraday::wallet_text(wl).as_str()),
+        )))
     };
     let made = match app.session.wallets.iter().find(|wl| wl.checksum() == cs) {
         Some(wl) => text(wl),

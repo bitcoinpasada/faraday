@@ -19,12 +19,12 @@ use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, T
 fn now_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let label = fill(
         EN.codes_now_utc,
-        &[&crate::vault::tz_offset_text(app.tz_min()).to_string()],
+        &[crate::vault::tz_offset_text(app.tz_min()).as_str()],
     );
     ui.text_as(x, y + 10.0, BODY_S, Role::OnSurfaceVariant, &label);
     let text = match app.clock_now() {
         Some(t) => crate::vault::time_of_day_secs(crate::vault::local_secs(t, app.tz_min())),
-        None => EN.codes_not_known.to_string(),
+        None => faraday_text::Text::of(EN.codes_not_known),
     };
     let bw = ui.measure_as(LABEL_L, EN.codes_set_the_time) + 32.0;
     let text = ui.fit_as(TITLE_M, &text, (w - bw - 12.0).max(0.0));

@@ -2112,10 +2112,7 @@ impl Faraday {
         let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
         let wallet_line = match open.clone().find(|&v| vault_has_wallet(c, self, v, wallet)) {
             Some(v) => (
-                fill(
-                    EN.backup_kept_wallet_vault,
-                    &[&self.vaults.open[v].name.to_string()],
-                ),
+                fill(EN.backup_kept_wallet_vault, &[&self.vaults.open[v].name]),
                 Tone::Ok,
             ),
             None if unknown => not_known(),
@@ -2135,7 +2132,7 @@ impl Faraday {
                         fill(
                             EN.backup_kept_vault,
                             &[
-                                &self.vaults.open[v].name.to_string(),
+                                &self.vaults.open[v].name,
                                 &(if with {
                                     format!(" {}", EN.backup_with_its_passphrase)
                                 } else {
@@ -2546,7 +2543,7 @@ impl Faraday {
             return None;
         }
         if let Some(o) = self.backup_vault_open(c, v) {
-            return Some(self.vaults.open[o].name.clone());
+            return Some(String::from(self.vaults.open[o].name.as_str()));
         }
         // A locked vault's summary lists no shares and no passphrases: a
         // vault that is to hold one is done only while it is open.
@@ -2572,7 +2569,7 @@ impl Faraday {
             .find(|s| {
                 crate::backups::summary_fits(s, &sum, wallet_too, &told(s, &own), &told(s, &others))
             })
-            .map(|s| s.file.clone())
+            .map(|s| String::from(s.file.as_str()))
     }
 
     /// What place `p` is called on screen: its name, kept in the vault, or
@@ -3199,7 +3196,7 @@ impl Faraday {
             return;
         };
         let old = self.vaults.plan_take(id, &made.ours);
-        let said = fill(EN.plan_store_the_plan, &[&name.to_string()]);
+        let said = fill(EN.plan_store_the_plan, &[&name]);
         let fitted = self.vault_push_in(v, made.record, &said);
         self.vaults.plan_restore(id, old, fitted);
         self.vaults.seals_write(&c, v);

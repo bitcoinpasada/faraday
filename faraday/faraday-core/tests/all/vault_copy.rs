@@ -986,7 +986,10 @@ fn read_back(written: Files) -> Vec<(String, Vec<Held>)> {
         .map(|f| {
             let mut app = process(vec![f]);
             unlock(&mut app, 0);
-            (app.vaults().open[0].name.clone(), held(&app, 0))
+            (
+                String::from(app.vaults().open[0].name.as_str()),
+                held(&app, 0),
+            )
         })
         .collect()
 }

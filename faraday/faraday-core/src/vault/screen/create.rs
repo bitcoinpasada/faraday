@@ -26,7 +26,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         && vault::vault_need_mib(mem, vault::new_file_len()) > free
     {
         warnings.push((
-            fill(EN.vault_this_computer_n, &[&mib_text(mem).to_string()]),
+            fill(EN.vault_this_computer_n, &[&mib_text(mem)]),
             bad.paint(),
         ));
     }
@@ -34,12 +34,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         warnings.push((
             fill(
                 EN.vault_memory_mismatch,
-                &[
-                    name,
-                    &mib_text(mem).to_string(),
-                    &weakest.to_string(),
-                    &mib_text(limit).to_string(),
-                ],
+                &[name, &mib_text(mem), &weakest, &mib_text(limit)],
             ),
             warn.paint(),
         ));
@@ -48,7 +43,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         warnings.push((
             fill(
                 EN.vault_unlocking_takes,
-                &[&app.vaults.time_text(mem, passes).to_string()],
+                &[&app.vaults.time_text(mem, passes)],
             ),
             warn.paint(),
         ));
@@ -73,11 +68,17 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
     let facts = [
         (
             EN.vault_file,
-            format!("{}.kdbx", vault::vault_stem(&c.name.text)),
+            format!("{}.kdbx", &*vault::vault_stem(&c.name.text)),
         ),
-        (EN.vault_size, file_text(vault::new_file_len())),
-        (EN.vault_unlock_memory, mib_text(mem)),
-        (EN.vault_unlock_here, app.vaults.time_text(mem, passes)),
+        (
+            EN.vault_size,
+            file_text(vault::new_file_len()).as_str().into(),
+        ),
+        (EN.vault_unlock_memory, mib_text(mem).as_str().into()),
+        (
+            EN.vault_unlock_here,
+            app.vaults.time_text(mem, passes).as_str().into(),
+        ),
         (
             EN.vault_unlock_cost_adds,
             fill(EN.vault_bits, &[&format!("{cost:.1}")]),

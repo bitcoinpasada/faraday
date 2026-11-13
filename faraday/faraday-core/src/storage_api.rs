@@ -137,7 +137,9 @@ impl StickInfo {
         if size > limit {
             return Some(faraday_strings::EN.visit_file_too_large.to_string());
         }
-        vaults.read_refusal(self.is_vault(name), size)
+        vaults
+            .read_refusal(self.is_vault(name), size)
+            .map(|t| String::from(t.as_str()))
     }
 
     /// What a visit calls the file listed as `name` ([`crate::stick_kind`]),

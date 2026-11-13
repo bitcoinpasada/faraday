@@ -311,7 +311,15 @@ impl View<'_> {
     pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
         self.drawing
             .unsaved
-            .get_or_init(|| self.filled(|c| self.app.unsaved_now(c)))
+            .get_or_init(|| {
+                self.filled(|c| {
+                    let (a, b) = self.app.unsaved_now(c);
+                    let owned = |v: Vec<faraday_text::Text>| -> Vec<String> {
+                        v.iter().map(|t| String::from(t.as_str())).collect()
+                    };
+                    (owned(a), owned(b))
+                })
+            })
             .clone()
     }
 

@@ -499,7 +499,7 @@ fn cap(s: &str) -> String {
 }
 
 fn read_time(app: &View, at: Option<u64>) -> String {
-    at.map(|t| vault::time_of_day(vault::local_secs(t, app.tz_min())))
+    at.map(|t| String::from(vault::time_of_day(vault::local_secs(t, app.tz_min())).as_str()))
         .unwrap_or_default()
 }
 
@@ -833,13 +833,13 @@ fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, s
     let mut cy = y;
     for v in f.vaults_of(slot) {
         if let Some(s) = f.sealed_of(v) {
-            let line = format!("{} · {}", s.name, vault::file_text(s.len));
+            let line = format!("{} · {}", s.name, vault::file_text(s.len).as_str());
             cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     for n in &f.slots[slot].files {
         if let Some(it) = app.outbox.iter().find(|i| &i.name == n) {
-            let line = format!("{} · {}", n, vault::file_text(it.bytes.len()));
+            let line = format!("{} · {}", n, vault::file_text(it.bytes.len()).as_str());
             cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
@@ -920,7 +920,7 @@ fn bind_card(
             let line = format!(
                 "{} · {}{}",
                 vr.name,
-                vault::file_text(vr.len),
+                vault::file_text(vr.len).as_str(),
                 if seen.is_empty() {
                     String::new()
                 } else {
@@ -1029,7 +1029,7 @@ fn beside_block(app: &View, f: &BackupFlow, ui: &mut Ui, (x, y, w): (f32, f32, f
         ) + 8.0;
         for k in files {
             let vr = &r.files[k].0;
-            let line = format!("{} · {}", vr.name, vault::file_text(vr.len));
+            let line = format!("{} · {}", vr.name, vault::file_text(vr.len).as_str());
             let t = ui.fit_as(BODY_S.mono(), &line, w);
             ui.text_as(x, cy, BODY_S.mono(), Role::OnSurface, &t);
             cy += ui.advance_as(BODY_S.mono(), 24.0);

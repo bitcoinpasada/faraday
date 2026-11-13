@@ -494,7 +494,7 @@ pub(crate) fn walk_on(
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(name);
+    plan.vaults[0].file = Some(String::from(name.as_str()));
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(c, Kind::Gpg, plan);
     f.step = Step::Make;

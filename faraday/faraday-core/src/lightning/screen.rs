@@ -276,20 +276,17 @@ fn body(
         .max(20.0)
         + 12.0;
     let mut row = vec![(
-        if l.shown {
+        Text::of(if l.shown {
             EN.lightning_hide
         } else {
             EN.lightning_show
-        }
-        .into(),
+        }),
         Style::Secondary,
         Action::LShow,
     )];
     match app.vaults.open.get(app.vaults.current) {
         Some(v) => row.push((
-            Text::fill(EN.lightning_save_into, &[&v.name])
-                .as_str()
-                .into(),
+            Text::fill(EN.lightning_save_into, &[&v.name]),
             Style::Primary,
             Action::LVault,
         )),
@@ -300,7 +297,7 @@ fn body(
         ),
     }
     row.push((
-        EN.lightning_out_unprotected.into(),
+        Text::of(EN.lightning_out_unprotected),
         Style::Ghost,
         Action::LOut,
     ));

@@ -342,7 +342,7 @@ pub(crate) fn summary_has_seed(
     let text = fp_text(faraday_bip::keys::Fingerprint(fp));
     let mut unknown = false;
     for (i, k) in s.keys.iter().enumerate() {
-        if *k != text {
+        if k.as_str() != text {
             continue;
         }
         match (s.ids.get(i).copied().flatten(), id) {
@@ -893,7 +893,7 @@ impl Faraday {
         self.vaults
             .described_of(c, o.id, kind::PLAN)
             .find_map(|(_, r, d)| {
-                if d.same != want {
+                if d.same.as_str() != want {
                     return None;
                 }
                 let text = r.public_text(field::PLAN_ANSWERS)?;
@@ -1903,7 +1903,7 @@ impl Faraday {
                 );
                 out.push(Entry {
                     lines: self.backup_lines(c, &w, None, &sum),
-                    sum,
+                    sum: String::from(sum.as_str()),
                     shape: Session::shape(&w),
                     name: w.name,
                     wallet: None,
@@ -1924,7 +1924,7 @@ impl Faraday {
                         place: EN.backups_plan.to_string(),
                         holds: String::new(),
                         tag: None,
-                        state: fill(EN.backups_in_locked, &[&s.name.to_string()]),
+                        state: fill(EN.backups_in_locked, &[&s.name]),
                         tone: Tone::Dim,
                         at: None,
                         paper: false,
@@ -1932,9 +1932,9 @@ impl Faraday {
                     None => None,
                 };
                 out.push(Entry {
-                    sum: sum.clone(),
-                    name: name.clone(),
-                    shape: shape.clone(),
+                    sum: String::from(sum.as_str()),
+                    name: String::from(name.as_str()),
+                    shape: String::from(shape.as_str()),
                     wallet: None,
                     lines,
                 });
@@ -2224,7 +2224,7 @@ impl Faraday {
                     .visit
                     .receipt()
                     .as_ref()
-                    .filter(|r| r.label == label && r.wrote(&f.name))
+                    .filter(|r| r.label.as_str() == label.as_str() && r.wrote(&f.name))
                     .and_then(|r| r.time);
                 (
                     lower_first(&on_stick(&label, time, self.tz_min())),
@@ -2235,7 +2235,7 @@ impl Faraday {
             Some(Currency::Changed) => (EN.backups_changed_since.to_string(), Tone::Warn),
             Some(Currency::Unchanged) | None => (EN.backups_unchanged.to_string(), Tone::Ok),
         };
-        (format!("{} · {state}", f.name), tone)
+        (format!("{} · {state}", f.name.as_str()), tone)
     }
 
     /// Costs what `backup_map_of` costs: the wallet card's backup line, for
@@ -2364,7 +2364,7 @@ fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> String {
             EN.backups_on_stick_timed,
             &[
                 label,
-                &crate::vault::time_of_day(crate::vault::local_secs(t, tz_min)).to_string(),
+                &crate::vault::time_of_day(crate::vault::local_secs(t, tz_min)),
             ],
         ),
         None => fill(EN.backups_on_stick, &[label]),
@@ -3699,7 +3699,11 @@ impl Faraday {
                 .of(kind::WALLET)
                 .map(|(i, r)| {
                     (
-                        wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
+                        faraday_text::Text::of(&wallet_name_in(
+                            r,
+                            field::WALLET_NAME,
+                            EN.vaults_wallet,
+                        )),
                         self.vaults
                             .described(&c, v.id, i)
                             .map(|d| d.shape.clone())
@@ -3707,12 +3711,12 @@ impl Faraday {
                     )
                 })
                 .collect();
-            let (keys, ids): (Vec<String>, Vec<Option<[u8; 32]>>) = self
+            let (keys, ids): (Vec<faraday_text::Text>, Vec<Option<[u8; 32]>>) = self
                 .vaults
                 .records(v.id)
                 .of(kind::KEY)
                 .filter_map(|(_, r)| crate::vault::screen::key_identity(&c, self, r))
-                .map(|(fp, id)| (fp, Some(id)))
+                .map(|(fp, id)| (faraday_text::Text::of(&fp), Some(id)))
                 .unzip();
             let sum_of = |i: usize| {
                 self.vaults
@@ -3736,9 +3740,9 @@ impl Faraday {
                 .records(v.id)
                 .of(kind::PLAN)
                 .flat_map(|(_, r)| {
-                    let names: Vec<String> = r
+                    let names: Vec<faraday_text::Text> = r
                         .public_all(field::PLAN_PLACE)
-                        .map(|b| String::from_utf8_lossy(b).into_owned())
+                        .map(faraday_text::Text::from_utf8_lossy)
                         .collect();
                     r.public_all(field::PLAN_HOLDS)
                         .map(|b| redact_place_name(&String::from_utf8_lossy(b), &names))

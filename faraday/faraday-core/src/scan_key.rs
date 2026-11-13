@@ -957,7 +957,7 @@ impl Faraday {
     /// used there. The camera stays on unless the vault took them.
     fn scanned_entries(&mut self, text: Text, intake: bool) {
         let said = if intake {
-            Some(EN.scanned_totp_not_here.into())
+            Some(Text::of(EN.scanned_totp_not_here))
         } else if self.vaults.current_id().is_none() {
             // The read card's Unlock {vault} or Make a vault
             // (`docs/SCANNING.md` §4.5).

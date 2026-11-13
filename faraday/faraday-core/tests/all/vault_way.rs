@@ -500,10 +500,10 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     assert!(app.vaults().open.is_empty(), "it unlocked short of memory");
     assert_eq!(
         app.vaults().unlock_error,
-        Some(format!(
+        Some(faraday_text::Text::of(&format!(
             "Needs {need} MiB. This computer has {} MiB free.",
             need - 1
-        ))
+        )))
     );
     app.storage(StorageEvent::Memory {
         available_mib: need,

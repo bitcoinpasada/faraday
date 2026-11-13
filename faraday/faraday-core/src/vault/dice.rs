@@ -10,6 +10,7 @@ use crate::drawing::View;
 use crate::ui::Ui;
 use crate::{Action, Faraday};
 use faraday_shell_api::Key as K;
+use faraday_text::Text;
 
 /// The press a vault action is, if it is one.
 fn press_of(a: V) -> Option<Press> {
@@ -104,7 +105,7 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
         a.set(&phrase);
         b.set(&phrase);
         if let Some(d) = c.from_dice.get_mut(u.tag) {
-            *d = Some((phrase, bits, u.sim));
+            *d = Some((Text::of(&phrase), bits, u.sim));
         }
     }
 }

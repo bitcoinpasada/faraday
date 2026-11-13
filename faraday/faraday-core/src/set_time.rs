@@ -221,7 +221,7 @@ impl Faraday {
                 format!(
                     "{} {}",
                     crate::gpg::date(local),
-                    crate::vault::time_of_day_secs(local)
+                    crate::vault::time_of_day_secs(local).as_str()
                 )
             }
             None => EN.set_time_not_known.to_string(),
