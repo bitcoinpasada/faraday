@@ -2129,9 +2129,9 @@ impl Faraday {
         for (signed, name, bytes) in made {
             let name = self.put_outbox_beside(&name, bytes);
             if signed {
-                self.wallets.set_signed_name(String::from(&*name));
+                self.wallets.set_signed_name(faraday_text::Text::of(&name));
             } else {
-                self.wallets.set_tx_name(String::from(&*name));
+                self.wallets.set_tx_name(faraday_text::Text::of(&name));
             }
         }
     }
@@ -2942,9 +2942,12 @@ impl Faraday {
         let bip87 = create::bip87_key(pk);
         let standard = kind.filter(|&k| create::at_own_account(c, &self.session.keys, key, k, pk));
         Ok(WalletKey {
-            fp: fp_text(fp),
+            fp: String::from(&*fp_text(fp)),
             text: pk.key_text(),
-            kind: kind.map_or_else(|| Session::shape(w), |k| k.name().to_string()),
+            kind: kind.map_or_else(
+                || String::from(&*Session::shape(w)),
+                |k| k.name().to_string(),
+            ),
             standard,
             bip87,
             key,
@@ -3086,7 +3089,7 @@ impl Faraday {
                 };
                 return Some(fill(
                     EN.address_note_found,
-                    &[&w.name.to_string(), chain, &index.to_string()],
+                    &[&w.name, chain, &index.to_string()],
                 ));
             }
         }
@@ -3185,7 +3188,7 @@ impl Faraday {
         let words = forms::file_words(text);
         match self.session.keys.add_words(&c, &words, &label, None) {
             Ok(fp) => {
-                self.toast(&fill(EN.load_key_key_added, &[&fp_text(fp).to_string()]));
+                self.toast(&fill(EN.load_key_key_added, &[&fp_text(fp)]));
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
                 true
@@ -3523,7 +3526,7 @@ impl Faraday {
                     if !n.is_empty()
                         && let Some(w) = self.session.wallets.get_mut(self.wallets.wallet())
                     {
-                        w.name = n;
+                        w.name = faraday_text::Text::of(&n);
                     }
                     self.wallets.set_renaming(None);
                 }

@@ -225,7 +225,10 @@ impl super::Vaults {
                     vault: v,
                     record: i,
                     vault_name: open.label(self.store()).as_str().into(),
-                    line: fp_of(&fp).map_or_else(|| fp.as_str().into(), |f| key_line(f, label)),
+                    line: fp_of(&fp).map_or_else(
+                        || fp.as_str().into(),
+                        |f| String::from(&*key_line(f, label)),
+                    ),
                 });
             }
         }
@@ -300,7 +303,7 @@ impl super::Vaults {
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()
                         .iter()
-                        .map(|k| k.fingerprint().map(fp_text))
+                        .map(|k| k.fingerprint().map(|f| String::from(&*fp_text(f))))
                         .collect()
                 });
                 let loaded = self
@@ -321,7 +324,7 @@ impl super::Vaults {
         let in_wallet = |fp: &Option<String>, w: &W| fp.is_some() && w.fps.contains(fp);
         let seed = |(i, fp, label): &(usize, Option<String>, String), also: Vec<String>| {
             let line = match fp.as_deref().and_then(fp_of) {
-                Some(f) => key_line(f, label),
+                Some(f) => String::from(&*key_line(f, label)),
                 None if label.is_empty() => EN.vaults_seed.to_string(),
                 None => label.clone(),
             };

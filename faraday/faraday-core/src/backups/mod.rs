@@ -342,7 +342,7 @@ pub(crate) fn summary_has_seed(
     let text = fp_text(faraday_bip::keys::Fingerprint(fp));
     let mut unknown = false;
     for (i, k) in s.keys.iter().enumerate() {
-        if k.as_str() != text {
+        if k.as_str() != text.as_str() {
             continue;
         }
         match (s.ids.get(i).copied().flatten(), id) {
@@ -893,7 +893,7 @@ impl Faraday {
         self.vaults
             .described_of(c, o.id, kind::PLAN)
             .find_map(|(_, r, d)| {
-                if d.same.as_str() != want {
+                if d.same.as_str() != want.as_str() {
                     return None;
                 }
                 let text = r.public_text(field::PLAN_ANSWERS)?;
@@ -1069,7 +1069,7 @@ impl Faraday {
         let spots = self.backup_spots(&c, wallet, Some(b.wallet), &b.answers);
         let ids = self.seed_ids(&spots);
         let sum = wallet.checksum().to_string();
-        let name = wallet.name.clone();
+        let name = String::from(&*wallet.name);
         let shown = b.shown;
         let answers = String::from(&*b.answers.to_text());
         self.backups_area.sync(Synced {
@@ -1259,12 +1259,7 @@ impl Faraday {
                 continue;
             }
             seen.push(sum.clone());
-            let wallet = crate::wallet::Wallet::new(
-                String::new(),
-                policy,
-                String::new(),
-                crate::wallet::Origin::Named,
-            );
+            let wallet = crate::wallet::Wallet::new("", policy, "", crate::wallet::Origin::Named);
             let Some((shape, answers, _)) = self.plan_load_stored(&c, &wallet, &|pass| {
                 let mut shape = self.plan_shape_of(&wallet);
                 for (i, seed) in shape.seeds.iter_mut().enumerate() {
@@ -1540,12 +1535,7 @@ impl Faraday {
                     })
                     .map(|(_, _, d)| d.policy.clone())
                     .find(|p| p.checksum() == sum)?;
-                built = crate::wallet::Wallet::new(
-                    String::new(),
-                    policy,
-                    String::new(),
-                    crate::wallet::Origin::Named,
-                );
+                built = crate::wallet::Wallet::new("", policy, "", crate::wallet::Origin::Named);
                 &built
             }
         };
@@ -1889,8 +1879,8 @@ impl Faraday {
             out.push(Entry {
                 lines: self.backup_lines(c, w, Some(i), &sum),
                 sum,
-                name: w.name.clone(),
-                shape: Session::shape(w),
+                name: String::from(&*w.name),
+                shape: String::from(&*Session::shape(w)),
                 wallet: Some(i),
             });
         }
@@ -1901,17 +1891,16 @@ impl Faraday {
                     continue;
                 }
                 let w = Wallet::new(
-                    crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet)
-                        .into_owned(),
+                    &crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet),
                     d.policy.clone(),
-                    EN.backups_vault.to_string(),
+                    EN.backups_vault,
                     crate::wallet::Origin::Vault,
                 );
                 out.push(Entry {
                     lines: self.backup_lines(c, &w, None, &sum),
                     sum: String::from(sum.as_str()),
-                    shape: Session::shape(&w),
-                    name: w.name,
+                    shape: String::from(&*Session::shape(&w)),
+                    name: String::from(&*w.name),
                     wallet: None,
                 });
             }
@@ -1985,7 +1974,7 @@ impl Faraday {
         let spots = self.backup_spots(c, w, wi, &a);
         let r = Record {
             sum: sum.to_string(),
-            name: w.name.clone(),
+            name: String::from(&*w.name),
             ids: self.seed_ids(&spots),
             spots,
             checks: Vec::new(),
@@ -2297,10 +2286,9 @@ impl Faraday {
             for (_, r, d) in self.vaults.described_of(c, v.id, kind::WALLET) {
                 note(&d.checksum, &|| {
                     let w = Wallet::new(
-                        crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet)
-                            .into_owned(),
+                        &crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet),
                         d.policy.clone(),
-                        EN.backups_vault.to_string(),
+                        EN.backups_vault,
                         crate::wallet::Origin::Vault,
                     );
                     self.wallet_has_map(c, &w, &d.checksum)
@@ -3878,7 +3866,10 @@ impl Faraday {
         if loaded.is_empty() {
             return;
         }
-        let fps: Vec<String> = loaded.into_iter().map(crate::wallet::fp_text).collect();
+        let fps: Vec<String> = loaded
+            .into_iter()
+            .map(|f| String::from(&*crate::wallet::fp_text(f)))
+            .collect();
         self.refresh_spend();
         self.toast(&fill(EN.c32_gathered, &[&fps.join(", ")]));
     }

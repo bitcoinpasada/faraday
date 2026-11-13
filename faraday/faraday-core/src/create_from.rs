@@ -91,7 +91,7 @@ impl Faraday {
                 keys.push(VaultKey {
                     record: i,
                     fp,
-                    line: key_line(Fingerprint(fp), label),
+                    line: String::from(&*key_line(Fingerprint(fp), label)),
                 });
             }
             if !keys.is_empty() {

@@ -41,7 +41,7 @@ pub struct NonceCheck {
     /// the participant's name: those of a spend's file
     /// ([`Session::nonce_partials`]), brought in or made here; the Nonce
     /// check page has none.
-    pub partials: Vec<(usize, String, NonceEntry)>,
+    pub partials: Vec<(usize, faraday_text::Text, NonceEntry)>,
     /// Keys whose nonce an open vault holds over another message
     /// ([`NonceCheck::against`]).
     pub used_before: Vec<UsedBefore>,
@@ -83,7 +83,7 @@ impl NonceCheck {
                 }
                 None => found.push(UsedBefore {
                     key: e.key,
-                    name: name.clone(),
+                    name: name.as_str().into(),
                     inputs: vec![input],
                 }),
             }
@@ -240,7 +240,7 @@ pub struct NonceRow {
     /// The input it signs.
     pub input: usize,
     /// Its key: the master fingerprint, or the key's first characters.
-    pub name: String,
+    pub name: faraday_text::Text,
     /// Whether it is the key's over this transaction.
     pub verdict: Verdict,
     /// The element is a proven hash preimage, not a signature.

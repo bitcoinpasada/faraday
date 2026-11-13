@@ -84,7 +84,12 @@ fn nothing_chosen_backups_shows_the_first_wallet_beside_the_list() {
     let list_right = item_right(&mut app, Action::BackupsPage(0));
     let list_left = item_left(&mut app, Action::BackupsPage(0));
     // The first wallet's name twice: its item, and its map's head.
-    let names: Vec<String> = app.session.wallets.iter().map(|w| w.name.clone()).collect();
+    let names: Vec<String> = app
+        .session
+        .wallets
+        .iter()
+        .map(|w| String::from(&*w.name))
+        .collect();
     let shown: Vec<&String> = names
         .iter()
         .filter(|n| boxes(&mut app, n).iter().any(|b| b.0 > list_right))
@@ -119,8 +124,8 @@ fn choosing_a_wallet_at_1920_shows_its_page_beside_the_list() {
     let right = item_right(&mut app, Action::PickWallet(2));
     app.press(Action::PickWallet(2));
     assert_eq!(app.screen, Screen::Wallets, "the list stays on screen");
-    let third = app.session.wallets[2].name.clone();
-    let first = app.session.wallets[0].name.clone();
+    let third = app.session.wallets[2].name.as_str().to_string();
+    let first = app.session.wallets[0].name.as_str().to_string();
     assert!(
         boxes(&mut app, &third).iter().any(|b| b.0 > right),
         "{third}'s page beside the list"

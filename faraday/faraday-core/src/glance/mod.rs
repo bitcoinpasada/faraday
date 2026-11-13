@@ -647,7 +647,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
         .get(r)
         .filter(|x| x.kind() == kind::WALLET)?;
     let wallet = crate::wallet::Wallet::new(
-        crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.glance_wallet).into_owned(),
+        &crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.glance_wallet),
         reads.described(open.id, r)?.policy.clone(),
         Default::default(),
         crate::wallet::Origin::Named,
@@ -670,7 +670,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
         let Some(fp) = slot.fingerprint.map(fp_text) else {
             continue;
         };
-        let Some((_, pass)) = kept.iter().find(|(f, _)| *f == fp) else {
+        let Some((_, pass)) = kept.iter().find(|(f, _)| f.as_str() == fp.as_str()) else {
             continue;
         };
         if let Some(i) = shape.seeds.iter().position(|s| *s.name == *fp) {

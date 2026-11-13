@@ -90,9 +90,9 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
     let kits = testkit::kits();
     let (one, two) = (&kits[0], &kits[1]);
     let mut w = Wallet::new(
-        one.name.to_string(),
+        one.name,
         read_wallet(&c, &one.descriptor).expect("a test wallet"),
-        String::new(),
+        "",
         Origin::Named,
     );
     let fresh = |d: &str, net: faraday_bip::keys::Network| {
@@ -107,19 +107,22 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
         faraday_bip::keys::Network::Regtest,
         testkit::NET,
     ] {
-        assert_eq!(w.address_on(&c, net, false, 0), fresh(&one.descriptor, net));
+        assert_eq!(
+            *w.address_on(&c, net, false, 0),
+            fresh(&one.descriptor, net)
+        );
     }
     let before = w.same().to_string();
     w.set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));
     assert_eq!(
-        w.address_on(&c, testkit::NET, false, 0),
+        *w.address_on(&c, testkit::NET, false, 0),
         fresh(&two.descriptor, testkit::NET),
         "the address is the new policy's"
     );
     assert_ne!(w.same(), before, "the wallet compares as the new policy");
     assert_eq!(
         w.same(),
-        same_wallet(w.policy()),
+        &*same_wallet(w.policy()),
         "the wallet compares as the new policy"
     );
 }
@@ -243,9 +246,9 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
         .find(|k| k.id == "savings")
         .expect("Savings");
     let wallet = Wallet::new(
-        savings.name.to_string(),
+        savings.name,
         read_wallet(&c, &savings.descriptor).expect("a test wallet"),
-        String::new(),
+        "",
         Origin::Named,
     );
     let slots = app.session.slots(&wallet);
@@ -346,7 +349,7 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
         let mine = s
             .keys
             .iter()
-            .position(|k| k.as_str() == fp)
+            .position(|k| k.as_str() == &*fp)
             .expect("the seed");
         let other = (0..s.keys.len())
             .find(|&i| i != mine && s.ids[i].is_some())
@@ -558,11 +561,11 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
         .expect("the wallet loads");
     step(&mut app, "the file's wallet loaded", true);
     assert!(kept_found(&app).wallets.iter().all(|w| w.loaded));
-    app.session.wallets[0].name = "Kept under another name".to_string();
+    app.session.wallets[0].name = faraday_text::Text::of("Kept under another name");
     step(&mut app, "a loaded wallet renamed", false);
     app.inbox.remove(0);
     step(&mut app, "the file removed, the loaded wallet stays", true);
-    app.session.wallets[0].name = "Another name".to_string();
+    app.session.wallets[0].name = faraday_text::Text::of("Another name");
     step(&mut app, "the loaded wallet renamed", true);
     assert_eq!(kept_found(&app).wallets[0].name, "Another name");
     app.session.wallets[0].set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));

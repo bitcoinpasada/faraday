@@ -456,10 +456,10 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
         texts.iter().any(|t| t == "vault.kdbx"),
         "under the vault's name: {texts:?}"
     );
-    let line = faraday_core::wallet::key_line(
+    let line = String::from(&*faraday_core::wallet::key_line(
         faraday_bip::keys::Fingerprint(fp),
         testkit::TEST_SEEDS[0].1,
-    );
+    ));
     assert!(texts.contains(&line), "the key reads {line}");
     app.press(press);
     assert_eq!(app.session.keys.len(), 3, "the key is loaded");

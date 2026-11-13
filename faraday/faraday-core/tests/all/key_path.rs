@@ -89,7 +89,7 @@ fn screen(app: &mut Faraday) -> String {
 
 /// The danger line, as the screens write it.
 fn danger() -> String {
-    faraday_core::wallet::key_path_danger(OTHER)
+    String::from(&*faraday_core::wallet::key_path_danger(OTHER))
 }
 
 #[test]

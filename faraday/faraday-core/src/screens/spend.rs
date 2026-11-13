@@ -531,7 +531,7 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
     let reached = s.done[n as usize] || s.open == Some(n);
     match n {
         0 => match wallet.and_then(|w| app.session.wallets.get(w)) {
-            Some(w) => text!("{} · {}", w.name, Session::shape(w)),
+            Some(w) => text!("{} · {}", &*w.name, &*Session::shape(w)),
             None => Text::of(EN.step_summary_no_loaded),
         },
         1 if reached => Text::of(EN.step_summary_addresses),
@@ -663,10 +663,7 @@ pub(crate) fn step_body(
                         (x, cy + name + GAP_SMALL, room),
                         BODY_S,
                         Role::OnSurfaceVariant,
-                        &Text::fill(
-                            EN.step_wallet_source,
-                            &[&text!("{}", Session::shape(wl)), &text!("{}", wl.source)],
-                        ),
+                        &Text::fill(EN.step_wallet_source, &[&*Session::shape(wl), &*wl.source]),
                     );
                     row = row.max(name + GAP_SMALL + source + GAP);
                 }
@@ -1363,7 +1360,7 @@ pub(crate) fn step_body(
                         .collected
                         .iter()
                         .find(|(f, _)| Some(f.0) == *raw)
-                        .map(|(_, src)| Text::fill(EN.step_from_inline, &[&text!("{}", src)]))
+                        .map(|(_, src)| Text::fill(EN.step_from_inline, &[src]))
                         .unwrap_or_default()
                 } else {
                     label.clone()
@@ -1407,7 +1404,7 @@ pub(crate) fn step_body(
                 .inbox
                 .iter()
                 .enumerate()
-                .filter(|(_, it)| it.name != s.spend.source)
+                .filter(|(_, it)| it.name != *s.spend.source)
                 .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
                 .map(|(k, it)| (k, Text::of(&it.name)))
                 .collect();
@@ -1740,7 +1737,7 @@ pub(crate) fn step_body(
                     .inbox
                     .iter()
                     .enumerate()
-                    .filter(|(_, it)| it.name != s.spend.source)
+                    .filter(|(_, it)| it.name != *s.spend.source)
                     .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
                     .map(|(k, it)| (k, Text::of(&it.name)))
                     .collect();
@@ -1810,7 +1807,7 @@ pub(crate) fn step_body(
                     };
                     let mut kx = left;
                     for (slot, fp, here) in &p.keys {
-                        let t = Text::fill(EN.step_key, &[&text!("{}", slot), &text!("{}", fp)]);
+                        let t = Text::fill(EN.step_key, &[&text!("{}", slot), fp]);
                         let status = if *here { Status::Ok } else { Status::Neutral };
                         let kw = ui.measure_as(BODY_S, &t) + 34.0;
                         if kx > left && kx + kw > x + w - 10.0 {
@@ -1836,7 +1833,7 @@ pub(crate) fn step_body(
                             ly,
                             BODY_S,
                             Role::OnSurfaceVariant,
-                            &Text::fill(EN.step_waits, &[&text!("{}", l)]),
+                            &Text::fill(EN.step_waits, &[l]),
                         );
                         ly += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     }
@@ -2212,7 +2209,7 @@ mod tests {
     fn row(preimage: bool) -> NonceRow {
         NonceRow {
             input: 0,
-            name: "k".into(),
+            name: Text::of("k"),
             verdict: Verdict::Unchecked(Unchecked::UnsupportedScript),
             preimage,
             recomputed: None,

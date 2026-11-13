@@ -79,7 +79,7 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     let (word, fp) = app.session.keys.next_handout(n).unwrap();
     assert!(crate::strips::strip(&mut app).contains(&format!(
         "Lock in adds sample {word} ×{n} ({}) in place of these words",
-        fp_text(fp)
+        &*fp_text(fp)
     )));
     let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(0));
     assert!(
@@ -108,5 +108,5 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     // Lock in went back to Create, which shows the sample's key.
     assert_eq!(app.screen, Screen::Create);
     let shown = texts(&mut app);
-    assert!(shown.contains(&fp_text(faraday_bip::keys::Fingerprint(with))));
+    assert!(shown.contains(&*fp_text(faraday_bip::keys::Fingerprint(with))));
 }

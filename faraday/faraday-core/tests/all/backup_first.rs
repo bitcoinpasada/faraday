@@ -328,7 +328,12 @@ fn draws_an_address(app: &mut Faraday, w: usize) -> bool {
     let wl = &app.session.wallets[w];
     let addrs: Vec<String> = [(false, 0), (false, 1), (true, 0)]
         .iter()
-        .map(|&(change, i)| app.session.address_shown(&c, wl, change, i))
+        .map(|&(change, i)| {
+            app.session
+                .address_shown(&c, wl, change, i)
+                .as_str()
+                .to_string()
+        })
         .collect();
     app.drawn_texts().iter().any(|t| {
         let t = t.replace(' ', "");
@@ -558,7 +563,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert!(!app.backup_items_now(&c).contains(&bstep::VAULT));
-    let line = format!("vault.kdbx holds seed {}", fp_text(fp));
+    let line = format!("vault.kdbx holds seed {}", String::from(&*fp_text(fp)));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
     assert!(app.key_held(&c, fp), "the paper items are not done");
@@ -583,7 +588,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     app.press(Action::BQ(qstep::PLAN));
     let _ = app.frame();
     assert!(!app.offers(Action::BChecklist));
-    let nowhere = format!("Seed {} is kept nowhere", fp_text(fp));
+    let nowhere = format!("Seed {} is kept nowhere", String::from(&*fp_text(fp)));
     assert!(app.drawn_texts().contains(&nowhere));
     app.press(Action::BChecklist);
     if app

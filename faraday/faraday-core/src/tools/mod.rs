@@ -241,8 +241,8 @@ impl ToolsArea {
                     .account_text(c, i, crate::create::NewKind::Multi, 0)
                     .ok()?;
                 Some((
-                    crate::wallet::fp_text(k.fingerprint),
-                    format!("{text}/<0;1>/*"),
+                    String::from(&*crate::wallet::fp_text(k.fingerprint)),
+                    format!("{}/<0;1>/*", &*text),
                 ))
             })
             .collect()

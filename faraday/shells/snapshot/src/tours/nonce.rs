@@ -60,6 +60,7 @@ fn finished_hex(
     app.press(Action::Collect(at(&app, "cosigner.psbt").ok_or("no copy")?));
     app.spend()
         .and_then(|s| s.spend.finished_hex())
+        .map(|t| String::from(&*t))
         .ok_or_else(|| "the spend did not finish".to_string())
 }
 

@@ -465,7 +465,7 @@ fn state_in(session: &Session, inner: &Inner) -> (Vec<Fingerprint>, Vec<Fingerpr
 }
 
 /// Signs with every key the session holds, past the dangers a hold takes.
-fn sign_held(session: &Session, p: &mut Psbt) -> Result<Vec<Fingerprint>, String> {
+fn sign_held(session: &Session, p: &mut Psbt) -> Result<Vec<Fingerprint>, faraday_text::Text> {
     let c = faraday_core::testkit::compute();
     let held = session.inspect(&c, p).holdable();
     session
@@ -579,7 +579,7 @@ fn a_final_witness_with_too_few_signatures_counts_no_signer() {
 
 // What `finish` refuses of a taproot input already final.
 
-fn finish_of(inner: &Inner) -> Result<(), String> {
+fn finish_of(inner: &Inner) -> Result<(), faraday_text::Text> {
     Spend::new(Psbt::from(inner.clone()), "t").finish()
 }
 
@@ -1175,7 +1175,9 @@ fn finish_refuses_a_sighash_single_key_path_signature_with_no_output_to_sign() {
 /// A cosigner's file for a spend of a true `<A> CHECKSIG` leaf at input 0,
 /// beside input 1 whose output the file does not state (the spend's own
 /// copy does): `forge` flips a bit of the signature.
-fn collected_beside_an_input_with_no_utxo(forge: bool) -> Result<Vec<Fingerprint>, String> {
+fn collected_beside_an_input_with_no_utxo(
+    forge: bool,
+) -> Result<Vec<Fingerprint>, faraday_text::Text> {
     let c = faraday_core::testkit::compute();
     let (a, internal, other) = (key(1), key(7), key(2));
     let script = multi_a(&[&a], 1);

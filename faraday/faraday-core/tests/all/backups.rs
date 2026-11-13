@@ -265,8 +265,8 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 2, "test key 2 loaded");
     let (fp1, fp2) = (
-        fp_text(app.session.keys[0].fingerprint),
-        fp_text(app.session.keys[1].fingerprint),
+        String::from(&*fp_text(app.session.keys[0].fingerprint)),
+        String::from(&*fp_text(app.session.keys[1].fingerprint)),
     );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveKey(1)));
@@ -331,7 +331,7 @@ fn a_wallet_with_no_plan_offers_back_up() {
 #[test]
 fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
     let mut app = with_a_wallet();
-    let name = app.session.wallets[0].name.clone();
+    let name = app.session.wallets[0].name.as_str().to_string();
     open_a_vault(&mut app);
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));

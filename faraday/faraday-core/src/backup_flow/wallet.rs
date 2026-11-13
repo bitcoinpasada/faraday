@@ -1997,7 +1997,7 @@ impl Faraday {
             rkind::PASSPHRASE => r
                 .public(field::PASSPHRASE_KEY)
                 .and_then(|b| <[u8; 4]>::try_from(b).ok())
-                .map(|b| vec![text!("a{}", fp_text(faraday_bip::keys::Fingerprint(b)))])
+                .map(|b| vec![text!("a{}", &*fp_text(faraday_bip::keys::Fingerprint(b)))])
                 .unwrap_or_default(),
             rkind::WALLET_SHARE => {
                 let n = r

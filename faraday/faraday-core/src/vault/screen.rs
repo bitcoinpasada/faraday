@@ -1727,9 +1727,9 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
 /// the descriptor's checksum.
 pub(crate) fn policy_shape(policy: faraday_bip::policy::WalletPolicy) -> Text {
     Text::of(&Session::shape(&Wallet::new(
-        "".into(),
+        "",
         policy,
-        "".into(),
+        "",
         crate::wallet::Origin::Named,
     )))
 }

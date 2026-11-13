@@ -8,6 +8,7 @@ use faraday_core::memory::nonces::{History, HistorySnapshot, NonceEntry};
 use faraday_core::testkit::{nonce_history_held, nonce_history_on, nonce_history_pending};
 use faraday_core::vault::VaultAction as V;
 use faraday_shell_api::EntropyBytes;
+use faraday_text::Text;
 
 fn key(n: u8) -> SecretKey {
     SecretKey::from_slice(&[n; 32]).unwrap()
@@ -439,11 +440,11 @@ fn a_musig_partial_in_a_file_gives_its_first_nonce_and_the_same_round_twice_is_o
     let held = HistorySnapshot::of_entries(&[e, NonceEntry::of_partial(&again[0])]);
     let app = with_inbox(vec![]);
     let mut check = app.session.nonce_check(&testkit::compute(), &psbt);
-    check.partials = vec![(0, "k".into(), e)];
+    check.partials = vec![(0, Text::of("k"), e)];
     check.against(&held);
     assert!(check.used_before.is_empty(), "the round collected twice");
     let other = NonceEntry { msg: [9; 32], ..e };
-    check.partials = vec![(0, "k".into(), other)];
+    check.partials = vec![(0, Text::of("k"), other)];
     check.against(&held);
     assert_eq!(check.used_before.len(), 1, "that nonce in another round");
 }
@@ -759,7 +760,11 @@ fn a_key_in_the_history_is_one_line_however_many_inputs_it_signed() {
     let mut check = app.session.nonce_check(&testkit::compute(), &psbt);
     let e = NonceEntry::of_partial(&got[0]);
     let f = NonceEntry { key: [4; 32], ..e };
-    check.partials = vec![(0, "a".into(), e), (1, "a".into(), e), (0, "b".into(), f)];
+    check.partials = vec![
+        (0, Text::of("a"), e),
+        (1, Text::of("a"), e),
+        (0, Text::of("b"), f),
+    ];
     let held = HistorySnapshot::of_entries(&[
         NonceEntry { msg: [1; 32], ..e },
         NonceEntry { msg: [1; 32], ..f },

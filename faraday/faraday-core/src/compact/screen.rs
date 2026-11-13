@@ -172,7 +172,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let lead = match app.wallets.spend() {
         Some(s) if s.wallet == Some(app.wallets.wallet()) => None,
         Some(s) => Some((
-            fill(EN.compact_continue_signing, &[&s.spend.source.to_string()]),
+            fill(EN.compact_continue_signing, &[&s.spend.source]),
             Action::Nav(Screen::Spend),
         )),
         None if app.psbt_for(app.wallets.wallet()).is_some() => None,
@@ -237,8 +237,8 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let line = format!(
         "{} · {}",
-        Session::shape(wlt),
-        crate::wallet::source_tag(&wlt.source, wlt.origin, false)
+        &*Session::shape(wlt),
+        &*crate::wallet::source_tag(&wlt.source, wlt.origin, false)
     );
     cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
     cy += crate::screens::key_path_line(app, ui, (x, cy, iw), wlt.policy());
@@ -649,11 +649,11 @@ fn entry_for(app: &View) -> Option<String> {
     let for_wallet = es
         .wallet
         .and_then(|w| app.session.wallets.get(w))
-        .map(|wl| fill(EN.compact_entry_for_wallet, &[&wl.name.to_string()]));
+        .map(|wl| fill(EN.compact_entry_for_wallet, &[&wl.name]));
     let wanted = es.wanted.map(|fp| {
         fill(
             EN.compact_for_key,
-            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+            &[&fp_text(faraday_bip::keys::Fingerprint(fp))],
         )
     });
     let round = es.c32_round.as_ref();

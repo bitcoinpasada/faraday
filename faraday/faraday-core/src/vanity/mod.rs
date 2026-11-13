@@ -577,5 +577,5 @@ impl crate::trail::StepFlow for VanitySteps {
 
 /// The fingerprint as the cards show it.
 pub fn fp(fp: [u8; 4]) -> String {
-    crate::wallet::fp_text(Fingerprint(fp))
+    String::from(&*crate::wallet::fp_text(Fingerprint(fp)))
 }

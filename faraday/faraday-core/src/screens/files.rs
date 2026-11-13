@@ -519,7 +519,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut bx = x + 66.0;
         let same_spend = app.wallets.spend().is_some_and(|s| {
             item.psbt()
-                .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
+                .is_some_and(|p| p.txid == s.spend.txid && item.name != *s.spend.source)
         });
         match item.kind {
             kind @ (FileKind::Psbt | FileKind::QrVault)
@@ -1742,7 +1742,7 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
     };
     let same_spend = app.wallets.spend().is_some_and(|s| {
         item.psbt()
-            .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
+            .is_some_and(|p| p.txid == s.spend.txid && item.name != *s.spend.source)
     });
     match item.kind {
         FileKind::Psbt if same_spend => {

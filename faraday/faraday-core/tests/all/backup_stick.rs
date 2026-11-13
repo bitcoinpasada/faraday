@@ -27,7 +27,7 @@ fn first_address(text: &str) -> String {
     let i = s
         .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .unwrap();
-    s.address(&c, &s.wallets[i], false, 0)
+    String::from(&*s.address(&c, &s.wallets[i], false, 0))
 }
 
 fn taproot_multisig() -> String {
@@ -244,7 +244,9 @@ fn with_seed(app: &mut Faraday) -> String {
     // A key typed in has no name of its own: it goes by its fingerprint.
     format!(
         "Seed {}",
-        faraday_core::wallet::fp_text(app.session.keys[0].fingerprint)
+        String::from(&*faraday_core::wallet::fp_text(
+            app.session.keys[0].fingerprint
+        ))
     )
 }
 

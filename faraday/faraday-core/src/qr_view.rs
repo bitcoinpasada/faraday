@@ -819,7 +819,7 @@ impl Faraday {
     pub(crate) fn specter_diy_view(&self, c: &Compute, w: &wallet::Wallet) -> Result<QrView, Why> {
         let text = faraday_intake::specter_diy::command(&w.name, w.policy())
             .ok_or(EN.code_view_this_wallet_has)?;
-        let title = Text::fill(EN.code_view_specter_diy, &[&text!("{}", w.name)]);
+        let title = Text::fill(EN.code_view_specter_diy, &[&*w.name]);
         let name = text!("{}-specter-diy.png", crate::file_stem(&w.name).as_str());
         let mut lines = texts(&self.wallet_label(w));
         lines.push(Text::of(EN.code_view_public_watch));
@@ -1084,7 +1084,7 @@ impl Faraday {
                 if let Some((_, sum)) = text.rsplit_once('#') {
                     lines.push(Text::fill(EN.code_view_descriptor, &[sum]));
                 }
-                let title = Text::fill(EN.code_view_wallet_descriptor, &[&text!("{}", w.name)]);
+                let title = Text::fill(EN.code_view_wallet_descriptor, &[&text!("{}", &*w.name)]);
                 let name = text!("{stem}-descriptor.png");
                 lines.push(Text::of(EN.code_view_public_watch));
                 let mut view = QrView::text(c, &title, &text)?.public(&name, lines);
@@ -1290,7 +1290,7 @@ impl Faraday {
                 let a = self.session.address_shown(c, w, false, at);
                 let title = Text::fill(
                     EN.code_view_receive,
-                    &[&text!("{}", w.name), &text!("{at}")],
+                    &[&text!("{}", &*w.name), &text!("{at}")],
                 );
                 plain(&title, &a)
             }
@@ -1360,7 +1360,7 @@ impl Faraday {
         let mut lines = Vec::new();
         if let Ok(policy) = wallet::read_wallet(c, &text) {
             let w = wallet::Wallet::new(
-                name.as_str().into(),
+                name.as_str(),
                 policy,
                 Default::default(),
                 wallet::Origin::Vault,

@@ -407,7 +407,7 @@ impl Faraday {
         let names: Vec<String> = released
             .iter()
             .filter(|(fp, _)| !held.contains(fp))
-            .map(|(fp, _)| fp_text(*fp))
+            .map(|(fp, _)| String::from(&*fp_text(*fp)))
             .collect();
         if names.is_empty() {
             return;
@@ -696,7 +696,7 @@ impl Faraday {
         let to_set: Vec<usize> = self
             .vaults
             .described_of(&c, id, kind::WALLET)
-            .filter(|(_, r, d)| d.same.as_str() == want && r.loads_at_unlock() != loads)
+            .filter(|(_, r, d)| d.same.as_str() == &*want && r.loads_at_unlock() != loads)
             .map(|(i, _, _)| i)
             .collect();
         for &i in &to_set {

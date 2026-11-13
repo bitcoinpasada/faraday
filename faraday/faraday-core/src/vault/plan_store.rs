@@ -54,11 +54,11 @@ impl VaultArea {
         let (w, answers, shape) = (src.wallet, src.answers, &src.shape);
         let mut text = answers.to_text();
         for fp in &src.held {
-            text.push_str(&format!("held {}\n", fp_text(*fp)));
+            text.push_str(&format!("held {}\n", &*fp_text(*fp)));
         }
         let ours: Vec<usize> = self
             .described_of(c, open.id, kind::PLAN)
-            .filter(|(_, _, d)| *d.same == wallet::same_wallet(w.policy()))
+            .filter(|(_, _, d)| *d.same == *wallet::same_wallet(w.policy()))
             .map(|(i, _, _)| i)
             .collect();
         let text = plan::text::with_seals(&text, &self.plan_seals_kept(open.id, &ours));

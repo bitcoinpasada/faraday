@@ -239,7 +239,7 @@ fn key_fps(app: &Faraday) -> Vec<String> {
         .session
         .keys
         .all()
-        .map(|k| faraday_core::wallet::fp_text(k.fingerprint))
+        .map(|k| String::from(&*faraday_core::wallet::fp_text(k.fingerprint)))
         .collect();
     v.sort();
     v
@@ -978,7 +978,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         .session
         .keys
         .all()
-        .find(|k| faraday_core::wallet::fp_text(k.fingerprint) == fp(0))
+        .find(|k| *faraday_core::wallet::fp_text(k.fingerprint) == *fp(0))
         .expect("the seed did not load");
     assert_eq!(
         key.label,
@@ -1134,7 +1134,7 @@ fn fp_with(passphrase: &str) -> String {
             None,
         )
         .unwrap();
-    faraday_core::wallet::fp_text(fp)
+    String::from(&*faraday_core::wallet::fp_text(fp))
 }
 
 /// Every kind of seed file Faraday reads, imported from the boot sheet

@@ -1580,7 +1580,7 @@ impl Faraday {
         }
         match self.form_key() {
             Ok(fp) => {
-                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp).to_string()]));
+                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp)]));
                 let back = self.entry.state().back;
                 self.seeds_took(fp, back);
                 self.entry.reset();

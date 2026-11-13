@@ -612,6 +612,6 @@ pub(crate) fn vault_row(r: faraday_keys::vault::RecordView<'_>) -> (String, Stri
 pub(crate) fn record_fp(r: faraday_keys::vault::RecordView<'_>, f: u8) -> String {
     r.public(f)
         .and_then(|b| <[u8; 4]>::try_from(b).ok())
-        .map(|b| crate::wallet::fp_text(faraday_bip::keys::Fingerprint(b)))
+        .map(|b| String::from(&*crate::wallet::fp_text(faraday_bip::keys::Fingerprint(b))))
         .unwrap_or_default()
 }

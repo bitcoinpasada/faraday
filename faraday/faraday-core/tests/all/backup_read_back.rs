@@ -100,7 +100,7 @@ fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
-    let address = app.session.address(&c, &app.session.wallets[0], false, 0);
+    let address = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0));
     nothing_on_paper(&mut app);
     (app, address, fps)
 }
@@ -211,7 +211,7 @@ fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint.0, fp);
     assert_eq!(app.session.wallets.len(), 1);
-    app.session.address(&c, &app.session.wallets[0], false, 0)
+    String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0))
 }
 
 /// Every wallet the Inbox describes, loaded: the first one's first
@@ -220,7 +220,7 @@ fn described_wallet(app: &mut Faraday) -> String {
     let c = faraday_core::testkit::compute();
     app.press(Action::InboxLoad);
     assert_eq!(app.session.wallets.len(), 1, "one wallet");
-    app.session.address(&c, &app.session.wallets[0], false, 0)
+    String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0))
 }
 
 /// The fingerprint of test seed `n` with `pass`.
@@ -402,7 +402,7 @@ fn shares_restore(f: usize) {
     assert_eq!(back.session.wallets.len(), 1, "{:?}", back.toast_text());
     assert_eq!(
         back.session.address(&c, &back.session.wallets[0], false, 0),
-        address
+        address.as_str()
     );
 }
 
@@ -463,7 +463,7 @@ fn a_picture_that_does_not_read_back_twice_leaves_the_stick_not_done() {
     shell.flow(&mut app, F::Tap);
     let name = format!(
         "seedqr-{}.png",
-        faraday_core::wallet::fp_text(Fingerprint(fp)).to_lowercase()
+        String::from(&*faraday_core::wallet::fp_text(Fingerprint(fp))).to_lowercase()
     );
     let f = app.flow().unwrap();
     assert!(f.slots[0].written.is_none(), "not done");

@@ -994,7 +994,7 @@ impl Faraday {
                 return;
             }
             let wallet = Wallet::new(
-                (&*name).into(),
+                &name,
                 policy,
                 Default::default(),
                 crate::wallet::Origin::Named,
@@ -1630,7 +1630,11 @@ impl Faraday {
             }
         };
         let descriptor = kind.descriptor(1, &[text]);
-        let name = text!("{} · {}", fp_text(fp), crate::spend_backup::kind_name(kind));
+        let name = text!(
+            "{} · {}",
+            &*fp_text(fp),
+            crate::spend_backup::kind_name(kind)
+        );
         match self.session.add_wallet(
             &c,
             &name,

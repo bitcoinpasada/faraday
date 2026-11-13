@@ -850,9 +850,11 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
     let shown = texts(&mut app);
-    assert!(shown.contains(&faraday_core::wallet::fp_text(
-        faraday_bip::keys::Fingerprint(with)
-    )));
+    assert!(
+        shown.contains(&String::from(&*faraday_core::wallet::fp_text(
+            faraday_bip::keys::Fingerprint(with)
+        )))
+    );
 }
 
 #[test]
@@ -892,7 +894,10 @@ fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fp.0]);
     assert_eq!(app.screen, Screen::Create);
-    assert!(texts(&mut app).contains(&fp_text(fp)), "{word} ×{n}");
+    assert!(
+        texts(&mut app).contains(&String::from(&*fp_text(fp))),
+        "{word} ×{n}"
+    );
 }
 
 /// Outside Practice, on a test network too, New key adds the key it made.

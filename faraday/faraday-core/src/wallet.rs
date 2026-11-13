@@ -4,7 +4,7 @@
 //! `faraday-psbt`'s; this module only decides which call comes next.
 
 use crate::modes::Mode;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::{Action, Faraday, Screen, Sheet, spend_backup, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
@@ -16,6 +16,7 @@ use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
 use faraday_shell_api::Key as KeyIn;
 use faraday_strings::bip::policy_error;
+use faraday_text::{Text, text};
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
@@ -80,12 +81,12 @@ pub trait KeyTexts {
         i: usize,
         kind: crate::create::NewKind,
         account: u32,
-    ) -> Result<String, String>;
+    ) -> Result<Text, Text>;
 
     /// Costs a key derivation the first time. `[fingerprint/path]xpub` of
     /// key `i` at `path` ([`crate::create::path_spec`]), kept as
     /// [`KeyTexts::account_text`] is.
-    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String>;
+    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<Text, Text>;
 }
 
 impl KeyTexts for faraday_keys::Keys {
@@ -95,22 +96,18 @@ impl KeyTexts for faraday_keys::Keys {
         i: usize,
         kind: crate::create::NewKind,
         account: u32,
-    ) -> Result<String, String> {
+    ) -> Result<Text, Text> {
         let spec = kind
             .spec(self.network(), account)
-            .map_err(|e| String::from(&*e))?;
-        self.key_text(c, i, &spec).map_or_else(
-            || Err(String::new()),
-            |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),
-        )
+            .map_err(|e| Text::of(&e))?;
+        self.key_text(c, i, &spec)
+            .unwrap_or_else(|| Err(Text::default()))
     }
 
-    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String> {
-        let spec = crate::create::path_spec(path).map_err(|e| String::from(&*e))?;
-        self.key_text(c, i, &spec).map_or_else(
-            || Err(String::new()),
-            |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),
-        )
+    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<Text, Text> {
+        let spec = crate::create::path_spec(path).map_err(|e| Text::of(&e))?;
+        self.key_text(c, i, &spec)
+            .unwrap_or_else(|| Err(Text::default()))
     }
 }
 
@@ -127,11 +124,11 @@ pub struct Wallet {
     /// What the person called it: one line of text ([`wallet_name`]),
     /// as [`Wallet::new`] and a rename make it; a sheet written for the
     /// wallet makes it so again.
-    pub name: String,
+    pub name: Text,
     /// The policy, as it was read.
     policy: WalletPolicy,
     /// Where it came from: "Test wallet" or the file's name.
-    pub source: String,
+    pub source: Text,
     /// What [`Wallet::source`] is: every caller that adds a wallet
     /// ([`Session::add_wallet`]) already knows this, so it is given
     /// explicitly there rather than read back out of the text, which a
@@ -141,13 +138,13 @@ pub struct Wallet {
     /// The addresses asked of it, each derived once, by network, chain
     /// and index ([`Wallet::address_on`]): public, and dropped with the
     /// policy they come from ([`Wallet::set_policy`]).
-    addresses: std::cell::RefCell<Vec<(Network, bool, u32, String)>>,
+    addresses: std::cell::RefCell<Vec<(Network, bool, u32, Text)>>,
     /// The scripts asked of it to find which wallet a PSBT spends from,
     /// each derived once, by chain and index ([`Wallet::script_at`]):
     /// public, and dropped with the policy they come from.
     scripts: std::cell::RefCell<Vec<ScriptKept>>,
     /// [`Wallet::same`], kept; dropped with the policy.
-    same: std::cell::OnceCell<String>,
+    same: std::cell::OnceCell<Text>,
     /// The fingerprints of the keys loaded when its keys were last
     /// checked against them ([`Session::drop_forged`]).
     checked: Vec<Fingerprint>,
@@ -232,12 +229,12 @@ type ScriptKept = (
 
 impl Wallet {
     /// Makes a wallet, its name made one line of text ([`wallet_name`]).
-    pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
+    pub fn new(name: &str, policy: WalletPolicy, source: &str, origin: Origin) -> Wallet {
         Wallet {
-            name: wallet_name(&name).into_owned(),
+            name: Text::of(&wallet_name(name)),
             waits: Waits::of(&policy),
             policy,
-            source,
+            source: Text::of(source),
             origin,
             addresses: std::cell::RefCell::new(Vec::new()),
             scripts: std::cell::RefCell::new(Vec::new()),
@@ -256,9 +253,9 @@ impl Wallet {
     /// addresses and [`Wallet::same`] already kept, all public.
     pub fn job_copy(&self) -> Wallet {
         Wallet {
-            name: self.name.clone(),
+            name: self.name.duplicate(),
             policy: self.policy.clone(),
-            source: self.source.clone(),
+            source: self.source.duplicate(),
             origin: self.origin,
             addresses: std::cell::RefCell::new(self.addresses.borrow().clone()),
             scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
@@ -394,27 +391,27 @@ impl Wallet {
     /// (`docs/SPEED.md` §2: a kept value is public and goes with what it
     /// describes). A frame that shows an address asks it again every
     /// frame; it is derived once.
-    pub fn address_on(&self, c: &Compute, network: Network, change: bool, index: u32) -> String {
+    pub fn address_on(&self, c: &Compute, network: Network, change: bool, index: u32) -> Text {
         if let Some((.., a)) = self
             .addresses
             .borrow()
             .iter()
             .find(|(n, c, i, _)| *n == network && *c == change && *i == index)
         {
-            return a.clone();
+            return a.duplicate();
         }
         let a = {
             self.policy
                 .address_at(c, network, change, index)
-                .map(|a| a.to_string())
-                .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&policy_error(&e)]))
+                .map(|a| text!("{a}"))
+                .unwrap_or_else(|e| Text::fill(EN.wallet_no_address, &[&policy_error(&e)]))
         };
         let mut kept = self.addresses.borrow_mut();
         // A long walk through addresses keeps the latest only.
         if kept.len() >= WALLET_ADDRESSES_KEPT {
             kept.clear();
         }
-        kept.push((network, change, index, a.clone()));
+        kept.push((network, change, index, a.duplicate()));
         a
     }
 
@@ -472,7 +469,7 @@ pub struct Slot {
     /// The key's master fingerprint, when the descriptor gives one.
     pub fingerprint: Option<Fingerprint>,
     /// The label of the session key that fills it, when one does.
-    pub held_by: Option<String>,
+    pub held_by: Option<Text>,
     /// The descriptor's key for it, which says whether a seed is this
     /// slot's where the fingerprint only finds a candidate; `None` for a
     /// silent payments wallet's key.
@@ -492,8 +489,8 @@ impl Slot {
 }
 
 /// A fingerprint as eight hex digits (public).
-pub fn fp_text(fp: Fingerprint) -> String {
-    String::from_utf8_lossy(&fp.to_hex()).into_owned()
+pub fn fp_text(fp: Fingerprint) -> Text {
+    Text::from_utf8_lossy(&fp.to_hex())
 }
 
 /// A fingerprint as eight hex digits, as one exactly sized [`Text`]
@@ -507,25 +504,25 @@ pub fn fp_label(fp: Fingerprint) -> faraday_text::Text {
 /// [`Origin`] already reads as a complete statement ("Made here",
 /// "Dealt here") reads on its own, with no "From"/"from" before it
 /// either way.
-pub fn source_tag(source: &str, origin: Origin, cap: bool) -> String {
+pub fn source_tag(source: &str, origin: Origin, cap: bool) -> Text {
     if origin == Origin::Statement {
-        source.to_string()
+        Text::of(source)
     } else if cap {
-        fill(EN.wallet_source_tag, &[source])
+        Text::fill(EN.wallet_source_tag, &[source])
     } else {
-        fill(EN.wallet_from_inline, &[source])
+        Text::fill(EN.wallet_from_inline, &[source])
     }
 }
 
 /// A key as a line: its fingerprint, then its label when the label is
 /// not the fingerprint itself.
-pub fn key_line(fp: Fingerprint, label: &str) -> String {
+pub fn key_line(fp: Fingerprint, label: &str) -> Text {
     let f = fp_text(fp);
     let label = label.trim();
     if label.is_empty() || label.eq_ignore_ascii_case(&f) {
         f
     } else {
-        format!("{f} · {label}")
+        text!("{} · {label}", &*f)
     }
 }
 
@@ -559,8 +556,8 @@ pub fn replays(action: Action) -> bool {
 
 /// The danger line of a wallet whose key path a key not of its own
 /// spends, naming that key in groups of four (F132).
-pub fn key_path_danger(key: &str) -> String {
-    fill(EN.wallet_key_path_other, &[&faraday_ui::grouped(key)])
+pub fn key_path_danger(key: &str) -> Text {
+    Text::fill(EN.wallet_key_path_other, &[&faraday_ui::grouped(key)])
 }
 
 /// Keys and wallets for this session. Nothing here is written anywhere.
@@ -586,7 +583,7 @@ pub struct Session {
     /// The descriptors of the wallets of that kind the person confirmed
     /// in this session, which [`Session::add_policy`] adds without asking
     /// again.
-    key_path_confirmed: Vec<String>,
+    key_path_confirmed: Vec<Text>,
     /// A Coldcard export of two accounts waiting for one to be chosen, and the choices made.
     accounts: account::Accounts,
     /// The extended public keys worked out from loaded keys at the paths
@@ -603,11 +600,11 @@ pub struct Session {
 /// [`Session::add_policy`] was called with.
 pub struct KeyPathAsk {
     /// The name it is added under.
-    pub name: String,
+    pub name: Text,
     /// The wallet, read.
     pub policy: WalletPolicy,
     /// Where it came from, as [`Wallet::source`] has it.
-    pub source: String,
+    pub source: Text,
     /// What that source is.
     pub origin: Origin,
     /// The press that asked for it, run again once the hold confirms it,
@@ -623,7 +620,7 @@ pub struct KeyPathAsk {
 /// whether it is the danger line, a key that is not one of the wallet's.
 pub struct KeyPathLine {
     /// The line.
-    pub text: String,
+    pub text: Text,
     /// A key not of the wallet spends everything alone.
     pub danger: bool,
 }
@@ -813,7 +810,7 @@ impl Session {
     /// checked) that is not what that key gives at its path (a wallet
     /// added before its key), and returns each one's name and the
     /// refusal's text.
-    pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(String, String)> {
+    pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(Text, Text)> {
         let now: Vec<Fingerprint> = self.keys.all().map(|k| k.fingerprint).collect();
         let mut dropped = Vec::new();
         let mut i = 0;
@@ -830,9 +827,7 @@ impl Session {
             match self.forged_key(c, &self.wallets[i].policy, Some(&new), &Default::default()) {
                 Some(fp) => {
                     let w = self.wallets.remove(i);
-                    let why = String::from(
-                        &*Refusal::NotYourKey(faraday_text::Text::of(&fp_text(fp))).text(),
-                    );
+                    let why = Refusal::NotYourKey(fp_text(fp)).text();
                     dropped.push((w.name, why));
                 }
                 None => {
@@ -909,9 +904,9 @@ impl Session {
         {
             if self.key_path_asked.is_none() {
                 self.key_path_asked = Some(Box::new(KeyPathAsk {
-                    name: name.to_string(),
+                    name: Text::of(name),
                     policy,
-                    source: source.to_string(),
+                    source: Text::of(source),
                     origin,
                     replay: None,
                 }));
@@ -919,7 +914,7 @@ impl Session {
             return Err(Refusal::KeyPathUnconfirmed);
         }
         self.follow(policy_network(&policy, self.network()))?;
-        let mut wallet = Wallet::new(name.to_string(), policy, source.to_string(), origin);
+        let mut wallet = Wallet::new(name, policy, source, origin);
         wallet.checked = self.keys.all().map(|k| k.fingerprint).collect();
         self.wallets.push(wallet);
         Ok(self.wallets.len() - 1)
@@ -960,7 +955,7 @@ impl Session {
     pub(crate) fn key_path_line(&self, policy: &WalletPolicy) -> Option<KeyPathLine> {
         Some(match policy.key_path()? {
             KeyPath::Unspendable => KeyPathLine {
-                text: EN.wallet_key_path_none.to_string(),
+                text: Text::of(EN.wallet_key_path_none),
                 danger: false,
             },
             KeyPath::WalletKey(i) => {
@@ -970,10 +965,10 @@ impl Session {
                         Some(label) => key_line(fp, label),
                         None => fp_text(fp),
                     },
-                    None => fill(EN.wallet_key_n, &[&(i + 1).to_string()]),
+                    None => Text::fill(EN.wallet_key_n, &[&Text::num((i + 1) as u64)]),
                 };
                 KeyPathLine {
-                    text: fill(EN.wallet_key_path_alone, &[&holder]),
+                    text: Text::fill(EN.wallet_key_path_alone, &[&holder]),
                     danger: false,
                 }
             }
@@ -1025,7 +1020,7 @@ impl Session {
         if let Some(r) = wallet.policy.silent() {
             return vec![Slot {
                 fingerprint: Some(r.fingerprint),
-                held_by: self.keys.key_label(r.fingerprint).map(str::to_string),
+                held_by: self.keys.key_label(r.fingerprint).map(Text::of),
                 key: None,
             }];
         }
@@ -1039,7 +1034,7 @@ impl Session {
                     fingerprint,
                     held_by: fingerprint
                         .and_then(|fp| self.keys.key_label(fp))
-                        .map(str::to_string),
+                        .map(Text::of),
                     key: Some(k.clone()),
                 }
             })
@@ -1057,7 +1052,7 @@ impl Session {
     }
 
     /// The wallet's shape in a few words.
-    pub fn shape(wallet: &Wallet) -> String {
+    pub fn shape(wallet: &Wallet) -> Text {
         let script = |t: ScriptType| match t {
             ScriptType::Legacy => EN.wallet_legacy,
             ScriptType::NestedSegwit => EN.wallet_nested_segwit,
@@ -1066,47 +1061,50 @@ impl Session {
         };
         let (m, n) = Self::quorum(wallet);
         match Kind::of(&wallet.policy) {
-            Kind::Single(t) => fill(EN.wallet_single_key, &[script(t)]),
-            Kind::Multi(Wrapper::Sh) => fill(
+            Kind::Single(t) => Text::fill(EN.wallet_single_key, &[script(t)]),
+            Kind::Multi(Wrapper::Sh) => Text::fill(
                 EN.wallet_of_legacy_multisig,
-                &[&m.to_string(), &n.to_string()],
+                &[&Text::num(m as u64), &Text::num(n as u64)],
             ),
-            Kind::Multi(Wrapper::ShWsh) => fill(
+            Kind::Multi(Wrapper::ShWsh) => Text::fill(
                 EN.wallet_of_nested_segwit,
-                &[&m.to_string(), &n.to_string()],
+                &[&Text::num(m as u64), &Text::num(n as u64)],
             ),
-            Kind::Multi(_) => fill(
+            Kind::Multi(_) => Text::fill(
                 EN.wallet_of_native_segwit,
-                &[&m.to_string(), &n.to_string()],
+                &[&Text::num(m as u64), &Text::num(n as u64)],
             ),
-            Kind::TapMulti => fill(
+            Kind::TapMulti => Text::fill(
                 EN.wallet_of_taproot_multisig,
-                &[&m.to_string(), &n.to_string()],
+                &[&Text::num(m as u64), &Text::num(n as u64)],
             ),
-            Kind::Miniscript => fill(
+            Kind::Miniscript => Text::fill(
                 EN.wallet_keys_miniscript,
-                &[&wallet.policy.keys().len().to_string()],
+                &[&Text::num(wallet.policy.keys().len() as u64)],
             ),
-            Kind::Tree => fill(
+            Kind::Tree => Text::fill(
                 EN.wallet_keys_taproot,
-                &[&wallet.policy.keys().len().to_string()],
+                &[&Text::num(wallet.policy.keys().len() as u64)],
             ),
-            Kind::MuSig => fill(EN.wallet_of_musig2, &[&n.to_string(), &n.to_string()]),
-            Kind::Silent => EN.wallet_1_key_silent.to_string(),
-            Kind::Other => EN.wallet_wallet.to_string(),
+            Kind::MuSig => Text::fill(
+                EN.wallet_of_musig2,
+                &[&Text::num(n as u64), &Text::num(n as u64)],
+            ),
+            Kind::Silent => Text::of(EN.wallet_1_key_silent),
+            Kind::Other => Text::of(EN.wallet_wallet),
         }
     }
 
     /// Costs an address derivation (through `address_on`). An address of
     /// the wallet, on the session's network. Derived once per wallet and
     /// kept on it ([`Wallet::address_on`]).
-    pub fn address(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
+    pub fn address(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> Text {
         wallet.address_on(c, self.network(), change, index)
     }
 
     /// Costs an address derivation (through `address`). An address of the
     /// wallet as the screen shows it: the address itself, in Practice too.
-    pub fn address_shown(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
+    pub fn address_shown(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> Text {
         self.address(c, wallet, change, index)
     }
 
@@ -1202,7 +1200,7 @@ impl Session {
                 });
                 rows.push(NonceRow {
                     input: input.index,
-                    name: String::from(&*sig.name()),
+                    name: sig.name(),
                     entry,
                     verdict: sig.verdict,
                     preimage: sig.preimage,
@@ -1250,18 +1248,22 @@ impl Session {
         c: &Compute,
         psbt: &Psbt,
         inspection: &faraday_psbt::Inspection,
-    ) -> Vec<(usize, String, crate::memory::nonces::NonceEntry)> {
+    ) -> Vec<(usize, Text, crate::memory::nonces::NonceEntry)> {
         let mut out = Vec::new();
         for (i, input) in inspection.inputs.iter().enumerate() {
             let Some(round) = input.musig.as_ref() else {
                 continue;
             };
             for p in faraday_psbt::musig::verified_rounds(c, psbt, i, round) {
-                let name: String = p.participant.serialize()[1..33]
+                let name: Text = p.participant.serialize()[1..33]
                     .iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<String>()
-                    .chars()
+                    .flat_map(|b| {
+                        let hex = b"0123456789abcdef";
+                        [
+                            hex[usize::from(b >> 4)] as char,
+                            hex[usize::from(b & 15)] as char,
+                        ]
+                    })
                     .take(8)
                     .collect();
                 out.push((i, name, crate::memory::nonces::NonceEntry::of_partial(&p)));
@@ -1295,7 +1297,7 @@ impl Session {
             wallets: self
                 .wallets
                 .iter()
-                .map(|w| w.checksum().to_string())
+                .map(|w| Text::of(w.checksum()))
                 .collect(),
         }
     }
@@ -1317,7 +1319,7 @@ impl Session {
         psbt: &mut Psbt,
         seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
-    ) -> Result<Vec<Fingerprint>, String> {
+    ) -> Result<Vec<Fingerprint>, Text> {
         self.sign_with(c, psbt, seed, musig, None, &[])
             .map(|s| s.by)
     }
@@ -1334,13 +1336,11 @@ impl Session {
         musig: &mut Option<faraday_psbt::MusigSession>,
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
-    ) -> Result<Signed, String> {
-        let job = self
-            .sign_job(c, psbt, Some(seed), musig, known, accepted)
-            .map_err(|e| String::from(&*e))?;
+    ) -> Result<Signed, Text> {
+        let job = self.sign_job(c, psbt, Some(seed), musig, known, accepted)?;
         let (made, result) = crate::review::signed(musig, job.run(c));
         *psbt = made;
-        result.map_err(|e| String::from(&*e))
+        result
     }
 }
 
@@ -1509,7 +1509,7 @@ impl Session {
 pub struct InspectInputs {
     network: Network,
     keys: Vec<[u8; 32]>,
-    wallets: Vec<String>,
+    wallets: Vec<Text>,
 }
 
 /// What a PSBT says that the screens read, taken once when it is read
@@ -1671,8 +1671,8 @@ pub fn needed(wallet: &Wallet) -> usize {
 /// descriptor, a wallet .json or a multisig config compares equal in:
 /// the policy writes every hardened step `h` however the file wrote it
 /// (F66). Writes the descriptor out.
-pub fn same_wallet(policy: &WalletPolicy) -> String {
-    policy.to_descriptor()
+pub fn same_wallet(policy: &WalletPolicy) -> Text {
+    Text::of(&policy.to_descriptor())
 }
 
 /// What a file holds, as far as this build is concerned.
@@ -1733,18 +1733,23 @@ pub enum FileKind {
     Other,
 }
 
+/// A refusal that names input `i`: its wording with the input number.
+fn at_input(wording: &str, i: usize) -> Text {
+    Text::fill(wording, &[&Text::num(i as u64)])
+}
+
 /// What collecting signatures still asks for: "Collect 2 signatures"
 /// before any is in, "Collect 1 more signature" after. "More" is said
 /// only once there is one.
-pub fn collect_line(missing: usize, collected: usize) -> String {
-    fill(
+pub fn collect_line(missing: usize, collected: usize) -> Text {
+    Text::fill(
         EN.wallet_collect,
         &[
-            &missing.to_string(),
+            &Text::num(missing as u64),
             &(if collected == 0 {
-                String::new()
+                Text::default()
             } else {
-                format!(" {}", EN.wallet_more)
+                text!(" {}", EN.wallet_more)
             }),
             (if missing == 1 {
                 EN.wallet_signature
@@ -1937,7 +1942,7 @@ pub struct Spend {
     /// The PSBT as it stands: every signature collected so far.
     pub psbt: Psbt,
     /// The file it came from.
-    pub source: String,
+    pub source: Text,
     /// The unsigned transaction's id, which every collected copy must share.
     pub txid: Txid,
     /// Keys of this session that signed it here.
@@ -1952,7 +1957,7 @@ pub struct Spend {
     pub wrote: Vec<Written>,
     /// Fingerprints whose signatures arrived from other devices, with the
     /// file each came in.
-    pub collected: Vec<(Fingerprint, String)>,
+    pub collected: Vec<(Fingerprint, Text)>,
     /// The finished transaction, once there are enough signatures.
     pub finished: Option<Transaction>,
     /// The nonce check refuses the transaction: a nonce used twice in it, or
@@ -2061,7 +2066,7 @@ impl Spend {
         let txid = psbt.unsigned_tx().compute_txid();
         Spend {
             psbt,
-            source: source.to_string(),
+            source: Text::of(source),
             txid,
             signed_here: Vec::new(),
             nonces_written: Vec::new(),
@@ -2497,10 +2502,10 @@ impl Spend {
         session: &Session,
         bytes: &[u8],
         source: &str,
-    ) -> Result<Vec<Fingerprint>, String> {
-        let other = (read_psbt(c, bytes)).ok_or(EN.wallet_not_a_psbt)?;
+    ) -> Result<Vec<Fingerprint>, Text> {
+        let other = (read_psbt(c, bytes)).ok_or_else(|| Text::of(EN.wallet_not_a_psbt))?;
         if other.unsigned_tx().compute_txid() != self.txid {
-            return Err(fill(EN.wallet_psbt_other_transaction, &[source]));
+            return Err(Text::fill(EN.wallet_psbt_other_transaction, &[source]));
         }
         // An input's sighash field: none written, SIGHASH_ALL and taproot's
         // DEFAULT ask the same.
@@ -2514,7 +2519,7 @@ impl Spend {
             .zip(&self.psbt.inner().inputs)
             .any(|(o, s)| asked(o.sighash_type) != asked(s.sighash_type));
         if asks_other {
-            return Err(fill(EN.wallet_sighash_field_other, &[source]));
+            return Err(Text::fill(EN.wallet_sighash_field_other, &[source]));
         }
         // The incoming file on its own, so a failing witness in it, and
         // none in the spend's own PSBT, is what it is blamed for.
@@ -2526,7 +2531,7 @@ impl Spend {
         if let Some(i) = (0..self.psbt.inner().inputs.len())
             .find(|i| faraday_psbt::verify::witness_shape_mismatch(self.psbt.inner(), *i))
         {
-            return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+            return Err(at_input(EN.psbt_warn_witness_mismatch, i));
         }
         // A file that lies is refused and named, whatever the spend's own
         // copy holds: an input of it that states something false on its
@@ -2576,7 +2581,7 @@ impl Spend {
         let own_inputs = merged.inputs.clone();
         merged
             .combine(incoming)
-            .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
+            .map_err(|e| Text::fill(EN.wallet_cannot_combine, &[&text!("{e}")]))?;
         for (input, (prev, witness)) in merged.inputs.iter_mut().zip(stated) {
             input.non_witness_utxo = prev;
             input.witness_utxo = witness;
@@ -2591,14 +2596,16 @@ impl Spend {
         if let Some(i) = (0..merged.inputs.len())
             .find(|&i| !own_false[i] && faraday_psbt::verify::states_false(&merged, i))
         {
-            return Err(fill(EN.psbt_final_prev_disagree, &[&i.to_string()]));
+            return Err(at_input(EN.psbt_final_prev_disagree, i));
         }
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
         // A final input that cannot stand, rows or none, is no signing: the
         // spend's own PSBT holding one blames no file.
         match refusal_of(merged.inner()) {
-            Some(FinalRefusal::Signature(_)) => return Err(fill(EN.wallet_a_signature, &[source])),
+            Some(FinalRefusal::Signature(_)) => {
+                return Err(Text::fill(EN.wallet_a_signature, &[source]));
+            }
             Some(FinalRefusal::Text(why)) => return Err(why),
             None => {}
         }
@@ -2607,14 +2614,14 @@ impl Spend {
             .present_signatures()
             .any(|s| s.verdict.is_invalid())
         {
-            return Err(fill(EN.wallet_a_signature, &[source]));
+            return Err(Text::fill(EN.wallet_a_signature, &[source]));
         }
         if inspection
             .warnings
             .iter()
             .any(|w| matches!(w.kind, faraday_psbt::WarningKind::SighashMismatch { .. }))
         {
-            return Err(fill(EN.wallet_sighash_other, &[source]));
+            return Err(Text::fill(EN.wallet_sighash_other, &[source]));
         }
         self.psbt = merged;
         let added: Vec<Fingerprint> = (self.counted(c, session, Some(&inspection)))
@@ -2622,7 +2629,7 @@ impl Spend {
             .filter(|fp| !before.contains(fp))
             .collect();
         for fp in &added {
-            self.collected.push((*fp, source.to_string()));
+            self.collected.push((*fp, Text::of(source)));
         }
         Ok(added)
     }
@@ -2640,15 +2647,15 @@ impl Spend {
     /// is not the one it spends or lacks the output, final or not. A PSBT
     /// read with one reaches `finish` without `collect`. Drawing reads
     /// `SpendState::refused`, kept from this, and not this.
-    pub fn refused(&self) -> Option<String> {
+    pub fn refused(&self) -> Option<Text> {
         refusal_of(self.psbt.inner()).map(FinalRefusal::text)
     }
 
     /// Costs what [`Spend::refused`] costs, and a finalize of a copy.
     /// Finishes the transaction when it has enough signatures.
-    pub fn finish(&mut self) -> Result<(), String> {
+    pub fn finish(&mut self) -> Result<(), Text> {
         if self.nonce_hold {
-            return Err(EN.spend_nonce_held.to_string());
+            return Err(Text::of(EN.spend_nonce_held));
         }
         if let Some(why) = self.refused() {
             return Err(why);
@@ -2659,8 +2666,8 @@ impl Spend {
                 self.finished = Some(tx);
                 Ok(())
             }
-            Ok(None) => Err(EN.wallet_not_enough_signatures.to_string()),
-            Err(e) => Err(String::from(&*crate::review::sign_error_text(&e))),
+            Ok(None) => Err(Text::of(EN.wallet_not_enough_signatures)),
+            Err(e) => Err(crate::review::sign_error_text(&e)),
         }
     }
 
@@ -2668,24 +2675,24 @@ impl Spend {
     /// `refused` is what [`Spend::refused`] said for this PSBT, kept where
     /// the spend changes (`SpendState::refused`): a lookup, and costly
     /// work of the finalize of a copy.
-    pub fn finish_reason(&self, refused: Option<&str>) -> Option<String> {
+    pub fn finish_reason(&self, refused: Option<&str>) -> Option<Text> {
         if self.nonce_hold {
-            return Some(EN.spend_nonce_held.to_string());
+            return Some(Text::of(EN.spend_nonce_held));
         }
         if let Some(why) = refused {
-            return Some(why.to_string());
+            return Some(Text::of(why));
         }
         let mut copy = self.psbt.clone();
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
-            Ok(None) => Some(EN.wallet_script_unsatisfied.to_string()),
-            Err(e) => Some(String::from(&*crate::review::sign_error_text(&e))),
+            Ok(None) => Some(Text::of(EN.wallet_script_unsatisfied)),
+            Err(e) => Some(crate::review::sign_error_text(&e)),
         }
     }
 
     /// The finished transaction as hex.
-    pub fn finished_hex(&self) -> Option<String> {
-        self.finished.as_ref().map(serialize_hex)
+    pub fn finished_hex(&self) -> Option<Text> {
+        self.finished.as_ref().map(|t| Text::of(&serialize_hex(t)))
     }
 }
 
@@ -2736,13 +2743,13 @@ fn file_lies(
 /// Why a file is refused for an input it states different outputs for: a
 /// bare `witness_utxo` against the spend's, neither proven (`bare`), or a
 /// statement its previous transaction does not bear out.
-fn lie_refusal(source: &str, input: usize, bare: bool) -> String {
+fn lie_refusal(source: &str, input: usize, bare: bool) -> Text {
     let why = if bare {
         EN.wallet_outputs_differ_unproven
     } else {
         EN.wallet_file_states_false
     };
-    fill(why, &[source, &input.to_string()])
+    Text::fill(why, &[source, &Text::num(input as u64)])
 }
 
 /// Where `keep_own_over_file` finds the spend and a file at odds with no
@@ -2969,14 +2976,16 @@ fn differ_final<T: PartialEq>(own: &Option<T>, file: &Option<T>) -> bool {
 impl Conflict {
     /// The refusal of the file `source`: the spend and it differ, and it is
     /// not said to be the one that is wrong.
-    fn refusal(self, source: &str) -> String {
+    fn refusal(self, source: &str) -> Text {
         let (why, i) = match self {
             Conflict::Finals(i) => (EN.wallet_finals_differ, i),
             Conflict::Rows(i) => (EN.wallet_signature_unchecked, i),
             Conflict::Scripts(i) => (EN.wallet_scripts_differ, i),
-            Conflict::False(i) => return fill(EN.psbt_final_prev_disagree, &[&i.to_string()]),
+            Conflict::False(i) => {
+                return Text::fill(EN.psbt_final_prev_disagree, &[&Text::num(i as u64)]);
+            }
         };
-        fill(why, &[source, &i.to_string()])
+        Text::fill(why, &[source, &Text::num(i as u64)])
     }
 }
 
@@ -2988,16 +2997,19 @@ fn has_final(input: &faraday_bip::bitcoin::psbt::Input) -> bool {
 /// Why a cosigner's file is refused for a final input that fails its
 /// output: a signature the output refuses names the file as a bad
 /// signature does; any other fault is the input's.
-fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Option<String> {
+fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Option<Text> {
     use faraday_psbt::verify::{final_signature_wrong, witness_mismatch, witness_shape_mismatch};
     let i = (0..file.inputs.len()).find(|i| witness_mismatch(file, *i))?;
     if witness_shape_mismatch(file, i) {
-        return Some(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+        return Some(at_input(EN.psbt_warn_witness_mismatch, i));
     }
     if final_signature_wrong(file, i) {
-        return Some(fill(EN.wallet_a_signature, &[source]));
+        return Some(Text::fill(EN.wallet_a_signature, &[source]));
     }
-    Some(fill(EN.psbt_final_signature_refused, &[&i.to_string()]))
+    Some(Text::fill(
+        EN.psbt_final_signature_refused,
+        &[&Text::num(i as u64)],
+    ))
 }
 
 /// Costs a copy of the whole file for the signature checks of every input
@@ -3016,11 +3028,11 @@ fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
     // One copy of the file for the signature checks of every input.
     let mut pass: Option<faraday_psbt::verify::Pass> = None;
     (0..psbt.inputs.len()).find_map(|i| {
-        let text = |t: &str| Some(FinalRefusal::Text(fill(t, &[&i.to_string()])));
+        let text = |t: &str| Some(FinalRefusal::Text(Text::fill(t, &[&Text::num(i as u64)])));
         // The script refuses the final fields: a signature of the file's
         // where one reads wrong, else the fields alone.
         let fields = |i: usize, pass: &mut Option<faraday_psbt::verify::Pass>| {
-            let line = fill(EN.psbt_final_signature_refused, &[&i.to_string()]);
+            let line = Text::fill(EN.psbt_final_signature_refused, &[&Text::num(i as u64)]);
             if pass
                 .get_or_insert_with(|| faraday_psbt::verify::Pass::new(psbt))
                 .final_signature_wrong(psbt, i)
@@ -3054,12 +3066,12 @@ fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
 /// Why a PSBT's final input cannot stand: a signature the output refuses
 /// (`collect` names the file that brings one), or another fault.
 enum FinalRefusal {
-    Signature(String),
-    Text(String),
+    Signature(Text),
+    Text(Text),
 }
 
 impl FinalRefusal {
-    fn text(self) -> String {
+    fn text(self) -> Text {
         match self {
             FinalRefusal::Signature(t) | FinalRefusal::Text(t) => t,
         }
@@ -3104,31 +3116,43 @@ impl Session {
         index: u32,
         message: &str,
         format: faraday_psbt::message::Format,
-    ) -> Result<faraday_psbt::message::Signed, String> {
-        let w = self.wallets.get(wallet).ok_or(EN.wallet_no_such_wallet)?;
+    ) -> Result<faraday_psbt::message::Signed, Text> {
+        let w = self
+            .wallets
+            .get(wallet)
+            .ok_or_else(|| Text::of(EN.wallet_no_such_wallet))?;
         let Kind::Single(script) = Kind::of(&w.policy) else {
-            return Err(EN.wallet_messages_are.into());
+            return Err(Text::of(EN.wallet_messages_are));
         };
-        let key = w.policy.keys().first().ok_or(EN.wallet_the_wallet_has)?;
-        let fp = key.fingerprint().ok_or(EN.wallet_the_wallet_s_xpub)?;
-        let place = self.keys.position(fp).ok_or(EN.wallet_the_wallet_s_key)?;
-        let origin = key.path().ok_or(EN.wallet_the_wallet_s)?;
+        let key = w
+            .policy
+            .keys()
+            .first()
+            .ok_or_else(|| Text::of(EN.wallet_the_wallet_has))?;
+        let fp = key
+            .fingerprint()
+            .ok_or_else(|| Text::of(EN.wallet_the_wallet_s_xpub))?;
+        let place = self
+            .keys
+            .position(fp)
+            .ok_or_else(|| Text::of(EN.wallet_the_wallet_s_key))?;
+        let origin = key.path().ok_or_else(|| Text::of(EN.wallet_the_wallet_s))?;
         let path = origin
             .child(
                 faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(0)
-                    .map_err(|e| e.to_string())?,
+                    .map_err(|e| text!("{e}"))?,
             )
             .child(
                 faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
-                    .map_err(|e| e.to_string())?,
+                    .map_err(|e| text!("{e}"))?,
             );
         let signed = self
             .keys
             .sign_message(c, place, &path, script, message, format)
-            .ok_or(EN.wallet_the_wallet_s_key)?
-            .map_err(|e| crate::state::message_error_text(e).to_string())?;
+            .ok_or_else(|| Text::of(EN.wallet_the_wallet_s_key))?
+            .map_err(|e| Text::of(crate::state::message_error_text(e)))?;
         if signed.address != *self.address(c, w, false, index) {
-            return Err(fill(EN.wallet_not_your_key, &[&fp_text(fp).to_string()]));
+            return Err(Text::fill(EN.wallet_not_your_key, &[&fp_text(fp)]));
         }
         Ok(signed)
     }
@@ -3163,9 +3187,9 @@ impl Session {
 /// transaction can take it.
 pub struct PathView {
     /// The keys it needs, by slot number from 1, with whether each is here.
-    pub keys: Vec<(usize, String, bool)>,
+    pub keys: Vec<(usize, Text, bool)>,
     /// Its locks, in words.
-    pub locks: Vec<String>,
+    pub locks: Vec<Text>,
     /// Whether the first input's sequence allows every relative lock, and
     /// the absolute ones are not checked here.
     pub sequence_ok: bool,
@@ -3210,21 +3234,23 @@ pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
                 .map(|l| match l {
                     Lock::Blocks(n) => {
                         ok &= relative && !in_time && value >= *n;
-                        fill(
+                        Text::fill(
                             EN.wallet_blocks_after,
-                            &[&n.to_string(), &(n / 144).to_string()],
+                            &[&Text::num(u64::from(*n)), &Text::num(u64::from(*n) / 144)],
                         )
                     }
                     Lock::Intervals(n) => {
                         ok &= relative && in_time && value >= *n;
-                        fill(
+                        Text::fill(
                             EN.wallet_days_after_arrival,
-                            &[&(u64::from(*n) * 512 / 86_400).to_string()],
+                            &[&Text::num(u64::from(*n) * 512 / 86_400)],
                         )
                     }
-                    Lock::Height(h) => fill(EN.wallet_after_block, &[&h.to_string()]),
-                    Lock::Time(t) => fill(EN.wallet_after_time, &[&t.to_string()]),
-                    Lock::Preimage => EN.wallet_a_secret_preimage.to_string(),
+                    Lock::Height(h) => {
+                        Text::fill(EN.wallet_after_block, &[&Text::num(u64::from(*h))])
+                    }
+                    Lock::Time(t) => Text::fill(EN.wallet_after_time, &[&Text::num(u64::from(*t))]),
+                    Lock::Preimage => Text::of(EN.wallet_a_secret_preimage),
                 })
                 .collect();
             PathView {
@@ -3243,7 +3269,7 @@ pub(crate) fn musig_nonces(
     session: &Session,
     wallet: &Wallet,
     psbt: &Psbt,
-) -> Vec<(usize, String, bool, bool)> {
+) -> Vec<(usize, Text, bool, bool)> {
     let nonces = psbt
         .inner()
         .inputs
@@ -3273,11 +3299,11 @@ pub(crate) fn musig_nonces(
 #[derive(Default, Clone, Debug)]
 pub struct OutNames {
     /// The signed PSBT.
-    pub signed: Option<String>,
+    pub signed: Option<Text>,
     /// The finished transaction.
-    pub tx: Option<String>,
+    pub tx: Option<Text>,
     /// The part-signed PSBT.
-    pub part: Option<String>,
+    pub part: Option<Text>,
 }
 
 impl Faraday {
@@ -3350,7 +3376,7 @@ impl Faraday {
                         let name = self.session.wallets[i].name.clone();
                         self.wallets.set_wallet(i);
                         self.refresh_spend();
-                        self.toast(&fill(EN.wallet_key_path_added, &[&name]));
+                        self.toast(&Text::fill(EN.wallet_key_path_added, &[&name]));
                     }
                     Err(e) => self.toast(&e.text()),
                 }
@@ -3401,11 +3427,11 @@ impl Faraday {
                         keys.xpub_at(&c, keys.position(fp)?, path)
                     };
                 let added = faraday_psbt::register(&c, &psbt, &offer, reading, &yours)
-                    .map_err(|r| crate::register::refusal_text(r, &offer))
+                    .map_err(|r| Text::of(&crate::register::refusal_text(r, &offer)))
                     .and_then(|policy| {
                         self.session
                             .add_policy(&c, &name, policy, &source, Origin::Named)
-                            .map_err(|e| String::from(&*e.text()))
+                            .map_err(|e| e.text())
                     });
                 match added {
                     Ok(i) => {
@@ -3413,7 +3439,7 @@ impl Faraday {
                         self.sheet = None;
                         self.wallets.set_wallet(i);
                         self.refresh_spend();
-                        self.toast(&fill(EN.register_added, &[&name]));
+                        self.toast(&Text::fill(EN.register_added, &[&name]));
                     }
                     Err(why) => {
                         self.wallets.register_refused(why);
@@ -3426,15 +3452,15 @@ impl Faraday {
 
     /// The lines that name a wallet under its code: its shape and
     /// network, and its keys' fingerprints.
-    pub(crate) fn wallet_label(&self, w: &wallet::Wallet) -> Vec<String> {
+    pub(crate) fn wallet_label(&self, w: &wallet::Wallet) -> Vec<Text> {
         let net = self.session.network();
         let shape = if net.is_mainnet() {
             Session::shape(w)
         } else {
-            format!("{} · {}", Session::shape(w), net.name())
+            text!("{} · {}", &*Session::shape(w), net.name())
         };
         let mut lines = vec![shape];
-        let all: Vec<String> = w
+        let all: Vec<Text> = w
             .policy()
             .keys()
             .iter()
@@ -3446,7 +3472,14 @@ impl Faraday {
             } else {
                 EN.wallet_label_keys
             };
-            lines.push(format!("{word} {}", all.join(" · ")));
+            let mut line = text!("{word} ");
+            for (n, fp) in all.iter().enumerate() {
+                if n > 0 {
+                    line.push_str(" · ");
+                }
+                line.push_str(fp);
+            }
+            lines.push(line);
         }
         lines
     }
@@ -3458,7 +3491,7 @@ impl Faraday {
         let c = self.compute();
         let dropped = self.session.drop_forged(&c);
         if let Some((name, why)) = dropped.first() {
-            let text = fill(EN.vaults_refused, &[name, why]);
+            let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
             self.spend_after_wallet_removed();
             self.toast(&text);
@@ -3516,7 +3549,7 @@ impl Faraday {
         .into_iter()
         .filter_map(|(i, t)| {
             Some((
-                i.name.clone(),
+                Text::of(&i.name),
                 t,
                 crate::compare::others::place_of(self, i)?,
             ))
@@ -3604,8 +3637,14 @@ impl Faraday {
         }
         let held = check.held_back();
         let (taken_back, lifted) = self.wallets.apply_nonce_hold(held);
-        if !taken_back.is_empty() && self.outbox.iter().any(|i| taken_back.contains(&i.name)) {
-            self.outbox.retain(|i| !taken_back.contains(&i.name));
+        if !taken_back.is_empty()
+            && self
+                .outbox
+                .iter()
+                .any(|i| taken_back.iter().any(|n| n.as_str() == i.name))
+        {
+            self.outbox
+                .retain(|i| !taken_back.iter().any(|n| n.as_str() == i.name));
             self.save_boxes();
         }
         // Noted only when the check was stored or compared again: a note
@@ -3647,11 +3686,11 @@ impl Faraday {
         let Some(item) = self.inbox.get(index) else {
             return;
         };
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
-        let source = item.name.clone();
-        let name = crate::register::name_of_file(&item.name);
+        let text = Text::from_utf8_lossy(&item.bytes);
+        let source = Text::of(&item.name);
+        let name = Text::of(&crate::register::name_of_file(&item.name));
         // A wallet .json or an addwallet command carries its own name.
-        let name = wallet::carried_name(&text).map_or(name, |t| String::from(&*t));
+        let name = wallet::carried_name(&text).unwrap_or(name);
         match self
             .session
             .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)
@@ -3676,7 +3715,7 @@ impl Faraday {
     }
 
     /// The chosen wallet's new name, while it is typed.
-    pub fn renaming(&self) -> Option<&String> {
+    pub fn renaming(&self) -> Option<&Text> {
         self.wallets.renaming()
     }
 
@@ -3740,7 +3779,7 @@ impl Faraday {
                     && let Some(w) = self.wallets.spend().and_then(|s| s.wallet)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.checksum().to_string();
+                    let checksum = Text::of(wallet.checksum());
                     self.mark_checked(&checksum);
                 }
                 // A complete PSBT waits for this: its files go out once
@@ -3761,13 +3800,13 @@ impl Faraday {
                         return self.toast(EN.spend_v2_not_written);
                     };
                     let name = self.put_outbox_beside(&name, bytes);
-                    self.wallets.set_signed_name(String::from(&*name));
+                    self.wallets.set_signed_name(Text::of(&name));
                 }
             }
             Action::TxToOutbox => {
                 if let Some((name, bytes)) = self.wallets.take_tx_file() {
                     let name = self.put_outbox_beside(&name, bytes);
-                    self.wallets.set_tx_name(String::from(&*name));
+                    self.wallets.set_tx_name(Text::of(&name));
                 }
             }
             Action::Primary => self.primary(),
@@ -3797,7 +3836,7 @@ impl Faraday {
                 if !self.clean() {
                     self.sheet = Some(Sheet::WriteOut);
                 } else if self.stick.is_empty() {
-                    self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
+                    self.toast(&Text::fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
                 } else {
                     self.act(Action::Nav(Screen::Files));
                 }

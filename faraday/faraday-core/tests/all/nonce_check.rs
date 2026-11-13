@@ -347,7 +347,7 @@ fn finished_savings() -> (String, Vec<u8>) {
     b.press(Action::SignHere);
     b.press(Action::Collect(at(&b, "from-a.psbt")));
     let hex = b.spend().unwrap().spend.finished_hex().expect("finished");
-    (hex, unsigned.to_bytes())
+    (String::from(&*hex), unsigned.to_bytes())
 }
 
 #[test]
@@ -1001,7 +1001,7 @@ fn a_cosigners_failing_witness_is_not_merged_and_a_true_one_is() {
         let why = spend
             .collect(&c, &session, &theirs.to_bytes(), "cosigner.psbt")
             .expect_err(what);
-        assert_eq!(why, mismatch_text(0), "{what}");
+        assert_eq!(why, mismatch_text(0).as_str(), "{what}");
         assert!(!why.contains("cosigner.psbt"), "{what}");
         assert_eq!(spend.psbt.to_bytes(), before, "{what}");
         // The spend keeps its own state: nothing to finish for lack of a signature.
@@ -1023,7 +1023,7 @@ fn a_cosigners_failing_witness_is_not_merged_and_a_true_one_is() {
     }
     // A spend opened on a failing witness finishes nothing either.
     let mut spend = Spend::new(taproot_psbt(&[lock(true)]), "own.psbt");
-    assert_eq!(spend.finish().unwrap_err(), mismatch_text(0));
+    assert_eq!(spend.finish().unwrap_err(), mismatch_text(0).as_str());
     assert!(spend.finished.is_none());
 }
 
@@ -1058,7 +1058,7 @@ fn a_final_signature_that_does_not_verify_finishes_nothing() {
     let mut spend = Spend::new(psbt, "t.psbt");
     assert_eq!(
         spend.finish().unwrap_err(),
-        EN.psbt_final_signature_refused.replace("{}", "0")
+        EN.psbt_final_signature_refused.replace("{}", "0").as_str()
     );
     assert!(spend.finished.is_none());
 }
@@ -1323,7 +1323,7 @@ fn a_previous_transaction_of_another_txid_takes_nothing_out_of_the_check() {
     let mut spend = Spend::new(psbt.clone(), "t.psbt");
     assert_eq!(
         spend.finish().unwrap_err(),
-        EN.psbt_final_prev_unread.replace("{}", "1")
+        EN.psbt_final_prev_unread.replace("{}", "1").as_str()
     );
     assert!(spend.finished.is_none());
     // A cosigner's copy carrying it is refused where the own copy states
@@ -1346,6 +1346,7 @@ fn a_previous_transaction_of_another_txid_takes_nothing_out_of_the_check() {
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "1", 1)
+            .as_str()
     );
     assert_eq!(spend.psbt.to_bytes(), before);
 }
@@ -1404,7 +1405,11 @@ fn a_witness_of_one_element_under_an_output_that_cannot_confirm_is_refused() {
         assert!(o.finished.is_none(), "{what}");
         assert_eq!(o.check.headline(), EN.nonce_check_witness_wrong, "{what}");
         let mut spend = Spend::new(psbt, "t.psbt");
-        assert_eq!(spend.finish().unwrap_err(), mismatch_text(0), "{what}");
+        assert_eq!(
+            spend.finish().unwrap_err(),
+            mismatch_text(0).as_str(),
+            "{what}"
+        );
     }
 }
 
@@ -1423,7 +1428,7 @@ fn a_cosigners_clean_file_is_not_blamed_for_a_failing_witness_already_in_the_spe
             "clean.psbt",
         )
         .unwrap_err();
-    assert_eq!(why, mismatch_text(1));
+    assert_eq!(why, mismatch_text(1).as_str());
     assert!(!why.contains("clean.psbt"));
 }
 
@@ -1633,7 +1638,7 @@ fn collect_blames_the_input_and_not_the_file_where_the_cosigner_states_no_output
             "c.psbt",
         )
         .unwrap_err();
-    assert_eq!(why, mismatch_text(0));
+    assert_eq!(why, mismatch_text(0).as_str());
 }
 
 #[test]
@@ -1657,7 +1662,7 @@ fn collect_refuses_an_own_final_input_only_if_it_is_still_unread_after_the_merge
     let why = spend
         .collect(&c, &session, &own.to_bytes(), "c.psbt")
         .unwrap_err();
-    assert_eq!(why, EN.psbt_final_prev_unread.replace("{}", "0"));
+    assert_eq!(why, EN.psbt_final_prev_unread.replace("{}", "0").as_str());
     assert_eq!(spend.psbt.to_bytes(), before);
 }
 
@@ -1676,7 +1681,7 @@ fn a_previous_transaction_of_another_txid_beside_a_witness_utxo_is_refused() {
     let mut spend = Spend::new(psbt.clone(), "t.psbt");
     assert_eq!(
         spend.finish().unwrap_err(),
-        EN.psbt_final_prev_unread.replace("{}", "1")
+        EN.psbt_final_prev_unread.replace("{}", "1").as_str()
     );
     assert!(spend.finished.is_none());
     // Over an own witness_utxo, the cosigner's file is not merged.
@@ -1697,6 +1702,7 @@ fn a_previous_transaction_of_another_txid_beside_a_witness_utxo_is_refused() {
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "1", 1)
+            .as_str()
     );
 }
 
@@ -1748,7 +1754,7 @@ fn a_native_taproot_input_with_a_script_sig_and_no_witness_is_refused() {
     assert_eq!(o.check.mismatched, vec![0]);
     assert!(!o.check.sound() && o.finished.is_none());
     let mut spend = Spend::new(psbt, "t.psbt");
-    assert_eq!(spend.finish().unwrap_err(), mismatch_text(0));
+    assert_eq!(spend.finish().unwrap_err(), mismatch_text(0).as_str());
     assert!(spend.finished.is_none());
 }
 
@@ -1782,7 +1788,7 @@ fn a_file_and_a_spend_are_each_blamed_for_the_witness_failing_under_their_own_ou
     let why = spend
         .collect(&c, &session, &file.to_bytes(), "file.psbt")
         .unwrap_err();
-    assert_eq!(why, mismatch_text(1));
+    assert_eq!(why, mismatch_text(1).as_str());
     // The same the other way round: the spend's input 1 fails under its
     // own output, the file's input 0 only under the spend's.
     let mut own = taproot_psbt(&[Tap::Key, lock(true)]);
@@ -1795,7 +1801,7 @@ fn a_file_and_a_spend_are_each_blamed_for_the_witness_failing_under_their_own_ou
     let why = spend
         .collect(&c, &session, &file.to_bytes(), "file.psbt")
         .unwrap_err();
-    assert_eq!(why, mismatch_text(1));
+    assert_eq!(why, mismatch_text(1).as_str());
 }
 
 #[test]
@@ -1811,7 +1817,11 @@ fn a_native_taproot_spend_with_a_script_sig_is_refused() {
         assert_eq!(o.check.mismatched, vec![0], "{what}");
         assert!(!o.check.sound() && o.finished.is_none(), "{what}");
         let mut spend = Spend::new(psbt, "t.psbt");
-        assert_eq!(spend.finish().unwrap_err(), mismatch_text(0), "{what}");
+        assert_eq!(
+            spend.finish().unwrap_err(),
+            mismatch_text(0).as_str(),
+            "{what}"
+        );
     }
 }
 
@@ -1953,9 +1963,17 @@ fn a_witness_utxo_that_disagrees_with_the_previous_transaction_is_refused_with_i
             assert!(!shown.contains(EN.nonce_screen_refused), "{what}: {shown}");
         }
         let mut spend = Spend::new(psbt.clone(), "t.psbt");
-        assert_eq!(spend.finish().unwrap_err(), disagree_text(0), "{what}");
+        assert_eq!(
+            spend.finish().unwrap_err(),
+            disagree_text(0).as_str(),
+            "{what}"
+        );
         assert!(spend.finished.is_none(), "{what}");
-        assert_eq!(spend.refused(), Some(disagree_text(0)), "{what}");
+        assert_eq!(
+            spend.refused().as_deref(),
+            Some(disagree_text(0).as_str()),
+            "{what}"
+        );
     }
     // Agreeing, with the previous transaction or without it, it stands.
     for (stated, previous) in [(50_000, true), (50_000, false)] {
@@ -2021,6 +2039,7 @@ fn collect_refuses_a_file_that_puts_a_witness_utxo_against_the_previous_transact
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "0", 1)
+            .as_str()
     );
     assert_eq!(spend.psbt.to_bytes(), before);
     assert!(spend.finish().is_ok(), "the own copy is unchanged");
@@ -2037,6 +2056,7 @@ fn collect_refuses_a_file_that_puts_a_witness_utxo_against_the_previous_transact
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "0", 1)
+            .as_str()
     );
     assert_eq!(spend.psbt.to_bytes(), before);
     assert!(spend.finish().is_ok());
@@ -2052,6 +2072,7 @@ fn collect_refuses_a_file_that_puts_a_witness_utxo_against_the_previous_transact
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "0", 1)
+            .as_str()
     );
     assert_eq!(spend.psbt.to_bytes(), before);
     // A file adding a previous transaction that agrees is merged.
@@ -2079,8 +2100,11 @@ fn collect_does_not_name_an_honest_file_for_the_spends_own_false_witness_utxo() 
         let why = spend
             .collect(&c, &session, &file.to_bytes(), "c.psbt")
             .unwrap_err();
-        assert_eq!(why, EN.psbt_final_prev_disagree.replacen("{}", "0", 1));
-        assert!(!why.contains("c.psbt"), "{why}");
+        assert_eq!(
+            why,
+            EN.psbt_final_prev_disagree.replacen("{}", "0", 1).as_str()
+        );
+        assert!(!why.contains("c.psbt"), "{}", &*why);
         assert_eq!(spend.psbt.to_bytes(), before);
     }
 }
@@ -2539,6 +2563,7 @@ fn collect_keeps_a_files_false_statement_out_of_a_spend_not_yet_final() {
         EN.wallet_file_states_false
             .replacen("{}", "c.psbt", 1)
             .replacen("{}", "0", 1)
+            .as_str()
     );
     assert!(
         spend
@@ -2549,7 +2574,7 @@ fn collect_keeps_a_files_false_statement_out_of_a_spend_not_yet_final() {
     // Own true witness_utxo, the file a previous transaction of another txid.
     let mut spend = Spend::new(truthful_witness.clone(), "own.psbt");
     let why = why_file(&mut spend, &wrong_prev);
-    assert!(why.contains("c.psbt"), "{why}");
+    assert!(why.contains("c.psbt"), "{}", &*why);
     assert!(
         spend
             .collect(&c, &session, &truthful_witness.to_bytes(), "d.psbt")
@@ -2567,7 +2592,7 @@ fn collect_keeps_a_files_false_statement_out_of_a_spend_not_yet_final() {
     // witness_utxo repairs nothing, and nobody is blamed.
     let mut spend = Spend::new(wrong_only.clone(), "own.psbt");
     let why = why_file(&mut spend, &truthful_witness);
-    assert!(!why.contains("c.psbt"), "{why}");
+    assert!(!why.contains("c.psbt"), "{}", &*why);
     assert_eq!(Some(why), spend.refused());
     // A file that is false on its own is named, whatever the own copy
     // holds, and so is one whose `witness_utxo` differs from the output of
@@ -2596,10 +2621,10 @@ fn collect_keeps_a_files_false_statement_out_of_a_spend_not_yet_final() {
         ("own wrong txid, file wrong txid", &wrong_only, &wrong_only),
     ] {
         let mut spend = Spend::new(own.clone(), "own.psbt");
-        assert_eq!(why_file(&mut spend, file), named, "{what}");
+        assert_eq!(why_file(&mut spend, file), named.as_str(), "{what}");
         spend
             .collect(&c, &session, &honest.to_bytes(), "d.psbt")
-            .unwrap_or_else(|e| panic!("{what}: a clean file collects: {e}"));
+            .unwrap_or_else(|e| panic!("{what}: a clean file collects: {}", &*e));
     }
 }
 
@@ -2630,7 +2655,7 @@ fn collect_repairs_all_false_inputs_or_none() {
     let why = spend
         .collect(&c, &session, &one_fixed.to_bytes(), "c.psbt")
         .unwrap_err();
-    assert!(!why.contains("c.psbt"), "{why}");
+    assert!(!why.contains("c.psbt"), "{}", &*why);
     assert_eq!(spend.psbt.to_bytes(), before);
     spend
         .collect(&c, &session, &honest.to_bytes(), "d.psbt")
@@ -3091,7 +3116,11 @@ fn a_finalized_non_taproot_input_that_does_not_match_its_output_is_refused() {
         assert!(!o.check.sound(), "{what}");
         assert!(o.finished.is_none(), "{what}: nothing finished is offered");
         let mut spend = Spend::new(psbt.clone(), "t.psbt");
-        assert_eq!(spend.finish().unwrap_err(), mismatch_text(1), "{what}");
+        assert_eq!(
+            spend.finish().unwrap_err(),
+            mismatch_text(1).as_str(),
+            "{what}"
+        );
         assert!(spend.finished.is_none(), "{what}");
         // A cosigner's file with it is not merged; the true one is.
         let unfinalized = |p: &faraday_psbt::Psbt| {
@@ -3106,7 +3135,7 @@ fn a_finalized_non_taproot_input_that_does_not_match_its_output_is_refused() {
         let why = own
             .collect(&c, &Session::default(), &psbt.to_bytes(), "cosigner.psbt")
             .expect_err(what);
-        assert_eq!(why, mismatch_text(1), "{what}");
+        assert_eq!(why, mismatch_text(1).as_str(), "{what}");
         assert_eq!(own.psbt.to_bytes(), before, "{what}");
         let mut own = unfinalized(&true_psbt);
         own.collect(
@@ -3219,7 +3248,11 @@ fn a_key_signing_for_another_keys_output_is_a_mismatch_in_each_kind() {
         assert_eq!(check.mismatched, vec![0], "{what}");
         assert!(!check.sound(), "{what}");
         let mut spend = Spend::new(psbt, "t.psbt");
-        assert_eq!(spend.finish().unwrap_err(), mismatch_text(0), "{what}");
+        assert_eq!(
+            spend.finish().unwrap_err(),
+            mismatch_text(0).as_str(),
+            "{what}"
+        );
     }
 }
 
@@ -3287,14 +3320,14 @@ fn a_finalized_recovery_spend_is_a_true_spend_and_a_forged_one_is_not() {
         Some(faraday_psbt::bitcoin::Witness::from_slice(&items));
     assert_eq!(
         Spend::new(forged.clone(), "r.psbt").finish().unwrap_err(),
-        EN.psbt_final_signature_refused.replace("{}", "0")
+        EN.psbt_final_signature_refused.replace("{}", "0").as_str()
     );
     let mut spend = Spend::new(signed, "r.psbt");
     assert_eq!(
         spend
             .collect(&c, &session, &forged.to_bytes(), "f.psbt")
             .unwrap_err(),
-        EN.wallet_a_signature.replace("{}", "f.psbt")
+        EN.wallet_a_signature.replace("{}", "f.psbt").as_str()
     );
 }
 
@@ -3319,7 +3352,10 @@ fn a_time_lock_the_transaction_does_not_meet_is_refused_in_the_words_of_the_fina
     let app = with_inbox(vec![]);
     let make = |sign: Signer| vec![sign(5)];
     let bad = p2wsh_spend_v(&script, 10, 1, &make);
-    assert_eq!(Spend::new(bad.clone(), "t.psbt").refused(), Some(words));
+    assert_eq!(
+        Spend::new(bad.clone(), "t.psbt").refused().as_deref(),
+        Some(words.as_str())
+    );
     assert!(Spend::new(bad.clone(), "t.psbt").finish().is_err());
     let cards = |p: &faraday_psbt::Psbt| {
         app.session

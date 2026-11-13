@@ -47,10 +47,7 @@ pub(crate) fn more_ways(
         let f = k.fingerprint;
         if !here.contains(&f.0) {
             labels.push((
-                fill(
-                    EN.seeds_use,
-                    &[&crate::wallet::key_line(f, &k.label).to_string()],
-                ),
+                fill(EN.seeds_use, &[&crate::wallet::key_line(f, &k.label)]),
                 Style::Secondary,
                 sa(S::UseLoaded(f.0)),
             ));

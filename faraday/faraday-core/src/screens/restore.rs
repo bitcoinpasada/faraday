@@ -56,14 +56,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             summary: match k {
                 rstep::KIND => match wl.filter(|_| r.described) {
-                    Some(w) => Session::shape(w),
+                    Some(w) => String::from(&*Session::shape(w)),
                     None => r.kind().name().to_string(),
                 },
                 rstep::QUORUM => s
                     .map(|s| fill(EN.restore_threshold, &[&s.m.to_string(), &s.n.to_string()]))
                     .unwrap_or_default(),
                 rstep::DESCRIPTION => match wl {
-                    Some(w) if r.described => w.name.clone(),
+                    Some(w) if r.described => String::from(&*w.name),
                     _ if r.done[k as usize] => EN.restore_none.to_string(),
                     _ => String::new(),
                 },

@@ -147,7 +147,7 @@ fn making_at(bip87: bool) -> (Faraday, String) {
     app.press(Action::CNext(1));
     let fp = app.session.keys[0].fingerprint;
     app.press(Action::CSlotHere(0, fp.0));
-    (app, faraday_core::wallet::fp_text(fp))
+    (app, String::from(&*faraday_core::wallet::fp_text(fp)))
 }
 
 #[test]
@@ -205,7 +205,7 @@ fn each_key_names_its_own_path(p0: &str, p1: &str) {
     for (slot, path) in [(0u8, p0), (1u8, p1)] {
         let purpose = path.split('/').nth(1).unwrap().replace('\'', "h");
         let key = app.session.wallets[w].policy().keys()[usize::from(slot)].clone();
-        let fp = faraday_core::wallet::fp_text(key.fingerprint().unwrap());
+        let fp = String::from(&*faraday_core::wallet::fp_text(key.fingerprint().unwrap()));
         app.press(Action::ShowCode(Code::WalletKey(w, slot)));
         assert!(
             shown(&app).to_lowercase().starts_with("ur:crypto-account"),
@@ -324,7 +324,9 @@ fn with_key() -> Faraday {
 fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
     let c = testkit::compute();
     let mut app = with_key();
-    let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint);
+    let fp = String::from(&*faraday_core::wallet::fp_text(
+        app.session.keys[0].fingerprint,
+    ));
     app.press(Action::Silent);
     app.press(Action::SRecord);
     let record = text(&outbox(&app, &format!("silent-{fp}.txt")));

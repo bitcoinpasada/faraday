@@ -63,7 +63,7 @@ fn first_address(text: &str) -> String {
     let i = s
         .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .expect("a wallet");
-    s.address(&c, &s.wallets[i], false, 0)
+    String::from(&*s.address(&c, &s.wallets[i], false, 0))
 }
 
 fn checksum(text: &str) -> String {
@@ -225,7 +225,7 @@ fn shares_rebuild(id: &str) {
             app.session
                 .wallets
                 .iter()
-                .any(|w| app.session.address(&c, w, false, 0) == want),
+                .any(|w| app.session.address(&c, w, false, 0).as_str() == want),
             "{pair:?} did not rebuild"
         );
     }
@@ -241,7 +241,7 @@ fn a_share_picture_names_what_it_holds_and_leaves_off() {
         .policy()
         .keys()
         .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.fingerprint().unwrap()))
+        .map(|k| String::from(&*faraday_core::wallet::fp_text(k.fingerprint().unwrap())))
         .collect();
     for p in &pictures {
         let text = label(p);

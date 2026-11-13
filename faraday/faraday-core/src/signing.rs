@@ -15,12 +15,12 @@ pub(crate) mod fresh;
 pub(crate) mod read;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::wallet::{self, fp_text};
 use crate::worker::Job;
 use crate::{Faraday, spend_opens_round};
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// A signing to run on the worker: the job, what the press that started
@@ -47,7 +47,7 @@ pub(crate) struct SignDone {
     round: Option<faraday_psbt::MusigSession>,
     /// What the signing left and what was worked out of it, or the error
     /// text.
-    worked: Result<Worked, String>,
+    worked: Result<Worked, Text>,
     pub(crate) from: Origin,
 }
 
@@ -82,7 +82,7 @@ impl SignWork {
         let view = signing.round_view();
         let (psbt, round, result) = signing.into_parts();
         let worked = match result {
-            Err(e) => Err(String::from(&*crate::review::sign_error_text(&e))),
+            Err(e) => Err(crate::review::sign_error_text(&e)),
             Ok(r) => {
                 let fps = crate::review::signers_of(&r);
                 let After {
@@ -153,14 +153,14 @@ pub(crate) fn sign_here(app: &mut Faraday) {
                 .participating_keys
                 .iter()
                 .filter(|fp| held.contains(fp))
-                .map(|fp| fp_text(*fp))
+                .map(|fp| String::from(&*fp_text(*fp)))
                 .collect()
         })
         .unwrap_or_default();
     if !waiting.is_empty() {
-        app.wallets.signers_shown_with(fill(
+        app.wallets.signers_shown_with(Text::fill(
             EN.sign_here_backup_first,
-            &[&waiting.join(", ").to_string()],
+            &[&waiting.join(", ")],
         ));
         return;
     }
@@ -173,7 +173,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         .is_some_and(|s| spend_opens_round(&s.inspection));
     let seed = app.sign_seed();
     if seed.is_none() && opens_round {
-        app.wallets.set_spend_error(EN.no_randomness.to_string());
+        app.wallets.set_spend_error(Text::of(EN.no_randomness));
         return;
     }
     // The same transaction stating other amounts than when it was
@@ -184,7 +184,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         .is_some_and(|s| app.amounts_refused(&s.spend.psbt))
     {
         app.wallets
-            .set_spend_error(EN.sign_here_this_transaction.to_string());
+            .set_spend_error(Text::of(EN.sign_here_this_transaction));
         return;
     }
     let Some((made, before)) = app.wallets.sign_job(&app.session, &c, seed.as_ref()) else {
@@ -240,7 +240,7 @@ pub(crate) fn signed_spend(app: &mut Faraday, done: SignDone) {
 
 /// What a signing leaves on the open spend, as the press did when it
 /// signed in place: the answer worked out on the worker is moved in.
-fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
+fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, Text>) {
     let mut remember: Option<Psbt> = None;
     let mut nonce_only = false;
     let mut part = None;
@@ -324,7 +324,7 @@ fn part_put(app: &mut Faraday, part: Option<collect::Planned>) {
 /// the name recorded, else the fixed one. A lookup.
 pub(crate) fn part_name(s: &wallet::SpendState) -> (String, bool) {
     match &s.out_names.part {
-        Some(name) => (name.clone(), true),
+        Some(name) => (String::from(&**name), true),
         None => (
             format!("{}-part.psbt", crate::result_stem(&s.spend.source).as_str()),
             false,
@@ -420,7 +420,7 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
         }
         PartPlan::Beside(plan) => String::from(&*app.beside_apply(plan)),
     };
-    app.wallets.set_part_name(name);
+    app.wallets.set_part_name(Text::of(&name));
 }
 
 /// Costs what `part_plan` costs. The part file of the open spend, worked

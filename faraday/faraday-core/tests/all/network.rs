@@ -42,7 +42,7 @@ fn a_testnet_wallet_moves_the_session_to_testnet_and_a_mainnet_one_is_then_refus
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.network(), Network::Testnet);
     assert_eq!(app.session.wallets.len(), 1);
-    let first = app.session.address(&c, &app.session.wallets[0], false, 0);
+    let first = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0));
     assert!(first.starts_with("tb1q"), "{first}");
 
     app.press(Action::LoadWallet(1));
@@ -190,8 +190,16 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
             .keys
             .add_words(&c, &testkit::test_words(word), "", None)
             .unwrap();
-        let stem = format!("seed-{}-{}", n + 1, faraday_core::wallet::fp_text(fp));
-        let xpub_stem = format!("xpub-{}-{}", n + 1, faraday_core::wallet::fp_text(fp));
+        let stem = format!(
+            "seed-{}-{}",
+            n + 1,
+            String::from(&*faraday_core::wallet::fp_text(fp))
+        );
+        let xpub_stem = format!(
+            "xpub-{}-{}",
+            n + 1,
+            String::from(&*faraday_core::wallet::fp_text(fp))
+        );
         let get = |suffix: &str| {
             files
                 .iter()
@@ -213,7 +221,10 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
                 .unwrap_or_else(|| panic!("no {name}"));
             assert_eq!(classify(&c, &name, &bytes), FileKind::Key, "{name}");
             let text = String::from_utf8(bytes).unwrap();
-            assert!(text.contains(&format!("[{}/", faraday_core::wallet::fp_text(fp))));
+            assert!(text.contains(&format!(
+                "[{}/",
+                String::from(&*faraday_core::wallet::fp_text(fp))
+            )));
             assert!(text.contains("]tpub"), "{name}");
         }
     }

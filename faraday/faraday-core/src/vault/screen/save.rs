@@ -204,7 +204,9 @@ pub(super) fn save_panel(
             // Any key loaded is offered: words, or the master seed a
             // codex32 or SLIP-39 key was loaded from (VAULT.md §7, type
             // 2's seed payload).
-            if held.contains(&fp) || !(key.has_words() || app.session.keys.holds_seed_bytes(k)) {
+            if held.iter().any(|h| *h == *fp)
+                || !(key.has_words() || app.session.keys.holds_seed_bytes(k))
+            {
                 continue;
             }
             any = true;

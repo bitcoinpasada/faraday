@@ -189,7 +189,7 @@ fn contents(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
                 );
             }
             for (i, wl) in app.session.wallets.iter().enumerate() {
-                let label = format!("{} · {}", wl.name, crate::wallet::Session::shape(wl));
+                let label = format!("{} · {}", &*wl.name, &*crate::wallet::Session::shape(wl));
                 ui.button(
                     x,
                     cy,

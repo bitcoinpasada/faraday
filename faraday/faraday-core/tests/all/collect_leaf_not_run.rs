@@ -299,7 +299,11 @@ fn puzzle() -> (ScriptBuf, Vec<u8>) {
     )
 }
 
-fn collect(o: &mut Spend, a: &faraday_core::Faraday, f: &b::Psbt) -> Result<(), String> {
+fn collect(
+    o: &mut Spend,
+    a: &faraday_core::Faraday,
+    f: &b::Psbt,
+) -> Result<(), faraday_text::Text> {
     o.collect(&testkit::compute(), &a.session, &bytes(f), "f")
         .map(|_| ())
 }
@@ -433,7 +437,10 @@ fn a_witness_utxo_the_file_states_otherwise_is_refused_and_named() {
         &s.cbs[1],
     );
     let mut o = sp(&own);
-    assert_eq!(collect(&mut o, &a2, &f), Err(DIFFER_OUTPUTS.to_string()));
+    assert_eq!(
+        collect(&mut o, &a2, &f),
+        Err(faraday_text::Text::of(DIFFER_OUTPUTS))
+    );
     // The spend is as it was.
     assert!(o.psbt.inner().inputs[0].final_script_witness.is_none());
     assert_eq!(
@@ -447,14 +454,17 @@ fn a_witness_utxo_the_file_states_otherwise_is_refused_and_named() {
     let mut with_other = own.clone();
     with_other.inputs[0].non_witness_utxo = Some(other);
     let mut o = sp(&with_other);
-    assert_eq!(collect(&mut o, &a2, &f), Err(DIFFER_OUTPUTS.to_string()));
+    assert_eq!(
+        collect(&mut o, &a2, &f),
+        Err(faraday_text::Text::of(DIFFER_OUTPUTS))
+    );
     // And the other way round: the file's amount is the false one.
     let mut file_wrong = f.clone();
     file_wrong.inputs[0].witness_utxo = Some(wrong[0].clone());
     let mut o = sp(&base(&s.spk).0);
     assert_eq!(
         collect(&mut o, &a2, &file_wrong),
-        Err(DIFFER_OUTPUTS.to_string())
+        Err(faraday_text::Text::of(DIFFER_OUTPUTS))
     );
     // A false amount taken while the spend stated none, then the true file:
     // the two state different outputs and neither is proven.
@@ -462,7 +472,10 @@ fn a_witness_utxo_the_file_states_otherwise_is_refused_and_named() {
     bare.inputs[0].witness_utxo = None;
     let mut o = sp(&bare);
     assert_eq!(collect(&mut o, &a2, &file_wrong), Ok(()));
-    assert_eq!(collect(&mut o, &a2, &f), Err(DIFFER_OUTPUTS.to_string()));
+    assert_eq!(
+        collect(&mut o, &a2, &f),
+        Err(faraday_text::Text::of(DIFFER_OUTPUTS))
+    );
 }
 
 const DIFFER_OUTPUTS: &str =
@@ -537,7 +550,10 @@ fn an_own_true_row_stays_when_neither_row_can_be_read() {
         (&with_bad, &with_good, &bad),
     ] {
         let mut o = sp(own);
-        assert_eq!(collect(&mut o, &a2, f), Err(UNCHECKED_ROW.to_string()));
+        assert_eq!(
+            collect(&mut o, &a2, f),
+            Err(faraday_text::Text::of(UNCHECKED_ROW))
+        );
         assert_eq!(
             o.psbt.inner().inputs[0].tap_script_sigs[&(x(&s.a), s.ln)].to_vec(),
             *kept
@@ -564,7 +580,7 @@ fn a_forged_row_with_no_output_stated_is_refused_and_the_honest_file_after_it_co
     let mut o = sp(&own);
     assert_eq!(
         collect(&mut o, &a2, &forged),
-        Err(UNCHECKED_ROW.to_string())
+        Err(faraday_text::Text::of(UNCHECKED_ROW))
     );
     assert_eq!(collect(&mut o, &a2, &honest), Ok(()));
     assert_eq!(o.finish(), Ok(()));
@@ -590,12 +606,15 @@ fn two_different_rows_with_no_output_stated_are_refused_in_either_order() {
     // forged row it now reads, and the spend does not finish.
     for (own, f) in [(&with_bad, &with_good), (&with_good, &with_bad)] {
         let mut o = sp(own);
-        assert_eq!(collect(&mut o, &a2, f), Err(UNCHECKED_ROW.to_string()));
+        assert_eq!(
+            collect(&mut o, &a2, f),
+            Err(faraday_text::Text::of(UNCHECKED_ROW))
+        );
     }
     let mut o = sp(&with_good);
     assert_eq!(
         collect(&mut o, &a2, &with_bad),
-        Err(UNCHECKED_ROW.to_string())
+        Err(faraday_text::Text::of(UNCHECKED_ROW))
     );
     assert_eq!(collect(&mut o, &a2, &honest), Ok(()));
     assert_eq!(o.finish(), Ok(()));
@@ -603,7 +622,7 @@ fn two_different_rows_with_no_output_stated_are_refused_in_either_order() {
     let mut o = sp(&with_bad);
     assert_eq!(
         collect(&mut o, &a2, &with_good),
-        Err(UNCHECKED_ROW.to_string())
+        Err(faraday_text::Text::of(UNCHECKED_ROW))
     );
     assert!(collect(&mut o, &a2, &honest).is_err());
     assert!(o.finish().is_err());
@@ -741,7 +760,7 @@ fn a_final_witness_the_output_judges_true_stands_over_one_for_a_leaf_not_run_in_
         let held = o.psbt.inner().inputs[0].final_script_witness.clone();
         assert_eq!(
             collect(&mut o, &a2, order[1]),
-            Err(DIFFER_FINALS.to_string())
+            Err(faraday_text::Text::of(DIFFER_FINALS))
         );
         assert_eq!(o.psbt.inner().inputs[0].final_script_witness, held);
     }
@@ -766,7 +785,9 @@ fn two_different_scripts_for_one_control_block_with_no_output_stated_are_refused
         let mut o = sp(own);
         assert_eq!(
             collect(&mut o, &a2, f),
-            Err("f: input 0: the spend and this file hold different scripts for one control block, and no output is stated to check them".to_string())
+            Err(faraday_text::Text::of(
+                "f: input 0: the spend and this file hold different scripts for one control block, and no output is stated to check them"
+            ))
         );
     }
     // With the output read, the entry that commits to it stands in either order.
@@ -802,7 +823,10 @@ fn two_different_final_witnesses_with_no_output_stated_are_refused_in_either_ord
     );
     for (own, f) in [(&one, &two), (&two, &one)] {
         let mut o = sp(own);
-        assert_eq!(collect(&mut o, &a2, f), Err(DIFFER_FINALS.to_string()));
+        assert_eq!(
+            collect(&mut o, &a2, f),
+            Err(faraday_text::Text::of(DIFFER_FINALS))
+        );
     }
 }
 
@@ -855,7 +879,7 @@ fn a_forged_row_on_a_two_of_three_with_no_output_stated_is_refused_and_the_other
     let mut o = sp(&start);
     assert_eq!(
         collect(&mut o, &a2, &forged),
-        Err(UNCHECKED_ROW.to_string())
+        Err(faraday_text::Text::of(UNCHECKED_ROW))
     );
     assert_eq!(collect(&mut o, &a2, &fb), Ok(()));
     assert_eq!(collect(&mut o, &a2, &fc), Ok(()));
@@ -888,7 +912,10 @@ fn two_different_script_sigs_for_a_p2sh_script_not_run_are_refused_in_either_ord
     let (one, two) = (with(&pre), with(b"other"));
     for (own, f) in [(&one, &two), (&two, &one)] {
         let mut o = sp(own);
-        assert_eq!(collect(&mut o, &a2, f), Err(DIFFER_FINALS.to_string()));
+        assert_eq!(
+            collect(&mut o, &a2, f),
+            Err(faraday_text::Text::of(DIFFER_FINALS))
+        );
     }
 }
 
@@ -911,6 +938,6 @@ fn a_spend_whose_previous_transaction_is_of_another_txid_is_not_said_to_lack_an_
     let why = "input 0: its witness_utxo and its previous transaction state different outputs";
     for (spend, f) in [(&own_row, &row), (&own, &script)] {
         let mut o = sp(spend);
-        assert_eq!(collect(&mut o, &a2, f), Err(why.to_string()));
+        assert_eq!(collect(&mut o, &a2, f), Err(faraday_text::Text::of(why)));
     }
 }

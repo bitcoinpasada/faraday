@@ -416,7 +416,7 @@ impl Faraday {
             .session
             .wallets
             .iter()
-            .map(|w| same_wallet(w.policy()))
+            .map(|w| String::from(&*same_wallet(w.policy())))
             .collect();
         if have.is_empty() {
             return Vec::new();
@@ -425,7 +425,7 @@ impl Faraday {
             .iter()
             .enumerate()
             .filter_map(|(s, w)| {
-                let d = same_wallet(&read_wallet(c, w.text).ok()?);
+                let d = String::from(&*same_wallet(&read_wallet(c, w.text).ok()?));
                 have.iter().position(|h| *h == d).map(|i| (s, i))
             })
             .collect()

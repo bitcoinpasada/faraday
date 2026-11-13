@@ -514,7 +514,7 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
         app.offers(Action::NewWalletFrom(original)),
         "the wallet's card offers New wallet from this one"
     );
-    let name = app.session.wallets[original].name.clone();
+    let name = app.session.wallets[original].name.as_str().to_string();
     let sum = app.session.wallets[original].checksum().to_string();
     let first = app
         .session
@@ -536,14 +536,14 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
         .address(&faraday_core::testkit::compute(), w, false, 0);
     assert_eq!(
         address,
-        p2wpkh_at("bacon", "m/84'/1'/1'/0/0"),
+        p2wpkh_at("bacon", "m/84'/1'/1'/0/0").as_str(),
         "the same words at account 1"
     );
     assert_ne!(address, first, "a new, separate wallet");
-    assert_eq!(w.name, format!("{name} · account 1"));
+    assert_eq!(w.name, format!("{name} · account 1").as_str());
     // The original is not touched.
     let o = &app.session.wallets[original];
-    assert_eq!(o.name, name);
+    assert_eq!(o.name, name.as_str());
     assert_eq!(o.checksum(), sum);
     assert_eq!(
         app.session
@@ -656,7 +656,10 @@ fn changing_kind_to_taproot_keeps_the_keys_and_makes_a_taproot_wallet() {
     assert_eq!(keys.len(), 1);
     assert_eq!(keys[0].fingerprint().map(|f| f.0), Some(fp_of("bacon")));
     assert_eq!(account_of_key(&keys[0]), 1);
-    assert_eq!(w.name, format!("{} · account 1", NewKind::Taproot.name()));
+    assert_eq!(
+        w.name,
+        format!("{} · account 1", NewKind::Taproot.name()).as_str()
+    );
 }
 
 // NEW-WALLET §17 (F55, F98): the derivation path on Check, its account
@@ -701,7 +704,7 @@ fn check_shows_the_path_and_change_makes_the_wallet_again_at_another_account() {
     assert_eq!(
         app.session
             .address(&faraday_core::testkit::compute(), w, false, 0),
-        p2wpkh_at("bacon", "m/84'/1'/2'/0/0"),
+        p2wpkh_at("bacon", "m/84'/1'/2'/0/0").as_str(),
         "the same words at account 2"
     );
     let text = drawn_joined(&mut app);

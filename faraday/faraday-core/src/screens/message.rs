@@ -53,7 +53,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if app.receive_held(w) {
             crate::glance::RECEIVE_WARNING.to_string()
         } else {
-            app.address_shown(w, false, m.index)
+            String::from(&*app.address_shown(w, false, m.index))
         }
     });
     let cards: Vec<flow::Card> = (0..4u8)

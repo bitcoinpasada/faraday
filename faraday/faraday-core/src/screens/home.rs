@@ -70,7 +70,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                 fill(
                     EN.home_job_signatures,
                     &[
-                        &w.name.to_string(),
+                        &w.name,
                         &s.signers.len().to_string(),
                         &app.spend_needed().to_string(),
                     ],
@@ -84,7 +84,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             Some(Going::Spend),
             (
                 Glyph::Icon(Icon::Sign),
-                fill(EN.home_job_continue_signing, &[&s.spend.source.to_string()]),
+                fill(EN.home_job_continue_signing, &[&s.spend.source]),
                 fill(
                     EN.home_job_of_signatures,
                     &[

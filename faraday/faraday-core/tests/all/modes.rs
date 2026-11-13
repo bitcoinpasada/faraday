@@ -165,7 +165,7 @@ fn demo_addresses_are_testnet_addresses_a_testnet_wallet_sits_beside() {
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     let ours = &app.session.wallets[app.session.wallets.len() - 1];
-    let address = app.session.address(&c, ours, false, 0);
+    let address = String::from(&*app.session.address(&c, ours, false, 0));
     assert!(address.starts_with("tb1q"), "{address}");
     // A real testnet wallet from elsewhere loads in the same session.
     let kit = testkit::kits().into_iter().next().unwrap();

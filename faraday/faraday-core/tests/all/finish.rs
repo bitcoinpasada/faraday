@@ -297,7 +297,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
     // Alone: decoded, the fee not stated.
     let mut alone = with_inbox(vec![(
         "broadcast-me.txt".to_string(),
-        hex.clone().into_bytes(),
+        hex.as_bytes().to_vec(),
     )]);
     assert_eq!(alone.inbox()[0].kind, FileKind::Transaction);
     alone.press(Action::DecodeInbox(0));
@@ -308,7 +308,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
     // Beside its PSBT: the fee too.
     let psbt = testkit::unsigned(&kit("spending")).unwrap();
     let mut beside = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
     beside.press(Action::DecodeInbox(0));
@@ -430,7 +430,7 @@ fn decode_names_the_psbt_the_amounts_going_in_came_from() {
     let hex = app.spend().unwrap().spend.finished_hex().unwrap();
     let psbt = testkit::unsigned(&kit("spending")).unwrap();
     let mut beside = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.clone().into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
     beside.press(Action::DecodeInbox(0));
@@ -448,7 +448,7 @@ fn decode_names_the_psbt_the_amounts_going_in_came_from() {
     let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
     let mut both = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
         ("other.psbt".to_string(), other.to_bytes()),
     ]);
@@ -594,7 +594,7 @@ fn a_psbt_without_the_amounts_does_not_disagree_with_one_that_has_them() {
         i.non_witness_utxo = None;
     }
     let mut both = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.clone().into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("bare.psbt".to_string(), bare.to_bytes()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
@@ -611,7 +611,7 @@ fn a_psbt_without_the_amounts_does_not_disagree_with_one_that_has_them() {
     let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
     let mut differ = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
         ("other.psbt".to_string(), other.to_bytes()),
     ]);
@@ -633,7 +633,10 @@ fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
     use faraday_shell_api::{BootState, DisplayInfo, Event, SecureHardware};
     let app = spending_finished();
     let hex = app.spend().unwrap().spend.finished_hex().unwrap();
-    let mut app = with_inbox(vec![("broadcast-me.txt".to_string(), hex.into_bytes())]);
+    let mut app = with_inbox(vec![(
+        "broadcast-me.txt".to_string(),
+        hex.as_bytes().to_vec(),
+    )]);
     app.event(Event::Display(DisplayInfo {
         width: 1920,
         height: 1080,
@@ -791,7 +794,7 @@ fn decode_refuses_an_amount_going_in_over_21_million_bitcoin() {
     let utxo = psbt.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value = max + faraday_bip::bitcoin::Amount::from_sat(1);
     let mut beside = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
     beside.press(Action::DecodeInbox(0));
@@ -817,7 +820,7 @@ fn decode_refuses_an_amount_over_21_million_inside_the_previous_transaction() {
     psbt.inner_mut().inputs[0].witness_utxo = None;
     let hex = faraday_bip::bitcoin::consensus::encode::serialize_hex(&psbt.inner().unsigned_tx);
     let mut beside = with_inbox(vec![
-        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("broadcast-me.txt".to_string(), hex.as_bytes().to_vec()),
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
     beside.press(Action::DecodeInbox(0));

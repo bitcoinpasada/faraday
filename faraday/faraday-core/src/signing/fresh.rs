@@ -4,6 +4,7 @@
 
 use crate::wallet::{InspectInputs, NonceCheck, Session, Signing, Spend, SpendState};
 use faraday_psbt::{Inspection, MusigSessionView, Psbt};
+use faraday_text::Text;
 
 /// A spend read anew: everything that is a function of its PSBT and the
 /// session's [`InspectInputs`]. Public data and verdicts, no key.
@@ -13,7 +14,7 @@ pub(crate) struct Fresh {
     /// The PSBT as read, after any aggregation.
     pub(crate) psbt: Psbt,
     pub(crate) inspection: Inspection,
-    pub(crate) refused: Option<String>,
+    pub(crate) refused: Option<Text>,
     /// Left out when the spend is opened: the Finish card works it out when
     /// it is drawn.
     pub(crate) check: Option<NonceCheck>,
@@ -118,7 +119,7 @@ impl SpendState {
     fn keep_fresh(
         &mut self,
         (psbt, inputs): (Psbt, InspectInputs),
-        (refused, check): (Option<String>, Option<NonceCheck>),
+        (refused, check): (Option<Text>, Option<NonceCheck>),
         signing: &Signing,
         (wallet, complete): (Option<usize>, bool),
     ) {

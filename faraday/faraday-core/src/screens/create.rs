@@ -143,7 +143,7 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
             ),
         },
         cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
-            Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
+            Some(w) => fill(EN.create_first_addresses, &[&w.name]),
             None => EN.create_not_made_yet.to_string(),
         },
         _ => String::new(),
@@ -416,10 +416,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             .keys
                             .key_label(faraday_bip::keys::Fingerprint(*fp))
                             .unwrap_or("");
-                        (
-                            fill(EN.create_loaded_here, &[&fpt.to_string(), name]),
-                            Role::Ok,
-                        )
+                        (fill(EN.create_loaded_here, &[&fpt, name]), Role::Ok)
                     }
                     Source::Cosigner(t) => (
                         fill(EN.create_a_cosigner_s, &[&t[1..9.min(t.len())]]),
@@ -465,7 +462,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         }
                         let on = *src == Source::Here(fp.0);
                         row.push((
-                            key_line(fp, &k.label),
+                            String::from(&*key_line(fp, &k.label)),
                             Style::chosen(on),
                             Action::CSlotHere(slot as u8, fp.0),
                         ));
@@ -694,10 +691,7 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
         return buttons_and_next(ui, x, y, w, &[], Some(next));
     }
     let moving = app.moving_from().map(|old| {
-        let label = fill(
-            EN.create_move_the_money,
-            &[&app.session.wallets[old].name.to_string()],
-        );
+        let label = fill(EN.create_move_the_money, &[&app.session.wallets[old].name]);
         let label = ui.fit_as(TITLE_S, &label, w - 32.0);
         (
             label,
@@ -844,7 +838,7 @@ pub(crate) fn child_notice(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let line = fill(
         EN.create_child_body,
-        &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+        &[&fp_text(faraday_bip::keys::Fingerprint(fp))],
     );
     crate::compact::dialog(
         ui,

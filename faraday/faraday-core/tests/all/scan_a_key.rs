@@ -167,7 +167,7 @@ fn a_wallet_short_of_keys_offers_one_scan_a_key_and_it_turns_the_camera_on() {
     assert!(camera_on(&app), "the camera did not turn on");
     let text = drawn(&mut app);
     assert!(text.contains("Scan a key for Savings"), "{text}");
-    let two = fp_text(fingerprint("zebra"));
+    let two = String::from(&*fp_text(fingerprint("zebra")));
     assert!(
         text.contains(&format!("Key {} · {two}", key_number(&app, w, "zebra"))),
         "{text}"
@@ -223,7 +223,9 @@ fn a_seed_of_no_key_of_the_wallet_asks_its_passphrase_and_refuses_it_without_one
     assert!(!camera_on(&app));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let mut probe = testkit::session();
-    let fp = fp_text(probe.keys.add_words(&c, OTHER, "", None).unwrap());
+    let fp = String::from(&*fp_text(
+        probe.keys.add_words(&c, OTHER, "", None).unwrap(),
+    ));
     let line = format!("{fp} is not one of Savings's keys");
     let text = drawn(&mut app);
     assert!(text.contains(&line), "{text}");
@@ -268,7 +270,9 @@ fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Entry);
     let mut probe = testkit::session();
-    let fp = fp_text(probe.keys.add_words(&c, OTHER, "", None).unwrap());
+    let fp = String::from(&*fp_text(
+        probe.keys.add_words(&c, OTHER, "", None).unwrap(),
+    ));
     assert_eq!(
         testkit::entry(&app).error.as_deref(),
         Some(format!("These words give {fp}, not a key of Savings").as_str())

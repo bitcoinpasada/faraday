@@ -130,7 +130,12 @@ fn loose<'a>(v: &'a LoadView, label: &str) -> &'a faraday_core::vault::load::Loa
 }
 
 fn wallet_names(app: &Faraday) -> Vec<String> {
-    let mut v: Vec<String> = app.session.wallets.iter().map(|w| w.name.clone()).collect();
+    let mut v: Vec<String> = app
+        .session
+        .wallets
+        .iter()
+        .map(|w| String::from(&*w.name))
+        .collect();
     v.sort();
     v
 }

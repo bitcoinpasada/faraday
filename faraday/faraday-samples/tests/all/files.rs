@@ -68,7 +68,7 @@ fn the_address_is_spendings_first_receive_address() {
     let c = compute();
     let (session, w) = spending();
     let address = session.address(&c, &session.wallets[w], false, 0);
-    assert_eq!(SAMPLES.inputs.address, address);
+    assert_eq!(SAMPLES.inputs.address, address.as_str());
 }
 
 #[test]

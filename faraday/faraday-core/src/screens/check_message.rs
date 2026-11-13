@@ -114,7 +114,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             match c.wallet {
                 Some((i, change, index)) => format!(
                     "{} · {} {}/{index}",
-                    app.session.wallets[i].name,
+                    &*app.session.wallets[i].name,
                     if change {
                         EN.check_change
                     } else {

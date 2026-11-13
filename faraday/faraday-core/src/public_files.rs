@@ -44,7 +44,7 @@ impl Inputs {
     /// `blank` that the wallet has no public files.
     pub(crate) fn of(session: &Session, w: &Wallet, omit: Option<usize>, blank: bool) -> Self {
         Self {
-            name: w.name.clone(),
+            name: String::from(&*w.name),
             policy: w.policy().clone(),
             network: session.network(),
             slots: session.slots(w).iter().map(|s| s.fingerprint).collect(),
@@ -54,12 +54,7 @@ impl Inputs {
     }
 
     fn wallet(&self) -> Wallet {
-        Wallet::new(
-            self.name.clone(),
-            self.policy.clone(),
-            String::new(),
-            Origin::Named,
-        )
+        Wallet::new(&self.name, self.policy.clone(), "", Origin::Named)
     }
 }
 
@@ -137,16 +132,16 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
     let stem = stem.as_str();
     let net = inp.network;
     let shape = if net.is_mainnet() {
-        Session::shape(w)
+        String::from(&*Session::shape(w))
     } else {
-        format!("{} · {}", Session::shape(w), net.name())
+        format!("{} · {}", &*Session::shape(w), net.name())
     };
     let keys = w.policy().keys();
     let fps = |pick: &dyn Fn(usize) -> bool| -> Vec<String> {
         keys.iter()
             .enumerate()
             .filter(|(i, _)| pick(*i))
-            .filter_map(|(_, k)| k.fingerprint().map(fp_text))
+            .filter_map(|(_, k)| k.fingerprint().map(|f| String::from(&*fp_text(f))))
             .collect()
     };
     // Each code of `text` as a picture: `name` when there is one,
@@ -292,16 +287,20 @@ pub(crate) fn wallet_code_head(
     let stem = stem.as_str();
     let (title, name) = if what == 2 {
         (
-            fill(EN.code_view_multisig, &[&w.name.to_string()]),
+            fill(EN.code_view_multisig, &[&*w.name]),
             format!("{stem}-multisig-config.png"),
         )
     } else {
         (
-            fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
+            fill(EN.code_view_bsms_descriptor, &[&*w.name]),
             format!("{stem}-bsms.png"),
         )
     };
-    let mut lines = app.wallet_label(w);
+    let mut lines: Vec<String> = app
+        .wallet_label(w)
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect();
     lines.push(EN.code_view_public_watch.to_string());
     (title, name, lines)
 }

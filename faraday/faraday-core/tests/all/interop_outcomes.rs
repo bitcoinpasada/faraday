@@ -18,7 +18,7 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
     out.push_str(&format!("kind {:?}\n", classify(&c, path, bytes)));
     match read_wallet(&c, &text) {
         Ok(p) => {
-            out.push_str(&format!("wallet {}\n", same_wallet(&p)));
+            out.push_str(&format!("wallet {}\n", String::from(&*same_wallet(&p))));
             match faraday_intake::wallet::first_address(&c, &p) {
                 Some((net, a)) => out.push_str(&format!("first {} {net:?}\n", &*a)),
                 None => out.push_str("first none\n"),

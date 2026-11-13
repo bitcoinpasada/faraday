@@ -1061,7 +1061,7 @@ fn wallet_once(w: &crate::wallet::Wallet) -> Text {
     if w.name.to_lowercase().contains(&kind.to_lowercase()) {
         Text::of(&shape)
     } else {
-        faraday_text::text!("{} · {}", w.name, &*shape)
+        faraday_text::text!("{} · {}", &*w.name, &*shape)
     }
 }
 

@@ -231,7 +231,7 @@ fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> 
         let fp = key
             .fingerprint()
             .map(fp_text)
-            .unwrap_or_else(|| "00000000".into());
+            .unwrap_or_else(|| Text::of("00000000"));
         let path = key
             .path()
             .map(|p| {
@@ -280,7 +280,7 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Text
     let (m, n) = Session::quorum(wallet);
     let mut out = Text::of("faraday-sheet 1\nkind: share\n");
     out.push_str(&text!("name: {}\n", wallet_name(&wallet.name)));
-    out.push_str(&text!("shape: {}\n", Session::shape(wallet)));
+    out.push_str(&text!("shape: {}\n", &*Session::shape(wallet)));
     out.push_str(&text!("part: {part} of {of}\n"));
     out.push_str(&text!("quorum: {m} of {n}\n"));
     if wallet.waits().shortest.is_some() {
@@ -317,7 +317,7 @@ pub(crate) fn sheet_wallet_on(
     let mut out = Text::of("faraday-sheet 1\nkind: wallet\n");
     out.push_str(&text!("network: {}\n", network.name()));
     out.push_str(&text!("name: {}\n", wallet_name(&wallet.name)));
-    out.push_str(&text!("shape: {}\n", Session::shape(wallet)));
+    out.push_str(&text!("shape: {}\n", &*Session::shape(wallet)));
     out.push_str(&text!(
         "descriptor: {}\n",
         wallet.policy().to_descriptor_checksummed()
@@ -327,9 +327,7 @@ pub(crate) fn sheet_wallet_on(
         out.push_str(&text!(
             "key: {} {} {}\n",
             i + 1,
-            fingerprint
-                .map(fp_text)
-                .unwrap_or_else(|| "--------".into()),
+            &*fp_of(*fingerprint),
             key.key_text()
         ));
     }
@@ -342,7 +340,7 @@ pub(crate) fn sheet_wallet_on(
     ] {
         out.push_str(&text!(
             "address: {label} {}\n",
-            wallet.address_on(c, network, change, index)
+            &*wallet.address_on(c, network, change, index)
         ));
     }
     out
@@ -399,7 +397,7 @@ pub fn sheet_blank(
         out.push_str(&text!(
             "name: {}\nshape: {}\n",
             wallet_name(&w.name),
-            Session::shape(w)
+            &*Session::shape(w)
         ));
     }
     out
@@ -483,7 +481,7 @@ pub fn envelope(session: &Session, wallet: &Wallet, plan: Option<&[Vec<usize>]>)
             let fp = s
                 .fingerprint
                 .map(fp_text)
-                .unwrap_or_else(|| "--------".into());
+                .unwrap_or_else(|| Text::of("--------"));
             let sheet = match plan {
                 Some(p) => Text::fill(
                     EN.backup_envelope_share_count,

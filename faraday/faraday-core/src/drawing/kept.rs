@@ -6,6 +6,7 @@
 //! state; only drawing asks them here. Each is handed the view's token
 //! (`View::kept`).
 
+use faraday_text::Text;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -28,7 +29,6 @@ use crate::plan;
 use crate::seeds::SeedsState;
 use crate::vault::VaultWallet;
 use crate::wallet::{KeyTexts, MessageCheck, NonceCheck, Session, Wallet};
-use faraday_text::Text;
 
 /// The most QR codes of public text kept ([`Kept::public_qr`]); the next
 /// one empties the list.
@@ -527,7 +527,7 @@ impl View<'_> {
     /// Wallet `w`'s address on `network` at `change`/`index`
     /// ([`Wallet::address_on`]), kept on the wallet. Costs an address
     /// derivation the first time.
-    pub fn address_on(&self, w: &Wallet, network: Network, change: bool, index: u32) -> String {
+    pub fn address_on(&self, w: &Wallet, network: Network, change: bool, index: u32) -> Text {
         self.kept(|c| w.address_on(c, network, change, index))
     }
 
@@ -550,7 +550,7 @@ impl View<'_> {
     /// An address of wallet `w` as the screen shows it
     /// ([`crate::wallet::Session::address_shown`]), kept on the wallet.
     /// Costs an address derivation the first time.
-    pub fn address_shown(&self, w: &Wallet, change: bool, index: u32) -> String {
+    pub fn address_shown(&self, w: &Wallet, change: bool, index: u32) -> Text {
         self.kept(|c| self.session.address_shown(c, w, change, index))
     }
 
@@ -563,13 +563,13 @@ impl View<'_> {
     /// Key `i`'s account key text for `kind` and `account`
     /// ([`crate::wallet::KeyTexts::account_text`]), kept on the key. Costs
     /// a key derivation the first time.
-    pub fn account_text(&self, i: usize, kind: NewKind, account: u32) -> Result<String, String> {
+    pub fn account_text(&self, i: usize, kind: NewKind, account: u32) -> Result<Text, Text> {
         self.kept(|c| self.session.keys.account_text(c, i, kind, account))
     }
 
     /// Key `i`'s key text at `path` ([`crate::wallet::KeyTexts::text_at`]),
     /// kept on the key. Costs a key derivation the first time.
-    pub fn text_at(&self, i: usize, path: &str) -> Result<String, String> {
+    pub fn text_at(&self, i: usize, path: &str) -> Result<Text, Text> {
         self.kept(|c| self.session.keys.text_at(c, i, path))
     }
 

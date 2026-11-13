@@ -377,7 +377,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let heading = if many {
         EN.backup_back_up_a_wallet.to_string()
     } else {
-        fill(EN.backup_back_up, &[&wallet.name.to_string()])
+        fill(EN.backup_back_up, &[&wallet.name])
     };
     let pick = b.pick && many;
     // A small panel has no room for the side panel: the map is a page of
@@ -715,11 +715,11 @@ pub(crate) fn shares_card(
     };
     let (m, keys_n) = Session::quorum(wallet);
     let slots = app.session.slots(wallet);
-    let fp = |j: usize| -> String {
-        slots
-            .get(j)
-            .and_then(|s| s.fingerprint)
-            .map_or_else(|| "--------".into(), crate::wallet::fp_text)
+    let fp = |j: usize| -> faraday_text::Text {
+        slots.get(j).and_then(|s| s.fingerprint).map_or_else(
+            || faraday_text::Text::of("--------"),
+            crate::wallet::fp_text,
+        )
     };
     shares_table(
         ui,
@@ -739,7 +739,7 @@ pub(crate) fn shares_table(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     (m, keys_n, omit): (usize, usize, usize),
-    fp: &dyn Fn(usize) -> String,
+    fp: &dyn Fn(usize) -> faraday_text::Text,
     slider: u8,
 ) -> f32 {
     let most = m.saturating_sub(1).min(keys_n.saturating_sub(1));
@@ -766,7 +766,7 @@ pub(crate) fn shares_table(
     }
     let plan = crate::wallet_backup::split_plan(keys_n, m, omit);
     for (k, row) in plan.iter().enumerate() {
-        let fps: Vec<String> = row.iter().map(|&j| fp(j)).collect();
+        let fps: Vec<faraday_text::Text> = row.iter().map(|&j| fp(j)).collect();
         ui.text_as(
             x,
             cy,
@@ -968,7 +968,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let info = fill(
                 EN.backup_words,
                 &[
-                    &key_line(key.fingerprint, &key.label).to_string(),
+                    &key_line(key.fingerprint, &key.label),
                     &word_count.to_string(),
                 ],
             );
@@ -1543,7 +1543,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let info = fill(
         EN.backup_passphrase_item,
-        &[&key_line(key.fingerprint, &key.label).to_string()],
+        &[&key_line(key.fingerprint, &key.label)],
     );
     let info = ui.fit_as(BODY_S, &info, x + w - ix);
     ui.text_mid_as((ix, iy, 38.0), BODY_S, Role::OnSurfaceVariant, &info);
@@ -1867,9 +1867,9 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
             let key = app.session.keys.info(k)?;
             let name = fp_text(key.fingerprint);
             let label = if with {
-                fill(EN.vault_item_seed_passphrase, &[&name.to_string()])
+                fill(EN.vault_item_seed_passphrase, &[&name])
             } else {
-                fill(EN.vault_item_seed, &[&name.to_string()])
+                fill(EN.vault_item_seed, &[&name])
             };
             let has = open.is_some() && app.vault_holds_seed(cur, k, with);
             Some((label, has))

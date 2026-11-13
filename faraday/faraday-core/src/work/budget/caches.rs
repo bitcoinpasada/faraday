@@ -46,12 +46,12 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
     for w in &app.session.wallets {
         let (addresses, scripts) = w.kept();
         out.push((
-            format!("{}'s addresses", w.name),
+            format!("{}'s addresses", &*w.name),
             addresses,
             WALLET_ADDRESSES_KEPT,
         ));
         out.push((
-            format!("{}'s scripts", w.name),
+            format!("{}'s scripts", &*w.name),
             scripts,
             WALLET_SCRIPTS_KEPT,
         ));

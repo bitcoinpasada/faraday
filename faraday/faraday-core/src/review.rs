@@ -474,7 +474,7 @@ pub(crate) fn stopped(s: &mut SpendState) -> bool {
     let Some(why) = review_stop(&s.inspection, &s.held) else {
         return false;
     };
-    s.error = Some(why.into());
+    s.error = Some(faraday_text::Text::of(why));
     s.follow = true;
     true
 }

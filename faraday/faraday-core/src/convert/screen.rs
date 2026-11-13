@@ -119,7 +119,7 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
     match step {
         cstep::FROM => s.key.map_or_else(
             || EN.convert_not_chosen.to_string(),
-            |fp| fp_text(Fingerprint(fp)),
+            |fp| String::from(&*fp_text(Fingerprint(fp))),
         ),
         cstep::TO => ROWS
             .iter()

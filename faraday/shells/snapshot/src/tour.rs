@@ -948,6 +948,8 @@ pub(crate) fn key_text_of(
 ) -> Result<String, String> {
     use faraday_core::wallet::KeyTexts;
     keys.account_text(c, i, kind, 0)
+        .map(|t| String::from(&*t))
+        .map_err(|e| String::from(&*e))
 }
 
 /// The Load sheet an unlock offers (F62), put off with Not now: the tours

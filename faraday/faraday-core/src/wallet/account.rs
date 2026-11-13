@@ -49,7 +49,7 @@ pub struct Accounts {
     /// The export waiting for its account, if one does.
     asked: Option<Box<AccountAsk>>,
     /// The choices made, by the single-sig account's descriptor.
-    chosen: Vec<(String, Account)>,
+    chosen: Vec<(faraday_text::Text, Account)>,
 }
 
 impl Session {

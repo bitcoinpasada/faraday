@@ -185,7 +185,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     };
     let mut cy = y;
     if let [only] = loose.as_slice() {
-        let line = fill(EN.loose_card_key_is_loaded, &[&fp_text(*only).to_string()]);
+        let line = fill(EN.loose_card_key_is_loaded, &[&fp_text(*only)]);
         cy += ui.wrap_as((x, cy, w), BODY_L, Role::OnSurface, &line) + 16.0;
         cy += mark_line(app, ui, x, cy, w, *only);
     } else {
@@ -263,13 +263,13 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
             .min(m);
         let shape = Session::shape(wlt);
         let line = if can {
-            shape
+            shape.as_str().into()
         } else if here == 0 {
-            fill(EN.wallets_watch_only, &[&shape.to_string()])
+            fill(EN.wallets_watch_only, &[&shape])
         } else {
             fill(
                 EN.wallets_of_here,
-                &[&shape.to_string(), &here.to_string(), &m.to_string()],
+                &[&shape, &here.to_string(), &m.to_string()],
             )
         };
         let item = crate::panes::screen::Item {
@@ -345,7 +345,7 @@ fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::List
         .filter(|wl| wl.policy().silent().is_none() && !app.can_spend(app.wallets.wallet()));
     let (add_label, add_action) = match short {
         Some(wl) => (
-            fill(EN.wallets_scan_key_title, &[&wl.name.to_string()]),
+            fill(EN.wallets_scan_key_title, &[&wl.name]),
             Action::ScanKey(app.wallets.wallet()),
         ),
         None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
@@ -396,7 +396,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {
         Some(s) => Some((
-            s.spend.source.clone(),
+            String::from(&*s.spend.source),
             EN.wallets_signing,
             Action::Nav(Screen::Spend),
             EN.wallets_continue,

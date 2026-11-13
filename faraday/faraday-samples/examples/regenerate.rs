@@ -499,7 +499,7 @@ fn signed_message(c: &Compute) -> (String, String) {
     let w = s
         .add_wallet(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
         .expect("wallet");
-    let address = s.address(c, &s.wallets[w], false, 0);
+    let address = String::from(&*s.address(c, &s.wallets[w], false, 0));
     let message = "Faraday sample message";
     let format =
         faraday_psbt::message::Format::for_script(faraday_bip::keys::ScriptType::NativeSegwit)[0];

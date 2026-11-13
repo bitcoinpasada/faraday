@@ -279,11 +279,11 @@ fn a_key_scanned_with_no_name_shows_its_fingerprint_once() {
     scan_seedqr(&mut app, &testkit::test_words("zebra"));
     let fp = {
         let mut s = testkit::session();
-        faraday_core::wallet::fp_text(
+        String::from(&*faraday_core::wallet::fp_text(
             s.keys
                 .add_words(&c, &testkit::test_words("zebra"), "", None)
                 .unwrap(),
-        )
+        ))
     };
     // Its row: the fingerprint, then Signs here, with no name between.
     let text = drawn(&mut app);

@@ -63,22 +63,26 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         println!("  output {} {} {:?}", o.address, o.amount.to_sat(), o.kind);
     }
     let mut flow = Spend::new(unsigned.clone(), "unsigned.psbt");
-    let here = session.sign(
-        c,
-        &mut flow.psbt,
-        &faraday_crypto::Zeroizing::new([0; 32]),
-        &mut None,
-    )?;
+    let here = session
+        .sign(
+            c,
+            &mut flow.psbt,
+            &faraday_crypto::Zeroizing::new([0; 32]),
+            &mut None,
+        )
+        .map_err(|e| String::from(&*e))?;
     println!(
         "signed here with {here:?}; signers now {:?}",
         flow.signers(c, &session)
     );
-    let added = flow.collect(c, &session, &cosigned.to_bytes(), "cosigner-5d388376.psbt")?;
+    let added = flow
+        .collect(c, &session, &cosigned.to_bytes(), "cosigner-5d388376.psbt")
+        .map_err(|e| String::from(&*e))?;
     println!(
         "collected {added:?}; signers now {:?}",
         flow.signers(c, &session)
     );
-    flow.finish()?;
+    flow.finish().map_err(|e| String::from(&*e))?;
     let tx = flow.finished.as_ref().expect("finished");
     let finished_txid = tx.compute_txid().to_string();
     println!("finished txid {finished_txid} ({} vB)", tx.vsize());
@@ -123,7 +127,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
                 &faraday_crypto::Zeroizing::new([0; 32]),
                 &mut None,
             )
-            .map_err(|e| format!("{}: {e}", kit.id))?;
+            .map_err(|e| format!("{}: {}", kit.id, &*e))?;
         let done = flow.finish();
         println!(
             "{:<17} fee {:>5} sat  change {:<8} signed by {:?}  {}  cosigner copy {}",
@@ -177,9 +181,9 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             &faraday_crypto::Zeroizing::new([0; 32]),
             &mut None,
         )
-        .map_err(|e| format!("recovery: {e}"))?;
+        .map_err(|e| format!("recovery: {}", &*e))?;
     flow.finish()
-        .map_err(|e| format!("recovery did not finish: {e}"))?;
+        .map_err(|e| format!("recovery did not finish: {}", &*e))?;
     println!(
         "inheritance recovery path: signed by {:?}, finished",
         by.iter()
@@ -206,7 +210,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     .map_err(|e| String::from(&*e.text()))?;
     let mut flow = Spend::new(mu, "musig-unsigned.psbt");
     for (fp, copy) in &nonce_files {
-        flow.collect(c, &s1, &copy.to_bytes(), &format!("musig-nonce-{fp}.psbt"))?;
+        flow.collect(c, &s1, &copy.to_bytes(), &format!("musig-nonce-{fp}.psbt"))
+            .map_err(|e| String::from(&*e))?;
     }
     s1.sign(
         c,
@@ -214,14 +219,15 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         &faraday_crypto::Zeroizing::new([3; 32]),
         &mut None,
     )
-    .map_err(|e| format!("musig round 2: {e}"))?;
+    .map_err(|e| format!("musig round 2: {}", &*e))?;
     for (fp, copy) in &partial_files {
         flow.collect(
             c,
             &s1,
             &copy.to_bytes(),
             &format!("musig-partial-{fp}.psbt"),
-        )?;
+        )
+        .map_err(|e| String::from(&*e))?;
     }
     s1.sign(
         c,
@@ -229,9 +235,9 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         &faraday_crypto::Zeroizing::new([3; 32]),
         &mut None,
     )
-    .map_err(|e| format!("musig aggregate: {e}"))?;
+    .map_err(|e| format!("musig aggregate: {}", &*e))?;
     flow.finish()
-        .map_err(|e| format!("musig did not finish: {e}"))?;
+        .map_err(|e| format!("musig did not finish: {}", &*e))?;
     println!(
         "musig2 3 of 3: nonces collected, signed last, partials collected, aggregated, finished"
     );

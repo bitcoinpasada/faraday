@@ -2,10 +2,11 @@
 //! spend's steps.
 
 use super::*;
+use faraday_text::{Text, text};
 
 /// One other file's name, unsigned transaction id and place in Files, as the
 /// review's other transactions were made from them.
-pub(crate) type OtherFrom = (String, faraday_bip::bitcoin::Txid, (bool, usize));
+pub(crate) type OtherFrom = (Text, faraday_bip::bitcoin::Txid, (bool, usize));
 
 /// A transaction being signed, with its screen's state.
 pub struct SpendState {
@@ -20,7 +21,7 @@ pub struct SpendState {
     /// The full table is shown.
     pub table: bool,
     /// The last refusal or failure.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The inspection, kept current: worked out again only when what it
     /// is of changed ([`SpendState::inspected`]).
     pub inspection: faraday_psbt::Inspection,
@@ -79,7 +80,7 @@ pub struct SpendState {
     pub register: Option<crate::register::RegisterAsk>,
     /// [`Spend::refused`] of the PSBT as it is, worked out with the
     /// inspection (`refresh_spend`), read when drawing.
-    pub refused: Option<String>,
+    pub refused: Option<Text>,
     /// The other transactions spending what this one spends, with their
     /// fee bump results in words (`docs/COMPARE.md` §4.3), made with the
     /// inspection and read when drawing.
@@ -180,7 +181,10 @@ impl SpendState {
             None => self.open = Some(step::FINISH),
             Some((owed, place)) => {
                 self.open = Some(owed);
-                self.error = Some(fill(EN.primary_finish_step, &[&place.to_string()]));
+                self.error = Some(Text::fill(
+                    EN.primary_finish_step,
+                    &[&Text::num(place as u64)],
+                ));
             }
         }
     }
@@ -264,7 +268,7 @@ pub(crate) struct WalletsArea {
     /// when several are loaded and none of them in a wallet.
     loose_pick: Option<[u8; 4]>,
     /// The chosen wallet's new name, while it is typed.
-    renaming: Option<String>,
+    renaming: Option<Text>,
     /// Design units scrolled past in the wallet card's body, on a desktop.
     card_offset: f32,
     /// The transaction being signed.
@@ -293,7 +297,7 @@ impl WalletsArea {
     }
 
     /// The new name being typed, if one is.
-    pub(crate) fn renaming(&self) -> Option<&String> {
+    pub(crate) fn renaming(&self) -> Option<&Text> {
         self.renaming.as_ref()
     }
 
@@ -314,7 +318,7 @@ impl WalletsArea {
     }
 
     /// Starts, changes or ends the typing of a new name.
-    pub(crate) fn set_renaming(&mut self, name: Option<String>) {
+    pub(crate) fn set_renaming(&mut self, name: Option<Text>) {
         self.renaming = name;
     }
 
@@ -372,7 +376,7 @@ impl WalletsArea {
     }
 
     /// The open spend's error is `error`.
-    pub(crate) fn set_spend_error(&mut self, error: String) {
+    pub(crate) fn set_spend_error(&mut self, error: Text) {
         if let Some(s) = self.spend.as_mut() {
             s.error = Some(error);
         }
@@ -478,14 +482,17 @@ impl WalletsArea {
         if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
             s.open = Some(before[pos]);
             s.follow = true;
-            s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
+            s.error = Some(Text::fill(
+                EN.primary_finish_step,
+                &[&Text::num((pos + 1) as u64)],
+            ));
             return true;
         }
         false
     }
 
     /// Opens Signers with `error`, scrolled into view.
-    pub(crate) fn signers_shown_with(&mut self, error: String) {
+    pub(crate) fn signers_shown_with(&mut self, error: Text) {
         if let Some(s) = self.spend.as_mut() {
             s.error = Some(error);
             s.open = Some(step::SIGNERS);
@@ -500,16 +507,11 @@ impl WalletsArea {
         session: &Session,
         c: &Compute,
         seed: Option<&zeroize::Zeroizing<[u8; 32]>>,
-    ) -> Option<(Result<faraday_keys::job::SignJob, String>, Vec<u8>)> {
+    ) -> Option<(Result<faraday_keys::job::SignJob, Text>, Vec<u8>)> {
         let s = self.spend.as_mut()?;
         let psbt = s.spend.psbt.clone();
         let before = s.spend.psbt.to_bytes();
-        Some((
-            session
-                .sign_spend_job(c, &psbt, seed, s)
-                .map_err(|e| String::from(&*e)),
-            before,
-        ))
+        Some((session.sign_spend_job(c, &psbt, seed, s), before))
     }
 
     /// A signing's answer kept: the round it left, where the spend still
@@ -604,7 +606,7 @@ impl WalletsArea {
         &mut self,
         input: &Psbt,
         spend: Spend,
-        error: Option<String>,
+        error: Option<Text>,
         found: bool,
         fresh: Option<crate::signing::fresh::Fresh>,
     ) -> bool {
@@ -624,21 +626,21 @@ impl WalletsArea {
     }
 
     /// The name the open spend's part-signed file went out under.
-    pub(crate) fn set_part_name(&mut self, name: String) {
+    pub(crate) fn set_part_name(&mut self, name: Text) {
         if let Some(s) = self.spend.as_mut() {
             s.out_names.part = Some(name);
         }
     }
 
     /// The name the open spend's signed PSBT went out under.
-    pub(crate) fn set_signed_name(&mut self, name: String) {
+    pub(crate) fn set_signed_name(&mut self, name: Text) {
         if let Some(s) = self.spend.as_mut() {
             s.out_names.signed = Some(name);
         }
     }
 
     /// The name the open spend's finished transaction went out under.
-    pub(crate) fn set_tx_name(&mut self, name: String) {
+    pub(crate) fn set_tx_name(&mut self, name: Text) {
         if let Some(s) = self.spend.as_mut() {
             s.out_names.tx = Some(name);
         }
@@ -648,12 +650,12 @@ impl WalletsArea {
     /// name and bytes, where the spend is reviewed and held by no nonce.
     /// `None` where it is not; an error where a version 2 PSBT cannot be
     /// written.
-    pub(crate) fn take_signed_file(&mut self) -> Option<Result<(String, Vec<u8>), ()>> {
+    pub(crate) fn take_signed_file(&mut self) -> Option<Result<(Text, Vec<u8>), ()>> {
         let s = self
             .spend
             .as_mut()
             .filter(|s| !s.spend.nonce_hold && s.reviewed_now())?;
-        let name = format!(
+        let name = text!(
             "{}-signed.psbt",
             crate::result_stem(&s.spend.source).as_str()
         );
@@ -666,18 +668,18 @@ impl WalletsArea {
 
     /// The finished transaction's file for the Outbox, marked as gone
     /// there, where the spend is reviewed and finished.
-    pub(crate) fn take_tx_file(&mut self) -> Option<(String, Vec<u8>)> {
+    pub(crate) fn take_tx_file(&mut self) -> Option<(Text, Vec<u8>)> {
         let s = self.spend.as_mut().filter(|s| s.reviewed_now())?;
         let hex = s.spend.finished_hex()?;
-        let name = format!("{}-final.txn", crate::result_stem(&s.spend.source).as_str());
+        let name = text!("{}-final.txn", crate::result_stem(&s.spend.source).as_str());
         s.out_tx = true;
-        Some((name, hex.into_bytes()))
+        Some((name, hex.as_bytes().to_vec()))
     }
 
     /// The files of a finished, reviewed spend not made yet, marked as gone
     /// to the Outbox, each with whether it is the signed PSBT. An error
     /// where a version 2 PSBT cannot take the signatures back.
-    pub(crate) fn take_result_files(&mut self) -> Result<Vec<(bool, String, Vec<u8>)>, ()> {
+    pub(crate) fn take_result_files(&mut self) -> Result<Vec<(bool, Text, Vec<u8>)>, ()> {
         let Some(s) = self
             .spend
             .as_mut()
@@ -693,13 +695,13 @@ impl WalletsArea {
                 return Err(());
             };
             s.out_signed = true;
-            made.push((true, format!("{stem}-signed.psbt"), bytes));
+            made.push((true, text!("{stem}-signed.psbt"), bytes));
         }
         if !s.out_tx
             && let Some(hex) = s.spend.finished_hex()
         {
             s.out_tx = true;
-            made.push((false, format!("{stem}-final.txn"), hex.into_bytes()));
+            made.push((false, text!("{stem}-final.txn"), hex.as_bytes().to_vec()));
         }
         Ok(made)
     }
@@ -707,7 +709,7 @@ impl WalletsArea {
     /// A Collect found nothing to add from the file `name`.
     pub(crate) fn collect_found_nothing(&mut self, name: &str) {
         if let Some(s) = self.spend.as_mut() {
-            s.error = Some(fill(EN.collect_has_nothing, &[name]));
+            s.error = Some(Text::fill(EN.collect_has_nothing, &[name]));
         }
     }
 
@@ -741,7 +743,7 @@ impl WalletsArea {
     }
 
     /// The register sheet refused with `why`.
-    pub(crate) fn register_refused(&mut self, why: String) {
+    pub(crate) fn register_refused(&mut self, why: Text) {
         if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {
             ask.refused = Some(why);
         }
@@ -780,7 +782,7 @@ impl WalletsArea {
     /// changed, a held spend is not finished and its files are taken back
     /// (their names are returned), and a lifted one is finished again.
     /// The names, and whether it was lifted.
-    pub(crate) fn apply_nonce_hold(&mut self, held: bool) -> (Vec<String>, bool) {
+    pub(crate) fn apply_nonce_hold(&mut self, held: bool) -> (Vec<Text>, bool) {
         let mut taken_back = Vec::new();
         let mut lifted = false;
         let Some(s) = self.spend.as_mut() else {

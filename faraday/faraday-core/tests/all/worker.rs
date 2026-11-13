@@ -1870,7 +1870,7 @@ mod collect {
         on_worker(&mut app, "same.psbt");
         testkit::settle(&mut app);
         let said = app.spend().unwrap().error.clone().unwrap();
-        assert!(said.contains("same.psbt"), "{said}");
+        assert!(said.contains("same.psbt"), "{}", &*said);
     }
 
     /// The file with an explicit `PSBT_GLOBAL_VERSION` of 0 after its
@@ -1905,14 +1905,14 @@ mod collect {
         inline.press(Action::Collect(i));
         let said = inline.spend().unwrap().error.clone().unwrap();
         let nothing = strings::fill(strings::EN.collect_has_nothing, &["same.psbt"]);
-        assert_eq!(said, nothing);
+        assert_eq!(said, nothing.as_str());
         assert!(inline.outbox.is_empty());
 
         let mut app = device_with("savings", false, with_explicit_version);
         on_worker(&mut app, "same.psbt");
         testkit::settle(&mut app);
         let said = app.spend().unwrap().error.clone().unwrap();
-        assert_eq!(said, nothing);
+        assert_eq!(said, nothing.as_str());
         assert!(app.outbox.is_empty());
         assert_eq!(seen(&app), seen(&inline));
     }

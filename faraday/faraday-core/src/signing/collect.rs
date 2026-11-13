@@ -22,6 +22,7 @@ use crate::{Faraday, wallet::Wallet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_psbt::{MusigSessionView, Psbt};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// A Collect to run on the worker, owned.
@@ -59,7 +60,7 @@ pub(crate) struct CollectDone {
     /// The file's name, when it held nothing the spend did not have.
     nothing: Option<String>,
     /// What the merge refused, if it did.
-    error: Option<String>,
+    error: Option<Text>,
     fresh: Option<Fresh>,
     part: Option<Planned>,
     spend_backup: bool,

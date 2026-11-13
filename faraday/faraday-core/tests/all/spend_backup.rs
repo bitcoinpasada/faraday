@@ -160,14 +160,14 @@ fn kit_address(id: &str) -> String {
             faraday_core::wallet::Origin::Named,
         )
         .expect("the kit's wallet reads");
-    s.address(&c, &s.wallets[i], false, 0)
+    String::from(&*s.address(&c, &s.wallets[i], false, 0))
 }
 
 /// The first receive address of the wallet the tab chose.
 fn chosen_address(app: &Faraday) -> String {
     let c = faraday_core::testkit::compute();
     let w = app.spend_backup_wallet().expect("no wallet chosen");
-    app.session.address(&c, &app.session.wallets[w], false, 0)
+    String::from(&*app.session.address(&c, &app.session.wallets[w], false, 0))
 }
 
 /// Lock, and the next process restored from what the lock kept.
@@ -627,7 +627,7 @@ fn a_seed_of_another_wallet_after_the_description_is_not_one_of_its_keys() {
     let w = app
         .spend_backup_wallet()
         .expect("the description did not open");
-    let name = app.session.wallets[w].name.clone();
+    let name = app.session.wallets[w].name.as_str().to_string();
     // A seed of no key of the wallet, on the same camera.
     let other = ["abandon"; 11].join(" ") + " about";
     scan(&mut app, seedqr(&other));

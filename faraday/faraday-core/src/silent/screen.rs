@@ -73,7 +73,7 @@ fn summary(app: &View, s: &SilentState, k: u8) -> String {
     match k {
         sstep::KEY => s
             .key
-            .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)))
+            .map(|fp| String::from(&*fp_text(faraday_bip::keys::Fingerprint(fp))))
             .unwrap_or_else(|| EN.silent_not_chosen.to_string()),
         sstep::ADDRESS => app
             .silent_shown()
@@ -110,7 +110,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 .map(|key| {
                     let fp = key.fingerprint;
                     (
-                        crate::wallet::key_line(fp, &key.label),
+                        String::from(&*crate::wallet::key_line(fp, &key.label)),
                         Style::chosen(s.key == Some(fp.0)),
                         Action::SKey(fp.0),
                     )

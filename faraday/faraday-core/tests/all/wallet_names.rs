@@ -88,7 +88,7 @@ fn a_share_sheet_holds_only_the_shares_lines_whatever_the_wallet_is_called() {
     assert_eq!(values(&sheet, "line"), own, "{sheet}");
     // A name set on the wallet after it was made is written as one line
     // too.
-    s.wallets[i].name = "Savings\r\nline: ms12other\u{85}quorum: 1 of 1".to_string();
+    s.wallets[i].name = faraday_text::Text::of("Savings\r\nline: ms12other\u{85}quorum: 1 of 1");
     let sheet = String::from(&*sheet_share(&s.wallets[i], 1, 3, share));
     assert_eq!(values(&sheet, "line"), own, "{sheet}");
     assert_eq!(values(&sheet, "quorum").len(), 1, "{sheet}");

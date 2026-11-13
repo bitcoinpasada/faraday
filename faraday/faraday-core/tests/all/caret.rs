@@ -111,7 +111,7 @@ fn a_press_puts_the_caret_where_it_lands_and_typing_goes_in_there() {
     press_at(&mut app, 3);
     app.event(Event::Key(Key::Char('x')));
     app.event(Event::Key(Key::Char('y')));
-    assert_eq!(app.renaming().map(String::as_str), Some("Groxycery"));
+    assert_eq!(app.renaming().map(|t| t.as_str()), Some("Groxycery"));
 }
 
 #[test]
@@ -119,9 +119,9 @@ fn backspace_takes_the_character_before_the_caret_and_delete_the_one_after() {
     let mut app = renaming("Grocery");
     press_at(&mut app, 3);
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.renaming().map(String::as_str), Some("Grcery"));
+    assert_eq!(app.renaming().map(|t| t.as_str()), Some("Grcery"));
     app.event(Event::Key(Key::Delete));
-    assert_eq!(app.renaming().map(String::as_str), Some("Grery"));
+    assert_eq!(app.renaming().map(|t| t.as_str()), Some("Grery"));
 }
 
 #[test]
@@ -130,10 +130,10 @@ fn the_arrow_keys_move_the_caret() {
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Char('-')));
-    assert_eq!(app.renaming().map(String::as_str), Some("Groce-ry"));
+    assert_eq!(app.renaming().map(|t| t.as_str()), Some("Groce-ry"));
     app.event(Event::Key(Key::Right));
     app.event(Event::Key(Key::Char('-')));
-    assert_eq!(app.renaming().map(String::as_str), Some("Groce-r-y"));
+    assert_eq!(app.renaming().map(|t| t.as_str()), Some("Groce-r-y"));
 }
 
 /// Tools' Find a tool takes typing with no press to focus it; the arrow

@@ -359,7 +359,7 @@ pub(crate) fn wallet_rows(
                     Role::OnSurfaceVariant.paint(),
                 ),
             };
-            let sub = format!("{} · {state}", Session::shape(w));
+            let sub = format!("{} · {state}", &*Session::shape(w));
             cy += crate::compact::screen::row(
                 ui,
                 x,

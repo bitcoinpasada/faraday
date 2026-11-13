@@ -33,7 +33,7 @@ pub struct RegisterAsk {
     /// The name field has focus.
     pub typing: bool,
     /// Why the last hold registered nothing.
-    pub refused: Option<String>,
+    pub refused: Option<faraday_text::Text>,
     /// The reading chosen, by its place in the offer's readings: the
     /// first, `sortedmulti`, until the person picks the other.
     pub reading: usize,

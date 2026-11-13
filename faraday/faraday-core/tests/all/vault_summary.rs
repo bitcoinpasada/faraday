@@ -88,8 +88,10 @@ fn locked_with_a_wallet_and_a_key() -> ((Files, Files, Files), String, String) {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
     app.press(Action::LoadWallet(0));
-    let name = app.session.wallets[0].name.clone();
-    let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint);
+    let name = app.session.wallets[0].name.as_str().to_string();
+    let fp = String::from(&*faraday_core::wallet::fp_text(
+        app.session.keys[0].fingerprint,
+    ));
 
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));

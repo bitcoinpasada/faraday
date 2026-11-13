@@ -87,7 +87,10 @@ fn summary(app: &View, b: &Bip85State, s: u8) -> String {
                     .keys
                     .key_label(faraday_bip::keys::Fingerprint(fp))
                     .unwrap_or("");
-                format!("{} · {label}", fp_text(faraday_bip::keys::Fingerprint(fp)))
+                format!(
+                    "{} · {label}",
+                    &*fp_text(faraday_bip::keys::Fingerprint(fp))
+                )
             }
             None => EN.bip85_not_chosen.to_string(),
         },
@@ -125,7 +128,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 .map(|k| {
                     let fp = k.fingerprint;
                     (
-                        crate::wallet::key_line(fp, &crate::bip85::key_name(k)),
+                        String::from(&*crate::wallet::key_line(fp, &crate::bip85::key_name(k))),
                         Style::chosen(b.key == Some(fp.0)),
                         Action::PKey(fp.0),
                     )
@@ -343,7 +346,7 @@ pub(crate) fn record_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
         crate::bip85::ChildTo::Vault => EN.bip85_record_vault,
         crate::bip85::ChildTo::Load => EN.bip85_record_load,
     };
-    let line = fill(text, &[&of.index.to_string(), &parent.to_string()]);
+    let line = fill(text, &[&of.index.to_string(), &parent]);
     let actions = [
         (EN.bip85_record_no, Style::Secondary, Action::PRecord(false)),
         (EN.bip85_record_yes, Style::Secondary, Action::PRecord(true)),

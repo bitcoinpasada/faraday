@@ -214,7 +214,14 @@ fn lists(app: &View, ui: &mut Ui, from: f32, to: f32) {
             name.into_owned()
         };
         let open = Action::ExploreKey(k.fingerprint.0);
-        (fp, label, true, open, None, k.has_passphrase)
+        (
+            String::from(&*fp),
+            label,
+            true,
+            open,
+            None,
+            k.has_passphrase,
+        )
     });
     let keys = (EN.sidebar_keys, seeds, first);
     group(ui, keys_at, keys, &mut seed_rows);
@@ -262,7 +269,7 @@ fn wallet_row(app: &View, i: usize, ready: u8) -> ListRow {
         _ => None,
     };
     let open = Action::OpenWallet(i);
-    (w.name.clone(), shape, false, open, mark, false)
+    (String::from(&*w.name), shape, false, open, mark, false)
 }
 
 /// One group at `at`: its header with the count (`title`, `total`),

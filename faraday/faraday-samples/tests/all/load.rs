@@ -199,7 +199,7 @@ fn ticking_savings_and_loading_it_loads_the_wallet_and_its_three_keys() {
     let want = kit.wallets[0].address_on(&c, Network::Testnet, false, 0);
     let got = app.session.wallets[0].address_on(&c, Network::Testnet, false, 0);
     assert_eq!(got, want);
-    assert!(got.starts_with("tb1"), "{got}");
+    assert!(got.starts_with("tb1"), "{}", &*got);
 }
 
 #[test]

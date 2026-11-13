@@ -350,7 +350,10 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
         .iter()
         .position(|k| k.fingerprint() == Some(fp))
         .expect("a slot") as u8;
-    let name = format!("xpub-{}.txt", faraday_core::wallet::fp_text(fp));
+    let name = format!(
+        "xpub-{}.txt",
+        String::from(&*faraday_core::wallet::fp_text(fp))
+    );
     app.press(Action::Backup(w));
     every_software(&mut app);
     app.press(Action::BStep(bstep::PUBLIC));
@@ -387,7 +390,13 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     let own = app
         .outbox
         .iter()
-        .position(|i| i.name == format!("xpub-{}-2.txt", faraday_core::wallet::fp_text(fp)))
+        .position(|i| {
+            i.name
+                == format!(
+                    "xpub-{}-2.txt",
+                    String::from(&*faraday_core::wallet::fp_text(fp))
+                )
+        })
         .expect("the row's own file");
     let _ = app.frame();
     assert!(
@@ -430,15 +439,15 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     assert!(!app.offers(Action::WalletKeyOut(w, away)));
     // The checklist makes each key's account key files with the public
     // files (`docs/BACKUP-FLOW.md` §10.2); a key not held here has none.
-    let away_fp = faraday_core::wallet::fp_text(
+    let away_fp = String::from(&*faraday_core::wallet::fp_text(
         app.session.wallets[w].policy().keys()[usize::from(away)]
             .fingerprint()
             .unwrap(),
-    );
+    ));
     assert!(!in_outbox(&app, &format!("xpub-{away_fp}.txt")));
     for fp in here {
         let slot = slot_of(&app, fp);
-        let name = faraday_core::wallet::fp_text(fp);
+        let name = String::from(&*faraday_core::wallet::fp_text(fp));
         let file = app
             .outbox
             .iter()
