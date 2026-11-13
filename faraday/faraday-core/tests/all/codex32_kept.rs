@@ -941,6 +941,19 @@ fn warned_with_typing(by_key: bool) {
     if by_key {
         app.press(Action::BC32(Press::Key(OskPress::Char('p'))));
     } else {
+        // The Codex32QR chip shows the code at once, the typed text
+        // still dots; the String chip then shows the text.
+        app.press(Action::BC32(Press::Qr));
+        let t = drawn(&mut app);
+        assert!(
+            app.backup().unwrap().c32.as_ref().unwrap().qr.is_some(),
+            "one press did not open the code: {t}"
+        );
+        assert!(!shows_share(&t), "the string shows beside its code: {t}");
+        assert!(
+            !joined(&t).contains(&A[3..9]),
+            "the typed text shows beside the code: {t}"
+        );
         app.press(Action::BC32(Press::Qr));
     }
     let t = drawn(&mut app);

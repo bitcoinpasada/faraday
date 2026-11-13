@@ -2607,10 +2607,9 @@ impl Faraday {
         let Some(st) = self.backup.c32_mut() else {
             return;
         };
+        // The String chip after a Codex32QR shows the text, shut or not.
         if st.qr.take().is_some() {
-            return;
-        }
-        if std::mem::take(&mut st.shut) {
+            st.shut = false;
             return;
         }
         let Some(s) = st.at.and_then(|j| st.known(j)) else {
