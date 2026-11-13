@@ -1179,7 +1179,7 @@ fn a_new_vault_for_a_large_item_holds_it_whatever_its_size() {
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);
     let id = app.vaults().open[0].id;
-    testkit::vault_edit(&mut app, id, |s| s.insert(id, record.clone()));
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, record.duplicate()));
     testkit::vault_changed(&mut app, id);
 
     let want: Vec<Held> = held(&app, 0).into_iter().skip(1).collect();

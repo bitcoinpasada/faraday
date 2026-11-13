@@ -153,7 +153,7 @@ fn gpg_records(app: &Faraday) -> Vec<faraday_vault::Record> {
         .flat_map(|o| {
             contents(app, o)
                 .of(kind::GPG)
-                .map(|(_, r)| r.clone())
+                .map(|(_, r)| r.duplicate())
                 .collect::<Vec<_>>()
         })
         .collect()

@@ -606,7 +606,7 @@ fn a_damaged_entry_is_written_back_as_it_was() {
     let doc = again(&doc);
     let before = doc.write(KEY);
     let mut changed = again(&doc);
-    let mut r = record_of(&items::read(&compute(), &changed), 11).clone();
+    let mut r = record_of(&items::read(&compute(), &changed), 11).duplicate();
     r.set(field::PASSWORD, b"a new password");
     items::put(
         &compute(),
@@ -987,7 +987,7 @@ fn a_persons_entry_keeps_its_other_fields_across_a_change() {
         ]
     );
     let mut doc = again(&doc);
-    let mut r = record_of(&first, 90).clone();
+    let mut r = record_of(&first, 90).duplicate();
     r.set(field::PASSWORD, b"new");
     items::put(&compute(), &mut doc, &place(90, "", ""), &Body::Record(r)).unwrap();
     let doc = again(&doc);
@@ -1520,9 +1520,15 @@ fn a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it() {
     );
     assert!(record_of(&first, 90).field(field::NOTES).is_none());
     let mut doc = again(&doc);
-    let mut r = record_of(&first, 90).clone();
+    let mut r = record_of(&first, 90).duplicate();
     r.set(field::PASSWORD, b"new");
-    items::put(&c, &mut doc, &place(90, "", ""), &Body::Record(r.clone())).unwrap();
+    items::put(
+        &c,
+        &mut doc,
+        &place(90, "", ""),
+        &Body::Record(r.duplicate()),
+    )
+    .unwrap();
     let doc = again(&doc);
     let e = doc.root().entries().next().unwrap();
     assert_eq!(e.field("Password").unwrap().value(), "new");

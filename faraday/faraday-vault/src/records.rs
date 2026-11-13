@@ -330,17 +330,23 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
     })
 }
 
-#[derive(Clone)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
-)]
 /// One field of a record. Its bytes are wiped on drop.
 pub struct Field {
     /// The field's number.
     pub number: u8,
     /// Its bytes.
     pub bytes: Zeroizing<Vec<u8>>,
+}
+
+impl Field {
+    /// A second copy, its bytes in a wiping buffer like the first's.
+    #[must_use]
+    pub fn duplicate(&self) -> Field {
+        Field {
+            number: self.number,
+            bytes: Zeroizing::new(self.bytes.to_vec()),
+        }
+    }
 }
 
 impl core::fmt::Debug for Field {
@@ -350,11 +356,7 @@ impl core::fmt::Debug for Field {
 }
 
 /// One record of a vault.
-#[derive(Clone, Debug)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
-)]
+#[derive(Debug)]
 pub struct Record {
     /// Its type (`kind`).
     pub kind: u8,
@@ -363,6 +365,15 @@ pub struct Record {
 }
 
 impl Record {
+    /// A second copy, its fields' bytes in wiping buffers like the first's.
+    #[must_use]
+    pub fn duplicate(&self) -> Record {
+        Record {
+            kind: self.kind,
+            fields: self.fields.iter().map(Field::duplicate).collect(),
+        }
+    }
+
     /// An empty record of a type.
     pub fn new(kind: u8) -> Record {
         Record {

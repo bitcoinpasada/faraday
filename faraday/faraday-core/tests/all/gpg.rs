@@ -187,7 +187,7 @@ fn record(app: &Faraday) -> faraday_vault::Record {
         .last()
         .expect("a GPG key")
         .1
-        .clone()
+        .duplicate()
 }
 
 pub(crate) fn key_of(app: &Faraday) -> faraday_pgp::Key {

@@ -352,7 +352,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         .store()
         .contents_for_tests(app.vaults().open[0].id)
         .of(kind::PLAN)
-        .map(|(_, r)| r.clone())
+        .map(|(_, r)| r.duplicate())
         .collect();
     assert_eq!(plans.len(), 1, "one plan for the wallet");
     assert_eq!(plans[0].text(field::PLAN_PLACE), Some(NAME));

@@ -56,15 +56,15 @@ pub(super) enum Val {
     Table(Table),
 }
 
-#[derive(Clone)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
-)]
 /// A key of a table, in a buffer that is wiped when it drops.
 pub(super) struct Name(Zeroizing<Vec<u8>>);
 
 impl Name {
+    /// A second copy, in a wiping buffer like the first.
+    pub fn duplicate(&self) -> Name {
+        Name(Zeroizing::new(self.0.to_vec()))
+    }
+
     fn of(text: &str) -> Name {
         Name(Zeroizing::new(text.as_bytes().to_vec()))
     }
@@ -129,10 +129,6 @@ impl Table {
 
     /// Adds `val` under the dotted `keys`; `Err` where a key is already
     /// there or a table on the way is not one a dotted key may extend.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a key's name is copied into wiping memory (`Name` holds `Zeroizing`)"
-    )]
     fn insert(&mut self, keys: &[Name], val: Val) -> Result<(), ()> {
         let (last, via) = keys.split_last().ok_or(())?;
         let mut t = self;
@@ -144,7 +140,7 @@ impl Table {
                         return Err(());
                     }
                     t.entries
-                        .push((k.clone(), Val::Table(Table::new(How::Dotted))));
+                        .push((k.duplicate(), Val::Table(Table::new(How::Dotted))));
                     t.entries.len() - 1
                 }
             };
@@ -156,7 +152,7 @@ impl Table {
         if t.at(last.text()).is_some() || t.full() {
             return Err(());
         }
-        t.entries.push((last.clone(), val));
+        t.entries.push((last.duplicate(), val));
         Ok(())
     }
 }
@@ -306,10 +302,6 @@ impl Builder<'_> {
     }
 
     /// Opens the table or the array element the header names.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a table's key name is copied into wiping memory (`Name` holds `Zeroizing`)"
-    )]
     fn header(&mut self, array: bool, at: usize) {
         let keys = core::mem::take(&mut self.keys);
         let Some((last, via)) = keys.split_last() else {
@@ -326,7 +318,7 @@ impl Builder<'_> {
                         return;
                     }
                     t.entries
-                        .push((k.clone(), Val::Table(Table::new(How::Implicit))));
+                        .push((k.duplicate(), Val::Table(Table::new(How::Implicit))));
                     t.entries.len() - 1
                 }
             };
@@ -352,12 +344,12 @@ impl Builder<'_> {
         let ok = match (t.at(last.text()), array) {
             (None, false) => {
                 t.entries
-                    .push((last.clone(), Val::Table(Table::new(How::Header))));
+                    .push((last.duplicate(), Val::Table(Table::new(How::Header))));
                 true
             }
             (None, true) => {
                 t.entries.push((
-                    last.clone(),
+                    last.duplicate(),
                     Val::Array(Arr {
                         items: alloc::vec![Val::Table(Table::new(How::Header))],
                         of_headers: true,

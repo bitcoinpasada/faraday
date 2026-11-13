@@ -301,11 +301,7 @@ impl OpenVaults {
         if r.kind != kind::ENTRY {
             return None;
         }
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "a record's fields are Zeroizing: the copy is wiped on drop"
-        )]
-        let mut record = r.clone();
+        let mut record = r.duplicate();
         record.set(field::TITLE, title.as_bytes());
         if let Some(n) = r.text(field::NOTES) {
             // Sized to the notes up front, so no growing leaves a copy.

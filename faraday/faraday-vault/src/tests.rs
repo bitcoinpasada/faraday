@@ -70,7 +70,7 @@ fn records_of_every_type_are_accepted_and_read_back() {
     // with no flags loads.
     assert!(!records::loads_at_unlock(&all[1]));
     assert!(!records::loads_at_unlock(&all[2]));
-    let mut wallet = all[2].clone();
+    let mut wallet = all[2].duplicate();
     records::set_loads_at_unlock(&mut wallet, true);
     assert!(wallet.field(field::WALLET_FLAGS).is_none());
     assert!(records::loads_at_unlock(&wallet));

@@ -119,11 +119,7 @@ pub enum Why {
 
 /// A refusal: what, and at which key (empty when it is the whole value;
 /// a syntax refusal carries its line in [`Why::Syntax`]).
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret part is a KeyName, whose copy is wiping memory"
-)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Refusal {
     /// What was wrong.
     pub why: Why,
@@ -132,17 +128,18 @@ pub struct Refusal {
     pub key: KeyName,
 }
 
-#[derive(Clone)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
-)]
 /// The name of the key a [`Refusal`] is at: a prefix, a dot where there is
 /// a prefix, and the first 64 characters of the key, kept as UTF-8 bytes in
 /// a buffer that is wiped when it drops.
 pub struct KeyName(Zeroizing<Vec<u8>>);
 
 impl KeyName {
+    /// A second copy, in a wiping buffer like the first.
+    #[must_use]
+    pub fn duplicate(&self) -> KeyName {
+        KeyName(Zeroizing::new(self.0.to_vec()))
+    }
+
     /// `prefix`, a dot where there is a prefix, and the first 64
     /// characters of `key`; the room for all of it is reserved first, so
     /// the buffer never grows.

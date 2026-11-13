@@ -378,7 +378,7 @@ fn a_qr_vault_refuses_what_it_cannot_hold() {
     let m = Mnemonic::parse(&c, Language::English, fifteen).unwrap();
     let r = Record::new(kind::KEY).with(field::KEY, &words_payload(&m));
     assert_eq!(write_qr(&r).unwrap_err().why, Why::NotQr);
-    let labelled = qr_items()[0].clone().with(field::KEY_LABEL, b"x");
+    let labelled = qr_items()[0].duplicate().with(field::KEY_LABEL, b"x");
     assert_eq!(write_qr(&labelled).unwrap_err().why, Why::NotQr);
     let long = Record::new(kind::PASSPHRASE)
         .with(field::PASSPHRASE_KEY, &[0; 4])

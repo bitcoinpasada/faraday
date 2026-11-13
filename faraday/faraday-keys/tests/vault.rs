@@ -1116,7 +1116,7 @@ fn fits_is_exact(c: &Compute, extra: &[Record]) {
         let mut store = store();
         let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
         for r in extra {
-            store.insert(id, r.clone()).expect("kept");
+            store.insert(id, r.duplicate()).expect("kept");
         }
         store.insert(id, note(n)).expect("kept");
         // Past a limit of nothing the size is counted, not bounded.
@@ -1261,9 +1261,9 @@ fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
                 &zeroize::Zeroizing::new(b"x".to_vec())
             ));
             assert!(!open.set_loads_at_unlock(id, i, true));
-            assert!(!open.replace(id, i, note.clone()));
+            assert!(!open.replace(id, i, note.duplicate()));
             assert!(!open.remove(id, i));
-            assert!(!open.insert_at(id, i, note.clone()));
+            assert!(!open.insert_at(id, i, note.duplicate()));
             assert!(
                 open.set_fields(&c, id, Some(i), kind::ENTRY, &[(field::TITLE, b"x")])
                     .is_err()
@@ -1273,7 +1273,7 @@ fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
                     .is_err()
             );
         }
-        assert!(open.insert(id, note.clone()).is_none());
+        assert!(open.insert(id, note.duplicate()).is_none());
         assert!(
             open.set_fields(&c, id, None, kind::NOTE, &[(field::NOTE, b"n")])
                 .is_err()
@@ -1642,7 +1642,7 @@ fn a_new_plan_with_no_number_left_refuses_the_seal_but_other_changes_seal() {
     let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
     assert!(store.fits(&c, id, &[], &[&note]), "no new plan, no number");
     assert!(!store.fits(&c, id, &[], &[&plan]));
-    store.insert(id, plan.clone()).expect("kept");
+    store.insert(id, plan.duplicate()).expect("kept");
     assert!(matches!(
         refused(&mut store, &c, id),
         faraday_vault::file::Error::Unwritable(_)
@@ -1667,7 +1667,7 @@ fn a_second_new_plan_with_one_number_left_is_refused_where_the_first_fits() {
     let mut store = store();
     let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
     assert!(store.fits(&c, id, &[], &[&plan]), "the last number");
-    store.insert(id, plan.clone()).expect("kept");
+    store.insert(id, plan.duplicate()).expect("kept");
     assert!(!store.fits(&c, id, &[], &[&plan]), "none left");
 }
 
