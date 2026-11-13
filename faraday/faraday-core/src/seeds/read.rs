@@ -22,12 +22,12 @@
 use crate::drawing::View;
 use crate::screens::pass_pair::{self, pass_pair};
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{BODY_M, BODY_S, GAP as T_GAP, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
+use faraday_text::Text;
 
 use crate::qr_view::ScanPurpose;
 use crate::scan_key::{Found, key_of};
@@ -146,13 +146,13 @@ pub struct SeedRead {
     /// Which field typing goes to.
     pub focus: Option<u8>,
     /// Why the last choice did not load.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// For a seed read by a wallet's key scanner: the wallet, whose
     /// missing keys alone it may load as.
     wallet: Option<usize>,
     /// Why the sheet asks: the seed with no passphrase is no key of that
     /// wallet.
-    reason: Option<String>,
+    reason: Option<Text>,
     /// Open by the Spend tab, and what for.
     pub spend_backup: Option<ForSpendBackup>,
     /// The key the passphrase typed twice makes ([`SeedRead::with_key`]):
@@ -164,7 +164,7 @@ pub struct SeedRead {
     read: Option<crate::scan_read::Kind>,
     /// "Key 2 of Savings": the loaded wallet that has the key, worked out
     /// when the seed was read.
-    key_of: Option<String>,
+    key_of: Option<Text>,
     /// Twelve or 24 words read: the sheet offers **It is a Seed XOR part**.
     xor: bool,
     /// The code read is also this Krux encrypted code: the sheet offers
@@ -219,15 +219,15 @@ impl Faraday {
         let Some(s) = self.seed_read.state.as_mut() else {
             return;
         };
-        let shown = faraday_codec::kef::id_text(id).map(str::to_string);
+        let shown = faraday_codec::kef::id_text(id).map(Text::of);
         s.key_of = shown.map(|t| {
             let hex8 = t.len() == 8 && t.bytes().all(|b| b.is_ascii_hexdigit());
             match (hex8, s.plain) {
                 (true, Some(fp)) if fp_text(fp).eq_ignore_ascii_case(&t) => {
-                    fill(EN.kef_id_matches, &[&t])
+                    Text::fill(EN.kef_id_matches, &[&t])
                 }
-                (true, Some(_)) => fill(EN.kef_id_differs, &[&t]),
-                _ => fill(EN.kef_id_line, &[&t]),
+                (true, Some(_)) => Text::fill(EN.kef_id_differs, &[&t]),
+                _ => Text::fill(EN.kef_id_line, &[&t]),
             }
         });
     }
@@ -267,7 +267,7 @@ impl Faraday {
     /// Wallet `w`'s key scanner read a seed whose key with no passphrase
     /// is none of the wallet's: the camera closes and the sheet asks for
     /// its passphrase, saying why.
-    pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: faraday_text::Text) {
+    pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: impl AsRef<str>) {
         let c = self.compute();
         self.camera.close();
         self.out
@@ -277,7 +277,7 @@ impl Faraday {
             source: Source::Words(SecretText::of(words)),
             plain: key_of(&c, words, ""),
             wallet: Some(w),
-            reason: Some(String::from(&*reason)),
+            reason: Some(Text::of(reason.as_ref())),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -324,11 +324,11 @@ impl Faraday {
 
     /// Key `fp`, loaded, is none of described wallet `w`'s keys: its
     /// passphrase is asked, and only a key of the wallet loads.
-    pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: faraday_text::Text) {
+    pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: impl AsRef<str>) {
         self.seed_read_spend_backup(fp, ForSpendBackup::Stray);
         if let Some(s) = self.seed_read.state.as_mut() {
             s.wallet = Some(w);
-            s.reason = Some(String::from(&*reason));
+            s.reason = Some(Text::of(reason.as_ref()));
         }
     }
 
@@ -362,9 +362,9 @@ impl Faraday {
             Choice::Xor => self.seed_read_xor(),
             Choice::WithPass => {
                 if s.pass.as_str() != s.pass2.as_str() {
-                    s.error = Some(EN.pass_pair_differ.to_string());
+                    s.error = Some(Text::of(EN.pass_pair_differ));
                 } else if s.pass.is_empty() {
-                    s.error = Some(EN.seed_read_type_passphrase.to_string());
+                    s.error = Some(Text::of(EN.seed_read_type_passphrase));
                 } else {
                     self.seed_read_choose(true);
                 }
@@ -386,9 +386,9 @@ impl Faraday {
         };
         let key_of = s.plain.and_then(|fp| {
             (0..self.session.wallets.len()).find_map(|w| match self.wallet_key_found(w, fp) {
-                Found::Missing(n) | Found::Here(n) => Some(fill(
+                Found::Missing(n) | Found::Here(n) => Some(Text::fill(
                     EN.seed_read_key_of,
-                    &[&(n + 1).to_string(), &self.session.wallets[w].name],
+                    &[&Text::num(n as u64 + 1), &self.session.wallets[w].name],
                 )),
                 Found::None => None,
             })
@@ -466,7 +466,7 @@ impl Faraday {
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp, None) {
             if let Some(s) = self.seed_read.state.as_mut() {
-                s.error = Some(String::from(&*why));
+                s.error = Some(Text::of(&why));
             }
             return;
         }
@@ -514,8 +514,8 @@ impl Faraday {
                 }
                 return;
             }
-            Found::Here(n) => fill(EN.seed_read_key_already, &[&(n + 1).to_string()]),
-            Found::None => String::from(&*self.not_a_wallet_key(w, fp)),
+            Found::Here(n) => Text::fill(EN.seed_read_key_already, &[&Text::num(n as u64 + 1)]),
+            Found::None => Text::of(&self.not_a_wallet_key(w, fp)),
         };
         if let Some(s) = self.seed_read.state.as_mut() {
             s.error = Some(refused);
@@ -533,7 +533,7 @@ impl Faraday {
                 .session
                 .keys
                 .find(plain)
-                .map(|k| fill(EN.seed_read_key_passphrase, &[&k.label]))
+                .map(|k| Text::fill(EN.seed_read_key_passphrase, &[&k.label]))
                 .unwrap_or_default();
             match source.add(&c, &mut self.session.keys, pass, &label) {
                 Ok(fp) => fp,
@@ -614,7 +614,7 @@ impl Faraday {
             // Anything else is refused, and the sheet says so
             // (`docs/STANDARDS.md`).
             KeyIn::Char(c) if !c.is_control() => {
-                s.error = Some(crate::state::ascii_refused());
+                s.error = Some(Text::of(&crate::state::ascii_refused()));
                 return true;
             }
             KeyIn::Backspace => {
@@ -790,11 +790,11 @@ impl Faraday {
                 )),
             }
         } else {
-            Some(EN.sweep_practice.to_string())
+            Some(Text::of(EN.sweep_practice))
         };
         if let Some(why) = why {
             if self.sheet == Some(Sheet::Scan) && self.camera.scan().is_some() {
-                self.camera.say(why);
+                self.camera.say(why.as_str());
             } else if let Some(s) = self.seed_read.sweep.as_mut() {
                 s.error = Some(why);
             }
@@ -825,13 +825,14 @@ impl Faraday {
         let Some(purpose) = self.camera.scan().map(|s| s.purpose) else {
             return false;
         };
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
-        let wif = faraday_keys::identity::is_wif(&text);
+        let all = Text::from_utf8_lossy(bytes);
+        let text = all.trim();
+        let wif = faraday_keys::identity::is_wif(text);
         let home = purpose == ScanPurpose::Files
             && self.screen == Screen::Home
             && self.sheet == Some(Sheet::Scan);
         match purpose {
-            ScanPurpose::Sweep if wif => self.sweep_take(&text),
+            ScanPurpose::Sweep if wif => self.sweep_take(text),
             ScanPurpose::Sweep if self.session.keys.sweep().is_some() => {
                 self.sweep_psbt(bytes.clone());
             }
@@ -840,7 +841,7 @@ impl Faraday {
             }
             _ if wif && home => {
                 self.seed_read.sweep = Some(Sweep::default());
-                self.sweep_take(&text);
+                self.sweep_take(text);
                 if self.session.keys.sweep().is_none() {
                     self.seed_read.sweep = None;
                 }
@@ -912,7 +913,7 @@ impl Faraday {
             Some(Ok(result)) => result,
             Some(Err(e)) => {
                 if let Some(s) = self.seed_read.sweep.as_mut() {
-                    s.error = Some(String::from(&*crate::review::sign_error_text(&e)));
+                    s.error = Some(Text::of(&crate::review::sign_error_text(&e)));
                 }
                 return;
             }
@@ -922,19 +923,21 @@ impl Faraday {
         let Ok(bytes) = crate::seeds::sweep::out_bytes(v2.as_ref(), &psbt) else {
             return self.toast(EN.spend_v2_not_written);
         };
-        let n = result.signed_inputs.len().to_string();
+        let n = Text::num(result.signed_inputs.len() as u64);
         let mut done = psbt.clone();
         let hex = match faraday_psbt::finalize(&mut done) {
-            Ok(Some(tx)) => Some(faraday_psbt::bitcoin::consensus::encode::serialize_hex(&tx)),
+            Ok(Some(tx)) => Some(Text::of(
+                &faraday_psbt::bitcoin::consensus::encode::serialize_hex(&tx),
+            )),
             _ => None,
         };
         self.put_outbox_beside("sweep-signed.psbt", bytes.clone());
         let line = match &hex {
             Some(h) => {
-                self.put_outbox_beside("sweep-final.txn", h.clone().into_bytes());
-                fill(EN.sweep_signed_final, &[&n])
+                self.put_outbox_beside("sweep-final.txn", h.as_bytes().to_vec());
+                Text::fill(EN.sweep_signed_final, &[&n])
             }
-            None => fill(EN.sweep_signed_part, &[&n]),
+            None => Text::fill(EN.sweep_signed_part, &[&n]),
         };
         if let Some(s) = self.seed_read.sweep.as_mut() {
             s.signed = Some(Signed {

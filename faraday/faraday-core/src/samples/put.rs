@@ -611,13 +611,13 @@ impl Faraday {
             match made {
                 Ok(text) => {
                     if let Some(slot) = st.cosigners.get_mut(k) {
-                        *slot = text;
+                        *slot = faraday_text::Text::of(&text);
                     }
                     st.sample_next = next;
                     st.focus = None;
                     st.error = None;
                 }
-                Err(e) => st.error = Some(e),
+                Err(e) => st.error = Some(faraday_text::Text::of(&e)),
             }
         }
     }

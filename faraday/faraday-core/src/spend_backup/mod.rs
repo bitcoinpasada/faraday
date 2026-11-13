@@ -332,7 +332,7 @@ impl SpendBackupArea {
 
     /// The words route's seeds could not be read: the error they show.
     pub(crate) fn set_seeds_error(&mut self, error: Text) {
-        self.state.seeds.error = Some((&*error).into());
+        self.state.seeds.error = Some(error);
     }
 
     /// The seeds typed on the words route, to change them.

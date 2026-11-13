@@ -10,7 +10,7 @@
 
 use crate::drawing::View;
 use crate::secret_text::SecretText;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Sheet};
@@ -18,6 +18,7 @@ use faraday_draw::tokens::{BODY_S, GAP as T_GAP, GAP_SMALL, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_keys::kef::Envelope;
 use faraday_shell_api::Key as KeyIn;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// The most Krux itself writes (`docs/KEF.md` §10): above it the card
@@ -82,17 +83,17 @@ pub enum KefAct {
 pub(crate) struct KefRead {
     envelope: Envelope,
     /// The header's facts as one line, worked out when the sheet opens.
-    facts: String,
+    facts: Text,
     depth: u8,
     stage: Stage,
     hex: bool,
     pass: SecretText,
     focus: bool,
-    error: Option<String>,
+    error: Option<Text>,
     /// The passphrases still to try if the one running fails.
     forms: Vec<Zeroizing<Vec<u8>>>,
     /// The contents, as shown (a note's text or the bytes in hex).
-    shown: Option<Zeroizing<String>>,
+    shown: Option<Text>,
     eye: bool,
     retried: bool,
     /// The contents offered as a code, kept until one of the two ways.
@@ -113,7 +114,7 @@ impl KefRead {
 
     pub(crate) fn new(envelope: Envelope, depth: u8, rate: Option<u64>) -> Self {
         Self {
-            facts: facts(&envelope, rate).join(" · "),
+            facts: joined(&facts(&envelope, rate)),
             envelope,
             depth,
             stage: Stage::Ask,
@@ -136,16 +137,28 @@ impl KefRead {
     }
 }
 
+/// The facts as one line, with a dot between.
+fn joined(facts: &[Text]) -> Text {
+    let mut out = Text::new();
+    for (i, f) in facts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(" · ");
+        }
+        out.push_str(f);
+    }
+    out
+}
+
 /// The id as the card shows it: text, or `0x` hex (`docs/KEF.md` §8).
-fn id_shown(id: &[u8]) -> String {
+fn id_shown(id: &[u8]) -> Text {
     let whole = match faraday_codec::kef::id_text(id) {
-        Some(t) => t.to_string(),
-        None => format!("0x{}", &*faraday_crypto::hex::encode_string(id)),
+        Some(t) => Text::of(t),
+        None => Text::fill("0x{}", &[&*faraday_crypto::hex::encode_string(id)]),
     };
     if whole.chars().count() <= ID_SHOWN {
         return whole;
     }
-    let mut cut: String = whole.chars().take(ID_SHOWN).collect();
+    let mut cut: Text = whole.chars().take(ID_SHOWN).collect();
     cut.push('…');
     cut
 }
@@ -170,40 +183,46 @@ fn unhex(text: &str) -> Option<Zeroizing<Vec<u8>>> {
 
 /// The time the count takes here, from the rate in milliseconds per timed
 /// run: "under a second", "12 s", "3 min".
-fn time_text(count: u32, rate_ms: u64) -> String {
+fn time_text(count: u32, rate_ms: u64) -> Text {
     let ms = u64::from(count) * rate_ms / u64::from(TIMED_ROUNDS);
     if ms < 1000 {
-        EN.kef_under_a_second.to_string()
+        Text::of(EN.kef_under_a_second)
     } else if ms < 120_000 {
-        fill(EN.kef_seconds, &[&(ms / 1000).to_string()])
+        Text::fill(EN.kef_seconds, &[&Text::num(ms / 1000)])
     } else {
-        fill(EN.kef_minutes, &[&(ms / 60_000).to_string()])
+        Text::fill(EN.kef_minutes, &[&Text::num(ms / 60_000)])
     }
 }
 
 /// The facts a code's header gives: version, id, count and time.
-fn facts(envelope: &Envelope, rate: Option<u64>) -> Vec<String> {
+fn facts(envelope: &Envelope, rate: Option<u64>) -> Vec<Text> {
     let spec = envelope.spec();
     let count = envelope.count;
     let count_line = match rate {
-        Some(r) => fill(
+        Some(r) => Text::fill(
             EN.kef_count_fact,
-            &[&count.to_string(), &time_text(count, r)],
+            &[&Text::num(u64::from(count)), &time_text(count, r)],
         ),
-        None => fill(EN.kef_count_only, &[&count.to_string()]),
+        None => Text::fill(EN.kef_count_only, &[&Text::num(u64::from(count))]),
     };
-    let id = fill(EN.kef_id_fact, &[&id_shown(&envelope.id)]);
+    let id = Text::fill(EN.kef_id_fact, &[&id_shown(&envelope.id)]);
     // The line about a high count takes the version's name's room, so the
     // card holds three lines on the smallest screen.
     if count > COUNT_ASKED {
         return vec![
-            fill(EN.kef_version_fact, &[&spec.version.to_string(), &id]),
+            Text::fill(
+                EN.kef_version_fact,
+                &[&Text::num(u64::from(spec.version)), &id],
+            ),
             count_line,
-            EN.kef_count_high.to_string(),
+            Text::of(EN.kef_count_high),
         ];
     }
     vec![
-        fill(EN.kef_version_fact, &[&spec.version.to_string(), spec.name]),
+        Text::fill(
+            EN.kef_version_fact,
+            &[&Text::num(u64::from(spec.version)), spec.name],
+        ),
         id,
         count_line,
     ]
@@ -213,7 +232,7 @@ fn facts(envelope: &Envelope, rate: Option<u64>) -> Vec<String> {
 /// one (`docs/KEF.md` §8): worked out once, at the read. The first one in
 /// a session sends the short timed run to the worker; the card shows the
 /// count alone until its answer comes.
-pub(crate) fn kef_header(app: &mut Faraday, code: &[u8]) -> Option<(Header, Vec<String>)> {
+pub(crate) fn kef_header(app: &mut Faraday, code: &[u8]) -> Option<(Header, Vec<Text>)> {
     let found = faraday_codec::kef::recognize(code)?;
     let envelope = found.envelope;
     if app.seed_read.rate().is_none() && !app.seed_read.timing() {
@@ -243,7 +262,7 @@ pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
     if let Some(k) = app.seed_read.kef.as_mut()
         && matches!(k.stage, Stage::Ask | Stage::Offer)
     {
-        k.facts = facts(&k.envelope, Some(rate)).join(" · ");
+        k.facts = joined(&facts(&k.envelope, Some(rate)));
         changed = true;
     }
     changed |= app
@@ -313,7 +332,7 @@ fn kef_go(app: &mut Faraday) {
         match unhex(k.pass.as_str()) {
             Some(bytes) => vec![bytes],
             None => {
-                k.error = Some(EN.kef_hex_bad.to_string());
+                k.error = Some(Text::of(EN.kef_hex_bad));
                 return;
             }
         }
@@ -336,7 +355,7 @@ fn kef_try_next(app: &mut Faraday) {
     };
     let Some(pass) = k.forms.pop() else {
         k.stage = Stage::Ask;
-        k.error = Some(EN.kef_failed.to_string());
+        k.error = Some(Text::of(EN.kef_failed));
         return;
     };
     k.stage = Stage::Working;
@@ -470,7 +489,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         return kef_show(
             app,
             Stage::Bytes,
-            Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(&plain))),
+            faraday_crypto::hex::encode_secret(&plain),
         );
     };
     // Past the depth, or said not to be encrypted: a code that parses as
@@ -512,7 +531,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         app.sheet = Some(Sheet::Scan);
         return app.scanned(plain.to_vec());
     }
-    let shown = Zeroizing::new(text.to_string());
+    let shown = Text::of(text);
     drop(plain);
     kef_show(app, Stage::Note, shown);
 }
@@ -524,7 +543,7 @@ impl KefRead {
     }
 }
 
-fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {
+fn kef_show(app: &mut Faraday, stage: Stage, shown: Text) {
     if let Some(k) = app.seed_read.kef.as_mut() {
         k.stage = stage;
         k.shown = Some(shown);
@@ -763,5 +782,5 @@ pub(crate) fn test_note(app: &mut Faraday, text: &str) {
     let code = faraday_codec::kef::wrap(b"id", 20, 10_000, &[7u8; 20]).unwrap();
     let env = faraday_codec::kef::recognize(&code).unwrap().envelope;
     kef_open_sheet(app, env, 0, true);
-    kef_show(app, Stage::Note, Zeroizing::new(text.to_string()));
+    kef_show(app, Stage::Note, Text::of(text));
 }

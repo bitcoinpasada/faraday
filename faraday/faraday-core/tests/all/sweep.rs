@@ -90,7 +90,7 @@ fn swept(text: &str) -> Faraday {
 
 fn error(app: &Faraday) -> String {
     app.sweep()
-        .and_then(|s| s.error.clone())
+        .and_then(|s| s.error.as_ref().map(|e| String::from(e.as_str())))
         .unwrap_or_default()
 }
 
@@ -407,7 +407,7 @@ fn a_fee_that_cannot_be_worked_out_is_not_shown_as_nothing() {
         faraday_psbt::Psbt::from(inner).to_base64().as_bytes(),
     );
     let r = app.sweep().unwrap().review.as_ref().expect("reviewed");
-    assert_eq!(r.fee, format!("Fee: {}", EN.step_fee_not_known));
+    assert_eq!(r.fee, format!("Fee: {}", EN.step_fee_not_known).as_str());
 }
 
 /// A second sweep's signed transaction goes beside the first, not over it.

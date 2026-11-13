@@ -768,7 +768,7 @@ impl View<'_> {
     /// The Seeds tool's address ([`crate::Faraday::seeds_address`]), kept
     /// by what it is derived from. Costs an address derivation the first
     /// time.
-    pub(crate) fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
+    pub(crate) fn seeds_address(&self, s: &SeedsState) -> Result<Text, Text> {
         self.kept(|c| self.app.seeds_address(c, s))
     }
 
@@ -813,7 +813,7 @@ impl View<'_> {
     /// ([`crate::seeds::vault_seeds`]), from each key record's kept
     /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
     /// per key record the first time.
-    pub(crate) fn vault_seeds(&self) -> Vec<(usize, usize, String)> {
+    pub(crate) fn vault_seeds(&self) -> Vec<(usize, usize, Text)> {
         self.kept(|c| crate::seeds::vault_seeds(c, self.app))
     }
 
@@ -857,7 +857,7 @@ impl View<'_> {
     /// The descriptor the Seeds tool's piece describes
     /// ([`crate::Faraday::seeds_descriptor`]), from each key's kept text
     /// at the path. Costs a key derivation per key the first time.
-    pub fn seeds_descriptor(&self, s: &SeedsState) -> Result<String, String> {
+    pub fn seeds_descriptor(&self, s: &SeedsState) -> Result<Text, Text> {
         self.kept(|c| self.app.seeds_descriptor(c, s))
     }
 

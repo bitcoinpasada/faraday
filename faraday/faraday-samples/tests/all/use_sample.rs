@@ -437,7 +437,7 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
     // BIP-48's multisig account.
     assert_eq!(
         s.cosigners[0],
-        reference_key_text(named("sample_guide").parts[0], "48h/1h/0h/2h")
+        reference_key_text(named("sample_guide").parts[0], "48h/1h/0h/2h").as_str()
     );
     let _ = app.frame();
     assert!(

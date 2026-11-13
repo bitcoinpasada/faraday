@@ -29,10 +29,11 @@ use faraday_psbt::{Level, Psbt, WarningKind};
 use crate::Action;
 use crate::drawing::View;
 use crate::secret_text::SecretText;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::Session;
+use faraday_text::{Text, text};
 
 /// The sheet's presses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,7 +65,7 @@ pub struct Sweep {
     /// Typing goes to the field.
     pub typing: bool,
     /// Why the last key or PSBT was not taken.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The PSBT read, and what the review shows of it.
     pub review: Option<Review>,
     /// What the hold signed.
@@ -74,12 +75,12 @@ pub struct Sweep {
 /// One output, as the review shows it.
 pub struct Out {
     /// Its address, or its script named where it has none.
-    pub address: String,
+    pub address: Text,
     /// Its amount, in bitcoin.
-    pub amount: String,
+    pub amount: Text,
     /// The loaded wallet whose address it is, with the chain and index;
     /// `None` flags it.
-    pub wallet: Option<String>,
+    pub wallet: Option<Text>,
 }
 
 /// The PSBT the sweep signs, and what its review shows: worked out once
@@ -92,19 +93,19 @@ pub struct Review {
     /// ([`out_bytes`]).
     pub v2: Option<faraday_psbt::v2::PsbtV2>,
     /// The line on the key's inputs: how many, and their total.
-    pub from: String,
+    pub from: Text,
     /// Each of the key's inputs: the address it spends and its amount.
-    pub inputs: Vec<(String, String)>,
+    pub inputs: Vec<(Text, Text)>,
     /// Inputs that do not spend the key: left unsigned.
     pub others: usize,
     /// The outputs.
     pub outputs: Vec<Out>,
     /// The fee, in bitcoin.
-    pub fee: String,
+    pub fee: Text,
     /// The warnings a danger or a block raised, in words.
-    pub warnings: Vec<(Level, String)>,
+    pub warnings: Vec<(Level, Text)>,
     /// Why nothing signs, when something stops it.
-    pub stop: Option<String>,
+    pub stop: Option<Text>,
     /// The holdable dangers the hold signs past (F136): shown above it.
     pub accepted: Vec<WarningKind>,
 }
@@ -112,11 +113,11 @@ pub struct Review {
 /// What the hold signed.
 pub struct Signed {
     /// What it did, in words.
-    pub line: String,
+    pub line: Text,
     /// The signed PSBT.
     pub psbt: Vec<u8>,
     /// The finished transaction in hex, when every input is signed.
-    pub hex: Option<String>,
+    pub hex: Option<Text>,
 }
 
 /// The signed PSBT `signed` as it goes out, in the version it came in:
@@ -149,7 +150,7 @@ fn kind_text(t: ScriptType) -> &'static str {
 /// The address the output input `i` of `psbt` spends pays, on `network`;
 /// empty where it has none or the PSBT states it falsely. Costs a txid and
 /// an address encoding.
-fn spent_address(psbt: &Psbt, i: usize, network: faraday_bip::keys::Network) -> String {
+fn spent_address(psbt: &Psbt, i: usize, network: faraday_bip::keys::Network) -> Text {
     let inner = psbt.inner();
     faraday_psbt::verify::spent_output_of(inner, i)
         .and_then(|o| {
@@ -159,14 +160,14 @@ fn spent_address(psbt: &Psbt, i: usize, network: faraday_bip::keys::Network) -> 
             )
             .ok()
         })
-        .map(|a| a.to_string())
+        .map(|a| text!("{a}"))
         .unwrap_or_default()
 }
 
 /// Costs an address derivation per address tried, up to two hundred per
 /// wallet. The loaded wallet whose address `address` is, among each
 /// wallet's first hundred on each chain, in words.
-fn whose(c: &Compute, session: &Session, address: &str) -> Option<String> {
+fn whose(c: &Compute, session: &Session, address: &str) -> Option<Text> {
     let net = session.network();
     let a = address
         .parse::<faraday_bip::bitcoin::Address<faraday_bip::bitcoin::address::NetworkUnchecked>>()
@@ -180,9 +181,9 @@ fn whose(c: &Compute, session: &Session, address: &str) -> Option<String> {
         } else {
             EN.address_note_receive
         };
-        Some(fill(
+        Some(Text::fill(
             EN.sweep_to_wallet,
-            &[&w.name, chain, &index.to_string()],
+            &[&w.name, chain, &Text::num(u64::from(index))],
         ))
     })
 }
@@ -205,7 +206,7 @@ pub(crate) fn review(
         .map(|k| k.inputs_of(&psbt))
         .unwrap_or_default();
     let mut total = 0u64;
-    let inputs: Vec<(String, String)> = mine
+    let inputs: Vec<(Text, Text)> = mine
         .iter()
         .map(|&i| {
             let sats = inspection
@@ -216,7 +217,7 @@ pub(crate) fn review(
             total = total.saturating_add(sats);
             (
                 spent_address(&psbt, i, net),
-                String::from(&*crate::decode::btc(sats)),
+                Text::of(&crate::decode::btc(sats)),
             )
         })
         .collect();
@@ -229,8 +230,8 @@ pub(crate) fn review(
         .outputs
         .iter()
         .map(|o| Out {
-            address: o.address.clone(),
-            amount: String::from(&*crate::decode::btc(o.amount.to_sat())),
+            address: Text::of(&o.address),
+            amount: Text::of(&crate::decode::btc(o.amount.to_sat())),
             wallet: whose(c, session, &o.address),
         })
         .collect();
@@ -238,14 +239,14 @@ pub(crate) fn review(
         matches!(w.level, Level::Danger | Level::Blocked)
             && w.kind != WarningKind::NoParticipatingKey
     };
-    let warnings: Vec<(Level, String)> = inspection
+    let warnings: Vec<(Level, Text)> = inspection
         .warnings
         .iter()
         .filter(shown)
         .map(|w| {
             (
                 w.level,
-                String::from(&*crate::review::warning_text(&inspection, w)),
+                Text::of(&crate::review::warning_text(&inspection, w)),
             )
         })
         .collect();
@@ -256,28 +257,26 @@ pub(crate) fn review(
         .filter(shown)
         .any(|w| w.level == Level::Blocked || !w.kind.is_holdable());
     let stop = if mine.is_empty() {
-        Some(EN.sweep_no_inputs.to_string())
+        Some(Text::of(EN.sweep_no_inputs))
     } else if unheld {
-        warnings.first().map(|(_, t)| t.clone())
+        warnings.first().map(|(_, t)| t.duplicate())
     } else {
         None
     };
+    let fee = if inspection.fee_rate_sat_vb.is_some() {
+        Text::of(&crate::decode::btc(inspection.fee.to_sat()))
+    } else {
+        Text::of(EN.step_fee_not_known)
+    };
     Review {
-        from: fill(
+        from: Text::fill(
             EN.sweep_from,
-            &[&mine.len().to_string(), &crate::decode::btc(total)],
+            &[&Text::num(mine.len() as u64), &crate::decode::btc(total)],
         ),
         inputs,
         others,
         outputs,
-        fee: fill(
-            EN.sweep_fee,
-            &[&if inspection.fee_rate_sat_vb.is_some() {
-                crate::decode::btc(inspection.fee.to_sat())
-            } else {
-                faraday_text::Text::of(EN.step_fee_not_known)
-            }],
-        ),
+        fee: Text::fill(EN.sweep_fee, &[&fee]),
         warnings,
         stop,
         accepted,
@@ -291,16 +290,16 @@ pub(crate) fn refusal_text(
     r: faraday_keys::sweep::Refusal,
     network: faraday_bip::keys::Network,
     medium: crate::Medium,
-) -> String {
+) -> Text {
     use faraday_keys::sweep::Refusal as R;
     match r {
-        R::NotAKey => EN.wif_not_a_key.to_string(),
-        R::Network { mainnet: true } => fill(
+        R::NotAKey => Text::of(EN.wif_not_a_key),
+        R::Network { mainnet: true } => Text::fill(
             EN.sweep_mainnet_key,
             &[faraday_intake::wallet::network_name(network)],
         ),
-        R::Network { mainnet: false } => EN.sweep_test_key.to_string(),
-        R::StickAttached => crate::stick::keys_load(medium),
+        R::Network { mainnet: false } => Text::of(EN.sweep_test_key),
+        R::StickAttached => Text::of(&crate::stick::keys_load(medium)),
     }
 }
 
@@ -359,7 +358,7 @@ fn review_body(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &Review) 
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, amount) + T::GAP_SMALL;
     }
     if r.others > 0 {
-        let line = fill(EN.sweep_others, &[&r.others.to_string()]);
+        let line = Text::fill(EN.sweep_others, &[&Text::num(r.others as u64)]);
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line) + T::GAP_SMALL;
     }
     cy += T::GAP_SMALL;
@@ -466,7 +465,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 cy += crate::screens::never_real_seed(app, ui, x, cy, iw);
             }
             Some(k) => {
-                let name = fill(EN.sweep_key_of, &[k.name()]);
+                let name = Text::fill(EN.sweep_key_of, &[k.name()]);
                 cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, &name);
                 cy += ui.wrap_as(
                     (x, cy, iw),

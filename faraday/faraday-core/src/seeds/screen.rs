@@ -31,7 +31,7 @@ pub(crate) fn more_ways(
     for (v, r, fp) in app.vault_seeds() {
         let name = &app.vaults.open[v].name;
         labels.push((
-            fill(EN.seeds_load_from_vault, &[&fp.to_string(), name]),
+            fill(EN.seeds_load_from_vault, &[&fp, name]),
             Style::Secondary,
             sa(S::FromVault(v, r)),
         ));
@@ -130,7 +130,7 @@ pub(crate) fn cosigner(
     w: f32,
 ) -> f32 {
     let mut cy = y;
-    let text = s.cosigners.get(k).map(String::as_str).unwrap_or("");
+    let text = s.cosigners.get(k).map_or("", |t| t.as_str());
     let focused = s.focus == Some(Focus::Cosigner(k as u8));
     ui.text_mid_as(
         (x, cy, 40.0),

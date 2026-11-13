@@ -546,6 +546,10 @@ faraday/faraday-core/src/create.rs
 faraday/faraday-core/src/keygen/area.rs
 faraday/faraday-core/src/keygen/mod.rs
 faraday/faraday-core/src/keygen/screen.rs
+faraday/faraday-core/src/seeds/kef.rs
+faraday/faraday-core/src/seeds/mod.rs
+faraday/faraday-core/src/seeds/read.rs
+faraday/faraday-core/src/seeds/sweep.rs
 faraday/faraday-keys/src/bip85.rs
 faraday/faraday-keys/src/codex32.rs
 faraday/faraday-keys/src/gpg.rs

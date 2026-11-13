@@ -16,11 +16,11 @@ pub mod sweep;
 
 use crate::create::{self, NewKind};
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::wallet::FileKind;
 use crate::wallet::KeyTexts;
 use crate::{Faraday, Screen, spend_backup};
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 /// The kinds a wallet of one key can be.
 pub const SINGLE: [NewKind; 4] = spend_backup::SINGLE;
@@ -107,15 +107,15 @@ pub struct SeedsState {
     /// The account on the kind's standard path.
     pub account: u32,
     /// A path typed in, in place of the standard one.
-    pub custom: Option<String>,
+    pub custom: Option<Text>,
     /// What is typed or scanned for each cosigner without a seed here.
-    pub cosigners: Vec<String>,
+    pub cosigners: Vec<Text>,
     /// Where typing goes.
     pub focus: Option<Focus>,
     /// The slider the arrow keys move.
     pub slider: u8,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The kind was chosen first (Restore's Kind card): the number of
     /// keys stays within it, and each slot is a seed or a cosigner's
     /// box (`docs/history/NEW-WALLET.md` §12.1).
@@ -134,10 +134,10 @@ impl SeedsState {
     }
 
     /// The path the seeds' keys are taken at.
-    pub fn path(&self, network: faraday_bip::keys::Network) -> String {
+    pub fn path(&self, network: faraday_bip::keys::Network) -> Text {
         match &self.custom {
-            Some(p) => p.clone(),
-            None => self.kind.path_at(network, self.account).as_str().into(),
+            Some(p) => p.duplicate(),
+            None => Text::of(&self.kind.path_at(network, self.account)),
         }
     }
 
@@ -242,7 +242,7 @@ impl SeedsState {
             // An empty slot goes first, then the last typed.
             let want = self.n.saturating_sub(self.keys.len());
             while self.cosigners.len() < want {
-                self.cosigners.push(String::new());
+                self.cosigners.push(Text::new());
             }
             while self.cosigners.len() > want {
                 match self.cosigners.iter().rposition(|c| c.trim().is_empty()) {
@@ -260,7 +260,7 @@ impl SeedsState {
             return;
         }
         let want = self.n - self.keys.len();
-        self.cosigners.resize(want, String::new());
+        self.cosigners.resize(want, Text::new());
         if matches!(self.focus, Some(Focus::Cosigner(k)) if usize::from(k) >= want) {
             self.focus = None;
         }
@@ -298,8 +298,8 @@ pub(crate) fn default_m(n: usize) -> usize {
 /// `Zpub`, `tpub`, `Vpub`, …) whose script type agrees with the purpose
 /// in its path (`slip132::key_line`), with or without a `/<0;1>/*` tail.
 /// Returns it as a descriptor writes it. Costs a base58 decode.
-pub fn cosigner_key(text: &str) -> Option<String> {
-    let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+pub fn cosigner_key(text: &str) -> Option<Text> {
+    let t: Text = text.chars().filter(|c| !c.is_whitespace()).collect();
     let t = t.split_once("/<").map_or(t.as_str(), |(a, _)| a);
     let t = t
         .strip_suffix("/0/*")
@@ -308,26 +308,26 @@ pub fn cosigner_key(text: &str) -> Option<String> {
     let line = faraday_bip::slip132::key_line(t)?.ok()?;
     faraday_bip::policy::PolicyKey::parse(&line.text)
         .ok()
-        .map(|k| k.key_text())
+        .map(|k| Text::of(&k.key_text()))
 }
 
 /// The fingerprint a cosigner's key names, or its own identifier's when
 /// it has no origin, for showing.
-pub(crate) fn cosigner_label(key: &str) -> String {
+pub(crate) fn cosigner_label(key: &str) -> Text {
     let short = |x: &str| {
         let n = x.chars().count();
         if n > 20 {
-            let head: String = x.chars().take(10).collect();
-            let tail: String = x.chars().skip(n - 6).collect();
-            format!("{head}…{tail}")
+            let head: Text = x.chars().take(10).collect();
+            let tail: Text = x.chars().skip(n - 6).collect();
+            text!("{}…{}", &*head, &*tail)
         } else {
-            x.to_string()
+            Text::of(x)
         }
     };
     match key.strip_prefix('[').and_then(|r| r.split_once(']')) {
         Some((o, x)) => {
             let fp = o.split('/').next().unwrap_or("").to_uppercase();
-            format!("{fp} · {}", short(x))
+            text!("{fp} · {}", &*short(x))
         }
         None => short(key),
     }
@@ -498,7 +498,7 @@ impl Faraday {
             .inbox
             .get(index)
             .filter(|i| i.kind == FileKind::Key)
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
         else {
             return false;
         };
@@ -518,10 +518,10 @@ impl Faraday {
             return false;
         };
         let Some(key) = create::key_for(s.kind, &text).or_else(|| create::read_key(&text)) else {
-            s.error = Some(EN.seeds_no_account_key.to_string());
+            s.error = Some(Text::of(EN.seeds_no_account_key));
             return false;
         };
-        s.cosigners[slot] = key.as_str().into();
+        s.cosigners[slot] = Text::of(&key);
         s.focus = None;
         s.error = None;
         true
@@ -532,19 +532,27 @@ impl Faraday {
     /// describes now, or what it still lacks. The keys' texts are kept on
     /// the keys and the description read is kept by its text
     /// ([`Kept::parsed_kept`]).
-    pub fn seeds_descriptor(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
+    pub fn seeds_descriptor(&self, c: &Compute, s: &SeedsState) -> Result<Text, Text> {
         let net = self.session.network();
         let path = s.path(net);
         let path = create::normal_path(&path)
             .filter(|p| p != "m")
-            .ok_or_else(|| EN.seeds_type_a_derivation.to_string())?;
+            .ok_or_else(|| Text::of(EN.seeds_type_a_derivation))?;
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
-            let key = self.session_key(fp).ok_or(EN.seeds_seed_unloaded)?;
-            keys.push(self.session.keys.text_at(c, key, &path)?);
+            let key = self
+                .session_key(fp)
+                .ok_or_else(|| Text::of(EN.seeds_seed_unloaded))?;
+            keys.push(Text::of(
+                &self
+                    .session
+                    .keys
+                    .text_at(c, key, &path)
+                    .map_err(|e| Text::of(&e))?,
+            ));
         }
         if keys.is_empty() {
-            return Err(EN.seeds_no_seed_yet.to_string());
+            return Err(Text::of(EN.seeds_no_seed_yet));
         }
         for c in &s.cosigners {
             let at = keys.len() + 1;
@@ -554,10 +562,10 @@ impl Faraday {
                     if let Ok(k) = faraday_bip::policy::PolicyKey::parse(&key) {
                         let kn = crate::wallet::network_of_key(&k, net);
                         if kn.is_mainnet() != net.is_mainnet() {
-                            return Err(fill(
+                            return Err(Text::fill(
                                 EN.seeds_key_is_a_key,
                                 &[
-                                    &at.to_string(),
+                                    &Text::num(at as u64),
                                     crate::wallet::network_name(kn),
                                     crate::wallet::network_name(net),
                                 ],
@@ -567,15 +575,23 @@ impl Faraday {
                     keys.push(key);
                 }
                 None if c.trim().is_empty() => {
-                    return Err(fill(EN.seeds_key_has_no_account, &[&at.to_string()]));
+                    return Err(Text::fill(
+                        EN.seeds_key_has_no_account,
+                        &[&Text::num(at as u64)],
+                    ));
                 }
-                None => return Err(fill(EN.seeds_not_account_key, &[&at.to_string()])),
+                None => {
+                    return Err(Text::fill(
+                        EN.seeds_not_account_key,
+                        &[&Text::num(at as u64)],
+                    ));
+                }
             }
         }
         if keys.len() != s.n.max(1) {
-            return Err(fill(
+            return Err(Text::fill(
                 EN.seeds_of_keys_in_hand,
-                &[&keys.len().to_string(), &s.n.to_string()],
+                &[&Text::num(keys.len() as u64), &Text::num(s.n as u64)],
             ));
         }
         let kind = if keys.len() == 1 && s.kind.multi() {
@@ -584,8 +600,8 @@ impl Faraday {
             s.kind
         };
         let d = kind.descriptor(s.m.max(1), &keys);
-        self.kept.parsed_kept(c, &d)?;
-        Ok(d.as_str().into())
+        self.kept.parsed_kept(c, &d).map_err(|e| Text::of(&e))?;
+        Ok(Text::of(&d))
     }
 
     /// Costs a parse of the description and an address the first time. The
@@ -593,10 +609,13 @@ impl Faraday {
     /// the first time it is asked for this description, by whoever asks, a
     /// frame included, and kept on the state by the description and network
     /// it comes from, a lookup after (public).
-    pub(crate) fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
+    pub(crate) fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<Text, Text> {
         let d = self.seeds_descriptor(c, s)?;
         let net = self.session.network();
-        self.kept.seeds_address(c, &d, net)
+        self.kept
+            .seeds_address(c, &d, net)
+            .map(|a| Text::of(&a))
+            .map_err(|e| Text::of(&e))
     }
 
     /// A slider pressed, dragged or stepped to `value`.
@@ -674,7 +693,7 @@ impl Faraday {
             S::Standard => s.custom = None,
             S::Custom => {
                 if s.custom.is_none() {
-                    s.custom = Some(s.kind.path_at(net, s.account).as_str().into());
+                    s.custom = Some(Text::of(&s.kind.path_at(net, s.account)));
                 }
                 s.focus = Some(Focus::Path);
             }
@@ -714,10 +733,10 @@ impl Faraday {
         };
         // The key's words are stretched in a job; the press is run again
         // when it is in.
-        let (name, key) = (self.vaults.open[v].name.to_string(), want.clone());
+        let (name, key) = (Text::of(&self.vaults.open[v].name), Text::of(&want));
         let told: crate::vault::load_job::Then = Box::new(move |app, n, _| {
             if n > 0 {
-                app.toast(&fill(EN.seeds_loaded_from_vault, &[&key, &name]));
+                app.toast(&Text::fill(EN.seeds_loaded_from_vault, &[&key, &name]));
             }
         });
         let set = std::collections::BTreeSet::from([record]);
@@ -771,10 +790,10 @@ impl Faraday {
             EN.seeds_typed_seeds
         };
         let taken = |x: &str| self.session.wallets.iter().any(|w| w.name == x);
-        let name = std::iter::once(base.to_string())
-            .chain((2..).map(|k| format!("{base} {k}")))
+        let name = std::iter::once(Text::of(base))
+            .chain((2..).map(|k| text!("{base} {k}")))
             .find(|x| !taken(x))
-            .unwrap_or_else(|| base.to_string());
+            .unwrap_or_else(|| Text::of(base));
         let name = name.as_str();
         match self.screen {
             Screen::Restore => {
@@ -866,7 +885,7 @@ impl Faraday {
 /// Costs what `key_fingerprint` costs. The keys open vaults hold that
 /// are not loaded: the vault, the record and the key's fingerprint as
 /// text.
-pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, String)> {
+pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, Text)> {
     let mut out = Vec::new();
     for (v, open) in app.vaults.open.iter().enumerate() {
         for (i, r) in app
@@ -881,7 +900,7 @@ pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, Stri
                     .all()
                     .any(|k| crate::wallet::fp_text(k.fingerprint) == *fp)
             {
-                out.push((v, i, String::from(&*fp)));
+                out.push((v, i, Text::of(&fp)));
             }
         }
     }
