@@ -2,12 +2,13 @@
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 pub use faraday_vault::totp::NotTotp;
+use zeroize::Zeroizing;
 
 /// A code as it is shown.
 pub struct Shown {
     /// The digits, grouped for reading; wiped when dropped, as a code
     /// held while it shows is.
-    pub grouped: zeroize::Zeroizing<String>,
+    pub grouped: Zeroizing<String>,
     /// Seconds until it changes.
     pub left: u32,
     /// The period it lasts, in seconds.
@@ -47,6 +48,6 @@ pub fn code_at(field: &str, now: u64) -> Result<Shown, NotTotp> {
 
 /// The field as it is stored, for a key or URI typed in as `title` and
 /// `account`; `None` when it is no TOTP key.
-pub fn normalise(field: &str, title: &str, account: &str) -> Option<String> {
+pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<String>> {
     faraday_vault::totp::normalise(field, title, account)
 }

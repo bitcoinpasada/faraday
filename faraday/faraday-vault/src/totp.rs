@@ -7,13 +7,8 @@
 //! 6238 over a Unix time; [`normalise`] is what the entry form and the
 //! Inbox import (`faraday-vault::entries`) store back into field 6.
 
-#![allow(
-    clippy::disallowed_methods,
-    reason = "holds secret text as a plain String until it is moved to wiping text (docs/SECRET-LEAKS.md §6)"
-)]
-
 use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use hmac::{Hmac, KeyInit, Mac};
@@ -102,11 +97,22 @@ const MIN_BARE_KEY_CHARS: usize = 16;
 
 /// `s`, upper-cased, with spaces, hyphens and padding removed: the form
 /// [`normalise`] writes a bare key's `secret` param in.
-fn clean_base32_key(s: &str) -> String {
-    s.chars()
-        .filter(|c| !c.is_whitespace() && *c != '-' && *c != '=')
-        .map(|c| c.to_ascii_uppercase())
-        .collect()
+fn clean_base32_key(s: &str) -> Zeroizing<String> {
+    // Sized for the whole of `s`, so the key never outgrows its buffer and
+    // leaves a block behind.
+    let mut key = Zeroizing::new(String::with_capacity(s.len()));
+    for c in s.chars() {
+        if !c.is_whitespace() && c != '-' && c != '=' {
+            key.push(c.to_ascii_uppercase());
+        }
+    }
+    key
+}
+
+/// Whether `s` starts with the `otpauth://` scheme, in any case.
+fn has_otpauth_scheme(s: &str) -> bool {
+    s.get(.."otpauth://".len())
+        .is_some_and(|p| p.eq_ignore_ascii_case("otpauth://"))
 }
 
 /// Percent-encodes everything outside RFC 3986's unreserved characters,
@@ -169,11 +175,8 @@ fn parameter_name(raw: &str) -> String {
 /// `parse(field)` from a type 6 field 6 value (§4.1).
 pub fn parse(field: &str) -> Result<Totp, NotTotp> {
     let field = field.trim();
-    let lower = field.to_ascii_lowercase();
-    if let Some(rest) = lower.strip_prefix("otpauth://") {
-        // Keep original-case bytes aligned with `lower`'s ASCII prefix
-        // so the query string below is read from `field`, not `lower`.
-        let rest = &field[field.len() - rest.len()..];
+    if has_otpauth_scheme(field) {
+        let rest = &field["otpauth://".len()..];
         let (otp_kind, rest) = rest.split_once('/').ok_or(NotTotp::Unreadable)?;
         if otp_kind.eq_ignore_ascii_case("hotp") {
             return Err(NotTotp::Hotp);
@@ -454,7 +457,7 @@ pub fn grouped(code: &str) -> String {
         6 => format!("{} {}", &code[0..3], &code[3..6]),
         7 => format!("{} {} {}", &code[0..1], &code[1..4], &code[4..7]),
         8 => format!("{} {}", &code[0..4], &code[4..8]),
-        _ => code.to_string(),
+        _ => String::from(code),
     }
 }
 
@@ -462,26 +465,44 @@ pub fn grouped(code: &str) -> String {
 /// URI [`parse`] reads, or reads as HOTP, unchanged (trimmed); a bare
 /// Base32 key turned into a URI naming `title` and `account`; anything
 /// else, `None`.
-pub fn normalise(field: &str, title: &str, account: &str) -> Option<String> {
+///
+/// The result is wiping text sized up front, so the secret is never
+/// copied into a larger buffer on the way.
+pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<String>> {
     let trimmed = field.trim();
-    if trimmed.to_ascii_lowercase().starts_with("otpauth://") {
+    if has_otpauth_scheme(trimmed) {
         return match parse(trimmed) {
-            Ok(_) | Err(NotTotp::Hotp) => Some(trimmed.to_string()),
+            Ok(_) | Err(NotTotp::Hotp) => {
+                let mut uri = Zeroizing::new(String::with_capacity(trimmed.len()));
+                uri.push_str(trimmed);
+                Some(uri)
+            }
             Err(NotTotp::Unreadable) => None,
         };
     }
     parse(trimmed).ok()?;
     let key = clean_base32_key(trimmed);
-    let mut uri = String::from("otpauth://totp/");
-    uri.push_str(&percent_encode(title));
+    let title = percent_encode(title);
+    let account = percent_encode(account);
+    let mut uri = Zeroizing::new(String::with_capacity(
+        "otpauth://totp/".len()
+            + title.len() * 2
+            + account.len()
+            + 1
+            + "?secret=".len()
+            + key.len()
+            + "&issuer=".len(),
+    ));
+    uri.push_str("otpauth://totp/");
+    uri.push_str(&title);
     if !account.is_empty() {
         uri.push(':');
-        uri.push_str(&percent_encode(account));
+        uri.push_str(&account);
     }
     uri.push_str("?secret=");
     uri.push_str(&key);
     uri.push_str("&issuer=");
-    uri.push_str(&percent_encode(title));
+    uri.push_str(&title);
     Some(uri)
 }
 
