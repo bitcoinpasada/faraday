@@ -105,7 +105,12 @@ impl Document {
                     if let Some(enc) = d.encoding() {
                         let enc = enc.map_err(|_| Refused::NotWellFormed)?;
                         if !enc.eq_ignore_ascii_case(b"utf-8") {
-                            return Err(Refused::Encoding(enc.to_vec()));
+                            #[expect(
+                                clippy::disallowed_methods,
+                                reason = "the declared encoding of a refused document, held in the error that reports it"
+                            )]
+                            let declared = enc.to_vec();
+                            return Err(Refused::Encoding(declared));
                         }
                     }
                 }
@@ -195,6 +200,10 @@ type Handler<'a, 'h, P> =
     dyn FnMut(&mut Rd<'a>, &mut Frame<P>, &BytesStart<'a>, usize, usize, bool) -> R<bool> + 'h;
 
 /// The character a reference names, if XML allows it.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the name of an entity the parser refuses, held in the error that reports it"
+)]
 pub(super) fn decode_ref(name: &[u8]) -> R<char> {
     let bad = || Refused::Entity(name.to_vec());
     match name {
@@ -288,7 +297,12 @@ impl<'a> Rd<'a> {
             }
             Event::DocType(_) => return Err(Refused::DocType),
             Event::Decl(_) if a != 0 => {
-                return Err(Refused::ProcessingInstruction(b"xml".to_vec()));
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the constant name of a refused processing instruction, held in the error that reports it"
+                )]
+                let name = b"xml".to_vec();
+                return Err(Refused::ProcessingInstruction(name));
             }
             Event::Eof => return Err(Refused::NotWellFormed),
             _ => {}
@@ -458,7 +472,7 @@ impl<'a> Rd<'a> {
                     }
                 }
                 Event::End(_) => {
-                    fr.close = Some(Zeroizing::new(self.src[a..b].to_vec()));
+                    fr.close = Some(crate::wiped_copy(&self.src[a..b]));
                     return Ok(());
                 }
                 _ => {
@@ -675,7 +689,12 @@ impl<'a> Rd<'a> {
                     return Ok(false);
                 }
                 let l = s.leaf(e, a, b, empty)?;
-                label = l.text.to_vec();
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the vault label, a name and not a secret"
+                )]
+                let text = l.text.to_vec();
+                label = text;
                 label_leaf = Some(l);
                 fr.parts.push(MetaPart::Name);
             } else if is(name, T_CUSTOM) {
@@ -913,7 +932,7 @@ impl<'a> Rd<'a> {
             uuid_leaf,
             name: name_leaf
                 .as_ref()
-                .map(|l| Zeroizing::new(l.text.to_vec()))
+                .map(|l| crate::wiped_copy(&l.text))
                 .unwrap_or_default(),
             name_leaf,
             custom,
@@ -1047,7 +1066,7 @@ impl<'a> Rd<'a> {
             copies += k.len() + size_of::<Vec<u8>>() + 16;
         }
         self.spend(copies)?;
-        let dups: Vec<Vec<u8>> = repeated.iter().map(|k| k.to_vec()).collect();
+        let dups: Vec<Zeroizing<Vec<u8>>> = repeated.iter().map(|k| crate::wiped_copy(k)).collect();
         if !dups.is_empty() {
             ambiguous = ambiguous.or(Some("an entry with two fields of one key"));
         }

@@ -208,6 +208,10 @@ fn verifies(key: &[u8; 32], prefix: &[&[u8]], body: &[u8]) -> bool {
             return None;
         }
         let trailer_len = u32::try_from(fields.len()).ok()?.to_be_bytes();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "copies slice references of public signature data, not bytes"
+        )]
         let mut parts: Vec<&[u8]> = prefix.to_vec();
         parts.extend_from_slice(&[fields, &[0x04, 0xff][..], &trailer_len[..]]);
         let digest = digest(hash, &parts);
@@ -227,6 +231,10 @@ fn verifies(key: &[u8; 32], prefix: &[&[u8]], body: &[u8]) -> bool {
 }
 
 /// Costs a hash of `parts`. Their digest, taken in order.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the digest of public signature data, which the signature publishes"
+)]
 fn digest(hash: Hash, parts: &[&[u8]]) -> Vec<u8> {
     match hash {
         Hash::Sha256 => {

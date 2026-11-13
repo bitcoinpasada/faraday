@@ -344,7 +344,7 @@ impl Field {
     pub fn duplicate(&self) -> Field {
         Field {
             number: self.number,
-            bytes: Zeroizing::new(self.bytes.to_vec()),
+            bytes: crate::wiped_copy(&self.bytes),
         }
     }
 }
@@ -392,7 +392,7 @@ impl Record {
     pub fn push(&mut self, number: u8, bytes: &[u8]) {
         self.fields.push(Field {
             number,
-            bytes: Zeroizing::new(bytes.to_vec()),
+            bytes: crate::wiped_copy(bytes),
         });
     }
 

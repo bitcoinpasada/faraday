@@ -144,6 +144,10 @@ const KNOWN_PARAMETERS: [&str; 8] = [
 /// A query parameter's name as a URI parser reads it: percent escapes
 /// decoded (again while one is left, as a name escaped twice is) and
 /// lowercased, for comparing it with the names of the format.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the name of a parameter of an otpauth address, which is not secret"
+)]
 fn parameter_name(raw: &str) -> String {
     let mut name = raw.as_bytes().to_vec();
     for _ in 0..4 {
@@ -299,23 +303,27 @@ fn hex_decode(s: &str) -> Option<Vec<u8>> {
 /// no other order); `None` when none is. A value of spaces alone is a
 /// secret in the plain form and reads as nothing in the others.
 fn keepass_time_otp(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
-    let secret: Option<Vec<u8>> = if let Some(v) = secret_field(fields, "TimeOtp-Secret") {
-        Some(v.as_bytes().to_vec())
+    let secret: Option<Zeroizing<Vec<u8>>> = if let Some(v) = secret_field(fields, "TimeOtp-Secret")
+    {
+        Some(crate::wiped_copy(v.as_bytes()))
     } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Hex") {
-        hex_decode(v)
+        hex_decode(v).map(Zeroizing::new)
     } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Base32") {
-        base32_decode(v, false)
+        base32_decode(v, false).map(Zeroizing::new)
     } else {
         let v = secret_field(fields, "TimeOtp-Secret-Base64")?;
         use base64ct::{Base64, Encoding};
-        Base64::decode_vec(v.trim()).ok().filter(|b| !b.is_empty())
+        Base64::decode_vec(v.trim())
+            .ok()
+            .filter(|b| !b.is_empty())
+            .map(Zeroizing::new)
     };
     Some(keepass_time_otp_params(fields, secret))
 }
 
 fn keepass_time_otp_params(
     fields: &[(&str, &str)],
-    secret: Option<Vec<u8>>,
+    secret: Option<Zeroizing<Vec<u8>>>,
 ) -> Result<Totp, NotTotp> {
     let secret = secret.ok_or(NotTotp::Unreadable)?;
     let digits: u32 = match field(fields, "TimeOtp-Length") {
@@ -336,7 +344,7 @@ fn keepass_time_otp_params(
         return Err(NotTotp::Unreadable);
     }
     Ok(Totp {
-        secret: Zeroizing::new(secret),
+        secret,
         algorithm,
         digits,
         period,
@@ -404,21 +412,21 @@ pub fn from_fields(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
 /// `10^digits`.
 fn hotp(secret: &[u8], counter: u64, algorithm: Algorithm, digits: u32) -> u32 {
     let msg = counter.to_be_bytes();
-    let hash: Vec<u8> = match algorithm {
+    let hash: Zeroizing<Vec<u8>> = match algorithm {
         Algorithm::Sha1 => {
             let mut mac = Hmac::<Sha1>::new_from_slice(secret).expect("any key length");
             mac.update(&msg);
-            mac.finalize().into_bytes().to_vec()
+            crate::wiped_copy(&mac.finalize().into_bytes())
         }
         Algorithm::Sha256 => {
             let mut mac = Hmac::<Sha256>::new_from_slice(secret).expect("any key length");
             mac.update(&msg);
-            mac.finalize().into_bytes().to_vec()
+            crate::wiped_copy(&mac.finalize().into_bytes())
         }
         Algorithm::Sha512 => {
             let mut mac = Hmac::<Sha512>::new_from_slice(secret).expect("any key length");
             mac.update(&msg);
-            mac.finalize().into_bytes().to_vec()
+            crate::wiped_copy(&mac.finalize().into_bytes())
         }
     };
     let offset = (hash[hash.len() - 1] & 0x0f) as usize;

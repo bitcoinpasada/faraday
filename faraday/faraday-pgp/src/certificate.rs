@@ -172,7 +172,12 @@ pub(crate) fn sig_fields(body: &[u8]) -> Option<SigFields> {
                 (sub::KEY_FLAGS, true) => f.flags = data.first().copied(),
                 (sub::REVOCATION_REASON, true) => {
                     let (&code, text) = data.split_first()?;
-                    f.reason = Some((code, text.to_vec()));
+                    #[expect(
+                        clippy::disallowed_methods,
+                        reason = "the text of a revocation subpacket in a certificate, public data"
+                    )]
+                    let text = text.to_vec();
+                    f.reason = Some((code, text));
                 }
                 (sub::ISSUER_FINGERPRINT, _) if data.len() == 21 && data[0] == 4 => {
                     f.issuer_fp = Some(data[1..].try_into().ok()?);
@@ -297,6 +302,10 @@ impl Certificate {
         if !block.crc_ok || block.armor.kind != crate::Armor::PublicKey {
             return Err(Refusal::NotCertificate);
         }
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "copies the packets of a public certificate"
+        )]
         let body = |r: &core::ops::Range<usize>| block.data[r.start..r.end].to_vec();
         let mut primary: Option<Vec<u8>> = None;
         let mut subkeys: Vec<Vec<u8>> = Vec::new();
@@ -532,6 +541,10 @@ fn signature_bodies(cert: &[u8]) -> Vec<Vec<u8>> {
     while at < cert.len() {
         let (t, from, to) = next_packet(cert, at);
         if t == tag::SIGNATURE {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "copies a signature packet of a public certificate"
+            )]
             out.push(cert[from..to].to_vec());
         }
         at = to;
