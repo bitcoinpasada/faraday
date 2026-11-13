@@ -1,6 +1,7 @@
 //! Numbered text parts, `p<n>of<m> <text>`: what Specter Desktop writes and
 //! SeedSigner reads for a PSBT or a descriptor too long for one code.
 
+use faraday_text::{Text, text};
 use std::collections::BTreeMap;
 
 /// The most parts read.
@@ -28,7 +29,7 @@ pub fn parse(text: &str) -> Option<(usize, usize, &str)> {
 #[derive(Default)]
 pub struct Collector {
     total: usize,
-    parts: BTreeMap<usize, String>,
+    parts: BTreeMap<usize, Text>,
 }
 
 impl std::fmt::Debug for Collector {
@@ -39,10 +40,8 @@ impl std::fmt::Debug for Collector {
 
 impl Drop for Collector {
     fn drop(&mut self) {
-        use zeroize::Zeroize;
-        for v in self.parts.values_mut() {
-            v.zeroize();
-        }
+        // Each part is a `Text`, which wipes itself as it is dropped.
+        self.parts.clear();
     }
 }
 
@@ -52,7 +51,7 @@ pub enum Got {
     /// Parts read, of how many, and the ones missing.
     Part(usize, usize, Vec<usize>),
     /// The whole text.
-    Done(String),
+    Done(Text),
     /// A part of another set, the same part with other text, or too
     /// much.
     Refused(Fault),
@@ -85,33 +84,34 @@ impl Collector {
         {
             return Got::Refused(Fault::Conflict);
         }
-        if self.parts.values().map(String::len).sum::<usize>() + body.len() > crate::bbqr::MAX_DATA
+        if self.parts.values().map(|t| t.len()).sum::<usize>() + body.len() > crate::bbqr::MAX_DATA
         {
             return Got::Refused(Fault::TooLarge);
         }
         self.total = m;
-        self.parts.insert(n, body.to_string());
+        self.parts.insert(n, Text::of(body));
         if self.parts.len() < m {
             let missing = (1..=m).filter(|i| !self.parts.contains_key(i)).collect();
             return Got::Part(self.parts.len(), m, missing);
         }
         // Joined straight from the parts, which stay to catch a part
         // read again with other text: no copy of a part is made.
-        Got::Done(self.parts.values().map(String::as_str).collect())
+        Got::Done(self.parts.values().map(|t| t.as_str()).collect())
     }
 }
 
 /// `text` as numbered parts of at most `chunk` characters each.
-pub fn encode(text: &str, chunk: usize) -> Vec<String> {
+pub fn encode(text: &str, chunk: usize) -> Vec<Text> {
     let chars: Vec<char> = text.chars().collect();
     let chunk = chunk.max(1);
     let m = chars.len().div_ceil(chunk).max(1);
     (0..m)
         .map(|i| {
-            let part: String = chars[i * chunk..chars.len().min((i + 1) * chunk)]
+            let part: Text = chars[i * chunk..chars.len().min((i + 1) * chunk)]
                 .iter()
+                .copied()
                 .collect();
-            format!("p{}of{m} {part}", i + 1)
+            text!("p{}of{m} {}", i + 1, &*part)
         })
         .collect()
 }

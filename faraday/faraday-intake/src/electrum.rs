@@ -358,7 +358,7 @@ fn key(k: &Value) -> Result<(slip132::KeyLine, bool), String> {
     };
     let read = slip132::key_line(&line)
         .ok_or_else(|| bad(EN.wallet_electrum_no_key))?
-        .map_err(|m| crate::wallet::mismatch_text(&m))?;
+        .map_err(|m| String::from(&*crate::wallet::mismatch_text(&m)))?;
     Ok((read, origin.is_some()))
 }
 

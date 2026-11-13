@@ -442,7 +442,7 @@ impl Kept {
             return a.clone();
         }
         let a = crate::wallet::read_wallet(c, d)
-            .map_err(|e| e.text())
+            .map_err(|e| String::from(&*e.text()))
             .and_then(|p| {
                 p.address_at(c, net, false, 0)
                     .map(|a| a.to_string())

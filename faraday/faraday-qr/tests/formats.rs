@@ -17,11 +17,11 @@ fn compute() -> Compute {
     Compute::new(|_| {})
 }
 
-fn feed_all(parts: &[String]) -> Step {
+fn feed_all(parts: &[impl AsRef<str>]) -> Step {
     let mut a = Assembler::default();
     let mut last = Step::NotMine;
     for p in parts {
-        last = a.feed(p);
+        last = a.feed(p.as_ref());
     }
     last
 }
@@ -54,14 +54,8 @@ fn bbqr_parts_that_do_not_hang_together_are_refused() {
     let changed = format!("{}{swap}{}", &one[0][..8], &one[0][9..]);
     assert!(matches!(a.feed(&changed), Step::Refused(_)));
     // A type Faraday does not read, and a header that is not BBQr.
-    assert!(matches!(
-        feed_all(&["B$2C0100AAAAAAAA".into()]),
-        Step::Refused(_)
-    ));
-    assert!(matches!(
-        feed_all(&["B$9P0100AAAAAAAA".into()]),
-        Step::Refused(_)
-    ));
+    assert!(matches!(feed_all(&["B$2C0100AAAAAAAA"]), Step::Refused(_)));
+    assert!(matches!(feed_all(&["B$9P0100AAAAAAAA"]), Step::Refused(_)));
     // A frame over the limit.
     assert!(matches!(feed_all(&["B".repeat(5_000)]), Step::Refused(_)));
 }
@@ -71,11 +65,11 @@ fn a_bbqr_set_refused_whole_does_not_stop_the_next_good_set() {
     let mut a = Assembler::default();
     // Two parts of uneven length, the first the longer: refused at the end.
     assert!(matches!(
-        a.feed(&format!("B$2P0200{}", bbqr::base32(&[1u8; 10]))),
+        a.feed(&format!("B$2P0200{}", &*bbqr::base32(&[1u8; 10]))),
         Step::Part { .. }
     ));
     assert!(matches!(
-        a.feed(&format!("B$2P0201{}", bbqr::base32(&[2u8; 20]))),
+        a.feed(&format!("B$2P0201{}", &*bbqr::base32(&[2u8; 20]))),
         Step::Refused(_)
     ));
     // A good set read after it.
@@ -92,12 +86,12 @@ fn a_bbqr_set_refused_whole_does_not_stop_the_next_good_set() {
 fn a_bbqr_part_in_conflict_does_not_stop_the_next_good_set() {
     let mut a = Assembler::default();
     assert!(matches!(
-        a.feed(&format!("B$2P0200{}", bbqr::base32(&[1u8; 10]))),
+        a.feed(&format!("B$2P0200{}", &*bbqr::base32(&[1u8; 10]))),
         Step::Part { .. }
     ));
     // The same part again with other contents.
     assert!(matches!(
-        a.feed(&format!("B$2P0200{}", bbqr::base32(&[2u8; 10]))),
+        a.feed(&format!("B$2P0200{}", &*bbqr::base32(&[2u8; 10]))),
         Step::Refused(_)
     ));
     let psbt = vec![3u8; 40];
@@ -113,7 +107,7 @@ fn a_bbqr_set_that_does_not_inflate_does_not_stop_the_next_good_set() {
     let mut a = Assembler::default();
     // One compressed part whose data is not a deflate stream.
     assert!(matches!(
-        a.feed(&format!("B$ZP0100{}", bbqr::base32(&[0xffu8; 10]))),
+        a.feed(&format!("B$ZP0100{}", &*bbqr::base32(&[0xffu8; 10]))),
         Step::Refused(_)
     ));
     let psbt = vec![3u8; 40];

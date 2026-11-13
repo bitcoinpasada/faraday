@@ -452,6 +452,7 @@ dependencies = [
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
+ "faraday-text",
  "miniz_oxide",
  "zeroize",
 ]

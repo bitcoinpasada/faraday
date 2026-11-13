@@ -1020,7 +1020,7 @@ impl Faraday {
                     }
                     Err(e) => {
                         if let Some(p) = self.vaults.state.prompt.as_mut() {
-                            p.error = Some(e.text());
+                            p.error = Some(String::from(&*e.text()));
                         }
                     }
                 }
@@ -1653,7 +1653,7 @@ impl Faraday {
                     e @ (crate::wallet::Refusal::MuSigOneSeed
                     | crate::wallet::Refusal::NotYourKey(_)),
                 ) => {
-                    self.vaults.state.refused = Some((name.clone(), e.text()));
+                    self.vaults.state.refused = Some((name.clone(), String::from(&*e.text())));
                 }
                 other => self.silent_refused(other),
             }
@@ -3410,7 +3410,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.error = Some(e.text());
+                    p.error = Some(String::from(&*e.text()));
                 }
             }
         }

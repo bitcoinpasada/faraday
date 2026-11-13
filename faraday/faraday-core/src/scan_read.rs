@@ -546,7 +546,7 @@ pub struct ReadCard {
     /// The masked text is shown: a press on its eye, the next hides it.
     pub shown: bool,
     /// A transfer in parts' name when it brought one, and its extension.
-    pub(crate) named: Option<String>,
+    pub(crate) named: Option<faraday_text::Text>,
     /// Its extension, for the file a public kind is filed as.
     pub(crate) ext: &'static str,
     /// The Inbox file Home's Scan put it in, already there: **Done** in

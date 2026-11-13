@@ -18,6 +18,8 @@ miniz_oxide = { version = "0.8", default-features = false, features = ["with-all
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The token a QR code made takes (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../core/faraday-crypto" }
+# Heap text that wipes itself: the parts and names a sender and a collector hold.
+faraday-text = { path = "../../core/faraday-text" }
 # The parts a transfer is put together from, and the text and bytes a
 # secret's codes are made from, are wiped (docs/deps/zeroize.md).
 zeroize = { workspace = true, features = ["alloc"] }

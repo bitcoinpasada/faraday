@@ -689,7 +689,7 @@ impl Faraday {
             if let Some((named, ext, mut data)) = self.read_code(zeroize::Zeroizing::new(p)) {
                 let item = Item::new(
                     &c,
-                    &named.unwrap_or_else(|| format!("{stem}.{ext}")),
+                    &named.map_or_else(|| format!("{stem}.{ext}"), |n| String::from(&*n)),
                     std::mem::take(&mut *data),
                 );
                 if item.kind == FileKind::Other {

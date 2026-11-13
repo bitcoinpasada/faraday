@@ -922,6 +922,7 @@ dependencies = [
  "faraday-keys",
  "faraday-sqlite",
  "faraday-strings",
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1075,6 +1076,7 @@ dependencies = [
  "faraday-pgp",
  "faraday-shell-api",
  "faraday-strings",
+ "faraday-text",
  "faraday-ui",
  "faraday-vault",
 ]
@@ -1130,6 +1132,7 @@ dependencies = [
  "faraday-psbt",
  "faraday-sb",
  "faraday-strings",
+ "faraday-text",
  "faraday-vault",
  "poly1305",
  "serde_json",
@@ -1226,6 +1229,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-files",
+ "faraday-text",
  "miniz_oxide 0.8.9",
  "zeroize",
 ]
@@ -1259,6 +1263,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-pgp",
  "faraday-sb",
+ "faraday-text",
  "rand_core",
  "rsa",
  "sha2",

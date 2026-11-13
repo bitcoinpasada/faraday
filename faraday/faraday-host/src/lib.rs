@@ -15,6 +15,7 @@
 //! a host menu is the host's; anywhere else, nothing. Keys and every other
 //! event are the app's.
 
+mod labels;
 mod screen;
 mod scroll;
 
@@ -24,6 +25,7 @@ use faraday_draw::Canvas;
 use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_shell_api::{App, Changed, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
+use faraday_text::Text;
 
 use faraday_core::motion::{Motion, Region, SLOP};
 use faraday_core::{Action, Faraday};
@@ -125,7 +127,7 @@ pub struct Host {
     drawn_moving: bool,
     /// What the strip's controls said in the frame last drawn, left to
     /// right, and the open menu's rows after them.
-    labels: Vec<String>,
+    labels: labels::Labels,
     held: Held,
     now: u64,
     /// The window's pixels per dp, without the person's Display scale:
@@ -221,7 +223,7 @@ impl Host {
             now: 0,
             f: 1.0,
             out: VecDeque::new(),
-            labels: Vec::new(),
+            labels: labels::Labels::default(),
             bare: false,
             sheet_scroll: 0.0,
             sheet_view: None,
@@ -308,8 +310,8 @@ impl Host {
 
     /// What the strip's controls said in the frame last drawn, left to
     /// right, then the open menu's rows. A lookup.
-    pub fn strip_texts(&self) -> &[String] {
-        &self.labels
+    pub fn strip_texts(&self) -> Vec<Text> {
+        self.labels.texts()
     }
 
     /// Where Samples' sheet stood in the frame last drawn, in the window's
@@ -388,7 +390,7 @@ impl Host {
     /// `app` as it stands ([`Host::strip_texts`]): the app held for one
     /// frame in a window of its own display, then given back unhosted at
     /// that display. For drivers and tests that script the app alone.
-    pub fn strip_for(app: &mut Faraday) -> Vec<String> {
+    pub fn strip_for(app: &mut Faraday) -> Vec<Text> {
         Host::peek(app).0
     }
 
@@ -401,7 +403,7 @@ impl Host {
 
     /// Costs a frame. The strip's texts and the app's presses in it for
     /// `app`, held for one frame and given back.
-    fn peek(app: &mut Faraday) -> (Vec<String>, Vec<Action>) {
+    fn peek(app: &mut Faraday) -> (Vec<Text>, Vec<Action>) {
         let Some(d) = app.last_display_info() else {
             return (Vec::new(), Vec::new());
         };
@@ -412,7 +414,7 @@ impl Host {
             now_ms: host.app.now_ms(),
         });
         let _ = host.frame();
-        let texts = host.labels.clone();
+        let texts = host.labels.texts();
         // The aids in More are presses too, as its menu would list them.
         host.open_menu_at_rest(HostMenu::More);
         let _ = host.frame();
@@ -720,7 +722,7 @@ impl Host {
             let mut ui = faraday_ui::Ui::new(c, self.f(), &mut hits, self.pressed);
             ui.hovered = self.hovered;
             let drawn = screen::draw(self, &mut ui, area, self.strip_scroll);
-            self.labels = drawn.labels;
+            self.labels = labels::Labels::of(drawn.labels);
             self.sheet_view = drawn.sheet;
             self.strip_max = drawn.strip_max;
             self.strip_scroll = self.strip_scroll.min(drawn.strip_max);

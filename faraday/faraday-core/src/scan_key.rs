@@ -428,7 +428,7 @@ impl Faraday {
                 {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
-                        self.camera.say(e.text());
+                        self.camera.say(String::from(&*e.text()));
                     }
                 }
             }
@@ -1018,7 +1018,11 @@ impl Faraday {
 
 /// A code read as a file: its name when it carries one, its extension
 /// and its bytes, wiped when dropped.
-pub(crate) type ReadFile = (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>);
+pub(crate) type ReadFile = (
+    Option<faraday_text::Text>,
+    &'static str,
+    zeroize::Zeroizing<Vec<u8>>,
+);
 
 impl Faraday {
     /// Costs what reading the code costs (a mnemonic's checksum, a
@@ -1146,7 +1150,12 @@ impl Faraday {
     /// under in Files: the name it was sent under in the Faraday file
     /// envelope (`docs/QR.md` §2), a GPG public key's own, else
     /// `scanned-N` and its extension.
-    fn scanned_file_name(&mut self, named: Option<String>, ext: &str, data: &[u8]) -> String {
+    fn scanned_file_name(
+        &mut self,
+        named: Option<faraday_text::Text>,
+        ext: &str,
+        data: &[u8],
+    ) -> String {
         if let Some(n) = named {
             return self.free_inbox_name(&n);
         }
@@ -1221,7 +1230,11 @@ impl Faraday {
         &mut self,
         c: &Compute,
         kind: Kind,
-        code: (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+        code: (
+            Option<faraday_text::Text>,
+            &'static str,
+            zeroize::Zeroizing<Vec<u8>>,
+        ),
     ) {
         let card = self.read_card(c, kind, code);
         self.read_card_put(card);
@@ -1296,7 +1309,11 @@ impl Faraday {
         &mut self,
         c: &Compute,
         kind: Kind,
-        (named, ext, code): (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+        (named, ext, code): (
+            Option<faraday_text::Text>,
+            &'static str,
+            zeroize::Zeroizing<Vec<u8>>,
+        ),
     ) -> scan_read::ReadCard {
         use scan_read::Way;
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
@@ -1576,7 +1593,11 @@ impl Faraday {
         &mut self,
         way: scan_read::Way,
         kef: Option<crate::seeds::kef::Header>,
-        (named, ext, code): (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+        (named, ext, code): (
+            Option<faraday_text::Text>,
+            &'static str,
+            zeroize::Zeroizing<Vec<u8>>,
+        ),
     ) {
         if way == scan_read::Way::Open {
             drop(code);
@@ -1597,7 +1618,7 @@ impl Faraday {
     fn read_go_file(
         &mut self,
         way: scan_read::Way,
-        named: Option<String>,
+        named: Option<faraday_text::Text>,
         ext: &str,
         code: zeroize::Zeroizing<Vec<u8>>,
     ) {
@@ -1871,7 +1892,10 @@ impl Faraday {
         }
         let text = match faraday_intake::seedqr_words(&bytes) {
             Some(w) => w,
-            None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
+            None => {
+                let lossy = faraday_text::Text::from_utf8_lossy(&bytes);
+                faraday_text::Text::of(lossy.trim())
+            }
         };
         let ours = kind_form.is_some() || starts_as_form(self.entry.state().form, &text);
         self.entry.set_typed(&text);
@@ -2087,7 +2111,7 @@ impl Faraday {
     fn file_scanned(
         &mut self,
         c: &Compute,
-        named: Option<String>,
+        named: Option<faraday_text::Text>,
         ext: &str,
         mut data: zeroize::Zeroizing<Vec<u8>>,
         intake: bool,
@@ -2293,7 +2317,7 @@ impl Faraday {
         }
         // BBQr and numbered parts are put together here; anything else is
         // read as before.
-        let mut item: Option<(Option<String>, &str, Vec<u8>)> = None;
+        let mut item: Option<(Option<faraday_text::Text>, &str, Vec<u8>)> = None;
         match scan.assembler.feed(&raw) {
             faraday_qr::Step::Part {
                 what,
@@ -2383,7 +2407,7 @@ fn read_wallet_fact(c: &Compute, text: &str) -> Option<String> {
 fn ur_item(
     scan: &mut ScanState,
     message: faraday_codec::ur::Message,
-) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+) -> Option<(Option<faraday_text::Text>, &'static str, Vec<u8>)> {
     Some(match message {
         faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
         faraday_codec::ur::Message::Bytes(b) => {

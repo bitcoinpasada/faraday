@@ -815,7 +815,9 @@ impl Session {
             match self.forged_key(c, &self.wallets[i].policy, Some(&new), &Default::default()) {
                 Some(fp) => {
                     let w = self.wallets.remove(i);
-                    let why = Refusal::NotYourKey(fp_text(fp).to_string()).text();
+                    let why = String::from(
+                        &*Refusal::NotYourKey(faraday_text::Text::of(&fp_text(fp))).text(),
+                    );
                     dropped.push((w.name, why));
                 }
                 None => {
@@ -866,13 +868,15 @@ impl Session {
             && crate::silent::check_record(c, &self.keys, w).0
                 == crate::silent::RecordCheck::Differs
         {
-            return Err(Refusal::SilentDiffers(fp_text(w.fingerprint).to_string()));
+            return Err(Refusal::SilentDiffers(faraday_text::Text::of(&fp_text(
+                w.fingerprint,
+            ))));
         }
         if musig_one_seed(&policy) {
             return Err(Refusal::MuSigOneSeed);
         }
         if let Some(fp) = self.forged_key(c, &policy, None, derived) {
-            return Err(Refusal::NotYourKey(fp_text(fp).to_string()));
+            return Err(Refusal::NotYourKey(faraday_text::Text::of(&fp_text(fp))));
         }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
@@ -3384,7 +3388,7 @@ impl Faraday {
                     .and_then(|policy| {
                         self.session
                             .add_policy(&c, &name, policy, &source, Origin::Named)
-                            .map_err(|e| e.text())
+                            .map_err(|e| String::from(&*e.text()))
                     });
                 match added {
                     Ok(i) => {
@@ -3630,7 +3634,7 @@ impl Faraday {
         let source = item.name.clone();
         let name = crate::register::name_of_file(&item.name);
         // A wallet .json or an addwallet command carries its own name.
-        let name = wallet::carried_name(&text).unwrap_or(name);
+        let name = wallet::carried_name(&text).map_or(name, |t| String::from(&*t));
         match self
             .session
             .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)

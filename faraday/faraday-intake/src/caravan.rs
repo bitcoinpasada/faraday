@@ -98,7 +98,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
         let line = format!("[{o}]{xpub}");
         let read = slip132::key_line(&line)
             .ok_or_else(|| bad(EN.wallet_caravan_keys))?
-            .map_err(|m| crate::wallet::mismatch_text(&m))?;
+            .map_err(|m| String::from(&*crate::wallet::mismatch_text(&m)))?;
         if let Some(named) = read.named
             && !slip132::agrees(Some(named), around)
         {
@@ -107,7 +107,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
                 named,
                 around,
             };
-            return Err(crate::wallet::mismatch_text(&m));
+            return Err(String::from(&*crate::wallet::mismatch_text(&m)));
         }
         // The key's network against the file's.
         let key = read.text.rsplit(']').next().unwrap_or("");

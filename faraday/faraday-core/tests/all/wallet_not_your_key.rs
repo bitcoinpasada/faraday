@@ -49,7 +49,7 @@ fn a_single_key_wallet_with_my_fingerprint_and_another_xpub_is_refused() {
     let d = format!("wpkh({}/<0;1>/*)", forged("m/84'/1'/0'", "m/84'/1'/0'"));
     let e = add(&mut session, &d).expect_err("refused");
     let fp = d.trim_start_matches("wpkh([").split('/').next().unwrap();
-    assert!(e.text().contains(fp), "{}", e.text());
+    assert!(e.text().contains(fp), "{}", &*e.text());
     assert!(session.wallets.is_empty());
 }
 

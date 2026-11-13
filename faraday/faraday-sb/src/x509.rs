@@ -1,8 +1,8 @@
 //! An RSA-2048 key and its self-signed X.509 certificate, the shape a
 //! Secure Boot PK, KEK or db key takes, and CMS signatures made with one.
 
-use alloc::string::String;
 use alloc::vec::Vec;
+use faraday_text::Text;
 
 use der::asn1::{Any, ObjectIdentifier, OctetString, SetOfVec};
 use der::{DateTime, Decode, Encode, Tag};
@@ -230,13 +230,13 @@ pub fn generate(
 }
 
 /// A certificate's first common name.
-pub fn common_name(cert: &Certificate) -> Option<String> {
+pub fn common_name(cert: &Certificate) -> Option<Text> {
     let found = cert
         .tbs_certificate()
         .subject()
         .iter()
         .find(|atv| atv.oid == COMMON_NAME)?;
-    Some(String::from_utf8_lossy(found.value.value()).into_owned())
+    Some(Text::from_utf8_lossy(found.value.value()))
 }
 
 /// A CMS SignerInfo for `cert`'s key: version 1, issuer and serial,

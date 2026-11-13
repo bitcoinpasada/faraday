@@ -182,7 +182,7 @@ pub(crate) fn board_unsorted_tour(c: &Compute, t: &mut Tour) -> Result<(), Strin
             "Tour",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     for (name, i) in [("board-unsorted", Some(w)), ("board-musig", None)] {
         let i = match i {
             Some(i) => i,

@@ -1067,8 +1067,8 @@ impl Faraday {
                             .unwrap_or_default();
                         self.entry.set_error(
                             crate::wallet::Refusal::NotOfWallet {
-                                got: crate::wallet::fp_text(fp),
-                                wallet,
+                                got: faraday_text::Text::of(&crate::wallet::fp_text(fp)),
+                                wallet: faraday_text::Text::of(&wallet),
                             }
                             .text(),
                         );

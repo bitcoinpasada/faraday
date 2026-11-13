@@ -7,6 +7,7 @@
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
+pub use crate::names::wallet_name;
 use crate::{caravan, electrum, single_key, specter_diy};
 use faraday_bip::json::{self, Value};
 use faraday_bip::keys::Network;
@@ -14,7 +15,8 @@ use faraday_bip::keys::ScriptType;
 use faraday_bip::policy::{Template, WalletPolicy};
 use faraday_bip::slip132::{self, Mismatch, Script};
 use faraday_crypto::work::Compute;
-use faraday_strings::{EN, bip, fill};
+use faraday_strings::{EN, bip};
+use faraday_text::{Text, text};
 
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
@@ -30,27 +32,27 @@ pub fn network_name(n: Network) -> &'static str {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
     /// The words are not a valid BIP-39 mnemonic.
-    Words(String),
+    Words(Text),
     /// The key is already in the session: its fingerprint, which is
     /// public.
     Duplicate(faraday_bip::keys::Fingerprint),
     /// A key for a slot was asked for and this is another key.
     WrongKey {
         /// The fingerprint that was expected.
-        wanted: String,
+        wanted: Text,
         /// The fingerprint the words give.
-        got: String,
+        got: Text,
     },
     /// Words for a wallet's missing key give a key that is none of the
     /// wallet's.
     NotOfWallet {
         /// The fingerprint the words give.
-        got: String,
+        got: Text,
         /// The wallet's name.
-        wallet: String,
+        wallet: Text,
     },
     /// The text is not a wallet this build reads.
-    NotAWallet(String),
+    NotAWallet(Text),
     /// The wallet or transaction is on another network than the wallets
     /// already loaded.
     Network {
@@ -60,17 +62,17 @@ pub enum Refusal {
         loaded: Network,
     },
     /// The demo is on, and this key is not one of its public seeds.
-    NotAllowed(String),
+    NotAllowed(Text),
     /// A stick is attached, called this ("stick", "SD card"): keys load
     /// only with none (`docs/SECURITY-MODEL.md`).
     StickAttached(&'static str),
     /// A silent payments wallet whose scan key or spend key is not what
     /// the loaded key with its fingerprint (this one) gives at its
     /// account.
-    SilentDiffers(String),
+    SilentDiffers(Text),
     /// A key of the wallet has a loaded key's master fingerprint (this
     /// one) and is not what that key gives at its origin path.
-    NotYourKey(String),
+    NotYourKey(Text),
     /// A key that is not one of the wallet's spends it alone by the key
     /// path, and the person has not confirmed it yet (F132).
     KeyPathUnconfirmed,
@@ -85,33 +87,31 @@ pub enum Refusal {
 
 impl Refusal {
     /// The sentence a screen shows.
-    pub fn text(&self) -> String {
+    pub fn text(&self) -> Text {
         match self {
-            Refusal::Words(e) => fill(EN.wallet_not_a_valid, &[&e.to_string()]),
-            Refusal::Duplicate(fp) => fill(
+            Refusal::Words(e) => Text::fill(EN.wallet_not_a_valid, &[e]),
+            Refusal::Duplicate(fp) => Text::fill(
                 EN.wallet_is_already_loaded,
-                &[&String::from_utf8_lossy(&fp.to_hex())],
+                &[&Text::from_utf8_lossy(&fp.to_hex())],
             ),
-            Refusal::WrongKey { wanted, got } => fill(
-                EN.wallet_these_words_give,
-                &[&got.to_string(), &wanted.to_string()],
-            ),
-            Refusal::NotOfWallet { got, wallet } => fill(
-                EN.wallet_these_words,
-                &[&got.to_string(), &wallet.to_string()],
-            ),
-            Refusal::NotAWallet(e) => fill(EN.wallet_not_a_wallet, &[&e.to_string()]),
-            Refusal::Network { offered, loaded } => fill(
+            Refusal::WrongKey { wanted, got } => {
+                Text::fill(EN.wallet_these_words_give, &[got, wanted])
+            }
+            Refusal::NotOfWallet { got, wallet } => {
+                Text::fill(EN.wallet_these_words, &[got, wallet])
+            }
+            Refusal::NotAWallet(e) => Text::fill(EN.wallet_not_a_wallet, &[e]),
+            Refusal::Network { offered, loaded } => Text::fill(
                 EN.wallet_is_not_the_network,
                 &[network_name(*offered), network_name(*loaded)],
             ),
-            Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
-            Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
-            Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
-            Refusal::NotYourKey(fp) => fill(EN.wallet_not_your_key, &[&fp.to_string()]),
-            Refusal::KeyPathUnconfirmed => EN.wallet_key_path_unconfirmed.to_string(),
-            Refusal::AccountUnchosen => EN.wallet_account_unchosen.to_string(),
-            Refusal::MuSigOneSeed => EN.wallet_musig_one_seed.to_string(),
+            Refusal::NotAllowed(fp) => Text::fill(EN.wallet_is_not_a_key, &[fp]),
+            Refusal::StickAttached(noun) => Text::fill(EN.stick_keys_keys_load, &[noun]),
+            Refusal::SilentDiffers(fp) => Text::fill(EN.wallet_silent_differs, &[fp]),
+            Refusal::NotYourKey(fp) => Text::fill(EN.wallet_not_your_key, &[fp]),
+            Refusal::KeyPathUnconfirmed => Text::of(EN.wallet_key_path_unconfirmed),
+            Refusal::AccountUnchosen => Text::of(EN.wallet_account_unchosen),
+            Refusal::MuSigOneSeed => Text::of(EN.wallet_musig_one_seed),
         }
     }
 }
@@ -160,7 +160,7 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     let policy = read_any(c, text)?;
     if policy.keys().iter().any(|k| k.fingerprint().is_none()) {
-        return Err(Refusal::NotAWallet(EN.wallet_key_no_origin.into()));
+        return Err(Refusal::NotAWallet(Text::of(EN.wallet_key_no_origin)));
     }
     Ok(policy)
 }
@@ -174,7 +174,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     let plain =
         |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)));
     if electrum::encrypted_whole(text) {
-        return Err(Refusal::NotAWallet(EN.wallet_electrum_encrypted.into()));
+        return Err(Refusal::NotAWallet(Text::of(EN.wallet_electrum_encrypted)));
     }
     // A single-key file (Cobo, Keystone, Coldcard's for Wasabi), a
     // Caravan config or an Electrum wallet file, read as JSON. JSON too deep or too long is refused;
@@ -188,36 +188,38 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         match json::parse(text) {
             Ok(v) => {
                 if let Some(read) = single_key::read(&v) {
-                    let k = read.map_err(Refusal::NotAWallet)?;
+                    let k = read.map_err(|e| Refusal::NotAWallet(Text::of(&e)))?;
                     let d = k.descriptor().ok_or_else(|| {
-                        Refusal::NotAWallet(fill(
+                        Refusal::NotAWallet(Text::fill(
                             EN.wallet_single_key_file,
                             &[EN.wallet_single_key_no_type],
                         ))
                     })?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 if caravan::looks_like(&v) {
-                    let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
+                    let d =
+                        caravan::descriptor(&v).map_err(|e| Refusal::NotAWallet(Text::of(&e)))?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 if electrum::looks_like(&v) {
-                    let d = electrum::descriptor(&v).map_err(Refusal::NotAWallet)?;
+                    let d =
+                        electrum::descriptor(&v).map_err(|e| Refusal::NotAWallet(Text::of(&e)))?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 read_json = Some(v);
             }
             Err(json::Error::TooDeep) => {
-                return Err(Refusal::NotAWallet(fill(
+                return Err(Refusal::NotAWallet(Text::fill(
                     EN.wallet_json_too_deep,
-                    &[&json::MAX_DEPTH.to_string()],
+                    &[&Text::num(json::MAX_DEPTH as u64)],
                 )));
             }
             Err(json::Error::TooLarge) => {
-                return Err(Refusal::NotAWallet(EN.wallet_json_too_large.into()));
+                return Err(Refusal::NotAWallet(Text::of(EN.wallet_json_too_large)));
             }
             Err(_) => {}
         }
@@ -226,7 +228,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     // reads) or Bitcoin Core's `listdescriptors`: the descriptor fields.
     // Text that starts as JSON and is not JSON is refused here.
     if text.trim_start().starts_with('{') {
-        let no_descriptor = || Refusal::NotAWallet(EN.wallet_a_json_file.into());
+        let no_descriptor = || Refusal::NotAWallet(Text::of(EN.wallet_a_json_file));
         let v = read_json.ok_or_else(no_descriptor)?;
         let mut all = v.strings_named("descriptor");
         all.extend(v.strings_named("desc"));
@@ -241,8 +243,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             return one_of_several(c, &all);
         }
         return WalletPolicy::parse_any(c, &all[0]).or_else(|e| {
-            multipath(c, &all)
-                .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
+            multipath(c, &all).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
         });
     }
     // BIP 129's descriptor record: read whole, its first address checked
@@ -250,7 +251,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if faraday_bip::bsms::looks_like_record(text) && !faraday_bip::bsms::is_signer_record(text) {
         return faraday_bip::bsms::DescriptorRecord::parse(c, text)
             .map(|r| r.policy)
-            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&bip::bsms_error(&e)])));
+            .map_err(|e| Refusal::NotAWallet(Text::fill(EN.wallet_bsms, &[&bip::bsms_error(&e)])));
     }
     if faraday_bip::multisig_config::looks_like_config(text) {
         // A key whose SLIP-132 version names another script than the
@@ -260,7 +261,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 Some(m) if e == faraday_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
                 }
-                _ => Refusal::NotAWallet(String::from(&*bip::policy_error(&e))),
+                _ => Refusal::NotAWallet(bip::policy_error(&e)),
             }
         });
     }
@@ -283,7 +284,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         };
         if let Some(wrap) = wrap {
             return WalletPolicy::parse_any(c, &wrap.replace('K', &k.text))
-                .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
+                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
         }
     }
     let lines = written
@@ -294,10 +295,9 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 .map_err(|m| Refusal::NotAWallet(mismatch_text(&m))),
             None => plain(l),
         })
-        .collect::<Result<Vec<String>, _>>()?;
-    WalletPolicy::parse_any(c, &lines.concat()).or_else(|e| {
-        multipath(c, &lines)
-            .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
+        .collect::<Result<Vec<_>, _>>()?;
+    WalletPolicy::parse_any(c, &lines.iter().map(|l| l.as_str()).collect::<Text>()).or_else(|e| {
+        multipath(c, &lines).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
     })
 }
 
@@ -317,7 +317,7 @@ fn read_whole(c: &Compute, text: &str) -> Option<Result<WalletPolicy, Refusal>> 
     if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
         return Some(
             WalletPolicy::parse_any(c, text)
-                .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))),
+                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e))),
         );
     }
     if faraday_bip::coldcard::looks_like_export(text) {
@@ -351,13 +351,13 @@ fn sp_line(text: &str) -> Option<&str> {
 fn silent_refusal(e: &faraday_bip::silent_wallet::ReadError) -> Refusal {
     use faraday_bip::silent_wallet::ReadError as R;
     let why = match e {
-        R::NoOrigin => return Refusal::NotAWallet(EN.wallet_sp_no_origin.into()),
+        R::NoOrigin => return Refusal::NotAWallet(Text::of(EN.wallet_sp_no_origin)),
         R::Origin => EN.wallet_sp_origin,
         R::Key(_) => EN.wallet_sp_key,
         R::Checksum => EN.wallet_sp_checksum,
         R::Shape => EN.wallet_sp_shape,
     };
-    Refusal::NotAWallet(fill(EN.wallet_sp, &[why]))
+    Refusal::NotAWallet(Text::fill(EN.wallet_sp, &[why]))
 }
 
 /// Costs a parse of the descriptor and of each wallet tried: the
@@ -368,14 +368,14 @@ fn silent_refusal(e: &faraday_bip::silent_wallet::ReadError) -> Refusal {
 /// descriptor after its `&` is refused.
 fn specter_diy_wallet(c: &Compute, d: &str) -> Result<WalletPolicy, Refusal> {
     if !d.contains('(') {
-        return Err(Refusal::NotAWallet(
-            EN.wallet_specter_diy_no_descriptor.into(),
-        ));
+        return Err(Refusal::NotAWallet(Text::of(
+            EN.wallet_specter_diy_no_descriptor,
+        )));
     }
     let d = slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)))?;
     WalletPolicy::parse_any(c, &d).or_else(|e| {
         multipath(c, core::slice::from_ref(&d))
-            .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
+            .unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
     })
 }
 
@@ -383,8 +383,10 @@ fn specter_diy_wallet(c: &Compute, d: &str) -> Result<WalletPolicy, Refusal> {
 /// blank: an `addwallet` command's ([`specter_diy::name`]) or a wallet
 /// `.json`'s `"label"` ([`json_label`]). Costs a JSON parse of text that
 /// starts as JSON.
-pub fn carried_name(text: &str) -> Option<String> {
-    specter_diy::name(text).or_else(|| json_label(text))
+pub fn carried_name(text: &str) -> Option<Text> {
+    specter_diy::name(text)
+        .map(|n| Text::of(&n))
+        .or_else(|| json_label(text))
 }
 
 /// Whether text is another wallet's file that holds a secret beside its
@@ -425,13 +427,13 @@ pub fn holds_secret(text: &str) -> bool {
 /// order (neither Bitcoin Core's `listdescriptors` nor Sparrow writes one
 /// beside another wallet), so a file that holds one beside another wallet is
 /// refused as holding more than one wallet.
-fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refusal>> {
+fn multipath<S: AsRef<str>>(c: &Compute, descs: &[S]) -> Option<Result<WalletPolicy, Refusal>> {
     let wallets = multipath_wallets(c, descs)?;
     let mut found = Vec::new();
     let mut seen: Vec<Seen> = Vec::new();
     for d in wallets {
         if let Ok(w) = WalletPolicy::parse_any(c, &d) {
-            let this = Seen(faraday_crypto::Secret::new(w.to_descriptor()));
+            let this = Seen(faraday_crypto::Secret::new(w.to_descriptor().into_bytes()));
             if !seen.contains(&this) {
                 seen.push(this);
                 found.push((rank(&w), w));
@@ -444,7 +446,7 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refus
 /// A descriptor kept only to tell a wallet already seen: it may hold a
 /// silent payments scan key, so it is wiped when dropped and compared
 /// without a branch on its bytes.
-struct Seen(faraday_crypto::Secret<String>);
+struct Seen(faraday_crypto::Secret<Vec<u8>>);
 
 impl PartialEq for Seen {
     fn eq(&self, other: &Self) -> bool {
@@ -457,26 +459,26 @@ impl PartialEq for Seen {
 fn pick_best(found: Vec<(u8, WalletPolicy)>) -> Option<Result<WalletPolicy, Refusal>> {
     let best = found.iter().map(|(r, ..)| *r).min()?;
     if found.len() > 1 && found.iter().any(|(r, ..)| *r == UNRANKED) {
-        return Some(Err(Refusal::NotAWallet(EN.wallet_several.into())));
+        return Some(Err(Refusal::NotAWallet(Text::of(EN.wallet_several))));
     }
     let mut top = found.into_iter().filter(|(r, ..)| *r == best);
     Some(match (top.next(), top.next()) {
         (Some((_, w)), None) => Ok(w),
-        _ => Err(Refusal::NotAWallet(EN.wallet_several.into())),
+        _ => Err(Refusal::NotAWallet(Text::of(EN.wallet_several))),
     })
 }
 
 /// Costs a parse of each descriptor and a sorted set of them: the `<0;1>`
 /// wallets [`multipath`] reads out of descriptors, none of them read yet; `None` when a
 /// descriptor does not read on its own.
-fn multipath_wallets(c: &Compute, descs: &[String]) -> Option<Vec<String>> {
+fn multipath_wallets<S: AsRef<str>>(c: &Compute, descs: &[S]) -> Option<Vec<Text>> {
     let mut plain = Vec::new();
     for d in descs {
-        let d = without_label(d.trim());
+        let d = without_label(d.as_ref().trim());
         if !faraday_bip::descriptor::reads_as_descriptor(c, d) {
             return None;
         }
-        plain.push(d.split('#').next().unwrap_or(d).to_string());
+        plain.push(Text::of(d.split('#').next().unwrap_or(d)));
     }
     Some(chain_wallets(&plain))
 }
@@ -484,13 +486,13 @@ fn multipath_wallets(c: &Compute, descs: &[String]) -> Option<Vec<String>> {
 /// The `<0;1>` wallets the receive and change descriptors in `plain` (all
 /// the file's, checksums dropped) make, and the lone ones that stand for a
 /// wallet.
-fn chain_wallets(plain: &[String]) -> Vec<String> {
-    let have: std::collections::BTreeSet<&String> = plain.iter().collect();
-    let mut wallets: Vec<String> = plain
+fn chain_wallets(plain: &[Text]) -> Vec<Text> {
+    let have: std::collections::BTreeSet<&str> = plain.iter().map(|t| t.as_str()).collect();
+    let mut wallets: Vec<Text> = plain
         .iter()
         .filter(|d| d.contains("/0/*") && !d.contains("/1/*"))
-        .filter(|d| plain.len() == 1 || have.contains(&d.replace("/0/*", "/1/*")))
-        .map(|d| d.replace("/0/*", "/<0;1>/*"))
+        .filter(|d| plain.len() == 1 || have.contains(replaced(d, "/0/*", "/1/*").as_str()))
+        .map(|d| replaced(d, "/0/*", "/<0;1>/*"))
         .collect();
     // A change descriptor alone (Keystone's export): the same wallet.
     if let [only] = plain
@@ -498,12 +500,26 @@ fn chain_wallets(plain: &[String]) -> Vec<String> {
         && only.contains("/1/*")
         && !only.contains("/0/*")
     {
-        wallets.push(only.replace("/1/*", "/<0;1>/*"));
+        wallets.push(replaced(only, "/1/*", "/<0;1>/*"));
     }
     if plain.len() == 1 && wallets.is_empty() {
         wallets.extend(with_chains(&plain[0]));
     }
     wallets
+}
+
+/// `d` with every `from` written `to`, as a [`Text`]: a descriptor may
+/// hold a scan key, so no copy of it is left unwiped.
+fn replaced(d: &str, from: &str, to: &str) -> Text {
+    let mut out = Text::with_room(d.len() + to.len());
+    let mut rest = d;
+    while let Some(at) = rest.find(from) {
+        out.push_str(&rest[..at]);
+        out.push_str(to);
+        rest = &rest[at + from.len()..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The place of a wallet that has none in the order [`rank`] gives: a
@@ -538,11 +554,11 @@ fn rank(w: &WalletPolicy) -> u8 {
 /// the file, and so does a best-ranked kind holding more than one
 /// different wallet. A lone `/0/*` or `/1/*` among several is not a wallet,
 /// and a silent payments wallet beside any other refuses the file.
-fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> {
+fn one_of_several<S: AsRef<str>>(c: &Compute, all: &[S]) -> Result<WalletPolicy, Refusal> {
     let mut found: Vec<(u8, WalletPolicy)> = Vec::new();
     let mut seen: Vec<Seen> = Vec::new();
     let mut add = |w: WalletPolicy| {
-        let this = Seen(faraday_crypto::Secret::new(w.to_descriptor()));
+        let this = Seen(faraday_crypto::Secret::new(w.to_descriptor().into_bytes()));
         if !seen.contains(&this) {
             seen.push(this);
             found.push((rank(&w), w));
@@ -550,22 +566,22 @@ fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> 
     };
     let mut plain = Vec::new();
     for d in all {
-        let t = without_label(d.trim());
-        match WalletPolicy::parse_any(c, d) {
+        let t = without_label(d.as_ref().trim());
+        match WalletPolicy::parse_any(c, d.as_ref()) {
             Ok(w) => add(w),
             Err(e) if !faraday_bip::descriptor::reads_as_descriptor(c, t) => {
-                return Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
+                return Err(Refusal::NotAWallet(bip::policy_error(&e)));
             }
             Err(_) => {}
         }
-        plain.push(t.split('#').next().unwrap_or(t).to_string());
+        plain.push(Text::of(t.split('#').next().unwrap_or(t)));
     }
     for d in chain_wallets(&plain) {
         if let Ok(w) = WalletPolicy::parse_any(c, &d) {
             add(w);
         }
     }
-    pick_best(found).unwrap_or_else(|| Err(Refusal::NotAWallet(EN.wallet_a_json_file.into())))
+    pick_best(found).unwrap_or_else(|| Err(Refusal::NotAWallet(Text::of(EN.wallet_a_json_file))))
 }
 
 /// A descriptor line without the label before it: `Receive: wpkh(…)`.
@@ -580,8 +596,8 @@ fn without_label(line: &str) -> &str {
 
 /// `d` with `/<0;1>/*` after every extended key, when none of its keys
 /// carries a derivation; otherwise `None`.
-fn with_chains(d: &str) -> Option<String> {
-    let mut out = String::new();
+fn with_chains(d: &str) -> Option<Text> {
+    let mut out = Text::with_room(d.len() + 16);
     let mut rest = d;
     let mut found = false;
     while let Some(at) = ["xpub", "tpub"].iter().filter_map(|p| rest.find(p)).min() {
@@ -607,19 +623,19 @@ fn with_chains(d: &str) -> Option<String> {
 /// own sentences.
 fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     use faraday_bip::coldcard::ReadError;
-    let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
+    let bad = |why: &str| Refusal::NotAWallet(Text::fill(EN.wallet_coldcard_export, &[why]));
     faraday_bip::coldcard::read(c, text)
         .map(|(policy, _)| policy)
         .map_err(|e| match e {
             ReadError::NoXfp => bad(EN.wallet_no_xfp),
             ReadError::NoAccount => bad(EN.wallet_no_single_sig),
             ReadError::FirstAddress { account, first } => {
-                bad(&fill(EN.wallet_its_first_address, &[account, &first]))
+                bad(&Text::fill(EN.wallet_its_first_address, &[account, &first]))
             }
-            ReadError::NoDeriv(_) => Refusal::NotAWallet(String::from(&*bip::policy_error(
-                &faraday_bip::policy::Error::Key,
-            ))),
-            ReadError::Policy(e) => Refusal::NotAWallet(String::from(&*bip::policy_error(&e))),
+            ReadError::NoDeriv(_) => {
+                Refusal::NotAWallet(bip::policy_error(&faraday_bip::policy::Error::Key))
+            }
+            ReadError::Policy(e) => Refusal::NotAWallet(bip::policy_error(&e)),
             ReadError::Silent(e) => silent_refusal(&e),
         })
 }
@@ -641,14 +657,14 @@ pub fn script_name(s: Script) -> &'static str {
 
 /// The sentence a SLIP-132 refusal shows (`faraday_bip::slip132`,
 /// `docs/INTEROP.md` §5, SLIP-132 keys): the key, shortened, and both types.
-pub fn mismatch_text(m: &Mismatch) -> String {
+pub fn mismatch_text(m: &Mismatch) -> Text {
     let k: &str = &m.key;
     let short = if k.len() > 16 && k.is_ascii() {
-        format!("{}…{}", &k[..8], &k[k.len() - 6..])
+        text!("{}…{}", &k[..8], &k[k.len() - 6..])
     } else {
-        String::from(k)
+        Text::of(k)
     };
-    fill(
+    Text::fill(
         EN.wallet_slip132_mismatch,
         &[&short, script_name(m.named), script_name(m.around)],
     )
@@ -657,40 +673,23 @@ pub fn mismatch_text(m: &Mismatch) -> String {
 /// The name a wallet `.json` carries in its `"label"` (Specter Desktop's,
 /// Sparrow's for Specter), when it has one that is not blank: the first
 /// member of that name in the file. Costs a JSON parse.
-pub fn json_label(text: &str) -> Option<String> {
+pub fn json_label(text: &str) -> Option<Text> {
     if !text.trim_start().starts_with('{') {
         return None;
     }
     let file = json::parse(text).ok()?;
     let label = wallet_name(file.find("label")?.as_str()?);
-    (!label.is_empty()).then(|| label.into_owned())
-}
-
-/// A wallet's name as one line of text, the form every name a wallet is
-/// given takes, whether it came from a file, a vault record or the
-/// keyboard: every control character (Unicode `Cc`, line feeds and
-/// carriage returns among them) and the line and paragraph separators
-/// U+2028 and U+2029 taken out, and the spaces at either end. Borrows
-/// `text` when it is already that.
-pub fn wallet_name(text: &str) -> std::borrow::Cow<'_, str> {
-    let dropped = |c: char| c.is_control() || c == '\u{2028}' || c == '\u{2029}';
-    let trimmed = text.trim_matches(|c: char| c.is_whitespace() || dropped(c));
-    if trimmed.chars().any(dropped) {
-        let kept: String = trimmed.chars().filter(|c| !dropped(*c)).collect();
-        std::borrow::Cow::Owned(kept.trim().to_string())
-    } else {
-        std::borrow::Cow::Borrowed(trimmed)
-    }
+    (!label.is_empty()).then(|| Text::of(&label))
 }
 
 /// Costs an address derivation: a wallet's first receive address,
 /// worked out as the device works it out (`WalletPolicy::address_at`), on the network its keys name, with
 /// that network; `None` for a wallet with no address at an index (a
 /// silent payments wallet).
-pub fn first_address(c: &Compute, policy: &WalletPolicy) -> Option<(Network, String)> {
+pub fn first_address(c: &Compute, policy: &WalletPolicy) -> Option<(Network, Text)> {
     let net = policy_network(policy, Network::Mainnet).unwrap_or(Network::Mainnet);
     policy
         .address_at(c, net, false, 0)
         .ok()
-        .map(|a| (net, a.to_string()))
+        .map(|a| (net, text!("{a}")))
 }

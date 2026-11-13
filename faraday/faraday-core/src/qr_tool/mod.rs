@@ -635,7 +635,7 @@ fn view(c: &Compute, made: &Made) -> Result<QrView, String> {
         frames: vec![code],
         frame: 0,
         next_ms: 0,
-        source: QrSource::File(format!("{}.pgp", made.stem), made.bytes.clone()),
+        source: QrSource::File(faraday_text::text!("{}.pgp", made.stem), made.bytes.clone()),
         format: QrFormat::Ur,
         part: crate::QR_PARTS[1],
         secret: false,

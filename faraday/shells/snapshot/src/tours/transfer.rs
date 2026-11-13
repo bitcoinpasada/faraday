@@ -79,7 +79,9 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     });
     let envelope = |name: &str, bytes: &[u8]| -> Result<Vec<String>, String> {
         let env = faraday_qr::envelope::pack(name, bytes, "file").map_err(|e| format!("{e:?}"))?;
-        faraday_qr::bbqr::encode('J', &env, 160).ok_or_else(|| "too large".to_string())
+        faraday_qr::bbqr::encode('J', &env, 160)
+            .map(|parts| parts.iter().map(|p| String::from(&**p)).collect())
+            .ok_or_else(|| "too large".to_string())
     };
     for part in envelope("spending-wallet.txt", spending.descriptor.as_bytes())? {
         t.app.event(Event::Scanned {

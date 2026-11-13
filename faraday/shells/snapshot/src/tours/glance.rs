@@ -60,7 +60,7 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
                 "test",
                 faraday_core::wallet::Origin::Named,
             )
-            .map_err(|e| e.text())?
+            .map_err(|e| String::from(&*e.text()))?
     };
     let shot_card = |t: &mut Tour, w: usize, name: &str| -> Result<(), String> {
         t.press(Action::OpenWallet(w));
@@ -102,13 +102,13 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "Test key 2",
             None,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     // The cosigner's key on the tour's network: one wallet is one network.
     let mut elsewhere = faraday_core::wallet::Session::default();
     elsewhere
         .keys
         .set_network(t.app.session.keys.network(), false)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     elsewhere
         .keys
         .add_words(
@@ -117,7 +117,7 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "Test key 3",
             None,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     let keys: Vec<String> = [
         (&t.app.session.keys, 0),
         (&t.app.session.keys, 1),
@@ -136,7 +136,7 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "test",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     shot_card(t, two, "glance-two-of-three-no-plan")?;
     t.press(Action::Backup(two));
     t.backup_as(faraday_core::plan::Preset::PaperVault);

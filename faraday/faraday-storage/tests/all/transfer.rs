@@ -305,7 +305,7 @@ fn a_seeds_words_received_are_saved_past_the_hold_and_said_to_hold_a_secret() {
     let parts: Vec<Vec<u8>> = faraday_qr::bbqr::encode('J', &env, 160)
         .unwrap()
         .into_iter()
-        .map(String::into_bytes)
+        .map(|p| p.as_bytes().to_vec())
         .collect();
     let host = host(&dir);
     let mut boxes = boxes();

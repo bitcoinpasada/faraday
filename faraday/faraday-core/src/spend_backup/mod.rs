@@ -1079,7 +1079,7 @@ impl Faraday {
                         self.refresh_spend();
                         fill(EN.spend_backup_seed_read, &[&fp_text(fp).to_string()])
                     }
-                    Err(e) => e.text(),
+                    Err(e) => String::from(&*e.text()),
                 }
             }
             Found::Here(n) => fill(EN.spend_backup_key_already, &[&(n + 1).to_string()]),
@@ -1368,7 +1368,7 @@ impl Faraday {
                 self.spend_backup.state.wallet = Some(self.session.wallets[i].name.clone());
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.spend_backup.state.error = Some(e.text()),
+            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
         }
     }
 
@@ -1517,7 +1517,7 @@ impl Faraday {
                 self.spend_backup.state.wallet = Some(name);
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.spend_backup.state.error = Some(e.text()),
+            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
         }
     }
 
@@ -1544,7 +1544,7 @@ impl Faraday {
         let name = faraday_bip::multisig_config::parse_named(&c, &text)
             .ok()
             .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-            .or_else(|| crate::wallet::carried_name(&text))
+            .or_else(|| crate::wallet::carried_name(&text).map(|t| String::from(&*t)))
             .unwrap_or_else(|| crate::file_stem(&item.name));
         let source = item.name.clone();
         match self
@@ -1558,7 +1558,7 @@ impl Faraday {
                 self.refresh_spend();
                 self.spend_backup_opened();
             }
-            Err(e) => self.spend_backup.state.error = Some(e.text()),
+            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
         }
     }
 
@@ -1617,7 +1617,7 @@ impl Faraday {
                             self.refresh_spend();
                             self.spend_backup_opened();
                         }
-                        Err(e) => self.spend_backup.state.error = Some(e.text()),
+                        Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
                     }
                 }
                 None if loud => {

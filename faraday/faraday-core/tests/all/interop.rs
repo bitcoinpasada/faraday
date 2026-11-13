@@ -341,7 +341,7 @@ fn a_slip132_key_whose_version_disagrees_with_its_script_or_path_is_refused() {
     ] {
         // Refused by name: the refusal names the key it will not take.
         let e = read_wallet(&c, &text).expect_err(&text);
-        assert!(e.text().contains(&key[..8]), "{text}: {}", e.text());
+        assert!(e.text().contains(&key[..8]), "{text}: {}", &*e.text());
     }
     // A key file whose zpub sits on another purpose's path gives no key.
     let moved = file("sparrow/specter-diy-keystore.txt").replace("/84h/", "/49h/");
@@ -390,7 +390,7 @@ fn a_single_key_file_whose_key_disagrees_with_its_path_is_refused() {
     // ypub.
     let cobo = file("sparrow/cobo-singlesig-keystore-1.json").replace("84'", "49'");
     let e = read_wallet(&c, &cobo).expect_err("zpub at 49'");
-    assert!(e.text().contains(&BIP84_ZPUB[..8]), "{}", e.text());
+    assert!(e.text().contains(&BIP84_ZPUB[..8]), "{}", &*e.text());
     let generic = file("bluewallet/coldcardmk4-generic.json");
     let ypub = generic.split('"').find(|t| t.starts_with("ypub")).unwrap();
     let wasabi = format!(
@@ -458,7 +458,7 @@ fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
             "Test wallet",
             faraday_core::wallet::Origin::Named,
         )
-        .unwrap_or_else(|e| panic!("{descriptor}: {}", e.text()));
+        .unwrap_or_else(|e| panic!("{descriptor}: {}", &*e.text()));
     app.press(faraday_core::Action::PublicOut(w, what));
     app.outbox
         .iter()
@@ -514,7 +514,7 @@ fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_firs
     // wallet here holds no key without its origin, and the key is named.
     let text = file("bluewallet/caravan-multisig.json");
     let e = read_wallet(&c, &text).expect_err("a key with no origin");
-    assert!(e.text().contains("xpub6ERj"), "{}", e.text());
+    assert!(e.text().contains("xpub6ERj"), "{}", &*e.text());
     // Sparrow's Coldcard export of the same wallet states that key's
     // path; with it, the config is the wallet that export is.
     let given = text.replace(
@@ -541,7 +541,7 @@ fn faradays_caravan_file_reads_back_with_the_same_first_address() {
             panic!("{id}: {out:?}")
         };
         assert_eq!(name, "test-caravan.json");
-        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", &*e.text()));
         let own = read_wallet(&c, &d).unwrap();
         assert!(same(&back, &own), "{id}");
         assert_eq!(
@@ -604,7 +604,7 @@ fn faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name
         };
         assert_eq!(name, "test-specter-diy.txt");
         assert!(text.starts_with("addwallet Test&"), "{id}: {text}");
-        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", &*e.text()));
         let own = read_wallet(&c, &d).unwrap();
         assert!(same(&back, &own), "{id}");
         assert_eq!(
@@ -732,7 +732,7 @@ fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_va
             );
         }
         let both = format!("{}\n{}", requests[0].0, requests[1].0);
-        let back = read_wallet(&c, &both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let back = read_wallet(&c, &both).unwrap_or_else(|e| panic!("{id}: {}", &*e.text()));
         assert!(same(&back, &read_wallet(&c, &d).unwrap()), "{id}");
     }
 }
@@ -788,7 +788,7 @@ fn cores_and_specters_files_of_a_taproot_sortedmulti_a_wallet_read_as_it_with_co
         ("a receive and a change line", format!("{recv}\n{change}")),
         ("a receive line alone", recv.clone()),
     ] {
-        let w = read_wallet(&c, &text).unwrap_or_else(|e| panic!("{what}: {}", e.text()));
+        let w = read_wallet(&c, &text).unwrap_or_else(|e| panic!("{what}: {}", &*e.text()));
         assert!(same(&w, &multipath), "{what}");
         assert_eq!(first(&w, Network::Regtest), TAPMULTI_CORE_FIRST, "{what}");
     }
@@ -885,8 +885,8 @@ fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multis
     // Its keystores name no fingerprint or derivation: a multisig wallet
     // here holds no key without its origin, and the first is named.
     let e = read_wallet(&c, &text).expect_err("no origins");
-    assert!(e.text().contains("Zpub74sR"), "{}", e.text());
-    assert!(!e.text().contains("prv"), "{}", e.text());
+    assert!(e.text().contains("Zpub74sR"), "{}", &*e.text());
+    assert!(!e.text().contains("prv"), "{}", &*e.text());
     // Its public keys are the keys of the same wallet's Specter file.
     let specter = wallet("bluewallet/fromsparrow-specter.json");
     let keys: Vec<String> = text
@@ -946,7 +946,7 @@ fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_n
             FileKind::Wallet,
             "{id}"
         );
-        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", &*e.text()));
         let own = read_wallet(&c, &d).unwrap();
         assert!(same(&back, &own), "{id}");
         assert_eq!(

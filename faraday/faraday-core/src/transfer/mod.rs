@@ -83,16 +83,16 @@ pub(crate) fn qr_source(name: &str, bytes: &[u8], kind: FileKind) -> QrSource {
     match kind {
         FileKind::Psbt => QrSource::Psbt(bytes.to_vec()),
         FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
-            QrSource::Text(String::from_utf8_lossy(bytes).into_owned())
+            QrSource::Text(faraday_text::Text::from_utf8_lossy(bytes))
         }
-        _ => QrSource::File(name.to_string(), bytes.to_vec()),
+        _ => QrSource::File(faraday_text::Text::of(name), bytes.to_vec()),
     }
 }
 
 /// A whole transfer as Receive saves it: a name when it brought one, the
 /// extension for one without, and the bytes. A transaction is saved as
 /// hex text.
-fn received(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
+fn received(a: faraday_qr::Arrived) -> (Option<faraday_text::Text>, &'static str, Vec<u8>) {
     match crate::arrival(a) {
         (n, "txn", d) => (n, "txt", d),
         other => other,
@@ -108,7 +108,7 @@ fn read_any(
     scan: &mut ScanState,
     bytes: &[u8],
     secret: &mut bool,
-) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+) -> Option<(Option<faraday_text::Text>, &'static str, Vec<u8>)> {
     scan.reads += 1;
     let Ok(raw) = std::str::from_utf8(bytes) else {
         // Bytes that are not text: a PSBT, or kept as they are.
@@ -318,7 +318,9 @@ impl TransferArea {
         let mut registry_secret = false;
         let (named, ext, data) = read_any(c, scan, bytes, &mut registry_secret)?;
         let digest = {
-            let mut whole = named.clone().unwrap_or_default().into_bytes();
+            let mut whole = named
+                .as_ref()
+                .map_or_else(Vec::new, |n| n.as_bytes().to_vec());
             whole.push(0);
             whole.extend_from_slice(ext.as_bytes());
             whole.push(0);
@@ -334,7 +336,7 @@ impl TransferArea {
         }
         self.state.last = Some(digest);
         let name = match named {
-            Some(n) => n,
+            Some(n) => String::from(&*n),
             None => {
                 self.state.received += 1;
                 format!("received-{}.{ext}", self.state.received)

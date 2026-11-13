@@ -171,7 +171,7 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
                 &name,
                 faraday_core::wallet::Origin::Named,
             )
-            .unwrap_or_else(|e| panic!("{name}: {}", e.text()));
+            .unwrap_or_else(|e| panic!("{name}: {}", &*e.text()));
             assert_eq!(addresses(&s), want, "{name}");
             assert_eq!(s.network(), Network::Testnet, "{name}");
             seen += 1;

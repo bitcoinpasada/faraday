@@ -135,6 +135,12 @@ pub(crate) fn wiped_bytes(bytes: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
     zeroize::Zeroizing::new(bytes.to_vec())
 }
 
+/// An empty buffer wiped on drop with room for a whole seed phrase, for
+/// building one a word at a time without it moving.
+pub(crate) fn room() -> zeroize::Zeroizing<String> {
+    zeroize::Zeroizing::new(String::with_capacity(faraday_intake::ROOM))
+}
+
 /// A secret's text in a buffer wiped on drop: the only copy made of it.
 #[expect(
     clippy::disallowed_methods,

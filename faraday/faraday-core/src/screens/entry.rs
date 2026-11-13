@@ -345,10 +345,9 @@ pub(crate) fn keyed_status(
     }
     // While typing goes on the key is not worked out: the count alone.
     let added = match faraday_keys::words::from_indices(lang, taken) {
-        Err(e) => Err(crate::wallet::Refusal::Words(String::from(
-            &*faraday_strings::bip::bip39_error(&e),
-        ))
-        .text()),
+        Err(e) => Err(String::from(
+            &*crate::wallet::Refusal::Words(faraday_strings::bip::bip39_error(&e)).text(),
+        )),
         Ok(m) => match app.entry_probed(&m) {
             Some(r) => r,
             None => return count(),
@@ -379,7 +378,9 @@ fn entry_status(
     let mut y = y;
     // While typing goes on the key is not worked out: the count alone.
     let added = m.and_then(|made| match made {
-        Err(e) => Some(Err(crate::wallet::Refusal::Words(e).text())),
+        Err(e) => Some(Err(String::from(
+            &*crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text(),
+        ))),
         Ok(m) => app.entry_probed(&m),
     });
     let status = match added {

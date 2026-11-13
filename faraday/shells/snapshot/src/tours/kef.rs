@@ -82,7 +82,7 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "test",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     t.press(Action::Nav(Screen::Catalog));
     let tile = faraday_core::catalog::TILES
         .iter()

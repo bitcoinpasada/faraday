@@ -230,6 +230,6 @@ pub fn enrolment(
 }
 
 /// A certificate's common name.
-pub fn common_name(cert: &[u8]) -> Option<String> {
+pub fn common_name(cert: &[u8]) -> Option<faraday_text::Text> {
     x509::common_name(&x509::read(cert)?)
 }

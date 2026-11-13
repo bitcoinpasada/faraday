@@ -628,7 +628,7 @@ fn certtool_reads_every_certificate_made() {
         .unwrap();
         assert!(ok, "certtool {name}:\n{said}");
         let cn = faraday_sb::common_name(&pair.cert).unwrap();
-        assert!(said.contains(&format!("CN={cn}")), "{name}:\n{said}");
+        assert!(said.contains(&format!("CN={}", &*cn)), "{name}:\n{said}");
         assert!(said.contains("RSA-SHA256"), "{name}:\n{said}");
         // Self-signed: its own signature holds under its own key.
         let pem = pem(&dir, name, &pair.cert).unwrap();

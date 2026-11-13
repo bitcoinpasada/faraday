@@ -16,20 +16,21 @@ use faraday_intake::{caravan, electrum, single_key, specter_diy};
 
 fn wallet(path: &str) -> WalletPolicy {
     let c = crate::common::compute();
-    read_wallet(&c, &interop(path)).unwrap_or_else(|e| panic!("{path}: {}", e.text()))
+    read_wallet(&c, &interop(path)).unwrap_or_else(|e| panic!("{path}: {}", &*e.text()))
 }
 
 fn refusal(path: &str) -> String {
     let c = crate::common::compute();
     match read_wallet(&c, &interop(path)) {
-        Err(Refusal::NotAWallet(why)) => why,
-        Err(other) => panic!("{path}: {}", other.text()),
+        Err(Refusal::NotAWallet(why)) => String::from(&*why),
+        Err(other) => panic!("{path}: {}", &*other.text()),
         Ok(_) => panic!("{path} was read as a wallet"),
     }
 }
 
 fn first(policy: &WalletPolicy) -> (Network, String) {
-    first_address(&crate::common::compute(), policy).unwrap()
+    let (n, a) = first_address(&crate::common::compute(), policy).unwrap();
+    (n, String::from(&*a))
 }
 
 /// The quorum and the number of keys of a multisig wallet.
@@ -231,7 +232,7 @@ fn a_caravan_config_whose_network_start_script_or_key_version_disagrees_with_it_
         .unwrap()
         .to_string();
     let e = read_wallet(&c, &text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
-    assert!(e.text().contains(&ypub[..8]), "{}", e.text());
+    assert!(e.text().contains(&ypub[..8]), "{}", &*e.text());
 }
 
 #[test]
@@ -552,7 +553,7 @@ fn an_addwallet_command_faraday_writes_reads_back_as_the_same_wallet_with_its_na
     ] {
         let w = wallet(path);
         let cmd = specter_diy::command("Vault & Co", &w).unwrap();
-        let back = read_wallet(&c, &cmd).unwrap_or_else(|e| panic!("{path}: {}", e.text()));
+        let back = read_wallet(&c, &cmd).unwrap_or_else(|e| panic!("{path}: {}", &*e.text()));
         assert_eq!(back.to_descriptor(), w.to_descriptor(), "{path}");
         assert_eq!(carried_name(&cmd).as_deref(), Some("Vault & Co"), "{path}");
     }
@@ -588,7 +589,7 @@ fn an_addwallet_command_faraday_cannot_verify_is_refused() {
     assert!(read_wallet(&c, &format!("addwallet W&{wrong}")).is_err());
     // No descriptor after the `&`, or a key alone.
     let none = read_wallet(&c, "addwallet Sparrow Multisig&").unwrap_err();
-    assert!(none.text().contains("addwallet"), "{}", none.text());
+    assert!(none.text().contains("addwallet"), "{}", &*none.text());
     let key = interop("sparrow/specter-diy-keystore.txt");
     assert!(read_wallet(&c, &format!("addwallet K&{}", key.trim())).is_err());
     // A multisig key with no origin, as every multisig wallet refuses.
@@ -665,7 +666,7 @@ fn core_list(descs: &[&str]) -> String {
 }
 
 fn read_text(text: &str) -> Result<WalletPolicy, String> {
-    read_wallet(&crate::common::compute(), text).map_err(|e| e.text())
+    read_wallet(&crate::common::compute(), text).map_err(|e| String::from(&*e.text()))
 }
 
 const SPECTER_KEYS: [&str; 2] = [
@@ -775,7 +776,7 @@ const KEY_A: &str = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyR
 
 fn why(text: &str) -> String {
     match read_wallet(&crate::common::compute(), text) {
-        Err(Refusal::NotAWallet(why)) => why,
+        Err(Refusal::NotAWallet(why)) => String::from(&*why),
         other => panic!("{other:?}"),
     }
 }

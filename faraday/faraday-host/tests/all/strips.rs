@@ -9,6 +9,9 @@ use faraday_host::Host;
 /// the host for one frame and given back.
 pub fn strip(app: &mut Faraday) -> Vec<String> {
     Host::strip_for(app)
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect()
 }
 
 /// Whether Faraday Demo's host strip offers the press `a` for `app` as

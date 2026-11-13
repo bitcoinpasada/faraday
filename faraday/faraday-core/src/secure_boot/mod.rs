@@ -52,6 +52,7 @@ pub fn shown(r: RecordView<'_>) -> Option<Shown> {
     let name = |n: u8| {
         r.public(n)
             .and_then(faraday_sb::common_name)
+            .map(|t| String::from(&*t))
             .unwrap_or_default()
     };
     Some(Shown {

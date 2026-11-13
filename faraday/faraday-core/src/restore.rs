@@ -438,9 +438,9 @@ impl RestoreArea {
     }
 
     /// Shows `error` as the last refusal.
-    pub(crate) fn set_error(&mut self, error: String) {
+    pub(crate) fn set_error(&mut self, error: impl AsRef<str>) {
         if let Some(r) = self.state.as_mut() {
-            r.error = Some(error);
+            r.error = Some(String::from(error.as_ref()));
         }
     }
 
@@ -1258,7 +1258,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(r) = self.restore.state.as_mut() {
-                    r.error = Some(e.text());
+                    r.error = Some(String::from(&*e.text()));
                 }
             }
         }

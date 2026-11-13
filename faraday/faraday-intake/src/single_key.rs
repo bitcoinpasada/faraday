@@ -98,7 +98,7 @@ fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
     let fp: String = String::from(&*faraday_crypto::hex::encode_string(&bytes));
     let line = slip132::key_line(&format!("[{fp}/{path}]{xpub}"))
         .ok_or_else(|| bad(EN.wallet_single_key_xpub))?
-        .map_err(|m| crate::wallet::mismatch_text(&m))?;
+        .map_err(|m| String::from(&*crate::wallet::mismatch_text(&m)))?;
     let script = Script::of_path(&path)
         .or(line.named)
         .ok_or_else(|| bad(EN.wallet_single_key_no_type))?;

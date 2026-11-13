@@ -11,7 +11,8 @@
 
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
 use faraday_crypto::work::Compute;
-use zeroize::{Zeroize, Zeroizing};
+use faraday_text::Text;
+use zeroize::Zeroizing;
 
 /// What a QR view shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,14 +21,14 @@ pub enum Source {
     Psbt(Vec<u8>),
     /// Text a wallet reads (a descriptor, a key): one code while it fits,
     /// else `ur:bytes`, or BBQr `U`.
-    Text(String),
+    Text(Text),
     /// A cosigner's account key: `ur:crypto-account` when it has one (a
     /// `wsh` multisig key, as SeedSigner shows its own), else as
     /// text; or BBQr `U` of the `[fingerprint/path]xpub` line.
-    Key(String, Option<String>),
+    Key(Text, Option<Text>),
     /// Any other file, in the Faraday file envelope (`docs/QR.md`):
     /// `ur:bytes`, or BBQr `J`, as Faraday OS reads them.
-    File(String, Vec<u8>),
+    File(Text, Vec<u8>),
 }
 
 impl Source {
@@ -111,13 +112,6 @@ fn code_error<E>(_: E) -> Error {
     Error::Code
 }
 
-/// The text of parts that may spell a secret, wiped.
-fn wipe(mut parts: Vec<String>) {
-    for p in &mut parts {
-        p.zeroize();
-    }
-}
-
 /// What a sender makes: what it is, and the codes, cycled when there is
 /// more than one.
 pub type Frames = (Made, Vec<QrMatrix>);
@@ -191,17 +185,16 @@ fn ur_psbt_frames(c: &Compute, bytes: &[u8], part: usize) -> Result<Frames, Erro
 /// one frame is one code with no number.
 pub fn parts_frames(c: &Compute, text: &str, part: usize) -> Result<Frames, Error> {
     let parts = if text.chars().count() <= part {
-        vec![text.to_string()]
+        vec![Text::of(text)]
     } else {
         crate::specter::encode(text, part)
     };
-    let made = numbered(c, &parts);
-    wipe(parts);
-    made
+    // The parts are `Text`, wiped as `parts` is dropped.
+    numbered(c, &parts)
 }
 
 /// Costs a QR encoding (through `encode`).
-fn numbered(c: &Compute, parts: &[String]) -> Result<Frames, Error> {
+fn numbered(c: &Compute, parts: &[Text]) -> Result<Frames, Error> {
     let frames = parts
         .iter()
         .map(|p| encode(c, Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(code_error))
@@ -221,9 +214,7 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
     let frames = parts
         .iter()
         .map(|p| encode(c, Payload::Alphanumeric(p.as_bytes()), Ecc::Low).map_err(code_error))
-        .collect::<Result<Vec<_>, _>>();
-    wipe(parts);
-    let frames = frames?;
+        .collect::<Result<Vec<_>, _>>()?;
     let made = if frames.len() == 1 {
         Made::BbqrOne(t)
     } else {
@@ -262,8 +253,8 @@ fn ur_bytes_animated(c: &Compute, data: &[u8], file: bool, part: usize) -> Resul
 
 /// A file's name as the envelope takes one: letters, digits, dots,
 /// hyphens and underscores, starting with a letter or digit.
-pub fn envelope_name(name: &str) -> String {
-    let mut n: String = name
+pub fn envelope_name(name: &str) -> Text {
+    let mut n: Text = name
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || "._-".contains(c) {
@@ -275,8 +266,10 @@ pub fn envelope_name(name: &str) -> String {
         .take(128)
         .collect();
     if !n.starts_with(|c: char| c.is_ascii_alphanumeric()) {
-        n.insert(0, 'f');
-        n.truncate(128);
+        let mut f = Text::of("f");
+        f.push_str(&n);
+        f.truncate(128);
+        n = f;
     }
     n
 }

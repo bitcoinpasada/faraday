@@ -737,7 +737,7 @@ impl Keys {
     /// Refuses a key that is not a sample while the demo is on.
     fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
         if self.demo() && !self.is_public(fp) {
-            return Err(Refusal::NotAllowed(fp_text(fp)));
+            return Err(Refusal::NotAllowed(faraday_text::Text::of(&fp_text(fp))));
         }
         Ok(())
     }
@@ -789,8 +789,8 @@ impl Keys {
             && w != fp
         {
             return Err(Refusal::WrongKey {
-                wanted: fp_text(w),
-                got: fp_text(fp),
+                wanted: faraday_text::Text::of(&fp_text(w)),
+                got: faraday_text::Text::of(&fp_text(fp)),
             });
         }
         self.allowed(fp)?;
@@ -898,7 +898,7 @@ impl Keys {
             .entries
             .get(i)
             .and_then(|e| e.key.words.clone())
-            .ok_or_else(|| Refusal::Words(String::new()))?;
+            .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?;
         self.add_words_with(c, &words, passphrase, label, None)
     }
 
@@ -920,12 +920,12 @@ impl Keys {
             let key = &self
                 .entries
                 .get(i)
-                .ok_or_else(|| Refusal::Words(String::new()))?
+                .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?
                 .key;
             (
                 key.words
                     .clone()
-                    .ok_or_else(|| Refusal::Words(String::new()))?,
+                    .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?,
                 key.passphrase.clone(),
             )
         };
@@ -935,7 +935,7 @@ impl Keys {
         ));
         let lang = self.entries[i].info.language;
         let m = Mnemonic::parse(c, lang, &words)
-            .map_err(|e| Refusal::Words(String::from(&*faraday_strings::bip::bip39_error(&e))))?;
+            .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
         self.add_mnemonic(c, &m, &passphrase, label, None)
     }
 
@@ -1807,7 +1807,7 @@ pub(crate) fn parse_words(c: &Compute, words: &str) -> Result<Mnemonic, Refusal>
     }
     Err(Refusal::Words(
         first
-            .map(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))
+            .map(|e| faraday_strings::bip::bip39_error(&e))
             .unwrap_or_default(),
     ))
 }
@@ -1822,7 +1822,7 @@ pub(crate) fn mnemonic_master(
 ) -> Result<MasterKey, Refusal> {
     let seed = mnemonic
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| Refusal::Words(String::from(&*faraday_strings::bip::bip39_error(&e))))?;
+        .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
     Ok(MasterKey::from_seed(c, &seed, network))
 }
 
@@ -1843,7 +1843,7 @@ pub(crate) fn mnemonic_entry(
     } else {
         label.trim().to_string()
     };
-    let mut words = faraday_intake::secret_buf::room();
+    let mut words = crate::texts::room();
     for (k, &i) in mnemonic.indices().iter().enumerate() {
         if k > 0 {
             words.push(' ');
@@ -1870,8 +1870,11 @@ pub(crate) fn seed_master(
     seed: &[u8],
     network: Network,
 ) -> Result<MasterKey, Refusal> {
-    let bytes = faraday_crypto::SeedBytes::new(seed)
-        .ok_or_else(|| Refusal::Words(String::from(faraday_strings::EN.wallet_a_master_seed)))?;
+    let bytes = faraday_crypto::SeedBytes::new(seed).ok_or_else(|| {
+        Refusal::Words(faraday_text::Text::of(
+            faraday_strings::EN.wallet_a_master_seed,
+        ))
+    })?;
     Ok(MasterKey::from_seed_bytes(
         c,
         &faraday_crypto::Secret::new(bytes),

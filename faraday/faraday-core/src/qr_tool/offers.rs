@@ -108,7 +108,7 @@ pub(super) fn add_to_key(app: &mut Faraday) {
             app.toast(&fill(EN.qr_tool_pass_added, &[&fp.to_string()]));
         }
         Err(QrError::Key(r)) if !matches!(r, crate::wallet::Refusal::Duplicate(_)) => {
-            return say(app, Some(r.text()));
+            return say(app, Some(String::from(&*r.text())));
         }
         Err(_) => {}
     }

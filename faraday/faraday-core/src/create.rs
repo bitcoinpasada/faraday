@@ -1958,7 +1958,9 @@ impl Faraday {
         key: Option<String>,
         net: Option<Network>,
     ) -> Result<(), String> {
-        self.session.follow(net).map_err(|e| e.text())?;
+        self.session
+            .follow(net)
+            .map_err(|e| String::from(&*e.text()))?;
         if let Some(c) = self.create.state.as_mut()
             && let Some(s) = c.slots.get_mut(k as usize)
             && let Some(key) = key
@@ -2036,7 +2038,7 @@ impl Faraday {
                     return false;
                 }
                 match wallet::read_wallet(c, &text) {
-                    Err(e) => Err(e.text()),
+                    Err(e) => Err(String::from(&*e.text())),
                     Ok(_) => return false,
                 }
             }
@@ -2119,10 +2121,12 @@ impl Faraday {
                 self.session
                     .keys
                     .fingerprint_with(&c, place, &pass)
-                    .ok_or_else(|| wallet::Refusal::Words(String::new()).text()),
+                    .ok_or_else(|| {
+                        String::from(&*wallet::Refusal::Words(faraday_text::Text::of("")).text())
+                    }),
                 false,
             ),
-            Err(e) => (Err(e.text()), false),
+            Err(e) => (Err(String::from(&*e.text())), false),
         };
         // The passphrase exists nowhere else: the key is made here
         // (`docs/history/NEW-WALLET.md` §14.3).
@@ -2310,7 +2314,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(c) = self.create.state.as_mut() {
-                    c.error = Some(e.text());
+                    c.error = Some(String::from(&*e.text()));
                 }
             }
         }

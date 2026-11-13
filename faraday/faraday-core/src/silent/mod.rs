@@ -560,7 +560,7 @@ impl SilentArea {
         Ok(QrView::of(
             c,
             title,
-            QrSource::Text(text),
+            QrSource::Text(faraday_text::Text::of(&text)),
             QrFormat::Ur,
             crate::QR_PARTS[1],
         )?

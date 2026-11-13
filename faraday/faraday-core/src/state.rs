@@ -142,8 +142,10 @@ impl EntryState {
         }
         // Kept until an event forgets it: worked out once, by the frame
         // that asks first.
-        let r = faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase)
-            .map_err(|e| crate::wallet::Refusal::Words(e).text());
+        let r =
+            faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase).map_err(|e| {
+                String::from(&*crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text())
+            });
         *self.probe.borrow_mut() = Some(r.clone());
         r
     }
@@ -257,8 +259,8 @@ impl EntryArea {
     }
 
     /// Shows `error` as the last refusal.
-    pub(crate) fn set_error(&mut self, error: String) {
-        self.state.error = Some(error);
+    pub(crate) fn set_error(&mut self, error: impl AsRef<str>) {
+        self.state.error = Some(String::from(error.as_ref()));
     }
 
     /// Clears the last refusal, whatever it was.
@@ -1429,7 +1431,7 @@ impl Faraday {
                 .store()
                 .codex32_with_typed(c, &mut self.session.keys, typed, label)
             {
-                Some(r) => r.map_err(|e| e.text())?,
+                Some(r) => r.map_err(|e| String::from(&*e.text()))?,
                 None => {
                     let fp = faraday_keys::codex32_seed(typed)
                         .map_err(|e| {
@@ -1442,7 +1444,7 @@ impl Faraday {
                             self.session
                                 .keys
                                 .add_seed(c, &seed, label)
-                                .map_err(|e| e.text())
+                                .map_err(|e| String::from(&*e.text()))
                         })?;
                     let typed = &self.entry.state().parts.codex32;
                     let texts: Vec<zeroize::Zeroizing<String>> = typed
@@ -1620,7 +1622,7 @@ impl Faraday {
                 self.session
                     .keys
                     .add_seed(&c, &seed, label)
-                    .map_err(|e| e.text())
+                    .map_err(|e| String::from(&*e.text()))
             }),
             Form::Codex32 => self.form_key_codex32(&c, label),
             Form::Xor => self
@@ -1644,7 +1646,7 @@ impl Faraday {
                     self.session
                         .keys
                         .add_words_with(&c, &phrase, &self.entry.state().passphrase, label, None)
-                        .map_err(|e| e.text())
+                        .map_err(|e| String::from(&*e.text()))
                 }),
             // Words are loaded as words (`Faraday::typed_load`), never here.
             Form::Words => Err(String::new()),

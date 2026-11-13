@@ -38,7 +38,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         .session
         .keys
         .add_words(c, &testkit::test_words(word), label, None)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     let multi = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)
@@ -92,7 +92,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         apart
             .keys
             .add_words(c, &testkit::test_words(word), label, None)
-            .map_err(|e| e.text())?;
+            .map_err(|e| String::from(&*e.text()))?;
     }
     let keys: Vec<String> = [(&apart.keys, 0), (&t.app.session.keys, 0), (&apart.keys, 1)]
         .iter()
@@ -108,7 +108,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
             "Test",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     t.press(Action::OpenWallet(i));
     t.shot("wallet-new-from")?;
     down(t, Action::NewWalletFrom(i), "wallet-new-from-down")?;

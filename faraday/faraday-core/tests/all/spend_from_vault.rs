@@ -113,7 +113,7 @@ fn scan_psbt(app: &mut Faraday, psbt: &[u8]) {
     app.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     for part in faraday_qr::bbqr::encode('P', psbt, 60).unwrap() {
         app.event(Event::Scanned {
-            bytes: part.into_bytes(),
+            bytes: part.as_bytes().to_vec(),
         });
     }
     // The PSBT is read on the worker.

@@ -19,6 +19,7 @@
 
 pub mod caravan;
 pub mod electrum;
+mod names;
 pub mod secret_buf;
 pub mod single_key;
 pub mod specter_diy;
@@ -28,22 +29,23 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// The room a seed phrase is built in, bytes: more than 24 words of the
 /// longest BIP-39 list, so a seed phrase never moves.
 pub const ROOM: usize = 512;
 
-/// An empty `Zeroizing<String>` with room for a whole seed phrase, for
-/// building one a word at a time: a string that has to grow leaves its
-/// old buffer behind unwiped.
-pub fn room() -> Zeroizing<String> {
-    Zeroizing::new(String::with_capacity(ROOM))
+/// An empty [`Text`] with room for a whole seed phrase, for building one
+/// a word at a time: a buffer that has to grow is wiped as it moves, but
+/// with room it never moves.
+pub fn room() -> Text {
+    Text::with_room(ROOM)
 }
 
 /// The words a SeedQR holds, standard (digits) or compact (entropy), in
 /// English; `None` for any other code.
-pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
+pub fn seedqr_words(payload: &[u8]) -> Option<Text> {
     let lang = Language::English;
     let digits = payload.iter().all(u8::is_ascii_digit);
     let m = if digits && matches!(payload.len(), 48 | 96) {
@@ -67,11 +69,11 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
 /// Costs what `parse` costs. The seed a code holds: a SeedQR, a
 /// CompactSeedQR, or a seed's words in English, as words; `None` for
 /// anything else.
-pub fn seed_in_code(c: &Compute, payload: &[u8]) -> Option<Zeroizing<String>> {
+pub fn seed_in_code(c: &Compute, payload: &[u8]) -> Option<Text> {
     if let Some(words) = seedqr_words(payload) {
         return Some(words);
     }
-    let text = Zeroizing::new(String::from_utf8_lossy(payload).into_owned());
+    let text = Text::from_utf8_lossy(payload);
     let mut out = room();
     for (k, w) in text.split_whitespace().enumerate() {
         if k > 0 {
@@ -129,7 +131,7 @@ pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
 
 /// What a whole transfer becomes when it is kept: a name when it brought
 /// one, an extension, and the bytes.
-pub fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
+pub fn arrival(a: faraday_qr::Arrived) -> (Option<Text>, &'static str, Vec<u8>) {
     use faraday_qr::Arrived;
     match a {
         Arrived::Psbt(p) => (None, "psbt", p),
@@ -139,7 +141,7 @@ pub fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>
             "txn",
             faraday_crypto::hex::encode_string(&t).as_bytes().to_vec(),
         ),
-        Arrived::File(name, data, _) => (Some(name), "", data),
+        Arrived::File(name, data, _) => (Some(Text::of(&name)), "", data),
         Arrived::Keys(t) | Arrived::Descriptor(t) | Arrived::Text(t) => {
             (None, "txt", t.into_bytes())
         }
@@ -149,7 +151,7 @@ pub fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>
 /// The words in a file of them, as a person or a backup tool writes one:
 /// lines starting `#` are notes, and a number before a word (`1.`, `2)`,
 /// `03`) is its place, not a word.
-pub fn file_words(text: &str) -> Zeroizing<String> {
+pub fn file_words(text: &str) -> Text {
     let mut out = room();
     for line in text.lines().map(str::trim) {
         if line.starts_with('#') {

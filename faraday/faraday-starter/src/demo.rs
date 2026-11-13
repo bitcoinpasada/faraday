@@ -117,7 +117,12 @@ impl Starter {
             return Vec::new();
         };
         let _ = held.host.frame();
-        let mut texts = held.host.strip_texts().to_vec();
+        let mut texts: Vec<String> = held
+            .host
+            .strip_texts()
+            .iter()
+            .map(|t| String::from(&**t))
+            .collect();
         texts.extend(held.host.app.drawn_texts());
         texts
     }

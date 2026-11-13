@@ -252,7 +252,7 @@ fn a_record_whose_key_is_in_the_file_twice_is_refused() {
         records.push((b"\x06mystic".to_vec(), vec![2]));
     });
     assert!(failed(&unknown, "mystic", Fault::Repeated));
-    assert_eq!(unknown.unknown, vec![("mystic".to_string(), 1)]);
+    assert_eq!(unknown.unknown, vec![(faraday_text::Text::of("mystic"), 1)]);
     // A repeated minversion record.
     let min = read_with("plain", None, |records| {
         records.push((b"\x0aminversion".to_vec(), vec![0; 4]));
@@ -515,7 +515,7 @@ fn a_journal_or_log_beside_the_file_is_refused_by_its_name() {
     for suffix in ["-journal", "-wal", "-shm"] {
         let name = format!("wallet.dat{suffix}");
         let got = whole_file(&bytes, &["other.txt".to_string(), name.clone()], None).err();
-        assert_eq!(got, Some(Refusal::Beside(name.clone())));
+        assert_eq!(got, Some(Refusal::Beside(faraday_text::Text::of(&name))));
         assert!(got.expect("refused").message().contains(&name));
     }
 }
@@ -534,7 +534,12 @@ fn a_database_version_other_than_cores_is_refused() {
 fn a_journal_beside_the_file_is_refused_whatever_its_case() {
     let bytes = dat("plain");
     let got = whole_file(&bytes, &["Wallet.dat-JOURNAL".to_string()], None).err();
-    assert_eq!(got, Some(Refusal::Beside("wallet.dat-journal".to_string())));
+    assert_eq!(
+        got,
+        Some(Refusal::Beside(faraday_text::Text::of(
+            "wallet.dat-journal"
+        )))
+    );
     // A name that only starts with it is another file.
     let other = whole_file(&bytes, &["wallet.dat-journal.bak".to_string()], None);
     assert!(other.is_ok());
@@ -608,7 +613,7 @@ fn listed(wallet: &Wallet) -> Vec<String> {
     let mut out: Vec<String> = wallet
         .descriptors
         .iter()
-        .map(|d| d.listed.clone())
+        .map(|d| String::from(&*d.listed))
         .collect();
     out.sort();
     out

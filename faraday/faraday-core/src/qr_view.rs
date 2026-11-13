@@ -614,7 +614,7 @@ impl QrView {
         QrView::of(
             c,
             title,
-            QrSource::Text(text.to_string()),
+            QrSource::Text(faraday_text::Text::of(text)),
             QrFormat::Ur,
             QR_PARTS[1],
         )
@@ -644,7 +644,7 @@ impl QrView {
             frames: vec![code],
             frame: 0,
             next_ms: 0,
-            source: QrSource::Text(text.to_string()),
+            source: QrSource::Text(faraday_text::Text::of(text)),
             format: QrFormat::Ur,
             part: QR_PARTS[1],
             secret: false,
@@ -827,7 +827,7 @@ impl Faraday {
         let mut view = QrView::of(
             c,
             &title,
-            QrSource::Text(text.clone()),
+            QrSource::Text(faraday_text::Text::of(&text)),
             QrFormat::Parts,
             QR_PARTS[1],
         )?
@@ -983,9 +983,9 @@ impl Faraday {
         };
         let public = faraday_pgp::read_public_armor(&data) == Some(faraday_pgp::Armor::PublicKey);
         let (from, name) = match (self.gpg_public_name(&data), named) {
-            (Some((None, _)), Some(n)) => (None, n),
+            (Some((None, _)), Some(n)) => (None, String::from(&*n)),
             (Some((from, name)), _) => (from, name),
-            (None, Some(n)) => (None, n),
+            (None, Some(n)) => (None, String::from(&*n)),
             (None, None) => (None, format!("scanned-{}.asc", self.camera.next_number())),
         };
         let item = crate::Item::new(&c, &self.free_inbox_name(&name), std::mem::take(&mut *data));
@@ -1136,7 +1136,10 @@ impl Faraday {
                 Ok(QrView::of(
                     c,
                     &fill(EN.code_view_xpub_kind, &[&fp.to_string(), kind]),
-                    QrSource::Key(text, account),
+                    QrSource::Key(
+                        faraday_text::Text::of(&text),
+                        account.as_deref().map(faraday_text::Text::of),
+                    ),
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
@@ -1173,7 +1176,10 @@ impl Faraday {
                         EN.code_view_xpub_kind,
                         &[&k.fp.to_string(), &k.kind.to_string()],
                     ),
-                    QrSource::Key(k.text.clone(), account),
+                    QrSource::Key(
+                        faraday_text::Text::of(&k.text),
+                        account.as_deref().map(faraday_text::Text::of),
+                    ),
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
@@ -1208,7 +1214,7 @@ impl Faraday {
                 Ok(QrView::of(
                     c,
                     &fill(EN.code_view_xpub, &[&fp.to_string()]),
-                    QrSource::Key(text, None),
+                    QrSource::Key(faraday_text::Text::of(&text), None),
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?

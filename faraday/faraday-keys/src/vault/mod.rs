@@ -2003,7 +2003,7 @@ fn record_words(c: &Compute, r: &Record) -> Option<Mnemonic> {
 /// A mnemonic's words, space-separated, in wiped memory.
 fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
     let lang = m.language();
-    let mut out = faraday_intake::secret_buf::room();
+    let mut out = crate::texts::room();
     for (k, &i) in m.indices().iter().enumerate() {
         if k > 0 {
             out.push(' ');

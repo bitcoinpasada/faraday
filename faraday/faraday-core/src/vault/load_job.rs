@@ -160,7 +160,7 @@ pub(crate) fn loaded(app: &mut Faraday, done: LoadKeysDone) {
         return;
     }
     let (added, derived, refused) = app.session.keys.adopt_loaded_derived(&c, loaded);
-    app.vaults.state.key_refused = refused.first().map(|e| e.text());
+    app.vaults.state.key_refused = refused.first().map(|e| String::from(&*e.text()));
     let wallets = app.vault_load_wallets(&c, plan.wallets, &derived);
     (plan.then)(app, added.len(), wallets);
 }

@@ -120,7 +120,7 @@ impl Source {
             Source::Words(w) => keys.add_words_with(c, w, pass, label, None),
             Source::Loaded(fp) => match keys.position(*fp) {
                 Some(k) => keys.add_with_passphrase(c, k, pass, label),
-                None => Err(crate::wallet::Refusal::Words(String::new())),
+                None => Err(crate::wallet::Refusal::Words(faraday_text::Text::of(""))),
             },
         }
     }

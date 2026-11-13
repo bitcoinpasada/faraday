@@ -57,7 +57,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
                 "test",
                 faraday_core::wallet::Origin::Named,
             )
-            .unwrap_or_else(|e| panic!("{d}: {}", e.text()));
+            .unwrap_or_else(|e| panic!("{d}: {}", &*e.text()));
     }
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();

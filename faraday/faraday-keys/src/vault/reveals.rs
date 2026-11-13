@@ -931,7 +931,7 @@ impl OpenVaults {
         }
         let Some((texts, seed)) = found else {
             return tried.then(|| {
-                Err(Refusal::Words(String::from(
+                Err(Refusal::Words(faraday_text::Text::of(
                     faraday_strings::EN.c32_vault_other_seed,
                 )))
             });

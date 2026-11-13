@@ -15,6 +15,7 @@
 //! Parts of two transfers, a part arriving twice with different contents,
 //! parts of uneven length and malformed encodings are all refused.
 
+use faraday_text::{Text, text};
 use std::collections::BTreeMap;
 
 /// The longest frame read.
@@ -41,8 +42,8 @@ fn b36_pair(n: usize) -> [u8; 2] {
 }
 
 /// RFC 4648 base32, upper case, no padding.
-pub fn base32(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len().div_ceil(5) * 8);
+pub fn base32(bytes: &[u8]) -> Text {
+    let mut out = Text::with_room(bytes.len().div_ceil(5) * 8);
     for chunk in bytes.chunks(5) {
         let mut buf = [0u8; 5];
         buf[..chunk.len()].copy_from_slice(chunk);
@@ -266,7 +267,7 @@ impl Collector {
 /// `data` as BBQr parts in encoding `2`, `part_bytes` of data a part (a
 /// multiple of 5, so each part is whole base32 characters). `None` when it
 /// would take more than 1,295 parts.
-pub fn encode(file_type: char, data: &[u8], part_bytes: usize) -> Option<Vec<String>> {
+pub fn encode(file_type: char, data: &[u8], part_bytes: usize) -> Option<Vec<Text>> {
     let part_bytes = (part_bytes / 5).max(1) * 5;
     let total = data.len().div_ceil(part_bytes).max(1);
     if total > MAX_PARTS || !matches!(file_type, 'P' | 'T' | 'U' | 'J') {
@@ -278,14 +279,14 @@ pub fn encode(file_type: char, data: &[u8], part_bytes: usize) -> Option<Vec<Str
             .map(|i| {
                 let chunk = &data[i * part_bytes..data.len().min((i + 1) * part_bytes)];
                 let n = b36_pair(i);
-                format!(
+                text!(
                     // not wording: BBQr's header
                     "B$2{file_type}{}{}{}{}{}",
                     char::from(t[0]),
                     char::from(t[1]),
                     char::from(n[0]),
                     char::from(n[1]),
-                    base32(chunk)
+                    &*base32(chunk)
                 )
             })
             .collect(),

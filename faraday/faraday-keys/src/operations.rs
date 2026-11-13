@@ -263,7 +263,7 @@ impl Keys {
             let Ok(part) = Mnemonic::from_entropy(lang, e) else {
                 return Err(Paper::Failed);
             };
-            let mut line = faraday_intake::secret_buf::room();
+            let mut line = crate::texts::room();
             for (k, &w) in part.indices().iter().enumerate() {
                 if k > 0 {
                     line.push(' ');
@@ -404,7 +404,7 @@ impl Keys {
         why: Reveal,
     ) -> Result<Held<Zeroizing<String>>, Convert> {
         let s = self.convert_source(i, why)?;
-        let mut text = faraday_intake::secret_buf::room();
+        let mut text = crate::texts::room();
         text.push_str(s.master.xpriv_ascii().as_str());
         let read = MasterKey::decode(c, &text).ok().map(|k| k.fingerprint());
         checked(s.master.fingerprint(), read, text)
@@ -523,7 +523,7 @@ impl Keys {
             return Err(Convert::Length);
         }
         let share = slip39::one_of_one(c, seed).map_err(|_| Convert::Refused)?;
-        let mut text = faraday_intake::secret_buf::room();
+        let mut text = crate::texts::room();
         for n in 0..share.word_count() {
             if n > 0 {
                 text.push(' ');
@@ -745,7 +745,7 @@ pub type SecretLine = Zeroizing<String>;
 
 /// A SLIP-39 share's words, single spaces between.
 pub(crate) fn share_line(share: &Share) -> SecretLine {
-    let mut text = faraday_intake::secret_buf::room();
+    let mut text = crate::texts::room();
     for n in 0..share.word_count() {
         if n > 0 {
             text.push(' ');

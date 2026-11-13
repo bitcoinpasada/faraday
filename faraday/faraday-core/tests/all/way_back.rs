@@ -57,7 +57,7 @@ fn with(wallets: usize, width: u16, height: u16) -> Faraday {
                 "test",
                 faraday_core::wallet::Origin::Named,
             )
-            .unwrap_or_else(|e| panic!("{d}: {}", e.text()));
+            .unwrap_or_else(|e| panic!("{d}: {}", &*e.text()));
     }
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();

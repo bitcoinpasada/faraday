@@ -42,7 +42,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     session
         .keys
         .add_words(c, &testkit::test_words(word), label, None)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     session
         .add_wallet(
             c,
@@ -51,7 +51,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             "Test wallet",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     let inspection = session.inspect(c, &unsigned);
     println!(
         "fee {} sat, {:?} sat/vB, warnings {:?}",
@@ -104,7 +104,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         for (word, label) in testkit::TEST_SEEDS {
             all.keys
                 .add_words(c, &testkit::test_words(word), label, None)
-                .map_err(|e| e.text())?;
+                .map_err(|e| String::from(&*e.text()))?;
         }
         all.add_wallet(
             c,
@@ -113,7 +113,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             "Test wallet",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
         let mut flow = Spend::new(u.clone(), "x");
         let inspection = all.inspect(c, &u);
         let by = all
@@ -159,7 +159,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     second
         .keys
         .add_words(c, &testkit::test_words(word), label, None)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     second
         .add_wallet(
             c,
@@ -168,7 +168,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             "Test wallet",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     let mut flow = Spend::new(testkit::recovery(&kit).map_err(|e| String::from(&*e))?, "x");
     let by = second
         .sign(
@@ -193,7 +193,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (word, label) = testkit::TEST_SEEDS[0];
     s1.keys
         .add_words(c, &testkit::test_words(word), label, None)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     s1.add_wallet(
         c,
         "MuSig2",
@@ -203,7 +203,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         "Test wallet",
         faraday_core::wallet::Origin::Named,
     )
-    .map_err(|e| e.text())?;
+    .map_err(|e| String::from(&*e.text()))?;
     let mut flow = Spend::new(mu, "musig-unsigned.psbt");
     for (fp, copy) in &nonce_files {
         flow.collect(c, &s1, &copy.to_bytes(), &format!("musig-nonce-{fp}.psbt"))?;

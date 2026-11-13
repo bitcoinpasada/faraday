@@ -113,7 +113,10 @@ fn shell_follows(shell: &mut Shell, app: &mut Faraday) {
 /// What the strip says now.
 fn strip(host: &mut Host) -> Vec<String> {
     let _ = host.frame();
-    host.strip_texts().to_vec()
+    host.strip_texts()
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect()
 }
 
 /// What the app draws inside its area now.

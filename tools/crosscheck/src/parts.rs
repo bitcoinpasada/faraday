@@ -18,7 +18,7 @@ pub fn handle_bbqr(name: &str, req: &Value) -> Answer {
             let t = text(req, "type").chars().next().expect("a file type");
             let parts = bbqr::encode(t, &bytes(req, "data"), num(req, "part_bytes") as usize)
                 .ok_or("refused")?;
-            Ok(json!({"parts": parts}))
+            Ok(json!({"parts": parts.iter().map(|p| p.as_str()).collect::<Vec<_>>()}))
         }
         "join" => {
             let mut c = bbqr::Collector::default();
@@ -59,14 +59,14 @@ pub fn handle_specter(name: &str, req: &Value) -> Answer {
                     specter::Got::Part(have, total, missing) => {
                         json!({"part": {"have": have, "total": total, "missing": missing}})
                     }
-                    specter::Got::Done(text) => json!({"done": text}),
+                    specter::Got::Done(text) => json!({"done": &*text}),
                     specter::Got::Refused(why) => return Err(format!("{why:?}")),
                 };
             }
             Ok(last)
         }
         "encode" => Ok(json!({
-            "parts": specter::encode(text(req, "text"), num(req, "chunk") as usize)
+            "parts": specter::encode(text(req, "text"), num(req, "chunk") as usize).iter().map(|p| p.as_str()).collect::<Vec<_>>()
         })),
         _ => Err(format!("unknown specter op {name}")),
     }

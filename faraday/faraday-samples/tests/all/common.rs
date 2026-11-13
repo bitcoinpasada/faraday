@@ -123,6 +123,9 @@ pub fn reference_key_text(words: &str, path: &str) -> String {
 /// the host for one frame and given back.
 pub fn strip(app: &mut Faraday) -> Vec<String> {
     faraday_host::Host::strip_for(app)
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect()
 }
 
 /// Whether the host strip (or its More menu) offers the press `a` for

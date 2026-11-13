@@ -260,6 +260,6 @@ pub(crate) fn picture_payloads(text: &str) -> Vec<Vec<u8>> {
         return vec![text.as_bytes().to_vec()];
     }
     faraday_qr::bbqr::encode('U', text.as_bytes(), crate::QR_PARTS[1])
-        .map(|parts| parts.into_iter().map(String::into_bytes).collect())
+        .map(|parts| parts.into_iter().map(|p| p.as_bytes().to_vec()).collect())
         .unwrap_or_default()
 }

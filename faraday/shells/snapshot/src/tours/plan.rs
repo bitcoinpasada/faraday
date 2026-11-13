@@ -69,7 +69,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "test",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     t.press(Action::Backup(five));
     t.backup_as(faraday_core::plan::Preset::Paper);
     shares_on_paper(c, t);

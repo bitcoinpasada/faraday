@@ -16,6 +16,7 @@ faraday-draw = { path = "../../core/faraday-draw" }
 # Faraday's drawing, in the host's own look.
 faraday-ui = { path = "../faraday-ui" }
 faraday-strings = { path = "../faraday-strings" }
+faraday-text = { path = "../../core/faraday-text" }
 
 [dev-dependencies]
 # The test wallets, and the shell the app's own tests share.

@@ -236,7 +236,7 @@ fn run(
     // `--network` chose another), since a session on one network takes
     // none of another's wallets once a key is loaded.
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::net())
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     // `FARADAY_SNAP_THEME=<theme>[,<mode>[,<contrast>]]` takes the tour
     // in that scheme ("frost,dark,high"; a stored id alone, "nord",
     // opens as a settings file of it would) instead of the first start's.

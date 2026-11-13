@@ -20,11 +20,11 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
         Ok(p) => {
             out.push_str(&format!("wallet {}\n", same_wallet(&p)));
             match faraday_intake::wallet::first_address(&c, &p) {
-                Some((net, a)) => out.push_str(&format!("first {a} {net:?}\n")),
+                Some((net, a)) => out.push_str(&format!("first {} {net:?}\n", &*a)),
                 None => out.push_str("first none\n"),
             }
         }
-        Err(e) => out.push_str(&format!("refused {}\n", e.text())),
+        Err(e) => out.push_str(&format!("refused {}\n", &*e.text())),
     }
     for k in read_keys(&text) {
         out.push_str(&format!("key {k}\n"));
@@ -35,7 +35,7 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
         }
     }
     if let Some(l) = faraday_intake::wallet::carried_name(&text) {
-        out.push_str(&format!("label {l}\n"));
+        out.push_str(&format!("label {}\n", &*l));
     }
     if let Ok((_, Some(n))) = faraday_bip::multisig_config::parse_named(&c, &text) {
         out.push_str(&format!("config name {}\n", &*n));

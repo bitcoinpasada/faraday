@@ -1059,7 +1059,7 @@ impl KeyGen {
     }
 
     /// The words, space-separated, for the session to load.
-    pub fn phrase(&self) -> Option<zeroize::Zeroizing<String>> {
+    pub fn phrase(&self) -> Option<faraday_text::Text> {
         let m = self.mnemonic.as_ref()?;
         let mut s = crate::secret_text::room();
         for (k, &i) in m.indices().iter().enumerate() {
@@ -1251,9 +1251,12 @@ impl crate::Faraday {
                 .ok()
                 .and_then(|seed| faraday_keys::identity::fingerprint_of_seed(&c, &seed));
             if let Some(fp) = fp.filter(|&fp| !self.session.keys.is_public(fp)) {
-                self.entry.set_error(
-                    crate::wallet::Refusal::NotAllowed(crate::wallet::fp_text(fp)).text(),
-                );
+                self.entry.set_error(String::from(
+                    &*crate::wallet::Refusal::NotAllowed(faraday_text::Text::of(
+                        &crate::wallet::fp_text(fp),
+                    ))
+                    .text(),
+                ));
                 return;
             }
         }
@@ -1615,7 +1618,7 @@ impl crate::Faraday {
             }
             Err(e) => {
                 if let Some(k) = self.keygen.state.as_mut() {
-                    k.note = Some(e.text());
+                    k.note = Some(String::from(&*e.text()));
                 }
             }
         }
@@ -1686,7 +1689,7 @@ impl crate::Faraday {
             Ok(fp) => fp,
             Err(e) => {
                 if let Some(k) = self.keygen.state.as_mut() {
-                    k.note = Some(e.text());
+                    k.note = Some(String::from(&*e.text()));
                 }
                 return;
             }
@@ -1779,7 +1782,7 @@ impl crate::Faraday {
         let added = match words {
             Some(m) => self
                 .typed_load(&m, &pass, "", None, None, |_, _| {})
-                .map_err(|e| e.text()),
+                .map_err(|e| String::from(&*e.text())),
             None if form != Form::Words => {
                 self.entry.set_passphrase(&pass);
                 self.form_key()
@@ -2314,7 +2317,7 @@ impl crate::Faraday {
             Ok(fp) => fp,
             Err(e) => {
                 if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-                    m.refused(e.text());
+                    m.refused(String::from(&*e.text()));
                 }
                 return;
             }

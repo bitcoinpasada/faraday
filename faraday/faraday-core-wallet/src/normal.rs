@@ -15,6 +15,7 @@
 use faraday_bip::bitcoin::base58;
 use faraday_bip::bitcoin::hashes::{Hash, hash160, sha256d as hash256};
 use faraday_bip::descriptor::descriptor_checksum;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// The functions whose arguments are not keys.
@@ -65,8 +66,8 @@ pub(super) enum Failed {
 pub(super) fn normalize(
     body: &str,
     cache: &dyn Fn(u32) -> Option<[u8; 74]>,
-) -> Result<(String, Vec<Need>), Failed> {
-    let mut out = String::with_capacity(body.len() + 64);
+) -> Result<(Text, Vec<Need>), Failed> {
+    let mut out = Text::with_room(body.len() + 64);
     // Sized up front, so that no growth leaves a copy of a chain code
     // behind: at most one key to a separator, and one after the last.
     let mut needs = Vec::with_capacity(
@@ -75,12 +76,12 @@ pub(super) fn normalize(
             .filter(|b| matches!(b, b')' | b',' | b'{' | b'}'))
             .count(),
     );
-    let mut names: Vec<String> = Vec::new();
-    let mut token = String::new();
+    let mut names: Vec<Text> = Vec::new();
+    let mut token = Text::new();
     let mut index = 0u32;
     let mut argument = |token: &str,
-                        names: &[String],
-                        out: &mut String,
+                        names: &[Text],
+                        out: &mut Text,
                         needs: &mut Vec<Need>|
      -> Result<(), Failed> {
         let is_key = !token.is_empty()
@@ -123,6 +124,11 @@ pub(super) fn normalize(
     Ok((out, needs))
 }
 
+/// `s` in lower case, as a [`Text`].
+fn lowered(s: &str) -> Text {
+    s.chars().map(|c| c.to_ascii_lowercase()).collect()
+}
+
 /// `h` for every hardened mark of a path's steps.
 fn marked(step: &str) -> Option<(u32, bool)> {
     let (digits, hardened) = match step.strip_suffix(['\'', 'h', 'H']) {
@@ -133,11 +139,11 @@ fn marked(step: &str) -> Option<(u32, bool)> {
     (n < 1 << 31).then_some((n, hardened))
 }
 
-fn path_text(steps: &[u32]) -> String {
-    let mut out = String::new();
+fn path_text(steps: &[u32]) -> Text {
+    let mut out = Text::new();
     for &s in steps {
         out.push('/');
-        out.push_str(&(s & 0x7FFF_FFFF).to_string());
+        out.push_str(&Text::num(u64::from(s & 0x7FFF_FFFF)));
         if s >> 31 == 1 {
             out.push('h');
         }
@@ -192,7 +198,7 @@ fn key(
     token: &str,
     index: u32,
     cache: &dyn Fn(u32) -> Option<[u8; 74]>,
-    out: &mut String,
+    out: &mut Text,
     needs: &mut Vec<Need>,
 ) -> Result<(), Failed> {
     if token.contains(['<', ';', '>']) {
@@ -211,7 +217,7 @@ fn key(
                 .map(|s| marked(s).map(|(n, h)| n | (u32::from(h) << 31)))
                 .collect::<Option<Vec<u32>>>()
                 .ok_or(Failed::Unreadable)?;
-            (Some((fp.to_ascii_lowercase(), steps)), rest)
+            (Some((lowered(fp), steps)), rest)
         }
         None => (None, token),
     };
@@ -230,7 +236,7 @@ fn key(
             out.push_str(&path_text(steps));
             out.push(']');
         }
-        out.push_str(&head.to_ascii_lowercase());
+        out.push_str(&lowered(head));
         return Ok(());
     };
     // An extended public key (a private one is refused).
@@ -249,7 +255,7 @@ fn key(
         .collect::<Option<Vec<u32>>>()
         .ok_or(Failed::Unreadable)?;
     let last_hardened = steps.iter().rposition(|s| s >> 31 == 1);
-    let origin_text = |fp: &str, path: &[u32]| format!("[{fp}{}]", path_text(path));
+    let origin_text = |fp: &str, path: &[u32]| text!("[{fp}{}]", &*path_text(path));
     // No hardened step to normalize, or hardened to the end: as stored,
     // with the origin's marks and the path's written `h`.
     let Some(last) = last_hardened.filter(|_| !hardened_range) else {
@@ -290,9 +296,7 @@ fn key(
     let (fp, path) = match &origin {
         Some((fp, path)) => (fp.clone(), [path.as_slice(), &steps[..=last]].concat()),
         None => (
-            String::from(&*faraday_crypto::hex::encode_string(
-                &hash160::Hash::hash(&root).to_byte_array()[..4],
-            )),
+            faraday_crypto::hex::encode_string(&hash160::Hash::hash(&root).to_byte_array()[..4]),
             steps[..=last].to_vec(),
         ),
     };
@@ -319,11 +323,11 @@ mod tests {
 
     /// The generator point's key as a master key at depth 0, with a
     /// chain code of 7s.
-    fn master() -> String {
+    fn master() -> Text {
         let mut b = vec![0x04, 0x35, 0x87, 0xCF, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         b.extend([7u8; 32]);
         b.extend(faraday_crypto::hex::decode_vec(G).expect("hex"));
-        base58::encode_check(&b)
+        Text::of(&base58::encode_check(&b))
     }
 
     const G: &str = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
@@ -338,20 +342,20 @@ mod tests {
         c
     }
 
-    fn listed(body: &str) -> Result<(String, Vec<Need>), Failed> {
+    fn listed(body: &str) -> Result<(Text, Vec<Need>), Failed> {
         let by = cached(4, 2 | 1 << 31);
         normalize(body, &move |i| (i == 0).then_some(by))
-            .map(|(text, needs)| (text.split('#').next().expect("text").to_string(), needs))
+            .map(|(text, needs)| (Text::of(text.split('#').next().expect("text")), needs))
     }
 
     #[test]
     fn an_extended_key_decodes_as_the_library_decodes_it() {
         let good = master();
-        let mut flipped = good.clone().into_bytes();
+        let mut flipped = good.as_bytes().to_vec();
         flipped[20] = if flipped[20] == b'2' { b'3' } else { b'2' };
-        let flipped = String::from_utf8(flipped).expect("text");
-        let ones = format!("1{good}");
-        let twice = format!("{good}{good}");
+        let flipped = Text::from_utf8_lossy(&flipped);
+        let ones = text!("1{}", &*good);
+        let twice = text!("{}{}", &*good, &*good);
         let short = base58::encode_check(&[5u8; 77]);
         let long = base58::encode_check(&[5u8; 79]);
         let mut zeros = [5u8; 78];
@@ -384,9 +388,10 @@ mod tests {
     #[test]
     fn a_hash_in_a_wrapper_has_no_key_place() {
         let x = master();
+        let x = &*x;
         let hash = "ab".repeat(32);
         for wrapper in ["v:sha256", "a:hash160", "sv:ripemd160", "n:hash256"] {
-            let body = format!("wsh(and_v({wrapper}({hash}),pk({x}/48h/1h/0h/2h/0/*)))");
+            let body = text!("wsh(and_v({wrapper}({hash}),pk({x}/48h/1h/0h/2h/0/*)))");
             let (_, needs) = listed(&body).expect(wrapper);
             assert_eq!(needs[0].index, 0, "{wrapper}");
         }
@@ -395,17 +400,19 @@ mod tests {
     #[test]
     fn a_hardened_range_and_an_apostrophe_are_written_as_core_writes_them() {
         let x = master();
-        let (text, needs) = listed(&format!("pkh({x}/44'/1'/0'/0/*h)")).expect("hardened range");
-        assert_eq!(text, format!("pkh({x}/44h/1h/0h/0/*h)"));
+        let x = &*x;
+        let (text, needs) = listed(&text!("pkh({x}/44'/1'/0'/0/*h)")).expect("hardened range");
+        assert_eq!(text, text!("pkh({x}/44h/1h/0h/0/*h)"));
         assert!(needs.is_empty());
-        let (text, _) = listed(&format!("pkh([d34db33f/44'/1']{x}/0/*)")).expect("origin");
-        assert_eq!(text, format!("pkh([d34db33f/44h/1h]{x}/0/*)"));
+        let (text, _) = listed(&text!("pkh([d34db33f/44'/1']{x}/0/*)")).expect("origin");
+        assert_eq!(text, text!("pkh([d34db33f/44h/1h]{x}/0/*)"));
     }
 
     #[test]
     fn a_cached_key_of_another_depth_is_not_taken() {
         let x = master();
-        let body = format!("wsh(pk({x}/48h/1h/0h/2h/0/*))");
+        let x = &*x;
+        let body = text!("wsh(pk({x}/48h/1h/0h/2h/0/*))");
         let wrong = cached(5, 2 | 1 << 31);
         assert_eq!(normalize(&body, &|_| Some(wrong)).err(), Some(Failed::Key));
         let child = cached(4, 3 | 1 << 31);

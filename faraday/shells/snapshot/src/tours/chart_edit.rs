@@ -40,7 +40,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
                 "test",
                 faraday_core::wallet::Origin::Named,
             )
-            .map_err(|e| e.text())?
+            .map_err(|e| String::from(&*e.text()))?
     };
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
@@ -151,7 +151,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     elsewhere
         .keys
         .set_network(t.app.session.keys.network(), false)
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     elsewhere
         .keys
         .add_words(
@@ -160,7 +160,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "Test key 3",
             None,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     let keys: Vec<String> = [
         (&t.app.session.keys, 0),
         (&t.app.session.keys, 1),
@@ -179,7 +179,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             "test",
             faraday_core::wallet::Origin::Named,
         )
-        .map_err(|e| e.text())?;
+        .map_err(|e| String::from(&*e.text()))?;
     t.press(Action::Backup(two));
     t.backup_as(faraday_core::plan::Preset::Paper);
     t.press(Action::BChecklist);

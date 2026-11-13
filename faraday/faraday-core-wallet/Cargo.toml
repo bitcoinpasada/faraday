@@ -15,6 +15,7 @@ faraday-intake = { path = "../faraday-intake" }
 faraday-keys = { path = "../faraday-keys" }
 faraday-sqlite = { path = "../faraday-sqlite" }
 faraday-strings = { path = "../faraday-strings" }
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]

@@ -18,7 +18,7 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Lock);
     t.sticks(false);
     t.tick();
-    testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| e.text())?;
+    testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| String::from(&*e.text()))?;
     t.press(Action::RestoreWallet);
     t.press(Action::RKind(4));
     t.press(Action::RNext(faraday_core::rstep::KIND));
@@ -48,7 +48,7 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Lock);
     // The process after the lock has its clock from the next tick.
     t.tick();
-    testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| e.text())?;
+    testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| String::from(&*e.text()))?;
     t.press(Action::Nav(Screen::SpendBackup));
     t.press(Action::SpendBackup(F::StartOver));
     t.press(Action::SpendBackup(F::Next(page::MAP)));

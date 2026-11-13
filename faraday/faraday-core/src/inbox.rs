@@ -603,10 +603,8 @@ impl Secret {
         match self {
             Secret::Words(m) => keys.add_words_with(c, &phrase(m), passphrase, label, None),
             Secret::Slip39(shares) => {
-                let secret =
-                    faraday_keys::slip39_seed(c, shares, passphrase.as_bytes()).map_err(|e| {
-                        Refusal::Words(String::from(&*faraday_strings::bip::slip39_error(&e)))
-                    })?;
+                let secret = faraday_keys::slip39_seed(c, shares, passphrase.as_bytes())
+                    .map_err(|e| Refusal::Words(faraday_strings::bip::slip39_error(&e)))?;
                 keys.add_seed(c, &secret, label)
             }
             Secret::Codex32(s, facts) => {
@@ -1159,7 +1157,8 @@ impl Faraday {
             })
             .collect::<Vec<_>>()
             .join(" ");
-        crate::wallet::wallet_name(&crate::wallet::carried_name(&text).unwrap_or(name)).into_owned()
+        let carried = crate::wallet::carried_name(&text).map_or(name, |t| String::from(&*t));
+        crate::wallet::wallet_name(&carried).into_owned()
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds
@@ -1462,7 +1461,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(e.text());
+                    p.error = Some(String::from(&*e.text()));
                 }
             }
         }
@@ -1582,7 +1581,9 @@ impl Faraday {
                     .filter(|&k| self.session.keys[k].has_words())
                 {
                     Some(k) => self.session.keys.add_with_passphrase(&c, k, &pass, &label),
-                    None => Err(Refusal::Words(EN.inbox_this_seed_was.to_string())),
+                    None => Err(Refusal::Words(faraday_text::Text::of(
+                        EN.inbox_this_seed_was,
+                    ))),
                 }
             }
             (None, true) => Ok(seed.fingerprint),
@@ -1595,7 +1596,7 @@ impl Faraday {
             Err(Refusal::Duplicate(fp)) => fp,
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(e.text());
+                    p.error = Some(String::from(&*e.text()));
                 }
                 return;
             }
@@ -1648,7 +1649,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(e.text());
+                    p.error = Some(String::from(&*e.text()));
                 }
             }
         }

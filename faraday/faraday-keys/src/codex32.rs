@@ -502,7 +502,9 @@ impl Keys {
         work: &WorkSet,
         label: &str,
     ) -> Result<faraday_bip::keys::Fingerprint, Refusal> {
-        let seed = work.seed().ok_or_else(|| Refusal::Words(String::new()))?;
+        let seed = work
+            .seed()
+            .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?;
         let fp = self.add_seed(c, &seed, label)?;
         // The set made is the key's, its plain facts kept with it
         // (`docs/CODEX32.md` §9.4): every string made or given, none

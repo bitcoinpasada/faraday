@@ -21,6 +21,7 @@ faraday-intake = { path = "../faraday-intake" }
 # Krux's encrypted code, sealed and opened as a job (docs/KEF.md).
 faraday-kef = { path = "../faraday-kef" }
 faraday-strings = { path = "../faraday-strings" }
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 # Core Lightning's encrypted hsm_secret (docs/deps/poly1305.md): Argon2id,
 # then libsodium's secretstream over ChaCha20 (with HChaCha20) and Poly1305.

@@ -232,9 +232,9 @@ fn version_text(v: u32) -> String {
 }
 
 /// `name (count)` for each, joined.
-fn counted(list: &[(String, usize)]) -> String {
+fn counted(list: &[(impl AsRef<str>, usize)]) -> String {
     list.iter()
-        .map(|(n, k)| format!("{n} ({k})"))
+        .map(|(n, k)| format!("{} ({k})", n.as_ref()))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -246,7 +246,12 @@ fn kept_lines(w: &Wallet) -> Vec<String> {
         return Vec::new();
     }
     let mut out = vec![fill(EN.core_wallet_kept, &[&w.kept.len().to_string()])];
-    out.extend(w.kept.iter().take(MAX_LINES).map(|k| k.text.clone()));
+    out.extend(
+        w.kept
+            .iter()
+            .take(MAX_LINES)
+            .map(|k| String::from(&*k.text)),
+    );
     if w.kept.len() > MAX_LINES {
         out.push(fill(
             EN.core_wallet_kept_more,
@@ -283,7 +288,7 @@ fn descriptor_texts(w: &Wallet) -> Vec<DescriptorText> {
                 ));
             }
             DescriptorText {
-                text: d.listed.clone(),
+                text: String::from(&*d.listed),
                 notes,
             }
         })
@@ -616,7 +621,7 @@ pub(crate) fn fill_faraday(app: &mut Faraday) {
 }
 
 fn refusal_text(e: &Refusal) -> String {
-    e.message()
+    String::from(&*e.message())
 }
 
 /// Costs what `add_wallet` costs: the descriptors go to Wallets as a

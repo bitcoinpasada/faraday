@@ -27,7 +27,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 &c,
                 "wallet.dat",
                 &file,
-                &[],
+                &[] as &[&str],
                 Network::Regtest,
                 pass.as_ref(),
             )
@@ -38,8 +38,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 .map(|d| {
                     let active = w.active.iter().find(|a| a.id == d.id);
                     json!({
-                        "text": d.text,
-                        "listed": d.listed,
+                        "text": &*d.text,
+                        "listed": &*d.listed,
                         "timestamp": d.creation_time,
                         "next_index": d.next_index,
                         "range": d.range.map(|(first, last)| [first, last]),
@@ -59,11 +59,11 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                     Passphrase::Wrong => "wrong",
                 },
                 "failures": w.failures.iter()
-                    .map(|f| json!([f.record, format!("{:?}", f.fault)]))
+                    .map(|f| json!([&*f.record, format!("{:?}", f.fault)]))
                     .collect::<Vec<_>>(),
                 "failures_more": w.failures_more,
                 "descriptors": listing,
-                "kept": w.kept.iter().map(|k| k.text.clone()).collect::<Vec<_>>(),
+                "kept": w.kept.iter().map(|k| &*k.text).collect::<Vec<_>>(),
                 "with_private_keys": w.descriptors.iter()
                     .filter(|d| d.private_keys + d.encrypted_keys > 0)
                     .count(),

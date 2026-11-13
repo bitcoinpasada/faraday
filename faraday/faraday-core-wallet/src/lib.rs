@@ -40,7 +40,8 @@ use faraday_keys::core_wallet::{
     AccountCheck, KeyVerdict, MAX_ROUNDS, METHOD_SHA512_AES, OpenError,
     check_encrypted_keys_accounts, check_private_key_accounts,
 };
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 use std::collections::{HashMap, HashSet};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -133,16 +134,16 @@ pub enum Refusal {
         loaded: Network,
     },
     /// Records only a legacy wallet writes, by type and count.
-    Legacy(Vec<(String, usize)>),
+    Legacy(Vec<(Text, usize)>),
     /// The flags (none written counts as none) lack descriptors.
     NotDescriptors,
     /// A descriptor with a key that carries no origin: the record.
-    NoOrigin(String),
+    NoOrigin(Text),
     /// The file is not a database Bitcoin Core wrote: the SQLite reader's
     /// refusal, named.
     File(faraday_sqlite::Error),
     /// A lock, a journal or a write-ahead log beside the file: its name.
-    Beside(String),
+    Beside(Text),
     /// A database version (`PRAGMA user_version`) other than the 0
     /// Bitcoin Core writes: the version.
     SchemaVersion(i32),
@@ -152,37 +153,45 @@ pub enum Refusal {
 
 impl Refusal {
     /// The refusal as text.
-    pub fn message(&self) -> String {
+    pub fn message(&self) -> Text {
         match self {
-            Refusal::Application(id) => fill(EN.core_wallet_application, &[&format!("{id:08x}")]),
-            Refusal::Network { offered, loaded } => fill(
+            Refusal::Application(id) => {
+                Text::fill(EN.core_wallet_application, &[&text!("{id:08x}")])
+            }
+            Refusal::Network { offered, loaded } => Text::fill(
                 EN.wallet_is_not_the_network,
                 &[network_name(*offered), network_name(*loaded)],
             ),
             Refusal::Legacy(found) => {
-                let names: Vec<String> = found.iter().map(|(n, k)| format!("{n} {k}")).collect();
-                fill(EN.core_wallet_legacy, &[&names.join(", ")])
+                let mut names = Text::new();
+                for (i, (n, k)) in found.iter().enumerate() {
+                    if i > 0 {
+                        names.push_str(", ");
+                    }
+                    names.push_str(&text!("{} {k}", n.as_str()));
+                }
+                Text::fill(EN.core_wallet_legacy, &[&names])
             }
-            Refusal::NotDescriptors => EN.core_wallet_not_descriptors.to_string(),
-            Refusal::NoOrigin(record) => fill(EN.core_wallet_no_origin, &[record]),
-            Refusal::File(faraday_sqlite::Error::NotSqlite) => {
-                EN.core_wallet_not_sqlite.to_string()
-            }
-            Refusal::File(faraday_sqlite::Error::Wal) => EN.core_wallet_wal.to_string(),
+            Refusal::NotDescriptors => Text::of(EN.core_wallet_not_descriptors),
+            Refusal::NoOrigin(record) => Text::fill(EN.core_wallet_no_origin, &[record]),
+            Refusal::File(faraday_sqlite::Error::NotSqlite) => Text::of(EN.core_wallet_not_sqlite),
+            Refusal::File(faraday_sqlite::Error::Wal) => Text::of(EN.core_wallet_wal),
             Refusal::File(faraday_sqlite::Error::OtherTable(name)) => {
-                fill(EN.core_wallet_other_table, &[name])
+                Text::fill(EN.core_wallet_other_table, &[name])
             }
             Refusal::File(faraday_sqlite::Error::NoTable(name)) => {
-                fill(EN.core_wallet_no_table, &[name])
+                Text::fill(EN.core_wallet_no_table, &[name])
             }
-            Refusal::File(faraday_sqlite::Error::TooManyRows) => fill(
+            Refusal::File(faraday_sqlite::Error::TooManyRows) => Text::fill(
                 EN.core_wallet_too_many_rows,
-                &[&faraday_sqlite::MAX_ROWS.to_string()],
+                &[&Text::num(faraday_sqlite::MAX_ROWS as u64)],
             ),
-            Refusal::File(_) => EN.core_wallet_file_damaged.to_string(),
-            Refusal::Beside(name) => fill(EN.core_wallet_beside, &[name]),
-            Refusal::SchemaVersion(v) => fill(EN.core_wallet_schema_version, &[&v.to_string()]),
-            Refusal::BerkeleyDb => EN.core_wallet_berkeley.to_string(),
+            Refusal::File(_) => Text::of(EN.core_wallet_file_damaged),
+            Refusal::Beside(name) => Text::fill(EN.core_wallet_beside, &[name]),
+            Refusal::SchemaVersion(v) => {
+                Text::fill(EN.core_wallet_schema_version, &[&Text::int(i64::from(*v))])
+            }
+            Refusal::BerkeleyDb => Text::of(EN.core_wallet_berkeley),
         }
     }
 }
@@ -250,7 +259,7 @@ pub enum Fault {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Failure {
     /// The record's type and its key's bytes in hex.
-    pub record: String,
+    pub record: Text,
     /// What failed.
     pub fault: Fault,
 }
@@ -275,12 +284,12 @@ pub struct Descriptor {
     /// as `'` and its checksum made over that.
     pub id: [u8; 32],
     /// The descriptor as stored, with its checksum.
-    pub text: String,
+    pub text: Text,
     /// The descriptor as Bitcoin Core's `listdescriptors` gives it, with
     /// its checksum: each key at a hardened step as `[fingerprint/path]`
     /// and the account key Core cached for it, a key with an origin with
     /// its origin, hardened steps written `h`.
-    pub listed: String,
+    pub listed: Text,
     /// Unix time the descriptor was made, unsigned as Bitcoin Core writes
     /// it (`WalletDescriptor::creation_time`).
     pub creation_time: u64,
@@ -306,7 +315,7 @@ pub struct Kept {
     /// The id: as [`Descriptor::id`].
     pub id: [u8; 32],
     /// The descriptor as stored, with its checksum.
-    pub text: String,
+    pub text: Text,
 }
 
 /// An active descriptor: the one a slot uses for new addresses.
@@ -324,11 +333,11 @@ pub struct Active {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label {
     /// The address as stored.
-    pub address: String,
+    pub address: Text,
     /// Its `name` record.
-    pub name: Option<String>,
+    pub name: Option<Text>,
     /// Its `purpose` record.
-    pub purpose: Option<String>,
+    pub purpose: Option<Text>,
 }
 
 /// An `mkey` record's public part.
@@ -389,10 +398,10 @@ pub struct Wallet {
     /// How many hashes the block locator holds, where the file has one.
     pub block_locator: Option<usize>,
     /// Record types Bitcoin Core writes that are counted and not read.
-    pub unread: Vec<(String, usize)>,
+    pub unread: Vec<(Text, usize)>,
     /// Record types Faraday does not know, by name and count: the first
     /// [`MAX_LISTED`] of at most 64 bytes each.
-    pub unknown: Vec<(String, usize)>,
+    pub unknown: Vec<(Text, usize)>,
     /// How many records are of an unknown type not in `unknown`: those
     /// past the first [`MAX_LISTED`] types, and types of a longer name.
     pub unknown_more: usize,
@@ -425,15 +434,15 @@ impl Wallet {
 /// (public, of a network, with its origin), since it does not read `combo`.
 /// `None` for any other descriptor, and for a `combo` of anything but one
 /// key expression (no parenthesis or comma inside it).
-fn combo_twin(text: &str) -> Option<String> {
+fn combo_twin(text: &str) -> Option<Text> {
     let (body, _) = text.split_once('#')?;
     let key = body.strip_prefix("combo(")?.strip_suffix(')')?;
     if key.is_empty() || key.contains(['(', ')', ',', '{', '}', '#']) {
         return None;
     }
-    let twin = format!("pkh({key})");
+    let twin = text!("pkh({key})");
     let sum = descriptor_checksum(&twin)?;
-    Some(format!("{twin}#{}", core::str::from_utf8(&sum).ok()?))
+    Some(text!("{}#{}", &*twin, core::str::from_utf8(&sum).ok()?))
 }
 
 /// One record's key split: its type and the bytes after it.
@@ -491,8 +500,8 @@ fn whole_string(bytes: &[u8]) -> Option<&str> {
         .map(|(s, _)| s)
 }
 
-fn hex(bytes: &[u8]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(bytes))
+fn hex(bytes: &[u8]) -> Text {
+    faraday_crypto::hex::encode_string(bytes)
 }
 
 /// The id a descriptor's text has: SHA-256 of the text with every hardened
@@ -502,18 +511,18 @@ fn hex(bytes: &[u8]) -> String {
 /// descriptor holds.
 fn descriptor_id(text: &str) -> Option<[u8; 32]> {
     let (body, _) = text.split_once('#')?;
-    let mut compat = String::with_capacity(body.len() + 9);
-    let mut token = String::new();
+    let mut compat = Text::with_room(body.len() + 9);
+    let mut token = Text::new();
     for ch in body.chars() {
         if matches!(ch, '(' | ')' | ',' | '{' | '}') {
-            compat.push_str(&apostrophes(&token));
+            apostrophes(&token, &mut compat);
             token.clear();
             compat.push(ch);
         } else {
             token.push(ch);
         }
     }
-    compat.push_str(&apostrophes(&token));
+    apostrophes(&token, &mut compat);
     let sum = descriptor_checksum(&compat)?;
     compat.push('#');
     compat.push_str(core::str::from_utf8(&sum).ok()?);
@@ -522,20 +531,23 @@ fn descriptor_id(text: &str) -> Option<[u8; 32]> {
 
 /// One key expression with its paths' hardened marks as `'`: the
 /// origin's after its fingerprint, and the path after the key.
-fn apostrophes(token: &str) -> String {
-    let mark = |path: &str| path.replace(['h', 'H'], "'");
+fn apostrophes(token: &str, out: &mut Text) {
+    let mark = |out: &mut Text, path: &str| {
+        for ch in path.chars() {
+            out.push(if matches!(ch, 'h' | 'H') { '\'' } else { ch });
+        }
+    };
     let (origin, key) = match token.strip_prefix('[').and_then(|t| t.split_once(']')) {
         Some((inside, key)) => (Some(inside), key),
         None => (None, token),
     };
-    let mut out = String::with_capacity(token.len() + 4);
     if let Some(inside) = origin {
         out.push('[');
         match inside.split_once('/') {
             Some((fingerprint, path)) => {
                 out.push_str(fingerprint);
                 out.push('/');
-                out.push_str(&mark(path));
+                mark(out, path);
             }
             None => out.push_str(inside),
         }
@@ -545,11 +557,10 @@ fn apostrophes(token: &str) -> String {
         Some((head, path)) => {
             out.push_str(head);
             out.push('/');
-            out.push_str(&mark(path));
+            mark(out, path);
         }
         None => out.push_str(key),
     }
-    out
 }
 
 /// A key record's public key, 33 bytes or 65 (uncompressed), after its
@@ -609,7 +620,7 @@ struct Reader<'a> {
     /// The ids of the kept `combo()` descriptors.
     kept_ids: HashSet<[u8; 32]>,
     /// Where each label's address is in the wallet's list.
-    label_at: HashMap<String, usize>,
+    label_at: HashMap<Text, usize>,
     /// The cached account keys each descriptor's keys need checked.
     needs: HashMap<[u8; 32], Vec<Need>>,
     /// The places whose cached key was compared with a master key.
@@ -625,7 +636,7 @@ struct Reader<'a> {
 /// in `more`.
 #[derive(Default)]
 struct Counts {
-    list: Vec<(String, usize)>,
+    list: Vec<(Text, usize)>,
     more: usize,
 }
 
@@ -634,7 +645,7 @@ impl Counts {
         if let Some(entry) = self.list.iter_mut().find(|(n, _)| n == name) {
             entry.1 += 1;
         } else if self.list.len() < MAX_LISTED && name.len() <= MAX_NAMED {
-            self.list.push((name.to_string(), 1));
+            self.list.push((Text::of(name), 1));
         } else {
             self.more += 1;
         }
@@ -649,12 +660,10 @@ impl Reader<'_> {
         }
         let shown = &tail[..tail.len().min(MAX_TAIL)];
         let more = if shown.len() < tail.len() { "..." } else { "" };
-        self.wallet.failures.push(Failure {
-            record: format!("{kind} {}{more}", hex(shown))
-                .trim_end()
-                .to_string(),
-            fault,
-        });
+        let mut record = text!("{kind} {}{more}", &*hex(shown));
+        let kept = record.trim_end().len();
+        record.truncate(kept);
+        self.wallet.failures.push(Failure { record, fault });
     }
 }
 
@@ -702,15 +711,15 @@ pub fn read_file(
     c: &Compute,
     file_name: &str,
     file: &[u8],
-    beside: &[String],
+    beside: &[impl AsRef<str>],
     mode: Network,
     passphrase: Option<&SecretText>,
 ) -> Result<Wallet, Refusal> {
     if let Some(name) = faraday_sqlite::refusing_siblings(file_name)
         .into_iter()
-        .find(|n| beside.iter().any(|b| b.eq_ignore_ascii_case(n)))
+        .find(|n| beside.iter().any(|b| b.as_ref().eq_ignore_ascii_case(n)))
     {
-        return Err(Refusal::Beside(String::from(&*name)));
+        return Err(Refusal::Beside(Text::of(&name)));
     }
     if is_berkeley_db(file) {
         return Err(Refusal::BerkeleyDb);
@@ -1040,7 +1049,7 @@ impl Reader<'_> {
             return Ok(());
         };
         if facts.without_origin > 0 {
-            return Err(Refusal::NoOrigin(format!("{name} {}", hex(tail))));
+            return Err(Refusal::NoOrigin(text!("{name} {}", &*hex(tail))));
         }
         if (facts.main > 0 && !self.app_kind_main) || (facts.test > 0 && self.app_kind_main) {
             self.fail(name, tail, Fault::KeyNetwork);
@@ -1063,7 +1072,7 @@ impl Reader<'_> {
             self.kept_ids.insert(id);
             self.wallet.kept.push(Kept {
                 id,
-                text: text.to_string(),
+                text: Text::of(text),
             });
             return Ok(());
         }
@@ -1093,7 +1102,7 @@ impl Reader<'_> {
         self.at.insert(id, self.wallet.descriptors.len());
         self.wallet.descriptors.push(Descriptor {
             id,
-            text: text.to_string(),
+            text: Text::of(text),
             listed,
             creation_time,
             next_index,
@@ -1145,9 +1154,9 @@ impl Reader<'_> {
             Some(&at) => at,
             None => {
                 let at = self.wallet.labels.len();
-                self.label_at.insert(address.to_string(), at);
+                self.label_at.insert(Text::of(address), at);
                 self.wallet.labels.push(Label {
-                    address: address.to_string(),
+                    address: Text::of(address),
                     name: None,
                     purpose: None,
                 });
@@ -1163,7 +1172,7 @@ impl Reader<'_> {
         if slot.is_some() {
             return self.fail(name, tail, Fault::Repeated);
         }
-        *slot = Some(text.to_string());
+        *slot = Some(Text::of(text));
     }
 
     /// The cached account keys of descriptor `id` that this master key
