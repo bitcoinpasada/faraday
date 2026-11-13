@@ -101,8 +101,12 @@ fn bip44_legacy_mainnet() {
     assert_eq!(account.slip132_string(), account.xpub_string());
     assert!(account.xpub_string().starts_with("xpub"));
     let desc = account.descriptor();
-    assert!(desc.starts_with("pkh([73c5da0a/44h/0h/0h]xpub"), "{desc}");
-    assert!(desc.contains("/<0;1>/*)#"), "{desc}");
+    assert!(
+        desc.starts_with("pkh([73c5da0a/44h/0h/0h]xpub"),
+        "{}",
+        desc.as_str()
+    );
+    assert!(desc.contains("/<0;1>/*)#"), "{}", desc.as_str());
     assert!(verify_checksum(&desc));
 }
 
@@ -123,7 +127,7 @@ fn bip49_nested_segwit_testnet() {
     let (decoded, script_type) = slip132::decode_xpub(upub).unwrap();
     assert_eq!(&decoded, account.xpub());
     assert_eq!(script_type, ScriptType::NestedSegwit);
-    assert_eq!(decoded.to_string(), account.xpub_string());
+    assert_eq!(account.xpub_string().as_str(), decoded.to_string());
 
     let uprv = "uprv91G7gZkzehuMVxDJTYE6tLivdF8e4rvzSu1LFfKw3b2Qx1Aj8vpoFnHdfUZ3hmi9jsvPifmZ24RTN2KhwB8BfMLTVqaBReibyaFFcTP1s9n";
     assert_slip132_xprv(uprv, &m.derive(&c, account.path()), NetworkKind::Test);
@@ -137,9 +141,10 @@ fn bip49_nested_segwit_testnet() {
     let desc = account.descriptor();
     assert!(
         desc.starts_with("sh(wpkh([73c5da0a/49h/1h/0h]tpub"),
-        "{desc}"
+        "{}",
+        desc.as_str()
     );
-    assert!(desc.contains("/<0;1>/*))#"), "{desc}");
+    assert!(desc.contains("/<0;1>/*))#"), "{}", desc.as_str());
     assert!(verify_checksum(&desc));
 
     // Signet and regtest share testnet's key encoding; regtest addresses
@@ -195,7 +200,11 @@ fn bip84_native_segwit_mainnet() {
     );
 
     let desc = account.descriptor();
-    assert!(desc.starts_with("wpkh([73c5da0a/84h/0h/0h]xpub"), "{desc}");
+    assert!(
+        desc.starts_with("wpkh([73c5da0a/84h/0h/0h]xpub"),
+        "{}",
+        desc.as_str()
+    );
     assert!(verify_checksum(&desc));
 
     // Testnet variants use vpub / tb1q; regtest uses bcrt1q.

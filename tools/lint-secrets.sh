@@ -379,6 +379,10 @@ core/faraday-psbt/src/silent.rs
 core/faraday-bip/src/aez.rs
 core/faraday-bip/src/aezeed.rs
 core/faraday-bip/src/vanity.rs
+core/faraday-bip/src/account.rs
+core/faraday-bip/src/bsms.rs
+core/faraday-bip/src/multisig_config.rs
+core/faraday-bip/src/musig.rs
 faraday/faraday-core/src/word_entry.rs
 faraday/faraday-core/src/quiz.rs
 faraday/faraday-core/src/grind.rs
@@ -416,6 +420,7 @@ faraday/faraday-core/src/fresh/roller/five.rs
 faraday/faraday-core/src/codex32/walk.rs
 faraday/faraday-core/src/codex32/tracker.rs
 core/faraday-draw/src/tokens.rs
+core/faraday-selftest/src/lib.rs
 core/faraday-crypto/src/pinned.rs
 core/faraday-crypto/src/lib.rs
 core/faraday-crypto/src/hash.rs
@@ -425,6 +430,10 @@ core/faraday-codec/src/seedqr.rs
 core/faraday-codec/src/lib.rs
 core/faraday-codec/src/decode.rs
 core/faraday-codec/src/png.rs
+core/faraday-codec/src/classify.rs
+core/faraday-codec/src/qr.rs
+core/faraday-codec/src/ur/fountain.rs
+core/faraday-codec/src/ur/mod.rs
 core/faraday-crypto/src/blake2b.rs
 core/faraday-crypto/src/scrypt.rs
 core/faraday-crypto/src/wipe.rs
@@ -433,6 +442,9 @@ core/faraday-entropy/src/pointer_keys.rs
 core/faraday-psbt/src/context.rs
 core/faraday-psbt/src/lib.rs
 core/faraday-psbt/src/musig.rs
+core/faraday-psbt/src/message.rs
+core/faraday-psbt/src/sign.rs
+core/faraday-psbt/src/verify.rs
 faraday/faraday-core/src/fresh/page.rs
 faraday/faraday-core/src/work/budget/codex32.rs
 faraday/faraday-core/src/work.rs

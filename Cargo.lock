@@ -840,6 +840,7 @@ dependencies = [
  "bip39",
  "bitcoin",
  "faraday-crypto",
+ "faraday-text",
  "miniscript",
  "serde",
  "serde_json",
@@ -864,6 +865,7 @@ dependencies = [
  "bitcoin",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "png",
  "rqrr",
  "serde_json",
@@ -997,8 +999,8 @@ version = "0.1.0"
 dependencies = [
  "faraday-crypto",
  "faraday-shell-api",
+ "faraday-text",
  "tiny-skia 0.12.0",
- "zeroize",
 ]
 
 [[package]]
@@ -1211,6 +1213,7 @@ dependencies = [
  "bitcoin",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "miniscript",
  "serde_json",
 ]
@@ -1281,6 +1284,7 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "faraday-psbt",
+ "faraday-text",
 ]
 
 [[package]]

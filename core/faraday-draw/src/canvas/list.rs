@@ -27,8 +27,8 @@
 //! shell's [`Canvas::frame`] read a canvas with nothing waiting, and the
 //! caller calls [`Canvas::replay`] first.
 
-use alloc::string::String;
 use alloc::vec::Vec;
+use faraday_text::Text;
 
 mod bands;
 pub use bands::Band;
@@ -116,7 +116,7 @@ pub(super) struct List {
     bytes: Vec<u8>,
     points: Vec<(f32, f32)>,
     lens: Vec<usize>,
-    text: String,
+    text: Text,
     /// The clip stack of the canvas while the list is painted.
     clips: Vec<Rect>,
     /// What each band keeps between frames.
@@ -135,9 +135,7 @@ impl List {
         self.lens.clear();
         // The text may be a seed's words: the whole buffer is wiped, its
         // capacity kept so the next frame records without allocating.
-        if !self.text.is_empty() {
-            zeroize::Zeroize::zeroize(&mut self.text);
-        }
+        self.text.clear();
         self.clips.clear();
     }
 }

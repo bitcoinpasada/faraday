@@ -24,7 +24,7 @@
 //! sender and a receiver agreeing is the only proof either is right.
 //!
 //! Every text this module writes lives in a fixed buffer that zeroizes
-//! on drop ([`Text`]), because the same code writes the scan private
+//! on drop ([`StackText`]), because the same code writes the scan private
 //! key and the address, and `tools/lint-secrets.sh` holds this file to
 //! the rule that a secret never reaches the heap as text.
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
@@ -99,15 +99,15 @@ pub const ADDRESS_CHARS: usize = 117;
 /// The addresses are public and the key expressions are not, and both
 /// are written by the same code, so all of it is held to the stricter
 /// rule.
-pub struct Text<const N: usize> {
+pub struct StackText<const N: usize> {
     buf: [u8; N],
     len: u16,
 }
 
-impl<const N: usize> Text<N> {
+impl<const N: usize> StackText<N> {
     /// An empty buffer.
     fn new() -> Self {
-        Text {
+        StackText {
             buf: [0; N],
             len: 0,
         }
@@ -129,7 +129,7 @@ impl<const N: usize> Text<N> {
     }
 }
 
-impl<const N: usize> fmt::Write for Text<N> {
+impl<const N: usize> fmt::Write for StackText<N> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let n = usize::from(self.len);
         let bytes = s.as_bytes();
@@ -142,7 +142,7 @@ impl<const N: usize> fmt::Write for Text<N> {
     }
 }
 
-impl<const N: usize> Drop for Text<N> {
+impl<const N: usize> Drop for StackText<N> {
     fn drop(&mut self) {
         self.buf.zeroize();
         self.len = 0;
@@ -150,16 +150,16 @@ impl<const N: usize> Drop for Text<N> {
 }
 
 /// A silent payment address, `sp1q…` or `tsp1q…`.
-pub type AddressText = Text<ADDRESS_CHARS>;
+pub type AddressText = StackText<ADDRESS_CHARS>;
 /// BIP-392's `spscan1q…` key expression, which carries the scan private
 /// key.
-pub type KeyText = Text<128>;
+pub type KeyText = StackText<128>;
 /// BIP-392's `sp(…)` descriptor, with the key origin before the key.
-pub type DescriptorText = Text<224>;
+pub type DescriptorText = StackText<224>;
 /// BIP-321's `bitcoin:?sp=…`.
-pub type UriText = Text<160>;
+pub type UriText = StackText<160>;
 /// BIP-353's TXT record line.
-pub type RecordText = Text<512>;
+pub type RecordText = StackText<512>;
 
 // ---------------------------------------------------------------------
 // Bech32m with a version character
@@ -167,11 +167,11 @@ pub type RecordText = Text<512>;
 
 /// Writes `payload` under `hrp` as bech32m with version 0 (`q`) first,
 /// which is how BIP-352 and BIP-392 encode every string they define.
-fn encode_v0<const N: usize>(hrp: &str, payload: &[u8]) -> Result<Text<N>, Error> {
+fn encode_v0<const N: usize>(hrp: &str, payload: &[u8]) -> Result<StackText<N>, Error> {
     use bitcoin::bech32::primitives::iter::{ByteIterExt, Fe32IterExt};
     use bitcoin::bech32::{Bech32m, Fe32, Hrp};
     let hrp = Hrp::parse_unchecked(hrp);
-    let mut out = Text::<N>::new();
+    let mut out = StackText::<N>::new();
     let chars = payload
         .iter()
         .copied()
@@ -501,7 +501,7 @@ impl Receiver {
             let hex = fingerprint.to_hex();
             write(core::str::from_utf8(&hex).map_err(|_| Error::TooLong)?)?;
             write("/352h/")?;
-            let mut digits = Text::<12>::new();
+            let mut digits = StackText::<12>::new();
             fmt::Write::write_fmt(
                 &mut digits,
                 format_args!("{}h/{}h", self.network.coin_type(), account),

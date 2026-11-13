@@ -1553,6 +1553,6 @@ fn musig_session<C: secp256k1::Verification>(
         .ok()
 }
 
-fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
-    alloc::string::String::from(&*faraday_crypto::hex::encode_string(&key.serialize()))
+fn hex33(key: &secp256k1::PublicKey) -> faraday_text::Text {
+    faraday_crypto::hex::encode_string(&key.serialize())
 }

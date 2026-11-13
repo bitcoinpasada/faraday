@@ -65,7 +65,7 @@ pub(crate) fn nonce_card(
         let inputs: Vec<String> = reuse.inputs.iter().map(|i| i.to_string()).collect();
         let line = fill(
             EN.nonce_check_one_nonce,
-            &[&reuse.name().to_string(), &inputs.join(", ").to_string()],
+            &[&reuse.name(), &inputs.join(", ").to_string()],
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }

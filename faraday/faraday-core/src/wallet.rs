@@ -1183,7 +1183,7 @@ impl Session {
                 });
                 rows.push(NonceRow {
                     input: input.index,
-                    name: sig.name(),
+                    name: String::from(&*sig.name()),
                     entry,
                     verdict: sig.verdict,
                     preimage: sig.preimage,
@@ -3106,7 +3106,7 @@ impl Session {
             .sign_message(c, place, &path, script, message, format)
             .ok_or(EN.wallet_the_wallet_s_key)?
             .map_err(|e| crate::state::message_error_text(e).to_string())?;
-        if signed.address != self.address(c, w, false, index) {
+        if signed.address != *self.address(c, w, false, index) {
             return Err(fill(EN.wallet_not_your_key, &[&fp_text(fp).to_string()]));
         }
         Ok(signed)

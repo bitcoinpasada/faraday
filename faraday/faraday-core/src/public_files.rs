@@ -14,6 +14,7 @@
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 
 use crate::strings::{EN, fill};
 use crate::wallet::{self, Origin, Session, Wallet, fp_text};
@@ -108,15 +109,15 @@ pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: u8) -> Opti
         2 => restore::checked_config(c, net, w),
         6 => {
             let first = w.policy().address_at(c, net, false, 0).ok()?;
-            Some(
-                faraday_bip::bsms::DescriptorRecord {
+            Some(String::from(
+                &*faraday_bip::bsms::DescriptorRecord {
                     policy: w.policy().clone(),
-                    paths: vec!["/0/*".to_string(), "/1/*".to_string()],
-                    first_address: first.to_string(),
+                    paths: vec![Text::of("/0/*"), Text::of("/1/*")],
+                    first_address: Text::of(&first.to_string()),
                     network: net,
                 }
                 .to_text(),
-            )
+            ))
         }
         _ => None,
     }

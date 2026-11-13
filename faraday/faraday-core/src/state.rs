@@ -1253,7 +1253,7 @@ impl Faraday {
                             "message-{}.txt",
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
-                        let name = self.put_outbox_beside(&name, text.into_bytes());
+                        let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.clone());
                         }

@@ -740,7 +740,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     while t.app.scan().is_some() && parts < 40 {
         let part = enc.next_part();
         t.app.event(Event::Scanned {
-            bytes: part.into_bytes(),
+            bytes: part.as_bytes().to_vec(),
         });
         parts += 1;
         if parts == 2 {

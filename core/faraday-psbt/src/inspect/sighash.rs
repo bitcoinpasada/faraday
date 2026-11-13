@@ -2,6 +2,7 @@
 //! the inspection that gathers them: invalid, unchecked, and made under a
 //! sighash other than the one the input asks for.
 
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
@@ -81,14 +82,14 @@ pub(super) fn signature_cards(
                 Level::Danger,
                 WarningKind::InvalidSignature {
                     input: sig.input,
-                    key: sig.name(),
+                    key: String::from(&*sig.name()),
                 },
                 if sig.key == crate::verify::SigKey::Unknown {
                     Detail::SignatureInvalidUnkeyed { input: sig.input }
                 } else {
                     Detail::SignatureInvalid {
                         input: sig.input,
-                        key: sig.name(),
+                        key: String::from(&*sig.name()),
                     }
                 },
             ),
@@ -121,7 +122,7 @@ pub(super) fn signature_cards(
         if sighash_answers(asked, sig.sighash) {
             continue;
         }
-        let (input, key, signed) = (sig.input, sig.name(), sig.sighash);
+        let (input, key, signed) = (sig.input, String::from(&*sig.name()), sig.sighash);
         let (level, detail) = if sig.sighash.is_none() {
             (
                 Level::Blocked,
@@ -158,7 +159,7 @@ pub(super) fn signature_cards(
             level,
             WarningKind::SighashMismatch {
                 input: sig.input,
-                key: sig.name(),
+                key: String::from(&*sig.name()),
             },
             detail,
         );

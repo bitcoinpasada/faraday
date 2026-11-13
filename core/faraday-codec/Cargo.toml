@@ -18,6 +18,7 @@ decode = ["dep:rqrr"]
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
+faraday-text = { path = "../faraday-text" }
 bitcoin.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
 adler2.workspace = true

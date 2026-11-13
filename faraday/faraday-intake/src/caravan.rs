@@ -103,7 +103,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
             && !slip132::agrees(Some(named), around)
         {
             let m = slip132::Mismatch {
-                key: xpub.to_string(),
+                key: faraday_text::Text::of(xpub),
                 named,
                 around,
             };

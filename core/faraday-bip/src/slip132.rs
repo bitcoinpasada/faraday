@@ -378,7 +378,7 @@ pub fn encode(plain: &str, script: Script) -> Option<String> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mismatch {
     /// The key as written.
-    pub key: String,
+    pub key: faraday_text::Text,
     /// The type its version names.
     pub named: Script,
     /// The type the script or path around it is.
@@ -446,7 +446,7 @@ pub fn plain_descriptor(descriptor: &str) -> Result<String, Mismatch> {
                     && !agrees(named, around)
                 {
                     return Err(Mismatch {
-                        key: String::from(word),
+                        key: faraday_text::Text::of(word),
                         named: n,
                         around,
                     });
@@ -494,7 +494,7 @@ pub fn key_line(line: &str) -> Option<Result<KeyLine, Mismatch>> {
         && n != a
     {
         return Some(Err(Mismatch {
-            key: String::from(key),
+            key: faraday_text::Text::of(key),
             named: n,
             around: a,
         }));

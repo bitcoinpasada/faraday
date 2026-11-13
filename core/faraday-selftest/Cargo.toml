@@ -12,6 +12,7 @@ publish = false
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
 faraday-psbt = { path = "../faraday-psbt" }
+faraday-text = { path = "../faraday-text" }
 
 [lints]
 workspace = true

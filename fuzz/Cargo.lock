@@ -342,6 +342,7 @@ dependencies = [
  "base64ct",
  "bitcoin",
  "faraday-crypto",
+ "faraday-text",
  "miniscript",
  "serde",
  "serde_json",
@@ -358,6 +359,7 @@ dependencies = [
  "bitcoin",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "rqrr",
  "zeroize",
 ]
@@ -439,6 +441,7 @@ dependencies = [
  "bitcoin",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "miniscript",
 ]
 

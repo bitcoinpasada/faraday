@@ -20,7 +20,7 @@ fn message(m: &Message) -> Value {
     match m {
         Message::Psbt(d) => json!({"type": ur::PSBT_TYPE, "data": hex(d)}),
         Message::Bytes(d) => json!({"type": ur::BYTES_TYPE, "data": hex(d)}),
-        Message::Other { ur_type, cbor } => json!({"type": ur_type, "cbor": hex(cbor)}),
+        Message::Other { ur_type, cbor } => json!({"type": ur_type.as_str(), "cbor": hex(cbor)}),
     }
 }
 
@@ -66,13 +66,15 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 Encoder::bytes(&data, len)
             }
             .map_err(err)?;
-            let parts: Vec<String> = (0..num(req, "count")).map(|_| enc.next_part()).collect();
-            Ok(json!({"single": single, "fragments": enc.fragment_count(), "parts": parts}))
+            let parts: Vec<String> = (0..num(req, "count"))
+                .map(|_| String::from(&*enc.next_part()))
+                .collect();
+            Ok(json!({"single": &*single, "fragments": enc.fragment_count(), "parts": parts}))
         }
         // A single-part UR of any type read.
         "single" => Ok(message(&ur::decode_single(text(req, "text")).map_err(err)?)),
         // A UR of any type written from its CBOR.
-        "write" => Ok(json!({"ur": ur::encode_single(text(req, "type"), &bytes(req, "cbor"))})),
+        "write" => Ok(json!({"ur": &*ur::encode_single(text(req, "type"), &bytes(req, "cbor"))})),
         // Parts read one after another into one decoder.
         "decode" => {
             let mut d = Decoder::new();

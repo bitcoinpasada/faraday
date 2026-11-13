@@ -462,7 +462,7 @@ pub fn check(
     reuses.extend(repeated_pub_nonces(&[run.sent, run.returned]));
     for reuse in &reuses {
         let kind = Kind::RepeatedNonce {
-            key: reuse.name(),
+            key: String::from(&*reuse.name()),
             inputs: reuse.inputs.clone(),
         };
         run.findings.push(Finding::new(Where::Transaction, kind));
@@ -1176,7 +1176,12 @@ impl Run<'_> {
             {
                 // Final on both: F3 says so, when the bytes differ.
                 Some(s) if s.bytes != r.bytes && !(s.finalized && r.finalized) => {
-                    self.push(at, Kind::SignatureChanged { key: r.name() });
+                    self.push(
+                        at,
+                        Kind::SignatureChanged {
+                            key: String::from(&*r.name()),
+                        },
+                    );
                 }
                 Some(_) => {}
                 None => self.added_signature(i, r, outputs),
@@ -1186,7 +1191,7 @@ impl Run<'_> {
         // bytes, in whichever fields: one of them is not the signer's.
         for (n, a) in returned_sigs.iter().enumerate() {
             for b in &returned_sigs[n + 1..] {
-                let key = a.name();
+                let key = String::from(&*a.name());
                 let said = |f: &Finding| {
                     f.at == at && matches!(&f.kind, Kind::SignatureChanged { key: k } if *k == key)
                 };
@@ -1207,7 +1212,12 @@ impl Run<'_> {
                 .iter()
                 .any(|r| same_signature(s, r) && same_form(s, r))
             {
-                self.push(at, Kind::SignatureRemoved { key: s.name() });
+                self.push(
+                    at,
+                    Kind::SignatureRemoved {
+                        key: String::from(&*s.name()),
+                    },
+                );
             }
         }
     }
@@ -1215,7 +1225,7 @@ impl Run<'_> {
     /// S1 to S4n for one signature the sent PSBT did not carry.
     fn added_signature(&mut self, i: usize, sig: &SignaturePresent, outputs: usize) {
         let at = Where::Input(i);
-        let key = sig.name();
+        let key = String::from(&*sig.name());
         match sig.verdict {
             SigVerdict::Valid => {}
             SigVerdict::Invalid => self.push(at, Kind::SignatureInvalid { key: key.clone() }),

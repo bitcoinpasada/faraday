@@ -771,7 +771,9 @@ mod signing {
         fn a_psbt_completed_by_its_last_scanned_part_opens_the_same_review() {
             let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
             let mut enc = faraday_codec::ur::Encoder::psbt(&psbt, 60).unwrap();
-            let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+            let parts: Vec<String> = (0..enc.fragment_count())
+                .map(|_| String::from(&*enc.next_part()))
+                .collect();
             let scanned = || {
                 let mut app = Faraday::new();
                 app.press(Action::Scan);

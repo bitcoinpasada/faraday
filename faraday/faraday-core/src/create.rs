@@ -386,7 +386,10 @@ impl NewKind {
             .ok()?;
         let path: Vec<_> = a.path.into_iter().copied().collect();
         let cbor = faraday_qr::registry::account_cbor(a.fingerprint.0, &path, &a.xpub, false);
-        Some(faraday_codec::ur::encode_single("crypto-account", &cbor))
+        Some(String::from(&*faraday_codec::ur::encode_single(
+            "crypto-account",
+            &cbor,
+        )))
     }
 
     /// Costs a key derivation and a signature. Session key `i`'s BIP 129

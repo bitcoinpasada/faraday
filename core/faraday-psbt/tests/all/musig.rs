@@ -677,7 +677,7 @@ fn a_bad_partial_signature_names_its_participant() {
     .unwrap_err();
     match err {
         Error::MusigPartialSig { participant, .. } => {
-            assert_eq!(participant, hex(&zoo_key.serialize()));
+            assert_eq!(participant.as_str(), hex(&zoo_key.serialize()));
         }
         other => panic!("{other:?}"),
     }

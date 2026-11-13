@@ -24,7 +24,7 @@ fn a_single_part_ur_of_any_type_is_the_published_one_and_reads_back() {
         assert_eq!(
             d.message(),
             Some(&Message::Other {
-                ur_type: ur_type.to_string(),
+                ur_type: faraday_text::Text::of(ur_type),
                 cbor: cbor.to_vec(),
             })
         );

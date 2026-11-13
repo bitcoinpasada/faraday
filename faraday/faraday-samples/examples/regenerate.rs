@@ -504,10 +504,12 @@ fn signed_message(c: &Compute) -> (String, String) {
     let format =
         faraday_psbt::message::Format::for_script(faraday_bip::keys::ScriptType::NativeSegwit)[0];
     let signed = s.sign_message(c, w, 0, message, format).expect("signed");
-    assert_eq!(signed.address, address);
+    assert_eq!(*signed.address, address);
     (
         address.clone(),
-        faraday_psbt::message::signed_text(&address, &signed.signature, message),
+        faraday_psbt::message::signed_text(&address, &signed.signature, message)
+            .as_str()
+            .into(),
     )
 }
 

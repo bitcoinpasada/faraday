@@ -181,12 +181,12 @@ fn run(args: Args) -> Result<(), String> {
             print!("/{child:#}");
         }
         println!();
-        println!("xpub: {}", account.xpub_string());
+        println!("xpub: {}", account.xpub_string().as_str());
         let slip = account.slip132_string();
         if slip != account.xpub_string() {
-            println!("slip132: {slip}");
+            println!("slip132: {}", slip.as_str());
         }
-        println!("descriptor: {}", account.descriptor());
+        println!("descriptor: {}", account.descriptor().as_str());
         for (change, label) in [(false, "receive"), (true, "change")] {
             for index in 0..args.count {
                 let address = account

@@ -723,7 +723,7 @@ impl Faraday {
                         zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
                     let name = faraday_bip::multisig_config::parse_named(c, &text)
                         .ok()
-                        .and_then(|(_, n)| n)
+                        .and_then(|(_, n)| n.map(|n| String::from(&*n)))
                         .unwrap_or_else(|| stem(&item.name));
                     let source = item.name.clone();
                     self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
@@ -748,7 +748,7 @@ impl Faraday {
                         Some(whole) => {
                             let name = faraday_bip::multisig_config::parse_named(c, &whole)
                                 .ok()
-                                .and_then(|(_, n)| n)
+                                .and_then(|(_, n)| n.map(|n| String::from(&*n)))
                                 .unwrap_or_else(|| EN.act_restored_wallet.to_string());
                             self.restore_wallet(
                                 &name,
@@ -819,7 +819,7 @@ impl Faraday {
                     Ok(Some(whole)) => {
                         let name = faraday_bip::multisig_config::parse_named(c, &whole)
                             .ok()
-                            .and_then(|(_, n)| n)
+                            .and_then(|(_, n)| n.map(|n| String::from(&*n)))
                             .unwrap_or_else(|| EN.act_restored_wallet.to_string());
                         match self.session.add_wallet(
                             c,

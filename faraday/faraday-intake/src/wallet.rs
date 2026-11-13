@@ -642,11 +642,11 @@ pub fn script_name(s: Script) -> &'static str {
 /// The sentence a SLIP-132 refusal shows (`faraday_bip::slip132`,
 /// `docs/INTEROP.md` §5, SLIP-132 keys): the key, shortened, and both types.
 pub fn mismatch_text(m: &Mismatch) -> String {
-    let k = &m.key;
+    let k: &str = &m.key;
     let short = if k.len() > 16 && k.is_ascii() {
         format!("{}…{}", &k[..8], &k[k.len() - 6..])
     } else {
-        k.clone()
+        String::from(k)
     };
     fill(
         EN.wallet_slip132_mismatch,

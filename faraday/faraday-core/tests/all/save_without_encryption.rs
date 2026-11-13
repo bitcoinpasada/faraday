@@ -304,10 +304,10 @@ fn hdkey_cbor(entries: &[(u64, Vec<u8>)]) -> Vec<u8> {
 }
 
 /// Receives one code: nothing is saved before the hold, the file past it.
-fn saved_only_past_the_hold(ur: String) {
+fn saved_only_past_the_hold(ur: faraday_text::Text) {
     let mut app = receiving();
     app.event(Event::Scanned {
-        bytes: ur.into_bytes(),
+        bytes: ur.as_bytes().to_vec(),
     });
     assert!(saves(&mut app).is_empty(), "not saved before the hold");
     let (name, _) = testkit::plain_asked(&app).expect("the hold");
@@ -347,7 +347,9 @@ fn a_public_key_in_a_refused_shape_is_saved_without_the_hold() {
     let refused = hdkey_cbor(&[(6, tagged)]);
     let mut app = receiving();
     app.event(Event::Scanned {
-        bytes: faraday_codec::ur::encode_single("crypto-hdkey", &refused).into_bytes(),
+        bytes: faraday_codec::ur::encode_single("crypto-hdkey", &refused)
+            .as_bytes()
+            .to_vec(),
     });
     assert_eq!(saves(&mut app).len(), 1, "saved without a hold");
     assert!(testkit::plain_asked(&app).is_none());

@@ -52,9 +52,9 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let index = u32::try_from(num(req, "index")).map_err(err)?;
             let a = acct.address(flag(req, "change"), index).map_err(err)?;
             Ok(json!({
-                "xpub": acct.xpub_string(),
-                "slip132": acct.slip132_string(),
-                "descriptor": acct.descriptor(),
+                "xpub": &*acct.xpub_string(),
+                "slip132": &*acct.slip132_string(),
+                "descriptor": &*acct.descriptor(),
                 "address": a.to_string(),
             }))
         }

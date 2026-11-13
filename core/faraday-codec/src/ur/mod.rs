@@ -20,9 +20,9 @@ pub(crate) mod bytewords;
 mod fountain;
 mod xoshiro;
 
-use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
+use faraday_text::{Text, text};
 
 /// The UR type of a PSBT.
 pub const PSBT_TYPE: &str = "crypto-psbt";
@@ -118,7 +118,7 @@ pub enum Error {
     /// Not `ur:` followed by a type and a payload.
     NotUr,
     /// Bad bytewords, checksum or indices.
-    Malformed(String),
+    Malformed(Text),
     /// A part of a different type or message than the ones before.
     Mismatch,
     /// The payload is not a CBOR byte string.
@@ -133,7 +133,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::NotUr => f.write_str("not a UR"),
-            Error::Malformed(e) => write!(f, "malformed UR: {e}"),
+            Error::Malformed(e) => write!(f, "malformed UR: {}", e.as_str()),
             Error::Mismatch => f.write_str("UR part belongs to a different message"),
             Error::NotByteString => f.write_str("UR payload is not a byte string"),
             Error::Empty => f.write_str("UR message is empty"),
@@ -146,7 +146,7 @@ impl core::error::Error for Error {}
 
 impl From<Fault> for Error {
     fn from(fault: Fault) -> Self {
-        Error::Malformed(fault.to_string())
+        Error::Malformed(text!("{fault}"))
     }
 }
 
@@ -162,7 +162,7 @@ impl Error {
             | Fault::MessageChecksum
             | Fault::TooManyParts
             | Fault::InvalidIndices => Error::Mismatch,
-            other => Error::Malformed(other.to_string()),
+            other => Error::Malformed(text!("{other}")),
         }
     }
 }
@@ -177,7 +177,7 @@ pub enum Message {
     /// Any other type, with its CBOR payload untouched.
     Other {
         /// The type, lower-case.
-        ur_type: String,
+        ur_type: Text,
         /// The CBOR.
         cbor: Vec<u8>,
     },
@@ -197,7 +197,7 @@ impl Message {
                     .map_err(|_| Error::NotByteString)?,
             ),
             other => Message::Other {
-                ur_type: String::from(other),
+                ur_type: Text::of(other),
                 cbor,
             },
         })
@@ -235,29 +235,30 @@ fn validate_type(ur_type: &str) -> Result<(), Fault> {
 /// the types this crate has no encoder of its own for (Faraday's
 /// `ur:crypto-account`). `ur_type` is letters, digits and `-`, as
 /// [`Decoder`] requires of what it reads.
-pub fn encode_single(ur_type: &str, cbor: &[u8]) -> String {
+pub fn encode_single(ur_type: &str, cbor: &[u8]) -> Text {
     debug_assert!(validate_type(ur_type).is_ok(), "{ur_type}");
-    alloc::format!("ur:{ur_type}/{}", bytewords::encode(cbor))
+    let words = zeroize::Zeroizing::new(bytewords::encode(cbor));
+    text!("ur:{ur_type}/{}", *words)
 }
 
 /// The kind, type, payload and `<seq>-<count>` of one UR string.
-type Decoded = (Kind, String, Vec<u8>, Option<(usize, usize)>);
+type Decoded = (Kind, Text, Vec<u8>, Option<(usize, usize)>);
 
 fn decode_ur(text: &str) -> Result<Decoded, Fault> {
-    let normalized = text.to_ascii_lowercase();
+    let normalized: Text = text.chars().map(|c| c.to_ascii_lowercase()).collect();
     let body = normalized.strip_prefix("ur:").ok_or(Fault::InvalidScheme)?;
     let (ur_type, rest) = body.split_once('/').ok_or(Fault::TypeUnspecified)?;
     validate_type(ur_type)?;
     match rest.rsplit_once('/') {
         None => Ok((
             Kind::SinglePart,
-            String::from(ur_type),
+            Text::of(ur_type),
             bytewords::decode(rest)?,
             None,
         )),
         Some((indices, payload)) => Ok((
             Kind::MultiPart,
-            String::from(ur_type),
+            Text::of(ur_type),
             bytewords::decode(payload)?,
             Some(decode_indices(indices)?),
         )),
@@ -275,7 +276,7 @@ fn decode_indices(indices: &str) -> Result<(usize, usize), Fault> {
 }
 
 /// A single-part `ur:crypto-psbt`.
-pub fn encode_psbt(psbt: &[u8]) -> String {
+pub fn encode_psbt(psbt: &[u8]) -> Text {
     encode_single(
         PSBT_TYPE,
         &zeroize::Zeroizing::new(crate::cbor::bytes(psbt)),
@@ -283,7 +284,7 @@ pub fn encode_psbt(psbt: &[u8]) -> String {
 }
 
 /// A single-part `ur:bytes`.
-pub fn encode_bytes(bytes: &[u8]) -> String {
+pub fn encode_bytes(bytes: &[u8]) -> Text {
     encode_single(
         BYTES_TYPE,
         &zeroize::Zeroizing::new(crate::cbor::bytes(bytes)),
@@ -302,7 +303,7 @@ pub fn decode_single(text: &str) -> Result<Message, Error> {
     Message::new(&ur_type, cbor)
 }
 
-fn ur_type_of(text: &str) -> Result<String, Error> {
+fn ur_type_of(text: &str) -> Result<Text, Error> {
     if !is_ur(text) {
         return Err(Error::NotUr);
     }
@@ -310,7 +311,7 @@ fn ur_type_of(text: &str) -> Result<String, Error> {
     if ur_type.is_empty() {
         return Err(Error::NotUr);
     }
-    Ok(ur_type.to_ascii_lowercase())
+    Ok(ur_type.chars().map(|c| c.to_ascii_lowercase()).collect())
 }
 
 /// The fragment count a multi-part part claims, read from the `<seq>-<count>`
@@ -365,11 +366,16 @@ impl Encoder {
     }
 
     /// The next part, `ur:<type>/<seq>-<count>/…`.
-    pub fn next_part(&mut self) -> String {
+    pub fn next_part(&mut self) -> Text {
         let mut part = self.inner.next_part();
         let cbor = zeroize::Zeroizing::new(part.cbor());
         let words = zeroize::Zeroizing::new(bytewords::encode(&cbor));
-        let text = alloc::format!("ur:{}/{}/{}", self.ur_type, part.sequence_id(), *words);
+        let text = text!(
+            "ur:{}/{}/{}",
+            self.ur_type,
+            part.sequence_id().as_str(),
+            *words
+        );
         zeroize::Zeroize::zeroize(&mut part.data);
         text
     }
@@ -381,7 +387,7 @@ impl Encoder {
 #[derive(Default)]
 pub struct Decoder {
     inner: Option<fountain::Decoder>,
-    ur_type: Option<String>,
+    ur_type: Option<Text>,
     done: Option<Message>,
 }
 
@@ -475,10 +481,10 @@ impl Decoder {
     }
 
     /// The UR type seen so far.
-    pub fn ur_type(&self) -> Option<String> {
+    pub fn ur_type(&self) -> Option<Text> {
         match (&self.done, &self.ur_type) {
-            (Some(Message::Psbt(_)), _) => Some(String::from(PSBT_TYPE)),
-            (Some(Message::Bytes(_)), _) => Some(String::from(BYTES_TYPE)),
+            (Some(Message::Psbt(_)), _) => Some(Text::of(PSBT_TYPE)),
+            (Some(Message::Bytes(_)), _) => Some(Text::of(BYTES_TYPE)),
             (Some(Message::Other { ur_type, .. }), _) => Some(ur_type.clone()),
             (None, seen) => seen.clone(),
         }
@@ -525,7 +531,7 @@ mod tests {
             checksum: 0,
             data: b"bad".to_vec(),
         };
-        let text = alloc::format!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()));
+        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()));
         let mut decoder = Decoder::new();
         assert!(decoder.receive(&text).is_err());
         let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();
@@ -545,7 +551,7 @@ mod tests {
             checksum: faraday_crypto::crc32(&data),
             data,
         };
-        let text = alloc::format!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()));
+        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()));
         let mut decoder = Decoder::new();
         assert_eq!(decoder.receive(&text), Err(Error::NotByteString));
         let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();
@@ -572,7 +578,7 @@ mod tests {
         assert_eq!(
             m,
             Message::Other {
-                ur_type: String::from("seed"),
+                ur_type: Text::of("seed"),
                 cbor: cbor.to_vec()
             }
         );
@@ -740,7 +746,7 @@ mod tests {
         let mut e = Encoder::psbt(&psbt, 200).unwrap();
         let n = e.fragment_count();
         assert_eq!(n, 6, "1005 CBOR bytes in 200-byte fragments");
-        let parts: Vec<String> = (0..12 * n).map(|_| e.next_part()).collect();
+        let parts: Vec<Text> = (0..12 * n).map(|_| e.next_part()).collect();
         assert!(parts[0].starts_with("ur:crypto-psbt/1-6/"));
         assert_eq!(e.emitted(), 12 * n);
 
@@ -836,7 +842,7 @@ mod tests {
 
         let mut d = Decoder::new();
         assert_eq!(
-            d.receive(&alloc::format!("ur:crypto-psbt/1-100000/{payload}")),
+            d.receive(&text!("ur:crypto-psbt/1-100000/{payload}")),
             Err(Error::TooManyParts)
         );
         assert!(!d.is_complete());

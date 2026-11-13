@@ -38,7 +38,7 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
         out.push_str(&format!("label {l}\n"));
     }
     if let Ok((_, Some(n))) = faraday_bip::multisig_config::parse_named(&c, &text) {
-        out.push_str(&format!("config name {n}\n"));
+        out.push_str(&format!("config name {}\n", &*n));
     }
     out.push_str(&format!(
         "rebuilt {}\n",

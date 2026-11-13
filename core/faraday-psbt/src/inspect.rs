@@ -1373,8 +1373,12 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         warn(
             &mut warnings,
             Level::Danger,
-            WarningKind::NonceReuse { key: reuse.name() },
-            Detail::NonceReuse { key: reuse.name() },
+            WarningKind::NonceReuse {
+                key: String::from(&*reuse.name()),
+            },
+            Detail::NonceReuse {
+                key: String::from(&*reuse.name()),
+            },
         );
     }
     let inscriptions = crate::verify::inscriptions(psbt);
@@ -1384,7 +1388,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             Level::Info,
             WarningKind::Inscription {
                 input: inscription.input,
-                content_type: inscription.content_type.clone().unwrap_or_default(),
+                content_type: inscription
+                    .content_type
+                    .as_deref()
+                    .map(String::from)
+                    .unwrap_or_default(),
             },
             Detail::Inscription {
                 input: inscription.input,

@@ -770,7 +770,9 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     let signed = one.sign_message(&c, i, 0, text, faraday_psbt::message::Format::Bip322)?;
     out.push((
         "spending-message.txt".to_string(),
-        faraday_keys::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
+        faraday_keys::message::signed_text(&signed.address, &signed.signature, text)
+            .as_bytes()
+            .to_vec(),
     ));
     Ok(out)
 }

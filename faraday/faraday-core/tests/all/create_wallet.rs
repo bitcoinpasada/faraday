@@ -1137,12 +1137,15 @@ fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
     let first = w.policy().address_at(&c, net, false, 0).expect("address");
     let bsms = faraday_bip::bsms::DescriptorRecord {
         policy: w.policy().clone(),
-        paths: vec!["/0/*".to_string(), "/1/*".to_string()],
-        first_address: first.to_string(),
+        paths: vec![
+            faraday_text::Text::of("/0/*"),
+            faraday_text::Text::of("/1/*"),
+        ],
+        first_address: faraday_text::Text::of(&first.to_string()),
         network: net,
     }
     .to_text();
-    assert_eq!(bsms.matches("/87h/0h/0h]").count(), 3, "{bsms}");
+    assert_eq!(bsms.matches("/87h/0h/0h]").count(), 3, "{}", &*bsms);
 }
 
 /// A 2-of-3 multisig over the test seeds at `path`, bacon and zebra

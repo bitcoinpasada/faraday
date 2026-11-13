@@ -497,7 +497,10 @@ fn the_camera_preview_is_in_colour_when_the_camera_gives_colour() {
 fn ur_frames(psbt: &[u8], n: usize) -> (Vec<String>, usize) {
     let mut e = faraday_codec::ur::Encoder::psbt(psbt, 60).unwrap();
     let count = e.fragment_count();
-    ((0..n).map(|_| e.next_part()).collect(), count)
+    (
+        (0..n).map(|_| String::from(&*e.next_part())).collect(),
+        count,
+    )
 }
 
 fn state(app: &Faraday) -> String {

@@ -70,7 +70,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 })
                 .map_err(|e| format!("{e:?}"))?
                 .map_err(|e| format!("{e:?}"))?;
-            Ok(json!({"text": record.to_text()}))
+            Ok(json!({"text": &*record.to_text()}))
         }
         // Faraday's JSON reader on a text: the value it reads, numbers as
         // the floats they stand for, or its refusal.

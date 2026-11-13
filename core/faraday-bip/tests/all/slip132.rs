@@ -121,7 +121,7 @@ fn a_version_that_disagrees_with_its_path_or_script_is_a_mismatch() {
     assert_eq!(
         key_line(&format!("[73c5da0a/49h/0h/0h]{ZPUB}")),
         Some(Err(Mismatch {
-            key: ZPUB.into(),
+            key: faraday_text::Text::of(ZPUB),
             named: Script::NativeSegwit,
             around: Script::NestedSegwit,
         }))

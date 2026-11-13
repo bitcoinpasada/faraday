@@ -44,9 +44,9 @@
 //! the BIP-341-tweaked one); both are erased before the function
 //! returns, as in [`crate::sign`].
 
-use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use faraday_text::{Text, text};
 
 use bitcoin::address::{Address, AddressType};
 use bitcoin::hashes::{Hash, HashEngine, sha256};
@@ -99,9 +99,9 @@ impl Format {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signed {
     /// The address the message was signed for.
-    pub address: String,
+    pub address: Text,
     /// The signature, base64.
-    pub signature: String,
+    pub signature: Text,
     /// The format it is in.
     pub format: Format,
 }
@@ -193,7 +193,7 @@ pub fn sign(
         Format::Bip322 => sign_bip322(secp, secret, &address, message, nonce, aux)?,
     };
     Ok(Signed {
-        address: address.to_string(),
+        address: text!("{address}"),
         signature,
         format,
     })
@@ -241,7 +241,7 @@ fn sign_bip137(
     script: ScriptType,
     message: &str,
     nonce: Nonce,
-) -> String {
+) -> Text {
     let hash = signed_msg_hash(message);
     let msg = Message::from_digest(hash.to_byte_array());
     let recoverable = match nonce {
@@ -253,7 +253,7 @@ fn sign_bip137(
     // the same recovery id counted from a different base.
     let recid = bytes[0] - P2PKH_BASE;
     bytes[0] = base_of(script) + recid;
-    base64::encode(&bytes)
+    Text::of(&base64::encode(&bytes))
 }
 
 /// RFC 6979 ground for a low `r`, in the recoverable form BIP-137 needs.
@@ -386,8 +386,8 @@ pub fn virtual_txids(address: &Address, message: &str) -> (Txid, Txid) {
 /// AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QC…
 /// Hello World
 /// ```
-pub fn signed_text(address: &str, signature: &str, message: &str) -> String {
-    let mut out = String::with_capacity(address.len() + signature.len() + message.len() + 2);
+pub fn signed_text(address: &str, signature: &str, message: &str) -> Text {
+    let mut out = Text::with_room(address.len() + signature.len() + message.len() + 2);
     out.push_str(address);
     out.push('\n');
     out.push_str(signature);
@@ -400,11 +400,11 @@ pub fn signed_text(address: &str, signature: &str, message: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedText {
     /// The address the signature is for.
-    pub address: String,
+    pub address: Text,
     /// The signature.
-    pub signature: String,
+    pub signature: Text,
     /// The message.
-    pub message: String,
+    pub message: Text,
 }
 
 /// Reads the three-line form. A text with fewer than three lines, or
@@ -423,9 +423,9 @@ pub fn parse_signed(text: &str) -> Option<SignedText> {
         return None;
     }
     Some(SignedText {
-        address: String::from(address),
-        signature: String::from(signature),
-        message: String::from(message),
+        address: Text::of(address),
+        signature: Text::of(signature),
+        message: Text::of(message),
     })
 }
 
@@ -488,7 +488,7 @@ fn sign_bip322(
     message: &str,
     nonce: Nonce,
     aux: Aux,
-) -> Result<String, Error> {
+) -> Result<Text, Error> {
     let spk = address.script_pubkey();
     let spend = to_spend(&spk, message);
     let sign = to_sign(&spend);
@@ -532,7 +532,7 @@ fn sign_bip322(
         }
         _ => return Err(Error::UnsupportedAddress),
     };
-    Ok(base64::encode(&consensus::serialize(&witness)))
+    Ok(Text::of(&base64::encode(&consensus::serialize(&witness))))
 }
 
 fn verify_bip322(address: &Address, message: &str, bytes: &[u8]) -> Result<Checked, Error> {

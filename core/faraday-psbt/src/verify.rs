@@ -24,11 +24,10 @@
 //! `keys`, and what it returns is a verdict, never a key.
 
 use alloc::collections::{BTreeMap, BTreeSet};
-use alloc::format;
-use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
+use faraday_text::{Text, text};
 
 use bitcoin::WitnessVersion;
 use bitcoin::key::TapTweak;
@@ -79,11 +78,11 @@ impl PartialEq for SigKey {
 
 impl SigKey {
     /// The key in hex, whole: 33 bytes for ECDSA, 32 for x-only.
-    pub fn hex(&self) -> String {
+    pub fn hex(&self) -> Text {
         match self {
             SigKey::Ecdsa(pk) => hex(&pk.inner.serialize()),
             SigKey::Schnorr(xonly) => hex(&xonly.serialize()),
-            SigKey::Unknown => String::new(),
+            SigKey::Unknown => Text::new(),
         }
     }
 }
@@ -172,9 +171,9 @@ impl SignaturePresent {
     /// How a card and a row name the key: the master fingerprint where
     /// an origin gives one, and otherwise the first eight hex
     /// characters of the public key itself.
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> Text {
         match self.fingerprint {
-            Some(fp) => format!("{fp}"),
+            Some(fp) => text!("{fp}"),
             None => short(&self.key),
         }
     }
@@ -217,7 +216,7 @@ pub struct NonceReuse {
     /// ECDSA or Schnorr.
     pub kind: SigKind,
     /// The repeated nonce point, in hex.
-    pub nonce: String,
+    pub nonce: Text,
     /// The inputs it is on, in order, each once.
     pub inputs: Vec<usize>,
 }
@@ -225,19 +224,19 @@ pub struct NonceReuse {
 impl NonceReuse {
     /// How a card names the keys: the first eight hex characters of each,
     /// separated by commas.
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> Text {
         let unread = self
             .unread
             .iter()
-            .map(|raw| hex(raw).chars().take(8).collect::<String>());
-        let names: Vec<String> = self.keys.iter().map(short).chain(unread).collect();
-        names.join(", ")
+            .map(|raw| hex(raw).chars().take(8).collect::<Text>());
+        let names: Vec<Text> = self.keys.iter().map(short).chain(unread).collect();
+        join(&names, ", ")
     }
 }
 
 /// The first eight hex characters of a key, which is what names it
 /// where no key origin does.
-fn short(key: &SigKey) -> String {
+fn short(key: &SigKey) -> Text {
     key.hex().chars().take(8).collect()
 }
 
@@ -368,18 +367,18 @@ pub struct FieldDiff {
     /// Which field.
     pub field: Field,
     /// The first transaction's value.
-    pub a: String,
+    pub a: Text,
     /// The second transaction's value.
-    pub b: String,
+    pub b: Text,
 }
 
 /// How the signing state of one input differs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SigningChange {
     /// Only the first transaction has this key's signature.
-    OnlyFirst(String),
+    OnlyFirst(Text),
     /// Only the second has it.
-    OnlySecond(String),
+    OnlySecond(Text),
     /// Only the first is finalized.
     FinalizedFirst,
     /// Only the second is finalized.
@@ -421,14 +420,14 @@ pub struct Inscription {
     /// The input whose script carries it.
     pub input: usize,
     /// The content type the envelope states, where it states one.
-    pub content_type: Option<String>,
+    pub content_type: Option<Text>,
     /// The payload's size in bytes, where the envelope has a body.
     pub size: Option<usize>,
 }
 
 /// Lowercase hex.
-fn hex(bytes: &[u8]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(bytes))
+fn hex(bytes: &[u8]) -> Text {
+    faraday_crypto::hex::encode_string(bytes)
 }
 
 /// One signature as it was found, before it was checked.
@@ -2745,8 +2744,8 @@ pub fn compare(a: &Psbt, b: &Psbt) -> Comparison {
             &mut out.transaction,
             Where::Output(i),
             Field::Script,
-            hex(oa.script_pubkey.as_bytes()),
-            hex(ob.script_pubkey.as_bytes()),
+            hex(oa.script_pubkey.as_bytes()).as_str(),
+            hex(ob.script_pubkey.as_bytes()).as_str(),
         );
     }
     out.signing = signing_diff(x, y);
@@ -2775,8 +2774,8 @@ fn field<T: fmt::Display + PartialEq>(
         out.push(FieldDiff {
             at,
             field: name,
-            a: a.to_string(),
-            b: b.to_string(),
+            a: text!("{a}"),
+            b: text!("{b}"),
         });
     }
 }
@@ -2825,8 +2824,8 @@ fn signing_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<SigningDiff> {
 }
 
 /// The keys one input's signatures are under, in hex.
-fn signers(input: &bitcoin::psbt::Input) -> Vec<String> {
-    let mut out: Vec<String> = input
+fn signers(input: &bitcoin::psbt::Input) -> Vec<Text> {
+    let mut out: Vec<Text> = input
         .partial_sigs
         .keys()
         .map(|pk| hex(&pk.inner.serialize()))
@@ -2876,14 +2875,21 @@ fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
 }
 
 /// The fields of two same-shaped lists, one by one.
-fn pair_up(out: &mut Vec<FieldDiff>, at: Where, a: Vec<(Field, String)>, b: Vec<(Field, String)>) {
+fn pair_up(out: &mut Vec<FieldDiff>, at: Where, a: Vec<(Field, Text)>, b: Vec<(Field, Text)>) {
     for ((name, left), (_, right)) in a.into_iter().zip(b) {
-        field(out, at, name, left, right);
+        if left != right {
+            out.push(FieldDiff {
+                at,
+                field: name,
+                a: left,
+                b: right,
+            });
+        }
     }
 }
 
 /// The global fields this comparison reads, as text.
-fn global_texts(psbt: &bitcoin::Psbt) -> Vec<(Field, String)> {
+fn global_texts(psbt: &bitcoin::Psbt) -> Vec<(Field, Text)> {
     let bitcoin::Psbt {
         unsigned_tx: _, // `compare` reads it
         version: _,     // `signer::check` reads the file's own version bytes
@@ -2896,14 +2902,14 @@ fn global_texts(psbt: &bitcoin::Psbt) -> Vec<(Field, String)> {
     vec![
         (
             Field::Xpubs,
-            map(xpub.iter().map(|(k, v)| (k.to_string(), origin_text(v)))),
+            map(xpub.iter().map(|(k, v)| (text!("{k}"), origin_text(v)))),
         ),
         (Field::Unknown, unknown_text(unknown)),
     ]
 }
 
 /// One input's fields this comparison reads, as text.
-fn input_texts(input: &bitcoin::psbt::Input) -> Vec<(Field, String)> {
+fn input_texts(input: &bitcoin::psbt::Input) -> Vec<(Field, Text)> {
     let bitcoin::psbt::Input {
         non_witness_utxo,
         witness_utxo,
@@ -2958,20 +2964,24 @@ fn input_texts(input: &bitcoin::psbt::Input) -> Vec<(Field, String)> {
             map(tap_scripts.iter().map(|(k, (script, version))| {
                 (
                     hex(&k.serialize()),
-                    format!("{:02x}:{}", version.to_consensus(), hex(script.as_bytes())),
+                    text!(
+                        "{:02x}:{}",
+                        version.to_consensus(),
+                        hex(script.as_bytes()).as_str()
+                    ),
                 )
             })),
         ),
         (Field::Unknown, unknown_text(unknown)),
         (
             Field::Proprietary,
-            map(proprietary.iter().map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: a comparison value; every byte of the key prints
+            map(proprietary.iter().map(|(k, v)| (text!("{k:?}"), hex(v)))), // not shown: a comparison value; every byte of the key prints
         ),
     ]
 }
 
 /// One output's fields this comparison reads, as text.
-fn output_texts(output: &bitcoin::psbt::Output) -> Vec<(Field, String)> {
+fn output_texts(output: &bitcoin::psbt::Output) -> Vec<(Field, Text)> {
     let bitcoin::psbt::Output {
         redeem_script,
         witness_script,
@@ -2985,19 +2995,20 @@ fn output_texts(output: &bitcoin::psbt::Output) -> Vec<(Field, String)> {
     let tree = tap_tree
         .as_ref()
         .map(|t| {
-            t.script_leaves()
+            let leaves = t
+                .script_leaves()
                 .map(|l| {
-                    format!(
+                    text!(
                         "{}:{:02x}:{}",
                         l.merkle_branch().len(),
                         l.version().to_consensus(),
-                        hex(l.script().as_bytes())
+                        hex(l.script().as_bytes()).as_str()
                     )
                 })
-                .collect::<Vec<_>>()
-                .join("/")
+                .collect::<Vec<_>>();
+            join(&leaves, "/")
         })
-        .map(|t| format!("tree:{t}"))
+        .map(|t| text!("tree:{}", t.as_str()))
         .unwrap_or_default();
     vec![
         (Field::RedeemScript, script_text(redeem_script)),
@@ -3019,10 +3030,10 @@ fn output_texts(output: &bitcoin::psbt::Output) -> Vec<(Field, String)> {
 fn preimage_pairs<'a, H: fmt::Display + 'a>(
     kind: &'static str,
     preimages: &'a BTreeMap<H, Vec<u8>>,
-) -> impl Iterator<Item = (String, String)> + 'a {
+) -> impl Iterator<Item = (Text, Text)> + 'a {
     preimages
         .iter()
-        .map(move |(h, v)| (format!("{kind}:{h}"), hex(v)))
+        .map(move |(h, v)| (text!("{kind}:{h}"), hex(v)))
 }
 
 /// Taproot key origins as text: each key, its leaf hashes and its origin.
@@ -3034,53 +3045,75 @@ fn tap_origins_text(
             bitcoin::bip32::KeySource,
         ),
     >,
-) -> String {
+) -> Text {
     map(origins.iter().map(|(k, (leaves, source))| {
-        let leaves: Vec<String> = leaves.iter().map(ToString::to_string).collect();
+        let leaves: Vec<Text> = leaves.iter().map(|l| text!("{l}")).collect();
         (
             hex(&k.serialize()),
-            format!("{}|{}", leaves.join("+"), origin_text(source)),
+            text!(
+                "{}|{}",
+                join(&leaves, "+").as_str(),
+                origin_text(source).as_str()
+            ),
         )
     }))
 }
 
 /// A map as one sorted string, so that the order the pairs were written
 /// in is not a difference.
-fn map(pairs: impl Iterator<Item = (String, String)>) -> String {
-    let mut sorted: Vec<String> = pairs.map(|(k, v)| format!("{k}={v}")).collect();
+fn map(pairs: impl Iterator<Item = (Text, Text)>) -> Text {
+    let mut sorted: Vec<Text> = pairs
+        .map(|(k, v)| text!("{}={}", k.as_str(), v.as_str()))
+        .collect();
     sorted.sort();
-    sorted.join(",")
+    join(&sorted, ",")
 }
 
-fn unknown_text(unknown: &BTreeMap<bitcoin::psbt::raw::Key, Vec<u8>>) -> String {
-    map(unknown.iter().map(|(k, v)| (format!("{k:?}"), hex(v)))) // not shown: as above
+/// The parts with `sep` between them.
+fn join(parts: &[Text], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(part);
+    }
+    out
 }
 
-fn txt<T: fmt::Debug>(value: &Option<T>) -> String {
+fn unknown_text(unknown: &BTreeMap<bitcoin::psbt::raw::Key, Vec<u8>>) -> Text {
+    map(unknown.iter().map(|(k, v)| (text!("{k:?}"), hex(v)))) // not shown: as above
+}
+
+fn txt<T: fmt::Debug>(value: &Option<T>) -> Text {
     match value {
-        Some(v) => format!("{v:?}"), // not shown: as above
-        None => String::new(),
+        Some(v) => text!("{v:?}"), // not shown: as above
+        None => Text::new(),
     }
 }
 
 /// A script as text: empty for an absent one, and `0x` then its hex for
 /// one that is there, so that an empty script differs from none.
-fn script_text(script: &Option<ScriptBuf>) -> String {
+fn script_text(script: &Option<ScriptBuf>) -> Text {
     script
         .as_ref()
-        .map(|s| format!("0x{}", hex(s.as_bytes())))
+        .map(|s| text!("0x{}", hex(s.as_bytes()).as_str()))
         .unwrap_or_default()
 }
 
-fn utxo_text(utxo: &Option<TxOut>) -> String {
+fn utxo_text(utxo: &Option<TxOut>) -> Text {
     match utxo {
-        Some(u) => format!("{} {}", u.value.to_sat(), hex(u.script_pubkey.as_bytes())),
-        None => String::new(),
+        Some(u) => text!(
+            "{} {}",
+            u.value.to_sat(),
+            hex(u.script_pubkey.as_bytes()).as_str()
+        ),
+        None => Text::new(),
     }
 }
 
-fn origin_text(source: &bitcoin::bip32::KeySource) -> String {
-    format!("{}{}", source.0, source.1)
+fn origin_text(source: &bitcoin::bip32::KeySource) -> Text {
+    text!("{}{}", source.0, source.1)
 }
 
 /// Every `ord` envelope the transaction's scripts carry.
@@ -3118,7 +3151,7 @@ pub fn inscriptions(psbt: &Psbt) -> Vec<Inscription> {
 
 /// `OP_FALSE OP_IF "ord" …`: the content type the envelope states and
 /// the size of its body.
-fn envelope(script: &Script) -> Option<(Option<String>, Option<usize>)> {
+fn envelope(script: &Script) -> Option<(Option<Text>, Option<usize>)> {
     let mut instructions = script.instructions().peekable();
     let mut armed = false;
     let mut opened = false;
@@ -3149,7 +3182,7 @@ fn envelope(script: &Script) -> Option<(Option<String>, Option<usize>)> {
             Instruction::Op(op) if op == bitcoin::opcodes::all::OP_ENDIF => break,
             Instruction::PushBytes(b) if !body && b.as_bytes() == [1] => {
                 if let Some(Ok(Instruction::PushBytes(value))) = instructions.next() {
-                    content_type = Some(String::from_utf8_lossy(value.as_bytes()).into_owned());
+                    content_type = Some(Text::from_utf8_lossy(value.as_bytes()));
                 }
             }
             // The body tag is an empty push, and everything after it is

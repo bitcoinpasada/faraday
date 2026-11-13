@@ -123,7 +123,7 @@ pub(crate) fn bsms_record(
         })
         .ok()?
         .ok()?;
-    Some(record.to_text())
+    Some(String::from(&*record.to_text()))
 }
 
 /// A secret's bytes in a buffer wiped on drop: the only copy made of them.

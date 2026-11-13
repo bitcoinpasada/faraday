@@ -27,8 +27,8 @@
 //! order they are given in.
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
-use alloc::string::String;
 use alloc::vec::Vec;
+use faraday_text::Text;
 
 use core::str::FromStr;
 
@@ -593,7 +593,7 @@ enum ParticipantKey {
 #[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Participant {
-    origin: Option<String>,
+    origin: Option<Text>,
     key: ParticipantKey,
     path: Path,
 }
@@ -792,7 +792,7 @@ fn parse_participant(text: &str) -> Result<Participant, Error> {
         Some(rest) => {
             let (origin, rest) = rest.split_once(']').ok_or(Error::Key)?;
             check_origin(origin)?;
-            (Some(String::from(origin)), rest)
+            (Some(Text::of(origin)), rest)
         }
         None => (None, text),
     };

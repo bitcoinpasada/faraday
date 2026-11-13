@@ -1003,7 +1003,7 @@ mod tests {
         let side = lower.size();
         assert!((0..side).all(|y| (0..side).all(|x| lower.module(x, y) == upper.module(x, y))));
         assert!(codex32qr(&c, &s[..47]).is_none());
-        assert!(codex32qr(&c, &format!("{s}q")).is_none());
+        assert!(codex32qr(&c, &faraday_text::text!("{s}q")).is_none());
     }
 
     #[test]

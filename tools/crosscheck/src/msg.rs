@@ -68,7 +68,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 aux,
             )
             .map_err(err)?;
-            Ok(json!({"address": s.address, "signature": s.signature}))
+            Ok(json!({"address": &*s.address, "signature": &*s.signature}))
         }
         "verify" => {
             let checked =

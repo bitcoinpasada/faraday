@@ -69,8 +69,8 @@ impl Part {
     }
 
     /// The `<seq>-<count>` segment of the part's URI.
-    pub fn sequence_id(&self) -> alloc::string::String {
-        alloc::format!("{}-{}", self.sequence, self.sequence_count)
+    pub fn sequence_id(&self) -> faraday_text::Text {
+        faraday_text::text!("{}-{}", self.sequence, self.sequence_count)
     }
 }
 
@@ -432,8 +432,13 @@ mod tests {
     use super::*;
     use crate::ur::xoshiro::test_utils::make_message;
 
-    fn hex(bytes: &[u8]) -> alloc::string::String {
-        bytes.iter().map(|b| alloc::format!("{b:02x}")).collect()
+    fn hex(bytes: &[u8]) -> faraday_text::Text {
+        use core::fmt::Write as _;
+        let mut out = faraday_text::Text::new();
+        for b in bytes {
+            let _ = write!(out, "{b:02x}");
+        }
+        out
     }
 
     #[test]

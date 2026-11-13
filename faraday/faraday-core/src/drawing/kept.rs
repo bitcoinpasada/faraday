@@ -310,7 +310,7 @@ impl Kept {
         }
         let n = faraday_bip::multisig_config::parse_named(c, text)
             .ok()
-            .and_then(|(_, n)| n);
+            .and_then(|(_, n)| n.map(|n| String::from(&*n)));
         let mut kept = self.config_names.borrow_mut();
         if kept.len() >= CONFIG_NAMES_KEPT {
             kept.remove(0);

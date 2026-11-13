@@ -1238,7 +1238,7 @@ impl Faraday {
                     &sig.address[sig.address.len().saturating_sub(6)..]
                 );
                 let lines = vec![
-                    fill(EN.code_view_signed_by_address, &[&sig.address.to_string()]),
+                    fill(EN.code_view_signed_by_address, &[&sig.address]),
                     EN.code_view_public_proves.to_string(),
                 ];
                 Ok(QrView::text(c, EN.code_view_signed_message, &text)?.public(&name, lines))

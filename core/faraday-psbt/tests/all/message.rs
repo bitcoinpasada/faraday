@@ -258,9 +258,9 @@ fn bip322_simple_vectors() {
             assert!(
                 published
                     .iter()
-                    .any(|p| p.trim_start_matches("smp") == signed.signature),
+                    .any(|p| p.trim_start_matches("smp") == signed.signature.as_str()),
                 "{message:?}: {} is none of the published signatures",
-                signed.signature
+                signed.signature.as_str()
             );
         }
         signed_here += 1;
@@ -352,7 +352,7 @@ fn sign_then_verify_round_trip() {
                         Aux::Deterministic,
                     )
                     .unwrap_or_else(|e| panic!("{script} {format:?}: {e:?}"));
-                    assert_eq!(signed.address, expected, "{script} at {index}");
+                    assert_eq!(signed.address.as_str(), expected, "{script} at {index}");
                     let address = address_of(&signed.address, Network::Mainnet);
                     assert_eq!(
                         message::verify(&address, text, &signed.signature),

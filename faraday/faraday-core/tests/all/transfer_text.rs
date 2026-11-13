@@ -302,7 +302,7 @@ fn a_secret_joined_to_its_name_or_label_is_refused() {
         format!("url:{MIGRATION}"),
         format!(
             "ur:{{{}}}",
-            faraday_codec::ur::encode_single("seed", &[0xa0])
+            faraday_codec::ur::encode_single("seed", &[0xa0]).as_str()
         ),
     ] {
         assert!(refused(&text), "{text}: shown");
@@ -432,7 +432,9 @@ fn a_secret_in_a_urs_parts_is_refused_until_the_message_is_whole_and_read() {
     let secret = format!("my key is p2wpkh:{WIF}");
     let mut enc = faraday_codec::ur::Encoder::bytes(secret.as_bytes(), 20).unwrap();
     assert!(enc.fragment_count() > 2);
-    let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    let parts: Vec<String> = (0..enc.fragment_count())
+        .map(|_| String::from(&*enc.next_part()))
+        .collect();
     // A part, then all but one: the message is not whole.
     assert!(refused(&parts[0]));
     assert!(refused(&parts[..parts.len() - 1].join(" ")));
@@ -441,7 +443,9 @@ fn a_secret_in_a_urs_parts_is_refused_until_the_message_is_whole_and_read() {
     // A text with nothing secret in it is shown.
     let mut enc =
         faraday_codec::ur::Encoder::bytes(b"a block header, nothing secret in it", 20).unwrap();
-    let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    let parts: Vec<String> = (0..enc.fragment_count())
+        .map(|_| String::from(&*enc.next_part()))
+        .collect();
     assert!(!refused(&parts.join("\n")));
 }
 
@@ -469,7 +473,9 @@ fn a_ur_that_can_hold_a_secret_is_refused_whole_or_in_parts_unless_known_public(
     assert!(refused(&parts[..parts.len() - 1].join(" ")));
     // Parts of a PSBT are public: shown.
     let mut enc = faraday_codec::ur::Encoder::psbt(&[9u8; 100], 20).unwrap();
-    let psbt_parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    let psbt_parts: Vec<String> = (0..enc.fragment_count())
+        .map(|_| String::from(&*enc.next_part()))
+        .collect();
     assert!(!refused(&psbt_parts[0]));
 }
 

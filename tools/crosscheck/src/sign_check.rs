@@ -44,12 +44,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 let reused: Vec<Value> = repeated_nonces(&psbt, &verify_signatures(&psbt, &ctx))
                     .iter()
                     .map(|r| {
-                        let mut keys: Vec<String> = r.keys.iter().map(|k| k.hex()).collect();
+                        let mut keys: Vec<String> =
+                            r.keys.iter().map(|k| String::from(&*k.hex())).collect();
                         keys.sort();
                         json!({
                             "kind": kind(r.kind),
                             "keys": keys,
-                            "nonce": r.nonce,
+                            "nonce": &*r.nonce,
                             "inputs": r.inputs,
                         })
                     })
@@ -76,7 +77,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                         .map(|s| {
                             json!({
                                 "kind": kind(s.kind),
-                                "key": s.key.hex(),
+                                "key": &*s.key.hex(),
                                 "signature": hex(&s.bytes),
                                 "finalized": s.finalized,
                                 "leaf": s.leaf.map(|l| format!("{l}")),

@@ -8,9 +8,9 @@
 //! the last arm of all, asked only when nothing stricter claimed the
 //! payload and raw 16 or 32 bytes were not taken as a CompactSeedQR.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::str::FromStr;
+use faraday_text::Text;
 
 use bitcoin::address::{Address, NetworkUnchecked};
 use faraday_bip::bip39::Language;
@@ -36,7 +36,7 @@ pub enum PayloadKind {
     /// A uniform resource, `ur:<type>/…`.
     Ur {
         /// The type after `ur:`, lower-cased: `crypto-psbt`, `bytes`, …
-        ur_type: String,
+        ur_type: Text,
         /// `(sequence, count)` of a multi-part UR.
         part: Option<(usize, usize)>,
     },
@@ -223,7 +223,11 @@ fn ur_kind(text: &str) -> Option<PayloadKind> {
         .eq_ignore_ascii_case("ur:")
         .then(|| &text[3..])?;
     let mut segments = rest.split('/');
-    let ur_type = segments.next()?.to_ascii_lowercase();
+    let ur_type: Text = segments
+        .next()?
+        .chars()
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
     if ur_type.is_empty() {
         return None;
     }
@@ -355,6 +359,7 @@ fn fold_precomposed(word: &str, out: &mut faraday_bip::bip39::Typed) -> bool {
 mod tests {
     use super::*;
     use faraday_crypto::work::Compute;
+    use faraday_text::text;
 
     const XPUB: &str = "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
 
@@ -385,13 +390,19 @@ mod tests {
             }
             let word = COMPOSE
                 .iter()
-                .fold(nfkd.to_string(), |w, (d, c)| w.replace(d, c));
+                .fold(Text::of(nfkd), |w, (d, c)| Text::of(&w.replace(d, c)));
             assert!(word.chars().all(|c| !('\u{300}'..='\u{36f}').contains(&c)));
-            assert_eq!(word_index(Language::Spanish, &word), Some(i), "{word}");
+            assert_eq!(
+                word_index(Language::Spanish, &word),
+                Some(i),
+                "{}",
+                word.as_str()
+            );
             assert_eq!(
                 word_index(Language::Spanish, &word.to_uppercase()),
                 Some(i),
-                "{word}"
+                "{}",
+                word.as_str()
             );
             composed += 1;
         }
@@ -425,14 +436,14 @@ mod tests {
         assert_eq!(
             classify(b"UR:CRYPTO-PSBT/HDCX"),
             PayloadKind::Ur {
-                ur_type: String::from("crypto-psbt"),
+                ur_type: Text::of("crypto-psbt"),
                 part: None
             }
         );
         assert_eq!(
             classify(b"ur:crypto-psbt/2-7/lpao"),
             PayloadKind::Ur {
-                ur_type: String::from("crypto-psbt"),
+                ur_type: Text::of("crypto-psbt"),
                 part: Some((2, 7))
             }
         );
@@ -458,8 +469,8 @@ mod tests {
             .unwrap()
             .address(false, 0)
             .unwrap();
-        let signet = alloc::format!("{signet}");
-        assert!(signet.starts_with("tb1q"), "{signet}");
+        let signet = text!("{signet}");
+        assert!(signet.starts_with("tb1q"), "{}", signet.as_str());
         assert_eq!(classify(signet.as_bytes()), PayloadKind::Address);
         assert_eq!(
             classify(b"1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"),
@@ -483,23 +494,21 @@ mod tests {
             }
         );
         assert_eq!(
-            classify(alloc::format!("wpkh([73c5da0a/84h/0h/0h]{XPUB}/<0;1>/*)").as_bytes()),
+            classify(text!("wpkh([73c5da0a/84h/0h/0h]{XPUB}/<0;1>/*)").as_bytes()),
             PayloadKind::Descriptor { checksum: None }
         );
         // A MuSig2 wallet reaches the device either as the descriptor
         // or as the BIP-388 policy, and both are routed as a descriptor.
         assert_eq!(
             classify(
-                alloc::format!(
-                    "tr(musig([73c5da0a/86h/0h/0h]{XPUB},[b2b1f0cf/86h/0h/0h]{XPUB})/<0;1>/*)"
-                )
-                .as_bytes()
+                text!("tr(musig([73c5da0a/86h/0h/0h]{XPUB},[b2b1f0cf/86h/0h/0h]{XPUB})/<0;1>/*)")
+                    .as_bytes()
             ),
             PayloadKind::Descriptor { checksum: None }
         );
         assert_eq!(
             classify(
-                alloc::format!(
+                text!(
                     "tr(musig(@0,@1)/**)\n[73c5da0a/86h/0h/0h]{XPUB}\n[b2b1f0cf/86h/0h/0h]{XPUB}"
                 )
                 .as_bytes()
@@ -545,16 +554,14 @@ mod tests {
         );
         assert_eq!(
             classify(
-                alloc::format!(
-                    "BSMS 1.0\n00\n[0f056943/48'/0'/0'/2']{XPUB}\nSigner 1 key\nH6DXgqkC"
-                )
-                .as_bytes()
+                text!("BSMS 1.0\n00\n[0f056943/48'/0'/0'/2']{XPUB}\nSigner 1 key\nH6DXgqkC")
+                    .as_bytes()
             ),
             PayloadKind::BsmsSigner
         );
         assert_eq!(
             classify(
-                alloc::format!(
+                text!(
                     "BSMS 1.0\nwsh(sortedmulti(1,[0f056943/48'/0'/0'/2']{XPUB}/**))\n/0/*,/1/*\nbc1q"
                 )
                 .as_bytes()
@@ -563,7 +570,7 @@ mod tests {
         );
         assert_eq!(
             classify(
-                alloc::format!(
+                text!(
                     "{{\"xfp\": \"0F056943\", \"bip84\": {{\"deriv\": \"m/84'/0'/0'\", \"xpub\": \"{XPUB}\"}}}}"
                 )
                 .as_bytes()
@@ -707,7 +714,7 @@ mod tests {
         // reader does, so both call it a CompactSeedQR.
         let address = "1111111111111111111114oLvT2";
         assert_eq!(classify(address.as_bytes()), PayloadKind::Address);
-        let edged = format!("\u{a0} {address}\u{a0}");
+        let edged = text!("\u{a0} {address}\u{a0}");
         assert_eq!(edged.len(), 32);
         assert_eq!(
             classify(edged.as_bytes()),

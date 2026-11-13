@@ -33,9 +33,9 @@
 //! a P2WSH file; a `Ypub` in a P2WSH one) is refused as [`Error::Key`],
 //! never converted silently ([`slip132_mismatch`] says which key).
 
-use alloc::format;
-use alloc::string::String;
 use alloc::vec::Vec;
+
+use faraday_text::{Text, text};
 
 use faraday_crypto::work::Compute;
 
@@ -56,13 +56,13 @@ pub fn parse(c: &Compute, text: &str) -> Result<WalletPolicy, Error> {
 
 /// Costs a parse of the policy and its keys: the same, with the `Name:`
 /// line the file carries, where it has one and it is not empty.
-pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<String>), Error> {
-    let mut name: Option<String> = None;
+pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Text>), Error> {
+    let mut name: Option<Text> = None;
     let mut threshold = 0usize;
     let mut total = 0usize;
     let mut wrapper: Option<&str> = None;
-    let mut derivation: Option<String> = None;
-    let mut keys: Vec<String> = Vec::new();
+    let mut derivation: Option<Text> = None;
+    let mut keys: Vec<Text> = Vec::new();
     let mut named: Vec<Option<Script>> = Vec::new();
 
     let mut seen = [false; 3];
@@ -92,7 +92,7 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
         if label.eq_ignore_ascii_case("name") {
             once(0)?;
             if !value.is_empty() {
-                name = Some(String::from(value));
+                name = Some(Text::of(value));
             }
             continue;
         } else if label.eq_ignore_ascii_case("policy") {
@@ -101,7 +101,7 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
             threshold = m;
             total = n;
         } else if label.eq_ignore_ascii_case("derivation") {
-            derivation = Some(String::from(path_body(value)));
+            derivation = Some(Text::of(path_body(value)));
         } else if label.eq_ignore_ascii_case("format") {
             once(2)?;
             wrapper = Some(wrapper_of(value).ok_or(Error::Template)?);
@@ -116,7 +116,7 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
                 return Err(Error::Derivation);
             }
             let key = slip132::decode(value).map_err(|_| Error::Key)?;
-            keys.push(format!(
+            keys.push(text!(
                 "[{}/{path}]{}",
                 label.to_ascii_lowercase(),
                 key.plain
@@ -138,19 +138,19 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
         return Err(Error::Threshold);
     }
 
-    let mut args = String::new();
+    let mut args = Text::new();
     for i in 0..keys.len() {
         if i > 0 {
             args.push(',');
         }
-        args.push_str(&format!("@{i}{}", crate::policy::TEMPLATE_SUFFIX));
+        args.push_str(&text!("@{i}{}", crate::policy::TEMPLATE_SUFFIX));
     }
     let template = match wrapper {
-        "sh(wsh" => format!("sh(wsh(sortedmulti({threshold},{args})))"),
-        "sh" => format!("sh(sortedmulti({threshold},{args}))"),
-        _ => format!("wsh(sortedmulti({threshold},{args}))"),
+        "sh(wsh" => text!("sh(wsh(sortedmulti({threshold},{})))", args.as_str()),
+        "sh" => text!("sh(sortedmulti({threshold},{}))", args.as_str()),
+        _ => text!("wsh(sortedmulti({threshold},{}))", args.as_str()),
     };
-    let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
+    let refs: Vec<&str> = keys.iter().map(Text::as_str).collect();
     let policy = WalletPolicy::from_parts(c, &template, &refs)?;
     let around = script_of(wrapper);
     if named.iter().any(|n| !slip132::agrees(*n, around)) {
@@ -194,7 +194,7 @@ pub fn slip132_mismatch(text: &str) -> Option<Mismatch> {
     keys.into_iter().find_map(|k| {
         let named = slip132::decode(k).ok()?.named?;
         (!slip132::agrees(Some(named), around)).then(|| Mismatch {
-            key: String::from(k),
+            key: Text::of(k),
             named,
             around,
         })
@@ -274,8 +274,8 @@ Derivation: m/48'/1'/0'/2'
 3f635a63: tpubDFPtPArj4GzBEFHohegg1Xatrc1Fi9oSox5LzuSRX91miwQxuUrEpBxpvDRsmZYJKYFhgdK3UStsjC8JKXfUbMinjFqiEM4uNwzVaCaHpys
 ";
 
-    fn with_format(format: &str) -> String {
-        CONFIG.replace("Policy:", &format!("Format: {format}\nPolicy:"))
+    fn with_format(format: &str) -> Text {
+        Text::of(&CONFIG.replace("Policy:", &text!("Format: {format}\nPolicy:")))
     }
 
     #[test]
@@ -318,15 +318,15 @@ Derivation: m/48'/1'/0'/2'
     }
 
     /// A P2WSH config of `n` distinct cosigners, two of them needed.
-    fn config_of(n: usize) -> String {
+    fn config_of(n: usize) -> Text {
         use bitcoin::NetworkKind;
         use bitcoin::bip32::{Xpriv, Xpub};
         let secp = bitcoin::secp256k1::Secp256k1::new();
-        let mut text = format!("Policy: 2 of {n}\nDerivation: m/48'/1'/0'/2'\nFormat: P2WSH\n");
+        let mut text = text!("Policy: 2 of {n}\nDerivation: m/48'/1'/0'/2'\nFormat: P2WSH\n");
         for i in 0..n {
             let xpriv = Xpriv::new_master(NetworkKind::Test, &[i as u8 + 1; 32]).unwrap();
             let xpub = Xpub::from_priv(&secp, &xpriv);
-            text.push_str(&format!("{}: {xpub}\n", xpub.fingerprint()));
+            text.push_str(&text!("{}: {xpub}\n", xpub.fingerprint()));
         }
         text
     }
@@ -340,7 +340,7 @@ Derivation: m/48'/1'/0'/2'
         assert_eq!(most.quorum(), Some((2, MAX_KEYS)));
         assert_eq!(parse(&c, &config_of(MAX_KEYS + 1)), Err(Error::Threshold));
         let mut long = config_of(MAX_KEYS + 1);
-        let last = String::from(long.lines().last().unwrap());
+        let last = Text::of(long.lines().last().unwrap());
         for _ in 0..5000 {
             long.push_str(&last);
             long.push('\n');
@@ -381,7 +381,7 @@ Derivation: m/48'/1'/0'/2'
             let text = with_format("P2WSH").replace(tpub, other);
             assert_eq!(parse(&c, &text), Err(Error::Key), "{other}");
             let m = slip132_mismatch(&text).expect("the key that disagrees");
-            assert_eq!(m.key, *other);
+            assert_eq!(m.key, other.as_str());
             assert_eq!(m.around, Script::NativeMultisig);
         }
         // In a P2SH-P2WSH file the `Upub` is the one that agrees.

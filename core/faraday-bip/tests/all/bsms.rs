@@ -53,7 +53,7 @@ fn every_key_record_the_bip_writes_is_read_and_its_signature_holds() {
         }
         let record = SignerRecord::parse(text).expect(text);
         record.verify().expect(text);
-        assert_eq!(record.to_text(), *text);
+        assert_eq!(record.to_text().as_str(), *text);
         assert!(record.description.ends_with(" key"));
         verified += 1;
     }
@@ -100,7 +100,7 @@ fn every_descriptor_record_the_bip_writes_is_its_wallet_and_its_first_address() 
         assert_eq!(record.network, Network::Mainnet);
         assert_eq!(record.paths, ["/0/*", "/1/*"]);
         // The BIP writes a hardened step `'`; the wallet writes `h`.
-        assert_eq!(record.to_text(), text.replace('\'', "h"));
+        assert_eq!(record.to_text().as_str(), text.replace('\'', "h"));
         assert!(record.holds(&record.policy.keys()[0]));
         read += 1;
     }
@@ -192,7 +192,7 @@ fn a_bsms_wallet_is_the_same_wallet_as_its_coordinator_config_twin() {
     assert_eq!(from_bsms.policy, from_config);
     assert_eq!(from_bsms.policy.to_text(), from_config.to_text());
     assert_eq!(from_bsms.policy.checksum(), from_config.checksum());
-    assert_eq!(from_bsms.to_text(), record);
+    assert_eq!(from_bsms.to_text().as_str(), record);
 }
 
 /// A descriptor with no template that names derivation paths states
@@ -259,7 +259,8 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
     let text = written.to_text();
     assert!(
         text.starts_with("BSMS 1.0\n00\n[73c5da0a/48h/0h/0h/2h]xpub"),
-        "{text}"
+        "{}",
+        text.as_str()
     );
     let read = SignerRecord::parse(&text).expect("what it wrote");
     assert_eq!(read, written);
@@ -307,7 +308,7 @@ fn a_record_outside_the_bips_limits_is_refused() {
     assert_eq!(write("zz", "fine"), Err(bsms::Error::Token));
     assert_eq!(
         write("a54044308ceac9b7", "fine").map(|r| r.token),
-        Ok(String::from("a54044308ceac9b7"))
+        Ok(faraday_text::Text::of("a54044308ceac9b7"))
     );
     assert_eq!(write("00", &"x".repeat(81)), Err(bsms::Error::Description));
 
@@ -356,7 +357,7 @@ fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
     let descriptor = r.policy.to_descriptor();
     let untemplated = format!(
         "BSMS 1.0\n{descriptor}\nNo path restrictions\n{}\n",
-        r.first_address
+        r.first_address.as_str()
     );
     assert_eq!(
         DescriptorRecord::parse(&c, &untemplated).map(|r| r.paths),

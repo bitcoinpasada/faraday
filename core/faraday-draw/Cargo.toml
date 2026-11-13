@@ -14,8 +14,8 @@ tiny-skia.workspace = true
 # The count of costly work (`faraday_crypto::work`): a canvas blurred or
 # copied whole.
 faraday-crypto = { path = "../faraday-crypto" }
-# Wipes the recorded text's buffer (a seed's words shown) once a frame is painted.
-zeroize = { workspace = true, features = ["alloc"] }
+# The recorded text, wiped once a frame is painted (a seed's words shown).
+faraday-text = { path = "../faraday-text" }
 
 [lints]
 workspace = true

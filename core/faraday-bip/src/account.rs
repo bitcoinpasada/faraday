@@ -10,14 +10,14 @@
 //! let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Mainnet);
 //! let account = master.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
 //! assert_eq!(
-//!     account.address(false, 0).unwrap().to_string(),
+//!     faraday_text::text!("{}", account.address(false, 0).unwrap()),
 //!     "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
 //! );
 //! assert!(account.descriptor().starts_with("wpkh([73c5da0a/84h/0h/0h]xpub"));
 //! ```
 
-use alloc::string::{String, ToString};
 use core::fmt::Write;
+use faraday_text::{Text, text};
 
 use bitcoin::Address;
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
@@ -108,22 +108,22 @@ impl AccountXpub {
     }
 
     /// Standard BIP-32 encoding: `xpub…` on mainnet, `tpub…` elsewhere.
-    pub fn xpub_string(&self) -> String {
-        self.xpub.to_string()
+    pub fn xpub_string(&self) -> Text {
+        text!("{}", self.xpub)
     }
 
     /// SLIP-132 encoding: `ypub`/`upub` for nested SegWit and `zpub`/`vpub`
     /// for native SegWit. Legacy and Taproot have no SLIP-132 prefix and
     /// return the same as [`xpub_string`](Self::xpub_string).
-    pub fn slip132_string(&self) -> String {
-        slip132::encode_xpub(&self.xpub, self.script_type)
+    pub fn slip132_string(&self) -> Text {
+        Text::of(&slip132::encode_xpub(&self.xpub, self.script_type))
     }
 
     /// Ranged single-signature output descriptor with key origin and
     /// checksum, e.g. `wpkh([73c5da0a/84h/0h/0h]xpub…/<0;1>/*)#…`.
-    pub fn descriptor(&self) -> String {
-        let mut key = String::new();
-        // Formatting into a String cannot fail; unwrap via expect.
+    pub fn descriptor(&self) -> Text {
+        let mut key = Text::new();
+        // Formatting into a Text cannot fail; unwrap via expect.
         write!(key, "[{}", self.master_fingerprint).expect("string write");
         for child in &self.path {
             write!(key, "/{child:#}").expect("string write");
@@ -131,10 +131,10 @@ impl AccountXpub {
         write!(key, "]{}/<0;1>/*", self.xpub).expect("string write");
 
         let mut desc = match self.script_type {
-            ScriptType::Legacy => alloc::format!("pkh({key})"),
-            ScriptType::NestedSegwit => alloc::format!("sh(wpkh({key}))"),
-            ScriptType::NativeSegwit => alloc::format!("wpkh({key})"),
-            ScriptType::Taproot => alloc::format!("tr({key})"),
+            ScriptType::Legacy => text!("pkh({})", key.as_str()),
+            ScriptType::NestedSegwit => text!("sh(wpkh({}))", key.as_str()),
+            ScriptType::NativeSegwit => text!("wpkh({})", key.as_str()),
+            ScriptType::Taproot => text!("tr({})", key.as_str()),
         };
         let checksum = descriptor_checksum(&desc).expect("descriptor uses only charset characters");
         desc.push('#');

@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
+faraday-text = { path = "../faraday-text" }
 bitcoin.workspace = true
 miniscript.workspace = true
 

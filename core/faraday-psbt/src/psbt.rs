@@ -342,7 +342,7 @@ pub enum Error {
         /// Input index.
         input: usize,
         /// The participant's public key, compressed, in hex.
-        participant: String,
+        participant: faraday_text::Text,
     },
     /// Finalization failed for an input.
     Finalize {

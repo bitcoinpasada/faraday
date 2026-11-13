@@ -26,9 +26,9 @@
 
 extern crate alloc;
 
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::str::FromStr;
+use faraday_text::text;
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
@@ -204,7 +204,7 @@ fn bip32_vector(c: &Compute) -> bool {
     let Ok(path) = DerivationPath::from_str(BIP32_PATH) else {
         return false;
     };
-    master.derive(c, &path).to_xpub(c).to_string() == BIP32_XPUB
+    text!("{}", master.derive(c, &path).to_xpub(c)) == BIP32_XPUB
 }
 
 // ----- BIP-84: first receive address of the "abandon … about" seed -----
@@ -226,7 +226,7 @@ fn bip84_address(c: &Compute) -> bool {
     };
     account
         .address(false, 0)
-        .is_ok_and(|a| a.to_string() == BIP84_ADDRESS)
+        .is_ok_and(|a| text!("{a}") == BIP84_ADDRESS)
 }
 
 // ----- ECDSA: Bitcoin Core key_tests strSecret1C over SHA256d(message) -----

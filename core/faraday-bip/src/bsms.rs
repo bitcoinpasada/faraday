@@ -43,9 +43,8 @@
 //! whose token is a real nonce but which arrives as text — is read in
 //! full.
 
-use alloc::format;
-use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use faraday_text::{Text, text};
 
 use bitcoin::address::{Address, NetworkUnchecked};
 use bitcoin::hashes::Hash;
@@ -116,17 +115,17 @@ impl From<policy::Error> for Error {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignerRecord {
     /// The session token, hex, `00` when the session is not encrypted.
-    pub token: String,
+    pub token: Text,
     /// The key this signer brings to the wallet.
     pub key: PolicyKey,
     /// The signer's description of the key, at most eighty characters.
-    pub description: String,
+    pub description: Text,
     /// The signature over the first four lines, base64.
-    pub signature: String,
+    pub signature: Text,
     /// The key line the signature is over: a received record's third
     /// line as it came (its hardened steps written `'` or `h`), a record
     /// made here [`key`](Self::key)'s own text, written `h`.
-    key_line: String,
+    key_line: Text,
 }
 
 impl SignerRecord {
@@ -151,17 +150,21 @@ impl SignerRecord {
             return Err(Error::Description);
         }
         Ok(SignerRecord {
-            token: String::from(token),
+            token: Text::of(token),
             key,
-            description: String::from(description),
-            signature: String::from(lines[4].trim()),
-            key_line: String::from(lines[2].trim()),
+            description: Text::of(description),
+            signature: Text::of(lines[4].trim()),
+            key_line: Text::of(lines[2].trim()),
         })
     }
 
     /// The record as its five lines.
-    pub fn to_text(&self) -> String {
-        format!("{}\n{}", self.signed_text(), self.signature)
+    pub fn to_text(&self) -> Text {
+        text!(
+            "{}\n{}",
+            self.signed_text().as_str(),
+            self.signature.as_str()
+        )
     }
 
     /// The key line as the record writes it, which is what the
@@ -175,10 +178,12 @@ impl SignerRecord {
     /// one the record was read with or made with, never written out
     /// again, so a received record verifies over what its signer
     /// signed.
-    pub fn signed_text(&self) -> String {
-        format!(
+    pub fn signed_text(&self) -> Text {
+        text!(
             "{VERSION}\n{}\n{}\n{}",
-            self.token, self.key_line, self.description
+            self.token.as_str(),
+            self.key_line.as_str(),
+            self.description.as_str()
         )
     }
 
@@ -250,7 +255,7 @@ pub fn signer_record<C: Signing + Verification>(
     if PublicKey::from_secret_key(secp, secret) != account.xpub().public_key {
         return Err(Error::Key);
     }
-    let mut origin = String::new();
+    let mut origin = Text::new();
     write!(origin, "[{}", account.master_fingerprint()).expect("string write");
     for child in account.path() {
         write!(origin, "/{child}").expect("string write");
@@ -258,11 +263,11 @@ pub fn signer_record<C: Signing + Verification>(
     write!(origin, "]{}", account.xpub()).expect("string write");
     let key = PolicyKey::parse(&origin).map_err(|_| Error::Key)?;
     let mut record = SignerRecord {
-        token: String::from(token),
-        key_line: key.key_text(),
+        token: Text::of(token),
+        key_line: Text::of(&key.key_text()),
         key,
-        description: String::from(description),
-        signature: String::new(),
+        description: Text::of(description),
+        signature: Text::new(),
     };
     let hash = signed_msg_hash(&record.signed_text());
     let message = Message::from_digest(hash.to_byte_array());
@@ -272,7 +277,7 @@ pub fn signer_record<C: Signing + Verification>(
     let mut bytes = [0u8; 65];
     bytes[0] = 27 + 4 + recid.to_i32() as u8;
     bytes[1..].copy_from_slice(&compact);
-    record.signature = base64::encode(&bytes);
+    record.signature = Text::of(&base64::encode(&bytes));
     Ok(record)
 }
 
@@ -283,10 +288,10 @@ pub struct DescriptorRecord {
     pub policy: WalletPolicy,
     /// The derivation path restrictions, `/0/*,/1/*`, or none when the
     /// record says `No path restrictions`.
-    pub paths: Vec<String>,
+    pub paths: Vec<Text>,
     /// The wallet's first receive address, on the network its keys are
     /// on.
-    pub first_address: String,
+    pub first_address: Text,
     /// That network.
     pub network: Network,
 }
@@ -308,7 +313,7 @@ impl DescriptorRecord {
         // (`docs/DECISIONS.md` F64), the one place this reader takes more
         // than the BIP; the first-address check below still decides.
         if paths.is_empty() && descriptor.contains(TEMPLATE_SUFFIX) {
-            paths = ["/0/*", "/1/*"].map(String::from).to_vec();
+            paths = ["/0/*", "/1/*"].map(Text::of).to_vec();
         }
         // A template is written with `/**`; a descriptor with no
         // template says so on its paths line, and the two must agree.
@@ -336,8 +341,8 @@ impl DescriptorRecord {
         // upper case, which BIP 173 has a reader take, is the same
         // address in lower case; a base58 address's case is part of it,
         // and one written in another case does not parse above.
-        let stated = unchecked.assume_checked().to_string();
-        if first.to_string() != stated {
+        let stated = text!("{}", unchecked.assume_checked());
+        if text!("{first}") != stated {
             return Err(Error::FirstAddress);
         }
         Ok(DescriptorRecord {
@@ -349,18 +354,28 @@ impl DescriptorRecord {
     }
 
     /// The record as its four lines.
-    pub fn to_text(&self) -> String {
-        let paths = if self.paths.is_empty() {
-            String::from(NO_PATH_RESTRICTIONS)
+    pub fn to_text(&self) -> Text {
+        let mut paths = Text::new();
+        if self.paths.is_empty() {
+            paths.push_str(NO_PATH_RESTRICTIONS);
         } else {
-            self.paths.join(",")
-        };
+            for (i, path) in self.paths.iter().enumerate() {
+                if i > 0 {
+                    paths.push(',');
+                }
+                paths.push_str(path);
+            }
+        }
         let descriptor = if self.paths.is_empty() {
             self.policy.to_descriptor()
         } else {
             self.policy.to_descriptor_template()
         };
-        format!("{VERSION}\n{descriptor}\n{paths}\n{}", self.first_address)
+        text!(
+            "{VERSION}\n{descriptor}\n{}\n{}",
+            paths.as_str(),
+            self.first_address.as_str()
+        )
     }
 
     /// Whether this signer's key is one of the wallet's, matched whole
@@ -412,12 +427,12 @@ pub fn is_token(token: &str) -> bool {
 
 /// The paths line: `No path restrictions`, or the receive and change
 /// chains, which are the only two this device derives.
-fn parse_paths(line: &str) -> Result<Vec<String>, Error> {
+fn parse_paths(line: &str) -> Result<Vec<Text>, Error> {
     if line == NO_PATH_RESTRICTIONS {
         return Ok(Vec::new());
     }
-    let paths: Vec<String> = line.split(',').map(|p| String::from(p.trim())).collect();
-    if paths.iter().map(String::as_str).eq(["/0/*", "/1/*"]) {
+    let paths: Vec<Text> = line.split(',').map(|p| Text::of(p.trim())).collect();
+    if paths.iter().map(Text::as_str).eq(["/0/*", "/1/*"]) {
         Ok(paths)
     } else {
         Err(Error::Paths)
