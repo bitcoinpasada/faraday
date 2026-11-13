@@ -748,10 +748,15 @@ fn read_literal(plain: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
 }
 
 /// A packet's body: borrowed, or joined from partial lengths and wiped.
-#[derive(Debug)]
 enum Body<'a> {
     Borrowed(&'a [u8]),
     Joined(Zeroizing<Vec<u8>>),
+}
+
+impl core::fmt::Debug for Body<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Body({} bytes)", self.as_slice().len())
+    }
 }
 
 impl<'a> Body<'a> {

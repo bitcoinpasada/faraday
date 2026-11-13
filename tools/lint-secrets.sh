@@ -177,17 +177,6 @@ faraday/faraday-core/src/storage_api.rs:StorageCommand Clone,PartialEq,Debug fix
 faraday/faraday-core/src/transfer/text.rs:SendText Debug fixed in a later change
 faraday/faraday-files/src/proto.rs:Request Clone,PartialEq,Debug fixed in a later change
 faraday/faraday-intake/src/wallet.rs:Seen PartialEq fixed in a later change
-faraday/faraday-pgp/src/message.rs:Body Debug fixed in a later change
-faraday/faraday-vault/src/contents.rs:KeyName Clone fixed in a later change
-faraday/faraday-vault/src/contents/tree.rs:Name Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/inner.rs:Shared Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Piece Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Leaf Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Frame Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Pair Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Orig Clone fixed in a later change
-faraday/faraday-vault/src/kdbx/xml/mod.rs:Group Clone fixed in a later change
-faraday/faraday-vault/src/records.rs:Field Clone fixed in a later change
 EOF
 )
 ALLOWED_TYPES_LIST=$(echo "$ALLOWED_TYPES" | awk '{print $1 "=" $2}' | tr '\n' ' ')

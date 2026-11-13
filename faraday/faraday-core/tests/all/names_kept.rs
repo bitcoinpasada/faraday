@@ -213,7 +213,7 @@ fn a_place_names_name_never_leaves_the_vault() {
         .next()
         .expect("a plan record")
         .1
-        .clone();
+        .duplicate();
     assert_eq!(plan.text(field::PLAN_PLACE), Some(NAME));
     for f in plan.fields.iter().filter(|f| f.number == field::PLAN_HOLDS) {
         assert!(

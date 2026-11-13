@@ -72,11 +72,7 @@ pub enum QrPassOffer {
 }
 
 /// Why a QR vault was not sealed or opened, or an item not offered on.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a derived Clone: no secret type derives it"
-)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum QrError {
     /// The passphrase is empty.
     EmptyPassphrase,

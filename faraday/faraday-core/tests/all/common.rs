@@ -1821,7 +1821,11 @@ pub fn kdbx_records(file: &[u8], phrase: &str) -> Vec<faraday_vault::Record> {
     let (vid, _) = store
         .unlock(&c, file.to_vec(), phrase)
         .unwrap_or_else(|e| panic!("opens: {e:?}"));
-    store.contents_for_tests(vid).to_vec()
+    store
+        .contents_for_tests(vid)
+        .iter()
+        .map(faraday_vault::Record::duplicate)
+        .collect()
 }
 
 /// A PiKVM among the USB devices.

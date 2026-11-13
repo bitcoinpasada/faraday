@@ -51,7 +51,7 @@ fn the_codex32_vector_opens_with_its_key_set_and_share() {
             .items
             .iter()
             .find_map(|i| match &i.body {
-                Body::Record(r) if r.kind == k => Some(r.clone()),
+                Body::Record(r) if r.kind == k => Some(r.duplicate()),
                 _ => None,
             })
             .expect("a record of the kind")

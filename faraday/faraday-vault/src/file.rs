@@ -383,10 +383,6 @@ pub fn open_with(
 /// Costs a document write for each item changed and a copy of the
 /// document: `doc` with `changes` applied, in order, and the vault's own
 /// values stamped for the next seal at `now`.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the document is copied into wiping buffers, as the one it came from"
-)]
 fn applied(
     c: &Compute,
     doc: &Document,
@@ -395,7 +391,7 @@ fn applied(
     now: Option<u64>,
 ) -> Result<Document, Error> {
     // The copy's buffers are wiping types, as the document's are.
-    let mut copy = doc.clone();
+    let mut copy = doc.duplicate();
     // An entry no earlier change of the batch touched reads as it did
     // before it: its readability is `read`'s, not worked out again from
     // every entry of the copy.
@@ -560,12 +556,8 @@ impl Opened {
     /// no copy of it: what [`Opened::used`] gives for no change, or more
     /// by the attachments no entry refers to, the vault's own values stamped
     /// in place and put back as they were.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "the vault's custom data is copied into wiping buffers"
-    )]
     pub fn base_used(&mut self) -> Result<usize, Error> {
-        let saved = self.doc.custom().clone();
+        let saved = self.doc.custom().duplicate();
         let time = items::utc_time(0);
         let stamped = items::stamp(&mut self.doc, self.read.next_seal(), time.as_deref());
         let len = self.doc.written_len();

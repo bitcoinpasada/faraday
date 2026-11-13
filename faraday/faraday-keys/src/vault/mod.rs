@@ -226,13 +226,12 @@ impl<'a> RecordView<'a> {
 
     /// A copy of the record, when it has no secret field: a plan, a
     /// wallet, a share. `None` for any other.
-    #[expect(clippy::disallowed_methods, reason = "a record with no secret field")]
     pub fn to_public(&self) -> Option<Record> {
         self.record
             .fields
             .iter()
             .all(|f| !is_secret(self.record.kind, f.number))
-            .then(|| self.record.clone())
+            .then(|| self.record.duplicate())
     }
 
     /// Whether the record has exactly the fields of `other`, in order,
@@ -366,19 +365,11 @@ impl MadeKey {
 }
 
 impl IntoRecord for &MadeKey {
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a record's fields are Zeroizing: the copy is wiped on drop"
-    )]
     fn into_record(self) -> Record {
-        self.0.clone()
+        self.0.duplicate()
     }
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a record's fields are Zeroizing: the copy is wiped on drop"
-    )]
     fn staged(self) -> Staged {
-        Staged::Made(self.0.clone())
+        Staged::Made(self.0.duplicate())
     }
     fn size(&self) -> usize {
         MadeKey::size(self)
@@ -465,13 +456,9 @@ pub(crate) enum Op {
 
 /// What an entry of a record's kind holds for the vault crate: a GPG key
 /// is written from its armored form.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a record's fields are Zeroizing: the copy is wiped on drop"
-)]
 fn body_of(record: &Record) -> Option<Body> {
     if record.kind != kind::GPG {
-        return Some(Body::Record(record.clone()));
+        return Some(Body::Record(record.duplicate()));
     }
     let created = record
         .field(gpg_field::CREATED)
@@ -800,7 +787,7 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
     };
     for (item, it) in read.items.iter().enumerate() {
         let record = match &it.body {
-            Body::Record(r) => Some(r.clone()),
+            Body::Record(r) => Some(r.duplicate()),
             Body::Gpg(g) => crate::gpg::record_of(g),
         };
         match record {
@@ -830,7 +817,7 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
         }
     }
     for cu in &read.custom {
-        built.records.push(cu.record.clone());
+        built.records.push(cu.record.duplicate());
         built.origin.push(Origin::Custom {
             key: cu.key.clone(),
         });
@@ -912,18 +899,18 @@ fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(
             let n = plan.ok_or(Unwritable::Plan)?;
             ops.push(Op::Plan {
                 n,
-                record: rec.clone(),
+                record: rec.duplicate(),
             });
             *plan = n.checked_add(1);
         }
-        kind::AMOUNTS => ops.push(Op::Signed(rec.clone())),
-        kind::NONCES => ops.push(Op::Nonces(rec.clone())),
+        kind::AMOUNTS => ops.push(Op::Signed(rec.duplicate())),
+        kind::NONCES => ops.push(Op::Nonces(rec.duplicate())),
         kind::SLOT_LABEL => ops.push(Op::Label(rec.text(field::LABEL).unwrap_or("").to_string())),
         k if is_entry_kind(k) => ops.push(Op::Put {
             uuid: [0; 16],
             group_uuid: [0; 16],
             new: true,
-            record: rec.clone(),
+            record: rec.duplicate(),
         }),
         k => return Err(Unwritable::Record(k)),
     }
@@ -931,10 +918,6 @@ fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(
 }
 
 /// What a record present says to write: nothing when it is as read.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a record's fields are Zeroizing: the copy is wiped on drop, and the label is public"
-)]
 fn put_op(
     o: &Origin,
     rec: &Record,
@@ -949,7 +932,7 @@ fn put_op(
                     uuid: *uuid,
                     group_uuid: [0; 16],
                     new: false,
-                    record: rec.clone(),
+                    record: rec.duplicate(),
                 });
             }
         }
@@ -964,7 +947,7 @@ fn put_op(
                 if key.strip_prefix("faraday.signed.") != Some(now.as_str()) {
                     drop_op(o, ops);
                 }
-                ops.push(Op::Signed(rec.clone()));
+                ops.push(Op::Signed(rec.duplicate()));
             }
         }
         Origin::Custom { key }
@@ -976,7 +959,7 @@ fn put_op(
                 if key.strip_prefix("faraday.nonces.") != Some(now.as_str()) {
                     drop_op(o, ops);
                 }
-                ops.push(Op::Nonces(rec.clone()));
+                ops.push(Op::Nonces(rec.duplicate()));
             }
         }
         Origin::Custom { key } if rec.kind == kind::PLAN => {
@@ -988,7 +971,7 @@ fn put_op(
                     if dirty {
                         ops.push(Op::Plan {
                             n,
-                            record: rec.clone(),
+                            record: rec.duplicate(),
                         });
                     }
                 }

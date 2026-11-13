@@ -2206,11 +2206,18 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
             .open
             .iter()
             .find(|o| app.vaults().store().contents_for_tests(o.id).of(k).count() > 0)
-            .map(|o| app.vaults().store().contents_for_tests(o.id).to_vec())
+            .map(|o| {
+                app.vaults()
+                    .store()
+                    .contents_for_tests(o.id)
+                    .iter()
+                    .map(faraday_vault::Record::duplicate)
+                    .collect::<Vec<_>>()
+            })
             .expect("a vault with it")
     };
     let words = with(kind::KEY);
-    let keys: Vec<_> = words.of(kind::KEY).map(|(_, r)| r.clone()).collect();
+    let keys: Vec<_> = words.of(kind::KEY).map(|(_, r)| r.duplicate()).collect();
     assert_eq!(keys.len(), 1);
     assert!(
         keys[0].field(field::KEY_PASSPHRASE).is_none(),
