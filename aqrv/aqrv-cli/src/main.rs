@@ -210,14 +210,11 @@ fn item_from(c: &Compute, kind: &str, line: &str) -> Result<Item, Fail> {
             Item::Entropy(Zeroizing::new(m.entropy().expose().as_bytes().to_vec()))
         }
         "key" => {
-            let bytes = Zeroizing::new(
-                unhex(line).ok_or_else(|| refused("a key is 64 hexadecimal digits"))?,
-            );
-            let key: [u8; 32] = bytes
-                .as_slice()
-                .try_into()
-                .map_err(|_| refused("a key is 64 hexadecimal digits"))?;
-            Item::RawKey(Zeroizing::new(key))
+            let mut key = Zeroizing::new([0u8; 32]);
+            if faraday_crypto::hex::decode_into(line, &mut *key) != Some(32) {
+                return Err(refused("a key is 64 hexadecimal digits"));
+            }
+            Item::RawKey(key)
         }
         "codex32" => Item::Codex32(Text::of(line)),
         "passphrase" => Item::Passphrase(Text::of(line)),

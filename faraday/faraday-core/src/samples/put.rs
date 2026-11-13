@@ -112,9 +112,15 @@ fn seedqr_digits(words: &str) -> Option<Vec<u8>> {
 /// The fingerprint a cosigner's key text names, as typed: the origin's
 /// first part.
 fn origin_of(text: &str) -> Option<[u8; 4]> {
-    let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    let fp = t.strip_prefix('[')?.split(['/', ']']).next()?.to_string();
-    faraday_crypto::hex::decode_exact(fp.get(..8)?)
+    let mut typed = text.chars().filter(|c| !c.is_whitespace());
+    if typed.next()? != '[' {
+        return None;
+    }
+    let mut digits = [0u8; 8];
+    for d in &mut digits {
+        *d = u8::try_from(typed.next()?).ok()?;
+    }
+    faraday_crypto::hex::decode_exact(std::str::from_utf8(&digits).ok()?)
 }
 
 impl Faraday {

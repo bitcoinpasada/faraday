@@ -117,10 +117,7 @@ impl Faraday {
 
     /// Costs a parse of each key's words. The session's keys and wallets
     /// that no open vault holds, by label and by name (`docs/WALLETS.md`:
-    /// locking lists what was not saved). Kept in the drawing memo while a
-    /// frame is drawn (`docs/SPEED.md` §3.3).
-    ///
-    /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
+    /// locking lists what was not saved).
     pub fn unsaved_now(&self, c: &Compute) -> (Vec<Text>, Vec<Text>) {
         self.vaults.unsaved(c, &self.session)
     }

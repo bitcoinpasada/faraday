@@ -100,9 +100,6 @@ pub(crate) struct Drawing {
     pub vault_rows: RefCell<Vec<(usize, Vec<crate::vault::VaultRow>)>>,
     /// Everything the Inbox gives ([`crate::Faraday::inbox_found_now`]).
     pub inbox_found: OnceCell<crate::inbox::Found>,
-    /// The session's keys and wallets no open vault holds
-    /// ([`crate::Faraday::unsaved_now`]).
-    pub unsaved: OnceCell<(Vec<faraday_text::Text>, Vec<faraday_text::Text>)>,
 }
 
 impl Drawing {

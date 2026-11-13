@@ -310,14 +310,6 @@ impl View<'_> {
             .clone()
     }
 
-    /// The session's keys and wallets no open vault holds
-    /// ([`crate::Faraday::unsaved_now`]), once a frame.
-    pub fn unsaved(&self) -> &(Vec<faraday_text::Text>, Vec<faraday_text::Text>) {
-        self.drawing
-            .unsaved
-            .get_or_init(|| self.filled(|c| self.app.unsaved_now(c)))
-    }
-
     /// What a lock keeps and wipes ([`crate::Faraday::kept_wiped_now`]), once a
     /// frame for each `power_off`.
     pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {

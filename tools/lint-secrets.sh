@@ -87,10 +87,12 @@
 #      4a's key types, `zeroize`), and is not in SECRET_FILES, is reported, so
 #      a new module is found without anyone adding it; so is a listed file
 #      that uses none (unless it is in NAMELESS, with its reason), and a
-#      NAMELESS file that now uses one. The wiping text of faraday_text is
-#      not counted as a secret type yet: a file that holds text only as
-#      wiping Text and names no secret type is not found by this lint, and
-#      is held only when someone lists it.
+#      NAMELESS file that now uses one. The wiping text of faraday_text counts
+#      as a secret type: a file naming it is in SECRET_FILES or, with a
+#      reason that is true, in UNHELD (below), the one place such a file may
+#      stay out of rule 3. A file on UNHELD names no other secret type. The
+#      files type_files leaves out (the shells, tools, fuzz and the Starter)
+#      are not read by this check.
 #
 # Rule 4, the key boundary, rule 5, the dev card's reports, and rule 6, the
 # test allocator, are described where they are checked, below.
@@ -127,7 +129,9 @@ type_files() {
 # A secret type, by name: the wiping types, faraday-keys' holders (Held,
 # HeldSet, HeldItem, HeldAezeed), rule 4a's key types and anything that
 # wipes itself.
-SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b'
+SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b|\bfaraday_text\b'
+# The same without the wiping text: a file on UNHELD may name only that.
+OTHER_SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b'
 
 # Rule 1: output and logging macros.
 report "output/logging macro in core source (rule 1)" \
@@ -637,45 +641,194 @@ faraday/faraday-core/src/lib.rs
 faraday/faraday-core/src/state.rs
 faraday/faraday-core/src/testkit/public.rs
 core/faraday-bip/src/policy.rs
-core/faraday-bip/src/tapmulti.rs"
+core/faraday-bip/src/tapmulti.rs
+faraday/faraday-ui/src/roles.rs
+aqrv/aqrv/src/text.rs
+faraday/faraday-core/src/backup_flow/seed_names.rs
+faraday/faraday-core/src/keygen/entries.rs
+faraday/faraday-core/src/vault/related.rs
+faraday/faraday-core/src/signing/fresh.rs
+faraday/faraday-core/src/samples/screen.rs
+faraday/faraday-ui/src/nav/chip.rs
+faraday/faraday-core/src/qr_tool/seal.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
-# Files in SECRET_FILES that hold a secret without naming a secret type, each
-# with why:
+# Files in SECRET_FILES that hold a secret without naming a secret type or the
+# wiping text, each with why:
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
-#   keys/totp.rs       holds the shown one-time code in wiping text
-#   vault/dice.rs, vault/screen.rs   hold only public text and wiping text of the vault and its draw
 #   faraday-text lib   declares and documents the wiping text type of text.rs
-#   codex32_backup     holds the codex32 strings typed back and made as wiping text
-#   glance/sheet.rs    shows a passphrase it reads from the store as wiping text
-#   dice_entry/mod.rs holds a diceware passphrase and the rolls as wiping text
-#   kef_tool/mod.rs    holds a KEF plaintext as wiping text
-#   restore.rs         holds the passphrase and the typed backup text of a restore as wiping text
-#   canvas/list.rs     draws the list's masked text rows from wiping text
-#   qr_tool/screen.rs  holds the QR vault's passphrase and note as wiping text
-#   specter.rs         holds the Specter payload it reads or makes as wiping text
-#   wallet_files.rs    holds the wallet files' text as wiping text
-#   held.rs            lends a key's revealed passphrase into the vault record it writes
-#   codes/mod.rs       holds the entry's account and title as wiping text and the shown one-time code
-#   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
-#                      and hand it on to the seeds area
-#   caravan.rs         builds the key lines of a config's xpub field, which may hold a private key, as wiping text
-#   policy.rs, tapmulti.rs   hold descriptor and key text from a file, which may carry a private key, as wiping text
-#   drawing/kept.rs    holds the worked-out text a screen shows (a seed's address, a key's text) as wiping text
-#   intake lib.rs      reads a split seed's part from a file as wiping text
-#   drawing.rs         returns every string a frame drew, a revealed seed's words included, as wiping text
-#   wallet_backup/shown.rs  holds the shown seed's SeedQR numbers as wiping text
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs faraday/faraday-intake/src/caravan.rs faraday/faraday-intake/src/lib.rs core/faraday-bip/src/policy.rs core/faraday-bip/src/tapmulti.rs faraday/faraday-core/src/drawing.rs faraday/faraday-core/src/wallet_backup/shown.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs"
+# Files that name the wiping text or hold test text and are not in
+# SECRET_FILES (the unheld files), each with why. This list is the one place
+# such a file may stay out of SECRET_FILES; a file listed here that is also in
+# SECRET_FILES, or that is missing, is reported:
+#   testkit/plain.rs  the test kit's key texts as plain text: public fixtures and
+#                     published dummy data, built only with the `testkit` feature
+#                     for tests, tools and the online Starter, never in the device app;
+#                     and Plain, which copies a frame's drawn text out for a test
+#   faraday/faraday-core/src/screens/backup.rs
+#       builds no heap text of a secret; draws the revealed words, the typed passphrase and the word check by borrow from held text (the reveal's Text), and its other text is titles, counts and file names
+#   faraday/faraday-core/src/compact/screen.rs
+#       builds no heap text of a secret; draws the typed word, its number and the passphrase field by borrow from held text (the entry's Text and the held keyed_head)
+#   faraday/faraday-core/src/board/mod.rs
+#       the board's place names, chip labels, fingerprints and checksums, public text
+#   faraday/faraday-core/src/board/screen.rs
+#       the board's chip names and marks as drawn, public text
+#   faraday/faraday-core/src/board/codex32.rs
+#       a codex32 set's string names by index and its counts, never a string's characters
+#   faraday/faraday-core/src/public_files.rs
+#       a wallet's public files, their names and the descriptor's text
+#   faraday/faraday-core/src/file_menu.rs
+#       file names, kinds, sizes, SHA-256 groups and renames, public text
+#   faraday/faraday-core/src/backup_flow/screen.rs
+#       the backup flow cards' titles, place and vault names and counts
+#   faraday/faraday-core/src/backup_flow/area.rs
+#       the gate's kinds, ids and names, and the Power sheet's lines
+#   faraday/faraday-core/src/backup_flow/wallet_screen.rs
+#       a wallet backup's missing names and counts
+#   faraday/faraday-core/src/memory/mod.rs
+#       the kept settings, amounts, hashes, file names and summaries, which hold no secret
+#   faraday/faraday-core/src/vault/load.rs
+#       the Load sheet's wallet names, fingerprints, labels and the "Passphrase for key {fp}" lines, never a passphrase
+#   faraday/faraday-core/src/vault/load_job.rs
+#       a wallet's description and name, public
+#   faraday/faraday-core/src/vault/summaries.rs
+#       each vault's summary as kept, ids, fingerprints and names
+#   faraday/faraday-core/src/vault/seals.rs
+#       seal counts and times
+#   faraday/faraday-core/src/vault/plan_store.rs
+#       a plan record's places, vault names and labels
+#   faraday/faraday-core/src/vault/keep.rs
+#       the vault names a save goes into
+#   faraday/faraday-core/src/vault/screen/save.rs
+#       file names, sizes, hashes and the time for signing
+#   faraday/faraday-core/src/stick/wipe.rs
+#       the files chosen to delete, percentages and minutes
+#   faraday/faraday-core/src/stick/mod.rs
+#       stick problems and the stick's settings text
+#   faraday/faraday-core/src/stick/settings.rs
+#       the stick settings file's lines
+#   faraday/faraday-core/src/secure_boot/mod.rs
+#       the owner GUID, certificate names, image hashes and refusals; the keys stay in the record
+#   faraday/faraday-core/src/register.rs
+#       a wallet's typed name, shape, paths and refusals
+#   faraday/faraday-core/src/create_from.rs
+#       key lines, vault names and wallet checksums
+#   faraday/faraday-core/src/decode/check_screen.rs
+#       Check a signer's card titles, file names and txids
+#   faraday/faraday-core/src/compare/screen.rs
+#       Compare's card titles and file names
+#   faraday/faraday-core/src/wallet/nonce.rs
+#       the nonce check's counts and headlines
+#   faraday/faraday-core/src/wallet/account.rs
+#       an account's name, BIP number and source
+#   faraday/faraday-core/src/screens/wallets.rs
+#       vault names, fingerprints and counts
+#   faraday/faraday-core/src/screens/check_message.rs
+#       a signed message checked and its refusal
+#   faraday/faraday-core/src/drawing/memo.rs
+#       the memo's backup lines and button labels
+#   faraday/faraday-core/src/samples/put.rs
+#       Practice's published sample keys and their public key text (the SeedQR digits at :107 are a sample's); a typed cosigner's origin is read by borrow
+#   faraday/faraday-core/src/vanity/mod.rs
+#       script names, a found address's head, fingerprints and refusals
+#   faraday/faraday-core/src/explore/addresses.rs
+#       addresses and the address searched for
+#   faraday/faraday-core/src/codes/screen.rs
+#       the seconds left on a code, never the code
+#   faraday/faraday-core/src/work/kept.rs
+#       test code (cfg(test)), wallet files and the test kit's dummy words
+#   faraday/faraday-core/src/work/budget/scaling.rs
+#       test code, counts and file names
+#   faraday/faraday-core/src/work/budget/fee_bump.rs
+#       test code, test file names
+#   faraday/faraday-core/src/work/budget/signer.rs
+#       test code, test file names
+#   faraday/faraday-core/src/work/budget/compare.rs
+#       test code, test file names
+#   faraday/faraday-ui/src/lib.rs
+#       SVG path data and test lines
+#   faraday/faraday-ui/src/nav/app_bar.rs
+#       a page title split to fit
+#   faraday/faraday-ui/src/sheet.rs
+#       a sheet's short labels
+#   faraday/faraday-host/src/labels.rs
+#       the strip's control labels and menu rows, never typed text
+#   faraday/faraday-sb/src/lib.rs
+#       the enrolment files' names and certificate common names
+#   core/faraday-psbt/src/psbt.rs
+#       a PSBT's parse refusals and its base64
+#   aqrv/aqrv-cli/src/cli.rs
+#       arguments, usage and failures; the passphrase and the item are never arguments, and a key item's hex is decoded in main.rs straight into its wiping array
+#   aqrv/aqrv-cli/src/vectors.rs
+#       the published vectors' names and the runner's outcomes
+UNHELD="faraday/faraday-core/src/testkit/plain.rs
+faraday/faraday-core/src/screens/backup.rs
+faraday/faraday-core/src/compact/screen.rs
+faraday/faraday-core/src/board/mod.rs
+faraday/faraday-core/src/board/screen.rs
+faraday/faraday-core/src/board/codex32.rs
+faraday/faraday-core/src/public_files.rs
+faraday/faraday-core/src/file_menu.rs
+faraday/faraday-core/src/backup_flow/screen.rs
+faraday/faraday-core/src/backup_flow/area.rs
+faraday/faraday-core/src/backup_flow/wallet_screen.rs
+faraday/faraday-core/src/memory/mod.rs
+faraday/faraday-core/src/vault/load.rs
+faraday/faraday-core/src/vault/load_job.rs
+faraday/faraday-core/src/vault/summaries.rs
+faraday/faraday-core/src/vault/seals.rs
+faraday/faraday-core/src/vault/plan_store.rs
+faraday/faraday-core/src/vault/keep.rs
+faraday/faraday-core/src/vault/screen/save.rs
+faraday/faraday-core/src/stick/wipe.rs
+faraday/faraday-core/src/stick/mod.rs
+faraday/faraday-core/src/stick/settings.rs
+faraday/faraday-core/src/secure_boot/mod.rs
+faraday/faraday-core/src/register.rs
+faraday/faraday-core/src/create_from.rs
+faraday/faraday-core/src/decode/check_screen.rs
+faraday/faraday-core/src/compare/screen.rs
+faraday/faraday-core/src/wallet/nonce.rs
+faraday/faraday-core/src/wallet/account.rs
+faraday/faraday-core/src/screens/wallets.rs
+faraday/faraday-core/src/screens/check_message.rs
+faraday/faraday-core/src/drawing/memo.rs
+faraday/faraday-core/src/samples/put.rs
+faraday/faraday-core/src/vanity/mod.rs
+faraday/faraday-core/src/explore/addresses.rs
+faraday/faraday-core/src/codes/screen.rs
+faraday/faraday-core/src/work/kept.rs
+faraday/faraday-core/src/work/budget/scaling.rs
+faraday/faraday-core/src/work/budget/fee_bump.rs
+faraday/faraday-core/src/work/budget/signer.rs
+faraday/faraday-core/src/work/budget/compare.rs
+faraday/faraday-ui/src/lib.rs
+faraday/faraday-ui/src/nav/app_bar.rs
+faraday/faraday-ui/src/sheet.rs
+faraday/faraday-host/src/labels.rs
+faraday/faraday-sb/src/lib.rs
+core/faraday-psbt/src/psbt.rs
+aqrv/aqrv-cli/src/cli.rs
+aqrv/aqrv-cli/src/vectors.rs"
+UNHELD=$(echo $UNHELD)
+unheld=$(for f in $UNHELD; do
+    [ -f "$f" ] || { echo "$f: missing"; continue; }
+    case " $SECRET_FILES " in *" $f "*) echo "$f: is in SECRET_FILES" ;; esac
+    grep -qE "$OTHER_SECRET_NAMES" "$f" && echo "$f: names a secret type other than the wiping text; hold it in SECRET_FILES"
+    grep -qE '\bfaraday_text\b' "$f" || echo "$f: no longer names the wiping text; remove it from UNHELD"
+done)
+report "UNHELD is out of date (rule 3)" "$unheld"
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
 unlisted=$(for f in $(type_files); do
     names_secret "$f" || continue
-    case " $SECRET_FILES " in *" $f "*) ;; *) echo "$f" ;; esac
+    case " $SECRET_FILES $UNHELD " in *" $f "*) ;; *) echo "$f" ;; esac
 done)
-report "a file that uses a secret type is not in SECRET_FILES (rule 3)" "$unlisted"
+report "a file that uses a secret type is not in SECRET_FILES or UNHELD (rule 3)" "$unlisted"
 nameless=$(for f in $SECRET_FILES; do
     [ -f "$f" ] || continue
     names_secret "$f" && continue
@@ -686,18 +839,6 @@ redundant=$(for f in $NAMELESS; do
     [ -f "$f" ] && names_secret "$f" && echo "$f"
 done)
 report "a file in NAMELESS that now names a secret type (rule 3; remove it from NAMELESS)" "$redundant"
-# Files that name the wiping text or hold test text and are not in
-# SECRET_FILES, each with why:
-#   testkit/plain.rs  the test kit's key texts as plain text: public fixtures and
-#                     published dummy data, built only with the `testkit` feature
-#                     for tests, tools and the online Starter, never in the device app;
-#                     and Plain, which copies a frame's drawn text out for a test
-UNHELD="faraday/faraday-core/src/testkit/plain.rs"
-unheld=$(for f in $UNHELD; do
-    [ -f "$f" ] || { echo "$f: missing"; continue; }
-    case " $SECRET_FILES " in *" $f "*) echo "$f: is in SECRET_FILES" ;; esac
-done)
-report "UNHELD is out of date (rule 3)" "$unheld"
 dup=$(tr ' ' '\n' <<< "$SECRET_FILES" | sort | uniq -d | sed 's/$/: listed twice/')
 report "SECRET_FILES lists a file twice (rule 3)" "$dup"
 # The text builders: the type, its macros and the calls that make a String.
