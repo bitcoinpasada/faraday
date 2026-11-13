@@ -215,9 +215,8 @@ The registry checked against itself and the tree, run by `check` and
   every pattern of a `when` matches at least one tracked path, unless
   the rule's `on` is `add` alone;
 - every command of the `lint` recipe in `justfile`, and of the recipes
-  it depends on (`lint-clippy`, `lint-deps`, `lint-repo`,
-  `lint-macos`), is a `[[check]]` whose `stage` is `just lint`, and
-  every such check is a command of the recipe;
+  it depends on (`lint-clippy`, `lint-deps`, `lint-repo`), is a
+  `[[check]]` whose `stage` is `just lint`, and every such check is a command of the recipe;
 - every rule of kind `held` names at least one check whose `status` is
   `built`.
 

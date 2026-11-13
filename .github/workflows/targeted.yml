@@ -18,7 +18,7 @@ on:
       lint:
         description: One lint recipe, or none for tests only
         type: choice
-        options: [none, lint-clippy, lint-deps, lint-repo, lint-macos, lint-touch-targets, lint-op-cost]
+        options: [none, lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
         default: none
 
 permissions:
@@ -78,7 +78,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           packages: ${{ inputs.crate != '' }}
-          mac-targets: ${{ inputs.lint == 'lint-macos' }}
           valgrind: ${{ inputs.lint == 'lint-op-cost' }}
           deps: ${{ inputs.crate != '' && 'build-tests' || inputs.lint }}
       - name: The crate is a member of the workspace

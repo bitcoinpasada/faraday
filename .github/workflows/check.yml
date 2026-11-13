@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [lint-clippy, lint-deps, lint-repo, lint-macos, lint-touch-targets, lint-op-cost]
+        part: [lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -130,7 +130,6 @@ jobs:
         run: git branch --force main "origin/${GITHUB_BASE_REF}"
       - uses: ./.github/actions/setup
         with:
-          mac-targets: ${{ matrix.part == 'lint-macos' }}
           valgrind: ${{ matrix.part == 'lint-op-cost' }}
           deps: ${{ matrix.part }}
       - run: just ${{ matrix.part }}

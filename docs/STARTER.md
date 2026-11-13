@@ -267,7 +267,8 @@ samples compiled in (F126, §5.3).
   `sysctl hw.model` (the model identifier), `uname -m` and
   `sysctl.proc_translated`. Every program by its absolute path. Built
   on a Mac (Apple's SDK licence), as a universal binary; until there is
-  one, `tools/check-macos.sh` type-checks the module for both Mac
+  one, `tools/check-macos.sh` (run by hand; macOS is paused and no
+  automatic check runs it) type-checks the module for both Mac
   targets on the build machine and its parsers are tested on Linux
   against hand-written answers (HANDOFF item 73).
 - Builds: Linux in the §1.2 container; Windows cross-compiled for

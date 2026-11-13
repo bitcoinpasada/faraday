@@ -2,16 +2,13 @@
 # (.github/workflows/check.yml): build output on the runner's larger disk,
 # the toolchain rust-toolchain.toml names, the tools DEVELOPING.md §1
 # names at the versions the workflow gives, and, where asked, the system
-# packages the tests run against and the two Mac targets. A job that
+# packages the tests run against. A job that
 # compiles names its compiled dependencies, restored here (docs/decisions/F212.md).
 name: setup
 description: The check's toolchain and tools
 inputs:
   packages:
     description: Install the system packages the tests run against
-    default: "false"
-  mac-targets:
-    description: Add the two Mac targets
     default: "false"
   valgrind:
     description: Install valgrind, which the instruction counts of lint-op-cost need
@@ -52,9 +49,6 @@ runs:
       shell: bash
       run: |
         rustup show active-toolchain || rustup toolchain install
-        if [ "${{ inputs.mac-targets }}" = true ]; then
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
-        fi
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:

@@ -22,8 +22,7 @@ test-doc:
 # lint, the user-facing-strings lint, the design-token lint, the costs
 # lint (who takes, mints and keeps the compute token, docs/COMPUTE.md
 # §8), the check that no shipped binary compiles the token that counts
-# nothing (docs/COMPUTE.md §3), and the Starter's macOS code checked for
-# both Mac targets without a Mac (tools/check-macos.sh), the docs lint
+# nothing (docs/COMPUTE.md §3), the docs lint
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
 # long functions, counts that only fall, tools/lint-layout.sh), the touch-target
@@ -34,7 +33,7 @@ test-doc:
 # vet: every dependency trusted, audited or exempted (F71), and the guide
 # lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
-lint: lint-clippy lint-deps lint-repo lint-macos lint-touch-targets lint-op-cost
+lint: lint-clippy lint-deps lint-repo lint-touch-targets lint-op-cost
 
 # Clippy over the workspace, every target (the costliest part of the lint).
 [group('lint')]
@@ -127,7 +126,8 @@ lint-repo:
 lint-all:
     python3 -I -B tools/lint-all.py
 
-# The Starter's macOS code, checked for both Mac targets.
+# The Starter's macOS code, checked for both Mac targets. macOS is paused
+# (docs/STARTER.md), so no automatic check runs this: run it by hand.
 [group('lint')]
 lint-macos:
     tools/check-macos.sh

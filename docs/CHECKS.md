@@ -43,7 +43,6 @@ does what is `tools/README.md`'s.
 | `crosscheck-facts` | just lint | `python3 -I -B tools/crosscheck/facts.py check` | a cross-check area without its stated facts, a path it names that does not exist, tools/crosscheck/README.md's table and known differences out of step with them (F148) | whether the stated facts are true of what the area runs | built |
 | `lint-themes` | just lint | `tools/lint-themes.sh` | the colour tables differing from what the vendored material-color-utilities makes | the website's copy of the roles | built |
 | `lint-keys-tests` | just lint | `tools/lint-keys-tests.sh` | a shipped binary with faraday-keys' master-for-tests or faraday-core's testkit feature | - | built |
-| `check-macos` | just lint | `tools/check-macos.sh` | the Starter's macOS code, clippy for both Mac targets | behaviour on a Mac | built |
 | `lint-guide-self-test` | just lint | `python3 -B tools/lint-guide.py --self-test` | the guide lint's own fixtures | - | built |
 | `lint-guide` | just lint | `python3 -B tools/lint-guide.py` | a bold name that is not an app string, a link that does not resolve, a Screen or Sheet no guide page names | prose that describes old steps with the current names | built |
 | `nextest` | just test | `cargo nextest run --locked --workspace` | every unit and integration test in the workspace | - | built |

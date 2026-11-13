@@ -3,8 +3,9 @@
 Every script and helper program in `tools/` and `faraday/tools/`. Stage is
 one of build, test, lint, release, generator, data or dev aid. Recipes are
 in `justfile` and `faraday/faraday.just`.
-`just lint` runs its five parts in order, each a recipe of its own:
-`lint-clippy`, `lint-deps`, `lint-repo`, `lint-macos` and `lint-touch-targets`.
+`just lint` runs its parts in order, each a recipe of its own: `lint-clippy`,
+`lint-deps`, `lint-repo`, `lint-touch-targets` and `lint-op-cost`.
+`lint-macos` is not one of them: macOS is paused and it is run by hand.
 
 ## Which folder
 
@@ -39,7 +40,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options and dictionary, the corpus store, the targets of the partitions `FARADAY_FUZZ_PARTITION` names |
 | `tools/fuzz-join.py` | release | `just fuzz-join OUT PART...`; `python3 -I -B tools/fuzz-join.py --later OUT EARLIER LATER` | a fuzz run split into partitions joined: each part's `fuzz-release.txt` and `fuzz-corpus/` into one record, each target once, and one corpus; refuses parts of different runs, a partition twice or one missing. With `--later`, two runs of one release (F241): the record names both and marks each target's row with its run, the corpus is the later run's for the targets it ran |
 | `tools/fuzz-plan.py` | release | `tools/fuzz-release.sh` | the coverage map made at the end of a full fuzz run (the files each target's corpus reaches) and the targets a later run runs again after the changes since the earlier run's commit (F241) |
-| `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
+| `tools/check-macos.sh` | by hand | `just lint-macos` (macOS is paused; no automatic check runs it) | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint-release` | before a release, the crypto has not changed since the last passing cross-check (below) |
 | `tools/lint-standards.py` | lint | `just lint` | `docs/STANDARDS.md` §0 held against `tools/lint-standards.toml`: cross-check coverage, work kept out of the app, every hold with its decision, §8's disagreements (below) |
 | `tools/lint-standards.toml` | data | `tools/lint-standards.py` | the cryptography the stamp does not cover with its reasons, the work kept out of the app, every hold with its decision and case (F136), one entry per STANDARDS §8 disagreement |
@@ -178,7 +179,7 @@ feeds.
 - `op-cost.py`, its self-test first: builds `tools/op-cost` (`cargo build --locked --release -p op-cost`) and runs each operation it lists under `valgrind --tool=callgrind`, reading the "Collected" instruction count; fails an operation more than 25% over its count in `tools/op-cost.counts`, an operation with no count and a count with no operation; a fall says to lower it with `--write` and is not a failure. Needs valgrind (F238).
 - `tools/crosscheck/facts.py check`: every `area_*.py` class has `faraday`, `reference`, `reference_checked`, `vectors`, `corpus`, `differences` and `not_compared`, none empty ("none" says there is nothing), each `faraday_*` path or file in `faraday` exists, and `tools/crosscheck/README.md` between its `facts:` marker lines is what the areas say; otherwise it names the area and the attribute, or "run `python3 -I -B tools/crosscheck/facts.py write`" (`docs/CRYPTO-LEARN.md` §10.1).
 - `lint-themes.sh`: the vendored material-color-utilities matches `tools/themes/reference.sha256`, with no file beside them but its README, and `tools/themes/gen.mjs` run on it writes `faraday/faraday-ui/src/pal/schemes.rs` byte for byte; otherwise "run `just themes`". Needs Node 22 or later (`docs/THEMES.md` §11.3).
-- `check-macos.sh`: clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.
+- `check-macos.sh` (by hand, `just lint-macos`; macOS is paused): clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.
 - `python3 -I -B tools/impact.py lint`, `check --quiet` and `docs --check` (F149, `docs/IMPACT.md`): the registry `tools/impact.toml` has unique ids, `held_by` and `consumers` that name what exists, source documents and paths that exist, a `just lint` recipe equal to its checks, and each app's reads matching `cargo metadata`; no rule of kind pair, forbid or trailer is unmet by the commits from `main` to the working tree (waived only by an `Impact-skip: <rule>: <reason>` trailer); and `docs/CHECKS.md` is what `python3 -I -B tools/impact.py docs` writes. `plan <paths>` says what a change to some paths brings with it; `report [--out <file>]` writes the whole map, extra rule files included; `check <range> --consumer website [--site <tree> --site-since <commit>]` says which of the website's parts a range leaves to do, and exits 1 while a blocking one is. Python 3.11 or later and git; no build.
 
 ## Vectors
