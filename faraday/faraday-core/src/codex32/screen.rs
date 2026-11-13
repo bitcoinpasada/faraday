@@ -69,18 +69,6 @@ fn masked(n: usize) -> Text {
     out
 }
 
-/// `parts` joined by `sep`.
-fn joined<S: AsRef<str>>(parts: &[S], sep: &str) -> Text {
-    let mut out = Text::new();
-    for (i, part) in parts.iter().enumerate() {
-        if i > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(part.as_ref());
-    }
-    out
-}
-
 /// A die's bit path as digits.
 fn digits(bits: &[u8]) -> Text {
     let mut out = Text::with_room(bits.len());
@@ -423,7 +411,7 @@ fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         })
         .collect();
-    cy += fact(ui, x, cy, w, EN.c32r_from, &joined(&from, ", "));
+    cy += fact(ui, x, cy, w, EN.c32r_from, &Text::joined(&from, ", "));
     cy += fact(ui, x, cy, w, EN.codex32_length, &num(m.length().chars()));
     let open = m.work().is_none();
     if m.given_kind() == Some(Given::Add) {
@@ -1486,7 +1474,7 @@ fn dice_review(
                 EN.codex32_box_rolled,
                 &[
                     &num(n + 10),
-                    &joined(&rows, "  "),
+                    &Text::joined(&rows, "  "),
                     &bits,
                     &letter(char_of(made.value())),
                 ],
@@ -1745,7 +1733,7 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
             cy,
             w,
             EN.codex32_sets_to_try,
-            &joined(&m.sets_to_try(), " · "),
+            &Text::joined(&m.sets_to_try(), " · "),
         );
     }
     cy - y
@@ -1935,7 +1923,7 @@ fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<Text> {
                 .collect();
             let sum = ts.sum_cell(b).map_or_else(dot, |v| letter(char_of(v)));
             vec![
-                Text::fill(EN.codex32_sum_is, &[&joined(&parts, " + "), &sum]),
+                Text::fill(EN.codex32_sum_is, &[&Text::joined(&parts, " + "), &sum]),
                 Text::of(EN.codex32_addition_wheel),
             ]
         }
@@ -2071,7 +2059,7 @@ fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text>
                 .map_or_else(dot, |v| char_of(v).to_uppercase().collect::<Text>())
         })
         .collect();
-    let lead = joined(&lead, " ");
+    let lead = Text::joined(&lead, " ");
     let row: Vec<Text> = (0..sh.checksum_len())
         .map(|n| {
             let c = sh
@@ -2086,7 +2074,7 @@ fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text>
             EN.codex32_table_row,
             &[&lead, &num(i + 1), &num(sh.checksum_len())],
         ),
-        joined(&row, " "),
+        Text::joined(&row, " "),
     ]
 }
 
@@ -2109,7 +2097,7 @@ fn symbol_working(work: &WorkSet, sheet: usize, i: usize) -> Vec<Text> {
     };
     out.push(Text::fill(
         EN.codex32_fused_from,
-        &[kind, &joined(&pairs, " × ")],
+        &[kind, &Text::joined(&pairs, " × ")],
     ));
     out
 }

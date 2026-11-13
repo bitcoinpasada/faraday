@@ -960,7 +960,7 @@ fn create_summaries(app: &View) -> [Text; vstep::COUNT] {
         places.push(EN.vault_none_chosen);
     }
     [
-        joined(&places, ", "),
+        Text::joined(&places, ", "),
         Text::fill(
             EN.vault_cost_row,
             &[name, &mib_text(mem), &Text::num(u64::from(passes))],
@@ -1565,18 +1565,6 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     (title, line, mono)
 }
 
-/// `parts` with `sep` between them.
-fn joined(parts: &[&str], sep: &str) -> Text {
-    let mut out = Text::new();
-    for (i, part) in parts.iter().enumerate() {
-        if i > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(part);
-    }
-    out
-}
-
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn item_heading_of(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     match r.kind() {
@@ -1632,7 +1620,7 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
             }
             (
                 Text::of(r.public_text(field::TITLE).unwrap_or(EN.vault_entry)),
-                joined(&parts, " · "),
+                Text::joined(&parts, " · "),
                 false,
             )
         }

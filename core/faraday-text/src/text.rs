@@ -39,6 +39,24 @@ impl Text {
         t
     }
 
+    /// The `parts` one after another with `sep` between them, in a
+    /// buffer of exactly their size: it is never grown, so no earlier,
+    /// unwiped buffer is left behind.
+    pub fn joined<S: AsRef<str>>(parts: &[S], sep: &str) -> Text {
+        let mut bytes = sep.len() * parts.len().saturating_sub(1);
+        for part in parts {
+            bytes += part.as_ref().len();
+        }
+        let mut out = Text::with_room(bytes);
+        for (i, part) in parts.iter().enumerate() {
+            if i > 0 {
+                out.push_str(sep);
+            }
+            out.push_str(part.as_ref());
+        }
+        out
+    }
+
     /// One holding what `args` formats to, in a buffer of exactly its
     /// size: the text is measured first so it is never grown piece by
     /// piece. [`text!`](crate::text) calls it.

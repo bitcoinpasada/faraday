@@ -1624,18 +1624,6 @@ impl BackupFlow {
     }
 }
 
-/// `items` with `sep` between them.
-pub(crate) fn joined<T: AsRef<str>>(items: &[T], sep: &str) -> Text {
-    let mut out = Text::new();
-    for (i, item) in items.iter().enumerate() {
-        if i > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(item.as_ref());
-    }
-    out
-}
-
 /// `s` with each `from` made `to`.
 fn swap(s: &str, from: char, to: char) -> Text {
     s.chars().map(|c| if c == from { to } else { c }).collect()
@@ -1695,7 +1683,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         out.push_str(&text!(
             "plan\t{}\t{}\t{}\t{}\t{}\n",
             f.plan.public_at,
-            &*joined(&together, ","),
+            &*Text::joined(&together, ","),
             u8::from(f.plan.files),
             u8::from(f.plan.public),
             match f.plan.public_on {
@@ -1709,7 +1697,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         }
         if !f.plan.place_files.is_empty() {
             let list: Vec<Text> = f.plan.place_files.iter().map(|p| text!("{p}")).collect();
-            out.push_str(&text!("pfiles\t{}\n", &*joined(&list, ",")));
+            out.push_str(&text!("pfiles\t{}\n", &*Text::joined(&list, ",")));
         }
         if let Some(t) = f.plan.public_stick {
             out.push_str(&text!("pstick\t{}\n", &*t.code()));
@@ -1722,14 +1710,14 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 "wallet\t{}\t{}\t{}\n",
                 &*clean(w.checksum.as_deref().unwrap_or("")),
                 &*clean(&w.name),
-                &*joined(&w.held, ",")
+                &*Text::joined(&w.held, ",")
             ));
             if !w.base.is_empty() {
-                out.push_str(&text!("wbase\t{}\n", &*joined(&w.base, ",")));
+                out.push_str(&text!("wbase\t{}\n", &*Text::joined(&w.base, ",")));
             }
             for (v, seeds) in &w.sealed {
                 let list: Vec<Text> = seeds.iter().map(|s| text!("{s}")).collect();
-                out.push_str(&text!("wsealed\t{v}\t{}\n", &*joined(&list, ",")));
+                out.push_str(&text!("wsealed\t{v}\t{}\n", &*Text::joined(&list, ",")));
             }
             if w.pieces {
                 out.push_str("wpieces\t1\n");
@@ -1756,14 +1744,14 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 out.push_str(&text!(
                     "wbefore\t{}\t{}\n",
                     &*hex_text(salt),
-                    &*joined(held, ",")
+                    &*Text::joined(held, ",")
                 ));
             }
             for (salt, fps) in &w.others {
                 out.push_str(&text!(
                     "wothers\t{}\t{}\n",
                     &*hex_text(salt),
-                    &*joined(fps, ",")
+                    &*Text::joined(fps, ",")
                 ));
             }
             out.push_str(&text!(
@@ -1804,7 +1792,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         }
         for (p, vs) in f.plan.places.iter().enumerate() {
             let vs: Vec<Text> = vs.iter().map(|v| text!("{v}")).collect();
-            out.push_str(&text!("place\t{p}\t{}\n", &*joined(&vs, ",")));
+            out.push_str(&text!("place\t{p}\t{}\n", &*Text::joined(&vs, ",")));
         }
         for (v, vp) in f.plan.vaults.iter().enumerate() {
             let (fp, fname) = vp
@@ -2487,7 +2475,7 @@ pub(crate) fn gate_encode(flows: &[BackupFlow]) -> Vec<u8> {
             let held = f
                 .wallet
                 .as_ref()
-                .map_or(Text::new(), |w| joined(&w.held, ","));
+                .map_or(Text::new(), |w| Text::joined(&w.held, ","));
             out.push_str(&text!(
                 "{}\t{}\t{}\t{}\n",
                 f.kind.code(),
@@ -2572,7 +2560,7 @@ impl BackupFlow {
                 let names: Vec<Text> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
                 text!(
                     "{} ({})",
-                    &*joined(&names, ", "),
+                    &*Text::joined(&names, ", "),
                     &*BackupFlow::place_name(*p)
                 )
             }
@@ -2628,7 +2616,7 @@ impl BackupFlow {
                 .get(*p)
                 .map(|vs| {
                     let names: Vec<Text> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
-                    joined(&names, ", ")
+                    Text::joined(&names, ", ")
                 })
                 .unwrap_or_default(),
             Target::PlaceVault(_, v) | Target::Another(_, Some(v), _) => BackupFlow::vault_name(*v),

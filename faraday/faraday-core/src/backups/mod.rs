@@ -229,18 +229,6 @@ fn kept_field(s: &str) -> Text {
         .collect()
 }
 
-/// The parts of `v` with `sep` between them.
-fn joined<S: AsRef<str>>(v: &[S], sep: &str) -> Text {
-    let mut out = Text::default();
-    for (i, p) in v.iter().enumerate() {
-        if i > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(p.as_ref());
-    }
-    out
-}
-
 fn at_text(at: At) -> Text {
     match at {
         // The record keeps places: a stick is its place's (`plan::by_place`).
@@ -379,7 +367,7 @@ pub(crate) fn summary_has_seed(
 pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
     let list = |v: &[Text]| {
         let fields: Vec<Text> = v.iter().map(|s| kept_field(s)).collect();
-        joined(&fields, "\u{1f}")
+        Text::joined(&fields, "\u{1f}")
     };
     let mut out = Text::default();
     for r in all {
@@ -396,7 +384,7 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
                 &*at_text(s.at),
                 s.tag.name(),
                 &*list(&s.holds),
-                &*joined(&copies, ","),
+                &*Text::joined(&copies, ","),
                 &*list(&s.files),
                 &*list(&s.secret)
             ));
@@ -2109,7 +2097,7 @@ impl Faraday {
                     holds: if s.holds.is_empty() {
                         Text::of(EN.backups_nothing)
                     } else {
-                        joined(&s.holds, ", ")
+                        Text::joined(&s.holds, ", ")
                     },
                     tag: Some(s.tag),
                     state,
@@ -2377,7 +2365,7 @@ impl Faraday {
         if parts.is_empty() {
             parts.push(Text::of(EN.backups_planned));
         }
-        Text::fill(EN.backups_backup, &[&*joined(&parts, " · ")])
+        Text::fill(EN.backups_backup, &[&*Text::joined(&parts, " · ")])
     }
 }
 
@@ -3895,7 +3883,7 @@ impl Faraday {
         }
         let fps: Vec<Text> = loaded.into_iter().map(crate::wallet::fp_text).collect();
         self.refresh_spend();
-        self.toast(&Text::fill(EN.c32_gathered, &[&*joined(&fps, ", ")]));
+        self.toast(&Text::fill(EN.c32_gathered, &[&*Text::joined(&fps, ", ")]));
     }
 
     /// Costs what `parse_words` costs for a SeedQR. Whether a secret

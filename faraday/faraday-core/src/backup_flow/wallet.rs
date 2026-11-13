@@ -10,7 +10,7 @@
 //! only a wallet needs.
 
 use crate::backup_flow::wallet_files::{seed_file_of, target_sticks};
-use crate::backup_flow::{BackupFlow, Kind, Step, Subject, Target, joined};
+use crate::backup_flow::{BackupFlow, Kind, Step, Subject, Target};
 pub(crate) use crate::backup_flow::{seed_stick_name, seedqr_picture};
 use crate::plan;
 use crate::strings::EN;
@@ -797,7 +797,7 @@ impl Faraday {
         let (t, what) = flow.public_clash(c, &shape, &b.answers, &m)?;
         let file = self.stick_file_names_now(b.wallet, &shape, &b.answers, what);
         Some((
-            joined(&file, ", "),
+            Text::joined(&file, ", "),
             flow.target_short(&t, self.medium.noun()),
         ))
     }

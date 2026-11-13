@@ -10,6 +10,8 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use zeroize::Zeroizing;
+
 use faraday_shell_api::{Event, FileKind};
 
 /// The most text a read returns, in bytes. More is unavailable.
@@ -25,7 +27,7 @@ pub trait Source {
     /// cannot be reached. Costs running another program (up to two
     /// seconds) or a Windows API call, so it is called only for a press
     /// of Paste.
-    fn text(&mut self) -> Option<String>;
+    fn text(&mut self) -> Option<Zeroizing<String>>;
 }
 
 /// A program that prints the clipboard's text on its standard output.
@@ -39,14 +41,14 @@ pub struct Tool {
 
 /// What running a [`Tool`] came to.
 #[cfg_attr(windows, allow(dead_code))]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 enum Run {
     /// The program is not installed (or cannot be started): the next
     /// tool may be tried.
     Missing,
     /// It ran and printed this; or it failed, timed out or printed more
     /// than the cap, and there is nothing.
-    Done(Option<String>),
+    Done(Option<Zeroizing<String>>),
 }
 
 /// Runs `tool` and returns its standard output as text. Costs a process
@@ -86,8 +88,21 @@ fn run(tool: &Tool, limit: Duration, cap: usize) -> Run {
     }
     let succeeded = child.wait().map(|s| s.success()).unwrap_or(false);
     match bytes {
-        Ok(Ok(bytes)) if in_time && succeeded => Run::Done(String::from_utf8(bytes).ok()),
+        Ok(Ok(bytes)) if in_time && succeeded => Run::Done(wiping_text(bytes)),
         _ => Run::Done(None),
+    }
+}
+
+/// The tool's output as text that wipes itself, or `None` when it is not
+/// UTF-8 (its bytes are wiped then too).
+#[cfg_attr(windows, allow(dead_code))]
+fn wiping_text(bytes: Vec<u8>) -> Option<Zeroizing<String>> {
+    match String::from_utf8(bytes) {
+        Ok(text) => Some(Zeroizing::new(text)),
+        Err(e) => {
+            drop(Zeroizing::new(e.into_bytes()));
+            None
+        }
     }
 }
 
@@ -126,7 +141,7 @@ struct System {
 }
 
 impl Source for System {
-    fn text(&mut self) -> Option<String> {
+    fn text(&mut self) -> Option<Zeroizing<String>> {
         #[cfg(windows)]
         {
             windows::text(self.cap)
@@ -153,12 +168,13 @@ mod windows {
     };
     use windows_sys::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
     use windows_sys::Win32::System::Ole::CF_UNICODETEXT;
+    use zeroize::Zeroizing;
 
     /// The clipboard's Unicode text, or `None` when there is none, it is
     /// over `cap` bytes or the clipboard cannot be opened. Costs a
     /// round trip to the clipboard's owner. The clipboard is closed and
     /// the memory unlocked on every path.
-    pub fn text(cap: usize) -> Option<String> {
+    pub fn text(cap: usize) -> Option<Zeroizing<String>> {
         // SAFETY: the clipboard is opened for this call only and closed
         // before it returns, whatever `read_open` finds.
         unsafe {
@@ -175,7 +191,7 @@ mod windows {
     ///
     /// # Safety
     /// The caller holds the clipboard open.
-    unsafe fn read_open(cap: usize) -> Option<String> {
+    unsafe fn read_open(cap: usize) -> Option<Zeroizing<String>> {
         // SAFETY: the handle is the clipboard's own and is not freed here;
         // it is read only while locked, within the `GlobalSize` bytes it
         // reports, and unlocked after.
@@ -195,7 +211,7 @@ mod windows {
             }
             let units = std::slice::from_raw_parts(ptr, size / 2);
             let end = units.iter().position(|&u| u == 0).unwrap_or(units.len());
-            let text = String::from_utf16(&units[..end]).ok();
+            let text = String::from_utf16(&units[..end]).ok().map(Zeroizing::new);
             GlobalUnlock(hglobal);
             text.filter(|t| t.len() <= cap)
         }
@@ -225,10 +241,10 @@ impl Clipboard {
 
     /// The event that answers `RequestClipboard { kind }`: the text
     /// unmodified, or `ClipboardUnavailable` when there is none or it is
-    /// empty. Costs what [`Source::text`] costs. The source's text is
-    /// copied into wiping text for the event and wiped here.
+    /// empty. Costs what [`Source::text`] costs. The source's text
+    /// is wiping already; it is copied into the event's and wiped here.
     pub fn answer(&mut self, kind: FileKind) -> Event {
-        match self.source.text().map(zeroize::Zeroizing::new) {
+        match self.source.text() {
             Some(text) if !text.is_empty() => Event::Clipboard {
                 kind,
                 text: faraday_text::Text::of(&text),
@@ -245,8 +261,8 @@ mod tests {
     struct Fake(Option<&'static str>);
 
     impl Source for Fake {
-        fn text(&mut self) -> Option<String> {
-            self.0.map(str::to_owned)
+        fn text(&mut self) -> Option<Zeroizing<String>> {
+            self.0.map(|t| Zeroizing::new(t.to_owned()))
         }
     }
 
@@ -284,13 +300,13 @@ mod tests {
 
     #[test]
     fn a_missing_tool_is_unavailable() {
-        assert_eq!(run(&MISSING, LIMIT, CAP), Run::Missing);
+        assert!(matches!(run(&MISSING, LIMIT, CAP), Run::Missing));
         let mut board = System {
             tools: vec![MISSING],
             limit: LIMIT,
             cap: CAP,
         };
-        assert_eq!(board.text(), None);
+        assert!(board.text().is_none());
     }
 
     #[cfg(unix)]

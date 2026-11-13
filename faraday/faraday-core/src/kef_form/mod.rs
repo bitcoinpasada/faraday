@@ -748,7 +748,7 @@ impl KefForm {
                 true
             }
             Some(Err(e)) => {
-                self.error = Some(Text::of(&e));
+                self.error = Some(e);
                 self.stage = Stage::Entry;
                 true
             }
@@ -975,7 +975,7 @@ impl KefForm {
                 self.error = Some(Text::of(EN.kef_form_need_random));
             }
             Err(MakeStart::Not(KefStart::Refused(e))) => {
-                self.error = Some(Text::of(&kef_make::refusal_text(e)));
+                self.error = Some(kef_make::refusal_text(e));
             }
         }
     }

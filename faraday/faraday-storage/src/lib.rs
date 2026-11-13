@@ -1063,6 +1063,9 @@ fn serve_queued(
                         });
                 said.push(match &refused {
                     None => text!("renamed {}/{} {}", &*stick, &*from, &*to),
+                    Some(faraday_core::Unrenamed::Failed(why)) => {
+                        text!("cannot rename {}/{}: Failed({})", &*stick, &*from, &**why)
+                    }
                     Some(r) => text!("cannot rename {}/{}: {:?}", &*stick, &*from, r), // not shown: a line for a verbose shell's console
                 });
                 app.storage(StorageEvent::Renamed {

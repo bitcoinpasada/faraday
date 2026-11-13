@@ -91,3 +91,14 @@ fn collecting_and_copying() {
     assert_eq!(v, "abc");
     assert_eq!(format!("{v:?}"), "Text(3 bytes)");
 }
+
+#[test]
+fn joined_puts_the_separator_between_parts_only() {
+    let none: [&str; 0] = [];
+    assert_eq!(Text::joined(&none, ", "), "");
+    assert_eq!(Text::joined(&["one"], ", "), "one");
+    assert_eq!(Text::joined(&["a", "b", "c"], ", "), "a, b, c");
+    let owned = [Text::of("x"), Text::of("y")];
+    assert_eq!(Text::joined(&owned, " · "), "x · y");
+    assert_eq!(Text::joined(&["", ""], "€"), "€");
+}

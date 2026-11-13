@@ -114,7 +114,7 @@ impl KefRead {
 
     pub(crate) fn new(envelope: Envelope, depth: u8, rate: Option<u64>) -> Self {
         Self {
-            facts: joined(&facts(&envelope, rate)),
+            facts: Text::joined(&facts(&envelope, rate), " · "),
             envelope,
             depth,
             stage: Stage::Ask,
@@ -135,18 +135,6 @@ impl KefRead {
     pub(crate) fn field(&self) -> Option<&SecretText> {
         (self.stage == Stage::Ask && self.focus).then_some(&self.pass)
     }
-}
-
-/// The facts as one line, with a dot between.
-fn joined(facts: &[Text]) -> Text {
-    let mut out = Text::new();
-    for (i, f) in facts.iter().enumerate() {
-        if i > 0 {
-            out.push_str(" · ");
-        }
-        out.push_str(f);
-    }
-    out
 }
 
 /// The id as the card shows it: text, or `0x` hex (`docs/KEF.md` §8).
@@ -262,7 +250,7 @@ pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
     if let Some(k) = app.seed_read.kef.as_mut()
         && matches!(k.stage, Stage::Ask | Stage::Offer)
     {
-        k.facts = joined(&facts(&k.envelope, Some(rate)));
+        k.facts = Text::joined(&facts(&k.envelope, Some(rate)), " · ");
         changed = true;
     }
     changed |= app

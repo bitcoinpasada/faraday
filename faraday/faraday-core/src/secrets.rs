@@ -528,7 +528,7 @@ impl Faraday {
         }
         let noun = self.medium.noun();
         self.plain_ask(Plain {
-            name: joined(&names),
+            name: Text::joined(&names, ", "),
             on: Text::of(noun),
             keep: Text::of(noun),
             then: PlainThen::VaultSave,
@@ -611,7 +611,7 @@ impl Faraday {
         let noun = self.medium.noun();
         let on = Text::fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]);
         self.plain_ask(Plain {
-            name: joined(&names),
+            name: Text::joined(&names, ", "),
             on,
             keep: Text::of(noun),
             then: PlainThen::Plan(before, names, fps),
@@ -706,18 +706,6 @@ impl Faraday {
             _ => unreachable!(),
         }
     }
-}
-
-/// `names` one after the other, a comma and a space between.
-fn joined(names: &[Text]) -> Text {
-    let mut out = Text::default();
-    for (i, n) in names.iter().enumerate() {
-        if i > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(n);
-    }
-    out
 }
 
 /// The secrets a map keeps as plain files on a stick at a place, by

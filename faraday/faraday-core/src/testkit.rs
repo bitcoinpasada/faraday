@@ -63,18 +63,6 @@ pub fn net() -> Network {
     CHOSEN.get().copied().unwrap_or(NET)
 }
 
-/// `parts` with `sep` between them.
-pub fn joined(parts: &[Text], sep: &str) -> Text {
-    let mut out = Text::new();
-    for (i, part) in parts.iter().enumerate() {
-        if i > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(part);
-    }
-    out
-}
-
 /// The three dummy seeds of the test wallets: the QR test kit's signers
 /// 1 to 3, each one word repeated twenty-four times.
 pub const TEST_SEEDS: [(&str, &str); 3] = [
@@ -270,7 +258,7 @@ fn three_of_five_t() -> Text {
             )
         })
         .collect();
-    let d = text!("wsh(sortedmulti(3,{}))", &*joined(&keys, ","));
+    let d = text!("wsh(sortedmulti(3,{}))", &*Text::joined(&keys, ","));
     WalletPolicy::parse_any(&c, &d).map_or(d, |w| Text::of(&w.to_descriptor_checksummed()))
 }
 
@@ -321,7 +309,7 @@ fn definite(
             .tapscript_quorum()
             .ok_or_else(|| Text::of("no quorum"))?;
         let list: Vec<Text> = keys.into_iter().map(|(_, t)| t).collect();
-        return text!("tr({NUMS},multi_a({m},{}))", &*joined(&list, ","))
+        return text!("tr({NUMS},multi_a({m},{}))", &*Text::joined(&list, ","))
             .parse()
             .map_err(|e| text!("{e}"));
     }
@@ -1788,7 +1776,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
             .map(|s| {
                 let mut h: Vec<Text> = s.holds.iter().map(|x| text!("{x:?}")).collect();
                 h.sort();
-                text!("{:?} {}", s.at, &*joined(&h, " "))
+                text!("{:?} {}", s.at, &*Text::joined(&h, " "))
             })
             .collect();
         out.sort();

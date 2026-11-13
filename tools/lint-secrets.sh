@@ -644,7 +644,7 @@ done
 #   qr_tool/screen.rs  holds the QR vault's passphrase and note as wiping text
 #   specter.rs         holds the Specter payload it reads or makes as wiping text
 #   wallet_files.rs    holds the wallet files' text as wiping text
-#   held.rs            holds a key's passphrase it writes to the vault as wiping text
+#   held.rs            lends a key's revealed passphrase into the vault record it writes
 #   codes/mod.rs       holds the entry's account and title as wiping text and the shown one-time code
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area

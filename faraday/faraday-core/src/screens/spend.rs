@@ -25,18 +25,6 @@ pub(super) fn fp_label(fp: faraday_bip::keys::Fingerprint) -> Text {
     Text::of(&fp_text(fp))
 }
 
-/// The parts one after another with `sep` between them. A lookup.
-pub(super) fn joined(parts: &[Text], sep: &str) -> Text {
-    let mut out = Text::new();
-    for (k, part) in parts.iter().enumerate() {
-        if k > 0 {
-            out.push_str(sep);
-        }
-        out.push_str(part);
-    }
-    out
-}
-
 /// The spend's nonce check (`nonce_card`), kept on the spend. Returns
 /// its height.
 fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
@@ -83,7 +71,7 @@ pub(crate) fn nonce_card(
         let inputs: Vec<Text> = reuse.inputs.iter().map(|i| text!("{}", i)).collect();
         let line = Text::fill(
             EN.nonce_check_one_nonce,
-            &[&reuse.name(), &joined(&inputs, ", ")],
+            &[&reuse.name(), &Text::joined(&inputs, ", ")],
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
@@ -158,7 +146,10 @@ fn history_lines(ui: &mut Ui, check: &crate::wallet::NonceCheck, x: f32, y: f32,
     let mut cy = y;
     for used in &check.used_before {
         let inputs: Vec<Text> = used.inputs.iter().map(|i| text!("{}", i)).collect();
-        let line = Text::fill(EN.nonce_history_used, &[&used.name, &joined(&inputs, ", ")]);
+        let line = Text::fill(
+            EN.nonce_history_used,
+            &[&used.name, &Text::joined(&inputs, ", ")],
+        );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     let (line, tone) = match check.history {
@@ -402,7 +393,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
     } else if !can_sign_here.is_empty() {
         Text::fill(
             EN.spend_status_sign_with_keys,
-            &[&joined(&can_sign_here, ", ")],
+            &[&Text::joined(&can_sign_here, ", ")],
         )
     } else {
         Text::of(&crate::wallet::collect_line(to_come, count))
@@ -562,7 +553,7 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
                 Text::of(EN.step_summary_not_signed)
             } else {
                 let fps: Vec<Text> = signed.iter().map(|f| fp_label(*f)).collect();
-                Text::fill(EN.step_summary_signed_keys, &[&joined(&fps, ", ")])
+                Text::fill(EN.step_summary_signed_keys, &[&Text::joined(&fps, ", ")])
             }
         }
         6 => Text::fill(
@@ -1287,7 +1278,7 @@ pub(crate) fn step_body(
             let signed = s.signed_keys();
             if !signed.is_empty() {
                 let fps: Vec<Text> = signed.iter().map(|f| fp_label(*f)).collect();
-                let text = Text::fill(EN.step_signed_keys, &[&joined(&fps, ", ")]);
+                let text = Text::fill(EN.step_signed_keys, &[&Text::joined(&fps, ", ")]);
                 ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
                 let tx = x + 26.0;
                 if ui.measure_as(TITLE_S, &text) <= x + w - tx {
@@ -1311,7 +1302,7 @@ pub(crate) fn step_body(
                 ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, line);
                 cy += 44.0;
             } else {
-                let label = Text::fill(EN.step_sign_with_keys, &[&joined(&mine, ", ")]);
+                let label = Text::fill(EN.step_sign_with_keys, &[&Text::joined(&mine, ", ")]);
                 let inputs = text!(
                     "{} {}",
                     i.inputs.len(),

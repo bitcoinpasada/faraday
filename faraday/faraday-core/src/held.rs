@@ -778,10 +778,10 @@ impl Faraday {
             if !key.has_passphrase {
                 continue;
             }
-            let pass = Text::of(&self.session.keys.reveal(
+            let pass = self.session.keys.reveal(
                 k,
                 faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Passphrase),
-            ));
+            );
             let record = Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &fp.0)
                 .with(field::PASSPHRASE, pass.as_bytes());

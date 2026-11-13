@@ -816,7 +816,7 @@ impl Answers {
         } else {
             Text::fill(
                 EN.plan_vault_names,
-                &[&Text::num(v as u64 + 1), &joined(&names)],
+                &[&Text::num(v as u64 + 1), &Text::joined(&names, ", ")],
             )
         }
     }
@@ -1334,18 +1334,6 @@ impl What {
 fn trim_end(line: &mut Text) {
     let keep = line.trim_end().len();
     line.truncate(keep);
-}
-
-/// `list` joined with ", ".
-fn joined<T: AsRef<str>>(list: &[T]) -> Text {
-    let mut out = Text::new();
-    for (n, item) in list.iter().enumerate() {
-        if n > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(item.as_ref());
-    }
-    out
 }
 
 /// A public file's form as a label names it: "Text file", "QR picture".
@@ -2461,7 +2449,7 @@ pub fn lost_why_on(
         if at.is_empty() {
             Text::of(EN.plan_at_no_place)
         } else {
-            Text::fill(EN.plan_lost_at, &[&joined(&at)])
+            Text::fill(EN.plan_lost_at, &[&Text::joined(&at, ", ")])
         }
     };
     // A thing kept at `at` is lost with `gone`: there, or in a vault whose
