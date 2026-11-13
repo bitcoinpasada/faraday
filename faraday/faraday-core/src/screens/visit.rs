@@ -4,7 +4,7 @@
 
 use super::parts::{guide_text, kind_line, pull_line, size_text};
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -16,6 +16,7 @@ use faraday_draw::tokens::{
     VISIT_NAME_MIN, VISIT_ROW_BUTTON_H,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 use faraday_ui::parts::wrap_buttons;
 
 /// [`visit`] on a small panel: one scrolled column. The sticks, what is
@@ -37,13 +38,13 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             BODY_M,
             Role::OnSurfaceVariant,
-            &fill(EN.visit_no_attached, &[app.medium.noun()]),
+            &Text::fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
         return;
     };
     // Material's primary tabs: In Faraday, On the stick.
     let on_stick = app.visit.tab_stick;
-    let on_label = fill(EN.backups_on_stick, &[&stick.label]);
+    let on_label = Text::fill(EN.backups_on_stick, &[&stick.label]);
     y += ui.tabs(
         (x, y, w, faraday_draw::tokens::TAB_H),
         faraday_ui::tabs::TabKind::Primary,
@@ -154,12 +155,12 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
             Some(_) if app.visit.reading.contains(name) => {
-                fill(EN.visit_being_read, &[&size_text(*size)])
+                Text::fill(EN.visit_being_read, &[&size_text(*size)])
             }
-            Some(k) => format!("{k} · {}", size_text(*size)),
-            None if big => why.unwrap_or_default(),
+            Some(k) => kind_and_size(k, *size),
+            None if big => why.map(|w| Text::of(&w)).unwrap_or_default(),
             // Read at boot, not copied in.
-            None => EN.visit_settings.to_string(),
+            None => Text::of(EN.visit_settings),
         };
         let sub = ui.fit_as(BODY_S, &sub, w - 32.0 - dw);
         ui.text_as(
@@ -191,13 +192,13 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 6.0;
     }
     if stick.files.is_empty() {
-        let none = fill(EN.visit_no_files, &[app.medium.noun()]);
+        let none = Text::fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &none);
         y += ui.advance_as(BODY_S, 28.0);
     }
     // Delete files: the one way into deleting from the stick; and the
     // stick's own name (`docs/STICK-IDENTITY.md` §6).
-    let rename = fill(EN.stick_name_button, &[app.medium.noun()]);
+    let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
     y += wrap_buttons(
         ui,
         x,
@@ -211,10 +212,10 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let nin = app.visit.inn.len();
     let enabled = nin > 0;
-    let label = fill(
+    let label = Text::fill(
         EN.visit_import,
         &[
-            &nin.to_string(),
+            &Text::num(nin as u64),
             (if nin == 1 {
                 EN.visit_file
             } else {
@@ -388,7 +389,7 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
             y,
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
+            &Text::fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
         y += ui.advance_as(BODY_S, 28.0);
     }
@@ -423,10 +424,10 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
         }
     }
     let nout = visit_write_count(app);
-    let label = fill(
+    let label = Text::fill(
         EN.visit_write,
         &[
-            &nout.to_string(),
+            &Text::num(nout as u64),
             (if nout == 1 {
                 EN.visit_file
             } else {
@@ -450,7 +451,7 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
         x,
         y,
         w,
-        &fill(
+        &Text::fill(
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
@@ -507,7 +508,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The chosen stick's own name, left of the sticks' chips
     // (`docs/STICK-IDENTITY.md` §6).
     if !app.stick.is_empty() {
-        let rename = fill(EN.stick_name_button, &[app.medium.noun()]);
+        let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
         let bw = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
         let at = chx - bw;
         ui.button(
@@ -527,7 +528,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         width.min(900.0),
-        &fill(
+        &Text::fill(
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
@@ -541,7 +542,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             BODY_M,
             Role::OnSurfaceVariant,
-            &fill(EN.visit_no_attached, &[app.medium.noun()]),
+            &Text::fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
         return;
     };
@@ -711,7 +712,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (x + 22.0, ry, HEAD),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
+            &Text::fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
         ry += HEAD;
     }
@@ -762,10 +763,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         shift,
     );
     let nout = visit_write_count(app);
-    let label = fill(
+    let label = Text::fill(
         EN.visit_write,
         &[
-            &nout.to_string(),
+            &Text::num(nout as u64),
             (if nout == 1 {
                 EN.visit_file
             } else {
@@ -857,12 +858,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
             Some(_) if app.visit.reading.contains(name) => {
-                fill(EN.visit_being_read, &[&size_text(*size)])
+                Text::fill(EN.visit_being_read, &[&size_text(*size)])
             }
-            Some(k) => format!("{k} · {}", size_text(*size)),
-            None if big => why.unwrap_or_default(),
+            Some(k) => kind_and_size(k, *size),
+            None if big => why.map(|w| Text::of(&w)).unwrap_or_default(),
             // Read at boot, not copied in.
-            None => EN.visit_settings.to_string(),
+            None => Text::of(EN.visit_settings),
         };
         let sub = ui.fit_as(BODY_S, &sub, colw - room);
         ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
@@ -894,7 +895,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let ry = list_top + track_h;
     if stick.files.is_empty() {
-        let none = fill(EN.visit_no_files, &[app.medium.noun()]);
+        let none = Text::fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text_as(ix + 22.0, ry, BODY_S, Role::OnSurfaceVariant, &none);
     }
     // Delete files: the one way into deleting from the stick.
@@ -921,10 +922,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Primary.when(enabled),
         Action::VisitCopyAndLoad,
     );
-    let label = fill(
+    let label = Text::fill(
         EN.visit_import,
         &[
-            &nin.to_string(),
+            &Text::num(nin as u64),
             (if nin == 1 {
                 EN.visit_file
             } else {
@@ -990,22 +991,31 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 type RowParts = (
     Option<Action>,
     Option<crate::file_menu::Row>,
-    Option<(String, Style, Action)>,
+    Option<(Text, Style, Action)>,
 );
 /// [`RowParts`] where every row has its menu.
 type RowPartsWide = (
     Option<Action>,
     crate::file_menu::Row,
-    Option<(String, Style, Action)>,
+    Option<(Text, Style, Action)>,
 );
 
 /// An Inbox file's main action in its row, as Files offers it, except
 /// unlocking a vault: that waits until the stick is pulled.
-fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(String, Style, Action)> {
+fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(Text, Style, Action)> {
     super::files::inbox_actions(app, k, item)
         .0
         .into_iter()
         .find(|(.., a)| !matches!(a, Action::Vault(crate::vault::VaultAction::Open(_))))
+        .map(|(label, style, action)| (Text::of(&label), style, action))
+}
+
+/// A file's kind and its size, as a visit's row says them.
+fn kind_and_size(kind: &str, size: u64) -> Text {
+    let mut out = Text::of(kind);
+    out.push_str(" · ");
+    out.push_str(&size_text(size));
+    out
 }
 
 fn visit_all_out(app: &View) -> bool {
@@ -1043,16 +1053,13 @@ fn visit_write_count(app: &View) -> usize {
 
 /// An Inbox file's second line on a visit's write list: a picture says
 /// what its codes hold.
-fn visit_inbox_line(item: &crate::Item) -> String {
+fn visit_inbox_line(item: &crate::Item) -> Text {
     match item.picture {
-        Some(FileKind::Other) => fill(
+        Some(FileKind::Other) => Text::fill(
             EN.visit_inbox_line_png_no_qr,
             &[&size_text(item.bytes.len() as u64)],
         ),
-        Some(k) => fill(
-            EN.visit_inbox_line_png,
-            &[&kind_line(k, item.bytes.len()).to_string()],
-        ),
+        Some(k) => Text::fill(EN.visit_inbox_line_png, &[&kind_line(k, item.bytes.len())]),
         None => kind_line(item.kind, item.bytes.len()),
     }
 }
@@ -1144,9 +1151,9 @@ fn visit_list_bar(
             top + track_h,
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(
+            &Text::fill(
                 EN.visit_list_bar_more,
-                &[&((below / ROW).ceil() as usize).to_string()],
+                &[&Text::num((below / ROW).ceil() as u64)],
             ),
         );
     }

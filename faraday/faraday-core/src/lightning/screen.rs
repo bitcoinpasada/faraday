@@ -82,18 +82,18 @@ fn body(
     };
     // Opened from Convert, the entry stands alone: the source is the aezeed.
     let keys = app.session.keys.all().filter(|_| !l.for_convert);
-    let mut row: Vec<(_, Style, Action)> = keys
+    let mut row: Vec<(Text, Style, Action)> = keys
         .flat_map(|k| {
             let fp = k.fingerprint;
             let name = crate::wallet::key_line(fp, &k.label);
             [
                 (
-                    Text::fill(EN.lightning_ldk_node, &[&name]).as_str().into(),
+                    Text::fill(EN.lightning_ldk_node, &[&name]),
                     Style::chosen(l.source == Some(NodeSource::Key(fp.0))),
                     Action::LKey(fp.0),
                 ),
                 (
-                    Text::fill(EN.lightning_cln_node, &[&name]).as_str().into(),
+                    Text::fill(EN.lightning_cln_node, &[&name]),
                     Style::chosen(l.source == Some(NodeSource::KeyCln(fp.0))),
                     Action::LCln(Some(fp.0)),
                 ),
@@ -102,12 +102,12 @@ fn body(
         .collect();
     if !l.for_convert {
         row.push((
-            EN.lightning_lnd_type.into(),
+            Text::of(EN.lightning_lnd_type),
             Style::chosen(l.source == Some(NodeSource::Aezeed)),
             Action::LAezeed,
         ));
         row.push((
-            EN.lightning_cln_type.into(),
+            Text::of(EN.lightning_cln_type),
             Style::chosen(l.source == Some(NodeSource::CoreLightning)),
             Action::LCln(None),
         ));
@@ -230,12 +230,12 @@ fn body(
     let code = crate::Code::NodeId;
     let codes = [
         (
-            EN.lightning_show_as_qr.into(),
+            Text::of(EN.lightning_show_as_qr),
             Style::Secondary,
             Action::ShowCode(code),
         ),
         (
-            EN.lightning_png.into(),
+            Text::of(EN.lightning_png),
             Style::Secondary,
             Action::CodePng(code),
         ),
@@ -416,11 +416,11 @@ fn hsm_files(
         );
         return used + 8.0;
     }
-    let row: Vec<(_, Style, Action)> = files
+    let row: Vec<(Text, Style, Action)> = files
         .into_iter()
         .map(|(k, name)| {
             (
-                Text::fill(EN.lightning_use_file, &[&name]).as_str().into(),
+                Text::fill(EN.lightning_use_file, &[&name]),
                 Style::chosen(l.file.as_ref() == Some(&name)),
                 Action::LFile(k),
             )

@@ -507,7 +507,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         {
             kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
         } else {
-            kind_line(item.kind, item.bytes.len())
+            String::from(&*kind_line(item.kind, item.bytes.len()))
         };
         ui.text_as(x + 66.0, iy + 36.0, BODY_S, Role::OnSurfaceVariant, &line);
         let mut bx = x + 66.0;
@@ -831,7 +831,7 @@ fn out_line(
             ],
         ),
         Some(_) => EN.files_vault_open_sealed.to_string(),
-        None => kind_line(item.kind, item.bytes.len()),
+        None => String::from(&*kind_line(item.kind, item.bytes.len())),
     };
     let state = match exposure {
         Exposure::Secret => (EN.files_unprotected, Role::Error),
@@ -2084,7 +2084,7 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         {
             kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
         } else {
-            kind_line(item.kind, item.bytes.len())
+            String::from(&*kind_line(item.kind, item.bytes.len()))
         };
         let (buttons, note) = inbox_actions(app, k, item);
         y += file_card(

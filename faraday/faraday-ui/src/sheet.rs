@@ -417,13 +417,13 @@ pub fn buttons<A: Copy + PartialEq>(
 
 /// The dialogs that say what a lock does ([`dialog`]): a title, a line,
 /// rows of what happens to what, and their actions.
-pub fn kv_sheet<A: Copy + PartialEq>(
+pub fn kv_sheet<A: Copy + PartialEq, V: AsRef<str>>(
     ui: &mut Ui<A>,
     w: f32,
     h: f32,
     head: (Icon, crate::pal::Paint, &str),
     sub: &str,
-    rows: &[(&str, String, crate::pal::Paint)],
+    rows: &[(&str, V, crate::pal::Paint)],
     actions: &[(&str, Style, A)],
 ) {
     use faraday_draw::tokens::DIALOG_MAX;
@@ -438,7 +438,7 @@ pub fn kv_sheet<A: Copy + PartialEq>(
                 cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurfaceVariant, sub) + PAD;
             }
             for (k, v, tone) in rows {
-                cy += kv(ui, x, cy, iw, k, v, *tone);
+                cy += kv(ui, x, cy, iw, k, v.as_ref(), *tone);
             }
             cy - y
         },

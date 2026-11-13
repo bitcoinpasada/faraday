@@ -2,7 +2,7 @@
 
 use crate::Action;
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -14,6 +14,7 @@ use faraday_draw::tokens::{
     sheet_head,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::{Text, text};
 use faraday_ui::parts::{button_rows, qr_code, sheet_box, wrap_buttons};
 
 /// The potential sheet's fields under its head: where the seed was
@@ -31,17 +32,17 @@ fn potential_body(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
     seed: Option<&crate::inbox::FoundSeed>,
-    xpub: Option<&(String, bool)>,
+    xpub: Option<&(impl AsRef<str>, bool)>,
     takes: bool,
     matched: Option<&str>,
 ) -> f32 {
     let kinds = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-        let row: Vec<(String, Style, Action)> = crate::inbox::KINDS
+        let row: Vec<(&str, Style, Action)> = crate::inbox::KINDS
             .iter()
             .enumerate()
             .map(|(k, kind)| {
                 (
-                    crate::spend_backup::kind_name(*kind).to_string(),
+                    crate::spend_backup::kind_name(*kind),
                     Style::chosen(*kind == p.kind),
                     Action::PotentialKind(k as u8),
                 )
@@ -51,12 +52,18 @@ fn potential_body(
     };
     let mut cy = y;
     if let Some(s) = seed {
-        let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
+        let mut from = Text::new();
+        for (i, src) in s.sources.iter().enumerate() {
+            if i > 0 {
+                from.push_str(" · ");
+            }
+            from.push_str(&src.name(app));
+        }
         cy += ui.wrap_as(
             (x, cy, iw),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
+            &Text::fill(EN.potential_sources, &[&from]),
         ) + 10.0;
     }
     if takes {
@@ -96,10 +103,10 @@ fn potential_body(
                 super::parts::code_field(ui, x, fy, iw, T::TEXT_FIELD_SHEET, pass);
                 ui.press_box(x, fy, iw, T::TEXT_FIELD_SHEET, press);
             } else if app.may_load_keys() {
-                let shown = if p.shown {
-                    zeroize::Zeroizing::new(pass.to_string())
+                let shown: Text = if p.shown {
+                    Text::of(pass)
                 } else {
-                    zeroize::Zeroizing::new("•".repeat(pass.chars().count()))
+                    pass.chars().map(|_| '•').collect()
                 };
                 ui.fill(x, fy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
                 ui.stroke(
@@ -158,11 +165,11 @@ fn potential_body(
         );
     }
     if let Some((key, fixed)) = xpub {
-        let k = ui.fit_as(BODY_S.mono(), key, iw);
+        let k = ui.fit_as(BODY_S.mono(), key.as_ref(), iw);
         ui.text_as(x, cy, BODY_S.mono(), Role::OnSurfaceVariant, &k);
         cy += ui.line_as(BODY_S.mono()) + faraday_draw::tokens::GRID;
         if *fixed {
-            let line = fill(
+            let line = Text::fill(
                 EN.potential_as_its_path,
                 &[crate::spend_backup::kind_name(p.kind)],
             );
@@ -184,7 +191,7 @@ fn potential_body(
         }
         match matched {
             Some(name) => {
-                let line = fill(EN.potential_key_of_wallet, &[name]);
+                let line = Text::fill(EN.potential_key_of_wallet, &[name]);
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Ok, &line) + 10.0;
             }
             None => {
@@ -225,17 +232,14 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .is_none_or(|s| s.sources.first().is_none_or(|src| src.takes_passphrase()));
     let matched = app.potential_match();
     let title = match (xpub, p.fingerprint) {
-        (Some(_), Some(fp)) => fill(
-            EN.potential_a_watch_only_wallet,
-            &[&fp_text(fp).to_string()],
-        ),
-        (Some(_), None) => EN.potential_a_watch_only.to_string(),
-        (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
-        _ => String::new(),
+        (Some(_), Some(fp)) => Text::fill(EN.potential_a_watch_only_wallet, &[&fp_text(fp)]),
+        (Some(_), None) => Text::of(EN.potential_a_watch_only),
+        (None, Some(fp)) => Text::fill(EN.potential_a_wallet, &[&fp_text(fp)]),
+        _ => Text::new(),
     };
     let go = match matched.as_deref() {
-        Some(name) if xpub.is_none() => fill(EN.potential_load, &[name]),
-        _ => EN.potential_make_wallet.to_string(),
+        Some(name) if xpub.is_none() => Text::fill(EN.potential_load, &[name]),
+        _ => Text::of(EN.potential_make_wallet),
     };
     let actions = [
         (EN.potential_cancel, Style::Secondary, Action::Cancel),
@@ -311,15 +315,15 @@ fn reminder_tone(line: &str) -> crate::ui::Paint {
 pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
-    let mut lines: Vec<(String, crate::ui::Paint)> = d
+    let mut lines: Vec<(Text, crate::ui::Paint)> = d
         .held
         .iter()
-        .map(|c| (c.line(), Role::OnSurface.paint()))
+        .map(|c| (Text::of(&c.line()), Role::OnSurface.paint()))
         .collect();
     lines.extend(
         app.device_reminders()
             .into_iter()
-            .map(|r| (r.to_string(), reminder_tone(r))),
+            .map(|r| (Text::of(r), reminder_tone(r))),
     );
     let title = if d.held.is_empty() {
         s.devices_before
@@ -380,13 +384,16 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .pull()
         .and_then(|a| app.pull_what(a))
         .unwrap_or(EN.pull_default_reason);
-    let title = fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
+    let title = Text::fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
     let line = match app.stick.len() {
-        0 | 1 => fill(
+        0 | 1 => Text::fill(
             EN.pull_medium_attached,
             &[(app.stick.first().map_or("", |s| s.label.as_str()))],
         ),
-        k => fill(EN.pull_attached, &[&k.to_string(), app.medium.nouns()]),
+        k => Text::fill(
+            EN.pull_attached,
+            &[&Text::num(k as u64), app.medium.nouns()],
+        ),
     };
     // A secret follows the pull: the reminders due go with it (F24).
     let reminders = app.devices.reminders_due();
@@ -412,10 +419,10 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// stick; then Wiped from memory, each seed and wallet with where else it
 /// is, "nowhere else" alone in the danger tone, and with `save` a Save
 /// beside each one in no open vault; then Then.
-fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<Section> {
+fn kept_sections(app: &View, power_off: bool, save: bool, then: Text) -> Vec<Section> {
     let kw = app.kept_wiped(power_off);
     let then = if app.mode_changing() {
-        EN.lock_mode_keeps_nothing.to_string()
+        Text::of(EN.lock_mode_keeps_nothing)
     } else {
         then
     };
@@ -424,7 +431,7 @@ fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<S
             EN.kept_sections_kept,
             kw.kept
                 .into_iter()
-                .map(|l| (l, Role::OnSurface.paint(), None))
+                .map(|l| (Text::of(&l), Role::OnSurface.paint(), None))
                 .collect(),
         ),
         (
@@ -433,7 +440,7 @@ fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<S
                 .into_iter()
                 .map(|(l, nowhere, s)| {
                     (
-                        l,
+                        Text::of(&l),
                         if nowhere {
                             Role::Error.paint()
                         } else {
@@ -453,10 +460,7 @@ fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<S
 
 /// A kept sheet's section: its name and its lines, each with its tone
 /// and a button beside it.
-type Section = (
-    &'static str,
-    Vec<(String, crate::ui::Paint, Option<Action>)>,
-);
+type Section = (&'static str, Vec<(Text, crate::ui::Paint, Option<Action>)>);
 
 /// A kept sheet's line, its tone, a labelled row, and a code to show
 /// with its text.
@@ -576,15 +580,11 @@ fn kept_sheet(
 }
 
 pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let label = app
-        .stick
-        .first()
-        .map(|s| s.label.clone())
-        .unwrap_or_default();
-    let then = fill(EN.lock_a_fresh_start, &[app.medium.noun()]);
-    let attached = fill(EN.lock_is_attached, &[app.medium.a_cap()]);
-    let use_it = fill(EN.lock_lock_and_use, &[app.medium.noun()]);
-    let line = fill(EN.lock_nothing_has_been, &[&label.to_string()]);
+    let label = app.stick.first().map_or("", |s| s.label.as_str());
+    let then = Text::fill(EN.lock_a_fresh_start, &[app.medium.noun()]);
+    let attached = Text::fill(EN.lock_is_attached, &[app.medium.a_cap()]);
+    let use_it = Text::fill(EN.lock_lock_and_use, &[app.medium.noun()]);
+    let line = Text::fill(EN.lock_nothing_has_been, &[label]);
     kept_sheet(
         app,
         ui,
@@ -666,7 +666,7 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (w, h),
         head,
         (line.0, line.1, None, None),
-        &kept_sections(app, false, true, EN.lock_ask_then.to_string()),
+        &kept_sections(app, false, true, Text::of(EN.lock_ask_then)),
         &if let Some((label, action)) = also {
             vec![
                 (back, Style::Secondary, Action::Cancel),
@@ -686,11 +686,11 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let then = if app.stick.is_empty() {
-        fill(EN.write_out_lock_plug, &[app.medium.a()])
+        Text::fill(EN.write_out_lock_plug, &[app.medium.a()])
     } else {
-        EN.write_out_lock_here.to_string()
+        Text::of(EN.write_out_lock_here)
     };
-    let title = fill(EN.write_out_target, &[app.medium.a()]);
+    let title = Text::fill(EN.write_out_target, &[app.medium.a()]);
     let mut sections = kept_sections(app, false, false, then);
     let drops = app.lock_drops();
     if !drops.is_empty() {
@@ -702,7 +702,7 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 EN.write_out_drops,
                 drops
                     .into_iter()
-                    .map(|n| (n, Role::OnSurface.paint(), None))
+                    .map(|n| (Text::of(&n), Role::OnSurface.paint(), None))
                     .collect(),
             ),
         );
@@ -745,14 +745,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // The camera buttons wrap at the picture's width: the rows they
         // take, measured, are kept clear of Cancel under them.
         let chosen = app.camera();
-        let row: Vec<(String, Style, Action)> = app
+        let row: Vec<(Text, Style, Action)> = app
             .cameras()
             .iter()
             .enumerate()
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| id.as_str() == c);
                 (
-                    String::from(&*ui.fit_as(LABEL_M, name, sw - 96.0)),
+                    ui.fit_as(LABEL_M, name, sw - 96.0),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -811,47 +811,52 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let x = x + pad - 32.0;
     let sw = sw - 2.0 * (pad - 32.0);
-    let title = match (sc.purpose, for_wallet) {
-        (_, Some((_, wl))) => fill(EN.scan_key_for_wallet, &[&wl.name.to_string()]),
+    let wallet_title = for_wallet.map(|(_, wl)| Text::fill(EN.scan_key_for_wallet, &[&wl.name]));
+    let xpub_title = match sc.ask {
+        crate::Ask::Xpub(n) => Some(Text::fill(EN.scan_title_xpub, &[&Text::num(u64::from(n))])),
+        _ => None,
+    };
+    let title: &str = match (sc.purpose, for_wallet) {
+        (_, Some(_)) => wallet_title.as_deref().unwrap_or_default(),
         (crate::ScanPurpose::Intake, _) if sc.ask == crate::Ask::Description => {
-            EN.scan_title_description.to_string()
+            EN.scan_title_description
         }
-        (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you.to_string(),
-        (crate::ScanPurpose::Sweep, _) => EN.catalog_sweep_key.to_string(),
-        (crate::ScanPurpose::CheckSent, _) => EN.signer_scan_sent.to_string(),
-        (crate::ScanPurpose::CheckReturned, _) => EN.signer_scan_returned.to_string(),
-        (crate::ScanPurpose::CompareFirst, _) => EN.compare_scan_first.to_string(),
-        (crate::ScanPurpose::CompareSecond, _) => EN.compare_scan_second.to_string(),
-        (crate::ScanPurpose::MessageText, _) => EN.message_scan_title.to_string(),
-        (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
-        (crate::ScanPurpose::OtsHeader, _) => EN.ots_scan_title.to_string(),
-        (crate::ScanPurpose::OtsFileHash, _) => EN.ots_scan_hash_title.to_string(),
+        (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you,
+        (crate::ScanPurpose::Sweep, _) => EN.catalog_sweep_key,
+        (crate::ScanPurpose::CheckSent, _) => EN.signer_scan_sent,
+        (crate::ScanPurpose::CheckReturned, _) => EN.signer_scan_returned,
+        (crate::ScanPurpose::CompareFirst, _) => EN.compare_scan_first,
+        (crate::ScanPurpose::CompareSecond, _) => EN.compare_scan_second,
+        (crate::ScanPurpose::MessageText, _) => EN.message_scan_title,
+        (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr,
+        (crate::ScanPurpose::OtsHeader, _) => EN.ots_scan_title,
+        (crate::ScanPurpose::OtsFileHash, _) => EN.ots_scan_hash_title,
         (
             crate::ScanPurpose::CheckCopy(_)
             | crate::ScanPurpose::CheckConvert(..)
             | crate::ScanPurpose::CheckCodex32
             | crate::ScanPurpose::CheckKef(_),
             _,
-        ) => EN.scan_scan_your_copy.to_string(),
-        (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
-        (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan.to_string(),
-        (crate::ScanPurpose::GpgPaperkey, _) => EN.gpg_restore_scan_paperkey.to_string(),
-        (crate::ScanPurpose::KeyPart, _) => EN.scan_title_part.to_string(),
-        (crate::ScanPurpose::VaultEntry, _) => EN.scan_title_totp.to_string(),
+        ) => EN.scan_scan_your_copy,
+        (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads,
+        (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan,
+        (crate::ScanPurpose::GpgPaperkey, _) => EN.gpg_restore_scan_paperkey,
+        (crate::ScanPurpose::KeyPart, _) => EN.scan_title_part,
+        (crate::ScanPurpose::VaultEntry, _) => EN.scan_title_totp,
         // A scanner for anything is titled for what its opener asks for
         // (`docs/SCANNING.md` §7.1).
         _ => match sc.ask {
-            crate::Ask::Description => EN.scan_title_description.to_string(),
-            crate::Ask::Xpub(n) => fill(EN.scan_title_xpub, &[&n.to_string()]),
-            crate::Ask::Cosigner => EN.scan_title_cosigner.to_string(),
-            crate::Ask::SpendPsbt | crate::Ask::Sign => EN.scan_title_psbt.to_string(),
-            crate::Ask::Decode => EN.scan_title_transaction.to_string(),
-            crate::Ask::Address => EN.scan_title_address.to_string(),
-            crate::Ask::Invoice => EN.scan_title_invoice.to_string(),
-            crate::Ask::Any => EN.scan_scan_a_qr_code.to_string(),
+            crate::Ask::Description => EN.scan_title_description,
+            crate::Ask::Xpub(_) => xpub_title.as_deref().unwrap_or_default(),
+            crate::Ask::Cosigner => EN.scan_title_cosigner,
+            crate::Ask::SpendPsbt | crate::Ask::Sign => EN.scan_title_psbt,
+            crate::Ask::Decode => EN.scan_title_transaction,
+            crate::Ask::Address => EN.scan_title_address,
+            crate::Ask::Invoice => EN.scan_title_invoice,
+            crate::Ask::Any => EN.scan_scan_a_qr_code,
         },
     };
-    let title = ui.fit_as(TITLE_M, &title, sw - 64.0);
+    let title = ui.fit_as(TITLE_M, title, sw - 64.0);
     ui.text_as(x + 32.0, y + 26.0, TITLE_M, Role::OnSurface, &title);
     for (k, key) in keys.iter().enumerate() {
         let key = ui.fit_as(BODY_M.mono(), key, sw - 64.0);
@@ -927,14 +932,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // The read card's foot takes the camera's row.
     } else if app.cameras().len() > 1 && ui.compact {
         let chosen = app.camera();
-        let row: Vec<(String, Style, Action)> = app
+        let row: Vec<(Text, Style, Action)> = app
             .cameras()
             .iter()
             .enumerate()
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| id.as_str() == c);
                 (
-                    String::from(&*ui.fit_as(LABEL_M, name, sw - 96.0)),
+                    ui.fit_as(LABEL_M, name, sw - 96.0),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -943,14 +948,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         button_rows(ui, x + 32.0, y + top + side_h + 12.0, sw - 64.0, &row);
     } else if app.cameras().len() > 1 {
         let chosen = app.camera();
-        let row: Vec<(String, Style, Action)> = app
+        let row: Vec<(Text, Style, Action)> = app
             .cameras()
             .iter()
             .enumerate()
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| id.as_str() == c);
                 (
-                    String::from(&*ui.fit_as(LABEL_M, name, 180.0)),
+                    ui.fit_as(LABEL_M, name, 180.0),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -1072,11 +1077,11 @@ fn read_card(
 }
 
 /// A way over's label on the read card.
-fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> String {
+fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> Text {
     if *way == crate::scan_read::Way::Open && card.kef.as_ref().is_some_and(|h| h.sure) {
-        EN.kef_open_anyway.into()
+        Text::of(EN.kef_open_anyway)
     } else {
-        way.label().as_str().into()
+        Text::of(&way.label())
     }
 }
 
@@ -1090,18 +1095,18 @@ fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
 }
 
 /// How wide a row of buttons with these labels is, with a gap after each.
-fn row_width(ui: &Ui, labels: &[String]) -> f32 {
+fn row_width(ui: &Ui, labels: &[impl AsRef<str>]) -> f32 {
     labels
         .iter()
-        .map(|l| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)
+        .map(|l| ui.measure_as(LABEL_L, l.as_ref()) + 2.0 * T::BUTTON_PAD + T::GAP)
         .sum()
 }
 
 /// Whether the read card's ways over fit on one row with **Scan again**
 /// and **Cancel**.
 fn read_card_foot_fits(ui: &Ui, w: f32, card: &crate::scan_read::ReadCard) -> bool {
-    let ways: Vec<String> = card.ways.iter().map(|way| way_label(card, way)).collect();
-    let leave = [EN.read_again.to_string(), read_card_leave(card).to_string()];
+    let ways: Vec<Text> = card.ways.iter().map(|way| way_label(card, way)).collect();
+    let leave = [EN.read_again, read_card_leave(card)];
     row_width(ui, &leave) + row_width(ui, &ways) <= w + T::GAP
 }
 
@@ -1116,7 +1121,7 @@ fn read_card_foot(
     card: &crate::scan_read::ReadCard,
     stick_in: bool,
 ) {
-    let ways: Vec<(String, Style, Action)> = card
+    let ways: Vec<(Text, Style, Action)> = card
         .ways
         .iter()
         .enumerate()
@@ -1133,7 +1138,7 @@ fn read_card_foot(
         .collect();
     let leave = [
         (
-            EN.read_again.to_string(),
+            EN.read_again,
             if stick_in {
                 Style::GhostOff
             } else {
@@ -1141,14 +1146,12 @@ fn read_card_foot(
             },
             Action::ReadAgain,
         ),
-        (
-            read_card_leave(card).to_string(),
-            Style::Secondary,
-            Action::Cancel,
-        ),
+        (read_card_leave(card), Style::Secondary, Action::Cancel),
     ];
-    let labels: Vec<String> = ways.iter().map(|(l, _, _)| l.clone()).collect();
-    let ww = row_width(ui, &labels);
+    let ww = ways
+        .iter()
+        .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)
+        .sum::<f32>();
     button_rows(ui, x, y, w, &leave);
     if read_card_foot_fits(ui, w, card) {
         button_rows(ui, x + w - ww + T::GAP, y, ww, &ways);
@@ -1299,19 +1302,17 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let mut ty = y + 26.0;
     ui.text_as(x + 32.0, ty, TITLE_M, Role::OnSurface, &t);
     ty += ui.line_as(TITLE_M);
-    let sub = if q.frames.len() > 1 {
-        fill(
+    let counted = (q.frames.len() > 1).then(|| {
+        Text::fill(
             EN.qr_frame_count,
             &[
                 &q.subtitle,
-                &(q.frame + 1).to_string(),
-                &q.frames.len().to_string(),
+                &Text::num(q.frame as u64 + 1),
+                &Text::num(q.frames.len() as u64),
             ],
         )
-    } else {
-        q.subtitle.as_str().into()
-    };
-    let sub = ui.fit_as(BODY_S, &sub, sw - 64.0);
+    });
+    let sub = ui.fit_as(BODY_S, counted.as_deref().unwrap_or(&q.subtitle), sw - 64.0);
     ui.text_as(x + 32.0, ty, BODY_S, Role::OnSurfaceVariant, &sub);
     ty += ui.line_as(BODY_S);
     // Whether scanning it is safe, said beside the code itself.
@@ -1373,7 +1374,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             y + sh - 32.0 - 44.0,
             None,
             BUTTON_H,
-            &fill(EN.qr_png, &[app.medium.for_the()]),
+            &Text::fill(EN.qr_png, &[app.medium.for_the()]),
             Style::Secondary,
             Action::QrPng,
         );
@@ -1454,19 +1455,17 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
     let rows_h = if cycles.is_empty() { 0.0 } else { 40.0 };
     crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
         let mut cy = y;
-        let title = if animated {
-            fill(
+        let counted = animated.then(|| {
+            Text::fill(
                 EN.qr_sheet_frame_count,
                 &[
                     &q.title,
-                    &(q.frame + 1).to_string(),
-                    &q.frames.len().to_string(),
+                    &Text::num(q.frame as u64 + 1),
+                    &Text::num(q.frames.len() as u64),
                 ],
             )
-        } else {
-            q.title.as_str().into()
-        };
-        let t = ui.fit_as(TITLE_M, &title, iw);
+        });
+        let t = ui.fit_as(TITLE_M, counted.as_deref().unwrap_or(&q.title), iw);
         ui.text_as(x, cy, TITLE_M, Role::OnSurface, &t);
         cy += ui.advance_as(TITLE_M, 22.0);
         let (tag, tone) = if q.secret {
@@ -1608,19 +1607,15 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         8.0,
                         if done { Role::Ok } else { Role::OutlineVariant },
                     );
-                    let cs = c.to_string();
-                    let tw = ui.measure_as(HEADLINE_S.mono(), &cs);
+                    let mut cbuf = [0; 4];
+                    let cs = c.encode_utf8(&mut cbuf);
+                    let tw = ui.measure_as(HEADLINE_S.mono(), cs);
                     let ink = if done {
                         Role::OnOkContainer
                     } else {
                         Role::OnSurface
                     };
-                    ui.text_mid_as(
-                        (cx + (bw - tw) / 2.0, cy, 52.0),
-                        HEADLINE_S.mono(),
-                        ink,
-                        &cs,
-                    );
+                    ui.text_mid_as((cx + (bw - tw) / 2.0, cy, 52.0), HEADLINE_S.mono(), ink, cs);
                 }
                 cy += 64.0;
             }
@@ -1680,17 +1675,15 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
     // The line is there from the start, so the target does not move when
     // the tries show.
     if let (Some(of), Some(_)) = (of, d.spots) {
-        let step = fill(
+        let step = Text::fill(
             EN.new_input_target_step,
-            &[&(d.reached + 1).to_string(), &of.to_string()],
+            &[&Text::num(d.reached as u64 + 1), &Text::num(of as u64)],
         );
         ui.text_as(PAD, y, LABEL_L, Role::OnSurfaceVariant, &step);
     }
     if d.missed > 0 {
-        let left = crate::inputs::TAP_TRIES
-            .saturating_sub(d.missed)
-            .to_string();
-        let tries = fill(EN.new_input_tries_left, &[&left]);
+        let left = Text::num(crate::inputs::TAP_TRIES.saturating_sub(d.missed) as u64);
+        let tries = Text::fill(EN.new_input_tries_left, &[&left]);
         let tw = ui.measure_as(LABEL_L, &tries);
         ui.text_as(PAD + iw - tw, y, LABEL_L, Role::Error, &tries);
     }
@@ -1727,9 +1720,9 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
 }
 
 /// Minutes and seconds, `4:05`.
-fn clock_text(ms: u64) -> String {
+fn clock_text(ms: u64) -> Text {
     let s = ms.div_ceil(1000);
-    format!("{}:{:02}", s / 60, s % 60)
+    text!("{}:{:02}", s / 60, s % 60)
 }
 
 /// The idle lock coming: how long without input, when it locks, what it
@@ -1740,31 +1733,31 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     let keys = app.session.keys.len();
     let wallets = app.session.wallets.len();
-    let sealed: Vec<String> = app
-        .vaults()
-        .open
-        .iter()
-        .filter(|v| v.changes > 0)
-        .map(|v| v.label(app.vaults.store()))
-        .collect();
-    let mut rows: Vec<(&str, String)> = vec![(
+    let mut sealed = Text::new();
+    for v in app.vaults().open.iter().filter(|v| v.changes > 0) {
+        if !sealed.is_empty() {
+            sealed.push_str(", ");
+        }
+        sealed.push_str(&v.label(app.vaults.store()));
+    }
+    let mut rows: Vec<(&str, Text)> = vec![(
         EN.idle_warn_wiped,
-        fill(
+        Text::fill(
             EN.idle_warn_open,
             &[
-                &keys.to_string(),
+                &Text::num(keys as u64),
                 (if keys == 1 {
                     EN.idle_warn_key
                 } else {
                     EN.idle_warn_keys
                 }),
-                &wallets.to_string(),
+                &Text::num(wallets as u64),
                 (if wallets == 1 {
                     EN.idle_warn_wallet
                 } else {
                     EN.idle_warn_wallets
                 }),
-                &app.vaults.open.len().to_string(),
+                &Text::num(app.vaults.open.len() as u64),
                 (if app.vaults.open.len() == 1 {
                     EN.idle_warn_vault
                 } else {
@@ -1776,15 +1769,15 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if !sealed.is_empty() && app.seeded() {
         rows.push((
             EN.idle_warn_sealed,
-            format!("{} · {}", sealed.join(", "), app.medium.for_the()),
+            text!("{} · {}", sealed.as_str(), app.medium.for_the()),
         ));
     } else if !sealed.is_empty() {
         // No seed to seal with: the idle lock loses the changes.
-        rows.push((EN.vault_not_sealed, sealed.join(", ")));
+        rows.push((EN.vault_not_sealed, sealed));
     }
     rows.push((
         EN.idle_warn_kept,
-        format!(
+        text!(
             "{} {} · {} {}",
             app.inbox.len(),
             app.medium.from_the(),
@@ -1793,15 +1786,15 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ),
     ));
     let off = match (app.idle_off_min(), app.online) {
-        (0, _) | (_, true) => EN.idle_warn_no_power.to_string(),
-        (m, false) => fill(
+        (0, _) | (_, true) => Text::of(EN.idle_warn_no_power),
+        (m, false) => Text::fill(
             EN.idle_warn_power_off,
-            &[&m.to_string(), app.medium.for_the()],
+            &[&Text::num(u64::from(m)), app.medium.for_the()],
         ),
     };
     rows.push((EN.idle_warn_then, off));
     let minutes = |n: u64| {
-        format!(
+        text!(
             "{n} {}",
             if n == 1 {
                 EN.idle_warn_minute
@@ -1810,14 +1803,14 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         )
     };
-    let body = fill(
+    let body = Text::fill(
         EN.idle_warn_no_input,
         &[
-            &minutes(app.idle.warn_min()).to_string(),
-            &minutes(u64::from(app.idle_lock_min())).to_string(),
+            &minutes(app.idle.warn_min()),
+            &minutes(u64::from(app.idle_lock_min())),
         ],
     );
-    let rows: Vec<(&str, String, crate::ui::Paint)> = rows
+    let rows: Vec<(&str, Text, crate::ui::Paint)> = rows
         .into_iter()
         .map(|(k, v)| (k, v, Role::OnSurface.paint()))
         .collect();
@@ -1855,16 +1848,16 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 }
             }
             if let Some(off) = app.idle_off_at() {
-                let line = fill(
+                let line = Text::fill(
                     EN.locked_power_off_countdown,
-                    &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
+                    &[&clock_text(off.saturating_sub(app.idle_ms()))],
                 );
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, ink, &line) + 10.0;
             }
             if shown > 0 {
-                let line = fill(
+                let line = Text::fill(
                     EN.locked_no_power_off,
-                    &[&app.outbox.len().to_string(), app.medium.for_the()],
+                    &[&Text::num(app.outbox.len() as u64), app.medium.for_the()],
                 );
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Warning, &line) + 8.0;
                 for item in app.outbox.iter().take(shown) {
@@ -1933,7 +1926,7 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             row,
             guide.as_deref().zip(guide_qr.as_deref()),
         ),
-        &kept_sections(app, true, false, then.to_string()),
+        &kept_sections(app, true, false, Text::of(then)),
         &buttons,
     );
 }
@@ -2342,11 +2335,11 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         EN.secret_out_title
     };
-    let out_label = fill(EN.secret_out_put_it_unprotected, &[app.medium.for_the()]);
+    let out_label = Text::fill(EN.secret_out_put_it_unprotected, &[app.medium.for_the()]);
     let unprotected = if out.to_visit {
-        fill(EN.secret_out_unprotected_medium, &[app.medium.noun()])
+        Text::fill(EN.secret_out_unprotected_medium, &[app.medium.noun()])
     } else {
-        fill(EN.secret_out_unprotected, &[app.medium.for_the()])
+        Text::fill(EN.secret_out_unprotected, &[app.medium.for_the()])
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
     crate::compact::dialog(
@@ -2366,14 +2359,14 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
-                    let line = ui.fit_as(LABEL_L, &fill(EN.secret_out_in_vault, &[name]), iw);
+                    let line = ui.fit_as(LABEL_L, &Text::fill(EN.secret_out_in_vault, &[name]), iw);
                     ui.text_as(x, cy, LABEL_L, Role::Ok, &line);
                     cy += ui.advance_as(LABEL_L, 30.0);
                 }
                 Some((name, false)) => {
                     // In place: the sheet's foot holds the Outbox's
                     // button and Cancel.
-                    let label = fill(EN.secret_out_save_into, &[name]);
+                    let label = Text::fill(EN.secret_out_save_into, &[name]);
                     let label = ui.fit_as(TITLE_M, &label, iw - 24.0);
                     ui.button(
                         x,
@@ -2445,14 +2438,14 @@ fn secret_keeps(
 fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secrets::Plain) {
     let first = match plain.then {
         crate::secrets::PlainThen::Transfer(..) => {
-            fill(EN.plain_goes_into, &[&plain.name, &plain.on])
+            Text::fill(EN.plain_goes_into, &[&plain.name, &plain.on])
         }
-        _ => fill(
+        _ => Text::fill(
             EN.plain_goes_on,
             &[&plain.name, &plain.on, app.medium.noun()],
         ),
     };
-    let second = fill(EN.plain_as_safe, &[&plain.keep]);
+    let second = Text::fill(EN.plain_as_safe, &[&plain.keep]);
     let to_vault = matches!(plain.then, crate::secrets::PlainThen::Secret)
         && app.vaults.open.get(app.vaults.current).is_some()
         && app
@@ -2502,7 +2495,7 @@ pub(super) fn key_path_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(faraday_bip::policy::KeyPath::Other(key)) = ask.policy.key_path() else {
         return;
     };
-    let line = fill(EN.wallet_key_path_sheet_line, &[&ask.name]);
+    let line = Text::fill(EN.wallet_key_path_sheet_line, &[&ask.name]);
     let key = faraday_ui::grouped(key);
     crate::compact::dialog(
         ui,

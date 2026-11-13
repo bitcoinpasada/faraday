@@ -494,7 +494,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 fill(
                     EN.stick_wipe_to_write,
                     &[
-                        &crate::screens::size_text(shown).to_string(),
+                        &crate::screens::size_text(shown),
                         &minutes_text(ms).to_string(),
                     ],
                 )

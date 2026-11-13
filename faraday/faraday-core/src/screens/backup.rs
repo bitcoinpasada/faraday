@@ -192,7 +192,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
             app.wallet_item_written(&reads.backup_public_names_for(b.wallet, a))
-                .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software)),
+                .unwrap_or_else(|| String::from(&*ticked(&SOFTWARE_ROWS, &a.software))),
         ),
         Item::Sticks => {
             let (n, m) = app

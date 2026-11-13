@@ -50,18 +50,19 @@ pub fn chip_grid<A: Copy + PartialEq>(
 /// Buttons [`BUTTON_H`] tall laid left to right, wrapping to a new row
 /// at the width. Returns the height they took, a row being a button and
 /// the gap under it.
-pub fn button_rows<A: Copy + PartialEq>(
+pub fn button_rows<A: Copy + PartialEq, L: AsRef<str>>(
     ui: &mut Ui<A>,
     x: f32,
     y: f32,
     w: f32,
-    items: &[(String, Style, A)],
+    items: &[(L, Style, A)],
 ) -> f32 {
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
     let pitch = (bh + GAP).max(ui.touch);
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
+        let label = label.as_ref();
         // No wider than the row; a long label is cut.
         let bw = ui.button_width(label, *style).min(w);
         let label = &ui.fit_as(

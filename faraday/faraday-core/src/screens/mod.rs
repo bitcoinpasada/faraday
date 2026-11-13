@@ -32,7 +32,7 @@ mod wallets_start;
 
 use crate::drawing::View;
 use crate::nav::Nav;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Screen, Sheet};
@@ -796,7 +796,7 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         foot -= busy_foot(app, ui, (x, cw, foot), b);
     }
     if app.stick.not_now() && !app.stick.is_empty() && app.sheet.is_none() {
-        let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
+        let msg = &faraday_text::Text::fill(EN.notices_remove_medium, &[app.medium.noun()]);
         foot -= ui.snackbar((x, cw, h), msg, 1.0, 0.0);
     }
     toast(app, ui, x, cw, foot);
@@ -806,14 +806,14 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 /// out, along the foot of the window in `cw` from `x`, `foot` its bottom.
 /// Reads state only.
 fn toast(app: &View, ui: &mut Ui, x: f32, cw: f32, foot: f32) {
-    if let Some(t) = app.toast_text().map(str::to_string) {
+    if let Some(t) = app.toast_text() {
         let (shown, rise) = app.toast_shown();
         // Above the list of what was plugged in at start, while it shows.
         let foot = foot
             - app
                 .boot_notice_text()
                 .map_or(0.0, |b| ui.snackbar_closable_room(cw, b));
-        ui.snackbar((x, cw, foot), &t, shown, rise);
+        ui.snackbar((x, cw, foot), t, shown, rise);
     }
 }
 

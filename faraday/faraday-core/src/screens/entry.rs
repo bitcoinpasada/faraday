@@ -4,7 +4,7 @@ use super::parts::{
     Cells, dots_field, guide_text, keyed_cells, keyed_pills, never_below, typed_cells, word_keys,
 };
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
@@ -12,6 +12,7 @@ use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, TITLE_S};
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
 /// The one word the typed prefix can complete to, if there is one.
@@ -40,18 +41,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|wl| wl.name.as_str());
     // The round's codex32 string, typed in place (`docs/CODEX32.md` §9.5).
     let round = app.entry.state().c32_round.as_ref();
-    let round = round.map(|w| fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
+    let round = round.map(|w| Text::fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
     let heading = match (app.entry.state().wanted, for_wallet) {
         _ if round.is_some() => round.unwrap_or_default(),
-        (Some(fp), _) => fill(
+        (Some(fp), _) => Text::fill(
             EN.entry_add_key,
-            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+            &[&fp_text(faraday_bip::keys::Fingerprint(fp))],
         ),
-        (None, Some(name)) => fill(EN.entry_add_key_title, &[name]),
+        (None, Some(name)) => Text::fill(EN.entry_add_key_title, &[name]),
         (None, None) if app.entry.state().form != crate::forms::Form::Words => {
-            fill(EN.entry_add_a_key_n, &[app.entry.state().form.name()])
+            Text::fill(EN.entry_add_a_key_n, &[app.entry.state().form.name()])
         }
-        (None, None) => EN.entry_add_a_key.to_string(),
+        (None, None) => Text::of(EN.entry_add_a_key),
     };
     // The top app bar names the page and has its way back.
     let back = Some(app.named_back((back_name, back)));
@@ -61,12 +62,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // behind Other forms, or already shown when a Tools tile opened one
     // of them (`docs/history/SIMPLIFY.md` §2.4).
     if app.entry.state().other_forms {
-        let forms: Vec<(String, Style, Action)> = crate::forms::Form::ALL
+        let forms: Vec<(&str, Style, Action)> = crate::forms::Form::ALL
             .iter()
             .enumerate()
             .map(|(i, f)| {
                 (
-                    f.name().to_string(),
+                    f.name(),
                     Style::chosen(*f == app.entry.state().form),
                     Action::EntryForm(i as u8),
                 )
@@ -122,9 +123,9 @@ pub(crate) fn entry_words(
     // word fields, or above the keyboard of a list typed on its own keys.
     let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
-    let mut langs: Vec<(String, Style, Action)> = if english && !app.entry.state().languages {
+    let mut langs: Vec<(&str, Style, Action)> = if english && !app.entry.state().languages {
         vec![(
-            EN.entry_other_languages.to_string(),
+            EN.entry_other_languages,
             Style::Ghost,
             Action::EntryLanguages,
         )]
@@ -134,7 +135,7 @@ pub(crate) fn entry_words(
             .enumerate()
             .map(|(i, l)| {
                 (
-                    crate::forms::language_name(*l).to_string(),
+                    crate::forms::language_name(*l),
                     if *l == lang {
                         Style::Primary
                     } else {
@@ -148,11 +149,7 @@ pub(crate) fn entry_words(
     if page && !app.entry.state().other_forms {
         langs.insert(
             0,
-            (
-                EN.entry_other_forms.to_string(),
-                Style::Ghost,
-                Action::EntryOtherForms,
-            ),
+            (EN.entry_other_forms, Style::Ghost, Action::EntryOtherForms),
         );
     }
     if let Some(w) = app.entry.state().keys.as_deref() {
@@ -197,7 +194,7 @@ pub(crate) fn entry_words(
             .iter()
             .all(|wd| crate::forms::typed_index(lang, wd).is_some());
     let m = complete.then(|| {
-        crate::forms::typed_mnemonic(lang, &app.entry.state().typed).map_err(|t| String::from(&*t))
+        crate::forms::typed_mnemonic(lang, &app.entry.state().typed).map_err(|e| Text::of(&e))
     });
     entry_status(app, ui, x, y, n, m)
 }
@@ -236,8 +233,8 @@ pub(crate) fn word_count_row(
     let counts = crate::EntryState::COUNTS;
     let (gap, max) = (6.0, 64.0);
     let row = BUTTON_H + GAP_SMALL;
-    let names: Vec<String> = counts.iter().map(|n| n.to_string()).collect();
-    let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+    let names: Vec<faraday_text::Num> = counts.iter().map(|n| Text::num(u64::from(*n))).collect();
+    let labels: Vec<&str> = names.iter().map(|n| n.as_str()).collect();
     let room = x + w - bx;
     let (cols, bw) = if ui.compact {
         faraday_ui::parts::chip_grid(ui, room, gap, max, &labels)
@@ -314,7 +311,7 @@ fn keyed_words(
     // fingerprint, or the last refusal: on the line above the
     // candidates, to keep the keyboard on screen.
     let (status, tone) = match &app.entry.state().error {
-        Some(e) => (String::from(&**e), Role::Error.paint()),
+        Some(e) => (Text::of(e), Role::Error.paint()),
         None => keyed_status(app, lang, &taken),
     };
     ui.text_right_as((x + width, y - 4.0, 24.0), LABEL_L, tone, &status);
@@ -334,11 +331,11 @@ pub(crate) fn keyed_status(
     app: &View,
     lang: faraday_bip::bip39::Language,
     taken: &[u16],
-) -> (String, crate::ui::Paint) {
+) -> (Text, crate::ui::Paint) {
     let n = taken.len();
     let count = || {
         (
-            fill(EN.keyed_status_word_count, &[&n.to_string()]),
+            Text::fill(EN.keyed_status_word_count, &[&Text::num(n as u64)]),
             Role::OnSurfaceVariant.paint(),
         )
     };
@@ -347,20 +344,15 @@ pub(crate) fn keyed_status(
     }
     // While typing goes on the key is not worked out: the count alone.
     let added = match faraday_keys::words::from_indices(lang, taken) {
-        Err(e) => Err(String::from(
-            &*crate::wallet::Refusal::Words(faraday_strings::bip::bip39_error(&e)).text(),
-        )),
+        Err(e) => Err(crate::wallet::Refusal::Words(faraday_strings::bip::bip39_error(&e)).text()),
         Ok(m) => match app.entry_probed(&m) {
-            Some(r) => r,
+            Some(r) => r.map_err(|e| Text::of(&e)),
             None => return count(),
         },
     };
     match added {
         Ok(fp) => (
-            fill(
-                EN.keyed_status_words,
-                &[&n.to_string(), &fp_text(fp).to_string()],
-            ),
+            Text::fill(EN.keyed_status_words, &[&Text::num(n as u64), &fp_text(fp)]),
             Role::Ok.paint(),
         ),
         Err(e) => (e, Role::Error.paint()),
@@ -375,27 +367,25 @@ fn entry_status(
     x: f32,
     y: f32,
     n: usize,
-    m: Option<Result<faraday_bip::bip39::Mnemonic, String>>,
+    m: Option<Result<faraday_bip::bip39::Mnemonic, Text>>,
 ) -> f32 {
     let mut y = y;
     // While typing goes on the key is not worked out: the count alone.
     let added = m.and_then(|made| match made {
-        Err(e) => Some(Err(String::from(
-            &*crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text(),
-        ))),
-        Ok(m) => app.entry_probed(&m),
+        Err(e) => Some(Err(crate::wallet::Refusal::Words(e).text())),
+        Ok(m) => app.entry_probed(&m).map(|r| r.map_err(|e| Text::of(&e))),
     });
     let status = match added {
         Some(Ok(fp)) => (
-            fill(
+            Text::fill(
                 EN.entry_status_words_checksum,
-                &[&n.to_string(), &fp_text(fp).to_string()],
+                &[&Text::num(n as u64), &fp_text(fp)],
             ),
             Role::Ok,
         ),
         Some(Err(e)) => (e, Role::Error),
         None => (
-            fill(EN.entry_status_words, &[&n.to_string()]),
+            Text::fill(EN.entry_status_words, &[&Text::num(n as u64)]),
             Role::OnSurfaceVariant,
         ),
     };
@@ -592,7 +582,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             (x + 24.0, y, 36.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.entry_stick_from_plug, &[app.medium.a()]),
+            &Text::fill(EN.entry_stick_from_plug, &[app.medium.a()]),
         );
     } else {
         ui.button(
@@ -660,9 +650,9 @@ pub(crate) fn entry_form(
         x,
         y,
         &match lines.len() {
-            0 => EN.entry_form_nothing.to_string(),
-            1 => EN.entry_form_count_one.to_string(),
-            n => fill(EN.entry_form_count_many, &[&n.to_string()]),
+            0 => Text::of(EN.entry_form_nothing),
+            1 => Text::of(EN.entry_form_count_one),
+            n => Text::fill(EN.entry_form_count_many, &[&Text::num(n as u64)]),
         },
     );
     y += 26.0;
@@ -853,9 +843,10 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
         .get(8)
         .copied()
         .unwrap_or(b'?');
-    let title = fill(
+    let mut upper = [0u8; 4];
+    let title = Text::fill(
         EN.codex32_form_clash,
-        &[&char::from(index.to_ascii_uppercase()).to_string()],
+        &[char::from(index.to_ascii_uppercase()).encode_utf8(&mut upper)],
     );
     let mut h = line(
         ui,
@@ -873,12 +864,18 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
         h += ui.wrap_as((x, y + h, width), TITLE_S, Role::OnSurfaceVariant, label);
         h += string_boxes(ui, x, y + h, width, text, &clash.differ) + CORRECT_GAP;
     }
-    let boxes: Vec<String> = clash.differ.iter().map(ToString::to_string).collect();
+    let mut boxes = Text::new();
+    for (i, d) in clash.differ.iter().enumerate() {
+        if i > 0 {
+            boxes.push_str(", ");
+        }
+        boxes.push_str(&Text::num(*d as u64));
+    }
     h += ui.wrap_as(
         (x, y + h, width),
         BODY_M,
         Role::OnSurfaceVariant,
-        &fill(EN.codex32_form_differ, &[&boxes.join(", ")]),
+        &Text::fill(EN.codex32_form_differ, &[&boxes]),
     ) + CORRECT_GAP;
     h + faraday_ui::sheet::buttons(
         ui,
@@ -936,14 +933,14 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
         };
         h += ui.wrap_as((x, y + h, width), BODY_M, tone, text);
     }
-    // Strings of its set the open vaults keep (§9.5).
+    // The codex32 strings of its set the open vaults keep (§9.5).
     if checked.holds && e.codex32.check_in_vaults > 0 {
-        let n = e.codex32.check_in_vaults.to_string();
+        let n = Text::num(e.codex32.check_in_vaults as u64);
         h += ui.wrap_as(
             (x, y + h, width),
             BODY_M,
             Role::OnSurface,
-            &fill(EN.c32r_in_vaults, &[&n]),
+            &Text::fill(EN.c32r_in_vaults, &[&n]),
         );
     }
     if let Some(text) = checked.mark.and_then(|m| m.string_line()) {

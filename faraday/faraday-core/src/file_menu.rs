@@ -210,14 +210,14 @@ impl Faraday {
                 (
                     i.name.clone(),
                     i.bytes.len() as u64,
-                    crate::screens::kind_line(i.kind, i.bytes.len()),
+                    String::from(&*crate::screens::kind_line(i.kind, i.bytes.len())),
                 )
             }),
             Row::Out(k) => self.outbox.get(k).map(|i| {
                 (
                     i.name.clone(),
                     i.bytes.len() as u64,
-                    crate::screens::kind_line(i.kind, i.bytes.len()),
+                    String::from(&*crate::screens::kind_line(i.kind, i.bytes.len())),
                 )
             }),
             Row::Stick(k) => {
@@ -228,7 +228,7 @@ impl Faraday {
                     .and_then(|s| s.kind_of(&name))
                     .filter(|_| why.is_none())
                 {
-                    Some(kind) => format!("{kind} · {}", crate::screens::size_text(size)),
+                    Some(kind) => format!("{kind} · {}", &*crate::screens::size_text(size)),
                     None => why.unwrap_or_else(|| EN.visit_file_too_large.to_string()),
                 };
                 Some((name, size, kind))

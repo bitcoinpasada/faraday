@@ -2510,7 +2510,7 @@ pub fn mib_text(mib: u32) -> String {
 
 /// A file size as a person reads it: [`crate::screens::size_text`].
 pub fn file_text(len: usize) -> String {
-    crate::screens::size_text(len as u64)
+    String::from(&*crate::screens::size_text(len as u64))
 }
 
 /// A cost as a person reads it.

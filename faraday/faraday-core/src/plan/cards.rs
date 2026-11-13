@@ -155,7 +155,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
                 fill(EN.board_places, &[&a.places.to_string()])
             }
         }
-        qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
+        qstep::SOFTWARE => String::from(&*ticked(&SOFTWARE_ROWS, &a.software)),
         _ => {
             let c = ctx.check;
             let lost = if c.single && c.lost == plan::Lost::No {

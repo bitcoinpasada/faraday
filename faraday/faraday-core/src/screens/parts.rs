@@ -1,7 +1,7 @@
 //! Parts two or more screens draw: rows, buttons, fields and word cells.
 
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
@@ -13,6 +13,7 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S, TypeRole,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::{Text, text};
 use faraday_ui::parts::{section_label, wrap_buttons};
 
 /// Long work with no count under way (`docs/DESIGN.md` §4.14): an
@@ -121,12 +122,15 @@ pub(crate) fn sign_readiness(app: &Faraday, w: &crate::wallet::Wallet) -> u8 {
 }
 
 /// Hex in groups of sixteen, so a long run wraps.
-pub(crate) fn spaced(hex: &str) -> String {
-    hex.as_bytes()
-        .chunks(16)
-        .map(|c| String::from_utf8_lossy(c).into_owned())
-        .collect::<Vec<_>>()
-        .join(" ")
+pub(crate) fn spaced(hex: &str) -> Text {
+    let mut out = Text::with_room(hex.len() + hex.len() / 16);
+    for (i, c) in hex.as_bytes().chunks(16).enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(&Text::from_utf8_lossy(c));
+    }
+    out
 }
 
 /// What the Wallets tab offers for a key in no wallet.
@@ -140,18 +144,18 @@ pub(crate) fn side_panel_w(cw: f32) -> f32 {
 }
 
 /// The labels of the rows ticked, joined; "None" when none is.
-pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> String {
-    let v: Vec<&str> = labels
-        .iter()
-        .zip(on)
-        .filter(|(_, o)| **o)
-        .map(|(l, _)| *l)
-        .collect();
-    if v.is_empty() {
-        EN.ticked_none.to_string()
-    } else {
-        v.join(" · ")
+pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> Text {
+    let mut out = Text::new();
+    for (l, _) in labels.iter().zip(on).filter(|(_, o)| **o) {
+        if !out.is_empty() {
+            out.push_str(" · ");
+        }
+        out.push_str(l);
     }
+    if out.is_empty() {
+        out.push_str(EN.ticked_none);
+    }
+    out
 }
 
 /// The page's forward action, `h` high, `w` wide or as wide as its
@@ -314,11 +318,11 @@ pub(crate) fn stepper(
 
 /// The closed line of a card that asks about vaults: the answer, as the
 /// person gave it.
-pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> String {
+pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> &'static str {
     match ask.answer {
-        Some(true) => EN.plan_yes.to_string(),
-        Some(false) => EN.plan_no.to_string(),
-        None => String::new(),
+        Some(true) => EN.plan_yes,
+        Some(false) => EN.plan_no,
+        None => "",
     }
 }
 
@@ -346,9 +350,9 @@ pub(crate) fn kind_rows(
     } else {
         vec![0, 4]
     };
-    let rows: Vec<(usize, String)> = shown
+    let rows: Vec<(usize, &str)> = shown
         .into_iter()
-        .map(|i| (i, NewKind::ALL[i].line().to_string()))
+        .map(|i| (i, NewKind::ALL[i].line()))
         .collect();
     kind_list(
         ui,
@@ -368,7 +372,7 @@ pub(crate) fn kind_rows(
 pub(crate) fn kind_list(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    rows: &[(usize, String)],
+    rows: &[(usize, &str)],
     chosen: Option<crate::create::NewKind>,
     more: Option<Action>,
     enabled: bool,
@@ -381,7 +385,7 @@ pub(crate) fn kind_list(
             let k = NewKind::ALL[*i];
             OptionRow {
                 name: k.name(),
-                line: line.clone(),
+                line,
                 on: chosen == Some(k),
                 action: pick(*i as u8),
                 tip: false,
@@ -394,11 +398,11 @@ pub(crate) fn kind_list(
 /// One row of a card that asks one thing (DESIGN §4.2, Option row): its
 /// name, its second line, whether it is ticked, its press, and whether
 /// "codex32" in its name carries the Backup card's tooltip (F112, F240).
-pub(crate) struct OptionRow {
+pub(crate) struct OptionRow<'a> {
     /// The row's name.
     pub name: &'static str,
     /// Its second line: a fact of the row.
-    pub line: String,
+    pub line: &'a str,
     /// It is the one ticked.
     pub on: bool,
     /// Its press.
@@ -685,15 +689,15 @@ pub(crate) fn address_press(
 
 /// Where a file a flow made stands: For the stick, with its place in
 /// the list for Remove; or written, by the receipt. `None` when neither.
-pub(super) fn made_place(app: &View, file: &str) -> Option<(String, Option<usize>)> {
+pub(super) fn made_place(app: &View, file: &str) -> Option<(Text, Option<usize>)> {
     if let Some(k) = app.outbox.iter().position(|i| i.name == file) {
-        return Some((app.medium.for_box().to_string(), Some(k)));
+        return Some((Text::of(app.medium.for_box()), Some(k)));
     }
     app.visit
         .receipt()
         .as_ref()
         .filter(|r| r.wrote(file))
-        .map(|r| (fill(EN.made_place_written, &[&r.label.to_string()]), None))
+        .map(|r| (Text::fill(EN.made_place_written, &[&r.label]), None))
 }
 
 /// A made file's row state and its button: For the stick with Remove;
@@ -704,7 +708,7 @@ pub(super) fn made_state<'a>(
     file: &str,
     remove: Option<Action>,
     make: (&'a str, Action),
-) -> (Option<String>, (&'a str, Style, Action)) {
+) -> (Option<Text>, (&'a str, Style, Action)) {
     match made_place(app, file) {
         Some((t, Some(k))) => (
             Some(t),
@@ -1019,14 +1023,17 @@ pub(crate) fn descriptor_row(
     wl: &crate::wallet::Wallet,
     action: Action,
 ) -> f32 {
-    let fps: Vec<String> = wl
-        .policy()
-        .keys()
-        .iter()
-        .map(|k| crate::wallet_backup::fp_of(k.fingerprint()))
-        .collect();
-    let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
-    value.push_str(&format!(" · #{}", wl.checksum()));
+    let mut value = Text::new();
+    value.push_str(&Session::shape(wl));
+    value.push_str(" · ");
+    for (i, k) in wl.policy().keys().iter().enumerate() {
+        if i > 0 {
+            value.push_str(", ");
+        }
+        value.push_str(&crate::wallet_backup::fp_of(k.fingerprint()));
+    }
+    value.push_str(" · #");
+    value.push_str(wl.checksum());
     // Broken into lines once: the press, under the text, is as tall.
     let laid = ui.wrapped_as(BODY_M.mono(), &value, w - 28.0);
     let h = 20.0 + laid.h.max(18.0) + 8.0;
@@ -1043,21 +1050,24 @@ pub(crate) fn descriptor_row(
     h + 12.0
 }
 
-pub(crate) fn kind_line(kind: FileKind, bytes: usize) -> String {
-    format!("{} · {}", kind_name(kind), size_text(bytes as u64))
+pub(crate) fn kind_line(kind: FileKind, bytes: usize) -> Text {
+    let mut out = Text::of(kind_name(kind));
+    out.push_str(" · ");
+    out.push_str(&size_text(bytes as u64));
+    out
 }
 
 /// A file's or a stick's size, the one way Faraday writes one: decimal
 /// units (1 KB is 1,000 bytes), one decimal from KB up.
-pub(crate) fn size_text(bytes: u64) -> String {
+pub(crate) fn size_text(bytes: u64) -> Text {
     if bytes >= 1_000_000_000 {
-        fill(EN.kind_line_gb, &[&format!("{:.1}", bytes as f64 / 1e9)])
+        Text::fill(EN.kind_line_gb, &[&text!("{:.1}", bytes as f64 / 1e9)])
     } else if bytes >= 1_000_000 {
-        fill(EN.kind_line_mb, &[&format!("{:.1}", bytes as f64 / 1e6)])
+        Text::fill(EN.kind_line_mb, &[&text!("{:.1}", bytes as f64 / 1e6)])
     } else if bytes >= 1000 {
-        fill(EN.kind_line_kb, &[&format!("{:.1}", bytes as f64 / 1e3)])
+        Text::fill(EN.kind_line_kb, &[&text!("{:.1}", bytes as f64 / 1e3)])
     } else {
-        format!("{bytes}\u{a0}B")
+        text!("{bytes}\u{a0}B")
     }
 }
 
@@ -1090,7 +1100,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
 
 /// What pulling the stick does next: the keys an Import and load copied
 /// in load, or the vault it brought asks for its passphrase.
-pub(super) fn pull_line(app: &View) -> String {
+pub(super) fn pull_line(app: &View) -> Text {
     // Only words copied in for Import and load are keys waiting to load.
     let n = app
         .inbox
@@ -1105,11 +1115,11 @@ pub(super) fn pull_line(app: &View) -> String {
     let noun = app.medium.noun();
     match (n, vault) {
         (0, Some(v)) if !app.holds_secret() => {
-            fill(EN.pull_line_remove_to_unlock, &[noun, &v.to_string()])
+            Text::fill(EN.pull_line_remove_to_unlock, &[noun, &v])
         }
-        (0, _) => fill(EN.pull_line_remove_when_done, &[noun]),
-        (1, _) => fill(EN.pull_line_1_key_copied, &[noun]),
-        (n, _) => fill(EN.pull_line_keys_copied, &[&n.to_string(), noun]),
+        (0, _) => Text::fill(EN.pull_line_remove_when_done, &[noun]),
+        (1, _) => Text::fill(EN.pull_line_1_key_copied, &[noun]),
+        (n, _) => Text::fill(EN.pull_line_keys_copied, &[&Text::num(n as u64), noun]),
     }
 }
 
@@ -1283,7 +1293,7 @@ pub(crate) fn typed_cells(
             (cx + 10.0, cy, 38.0),
             LABEL_S.regular(),
             Role::OnSurfaceVariant,
-            &(k + 1).to_string(),
+            &Text::num(k as u64 + 1),
         );
         let first = starts.get(k).copied().unwrap_or(n);
         let next = starts.get(k + 1).copied().unwrap_or(n + 1);
@@ -1319,9 +1329,18 @@ pub(crate) fn typed_cells(
             .map(|i| lang.word(i))
             .collect();
         let line = if cands.is_empty() {
-            EN.entry_no_word_starts.to_string()
+            Text::of(EN.entry_no_word_starts)
         } else {
-            format!("{}   {}", cands.join("  "), EN.entry_tab_completes)
+            let mut line = Text::new();
+            for (i, c) in cands.iter().enumerate() {
+                if i > 0 {
+                    line.push_str("  ");
+                }
+                line.push_str(c);
+            }
+            line.push_str("   ");
+            line.push_str(EN.entry_tab_completes);
+            line
         };
         ui.text_as(
             x,
@@ -1360,8 +1379,8 @@ pub(crate) fn keyed_cells(
     } = cells;
     let taken: Vec<u16> = w.committed_indices().collect();
     let held: Vec<u16> = w.held_indices().collect();
-    let prefix: String = w.prefix().iter().collect();
-    let held_prefix: String = w.held_prefix().iter().collect();
+    let prefix: Text = w.prefix().iter().copied().collect();
+    let held_prefix: Text = w.held_prefix().iter().copied().collect();
     let at = match press {
         Some(_) if !masked => ui.edit.caret_in(w.prefix().len()),
         _ => w.prefix().len(),
@@ -1384,24 +1403,20 @@ pub(crate) fn keyed_cells(
             (cx + 8.0, cy, 36.0),
             LABEL_S.regular(),
             Role::OnSurfaceVariant,
-            &(k + 1).to_string(),
+            &Text::num(k as u64 + 1),
         );
         let after = k.checked_sub(taken.len() + 1);
         let word = match (taken.get(k), after.and_then(|j| held.get(j))) {
-            (Some(_), _) | (None, Some(_)) if masked => {
-                Some(("••••••".to_string(), Role::OnSurface))
-            }
-            (Some(&i), _) | (None, Some(&i)) => {
-                Some((lang.word_display(i).to_string(), Role::OnSurface))
-            }
-            _ if current && w.is_open() && masked => Some(("••••••".to_string(), Role::Primary)),
-            _ if current && !prefix.is_empty() => Some((prefix.clone(), Role::Primary)),
+            (Some(_), _) | (None, Some(_)) if masked => Some(("••••••", Role::OnSurface)),
+            (Some(&i), _) | (None, Some(&i)) => Some((lang.word_display(i), Role::OnSurface)),
+            _ if current && w.is_open() && masked => Some(("••••••", Role::Primary)),
+            _ if current && !prefix.is_empty() => Some((prefix.as_str(), Role::Primary)),
             _ if after == Some(held.len()) && !held_prefix.is_empty() => {
-                Some((held_prefix.clone(), Role::Primary))
+                Some((held_prefix.as_str(), Role::Primary))
             }
             _ => None,
         };
-        let shown_word = word.map(|(t, c)| (ui.fit_as(BODY_M.mono(), &t, cellw - 36.0), c));
+        let shown_word = word.map(|(t, c)| (ui.fit_as(BODY_M.mono(), t, cellw - 36.0), c));
         let tw = match &shown_word {
             Some((t, c)) => ui.text_mid_as((cx + 30.0, cy, 36.0), BODY_M.mono(), *c, t),
             None => 0.0,
@@ -1472,7 +1487,7 @@ pub(crate) fn keyed_pills(
 ) -> f32 {
     let mut y = y;
     let top = y;
-    let prefix: String = w.prefix().iter().collect();
+    let prefix: Text = w.prefix().iter().copied().collect();
     let cands: Vec<u16> = w.candidates().collect();
     if cands.is_empty() {
         let line = if prefix.is_empty() {
@@ -1556,7 +1571,7 @@ pub(crate) fn word_keys(
                         ky,
                         Some(kw),
                         kh,
-                        &c.to_string(),
+                        c.encode_utf8(&mut [0; 4]),
                         style,
                         Action::EntryKey(c),
                     );
@@ -1656,7 +1671,8 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         Style::Secondary,
         Action::TzStep(-15),
     );
-    let v = format!("UTC{}", crate::vault::tz_offset_text(tz_min));
+    let mut v = Text::of("UTC");
+    v.push_str(&crate::vault::tz_offset_text(tz_min));
     // A one-line slot between the buttons: larger text fits down there.
     let slot = 84.0;
     let vw = ui.text_fit_width(TITLE_S, &v, slot);
@@ -1698,7 +1714,7 @@ pub(crate) fn dice_pad(
                 y,
                 Some(bw),
                 tokens::DICE_PAD_KEY_H,
-                &f.to_string(),
+                &Text::num(u64::from(f)),
                 style(f),
                 press(f),
             );
@@ -1760,11 +1776,11 @@ pub(crate) fn card_pad(
         // On a small panel a chosen rank keeps its check, so the ranks
         // wrap into as many rows as that room takes.
         let (gap, max, row) = (6.0, 52.0, 52.0);
-        let names: Vec<String> = faraday_entropy::RANKS
+        let names: Vec<Text> = faraday_entropy::RANKS
             .iter()
-            .map(|c| c.to_string())
+            .map(|c| Text::of(c.encode_utf8(&mut [0; 4])))
             .collect();
-        let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+        let labels: Vec<&str> = names.iter().map(|n| n.as_str()).collect();
         let (cols, bw) = if ui.compact {
             faraday_ui::parts::chip_grid(ui, w, gap, max, &labels)
         } else {
@@ -1801,14 +1817,17 @@ pub(crate) fn card_pad(
                 cy,
                 Some(sw),
                 BUTTON_H,
-                &ch.to_string(),
+                ch.encode_utf8(&mut [0; 4]),
                 style,
                 suit_press(s as u8),
             );
         }
-        let deck = fill(
+        let deck = Text::fill(
             EN.keygen_deck_status,
-            &[&cards.deck().to_string(), &cards.in_deck().to_string()],
+            &[
+                &Text::num(cards.deck() as u64),
+                &Text::num(cards.in_deck() as u64),
+            ],
         );
         if ui.compact {
             cy += 52.0;
@@ -1845,9 +1864,9 @@ pub(crate) fn camera_row(
     };
     let bw = ui.button(x, y, None, TOUCH, EN.create_camera_shutter, style, shutter);
     let state = match last {
-        Some(st) => fill(EN.keygen_luma_values, &[&st.distinct.to_string()]),
-        None if live => EN.keygen_camera_active.to_string(),
-        None => EN.keygen_waiting_camera.to_string(),
+        Some(st) => Text::fill(EN.keygen_luma_values, &[&Text::num(st.distinct as u64)]),
+        None if live => Text::of(EN.keygen_camera_active),
+        None => Text::of(EN.keygen_waiting_camera),
     };
     let beside = x + bw + PAD;
     if beside + ui.measure_as(BODY_M, &state) <= x + w {
@@ -1896,14 +1915,14 @@ pub(crate) fn copy_block_rect(b: usize, n: usize) -> (usize, usize, usize, usize
 
 /// Block `b` of a code of side `n` as a grid names it: "A1" where the
 /// grid is lettered, else its first row's and column's index, "5 · 10".
-pub(crate) fn copy_block_name(b: usize, n: usize, lettered: bool) -> String {
+pub(crate) fn copy_block_name(b: usize, n: usize, lettered: bool) -> Text {
     let per = copy_blocks(n).max(1);
     if lettered {
         let row = char::from(b'A' + u8::try_from(b / per).unwrap_or(0));
-        return format!("{row}{}", b % per + 1);
+        return text!("{row}{}", b % per + 1);
     }
     let (c0, r0, _, _) = copy_block_rect(b, n);
-    format!("{r0} · {c0}")
+    text!("{r0} · {c0}")
 }
 
 /// What a QR copied by hand shows and does (`docs/BACKUP-FLOW.md`
@@ -2011,9 +2030,9 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
         cy += tokens::PAD + tokens::GAP_SMALL;
     }
     let name = if g.rows {
-        fill(EN.seed_grid_row, &[&pin.to_string()])
+        Text::fill(EN.seed_grid_row, &[&Text::num(pin as u64)])
     } else {
-        fill(EN.copy_grid_block, &[&copy_block_name(pin, n, g.lettered)])
+        Text::fill(EN.copy_grid_block, &[&copy_block_name(pin, n, g.lettered)])
     };
     cy += ui.wrap_as((x, cy, w), TITLE_M, Role::Primary, &name) + tokens::GAP_SMALL;
     cy += wrap_buttons(
@@ -2091,12 +2110,14 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
     for b in 0..per {
         let o = b as f32 * span;
         let (col, row) = if g.lettered {
+            let letter = char::from(b'A' + u8::try_from(b).unwrap_or(0));
             (
-                (b + 1).to_string(),
-                char::from(b'A' + u8::try_from(b).unwrap_or(0)).to_string(),
+                Text::of(&Text::num(b as u64 + 1)),
+                Text::of(letter.encode_utf8(&mut [0; 4])),
             )
         } else {
-            ((b * COPY_BLOCK).to_string(), (b * COPY_BLOCK).to_string())
+            let at = Text::of(&Text::num((b * COPY_BLOCK) as u64));
+            (at.duplicate(), at)
         };
         // Each name at the middle of its block.
         let span_here = span.min(side - o);
@@ -2155,16 +2176,16 @@ fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin
     let (bw, bh) = (bw as f32 * cell, bh as f32 * cell);
     ui.stroke(gx + cell, gy + cell, bw, bh, 0.0, Role::Primary);
     let name = copy_block_name(pin, n, g.lettered);
-    let (row, col) = if g.lettered {
-        let (r, c) = name.split_at(1);
-        (r.to_string(), c.to_string())
+    let (r0t, c0t) = (Text::num(r0 as u64), Text::num(c0 as u64));
+    let (row, col): (&str, &str) = if g.lettered {
+        name.split_at(1)
     } else {
-        (r0.to_string(), c0.to_string())
+        (&r0t, &c0t)
     };
-    let cw = ui.measure_as(BODY_S.mono(), &col);
+    let cw = ui.measure_as(BODY_S.mono(), col);
     let col_x = gx + cell + (bw - cw) / 2.0;
-    ui.text_mid_as((col_x, y, lab), BODY_S.mono(), Role::Primary, &col);
-    ui.text_mid_as((x, gy + cell, bh), BODY_S.mono(), Role::Primary, &row);
+    ui.text_mid_as((col_x, y, lab), BODY_S.mono(), Role::Primary, col);
+    ui.text_mid_as((x, gy + cell, bh), BODY_S.mono(), Role::Primary, row);
     lab + side
 }
 

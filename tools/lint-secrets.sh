@@ -536,7 +536,12 @@ faraday/faraday-keys/src/texts.rs
 faraday/faraday-keys/src/totp.rs
 faraday/faraday-keys/src/vault/mod.rs
 faraday/faraday-keys/src/vault/reveals.rs
-faraday/faraday-keys/src/vault/tests.rs"
+faraday/faraday-keys/src/vault/tests.rs
+faraday/faraday-core/src/screens/entry.rs
+faraday/faraday-core/src/screens/mod.rs
+faraday/faraday-core/src/screens/parts.rs
+faraday/faraday-core/src/screens/sheets.rs
+faraday/faraday-core/src/screens/visit.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

@@ -917,7 +917,7 @@ impl Faraday {
                         .position(|g| *g == f)
                         .and_then(|k| imp.items.get(k))
                         .map_or(FileKind::Other, |i| i.kind);
-                    Text::of(&crate::screens::kind_line(kind, file.size as usize))
+                    crate::screens::kind_line(kind, file.size as usize)
                 }
             };
             let enabled = !imp.asked && file.state == Staged::Listed;

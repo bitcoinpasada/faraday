@@ -52,7 +52,10 @@ fn rows(f: &BackupFlow, k: usize) -> Vec<(&'static str, Vec<String>)> {
     );
     add(
         FEN.backup_flow_sheet_free,
-        b.free.map(crate::screens::size_text).into_iter().collect(),
+        b.free
+            .map(|n| String::from(&*crate::screens::size_text(n)))
+            .into_iter()
+            .collect(),
     );
     add(
         FEN.backup_flow_sheet_files,

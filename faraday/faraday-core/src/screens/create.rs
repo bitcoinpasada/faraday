@@ -187,7 +187,7 @@ fn create_flow_summary(app: &View, k: u8) -> String {
             )
         }
         (cstep::WHERE, _) if c.vaults.answer.is_none() => EN.create_not_answered.to_string(),
-        (cstep::WHERE, _) => vaults_answer_line(c.vaults),
+        (cstep::WHERE, _) => vaults_answer_line(c.vaults).to_string(),
         _ => String::new(),
     }
 }
@@ -287,10 +287,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         cstep::KIND => {
             // A row pressed moves on, the ticked one too: no Continue.
             let shown = crate::create::NewKind::create_rows(c.more_kinds);
-            let rows: Vec<(usize, String)> = shown
+            let lines: Vec<(usize, String)> = shown
                 .into_iter()
                 .map(|i| (i, crate::create::NewKind::ALL[i].create_line((c.m, c.n))))
                 .collect();
+            let rows: Vec<(usize, &str)> = lines.iter().map(|(i, l)| (*i, l.as_str())).collect();
             let more = (!c.more_kinds).then_some(Action::CMoreKinds);
             // From Move money no kind is ticked: the person chooses
             // (owner, 2026-10-24).
@@ -310,7 +311,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 .into_iter()
                 .map(|f| OptionRow {
                     name: f.name(),
-                    line: f.line().to_string(),
+                    line: f.line(),
                     on: c.backup == Some(f),
                     action: Action::CBackupForm(f.index()),
                     tip: f == crate::create::BackupForm::Codex32,

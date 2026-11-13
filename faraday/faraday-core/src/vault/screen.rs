@@ -2829,7 +2829,11 @@ fn detail(
                 )
             };
             ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
-            let line = format!("{} · {}", f.name, crate::screens::size_text(f.size as u64));
+            let line = format!(
+                "{} · {}",
+                f.name,
+                &*crate::screens::size_text(f.size as u64)
+            );
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);
             ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, &name);
             if signed {

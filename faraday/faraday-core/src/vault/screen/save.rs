@@ -3,6 +3,7 @@
 //! detail that choose how long and why (`vault/screen.rs`).
 
 use super::*;
+use crate::screens::size_text;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 
 /// **Sign with {key}**, opened by Sign a file's **Sign** (F63): the files
@@ -41,7 +42,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &mut |ui, x, y, iw| {
             let mut cy = y;
             for f in &chosen {
-                let line = format!("{} · {}", f.name, crate::screens::size_text(f.size as u64));
+                let line = format!("{} · {}", f.name, &*size_text(f.size as u64));
                 let line = ui.fit_as(BODY_M.mono(), &line, iw);
                 ui.text_as(x, cy, BODY_M.mono(), ink, &line);
                 cy += ui.advance_as(BODY_M.mono(), 22.0);

@@ -20,7 +20,7 @@ fn create_flow_summary_restore(app: &View, k: u8) -> String {
     if k == crate::rstep::HOW_MANY {
         r.vaults.count.to_string()
     } else {
-        vaults_answer_line(r.vaults)
+        vaults_answer_line(r.vaults).to_string()
     }
 }
 
