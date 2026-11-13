@@ -197,7 +197,7 @@ pub(crate) fn place_line(
     let mut line = format!(
         "{}\n{}",
         names.get(p).map_or("", |n| n.trim()),
-        plan::text::at_code(spot.at)
+        &*plan::text::at_code(spot.at)
     );
     for (w, _) in &spot.holds {
         line.push(' ');
@@ -397,7 +397,7 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
             out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
         }
         for (fp, id) in &r.ids {
-            out.push_str(&format!("id\t{}\t{}\n", hex4(*fp), hex32(id)));
+            out.push_str(&format!("id\t{}\t{}\n", hex4(*fp), &*hex32(id)));
         }
         for (fp, k) in &r.kefs {
             out.push_str(&format!(
@@ -406,7 +406,7 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
                 kept_field(k.png.as_deref().unwrap_or("")),
                 kept_field(&k.file),
                 u8::from(k.checked),
-                hex32(&k.sha),
+                &*hex32(&k.sha),
                 u8::from(k.low),
                 u8::from(k.label),
                 u8::from(k.scanned),
@@ -829,22 +829,24 @@ impl Record {
     /// held this power-on, `None` for one never checked.
     fn place_checks(&self, notes: &[plan::Note], p: usize, things: usize) -> Vec<Option<String>> {
         let kept = notes.iter().filter_map(|n| match n {
-            plan::Note::Checked(At::Place(q) | At::Stick(q, _), w, d) if *q == p => Some((*w, d)),
+            plan::Note::Checked(At::Place(q) | At::Stick(q, _), w, d) if *q == p => {
+                Some((*w, d.as_str()))
+            }
             _ => None,
         });
         let held = self
             .dated
             .iter()
             .filter(|d| d.place == p)
-            .map(|d| (d.what, &d.date));
+            .map(|d| (d.what, d.date.as_str()));
         let mut dates: Vec<(plan::What, String)> = Vec::new();
         for (w, d) in kept.chain(held) {
             match dates.iter_mut().find(|(x, _)| *x == w) {
-                Some((_, old)) if old.is_empty() || (!d.is_empty() && d < old) => {
-                    *old = d.clone();
+                Some((_, old)) if old.is_empty() || (!d.is_empty() && d < old.as_str()) => {
+                    *old = String::from(d);
                 }
                 Some(_) => {}
-                None => dates.push((w, d.clone())),
+                None => dates.push((w, String::from(d))),
             }
         }
         let n = dates.len();
@@ -948,7 +950,7 @@ impl Faraday {
                     holds: spot
                         .holds
                         .iter()
-                        .map(|(h, _)| h.label(&shape, self.medium.cap()))
+                        .map(|(h, _)| String::from(&*h.label(&shape, self.medium.cap())))
                         .collect(),
                     tag: spot.holds.iter().map(|(_, t)| *t).fold(Tag::Public, worse),
                     copies: Vec::new(),
@@ -1064,7 +1066,7 @@ impl Faraday {
         let sum = wallet.checksum().to_string();
         let name = wallet.name.clone();
         let shown = b.shown;
-        let answers = b.answers.to_text();
+        let answers = String::from(&*b.answers.to_text());
         self.backups_area.sync(Synced {
             sum,
             name,
@@ -1261,7 +1263,7 @@ impl Faraday {
             let Some((shape, answers, _)) = self.plan_load_stored(&c, &wallet, &|pass| {
                 let mut shape = self.plan_shape_of(&wallet);
                 for (i, seed) in shape.seeds.iter_mut().enumerate() {
-                    seed.here |= summary.keys.contains(&seed.name);
+                    seed.here |= summary.keys.iter().any(|k| **k == *seed.name);
                     seed.passphrase = pass.get(i).copied().unwrap_or(false);
                 }
                 shape
@@ -1273,7 +1275,7 @@ impl Faraday {
                 let name = &shape.seeds.get(i)?.name;
                 slots
                     .iter()
-                    .find_map(|s| s.fingerprint.filter(|f| fp_text(*f) == *name))
+                    .find_map(|s| s.fingerprint.filter(|f| fp_text(*f) == **name))
                     .map(|f| f.0)
             };
             let record = self.backups_area.record(&sum);
@@ -1744,9 +1746,9 @@ impl Faraday {
             .collect();
         for ((at, what, date, _), _) in dated.iter().zip(&fits).filter(|(_, f)| **f) {
             notes.retain(|x| !matches!(x, Note::Checked(a, w, _) if a == at && w == what));
-            notes.push(Note::Checked(*at, *what, date.clone()));
+            notes.push(Note::Checked(*at, *what, faraday_text::Text::of(date)));
         }
-        let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
+        let texts: Vec<faraday_text::Text> = notes.iter().map(Note::to_text).collect();
         let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
         let c = self.compute();
         if self
@@ -3220,7 +3222,7 @@ impl Faraday {
                     return None;
                 }
                 let id = form.id_text();
-                Some((char::from(index).to_ascii_uppercase(), id))
+                Some((char::from(index).to_ascii_uppercase(), String::from(&*id)))
             })
     }
 

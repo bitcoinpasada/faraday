@@ -7,10 +7,9 @@
 //! 6238 over a Unix time; [`normalise`] is what the entry form and the
 //! Inbox import (`faraday-vault::entries`) store back into field 6.
 
-use alloc::format;
-use alloc::string::String;
 use alloc::vec::Vec;
 
+use faraday_text::{Text, text};
 use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 use sha2::{Sha256, Sha512};
@@ -97,10 +96,10 @@ const MIN_BARE_KEY_CHARS: usize = 16;
 
 /// `s`, upper-cased, with spaces, hyphens and padding removed: the form
 /// [`normalise`] writes a bare key's `secret` param in.
-fn clean_base32_key(s: &str) -> Zeroizing<String> {
+fn clean_base32_key(s: &str) -> Text {
     // Sized for the whole of `s`, so the key never outgrows its buffer and
     // leaves a block behind.
-    let mut key = Zeroizing::new(String::with_capacity(s.len()));
+    let mut key = Text::with_room(s.len());
     for c in s.chars() {
         if !c.is_whitespace() && c != '-' && c != '=' {
             key.push(c.to_ascii_uppercase());
@@ -117,13 +116,13 @@ fn has_otpauth_scheme(s: &str) -> bool {
 
 /// Percent-encodes everything outside RFC 3986's unreserved characters,
 /// byte by byte (`docs/TOTP.md` §4.3).
-fn percent_encode(s: &str) -> String {
-    let mut out = String::new();
+fn percent_encode(s: &str) -> Text {
+    let mut out = Text::new();
     for b in s.bytes() {
         if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') {
             out.push(b as char);
         } else {
-            out.push_str(&format!("%{b:02X}"));
+            out.push_str(&text!("%{b:02X}"));
         }
     }
     out
@@ -148,7 +147,7 @@ const KNOWN_PARAMETERS: [&str; 8] = [
     clippy::disallowed_methods,
     reason = "the name of a parameter of an otpauth address, which is not secret"
 )]
-fn parameter_name(raw: &str) -> String {
+fn parameter_name(raw: &str) -> Text {
     let mut name = raw.as_bytes().to_vec();
     for _ in 0..4 {
         let mut out = Vec::with_capacity(name.len());
@@ -173,7 +172,10 @@ fn parameter_name(raw: &str) -> String {
             break;
         }
     }
-    String::from_utf8_lossy(&name).to_ascii_lowercase()
+    Text::from_utf8_lossy(&name)
+        .chars()
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
 }
 
 /// `parse(field)` from a type 6 field 6 value (§4.1).
@@ -193,7 +195,7 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
         let mut algorithm = Algorithm::Sha1;
         let mut digits: u32 = 6;
         let mut period: u64 = 30;
-        let mut seen: Vec<String> = Vec::new();
+        let mut seen: Vec<Text> = Vec::new();
         for pair in query.split('&') {
             if pair.is_empty() {
                 continue;
@@ -218,11 +220,14 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
             match k {
                 "secret" => secret = Some(v),
                 "algorithm" => {
-                    algorithm = match v.to_ascii_uppercase().as_str() {
-                        "SHA1" => Algorithm::Sha1,
-                        "SHA256" => Algorithm::Sha256,
-                        "SHA512" => Algorithm::Sha512,
-                        _ => return Err(NotTotp::Unreadable),
+                    algorithm = if v.eq_ignore_ascii_case("SHA1") {
+                        Algorithm::Sha1
+                    } else if v.eq_ignore_ascii_case("SHA256") {
+                        Algorithm::Sha256
+                    } else if v.eq_ignore_ascii_case("SHA512") {
+                        Algorithm::Sha512
+                    } else {
+                        return Err(NotTotp::Unreadable);
                     };
                 }
                 "digits" => {
@@ -440,10 +445,10 @@ fn hotp(secret: &[u8], counter: u64, algorithm: Algorithm, digits: u32) -> u32 {
 impl Totp {
     /// RFC 6238 with T0 = 0 (§4.2): the code at Unix time `unix`,
     /// zero-padded to its digit count.
-    pub fn code(&self, unix: u64) -> String {
+    pub fn code(&self, unix: u64) -> Text {
         let counter = unix / self.period;
         let value = hotp(&self.secret, counter, self.algorithm, self.digits);
-        format!("{value:0width$}", width = self.digits as usize)
+        text!("{value:0width$}", width = self.digits as usize)
     }
 
     /// Seconds until the next code (§4.2).
@@ -460,12 +465,12 @@ impl Totp {
 
 /// `code` grouped for display (§4.2): six digits as `492 039`, seven as
 /// `1 234 567`, eight as `1234 5678`.
-pub fn grouped(code: &str) -> String {
+pub fn grouped(code: &str) -> Text {
     match code.len() {
-        6 => format!("{} {}", &code[0..3], &code[3..6]),
-        7 => format!("{} {} {}", &code[0..1], &code[1..4], &code[4..7]),
-        8 => format!("{} {}", &code[0..4], &code[4..8]),
-        _ => String::from(code),
+        6 => text!("{} {}", &code[0..3], &code[3..6]),
+        7 => text!("{} {} {}", &code[0..1], &code[1..4], &code[4..7]),
+        8 => text!("{} {}", &code[0..4], &code[4..8]),
+        _ => Text::of(code),
     }
 }
 
@@ -476,12 +481,12 @@ pub fn grouped(code: &str) -> String {
 ///
 /// The result is wiping text sized up front, so the secret is never
 /// copied into a larger buffer on the way.
-pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<String>> {
+pub fn normalise(field: &str, title: &str, account: &str) -> Option<Text> {
     let trimmed = field.trim();
     if has_otpauth_scheme(trimmed) {
         return match parse(trimmed) {
             Ok(_) | Err(NotTotp::Hotp) => {
-                let mut uri = Zeroizing::new(String::with_capacity(trimmed.len()));
+                let mut uri = Text::with_room(trimmed.len());
                 uri.push_str(trimmed);
                 Some(uri)
             }
@@ -492,7 +497,7 @@ pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<St
     let key = clean_base32_key(trimmed);
     let title = percent_encode(title);
     let account = percent_encode(account);
-    let mut uri = Zeroizing::new(String::with_capacity(
+    let mut uri = Text::with_room(
         "otpauth://totp/".len()
             + title.len() * 2
             + account.len()
@@ -500,7 +505,7 @@ pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<St
             + "?secret=".len()
             + key.len()
             + "&issuer=".len(),
-    ));
+    );
     uri.push_str("otpauth://totp/");
     uri.push_str(&title);
     if !account.is_empty() {

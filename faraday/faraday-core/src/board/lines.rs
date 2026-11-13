@@ -104,7 +104,7 @@ pub(super) fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
                 shape
                     .seeds
                     .get(i)
-                    .map_or_else(String::new, |s| s.name.clone())
+                    .map_or_else(String::new, |s| String::from(&*s.name))
             })
             .collect(),
     );

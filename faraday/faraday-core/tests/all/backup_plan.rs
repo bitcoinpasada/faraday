@@ -16,7 +16,7 @@ use faraday_core::plan::{
 
 fn seed(name: &str, here: bool) -> Seed {
     Seed {
-        name: name.to_string(),
+        name: faraday_text::Text::of(name),
         here,
         passphrase: false,
     }
@@ -311,7 +311,7 @@ fn the_answers_read_back_as_the_vault_keeps_them() {
 fn a_plan_naming_what_the_wallet_does_not_have_is_read_as_absent() {
     let shape = two_of_three();
     let a = Answers::preset(&shape, Preset::PaperVaultSoftware);
-    let text = a.to_text();
+    let text = String::from(&*a.to_text());
     assert_eq!(Answers::from_text(&shape, &text), Some(a.clone()));
     let places = format!("places {}\n", a.places);
     let huge = text.replace(&places, "places 1000000000\n");
@@ -703,7 +703,7 @@ fn paper_and_vault_puts_one_seed_in_each_vault_each_stick_away_from_the_other_se
             .iter()
             .find(|(w, _)| matches!(w, What::VaultStick(_)))
             .map(|(w, _)| w.label(&shape, faraday_core::Medium::Stick.cap())),
-        Some("Stick with Vault 1".to_string())
+        Some(faraday_text::Text::of("Stick with Vault 1"))
     );
     // So no one place found spends, even with a vault's passphrase; any
     // one lost leaves the rest to rebuild it.
@@ -830,7 +830,7 @@ fn a_plan_that_does_not_survive_a_place_lost_says_why() {
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
     let stick = (0..a.places).find(|&p| a.stick_at(0, p)).unwrap();
     assert_eq!(check(&c, &shape, &a).lost, Lost::No);
-    let name = |p: usize| format!("Place {}", p + 1);
+    let name = |p: usize| faraday_text::text!("Place {}", p + 1);
     assert_eq!(
         faraday_core::plan::lost_why(&c, &shape, &a, &name, "stick").as_deref(),
         Some(
@@ -1245,7 +1245,7 @@ fn a_passphrase_cannot_be_ticked_where_its_words_are() {
     );
     put(&mut app, Thing::Pass(0), Zone::Paper(0));
     assert!(held(&app, At::Place(0)).contains(&What::Passphrase(0)));
-    let fp = shape.seeds[0].name.clone();
+    let fp = String::from(&*shape.seeds[0].name);
     assert!(shows_text(
         &mut app,
         &format!("Place 1 keeps {fp}'s words with its passphrase")
@@ -1612,7 +1612,7 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
     let c = faraday_core::testkit::compute();
     let seeds: Vec<faraday_core::plan::Seed> = (0..26)
         .map(|i| faraday_core::plan::Seed {
-            name: format!("{:08x}", 0x1000_0000u32 + i),
+            name: faraday_text::text!("{:08x}", 0x1000_0000u32 + i),
             here: true,
             passphrase: false,
         })

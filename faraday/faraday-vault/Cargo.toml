@@ -12,6 +12,8 @@ publish = false
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
+# Heap text that wipes itself, for an entry's text.
+faraday-text = { path = "../../core/faraday-text" }
 # Every passphrase in Unicode NFC before Argon2id (docs/VAULT.md §3); the
 # version faraday-bip already takes for BIP-39's NFKD.
 unicode-normalization.workspace = true

@@ -173,11 +173,11 @@ fn every_kind() -> Vec<Item> {
         boot.push(n, DER);
     }
     let gpg = GpgKey {
-        title: "Test <test@example.com>".into(),
-        key: Zeroizing::new(gpg_key()),
-        public: Some(GPG_PUBLIC.into()),
-        revocation: Some(Zeroizing::new(GPG_PUBLIC.into())),
-        revoked: Some("2026-10-28T14:02:00Z".into()),
+        title: faraday_text::Text::of("Test <test@example.com>"),
+        key: faraday_text::Text::of(&gpg_key()),
+        public: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revocation: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revoked: Some(faraday_text::Text::of("2026-10-28T14:02:00Z")),
     };
     vec![
         (Body::Record(seed), "Bitcoin keys", "Key 73c5da0a"),

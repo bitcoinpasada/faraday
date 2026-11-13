@@ -23,7 +23,8 @@ pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
 
 use faraday_crypto::work::Compute;
 
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 /// How many items the checklist gives the seeds: one range of a seed's
 /// numbers, the narrowest of the copy, codex32 and passphrase ranges. A
@@ -31,8 +32,8 @@ use faraday_strings::{EN, fill};
 pub const CHECKLIST_SEEDS: usize = 28;
 
 /// The sha-256 or other 32 bytes as lower-case hex.
-pub fn hex32(b: &[u8; 32]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(b))
+pub fn hex32(b: &[u8; 32]) -> Text {
+    faraday_crypto::hex::encode_string(b)
 }
 
 /// 64 hex characters as 32 bytes.
@@ -153,7 +154,7 @@ impl Preset {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seed {
     /// Its fingerprint, or the share's number.
-    pub name: String,
+    pub name: Text,
     /// Loaded here from words: it can go on paper, into the vault or a
     /// file. A seed not here is on its own device.
     pub here: bool,
@@ -804,18 +805,18 @@ impl Answers {
 
     /// Vault `v` as the map and the checklist name it: "Vault 1 ·
     /// 9A6A2580", its number and the seeds it holds.
-    pub fn vault_name(&self, shape: &Shape, v: usize) -> String {
+    pub fn vault_name(&self, shape: &Shape, v: usize) -> Text {
         let names: Vec<&str> = self
             .vault_seeds(shape, v)
             .into_iter()
             .map(|i| shape.seeds[i].name.as_str())
             .collect();
         if names.is_empty() {
-            fill(EN.plan_vault, &[&(v + 1).to_string()])
+            Text::fill(EN.plan_vault, &[&Text::num(v as u64 + 1)])
         } else {
-            fill(
+            Text::fill(
                 EN.plan_vault_names,
-                &[&(v + 1).to_string(), &names.join(", ").to_string()],
+                &[&Text::num(v as u64 + 1), &joined(&names)],
             )
         }
     }
@@ -1217,7 +1218,7 @@ pub enum What {
     ShareFile(usize, usize),
     /// The chosen watch-only software's own file, on a stick.
     SoftwareFile,
-    /// String `j` (its share index's bech32 value) of seed `i`'s codex32
+    /// Piece `j` (its share index's bech32 value) of seed `i`'s codex32
     /// set, written on paper, or in a vault its share record
     /// (`docs/CODEX32.md` §9.5).
     Codex32Share(usize, usize),
@@ -1277,43 +1278,43 @@ pub struct Spot {
 
 impl What {
     /// What it is, as the map and the envelopes list it.
-    pub fn label(self, shape: &Shape, medium_cap: &str) -> String {
-        let seed = |i: usize| {
-            shape
-                .seeds
-                .get(i)
-                .map_or("?", |s| s.name.as_str())
-                .to_string()
-        };
+    pub fn label(self, shape: &Shape, medium_cap: &str) -> Text {
+        let seed = |i: usize| shape.seeds.get(i).map_or("?", |s| s.name.as_str());
         match self {
-            What::Words(i) => fill(EN.plan_seed_words, &[&seed(i).to_string()]),
-            What::SeedQr(i) => fill(EN.plan_seed_seedqr, &[&seed(i).to_string()]),
-            What::Passphrase(i) => fill(EN.plan_passphrase_label, &[&seed(i).to_string()]),
-            What::Sheet => EN.plan_wallet_sheet.to_string(),
-            What::Share(j) => fill(
+            What::Words(i) => Text::fill(EN.plan_seed_words, &[seed(i)]),
+            What::SeedQr(i) => Text::fill(EN.plan_seed_seedqr, &[seed(i)]),
+            What::Passphrase(i) => Text::fill(EN.plan_passphrase_label, &[seed(i)]),
+            What::Sheet => Text::of(EN.plan_wallet_sheet),
+            What::Share(j) => Text::fill(
                 EN.plan_share_count,
-                &[&(j + 1).to_string(), &shape.keys.to_string()],
+                &[&Text::num(j as u64 + 1), &Text::num(shape.keys as u64)],
             ),
-            What::VaultStick(v) => fill(EN.plan_with_vault, &[medium_cap, &(v + 1).to_string()]),
-            What::Seed(i) => fill(EN.plan_seed, &[&seed(i).to_string()]),
-            What::SeedPassphrase(i) => fill(EN.plan_seed_with_passphrase, &[&seed(i).to_string()]),
-            What::PassphraseSealed(i) => fill(EN.plan_passphrase_label, &[&seed(i).to_string()]),
-            What::Wallet => EN.plan_wallet_description.to_string(),
-            What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
-            What::SeedQrFile(i) => fill(EN.plan_seedqr_file, &[&seed(i).to_string()]),
-            What::KefCode(i) => fill(EN.plan_kef_code, &[&seed(i)]),
-            What::KefCodePaper(i) => fill(EN.plan_kef_code_paper, &[&seed(i)]),
-            What::PassphraseFile(i) => fill(EN.plan_passphrase_file, &[&seed(i).to_string()]),
-            What::WalletFile(f) => fill(EN.plan_wallet_file, &[form_name(f)]),
-            What::ShareFile(j, f) => fill(
+            What::VaultStick(v) => {
+                Text::fill(EN.plan_with_vault, &[medium_cap, &Text::num(v as u64 + 1)])
+            }
+            What::Seed(i) => Text::fill(EN.plan_seed, &[seed(i)]),
+            What::SeedPassphrase(i) => Text::fill(EN.plan_seed_with_passphrase, &[seed(i)]),
+            What::PassphraseSealed(i) => Text::fill(EN.plan_passphrase_label, &[seed(i)]),
+            What::Wallet => Text::of(EN.plan_wallet_description),
+            What::SeedFile(i) => Text::fill(EN.plan_seed_file, &[seed(i)]),
+            What::SeedQrFile(i) => Text::fill(EN.plan_seedqr_file, &[seed(i)]),
+            What::KefCode(i) => Text::fill(EN.plan_kef_code, &[seed(i)]),
+            What::KefCodePaper(i) => Text::fill(EN.plan_kef_code_paper, &[seed(i)]),
+            What::PassphraseFile(i) => Text::fill(EN.plan_passphrase_file, &[seed(i)]),
+            What::WalletFile(f) => Text::fill(EN.plan_wallet_file, &[form_name(f)]),
+            What::ShareFile(j, f) => Text::fill(
                 EN.plan_share_file,
-                &[&(j + 1).to_string(), &shape.keys.to_string(), form_name(f)],
+                &[
+                    &Text::num(j as u64 + 1),
+                    &Text::num(shape.keys as u64),
+                    form_name(f),
+                ],
             ),
-            What::SoftwareFile => EN.plan_software_file.to_string(),
+            What::SoftwareFile => Text::of(EN.plan_software_file),
             What::Codex32Share(i, j)
             | What::Codex32QrPaper(i, j)
             | What::Codex32ShareFile(i, j)
-            | What::Codex32QrFile(i, j) => fill(
+            | What::Codex32QrFile(i, j) => Text::fill(
                 match self {
                     What::Codex32QrPaper(..) => EN.c32_plan_qr,
                     What::Codex32ShareFile(..) => EN.c32_plan_file,
@@ -1321,12 +1322,30 @@ impl What {
                     _ => EN.c32_plan_string,
                 },
                 &[
-                    &seed(i),
-                    &codex32::index_char(j).to_ascii_uppercase().to_string(),
+                    seed(i),
+                    &text!("{}", codex32::index_char(j).to_ascii_uppercase()),
                 ],
             ),
         }
     }
+}
+
+/// `line` without its trailing whitespace.
+fn trim_end(line: &mut Text) {
+    let keep = line.trim_end().len();
+    line.truncate(keep);
+}
+
+/// `list` joined with ", ".
+fn joined<T: AsRef<str>>(list: &[T]) -> Text {
+    let mut out = Text::new();
+    for (n, item) in list.iter().enumerate() {
+        if n > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(item.as_ref());
+    }
+    out
 }
 
 /// A public file's form as a label names it: "Text file", "QR picture".
@@ -2412,9 +2431,9 @@ pub fn lost_why(
     c: &Compute,
     shape: &Shape,
     a: &Answers,
-    name: &dyn Fn(usize) -> String,
+    name: &dyn Fn(usize) -> Text,
     noun: &str,
-) -> Option<String> {
+) -> Option<Text> {
     lost_why_on(shape, a, &Mapped::of(c, shape, a), name, noun)
 }
 
@@ -2423,9 +2442,9 @@ pub fn lost_why_on(
     shape: &Shape,
     a: &Answers,
     m: &Mapped,
-    name: &dyn Fn(usize) -> String,
+    name: &dyn Fn(usize) -> Text,
     noun: &str,
-) -> Option<String> {
+) -> Option<Text> {
     let boxes: &[Spot] = &m.places;
     let places = spots(boxes);
     // A single place: "No: a single place" says why (§19.19); a seed kept
@@ -2437,12 +2456,12 @@ pub fn lost_why_on(
         .iter()
         .copied()
         .find(|&g| lost_one(shape, a, boxes, &places, Some(g)) == Lost::No)?;
-    let stick_text = |v: usize| -> String {
-        let at: Vec<String> = sticks_of(boxes, v).into_iter().map(name).collect();
+    let stick_text = |v: usize| -> Text {
+        let at: Vec<Text> = sticks_of(boxes, v).into_iter().map(name).collect();
         if at.is_empty() {
-            EN.plan_at_no_place.to_string()
+            Text::of(EN.plan_at_no_place)
         } else {
-            fill(EN.plan_lost_at, &[&at.join(", ").to_string()])
+            Text::fill(EN.plan_lost_at, &[&joined(&at)])
         }
     };
     // A thing kept at `at` is lost with `gone`: there, or in a vault whose
@@ -2453,14 +2472,14 @@ pub fn lost_why_on(
                 .into_iter()
                 .all(|p| At::Place(p) == gone))
     };
-    let only = |list: &[At]| -> Option<String> {
+    let only = |list: &[At]| -> Option<Text> {
         match list {
-            [At::Vault(v)] => Some(fill(
+            [At::Vault(v)] => Some(Text::fill(
                 EN.plan_lost_vault_medium,
-                &[&(v + 1).to_string(), noun, &stick_text(*v).to_string()],
+                &[&Text::num(*v as u64 + 1), noun, &stick_text(*v)],
             )),
             [At::Place(p)] => Some(name(*p)),
-            [At::Files] => Some(fill(EN.plan_the_of_files, &[noun])),
+            [At::Files] => Some(Text::fill(EN.plan_the_of_files, &[noun])),
             _ => None,
         }
     };
@@ -2468,27 +2487,27 @@ pub fn lost_why_on(
         let seed = &shape.seeds[i].name;
         let kept = seed_spots(boxes, i, &m.needs);
         if kept.is_empty() {
-            return Some(fill(EN.plan_seed_is_kept_nowhere, &[&seed.to_string()]));
+            return Some(Text::fill(EN.plan_seed_is_kept_nowhere, &[seed]));
         }
         if kept.iter().all(|&at| with_gone(at)) {
             let (template, what) = match only(&kept) {
-                Some(w) if matches!(kept[0], At::Vault(_)) => (EN.plan_lost_in, w.to_string()),
-                Some(w) if kept[0] == At::Files => (EN.plan_lost_on, w.to_string()),
-                Some(w) => (EN.plan_lost_at, w.to_string()),
-                None => (EN.plan_lost_with, name_at(gone, name, noun).to_string()),
+                Some(w) if matches!(kept[0], At::Vault(_)) => (EN.plan_lost_in, w),
+                Some(w) if kept[0] == At::Files => (EN.plan_lost_on, w),
+                Some(w) => (EN.plan_lost_at, w),
+                None => (EN.plan_lost_with, name_at(gone, name, noun)),
             };
-            let line = fill(template, &[&what]);
-            return Some(fill(EN.plan_seed_is_kept_only, &[&seed.to_string(), &line]));
+            let line = Text::fill(template, &[&what]);
+            return Some(Text::fill(EN.plan_seed_is_kept_only, &[seed, &line]));
         }
         if shape.seeds[i].passphrase {
             let pass = pass_spots(boxes, i);
             if pass.is_empty() {
-                return Some(fill(EN.plan_the_passphrase, &[&seed.to_string()]));
+                return Some(Text::fill(EN.plan_the_passphrase, &[seed]));
             }
             if pass.iter().all(|&at| with_gone(at)) {
-                return Some(fill(
+                return Some(Text::fill(
                     EN.plan_lost_passphrase_only,
-                    &[&seed.to_string(), &name_at(gone, name, noun).to_string()],
+                    &[seed, &name_at(gone, name, noun)],
                 ));
             }
         }
@@ -2508,25 +2527,25 @@ pub fn lost_why_on(
     }
     let have = opened_in(boxes, &have, &readable);
     if have.seeds_ok(shape) >= shape.m.max(1) && !have.wallet_ok(shape, a) {
-        return Some(fill(
+        return Some(Text::fill(
             EN.plan_without_no_description,
-            &[&name_at(gone, name, noun).to_string()],
+            &[&name_at(gone, name, noun)],
         ));
     }
-    Some(fill(
+    Some(Text::fill(
         EN.plan_without_the_rest,
-        &[&name_at(gone, name, noun).to_string()],
+        &[&name_at(gone, name, noun)],
     ))
 }
 
 /// A spot as the why line names it.
-fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
+fn name_at(at: At, name: &dyn Fn(usize) -> Text, noun: &str) -> Text {
     match at {
         At::Place(p) | At::Stick(p, _) => name(p),
-        At::Vault(v) => fill(EN.plan_vault, &[&(v + 1).to_string()]),
-        At::Files => fill(EN.plan_the_of_files, &[noun]),
-        At::Software => EN.plan_the_software.to_string(),
-        At::Away => EN.plan_the_devices.to_string(),
+        At::Vault(v) => Text::fill(EN.plan_vault, &[&Text::num(v as u64 + 1)]),
+        At::Files => Text::fill(EN.plan_the_of_files, &[noun]),
+        At::Software => Text::of(EN.plan_the_software),
+        At::Away => Text::of(EN.plan_the_devices),
     }
 }
 
@@ -2536,12 +2555,12 @@ fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
 /// copy on a stick counts as kept: a seed's file or SeedQR picture, its
 /// passphrase's file, a vault on a stick (F31: the hold lasts until
 /// that stick is written).
-pub fn kept_nowhere(c: &Compute, shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<String> {
+pub fn kept_nowhere(c: &Compute, shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<Text> {
     kept_nowhere_on(shape, &Mapped::of(c, shape, a), seeds)
 }
 
 /// [`kept_nowhere`] on the map `m`, a seed past the checklist's numbers first.
-pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<String> {
+pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<Text> {
     if let Some(past) = text::past_checklist(shape) {
         return Some(past);
     }
@@ -2551,13 +2570,10 @@ pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<Str
             continue;
         };
         if seed_spots(boxes, i, &m.needs).is_empty() {
-            return Some(fill(
-                EN.plan_seed_is_kept_nowhere,
-                &[&seed.name.to_string()],
-            ));
+            return Some(Text::fill(EN.plan_seed_is_kept_nowhere, &[&seed.name]));
         }
         if seed.passphrase && pass_spots(boxes, i).is_empty() {
-            return Some(fill(EN.plan_the_passphrase, &[&seed.name.to_string()]));
+            return Some(Text::fill(EN.plan_the_passphrase, &[&seed.name]));
         }
     }
     None
@@ -3621,39 +3637,58 @@ impl Mark {
 pub enum Note {
     /// The thing at a spot was last checked here on this date
     /// (`YYYY-MM-DD`, empty when the clock was not known).
-    Checked(At, What, String),
+    Checked(At, What, Text),
     /// The key with this fingerprint was confirmed backed up by its
     /// holder on this date.
-    KeyChecked([u8; 4], String),
+    KeyChecked([u8; 4], Text),
     /// The thing at a spot is marked.
     Marked(At, What, Mark),
     /// Who holds the key with this fingerprint: "Alice's Coldcard".
-    Holder([u8; 4], String),
+    Holder([u8; 4], Text),
     /// What the plan's vault `v` is called.
-    VaultName(usize, String),
+    VaultName(usize, Text),
     /// Every coin of the wallet was moved on this date (`YYYY-MM-DD`): the
     /// person's word, one per wallet (`docs/BACKUP-FLOW.md` §18.4).
-    Moved(String),
+    Moved(Text),
 }
 
 impl Note {
     /// The note as the plan's record keeps it, a line: `checked place0 w0
     /// 2026-10-10`, `lost place0 w0`, `holder 9a6a2580 Alice's Coldcard`.
-    pub fn to_text(&self) -> String {
-        let clean = |s: &str| s.replace(['\n', '\r', '\t'], " ");
+    pub fn to_text(&self) -> Text {
+        let clean = |s: &str| -> Text {
+            s.chars()
+                .map(|c| {
+                    if matches!(c, '\n' | '\r' | '\t') {
+                        ' '
+                    } else {
+                        c
+                    }
+                })
+                .collect()
+        };
         match self {
             Note::Checked(at, w, d) => {
-                format!("checked {} {} {}", at_code(*at), what_code(*w), clean(d))
-                    .trim_end()
-                    .to_string()
+                let mut line = text!(
+                    "checked {} {} {}",
+                    &*at_code(*at),
+                    &*what_code(*w),
+                    &*clean(d)
+                );
+                trim_end(&mut line);
+                line
             }
-            Note::KeyChecked(fp, d) => format!("keychecked {} {}", fp_code(*fp), clean(d))
-                .trim_end()
-                .to_string(),
-            Note::Marked(at, w, m) => format!("{} {} {}", m.name(), at_code(*at), what_code(*w)),
-            Note::Holder(fp, n) => format!("holder {} {}", fp_code(*fp), clean(n)),
-            Note::VaultName(v, n) => format!("vaultname {v} {}", clean(n)),
-            Note::Moved(d) => format!("moved {}", clean(d)),
+            Note::KeyChecked(fp, d) => {
+                let mut line = text!("keychecked {} {}", &*fp_code(*fp), &*clean(d));
+                trim_end(&mut line);
+                line
+            }
+            Note::Marked(at, w, m) => {
+                text!("{} {} {}", m.name(), &*at_code(*at), &*what_code(*w))
+            }
+            Note::Holder(fp, n) => text!("holder {} {}", &*fp_code(*fp), &*clean(n)),
+            Note::VaultName(v, n) => text!("vaultname {v} {}", &*clean(n)),
+            Note::Moved(d) => text!("moved {}", &*clean(d)),
         }
     }
 

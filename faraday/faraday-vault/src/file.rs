@@ -367,7 +367,7 @@ pub fn open_with(
     passphrase
         .try_reserve_exact(nfc.len())
         .map_err(|_| Error::Memory(1))?;
-    passphrase.extend_from_slice(nfc.as_bytes());
+    passphrase.extend_from_slice(nfc.as_slice());
     Ok(Opened {
         facts,
         doc,

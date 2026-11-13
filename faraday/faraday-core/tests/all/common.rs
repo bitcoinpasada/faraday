@@ -1684,7 +1684,7 @@ pub fn gpg_key_of(r: &faraday_vault::Record) -> Option<faraday_pgp::Key> {
             .fields
             .iter()
             .filter(|x| x.number == 5)
-            .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
+            .map(|x| faraday_text::Text::from_utf8_lossy(&x.bytes))
             .collect(),
         expiry: u32_of(6).unwrap_or(0),
     })

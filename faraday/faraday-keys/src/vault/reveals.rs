@@ -239,7 +239,7 @@ impl OpenVaults {
         }
         let account = |t: &str| {
             fv::entries::otpauth_names(t)
-                .map(|(_, a)| a)
+                .map(|(_, a)| String::from(&*a))
                 .filter(|a| !a.is_empty())
         };
         // An entry as read has its TOTP worked out over every field it
@@ -402,8 +402,8 @@ impl OpenVaults {
         let r = self.slot(id)?.records.get(i)?;
         let rev = r.field(gpg_field::REVOCATION)?;
         let key = gpg_key(r)?;
-        Some(Held::of(Zeroizing::new(crate::gpg::revocation_file(
-            &key, rev,
+        Some(Held::of(Zeroizing::new(String::from(
+            &*crate::gpg::revocation_file(&key, rev),
         ))))
     }
 
@@ -427,8 +427,8 @@ impl OpenVaults {
         }
         let key = gpg_key(self.slot(id)?.records.get(i)?)?;
         let rev = Zeroizing::new(crate::gpg::revocation(&key, at, reason, text));
-        Some(Held::of(Zeroizing::new(crate::gpg::revocation_file(
-            &key, &rev,
+        Some(Held::of(Zeroizing::new(String::from(
+            &*crate::gpg::revocation_file(&key, &rev),
         ))))
     }
 
@@ -436,7 +436,7 @@ impl OpenVaults {
     /// `i` of open vault `id`'s signing subkey, at `at`, armoured.
     pub fn gpg_sign_armored(&self, id: VaultId, i: usize, data: &[u8], at: u32) -> Option<String> {
         let key = gpg_key(self.slot(id)?.records.get(i)?)?;
-        Some(crate::gpg::sign_armored(&key, data, at))
+        Some(String::from(&*crate::gpg::sign_armored(&key, data, at)))
     }
 
     /// Costs what `gpg_key` costs and a paperkey encoding. The paperkey
@@ -447,7 +447,9 @@ impl OpenVaults {
             return None;
         }
         let key = gpg_key(r.raw())?;
-        Some(Held::of(crate::gpg::paperkey(&key)))
+        Some(Held::of(Zeroizing::new(String::from(
+            &*crate::gpg::paperkey(&key),
+        ))))
     }
 
     // ---- Secure Boot keys ----

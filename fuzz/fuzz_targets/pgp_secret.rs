@@ -32,7 +32,7 @@ fuzz_target!(|data: &[u8]| {
             created: int(64),
             subkey_seed: data[32..64].try_into().unwrap(),
             subkey_created: int(68),
-            user_ids: vec![String::from_utf8_lossy(&data[72..]).into_owned()],
+            user_ids: vec![faraday_text::Text::from_utf8_lossy(&data[72..])],
             expiry: int(64) ^ int(68),
         };
         let at = int(68);

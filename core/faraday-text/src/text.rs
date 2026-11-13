@@ -139,6 +139,11 @@ impl Text {
         self.push_str(s);
     }
 
+    /// The bytes the buffer has room for.
+    pub fn capacity(&self) -> usize {
+        self.buf.capacity()
+    }
+
     /// The text.
     pub fn as_str(&self) -> &str {
         core::str::from_utf8(&self.buf).unwrap_or("")

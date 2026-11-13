@@ -658,7 +658,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
         let Some((_, pass)) = kept.iter().find(|(f, _)| *f == fp) else {
             continue;
         };
-        if let Some(i) = shape.seeds.iter().position(|s| s.name == fp) {
+        if let Some(i) = shape.seeds.iter().position(|s| *s.name == *fp) {
             shape.seeds[i].here = true;
             shape.seeds[i].passphrase |= *pass;
         }
@@ -721,7 +721,7 @@ fn build(
     // Each slot's seed in the plan, by fingerprint.
     let seed_of = |_n: usize, slot: &crate::wallet::Slot| -> Option<usize> {
         let fp = fp_text(slot.fingerprint?);
-        shape.seeds.iter().position(|s| s.name == fp)
+        shape.seeds.iter().position(|s| *s.name == *fp)
     };
     let slot_of: Vec<Option<usize>> = (0..shape.seeds.len())
         .map(|i| (0..slots.len()).find(|&n| seed_of(n, &slots[n]) == Some(i)))
@@ -794,13 +794,13 @@ fn build(
                 passphrase,
                 holder: slot.fingerprint.and_then(|f| {
                     notes.iter().find_map(|n| match n {
-                        plan::Note::Holder(fp, name) if *fp == f.0 => Some(name.clone()),
+                        plan::Note::Holder(fp, name) if *fp == f.0 => Some(String::from(&**name)),
                         _ => None,
                     })
                 }),
                 checked: slot.fingerprint.and_then(|f| {
                     notes.iter().find_map(|n| match n {
-                        plan::Note::KeyChecked(fp, d) if *fp == f.0 => Some(d.clone()),
+                        plan::Note::KeyChecked(fp, d) if *fp == f.0 => Some(String::from(&**d)),
                         _ => None,
                     })
                 }),
@@ -1020,7 +1020,7 @@ fn backup_nodes(
             })
         };
         let checked = notes.iter().find_map(|n| match n {
-            plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(d.clone()),
+            plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(String::from(&**d)),
             _ => None,
         });
         (mark, checked)

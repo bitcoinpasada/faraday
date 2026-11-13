@@ -588,7 +588,7 @@ impl Faraday {
             | crate::plan::What::PassphraseFile(i) = what
                 && let Some(seed) = shape.seeds.get(i)
             {
-                fps.push(seed.name.clone());
+                fps.push(String::from(&*seed.name));
             }
         }
         let Some(&(p, _)) = added.first().filter(|_| !names.is_empty()) else {

@@ -802,14 +802,14 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
             }
             None => {
                 let title = match &it.body {
-                    Body::Gpg(g) => g.title.clone(),
-                    Body::Record(_) => String::new(),
+                    Body::Gpg(g) => g.title.duplicate(),
+                    Body::Record(_) => faraday_text::Text::new(),
                 };
                 built.unreadable.push(Unreadable {
                     title,
                     uuid: Some(it.uuid),
                     what: Damage {
-                        at: "key".to_string(),
+                        at: faraday_text::Text::of("key"),
                         fault: Fault::Value,
                     },
                 });
@@ -819,7 +819,7 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
     for cu in &read.custom {
         built.records.push(cu.record.duplicate());
         built.origin.push(Origin::Custom {
-            key: cu.key.clone(),
+            key: String::from(&*cu.key),
         });
     }
     built
@@ -1808,7 +1808,6 @@ pub struct Totp {
 /// Costs two Ed25519 public keys. A GPG key's public facts, worked out of
 /// its record: its fingerprints, dates and user IDs. `None` for a record
 /// without a signing subkey, which is kept and shown by its user ID alone.
-#[expect(clippy::disallowed_methods, reason = "a key's user ids are public")]
 pub fn gpg_facts(r: RecordView<'_>) -> Option<GpgFacts> {
     let key = gpg_key(r.raw())?;
     Some(GpgFacts {
@@ -1816,7 +1815,7 @@ pub fn gpg_facts(r: RecordView<'_>) -> Option<GpgFacts> {
         subkey_fingerprint: key.subkey_fingerprint(),
         created: key.created,
         subkey_created: key.subkey_created,
-        user_ids: key.user_ids.clone(),
+        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
         expiry: key.expiry,
     })
 }
@@ -1873,7 +1872,7 @@ pub(crate) fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
         r.fields
             .iter()
             .filter(|x| x.number == gpg_field::USER_ID)
-            .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
+            .map(|x| faraday_text::Text::from_utf8_lossy(&x.bytes))
             .collect(),
         u32_of(r, gpg_field::EXPIRY).unwrap_or(0),
     )

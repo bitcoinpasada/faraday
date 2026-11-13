@@ -33,6 +33,8 @@ faraday-sqlite = { path = "../../faraday/faraday-sqlite" }
 faraday-core-wallet = { path = "../../faraday/faraday-core-wallet", features = ["crosscheck"] }
 # OpenTimestamps proofs read and walked against a block header.
 faraday-ots = { path = "../../faraday/faraday-ots" }
+# The wiping text the vault and OpenPGP crates hold their entries in.
+faraday-text = { path = "../../core/faraday-text" }
 # The OpenPGP message's size (`RANDOM_LEN`) the QR vault seals with.
 faraday-pgp = { path = "../../faraday/faraday-pgp" }
 # The session's fresh randomness and what a person adds of their own

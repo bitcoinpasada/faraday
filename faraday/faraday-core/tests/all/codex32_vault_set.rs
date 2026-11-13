@@ -484,14 +484,14 @@ fn plan_text_with(extra: &str, before: bool) -> Option<plan::Answers> {
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {
-            name: "aaaa0001".to_string(),
+            name: faraday_text::Text::of("aaaa0001"),
             here: true,
             passphrase: false,
         }],
         splits: false,
         vaults: 0,
     };
-    let base = plan::Answers::preset(&shape, plan::Preset::Standard).to_text();
+    let base = String::from(&*plan::Answers::preset(&shape, plan::Preset::Standard).to_text());
     let set = "codex32 0 2 48 ac name 0\n";
     let text = if before {
         format!("{base}{extra}{set}")

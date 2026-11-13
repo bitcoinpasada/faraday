@@ -32,7 +32,7 @@ fuzz_target!(|data: &[u8]| {
         created: 1_780_000_000,
         subkey_seed: [0x22; 32],
         subkey_created: 1_780_000_000,
-        user_ids: vec!["Fuzz <fuzz@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Fuzz <fuzz@example.com>")],
         expiry: 0,
     };
     if let Some(&b) = data.first() {

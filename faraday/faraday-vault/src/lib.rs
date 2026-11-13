@@ -41,7 +41,6 @@ pub mod qr;
 pub mod records;
 pub mod totp;
 
-use alloc::string::String;
 use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
 
@@ -67,15 +66,16 @@ pub use unicode_normalization::UNICODE_VERSION;
 /// is mapped or refused. The normaliser's own buffer of combining marks
 /// is not wiped. `Err` holds the MiB the buffer needs when it cannot be
 /// allocated.
-fn nfc(passphrase: &str) -> Result<Zeroizing<String>, u32> {
+fn nfc(passphrase: &str) -> Result<Zeroizing<alloc::vec::Vec<u8>>, u32> {
     let len: usize = passphrase.nfc().map(char::len_utf8).sum();
-    let mut out = Zeroizing::new(String::new());
+    let mut out = Zeroizing::new(alloc::vec::Vec::new());
     out.try_reserve_exact(len)
         .map_err(|_| (len / (1024 * 1024)) as u32 + 1)?;
     // The capacity is the whole form, so the buffer never moves and
     // leaves no copy behind.
+    let mut one = Zeroizing::new([0u8; 4]);
     for ch in passphrase.nfc() {
-        out.push(ch);
+        out.extend_from_slice(ch.encode_utf8(&mut *one).as_bytes());
     }
     Ok(out)
 }

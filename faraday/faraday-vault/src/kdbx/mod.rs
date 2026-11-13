@@ -277,7 +277,7 @@ pub fn passphrase_bytes(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     let mut out = Zeroizing::new(Vec::new());
     out.try_reserve_exact(nfc.len())
         .map_err(|_| Error::Memory(1))?;
-    out.extend_from_slice(nfc.as_bytes());
+    out.extend_from_slice(nfc.as_slice());
     Ok(out)
 }
 

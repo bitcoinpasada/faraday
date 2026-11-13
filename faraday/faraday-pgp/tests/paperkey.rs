@@ -30,7 +30,7 @@ fn key_with(primary: u8, subkey: u8) -> Key {
         created: MADE,
         subkey_seed: [subkey; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * YEAR,
     }
 }
@@ -423,7 +423,7 @@ fn a_key_of_another_algorithm_is_refused_by_gnupgs_name_for_it() {
         let cert = fixture(file);
         assert_eq!(
             Certificate::read(&cert).err(),
-            Some(Refusal::Algorithm(name.to_string())),
+            Some(Refusal::Algorithm(faraday_text::Text::of(name))),
             "{file}"
         );
         let Some(listed) = listing("algorithm", &cert) else {
@@ -633,8 +633,12 @@ fn a_certificate_merged_by_gnupg_restores_from_its_newest_self_signature() {
     let at = MADE + YEAR;
     let mut renewed = key();
     renewed.expiry = at - MADE + 3 * YEAR;
-    let first = armor(Armor::PublicKey, &k.certificate(MADE)).into_bytes();
-    let second = armor(Armor::PublicKey, &renewed.certificate(at)).into_bytes();
+    let first = armor(Armor::PublicKey, &k.certificate(MADE))
+        .as_bytes()
+        .to_vec();
+    let second = armor(Armor::PublicKey, &renewed.certificate(at))
+        .as_bytes()
+        .to_vec();
     let Some(both) = merged("merged", at + 60, &[first, second], &k.fingerprint()) else {
         return;
     };
@@ -656,12 +660,15 @@ fn a_certificate_merged_by_gnupg_restores_from_its_newest_self_signature() {
 fn a_revoked_certificate_restores_marked_revoked() {
     let k = key();
     let when = MADE + 100;
-    let cert = armor(Armor::PublicKey, &k.certificate(MADE)).into_bytes();
+    let cert = armor(Armor::PublicKey, &k.certificate(MADE))
+        .as_bytes()
+        .to_vec();
     let rev = armor(
         Armor::PublicKey,
         &k.revocation(when, Reason::Retired, "Not used"),
     )
-    .into_bytes();
+    .as_bytes()
+    .to_vec();
     let Some(both) = merged("revoked", when + 60, &[cert, rev], &k.fingerprint()) else {
         return;
     };
@@ -694,7 +701,11 @@ fn a_certification_by_another_key_is_set_aside_and_counted() {
     };
     assert!(ran.ok, "{}", ran.err);
     let file = home.join("cert.asc");
-    std::fs::write(&file, armor(Armor::PublicKey, &k.certificate(MADE))).unwrap();
+    std::fs::write(
+        &file,
+        armor(Armor::PublicKey, &k.certificate(MADE)).as_bytes(),
+    )
+    .unwrap();
     let ran = gpg(&home, &["--import", file.to_str().unwrap()]).unwrap();
     assert!(ran.ok, "{}", ran.err);
     let ran = gpg(

@@ -25,7 +25,7 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
             s.entries
         ));
         for d in &s.copies {
-            out.push_str(&format!("copy\t{}\n", crate::backups::hex32(d)));
+            out.push_str(&format!("copy\t{}\n", &*crate::backups::hex32(d)));
         }
         for (name, shape) in &s.wallets {
             out.push_str(&format!(
@@ -39,7 +39,7 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
                 Some(id) => out.push_str(&format!(
                     "key\t{}\t{}\n",
                     kept_field(k),
-                    crate::backups::hex32(&id)
+                    &*crate::backups::hex32(&id)
                 )),
                 None => out.push_str(&format!("key\t{}\n", kept_field(k))),
             }
@@ -57,7 +57,7 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
             out.push_str(&format!(
                 "seal\t{}\t{}\t{}\n",
                 e.count,
-                crate::backups::hex32(&e.digest),
+                &*crate::backups::hex32(&e.digest),
                 kept_field(&e.planned.join(","))
             ));
         }

@@ -1327,7 +1327,7 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
         created: 1_780_000_000,
         subkey_seed: [0x22; 32],
         subkey_created: 1_780_000_000,
-        user_ids: vec!["Test Person <test@example.com>".into()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 0,
     };
     let cert = k.certificate(1_780_000_000);
@@ -1336,7 +1336,7 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
     let rev = k.revocation_file(&k.revocation(1_780_000_100, faraday_pgp::Reason::Unspecified, ""));
     assert_ne!(classify(&c, "k.rev", rev.as_bytes()), FileKind::Gpg);
     assert_ne!(
-        classify(&c, "k.asc", format!(":{public}").as_bytes()),
+        classify(&c, "k.asc", format!(":{}", &*public).as_bytes()),
         FileKind::Gpg
     );
     let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -1352,7 +1352,7 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
     assert_ne!(classify(&c, "k.asc", with_xprv.as_bytes()), FileKind::Gpg);
     // A user ID with a seed.
     let mut k2 = k;
-    k2.user_ids = vec![words.to_string()];
+    k2.user_ids = vec![faraday_text::Text::of(words)];
     let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
     assert_ne!(classify(&c, "k.asc", seeded.as_bytes()), FileKind::Gpg);
 }

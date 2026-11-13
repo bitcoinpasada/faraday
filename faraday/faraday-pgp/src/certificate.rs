@@ -16,8 +16,8 @@
 //! Ed25519 is deterministic, so a certificate Faraday made is made again
 //! exactly; any other is refused. Nothing is taken on a parser's word.
 
-use alloc::string::String;
 use alloc::vec::Vec;
+use faraday_text::Text;
 
 use zeroize::Zeroizing;
 
@@ -37,7 +37,7 @@ pub enum Refusal {
     NotCertificate,
     /// A key of another algorithm, named as `gpg --list-keys` names it
     /// (`rsa3072`, `cv25519`, `nistp256`, …).
-    Algorithm(String),
+    Algorithm(Text),
     /// A key, or a paperkey's entry, of another OpenPGP version.
     Version(u8),
     /// Not one Ed25519 primary key with one Ed25519 signing subkey.
@@ -107,7 +107,7 @@ pub struct Certificate {
     fingerprint: [u8; 20],
     subkey: Vec<u8>,
     subkey_fingerprint: [u8; 20],
-    user_ids: Vec<String>,
+    user_ids: Vec<Text>,
     own: Vec<Own>,
     set_aside: usize,
 }
@@ -195,9 +195,9 @@ const SIG_EXPIRES: u8 = 3;
 
 /// The dotted form of an OID's bytes, as GnuPG prints a curve it does not
 /// name.
-fn oid_text(oid: &[u8]) -> String {
+fn oid_text(oid: &[u8]) -> Text {
     use core::fmt::Write;
-    let mut out = String::new();
+    let mut out = Text::new();
     let Some((&first, rest)) = oid.split_first() else {
         return out;
     };
@@ -215,7 +215,7 @@ fn oid_text(oid: &[u8]) -> String {
 
 /// GnuPG's name for a curve's OID (`openpgp_oid_to_curve`), or `E_` and
 /// the OID as GnuPG prints one it does not know.
-fn curve_name(oid: &[u8]) -> String {
+fn curve_name(oid: &[u8]) -> Text {
     let name = match oid {
         [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01] => "ed25519",
         [0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01] => "cv25519",
@@ -229,12 +229,12 @@ fn curve_name(oid: &[u8]) -> String {
         [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D] => "brainpoolP512r1",
         [0x2B, 0x81, 0x04, 0x00, 0x0A] => "secp256k1",
         _ => {
-            let mut s = String::from("E_");
+            let mut s = Text::of("E_");
             s.push_str(&oid_text(oid));
             return s;
         }
     };
-    String::from(name)
+    Text::of(name)
 }
 
 /// The bit count of the MPI at `at` in `body`.
@@ -255,7 +255,7 @@ fn algorithm_refusal(body: &[u8]) -> Option<Refusal> {
         return Some(Refusal::Version(version));
     }
     let alg = *body.get(5)?;
-    let mut name = String::new();
+    let mut name = Text::new();
     match alg {
         1..=3 => {
             let _ = write!(name, "rsa{}", mpi_bits(body, 6));
@@ -309,7 +309,7 @@ impl Certificate {
         let body = |r: &core::ops::Range<usize>| block.data[r.start..r.end].to_vec();
         let mut primary: Option<Vec<u8>> = None;
         let mut subkeys: Vec<Vec<u8>> = Vec::new();
-        let mut user_ids: Vec<String> = Vec::new();
+        let mut user_ids: Vec<Text> = Vec::new();
         let mut sigs: Vec<(Place, Vec<u8>)> = Vec::new();
         let mut place = Place::Key;
         for (t, r) in &block.packets {
@@ -325,7 +325,9 @@ impl Certificate {
                     if place == Place::Subkey {
                         return Err(Refusal::Shape);
                     }
-                    user_ids.push(String::from_utf8(body(r)).map_err(|_| Refusal::NotCertificate)?);
+                    user_ids.push(Text::of(
+                        core::str::from_utf8(&body(r)).map_err(|_| Refusal::NotCertificate)?,
+                    ));
                     place = Place::UserId(user_ids.len() - 1);
                 }
                 tag::SIGNATURE => sigs.push((place, body(r))),
@@ -418,7 +420,7 @@ impl Certificate {
     }
 
     /// The user IDs, in their order.
-    pub fn user_ids(&self) -> &[String] {
+    pub fn user_ids(&self) -> &[Text] {
         &self.user_ids
     }
 

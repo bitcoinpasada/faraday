@@ -108,6 +108,17 @@ impl PlanCtx {
             .unwrap_or_else(|| fill(EN.place_name_place, &[&(p + 1).to_string()]))
     }
 
+    /// Place `p`'s name, made once as wiping text.
+    pub(crate) fn name_text(&self, p: usize) -> faraday_text::Text {
+        match self.names.get(p) {
+            Some(n) => faraday_text::Text::of(n),
+            None => faraday_text::Text::fill(
+                EN.place_name_place,
+                &[&faraday_text::Text::num(p as u64 + 1)],
+            ),
+        }
+    }
+
     /// A press as this plan's own action.
     pub(crate) fn act(&self, press: PlanPress) -> Action {
         match self.flow {
@@ -271,11 +282,11 @@ pub(crate) fn map_rows(
     // Each place with what its sticks keep.
     for spot in &ctx.mapped.places {
         let name = match spot.at {
-            At::Place(p) | At::Stick(p, _) => ctx.name(p),
+            At::Place(p) | At::Stick(p, _) => ctx.name_text(p),
             At::Vault(v) => a.vault_name(shape, v),
-            At::Files => fill(EN.map_rows_of_files, &[app.medium.cap()]),
-            At::Software => EN.map_rows_watch_only.to_string(),
-            At::Away => EN.map_rows_on_its_own.to_string(),
+            At::Files => faraday_text::Text::fill(EN.map_rows_of_files, &[app.medium.cap()]),
+            At::Software => faraday_text::Text::of(EN.map_rows_watch_only),
+            At::Away => faraday_text::Text::of(EN.map_rows_on_its_own),
         };
         let top = cy;
         let (ix, iw) = if boxed { (x + 12.0, w - 24.0) } else { (x, w) };
@@ -367,7 +378,7 @@ pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32,
         &ctx.shape,
         &ctx.answers,
         &ctx.mapped,
-        &name,
+        &|p| ctx.name_text(p),
         app.medium.noun(),
     ) {
         h += ui.wrap_as((x, y + h, w), BODY_S, Role::Error, &why) + 8.0;

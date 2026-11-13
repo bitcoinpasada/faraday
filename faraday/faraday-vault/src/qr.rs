@@ -42,7 +42,7 @@ pub fn seal(
     }
     let text = write_qr(record).map_err(Error::Contents)?;
     let passphrase = nfc(passphrase).map_err(Error::Memory)?;
-    message::seal(c, passphrase.as_bytes(), exponent, random, &text).map_err(Error::Message)
+    message::seal(c, passphrase.as_slice(), exponent, random, &text).map_err(Error::Message)
 }
 
 /// Costs an Argon2id run at the cost the message states (§3, checked
@@ -56,7 +56,7 @@ pub fn open(c: &Compute, passphrase: &str, bytes: &[u8]) -> Result<Record, Error
     let message = message::parse(bytes).map_err(Error::Message)?;
     let passphrase = nfc(passphrase).map_err(Error::Memory)?;
     let text = message
-        .open(c, passphrase.as_bytes())
+        .open(c, passphrase.as_slice())
         .map_err(Error::Message)?;
     read_qr(c, &text).map_err(Error::Contents)
 }

@@ -1052,6 +1052,7 @@ dependencies = [
  "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
+ "faraday-text",
  "ocb3",
  "sha1",
  "sha2",
@@ -1066,6 +1067,7 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "faraday-strings",
+ "faraday-text",
  "faraday-vault",
 ]
 
@@ -1268,6 +1270,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-intake",
  "faraday-pgp",
+ "faraday-text",
  "hmac",
  "miniz_oxide 0.8.9",
  "pem-rfc7468",

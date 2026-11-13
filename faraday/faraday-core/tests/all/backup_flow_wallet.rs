@@ -555,7 +555,7 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
 
 fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
     let seed = |n: &str| plan::Seed {
-        name: n.into(),
+        name: faraday_text::Text::of(n),
         here: true,
         passphrase: false,
     };
@@ -620,7 +620,7 @@ fn one_key_shape() -> Shape {
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {
-            name: "a".into(),
+            name: faraday_text::Text::of("a"),
             here: true,
             passphrase: false,
         }],
@@ -1012,7 +1012,7 @@ fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
         keys: seeds_n,
         seeds: (0..seeds_n)
             .map(|i| plan::Seed {
-                name: format!("k{i}"),
+                name: faraday_text::text!("k{i}"),
                 here: true,
                 passphrase: passphrase && i == 0,
             })
@@ -2293,7 +2293,7 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
         keys: 3,
         seeds: (0..3)
             .map(|i| plan::Seed {
-                name: format!("k{i}"),
+                name: faraday_text::text!("k{i}"),
                 here: true,
                 passphrase: false,
             })
@@ -2312,7 +2312,7 @@ fn only_this_wallets_seed_files_go_to_the_stick_of_files_and_public_files_have_t
     let c = faraday_core::testkit::compute();
     // A plan with seed files and the description as files: two sticks.
     let mut shape = one_key_shape();
-    shape.seeds[0].name = "9a6a2580".into();
+    shape.seeds[0].name = faraday_text::Text::of("9a6a2580");
     let mut a = Answers::preset(&shape, Preset::PaperVault);
     a.toggle(&shape, plan::Question::Seeds, seeds::FILE);
     a.toggle(&shape, plan::Question::Wallet, wallet::FILES);

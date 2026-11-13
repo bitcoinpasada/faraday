@@ -30,7 +30,7 @@ pub(super) fn section(app: &View, ui: &mut Ui, v: &OpenVault, at: (f32, f32, f32
             u.title.as_str()
         };
         y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurface, title);
-        let why = format!("{} · {}", u.what.at, fault_line(u.what.fault));
+        let why = format!("{} · {}", &*u.what.at, fault_line(u.what.fault));
         y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &why);
         y += tokens::GAP_SMALL;
     }

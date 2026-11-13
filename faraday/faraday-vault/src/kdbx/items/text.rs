@@ -1,65 +1,57 @@
 //! The values the app reads of a vault that are text, and the names its
-//! keys are written under. A secret is held here only in a wiping type
-//! (`GpgKey`'s secret key and revocation certificate are `Zeroizing`); the
-//! other values are plain heap text, which `tools/lint-secrets.sh` refuses
-//! in `mod.rs`, `write.rs` and `forms.rs` and allows in this file. The
-//! secret values of an item stay in the wiping buffers of those three.
+//! keys are written under. All of it is wiping text, so a title, a key
+//! or a certificate is wiped when it is dropped.
 
 use alloc::collections::BTreeSet;
-use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use zeroize::Zeroizing;
+use faraday_text::{Text as Wiped, text};
 
 use super::{Body, Entry};
 use crate::records::Record;
 use crate::totp::{NotTotp, Totp};
 
 /// A key or a name, as text.
-pub(super) type Name = String;
+pub(super) type Name = Wiped;
 /// The names of the groups an entry is in.
 ///
 /// Shared: every entry of a group holds the group's one list, and every
 /// name is stored once, however many groups below it and entries in them.
 pub(super) type Path = Arc<[Arc<str>]>;
 /// `faraday.sealed`, when it reads.
-pub(super) type Sealed = Option<String>;
+pub(super) type Sealed = Option<Wiped>;
 
-pub(super) fn title_of(e: &Entry) -> String {
+pub(super) fn title_of(e: &Entry) -> Wiped {
     e.field("Title")
-        .map_or_else(String::new, |f| f.value().into())
+        .map_or_else(Wiped::new, |f| Wiped::of(f.value()))
 }
 
 /// `faraday.plan.{n}`.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a number made into text: no secret in it"
-)]
-pub(super) fn plan_key(n: u32) -> String {
-    let mut key = String::from(super::PLAN);
-    key.push_str(&n.to_string());
+pub(super) fn plan_key(n: u32) -> Wiped {
+    let mut key = Wiped::of(super::PLAN);
+    key.push_str(&Wiped::num(u64::from(n)));
     key
 }
 
 /// `faraday.signed.{tx}` from the transaction's hex.
-pub(super) fn signed_key(tx_hex: &[u8]) -> String {
-    let mut key = String::from(super::SIGNED);
+pub(super) fn signed_key(tx_hex: &[u8]) -> Wiped {
+    let mut key = Wiped::of(super::SIGNED);
     key.push_str(core::str::from_utf8(tx_hex).unwrap_or(""));
     key
 }
 
 /// `faraday.nonces.{tx}` from the transaction's hex.
-pub(super) fn nonces_key(tx_hex: &[u8]) -> String {
-    let mut key = String::from(super::NONCES);
+pub(super) fn nonces_key(tx_hex: &[u8]) -> Wiped {
+    let mut key = Wiped::of(super::NONCES);
     key.push_str(core::str::from_utf8(tx_hex).unwrap_or(""));
     key
 }
 
 /// A nonce record's value: each entry's three 32-byte parts as
 /// `{key}:{r}:{msg}` in lower-case hex, entries comma separated.
-pub(super) fn nonces_value<'a>(entries: impl Iterator<Item = &'a [u8]>) -> String {
-    let mut value = String::new();
+pub(super) fn nonces_value<'a>(entries: impl Iterator<Item = &'a [u8]>) -> Wiped {
+    let mut value = Wiped::new();
     for e in entries {
         if !value.is_empty() {
             value.push(',');
@@ -75,28 +67,20 @@ pub(super) fn nonces_value<'a>(entries: impl Iterator<Item = &'a [u8]>) -> Strin
 }
 
 /// A signed amounts value: the inputs' amounts, comma separated.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "an amount made into text: no secret in it"
-)]
-pub(super) fn signed_value(amounts: impl Iterator<Item = u64>) -> String {
-    let mut value = String::new();
+pub(super) fn signed_value(amounts: impl Iterator<Item = u64>) -> Wiped {
+    let mut value = Wiped::new();
     for a in amounts {
         if !value.is_empty() {
             value.push(',');
         }
-        value.push_str(&a.to_string());
+        value.push_str(&Wiped::num(a));
     }
     value
 }
 
 /// A number as text.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a number made into text: no secret in it"
-)]
-pub(super) fn number(n: u64) -> String {
-    n.to_string()
+pub(super) fn number(n: u64) -> Wiped {
+    text!("{}", &*Wiped::num(n))
 }
 
 /// What `faraday.format` says.
@@ -111,7 +95,7 @@ pub enum Format {
     /// the reason as its text, a `Meta` or custom data that cannot be told
     /// apart from what it was read as. Faraday's items are not read and the
     /// vault is read-only.
-    Newer(String),
+    Newer(Wiped),
 }
 
 /// What was wrong with an item or a key.
@@ -149,7 +133,7 @@ pub enum Fault {
 pub struct Damage {
     /// The field (`Password`) or custom data key (`faraday.child`); for the
     /// database's custom data, the key.
-    pub at: String,
+    pub at: Wiped,
     /// What was wrong.
     pub fault: Fault,
 }
@@ -167,7 +151,7 @@ pub(super) fn damage(at: &str, fault: Fault) -> Damage {
 #[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Unreadable {
     /// The entry's title, or the database key.
-    pub title: String,
+    pub title: Wiped,
     /// The entry's UUID; `None` for the database's custom data.
     pub uuid: Option<[u8; 16]>,
     /// Where, and what.
@@ -177,15 +161,15 @@ pub struct Unreadable {
 /// A GPG key's fields (§7, `gpg`), armored, as the vault holds them.
 pub struct GpgKey {
     /// The primary user ID, the entry's title.
-    pub title: String,
+    pub title: Wiped,
     /// The armored secret key, unprotected.
-    pub key: Zeroizing<String>,
+    pub key: Wiped,
     /// The public certificate as last exported.
-    pub public: Option<String>,
+    pub public: Option<Wiped>,
     /// The revocation certificate made with the key. Secret (F32).
-    pub revocation: Option<Zeroizing<String>>,
+    pub revocation: Option<Wiped>,
     /// When the key was marked revoked, an RFC 3339 date-time.
-    pub revoked: Option<String>,
+    pub revoked: Option<Wiped>,
 }
 
 /// A field of a person's entry beyond the six Faraday reads: kept in the
@@ -194,7 +178,7 @@ pub struct GpgKey {
 #[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Extra {
     /// The field's key.
-    pub name: String,
+    pub name: Wiped,
     /// Whether its value is protected.
     pub protected: bool,
 }
@@ -237,7 +221,7 @@ pub struct Related {
 /// record (type 17).
 pub struct Custom {
     /// Its key (`faraday.plan.2`, `faraday.signed.{tx}`, `faraday.nonces.{tx}`).
-    pub key: String,
+    pub key: Wiped,
     /// The record.
     pub record: Record,
 }
@@ -284,9 +268,9 @@ impl Read {
                             size_of::<GpgKey>()
                                 + g.title.capacity()
                                 + g.key.capacity()
-                                + g.public.as_ref().map_or(0, String::capacity)
-                                + g.revocation.as_ref().map_or(0, |r| r.capacity())
-                                + g.revoked.as_ref().map_or(0, String::capacity)
+                                + g.public.as_ref().map_or(0, Wiped::capacity)
+                                + g.revocation.as_ref().map_or(0, Wiped::capacity)
+                                + g.revoked.as_ref().map_or(0, Wiped::capacity)
                                 + 80
                         }
                     };
@@ -317,7 +301,7 @@ impl Read {
         let lists = self.items.capacity() * size_of::<Item>()
             + self.custom.capacity() * size_of::<Custom>()
             + self.unreadable.capacity() * size_of::<Unreadable>();
-        let own = self.label.capacity() + self.sealed.as_ref().map_or(0, String::capacity);
+        let own = self.label.capacity() + self.sealed.as_ref().map_or(0, Wiped::capacity);
         items + custom + unreadable + lists + own
     }
 }
@@ -329,9 +313,9 @@ pub struct Read {
     /// `faraday.seals`: 0 when absent or malformed, so the next seal writes 1.
     pub seals: u64,
     /// `faraday.sealed`, when it reads.
-    pub sealed: Option<String>,
+    pub sealed: Option<Wiped>,
     /// `Meta/DatabaseName`.
-    pub label: String,
+    pub label: Wiped,
     /// The entries that read, in document order.
     pub items: Vec<Item>,
     /// The plans and signed amounts that read.
@@ -353,7 +337,7 @@ pub struct Read {
 pub enum ReadOnly {
     /// `faraday.format` states a format newer than this build writes (the
     /// value as read).
-    Newer(String),
+    Newer(Wiped),
     /// The database's `Meta` or custom data cannot be told apart from
     /// what it was read as: the reason, as the document model words it.
     Ambiguous(&'static str),
@@ -361,7 +345,7 @@ pub enum ReadOnly {
 
 /// `faraday.sealed`'s form from Unix seconds: RFC 3339 in UTC
 /// (`2026-10-28T14:02:00Z`); `None` for a year past 9999.
-pub fn utc_time(unix: u64) -> Option<String> {
+pub fn utc_time(unix: u64) -> Option<Wiped> {
     let days = i64::try_from(unix / 86_400).ok()?;
     let rest = unix % 86_400;
     let (year, month, day) = faraday_crypto::date::civil_from_days(days);
@@ -369,8 +353,8 @@ pub fn utc_time(unix: u64) -> Option<String> {
     if !(0..=9999).contains(&year) {
         return None;
     }
-    let mut out = String::with_capacity(20);
-    let two = |out: &mut String, n: i64| {
+    let mut out = Wiped::with_room(20);
+    let two = |out: &mut Wiped, n: i64| {
         out.push(char::from(b'0' + (n / 10) as u8));
         out.push(char::from(b'0' + (n % 10) as u8));
     };
@@ -393,16 +377,12 @@ pub fn utc_time(unix: u64) -> Option<String> {
 impl Read {
     /// Why the vault may not be changed, if it may not
     /// ([`Read::read_only`]): an ambiguous `Meta` before a newer format.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a file format version number: no secret in it"
-    )]
     pub fn why_read_only(&self) -> Option<ReadOnly> {
         if let Some(why) = self.meta_ambiguous {
             return Some(ReadOnly::Ambiguous(why));
         }
         match &self.format {
-            Format::Newer(f) => Some(ReadOnly::Newer(f.clone())),
+            Format::Newer(f) => Some(ReadOnly::Newer(f.duplicate())),
             _ => None,
         }
     }

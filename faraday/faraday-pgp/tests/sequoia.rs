@@ -28,7 +28,7 @@ fn key() -> Key {
         created: MADE,
         subkey_seed: [0x22; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * YEAR,
     }
 }

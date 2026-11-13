@@ -29,7 +29,7 @@ fn key() -> Key {
         created: MADE,
         subkey_seed: [0x22; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * YEAR,
     }
 }
@@ -310,7 +310,7 @@ fn the_rev_file_lists_the_key_as_gnupg_does() {
         "pub   ed25519 2026-05-28 [C] [expires: 2028-05-27]\n      {}\nuid          Test Person <test@example.com>\n",
         hex(&k.fingerprint())
     );
-    assert!(file.contains(&want), "{file}");
+    assert!(file.contains(&want), "{}", &*file);
 }
 
 #[test]

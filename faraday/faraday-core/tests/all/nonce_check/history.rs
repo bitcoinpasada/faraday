@@ -1548,7 +1548,7 @@ fn a_nonce_value_that_does_not_read_is_said_and_kept_as_written_after_a_seal() {
     let id = again.vaults().open[0].id;
     let unread = again.vaults().store().unreadable(id);
     assert_eq!(unread.len(), 1);
-    assert!(format!("faraday.nonces.{}", hex(tx_a)).starts_with(&unread[0].title));
+    assert!(format!("faraday.nonces.{}", hex(tx_a)).starts_with(&*unread[0].title));
     assert_eq!(held_in(&again, 0), vec![(tx_b, 1)]);
 }
 

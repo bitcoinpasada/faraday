@@ -20,7 +20,7 @@ fn main() {
         created: 1_780_000_000,
         subkey_seed: [0x22; 32],
         subkey_created: 1_780_000_000,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * 31_536_000,
     };
     key.primary_seed[0] = 0;

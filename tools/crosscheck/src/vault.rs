@@ -13,6 +13,7 @@
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::Argon2FileCost as Cost;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use faraday_vault::Record;
 use faraday_vault::child::{self, ChildOf};
 use faraday_vault::codex32::{SetFacts, State, set_payload};
@@ -200,11 +201,11 @@ fn item(n: usize, v: &Value) -> Put {
             let (u, g) = group("GPG keys");
             Put::Entry(
                 Body::Gpg(GpgKey {
-                    title: s(v, "title").into(),
-                    key: s(v, "key").to_string().into(),
-                    public: opt(v, "public").map(Into::into),
-                    revocation: opt(v, "revocation").map(|r| r.to_string().into()),
-                    revoked: opt(v, "revoked").map(Into::into),
+                    title: Text::of(s(v, "title")),
+                    key: Text::of(s(v, "key")),
+                    public: opt(v, "public").map(Text::of),
+                    revocation: opt(v, "revocation").map(Text::of),
+                    revoked: opt(v, "revoked").map(Text::of),
                 }),
                 u,
                 g,

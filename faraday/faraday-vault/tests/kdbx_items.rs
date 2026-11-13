@@ -187,11 +187,11 @@ fn records() -> Vec<(Record, &'static str, &'static str)> {
 
 fn gpg() -> GpgKey {
     GpgKey {
-        title: "Alice <alice@example.org>".into(),
-        key: Zeroizing::new(gpg_key()),
-        public: Some(GPG_PUBLIC.into()),
-        revocation: Some(Zeroizing::new(GPG_PUBLIC.into())),
-        revoked: Some("2026-10-28T14:02:00Z".into()),
+        title: faraday_text::Text::of("Alice <alice@example.org>"),
+        key: faraday_text::Text::of(&gpg_key()),
+        public: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revocation: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revoked: Some(faraday_text::Text::of("2026-10-28T14:02:00Z")),
     }
 }
 
@@ -291,20 +291,20 @@ fn a_vault_of_every_kind_reads_back_to_the_same_records() {
     assert_eq!(
         (
             &k.title,
-            &k.key[..],
+            k.key.as_str(),
             &k.public,
-            k.revocation.as_deref().map(String::as_str),
+            k.revocation.as_deref(),
             &k.revoked
         ),
         (
             &want.title,
-            &want.key[..],
+            want.key.as_str(),
             &want.public,
-            want.revocation.as_deref().map(String::as_str),
+            want.revocation.as_deref(),
             &want.revoked
         )
     );
-    let keys: Vec<String> = read.custom.iter().map(|c| c.key.clone()).collect();
+    let keys: Vec<String> = read.custom.iter().map(|c| String::from(&*c.key)).collect();
     assert_eq!(
         keys,
         [
@@ -585,7 +585,7 @@ fn a_damaged_item_is_unreadable_and_the_others_read() {
     let mut got: Vec<(u8, String, Fault)> = read
         .unreadable
         .iter()
-        .map(|u| (u.uuid.unwrap()[0], u.what.at.clone(), u.what.fault))
+        .map(|u| (u.uuid.unwrap()[0], String::from(&*u.what.at), u.what.fault))
         .collect();
     got.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
     let mut want: Vec<(u8, String, Fault)> =
@@ -769,7 +769,7 @@ fn a_newer_format_is_read_only_and_its_items_unreadable() {
     let mut doc = full();
     doc.custom_mut().set("faraday.format", "2").unwrap();
     let read = read(&doc);
-    assert_eq!(read.format, Format::Newer("2".into()));
+    assert_eq!(read.format, Format::Newer(faraday_text::Text::of("2")));
     assert!(read.read_only());
     assert_eq!(read.items.len(), 1, "the person's entry reads");
     assert!(
@@ -840,7 +840,11 @@ fn nonce_records_of_two_transactions_read_back_as_written() {
     assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
     for (tx, n) in [(0x11u8, 3u8), (0x22, 1)] {
         let key = format!("faraday.nonces.{}", format!("{tx:02x}").repeat(32));
-        let c = read.custom.iter().find(|c| c.key == key).expect("read");
+        let c = read
+            .custom
+            .iter()
+            .find(|c| c.key.as_str() == key)
+            .expect("read");
         assert_eq!(fields(&c.record), fields(&nonces(tx, n)));
     }
     assert_eq!(read.custom.len(), 4);
@@ -899,7 +903,7 @@ fn a_nonce_value_that_does_not_read_is_named_and_kept_as_written() {
     assert!(
         read.custom
             .iter()
-            .any(|c| c.key == format!("faraday.nonces.{}", "7".repeat(64)))
+            .any(|c| c.key.as_str() == format!("faraday.nonces.{}", "7".repeat(64)))
     );
     let written = again(&doc);
     for (n, value) in &cases {
@@ -977,11 +981,11 @@ fn a_persons_entry_keeps_its_other_fields_across_a_change() {
         first.items[0].extra,
         [
             Extra {
-                name: "PIN".into(),
+                name: faraday_text::Text::of("PIN"),
                 protected: true
             },
             Extra {
-                name: "Floor".into(),
+                name: faraday_text::Text::of("Floor"),
                 protected: false
             },
         ]
@@ -1514,7 +1518,7 @@ fn a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it() {
     assert_eq!(
         first.items[0].extra,
         [Extra {
-            name: "Notes".into(),
+            name: faraday_text::Text::of("Notes"),
             protected: false
         }]
     );

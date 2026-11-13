@@ -322,7 +322,7 @@ impl Vaults {
             return;
         };
         let (id, own) = (o.id, o.vault_id);
-        let mut edits: Vec<(usize, String)> = Vec::new();
+        let mut edits: Vec<(usize, faraday_text::Text)> = Vec::new();
         for (k, r, d) in self.described_of(c, id, kind::PLAN) {
             let Some(old) = r.public_text(field::PLAN_ANSWERS) else {
                 continue;

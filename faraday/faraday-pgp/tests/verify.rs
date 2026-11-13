@@ -126,7 +126,9 @@ fn what_is_not_one_signature_is_refused() {
             let bytes = base64_decode(&body);
             let mut two = bytes.clone();
             two.extend_from_slice(&bytes);
-            armor(faraday_pgp::Armor::Signature, &two).into_bytes()
+            armor(faraday_pgp::Armor::Signature, &two)
+                .as_bytes()
+                .to_vec()
         },
     ] {
         assert_eq!(
@@ -142,7 +144,7 @@ fn faraday_key(expiry: u32) -> Key {
         created: MADE,
         subkey_seed: [0x32; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Release <release@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Release <release@example.com>")],
         expiry,
     }
 }

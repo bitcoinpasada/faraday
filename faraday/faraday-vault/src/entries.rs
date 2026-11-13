@@ -8,10 +8,10 @@
 //! names the entry from its label when no title line does. Any other
 //! `field: value` line is kept in the notes, so nothing typed is lost.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::records::{Record, field, kind};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::totp;
@@ -45,9 +45,9 @@ fn field_of(name: &str) -> Option<u8> {
 }
 
 /// `%XX` escapes undone, as an `otpauth://` label carries them.
-fn percent_decoded(s: &str) -> String {
+fn percent_decoded(s: &str) -> Text {
     let b = s.as_bytes();
-    let mut out = Vec::with_capacity(b.len());
+    let mut out = Zeroizing::new(Vec::with_capacity(b.len()));
     let mut i = 0;
     while i < b.len() {
         if b[i] == b'%'
@@ -62,12 +62,12 @@ fn percent_decoded(s: &str) -> String {
             i += 1;
         }
     }
-    String::from_utf8_lossy(&out).into_owned()
+    Text::from_utf8_lossy(&out)
 }
 
 /// What an `otpauth://` URI names: the issuer, or the label before its
 /// colon, and the account after it.
-pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
+pub fn otpauth_names(uri: &str) -> Option<(Text, Text)> {
     let uri = uri.trim();
     if !faraday_intake::is_otpauth(uri) || uri.contains(['\n', '\r']) {
         return None;
@@ -76,8 +76,8 @@ pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
     let (label, query) = rest.split_once('?').unwrap_or((rest, ""));
     let label = percent_decoded(label);
     let (from_label, account) = match label.split_once(':') {
-        Some((i, a)) => (String::from(i.trim()), String::from(a.trim())),
-        None => (String::new(), String::from(label.trim())),
+        Some((i, a)) => (Text::of(i.trim()), Text::of(a.trim())),
+        None => (Text::new(), Text::of(label.trim())),
     };
     let issuer = query
         .split('&')
@@ -89,7 +89,7 @@ pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
     } else if !from_label.is_empty() {
         from_label
     } else {
-        String::from(account.as_str())
+        account.duplicate()
     };
     Some((title, account))
 }
@@ -98,10 +98,8 @@ pub use faraday_intake::looks_like_entries;
 
 /// `s` in wiping text sized to it, so it never grows and leaves a block
 /// behind.
-fn wiped(s: &str) -> Zeroizing<String> {
-    let mut out = Zeroizing::new(String::with_capacity(s.len()));
-    out.push_str(s);
-    out
+fn wiped(s: &str) -> Text {
+    Text::of(s)
 }
 
 /// The entries in text, as records. A block with nothing to call it by is
@@ -109,19 +107,17 @@ fn wiped(s: &str) -> Zeroizing<String> {
 /// they are read.
 pub fn parse(text: &str) -> Vec<Record> {
     let mut out = Vec::new();
-    let mut fields: Vec<(u8, Zeroizing<String>)> = Vec::new();
-    let mut extra: Vec<Zeroizing<String>> = Vec::new();
-    let finish = |fields: &mut Vec<(u8, Zeroizing<String>)>,
-                  extra: &mut Vec<Zeroizing<String>>,
-                  out: &mut Vec<Record>| {
+    let mut fields: Vec<(u8, Text)> = Vec::new();
+    let mut extra: Vec<Text> = Vec::new();
+    let finish = |fields: &mut Vec<(u8, Text)>, extra: &mut Vec<Text>, out: &mut Vec<Record>| {
         if fields.is_empty() && extra.is_empty() {
             return;
         }
-        fn get(f: &[(u8, Zeroizing<String>)], n: u8) -> Option<&str> {
+        fn get(f: &[(u8, Text)], n: u8) -> Option<&str> {
             f.iter().find(|(k, _)| *k == n).map(|(_, v)| v.as_str())
         }
-        let mut title = get(fields, field::TITLE).map(String::from);
-        let mut user = get(fields, field::USERNAME).map(String::from);
+        let mut title = get(fields, field::TITLE).map(Text::of);
+        let mut user = get(fields, field::USERNAME).map(Text::of);
         if let Some(t) = get(fields, field::TOTP)
             && let Some((name, account)) = otpauth_names(t)
         {
@@ -140,7 +136,7 @@ pub fn parse(text: &str) -> Vec<Record> {
             let totp_value = get(fields, field::TOTP).and_then(|t| {
                 let normalised = totp::normalise(t, &title, account);
                 if normalised.is_none() {
-                    let mut line = Zeroizing::new(String::with_capacity("totp: ".len() + t.len()));
+                    let mut line = Text::with_room("totp: ".len() + t.len());
                     line.push_str("totp: ");
                     line.push_str(t);
                     extra.push(line);
@@ -160,7 +156,7 @@ pub fn parse(text: &str) -> Vec<Record> {
             notes.extend(extra.iter().map(|e| e.as_str()));
             if !notes.is_empty() {
                 let size = notes.iter().map(|n| n.len()).sum::<usize>() + notes.len();
-                let mut joined = Zeroizing::new(String::with_capacity(size));
+                let mut joined = Text::with_room(size);
                 for (i, n) in notes.iter().enumerate() {
                     if i > 0 {
                         joined.push('\n');
@@ -210,9 +206,8 @@ pub fn parse(text: &str) -> Vec<Record> {
 
 #[cfg(test)]
 mod tests {
-    use alloc::format;
-
     use super::*;
+    use faraday_text::text;
 
     /// The two forms §6.4 names, mixed, with a line no field takes.
     #[test]
@@ -240,7 +235,7 @@ mod tests {
     #[test]
     fn a_uri_with_lines_after_it_names_no_one_code() {
         for scheme in ["otpauth", "OTPAUTH"] {
-            let text = format!("{scheme}://totp/Git:octo?secret=ABC\n\ntitle: Router\npassword: x");
+            let text = text!("{scheme}://totp/Git:octo?secret=ABC\n\ntitle: Router\npassword: x");
             assert_eq!(otpauth_names(&text), None);
             let e = parse(&text);
             assert_eq!(e.len(), 2);

@@ -6,10 +6,10 @@
 use faraday_keys::gpg::{gpg_key_of, record_of};
 use faraday_keys::vault::gpg_field as f;
 use faraday_pgp::{Armor, Hash, Key, Reason, armor};
+use faraday_text::Text;
 use faraday_vault::Record;
 use faraday_vault::kdbx::items::GpgKey;
 use faraday_vault::records::kind;
-use zeroize::Zeroizing;
 
 const MADE: u32 = 1_780_000_000;
 
@@ -19,7 +19,7 @@ fn key(seed: u8) -> Key {
         created: MADE,
         subkey_seed: [seed + 1; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![Text::of("Test Person <test@example.com>")],
         expiry: 31_536_000,
     }
 }
@@ -43,14 +43,12 @@ fn record(k: &Key, revoked: Option<u32>) -> Record {
 fn entry(k: &Key) -> GpgKey {
     GpgKey {
         title: k.user_ids[0].clone(),
-        key: Zeroizing::new(
-            String::from_utf8(faraday_pgp::armor_secret(k, MADE).to_vec()).unwrap(),
-        ),
+        key: Text::from_utf8_lossy(&faraday_pgp::armor_secret(k, MADE)),
         public: Some(armor(Armor::PublicKey, &k.certificate(MADE))),
-        revocation: Some(Zeroizing::new(armor(
+        revocation: Some(armor(
             Armor::PublicKey,
             &k.revocation(MADE, Reason::Unspecified, ""),
-        ))),
+        )),
         revoked: None,
     }
 }
@@ -104,10 +102,10 @@ fn an_entry_that_is_not_faradays_own_key_makes_no_record() {
     .expect("packets")
     .to_vec();
     packets[20] ^= 1;
-    g.key = Zeroizing::new(armor(Armor::PublicKey, &packets).replace("PUBLIC", "PRIVATE"));
+    g.key = Text::of(&armor(Armor::PublicKey, &packets).replace("PUBLIC", "PRIVATE"));
     assert!(record_of(&g).is_none());
     let mut g = entry(&k);
-    g.key = Zeroizing::new(g.public.clone().unwrap());
+    g.key = g.public.as_ref().unwrap().duplicate();
     assert!(record_of(&g).is_none());
 
     // A certificate of another key, or that does not read.
@@ -115,14 +113,14 @@ fn an_entry_that_is_not_faradays_own_key_makes_no_record() {
     g.public = Some(armor(Armor::PublicKey, &key(0x33).certificate(MADE)));
     assert!(record_of(&g).is_none());
     let mut g = entry(&k);
-    g.public = Some(
-        "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nAAAA\n-----END PGP PUBLIC KEY BLOCK-----\n".into(),
-    );
+    g.public = Some(Text::of(
+        "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nAAAA\n-----END PGP PUBLIC KEY BLOCK-----\n",
+    ));
     assert!(record_of(&g).is_none());
 
     // A revocation certificate that is not a signature: a user ID packet.
     let mut g = entry(&k);
-    g.revocation = Some(Zeroizing::new(armor(Armor::PublicKey, b"\xCD\x01x")));
+    g.revocation = Some(armor(Armor::PublicKey, b"\xCD\x01x"));
     assert!(record_of(&g).is_none());
 }
 
@@ -131,7 +129,7 @@ fn a_revocation_is_the_keys_own_and_nothing_else() {
     let k = key(0x11);
     let with = |packets: Vec<u8>| {
         let mut g = entry(&k);
-        g.revocation = Some(Zeroizing::new(armor(Armor::PublicKey, &packets)));
+        g.revocation = Some(armor(Armor::PublicKey, &packets));
         record_of(&g)
     };
     // Its own, at another time, for another reason, with a text.
@@ -151,7 +149,7 @@ fn a_revocation_is_read_with_its_length_in_the_form_it_is_written_in() {
     let k = key(0x11);
     let with = |packets: &[u8]| {
         let mut g = entry(&k);
-        g.revocation = Some(Zeroizing::new(armor(Armor::PublicKey, packets)));
+        g.revocation = Some(armor(Armor::PublicKey, packets));
         record_of(&g).is_some()
     };
     // The packet's length is one octet below 192 and two above; the
@@ -192,8 +190,7 @@ fn a_certificate_is_the_keys_own_at_its_expiry_and_nothing_else() {
     };
     assert!(with(k.certificate(MADE + 60)).is_some());
     let mut more = key(0x11);
-    more.user_ids
-        .push("Second <second@example.com>".to_string());
+    more.user_ids.push(Text::of("Second <second@example.com>"));
     assert!(with(more.certificate(MADE)).is_none());
     let mut other = key(0x11);
     other.expiry = 63_072_000;
@@ -205,7 +202,7 @@ fn the_date_revoked_is_an_rfc_3339_time_in_utc() {
     let k = key(0x11);
     let read = |t: &str| {
         let mut g = entry(&k);
-        g.revoked = Some(t.into());
+        g.revoked = Some(Text::of(t));
         record_of(&g).and_then(|r| {
             r.field(f::REVOKED)
                 .map(|b| u32::from_le_bytes(b.try_into().unwrap()))

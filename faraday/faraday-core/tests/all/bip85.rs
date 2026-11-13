@@ -215,7 +215,7 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
     assert!(read.items[0].path.is_empty(), "in the root group");
     let all = format!(
         "{} {:?} {}",
-        read.label,
+        &*read.label,
         read.items[0].path,
         [field::TITLE, field::USERNAME, field::URL, field::NOTES]
             .iter()

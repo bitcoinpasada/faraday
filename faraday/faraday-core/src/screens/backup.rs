@@ -1202,16 +1202,23 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     let head = ui.fit_as(LABEL_L, &app.place_name(p), w);
                     ui.text_as(x, cy, LABEL_L, Role::OnSurface, &head);
                     cy += ui.advance_as(LABEL_L, 22.0);
-                    let holds: Vec<String> = spot
+                    let holds: Vec<faraday_text::Text> = spot
                         .holds
                         .iter()
                         .map(|(h, _)| h.label(&shape, app.medium.cap()))
                         .collect();
-                    let line = if holds.is_empty() {
-                        EN.backup_nothing.to_string()
-                    } else {
-                        holds.join(" · ")
-                    };
+                    let sep = " · ";
+                    let room = holds.iter().map(|t| t.len() + sep.len()).sum::<usize>();
+                    let mut line = faraday_text::Text::with_room(room.max(EN.backup_nothing.len()));
+                    for (i, h) in holds.iter().enumerate() {
+                        if i > 0 {
+                            line.push_str(sep);
+                        }
+                        line.push_str(h);
+                    }
+                    if holds.is_empty() {
+                        line.push_str(EN.backup_nothing);
+                    }
                     cy += ui.wrap_as(
                         (x + 12.0, cy, w - 12.0),
                         BODY_S,
@@ -2059,7 +2066,7 @@ fn c32_templates_clause(
     use crate::plan::codex32::PaperCopy;
     let (n, len) = (n.to_string(), len.to_string());
     let copy = match copy {
-        PaperCopy::String => None,
+        PaperCopy::Written => None,
         PaperCopy::Codex32Qr => Some(EN.starter_tpl_codex32qr),
         PaperCopy::Both => Some(EN.starter_tpl_both),
     };

@@ -38,7 +38,7 @@ fn paper_key() -> Key {
         created: 1_780_000_000,
         subkey_seed: [0x22; 32],
         subkey_created: 1_780_000_000,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * YEAR,
     };
     k.primary_seed[0] = 0;
@@ -52,7 +52,7 @@ fn made_by_make(k: &Key) -> faraday_keys::gpg::Made {
         &zeroize::Zeroizing::new(k.primary_seed),
         &zeroize::Zeroizing::new(k.subkey_seed),
         k.created,
-        k.user_ids[0].clone(),
+        String::from(&*k.user_ids[0]),
         k.expiry,
     )
 }
@@ -60,7 +60,7 @@ fn made_by_make(k: &Key) -> faraday_keys::gpg::Made {
 /// Its certificate as Make wrote it, armoured, as a stick file.
 fn cert_file(k: &Key) -> (String, Vec<u8>) {
     let text = armor(Armor::PublicKey, &made_by_make(k).certificate);
-    (CERT.to_string(), text.into_bytes())
+    (CERT.to_string(), text.as_bytes().to_vec())
 }
 
 /// Its paperkey's lines as paperkey printed them, the comments left out.

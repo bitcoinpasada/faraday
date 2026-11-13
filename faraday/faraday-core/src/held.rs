@@ -924,7 +924,7 @@ impl Faraday {
                 .answers
                 .vault_seeds(&shape, v)
                 .into_iter()
-                .map(|i| shape.seeds[i].name.clone())
+                .map(|i| String::from(&*shape.seeds[i].name))
                 .collect();
             prior.push((name, seeds));
         }
@@ -1032,4 +1032,5 @@ pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<String> {
         &r.plan_mapped(&shape, &b.answers),
         &backup_held_seeds_on(r),
     )
+    .map(|t| String::from(&*t))
 }

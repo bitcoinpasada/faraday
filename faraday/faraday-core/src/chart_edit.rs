@@ -215,7 +215,7 @@ impl Faraday {
             return false;
         };
         let c = self.compute();
-        let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
+        let texts: Vec<faraday_text::Text> = notes.iter().map(Note::to_text).collect();
         let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
         if let Err(why) = self.vaults.edit(id, |s| {
             s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
@@ -360,7 +360,9 @@ impl Faraday {
         let label = |at: At, what: What| {
             g.as_ref()
                 .and_then(|g| glance::label_of(g, at, what))
-                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium.cap()))
+                .unwrap_or_else(|| {
+                    String::from(&*what.label(&self.plan_shape_now(w), self.medium.cap()))
+                })
         };
         match edit {
             Edit::Add(at @ At::Vault(_), what) => fill(
@@ -586,7 +588,7 @@ impl Faraday {
         let kept = self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             for &(at, what) in &things {
                 notes.retain(|x| !matches!(x, Note::Checked(a, w, _) if *a == at && *w == what));
-                notes.push(Note::Checked(at, what, today.clone()));
+                notes.push(Note::Checked(at, what, faraday_text::Text::of(&today)));
             }
         });
         if kept {
@@ -621,7 +623,7 @@ impl Faraday {
         }
         if self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             notes.retain(|x| !matches!(x, Note::Moved(_)));
-            notes.push(Note::Moved(today.clone()));
+            notes.push(Note::Moved(faraday_text::Text::of(&today)));
         }) {
             self.toast(EN.chart_edit_moved);
         }
@@ -639,7 +641,7 @@ impl Faraday {
         let today = self.today();
         if self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             notes.retain(|x| !matches!(x, Note::KeyChecked(f, _) if *f == fp));
-            notes.push(Note::KeyChecked(fp, today.clone()));
+            notes.push(Note::KeyChecked(fp, faraday_text::Text::of(&today)));
         }) {
             self.toast(EN.chart_edit_checked);
         }
@@ -661,7 +663,7 @@ impl Faraday {
                 self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
                     notes.retain(|x| !matches!(x, Note::Holder(f, _) if *f == fp));
                     if !name.is_empty() {
-                        notes.push(Note::Holder(fp, name.clone()));
+                        notes.push(Note::Holder(fp, faraday_text::Text::of(&name)));
                     }
                 })
             }
@@ -673,7 +675,7 @@ impl Faraday {
                 self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
                     notes.retain(|x| !matches!(x, Note::VaultName(u, _) if *u == v));
                     if !name.is_empty() {
-                        notes.push(Note::VaultName(v, name.clone()));
+                        notes.push(Note::VaultName(v, faraday_text::Text::of(&name)));
                     }
                 })
             }
@@ -719,7 +721,7 @@ impl Faraday {
                 for &(at, what) in &things {
                     notes
                         .retain(|x| !matches!(x, Note::Checked(a, w, _) if *a == at && *w == what));
-                    notes.push(Note::Checked(at, what, today.clone()));
+                    notes.push(Note::Checked(at, what, faraday_text::Text::of(&today)));
                 }
             });
         }

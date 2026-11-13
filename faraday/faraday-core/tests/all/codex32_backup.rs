@@ -338,7 +338,7 @@ fn the_templates_item_names_the_codex32_sheet() {
     let mapped = plan::Mapped::of(&c, &shape, &a);
     assert_eq!(
         plan::codex32::templates_of(&a, &mapped),
-        vec![(48, plan::codex32::PaperCopy::String, 3)]
+        vec![(48, plan::codex32::PaperCopy::Written, 3)]
     );
     assert_eq!(plan::templates(&c, &shape, &a), 0, "no words on paper");
 }
@@ -495,7 +495,13 @@ fn the_checks_count_strings_and_name_a_place_that_keeps_enough() {
     crate::common::take_off(&mut app, Zone::Paper(0), Thing::String(0, ix('c')));
     let (shape, a) = app.board_plan().unwrap();
     assert_eq!(plan::check(&c, &shape, &a).spend, plan::Found::No);
-    let why = plan::lost_why(&c, &shape, &a, &|p| format!("Place {}", p + 1), "stick");
+    let why = plan::lost_why(
+        &c,
+        &shape,
+        &a,
+        &|p| faraday_text::text!("Place {}", p + 1),
+        "stick",
+    );
     assert!(why.is_some());
 }
 
@@ -503,7 +509,7 @@ fn the_checks_count_strings_and_name_a_place_that_keeps_enough() {
 fn a_plan_with_strings_reads_back_from_its_text() {
     let app = with_set();
     let (shape, a) = app.board_plan().unwrap();
-    let text = a.to_text();
+    let text = String::from(&*a.to_text());
     assert!(text.contains("codex32 0 2 48 acd name 0"), "{text}");
     assert!(
         text.contains(&format!("spot place0 x0.{}", ix('a'))),

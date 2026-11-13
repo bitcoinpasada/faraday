@@ -590,7 +590,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {
-            name: "aaaa0001".into(),
+            name: faraday_text::Text::of("aaaa0001"),
             here: true,
             passphrase: true,
         }],
@@ -625,7 +625,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
         At::Vault(1),
         What::Passphrase(0),
     ));
-    let text = a.to_text();
+    let text = String::from(&*a.to_text());
     assert!(text.contains("vpass0"), "{text}");
     assert_eq!(plan::Answers::from_text(&shape, &text), Some(a));
 }

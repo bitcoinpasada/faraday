@@ -733,7 +733,7 @@ fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
         m: 1,
         keys: 1,
         seeds: vec![Seed {
-            name: "9A6A2580".to_string(),
+            name: faraday_text::Text::of("9A6A2580"),
             here: true,
             passphrase: false,
         }],

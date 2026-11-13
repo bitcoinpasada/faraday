@@ -14,7 +14,7 @@ fn key() -> Key {
         created: MADE,
         subkey_seed: [0x22; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 0,
     }
 }
@@ -38,7 +38,7 @@ fn block(rest: &[u8]) -> Vec<u8> {
     let mut data = vec![0xC6, body.len() as u8];
     data.extend(body);
     data.extend_from_slice(rest);
-    armor(Armor::PublicKey, &data).into_bytes()
+    armor(Armor::PublicKey, &data).as_bytes().to_vec()
 }
 
 /// The user ID text a block of the key and one user ID packet with `header`
@@ -49,7 +49,7 @@ fn user_id(header: &[u8], text: &[u8]) -> Option<String> {
     let read = read_public(&block(&rest))?;
     assert_eq!(read.tags, vec![6, 13]);
     assert_eq!(read.texts.len(), 1);
-    Some(read.texts[0].clone())
+    Some(String::from(&*read.texts[0]))
 }
 
 fn text(n: usize) -> Vec<u8> {
@@ -133,7 +133,7 @@ fn signature_block(hashed: &[u8], unhashed: &[u8]) -> Vec<u8> {
     let mut data = vec![0xC2];
     data.extend(five(body.len() as u32));
     data.extend(body);
-    armor(Armor::Signature, &data).into_bytes()
+    armor(Armor::Signature, &data).as_bytes().to_vec()
 }
 
 /// A policy URI subpacket (type 26) of `n` bytes of text, its length
@@ -148,7 +148,7 @@ fn policy(length: &[u8], n: usize) -> Vec<u8> {
 /// The length of each text the block holds, when it reads.
 fn texts(hashed: &[u8], unhashed: &[u8]) -> Option<Vec<usize>> {
     let read = read_public(&signature_block(hashed, unhashed))?;
-    Some(read.texts.iter().map(String::len).collect())
+    Some(read.texts.iter().map(|t| t.len()).collect())
 }
 
 #[test]

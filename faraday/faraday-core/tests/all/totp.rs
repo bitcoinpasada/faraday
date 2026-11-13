@@ -118,7 +118,7 @@ fn with_the_clock_not_known_the_codes_say_set_the_time_first() {
     let text = app.drawn_texts().join("\n");
     assert!(text.contains("Set the time first"), "{text}");
     assert!(
-        !text.contains(&faraday_vault::totp::grouped(&epoch)),
+        !text.contains(&String::from(&*faraday_vault::totp::grouped(&epoch))),
         "a code for 1970 is drawn: {text}"
     );
 }
@@ -177,7 +177,10 @@ fn a_pi_like_clock_opens_set_the_time_first_then_shows_the_code() {
         .code(now);
     match &rows[0].kind {
         CodeKind::Code { grouped, .. } => {
-            assert_eq!(**grouped, faraday_vault::totp::grouped(&expected));
+            assert_eq!(
+                **grouped,
+                String::from(&*faraday_vault::totp::grouped(&expected))
+            );
         }
         other => panic!("expected a code, got {other:?}"),
     }
@@ -305,14 +308,14 @@ fn the_code_shown_changes_when_the_tick_crosses_the_period() {
     let now = app.clock_now().unwrap();
     let _ = app.frame();
     let text = app.drawn_texts().join("\n");
-    let before = faraday_vault::totp::grouped(&key.code(now));
+    let before = String::from(&*faraday_vault::totp::grouped(&key.code(now)));
     assert!(text.contains(&before), "{text}");
     let next = now + (30 - now % 30);
     let at = app.now_ms() + (next - now) * 1000;
     app.event(Event::Tick { now_ms: at });
     let _ = app.frame();
     let text = app.drawn_texts().join("\n");
-    let after = faraday_vault::totp::grouped(&key.code(next));
+    let after = String::from(&*faraday_vault::totp::grouped(&key.code(next)));
     assert_ne!(before, after, "a full period on, the code changes");
     assert!(text.contains(&after), "{text}");
     assert!(!text.contains(&before), "{text}");
@@ -336,7 +339,7 @@ fn enter_in_set_the_time_returns_to_codes_with_every_row_showing_its_code() {
     let now = app.clock_now().expect("the clock is known");
     let key =
         faraday_vault::totp::parse("otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP").unwrap();
-    let code = faraday_vault::totp::grouped(&key.code(now));
+    let code = String::from(&*faraday_vault::totp::grouped(&key.code(now)));
     assert!(text.contains(&code), "{text}");
     assert!(!text.contains("Set the time first"), "{text}");
 }

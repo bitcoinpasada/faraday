@@ -570,7 +570,7 @@ fn a_recovery_wallet_with_no_plan_has_no_i_moved_every_coin() {
 #[test]
 fn the_moved_note_round_trips_and_a_malformed_one_is_refused() {
     use faraday_core::plan::Note;
-    let n = Note::Moved("2026-10-03".to_string());
+    let n = Note::Moved(faraday_text::Text::of("2026-10-03"));
     assert_eq!(n.to_text(), "moved 2026-10-03");
     assert_eq!(Note::from_text(&n.to_text(), 1), Some(n));
     for bad in [

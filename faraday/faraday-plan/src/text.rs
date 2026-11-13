@@ -3,39 +3,42 @@
 //! written and read back.
 
 use super::*;
+use faraday_text::{Text, text};
 
 impl Answers {
     /// The answers as the vault keeps them: a line each, `name value`.
-    pub fn to_text(&self) -> String {
-        let bits = |v: &[bool]| {
-            v.iter()
-                .map(|&b| if b { '1' } else { '0' })
-                .collect::<String>()
-        };
-        let mut out = format!(
+    pub fn to_text(&self) -> Text {
+        let bits = |v: &[bool]| -> Text { v.iter().map(|&b| if b { '1' } else { '0' }).collect() };
+        let mut out = text!(
             "seeds {}\nplaces {}\nsplit {}\nwallet {}\nsoftware {}\nform {}\nomit {}\n",
-            bits(&self.seeds),
+            &*bits(&self.seeds),
             self.places,
             u8::from(self.split),
-            bits(&self.wallet),
-            bits(&self.software),
-            bits(&self.form),
+            &*bits(&self.wallet),
+            &*bits(&self.software),
+            &*bits(&self.form),
             self.omit
         );
         for (v, row) in self.vaults.iter().enumerate() {
-            out.push_str(&format!("vault {v} {}\n", bits(row)));
+            out.push_str(&text!("vault {v} {}\n", &*bits(row)));
         }
         for (v, row) in self.sticks.iter().enumerate() {
-            out.push_str(&format!("sticks {v} {}\n", bits(row)));
+            out.push_str(&text!("sticks {v} {}\n", &*bits(row)));
         }
         for (i, row) in self.pass.iter().enumerate() {
             if !row.is_empty() {
-                out.push_str(&format!("pass {i} {}\n", bits(row)));
+                out.push_str(&text!("pass {i} {}\n", &*bits(row)));
             }
         }
         if !self.bare.is_empty() {
-            let list: Vec<String> = self.bare.iter().map(|p| p.to_string()).collect();
-            out.push_str(&format!("bare {}\n", list.join(",")));
+            out.push_str("bare ");
+            for (n, p) in self.bare.iter().enumerate() {
+                if n > 0 {
+                    out.push(',');
+                }
+                out.push_str(&Text::num(*p as u64));
+            }
+            out.push('\n');
         }
         // The map edited on the chart, a `spot` line per spot: where, and
         // what it holds. Never a name, a date or a mark.
@@ -54,7 +57,7 @@ impl Answers {
         }
         // A SeedQR drawn in part, at its place (§14.7 item 3).
         for (p, i) in &self.part {
-            out.push_str(&format!("part {p} {i}\n"));
+            out.push_str(&text!("part {p} {i}\n"));
         }
         // Each seed's codex32 form (`docs/CODEX32.md` §9.4): never a
         // string.
@@ -64,9 +67,9 @@ impl Answers {
         // The sets rotated away (`docs/CODEX32.md` §9.7): seed, threshold
         // and identifier, never a string.
         for (i, k, id) in &self.rotated {
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "rotated {i} {k} {}\n",
-                id.iter().map(|&b| char::from(b)).collect::<String>()
+                &*id.iter().map(|&b| char::from(b)).collect::<Text>()
             ));
         }
         out
@@ -75,14 +78,14 @@ impl Answers {
 
 /// A spot as a plan's `spot` line writes it: `place0`, `stick0.1` (stick
 /// 1 at place 0), `vault1`, `files`, `software`, `away`.
-pub fn at_code(at: At) -> String {
+pub fn at_code(at: At) -> Text {
     match at {
-        At::Place(p) => format!("place{p}"),
-        At::Stick(p, s) => format!("stick{p}.{s}"),
-        At::Vault(v) => format!("vault{v}"),
-        At::Files => "files".to_string(),
-        At::Software => "software".to_string(),
-        At::Away => "away".to_string(),
+        At::Place(p) => text!("place{p}"),
+        At::Stick(p, s) => text!("stick{p}.{s}"),
+        At::Vault(v) => text!("vault{v}"),
+        At::Files => Text::of("files"),
+        At::Software => Text::of("software"),
+        At::Away => Text::of("away"),
     }
 }
 
@@ -112,31 +115,31 @@ pub fn at_read(s: &str) -> Option<At> {
 /// on a stick and on paper, `passfile0` its passphrase
 /// file, `wallettxt` and `walletqr` the description's text and picture,
 /// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's.
-pub fn what_code(w: What) -> String {
+pub fn what_code(w: What) -> Text {
     let form = |f: usize| if f == form::TEXT { "txt" } else { "qr" };
     match w {
-        What::Words(i) => format!("w{i}"),
-        What::SeedQr(i) => format!("q{i}"),
-        What::Passphrase(i) => format!("p{i}"),
-        What::Sheet => "sheet".to_string(),
-        What::Share(j) => format!("share{j}"),
-        What::VaultStick(v) => format!("stick{v}"),
-        What::Seed(i) => format!("seed{i}"),
-        What::SeedPassphrase(i) => format!("seedp{i}"),
-        What::PassphraseSealed(i) => format!("vpass{i}"),
-        What::Wallet => "wallet".to_string(),
-        What::SeedFile(i) => format!("file{i}"),
-        What::SeedQrFile(i) => format!("qrfile{i}"),
-        What::PassphraseFile(i) => format!("passfile{i}"),
-        What::WalletFile(f) => format!("wallet{}", form(f)),
-        What::ShareFile(j, f) => format!("share{}{j}", form(f)),
-        What::SoftwareFile => "softwarefile".to_string(),
-        What::Codex32Share(i, j) => format!("x{i}.{j}"),
-        What::Codex32QrPaper(i, j) => format!("xq{i}.{j}"),
-        What::Codex32ShareFile(i, j) => format!("xt{i}.{j}"),
-        What::Codex32QrFile(i, j) => format!("xp{i}.{j}"),
-        What::KefCode(i) => format!("kef{i}"),
-        What::KefCodePaper(i) => format!("kefp{i}"),
+        What::Words(i) => text!("w{i}"),
+        What::SeedQr(i) => text!("q{i}"),
+        What::Passphrase(i) => text!("p{i}"),
+        What::Sheet => Text::of("sheet"),
+        What::Share(j) => text!("share{j}"),
+        What::VaultStick(v) => text!("stick{v}"),
+        What::Seed(i) => text!("seed{i}"),
+        What::SeedPassphrase(i) => text!("seedp{i}"),
+        What::PassphraseSealed(i) => text!("vpass{i}"),
+        What::Wallet => Text::of("wallet"),
+        What::SeedFile(i) => text!("file{i}"),
+        What::SeedQrFile(i) => text!("qrfile{i}"),
+        What::PassphraseFile(i) => text!("passfile{i}"),
+        What::WalletFile(f) => text!("wallet{}", form(f)),
+        What::ShareFile(j, f) => text!("share{}{j}", form(f)),
+        What::SoftwareFile => Text::of("softwarefile"),
+        What::Codex32Share(i, j) => text!("x{i}.{j}"),
+        What::Codex32QrPaper(i, j) => text!("xq{i}.{j}"),
+        What::Codex32ShareFile(i, j) => text!("xt{i}.{j}"),
+        What::Codex32QrFile(i, j) => text!("xp{i}.{j}"),
+        What::KefCode(i) => text!("kef{i}"),
+        What::KefCodePaper(i) => text!("kefp{i}"),
     }
 }
 
@@ -217,12 +220,12 @@ pub struct SealLine {
 
 impl SealLine {
     /// The line as the plan keeps it, with its line break.
-    pub fn to_line(&self) -> String {
-        format!(
+    pub fn to_line(&self) -> Text {
+        text!(
             "seals {} {} {}\n",
-            String::from_utf8_lossy(&self.id),
+            &*Text::from_utf8_lossy(&self.id),
             self.count,
-            crate::hex32(&self.digest)
+            &*crate::hex32(&self.digest)
         )
     }
 
@@ -253,12 +256,12 @@ pub fn seals_in(text: &str) -> Vec<SealLine> {
 }
 
 /// `text` with its `seals` lines replaced by `lines`, at the end.
-pub fn with_seals(text: &str, lines: &[SealLine]) -> String {
-    let mut out: String = text
-        .lines()
-        .filter(|l| !l.starts_with("seals "))
-        .map(|l| format!("{l}\n"))
-        .collect();
+pub fn with_seals(text: &str, lines: &[SealLine]) -> Text {
+    let mut out = Text::new();
+    for l in text.lines().filter(|l| !l.starts_with("seals ")) {
+        out.push_str(l);
+        out.push('\n');
+    }
     for l in lines {
         out.push_str(&l.to_line());
     }
@@ -267,10 +270,10 @@ pub fn with_seals(text: &str, lines: &[SealLine]) -> String {
 
 /// The fingerprints a plan's text lists as made here with their backup
 /// pending, one `held` line each.
-pub fn held_in(text: &str) -> Vec<String> {
+pub fn held_in(text: &str) -> Vec<Text> {
     text.lines()
         .filter_map(|l| l.strip_prefix("held "))
-        .map(|f| f.trim().to_string())
+        .map(|f| Text::of(f.trim()))
         .collect()
 }
 
@@ -613,9 +616,9 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
     let a = parts.next()?;
     let b = parts.next().unwrap_or("");
     let rest = parts.next().unwrap_or("");
-    let after = |n: usize| s.splitn(n + 1, ' ').nth(n).unwrap_or("").to_string();
+    let after = |n: usize| Text::of(s.splitn(n + 1, ' ').nth(n).unwrap_or(""));
     Some(match kind {
-        "checked" => Note::Checked(at_read(a)?, what_read(b)?, rest.to_string()),
+        "checked" => Note::Checked(at_read(a)?, what_read(b)?, Text::of(rest)),
         "keychecked" => Note::KeyChecked(fp_read(a)?, after(2)),
         "lost" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Lost),
         "exposed" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Exposed),
@@ -625,7 +628,7 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
         "moved"
             if b.is_empty() && rest.is_empty() && faraday_crypto::date::parse_ymd(a).is_some() =>
         {
-            Note::Moved(a.to_string())
+            Note::Moved(Text::of(a))
         }
         _ => return None,
     })
@@ -656,8 +659,8 @@ impl What {
 }
 
 /// A fingerprint as a plan's note writes it: eight lower-case hex digits.
-pub(super) fn fp_code(fp: [u8; 4]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(&fp))
+pub(super) fn fp_code(fp: [u8; 4]) -> Text {
+    faraday_crypto::hex::encode_string(&fp)
 }
 
 /// A fingerprint a plan's note wrote, read back.
@@ -668,13 +671,16 @@ pub(super) fn fp_read(s: &str) -> Option<[u8; 4]> {
 /// The line said in place of the checklist when a seed here is past the
 /// checklist's numbers (`CHECKLIST_SEEDS`): it would have no item of
 /// its own, so no checklist is made. A lookup.
-pub(super) fn past_checklist(shape: &Shape) -> Option<String> {
+pub(super) fn past_checklist(shape: &Shape) -> Option<Text> {
     let i = shape
         .here()
         .into_iter()
         .find(|&i| i >= crate::CHECKLIST_SEEDS)?;
-    Some(faraday_strings::fill(
+    Some(Text::fill(
         faraday_strings::EN.backup_seed_past_checklist,
-        &[&(i + 1).to_string(), &crate::CHECKLIST_SEEDS.to_string()],
+        &[
+            &Text::num(i as u64 + 1),
+            &Text::num(crate::CHECKLIST_SEEDS as u64),
+        ],
     ))
 }

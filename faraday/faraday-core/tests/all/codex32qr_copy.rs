@@ -199,7 +199,7 @@ fn the_templates_item_names_the_codex32qr_sheet() {
     assert!(
         sheets
             .iter()
-            .any(|&(l, p, _)| l == 48 && p == PaperCopy::String),
+            .any(|&(l, p, _)| l == 48 && p == PaperCopy::Written),
         "{sheets:?}"
     );
     app.press(Action::BChecklist);

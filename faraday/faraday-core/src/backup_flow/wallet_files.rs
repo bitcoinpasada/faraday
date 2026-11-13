@@ -129,8 +129,8 @@ impl BackupFlow {
         let Some(seed) = w.shape.seeds.get(s) else {
             return false;
         };
-        let fps = std::slice::from_ref(&seed.name);
-        seed_file_of(&file_stem(&w.name), fps, name) || seed_stick_file_of(fps, name)
+        let fps = [String::from(&*seed.name)];
+        seed_file_of(&file_stem(&w.name), &fps, name) || seed_stick_file_of(&fps, name)
     }
 
     /// Costs a map of the plan (through `map`). Whether `name` is a seed's
@@ -153,7 +153,7 @@ impl BackupFlow {
                     plan::What::SeedFile(i) => w.shape.seeds.get(i).filter(|x| x.here),
                     _ => None,
                 })
-                .map(|x| x.name.clone())
+                .map(|x| String::from(&*x.name))
                 .collect();
             return seed_file_of(&file_stem(&w.name), &fps, name);
         }
@@ -189,7 +189,7 @@ impl BackupFlow {
             .iter()
             .enumerate()
             .filter(|(s, x)| x.here && kept.contains(s))
-            .map(|(_, s)| s.name.clone())
+            .map(|(_, s)| String::from(&*s.name))
             .collect();
         if seed_file_of(&file_stem(&w.name), &fps, name) {
             return true;

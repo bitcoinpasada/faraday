@@ -1376,22 +1376,19 @@ fn a_persons_entry_that_was_not_changed_keeps_its_own_fields_and_its_totp() {
 #[test]
 fn a_gpg_key_that_is_not_faradays_own_is_unreadable_and_written_back_as_read() {
     use faraday_vault::kdbx::items::GpgKey;
-    use zeroize::Zeroizing;
     let c = compute();
     let key = |seed: u8| faraday_pgp::Key {
         primary_seed: [seed; 32],
         created: MADE,
         subkey_seed: [seed + 1; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: YEAR,
     };
     let k = key(0x11);
     let foreign = GpgKey {
-        title: "Foreign".to_string(),
-        key: Zeroizing::new(
-            String::from_utf8(faraday_pgp::armor_secret(&k, MADE).to_vec()).expect("text"),
-        ),
+        title: faraday_text::Text::of("Foreign"),
+        key: faraday_text::Text::from_utf8_lossy(&faraday_pgp::armor_secret(&k, MADE)),
         // Another key's certificate: not the key's own.
         public: Some(faraday_pgp::armor(
             faraday_pgp::Armor::PublicKey,
@@ -1524,7 +1521,7 @@ fn custom_keys(file: &[u8]) -> Vec<String> {
         .read()
         .custom
         .iter()
-        .map(|k| k.key.clone())
+        .map(|k| String::from(&*k.key))
         .collect()
 }
 

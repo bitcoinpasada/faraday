@@ -169,7 +169,7 @@ pub fn read_secret_at(armored: &[u8]) -> Option<(Key, u32)> {
                 subkey = Some((seed, created));
             }
             tag::USER_ID if subkey.is_none() => {
-                user_ids.push(core::str::from_utf8(body).ok()?.into());
+                user_ids.push(faraday_text::Text::of(core::str::from_utf8(body).ok()?));
                 public.extend_from_slice(&data[at..end]);
             }
             tag::SIGNATURE => public.extend_from_slice(&data[at..end]),

@@ -15,12 +15,12 @@ fn key() -> Key {
         created: MADE,
         subkey_seed: [0x22; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 0,
     }
 }
 
-fn certificate() -> String {
+fn certificate() -> faraday_text::Text {
     armor(Armor::PublicKey, &key().certificate(MADE))
 }
 
@@ -28,7 +28,7 @@ fn revocation_packets() -> Vec<u8> {
     key().revocation(MADE + 60, Reason::Retired, "Not used")
 }
 
-fn signature() -> String {
+fn signature() -> faraday_text::Text {
     armor(
         Armor::Signature,
         &key().sign(b"A file Faraday signs.\n", MADE + 60, Hash::Sha256),
@@ -83,7 +83,7 @@ fn a_revocation_certificate_is_not_public() {
     assert_eq!(read(&rev), None);
     let file = key().revocation_file(&revocation_packets());
     assert_eq!(read(&file), None);
-    let guarded = format!(":{}", armor(Armor::PublicKey, &key().certificate(MADE)));
+    let guarded = format!(":{}", &*armor(Armor::PublicKey, &key().certificate(MADE)));
     assert_eq!(read(&guarded), None);
     assert_eq!(read(&guarded.replacen(':', "", 1)), Some(Armor::PublicKey));
 }
@@ -94,7 +94,7 @@ fn crlf_line_ends_and_blank_lines_around_the_block_read() {
         let expect = read(&text);
         assert!(expect.is_some());
         assert_eq!(read(&text.replace('\n', "\r\n")), expect);
-        assert_eq!(read(&format!("\n\n{text}\n\n")), expect);
+        assert_eq!(read(&format!("\n\n{}\n\n", &*text)), expect);
         assert_eq!(
             read(&format!("\r\n{}\r\n\r\n", text.replace('\n', "\r\n"))),
             expect
@@ -147,7 +147,7 @@ fn a_missing_or_wrong_checksum_is_read_but_not_taken_for_public() {
         "\n=AAAA\n",
     );
     assert_ne!(crc24(&data), 0);
-    assert_ne!(good, bad);
+    assert_ne!(*good, *bad);
     let (_, crc_ok) = read_block(bad.as_bytes()).unwrap();
     assert!(!crc_ok);
     assert_eq!(read(&bad), None);
@@ -253,9 +253,9 @@ fn a_signature_with_a_byte_more_does_not_read() {
 
 #[test]
 fn text_around_the_block_does_not_read() {
-    assert_eq!(read(&format!("My key:\n{}", certificate())), None);
-    assert_eq!(read(&format!("{}Thanks\n", certificate())), None);
-    assert_eq!(read(&format!("{}{}", certificate(), signature())), None);
+    assert_eq!(read(&format!("My key:\n{}", &*certificate())), None);
+    assert_eq!(read(&format!("{}Thanks\n", &*certificate())), None);
+    assert_eq!(read(&format!("{}{}", &*certificate(), &*signature())), None);
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn old_format_headers_with_a_length_given_read() {
 fn bytes_that_are_not_text_do_not_read() {
     assert_eq!(read_public_armor(&[]), None);
     assert_eq!(read_public_armor(&[0xFF; 64]), None);
-    let mut bytes = certificate().into_bytes();
+    let mut bytes = certificate().as_bytes().to_vec();
     bytes[40] = 0xC3;
     assert_eq!(read_public_armor(&bytes), None);
 }

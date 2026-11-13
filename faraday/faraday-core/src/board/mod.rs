@@ -785,7 +785,7 @@ pub(crate) struct BoardView {
     /// The software's entry, while the board has no software place.
     pub software_entry: Option<Entry>,
     /// Each check that stands, a line under the board.
-    pub warnings: Vec<String>,
+    pub warnings: Vec<faraday_text::Text>,
     /// After the lock: paper and files take nothing.
     pub locked: bool,
     /// Open for changes by **Customize backup**: until then the board
@@ -980,7 +980,7 @@ impl Faraday {
             Thing::Seed(i) | Thing::Pass(i) | Thing::Kef(i) => shape
                 .seeds
                 .get(i)
-                .map_or_else(String::new, |s| s.name.clone()),
+                .map_or_else(String::new, |s| String::from(&*s.name)),
             Thing::Whole => EN.board_whole.to_string(),
             Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
             Thing::Vault(v) => self.board_vault_title(v),
@@ -991,7 +991,7 @@ impl Faraday {
                     &shape
                         .seeds
                         .get(i)
-                        .map_or_else(String::new, |s| s.name.clone()),
+                        .map_or_else(String::new, |s| String::from(&*s.name)),
                     &codex32::string_name(j),
                 ],
             ),
@@ -1030,15 +1030,15 @@ impl Faraday {
             shape
                 .seeds
                 .get(i)
-                .map_or_else(String::new, |s| s.name.clone())
+                .map_or_else(String::new, |s| String::from(&*s.name))
         };
         let name_of = |t: Thing| -> String { self.board_thing_name(&shape, t) };
         // The checks (`docs/BACKUP-FLOW.md` §17.5): each a line, and the
         // chips each names marked.
         let place_name = |p: usize| self.board_place_name(p);
-        let mut warnings: Vec<String> = Vec::new();
+        let mut warnings: Vec<faraday_text::Text> = Vec::new();
         let mut marked: Vec<(usize, Thing)> = Vec::new();
-        let warn = |line: String, w: &mut Vec<String>| {
+        let warn = |line: faraday_text::Text, w: &mut Vec<faraday_text::Text>| {
             if !w.contains(&line) {
                 w.push(line);
             }
@@ -1071,7 +1071,10 @@ impl Faraday {
                     .any(|w| matches!(w, What::Passphrase(j) | What::PassphraseFile(j) if *j == i));
                 if has_words && has_pass {
                     warn(
-                        fill(EN.board_pass_with_words, &[&place_name(p), &seed_name(i)]),
+                        faraday_text::Text::fill(
+                            EN.board_pass_with_words,
+                            &[&place_name(p), &seed_name(i)],
+                        ),
                         &mut warnings,
                     );
                     marked.push((p, Thing::Seed(i)));
@@ -1091,8 +1094,13 @@ impl Faraday {
                 }
             }
         }
-        if let Some(line) = plan::lost_why_on(&shape, &a, &mapped, &place_name, self.medium.noun())
-        {
+        if let Some(line) = plan::lost_why_on(
+            &shape,
+            &a,
+            &mapped,
+            &|p| faraday_text::Text::of(&place_name(p)),
+            self.medium.noun(),
+        ) {
             warn(line, &mut warnings);
         }
         // A single key's one place is no warning (§19.19).
@@ -1100,7 +1108,7 @@ impl Faraday {
             .filter(|_| plan::codex32::max_places_of(&shape, &a) > 1)
         {
             warn(
-                fill(EN.plan_all_at_one_place, &[&place_name(p)]),
+                faraday_text::Text::fill(EN.plan_all_at_one_place, &[&place_name(p)]),
                 &mut warnings,
             );
         }
@@ -1109,7 +1117,7 @@ impl Faraday {
                 && plan::alone_on(&shape, &a, &mapped, At::Place(p)).spend == plan::Found::Yes
             {
                 warn(
-                    fill(EN.board_alone_spends, &[&place_name(p)]),
+                    faraday_text::Text::fill(EN.board_alone_spends, &[&place_name(p)]),
                     &mut warnings,
                 );
             }
@@ -1118,7 +1126,10 @@ impl Faraday {
         // item 5): what cannot put it back together, a place that sees
         // the balance from its share and seeds, a place with no seed.
         if !plan::description_kept_on(&shape, &a, &mapped) {
-            warn(description_line(&shape, &mapped), &mut warnings);
+            warn(
+                faraday_text::Text::of(&description_line(&shape, &mapped)),
+                &mut warnings,
+            );
         }
         for (p, here) in things.iter().enumerate() {
             let alone = plan::alone_on(&shape, &a, &mapped, At::Place(p));
@@ -1130,7 +1141,7 @@ impl Faraday {
             {
                 let held = plan::holds_at(&mapped.places, At::Place(p));
                 warn(
-                    fill(
+                    faraday_text::Text::fill(
                         EN.board_sees_warn,
                         &[&place_name(p), &sees_line(&shape, &a, &held)],
                     ),
@@ -1142,7 +1153,10 @@ impl Faraday {
                     .iter()
                     .any(|t| matches!(t, Thing::Seed(_) | Thing::String(..)))
             {
-                warn(fill(EN.board_no_seed, &[&place_name(p)]), &mut warnings);
+                warn(
+                    faraday_text::Text::fill(EN.board_no_seed, &[&place_name(p)]),
+                    &mut warnings,
+                );
             }
         }
         for line in codex32::warnings(&shape, &a, &m, &place_name) {
@@ -1150,7 +1164,7 @@ impl Faraday {
         }
         if let Some(v) = a.stickless(&shape) {
             warn(
-                fill(
+                faraday_text::Text::fill(
                     EN.plan_vault_s_needs,
                     &[&(v + 1).to_string(), self.medium.noun()],
                 ),
@@ -1159,7 +1173,10 @@ impl Faraday {
         }
         if let Some(v) = a.empty_vault() {
             warn(
-                fill(EN.backup_flow_vault_holds_nothing, &[&(v + 1).to_string()]),
+                faraday_text::Text::fill(
+                    EN.backup_flow_vault_holds_nothing,
+                    &[&(v + 1).to_string()],
+                ),
                 &mut warnings,
             );
         }

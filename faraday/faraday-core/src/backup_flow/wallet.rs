@@ -128,7 +128,7 @@ impl Faraday {
         let n = if kind.multi() { n_keys.max(1) } else { 1 };
         let seeds = (0..n)
             .map(|i| plan::Seed {
-                name: fill(EN.backup_flow_key_n, &[&(i + 1).to_string()]),
+                name: faraday_text::Text::fill(EN.backup_flow_key_n, &[&(i + 1).to_string()]),
                 here: true,
                 passphrase: false,
             })
@@ -1211,7 +1211,7 @@ impl Faraday {
         out.sort_unstable();
         out.dedup();
         out.into_iter()
-            .filter_map(|s| wf.shape.seeds.get(s).map(|x| x.name.clone()))
+            .filter_map(|s| wf.shape.seeds.get(s).map(|x| String::from(&*x.name)))
             .collect()
     }
 
@@ -1294,7 +1294,7 @@ impl Faraday {
                     .shape
                     .seeds
                     .get(s)
-                    .map(|x| x.name.clone())
+                    .map(|x| String::from(&*x.name))
                     .unwrap_or_default();
                 let base = wf.base.get(s).cloned().unwrap_or_else(|| name.clone());
                 // The plan puts the passphrase in this vault, or keeps it
@@ -1454,11 +1454,10 @@ impl Faraday {
                     rkind::KEY => {
                         let fp = key_fingerprint(&c, self, r);
                         (0..wf.shape.seeds.len()).any(|s| {
-                            let name = &wf.shape.seeds[s].name;
-                            let base = wf.base.get(s).unwrap_or(name);
+                            let name = wf.shape.seeds[s].name.as_str();
+                            let base = wf.base.get(s).map_or(name, |b| b.as_str());
                             !wanted.contains(&s)
-                                && (fp.as_deref() == Some(name.as_str())
-                                    || fp.as_deref() == Some(base.as_str()))
+                                && (fp.as_deref() == Some(name) || fp.as_deref() == Some(base))
                         })
                     }
                     rkind::WALLET => {
@@ -1688,7 +1687,7 @@ impl Faraday {
             let id = self.vaults.open[o].id;
             // Each record keeps the seal counts of other vaults it holds
             // (`docs/VAULT.md` §7).
-            let stale: Vec<(usize, String)> = self
+            let stale: Vec<(usize, faraday_text::Text)> = self
                 .vaults
                 .records(id)
                 .of(rkind::PLAN)
@@ -2067,7 +2066,7 @@ impl Faraday {
                     .shape
                     .seeds
                     .get(s)
-                    .map(|x| x.name.clone())
+                    .map(|x| String::from(&*x.name))
                     .unwrap_or_default();
                 let base = wf.base.get(s).cloned().filter(|b| !b.is_empty());
                 std::iter::once(name).chain(base).collect()
@@ -2140,10 +2139,13 @@ impl Faraday {
                 .into_iter()
                 .filter(|s| matches!(s.at, plan::At::Files | plan::At::Software))
                 .map(|s| {
-                    let mut v: Vec<String> =
-                        s.holds.iter().map(|(w, _)| plan::what_code(*w)).collect();
+                    let mut v: Vec<String> = s
+                        .holds
+                        .iter()
+                        .map(|(w, _)| String::from(&*plan::what_code(*w)))
+                        .collect();
                     v.sort();
-                    (plan::at_code(s.at), v)
+                    (String::from(&*plan::at_code(s.at)), v)
                 })
                 .collect()
         };

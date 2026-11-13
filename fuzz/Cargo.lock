@@ -398,6 +398,7 @@ dependencies = [
  "faraday-entropy",
  "faraday-pgp",
  "faraday-psbt",
+ "faraday-text",
  "faraday-vault",
  "libfuzzer-sys",
 ]
@@ -427,6 +428,7 @@ dependencies = [
  "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
+ "faraday-text",
  "ocb3",
  "sha1",
  "sha2",
@@ -488,6 +490,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-intake",
  "faraday-pgp",
+ "faraday-text",
  "hmac",
  "miniz_oxide",
  "pem-rfc7468",

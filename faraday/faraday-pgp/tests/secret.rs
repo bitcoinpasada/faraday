@@ -16,7 +16,7 @@ fn key() -> Key {
         created: MADE,
         subkey_seed: [0x22; 32],
         subkey_created: MADE + 60,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 2 * YEAR,
     }
 }
@@ -50,9 +50,9 @@ fn a_key_reads_back_as_written() {
     let mut two_ids = key();
     two_ids
         .user_ids
-        .push("Second <second@example.com>".to_string());
+        .push(faraday_text::Text::of("Second <second@example.com>"));
     let mut long_id = key();
-    long_id.user_ids = vec!["x".repeat(300)];
+    long_id.user_ids = vec![faraday_text::Text::of(&"x".repeat(300))];
     for k in [key(), zero_seeds, never, two_ids, long_id] {
         let at = MADE + 3600;
         let text = armor_secret(&k, at);

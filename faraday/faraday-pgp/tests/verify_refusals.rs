@@ -31,7 +31,7 @@ fn key(primary: u8, subkey: u8) -> Key {
         created: MADE,
         subkey_seed: [subkey; 32],
         subkey_created: MADE,
-        user_ids: vec!["Test Release <release@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Release <release@example.com>")],
         expiry: 0,
     }
 }
@@ -132,7 +132,7 @@ fn cert_of(k: &Key) -> Certificate {
 
 /// A detached signature over `DATA` by key 0x31/0x32's subkey, with the
 /// hashed and unhashed areas given, of `kind` and `version`.
-fn made(version: u8, kind: u8, hashed: &[u8], unhashed: &[u8]) -> String {
+fn made(version: u8, kind: u8, hashed: &[u8], unhashed: &[u8]) -> faraday_text::Text {
     armor(
         Armor::Signature,
         &packet(2, &signature(0x32, version, kind, DATA, hashed, unhashed)),
@@ -378,7 +378,7 @@ fn back(primary: &[u8], subkey: &[u8]) -> Vec<u8> {
 }
 
 /// A signature over `DATA` by key B's subkey, naming it.
-fn by_b_subkey() -> String {
+fn by_b_subkey() -> faraday_text::Text {
     let fp = key(0x41, 0x42).subkey_fingerprint();
     let mut hashed = sub(2, &MADE.to_be_bytes());
     hashed.extend(issuer_fp(&fp));

@@ -85,11 +85,15 @@ impl RestoreFrom {
             line_one.push(char::from(pair[1]));
         }
         Ok(RestoreFrom {
-            fingerprint_text: fingerprint_text(&fp),
-            subkey_text: fingerprint_text(&cert.subkey_fingerprint()),
+            fingerprint_text: String::from(&*fingerprint_text(&fp)),
+            subkey_text: String::from(&*fingerprint_text(&cert.subkey_fingerprint())),
             chip: hex[hex.len() - 8..].to_string(),
             file: file.to_vec(),
-            user_id: cert.user_ids().first().cloned().unwrap_or_default(),
+            user_id: cert
+                .user_ids()
+                .first()
+                .map(|u| String::from(&**u))
+                .unwrap_or_default(),
             fingerprint: fp,
             subkey: cert.subkey_fingerprint(),
             created: cert.created(),
@@ -149,7 +153,7 @@ pub fn sheet_rows(inbox: &[Item]) -> Vec<SheetRow> {
             Ok(r) => SheetRow {
                 index,
                 user_id: r.user_id,
-                fingerprint: fingerprint_text(&r.fingerprint),
+                fingerprint: String::from(&*fingerprint_text(&r.fingerprint)),
                 refused: None,
             },
             Err(e) => SheetRow {
@@ -230,7 +234,11 @@ impl RestoreLive {
 
     /// The fingerprint shown kept in step with the lines checked.
     fn sync_shown(&mut self) {
-        self.fingerprint_shown = self.set.fingerprints().first().map(fingerprint_text);
+        self.fingerprint_shown = self
+            .set
+            .fingerprints()
+            .first()
+            .map(|f| String::from(&*fingerprint_text(f)));
     }
 
     /// The number of the line being typed.

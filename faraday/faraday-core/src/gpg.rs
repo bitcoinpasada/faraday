@@ -69,7 +69,7 @@ pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> String {
 
 /// A Unix time as a date, `YYYY-MM-DD`.
 pub fn date(unix: u64) -> String {
-    faraday_pgp::utc_date(unix)
+    String::from(&*faraday_pgp::utc_date(unix))
 }
 
 /// A key's ID as GnuPG prints it: the last 16 hex digits of its
@@ -303,8 +303,8 @@ pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
     let key = gpg_facts(r)?;
     let local = |t: u64| date(crate::vault::local_secs(t, tz_min));
     Some(Shown {
-        fingerprint: faraday_pgp::fingerprint_text(&key.fingerprint),
-        subkey: faraday_pgp::fingerprint_text(&key.subkey_fingerprint),
+        fingerprint: String::from(&*faraday_pgp::fingerprint_text(&key.fingerprint)),
+        subkey: String::from(&*faraday_pgp::fingerprint_text(&key.subkey_fingerprint)),
         subkey_id: key_id(&key.subkey_fingerprint),
         key_id: key_id(&key.fingerprint),
         user_ids: key.user_ids.clone(),

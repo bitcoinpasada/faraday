@@ -2741,7 +2741,9 @@ impl Faraday {
             },
             outbox: vec![(
                 format!("{stem}.asc"),
-                armor(Armor::PublicKey, &made.certificate).into_bytes(),
+                armor(Armor::PublicKey, &made.certificate)
+                    .as_bytes()
+                    .to_vec(),
             )],
         })
     }
@@ -2799,7 +2801,7 @@ impl Faraday {
                 None,
             )?,
         };
-        Some((key, armor(Armor::PublicKey, &cert)))
+        Some((key, String::from(&*armor(Armor::PublicKey, &cert))))
     }
 
     /// The selected key's public certificate to the Outbox.
@@ -2825,7 +2827,7 @@ impl Faraday {
         let stem = gpg::file_stem(&key);
         let fp = fill(
             EN.gpg_fingerprint,
-            &[&faraday_pgp::fingerprint_text(&key.fingerprint).to_string()],
+            &[&*faraday_pgp::fingerprint_text(&key.fingerprint)],
         );
         let who = key.user_ids.first().cloned().unwrap_or_default();
         let (title, text, name, lines) = match code {
@@ -3022,9 +3024,11 @@ impl Faraday {
         }
         self.vaults.changed(id);
         self.vaults.state.renew_years = None;
-        if self.put_unless_taken(&name, armor(Armor::PublicKey, &cert).into_bytes(), |i| {
-            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
-        }) {
+        if self.put_unless_taken(
+            &name,
+            armor(Armor::PublicKey, &cert).as_bytes().to_vec(),
+            |i| faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey),
+        ) {
             self.toast(&fill(
                 EN.gpg_renewed_waits,
                 &[&name.to_string(), self.medium.for_the()],

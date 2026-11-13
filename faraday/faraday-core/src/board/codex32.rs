@@ -72,8 +72,8 @@ pub(crate) fn warnings(
     a: &Answers,
     m: &[Spot],
     place: &dyn Fn(usize) -> String,
-) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
+) -> Vec<faraday_text::Text> {
+    let mut out: Vec<faraday_text::Text> = Vec::new();
     let places = plan::places_of(m).max(1);
     for f in &a.codex32 {
         let i = f.seed;
@@ -82,7 +82,10 @@ pub(crate) fn warnings(
         let anywhere = strings_at(m, i, &|_| true);
         for &j in &f.indices {
             if !anywhere.contains(&j) {
-                out.push(fill(EN.c32_warn_nowhere, &[&string_name(j), seed]));
+                out.push(faraday_text::Text::fill(
+                    EN.c32_warn_nowhere,
+                    &[&string_name(j), seed],
+                ));
             }
         }
         // What a place keeps, through the vaults whose sticks are there.
@@ -106,7 +109,7 @@ pub(crate) fn warnings(
         for p in 0..places {
             let here = at_place(p);
             if f.k >= 2 && here.len() >= need {
-                out.push(fill(
+                out.push(faraday_text::Text::fill(
                     EN.c32_warn_place_seed,
                     &[&place(p), &here.len().to_string(), &set],
                 ));
@@ -120,7 +123,7 @@ pub(crate) fn warnings(
                     &|at| !matches!(at, At::Place(q) | At::Stick(q, _) if q == p),
                 );
                 if rest.len() < need {
-                    out.push(fill(
+                    out.push(faraday_text::Text::fill(
                         EN.c32_warn_lose_place,
                         &[&place(p), &need.to_string(), &set],
                     ));
@@ -142,9 +145,15 @@ pub(crate) fn warnings(
                 .any(|(w, _)| matches!(w, What::Codex32Share(x, _) if *x == i));
             let vault = (v + 1).to_string();
             if seed_in && string_in {
-                out.push(fill(EN.c32_warn_vault_both, &[&vault, seed]));
+                out.push(faraday_text::Text::fill(
+                    EN.c32_warn_vault_both,
+                    &[&vault, seed],
+                ));
             } else if seed_in && f.k >= 2 {
-                out.push(fill(EN.c32_warn_vault_whole, &[&vault, seed]));
+                out.push(faraday_text::Text::fill(
+                    EN.c32_warn_vault_whole,
+                    &[&vault, seed],
+                ));
             }
         }
         let file = m.iter().any(|s| {
@@ -153,7 +162,7 @@ pub(crate) fn warnings(
             })
         });
         if file {
-            out.push(fill(EN.c32_warn_file, &[&set]));
+            out.push(faraday_text::Text::fill(EN.c32_warn_file, &[&set]));
         }
     }
     out

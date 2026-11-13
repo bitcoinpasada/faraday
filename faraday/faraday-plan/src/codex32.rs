@@ -16,6 +16,7 @@
 //! form: the plan does not split its seed into strings (§9.2).
 
 use super::*;
+use faraday_text::{Text, text};
 use faraday_vault::codex32::{SetFacts, State};
 
 /// The bech32 characters, in value order.
@@ -49,7 +50,7 @@ pub struct C32 {
     pub indices: Vec<usize>,
     /// The set's identifier.
     pub identifier: [u8; 4],
-    /// Strings of the set known to exist whose index is not known
+    /// Pieces of the set known to exist whose index is not known
     /// (§9.4, loaded from strings): counted, never placed.
     pub unknown: u8,
 }
@@ -84,25 +85,25 @@ impl C32 {
     }
 
     /// The identifier as text.
-    pub fn id_text(&self) -> String {
+    pub fn id_text(&self) -> Text {
         self.identifier.iter().map(|&b| char::from(b)).collect()
     }
 
     /// The form's plan line: `codex32 {seed} {k} {length} {indices} {id}
     /// {unknown}`, the indices as their characters.
-    pub(crate) fn to_line(&self) -> String {
-        let indices: String = self.indices.iter().map(|&j| index_char(j)).collect();
-        format!(
+    pub(crate) fn to_line(&self) -> Text {
+        let indices: Text = self.indices.iter().map(|&j| index_char(j)).collect();
+        text!(
             "codex32 {} {} {} {} {} {}\n",
             self.seed,
             self.k,
             self.length,
             if indices.is_empty() {
-                "-".to_string()
+                "-"
             } else {
-                indices
+                indices.as_str()
             },
-            self.id_text(),
+            &*self.id_text(),
             self.unknown
         )
     }
@@ -164,12 +165,14 @@ pub struct Wanted {
 
 impl Wanted {
     /// The share as named on screen: its index in upper case.
-    pub fn share(&self) -> String {
-        char::from(self.index.to_ascii_uppercase()).to_string()
+    pub fn share(&self) -> Text {
+        let mut out = Text::new();
+        out.push(char::from(self.index.to_ascii_uppercase()));
+        out
     }
 
     /// The identifier as text.
-    pub fn id_text(&self) -> String {
+    pub fn id_text(&self) -> Text {
         self.identifier.iter().map(|&b| char::from(b)).collect()
     }
 }
@@ -203,7 +206,7 @@ impl Answers {
 
     /// Sets seed `i`'s codex32 form, replacing the one it had, or takes
     /// it off with `None`. It records nothing as rotated away: only a
-    /// rotation does ([`Answers::rotate_c32`]). Strings the map placed
+    /// rotation does ([`Answers::rotate_c32`]). Pieces the map placed
     /// whose index the new form lacks leave the map.
     pub fn set_c32(&mut self, shape: &Shape, i: usize, form: Option<C32>) {
         let keep: Vec<usize> = form.as_ref().map_or(Vec::new(), |f| f.indices.clone());
@@ -395,7 +398,7 @@ pub fn max_places_of(shape: &Shape, a: &Answers) -> usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PaperCopy {
     /// The string written in boxes.
-    String,
+    Written,
     /// Its Codex32QR drawn on the grid.
     Codex32Qr,
     /// Both.
@@ -406,7 +409,7 @@ impl PaperCopy {
     /// Written (`s`), drawn (`q`), both, or neither.
     fn of(s: bool, q: bool) -> Option<PaperCopy> {
         match (s, q) {
-            (true, false) => Some(PaperCopy::String),
+            (true, false) => Some(PaperCopy::Written),
             (false, true) => Some(PaperCopy::Codex32Qr),
             (true, true) => Some(PaperCopy::Both),
             (false, false) => None,
@@ -415,7 +418,7 @@ impl PaperCopy {
 
     /// Whether the Codex32QR is drawn.
     pub fn drawn(self) -> bool {
-        self != PaperCopy::String
+        self != PaperCopy::Written
     }
 
     /// Whether the string is written.

@@ -6,7 +6,7 @@ use faraday_vault::totp::{NotTotp, from_fields, grouped, normalise, parse};
 
 const SHA1_SEED: &[u8] = b"12345678901234567890";
 
-fn code_of(fields: &[(&str, &str)], t: u64) -> String {
+fn code_of(fields: &[(&str, &str)], t: u64) -> faraday_text::Text {
     from_fields(fields)
         .expect("holds a TOTP form")
         .expect("reads")

@@ -2775,6 +2775,18 @@ impl Faraday {
         &self,
         wallet: &crate::wallet::Wallet,
     ) -> Vec<(String, Option<usize>)> {
+        self.backup_seed_fps_of(wallet)
+            .into_iter()
+            .map(|(fp, key)| (fp_text(fp), key))
+            .collect()
+    }
+
+    /// [`Faraday::backup_seed_list_of`] with each seed's fingerprint as
+    /// it is, for a caller that names the seed itself.
+    fn backup_seed_fps_of(
+        &self,
+        wallet: &crate::wallet::Wallet,
+    ) -> Vec<(faraday_bip::keys::Fingerprint, Option<usize>)> {
         let here = self.backup_keys_of(wallet);
         let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
         for f in wallet
@@ -2793,7 +2805,7 @@ impl Faraday {
                     .iter()
                     .copied()
                     .find(|&k| self.session.keys[k].fingerprint == fp);
-                (fp_text(fp), key)
+                (fp, key)
             })
             .collect()
     }
@@ -2830,10 +2842,10 @@ impl Faraday {
     pub(crate) fn plan_shape_of(&self, wallet: &crate::wallet::Wallet) -> plan::Shape {
         let (m, n) = Session::quorum(wallet);
         let seeds: Vec<plan::Seed> = self
-            .backup_seed_list_of(wallet)
+            .backup_seed_fps_of(wallet)
             .into_iter()
-            .map(|(name, key)| plan::Seed {
-                name,
+            .map(|(fp, key)| plan::Seed {
+                name: faraday_text::Text::from_utf8_lossy(&fp.to_hex()),
                 here: key.is_some(),
                 passphrase: key.is_some_and(|k| self.session.keys[k].has_passphrase),
             })

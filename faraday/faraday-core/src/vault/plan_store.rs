@@ -80,7 +80,7 @@ impl VaultArea {
                 plan::At::Place(p) | plan::At::Stick(p, _) => {
                     fill(EN.plan_store_place, &[&(p + 1).to_string()])
                 }
-                plan::At::Vault(v) => answers.vault_name(shape, v),
+                plan::At::Vault(v) => String::from(&*answers.vault_name(shape, v)),
                 plan::At::Files => fill(EN.plan_store_of_files, &[src.medium.cap()]),
                 plan::At::Software => EN.plan_store_watch_only.to_string(),
                 plan::At::Away => EN.plan_store_on_its_own.to_string(),
@@ -88,7 +88,7 @@ impl VaultArea {
             let holds: Vec<String> = spot
                 .holds
                 .iter()
-                .map(|(h, _)| h.label(shape, src.medium.cap()))
+                .map(|(h, _)| String::from(&*h.label(shape, src.medium.cap())))
                 .collect();
             record.push(
                 field::PLAN_HOLDS,
@@ -100,7 +100,7 @@ impl VaultArea {
             record.push(field::PLAN_HOLDS, line.as_bytes());
         }
         // The notes on the map: those given, else those the record kept.
-        let kept: Vec<String> = match src.notes {
+        let kept: Vec<faraday_text::Text> = match src.notes {
             Some(n) => n.iter().map(plan::Note::to_text).collect(),
             None => self
                 .records(open.id)
@@ -108,7 +108,7 @@ impl VaultArea {
                 .filter(|(i, _)| ours.contains(i))
                 .flat_map(|(_, r)| {
                     r.public_all(field::PLAN_NOTE)
-                        .map(|b| String::from_utf8_lossy(b).into_owned())
+                        .map(faraday_text::Text::from_utf8_lossy)
                         .collect::<Vec<_>>()
                 })
                 .collect(),

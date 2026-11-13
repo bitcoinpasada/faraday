@@ -45,9 +45,9 @@ pub use certificate::{Certificate, Refusal, Restored, restore};
 pub use secret::{armor_secret, dearmor, read_secret, read_secret_at};
 pub use verify::{Unverified, verify_detached};
 
-use alloc::string::String;
 use alloc::vec::Vec;
 use base64ct::{Base64, Encoding};
+use faraday_text::Text;
 
 use ed25519_dalek::{Signer, SigningKey};
 use sha1::Sha1;
@@ -208,7 +208,7 @@ pub struct Key {
     pub subkey_created: u32,
     /// The user IDs, the first one primary.
     #[zeroize(skip)]
-    pub user_ids: Vec<String>,
+    pub user_ids: Vec<Text>,
     /// Seconds after creation that the key expires; 0 for never.
     #[zeroize(skip)]
     pub expiry: u32,
@@ -474,8 +474,8 @@ impl Key {
     /// colon before the first line's dashes, so that `gpg --import`
     /// refuses the file until the colon is taken out by hand. The dates
     /// are UTC, as GnuPG prints them.
-    pub fn revocation_file(&self, revocation: &[u8]) -> String {
-        let mut out = String::new();
+    pub fn revocation_file(&self, revocation: &[u8]) -> Text {
+        let mut out = Text::new();
         out.push_str("This is a revocation certificate for the OpenPGP key:\n\npub   ed25519 ");
         out.push_str(&utc_date(u64::from(self.created)));
         out.push_str(" [C]");
@@ -570,7 +570,7 @@ impl Key {
     /// header: what a person copies onto paper to rebuild the key from the
     /// public certificate (`docs/GPG-PAPERKEY.md`). Compute it only to show it; it is
     /// wiped on drop.
-    pub fn paperkey(&self) -> Zeroizing<String> {
+    pub fn paperkey(&self) -> Text {
         let mut data = Zeroizing::new(Vec::with_capacity(1 + 2 * (1 + 20 + 2 + 40)));
         data.push(0u8);
         for (seed, created) in [
@@ -622,10 +622,10 @@ pub fn crc24(data: &[u8]) -> u32 {
 
 /// `paperkey`'s base-16 lines: 22 bytes a line, numbered, each ending in
 /// its own CRC-24, and a last line with the CRC-24 of the whole.
-fn paperkey_lines(data: &[u8]) -> Zeroizing<String> {
+fn paperkey_lines(data: &[u8]) -> Text {
     use core::fmt::Write;
     // 78 bytes a line at most, sized once.
-    let mut out = Zeroizing::new(String::with_capacity((data.len().div_ceil(22) + 1) * 80));
+    let mut out = Text::with_room((data.len().div_ceil(22) + 1) * 80);
     let mut n = 0;
     for chunk in data.chunks(22) {
         n += 1;
@@ -654,22 +654,24 @@ pub enum Armor {
 }
 
 /// Base64, as armour writes it.
-fn base64(data: &[u8]) -> String {
-    Base64::encode_string(data)
+fn base64(data: &[u8]) -> Text {
+    let mut buf = Zeroizing::new(alloc::vec![0u8; Base64::encoded_len(data)]);
+    let written = Base64::encode(data, &mut buf).expect("the buffer is the encoded length");
+    Text::of(written)
 }
 
 /// Packets in ASCII armour.
-pub fn armor(kind: Armor, data: &[u8]) -> String {
+pub fn armor(kind: Armor, data: &[u8]) -> Text {
     armor_with(kind, data, None)
 }
 
 /// Packets in ASCII armour, with a `Comment:` header when one is given.
-pub fn armor_with(kind: Armor, data: &[u8], comment: Option<&str>) -> String {
+pub fn armor_with(kind: Armor, data: &[u8], comment: Option<&str>) -> Text {
     let name = match kind {
         Armor::PublicKey => "PGP PUBLIC KEY BLOCK",
         Armor::Signature => "PGP SIGNATURE",
     };
-    let mut out = String::new();
+    let mut out = Text::new();
     out.push_str("-----BEGIN ");
     out.push_str(name);
     out.push_str("-----\n");
@@ -694,18 +696,18 @@ pub fn armor_with(kind: Armor, data: &[u8], comment: Option<&str>) -> String {
 }
 
 /// A Unix time as a UTC date, `YYYY-MM-DD`, as GnuPG prints dates.
-pub fn utc_date(unix: u64) -> String {
+pub fn utc_date(unix: u64) -> Text {
     use core::fmt::Write;
     let (y, m, d) = faraday_crypto::date::civil_from_days((unix / 86_400) as i64);
-    let mut out = String::new();
+    let mut out = Text::new();
     let _ = write!(out, "{y:04}-{m:02}-{d:02}");
     out
 }
 
 /// A fingerprint as GnuPG prints it: upper-case hex in groups of four.
-pub fn fingerprint_text(fp: &[u8; 20]) -> String {
+pub fn fingerprint_text(fp: &[u8; 20]) -> Text {
     use core::fmt::Write;
-    let mut out = String::new();
+    let mut out = Text::new();
     for (i, b) in fp.iter().enumerate() {
         if i > 0 && i % 2 == 0 {
             out.push(' ');
@@ -747,7 +749,7 @@ pub struct PublicArmor {
     /// IDs, and the text a signature's subpackets carry. A caller that can
     /// tell a seed or a private key from text runs its detectors over
     /// these; the packets can be nothing else that hides one.
-    pub texts: Vec<String>,
+    pub texts: Vec<Text>,
 }
 
 /// Whether `bytes` are nothing but one ASCII-armoured OpenPGP block of
@@ -814,7 +816,7 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
         b"-----BEGIN PGP SIGNATURE-----" => (Armor::Signature, b"-----END PGP SIGNATURE-----"),
         _ => return None,
     };
-    let mut texts: Vec<String> = Vec::new();
+    let mut texts: Vec<Text> = Vec::new();
     // Headers, up to the empty line.
     loop {
         let line = lines.next()?;
@@ -830,11 +832,11 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
         {
             return None;
         }
-        texts.push(String::from_utf8_lossy(value).into_owned());
+        texts.push(Text::from_utf8_lossy(value));
     }
     // The body: base64 across lines, then an optional checksum line, then
     // the end line, and nothing after it.
-    let mut b64 = String::new();
+    let mut b64 = Text::new();
     let mut checksum: Option<u32> = None;
     loop {
         let line = lines.next()?;
@@ -923,10 +925,10 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
 
 /// Text from a packet or subpacket into `texts`; `strict` refuses what is
 /// not UTF-8, otherwise it is kept as far as it reads.
-fn push_text(texts: &mut Vec<String>, bytes: &[u8], strict: bool) -> bool {
+fn push_text(texts: &mut Vec<Text>, bytes: &[u8], strict: bool) -> bool {
     match core::str::from_utf8(bytes) {
-        Ok(t) => texts.push(String::from(t)),
-        Err(_) if !strict => texts.push(String::from_utf8_lossy(bytes).into_owned()),
+        Ok(t) => texts.push(Text::of(t)),
+        Err(_) if !strict => texts.push(Text::from_utf8_lossy(bytes)),
         Err(_) => return false,
     }
     true
@@ -1042,7 +1044,7 @@ fn public_key_body(body: &[u8]) -> bool {
 
 /// Whether `body` is a version-4 signature to its last byte, its
 /// subpackets well formed; the text they carry goes into `texts`.
-fn signature_body(body: &[u8], texts: &mut Vec<String>, depth: u8) -> bool {
+fn signature_body(body: &[u8], texts: &mut Vec<Text>, depth: u8) -> bool {
     let mut r = Rd::new(body);
     let fields = (|| {
         if r.u8()? != 4 {
@@ -1075,7 +1077,7 @@ fn signature_body(body: &[u8], texts: &mut Vec<String>, depth: u8) -> bool {
 }
 
 /// A signature's subpackets, each with the length its type needs.
-fn subpackets(area: &[u8], texts: &mut Vec<String>, depth: u8) -> Option<()> {
+fn subpackets(area: &[u8], texts: &mut Vec<Text>, depth: u8) -> Option<()> {
     for sub in Subpackets::new(area) {
         let Subpacket {
             kind, body: data, ..

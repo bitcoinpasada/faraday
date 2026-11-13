@@ -481,7 +481,16 @@ faraday/faraday-intake/src/wallet.rs
 faraday/faraday-core-wallet/src/lib.rs
 faraday/faraday-core-wallet/src/normal.rs
 faraday/faraday-sb/src/x509.rs
-faraday/faraday-host/src/lib.rs"
+faraday/faraday-host/src/lib.rs
+faraday/faraday-plan/src/codex32.rs
+faraday/faraday-plan/src/lib.rs
+faraday/faraday-plan/src/text.rs
+faraday/faraday-vault/src/kdbx/items/text.rs
+faraday/faraday-vault/src/lib.rs
+faraday/faraday-vault/src/entries.rs
+faraday/faraday-vault/src/totp.rs
+faraday/faraday-pgp/src/certificate.rs
+faraday/faraday-pgp/src/lib.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

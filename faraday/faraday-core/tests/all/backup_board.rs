@@ -432,7 +432,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
 
 fn seed(name: &str) -> Seed {
     Seed {
-        name: name.to_string(),
+        name: faraday_text::Text::of(name),
         here: true,
         passphrase: false,
     }
@@ -537,7 +537,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     let m = plan::with_added(&m, At::Stick(2, 0), What::PassphraseFile(0));
     let m = plan::with_added(&m, At::Stick(0, 0), What::SoftwareFile);
     a.set_map(m);
-    let text = a.to_text();
+    let text = String::from(&*a.to_text());
     assert!(
         text.contains("spot stick0.1 file1 walletqr wallettxt shareqr2 sharetxt2\n"),
         "{text}"
@@ -1125,7 +1125,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
     let m = the_map(&app);
     assert!(held(&m, At::Place(0)).contains(&What::Passphrase(0)));
     assert!(held(&m, At::Place(0)).contains(&What::Words(0)));
-    let seed = backup_shape(&app).seeds[0].name.clone();
+    let seed = String::from(&*backup_shape(&app).seeds[0].name);
     expect_down(
         &mut app,
         &format!("Place 1 keeps {seed}'s words with its passphrase"),
@@ -1171,7 +1171,7 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
         }
     }
     assert!(app.backup_kept_nowhere(&c).is_some());
-    let seed = backup_shape(&app).seeds[0].name.clone();
+    let seed = String::from(&*backup_shape(&app).seeds[0].name);
     expect_down(&mut app, &format!("Seed {seed} is kept nowhere"));
     app.press(Action::BQ(qstep::PLAN));
     assert!(
@@ -1217,7 +1217,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     );
     // A finger on its name, dragged to Place 1's paper: nothing moves.
     let _ = app.frame();
-    let name = shape.seeds[away].name.clone();
+    let name = String::from(&*shape.seeds[away].name);
     let (_, (x, y, bw, bh)) = app
         .drawn_text_boxes()
         .into_iter()
@@ -1402,7 +1402,7 @@ fn a_vault_that_holds_something_says_what_before_it_is_taken_off() {
         the_map(&app).iter().any(|s| s.at == At::Vault(0)),
         "asked first"
     );
-    let seed = backup_shape(&app).seeds[0].name.clone();
+    let seed = String::from(&*backup_shape(&app).seeds[0].name);
     expect(&mut app, &format!("Vault 1 holds {seed}"));
     tap(&mut app, BP::RemoveVaultSure(0));
     let m = the_map(&app);
@@ -1943,10 +1943,10 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     );
     assert!(away < kept, "Vault 2 is drawn dim: {away} against {kept}");
     // Seed B was kept only in Vault 2.
-    let line = kept_nowhere(&c, &shape, &a, &[1]).expect("Seed B is kept nowhere");
+    let line = String::from(&*kept_nowhere(&c, &shape, &a, &[1]).expect("Seed B is kept nowhere"));
     assert_eq!(
         line,
-        format!("Seed {} is kept nowhere", shape.seeds[1].name)
+        format!("Seed {} is kept nowhere", &*shape.seeds[1].name)
     );
     expect_down(&mut app, &line);
     // Vault 2 dragged onto Place 1 is back with Seed B in it.
@@ -2205,7 +2205,7 @@ fn another_preset_replaces_the_standard_way_in_both_states() {
     assert!(!b.answers.custom, "still read-only");
     assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
     let shape = backup_shape(&app);
-    let text = b.answers.to_text();
+    let text = String::from(&*b.answers.to_text());
     assert_eq!(Answers::from_text(&shape, &text).as_ref(), Some(&b.answers));
     let _ = app.frame();
     expect(&mut app, "Take off watch-only software");
@@ -2294,7 +2294,7 @@ fn dropping_a_share_beside_the_seed_of_its_missing_key_asks_and_take_it_off_undo
     let mut app = share_sheet_board();
     assert_eq!(app.sheet, Some(Sheet::BoardSees));
     assert!(paper(&app, 2).contains(&What::Share(0)));
-    let fp = backup_shape(&app).seeds[2].name.clone();
+    let fp = String::from(&*backup_shape(&app).seeds[2].name);
     let t = app.drawn_texts().join(" ");
     assert!(t.contains("Place 3 can see the wallet's balance"), "{t}");
     assert!(
@@ -2624,7 +2624,7 @@ fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
     let shape = two_of_three();
     let a = Answers::preset(&shape, Preset::PaperVault);
     assert!(!a.to_text().contains("preset "), "no longer written");
-    let saved = format!("{}preset 2\n", a.to_text());
+    let saved = format!("{}preset 2\n", &*a.to_text());
     let back = Answers::from_text(&shape, &saved).expect("read, not refused");
     assert!(back.custom, "customisable");
     assert_eq!(
@@ -2633,7 +2633,7 @@ fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
         "as saved"
     );
     let standard = Answers::preset(&shape, Preset::Standard);
-    let saved = format!("{}preset 0\n", standard.to_text());
+    let saved = format!("{}preset 0\n", &*standard.to_text());
     let back = Answers::from_text(&shape, &saved).expect("read");
     assert!(!back.custom, "The standard way stays read-only");
 }
@@ -2733,7 +2733,7 @@ fn a_krux_code_is_added_from_the_seeds_menu_and_shows_on_its_chip() {
     tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
     assert_eq!(app.sheet, None, "the menu closes");
     assert!(map_holds(&app, What::KefCode(0)));
-    let name = backup_shape(&app).seeds[0].name.clone();
+    let name = String::from(&*backup_shape(&app).seeds[0].name);
     expect(&mut app, &name);
     expect(&mut app, "· Krux code");
 }
@@ -2774,7 +2774,7 @@ fn a_plan_with_a_krux_code_reads_back_with_it() {
     tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
     tap(&mut app, BP::MenuTo(Zone::Paper(1)));
     let b = app.backup().unwrap();
-    let text = b.answers.to_text();
+    let text = String::from(&*b.answers.to_text());
     assert!(text.contains("kef0") && text.contains("kefp1"), "{text}");
     let shape = backup_shape(&app);
     let back = Answers::from_text(&shape, &text).expect("reads back");
@@ -2841,7 +2841,7 @@ fn a_seed_kept_only_as_a_krux_code_is_still_kept_nowhere() {
     tap(&mut app, BP::MenuTo(Zone::Paper(0)));
     assert!(map_holds(&app, What::KefCodePaper(0)));
     let kept = app.backup_kept_nowhere(&c).expect("still kept nowhere");
-    let seed = backup_shape(&app).seeds[0].name.clone();
+    let seed = String::from(&*backup_shape(&app).seeds[0].name);
     assert!(kept.contains(&seed), "{kept}");
 }
 

@@ -62,7 +62,7 @@ use faraday_bip::bip39::Language;
 use faraday_bip::descriptor::reads_as_descriptor;
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 use super::xml::{Document, Entry, Group};
 use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
@@ -337,11 +337,11 @@ fn read_gpg(f: &mut Fields<'_>) -> Result<Body, Damage> {
         return Err(damage("revoked", Fault::Value));
     }
     Ok(Body::Gpg(GpgKey {
-        title: f.get("Title").unwrap_or("").into(),
-        key: Zeroizing::new(key.into()),
-        public: public.map(Into::into),
-        revocation: revocation.map(|r| Zeroizing::new(r.into())),
-        revoked: revoked.map(Into::into),
+        title: Text::of(f.get("Title").unwrap_or("")),
+        key: Text::of(key),
+        public: public.map(Text::of),
+        revocation: revocation.map(Text::of),
+        revoked: revoked.map(Text::of),
     }))
 }
 
@@ -594,7 +594,7 @@ fn read_person(e: &Entry) -> Result<Person, Damage> {
         let v = field.map(|f| f.value()).unwrap_or("");
         if too_long(v) {
             extra.push(Extra {
-                name: (*name).into(),
+                name: Text::of(name),
                 protected: field.is_some_and(|f| f.protected()),
             });
             if n == field::TITLE {
@@ -608,7 +608,7 @@ fn read_person(e: &Entry) -> Result<Person, Damage> {
         e.fields()
             .filter(|f| !STANDARD.contains(&f.key()))
             .map(|f| Extra {
-                name: f.key().into(),
+                name: Text::of(f.key()),
                 protected: f.protected(),
             }),
     );
@@ -622,7 +622,7 @@ type Person = (Body, Vec<Extra>, Option<Result<Totp, NotTotp>>);
 /// The first key two fields of the entry share, as the document model
 /// marks it.
 fn has_same_field(e: &Entry) -> Option<Name> {
-    e.duplicate_keys().next().map(Into::into)
+    e.duplicate_keys().next().map(Text::of)
 }
 
 // --------------------------------------------------------------- reading
@@ -735,7 +735,7 @@ pub fn read(c: &Compute, doc: &Document) -> Read {
         format,
         seals,
         sealed,
-        label: doc.label().into(),
+        label: Text::of(doc.label()),
         items,
         custom,
         unreadable,
@@ -881,7 +881,7 @@ fn read_meta(
             });
         }
         return (
-            Format::Newer(ambiguous.unwrap_or("Meta").into()),
+            Format::Newer(Text::of(ambiguous.unwrap_or("Meta"))),
             seals,
             sealed,
         );
@@ -911,7 +911,7 @@ fn read_meta(
             },
             "faraday.sealed" => {
                 if forms::is_utc_time(value) {
-                    sealed = Some(value.into());
+                    sealed = Some(Text::of(value));
                 } else {
                     bad(Fault::Value);
                 }
@@ -919,7 +919,7 @@ fn read_meta(
             _ if key.starts_with(PLAN) || key.starts_with(SIGNED) || key.starts_with(NONCES) => {
                 match custom_record(key, value) {
                     Some(record) => custom.push(Custom {
-                        key: key.into(),
+                        key: Text::of(key),
                         record,
                     }),
                     None => bad(Fault::Value),

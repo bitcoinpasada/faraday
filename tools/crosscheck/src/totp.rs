@@ -29,7 +29,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let t = read(req)?;
             let unix = num(req, "time");
             Ok(json!({
-                "code": t.code(unix),
+                "code": &*t.code(unix),
                 "left": t.left(unix),
                 "period": t.period(),
             }))
@@ -37,7 +37,10 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         // What a value reads as: its period and the codes at some times.
         "read" => {
             let t = read(req)?;
-            let codes: Vec<String> = nums(req, "times").into_iter().map(|u| t.code(u)).collect();
+            let codes: Vec<String> = nums(req, "times")
+                .into_iter()
+                .map(|u| String::from(&*t.code(u)))
+                .collect();
             Ok(json!({"codes": codes, "period": t.period()}))
         }
         _ => Err(format!("unknown op totp.{name}")),

@@ -22,6 +22,7 @@ faraday-entropy = { path = "../core/faraday-entropy" }
 faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
 aqrv = { path = "../aqrv/aqrv", features = ["fuzzing"] }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
+faraday-text = { path = "../core/faraday-text" }
 # `fuzzing` adds the entry kdbx_body feeds; only this crate turns it on.
 faraday-vault = { path = "../faraday/faraday-vault", features = ["fuzzing"] }
 

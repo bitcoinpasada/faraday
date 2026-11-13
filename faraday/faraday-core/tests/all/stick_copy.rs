@@ -492,13 +492,15 @@ fn gpg_files() -> [(String, Vec<u8>); 2] {
         created: 1_780_000_000,
         subkey_seed: [0x22; 32],
         subkey_created: 1_780_000_000,
-        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        user_ids: vec![faraday_text::Text::of("Test Person <test@example.com>")],
         expiry: 0,
     };
     [
         (
             "test-public.asc".to_string(),
-            armor(Armor::PublicKey, &key.certificate(1_780_000_000)).into_bytes(),
+            armor(Armor::PublicKey, &key.certificate(1_780_000_000))
+                .as_bytes()
+                .to_vec(),
         ),
         (
             "test-signature.asc".to_string(),
@@ -506,7 +508,8 @@ fn gpg_files() -> [(String, Vec<u8>); 2] {
                 Armor::Signature,
                 &key.sign(b"A file.\n", 1_780_000_060, Hash::Sha512),
             )
-            .into_bytes(),
+            .as_bytes()
+            .to_vec(),
         ),
     ]
 }

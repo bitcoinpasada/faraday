@@ -2072,7 +2072,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         ["wseed", name, here, pass] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.shape.seeds.push(crate::plan::Seed {
-                name: name.to_string(),
+                name: faraday_text::Text::of(name),
                 here: here == "1",
                 passphrase: pass == "1",
             });

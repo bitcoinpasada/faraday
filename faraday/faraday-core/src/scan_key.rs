@@ -345,7 +345,7 @@ impl Faraday {
         self.plan_notes(c, wl, None)
             .into_iter()
             .find_map(|n| match n {
-                crate::plan::Note::Holder(f, name) if f == fp.0 => Some(name),
+                crate::plan::Note::Holder(f, name) if f == fp.0 => Some(String::from(&*name)),
                 _ => None,
             })
             .unwrap_or_default()

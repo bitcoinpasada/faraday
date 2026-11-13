@@ -9,6 +9,7 @@ use faraday_pgp::length::{NewFormat, new_format_whole};
 pub use faraday_pgp::paperkey::LineError;
 use faraday_pgp::paperkey::{self, LINE_BYTES, Progress};
 use faraday_pgp::{Armor, Certificate, Hash, Reason, Refusal, armor};
+use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::kdbx::items::GpgKey;
 use faraday_vault::records::kind;
@@ -43,7 +44,7 @@ pub fn create(
     user_id: String,
     expiry: u32,
 ) -> Made {
-    let key = make(primary, subkey, now, user_id, expiry);
+    let key = make(primary, subkey, now, Text::of(&user_id), expiry);
     let certificate = certificate(&key, now);
     let rev = Zeroizing::new(revocation(&key, now, Reason::Unspecified, ""));
     Made {
@@ -132,20 +133,22 @@ pub fn record_of(g: &GpgKey) -> Option<Record> {
 /// seeds.
 pub fn gpg_key_of(r: &Record, at: u32) -> Option<GpgKey> {
     let key = crate::vault::gpg_key(r)?;
-    // The armoured block is bytes in a wiping buffer; its ASCII moves into
-    // the wiping text without a copy.
-    let mut armored = faraday_pgp::armor_secret(&key, at);
-    let text = String::from_utf8(core::mem::take(&mut *armored)).ok()?;
+    // The armoured block is bytes in a wiping buffer; its ASCII is copied
+    // into the wiping text, and the buffer wipes on drop.
+    let armored = faraday_pgp::armor_secret(&key, at);
+    let text = Text::from_utf8_lossy(&armored);
     let public = r.field(f::CERTIFICATE).map(|c| armor(Armor::PublicKey, c));
-    let revocation = r
-        .field(f::REVOCATION)
-        .map(|c| Zeroizing::new(armor(Armor::PublicKey, c)));
+    let revocation = r.field(f::REVOCATION).map(|c| armor(Armor::PublicKey, c));
     let revoked = r
         .field(f::REVOKED)
         .and_then(|b| Some(utc_of(u32::from_le_bytes(b.try_into().ok()?))));
     Some(GpgKey {
-        title: key.user_ids.first().cloned().unwrap_or_default(),
-        key: Zeroizing::new(text),
+        title: key
+            .user_ids
+            .first()
+            .map(Text::duplicate)
+            .unwrap_or_default(),
+        key: text,
         public,
         revocation,
         revoked,
@@ -194,11 +197,11 @@ fn public_packets(text: &str) -> Option<Zeroizing<Vec<u8>>> {
 
 /// A Unix time as an RFC 3339 time in UTC to the second:
 /// `2026-10-28T14:02:00Z`.
-fn utc_of(unix: u32) -> String {
+fn utc_of(unix: u32) -> Text {
     let (day, sec) = (unix / 86_400, unix % 86_400);
-    format!(
+    text!(
         "{}T{:02}:{:02}:{:02}Z",
-        faraday_pgp::utc_date(u64::from(day) * 86_400),
+        &*faraday_pgp::utc_date(u64::from(day) * 86_400),
         sec / 3600,
         sec % 3600 / 60,
         sec % 60
@@ -245,14 +248,13 @@ fn unix_of(text: &str) -> Option<u32> {
 }
 
 /// What is public of `key`.
-#[expect(clippy::disallowed_methods, reason = "a key's user ids are public")]
 pub(crate) fn facts_of(key: &Key) -> GpgFacts {
     GpgFacts {
         fingerprint: key.fingerprint(),
         subkey_fingerprint: key.subkey_fingerprint(),
         created: key.created,
         subkey_created: key.subkey_created,
-        user_ids: key.user_ids.clone(),
+        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
         expiry: key.expiry,
     }
 }
@@ -265,7 +267,7 @@ pub(crate) fn key_of(
     created: u32,
     subkey: &[u8],
     subkey_created: u32,
-    user_ids: Vec<String>,
+    user_ids: Vec<Text>,
     expiry: u32,
 ) -> Option<Key> {
     if primary.len() != 32 || subkey.len() != 32 {
@@ -289,7 +291,7 @@ pub(crate) fn make(
     primary: &Zeroizing<[u8; 32]>,
     subkey: &Zeroizing<[u8; 32]>,
     now: u32,
-    user_id: String,
+    user_id: Text,
     expiry: u32,
 ) -> Key {
     Key {
@@ -315,7 +317,7 @@ pub(crate) fn revocation(key: &Key, at: u32, reason: Reason, text: &str) -> Vec<
 }
 
 /// A revocation certificate as the file GnuPG keeps it in.
-pub(crate) fn revocation_file(key: &Key, revocation: &[u8]) -> String {
+pub(crate) fn revocation_file(key: &Key, revocation: &[u8]) -> Text {
     key.revocation_file(revocation)
 }
 
@@ -326,12 +328,12 @@ pub(crate) fn sign(key: &Key, data: &[u8], at: u32) -> Vec<u8> {
 }
 
 /// The signature over `data`, armoured.
-pub(crate) fn sign_armored(key: &Key, data: &[u8], at: u32) -> String {
+pub(crate) fn sign_armored(key: &Key, data: &[u8], at: u32) -> Text {
     armor(Armor::Signature, &sign(key, data, at))
 }
 
 /// The paperkey text of the key: secret, made only to be shown.
-pub(crate) fn paperkey(key: &Key) -> Zeroizing<String> {
+pub(crate) fn paperkey(key: &Key) -> Text {
     key.paperkey()
 }
 
