@@ -203,7 +203,7 @@ impl ArgonQrVault {
             Action::ReadPath => {
                 let path = st.open.path.trim();
                 if !path.is_empty() {
-                    let name = Text::of(&path);
+                    let name = Text::of(path);
                     st.open.stage = OpenStage::Reading;
                     st.open.job = None;
                     self.commands.push_back(Command::ReadFile {
@@ -252,7 +252,7 @@ impl ArgonQrVault {
                     self.saving = Some(Text::of(name));
                     self.commands.push_back(Command::WriteFile {
                         kind,
-                        name_hint: Text::of(&name),
+                        name_hint: Text::of(name),
                         bytes,
                     });
                 }

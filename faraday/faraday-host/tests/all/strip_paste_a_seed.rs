@@ -48,7 +48,7 @@ fn paste_words(app: &mut Faraday, text: &str, ctrl_v: bool) -> bool {
         .any(|c| matches!(c, Command::RequestClipboard { .. }));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: faraday_text::Text::of(&text),
+        text: faraday_text::Text::of(text),
     });
     let _ = app.frame();
     asked

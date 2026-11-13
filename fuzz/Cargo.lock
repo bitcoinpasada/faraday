@@ -466,7 +466,6 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "faraday-text",
- "zeroize",
 ]
 
 [[package]]
