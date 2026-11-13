@@ -1474,7 +1474,12 @@ fn a_lock_of_all_with_an_original_waiting_for_an_open_target_asks_first() {
     app.press(Action::Lock);
     testkit::settle(&mut app);
     assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock did not ask");
-    let names: Vec<_> = app.vaults().open.iter().map(|o| o.name.clone()).collect();
+    let names: Vec<_> = app
+        .vaults()
+        .open
+        .iter()
+        .map(|o| String::from(&*o.name))
+        .collect();
     assert!(
         names.iter().any(|n| n == "a.kdbx") && names.iter().any(|n| n == "c.kdbx"),
         "Alpha and Gamma stay open: {names:?}"

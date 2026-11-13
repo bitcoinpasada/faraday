@@ -211,7 +211,7 @@ pub(crate) fn sign_start(app: &mut Faraday, job: faraday_keys::job::SignJob, bef
     let waiting = app
         .outbox
         .iter()
-        .find(|i| i.name == *part)
+        .find(|i| i.name == part.as_str())
         .map(|i| i.bytes.clone());
     let from = Origin {
         input: s.spend.psbt.clone(),
@@ -314,7 +314,7 @@ fn part_put(app: &mut Faraday, part: Option<collect::Planned>) {
     };
     let kept = app.wallets.spend().is_some_and(|s| {
         let (name, _) = part_name(s);
-        let waiting = app.outbox.iter().find(|i| i.name == *name);
+        let waiting = app.outbox.iter().find(|i| i.name == name.as_str());
         name == planned.name
             && waiting.map(|w| w.bytes.as_slice()) == planned.waiting.as_ref().map(|w| w.as_slice())
     });
@@ -411,8 +411,8 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
     }
     let name = match plan {
         PartPlan::Take(name) => {
-            if app.outbox.iter().any(|i| i.name == *name) {
-                app.outbox.retain(|i| i.name != *name);
+            if app.outbox.iter().any(|i| i.name == name.as_str()) {
+                app.outbox.retain(|i| i.name != name.as_str());
                 app.save_boxes();
             }
             return;
@@ -436,7 +436,7 @@ pub(crate) fn part_out(app: &mut Faraday) {
         return;
     };
     let (name, recorded) = part_name(s);
-    let waiting = app.outbox.iter().find(|i| i.name == *name);
+    let waiting = app.outbox.iter().find(|i| i.name == name.as_str());
     let plan = part_plan(
         &c,
         &s.spend,

@@ -41,7 +41,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         .app
         .inbox()
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .chain(std::iter::once(vault))
         .collect();
     t.app.storage(StorageEvent::Restored {

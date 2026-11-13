@@ -174,7 +174,10 @@ fn typing_in_the_codes_search_shows_only_the_codes_whose_titles_hold_it() {
     assert_eq!(codes_rows(&app, now).len(), 8, "every TOTP entry has a row");
     app.press(search(SearchIn::Codes));
     type_text(&mut app, "MAIL");
-    let rows: Vec<String> = codes_rows(&app, now).into_iter().map(|r| r.title).collect();
+    let rows: Vec<String> = codes_rows(&app, now)
+        .into_iter()
+        .map(|r| String::from(&*r.title))
+        .collect();
     assert_eq!(rows, ["Mail 0", "Mail 1", "Mail 2"]);
     assert!(drawn(&mut app, "Mail 1"));
     assert!(!drawn(&mut app, "Bank 0"));

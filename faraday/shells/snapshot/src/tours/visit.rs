@@ -36,7 +36,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for name in &names {
         let bytes = vec![b'#'; 1800];
         t.app.outbox.push(faraday_core::Item {
-            name: name.clone(),
+            name: faraday_text::Text::of(name),
             kind: classify(c, name, &bytes),
             bytes: bytes.into(),
             secret: false,
@@ -50,7 +50,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         });
     }
     t.app.outbox.push(faraday_core::Item {
-        name: "seed-words.txt".into(),
+        name: faraday_text::Text::of("seed-words.txt"),
         kind: faraday_core::wallet::FileKind::Text,
         bytes: b"words".to_vec().into(),
         secret: true,
@@ -116,7 +116,7 @@ fn not_clean(t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::inbox_push(
         &mut t.app,
         faraday_core::Item {
-            name: "my-words.txt".into(),
+            name: faraday_text::Text::of("my-words.txt"),
             kind: faraday_core::wallet::FileKind::Words,
             bytes: b"words".to_vec().into(),
             secret: false,

@@ -344,7 +344,7 @@ fn the_public_key_scanned_on_the_sheet_is_filed_and_restored_from() {
     let hex: String = k.fingerprint().iter().map(|b| format!("{b:02X}")).collect();
     let name = format!("test-person-{}.asc", &hex[32..]);
     assert!(
-        app.inbox().iter().any(|i| i.name == name),
+        app.inbox().iter().any(|i| i.name.as_str() == name.as_str()),
         "filed as {name}: {:?}",
         app.inbox().iter().map(|i| &i.name).collect::<Vec<_>>()
     );
@@ -374,7 +374,7 @@ fn a_public_key_scanned_at_home_keeps_its_real_name() {
     let names = |app: &Faraday| {
         app.inbox()
             .iter()
-            .map(|i| i.name.clone())
+            .map(|i| String::from(&*i.name))
             .collect::<Vec<_>>()
     };
     assert!(names(&app).contains(&name), "{:?}", names(&app));

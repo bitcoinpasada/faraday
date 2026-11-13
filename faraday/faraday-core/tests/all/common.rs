@@ -1792,11 +1792,11 @@ pub fn opens_its_code(app: &mut Faraday, code: faraday_core::Code, want: &str) {
     assert!(!q.offers_png(), "{code:?} offers a picture");
     assert_eq!(q.whole.as_deref(), Some(want), "{code:?}'s text under it");
     assert_eq!(qr_text(app), want, "{code:?} reads back");
-    let before: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    let before: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     app.press(Action::QrPng);
     app.press(Action::Cancel);
     app.press(Action::CodePng(code));
-    let after: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    let after: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     assert_eq!(before, after, "{code:?} put a file For the stick");
 }
 

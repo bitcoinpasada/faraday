@@ -554,7 +554,7 @@ fn the_decode_screen_offers_no_hex_and_no_code_once_the_check_refuses() {
         .outbox
         .iter()
         .find(|i| i.name.ends_with("-signed.psbt"))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .expect("the signed PSBT");
     testkit::outbox_to_files(&mut app, &[name]);
     let (_, own) = nonce_history_pending(&app).remove(0);
@@ -1152,7 +1152,7 @@ fn part_after_signing(held: Option<NonceEntry>) -> (Vec<String>, Vec<NonceEntry>
     start(&mut app, 1);
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
-    let names = app.outbox.iter().map(|i| i.name.clone()).collect();
+    let names = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     let own = nonce_history_pending(&app)
         .into_iter()
         .flat_map(|(_, e)| e)

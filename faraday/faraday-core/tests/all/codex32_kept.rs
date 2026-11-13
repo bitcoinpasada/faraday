@@ -872,7 +872,7 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     shell.flow(&mut app, F::WalletLock);
     let (name, on) = testkit::plain_asked(&app).expect("the hold, at Lock and write");
     assert_eq!(on, "stick at Place 1");
-    let made = |app: &Faraday| app.outbox.iter().any(|i| i.name == name);
+    let made = |app: &Faraday| app.outbox.iter().any(|i| i.name.as_str() == name.as_str());
     assert!(!made(&app), "nothing made before the hold");
     assert!(!app.restart_requested(), "not locked");
     // Cancel: no lock, and the plan keeps the file.
@@ -889,7 +889,11 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     // Again, held: the one file, then the lock.
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 1, "asked once");
-    assert!(app.outbox.iter().any(|i| i.name == name && i.secret));
+    assert!(
+        app.outbox
+            .iter()
+            .any(|i| i.name.as_str() == name.as_str() && i.secret)
+    );
     shell.pump(&mut app);
     assert!(app.restart_requested(), "locked: {:?}", app.toast_text());
 }

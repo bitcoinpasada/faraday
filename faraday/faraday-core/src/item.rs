@@ -9,7 +9,7 @@ use zeroize::Zeroizing;
 /// A file in the Inbox or the Outbox.
 pub struct Item {
     /// Its name.
-    pub name: String,
+    pub name: faraday_text::Text,
     /// Its contents. An Inbox or Outbox file may be a seed or a share written
     /// in the clear, so they are wiped when it goes, whatever it holds.
     pub bytes: Zeroizing<Vec<u8>>,
@@ -101,7 +101,7 @@ impl Item {
             .then(|| faraday_vault::file::inspect(&bytes).ok())
             .flatten();
         Item {
-            name: name.to_string(),
+            name: faraday_text::Text::of(name),
             bytes,
             kind,
             secret: false,

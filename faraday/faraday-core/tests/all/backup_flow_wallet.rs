@@ -1395,7 +1395,7 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     assert!(
         app.outbox
             .iter()
-            .any(|i| i.secret && i.name == seed_txt(fp)),
+            .any(|i| i.secret && i.name.as_str() == seed_txt(fp)),
         "the file waits, unprotected"
     );
     let mut app = restart(&mut shell, &mut app);

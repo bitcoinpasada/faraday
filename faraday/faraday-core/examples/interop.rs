@@ -84,7 +84,7 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
     });
     let out = app.outbox.last().ok_or("nothing reached the Outbox")?;
     write(dir, &out.name, &out.bytes)?;
-    Ok(out.name.clone())
+    Ok(String::from(&*out.name))
 }
 
 fn run(args: &[String]) -> Result<(), String> {

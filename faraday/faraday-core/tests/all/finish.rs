@@ -31,7 +31,7 @@ fn waiting(app: &Faraday, stem: &str) -> Vec<String> {
     app.outbox
         .iter()
         .filter(|i| i.name.starts_with(stem))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .collect()
 }
 
@@ -866,7 +866,7 @@ fn results_waiting(app: &Faraday) -> Vec<String> {
     app.outbox
         .iter()
         .filter(|i| i.name.ends_with("-signed.psbt") || i.name.ends_with("-final.txn"))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .collect()
 }
 

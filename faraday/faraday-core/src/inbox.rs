@@ -278,7 +278,7 @@ impl InboxArea {
         let ext = Text::of(last.name.rsplit_once('.').map_or("txt", |(_, e)| e));
         let wanted = text!("{stem}.{}", &*ext);
         if !taken.contains(&wanted) {
-            last.name = (&*wanted).into();
+            last.name = Text::of(&wanted);
         }
         Some(Text::of(&last.name))
     }
@@ -306,7 +306,7 @@ impl InboxArea {
     /// Gives file `at` the name `name`.
     #[cfg(test)]
     pub(crate) fn rename(&mut self, at: usize, name: Text) {
-        self.files.changed()[at].name = (&*name).into();
+        self.files.changed()[at].name = Text::of(&name);
     }
 
     /// Puts `item` in place of file `at`.
@@ -801,7 +801,7 @@ impl Faraday {
         self.inbox
             .retain(|i| !(i.kind == FileKind::Vault && vaults.same_vault_files(i.sha, item.sha)));
         let kept = self.free_inbox_name(&item.name);
-        if kept.as_str() != item.name {
+        if item.name != kept.as_str() {
             let told = Text::fill(EN.storage_event_kept_as, &[&item.name, &kept]);
             self.visit.log_push((told, true));
         }

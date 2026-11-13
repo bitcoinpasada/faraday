@@ -149,7 +149,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     let held = app
         .inbox
         .get(from.index)
-        .is_some_and(|i| i.name == *from.name && i.bytes == bytes);
+        .is_some_and(|i| i.name == from.name.as_str() && i.bytes == bytes);
     if !held || (app.screen, app.sheet) != (from.screen, from.sheet) {
         return;
     }

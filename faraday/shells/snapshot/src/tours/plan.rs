@@ -107,7 +107,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .iter()
         .filter(|i| i.name.starts_with("blank-template"))
     {
-        let path = t.out.join(format!("outbox-{}", item.name));
+        let path = t.out.join(format!("outbox-{}", item.name.as_str()));
         std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }

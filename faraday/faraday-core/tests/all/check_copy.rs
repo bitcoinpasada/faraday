@@ -895,7 +895,7 @@ fn save_as_a_file_offers_no_seedqr_picture_for_a_words_only_copy() {
             .expect("the file is offered")
             .forms
             .iter()
-            .map(|f| f.name.clone())
+            .map(|f| String::from(&*f.name))
             .collect::<Vec<_>>()
     };
     let words = labels(WORDS_ONLY);

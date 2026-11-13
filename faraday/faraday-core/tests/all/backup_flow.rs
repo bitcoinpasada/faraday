@@ -2599,7 +2599,11 @@ fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickab
     for n in &names {
         assert!(app.in_the_backup(n), "{n}");
         assert!(!app.visit().out.contains(n), "{n} is not ticked");
-        let k = app.outbox.iter().position(|i| &i.name == n).unwrap();
+        let k = app
+            .outbox
+            .iter()
+            .position(|i| i.name.as_str() == n.as_str())
+            .unwrap();
         app.press(Action::VisitOut(k));
         assert!(!app.visit().out.contains(n), "{n} cannot be ticked");
     }
@@ -2966,7 +2970,7 @@ fn a_new_vault_in_the_flow_goes_beside_what_the_stick_holds_with_no_sheet() {
 /// is: in the Outbox and named on each slot.
 fn with_a_plain_file(app: &mut Faraday) {
     let note = faraday_core::Item {
-        name: "note.pdf".into(),
+        name: faraday_text::Text::of("note.pdf"),
         bytes: (b"a plain file".to_vec()).into(),
         kind: faraday_core::wallet::FileKind::Pdf,
         secret: false,

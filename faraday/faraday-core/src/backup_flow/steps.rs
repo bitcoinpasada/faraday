@@ -2237,7 +2237,7 @@ impl Faraday {
             if self
                 .outbox
                 .iter()
-                .any(|it| it.name == name && sha256_of(c, &it.bytes) == sha)
+                .any(|it| it.name == name.as_str() && sha256_of(c, &it.bytes) == sha)
             {
                 public.push(name);
             }

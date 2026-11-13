@@ -1016,7 +1016,7 @@ impl Faraday {
                 true
             }
             FileKind::Share => {
-                if !r.shares.iter().any(|s| s.as_str() == name) {
+                if !r.shares.iter().any(|s| name == s.as_str()) {
                     r.shares.push(Text::of(&name));
                 }
                 r.open = Some(rstep::DESCRIPTION);
@@ -1156,7 +1156,7 @@ impl Faraday {
         let mut texts: Vec<Text> = self
             .inbox
             .iter()
-            .filter(|i| r.shares.iter().any(|s| s.as_str() == i.name))
+            .filter(|i| r.shares.iter().any(|s| i.name == s.as_str()))
             .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
         // The shares kept in every open vault (`docs/BACKUP-FLOW.md`

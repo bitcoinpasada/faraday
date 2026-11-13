@@ -306,7 +306,7 @@ fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick()
         faraday_core::file_stem(&app.session.wallets[w].name).as_str()
     );
     assert!(
-        app.outbox.iter().any(|i| i.name == name),
+        app.outbox.iter().any(|i| i.name.as_str() == name.as_str()),
         "{name} is not For the stick"
     );
     assert!(done(&app, Item::PublicFiles));
@@ -369,7 +369,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         assert!(
             !item.bytes.windows(NAME.len()).any(|b| b == NAME.as_bytes()),
             "{} holds the place's name",
-            item.name
+            item.name.as_str()
         );
     }
     // Made again, the plan is replaced, not added to: Vault 1's stick at
@@ -455,7 +455,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
         assert!(
             !item.bytes.windows(NAME.len()).any(|b| b == NAME.as_bytes()),
             "{} holds the place's name",
-            item.name
+            item.name.as_str()
         );
     }
 }
@@ -805,7 +805,9 @@ fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made
     assert!(
         !app.outbox
             .iter()
-            .any(|i| i.name == electrum || i.name == core || i.name.ends_with("-wasabi.json")),
+            .any(|i| i.name.as_str() == electrum.as_str()
+                || i.name.as_str() == core.as_str()
+                || i.name.ends_with("-wasabi.json")),
         "{:?}",
         app.outbox.iter().map(|i| &i.name).collect::<Vec<_>>()
     );
@@ -832,7 +834,11 @@ fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made
     // With one made, it opens open.
     app.press(Action::PublicMore(w));
     app.press(Action::PublicOut(w, 10));
-    assert!(app.outbox.iter().any(|i| i.name == electrum));
+    assert!(
+        app.outbox
+            .iter()
+            .any(|i| i.name.as_str() == electrum.as_str())
+    );
     reopen_public(&mut app);
     assert!(!offered_anywhere(&mut app, Action::PublicMore(w)));
     assert!(offered_anywhere(&mut app, Action::PublicOut(w, 9)));

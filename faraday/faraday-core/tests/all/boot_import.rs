@@ -229,7 +229,7 @@ fn row(app: &Faraday, name: &str) -> usize {
 }
 
 fn inbox_names(app: &Faraday) -> Vec<String> {
-    let mut v: Vec<String> = app.inbox().iter().map(|i| i.name.clone()).collect();
+    let mut v: Vec<String> = app.inbox().iter().map(|i| String::from(&*i.name)).collect();
     v.sort();
     v
 }

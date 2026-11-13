@@ -228,7 +228,7 @@ fn the_timelocked_tree_sample_names_its_key_path_holder() {
 
 /// The names in Files, in order.
 fn files(app: &Faraday) -> Vec<String> {
-    app.inbox().iter().map(|i| i.name.clone()).collect()
+    app.inbox().iter().map(|i| String::from(&*i.name)).collect()
 }
 
 #[test]

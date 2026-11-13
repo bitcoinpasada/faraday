@@ -998,7 +998,7 @@ fn a_file_known_as_a_vault_outside_the_plan_gets_no_press_and_its_newer_copy_sta
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S2");
-    let names: Vec<_> = app.inbox().iter().map(|i| i.name.clone()).collect();
+    let names: Vec<_> = app.inbox().iter().map(|i| String::from(&*i.name)).collect();
     assert!(
         app.inbox()
             .iter()

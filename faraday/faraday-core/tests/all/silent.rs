@@ -645,7 +645,7 @@ fn descriptor_out() -> (Faraday, String) {
     let item = app
         .outbox
         .iter()
-        .find(|i| i.name == name)
+        .find(|i| i.name.as_str() == name.as_str())
         .unwrap_or_else(|| panic!("no {name}"));
     let text = String::from_utf8(item.bytes.to_vec()).unwrap();
     (app, text)

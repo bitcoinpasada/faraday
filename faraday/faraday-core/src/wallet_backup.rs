@@ -1479,7 +1479,7 @@ impl WalletBackupArea {
     /// words before it stay and typing resumes at it.
     pub(crate) fn check_wrong(&mut self, k: usize, line: Text) {
         if let Some(c) = self.open_check() {
-            c.wrong(k, (&*line).into());
+            c.wrong(k, line);
         }
     }
 
@@ -2615,7 +2615,11 @@ impl Faraday {
         }
         let w = b.wallet;
         let made = self.public_names(w, what);
-        if !self.outbox.iter().any(|i| made.contains(&i.name)) {
+        if !self
+            .outbox
+            .iter()
+            .any(|i| made.iter().any(|n| i.name == n.as_str()))
+        {
             return None;
         }
         self.public_remove(w, what);

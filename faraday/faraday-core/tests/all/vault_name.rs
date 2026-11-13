@@ -43,7 +43,7 @@ fn make(app: &mut Faraday, name: &str) {
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {
-    app.outbox.iter().map(|i| i.name.clone()).collect()
+    app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
 #[test]

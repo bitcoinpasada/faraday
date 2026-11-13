@@ -706,7 +706,7 @@ impl Faraday {
     /// of its name.
     pub(crate) fn put_item(&mut self, item: crate::Item) {
         if item.exposure() == crate::secrets::Exposure::Secret {
-            debug_assert!(false, "a secret reached put_outbox: {}", item.name);
+            debug_assert!(false, "a secret reached put_outbox: {}", &*item.name);
             return;
         }
         self.outbox.retain(|i| i.name != item.name);
@@ -721,7 +721,7 @@ impl Faraday {
             Beside::Same(name) => name,
             Beside::Put(mut item) => {
                 let free = outbox_free_name(&self.outbox, &item.name);
-                item.name = (&*free).into();
+                item.name = Text::of(&free);
                 self.put_item(*item);
                 free
             }
@@ -802,12 +802,12 @@ impl Faraday {
         let mut out: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = self
             .outbox
             .iter()
-            .filter(|i| self.visit.out.contains(&i.name))
+            .filter(|i| self.visit.out.contains(&*i.name))
             .map(|i| (Text::of(&i.name), i.bytes.clone(), false))
             .collect();
         for k in self.visit_inbox_rows() {
             let item = &self.inbox[k];
-            if self.visit.from_inbox.contains(&item.name) {
+            if self.visit.from_inbox.contains(&*item.name) {
                 out.push((Text::of(&item.name), item.bytes.clone(), true));
             }
         }

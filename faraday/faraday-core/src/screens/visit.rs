@@ -358,7 +358,7 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
         (Some(Action::VisitSettings), None, None),
     );
     for (k, item) in app.outbox.iter().enumerate() {
-        let on = app.visit.out.contains(&item.name);
+        let on = app.visit.out.contains(&*item.name);
         let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
             _ if held => (
@@ -407,7 +407,7 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
             y += row(
                 ui,
                 y,
-                app.visit.from_inbox.contains(&item.name),
+                app.visit.from_inbox.contains(&*item.name),
                 &item.name,
                 &visit_inbox_line(item),
                 if held {
@@ -681,7 +681,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     };
     for (k, item) in app.outbox.iter().enumerate() {
-        let on = app.visit.out.contains(&item.name);
+        let on = app.visit.out.contains(&*item.name);
         let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
             _ if held => (
@@ -726,7 +726,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ry += HEAD;
         for &(k, held) in &shown {
             let item = &app.inbox[k];
-            let on = app.visit.from_inbox.contains(&item.name);
+            let on = app.visit.from_inbox.contains(&*item.name);
             file_row(
                 ui,
                 ry,
@@ -1025,13 +1025,13 @@ fn visit_all_out(app: &View) -> bool {
             .iter()
             .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
             .filter(|i| !app.in_the_backup(&i.name))
-            .all(|i| app.visit.out.contains(&i.name))
+            .all(|i| app.visit.out.contains(&*i.name))
         && app
             .visit_inbox_rows()
             .into_iter()
             .filter_map(|k| app.inbox.get(k))
             .filter(|i| i.copy_ack().is_none())
-            .all(|i| app.visit.from_inbox.contains(&i.name))
+            .all(|i| app.visit.from_inbox.contains(&*i.name))
 }
 
 /// How many files a visit's Write writes: the settings, the Outbox files
@@ -1040,13 +1040,13 @@ fn visit_write_count(app: &View) -> usize {
     let out = app
         .outbox
         .iter()
-        .filter(|i| app.visit.out.contains(&i.name))
+        .filter(|i| app.visit.out.contains(&*i.name))
         .count();
     let inbox = app
         .visit_inbox_rows()
         .into_iter()
         .filter_map(|k| app.inbox.get(k))
-        .filter(|i| app.visit.from_inbox.contains(&i.name))
+        .filter(|i| app.visit.from_inbox.contains(&*i.name))
         .count();
     out + inbox + usize::from(app.visit_settings_on())
 }

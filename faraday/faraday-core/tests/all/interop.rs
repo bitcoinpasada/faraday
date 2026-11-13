@@ -80,7 +80,7 @@ fn scanned(text: &str) -> faraday_core::Item {
 fn sparrows_multisig_as_a_crypto_output_code_scans_in_as_its_wallet() {
     let c = faraday_core::testkit::compute();
     let item = scanned(&file("bluewallet/sparrow-crypto-output.txt"));
-    assert_eq!(item.kind, FileKind::Wallet, "{}", item.name);
+    assert_eq!(item.kind, FileKind::Wallet, "{}", item.name.as_str());
     let w = read_wallet(&c, &String::from_utf8_lossy(&item.bytes)).unwrap();
     assert!(w.to_descriptor().starts_with("wsh(sortedmulti(2,"));
     assert_eq!(w.keys().len(), 3);
@@ -89,7 +89,7 @@ fn sparrows_multisig_as_a_crypto_output_code_scans_in_as_its_wallet() {
 #[test]
 fn a_keystone_cobo_account_code_scans_in_as_its_multisig_account_key() {
     let item = scanned(&file("bluewallet/cobo-crypto-account.txt"));
-    assert_eq!(item.kind, FileKind::Key, "{}", item.name);
+    assert_eq!(item.kind, FileKind::Key, "{}", item.name.as_str());
     let key = faraday_core::create::read_key(&String::from_utf8_lossy(&item.bytes)).unwrap();
     // BlueWallet reads this code as fingerprint 01EBDA7D at m/48'/0'/0'/2'.
     assert!(
@@ -469,7 +469,12 @@ fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
     app.press(faraday_core::Action::PublicOut(w, what));
     app.outbox
         .iter()
-        .map(|i| (i.name.clone(), String::from_utf8(i.bytes.to_vec()).unwrap()))
+        .map(|i| {
+            (
+                String::from(&*i.name),
+                String::from_utf8(i.bytes.to_vec()).unwrap(),
+            )
+        })
         .collect()
 }
 

@@ -112,7 +112,10 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
         name: faraday_text::Text::of(&name.clone()),
         bytes,
     });
-    let item = app.inbox().iter().find(|i| i.name == name);
+    let item = app
+        .inbox()
+        .iter()
+        .find(|i| i.name.as_str() == name.as_str());
     assert_eq!(
         item.map(|i| i.kind),
         Some(FileKind::Words),

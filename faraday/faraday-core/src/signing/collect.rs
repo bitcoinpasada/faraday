@@ -149,7 +149,7 @@ fn start(app: &mut Faraday, index: usize, spend_backup: bool) {
     let waiting = app
         .outbox
         .iter()
-        .find(|i| i.name == *part)
+        .find(|i| i.name == part.as_str())
         .map(|i| i.bytes.clone());
     let work = CollectWork {
         bytes,

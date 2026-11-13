@@ -45,7 +45,7 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         faraday_core::testkit::inbox_push(
             &mut t.app,
             faraday_core::Item {
-                name: format!("{name}.txt"),
+                name: faraday_text::Text::of(&format!("{name}.txt")),
                 bytes: text.into_bytes().into(),
                 kind: faraday_core::wallet::FileKind::Wallet,
                 secret: false,

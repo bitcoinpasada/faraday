@@ -172,7 +172,7 @@ fn reopened(app: &mut Faraday) -> Vec<Fingerprint> {
         .outbox
         .iter()
         .find(|i| i.name == "vault.kdbx")
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
     unlock(&mut next);
@@ -190,8 +190,12 @@ fn seed_file(app: &mut Faraday, form: u8) -> (String, Vec<u8>) {
     app.press(Action::SecretHold);
     assert_eq!(app.sheet, None);
     let item = app.outbox.last().expect("nothing reached the Outbox");
-    assert!(item.secret, "{} is not listed as a secret", item.name);
-    (item.name.clone(), item.bytes.to_vec())
+    assert!(
+        item.secret,
+        "{} is not listed as a secret",
+        item.name.as_str()
+    );
+    (String::from(&*item.name), item.bytes.to_vec())
 }
 
 /// The fingerprint Add a key's scanner loads from a SeedQR picture.
@@ -327,7 +331,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
     let k = next
         .inbox()
         .iter()
-        .position(|i| i.name == name)
+        .position(|i| i.name.as_str() == name.as_str())
         .expect("not copied in");
     next.press(Action::LoadKey(k));
     assert_eq!(next.session.keys.len(), 1, "the key did not load");
@@ -389,7 +393,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
         let (name, _) = seed_file(&mut app, form);
         // A public file beside it, which the visit does tick.
         app.outbox.push(faraday_core::Item {
-            name: "wallet-descriptor.txt".into(),
+            name: faraday_text::Text::of("wallet-descriptor.txt"),
             bytes: (b"wpkh([00000000/84h/1h/0h]tpub)".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
@@ -666,7 +670,7 @@ fn locked_and_opened(app: &mut Faraday) -> Faraday {
         .outbox
         .iter()
         .find(|i| i.name == "vault.kdbx")
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
     unlock(&mut next);

@@ -567,6 +567,11 @@ faraday/faraday-core/src/backup_flow/steps.rs
 faraday/faraday-core/src/backup_flow/gpg_restore.rs
 faraday/faraday-core/src/wallet_backup.rs
 faraday/faraday-core/src/wallet_backup/kef.rs
+faraday/faraday-core/src/compare/mod.rs
+faraday/faraday-core/src/tools/mod.rs
+faraday/faraday-core/src/codes/mod.rs
+faraday/faraday-core/src/copy_check.rs
+faraday/faraday-core/src/item.rs
 faraday/faraday-keys/src/bip85.rs
 faraday/faraday-keys/src/codex32.rs
 faraday/faraday-keys/src/gpg.rs
@@ -640,9 +645,10 @@ done
 #   specter.rs         holds the Specter payload it reads or makes as wiping text
 #   wallet_files.rs    holds the wallet files' text as wiping text
 #   held.rs            holds a key's passphrase it writes to the vault as wiping text
+#   codes/mod.rs       holds the entry's account and title as wiping text and the shown one-time code
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

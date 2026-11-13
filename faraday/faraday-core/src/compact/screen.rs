@@ -178,7 +178,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None if app.psbt_for(app.wallets.wallet()).is_some() => None,
         None => app.lead_psbt().map(|i| {
             (
-                fill(EN.compact_review, &[&app.inbox[i].name.to_string()]),
+                fill(EN.compact_review, &[&app.inbox[i].name]),
                 Action::StartSpend(i),
             )
         }),

@@ -1567,7 +1567,7 @@ impl Faraday {
         };
         let Some((psbt, version)) = read else {
             if let Some(s) = self.decode.compare.as_mut() {
-                s.refused[usize::from(slot.card())] = Some(EN.compare_not_a_transaction.into());
+                s.refused[usize::from(slot.card())] = Some(Text::of(EN.compare_not_a_transaction));
             }
             return false;
         };
@@ -1583,7 +1583,7 @@ impl Faraday {
             psbt,
             version,
             outpoints,
-            name: name.as_str().into(),
+            name: Text::of(name.as_str()),
             origin,
             differs: false,
         };

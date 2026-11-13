@@ -1105,7 +1105,7 @@ pub(super) fn pull_line(app: &View) -> Text {
     let n = app
         .inbox
         .iter()
-        .filter(|i| i.kind == FileKind::Words && app.visit.load_after.contains(&i.name))
+        .filter(|i| i.kind == FileKind::Words && app.visit.load_after.contains(&*i.name))
         .count();
     let vault = app
         .vault_files()

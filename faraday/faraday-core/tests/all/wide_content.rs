@@ -55,7 +55,7 @@ fn with_wallets(width: u16, height: u16) -> Faraday {
         let i = app
             .inbox()
             .iter()
-            .position(|it| &it.name == n)
+            .position(|it| it.name.as_str() == n.as_str())
             .expect("the wallet's file");
         app.press(Action::LoadWallet(i));
     }

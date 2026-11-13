@@ -170,7 +170,7 @@ fn outbox<'a>(app: &'a Faraday, name: &str) -> &'a faraday_core::Item {
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {
-    app.outbox.iter().map(|i| i.name.clone()).collect()
+    app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
 /// The open vault's records and changes, to say nothing went in.

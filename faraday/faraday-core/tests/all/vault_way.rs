@@ -431,7 +431,11 @@ fn an_entries_file_in_files_offers_import_once_a_vault_is_open() {
         testkit::ENTRIES_FILE.as_bytes().to_vec(),
     )]);
     app.press(Action::Nav(Screen::Files));
-    let k = app.inbox().iter().position(|i| i.name == name).unwrap();
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name.as_str() == name.as_str())
+        .unwrap();
     assert!(!offered(
         &mut app,
         Action::Vault(V::CreateFrom(Screen::Files))

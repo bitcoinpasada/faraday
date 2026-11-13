@@ -130,7 +130,10 @@ fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
         app.visit().log
     );
     for (name, bytes) in release_files() {
-        let item = app.inbox().iter().find(|i| i.name == name);
+        let item = app
+            .inbox()
+            .iter()
+            .find(|i| i.name.as_str() == name.as_str());
         assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");
     }
 }
@@ -224,7 +227,7 @@ fn listed(app: &Faraday, name: &str) -> usize {
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {
-    app.outbox.iter().map(|i| i.name.clone()).collect()
+    app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
 /// Sign on the page, then the hold on Sign with {key}: the one way a
@@ -433,7 +436,7 @@ fn making_a_key_keeps_its_revocation_with_it_and_not_in_the_outbox() {
         assert!(
             !String::from_utf8_lossy(&item.bytes).contains("revocation certificate"),
             "{}",
-            item.name
+            item.name.as_str()
         );
     }
     // The result says where it is kept.
@@ -613,8 +616,8 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
     app.press(Action::Vault(V::GpgExportRevocation));
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert_eq!(
-        testkit::secret_out(&app).map(|o| o.name.clone()),
-        Some(faraday_text::Text::of(&format!("release-{fpr}.rev")))
+        testkit::secret_out(&app).map(|o| String::from(&*o.name)),
+        Some(format!("release-{fpr}.rev"))
     );
     // Nothing is in the Outbox until the person says they understand.
     assert_eq!(app.outbox.len(), 1);
@@ -623,7 +626,7 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
     let item = app
         .outbox
         .iter()
-        .find(|i| i.name == format!("release-{fpr}.rev"))
+        .find(|i| i.name.as_str() == format!("release-{fpr}.rev"))
         .expect("the .rev file");
     assert!(item.secret, "listed with the unprotected secrets");
     let text = String::from_utf8(item.bytes.to_vec()).unwrap();
@@ -714,10 +717,18 @@ fn no_seed_and_no_paperkey_reaches_the_outbox() {
         let text = String::from_utf8_lossy(&item.bytes).to_string();
         for seed in [key.primary_seed, key.subkey_seed] {
             let hexed: String = seed.iter().map(|b| format!("{b:02x}")).collect();
-            assert!(!item.bytes.windows(32).any(|w| w == seed), "{}", item.name);
-            assert!(!text.to_lowercase().contains(&hexed), "{}", item.name);
+            assert!(
+                !item.bytes.windows(32).any(|w| w == seed),
+                "{}",
+                item.name.as_str()
+            );
+            assert!(
+                !text.to_lowercase().contains(&hexed),
+                "{}",
+                item.name.as_str()
+            );
         }
-        assert!(!text.contains(&first), "{}", item.name);
+        assert!(!text.contains(&first), "{}", item.name.as_str());
     }
 }
 
@@ -740,7 +751,7 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
         let sig = app
             .outbox
             .iter()
-            .find(|i| i.name == format!("{name}.asc"))
+            .find(|i| i.name.as_str() == format!("{name}.asc"))
             .unwrap_or_else(|| panic!("no signature for {name}"));
         assert!(
             sig.bytes.starts_with(b"-----BEGIN PGP SIGNATURE-----"),
@@ -750,7 +761,7 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
     assert!(
         !app.outbox
             .iter()
-            .any(|i| i.name == format!("{}.asc", names[2])),
+            .any(|i| i.name.as_str() == format!("{}.asc", names[2])),
         "the third file was never ticked"
     );
     assert!(app.vaults().sign_ticked.is_empty(), "the ticks clear");
@@ -955,7 +966,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
     testkit::inbox_push(
         &mut app,
         Item {
-            name: format!("{name}.asc"),
+            name: faraday_text::Text::of(&format!("{name}.asc")),
             bytes: (b"-----BEGIN PGP SIGNATURE-----\n...".to_vec()).into(),
             kind: FileKind::Other,
             secret: false,
@@ -972,7 +983,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
         app.inbox()
             .iter()
             .filter(|i| !i.name.ends_with(".asc"))
-            .all(|x| x.name != format!("{name}.asc")),
+            .all(|x| x.name.as_str() != format!("{name}.asc")),
         "an .asc file is not itself signable"
     );
 }
@@ -1045,7 +1056,7 @@ fn a_signature_never_overwrites_the_certificate() {
     testkit::inbox_push(
         &mut app,
         Item {
-            name: stem.clone(),
+            name: faraday_text::Text::of(&stem),
             bytes: (b"the file named like the certificate".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
@@ -1129,7 +1140,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
         &mut app,
         0,
         Item {
-            name: "another".into(),
+            name: faraday_text::Text::of("another"),
             bytes: (b"another file".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
@@ -1562,7 +1573,10 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         }
     }
     for (name, bytes) in &files {
-        let item = app.inbox().iter().find(|i| i.name == *name);
+        let item = app
+            .inbox()
+            .iter()
+            .find(|i| i.name.as_str() == name.as_str());
         assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -1625,7 +1639,7 @@ fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
         let n = app
             .outbox
             .iter()
-            .filter(|i| i.name == format!("{name}.asc"))
+            .filter(|i| i.name.as_str() == format!("{name}.asc"))
             .count();
         assert_eq!(n, 1, "{name} signed once");
     }

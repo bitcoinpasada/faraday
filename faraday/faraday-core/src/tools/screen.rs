@@ -291,7 +291,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                     },
                 ));
             }
-            Err(e) => note = Some(e.clone()),
+            Err(e) => note = Some(String::from(&**e)),
         },
     }
     if let Some(n) = note {

@@ -445,10 +445,10 @@ fn a_second_message_from_one_address_goes_beside_the_first() {
         .unwrap();
     assert!(app.offers(Action::OutboxRemove(own)));
     assert!(!app.offers(Action::OutboxRemove(0)), "the first's file");
-    let names: Vec<&String> = app.outbox.iter().map(|i| &i.name).collect();
+    let names: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
     assert_eq!(names.len(), 2, "{names:?}");
     assert!(names[1].ends_with("-2.txt"), "{names:?}");
-    assert!(app.toast_text().unwrap().contains(names[1].as_str()));
+    assert!(app.toast_text().unwrap().contains(names[1]));
 }
 
 /// An app with a new GPG key in the open test vault, its certificate
@@ -526,7 +526,7 @@ fn a_gpg_public_key_reads_back_from_its_code_and_its_picture() {
     let asc = app
         .outbox
         .iter()
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .find(|n| n.ends_with(".asc"))
         .expect("the public key");
     let stem = asc.trim_end_matches(".asc").to_string();
@@ -611,7 +611,7 @@ fn specter_diys_addwallet_reads_back_from_its_numbered_parts_shown_and_as_pictur
         .outbox
         .iter()
         .filter(|i| i.name.starts_with("savings-specter-diy-part-"))
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .collect();
     assert_eq!(pictures.len(), q_frames(&mut app, w));
     pictures.sort();

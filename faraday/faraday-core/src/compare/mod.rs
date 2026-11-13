@@ -6,7 +6,7 @@
 //! them), kept until a lock or power-off as Check a signer's is.
 
 use crate::decode::check::Origin;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::InspectInputs;
 use crate::{Item, Screen, flow};
 use faraday_bip::bitcoin::{OutPoint, Txid};
@@ -14,6 +14,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_psbt::Psbt;
 use faraday_psbt::bump::{Bump, Line, Outcome};
 use faraday_psbt::diff::Differences;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 pub(crate) mod others;
@@ -89,7 +90,7 @@ pub(crate) struct Side {
     /// The outpoints it spends, sorted.
     pub outpoints: Vec<OutPoint>,
     /// What the closed card shows: the file's name, or "Scanned".
-    pub name: String,
+    pub name: Text,
     /// Where it came from.
     pub origin: Origin,
     /// Whether Files holds no file of this name, in either box, with
@@ -121,7 +122,7 @@ pub(crate) struct CompareState {
     /// The card open.
     pub open: u8,
     /// Why a card refused what was given it.
-    pub refused: [Option<String>; 2],
+    pub refused: [Option<Text>; 2],
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// Where the flow was opened from.
@@ -216,19 +217,19 @@ impl CompareState {
     /// A file's line in the lists: "{n} signatures · {id}" for a PSBT,
     /// "Finished · {id}" for a finished transaction. Reads what the file
     /// and `sync` kept.
-    pub(crate) fn line(&self, item: &Item) -> String {
+    pub(crate) fn line(&self, item: &Item) -> Text {
         if let Some(p) = item.psbt() {
-            let id = faraday_ui::short(&p.txid.to_string());
+            let id = faraday_ui::short(&text!("{}", p.txid));
             return if p.sigs == 1 {
-                fill(EN.signer_row_one, &[&id])
+                Text::fill(EN.signer_row_one, &[&id])
             } else {
-                fill(EN.signer_row, &[&p.sigs.to_string(), &id])
+                Text::fill(EN.signer_row, &[&Text::num(p.sigs as u64), &id])
             };
         }
-        self.id_of(&item.bytes).map_or_else(String::new, |t| {
-            fill(
+        self.id_of(&item.bytes).map_or_else(Text::new, |t| {
+            Text::fill(
                 EN.compare_row_finished,
-                &[&faraday_ui::short(&t.to_string())],
+                &[&faraday_ui::short(&text!("{t}"))],
             )
         })
     }
@@ -278,7 +279,7 @@ pub(crate) fn rows(
                     && s.origin
                         == (Origin::File {
                             outbox: *outbox,
-                            name: faraday_text::Text::of(&item.name),
+                            name: item.name.duplicate(),
                         })
                 {
                     continue;
@@ -310,7 +311,7 @@ pub(crate) struct BumpShown {
     /// The result line.
     pub result: &'static str,
     /// The lines, in the rules' order.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
     /// The facts under them.
     pub facts: Vec<words::Fact>,
 }
@@ -334,7 +335,7 @@ pub(crate) struct Shown {
     /// The fee bump result, where §3.1 says it applies.
     pub bump: Option<BumpShown>,
     /// A line per difference, or "No differences".
-    pub differences: Vec<String>,
+    pub differences: Vec<Text>,
     /// Whether **Check a signer** is offered: the two are one unsigned
     /// transaction and both are PSBTs.
     pub can_check: bool,
@@ -358,10 +359,10 @@ pub(crate) fn shown(d: &Differences, bump: Option<&Bump>, psbts: bool) -> Shown 
         bump: bump.map(|b| BumpShown {
             outcome: b.result,
             result: words::result(b.result),
-            lines: b.lines.iter().map(words::line).collect(),
+            lines: b.lines.iter().map(|l| Text::of(&words::line(l))).collect(),
             facts: words::bump_facts(b),
         }),
-        differences: words::differences(d),
+        differences: words::differences(d).iter().map(|l| Text::of(l)).collect(),
         can_check: psbts && d.same_transaction(),
         load,
     }

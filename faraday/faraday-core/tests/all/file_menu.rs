@@ -84,7 +84,7 @@ fn visiting_as(known: bool, outbox: Files, on_stick: Files) -> (Shell, Faraday) 
         shell.plug(&mut app, "S1");
     }
     shell.press(&mut app, Action::Nav(Screen::Files));
-    let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    let names: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     for (i, n) in names.iter().enumerate() {
         if !app.visit().out.contains(n) {
             shell.press(&mut app, Action::VisitOut(i));
@@ -383,7 +383,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     faraday_core::testkit::inbox_push(
         &mut app,
         Item {
-            name: "spend.psbt".into(),
+            name: faraday_text::Text::of("spend.psbt"),
             bytes: (b"psbt".to_vec()).into(),
             kind: FileKind::Psbt,
             secret: false,

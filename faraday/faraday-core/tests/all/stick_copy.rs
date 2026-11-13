@@ -216,7 +216,11 @@ fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
     }
     // The copy stays in the Inbox, for the next stick; the Outbox is
     // untouched.
-    assert!(app.inbox().iter().any(|i| i.name == share.0));
+    assert!(
+        app.inbox()
+            .iter()
+            .any(|i| i.name.as_str() == share.0.as_str())
+    );
     assert!(app.outbox.is_empty());
 }
 
@@ -236,7 +240,7 @@ fn a_picture_copied_in_keeps_its_bytes_and_its_codes_are_still_read() {
     let picture = app
         .inbox()
         .iter()
-        .find(|i| i.name == png.0)
+        .find(|i| i.name.as_str() == png.0.as_str())
         .expect("the picture itself is not in the Inbox");
     assert_eq!(*picture.bytes, png.1);
 
@@ -425,7 +429,10 @@ fn a_picture_keeps_what_its_codes_hold_across_a_lock_and_a_seedqr_does_not_outli
         kept,
     });
     assert!(
-        !next.inbox().iter().any(|i| i.name == seedqr.0),
+        !next
+            .inbox()
+            .iter()
+            .any(|i| i.name.as_str() == seedqr.0.as_str()),
         "a SeedQR outlived the lock"
     );
     let b = Stick::new("b", &[]);
@@ -571,7 +578,7 @@ fn a_gpg_public_key_and_signature_stay_in_the_inbox_across_a_lock() {
         let item = next
             .inbox()
             .iter()
-            .find(|i| i.name == *name)
+            .find(|i| i.name.as_str() == name.as_str())
             .unwrap_or_else(|| panic!("{name} did not outlive the lock"));
         assert_eq!(&*item.bytes, bytes);
         assert_eq!(item.kind, FileKind::Gpg);

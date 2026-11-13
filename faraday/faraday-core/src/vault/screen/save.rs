@@ -380,13 +380,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
     if let Some((k, checked)) = &app.vaults.sb_sign
         && let Some(item) = app.inbox.get(*k)
     {
-        ui.text_as(
-            dx,
-            dy,
-            TITLE_M,
-            ink,
-            &fill(EN.vault_sign_n, &[&item.name.to_string()]),
-        );
+        ui.text_as(dx, dy, TITLE_M, ink, &fill(EN.vault_sign_n, &[&item.name]));
         dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
         ui.text_as(dx, dy, BODY_S, muted, "SHA-256");
         dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;

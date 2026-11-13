@@ -9,11 +9,12 @@
 
 pub(crate) mod screen;
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::KeyTexts;
 use faraday_bip::compile::PolicyScript;
 use faraday_codec::encodings::ReadAs;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 use crate::{Faraday, Screen};
 
@@ -84,7 +85,7 @@ pub enum Reading {
     /// The extended key in every spelling.
     Key(faraday_bip::slip132::KeyReading),
     /// The policy compiled, or the compiler's refusal.
-    Miniscript(Result<faraday_bip::compile::PolicyFacts, String>),
+    Miniscript(Result<faraday_bip::compile::PolicyFacts, Text>),
 }
 
 /// A [`Reading`] with what it was worked out from: the calculator, the
@@ -96,7 +97,7 @@ struct KeptReading {
     read_as: ReadAs,
     script: PolicyScript,
     network: faraday_bip::keys::Network,
-    keys: Vec<(String, String)>,
+    keys: Vec<(Text, Text)>,
     reading: std::rc::Rc<Reading>,
 }
 
@@ -170,7 +171,7 @@ pub struct ToolsArea {
     /// The calculator on show, while Tools is open.
     tools: Option<ToolsState>,
     /// What is typed in Tools' Find a tool.
-    catalog_find: String,
+    catalog_find: Text,
     /// Convert a seed, a tool with a flow of its own.
     pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
@@ -233,7 +234,7 @@ impl ToolsArea {
 
     /// Costs what `account_text` costs. The loaded keys a policy may name
     /// by fingerprint: each one's multisig account key with both chains.
-    pub fn keys(c: &Compute, keys: &faraday_keys::Keys) -> Vec<(String, String)> {
+    pub fn keys(c: &Compute, keys: &faraday_keys::Keys) -> Vec<(Text, Text)> {
         keys.all()
             .enumerate()
             .filter_map(|(i, k)| {
@@ -241,8 +242,8 @@ impl ToolsArea {
                     .account_text(c, i, crate::create::NewKind::Multi, 0)
                     .ok()?;
                 Some((
-                    String::from(&*crate::wallet::fp_text(k.fingerprint)),
-                    format!("{}/<0;1>/*", &*text),
+                    crate::wallet::fp_text(k.fingerprint),
+                    text!("{}/<0;1>/*", &*text),
                 ))
             })
             .collect()
@@ -279,6 +280,12 @@ impl ToolsArea {
         {
             return Some(k.reading.clone());
         }
+        // The library takes the token and key as its own owned text: these
+        // are public account keys, copied only when a policy is compiled.
+        let named: Vec<_> = keys
+            .iter()
+            .map(|(token, key)| ((&**token).into(), (&**key).into()))
+            .collect();
         let reading = std::rc::Rc::new(match t.tool {
             Tool::Hashes => Reading::Hashes(
                 read_input(t.typed.trim(), t.read_as)
@@ -291,7 +298,7 @@ impl ToolsArea {
             Tool::ConvertKey => Reading::Key(faraday_bip::slip132::key_facts(&t.typed, network)),
             Tool::Units => Reading::Nothing,
             Tool::Miniscript => Reading::Miniscript(
-                faraday_bip::compile::compile(c, &t.typed, t.script, &keys)
+                faraday_bip::compile::compile(c, &t.typed, t.script, &named)
                     .map_err(|r| refusal_text(&r)),
             ),
         });
@@ -401,7 +408,7 @@ impl Faraday {
 
     /// Costs what `account_text` costs. The loaded keys a policy may name
     /// by fingerprint ([`ToolsArea::keys`]).
-    pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
+    pub fn tools_keys(&self, c: &Compute) -> Vec<(Text, Text)> {
         ToolsArea::keys(c, &self.session.keys)
     }
 
@@ -486,12 +493,12 @@ impl Faraday {
 
 /// What the Miniscript compiler's line says when it refuses: the app's
 /// words for which kind, then the compiler's own message where it has one.
-fn refusal_text(r: &faraday_bip::compile::Refusal) -> String {
+fn refusal_text(r: &faraday_bip::compile::Refusal) -> Text {
     use faraday_bip::compile::Refusal;
     match r {
-        Refusal::Empty => String::new(),
-        Refusal::Policy(m) => fill(EN.tools_miniscript_not_policy, &[m]),
-        Refusal::Script(m) => fill(EN.tools_miniscript_no_script, &[m]),
-        Refusal::LoneKeyTaproot => EN.tools_miniscript_lone_key.to_string(),
+        Refusal::Empty => Text::new(),
+        Refusal::Policy(m) => Text::fill(EN.tools_miniscript_not_policy, &[m]),
+        Refusal::Script(m) => Text::fill(EN.tools_miniscript_no_script, &[m]),
+        Refusal::LoneKeyTaproot => Text::of(EN.tools_miniscript_lone_key),
     }
 }

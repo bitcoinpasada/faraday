@@ -209,14 +209,14 @@ impl Faraday {
         match row {
             Row::In(k) => self.inbox.get(k).map(|i| {
                 (
-                    i.name.clone(),
+                    String::from(&*i.name),
                     i.bytes.len() as u64,
                     String::from(&*crate::screens::kind_line(i.kind, i.bytes.len())),
                 )
             }),
             Row::Out(k) => self.outbox.get(k).map(|i| {
                 (
-                    i.name.clone(),
+                    String::from(&*i.name),
                     i.bytes.len() as u64,
                     String::from(&*crate::screens::kind_line(i.kind, i.bytes.len())),
                 )
@@ -547,7 +547,7 @@ impl Faraday {
                 let Some(item) = self.outbox.get_mut(k) else {
                     return;
                 };
-                item.name = to.clone();
+                item.name = faraday_text::Text::of(&to);
                 self.visit.renamed_to(&r.from, &to);
                 // Chosen on a visit under its old name, it stays chosen.
                 self.visit.out_renamed(&r.from, &to);

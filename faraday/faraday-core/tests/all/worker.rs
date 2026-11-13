@@ -570,7 +570,12 @@ mod signing {
             (b.complete, b.open, &b.error)
         );
         assert!(!app.outbox.is_empty());
-        let names = |x: &Faraday| x.outbox.iter().map(|o| o.name.clone()).collect::<Vec<_>>();
+        let names = |x: &Faraday| {
+            x.outbox
+                .iter()
+                .map(|o| String::from(&*o.name))
+                .collect::<Vec<_>>()
+        };
         assert_eq!(names(&app), names(&inline));
     }
 
@@ -1039,7 +1044,7 @@ mod signing {
                 s.musig.as_ref().map(|m| m.len()),
                 app.outbox
                     .iter()
-                    .map(|o| o.name.clone())
+                    .map(|o| String::from(&*o.name))
                     .collect::<Vec<_>>(),
             )
         }
@@ -1201,7 +1206,7 @@ mod signing {
                 testkit::inbox_push(
                     &mut other,
                     faraday_core::Item {
-                        name: "whole.psbt".to_string(),
+                        name: faraday_text::Text::of("whole.psbt"),
                         bytes: (whole.clone()).into(),
                         kind,
                         secret: false,
@@ -1303,7 +1308,7 @@ mod signing {
             testkit::inbox_push(
                 &mut app,
                 faraday_core::Item {
-                    name: "copy.psbt".to_string(),
+                    name: faraday_text::Text::of("copy.psbt"),
                     bytes: bytes.into(),
                     kind,
                     secret: false,
@@ -1386,7 +1391,7 @@ mod signing {
             testkit::inbox_push(
                 app,
                 faraday_core::Item {
-                    name: "next.psbt".to_string(),
+                    name: faraday_text::Text::of("next.psbt"),
                     bytes: bytes.into(),
                     kind,
                     secret: false,
@@ -1666,7 +1671,7 @@ mod signing {
                 app.outbox
                     .iter()
                     .filter(|o| o.name.starts_with("musig-part"))
-                    .map(|o| o.name.clone())
+                    .map(|o| String::from(&*o.name))
                     .collect()
             };
             assert_eq!(names(&app), ["musig-part.psbt", "musig-part-2.psbt"]);
@@ -1795,7 +1800,7 @@ mod collect {
         let outbox: Vec<_> = app
             .outbox
             .iter()
-            .map(|i| format!("{} {:?}", i.name, i.bytes))
+            .map(|i| format!("{} {:?}", i.name.as_str(), i.bytes))
             .collect();
         format!(
             "{:?}\n{:?} {:?} {:?} {} {:?} {:?} {:?} {:?}\n{:?}\n{:?}",
@@ -1998,7 +2003,7 @@ mod collect {
         let mut inbox: Vec<_> = app
             .inbox()
             .iter()
-            .map(|i| (i.name.clone(), i.bytes.to_vec()))
+            .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
             .collect();
         inbox.push(("late.psbt".to_string(), vec![1, 2, 3]));
         app.storage(StorageEvent::Restored {

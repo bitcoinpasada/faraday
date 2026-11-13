@@ -311,7 +311,7 @@ impl Faraday {
             Ok(Check::Unreadable) => EN.secureboot_its_signature,
             Err(e) => error_text(e),
         };
-        let line = format!("{}: {said}", item.name);
+        let line = format!("{}: {said}", item.name.as_str());
         self.toast(&line);
         self.vaults.set_sb_checked(faraday_text::Text::of(&line));
     }

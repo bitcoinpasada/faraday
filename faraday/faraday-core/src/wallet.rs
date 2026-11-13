@@ -3641,10 +3641,10 @@ impl Faraday {
             && self
                 .outbox
                 .iter()
-                .any(|i| taken_back.iter().any(|n| n.as_str() == i.name))
+                .any(|i| taken_back.iter().any(|n| i.name == n.as_str()))
         {
             self.outbox
-                .retain(|i| !taken_back.iter().any(|n| n.as_str() == i.name));
+                .retain(|i| !taken_back.iter().any(|n| i.name == n.as_str()));
             self.save_boxes();
         }
         // Noted only when the check was stored or compared again: a note

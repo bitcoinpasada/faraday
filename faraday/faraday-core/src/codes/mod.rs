@@ -9,6 +9,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use faraday_keys::totp::NotTotp;
+use faraday_text::Text;
 use faraday_vault::records::field;
 
 use crate::vault::VaultAction;
@@ -20,7 +21,7 @@ pub enum CodeKind {
     /// and the period itself (for the progress bar's fraction).
     Code {
         /// The code, grouped for display (§4.2).
-        grouped: faraday_text::Text,
+        grouped: Text,
         /// Seconds until the next code.
         left: u32,
         /// The period the code is valid for, seconds.
@@ -89,11 +90,11 @@ pub struct CodeRow {
     /// The entry's place among that vault's records.
     pub item: usize,
     /// Field 1.
-    pub title: String,
+    pub title: Text,
     /// The URI label's account part, else field 2, else empty.
-    pub account: String,
+    pub account: Text,
     /// The vault's own name, shown only when more than one is open.
-    pub vault_name: String,
+    pub vault_name: Text,
     /// The code, or why there is none.
     pub kind: CodeKind,
 }
@@ -116,7 +117,7 @@ pub(crate) fn codes_rows_held(app: &Faraday) -> Vec<CodeRow> {
 
 /// What an entry gives: its code with the seconds left and the period,
 /// Set the time, HOTP or Unreadable.
-type Given = Result<Option<(faraday_text::Text, u32, u64)>, NotTotp>;
+type Given = Result<Option<(Text, u32, u64)>, NotTotp>;
 
 fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
     let mut out = Vec::new();
@@ -128,7 +129,7 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
             let Some(r) = records.get(at) else {
                 continue;
             };
-            let (account, given): (Option<faraday_text::Text>, Option<Given>) = if held {
+            let (account, given): (Option<Text>, Option<Given>) = if held {
                 // A record the hold says has no row has none; one it
                 // does not hold yet keeps its row, with no code.
                 let l = hold.and_then(|h| h.of(ov.id, at));
@@ -161,13 +162,9 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
                     Some(t.code.map(|c| c.map(|s| (s.grouped, s.left, s.period)))),
                 )
             };
-            let title = r
-                .public_text(field::TITLE)
-                .unwrap_or(EN.codes_entry)
-                .to_string();
+            let title = Text::of(r.public_text(field::TITLE).unwrap_or(EN.codes_entry));
             let account = account
-                .map(|a| String::from(&*a))
-                .or_else(|| r.public_text(field::USERNAME).map(str::to_string))
+                .or_else(|| r.public_text(field::USERNAME).map(Text::of))
                 .unwrap_or_default();
             let kind = match given {
                 None => CodeKind::NotHeld,
@@ -187,9 +184,9 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
                 title,
                 account,
                 vault_name: if many {
-                    String::from(ov.label(app.vaults.store()).as_str())
+                    Text::of(ov.label(app.vaults.store()).as_str())
                 } else {
-                    String::new()
+                    Text::new()
                 },
                 kind,
             });

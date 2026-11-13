@@ -108,7 +108,7 @@ fn the_session_strip_names_the_current_stage() {
     app.outbox.clear();
     app.session.keys.clear();
     app.outbox.push(faraday_core::Item {
-        name: "a.psbt".into(),
+        name: faraday_text::Text::of("a.psbt"),
         bytes: (Vec::new()).into(),
         kind: faraday_core::wallet::FileKind::Psbt,
         secret: false,

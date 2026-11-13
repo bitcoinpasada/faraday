@@ -373,7 +373,7 @@ impl Faraday {
             let seed_last = self
                 .inbox
                 .last()
-                .is_some_and(|i| self.visit.load_after.contains(&i.name));
+                .is_some_and(|i| self.visit.load_after.contains(&*i.name));
             if self.inbox.len() > before + seeds && !seed_last {
                 // Named after the picture it came from.
                 let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
@@ -504,9 +504,7 @@ impl Faraday {
                     let item = Item::new(&c, &text!("{stem}-words.txt"), words.as_bytes().to_vec());
                     let mut item = item;
                     let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
-                    item.name = free_name(&item.name, |n| taken.contains(&n))
-                        .as_str()
-                        .into();
+                    item.name = free_name(&item.name, |n| taken.contains(&n));
                     imp.items.push(item);
                     imp.item_file.push(f);
                 }
@@ -744,9 +742,7 @@ impl Faraday {
         for item in got {
             let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
             let mut item = item;
-            item.name = free_name(&item.name, |n| taken.contains(&n))
-                .as_str()
-                .into();
+            item.name = free_name(&item.name, |n| taken.contains(&n));
             imp.items.push(item);
             imp.item_file.push(f);
         }
@@ -1090,10 +1086,10 @@ impl Faraday {
                     self.inbox.retain(|i| i.name != item.name);
                 } else {
                     let name = self.free_inbox_name(&item.name);
-                    if name.as_str() != item.name {
+                    if item.name != name.as_str() {
                         renamed.push(Text::of(&name));
                     }
-                    item.name = name.as_str().into();
+                    item.name = Text::of(name.as_str());
                 }
                 self.vault_read_from(&item.name, &item.bytes, &label);
                 vaults.push(Text::of(&item.name));
@@ -1107,7 +1103,7 @@ impl Faraday {
                 if name != item.name.as_str() {
                     renamed.push(name.duplicate());
                 }
-                item.name = name.as_str().into();
+                item.name = Text::of(name.as_str());
                 plain.push(item);
             }
         }

@@ -91,7 +91,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     } else if r.vault_name.is_empty() {
         r.account.clone()
     } else {
-        format!("{} · {}", r.account, r.vault_name)
+        faraday_text::text!("{} · {}", &*r.account, &*r.vault_name)
     };
     if !sub.is_empty() {
         let sub = ui.fit_as(BODY_S, &sub, w - 140.0);

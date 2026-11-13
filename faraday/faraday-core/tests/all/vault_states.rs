@@ -1548,7 +1548,7 @@ fn press_create(app: &mut Faraday) {
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {
-    app.outbox.iter().map(|i| i.name.clone()).collect()
+    app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
 #[test]
@@ -1681,7 +1681,7 @@ fn lock_to_outbox(app: &mut Faraday) -> Files {
     testkit::settle(app);
     app.outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .collect()
 }
 

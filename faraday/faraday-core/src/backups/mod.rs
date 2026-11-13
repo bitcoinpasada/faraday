@@ -2144,7 +2144,7 @@ impl Faraday {
         }
         if names
             .iter()
-            .all(|n| written(n) || self.outbox.iter().any(|i| i.name == **n))
+            .all(|n| written(n) || self.outbox.iter().any(|i| i.name == n.as_str()))
         {
             return (Text::of(self.medium.for_box()), Tone::Warn);
         }

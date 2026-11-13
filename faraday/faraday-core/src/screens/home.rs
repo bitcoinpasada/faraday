@@ -122,7 +122,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             Some(Going::Spend),
             (
                 Glyph::Icon(Icon::Sign),
-                fill(EN.home_job_sign, &[&app.inbox[i].name.to_string()]),
+                fill(EN.home_job_sign, &[&app.inbox[i].name]),
                 EN.home_job_from_files.to_string(),
                 Action::StartSpend(i),
                 true,

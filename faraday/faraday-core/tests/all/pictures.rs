@@ -313,7 +313,7 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
         app.outbox
             .iter()
             .filter(|i| i.name.contains("-descriptor") && i.name.ends_with(".png"))
-            .map(|i| i.name.clone())
+            .map(|i| String::from(&*i.name))
             .collect()
     };
     let mut have = written(&app);
@@ -326,7 +326,7 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     // Taking the descriptor's picture (its first part, past one code) off
     // the stick makes the item not done again.
     let one = pictures.first().unwrap().clone();
-    app.outbox.retain(|i| i.name != one);
+    app.outbox.retain(|i| i.name.as_str() != one.as_str());
     assert!(!app.backup_item_done_now(&c, Item::PublicFiles));
 }
 

@@ -936,7 +936,7 @@ impl View<'_> {
     /// The loaded keys a policy may name ([`crate::Faraday::tools_keys`]),
     /// from each key's kept account text. Costs a key derivation per key
     /// the first time.
-    pub fn tools_keys(&self) -> Vec<(String, String)> {
+    pub fn tools_keys(&self) -> Vec<(faraday_text::Text, faraday_text::Text)> {
         self.kept(|c| self.app.tools_keys(c))
     }
 

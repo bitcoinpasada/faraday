@@ -422,7 +422,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
         .filter(|(_, it)| crate::silent::check::Check::read(&it.bytes).is_some())
         .map(|(k, it)| {
             (
-                fill(EN.silent_check, &[&it.name.to_string()]),
+                fill(EN.silent_check, &[&it.name]),
                 Style::Secondary,
                 Action::SCheck(k),
             )

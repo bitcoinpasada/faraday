@@ -32,7 +32,7 @@ fn outbox(app: &Faraday) -> Vec<(String, Vec<u8>)> {
     let mut files: Vec<_> = app
         .outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .collect();
     files.sort();
     files

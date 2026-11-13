@@ -116,7 +116,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .collect();
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
@@ -169,7 +169,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Cancel);
     // The pictures made, beside the screens.
     for item in t.app.outbox.iter().filter(|i| i.name.ends_with(".png")) {
-        let path = t.out.join(format!("outbox-{}", item.name));
+        let path = t.out.join(format!("outbox-{}", item.name.as_str()));
         std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }

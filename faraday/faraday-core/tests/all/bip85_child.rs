@@ -266,7 +266,7 @@ fn nothing_written_for_a_recorded_child_seeds_backup_names_its_parent() {
     app.press(Action::SecretHold);
     let child = faraday_core::wallet::fp_text(app.session.keys[1].fingerprint).to_string();
     let item = app.outbox.last().expect("the file");
-    assert_eq!(item.name, format!("{}-words.txt", child.to_lowercase()));
+    assert_eq!(*item.name, format!("{}-words.txt", child.to_lowercase()));
     let body = String::from_utf8_lossy(&item.bytes).to_string();
     assert!(!names_parent(&body, &parent), "{body}");
     assert_eq!(body.split_whitespace().count(), 24, "{body}");
@@ -287,7 +287,11 @@ fn nothing_written_for_a_recorded_child_seeds_backup_names_its_parent() {
     let leaks: Vec<&String> = texts.iter().filter(|t| names_parent(t, &parent)).collect();
     assert!(leaks.is_empty(), "{leaks:?}");
     for it in app.outbox.iter().chain(app.inbox().iter()) {
-        assert!(!names_parent(&it.name, &parent), "{}", it.name);
+        assert!(
+            !names_parent(it.name.as_str(), &parent),
+            "{}",
+            it.name.as_str()
+        );
     }
     assert!(!names_parent(&app.session.wallets[w].name, &parent));
 }

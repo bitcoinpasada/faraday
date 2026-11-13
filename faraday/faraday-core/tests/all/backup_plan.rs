@@ -435,7 +435,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         app.press(Action::PublicOut(built, n));
         let name = format!("{stem}-{end}");
         assert!(
-            app.outbox.iter().any(|f| f.name == name),
+            app.outbox.iter().any(|f| f.name.as_str() == name.as_str()),
             "{name} reached the Outbox"
         );
     }

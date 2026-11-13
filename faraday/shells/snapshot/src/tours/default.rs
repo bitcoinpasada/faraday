@@ -913,7 +913,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::CSlotLater(2));
     t.press(Action::CKeyOut(0));
     let out = format!("xpub-{}.txt", fp_hex(bacon));
-    if !t.app.outbox.iter().any(|i| i.name == out) {
+    if !t.app.outbox.iter().any(|i| i.name.as_str() == out.as_str()) {
         return Err(format!(
             "{out} did not reach the Outbox: {:?} {:?} keys {}",
             t.app.toast_text(),
@@ -1163,7 +1163,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .outbox
         .iter()
         .filter(|i| i.name.ends_with(".asc"))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .collect();
     if gpg_files.len() != 1 {
         return Err(format!("making a GPG key left {gpg_files:?} in the Outbox"));
@@ -1176,7 +1176,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .inbox()
         .iter()
         .filter(|i| !i.name.ends_with(".asc"))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .collect();
     for name in ["vault-entries.txt", "BOOTX64.EFI"] {
         let k = signable
@@ -1199,7 +1199,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-gpg-sign-sheet")?;
     t.press(Action::Vault(V::GpgHoldSign));
     for name in ["vault-entries.txt", "BOOTX64.EFI"] {
-        if !t.app.outbox.iter().any(|i| i.name == format!("{name}.asc")) {
+        if !t
+            .app
+            .outbox
+            .iter()
+            .any(|i| i.name.as_str() == format!("{name}.asc"))
+        {
             return Err(format!(
                 "signing left no signature for {name} in the Outbox"
             ));

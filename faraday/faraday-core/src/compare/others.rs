@@ -139,7 +139,7 @@ pub(crate) fn make(
             continue;
         };
         out.push(Other {
-            name: item.name.clone(),
+            name: String::from(&*item.name),
             place,
             txid: id,
             outcome: b.result,

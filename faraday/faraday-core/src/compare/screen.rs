@@ -40,7 +40,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     if d.differs {
                         fill(EN.signer_file_differs, &[&d.name])
                     } else {
-                        d.name.clone()
+                        String::from(&*d.name)
                     }
                 }),
                 mono: false,

@@ -269,7 +269,7 @@ fn with_no_plan_the_chart_says_so_and_back_up_opens_the_backup() {
 
 /// The names For the stick.
 fn for_the_stick(app: &Faraday) -> Vec<String> {
-    app.outbox.iter().map(|i| i.name.clone()).collect()
+    app.outbox.iter().map(|i| String::from(&*i.name)).collect()
 }
 
 fn open(app: &mut Faraday, press: Press, t: Target) {

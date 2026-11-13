@@ -1237,11 +1237,11 @@ impl Faraday {
                 // The visit's rows say what came in; only a seed waiting
                 // for the stick's removal is worth a line.
                 let line = (item.kind == FileKind::Words
-                    && self.visit.load_after.contains(&item.name))
+                    && self.visit.load_after.contains(&*item.name))
                 .then(|| {
                     fill(
                         EN.storage_event_copied_words,
-                        &[&item.name.to_string(), self.medium.noun()],
+                        &[&item.name, self.medium.noun()],
                     )
                 });
                 self.inbox.push(item);
@@ -1995,7 +1995,7 @@ impl Faraday {
             .iter()
             .filter(|i| i.exposure() != secrets::Exposure::Secret)
             .filter(|i| !self.in_the_backup(&i.name))
-            .map(|i| i.name.clone())
+            .map(|i| String::from(&*i.name))
             .collect()
     }
 
@@ -2025,7 +2025,7 @@ impl Faraday {
                 .map(|i| i.name.clone());
             for i in &vaults {
                 if Some(&i.name) != one.as_ref() {
-                    out.remove(&i.name);
+                    out.remove(&*i.name);
                 }
             }
         }
@@ -2856,7 +2856,8 @@ impl Faraday {
     fn public_remove(&mut self, wallet: usize, what: u8) {
         let names = self.public_names(wallet, what);
         let before = self.outbox.len();
-        self.outbox.retain(|i| !names.contains(&i.name));
+        self.outbox
+            .retain(|i| !names.iter().any(|n| i.name == n.as_str()));
         if self.outbox.len() != before {
             self.save_boxes();
         }
@@ -3260,7 +3261,7 @@ impl Faraday {
             .into_iter()
             .filter_map(|k| self.inbox.get(k))
             .filter(|i| i.copy_ack().is_none())
-            .map(|i| i.name.clone())
+            .map(|i| String::from(&*i.name))
             .collect()
     }
 

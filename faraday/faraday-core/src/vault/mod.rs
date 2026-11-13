@@ -2858,7 +2858,7 @@ impl Faraday {
                         .gpg_sign_armored(id, at, &item.bytes, now)
                         .map(|t| Text::of(&t))
                         .ok_or_else(|| Text::of(EN.gpg_no_gpg_key_is_selected))?,
-                    text!("{}.asc.png", item.name),
+                    text!("{}.asc.png", item.name.as_str()),
                     vec![
                         Text::fill(EN.gpg_signs, &[&item.name]),
                         Text::fill(EN.gpg_signer_line, &[&who]),
@@ -3049,7 +3049,7 @@ impl Faraday {
             let probe = gpg::probe_of(&it.bytes);
             let (hash, text) = match seen
                 .iter()
-                .find(|s| s.name.as_str() == it.name && s.probe == probe)
+                .find(|s| it.name == s.name.as_str() && s.probe == probe)
             {
                 Some(s) => (s.hash, s.text.clone()),
                 // Kept on the state (`sign_seen`) once worked out.

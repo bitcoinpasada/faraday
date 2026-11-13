@@ -51,7 +51,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .inbox()
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .chain(std::iter::once(vault))
         .collect();
     t.app.storage(StorageEvent::Restored {
@@ -103,7 +103,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         return Err(format!("{} SeedQR pictures in the Outbox", pictures.len()));
     }
     for item in pictures {
-        let path = t.out.join(format!("outbox-{}", item.name));
+        let path = t.out.join(format!("outbox-{}", item.name.as_str()));
         std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }

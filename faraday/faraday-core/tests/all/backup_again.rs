@@ -363,11 +363,11 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     let at = app
         .outbox
         .iter()
-        .position(|i| i.name == name)
+        .position(|i| i.name.as_str() == name.as_str())
         .expect("made");
     app.press(Action::OutboxRemove(at));
     app.outbox.push(faraday_core::Item {
-        name: name.clone(),
+        name: faraday_text::Text::of(&name),
         bytes: (b"from elsewhere".to_vec()).into(),
         kind: faraday_core::wallet::FileKind::Text,
         secret: false,
@@ -391,7 +391,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
         .outbox
         .iter()
         .position(|i| {
-            i.name
+            *i.name
                 == format!(
                     "xpub-{}-2.txt",
                     String::from(&*faraday_core::wallet::fp_text(fp))
@@ -407,7 +407,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     assert!(
         app.outbox
             .iter()
-            .any(|i| i.name == name && *i.bytes == b"from elsewhere"),
+            .any(|i| i.name.as_str() == name.as_str() && *i.bytes == b"from elsewhere"),
         "the other file stays"
     );
 }
@@ -451,7 +451,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
         let file = app
             .outbox
             .iter()
-            .find(|i| i.name == format!("xpub-{name}.txt"))
+            .find(|i| i.name.as_str() == format!("xpub-{name}.txt"))
             .expect("the key's file");
         let text = String::from_utf8(file.bytes.to_vec()).unwrap();
         let key = app.session.wallets[w].policy().keys()[usize::from(slot)].key_text();
@@ -459,7 +459,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
         let record = app
             .outbox
             .iter()
-            .find(|i| i.name == format!("xpub-{name}-bsms.txt"))
+            .find(|i| i.name.as_str() == format!("xpub-{name}-bsms.txt"))
             .expect("the key's BSMS record");
         assert!(String::from_utf8_lossy(&record.bytes).starts_with("BSMS 1.0"));
         press_offered(&mut app, Action::CodePng(Code::WalletKey(w, slot)));

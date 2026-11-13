@@ -77,7 +77,7 @@ pub(crate) fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str,
         .app
         .inbox()
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .chain(own(files))
         .collect();
     t.app.storage(StorageEvent::Restored {

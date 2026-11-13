@@ -158,7 +158,7 @@ fn a_short_list_has_no_scrollbar() {
 fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
     for i in 0..n {
         app.outbox.push(Item {
-            name: format!("backup-{i:02}.pdf"),
+            name: faraday_text::Text::of(&format!("backup-{i:02}.pdf")),
             bytes: (vec![b'%'; 2000]).into(),
             kind: FileKind::Pdf,
             secret: false,
@@ -173,7 +173,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
     }
     if secret {
         app.outbox.push(Item {
-            name: "seed-words.txt".into(),
+            name: faraday_text::Text::of("seed-words.txt"),
             bytes: (b"words".to_vec()).into(),
             kind: FileKind::Text,
             secret: true,
@@ -863,7 +863,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
     }));
     for (name, bytes) in outbox {
         app.outbox.push(Item {
-            name: name.into(),
+            name: faraday_text::Text::of(name),
             bytes: bytes.into(),
             kind: FileKind::Pdf,
             secret: false,
@@ -889,7 +889,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
-    let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    let names: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     for (i, n) in names.iter().enumerate() {
         if !app.visit().out.contains(n) {
             app.press(Action::VisitOut(i));
@@ -1212,7 +1212,7 @@ fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
         vaults: Vec::new(),
     }]));
     app.outbox.push(Item {
-        name: "vault.kdbx".into(),
+        name: faraday_text::Text::of("vault.kdbx"),
         bytes: (vault).into(),
         kind: FileKind::Pdf,
         secret: false,
@@ -1412,7 +1412,7 @@ fn made_unclean(app: &mut Faraday) {
     faraday_core::testkit::inbox_push(
         app,
         Item {
-            name: "my-words.txt".into(),
+            name: faraday_text::Text::of("my-words.txt"),
             bytes: (b"words".to_vec()).into(),
             kind: FileKind::Words,
             secret: false,

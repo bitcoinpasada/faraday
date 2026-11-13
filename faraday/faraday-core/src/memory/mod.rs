@@ -447,7 +447,7 @@ impl Faraday {
         let pictures: Vec<String> = self
             .inbox
             .iter()
-            .filter_map(|i| Some(format!("{:?}\t{}", i.picture?, i.name)))
+            .filter_map(|i| Some(format!("{:?}\t{}", i.picture?, &*i.name)))
             .collect();
         if !pictures.is_empty() {
             out.push(("pictures".to_string(), pictures.join("\n").into_bytes()));

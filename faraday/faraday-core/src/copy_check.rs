@@ -13,6 +13,7 @@ use crate::secret_text::SecretText;
 use crate::word_entry::WordEntry;
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
+use faraday_text::Text;
 
 /// The typed check of a copy of the words, or of a passphrase on paper,
 /// while it is open: what is typed so far, wiped whenever it is dropped.
@@ -26,7 +27,7 @@ pub struct WordCheck {
     /// The on-screen keyboard's shift is on.
     pub shift: bool,
     /// What the last comparison found, until the next key.
-    pub error: Option<faraday_text::Text>,
+    pub error: Option<Text>,
     /// The seed's own list.
     pub lang: Language,
     /// The seed's word count.
@@ -78,11 +79,11 @@ impl WordCheck {
     }
 
     /// The word being typed so far.
-    pub fn typing(&self) -> String {
+    pub fn typing(&self) -> Text {
         match &self.keys {
-            Some(w) => w.prefix().iter().collect(),
-            None if self.typed.ends_with(' ') => String::new(),
-            None => self.typed.rsplit(' ').next().unwrap_or("").to_string(),
+            Some(w) => w.prefix().iter().copied().collect(),
+            None if self.typed.ends_with(' ') => Text::new(),
+            None => Text::of(self.typed.rsplit(' ').next().unwrap_or("")),
         }
     }
 
@@ -148,7 +149,7 @@ impl WordCheck {
                 }
                 // Anything else is refused, and the check says so.
                 KeyIn::Char(ch) if !ch.is_control() => {
-                    self.error = Some(faraday_text::Text::of(&crate::state::ascii_refused()));
+                    self.error = Some(Text::of(&crate::state::ascii_refused()));
                 }
                 KeyIn::Backspace | KeyIn::Delete => {
                     self.typed.pop();
@@ -173,9 +174,9 @@ impl WordCheck {
 
     /// Word `k` differs, as `line` says: the words before it stay and
     /// typing resumes at it.
-    pub(crate) fn wrong(&mut self, k: usize, line: String) {
+    pub(crate) fn wrong(&mut self, k: usize, line: Text) {
         self.keep(k - 1);
-        self.error = Some(faraday_text::Text::of(&line));
+        self.error = Some(line);
     }
 }
 
@@ -197,7 +198,7 @@ pub(crate) enum Typed {
 pub(crate) struct WordsUse<'a> {
     pub keys: &'a mut Option<Box<WordEntry>>,
     pub shift: &'a mut bool,
-    pub error: &'a mut Option<faraday_text::Text>,
+    pub error: &'a mut Option<Text>,
     pub lang: Language,
     pub in_check: bool,
 }

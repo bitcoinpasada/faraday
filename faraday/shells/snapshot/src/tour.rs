@@ -437,7 +437,7 @@ impl Tour {
                 .app
                 .inbox()
                 .iter()
-                .position(|it| it.name == name)
+                .position(|it| it.name.as_str() == name.as_str())
                 .ok_or(format!("{name} is not in Files"))?;
             self.press(Action::LoadWallet(i));
         }

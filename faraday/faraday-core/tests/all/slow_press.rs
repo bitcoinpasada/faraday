@@ -123,7 +123,7 @@ fn the_checklists_pictures_are_made_on_the_worker() {
         "the files are For the stick: {:?}",
         app.outbox
             .iter()
-            .map(|i| i.name.clone())
+            .map(|i| String::from(&*i.name))
             .collect::<Vec<_>>()
     );
     assert_ne!(

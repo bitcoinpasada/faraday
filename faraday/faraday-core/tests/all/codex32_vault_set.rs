@@ -470,7 +470,7 @@ fn a_key_saved_on_vaults_with_the_set_unticked_has_no_set_in_its_entry_after_a_l
         .outbox
         .iter()
         .find(|i| i.name == "home.kdbx")
-        .map(|i| (i.name.clone(), i.bytes.to_vec()))
+        .map(|i| (String::from(&*i.name), i.bytes.to_vec()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![sealed]);
     unlock_on_vaults(&mut next, "home.kdbx", PHRASE);

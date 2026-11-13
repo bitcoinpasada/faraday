@@ -193,7 +193,7 @@ fn kef_files(app: &Faraday) -> Vec<String> {
     app.outbox
         .iter()
         .filter(|i| i.name.starts_with("krux-v"))
-        .map(|i| i.name.clone())
+        .map(|i| String::from(&*i.name))
         .collect()
 }
 
@@ -354,7 +354,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
     let mut others: Vec<_> = app
         .outbox
         .iter()
-        .filter(|i| names.contains(&i.name))
+        .filter(|i| names.iter().any(|n| i.name == n.as_str()))
         .map(faraday_core::Item::duplicate)
         .collect();
     testkit::outbox_to_files(&mut app, &names);
@@ -373,7 +373,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
     assert!(app.flow().is_none(), "Lock and write is refused");
     for o in &other {
         let now = app.outbox.iter().find(|i| i.name == o.name).unwrap();
-        assert_eq!(now.bytes, o.bytes, "{} untouched", o.name);
+        assert_eq!(now.bytes, o.bytes, "{} untouched", o.name.as_str());
     }
     // Made again, the new code is put beside the other, which stays.
     open_item(&mut app, bstep::KEF);
@@ -389,7 +389,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
                 .iter()
                 .any(|i| i.name == o.name && i.bytes == o.bytes),
             "{} is still there",
-            o.name
+            o.name.as_str()
         );
     }
     picture_reads_as_file(&disk);

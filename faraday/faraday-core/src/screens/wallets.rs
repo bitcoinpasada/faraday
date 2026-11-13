@@ -396,7 +396,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {
         Some(s) => Some((
-            String::from(&*s.spend.source),
+            faraday_text::Text::of(&s.spend.source),
             EN.wallets_signing,
             Action::Nav(Screen::Spend),
             EN.wallets_continue,

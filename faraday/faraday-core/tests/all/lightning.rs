@@ -125,7 +125,7 @@ fn the_node_id_reads_back_from_its_code_and_its_picture() {
     let item = app
         .outbox
         .iter()
-        .find(|i| i.name == name)
+        .find(|i| i.name.as_str() == name.as_str())
         .unwrap_or_else(|| panic!("no {name}"));
     assert!(!item.secret);
     assert_eq!(png_text(&item.bytes), NODE_KEY);

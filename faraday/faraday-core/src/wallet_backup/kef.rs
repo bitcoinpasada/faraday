@@ -134,7 +134,7 @@ fn kef_bytes(app: &Faraday, c: &Compute, m: &KefMark) -> Option<Zeroizing<Vec<u8
     app.outbox
         .iter()
         .chain(app.inbox.iter())
-        .find(|o| o.name == *m.file)
+        .find(|o| o.name == m.file.as_str())
         .filter(|o| sha256_of(c, &o.bytes) == m.sha)
         .map(|o| o.bytes.clone())
 }
