@@ -28,6 +28,7 @@ use crate::plan;
 use crate::seeds::SeedsState;
 use crate::vault::VaultWallet;
 use crate::wallet::{KeyTexts, MessageCheck, NonceCheck, Session, Wallet};
+use faraday_text::Text;
 
 /// The most QR codes of public text kept ([`Kept::public_qr`]); the next
 /// one empties the list.
@@ -1060,16 +1061,18 @@ impl crate::glance::Reads for View<'_> {
         &self,
         wallet: &Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)> {
+    ) -> Option<(plan::Answers, Vec<Text>)> {
         self.kept(|c| self.app.plan_load_of(c, wallet, shape))
+            .map(|(a, v)| (a, v.iter().map(|s| Text::of(s)).collect()))
     }
     fn plan_in_vault(
         &self,
         v: usize,
         wallet: &Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)> {
+    ) -> Option<(plan::Answers, Vec<Text>)> {
         self.kept(|c| self.app.plan_in_vault(c, v, wallet, shape))
+            .map(|(a, v)| (a, v.iter().map(|s| Text::of(s)).collect()))
     }
     fn older_copy(&self, sum: &str, p: usize, what: plan::What) -> bool {
         self.app.backups_area.is_older(sum, p, what)
@@ -1077,8 +1080,8 @@ impl crate::glance::Reads for View<'_> {
     fn plan_notes(&self, wallet: &Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.kept(|c| self.app.plan_notes(c, wallet, v))
     }
-    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
-        View::vault_key_fingerprint(self, r)
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<Text> {
+        View::vault_key_fingerprint(self, r).map(|f| Text::of(&f))
     }
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
         self.kept(|c| self.app.vaults.described(c, id, r))
@@ -1092,11 +1095,15 @@ impl crate::glance::Reads for View<'_> {
     fn backup_item_done(&self, item: plan::Item) -> bool {
         View::backup_item_done(self, item)
     }
-    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<Text> {
         View::backup_public_names_for(self, wi, a)
+            .iter()
+            .map(|s| Text::of(s))
+            .collect()
     }
-    fn backup_vault_fits(&self, v: usize) -> Option<String> {
+    fn backup_vault_fits(&self, v: usize) -> Option<Text> {
         self.kept(|c| self.app.backup_vault_fits(c, v))
+            .map(|s| Text::of(&s))
     }
     fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         View::wallet_stick_rows(self)
@@ -1104,11 +1111,14 @@ impl crate::glance::Reads for View<'_> {
     fn backup_items(&self) -> Vec<u8> {
         View::backup_items(self)
     }
-    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+    fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {
         View::backup_seed_list(self, w)
+            .into_iter()
+            .map(|(s, i)| (Text::of(&s), i))
+            .collect()
     }
-    fn address_shown(&self, wl: &Wallet, change: bool, index: u32) -> String {
-        View::address_shown(self, wl, change, index)
+    fn address_shown(&self, wl: &Wallet, change: bool, index: u32) -> Text {
+        Text::of(&View::address_shown(self, wl, change, index))
     }
     fn psbt_for(&self, w: usize) -> Option<usize> {
         View::psbt_for(self, w)

@@ -371,7 +371,7 @@ pub(crate) fn map_rows(
 /// why "Any one place lost" reads No. Returns its height.
 pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32, w: f32) -> f32 {
     let c = ctx.check;
-    let name = |p: usize| ctx.name(p);
+    let name = |p: usize| faraday_text::Text::of(&ctx.name(p));
     let mut h = crate::glance::check_lines(ui, x, y, w, c, false, &name);
     // Why "Any one place lost" reads No (`docs/history/NEW-WALLET.md` §14.2).
     if let Some(why) = plan::lost_why_on(

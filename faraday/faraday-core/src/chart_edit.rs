@@ -210,7 +210,7 @@ impl Faraday {
         if !has {
             // No record of this plan here yet: the plan the chart shows,
             // saved with the notes.
-            let Some((answers, names)) = glance::plan_of_now(&c, self, w) else {
+            let Some((answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
                 return false;
             };
             self.plan_store(v, w, &answers, &names, &[], Some(&notes));
@@ -240,7 +240,7 @@ impl Faraday {
         let Some(w) = self.press_wallet(press) else {
             return;
         };
-        let Some((answers, names)) = glance::plan_of_now(&c, self, w) else {
+        let Some((answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
             return;
         };
         let shape = self.plan_shape_now(w);
@@ -354,7 +354,7 @@ impl Faraday {
                     glance::Backup::Plan { nodes, .. } => nodes
                         .iter()
                         .find(|n| n.at == other)
-                        .map(|n| Text::of(&n.name)),
+                        .map(|n| n.name.duplicate()),
                     _ => None,
                 })
                 .unwrap_or_else(|| match other {
@@ -366,10 +366,9 @@ impl Faraday {
         let label = |at: At, what: What| {
             g.as_ref()
                 .and_then(|g| glance::label_of(g, at, what))
-                .map(|l| Text::of(&l))
                 .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium.cap()))
         };
-        let thing = |what: What| Text::of(&glance::thing_label(g.as_ref(), what));
+        let thing = |what: What| glance::thing_label(g.as_ref(), what);
         match edit {
             Edit::Add(at @ At::Vault(_), what) => {
                 Text::fill(EN.chart_edit_save_into, &[&thing(what), &spot(at)])
@@ -780,7 +779,7 @@ impl Faraday {
         let Some(sum) = self.session.wallets.get(w).map(|x| Text::of(x.checksum())) else {
             return;
         };
-        self.glance.set_moving(sum.as_str().into());
+        self.glance.set_moving(sum.as_str());
         self.glance.set_chart(None);
         self.sheet = None;
         self.act(Action::CreateWallet);
@@ -883,7 +882,7 @@ impl Faraday {
         let mut text = text!(
             "faraday-sheet 1\nkind: envelopes\nname: {}\nshape: {}\n",
             crate::wallet::wallet_name(&g.name),
-            g.shape
+            &*g.shape
         );
         for n in nodes {
             let At::Place(p) = n.at else {
@@ -895,7 +894,7 @@ impl Faraday {
                     What::VaultStick(v) => {
                         Text::fill(EN.chart_edit_vault_stick, &[&Text::num(*v as u64 + 1)])
                     }
-                    w => Text::of(&glance::thing_label(Some(&g), *w)),
+                    w => glance::thing_label(Some(&g), *w),
                 };
                 text.push_str(&text!("thing: {}\n", &*label));
             }

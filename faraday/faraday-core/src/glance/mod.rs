@@ -21,17 +21,17 @@ pub mod sheet;
 pub use age::age_text;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::Paint;
 use crate::ui::Shape;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens;
+use faraday_text::{Text, text};
 
 use crate::drawing::View;
 use crate::plan::{self, At, Tag, What};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use crate::wallet::{Session, fp_text};
+use crate::wallet::{Session, fp_text as fp_string};
 use crate::wallet_backup::Tone;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TypeRole};
@@ -62,14 +62,14 @@ pub(crate) trait Reads {
         &self,
         wallet: &crate::wallet::Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)>;
+    ) -> Option<(plan::Answers, Vec<Text>)>;
     /// The plan open vault `v` keeps for `wallet` ([`Faraday::plan_in_vault`]).
     fn plan_in_vault(
         &self,
         v: usize,
         wallet: &crate::wallet::Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)>;
+    ) -> Option<(plan::Answers, Vec<Text>)>;
     /// Whether a stick `what` at place `p` of `sum`'s plan was read from an
     /// older copy of its vault ([`crate::backups::BackupsArea::is_older`]).
     fn older_copy(&self, sum: &str, p: usize, what: What) -> bool;
@@ -77,7 +77,7 @@ pub(crate) trait Reads {
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note>;
     /// A vault key record's fingerprint
     /// ([`crate::vault::screen::key_fingerprint`]).
-    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String>;
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<Text>;
     /// The wallet description record `r` of open vault `id` holds
     /// ([`crate::vault::Vaults::described`]).
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described>;
@@ -89,20 +89,20 @@ pub(crate) trait Reads {
     fn backup_item_done(&self, item: plan::Item) -> bool;
     /// The public files of loaded wallet `wi` under answers `a`
     /// ([`Faraday::backup_public_names_for_now`]).
-    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String>;
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<Text>;
     /// The open vault the backup's vault `v` is saved in
     /// ([`Faraday::backup_vault_fits`]).
-    fn backup_vault_fits(&self, v: usize) -> Option<String>;
+    fn backup_vault_fits(&self, v: usize) -> Option<Text>;
     /// The sticks the wallet being backed up is written to
     /// ([`Faraday::wallet_stick_rows_now`]).
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow>;
     /// The backup's checklist ([`Faraday::backup_items_now`]).
     fn backup_items(&self) -> Vec<u8>;
     /// Wallet `w`'s seeds ([`Faraday::backup_seed_list_now`]).
-    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)>;
+    fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)>;
     /// An address of `wl` as the screen shows it
     /// ([`crate::wallet::Session::address_shown`]), kept on the wallet.
-    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> String;
+    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> Text;
     /// The Inbox PSBT loaded wallet `w` spends from ([`Faraday::psbt_for`]).
     fn psbt_for(&self, w: usize) -> Option<usize>;
 }
@@ -139,16 +139,20 @@ impl Reads for Now<'_> {
         &self,
         wallet: &crate::wallet::Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)> {
-        self.app.plan_load_of(self.c, wallet, shape)
+    ) -> Option<(plan::Answers, Vec<Text>)> {
+        self.app
+            .plan_load_of(self.c, wallet, shape)
+            .map(|(a, names)| (a, names.iter().map(|n| Text::of(n)).collect()))
     }
     fn plan_in_vault(
         &self,
         v: usize,
         wallet: &crate::wallet::Wallet,
         shape: &plan::Shape,
-    ) -> Option<(plan::Answers, Vec<String>)> {
-        self.app.plan_in_vault(self.c, v, wallet, shape)
+    ) -> Option<(plan::Answers, Vec<Text>)> {
+        self.app
+            .plan_in_vault(self.c, v, wallet, shape)
+            .map(|(a, names)| (a, names.iter().map(|n| Text::of(n)).collect()))
     }
     fn older_copy(&self, sum: &str, p: usize, what: What) -> bool {
         self.app.backups_area.is_older(sum, p, what)
@@ -156,8 +160,8 @@ impl Reads for Now<'_> {
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.app.plan_notes(self.c, wallet, v)
     }
-    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
-        crate::vault::screen::key_fingerprint(self.c, self.app, r).map(|t| t.as_str().into())
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<Text> {
+        crate::vault::screen::key_fingerprint(self.c, self.app, r)
     }
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
         self.app.vaults.described(self.c, id, r)
@@ -174,11 +178,15 @@ impl Reads for Now<'_> {
     fn backup_item_done(&self, item: plan::Item) -> bool {
         self.app.backup_item_done_now(self.c, item)
     }
-    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
-        self.app.backup_public_names_for_now(self.c, wi, a)
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<Text> {
+        self.app
+            .backup_public_names_for_now(self.c, wi, a)
+            .iter()
+            .map(|n| Text::of(n))
+            .collect()
     }
-    fn backup_vault_fits(&self, v: usize) -> Option<String> {
-        self.app.backup_vault_fits(self.c, v)
+    fn backup_vault_fits(&self, v: usize) -> Option<Text> {
+        self.app.backup_vault_fits(self.c, v).map(|n| Text::of(&n))
     }
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow> {
         self.app.wallet_stick_rows_now(self.c)
@@ -186,11 +194,15 @@ impl Reads for Now<'_> {
     fn backup_items(&self) -> Vec<u8> {
         self.app.backup_items_now(self.c)
     }
-    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
-        self.app.backup_seed_list_now(w)
+    fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {
+        self.app
+            .backup_seed_list_now(w)
+            .iter()
+            .map(|(n, i)| (Text::of(n), *i))
+            .collect()
     }
-    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> String {
-        self.app.session.address_shown(self.c, wl, change, index)
+    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> Text {
+        Text::of(&self.app.session.address_shown(self.c, wl, change, index))
     }
     fn psbt_for(&self, w: usize) -> Option<usize> {
         self.app.psbt_for(self.c, w)
@@ -201,11 +213,11 @@ impl Reads for Now<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Glance {
     /// The wallet: its name.
-    pub name: String,
+    pub name: Text,
     /// "2 of 3 · native SegWit".
-    pub shape: String,
+    pub shape: Text,
     /// The descriptor's checksum.
-    pub checksum: String,
+    pub checksum: Text,
     /// Its keys, numbered as the wallet's keys are.
     pub keys: Vec<KeyNode>,
     /// Its backup.
@@ -228,7 +240,7 @@ pub struct Glance {
     pub clock: bool,
     /// The **Coins last moved** value and whether it is in the warning
     /// tone; `None` where the coins were never moved or there is no wait.
-    pub moved: Option<(String, bool)>,
+    pub moved: Option<(Text, bool)>,
     /// The plan charted, with the shape it is read against.
     pub plan: Option<(plan::Shape, plan::Answers)>,
 }
@@ -397,8 +409,8 @@ impl GlanceArea {
     }
 
     /// The wallet whose money is moving to a new wallet, by checksum.
-    pub(crate) fn set_moving(&mut self, sum: String) {
-        self.work.moving = Some(faraday_text::Text::of(&sum));
+    pub(crate) fn set_moving(&mut self, sum: &str) {
+        self.work.moving = Some(faraday_text::Text::of(sum));
     }
 
     /// The new wallet `sum` is gone: the money is no longer moving to it.
@@ -441,11 +453,11 @@ pub struct KeyNode {
     /// Its number in the wallet, from one.
     pub number: usize,
     /// Its fingerprint, or "no origin".
-    pub fingerprint: String,
+    pub fingerprint: Text,
     /// Its label, when it has one other than its fingerprint.
-    pub label: Option<String>,
+    pub label: Option<Text>,
     /// Where it is: "Can sign here", "Cosigner · xpub only".
-    pub state: String,
+    pub state: Text,
     /// Held here: its lines go to whatever holds its seed.
     pub here: bool,
     /// Loaded in this session, where it can sign.
@@ -462,9 +474,9 @@ pub struct KeyNode {
     /// Loaded, or kept, with a BIP-39 passphrase.
     pub passphrase: bool,
     /// Who holds it, for a key not held here, as the vault keeps it.
-    pub holder: Option<String>,
+    pub holder: Option<Text>,
     /// When its holder last confirmed its backup, as the vault keeps it.
-    pub checked: Option<String>,
+    pub checked: Option<Text>,
 }
 
 /// The wallet's backup, as the chart's third row shows it.
@@ -487,7 +499,7 @@ pub enum Backup {
     /// the press that unlocks it.
     Locked {
         /// The vault's name.
-        vault: String,
+        vault: Text,
         /// Unlock it, and come back.
         unlock: Action,
     },
@@ -501,23 +513,23 @@ pub struct BackupNode {
     /// Where.
     pub at: At,
     /// "Place 1", or the place's name; "Vault 1".
-    pub name: String,
+    pub name: Text,
     /// The most exposed of what it holds.
     pub tag: Tag,
     /// What it holds: "Key 1 words", "Wallet sheet", "Vault 2 stick".
-    pub holds: Vec<String>,
+    pub holds: Vec<Text>,
     /// What each of [`BackupNode::holds`] is, on the plan's map; empty
     /// for a node that holds nothing.
     pub whats: Vec<What>,
     /// What it holds, naming the keys a vault's stick opens: "Key 1
     /// words · Key 2 in the vault", for the small panel.
-    pub keys_held: String,
+    pub keys_held: Text,
     /// For a vault: where its stick is kept.
-    pub stick: Option<String>,
+    pub stick: Option<Text>,
     /// What this device saw of it, as the Backups screen says it.
-    pub state: Option<(String, Tone)>,
+    pub state: Option<(Text, Tone)>,
     /// What it gives whoever finds it alone; a vault reads "Sealed".
-    pub alone: Option<String>,
+    pub alone: Option<Text>,
     /// What [`BackupNode::alone`] reads as, for the chart's colour
     /// ([`alone_color`]), set beside the text where it is produced so the
     /// colour reads this, not the words. `Some` exactly when `alone` is.
@@ -530,7 +542,7 @@ pub struct BackupNode {
     pub marks: Vec<Option<plan::Mark>>,
     /// When each of [`BackupNode::whats`] was last checked here, as the
     /// vault keeps it.
-    pub checked: Vec<Option<String>>,
+    pub checked: Vec<Option<Text>>,
     /// Each of [`BackupNode::whats`] a vault stick read from an older copy
     /// of its vault this power-on: its line reads "Older copy" in place of
     /// a date.
@@ -542,12 +554,12 @@ pub struct BackupNode {
 
 /// Costs what an open vault's plan records cost to read the first time:
 /// the plan a chart draws for a decision, worked out from the state as it is.
-pub fn plan_of_now(c: &Compute, app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+pub fn plan_of_now(c: &Compute, app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<Text>)> {
     plan_on(&Now { app, c }, w)
 }
 
 /// The plan for wallet `w` through `r`.
-fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<Text>)> {
     let app = r.app();
     let wallet = app.session.wallets.get(w)?;
     let shape = r.plan_shape(w);
@@ -555,7 +567,10 @@ fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
         && b.wallet == w
         && b.stage == crate::BStage::Checklist
     {
-        return Some((b.answers.clone(), b.names.clone()));
+        return Some((
+            b.answers.clone(),
+            b.names.iter().map(|n| Text::of(n)).collect(),
+        ));
     }
     let kept = r.plan_load_of(wallet, &shape);
     let sum = wallet.checksum();
@@ -634,12 +649,12 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     let wallet = crate::wallet::Wallet::new(
         crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.glance_wallet).into_owned(),
         reads.described(open.id, r)?.policy.clone(),
-        String::new(),
+        Default::default(),
         crate::wallet::Origin::Named,
     );
     // The seeds this vault keeps: their fingerprints, and whether each
     // was kept with a passphrase.
-    let kept: Vec<(String, bool)> = app
+    let kept: Vec<(Text, bool)> = app
         .vaults()
         .records(open.id)
         .of(kind::KEY)
@@ -648,7 +663,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
             Some((fp, k.has(field::KEY_PASSPHRASE)))
         })
         .collect();
-    let in_vault: Vec<String> = kept.iter().map(|(f, _)| f.clone()).collect();
+    let in_vault: Vec<Text> = kept.iter().map(|(f, _)| f.clone()).collect();
     let mut shape = app.plan_shape_of(&wallet);
     let slots = app.session.slots(&wallet);
     for slot in &slots {
@@ -690,8 +705,8 @@ fn build(
     r: &impl Reads,
     wallet: &crate::wallet::Wallet,
     shape: plan::Shape,
-    in_vault: &[String],
-    plan: Option<(plan::Answers, Vec<String>)>,
+    in_vault: &[Text],
+    plan: Option<(plan::Answers, Vec<Text>)>,
     notes: &[plan::Note],
     none: Backup,
     press: Press,
@@ -734,7 +749,7 @@ fn build(
             let fingerprint = slot
                 .fingerprint
                 .map(fp_text)
-                .unwrap_or_else(|| EN.glance_no_origin.to_string());
+                .unwrap_or_else(|| Text::of(EN.glance_no_origin));
             let passphrase = seed_of(n, slot).is_some_and(|i| shape.seeds[i].passphrase);
             let held = slot.held_by.is_some();
             // Made here, its backup not done (`docs/history/NEW-WALLET.md` §14.3).
@@ -781,10 +796,10 @@ fn build(
                 label: slot
                     .held_by
                     .as_ref()
-                    .map(|l| l.trim().to_string())
+                    .map(|l| Text::of(l.trim()))
                     .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fingerprint)),
                 fingerprint,
-                state: state.to_string(),
+                state: Text::of(state),
                 here: held || kept(slot),
                 held,
                 fp: slot.fingerprint.map(|f| f.0),
@@ -794,20 +809,20 @@ fn build(
                 passphrase,
                 holder: slot.fingerprint.and_then(|f| {
                     notes.iter().find_map(|n| match n {
-                        plan::Note::Holder(fp, name) if *fp == f.0 => Some(String::from(&**name)),
+                        plan::Note::Holder(fp, name) if *fp == f.0 => Some(name.duplicate()),
                         _ => None,
                     })
                 }),
                 checked: slot.fingerprint.and_then(|f| {
                     notes.iter().find_map(|n| match n {
-                        plan::Note::KeyChecked(fp, d) if *fp == f.0 => Some(String::from(&**d)),
+                        plan::Note::KeyChecked(fp, d) if *fp == f.0 => Some(d.duplicate()),
                         _ => None,
                     })
                 }),
             }
         })
         .collect();
-    let sum = wallet.checksum().to_string();
+    let sum = Text::of(wallet.checksum());
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(
@@ -833,8 +848,8 @@ fn build(
         .iter()
         .any(|s| s.held_by.is_some() && s.fingerprint.is_some_and(|f| held_keys.contains(&f)));
     Some(Glance {
-        name: wallet.name.clone(),
-        shape: Session::shape(wallet),
+        name: Text::of(&wallet.name),
+        shape: Text::of(&Session::shape(wallet)),
         checksum: sum,
         keys,
         backup,
@@ -851,7 +866,7 @@ fn build(
                 _ => None,
             })?;
             let (_, value, warn) = crate::wallet::paths::moved_row(date, &app.today(), s);
-            Some((value, warn))
+            Some((Text::of(&value), warn))
         }),
         plan: charted,
     })
@@ -876,7 +891,7 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
             crate::vault::VaultAction::OpenFrom(k, back)
         });
     Backup::Locked {
-        vault: String::from(s.name.as_str()),
+        vault: s.name.duplicate(),
         unlock: Action::Vault(unlock),
     }
 }
@@ -892,7 +907,7 @@ fn backup_nodes(
     sum: &str,
     shape: &plan::Shape,
     a: &plan::Answers,
-    names: &[String],
+    names: &[Text],
     notes: &[plan::Note],
     slot_of: &[Option<usize>],
     keys: &[KeyNode],
@@ -908,11 +923,11 @@ fn backup_nodes(
             .iter()
             .find_map(|n| match n {
                 plan::Note::VaultName(u, name) if *u == v && !name.trim().is_empty() => {
-                    Some(name.trim().to_string())
+                    Some(Text::of(name.trim()))
                 }
                 _ => None,
             })
-            .unwrap_or_else(|| fill(EN.glance_vault, &[&(v + 1).to_string()]))
+            .unwrap_or_else(|| Text::fill(EN.glance_vault, &[&Text::num(v as u64 + 1)]))
     };
     let place = |p: usize| {
         names
@@ -920,57 +935,68 @@ fn backup_nodes(
             .map(|n| n.trim())
             .filter(|n| !n.is_empty())
             .map_or_else(
-                || fill(EN.glance_place, &[&(p + 1).to_string()]),
-                str::to_string,
+                || Text::fill(EN.glance_place, &[&Text::num(p as u64 + 1)]),
+                Text::of,
             )
     };
     let label = |what: What| match what {
-        What::Words(i) => fill(EN.glance_key_words, &[&number(i).to_string()]),
-        What::SeedQr(i) => fill(EN.glance_key_seedqr, &[&number(i).to_string()]),
-        What::Passphrase(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
-        What::Sheet => EN.glance_wallet_sheet.to_string(),
-        What::Share(j) => fill(
+        What::Words(i) => Text::fill(EN.glance_key_words, &[&Text::num(number(i) as u64)]),
+        What::SeedQr(i) => Text::fill(EN.glance_key_seedqr, &[&Text::num(number(i) as u64)]),
+        What::Passphrase(i) => Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)]),
+        What::Sheet => Text::of(EN.glance_wallet_sheet),
+        What::Share(j) => Text::fill(
             EN.glance_share_count,
-            &[&(j + 1).to_string(), &shape.keys.to_string()],
+            &[&Text::num(j as u64 + 1), &Text::num(shape.keys as u64)],
         ),
-        What::VaultStick(v) => fill(EN.glance_stick, &[&vault_name(v).to_string()]),
-        What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
-        What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
-        What::PassphraseSealed(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
-        What::Wallet => EN.glance_description.to_string(),
-        What::SeedFile(i) => fill(EN.glance_key_file, &[&number(i).to_string()]),
-        What::SeedQrFile(i) => fill(EN.glance_key_seedqr_file, &[&number(i).to_string()]),
-        What::PassphraseFile(i) => fill(EN.glance_passphrase_file, &[&number(i).to_string()]),
-        What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
-        What::ShareFile(j, f) => fill(
+        What::VaultStick(v) => Text::fill(EN.glance_stick, &[&vault_name(v)]),
+        What::Seed(i) => Text::fill(EN.glance_key_seed, &[&Text::num(number(i) as u64)]),
+        What::SeedPassphrase(i) => Text::fill(
+            EN.glance_key_seed_passphrase,
+            &[&Text::num(number(i) as u64)],
+        ),
+        What::PassphraseSealed(i) => {
+            Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)])
+        }
+        What::Wallet => Text::of(EN.glance_description),
+        What::SeedFile(i) => Text::fill(EN.glance_key_file, &[&Text::num(number(i) as u64)]),
+        What::SeedQrFile(i) => {
+            Text::fill(EN.glance_key_seedqr_file, &[&Text::num(number(i) as u64)])
+        }
+        What::PassphraseFile(i) => {
+            Text::fill(EN.glance_passphrase_file, &[&Text::num(number(i) as u64)])
+        }
+        What::WalletFile(f) => Text::fill(EN.plan_wallet_file, &[plan::form_name(f)]),
+        What::ShareFile(j, f) => Text::fill(
             EN.plan_share_file,
             &[
-                &(j + 1).to_string(),
-                &shape.keys.to_string(),
+                &Text::num(j as u64 + 1),
+                &Text::num(shape.keys as u64),
                 plan::form_name(f),
             ],
         ),
-        What::SoftwareFile => EN.plan_software_file.to_string(),
+        What::SoftwareFile => Text::of(EN.plan_software_file),
         What::Codex32Share(i, j)
         | What::Codex32QrPaper(i, j)
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => c32_label(number(i), j),
         What::KefCode(i) | What::KefCodePaper(i) => {
-            fill(EN.glance_kef_code, &[&number(i).to_string()])
+            Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
         }
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
         What::VaultStick(v) => {
-            let inside: Vec<String> = a
-                .vault_seeds(shape, v)
-                .into_iter()
-                .map(|i| fill(EN.glance_key, &[&number(i).to_string()]))
-                .collect();
+            let mut inside = Text::new();
+            for i in a.vault_seeds(shape, v) {
+                if !inside.is_empty() {
+                    inside.push_str(", ");
+                }
+                inside.push_str(&Text::fill(EN.glance_key, &[&Text::num(number(i) as u64)]));
+            }
             if inside.is_empty() {
                 label(what)
             } else {
-                fill(EN.glance_in_the_vault, &[&inside.join(", ").to_string()])
+                Text::fill(EN.glance_in_the_vault, &[&inside])
             }
         }
         _ => label(what),
@@ -1020,7 +1046,7 @@ fn backup_nodes(
             })
         };
         let checked = notes.iter().find_map(|n| match n {
-            plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(String::from(&**d)),
+            plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(d.duplicate()),
             _ => None,
         });
         (mark, checked)
@@ -1038,34 +1064,34 @@ fn backup_nodes(
             let spot = &parted[0];
             let label = |w: What| match w {
                 What::VaultStick(v) if copy_of(spot.at, v) => {
-                    fill(EN.glance_copy, &[&vault_name(v).to_string()])
+                    Text::fill(EN.glance_copy, &[&vault_name(v)])
                 }
                 w => label(w),
             };
             let name = match spot.at {
                 At::Place(p) | At::Stick(p, _) => place(p),
                 At::Vault(v) => vault_name(v),
-                At::Files => fill(EN.glance_of_files, &[app.medium.cap()]),
-                At::Software => EN.glance_watch_only_software.to_string(),
-                At::Away => EN.glance_on_its_own_device.to_string(),
+                At::Files => Text::fill(EN.glance_of_files, &[app.medium.cap()]),
+                At::Software => Text::of(EN.glance_watch_only_software),
+                At::Away => Text::of(EN.glance_on_its_own_device),
             };
             let stick = match spot.at {
                 At::Vault(v) => {
-                    let at: Vec<String> = boxes
-                        .iter()
-                        .filter_map(|s| match s.at {
-                            At::Place(p)
-                                if s.holds.iter().any(|(w, _)| *w == What::VaultStick(v)) =>
-                            {
-                                Some(place(p))
+                    let mut at = Text::new();
+                    for s in boxes {
+                        if let At::Place(p) = s.at
+                            && s.holds.iter().any(|(w, _)| *w == What::VaultStick(v))
+                        {
+                            if !at.is_empty() {
+                                at.push_str(", ");
                             }
-                            _ => None,
-                        })
-                        .collect();
+                            at.push_str(&place(p));
+                        }
+                    }
                     Some(if at.is_empty() {
-                        EN.glance_its_own_stick.to_string()
+                        Text::of(EN.glance_its_own_stick)
                     } else {
-                        fill(EN.glance_stick_places, &[&at.join(", ").to_string()])
+                        Text::fill(EN.glance_stick_places, &[&at])
                     })
                 }
                 _ => None,
@@ -1085,15 +1111,15 @@ fn backup_nodes(
                 }
             }
             let state = match spot.at {
-                At::Away => Some((EN.glance_not_here.to_string(), Tone::Dim)),
+                At::Away => Some((Text::of(EN.glance_not_here), Tone::Dim)),
                 at => lines
                     .iter()
                     .find(|l| l.at == Some(at))
-                    .map(|l| (l.state.clone(), l.tone)),
+                    .map(|l| (Text::of(&l.state), l.tone)),
             };
             let (alone, alone_kind) = match spot.at {
                 At::Vault(_) => (
-                    Some(EN.glance_sealed.to_string()),
+                    Some(Text::of(EN.glance_sealed)),
                     Some(plan::AloneKind::Sealed),
                 ),
                 At::Away => (None, None),
@@ -1106,12 +1132,13 @@ fn backup_nodes(
                             crate::board::codex32::place_lines(shape, a, &mapped, p)
                                 .into_iter()
                                 .next()
+                                .map(|(t, k)| (Text::of(&t), k))
                         }
                         _ => None,
                     };
                     match shares {
                         Some((t, k)) => (Some(t), Some(k)),
-                        None => (Some(found.text().to_string()), Some(found.kind())),
+                        None => (Some(Text::of(found.text())), Some(found.kind())),
                     }
                 }
             };
@@ -1127,7 +1154,13 @@ fn backup_nodes(
                 .collect();
             // Only a place can be marked checked, so only a place has an age.
             let age = matches!(spot.at, At::Place(_) | At::Stick(..))
-                .then(|| age::NodeAge::of(&checked, older.iter().any(|o| *o), &today, iv))
+                .then(|| {
+                    let dates: Vec<_> = checked
+                        .iter()
+                        .map(|c| c.as_deref().map(Into::into))
+                        .collect();
+                    age::NodeAge::of(&dates, older.iter().any(|o| *o), &today, iv)
+                })
                 .flatten();
             BackupNode {
                 marks,
@@ -1143,21 +1176,26 @@ fn backup_nodes(
                     worst(&spot.holds)
                 },
                 holds: if spot.holds.is_empty() {
-                    vec![EN.glance_nothing.to_string()]
+                    vec![Text::of(EN.glance_nothing)]
                 } else {
                     spot.holds.iter().map(|(w, _)| label(*w)).collect()
                 },
                 keys_held: if spot.holds.is_empty() {
-                    EN.glance_nothing.to_string()
+                    Text::of(EN.glance_nothing)
                 } else {
-                    spot.holds
-                        .iter()
-                        .map(|(w, _)| match note_of(spot.at, *w).0 {
-                            Some(m) => format!("{} ({})", keys_label(*w), m.label()),
-                            None => keys_label(*w),
-                        })
-                        .collect::<Vec<_>>()
-                        .join(" · ")
+                    let mut held = Text::new();
+                    for (n, (w, _)) in spot.holds.iter().enumerate() {
+                        if n > 0 {
+                            held.push_str(" · ");
+                        }
+                        match note_of(spot.at, *w).0 {
+                            Some(m) => {
+                                held.push_str(&text!("{} ({})", &*keys_label(*w), m.label()))
+                            }
+                            None => held.push_str(&keys_label(*w)),
+                        }
+                    }
+                    held
                 },
                 stick,
                 state,
@@ -1181,10 +1219,10 @@ fn backup_nodes(
 // ---------------------------------------------------------------------
 
 /// A line of text in a node, and what a press on that line opens.
-struct Text {
+struct Line {
     /// At the line's right: "To check".
     mark: Option<(&'static str, Paint)>,
-    text: String,
+    text: Text,
     role: TypeRole,
     color: Paint,
     press: Option<Action>,
@@ -1192,11 +1230,11 @@ struct Text {
     struck: bool,
 }
 
-impl Text {
-    fn new(text: impl Into<String>, role: TypeRole, color: Paint) -> Text {
-        Text {
+impl Line {
+    fn new(text: Text, role: TypeRole, color: Paint) -> Line {
+        Line {
             mark: None,
-            text: text.into(),
+            text,
             role,
             color,
             press: None,
@@ -1205,16 +1243,16 @@ impl Text {
     }
 
     /// The line, struck through.
-    fn struck(self) -> Text {
-        Text {
+    fn struck(self) -> Line {
+        Line {
             struck: true,
             ..self
         }
     }
 
     /// The line, with `mark` at its right.
-    fn marked(self, mark: Option<(&'static str, Paint)>) -> Text {
-        Text { mark, ..self }
+    fn marked(self, mark: Option<(&'static str, Paint)>) -> Line {
+        Line { mark, ..self }
     }
 
     /// The width the mark takes, with its gap.
@@ -1224,18 +1262,18 @@ impl Text {
     }
 
     /// The line, pressed on its own.
-    fn pressed(self, press: Option<Action>) -> Text {
-        Text { press, ..self }
+    fn pressed(self, press: Option<Action>) -> Line {
+        Line { press, ..self }
     }
 }
 
 /// A node as drawn: its title, the tag at its right, the lines under it,
 /// a button at its foot, and what a press on it does.
 struct Node {
-    title: String,
+    title: Text,
     tag: Option<(&'static str, Paint)>,
-    lines: Vec<Text>,
-    button: Option<(String, Style, Action)>,
+    lines: Vec<Line>,
+    button: Option<(Text, Style, Action)>,
     action: Option<Action>,
 }
 
@@ -1351,11 +1389,11 @@ impl Node {
 
 /// A date a thing was checked here, as a line: "Checked 2026-10-10", or
 /// "Checked" when the clock was not known.
-pub(crate) fn checked_text(d: &str) -> String {
+pub(crate) fn checked_text(d: &str) -> Text {
     if d.is_empty() {
-        EN.glance_checked.to_string()
+        Text::of(EN.glance_checked)
     } else {
-        fill(EN.glance_checked_n, &[d])
+        Text::fill(EN.glance_checked_n, &[d])
     }
 }
 
@@ -1395,14 +1433,14 @@ pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
 fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
     use crate::glance::sheet::{ChartAction as C, Target};
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
-    let mut wallet_lines = vec![Text::new(
-        format!("{} · #{}", g.shape, g.checksum),
+    let mut wallet_lines = vec![Line::new(
+        text!("{} · #{}", &*g.shape, &*g.checksum),
         BODY_S,
         Role::OnSurfaceVariant.paint(),
     )];
     if g.held {
-        wallet_lines.push(Text::new(
-            RECEIVE_WARNING.to_string(),
+        wallet_lines.push(Line::new(
+            Text::of(RECEIVE_WARNING),
             LABEL_M,
             Role::Warning.paint(),
         ));
@@ -1421,15 +1459,15 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
         .map(|(i, k)| {
             let mut lines = Vec::new();
             if let Some(l) = &k.label {
-                lines.push(Text::new(l.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
+                lines.push(Line::new(l.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
             }
             if let Some(h) = &k.holder {
-                lines.push(Text::new(h.clone(), BODY_S, Role::OnSurface.paint()));
+                lines.push(Line::new(h.clone(), BODY_S, Role::OnSurface.paint()));
             }
             if let Some(d) = &k.checked {
-                lines.push(Text::new(checked_text(d), BODY_S, Role::Ok.paint()));
+                lines.push(Line::new(checked_text(d), BODY_S, Role::Ok.paint()));
             }
-            lines.push(Text::new(
+            lines.push(Line::new(
                 k.state.clone(),
                 LABEL_M,
                 if k.state == WAITING {
@@ -1446,12 +1484,12 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 } else {
                     Role::OnSurfaceVariant.paint()
                 };
-                lines.push(Text::new(way, LABEL_M, tone).pressed(k.action));
+                lines.push(Line::new(Text::of(way), LABEL_M, tone).pressed(k.action));
             }
             Node {
-                title: fill(
+                title: Text::fill(
                     EN.glance_key_fingerprint,
-                    &[&k.number.to_string(), &k.fingerprint.to_string()],
+                    &[&Text::num(k.number as u64), &k.fingerprint],
                 ),
                 tag: None,
                 lines,
@@ -1465,8 +1503,8 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             .iter()
             .enumerate()
             .map(|(i, n)| {
-                let mut lines: Vec<Text> = if compact {
-                    vec![Text::new(
+                let mut lines: Vec<Line> = if compact {
+                    vec![Line::new(
                         n.keys_held.clone(),
                         BODY_S,
                         Role::OnSurface.paint(),
@@ -1480,21 +1518,21 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                                 .then(|| open(Target::Line(i as u8, j as u8)))
                                 .flatten();
                             match n.marks.get(j).copied().flatten() {
-                                Some(m) => Text::new(
-                                    format!("{h} · {}", m.label()),
+                                Some(m) => Line::new(
+                                    text!("{} · {}", &**h, m.label()),
                                     BODY_S,
                                     Role::Error.paint(),
                                 )
                                 .struck()
                                 .pressed(line),
-                                None => Text::new(h.clone(), BODY_S, Role::OnSurface.paint())
+                                None => Line::new(h.clone(), BODY_S, Role::OnSurface.paint())
                                     .pressed(line),
                             }
                         })
                         .collect()
                 };
                 if let Some(s) = &n.stick {
-                    lines.push(Text::new(s.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
+                    lines.push(Line::new(s.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
                 }
                 if let Some(a) = &n.age {
                     let (text, warn) = a.line();
@@ -1507,13 +1545,13 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                     };
                     let mark = mark.map(|m| (m, Role::Warning.paint()));
                     // Under the name, before what it holds.
-                    lines.insert(0, Text::new(text, BODY_S, color).marked(mark));
+                    lines.insert(0, Line::new(Text::of(&text), BODY_S, color).marked(mark));
                 }
                 if let Some((s, t)) = &n.state {
-                    lines.push(Text::new(s.clone(), BODY_S, tone_color(*t)));
+                    lines.push(Line::new(s.clone(), BODY_S, tone_color(*t)));
                 }
                 if let (Some(s), Some(k)) = (&n.alone, n.alone_kind) {
-                    lines.push(Text::new(s.clone(), LABEL_M, alone_color(k)));
+                    lines.push(Line::new(s.clone(), LABEL_M, alone_color(k)));
                 }
                 Node {
                     title: n.name.clone(),
@@ -1525,26 +1563,26 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             })
             .collect(),
         Backup::Locked { vault, unlock } => vec![Node {
-            title: fill(EN.glance_plan_in_locked, &[&vault.to_string()]),
+            title: Text::fill(EN.glance_plan_in_locked, &[vault]),
             tag: None,
             lines: Vec::new(),
-            button: Some((EN.glance_unlock.to_string(), Style::Secondary, *unlock)),
+            button: Some((Text::of(EN.glance_unlock), Style::Secondary, *unlock)),
             action: None,
         }],
         Backup::None => vec![match g.press {
             Press::Loaded(w) => Node {
-                title: EN.glance_no_backup_plan_short.to_string(),
+                title: Text::of(EN.glance_no_backup_plan_short),
                 tag: None,
                 lines: Vec::new(),
                 button: Some((
-                    EN.glance_back_up.to_string(),
+                    Text::of(EN.glance_back_up),
                     Style::Secondary,
                     Action::Backup(w),
                 )),
                 action: None,
             },
             Press::Vault(..) => Node {
-                title: EN.glance_no_backup_plan.to_string(),
+                title: Text::of(EN.glance_no_backup_plan),
                 tag: None,
                 lines: Vec::new(),
                 button: None,
@@ -1966,14 +2004,14 @@ fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Paint, dash: [f32; 
 }
 
 /// What the plan's places are called, as the chart's nodes name them.
-pub(crate) fn names_of(g: &Glance) -> impl Fn(usize) -> String + '_ {
+pub(crate) fn names_of(g: &Glance) -> impl Fn(usize) -> Text + '_ {
     move |p| match &g.backup {
         Backup::Plan { nodes, .. } => nodes
             .iter()
             .find(|n| n.at == At::Place(p))
             .map(|n| n.name.clone())
-            .unwrap_or_else(|| crate::backup_flow::BackupFlow::place_name(p)),
-        _ => crate::backup_flow::BackupFlow::place_name(p),
+            .unwrap_or_else(|| Text::of(&crate::backup_flow::BackupFlow::place_name(p))),
+        _ => Text::of(&crate::backup_flow::BackupFlow::place_name(p)),
     }
 }
 
@@ -1989,7 +2027,7 @@ pub(crate) fn check_lines(
     w: f32,
     c: plan::Check,
     beside: bool,
-    place: &dyn Fn(usize) -> String,
+    place: &dyn Fn(usize) -> Text,
 ) -> f32 {
     let h = check_boxes(ui, x, y, w, c, beside);
     h + check_facts(ui, x, y + h, w, c, place)
@@ -2000,7 +2038,7 @@ enum Due {
     /// Every copy was checked within the interval.
     Clear,
     /// These places, by place among the nodes and name, are due.
-    Places(Vec<(u8, String)>),
+    Places(Vec<(u8, Text)>),
     /// The clock is not checked: nothing can be told.
     NoClock,
 }
@@ -2023,7 +2061,7 @@ fn due_of(g: &Glance) -> Option<Due> {
     if ages.iter().any(|(.., a)| !a.clock) {
         return Some(Due::NoClock);
     }
-    let due: Vec<(u8, String)> = ages
+    let due: Vec<(u8, Text)> = ages
         .iter()
         .filter(|(.., a)| a.due)
         .map(|(i, n, _)| (*i as u8, n.name.clone()))
@@ -2050,17 +2088,27 @@ pub(crate) fn due_line(ui: &mut Ui, g: &Glance, x: f32, y: f32, w: f32) -> f32 {
                 Backup::Plan { interval, .. } => *interval,
                 _ => age::Interval::default(),
             };
-            (fill(EN.glance_every_checked, &[&iv.text()]), Role::Ok, None)
+            (
+                Text::fill(EN.glance_every_checked, &[&iv.text()]),
+                Role::Ok,
+                None,
+            )
         }
         Due::Places(p) => {
-            let names: Vec<&str> = p.iter().map(|(_, n)| n.as_str()).collect();
+            let mut names = Text::new();
+            for (n, (_, name)) in p.iter().enumerate() {
+                if n > 0 {
+                    names.push_str(", ");
+                }
+                names.push_str(name);
+            }
             (
-                fill(EN.glance_to_check_places, &[&names.join(", ")]),
+                Text::fill(EN.glance_to_check_places, &[&names]),
                 Role::Warning,
                 Some(Action::Chart(C::Open(g.press, Target::Node(p[0].0)))),
             )
         }
-        Due::NoClock => (EN.glance_set_time_to_see.to_string(), Role::OnSurface, None),
+        Due::NoClock => (Text::of(EN.glance_set_time_to_see), Role::OnSurface, None),
     };
     let pad = tokens::CHART_NODE_PAD;
     let inner = w - 2.0 * pad;
@@ -2111,12 +2159,12 @@ fn check_facts(
     y: f32,
     w: f32,
     c: plan::Check,
-    place: &dyn Fn(usize) -> String,
+    place: &dyn Fn(usize) -> Text,
 ) -> f32 {
     let mut cy = y;
     if let Some(p) = c.one_place {
         cy += tokens::GAP;
-        let line = fill(EN.plan_all_at_one_place, &[&place(p)]);
+        let line = Text::fill(EN.plan_all_at_one_place, &[&place(p)]);
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line);
     }
     if c.passphrase_apart {
@@ -2287,7 +2335,7 @@ pub(crate) fn draw_column_with(
 
 /// The line of the chart `g` that says what `what` is at `at`: "Key 1
 /// words", "Vault 1 · copy".
-pub(crate) fn label_of(g: &Glance, at: At, what: What) -> Option<String> {
+pub(crate) fn label_of(g: &Glance, at: At, what: What) -> Option<Text> {
     let Backup::Plan { nodes, .. } = &g.backup else {
         return None;
     };
@@ -2298,42 +2346,50 @@ pub(crate) fn label_of(g: &Glance, at: At, what: What) -> Option<String> {
 
 /// A thing as the chart names it, wherever it is: "Key 1 words", "Wallet
 /// sheet", "Vault 1 stick".
-pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
+pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
     let number = |i: usize| {
         g.and_then(|g| g.keys.iter().find(|k| k.seed == Some(i)))
             .map_or(i + 1, |k| k.number)
     };
     match what {
-        What::Words(i) => fill(EN.glance_key_words, &[&number(i).to_string()]),
-        What::SeedQr(i) => fill(EN.glance_key_seedqr, &[&number(i).to_string()]),
-        What::Passphrase(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
-        What::Sheet => EN.glance_wallet_sheet.to_string(),
-        What::Share(j) => fill(EN.glance_share, &[&(j + 1).to_string()]),
-        What::VaultStick(v) => fill(EN.glance_vault_copy, &[&(v + 1).to_string()]),
-        What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
-        What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
-        What::Wallet => EN.glance_the_description.to_string(),
-        What::SeedFile(i) | What::SeedQrFile(i) => fill(EN.glance_key, &[&number(i).to_string()]),
-        What::PassphraseFile(i) | What::PassphraseSealed(i) => {
-            fill(EN.glance_passphrase, &[&number(i).to_string()])
+        What::Words(i) => Text::fill(EN.glance_key_words, &[&Text::num(number(i) as u64)]),
+        What::SeedQr(i) => Text::fill(EN.glance_key_seedqr, &[&Text::num(number(i) as u64)]),
+        What::Passphrase(i) => Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)]),
+        What::Sheet => Text::of(EN.glance_wallet_sheet),
+        What::Share(j) => Text::fill(EN.glance_share, &[&Text::num(j as u64 + 1)]),
+        What::VaultStick(v) => Text::fill(EN.glance_vault_copy, &[&Text::num(v as u64 + 1)]),
+        What::Seed(i) => Text::fill(EN.glance_key_seed, &[&Text::num(number(i) as u64)]),
+        What::SeedPassphrase(i) => Text::fill(
+            EN.glance_key_seed_passphrase,
+            &[&Text::num(number(i) as u64)],
+        ),
+        What::Wallet => Text::of(EN.glance_the_description),
+        What::SeedFile(i) | What::SeedQrFile(i) => {
+            Text::fill(EN.glance_key, &[&Text::num(number(i) as u64)])
         }
-        What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
-        What::ShareFile(j, _) => fill(EN.glance_share, &[&(j + 1).to_string()]),
-        What::SoftwareFile => EN.plan_software_file.to_string(),
+        What::PassphraseFile(i) | What::PassphraseSealed(i) => {
+            Text::fill(EN.glance_passphrase, &[&Text::num(number(i) as u64)])
+        }
+        What::WalletFile(f) => Text::fill(EN.plan_wallet_file, &[plan::form_name(f)]),
+        What::ShareFile(j, _) => Text::fill(EN.glance_share, &[&Text::num(j as u64 + 1)]),
+        What::SoftwareFile => Text::of(EN.plan_software_file),
         What::Codex32Share(i, j)
         | What::Codex32QrPaper(i, j)
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => c32_label(number(i), j),
         What::KefCode(i) | What::KefCodePaper(i) => {
-            fill(EN.glance_kef_code, &[&number(i).to_string()])
+            Text::fill(EN.glance_kef_code, &[&Text::num(number(i) as u64)])
         }
     }
 }
 
 /// A codex32 string as the chart names it: "Key 1 codex32 C".
-fn c32_label(key: usize, j: usize) -> String {
-    let index = plan::codex32::index_char(j)
-        .to_ascii_uppercase()
-        .to_string();
-    fill(EN.c32_glance_string, &[&key.to_string(), &index])
+fn c32_label(key: usize, j: usize) -> Text {
+    let index = text!("{}", plan::codex32::index_char(j).to_ascii_uppercase());
+    Text::fill(EN.c32_glance_string, &[&Text::num(key as u64), &index])
+}
+
+/// A fingerprint as wiping text.
+fn fp_text(f: faraday_bip::keys::Fingerprint) -> Text {
+    Text::of(&fp_string(f))
 }

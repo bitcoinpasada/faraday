@@ -436,7 +436,10 @@ fn plan_holds(app: &Faraday) -> Vec<Vec<String>> {
     let Backup::Plan { nodes, .. } = &g.backup else {
         panic!("no plan");
     };
-    nodes.iter().map(|n| n.holds.clone()).collect()
+    nodes
+        .iter()
+        .map(|n| n.holds.iter().map(|h| String::from(&**h)).collect())
+        .collect()
 }
 
 #[test]

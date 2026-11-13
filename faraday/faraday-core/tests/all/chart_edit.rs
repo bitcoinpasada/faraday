@@ -199,11 +199,16 @@ fn line_of(app: &Faraday, w: usize, name: &str, label: &str) -> (u8, u8) {
 }
 
 fn names(g: &Glance) -> Vec<String> {
-    nodes(g).iter().map(|n| n.name.clone()).collect()
+    nodes(g).iter().map(|n| String::from(&*n.name)).collect()
 }
 
 fn holds(app: &Faraday, w: usize, name: &str) -> Vec<String> {
-    node_of(app, w, name).1.holds
+    node_of(app, w, name)
+        .1
+        .holds
+        .iter()
+        .map(|h| String::from(&**h))
+        .collect()
 }
 
 pub(crate) fn open(app: &mut Faraday, press: Press, t: Target) {
@@ -381,7 +386,7 @@ fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
     let after = chart(&app, 0);
     assert_eq!(names(&after), names(&before));
     for (a, b) in nodes(&after).iter().zip(nodes(&before)) {
-        assert_eq!(a.holds, b.holds, "{} changed", a.name);
+        assert_eq!(a.holds, b.holds, "{} changed", &*a.name);
     }
     let (check_a, check_b) = match (&after.backup, &before.backup) {
         (Backup::Plan { check: a, .. }, Backup::Plan { check: b, .. }) => (*a, *b),
@@ -639,7 +644,7 @@ fn a_seed_saved_into_another_vault_is_a_change_to_the_plan() {
     planned(&mut app, w, 2);
     let press = Press::Loaded(w);
     let (n, node) = node_of(&app, w, "Vault 1");
-    assert!(!node.holds.contains(&"Key 2 seed".to_string()));
+    assert!(!node.holds.iter().any(|h| *h == "Key 2 seed"));
     open(&mut app, press, Target::Node(n));
     assert!(shown(&mut app, "Save more into it"));
     let save = Edit::Add(At::Vault(0), What::Seed(1));
@@ -775,9 +780,9 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
     let g = vault_chart(&app);
     assert_eq!(names(&g), ["Place 1", "Place 2", "Place 3", "Vault 1"]);
     let all = nodes(&g);
-    assert!(all[2].holds.contains(&"Key 1 words".to_string()), "{all:?}");
+    assert!(all[2].holds.iter().any(|h| *h == "Key 1 words"), "{all:?}");
     // The date moved with the words; the sheet still there.
-    assert_eq!(all[2].checked, [Some("2026-10-03".to_string())]);
+    assert_eq!(all[2].checked, [Some(faraday_text::Text::of("2026-10-03"))]);
     assert_eq!(names(&chart(&app, w)), names(&g));
 }
 
@@ -861,7 +866,7 @@ fn words_checked(app: &Faraday, w: usize, place: &str) -> Option<String> {
         .iter()
         .position(|h| h == "Key 1 words")
         .unwrap_or_else(|| panic!("no words in {place}: {node:?}"));
-    node.checked[j].clone()
+    node.checked[j].as_deref().map(String::from)
 }
 
 #[test]
@@ -1089,7 +1094,7 @@ fn unlocked_again_keys(
 
 fn vault_stick_checked(app: &Faraday) -> Option<String> {
     let (node, j) = line_holding(app, 0, What::VaultStick(0));
-    node.checked[j].clone()
+    node.checked[j].as_deref().map(String::from)
 }
 
 #[test]

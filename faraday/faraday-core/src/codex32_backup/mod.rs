@@ -18,11 +18,11 @@
 pub(crate) mod screen;
 
 use faraday_bip::codex32::Codex32;
+use faraday_text::{Text, text};
 use faraday_ui::keyboard::OskPress;
-use zeroize::Zeroizing;
 
 use crate::plan::codex32::{C32, index_char};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 
 /// A press on the codex32 item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub enum Press {
     Open(u8),
     /// A key of the codex32 keyboard.
     Key(OskPress),
-    /// **String** · **Codex32QR**, at 48 characters.
+    /// **Codex32 string** · **Codex32QR**, at 48 characters.
     Qr,
     /// A block (or, marked by rows, a row) of the open string's Codex32QR
     /// marked: pressed in the whole grid, or Previous and Next, by its
@@ -87,9 +87,9 @@ pub enum SetPress {
 pub enum Found {
     /// The same as the string made here, or a string of the set at the
     /// index wanted, its checksum holding.
-    Holds(String),
+    Holds(Text),
     /// Something to look at again, said.
-    Differs(String),
+    Differs(Text),
 }
 
 /// The set action under way (§9.7).
@@ -127,11 +127,11 @@ pub struct Strings {
     /// The strings made here (a set the plan made, a share added, a new
     /// set), as `faraday-keys` lent them: each with its index (a bech32
     /// value). Kept while the backup is open.
-    made: Vec<(usize, Zeroizing<String>)>,
+    made: Vec<(usize, Text)>,
     /// The string open: its index (a bech32 value).
     pub at: Option<usize>,
     /// Typed back, after `ms1`.
-    pub typed: Zeroizing<String>,
+    pub typed: Text,
     /// What the string typed back was found to be.
     pub found: Option<Found>,
     /// Skip pressed once: the caution is shown.
@@ -149,13 +149,13 @@ pub struct Strings {
     pub rows: bool,
     /// The strings typed back that held, for the check that enough of
     /// them rebuild the seed.
-    pub held: Vec<Zeroizing<String>>,
+    pub held: Vec<Text>,
     /// Whether the strings typed back rebuild this seed, once enough are.
     pub rebuilds: Option<bool>,
     /// A set action under way.
     pub set: SetStep,
     /// A line said under the item.
-    pub note: Option<String>,
+    pub note: Option<Text>,
 }
 
 impl Strings {
@@ -196,7 +196,7 @@ impl Strings {
 
     /// Keeps the strings made, each with its index; a string already kept
     /// at an index is replaced.
-    pub fn keep(&mut self, strings: Vec<(usize, Zeroizing<String>)>) {
+    pub fn keep(&mut self, strings: Vec<(usize, Text)>) {
         for (j, s) in strings {
             self.made.retain(|(x, _)| *x != j);
             self.made.push((j, s));
@@ -264,20 +264,23 @@ impl Strings {
     /// (`docs/CODEX32.md` §10.2): read as that string typed back whole,
     /// either case, and checked as [`Strings::key`] checks it. Returns
     /// the string once it holds, to be counted towards the rebuild.
-    pub fn scanned(&mut self, form: &C32, text: &str) -> Option<String> {
+    pub fn scanned(&mut self, form: &C32, text: &str) -> Option<Text> {
         let j = self.at?;
-        let whole = Zeroizing::new(text.trim().to_ascii_lowercase());
+        let whole: Text = text
+            .trim()
+            .chars()
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
         if whole.len() != usize::from(form.length) || Codex32::parse(&whole).is_err() {
-            self.found = Some(Found::Differs(EN.c32_scanned_not_string.to_string()));
+            self.found = Some(Found::Differs(Text::of(EN.c32_scanned_not_string)));
             return None;
         }
-        self.typed = Zeroizing::new(whole.get(3..).unwrap_or("").to_string());
+        self.typed = Text::of(whole.get(3..).unwrap_or(""));
         self.skip_ask = false;
-        let known = self.known(j).map(|s| Zeroizing::new(s.to_string()));
-        let found = check(form, j, &whole, known.as_deref().map(String::as_str));
+        let found = check(form, j, &whole, self.known(j));
         let holds = matches!(found, Found::Holds(_));
         self.found = Some(found);
-        holds.then(|| whole.to_string())
+        holds.then_some(whole)
     }
 
     /// A key of the codex32 keyboard while a string of the set is typed
@@ -285,7 +288,7 @@ impl Strings {
     /// character goes in, or the last comes out. A string of the set
     /// typed whole, its checksum and header holding, is returned to be
     /// counted; one already in is not counted twice.
-    pub fn type_in(&mut self, form: &C32, press: OskPress) -> Option<String> {
+    pub fn type_in(&mut self, form: &C32, press: OskPress) -> Option<Text> {
         self.shut = false;
         let room = match self.set {
             SetStep::Typing { .. } => usize::from(form.length).saturating_sub(3),
@@ -313,14 +316,14 @@ impl Strings {
         if self.typed.len() < room || matches!(self.set, SetStep::Scheme(..)) {
             return None;
         }
-        let mut whole = Zeroizing::new(String::from("ms1"));
+        let mut whole = Text::of("ms1");
         whole.push_str(&self.typed);
         let index = Codex32::parse(&whole)
             .ok()
             .and_then(|s| crate::plan::codex32::index_of(s.share_index()));
         let found = match index {
             Some(j) => check(form, j, &whole, None),
-            None => Found::Differs(EN.c32_checksum_fails.to_string()),
+            None => Found::Differs(Text::of(EN.c32_checksum_fails)),
         };
         let holds = matches!(found, Found::Holds(_));
         self.found = Some(found);
@@ -332,14 +335,14 @@ impl Strings {
             .held
             .iter()
             .any(|h| h.as_bytes().get(8) == whole.as_bytes().get(8));
-        (!again).then(|| whole.to_string())
+        (!again).then_some(whole)
     }
 
     /// A key of the codex32 keyboard while string `j` of `form` is open:
     /// the character goes in, or the last comes out; at the string's last
     /// box it is checked ([`check`]). Returns the string typed whole once
     /// it holds, to be counted towards the rebuild.
-    pub fn key(&mut self, form: &C32, press: OskPress) -> Option<String> {
+    pub fn key(&mut self, form: &C32, press: OskPress) -> Option<Text> {
         // Any key shows the typed text again, so a shut string with no
         // chip (not made here, not 48 characters) is never typed blind.
         self.shut = false;
@@ -367,12 +370,12 @@ impl Strings {
             return None;
         }
         let j = self.at?;
-        let mut whole = Zeroizing::new(String::from("ms1"));
+        let mut whole = Text::of("ms1");
         whole.push_str(&self.typed);
         let found = check(form, j, &whole, self.made(j));
         let holds = matches!(found, Found::Holds(_));
         self.found = Some(found);
-        holds.then(|| whole.to_string())
+        holds.then_some(whole)
     }
 }
 
@@ -430,8 +433,8 @@ impl crate::wallet_backup::WalletBackupArea {
         let (st, form, checked) = self.c32_parts()?;
         let j = st.at?;
         if let Some(whole) = st.scanned(form, text) {
-            if !st.held.iter().any(|h| h.as_str() == whole) {
-                st.held.push(Zeroizing::new(whole));
+            if !st.held.contains(&whole) {
+                st.held.push(whole);
             }
             mark_checked(checked, st.seed, j);
         }
@@ -485,7 +488,7 @@ pub fn printed(x: usize, y: usize) -> bool {
 /// §9.4): threshold, identifier, and the index wanted.
 pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
     let id = form.id_text();
-    let index = index_char(j).to_ascii_uppercase().to_string();
+    let index = text!("{}", index_char(j).to_ascii_uppercase());
     if let Some(want) = made {
         // The whole string, box for box: one that stops short or runs on
         // differs at the box past the shorter one's end.
@@ -495,12 +498,15 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
             .position(|(a, b)| a != b)
             .or_else(|| (want.len() != typed.len()).then(|| want.len().min(typed.len())));
         return match differs {
-            Some(p) => Found::Differs(fill(EN.codex32_box_differs, &[&(p + 1).to_string()])),
-            None => Found::Holds(fill(EN.c32_holds, &[&index, &id])),
+            Some(p) => Found::Differs(Text::fill(
+                EN.codex32_box_differs,
+                &[&Text::num(p as u64 + 1)],
+            )),
+            None => Found::Holds(Text::fill(EN.c32_holds, &[&index, &id])),
         };
     }
     let Ok(s) = Codex32::parse(typed) else {
-        return Found::Differs(EN.c32_checksum_fails.to_string());
+        return Found::Differs(Text::of(EN.c32_checksum_fails));
     };
     // Box 4 is the threshold, 5 to 8 the identifier, 9 the index.
     let header: [(bool, usize); 3] = [
@@ -512,8 +518,10 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
         ),
     ];
     match header.iter().find(|(ok, _)| !ok) {
-        Some(&(_, b)) => Found::Differs(fill(EN.c32_not_of_set, &[&b.to_string(), &id])),
-        None => Found::Holds(fill(EN.c32_holds, &[&index, &id])),
+        Some(&(_, b)) => {
+            Found::Differs(Text::fill(EN.c32_not_of_set, &[&Text::num(b as u64), &id]))
+        }
+        None => Found::Holds(Text::fill(EN.c32_holds, &[&index, &id])),
     }
 }
 
@@ -522,7 +530,7 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
 /// and mark (0 held, 1 lost, 2 exposed). `Ok`: the held strings to
 /// destroy, and the line; `Err`: the line that says rotating is not
 /// enough.
-pub fn rotation(form: &C32, marks: &[(usize, u8)]) -> Result<(Vec<usize>, String), String> {
+pub fn rotation(form: &C32, marks: &[(usize, u8)]) -> Result<(Vec<usize>, Text), Text> {
     let id = form.id_text();
     let out: Vec<usize> = marks
         .iter()
@@ -537,25 +545,31 @@ pub fn rotation(form: &C32, marks: &[(usize, u8)]) -> Result<(Vec<usize>, String
     // Strings whose index is not known may be anywhere.
     let maybe = out.len() + usize::from(form.unknown);
     if maybe >= form.need() {
-        return Err(fill(EN.c32_rotate_not_enough, &[&maybe.to_string(), &id]));
+        return Err(Text::fill(
+            EN.c32_rotate_not_enough,
+            &[&Text::num(maybe as u64), &id],
+        ));
     }
-    let names = |list: &[usize]| -> String {
-        let v: Vec<String> = list
-            .iter()
-            .map(|&j| index_char(j).to_ascii_uppercase().to_string())
-            .collect();
-        v.join(", ")
+    let names = |list: &[usize]| -> Text {
+        let mut out = Text::new();
+        for (n, &j) in list.iter().enumerate() {
+            if n > 0 {
+                out.push_str(", ");
+            }
+            out.push(index_char(j).to_ascii_uppercase());
+        }
+        out
     };
     let line = if out.is_empty() {
-        fill(EN.c32_rotate_destroy_all, &[&names(&held)])
+        Text::fill(EN.c32_rotate_destroy_all, &[&names(&held)])
     } else {
-        fill(
+        Text::fill(
             EN.c32_rotate_destroy,
             &[
                 &names(&held),
                 &names(&out),
-                &form.need().to_string(),
-                &form.n().to_string(),
+                &Text::num(form.need() as u64),
+                &Text::num(form.n() as u64),
             ],
         )
     };
@@ -582,12 +596,12 @@ pub fn index_typed(c: char) -> Option<usize> {
 /// written as on a stick (`docs/CODEX32.md` §9.5): `codex32-{fp}-{index}.txt`
 /// for the string, `codex32qr-{fp}-{index}.png` for its Codex32QR, the
 /// fingerprint and the index in lower case.
-pub fn stick_name(what: crate::plan::What, fp: &str, j: usize) -> Option<String> {
-    let fp = fp.to_lowercase();
+pub fn stick_name(what: crate::plan::What, fp: &str, j: usize) -> Option<Text> {
+    let fp: Text = fp.chars().flat_map(char::to_lowercase).collect();
     let index = crate::plan::codex32::index_char(j);
     match what {
-        crate::plan::What::Codex32ShareFile(..) => Some(format!("codex32-{fp}-{index}.txt")),
-        crate::plan::What::Codex32QrFile(..) => Some(format!("codex32qr-{fp}-{index}.png")),
+        crate::plan::What::Codex32ShareFile(..) => Some(text!("codex32-{}-{index}.txt", &*fp)),
+        crate::plan::What::Codex32QrFile(..) => Some(text!("codex32qr-{}-{index}.png", &*fp)),
         _ => None,
     }
 }
@@ -599,7 +613,7 @@ pub fn stick_names(
     shape: &crate::plan::Shape,
     a: &crate::plan::Answers,
     what: crate::plan::What,
-) -> Vec<String> {
+) -> Vec<Text> {
     let Some((i, j)) = crate::plan::codex32::string_of(what) else {
         return Vec::new();
     };

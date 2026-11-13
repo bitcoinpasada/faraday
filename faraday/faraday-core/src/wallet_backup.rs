@@ -957,12 +957,12 @@ impl WalletBackupArea {
         let Some(j) = st.at else {
             // A string typed in for a set action (`docs/CODEX32.md` §9.7).
             if let Some(whole) = st.type_in(form, press) {
-                st.held.push(zeroize::Zeroizing::new(whole));
+                st.held.push(whole);
             }
             return true;
         };
         if let Some(whole) = st.key(form, press) {
-            st.held.push(zeroize::Zeroizing::new(whole));
+            st.held.push(whole);
             if !b.c32_checked.contains(&(seed, j)) {
                 b.c32_checked.push((seed, j));
             }
@@ -3201,6 +3201,17 @@ impl Faraday {
         self.vaults.plan_restore(id, old, fitted);
         self.vaults.seals_write(&c, v);
     }
+}
+
+/// Costs what the plan the chart shows costs ([`crate::glance::plan_of_now`]), with
+/// its place names as plain strings.
+pub(crate) fn plan_now(
+    c: &Compute,
+    app: &Faraday,
+    w: usize,
+) -> Option<(plan::Answers, Vec<String>)> {
+    let (answers, names) = crate::glance::plan_of_now(c, app, w)?;
+    Some((answers, names.iter().map(|n| String::from(&**n)).collect()))
 }
 
 #[cfg(test)]

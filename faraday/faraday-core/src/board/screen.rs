@@ -1978,7 +1978,11 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // (§19.14; the owner's choice, 2026-10-16: the board's top is kept
     // free).
     bottom += tokens::GAP;
-    let name = |p: usize| v.places.get(p).map_or_else(String::new, |c| c.name.clone());
+    let name = |p: usize| {
+        v.places
+            .get(p)
+            .map_or_else(faraday_text::Text::new, |c| faraday_text::Text::of(&c.name))
+    };
     bottom += crate::glance::check_lines(ui, x, bottom, w, v.check, false, &name);
     // The checks that stand, a line each (§19.5).
     for line in &v.warnings {

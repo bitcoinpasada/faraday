@@ -997,9 +997,11 @@ impl Faraday {
                         }
                         // A codex32 string's file is a share of a seed: a
                         // secret, as a seed's words are.
-                        What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out
-                            .secret
-                            .extend(crate::codex32_backup::stick_names(&shape, a, *what)),
+                        What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out.secret.extend(
+                            crate::codex32_backup::stick_names(&shape, a, *what)
+                                .iter()
+                                .map(|t| String::from(&**t)),
+                        ),
                         // A Krux code is an extra copy, not a copy of the
                         // seed, and its files are named when made
                         // (`docs/KEF.md` §15.1).
@@ -2505,7 +2507,7 @@ impl Faraday {
         // of a wallet holding the seed it is refused as a set's action is.
         if let Some(line) = self.c32_lock_refusal(key) {
             if let Some(st) = self.backup.c32_mut() {
-                st.note = Some(line);
+                st.note = Some(faraday_text::Text::of(&line));
             }
             return;
         }
@@ -2594,7 +2596,11 @@ impl Faraday {
         let texts: Vec<&str> = list.iter().map(|(_, s)| s.as_str()).collect();
         self.session.keys.keep_codex32(c, key, &texts);
         if let Some(st) = self.backup.c32_mut() {
-            st.keep(list);
+            st.keep(
+                list.iter()
+                    .map(|(j, s)| (*j, faraday_text::Text::of(s)))
+                    .collect(),
+            );
             if let Some(&j) = paper.first() {
                 st.open(j);
             }
@@ -2719,7 +2725,7 @@ impl Faraday {
                     .push_back(faraday_shell_api::Command::CameraOff);
             }
             Some(crate::codex32_backup::Found::Differs(line)) => {
-                self.camera.say(line);
+                self.camera.say(String::from(&*line));
             }
             None => {}
         }
@@ -2752,7 +2758,7 @@ impl Faraday {
         };
         if !checked.contains(&(i, j)) {
             if let Some(st) = self.backup.c32_mut() {
-                st.note = Some(EN.codex32_type_it_back.to_string());
+                st.note = Some(faraday_text::Text::of(EN.codex32_type_it_back));
             }
             return;
         }
@@ -2799,7 +2805,7 @@ impl Faraday {
         if let Some(line) = past_lock
             && matches!(p, SetPress::Add | SetPress::Replace(_) | SetPress::Rotate)
         {
-            st.note = Some(line);
+            st.note = Some(faraday_text::Text::of(&line));
             return;
         }
         match p {
@@ -2817,7 +2823,7 @@ impl Faraday {
                     _ => next_index(&form).and_then(|j| u8::try_from(j).ok()),
                 };
                 if index.is_none() {
-                    st.note = Some(EN.c32_set_full.to_string());
+                    st.note = Some(faraday_text::Text::of(EN.c32_set_full));
                     return;
                 }
                 st.list();
@@ -2868,7 +2874,7 @@ impl Faraday {
                     && let Some(st) = self.backup.c32_mut()
                 {
                     st.set = set;
-                    st.note = line;
+                    st.note = line.map(|l| faraday_text::Text::of(&l));
                 }
             }
         }
@@ -2885,7 +2891,7 @@ impl Faraday {
         (i, key): (usize, usize),
         form: &crate::plan::codex32::C32,
         set: &crate::codex32_backup::SetStep,
-        held: &[zeroize::Zeroizing<String>],
+        held: &[faraday_text::Text],
         typed: &str,
     ) -> Result<(), Option<String>> {
         use crate::codex32_backup::SetStep;
@@ -3082,7 +3088,7 @@ impl Faraday {
         let c = self.compute();
         self.session.keys.keep_codex32(&c, key, &[s.as_str()]);
         if let Some(st) = self.backup.c32_mut() {
-            st.keep(vec![(j, s)]);
+            st.keep(vec![(j, faraday_text::Text::of(&s))]);
             st.set = crate::codex32_backup::SetStep::None;
             st.held.clear();
             st.open(j);
@@ -3145,7 +3151,7 @@ impl Faraday {
         let Some(st) = self.backup.state().and_then(|b| b.c32.as_ref()) else {
             return;
         };
-        let texts: Vec<zeroize::Zeroizing<String>> = st.held.clone();
+        let texts: Vec<faraday_text::Text> = st.held.clone();
         let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
         let c = self.compute();
         self.session.keys.keep_codex32(&c, key, &refs);

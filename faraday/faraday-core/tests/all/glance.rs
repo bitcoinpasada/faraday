@@ -156,12 +156,12 @@ fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
     let names: Vec<&str> = nodes.iter().map(|n| n.name.as_str()).collect();
     assert_eq!(names, ["Place 1", "Place 2", "Vault 1"]);
     let one = node(&nodes, "Place 1");
-    assert!(one.holds.contains(&"Key 1 words".to_string()), "{one:?}");
+    assert!(one.holds.iter().any(|h| *h == "Key 1 words"), "{one:?}");
     assert!(!one.holds.iter().any(|h| h.contains("stick")), "{one:?}");
     let two = node(&nodes, "Place 2");
-    assert!(two.holds.contains(&"Vault 1 stick".to_string()), "{two:?}");
+    assert!(two.holds.iter().any(|h| *h == "Vault 1 stick"), "{two:?}");
     let vault = node(&nodes, "Vault 1");
-    assert!(vault.holds.contains(&"Key 1 seed".to_string()), "{vault:?}");
+    assert!(vault.holds.iter().any(|h| *h == "Key 1 seed"), "{vault:?}");
     assert_eq!(vault.stick.as_deref(), Some("Stick at Place 2"));
     assert_eq!(vault.alone.as_deref(), Some("Sealed"));
     // The key's lines go to the places with its words and to its vault.
@@ -216,11 +216,11 @@ fn a_cosigners_key_is_xpub_only_and_no_backup_node_holds_its_seed() {
     );
     let nodes = nodes(&g);
     for n in &nodes {
-        assert!(!n.keys.contains(&2), "{} has a line from key 3", n.name);
+        assert!(!n.keys.contains(&2), "{} has a line from key 3", &*n.name);
         assert!(
             !n.holds.iter().any(|h| h.starts_with("Key 3")),
             "{} holds key 3's seed: {:?}",
-            n.name,
+            &*n.name,
             n.holds
         );
     }

@@ -149,7 +149,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 )
             };
             let line = match reads.backup_vault_fits(v) {
-                Some(name) => fill(EN.item_title_in_vault, &[&name.to_string()]),
+                Some(name) => fill(EN.item_title_in_vault, &[&*name]),
                 None => EN.item_title_not_saved.to_string(),
             };
             (title, line)
@@ -191,8 +191,14 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
-            app.wallet_item_written(&reads.backup_public_names_for(b.wallet, a))
-                .unwrap_or_else(|| String::from(&*ticked(&SOFTWARE_ROWS, &a.software))),
+            app.wallet_item_written(
+                &reads
+                    .backup_public_names_for(b.wallet, a)
+                    .iter()
+                    .map(|n| String::from(&**n))
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap_or_else(|| String::from(&*ticked(&SOFTWARE_ROWS, &a.software))),
         ),
         Item::Sticks => {
             let (n, m) = app

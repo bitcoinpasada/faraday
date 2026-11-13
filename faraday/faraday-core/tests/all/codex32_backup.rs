@@ -213,7 +213,10 @@ fn each_string_typed_back_is_checked_against_the_set_and_two_rebuild_the_key() {
     let mut wrong = A.to_string();
     wrong.replace_range(20..21, "q");
     type_in(&mut app, &wrong);
-    assert_eq!(found(&app), Some(Found::Differs("Checksum fails".into())));
+    assert_eq!(
+        found(&app),
+        Some(Found::Differs(faraday_text::Text::of("Checksum fails")))
+    );
     for _ in 0..45 {
         c32(&mut app, Press::Key(OskPress::Back));
     }
@@ -417,7 +420,8 @@ fn rotating_says_what_to_destroy_and_refuses_when_too_many_are_out() {
         .unwrap();
     assert!(
         note.starts_with("Destroy A, D. Then at most C is left"),
-        "{note}"
+        "{}",
+        &*note
     );
     c32(&mut app, Press::Set(SetPress::Destroyed(ix('a') as u8)));
     assert!(

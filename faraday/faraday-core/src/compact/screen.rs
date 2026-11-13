@@ -343,7 +343,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     ]
                 ),
                 crate::glance::Backup::Locked { vault, .. } =>
-                    fill(EN.compact_plan_in_locked, &[&vault.to_string()]),
+                    fill(EN.compact_plan_in_locked, &[vault]),
                 crate::glance::Backup::None => EN.compact_no_backup_plan.to_string(),
             }
         );

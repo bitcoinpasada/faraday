@@ -547,6 +547,9 @@ impl Faraday {
             P::SoftwareFile => software_files(&stem, &Self::backup_public_for(wl, a)),
             P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
                 crate::codex32_backup::stick_names(shape, a, what)
+                    .iter()
+                    .map(|t| String::from(&**t))
+                    .collect()
             }
             // The Krux code's files, under the names the Outbox gave them.
             P::KefCode(i) => crate::wallet_backup::kef::stick_names(self, i),
