@@ -8625,6 +8625,8 @@ screens = [
   "Unlock",
 ]
 functions = [
+  "faraday/faraday-keys/src/job.rs::KeysJob::check_at",
+  "faraday/faraday-keys/src/job.rs::Derived::given_at",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_from_vault",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_key_record",
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_key_with_passphrase",

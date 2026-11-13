@@ -777,7 +777,7 @@ impl Session {
             };
             // What a key a load's job added gives there was worked out in
             // the job.
-            let gives = match derived.get(fp, path) {
+            let gives = match derived.given_at(fp, path) {
                 Some(x) => Some(*x),
                 None => self.keys.xpub_at(c, i, path),
             };

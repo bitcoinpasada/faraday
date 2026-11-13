@@ -685,7 +685,7 @@ pub struct Derived(pub(crate) Vec<(Fingerprint, DerivationPath, Xpub)>);
 impl Derived {
     /// What the added key with fingerprint `fp` gives at `path`, if it was
     /// worked out in the job.
-    pub fn get(&self, fp: Fingerprint, path: &DerivationPath) -> Option<&Xpub> {
+    pub fn given_at(&self, fp: Fingerprint, path: &DerivationPath) -> Option<&Xpub> {
         self.0
             .iter()
             .find(|(f, p, _)| *f == fp && p == path)
