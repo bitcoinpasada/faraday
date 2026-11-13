@@ -333,8 +333,8 @@ fn dup_leaf(l: &Option<Leaf>) -> Option<Leaf> {
     l.as_ref().map(Leaf::duplicate)
 }
 
-/// Where a write goes: a buffer, or a count of what a buffer would hold
-/// (the same code path, so the two cannot differ).
+/// Where a write goes: a buffer, grown only through [`room`], or a count of
+/// what a buffer would hold (the same code path, so the two cannot differ).
 enum Out {
     Buffer(Zeroizing<Vec<u8>>),
     Count(usize),
@@ -343,7 +343,10 @@ enum Out {
 impl Out {
     fn extend_from_slice(&mut self, b: &[u8]) {
         match self {
-            Self::Buffer(v) => v.extend_from_slice(b),
+            Self::Buffer(v) => {
+                room(v, b.len());
+                v.extend_from_slice(b);
+            }
             Self::Count(n) => *n += b.len(),
         }
     }
@@ -1482,13 +1485,16 @@ impl Document {
         doc
     }
 
-    /// Costs an encryption of the protected values and a copy of the
-    /// document, linear in its size (at most the vault's largest, 128 MiB):
-    /// writes it, the values encrypted in document order under
-    /// `inner_key`. It has no padding; `seal` adds it.
+    /// Costs an encryption of the protected values, a walk counting the
+    /// document and a copy of it, linear in its size (at most the vault's
+    /// largest, 128 MiB): writes it, the values encrypted in document order
+    /// under `inner_key`. It has no padding; `seal` adds it. The buffer is
+    /// taken at the counted length, so it never grows and no freed block
+    /// keeps a part of the document.
     pub fn write(&self, inner_key: &[u8]) -> Zeroizing<Vec<u8>> {
         WRITES.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-        match self.written(Out::Buffer(Zeroizing::new(Vec::new())), inner_key) {
+        let buf = Zeroizing::new(Vec::with_capacity(self.written_len()));
+        match self.written(Out::Buffer(buf), inner_key) {
             Out::Buffer(v) => v,
             Out::Count(_) => unreachable!("a buffer stays a buffer"),
         }
