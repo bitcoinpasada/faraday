@@ -5,12 +5,12 @@ use crate::Action;
 use crate::backups::{Entry, Line};
 use crate::drawing::View;
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet_backup::Tone;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
+use faraday_text::{Text, text};
 
 /// A line's state colour.
 fn tone(t: Tone) -> crate::ui::Paint {
@@ -220,9 +220,9 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
     }
     if n > 1 && pages {
         let half = (w - 8.0) / 2.0;
-        let page = fill(
+        let page = Text::fill(
             EN.backups_wallet_count,
-            &[&(at + 1).to_string(), &n.to_string()],
+            &[&Text::num(at as u64 + 1), &Text::num(n as u64)],
         );
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &page);
         y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
@@ -277,7 +277,7 @@ fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) -> f32 {
     }
     if !l.holds.is_empty() {
         let holds = match l.tag {
-            Some(t) => format!("{} · {}", l.holds, t.name()),
+            Some(t) => text!("{} · {}", &*l.holds, t.name()),
             None => l.holds.clone(),
         };
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &holds);

@@ -217,7 +217,7 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     let mut app = backed_up(2);
     let file = String::from(app.vault_files()[0].name.as_str());
     let before = line(&lines(&mut app), "Vault").state.clone();
-    assert_eq!(before, format!("{file} · for the stick"));
+    assert_eq!(&*before, format!("{file} · for the stick"));
 
     // Sealed at the lock; the next process writes it.
     crate::common::lock(&mut app);

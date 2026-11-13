@@ -243,9 +243,9 @@ impl EntryArea {
 
     /// Refuses a string typed for the round: the parts dropped, `line`
     /// shown.
-    pub(crate) fn refuse_round(&mut self, line: String) {
+    pub(crate) fn refuse_round(&mut self, line: &str) {
         self.state.parts.codex32.clear();
-        self.state.error = Some(faraday_text::Text::of(&line));
+        self.state.error = Some(faraday_text::Text::of(line));
     }
 
     /// Sets the screen Back goes to.

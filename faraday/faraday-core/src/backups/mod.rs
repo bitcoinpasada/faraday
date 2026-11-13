@@ -12,8 +12,8 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 use faraday_vault::records::{field, kind};
 
 use crate::plan::{self, At, Tag, What};
@@ -26,9 +26,9 @@ use crate::{Action, Faraday, Screen, file_stem};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Record {
     /// The wallet's descriptor checksum.
-    pub sum: String,
+    pub sum: Text,
     /// The wallet's name.
-    pub name: String,
+    pub name: Text,
     /// The map as the plan drew it.
     pub spots: Vec<Spot>,
     /// Each seed's copies by hand checked here, by fingerprint: one
@@ -49,7 +49,7 @@ pub struct Record {
     /// The plan's answers, as [`plan::Answers::to_text`] writes them:
     /// what the wallet's card draws its chart from once the backup is
     /// left. Empty in a record kept before it was written.
-    pub answers: String,
+    pub answers: Text,
     /// Each seed's [`crate::wallet::master_id`], by fingerprint, as the
     /// session held it when the record was made or brought up to date:
     /// public, and what a locked vault's summary is compared with, where
@@ -78,14 +78,14 @@ pub struct Dated {
     /// The thing checked.
     pub what: plan::What,
     /// The date (`YYYY-MM-DD`), empty when the clock was not checked.
-    pub date: String,
+    pub date: Text,
     /// The vault's plan notes hold this date.
     pub written: bool,
     /// The place's own line in the plan the check was made under
     /// ([`place_line`]: its name, where it is and what it holds, no mark
     /// of what is loaded now). Only a vault whose plan has, at this number,
     /// a place with the same line that keeps the thing takes the date.
-    pub line: String,
+    pub line: Text,
     /// The copy a stick check read, where there is one: the stick's own
     /// vault takes the date only in that copy or one this device sealed
     /// from it, and a current vault of another id that keeps the plan takes
@@ -97,9 +97,9 @@ pub struct Dated {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KefMark {
     /// The picture's name in the Outbox, when the code fits one.
-    pub png: Option<String>,
+    pub png: Option<Text>,
     /// The `.kef` file's name in the Outbox.
-    pub file: String,
+    pub file: Text,
     /// The code was opened back with its passphrase and held the seed.
     pub checked: bool,
     /// The SHA-256 of the `.kef` file's bytes: a file of that name with
@@ -133,27 +133,27 @@ pub struct Spot {
     /// Where.
     pub at: At,
     /// What it holds, as the map names it.
-    pub holds: Vec<String>,
+    pub holds: Vec<Text>,
     /// How what it holds may be read: the most exposed of its things.
     pub tag: Tag,
     /// The seeds whose copy by hand it keeps, by fingerprint; for a
     /// vault, the seeds sealed in it.
     pub copies: Vec<[u8; 4]>,
     /// The public files it holds, by name.
-    pub files: Vec<String>,
+    pub files: Vec<Text>,
     /// The start of the names of the seed files it holds.
-    pub secret: Vec<String>,
+    pub secret: Vec<Text>,
 }
 
 /// A wallet as the Backups screen lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     /// Its descriptor checksum.
-    pub sum: String,
+    pub sum: Text,
     /// Its name.
-    pub name: String,
+    pub name: Text,
     /// Its shape: "2 of 3 · native SegWit".
-    pub shape: String,
+    pub shape: Text,
     /// The loaded wallet, by index into the session, when it is loaded.
     pub wallet: Option<usize>,
     /// Its map, a line per place; `None` when it has no plan.
@@ -164,13 +164,13 @@ pub struct Entry {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {
     /// Where: "Place 1", "Vault", "Stick of files".
-    pub place: String,
+    pub place: Text,
     /// What it holds.
-    pub holds: String,
+    pub holds: Text,
     /// Secret, sealed or public.
     pub tag: Option<Tag>,
     /// What this device saw of it.
-    pub state: String,
+    pub state: Text,
     /// How the state reads.
     pub tone: Tone,
     /// Where it is: which part of the map.
@@ -186,15 +186,15 @@ pub struct Line {
 /// plan's map as places keep it) has no place `p` that keeps `what`.
 pub(crate) fn place_line(
     places: &[plan::Spot],
-    names: &[String],
+    names: &[Text],
     p: usize,
     what: What,
-) -> Option<String> {
+) -> Option<Text> {
     let spot = places.iter().find(|s| s.at == At::Place(p))?;
     if !spot.holds.iter().any(|(w, _)| *w == what) {
         return None;
     }
-    let mut line = format!(
+    let mut line = text!(
         "{}\n{}",
         names.get(p).map_or("", |n| n.trim()),
         &*plan::text::at_code(spot.at)
@@ -217,19 +217,39 @@ fn worse(a: Tag, b: Tag) -> Tag {
 }
 
 /// A field of the kept records: no tab, line break or separator.
-fn kept_field(s: &str) -> String {
-    s.replace(['\t', '\n', '\r', '\u{1f}'], " ")
+fn kept_field(s: &str) -> Text {
+    s.chars()
+        .map(|c| {
+            if matches!(c, '\t' | '\n' | '\r' | '\u{1f}') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
-fn at_text(at: At) -> String {
+/// The parts of `v` with `sep` between them.
+fn joined<S: AsRef<str>>(v: &[S], sep: &str) -> Text {
+    let mut out = Text::default();
+    for (i, p) in v.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(p.as_ref());
+    }
+    out
+}
+
+fn at_text(at: At) -> Text {
     match at {
         // The record keeps places: a stick is its place's (`plan::by_place`).
-        At::Place(p) | At::Stick(p, _) => format!("place{p}"),
-        At::Vault(0) => "vault".into(),
-        At::Vault(v) => format!("vault{v}"),
-        At::Files => "files".into(),
-        At::Software => "software".into(),
-        At::Away => "away".into(),
+        At::Place(p) | At::Stick(p, _) => text!("place{p}"),
+        At::Vault(0) => Text::of("vault"),
+        At::Vault(v) => text!("vault{v}"),
+        At::Files => Text::of("files"),
+        At::Software => Text::of("software"),
+        At::Away => Text::of("away"),
     }
 }
 
@@ -250,8 +270,8 @@ fn tag_read(s: &str) -> Option<Tag> {
         .find(|t| t.name() == s)
 }
 
-fn hex4(b: [u8; 4]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(&b))
+fn hex4(b: [u8; 4]) -> Text {
+    Text::of(&faraday_crypto::hex::encode_string(&b))
 }
 
 /// A `kef` line's fields into the last record `out` holds; a field that
@@ -283,8 +303,8 @@ fn read_kef(out: &mut [Record], f: [&str; 10]) {
         r.kefs.push((
             fp,
             KefMark {
-                png: (!png.is_empty()).then(|| png.to_string()),
-                file: file.to_string(),
+                png: (!png.is_empty()).then(|| Text::of(png)),
+                file: Text::of(file),
                 checked,
                 sha,
                 low,
@@ -357,54 +377,52 @@ pub(crate) fn summary_has_seed(
 /// The records as the kept state holds them: a `backup` line per
 /// wallet, then its `spot` and `check` lines, fields split by tabs.
 pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
-    let list = |v: &[String]| {
-        v.iter()
-            .map(|s| kept_field(s))
-            .collect::<Vec<_>>()
-            .join("\u{1f}")
+    let list = |v: &[Text]| {
+        let fields: Vec<Text> = v.iter().map(|s| kept_field(s)).collect();
+        joined(&fields, "\u{1f}")
     };
-    let mut out = String::new();
+    let mut out = Text::default();
     for r in all {
-        out.push_str(&format!(
+        out.push_str(&text!(
             "backup\t{}\t{}\t{}\n",
-            kept_field(&r.sum),
-            kept_field(&r.name),
+            &*kept_field(&r.sum),
+            &*kept_field(&r.name),
             u8::from(r.shown)
         ));
         for s in &r.spots {
-            let copies: Vec<String> = s.copies.iter().map(|c| hex4(*c)).collect();
-            out.push_str(&format!(
+            let copies: Vec<Text> = s.copies.iter().map(|c| hex4(*c)).collect();
+            out.push_str(&text!(
                 "spot\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                at_text(s.at),
+                &*at_text(s.at),
                 s.tag.name(),
-                list(&s.holds),
-                copies.join(","),
-                list(&s.files),
-                list(&s.secret)
+                &*list(&s.holds),
+                &*joined(&copies, ","),
+                &*list(&s.files),
+                &*list(&s.secret)
             ));
         }
         if r.printed || r.envelopes {
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "marks\t{}\t{}\n",
                 u8::from(r.printed),
                 u8::from(r.envelopes)
             ));
         }
         for fp in &r.passphrases {
-            out.push_str(&format!("pass\t{}\n", hex4(*fp)));
+            out.push_str(&text!("pass\t{}\n", &*hex4(*fp)));
         }
         for (fp, n) in &r.checks {
-            out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
+            out.push_str(&text!("check\t{}\t{n}\n", &*hex4(*fp)));
         }
         for (fp, id) in &r.ids {
-            out.push_str(&format!("id\t{}\t{}\n", hex4(*fp), &*hex32(id)));
+            out.push_str(&text!("id\t{}\t{}\n", &*hex4(*fp), &*hex32(id)));
         }
         for (fp, k) in &r.kefs {
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "kef\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                hex4(*fp),
-                kept_field(k.png.as_deref().unwrap_or("")),
-                kept_field(&k.file),
+                &*hex4(*fp),
+                &*kept_field(k.png.as_deref().unwrap_or("")),
+                &*kept_field(&k.file),
                 u8::from(k.checked),
                 &*hex32(&k.sha),
                 u8::from(k.low),
@@ -415,13 +433,16 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
             ));
         }
         if !r.answers.is_empty() {
-            out.push_str(&format!(
-                "plan\t{}\n",
-                kept_field(&r.answers.trim_end().replace('\n', ";"))
-            ));
+            let packed: Text = r
+                .answers
+                .trim_end()
+                .chars()
+                .map(|c| if c == '\n' { ';' } else { c })
+                .collect();
+            out.push_str(&text!("plan\t{}\n", &*kept_field(&packed)));
         }
     }
-    out.into_bytes()
+    out.as_bytes().to_vec()
 }
 
 /// A `kef` line's fields after its tag, of any length kept so far: eight
@@ -438,11 +459,11 @@ fn read_kef_line(out: &mut [Record], rest: &[&str]) {
 
 /// The records read back; a line that does not read is skipped.
 pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
-    let text = String::from_utf8_lossy(bytes);
-    let list = |s: &str| -> Vec<String> {
+    let text = Text::from_utf8_lossy(bytes);
+    let list = |s: &str| -> Vec<Text> {
         s.split('\u{1f}')
             .filter(|x| !x.is_empty())
-            .map(str::to_string)
+            .map(Text::of)
             .collect()
     };
     let mut out: Vec<Record> = Vec::new();
@@ -450,8 +471,8 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
         let f: Vec<&str> = line.split('\t').collect();
         match f[..] {
             ["backup", sum, name, shown] => out.push(Record {
-                sum: sum.to_string(),
-                name: name.to_string(),
+                sum: Text::of(sum),
+                name: Text::of(name),
                 shown: shown == "1",
                 ..Record::default()
             }),
@@ -482,7 +503,10 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
             }
             ["plan", answers] => {
                 if let Some(r) = out.last_mut() {
-                    r.answers = answers.replace(';', "\n");
+                    r.answers = answers
+                        .chars()
+                        .map(|c| if c == ';' { '\n' } else { c })
+                        .collect();
                 }
             }
             ["id", fp, id] => {
@@ -518,7 +542,7 @@ pub(crate) struct BackupsArea {
     /// Vault sticks read from an older copy of their vault this power-on:
     /// the wallet's checksum, the place, the stick. RAM only, never kept
     /// (`docs/BACKUP-FLOW.md` §18.3).
-    older: Vec<(String, usize, plan::What)>,
+    older: Vec<(Text, usize, plan::What)>,
     /// Stick checks made with the clock not checked, of wallets with no
     /// record this power-on: dated at **Set the time**.
     undated: Vec<Held>,
@@ -531,7 +555,7 @@ pub(crate) type CopyRead = ([u8; 32], [u8; 32]);
 /// A stick check held for the clock: the wallet's checksum, the place, the
 /// thing, the place's line, and the copy the stick held. Only that copy,
 /// or one this device sealed from it, takes the date.
-pub(crate) type Held = (String, usize, plan::What, String, CopyRead);
+pub(crate) type Held = (Text, usize, plan::What, Text, CopyRead);
 
 impl BackupsArea {
     /// The wallet Backups shows, a page each on a small panel.
@@ -653,7 +677,7 @@ impl BackupsArea {
     /// from an older copy of its vault.
     pub(crate) fn older_mark(&mut self, sum: &str, p: usize, what: plan::What) {
         if !self.is_older(sum, p, what) {
-            self.older.push((sum.to_string(), p, what));
+            self.older.push((Text::of(sum), p, what));
         }
     }
 
@@ -711,7 +735,7 @@ impl BackupsArea {
         line: &str,
         copy: CopyRead,
     ) {
-        let held = (sum.to_string(), p, what, line.to_string(), copy);
+        let held = (Text::of(sum), p, what, Text::of(line), copy);
         if !self.undated.contains(&held) {
             self.undated.push(held);
         }
@@ -724,12 +748,12 @@ impl BackupsArea {
 
     /// The dated checks with no date take `today`, to be written again;
     /// the checksums of the records that had one.
-    pub(crate) fn date_undated(&mut self, today: &str) -> Vec<String> {
+    pub(crate) fn date_undated(&mut self, today: &str) -> Vec<Text> {
         let mut sums = Vec::new();
         for r in &mut self.records {
             let mut any = false;
             for d in r.dated.iter_mut().filter(|d| d.date.is_empty()) {
-                d.date = today.to_string();
+                d.date = Text::of(today);
                 d.written = false;
                 any = true;
             }
@@ -792,12 +816,12 @@ impl BackupsArea {
 
 /// What a plan gives its wallet's record when the checklist is made.
 pub(crate) struct Synced {
-    pub sum: String,
-    pub name: String,
+    pub sum: Text,
+    pub name: Text,
     pub spots: Vec<Spot>,
     pub ids: Vec<([u8; 4], [u8; 32])>,
     pub shown: bool,
-    pub answers: String,
+    pub answers: Text,
 }
 
 impl Record {
@@ -827,7 +851,7 @@ impl Record {
     /// Each of the `things` at place `p` as the chart reads it: the date
     /// kept for it (empty: no date) from the vault's notes and the checks
     /// held this power-on, `None` for one never checked.
-    fn place_checks(&self, notes: &[plan::Note], p: usize, things: usize) -> Vec<Option<String>> {
+    fn place_checks(&self, notes: &[plan::Note], p: usize, things: usize) -> Vec<Option<Text>> {
         let kept = notes.iter().filter_map(|n| match n {
             plan::Note::Checked(At::Place(q) | At::Stick(q, _), w, d) if *q == p => {
                 Some((*w, d.as_str()))
@@ -839,18 +863,18 @@ impl Record {
             .iter()
             .filter(|d| d.place == p)
             .map(|d| (d.what, d.date.as_str()));
-        let mut dates: Vec<(plan::What, String)> = Vec::new();
+        let mut dates: Vec<(plan::What, Text)> = Vec::new();
         for (w, d) in kept.chain(held) {
             match dates.iter_mut().find(|(x, _)| *x == w) {
                 Some((_, old)) if old.is_empty() || (!d.is_empty() && d < old.as_str()) => {
-                    *old = String::from(d);
+                    *old = Text::of(d);
                 }
                 Some(_) => {}
-                None => dates.push((w, String::from(d))),
+                None => dates.push((w, Text::of(d))),
             }
         }
         let n = dates.len();
-        let mut out: Vec<Option<String>> = dates.into_iter().map(|(_, d)| Some(d)).collect();
+        let mut out: Vec<Option<Text>> = dates.into_iter().map(|(_, d)| Some(d)).collect();
         out.resize(things.max(n), None);
         out
     }
@@ -887,7 +911,7 @@ impl Faraday {
         v: usize,
         wallet: &Wallet,
         shape_for: &dyn Fn(&[bool]) -> plan::Shape,
-    ) -> Option<(plan::Shape, plan::Answers, Vec<String>)> {
+    ) -> Option<(plan::Shape, plan::Answers, Vec<Text>)> {
         let want = crate::wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
         self.vaults
@@ -901,7 +925,7 @@ impl Faraday {
                 let a = plan::Answers::from_text(&shape, text)?;
                 let names = r
                     .public_all(field::PLAN_PLACE)
-                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .map(Text::from_utf8_lossy)
                     .collect();
                 Some((shape, a, names))
             })
@@ -915,7 +939,7 @@ impl Faraday {
         c: &Compute,
         wallet: &Wallet,
         shape_for: &dyn Fn(&[bool]) -> plan::Shape,
-    ) -> Option<(plan::Shape, plan::Answers, Vec<String>)> {
+    ) -> Option<(plan::Shape, plan::Answers, Vec<Text>)> {
         (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault_stored(c, v, wallet, shape_for))
     }
 }
@@ -951,7 +975,7 @@ impl Faraday {
                     holds: spot
                         .holds
                         .iter()
-                        .map(|(h, _)| String::from(&*h.label(&shape, self.medium.cap())))
+                        .map(|(h, _)| Text::of(&h.label(&shape, self.medium.cap())))
                         .collect(),
                     tag: spot.holds.iter().map(|(_, t)| *t).fold(Tag::Public, worse),
                     copies: Vec::new(),
@@ -972,10 +996,10 @@ impl Faraday {
                                 out.copies.push(fp);
                             }
                         }
-                        What::Sheet => out.files.push(format!("{stem}-backup.pdf")),
+                        What::Sheet => out.files.push(text!("{stem}-backup.pdf")),
                         What::Share(j) => {
                             out.files
-                                .push(format!("{stem}-share-{}-of-{}.pdf", j + 1, shape.keys))
+                                .push(text!("{stem}-share-{}-of-{}.pdf", j + 1, shape.keys))
                         }
                         // The stick of files of a plan saved before keeps
                         // the checklist's seed files; a stick at a place
@@ -984,7 +1008,7 @@ impl Faraday {
                             if let Some(fp) = fp_of(i) {
                                 let fps =
                                     fp_text(faraday_bip::keys::Fingerprint(fp)).to_lowercase();
-                                out.secret.push(format!("{stem}-{fps}-"));
+                                out.secret.push(text!("{stem}-{fps}-"));
                             }
                         }
                         What::SeedFile(i) | What::SeedQrFile(i) | What::PassphraseFile(i) => {
@@ -993,7 +1017,7 @@ impl Faraday {
                                     *what,
                                     &fp_text(faraday_bip::keys::Fingerprint(fp)),
                                 );
-                                out.secret.extend(name.map(|n| String::from(&*n)));
+                                out.secret.extend(name.map(|n| Text::of(&n)));
                             }
                         }
                         // A codex32 string's file is a share of a seed: a
@@ -1001,7 +1025,7 @@ impl Faraday {
                         What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out.secret.extend(
                             crate::codex32_backup::stick_names(&shape, a, *what)
                                 .iter()
-                                .map(|t| String::from(&**t)),
+                                .map(|t| Text::of(t)),
                         ),
                         // A Krux code is an extra copy, not a copy of the
                         // seed, and its files are named when made
@@ -1016,10 +1040,10 @@ impl Faraday {
                         }
                         What::KefCodePaper(_) => {}
                         What::Wallet if spot.at == At::Files => {
-                            out.files.extend(public.iter().map(|t| String::from(&**t)))
+                            out.files.extend(public.iter().map(|t| Text::of(t)))
                         }
                         What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
-                            out.files.extend(public.iter().map(|t| String::from(&**t)))
+                            out.files.extend(public.iter().map(|t| Text::of(t)))
                         }
                         _ => {}
                     }
@@ -1068,10 +1092,10 @@ impl Faraday {
         };
         let spots = self.backup_spots(&c, wallet, Some(b.wallet), &b.answers);
         let ids = self.seed_ids(&spots);
-        let sum = wallet.checksum().to_string();
-        let name = String::from(&*wallet.name);
+        let sum = Text::of(wallet.checksum());
+        let name = Text::of(&wallet.name);
         let shown = b.shown;
-        let answers = String::from(&*b.answers.to_text());
+        let answers = Text::of(&b.answers.to_text());
         self.backups_area.sync(Synced {
             sum,
             name,
@@ -1100,7 +1124,7 @@ impl Faraday {
             .backup
             .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
-            .map(|w| w.checksum().to_string())
+            .map(|w| Text::of(w.checksum()))
         else {
             return;
         };
@@ -1252,9 +1276,9 @@ impl Faraday {
         };
         let c = self.compute();
         let policies = self.wallet_policies_with(&c, open_id);
-        let mut seen: Vec<String> = Vec::new();
+        let mut seen: Vec<Text> = Vec::new();
         for policy in policies {
-            let sum = policy.checksum().to_string();
+            let sum = Text::of(policy.checksum());
             if seen.contains(&sum) {
                 continue;
             }
@@ -1373,7 +1397,7 @@ impl Faraday {
         wallet: &crate::wallet::Wallet,
         p: usize,
         what: What,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let (shape, answers, names) =
             self.plan_load_stored(c, wallet, &|pass| self.plan_shape_made(wallet, pass))?;
         let mapped = self.kept.plan_mapped(c, &shape, &answers);
@@ -1406,12 +1430,12 @@ impl Faraday {
             .session
             .wallets
             .get(b.wallet)
-            .map(|w| w.checksum().to_string())
+            .map(|w| Text::of(w.checksum()))
         else {
             return;
         };
         let (wallet, answers) = (b.wallet, b.answers.clone());
-        let names: Vec<String> = b.names.iter().map(|n| String::from(&**n)).collect();
+        let names: Vec<Text> = b.names.iter().map(|n| Text::of(n)).collect();
         let Some(w) = self.session.wallets.get(wallet) else {
             return;
         };
@@ -1435,10 +1459,10 @@ impl Faraday {
         sum: &str,
         p: usize,
         what: What,
-        line: String,
+        line: Text,
         copy: Option<CopyRead>,
     ) {
-        let sum = sum.to_string();
+        let sum = Text::of(sum);
         if !self.backups_area.has(&sum) {
             self.backups_sync();
         }
@@ -1449,7 +1473,7 @@ impl Faraday {
                 .backup
                 .state()
                 .and_then(|b| self.session.wallets.get(b.wallet))
-                .is_some_and(|w| w.checksum() == sum)
+                .is_some_and(|w| w.checksum() == &*sum)
         {
             self.backup.set_undated(true);
         }
@@ -1469,7 +1493,7 @@ impl Faraday {
                             &c,
                             v,
                             &sum,
-                            &[(At::Place(p), what, String::new(), line.clone())],
+                            &[(At::Place(p), what, Text::default(), line.clone())],
                         );
                     }
                 }
@@ -1486,7 +1510,7 @@ impl Faraday {
                     &c,
                     v,
                     &sum,
-                    &[(At::Place(p), what, date.as_str().into(), line.clone())],
+                    &[(At::Place(p), what, Text::of(date.as_str()), line.clone())],
                 );
             }
             return;
@@ -1496,7 +1520,7 @@ impl Faraday {
             Dated {
                 place: p,
                 what,
-                date: date.as_str().into(),
+                date: Text::of(date.as_str()),
                 written: false,
                 line,
                 copy,
@@ -1548,7 +1572,7 @@ impl Faraday {
     /// `sum`'s record not yet in a vault into the plan's notes of each
     /// open vault that keeps the plan.
     fn dated_write(&mut self, sum: &str) {
-        type Pending = (At, What, String, String, Option<CopyRead>);
+        type Pending = (At, What, Text, Text, Option<CopyRead>);
         let pending: Vec<Pending> = self.backups_area.record(sum).map_or_else(Vec::new, |r| {
             r.dated
                 .iter()
@@ -1573,7 +1597,7 @@ impl Faraday {
             let mine: Vec<usize> = (0..pending.len())
                 .filter(|&n| self.copy_takes(v, pending[n].4))
                 .collect();
-            let one: Vec<(At, What, String, String)> = mine
+            let one: Vec<(At, What, Text, Text)> = mine
                 .iter()
                 .map(|&n| {
                     let (a, w, d, l, _) = &pending[n];
@@ -1602,7 +1626,7 @@ impl Faraday {
     /// dated checks of every wallet's record, at an unlock of a vault, and
     /// the stick checks held for the clock once it is checked.
     pub(crate) fn dated_unlock(&mut self) {
-        let sums: Vec<String> = self
+        let sums: Vec<Text> = self
             .backups_area
             .records()
             .iter()
@@ -1647,7 +1671,7 @@ impl Faraday {
                 .filter(|&v| self.copy_takes(v, Some(copy)))
                 .collect();
             for v in takers {
-                let one = [(At::Place(p), what, today.to_string(), line.clone())];
+                let one = [(At::Place(p), what, Text::of(today), line.clone())];
                 taken |= self.dated_into(&c, v, &sum, &one).contains(&true);
             }
             if !taken {
@@ -1679,7 +1703,7 @@ impl Faraday {
         c: &Compute,
         v: usize,
         sum: &str,
-        dated: &[(At, What, String, String)],
+        dated: &[(At, What, Text, Text)],
     ) -> Vec<bool> {
         use crate::plan::Note;
         let none = vec![false; dated.len()];
@@ -1703,7 +1727,7 @@ impl Faraday {
         };
         // Each record's places, read as the vault's own records are read,
         // with the names it keeps.
-        let kept: Vec<(Vec<plan::Spot>, Vec<String>)> = ours
+        let kept: Vec<(Vec<plan::Spot>, Vec<Text>)> = ours
             .iter()
             .filter_map(|i| self.vaults.records(id).get(*i))
             .filter_map(|r| {
@@ -1711,7 +1735,7 @@ impl Faraday {
                     self.plan_places_as_read(c, sum, r.public_text(field::PLAN_ANSWERS)?)?;
                 let names = r
                     .public_all(field::PLAN_PLACE)
-                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .map(Text::from_utf8_lossy)
                     .collect();
                 Some((places, names))
             })
@@ -1736,7 +1760,7 @@ impl Faraday {
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
                 r.public_all(field::PLAN_NOTE)
-                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b), usize::MAX))
+                    .filter_map(|b| Note::from_text(&Text::from_utf8_lossy(b), usize::MAX))
                     .collect::<Vec<_>>()
             })
             .collect();
@@ -1779,7 +1803,7 @@ impl Faraday {
     pub(crate) fn backups_marked(&mut self) {
         let Some((sum, printed, envelopes)) = self.backup.state().and_then(|b| {
             let w = self.session.wallets.get(b.wallet)?;
-            Some((w.checksum().to_string(), b.printed, b.envelopes))
+            Some((Text::of(w.checksum()), b.printed, b.envelopes))
         }) else {
             return;
         };
@@ -1793,7 +1817,7 @@ impl Faraday {
             .backup
             .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
-            .map(|w| w.checksum().to_string())
+            .map(|w| Text::of(w.checksum()))
         else {
             return;
         };
@@ -1826,10 +1850,7 @@ impl Faraday {
             return;
         };
         let (Some(sum), Some(fp)) = (
-            self.session
-                .wallets
-                .get(w)
-                .map(|x| x.checksum().to_string()),
+            self.session.wallets.get(w).map(|x| Text::of(x.checksum())),
             self.kef_fp(w, i),
         ) else {
             return;
@@ -1872,15 +1893,15 @@ impl Faraday {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
         for (i, w) in self.session.wallets.iter().enumerate() {
-            let sum = w.checksum().to_string();
+            let sum = Text::of(w.checksum());
             if seen(&out, &sum) {
                 continue;
             }
             out.push(Entry {
                 lines: self.backup_lines(c, w, Some(i), &sum),
                 sum,
-                name: String::from(&*w.name),
-                shape: String::from(&*Session::shape(w)),
+                name: Text::of(&w.name),
+                shape: Text::of(&Session::shape(w)),
                 wallet: Some(i),
             });
         }
@@ -1898,9 +1919,9 @@ impl Faraday {
                 );
                 out.push(Entry {
                     lines: self.backup_lines(c, &w, None, &sum),
-                    sum: String::from(sum.as_str()),
-                    shape: String::from(&*Session::shape(&w)),
-                    name: String::from(&*w.name),
+                    sum: Text::of(&sum),
+                    shape: Text::of(&Session::shape(&w)),
+                    name: Text::of(&w.name),
                     wallet: None,
                 });
             }
@@ -1916,10 +1937,10 @@ impl Faraday {
                 let lines = match self.backups_area.record(sum) {
                     Some(r) => Some(self.record_lines(c, r, &[], &[], Default::default())),
                     None if s.planned.contains(sum) => Some(vec![Line {
-                        place: EN.backups_plan.to_string(),
-                        holds: String::new(),
+                        place: Text::of(EN.backups_plan),
+                        holds: Text::default(),
                         tag: None,
-                        state: fill(EN.backups_in_locked, &[&s.name]),
+                        state: Text::fill(EN.backups_in_locked, &[&s.name]),
                         tone: Tone::Dim,
                         at: None,
                         paper: false,
@@ -1927,9 +1948,9 @@ impl Faraday {
                     None => None,
                 };
                 out.push(Entry {
-                    sum: String::from(sum.as_str()),
-                    name: String::from(name.as_str()),
-                    shape: String::from(shape.as_str()),
+                    sum: Text::of(sum.as_str()),
+                    name: Text::of(name.as_str()),
+                    shape: Text::of(shape.as_str()),
                     wallet: None,
                     lines,
                 });
@@ -1958,13 +1979,13 @@ impl Faraday {
             self.plan_notes(c, w, None)
         };
         // The places' names: the backup under way's, else the vault's.
-        let names: Vec<String> = match self.backup.state() {
+        let names: Vec<Text> = match self.backup.state() {
             Some(b) if wi.is_some_and(|i| i == b.wallet) => {
-                b.names.iter().map(|n| String::from(&**n)).collect()
+                b.names.iter().map(|n| Text::of(n)).collect()
             }
             _ => kept
                 .as_ref()
-                .map(|(_, n)| n.iter().map(|t| String::from(&**t)).collect())
+                .map(|(_, n)| n.iter().map(|t| Text::of(t)).collect())
                 .unwrap_or_default(),
         };
         if let Some(r) = self.backups_area.record(sum) {
@@ -1973,8 +1994,8 @@ impl Faraday {
         let (a, _) = kept?;
         let spots = self.backup_spots(c, w, wi, &a);
         let r = Record {
-            sum: sum.to_string(),
-            name: String::from(&*w.name),
+            sum: Text::of(sum),
+            name: Text::of(&w.name),
             ids: self.seed_ids(&spots),
             spots,
             checks: Vec::new(),
@@ -1982,7 +2003,7 @@ impl Faraday {
             printed: false,
             envelopes: false,
             passphrases: Vec::new(),
-            answers: String::new(),
+            answers: Text::default(),
             kefs: Vec::new(),
             dated: Vec::new(),
         };
@@ -1995,7 +2016,7 @@ impl Faraday {
         &self,
         c: &Compute,
         r: &Record,
-        names: &[String],
+        names: &[Text],
         notes: &[plan::Note],
         iv: crate::glance::age::Interval,
     ) -> Vec<Line> {
@@ -2016,74 +2037,79 @@ impl Faraday {
                         .map(|n| n.trim())
                         .filter(|n| !n.is_empty())
                         .map_or_else(
-                            || fill(EN.backups_place, &[&(p + 1).to_string()]),
-                            str::to_string,
+                            || Text::fill(EN.backups_place, &[&Text::num(p as u64 + 1)]),
+                            Text::of,
                         ),
-                    At::Vault(_) if vaults == 1 => EN.backups_vault.to_string(),
-                    At::Vault(v) => fill(EN.backups_vault_n, &[&(v + 1).to_string()]),
-                    At::Files => fill(EN.backups_of_files, &[self.medium.cap()]),
-                    At::Software => EN.backups_watch_only.to_string(),
-                    At::Away => EN.backups_own_devices.to_string(),
+                    At::Vault(_) if vaults == 1 => Text::of(EN.backups_vault),
+                    At::Vault(v) => Text::fill(EN.backups_vault_n, &[&Text::num(v as u64 + 1)]),
+                    At::Files => Text::fill(EN.backups_of_files, &[self.medium.cap()]),
+                    At::Software => Text::of(EN.backups_watch_only),
+                    At::Away => Text::of(EN.backups_own_devices),
                 };
                 let (state, tone) = match s.at {
                     // A stick there read from an older copy, dated or not,
                     // with or without a paper copy there.
                     At::Place(p) if self.backups_area.is_older_at(&r.sum, p) => {
-                        (EN.glance_older_copy.to_string(), Tone::Warn)
+                        (Text::of(EN.glance_older_copy), Tone::Warn)
                     }
                     // Nothing dated there: what was checked this power-on.
                     At::Place(p) if !s.copies.is_empty() && !r.dated_at(notes, p) => {
                         if r.place_checked(i) {
-                            (EN.backups_checked.to_string(), Tone::Ok)
+                            (Text::of(EN.backups_checked), Tone::Ok)
                         } else {
-                            (EN.backups_not_checked.to_string(), Tone::Warn)
+                            (Text::of(EN.backups_not_checked), Tone::Warn)
                         }
                     }
                     At::Place(p) if !s.copies.is_empty() => {
                         let checks = r.place_checks(notes, p, s.holds.len());
-                        let age = crate::glance::age::NodeAge::of(&checks, false, &today, iv);
+                        let dates: Vec<_> = checks
+                            .iter()
+                            .map(|d| d.as_deref().map(Into::into))
+                            .collect();
+                        let age =
+                            crate::glance::age::NodeAge::of(dates.as_slice(), false, &today, iv);
                         match age {
                             // Nothing there was dated: what was checked
                             // here this power-on.
                             Some(a) if checks.iter().any(Option::is_some) => {
                                 if a.never {
-                                    (EN.backups_not_checked.to_string(), Tone::Warn)
+                                    (Text::of(EN.backups_not_checked), Tone::Warn)
                                 } else if let Some(d) = &a.oldest {
                                     let when = a.text.clone().unwrap_or_else(|| d.clone());
                                     if a.due {
-                                        (fill(EN.backups_checked_due, &[&when]), Tone::Warn)
+                                        (Text::fill(EN.backups_checked_due, &[&when]), Tone::Warn)
                                     } else {
-                                        (fill(EN.backups_checked_n, &[&when]), Tone::Ok)
+                                        (Text::fill(EN.backups_checked_n, &[&when]), Tone::Ok)
                                     }
                                 } else {
                                     if a.due {
-                                        (EN.glance_to_check.to_string(), Tone::Warn)
+                                        (Text::of(EN.glance_to_check), Tone::Warn)
                                     } else {
-                                        (EN.backups_checked.to_string(), Tone::Ok)
+                                        (Text::of(EN.backups_checked), Tone::Ok)
                                     }
                                 }
                             }
-                            _ if r.place_checked(i) => (EN.backups_checked.to_string(), Tone::Ok),
-                            _ => (EN.backups_not_checked.to_string(), Tone::Warn),
+                            _ if r.place_checked(i) => (Text::of(EN.backups_checked), Tone::Ok),
+                            _ => (Text::of(EN.backups_not_checked), Tone::Warn),
                         }
                     }
                     At::Vault(_) => self.vault_state(c, r, &s.copies),
-                    At::Away => (EN.backups_not_here.to_string(), Tone::Dim),
+                    At::Away => (Text::of(EN.backups_not_here), Tone::Dim),
                     _ if !s.secret.is_empty() && self.secret_out(&s.secret) => (
-                        fill(EN.backups_unprotected, &[self.medium.for_box()]),
+                        Text::fill(EN.backups_unprotected, &[self.medium.for_box()]),
                         Tone::Err,
                     ),
                     _ if !s.files.is_empty() => self.files_state(&s.files),
-                    At::Software if r.shown => (EN.backups_shown.to_string(), Tone::Ok),
-                    At::Software => (EN.backups_not_shown.to_string(), Tone::Warn),
-                    _ => (EN.backups_not_seen.to_string(), Tone::Dim),
+                    At::Software if r.shown => (Text::of(EN.backups_shown), Tone::Ok),
+                    At::Software => (Text::of(EN.backups_not_shown), Tone::Warn),
+                    _ => (Text::of(EN.backups_not_seen), Tone::Dim),
                 };
                 Line {
                     place,
                     holds: if s.holds.is_empty() {
-                        EN.backups_nothing.to_string()
+                        Text::of(EN.backups_nothing)
                     } else {
-                        s.holds.join(", ")
+                        joined(&s.holds, ", ")
                     },
                     tag: Some(s.tag),
                     state,
@@ -2097,7 +2123,7 @@ impl Faraday {
 
     /// Whether a seed file starting with one of `prefixes` is For the
     /// stick or was written.
-    fn secret_out(&self, prefixes: &[String]) -> bool {
+    fn secret_out(&self, prefixes: &[Text]) -> bool {
         let named = |n: &str| prefixes.iter().any(|p| n.starts_with(p.as_str()));
         self.outbox.iter().any(|i| i.secret && named(&i.name))
             || self
@@ -2109,8 +2135,8 @@ impl Faraday {
 
     /// Where public files stand: on the stick the last visit wrote them
     /// to, For the stick, or not made.
-    fn files_state(&self, names: &[String]) -> (String, Tone) {
-        let written = |n: &String| self.visit.receipt().as_ref().is_some_and(|r| r.wrote(n));
+    fn files_state(&self, names: &[Text]) -> (Text, Tone) {
+        let written = |n: &Text| self.visit.receipt().as_ref().is_some_and(|r| r.wrote(n));
         if let Some(r) = self.visit.receipt().as_ref()
             && names.iter().all(written)
         {
@@ -2118,11 +2144,11 @@ impl Faraday {
         }
         if names
             .iter()
-            .all(|n| written(n) || self.outbox.iter().any(|i| &i.name == n))
+            .all(|n| written(n) || self.outbox.iter().any(|i| i.name == **n))
         {
-            return (self.medium.for_box().to_string(), Tone::Warn);
+            return (Text::of(self.medium.for_box()), Tone::Warn);
         }
-        (EN.backups_not_made.to_string(), Tone::Warn)
+        (Text::of(EN.backups_not_made), Tone::Warn)
     }
 
     /// Costs what `record_is_key`, `described_of` and `currency` cost. The
@@ -2132,7 +2158,7 @@ impl Faraday {
     /// that very key, told by all 32 bytes of its master id (F65): an open
     /// vault's record against the session's key, a locked vault's summary
     /// against the id the session or the record keeps.
-    pub(crate) fn vault_state(&self, c: &Compute, r: &Record, seeds: &[[u8; 4]]) -> (String, Tone) {
+    pub(crate) fn vault_state(&self, c: &Compute, r: &Record, seeds: &[[u8; 4]]) -> (Text, Tone) {
         let sum = r.sum.as_str();
         let files = self.vault_files();
         let holds = |o: &crate::vault::OpenVault| {
@@ -2205,7 +2231,7 @@ impl Faraday {
                 .iter()
                 .any(|s| summary_holds(s).is_none() && locked(s).is_some())
         {
-            return (EN.backups_vault_locked.to_string(), Tone::Dim);
+            return (Text::of(EN.backups_vault_locked), Tone::Dim);
         }
         let Some(f) = file else {
             // A locked vault seen nowhere this power-on may hold it.
@@ -2213,9 +2239,9 @@ impl Faraday {
                 .iter()
                 .any(|f| f.open.is_none() && self.vault_summary(f).is_none());
             return if unknown {
-                (EN.backups_vault_locked.to_string(), Tone::Dim)
+                (Text::of(EN.backups_vault_locked), Tone::Dim)
             } else {
-                (EN.backups_not_saved_yet.to_string(), Tone::Warn)
+                (Text::of(EN.backups_not_saved_yet), Tone::Warn)
             };
         };
         let (state, tone) = match self.currency(c, f) {
@@ -2231,18 +2257,18 @@ impl Faraday {
                     Tone::Ok,
                 )
             }
-            Some(Currency::NeverWritten) => (self.medium.for_the().to_string(), Tone::Warn),
-            Some(Currency::Changed) => (EN.backups_changed_since.to_string(), Tone::Warn),
-            Some(Currency::Unchanged) | None => (EN.backups_unchanged.to_string(), Tone::Ok),
+            Some(Currency::NeverWritten) => (Text::of(self.medium.for_the()), Tone::Warn),
+            Some(Currency::Changed) => (Text::of(EN.backups_changed_since), Tone::Warn),
+            Some(Currency::Unchanged) | None => (Text::of(EN.backups_unchanged), Tone::Ok),
         };
-        (format!("{} · {state}", f.name.as_str()), tone)
+        (text!("{} · {}", f.name.as_str(), &*state), tone)
     }
 
     /// Costs what `backup_map_of` costs: the wallet card's backup line, for
     /// a decision ([`Faraday::backup_line_from`]).
-    pub fn backup_line(&self, c: &Compute, i: usize) -> String {
+    pub fn backup_line(&self, c: &Compute, i: usize) -> Text {
         if self.session.wallets.get(i).is_none() {
-            return String::new();
+            return Text::default();
         }
         self.backup_line_from(self.backup_map_of(c, i))
     }
@@ -2252,13 +2278,13 @@ impl Faraday {
     /// wallet: the first loaded wallet with its descriptor checksum stands
     /// for it there, so it does here.
     pub(crate) fn backup_map_of(&self, c: &Compute, i: usize) -> Option<Vec<Line>> {
-        let sum = self.session.wallets.get(i)?.checksum().to_string();
+        let sum = Text::of(self.session.wallets.get(i)?.checksum());
         let (first, w) = self
             .session
             .wallets
             .iter()
             .enumerate()
-            .find(|(_, w)| w.checksum() == sum)?;
+            .find(|(_, w)| w.checksum() == &*sum)?;
         self.backup_lines(c, w, Some(first), &sum)
     }
 
@@ -2267,19 +2293,19 @@ impl Faraday {
     /// length of [`Faraday::backups_now`] and its entries with no lines,
     /// worked out without the lines.
     pub fn backup_counts_now(&self, c: &Compute) -> (usize, usize) {
-        let mut seen: Vec<String> = Vec::new();
+        let mut seen: Vec<Text> = Vec::new();
         let mut without = 0;
         let mut note = |sum: &str, mapped: &dyn Fn() -> bool| {
             if seen.iter().any(|s| s == sum) {
                 return;
             }
-            seen.push(sum.to_string());
+            seen.push(Text::of(sum));
             if !mapped() {
                 without += 1;
             }
         };
         for w in &self.session.wallets {
-            let sum = w.checksum().to_string();
+            let sum = Text::of(w.checksum());
             note(&sum, &|| self.wallet_has_map(c, w, &sum));
         }
         for v in &self.vaults.open {
@@ -2321,61 +2347,60 @@ impl Faraday {
     /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2): "Backup:
     /// paper ×2 checked · vault.kdbx · for the stick", or "Not backed up",
     /// from the wallet's map ([`Faraday::backup_map_of`]). Cheap.
-    pub(crate) fn backup_line_from(&self, map: Option<Vec<Line>>) -> String {
+    pub(crate) fn backup_line_from(&self, map: Option<Vec<Line>>) -> Text {
         let Some(lines) = map else {
-            return EN.backups_not_backed.to_string();
+            return Text::of(EN.backups_not_backed);
         };
-        let mut parts: Vec<String> = Vec::new();
+        let mut parts: Vec<Text> = Vec::new();
         let paper: Vec<&Line> = lines.iter().filter(|l| l.paper).collect();
         if !paper.is_empty() {
             let n = paper.len();
             let k = paper.iter().filter(|l| l.tone == Tone::Ok).count();
             parts.push(if k == n {
-                fill(EN.backups_paper_checked, &[&n.to_string()])
+                Text::fill(EN.backups_paper_checked, &[&Text::num(n as u64)])
             } else {
-                fill(
+                Text::fill(
                     EN.backups_paper_of_checked,
-                    &[&k.to_string(), &n.to_string()],
+                    &[&Text::num(k as u64), &Text::num(n as u64)],
                 )
             });
         }
         for l in &lines {
             match l.at {
                 Some(At::Vault(_)) => parts.push(l.state.clone()),
-                Some(At::Files) => parts.push(fill(
-                    EN.backups_files,
-                    &[&lower_first(&l.state).to_string()],
-                )),
+                Some(At::Files) => {
+                    parts.push(Text::fill(EN.backups_files, &[&lower_first(&l.state)]))
+                }
                 _ => {}
             }
         }
         if parts.is_empty() {
-            parts.push(EN.backups_planned.to_string());
+            parts.push(Text::of(EN.backups_planned));
         }
-        fill(EN.backups_backup, &[&parts.join(" · ").to_string()])
+        Text::fill(EN.backups_backup, &[&*joined(&parts, " · ")])
     }
 }
 
 /// "On STICK, 14:02", or without the time when the clock is not known.
-fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> String {
+fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> Text {
     match time {
-        Some(t) => fill(
+        Some(t) => Text::fill(
             EN.backups_on_stick_timed,
             &[
                 label,
                 &crate::vault::time_of_day(crate::vault::local_secs(t, tz_min)),
             ],
         ),
-        None => fill(EN.backups_on_stick, &[label]),
+        None => Text::fill(EN.backups_on_stick, &[label]),
     }
 }
 
 /// The text with its first letter in lower case, to stand mid-line.
-fn lower_first(s: &str) -> String {
+fn lower_first(s: &str) -> Text {
     let mut c = s.chars();
     match c.next() {
         Some(f) => f.to_lowercase().chain(c).collect(),
-        None => String::new(),
+        None => Text::default(),
     }
 }
 
@@ -2385,11 +2410,7 @@ impl Faraday {
     pub(crate) fn backups_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::BackupsOf(i) => {
-                let sum = self
-                    .session
-                    .wallets
-                    .get(i)
-                    .map(|w| w.checksum().to_string());
+                let sum = self.session.wallets.get(i).map(|w| Text::of(w.checksum()));
                 let at = self
                     .backups_now(c)
                     .iter()
@@ -2535,7 +2556,7 @@ impl Faraday {
         i: usize,
         key: usize,
         (k, id, length): (u8, [u8; 4], u8),
-        list: Vec<(usize, zeroize::Zeroizing<String>)>,
+        list: Vec<(usize, zeroize::Zeroizing<Text>)>,
     ) {
         use faraday_vault::codex32::{SetFacts, State};
         let Some(b) = self.backup.state() else {
@@ -2604,7 +2625,7 @@ impl Faraday {
         }
     }
 
-    /// Costs a QR encoding. **String** · **Codex32QR**: the open string,
+    /// Costs a QR encoding. The string chip and **Codex32QR**: the open string,
     /// made here or typed from its paper, at 48 characters, as its
     /// Codex32QR (`faraday_codec::qr::codex32qr`, `docs/CODEX32.md`
     /// §10.2), or back to the string.
@@ -2612,7 +2633,7 @@ impl Faraday {
         let Some(st) = self.backup.c32_mut() else {
             return;
         };
-        // The String chip after a Codex32QR shows the text, shut or not.
+        // The string chip after a Codex32QR shows the text, shut or not.
         if st.qr.take().is_some() {
             st.shut = false;
             return;
@@ -2700,7 +2721,7 @@ impl Faraday {
     /// counts as checked and towards the rebuild, and the camera closes;
     /// otherwise the scanner says what differs (`docs/CODEX32.md` §9.5).
     pub(crate) fn c32_copy_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
+        let text = Text::from_utf8_lossy(&bytes);
         drop(bytes);
         let key = self.backup.state().and_then(|b| {
             let i = b.c32.as_ref()?.seed;
@@ -2722,7 +2743,7 @@ impl Faraday {
                     .push_back(faraday_shell_api::Command::CameraOff);
             }
             Some(crate::codex32_backup::Found::Differs(line)) => {
-                self.camera.say(String::from(&*line));
+                self.camera.say(Text::of(&line));
             }
             None => {}
         }
@@ -2890,7 +2911,7 @@ impl Faraday {
         set: &crate::codex32_backup::SetStep,
         held: &[faraday_text::Text],
         typed: &str,
-    ) -> Result<(), Option<String>> {
+    ) -> Result<(), Option<Text>> {
         use crate::codex32_backup::SetStep;
         use crate::plan::codex32::index_of;
         // A backup past its lock keeps its plan until its writes are done
@@ -2907,9 +2928,9 @@ impl Faraday {
                     .filter_map(|s| faraday_bip::codex32::Codex32::parse(s).ok())
                     .collect();
                 if parts.len() < form.need() {
-                    return Err(Some(fill(
+                    return Err(Some(Text::fill(
                         EN.c32_set_type_more,
-                        &[&form.need().to_string()],
+                        &[&Text::num(form.need() as u64)],
                     )));
                 }
                 let made = self
@@ -2922,8 +2943,8 @@ impl Faraday {
                         plan::codex32::CHARSET[j],
                         faraday_keys::Reveal::PaperForm,
                     )
-                    .map_err(|_| Some(EN.c32_set_not_this_seed.to_string()))?;
-                let s = zeroize::Zeroizing::new(String::from(&**made));
+                    .map_err(|_| Some(Text::of(EN.c32_set_not_this_seed)))?;
+                let s = zeroize::Zeroizing::new(Text::of(&made));
                 self.c32_added(i, key, j, s);
                 Ok(())
             }
@@ -2932,22 +2953,24 @@ impl Faraday {
                 let Some(draw) =
                     self.fresh_bytes(b"codex32 rotation", faraday_keys::codex32_random_len(*k))
                 else {
-                    return Err(Some(EN.no_randomness.to_string()));
+                    return Err(Some(Text::of(EN.no_randomness)));
                 };
                 let made = self
                     .session
                     .keys
                     .codex32_new_set(c, key, (*k, *n), id, &draw, faraday_keys::Reveal::PaperForm)
                     .map_err(|e| match e {
-                        faraday_keys::Paper::Refused(e) => Some(fill(EN.paper_codex32, &[&e])),
+                        faraday_keys::Paper::Refused(e) => {
+                            Some(Text::fill(EN.paper_codex32, &[&e]))
+                        }
                         _ => None,
                     })?;
-                let list: Vec<(usize, zeroize::Zeroizing<String>)> = made
+                let list: Vec<(usize, zeroize::Zeroizing<Text>)> = made
                     .iter()
                     .filter_map(|s| {
                         Some((
                             index_of(*s.as_bytes().get(8)?)?,
-                            zeroize::Zeroizing::new(String::from(&**s)),
+                            zeroize::Zeroizing::new(Text::of(s)),
                         ))
                     })
                     .collect();
@@ -2975,7 +2998,7 @@ impl Faraday {
     /// (`docs/BACKUP-FLOW.md` §15.8). The set is the key's, shared by
     /// every wallet that holds its seed, so a lock of any of them
     /// refuses it, not only the open wallet's.
-    fn c32_lock_refusal(&self, key: usize) -> Option<String> {
+    fn c32_lock_refusal(&self, key: usize) -> Option<Text> {
         // By the flow's own seed names, so a wallet not loaded (the usual
         // case after a lock) still counts.
         let fp = fp_text(self.session.keys[key].fingerprint);
@@ -2990,7 +3013,7 @@ impl Faraday {
                             .any(|s| s.name.eq_ignore_ascii_case(&fp))
                     })
             });
-        locked.then(|| EN.backup_flow_past_lock.to_string())
+        locked.then(|| Text::of(EN.backup_flow_past_lock))
     }
 
     /// The new set's identifier for seed `i`, or what refuses the rotation
@@ -3003,18 +3026,18 @@ impl Faraday {
         key: usize,
         form: &crate::plan::codex32::C32,
         typed: &str,
-    ) -> Result<[u8; 4], Option<String>> {
+    ) -> Result<[u8; 4], Option<Text>> {
         if let Some(line) = self.c32_lock_refusal(key) {
             return Err(Some(line));
         }
         let id = <[u8; 4]>::try_from(typed.as_bytes())
-            .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
+            .map_err(|_| Some(Text::of(EN.c32_set_identifier)))?;
         let was = self
             .backup
             .state()
             .is_some_and(|b| b.answers.rotated_id(i, id));
         if id == form.identifier || was {
-            return Err(Some(EN.c32_set_identifier_old.to_string()));
+            return Err(Some(Text::of(EN.c32_set_identifier_old)));
         }
         // A new set is a fresh secret: none in the demo.
         if !self.makes_secrets() {
@@ -3044,11 +3067,11 @@ impl Faraday {
             && self.c32_rotation_refusal(i, key, form, &st.typed).is_ok()
     }
 
-    /// String `s` at index `j`, derived for seed
+    /// Codex32 string `s` at index `j`, derived for seed
     /// `i`'s set: kept with the item, the set's form and facts gaining
     /// the index (a lost one replaced keeps its own), the string opened to
     /// write and type back (`docs/CODEX32.md` §9.7).
-    fn c32_added(&mut self, i: usize, key: usize, j: usize, s: zeroize::Zeroizing<String>) {
+    fn c32_added(&mut self, i: usize, key: usize, j: usize, s: zeroize::Zeroizing<Text>) {
         use faraday_vault::codex32::State;
         let Some(b) = self.backup.state() else {
             return;
@@ -3199,9 +3222,13 @@ impl Faraday {
             plan::What::Codex32QrFile(..) => {
                 let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
-                let share = char::from(index).to_ascii_uppercase().to_string();
-                let title = fill(EN.c32_picture_title, &[&share, id]);
-                let lines = [EN.c32_picture_line.to_string()];
+                let share = Text::of(
+                    char::from(index)
+                        .to_ascii_uppercase()
+                        .encode_utf8(&mut [0; 4]),
+                );
+                let title = Text::fill(EN.c32_picture_title, &[&share, id]);
+                let lines = [Text::of(EN.c32_picture_line)];
                 Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
                     c, &mx, &title, &lines,
                 )))
@@ -3215,7 +3242,7 @@ impl Faraday {
     /// (`docs/CODEX32.md` §9.5): its share index and its set's identifier.
     /// **Lock and write** passes only once there is none. Computes from
     /// the state as it is.
-    pub fn backup_stick_string_missing(&self, c: &Compute) -> Option<(char, String)> {
+    pub fn backup_stick_string_missing(&self, c: &Compute) -> Option<(char, Text)> {
         let b = self.backup.state()?;
         let shape = self.plan_shape_now(b.wallet);
         let list = self.backup_seed_list_now(b.wallet);
@@ -3230,7 +3257,7 @@ impl Faraday {
                     return None;
                 }
                 let id = form.id_text();
-                Some((char::from(index).to_ascii_uppercase(), String::from(&*id)))
+                Some((char::from(index).to_ascii_uppercase(), Text::of(&id)))
             })
     }
 
@@ -3330,7 +3357,7 @@ impl Faraday {
     /// session does not hold (`docs/CODEX32.md` §9.5): its Make card names
     /// it and offers typing it in place.
     pub(crate) fn c32_round_wanted(&mut self, i: usize, want: plan::codex32::Wanted) {
-        let line = fill(EN.c32_round_not_here, &[&want.share(), &want.id_text()]);
+        let line = Text::fill(EN.c32_round_not_here, &[&want.share(), &want.id_text()]);
         self.flows.set_c32_wanted(i, Some(want));
         self.toast(&line);
     }
@@ -3375,18 +3402,18 @@ impl Faraday {
             && s.threshold() == want.k
             && s.encode().as_str().len() == usize::from(want.length);
         let refusal = if !same_set {
-            Some(fill(
+            Some(Text::fill(
                 EN.c32_round_other_set,
                 &[&crate::forms::codex32_what(s), &id],
             ))
         } else if s.share_index() != want.index {
-            Some(fill(
+            Some(Text::fill(
                 EN.c32_round_other_share,
                 &[&crate::forms::codex32_what(s), &share, &id],
             ))
         } else {
             match k {
-                None => Some(fill(
+                None => Some(Text::fill(
                     EN.c32_round_no_key,
                     &[&fp_text(faraday_bip::keys::Fingerprint(want.key))],
                 )),
@@ -3396,7 +3423,7 @@ impl Faraday {
                     .codex32_of_seed(&c, &self.session.keys, k, s)
                     == Some(false))
                 .then(|| {
-                    fill(
+                    Text::fill(
                         EN.c32_round_other_seed,
                         &[
                             &share,
@@ -3418,8 +3445,8 @@ impl Faraday {
             // Not refused by name, so not proved: fewer than `k` strings
             // are here to rebuild the seed, or the key's own facts of its
             // set refuse the index.
-            let line = refusal.unwrap_or_else(|| fill(EN.c32_round_unproved, &[&share, &id]));
-            self.entry.refuse_round(line);
+            let line = refusal.unwrap_or_else(|| Text::fill(EN.c32_round_unproved, &[&share, &id]));
+            self.entry.refuse_round(&line);
             return;
         }
         self.entry.reset();
@@ -3617,7 +3644,7 @@ impl Faraday {
         c: &Compute,
         o: usize,
         v: usize,
-    ) -> Vec<(char, String)> {
+    ) -> Vec<(char, Text)> {
         let Some(open) = self.vaults.open.get(o) else {
             return Vec::new();
         };
@@ -3630,7 +3657,7 @@ impl Faraday {
                     faraday_keys::vault::codex32_share_header(records.iter().nth(k)?.1)?;
                 Some((
                     char::from(j).to_ascii_uppercase(),
-                    String::from_utf8_lossy(&id).into_owned(),
+                    Text::from_utf8_lossy(&id),
                 ))
             })
             .collect()
@@ -3751,7 +3778,7 @@ impl Faraday {
                         .map(faraday_text::Text::from_utf8_lossy)
                         .collect();
                     r.public_all(field::PLAN_HOLDS)
-                        .map(|b| redact_place_name(&String::from_utf8_lossy(b), &names))
+                        .map(|b| redact_place_name(&Text::from_utf8_lossy(b), &names))
                         .collect::<Vec<_>>()
                 })
                 .collect();
@@ -3866,12 +3893,12 @@ impl Faraday {
         if loaded.is_empty() {
             return;
         }
-        let fps: Vec<String> = loaded
+        let fps: Vec<Text> = loaded
             .into_iter()
-            .map(|f| String::from(&*crate::wallet::fp_text(f)))
+            .map(crate::wallet::fp_text)
             .collect();
         self.refresh_spend();
-        self.toast(&fill(EN.c32_gathered, &[&fps.join(", ")]));
+        self.toast(&Text::fill(EN.c32_gathered, &[&*joined(&fps, ", ")]));
     }
 
     /// Costs what `parse_words` costs for a SeedQR. Whether a secret

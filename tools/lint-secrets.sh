@@ -446,6 +446,8 @@ faraday/faraday-core/src/codex32_correct/mod.rs
 faraday/faraday-core/src/codex32_correct/screen.rs
 faraday/faraday-core/src/spend_backup/mod.rs
 faraday/faraday-core/src/spend_backup/screen.rs
+faraday/faraday-core/src/backups/mod.rs
+faraday/faraday-core/src/backups/screen.rs
 core/faraday-draw/src/tokens.rs
 core/faraday-selftest/src/lib.rs
 core/faraday-crypto/src/pinned.rs

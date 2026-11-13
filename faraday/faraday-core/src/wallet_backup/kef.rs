@@ -78,8 +78,8 @@ fn kept(app: &Faraday, i: usize) -> Option<KefMark> {
             let m = f.made()?;
             let s = f.saved()?;
             Some(KefMark {
-                png: s.png.clone(),
-                file: s.file.clone(),
+                png: s.png.as_deref().map(faraday_text::Text::of),
+                file: faraday_text::Text::of(&s.file),
                 checked: f.checked(),
                 sha: m.sha,
                 low: m.low,
@@ -134,7 +134,7 @@ fn kef_bytes(app: &Faraday, c: &Compute, m: &KefMark) -> Option<Zeroizing<Vec<u8
     app.outbox
         .iter()
         .chain(app.inbox.iter())
-        .find(|o| o.name == m.file)
+        .find(|o| o.name == *m.file)
         .filter(|o| sha256_of(c, &o.bytes) == m.sha)
         .map(|o| o.bytes.clone())
 }
@@ -265,8 +265,8 @@ fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
     form.restore(
         made,
         Saved {
-            png: m.png,
-            file: m.file,
+            png: m.png.as_deref().map(Into::into),
+            file: m.file.as_str().into(),
         },
         m.checked,
         m.scanned,

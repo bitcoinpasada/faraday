@@ -2148,7 +2148,7 @@ fn a_place_with_only_its_words_dated_reads_not_checked_on_the_chart_and_on_backu
         .find(|l| l.place == "Place 1")
         .unwrap();
     assert_eq!(
-        (line.state, line.tone),
+        (String::from(&*line.state), line.tone),
         (
             "Not checked".to_string(),
             faraday_core::wallet_backup::Tone::Warn

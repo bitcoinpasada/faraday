@@ -75,7 +75,7 @@ fn backups_line(app: &mut Faraday, place: &str) -> (String, Tone) {
     let all = app.backups_now(&c);
     let l = all[0].lines.clone().expect("a plan");
     let l = l.into_iter().find(|l| l.place == place).unwrap();
-    (l.state, l.tone)
+    (String::from(&*l.state), l.tone)
 }
 
 #[test]
@@ -219,7 +219,7 @@ fn a_paper_place_with_a_date_reads_its_age_on_the_backups_screen() {
         let all = app.backups_now(&c);
         let l = all[0].lines.clone().expect("a plan");
         let l = l.into_iter().find(|l| l.place == "Place 1").unwrap();
-        (l.state, l.tone)
+        (String::from(&*l.state), l.tone)
     };
     assert_eq!(line(&app), ("Checked today".to_string(), Tone::Ok));
     set_clock(&mut app, "2027-12-20");

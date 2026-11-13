@@ -158,6 +158,8 @@ impl View<'_> {
         }
         self.app
             .backup_line_from(self.filled(|c| self.app.backup_map_of(c, i)))
+            .as_str()
+            .into()
     }
 
     /// The wallet card's first button ([`crate::Faraday::spend_button`]),
