@@ -425,6 +425,8 @@ Moved to `docs/history/ESTABLISHED-LOG.md`.
 
 Moved to `docs/history/ESTABLISHED-LOG.md`.
 
+How a leftover copy is found by test is `docs/SECRET-LEAKS.md`.
+
 ### 4.10 Display-only and input-only
 
 Moved to `docs/history/ESTABLISHED-LOG.md`.

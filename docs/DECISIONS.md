@@ -264,3 +264,4 @@ Read this table, then only the decision you need.
 | [F247](decisions/F247.md) | The in-app guide replaces Learn | 2026-11-11 | Active | design |
 | [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Active | repository |
 | [F249](decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Active | standards |
+| [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |

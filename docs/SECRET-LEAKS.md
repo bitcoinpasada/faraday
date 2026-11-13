@@ -1,8 +1,8 @@
 # Secret leaks: tests that fail on a secret left in memory or on screen
 
 **Kind:** Spec
-**Status:** Specified; nothing of it is built.
-**Open:** all of it: the test allocator beside `faraday/tools/alloc-count`, the flow tests that run under it, the tours' check of the frame after Lock, a hide or leaving a page, the secret types' rules with the clippy `disallowed-methods` list, `lint-secrets` finding a secret file by the types it uses, and the registry rules.
+**Status:** Specified (F250); the allocator, the flow tests, the tours' check and the clippy refusal of `clone`, `to_string` and `to_owned` (each secret-holding crate's own `clippy.toml`) are built, the rest is in its Open line.
+**Open:** §6's refusal of `to_vec` and `String::from`, and the registry's lint that keeps the allocator out of a shipped manifest (§10).
 
 Faraday keeps its secrets in types that wipe on drop (`Secret`,
 `SecretText`, `Zeroizing`, `faraday-keys`' holders, `docs/KEYS.md`), and
@@ -15,8 +15,12 @@ after Lock, and on the screen after a frame that should have forgotten
 it. It does for secrets what the budget tests of `docs/SPEED.md` §7 do
 for work.
 
+What wiping does and does not reach is in `docs/KEYS.md` ("What wiping
+does not reach"), `docs/SECURITY-MODEL.md` ("What locking wipes, and
+how") and `docs/ESTABLISHED.md` §4.9; it is not repeated here.
+
 Everything here is test-only. No shipped program installs the allocator
-(F181 holds: §8).
+(F181 holds: §8). The decision is F250.
 
 ## 1. What is checked
 
