@@ -10,8 +10,8 @@
 //! `vault/mod.rs`.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 use faraday_keys::vault::{GpgFacts as Facts, RecordView, gpg_facts, gpg_field as f};
 
@@ -63,24 +63,34 @@ pub fn sha256(c: &Compute, bytes: &[u8]) -> [u8; 32] {
 }
 
 /// Costs what `sha256` costs. [`sha256`] in lower-case hex.
-pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(&sha256(c, bytes)))
+pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> Text {
+    faraday_crypto::hex::encode_string(&sha256(c, bytes))
 }
 
 /// A Unix time as a date, `YYYY-MM-DD`.
-pub fn date(unix: u64) -> String {
-    String::from(&*faraday_pgp::utc_date(unix))
+pub fn date(unix: u64) -> Text {
+    faraday_pgp::utc_date(unix)
 }
 
 /// A key's ID as GnuPG prints it: the last 16 hex digits of its
 /// fingerprint.
-pub fn key_id(fp: &[u8; 20]) -> String {
-    fp[12..].iter().map(|b| format!("{b:02X}")).collect()
+pub fn key_id(fp: &[u8; 20]) -> Text {
+    upper_hex(&fp[12..])
+}
+
+/// `bytes` as upper-case hex.
+fn upper_hex(bytes: &[u8]) -> Text {
+    use std::fmt::Write;
+    let mut out = Text::with_room(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(out, "{b:02X}");
+    }
+    out
 }
 
 /// A short name for files: the user ID's name part, lower-case, and the
 /// fingerprint's last eight digits.
-pub(crate) fn file_stem(key: &Facts) -> String {
+pub(crate) fn file_stem(key: &Facts) -> Text {
     stem_of(
         key.user_ids.first().map_or("", |u| u.as_str()),
         &key.fingerprint,
@@ -89,63 +99,63 @@ pub(crate) fn file_stem(key: &Facts) -> String {
 
 /// [`file_stem`] of a key with the first user ID `user_id` and this
 /// fingerprint: the name its public key is filed under, `{stem}.asc`.
-pub(crate) fn stem_of(user_id: &str, fp: &[u8; 20]) -> String {
+pub(crate) fn stem_of(user_id: &str, fp: &[u8; 20]) -> Text {
     let name = name_of(user_id);
-    let tail: String = fp[16..].iter().map(|b| format!("{b:02X}")).collect();
+    let tail = upper_hex(&fp[16..]);
     if name.is_empty() {
         tail
     } else {
-        format!("{name}-{tail}")
+        text!("{}-{}", &*name, &*tail)
     }
 }
 
 /// The user ID's name, as a file name part: lower-case letters and digits
 /// with dashes between.
-pub(crate) fn name_part(key: &Facts) -> String {
+pub(crate) fn name_part(key: &Facts) -> Text {
     name_of(key.user_ids.first().map_or("", |u| u.as_str()))
 }
 
-fn name_of(user_id: &str) -> String {
+fn name_of(user_id: &str) -> Text {
     let name = user_id.split('<').next().unwrap_or(user_id).trim();
-    let name: String = name
-        .to_lowercase()
+    let name: Text = name
         .chars()
+        .flat_map(char::to_lowercase)
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect();
-    name.trim_matches('-').to_string()
+    Text::of(name.trim_matches('-'))
 }
 
 /// A revocation file's name, `{name}-{FPR}.rev`: the name GnuPG gives
 /// `openpgp-revocs.d/<FPR>.rev`, with the name before it.
-pub(crate) fn rev_name(key: &Facts) -> String {
-    let fpr: String = key.fingerprint.iter().map(|b| format!("{b:02X}")).collect();
+pub(crate) fn rev_name(key: &Facts) -> Text {
+    let fpr = upper_hex(&key.fingerprint);
     match name_part(key) {
-        n if n.is_empty() => format!("{fpr}.rev"),
-        n => format!("{n}-{fpr}.rev"),
+        n if n.is_empty() => text!("{}.rev", &*fpr),
+        n => text!("{}-{}.rev", &*n, &*fpr),
     }
 }
 
 /// How long ago, as GnuPG says it: seconds below a day, then days.
-pub(crate) fn span(secs: u32) -> String {
+pub(crate) fn span(secs: u32) -> Text {
     match secs {
-        1 => fill(EN.gpg_second, &["1"]),
-        s if s < 86_400 => fill(EN.gpg_seconds, &[&s.to_string()]),
-        s if s / 86_400 == 1 => fill(EN.gpg_day, &["1"]),
-        s => fill(EN.gpg_days, &[&(s / 86_400).to_string()]),
+        1 => Text::fill(EN.gpg_second, &["1"]),
+        s if s < 86_400 => Text::fill(EN.gpg_seconds, &[&Text::num(u64::from(s))]),
+        s if s / 86_400 == 1 => Text::fill(EN.gpg_day, &["1"]),
+        s => Text::fill(EN.gpg_days, &[&Text::num(u64::from(s / 86_400))]),
     }
 }
 
 /// Whether a key can sign at `now`: not revoked, not expired, and made
 /// before now. GnuPG's refusals: a key it cannot use is "Unusable secret
 /// key"; one made in the future says so, with its ID.
-pub(crate) fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), String> {
+pub(crate) fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), Text> {
     if let Some(t) = revoked {
-        return Err(fill(EN.gpg_revoked, &[&date(u64::from(t))]));
+        return Err(Text::fill(EN.gpg_revoked, &[&*date(u64::from(t))]));
     }
     if key.expiry > 0 {
         let end = key.created.saturating_add(key.expiry);
         if now >= end {
-            return Err(fill(EN.gpg_expired, &[&date(u64::from(end))]));
+            return Err(Text::fill(EN.gpg_expired, &[&*date(u64::from(end))]));
         }
     }
     for (created, fp) in [
@@ -153,7 +163,10 @@ pub(crate) fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), 
         (key.subkey_created, key.subkey_fingerprint),
     ] {
         if created > now {
-            return Err(fill(EN.gpg_future, &[&key_id(&fp), &span(created - now)]));
+            return Err(Text::fill(
+                EN.gpg_future,
+                &[&*key_id(&fp), &*span(created - now)],
+            ));
         }
     }
     Ok(())
@@ -165,13 +178,13 @@ pub struct GpgFile {
     /// Its place in the Inbox.
     pub index: usize,
     /// Its name.
-    pub name: String,
+    pub name: Text,
     /// Its size.
     pub size: usize,
     /// SHA-256 of its bytes.
     pub hash: [u8; 32],
     /// Its text, when it is a small text file.
-    pub text: Option<String>,
+    pub text: Option<Text>,
 }
 
 /// What the signing page remembers of a file so that it is hashed once: the
@@ -180,10 +193,10 @@ pub struct GpgFile {
 /// signing in any case.
 #[derive(Debug, Clone)]
 pub struct Seen {
-    pub(crate) name: String,
+    pub(crate) name: Text,
     pub(crate) probe: (usize, usize, Vec<u8>),
     pub(crate) hash: [u8; 32],
-    pub(crate) text: Option<String>,
+    pub(crate) text: Option<Text>,
 }
 
 /// A small text file's text broken into lines for the signing page, with
@@ -192,7 +205,7 @@ pub struct Seen {
 /// same, so the lines are the ones breaking the text now would give.
 #[derive(Debug, Clone)]
 pub struct SignWrap {
-    text: String,
+    text: Text,
     basis: faraday_ui::roles::WrapBasis,
     lines: std::rc::Rc<[(usize, usize)]>,
 }
@@ -225,7 +238,7 @@ impl SignWrap {
         let lines = make();
         kept.retain(|e| e.text != text);
         kept.push(SignWrap {
-            text: text.to_string(),
+            text: Text::of(text),
             basis,
             lines: lines.clone(),
         });
@@ -263,14 +276,14 @@ pub(crate) fn probe_of(bytes: &[u8]) -> (usize, usize, Vec<u8>) {
 }
 
 /// A small text file's text: UTF-8, printable, a few lines.
-pub(crate) fn small_text(bytes: &[u8]) -> Option<String> {
+pub(crate) fn small_text(bytes: &[u8]) -> Option<Text> {
     if bytes.is_empty() || bytes.len() > TEXT_MAX {
         return None;
     }
     let text = std::str::from_utf8(bytes).ok()?;
     text.chars()
         .all(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'))
-        .then(|| text.to_string())
+        .then(|| Text::of(text))
 }
 
 /// What the detail column shows of a GPG key: its fingerprints, user IDs,
@@ -278,23 +291,23 @@ pub(crate) fn small_text(bytes: &[u8]) -> Option<String> {
 /// it is shown ([`paperkey`]).
 pub struct Shown {
     /// The primary fingerprint, as GnuPG prints it.
-    pub fingerprint: String,
+    pub fingerprint: Text,
     /// The signing subkey's.
-    pub subkey: String,
+    pub subkey: Text,
     /// The signing subkey's ID.
-    pub subkey_id: String,
+    pub subkey_id: Text,
     /// The primary key's ID.
-    pub key_id: String,
+    pub key_id: Text,
     /// The user IDs.
-    pub user_ids: Vec<String>,
+    pub user_ids: Vec<Text>,
     /// Created, as a date.
-    pub created: String,
+    pub created: Text,
     /// Expires, as a date, or "Never".
-    pub expires: String,
+    pub expires: Text,
     /// The date a revocation certificate kept with the key was made.
-    pub revocation_kept: Option<String>,
+    pub revocation_kept: Option<Text>,
     /// The date the key was marked revoked.
-    pub revoked: Option<String>,
+    pub revoked: Option<Text>,
 }
 
 /// What a type-7 record shows. The dates are local (`docs/TOTP.md`
@@ -303,14 +316,14 @@ pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
     let key = gpg_facts(r)?;
     let local = |t: u64| date(crate::vault::local_secs(t, tz_min));
     Some(Shown {
-        fingerprint: String::from(&*faraday_pgp::fingerprint_text(&key.fingerprint)),
-        subkey: String::from(&*faraday_pgp::fingerprint_text(&key.subkey_fingerprint)),
+        fingerprint: faraday_pgp::fingerprint_text(&key.fingerprint),
+        subkey: faraday_pgp::fingerprint_text(&key.subkey_fingerprint),
         subkey_id: key_id(&key.subkey_fingerprint),
         key_id: key_id(&key.fingerprint),
-        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
+        user_ids: key.user_ids.iter().map(|u| Text::of(u)).collect(),
         created: local(u64::from(key.created)),
         expires: if key.expiry == 0 {
-            EN.gpg_never.to_string()
+            Text::of(EN.gpg_never)
         } else {
             local(u64::from(key.created) + u64::from(key.expiry))
         },

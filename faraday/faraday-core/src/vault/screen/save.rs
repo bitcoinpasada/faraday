@@ -42,7 +42,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &mut |ui, x, y, iw| {
             let mut cy = y;
             for f in &chosen {
-                let line = format!("{} · {}", f.name, &*size_text(f.size as u64));
+                let line = format!("{} · {}", f.name.as_str(), &*size_text(f.size as u64));
                 let line = ui.fit_as(BODY_M.mono(), &line, iw);
                 ui.text_as(x, cy, BODY_M.mono(), ink, &line);
                 cy += ui.advance_as(BODY_M.mono(), 22.0);

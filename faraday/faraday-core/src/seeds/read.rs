@@ -466,7 +466,7 @@ impl Faraday {
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp, None) {
             if let Some(s) = self.seed_read.state.as_mut() {
-                s.error = Some(why);
+                s.error = Some(String::from(&*why));
             }
             return;
         }

@@ -220,7 +220,7 @@ impl Faraday {
                 let local = crate::vault::local_secs(t, self.tz_min());
                 format!(
                     "{} {}",
-                    crate::gpg::date(local),
+                    crate::gpg::date(local).as_str(),
                     crate::vault::time_of_day_secs(local).as_str()
                 )
             }

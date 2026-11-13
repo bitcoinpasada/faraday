@@ -687,7 +687,7 @@ impl View<'_> {
     /// ([`crate::Faraday::restore_share_texts`]), each vault share's
     /// wallet read once and kept by its text. Costs a parse per vault
     /// share's wallet the first time.
-    pub fn restore_share_texts(&self) -> Vec<zeroize::Zeroizing<String>> {
+    pub fn restore_share_texts(&self) -> Vec<faraday_text::Text> {
         self.kept(|c| self.app.restore_share_texts(c))
     }
 

@@ -106,7 +106,7 @@ pub(crate) fn made(c: &Compute, inp: &Inputs, what: u8) -> Made {
 /// BIP 129's).
 pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: u8) -> Option<String> {
     match what {
-        2 => restore::checked_config(c, net, w),
+        2 => restore::checked_config(c, net, w).map(|t| String::from(&*t)),
         6 => {
             let first = w.policy().address_at(c, net, false, 0).ok()?;
             Some(String::from(

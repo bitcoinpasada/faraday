@@ -570,7 +570,7 @@ fn save_writes_each_text_form() {
         let value = make(&mut app, row).unwrap();
         save(&mut app);
         let out = testkit::secret_out(&app).expect("the Secret out sheet is up");
-        assert_eq!(out.name, format!("73c5da0a-{end}.txt"));
+        assert_eq!(&*out.name, format!("73c5da0a-{end}.txt"));
         assert_eq!(out.bytes.as_slice(), value.as_bytes());
         app.press(Action::Cancel);
         app.press(Action::Convert(C::Step(cstep::TO)));
@@ -862,7 +862,7 @@ fn a_word_list_is_named_for_numbers_and_entropy_of_a_key_not_on_the_english_list
         assert!(texts.iter().any(|t| t == "Japanese"), "{row}");
         save(&mut app);
         let out = testkit::secret_out(&app).expect("the Secret out sheet is up");
-        assert!(out.name.ends_with(file), "{row}: {}", out.name);
+        assert!(out.name.ends_with(file), "{row}: {}", &*out.name);
         app.press(Action::Cancel);
         app.press(Action::Convert(C::Step(cstep::TO)));
     }
@@ -1414,7 +1414,7 @@ fn a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving() {
     assert!(opened_up(&mut app).iter().any(|t| t == "Your copy differs"));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("seed-xor.txt"), "{}", out.name);
+    assert!(out.name.ends_with("seed-xor.txt"), "{}", &*out.name);
     assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
     app.press(Action::Convert(C::Step(cstep::TO)));
     app.press(Action::Convert(C::Show));
@@ -1781,7 +1781,7 @@ fn a_slip39_copy_is_checked_by_group_and_the_file_has_every_share() {
     );
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("slip39-set.txt"), "{}", out.name);
+    assert!(out.name.ends_with("slip39-set.txt"), "{}", &*out.name);
     assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
 }
 
@@ -2576,7 +2576,7 @@ fn a_rotated_sets_file_is_named_for_the_new_set() {
     assert_ne!(old, new);
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert_eq!(out.name, format!("{new:04x}-slip39-set.txt"));
+    assert_eq!(&*out.name, format!("{new:04x}-slip39-set.txt"));
 }
 
 /// Another source chosen wipes the share being typed.
@@ -2628,7 +2628,7 @@ fn two_shares_saved_are_two_files() {
     let kept: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
     assert!(kept.contains(&names[0].as_str()), "{kept:?}");
     assert!(kept.contains(&names[1].as_str()), "{kept:?}");
-    assert_eq!(kept.iter().filter(|n| **n == names[1]).count(), 1);
+    assert_eq!(kept.iter().filter(|n| **n == names[1].as_str()).count(), 1);
 }
 
 /// An aezeed held does not outlive the press on the set source.
@@ -2898,7 +2898,11 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     assert_eq!(convert::found(&app), Some(true));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("-group-1-member-2.txt"), "{}", out.name);
+    assert!(
+        out.name.ends_with("-group-1-member-2.txt"),
+        "{}",
+        &*out.name
+    );
     assert_eq!(out.bytes.to_vec(), share.clone().into_bytes());
 
     let mut app = tall();
@@ -2922,6 +2926,6 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     assert_eq!(convert::found(&app), Some(true));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("slip39-set.txt"), "{}", out.name);
+    assert!(out.name.ends_with("slip39-set.txt"), "{}", &*out.name);
     assert_eq!(out.bytes.to_vec(), (lines.join("\n") + "\n").into_bytes());
 }

@@ -578,8 +578,8 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     // The open slot says why its seed was refused; with none open, here.
-    let error = if open_drawn { None } else { r.error.as_ref() };
-    if let Some(e) = error.or(s.error.as_ref()) {
+    let error = if open_drawn { None } else { r.error.as_deref() };
+    if let Some(e) = error.or(s.error.as_deref()) {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + 8.0;
     }
     let (filled, all) = restore_filled(app);

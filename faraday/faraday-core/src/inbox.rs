@@ -1071,7 +1071,7 @@ impl Faraday {
                     }),
                 },
                 Err(e) => found.waiting.push(Waiting {
-                    line: fill(EN.inbox_split_sheets, &[&e.to_string()]),
+                    line: fill(EN.inbox_split_sheets, &[&e]),
                 }),
             }
         }

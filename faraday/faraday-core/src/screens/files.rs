@@ -1828,7 +1828,7 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                         Role::Warning.paint(),
                     ))
                 }
-                Err(e) => note = Some((e, Role::Error.paint())),
+                Err(e) => note = Some((e.as_str().into(), Role::Error.paint())),
             }
         }
         FileKind::Words => {

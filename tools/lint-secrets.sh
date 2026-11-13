@@ -556,7 +556,10 @@ faraday/faraday-core/src/screens/entry.rs
 faraday/faraday-core/src/screens/mod.rs
 faraday/faraday-core/src/screens/parts.rs
 faraday/faraday-core/src/screens/sheets.rs
-faraday/faraday-core/src/screens/visit.rs"
+faraday/faraday-core/src/screens/visit.rs
+faraday/faraday-core/src/restore.rs
+faraday/faraday-core/src/gpg.rs
+faraday/faraday-core/src/secrets.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -570,7 +573,7 @@ done
 #   keys/totp.rs       holds the shown one-time code in wiping text
 #   vault/dice.rs, vault/screen.rs   hold only public text and wiping text of the vault and its draw
 #   faraday-text lib   declares and documents the wiping text type of text.rs
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

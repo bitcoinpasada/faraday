@@ -1158,7 +1158,10 @@ impl Faraday {
     ) -> Option<(Option<crate::backup_flow::RestoreFrom>, Text)> {
         let from = crate::backup_flow::RestoreFrom::read(data).ok();
         if let Some(r) = &from {
-            let name = text!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint));
+            let name = text!(
+                "{}.asc",
+                crate::gpg::stem_of(&r.user_id, &r.fingerprint).as_str()
+            );
             return Some((from, name));
         }
         (faraday_pgp::read_public_armor(data) == Some(faraday_pgp::Armor::PublicKey))

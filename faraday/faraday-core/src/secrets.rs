@@ -16,7 +16,7 @@
 //! a BIP-39 passphrase.
 
 use crate::strings::EN;
-use crate::strings::fill;
+use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 
@@ -84,13 +84,13 @@ pub(crate) enum OutReason {
 /// A secret on its way out, waiting for the person to say where.
 pub struct SecretOut {
     /// The file name it would go out under.
-    pub name: String,
+    pub name: Text,
     /// The file.
     pub bytes: zeroize::Zeroizing<Vec<u8>>,
     /// What it is, as the sheet names it.
-    pub what: String,
+    pub what: Text,
     /// What someone holding it can do.
-    pub gives: String,
+    pub gives: Text,
     /// What it becomes in a vault.
     pub keep: Keep,
     /// The forms the file can take, when it can take more than one: the
@@ -132,7 +132,7 @@ pub struct SecretFile {
     /// The form, as the sheet's button names it.
     pub label: &'static str,
     /// The file name.
-    pub name: String,
+    pub name: Text,
     /// The file.
     pub bytes: zeroize::Zeroizing<Vec<u8>>,
 }
@@ -157,10 +157,10 @@ impl SecretOut {
         gives: &str,
     ) -> Self {
         Self {
-            name: name.as_ref().to_string(),
+            name: Text::of(name.as_ref()),
             bytes,
-            what: what.to_string(),
-            gives: gives.to_string(),
+            what: Text::of(what),
+            gives: Text::of(gives),
             keep: Keep::Note,
             forms: Vec::new(),
             form: 0,
@@ -175,11 +175,11 @@ impl SecretOut {
 /// (F129).
 pub(crate) struct Plain {
     /// What goes: a file's name, or several.
-    pub name: String,
+    pub name: Text,
     /// Where it goes, as the sheet's first line names it.
-    pub on: String,
+    pub on: Text,
     /// What keeps it, as the sheet's second line names it.
-    pub keep: String,
+    pub keep: Text,
     /// What the hold does.
     pub then: PlainThen,
 }
@@ -191,12 +191,12 @@ pub(crate) enum PlainThen {
     /// Back up's plan keeps these files on a stick at a place: the plan
     /// as it was before, the files' names and their seeds' fingerprints,
     /// marked past the warning.
-    Plan(Box<crate::plan::Answers>, Vec<String>, Vec<String>),
+    Plan(Box<crate::plan::Answers>, Vec<Text>, Vec<Text>),
     /// **Lock and write** makes this file of Back up's plan on a stick at
     /// a place: held for, the lock goes on (or asks for the next file).
-    Lock(String),
+    Lock(Text),
     /// Transfer's Receive saves this file into the folder.
-    Transfer(String, zeroize::Zeroizing<Vec<u8>>),
+    Transfer(Text, zeroize::Zeroizing<Vec<u8>>),
     /// A vault record's **Save to a stick** writes its ticked files, a
     /// key's words or SeedQR among them.
     VaultSave,
@@ -294,8 +294,8 @@ impl Faraday {
             return;
         }
         let fp = key.fingerprint;
-        let fps = crate::wallet::fp_text(fp);
-        let stem = format!("{}-{}", crate::file_stem(&wallet.name), fps.to_lowercase());
+        let fps = Text::of(&crate::wallet::fp_text(fp));
+        let stem = text!("{}-{}", crate::file_stem(&wallet.name), fps.to_lowercase());
         // The words, one line, as Add a key and other signers read them.
         // Sized first so that no copy is left behind by a reallocation.
         let words = self.session.keys.reveal(
@@ -307,7 +307,7 @@ impl Faraday {
         text.push(b'\n');
         let mut forms = vec![SecretFile {
             label: EN.secrets_words,
-            name: format!("{stem}-words.txt"),
+            name: text!("{}-words.txt", &*stem),
             bytes: zeroize::Zeroizing::new(text),
         }];
         // SeedQR numbers the English list's words only, and a SeedQR
@@ -327,17 +327,17 @@ impl Faraday {
                 faraday_keys::Reveal::OutboxFile(faraday_keys::Part::SeedQr),
             )
         {
-            let title = fill(EN.secrets_seed, &[&fps.to_string()]);
-            let line = fill(EN.secrets_words_secret, &[&word_count.to_string()]);
+            let title = Text::fill(EN.secrets_seed, &[&fps]);
+            let line = Text::fill(EN.secrets_words_secret, &[&Text::num(word_count as u64)]);
             let png =
                 zeroize::Zeroizing::new(crate::picture::labelled_png(&c, &mx, &title, &[line]));
             let (label, name) = if compact {
                 (
                     EN.secrets_compact_seedqr,
-                    format!("{stem}-compactseedqr.png"),
+                    text!("{}-compactseedqr.png", &*stem),
                 )
             } else {
-                (EN.secrets_seedqr_png, format!("{stem}-seedqr.png"))
+                (EN.secrets_seedqr_png, text!("{}-seedqr.png", &*stem))
             };
             forms.push(SecretFile {
                 label,
@@ -347,14 +347,14 @@ impl Faraday {
         }
         let (need, _) = crate::wallet::Session::quorum(wallet);
         let gives = if need <= 1 {
-            EN.secrets_seed_warning.to_string()
+            Text::of(EN.secrets_seed_warning)
         } else {
             let more = need - 1;
-            fill(
+            Text::fill(
                 EN.secrets_whoever_has,
                 &[
-                    &fps.to_string(),
-                    &more.to_string(),
+                    &fps,
+                    &Text::num(more as u64),
                     (if more == 1 {
                         EN.secrets_key
                     } else {
@@ -367,7 +367,7 @@ impl Faraday {
         let out = SecretOut {
             name: first.name.clone(),
             bytes: first.bytes.clone(),
-            what: EN.secrets_a_wallet_s.to_string(),
+            what: Text::of(EN.secrets_a_wallet_s),
             gives,
             keep: Keep::Key {
                 key: k,
@@ -442,12 +442,9 @@ impl Faraday {
                     .info(key)
                     .map(|k| k.label.clone())
                     .unwrap_or_default();
-                self.toast(&fill(EN.secrets_saved_to_vault, &[&*label, &vault]));
+                self.toast(&Text::fill(EN.secrets_saved_to_vault, &[&*label, &vault]));
             }
-            Keep::Note => self.toast(&fill(
-                EN.secrets_saved_to_vault,
-                &[&out.name.to_string(), &vault],
-            )),
+            Keep::Note => self.toast(&Text::fill(EN.secrets_saved_to_vault, &[&out.name, &vault])),
             Keep::None => {}
         }
     }
@@ -471,8 +468,8 @@ impl Faraday {
         let noun = self.medium.noun();
         let plain = Plain {
             name: out.name.clone(),
-            on: noun.to_string(),
-            keep: noun.to_string(),
+            on: Text::of(noun),
+            keep: Text::of(noun),
             then: PlainThen::Secret,
         };
         self.plain_ask(plain);
@@ -496,12 +493,12 @@ impl Faraday {
             PlainThen::Secret => self.secret_unprotected_now(),
             PlainThen::Plan(before, names, fps) => {
                 for f in names.into_iter().chain(fps) {
-                    self.backup.files_warned(f);
+                    self.backup.files_warned(f.as_str().into());
                 }
                 self.board_sees_ask(*before);
             }
             PlainThen::Lock(name) => {
-                self.backup.files_warned(name);
+                self.backup.files_warned(name.as_str().into());
                 self.wallet_lock_write();
             }
             PlainThen::Transfer(name, bytes) => self.transfer_save(name, bytes),
@@ -513,7 +510,7 @@ impl Faraday {
     /// SeedQR ticked asks **Save without encryption?**'s hold first
     /// (F129); public files alone are written at once.
     pub(crate) fn vault_stick_save_ask(&mut self) {
-        let names: Vec<String> = self
+        let names: Vec<Text> = self
             .vaults
             .stick_save
             .as_ref()
@@ -521,7 +518,7 @@ impl Faraday {
                 s.files
                     .iter()
                     .filter(|f| f.ticked && f.what != crate::vault::out::SaveWhat::Public)
-                    .flat_map(|f| f.names.iter().map(|n| n.as_str().into()))
+                    .flat_map(|f| f.names.iter().map(|n| Text::of(n)))
                     .collect()
             })
             .unwrap_or_default();
@@ -530,9 +527,9 @@ impl Faraday {
         }
         let noun = self.medium.noun();
         self.plain_ask(Plain {
-            name: names.join(", "),
-            on: noun.to_string(),
-            keep: noun.to_string(),
+            name: joined(&names),
+            on: Text::of(noun),
+            keep: Text::of(noun),
             then: PlainThen::VaultSave,
         });
     }
@@ -577,11 +574,12 @@ impl Faraday {
                 .into_iter()
                 .filter(|x| !had.contains(x))
                 .collect();
-        let mut names: Vec<String> = Vec::new();
-        let mut fps: Vec<String> = Vec::new();
+        let mut names: Vec<Text> = Vec::new();
+        let mut fps: Vec<Text> = Vec::new();
         for &(_, what) in &added {
             for n in self.stick_file_names_now(w, shape, &now, what) {
-                if !b.files_warned.contains(&n) && !names.contains(&n) {
+                let n = Text::of(&n);
+                if !b.files_warned.iter().any(|x| x.as_str() == n.as_str()) && !names.contains(&n) {
                     names.push(n);
                 }
             }
@@ -590,7 +588,7 @@ impl Faraday {
             | crate::plan::What::PassphraseFile(i) = what
                 && let Some(seed) = shape.seeds.get(i)
             {
-                fps.push(String::from(&*seed.name));
+                fps.push(Text::of(&seed.name));
             }
         }
         let Some(&(p, _)) = added.first().filter(|_| !names.is_empty()) else {
@@ -610,11 +608,11 @@ impl Faraday {
             _ => Box::new(was),
         };
         let noun = self.medium.noun();
-        let on = fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]);
+        let on = Text::fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]);
         self.plain_ask(Plain {
-            name: names.join(", "),
+            name: joined(&names),
             on,
-            keep: noun.to_string(),
+            keep: Text::of(noun),
             then: PlainThen::Plan(before, names, fps),
         });
     }
@@ -633,10 +631,11 @@ impl Faraday {
             let names = self.stick_file_names_now(b.wallet, &shape, &b.answers, what);
             if let Some(n) = names.into_iter().find(|n| !b.files_warned.contains(n)) {
                 let noun = self.medium.noun();
+                let n = Text::of(&n);
                 return Some(Plain {
                     name: n.clone(),
-                    on: fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]),
-                    keep: noun.to_string(),
+                    on: Text::fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]),
+                    keep: Text::of(noun),
                     then: PlainThen::Lock(n),
                 });
             }
@@ -664,17 +663,17 @@ impl Faraday {
         // From the Inbox to another stick: ticked on the visit, written
         // from the Inbox when the person presses Write.
         if out.to_visit {
-            self.visit.inbox_pick(out.name.clone());
+            self.visit.inbox_pick(out.name.as_str().into());
             return;
         }
         let name = out.name.clone();
-        self.outbox.retain(|i| i.name != name);
+        self.outbox.retain(|i| i.name != *name);
         let item = crate::Item::new(&c, &name, out.bytes.to_vec());
         self.outbox_secret(OutReason::Unprotected, item);
         self.save_boxes();
-        self.toast(&fill(
+        self.toast(&Text::fill(
             EN.secrets_waits_unprotected,
-            &[&name.to_string(), self.medium.for_the()],
+            &[&name, self.medium.for_the()],
         ));
     }
 
@@ -704,6 +703,18 @@ impl Faraday {
             _ => unreachable!(),
         }
     }
+}
+
+/// `names` one after the other, a comma and a space between.
+fn joined(names: &[Text]) -> Text {
+    let mut out = Text::default();
+    for (i, n) in names.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(n);
+    }
+    out
 }
 
 /// The secrets a map keeps as plain files on a stick at a place, by

@@ -580,10 +580,10 @@ impl Faraday {
         };
         // A secret waits for **Hold to save without encryption** (F129).
         self.plain_ask(crate::secrets::Plain {
-            name: name.as_str().into(),
-            on: self.transfer.state.dir.as_str().into(),
-            keep: EN.plain_computer.into(),
-            then: crate::secrets::PlainThen::Transfer(name.as_str().into(), data),
+            name: faraday_text::Text::of(name.as_str()),
+            on: faraday_text::Text::of(self.transfer.state.dir.as_str()),
+            keep: faraday_text::Text::of(EN.plain_computer),
+            then: crate::secrets::PlainThen::Transfer(faraday_text::Text::of(name.as_str()), data),
         });
     }
 

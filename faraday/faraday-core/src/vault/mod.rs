@@ -2730,7 +2730,7 @@ impl Faraday {
                 name.trim().into()
             },
             outbox: vec![(
-                text!("{stem}.asc").as_str().into(),
+                text!("{}.asc", stem.as_str()).as_str().into(),
                 armor(Armor::PublicKey, &made.certificate)
                     .as_bytes()
                     .to_vec(),
@@ -2799,7 +2799,7 @@ impl Faraday {
         let Some((key, text)) = self.gpg_certificate() else {
             return;
         };
-        let name = text!("{}.asc", gpg::file_stem(&key));
+        let name = text!("{}.asc", gpg::file_stem(&key).as_str());
         if self.put_unless_taken(&name, text.as_bytes().to_vec(), |i| {
             faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
         }) {
@@ -2830,7 +2830,7 @@ impl Faraday {
                 (
                     Text::of(EN.gpg_gpg_public_key),
                     text,
-                    text!("{stem}.png"),
+                    text!("{}.png", stem.as_str()),
                     vec![who, fp, Text::of(EN.gpg_public_checks_signatures)],
                 )
             }
@@ -3001,7 +3001,7 @@ impl Faraday {
         else {
             return;
         };
-        let name = text!("{}.asc", gpg::file_stem(&key));
+        let name = text!("{}.asc", gpg::file_stem(&key).as_str());
         let c = self.compute();
         let renewed = self.vaults.edit(id, |s| {
             s.set_publics_in(
@@ -3046,20 +3046,23 @@ impl Faraday {
                 continue;
             }
             let probe = gpg::probe_of(&it.bytes);
-            let (hash, text) = match seen.iter().find(|s| s.name == it.name && s.probe == probe) {
+            let (hash, text) = match seen
+                .iter()
+                .find(|s| s.name.as_str() == it.name && s.probe == probe)
+            {
                 Some(s) => (s.hash, s.text.clone()),
                 // Kept on the state (`sign_seen`) once worked out.
                 None => (it.hash(c), gpg::small_text(&it.bytes)),
             };
             keep.push(gpg::Seen {
-                name: it.name.clone(),
+                name: faraday_text::Text::of(&it.name),
                 probe,
                 hash,
                 text: text.clone(),
             });
             out.push(gpg::GpgFile {
                 index,
-                name: it.name.clone(),
+                name: faraday_text::Text::of(&it.name),
                 size: it.bytes.len(),
                 hash,
                 text,

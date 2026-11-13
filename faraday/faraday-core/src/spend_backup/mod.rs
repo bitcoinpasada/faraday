@@ -1155,7 +1155,7 @@ impl Faraday {
                         EN.spend_backup_part_read_progress,
                         &[&k.to_string(), &m.have.len().to_string(), &m.n.to_string()],
                     ),
-                    Err(e) => e,
+                    Err(e) => e.as_str().into(),
                 }
             }
             FileKind::Key => {
@@ -1630,7 +1630,7 @@ impl Faraday {
             },
             Err(e) => {
                 if loud {
-                    self.spend_backup.state.error = Some(e);
+                    self.spend_backup.state.error = Some(e.as_str().into());
                 }
             }
         }

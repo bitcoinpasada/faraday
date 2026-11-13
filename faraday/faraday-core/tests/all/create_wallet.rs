@@ -1124,7 +1124,8 @@ fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
     assert_eq!(
         config.matches("Derivation: m/87'/0'/0'").count(),
         3,
-        "{config}"
+        "{}",
+        &*config
     );
     let read = faraday_bip::multisig_config::parse(&c, &config).expect("the config reads");
     for (a, b) in read.keys().iter().zip(w.policy().keys()) {

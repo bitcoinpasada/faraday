@@ -614,7 +614,7 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert_eq!(
         testkit::secret_out(&app).map(|o| o.name.clone()),
-        Some(format!("release-{fpr}.rev"))
+        Some(faraday_text::Text::of(&format!("release-{fpr}.rev")))
     );
     // Nothing is in the Outbox until the person says they understand.
     assert_eq!(app.outbox.len(), 1);
@@ -828,7 +828,7 @@ fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
     }
     for (name, bytes) in release_files() {
         let hash = gpg::sha256_hex(&c, &bytes);
-        assert!(page.contains(&hash), "{name}'s SHA-256 on the page");
+        assert!(page.contains(&*hash), "{name}'s SHA-256 on the page");
         assert!(page.contains(&name.replace([' ', '\u{a0}'], "")), "{name}");
     }
     // A small text file's text, and not a binary's.
@@ -841,8 +841,8 @@ fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
     let sub = gpg::key_id(&key.subkey_fingerprint());
     let main = gpg::key_id(&key.fingerprint());
     assert!(page.contains("\"Release\""));
-    assert!(page.contains(&format!("subkeyID{sub}")), "{page}");
-    assert!(page.contains(&format!("mainkeyID{main}")));
+    assert!(page.contains(&format!("subkeyID{}", &*sub)), "{page}");
+    assert!(page.contains(&format!("mainkeyID{}", &*main)));
     assert!(page.contains("created"));
 }
 
@@ -907,7 +907,7 @@ fn a_ticked_file_whose_bytes_change_drops_its_tick() {
     );
     // The page shows it unticked, with the new hash.
     let page = drawn(&mut app);
-    assert!(page.contains(&gpg::sha256_hex(&c, &changed.1)), "{page}");
+    assert!(page.contains(&*gpg::sha256_hex(&c, &changed.1)), "{page}");
     // Nothing is ticked now: Sign opens no sheet.
     app.press(Action::Vault(V::GpgSign));
     assert_eq!(app.sheet, None);

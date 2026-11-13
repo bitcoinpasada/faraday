@@ -2777,7 +2777,7 @@ fn detail(
             .and_then(|r| crate::gpg::shown(*r, app.tz_min()))
         {
             if let Some(uid) = g.user_ids.first() {
-                dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &text!("\"{uid}\"")) + 4.0;
+                dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &text!("\"{}\"", uid.as_str())) + 4.0;
             }
             dy += ui.wrap_as((dx, dy, dw), BODY_S.mono(), muted, &g.subkey) + 4.0;
             dy += ui.wrap_as(
@@ -2816,7 +2816,7 @@ fn detail(
             let signed = app
                 .outbox
                 .iter()
-                .any(|o| o.name.as_str() == &*text!("{}.asc", f.name));
+                .any(|o| o.name.as_str() == &*text!("{}.asc", f.name.as_str()));
             // Show as QR and PNG hold one signature over this file each;
             // ticking, Sign and its sheet's hold is the way to make it. They follow
             // the file by its hash, not its place in the Inbox.
@@ -2857,7 +2857,7 @@ fn detail(
             ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
             let line = text!(
                 "{} · {}",
-                f.name,
+                f.name.as_str(),
                 crate::screens::size_text(f.size as u64).as_str()
             );
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);

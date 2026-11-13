@@ -4,10 +4,10 @@
 //! then the seeds, typed back in.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bitcoin::bip32::Xpub;
 use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::wallet_backup::split_share;
@@ -17,21 +17,20 @@ use crate::{
 };
 use faraday_bip::keys::Network;
 use std::collections::BTreeSet;
-use zeroize::Zeroizing;
 
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigParts {
     /// `Name:`.
-    pub name: Option<String>,
+    pub name: Option<Text>,
     /// `Policy: M of N`.
     pub m: usize,
     /// The N of the policy.
     pub n: usize,
     /// `Format:`.
-    pub format: String,
+    pub format: Text,
     /// Each key line: fingerprint, the derivation in force, the xpub.
-    pub keys: Vec<(String, String, String)>,
+    pub keys: Vec<(Text, Text, Text)>,
 }
 
 /// The longest `Derivation:` value read: a BIP-32 path at its deepest,
@@ -48,7 +47,7 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
     let mut name = None;
     let mut policy = None;
     let mut format = None;
-    let mut derivation = String::new();
+    let mut derivation = Text::default();
     let mut keys = Vec::new();
     for line in text.lines().map(str::trim) {
         if line.is_empty() || line.starts_with('#') {
@@ -57,23 +56,23 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
         let (k, v) = line.split_once(':')?;
         let (k, v) = (k.trim(), v.trim());
         match k.to_ascii_lowercase().as_str() {
-            "name" => name = Some(v.to_string()),
+            "name" => name = Some(Text::of(v)),
             "policy" => {
                 let (m, n) = v.split_once(" of ")?;
                 policy = Some((m.trim().parse().ok()?, n.trim().parse().ok()?));
             }
-            "format" => format = Some(v.to_string()),
+            "format" => format = Some(Text::of(v)),
             "derivation" => {
                 if v.len() > MAX_DERIVATION_LEN {
                     return None;
                 }
-                derivation = v.to_string();
+                derivation = Text::of(v);
             }
             fp if fp.len() == 8 && fp.chars().all(|c| c.is_ascii_hexdigit()) => {
                 if keys.len() == multisig_config::MAX_KEYS {
                     return None;
                 }
-                keys.push((fp.to_string(), derivation.clone(), v.to_string()));
+                keys.push((Text::of(fp), derivation.clone(), Text::of(v)));
             }
             _ => {}
         }
@@ -86,7 +85,7 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
         name,
         m,
         n,
-        format: format.unwrap_or_else(|| "P2WSH".into()),
+        format: format.unwrap_or_else(|| Text::of("P2WSH")),
         keys,
     })
 }
@@ -108,14 +107,30 @@ pub struct Merged {
     /// Keys in the wallet.
     pub n: usize,
     /// The fingerprints in hand.
-    pub have: Vec<String>,
+    pub have: Vec<Text>,
     /// The whole config, once every key is in hand.
-    pub whole: Option<zeroize::Zeroizing<String>>,
+    pub whole: Option<Text>,
+}
+
+/// `s` in lower case.
+fn lower(s: &str) -> Text {
+    s.chars().flat_map(char::to_lowercase).collect()
 }
 
 /// A derivation as written, `'` and `h` alike, for comparing two.
 fn same_derivation(a: &str, b: &str) -> bool {
-    let norm = |d: &str| d.trim().to_ascii_lowercase().replace('\'', "h");
+    let norm = |d: &str| -> Text {
+        d.trim()
+            .chars()
+            .map(|c| {
+                if c == '\'' {
+                    'h'
+                } else {
+                    c.to_ascii_lowercase()
+                }
+            })
+            .collect()
+    };
     norm(a) == norm(b)
 }
 
@@ -125,24 +140,24 @@ fn same_derivation(a: &str, b: &str) -> bool {
 /// derivations, are refused: sheets of two wallets are never combined.
 /// So is a share that names one fingerprint twice: it does not say which
 /// is the wallet's.
-pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
+pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, Text> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
-        let p = parts(t.as_ref()).ok_or(EN.restore_not_a_multisig)?;
+        let p = parts(t.as_ref()).ok_or_else(|| Text::of(EN.restore_not_a_multisig))?;
         for (i, k) in p.keys.iter().enumerate() {
             if p.keys[..i].iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
-                return Err(fill(EN.restore_key_twice, &[&k.0.to_lowercase()]));
+                return Err(Text::fill(EN.restore_key_twice, &[&*lower(&k.0)]));
             }
         }
         match all.as_mut() {
             None => all = Some(p),
             Some(a) => {
                 if a.m != p.m || a.n != p.n || !a.format.eq_ignore_ascii_case(&p.format) {
-                    return Err(EN.restore_these_shares.into());
+                    return Err(Text::of(EN.restore_these_shares));
                 }
                 match (&a.name, &p.name) {
                     (Some(x), Some(y)) if x.trim() != y.trim() => {
-                        return Err(EN.restore_these_shares.into());
+                        return Err(Text::of(EN.restore_these_shares));
                     }
                     (None, Some(_)) => a.name = p.name.clone(),
                     _ => {}
@@ -153,15 +168,15 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
                         continue;
                     }
                     if same_fp().next().is_some() || a.keys.len() >= a.n {
-                        return Err(EN.restore_these_shares.into());
+                        return Err(Text::of(EN.restore_these_shares));
                     }
                     a.keys.push(k);
                 }
             }
         }
     }
-    let a = all.ok_or(EN.restore_no_shares)?;
-    let have: Vec<String> = a.keys.iter().map(|k| k.0.to_lowercase()).collect();
+    let a = all.ok_or_else(|| Text::of(EN.restore_no_shares))?;
+    let have: Vec<Text> = a.keys.iter().map(|k| lower(&k.0)).collect();
     // A Taproot multisig's sheets rebuild its descriptor: Coldcard's
     // config has no Taproot format.
     if a.format.eq_ignore_ascii_case("P2TR") {
@@ -175,18 +190,22 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
                 .sum::<usize>()
                 + NUMS.len()
                 + 48;
-            let mut out = zeroize::Zeroizing::new(String::with_capacity(size));
+            let mut out = Text::with_room(size);
             let _ = write!(out, "tr({NUMS},sortedmulti_a({},", a.m);
             for (i, (fp, d, x)) in a.keys.iter().enumerate() {
                 if i > 0 {
                     out.push(',');
                 }
-                let path = d.trim_start_matches("m/").replace('\'', "h");
-                let fp = fp.to_lowercase();
+                let path: Text = d
+                    .trim_start_matches("m/")
+                    .chars()
+                    .map(|c| if c == '\'' { 'h' } else { c })
+                    .collect();
+                let fp = lower(fp);
                 if path.is_empty() || path == "m" {
-                    let _ = write!(out, "[{fp}]{x}/<0;1>/*");
+                    let _ = write!(out, "[{}]{}/<0;1>/*", &*fp, &**x);
                 } else {
-                    let _ = write!(out, "[{fp}/{path}]{x}/<0;1>/*");
+                    let _ = write!(out, "[{}/{}]{}/<0;1>/*", &*fp, &*path, &**x);
                 }
             }
             out.push_str("))");
@@ -210,14 +229,14 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
             + a.name.as_ref().map_or(0, |n| n.len() + 8)
             + a.format.len()
             + 128;
-        let mut out = zeroize::Zeroizing::new(String::with_capacity(size));
+        let mut out = Text::with_room(size);
         out.push_str("# Multisig config rebuilt by Faraday from its shares\n");
         if let Some(n) = &a.name {
-            let _ = writeln!(out, "Name: {n}"); // not shown: a line of the rebuilt config file
+            let _ = writeln!(out, "Name: {}", &**n); // not shown: a line of the rebuilt config file
         }
-        let _ = write!(out, "Policy: {} of {}\nFormat: {}\n", a.m, a.n, a.format);
+        let _ = write!(out, "Policy: {} of {}\nFormat: {}\n", a.m, a.n, &*a.format);
         for (fp, d, x) in &a.keys {
-            let _ = write!(out, "\nDerivation: {d}\n{fp}: {x}\n");
+            let _ = write!(out, "\nDerivation: {}\n{}: {}\n", &**d, &**fp, &**x);
         }
         out
     });
@@ -269,8 +288,8 @@ pub(crate) fn sheets_rebuild(
 ) -> bool {
     let Some(sheets) = plan
         .iter()
-        .map(|row| split_share(wallet, row).map(Zeroizing::new))
-        .collect::<Option<Vec<Zeroizing<String>>>>()
+        .map(|row| split_share(wallet, row).map(|s| Text::of(&s)))
+        .collect::<Option<Vec<Text>>>()
     else {
         return false;
     };
@@ -288,7 +307,7 @@ pub(crate) fn sheets_rebuild(
         vec![(0..m).collect(), (n - m..n).collect()]
     };
     sets.iter().all(|set| {
-        let some: Vec<Zeroizing<String>> = set.iter().map(|&j| sheets[j].clone()).collect();
+        let some: Vec<Text> = set.iter().map(|&j| sheets[j].duplicate()).collect();
         rebuilds(c, network, wallet, &some)
     })
 }
@@ -307,8 +326,8 @@ pub(crate) fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool
 
 /// Costs [`rebuilds`]. `wallet`'s whole Coldcard config, where it has one
 /// and it rebuilds the wallet.
-pub fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
-    let text = crate::wallet_backup::multisig_config(wallet, None)?;
+pub fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<Text> {
+    let text = Text::of(&crate::wallet_backup::multisig_config(wallet, None)?);
     rebuilds(c, network, wallet, core::slice::from_ref(&text)).then_some(text)
 }
 
@@ -330,7 +349,7 @@ pub struct RestoreState {
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The Inbox shares chosen, by name.
-    pub shares: Vec<String>,
+    pub shares: Vec<Text>,
     /// The wallet, by index into the session: read from its description,
     /// or made from the seeds.
     pub wallet: Option<usize>,
@@ -338,7 +357,7 @@ pub struct RestoreState {
     /// keys.
     pub described: bool,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The kind, the quorum and the seeds and cosigners' xpubs in hand,
     /// for a wallet made from the seeds.
     pub seeds: Option<seeds::SeedsState>,
@@ -440,7 +459,7 @@ impl RestoreArea {
     /// Shows `error` as the last refusal.
     pub(crate) fn set_error(&mut self, error: impl AsRef<str>) {
         if let Some(r) = self.state.as_mut() {
-            r.error = Some(String::from(error.as_ref()));
+            r.error = Some(Text::of(error.as_ref()));
         }
     }
 
@@ -719,19 +738,18 @@ impl Faraday {
             }
             Action::RUse(i) => {
                 if let Some(item) = self.inbox.get(i) {
-                    let text =
-                        zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+                    let text = Text::from_utf8_lossy(&item.bytes);
                     let name = faraday_bip::multisig_config::parse_named(c, &text)
                         .ok()
-                        .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-                        .unwrap_or_else(|| stem(&item.name));
+                        .and_then(|(_, n)| n)
+                        .unwrap_or_else(|| Text::of(&stem(&item.name)));
                     let source = item.name.clone();
                     self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
                 }
             }
             Action::RShare(i) => {
                 if let Some(item) = self.inbox.get(i) {
-                    let n = item.name.clone();
+                    let n = Text::of(&item.name);
                     if let Some(r) = self.restore.state.as_mut() {
                         if let Some(p) = r.shares.iter().position(|x| *x == n) {
                             r.shares.remove(p);
@@ -748,8 +766,8 @@ impl Faraday {
                         Some(whole) => {
                             let name = faraday_bip::multisig_config::parse_named(c, &whole)
                                 .ok()
-                                .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-                                .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                                .and_then(|(_, n)| n)
+                                .unwrap_or_else(|| Text::of(EN.act_restored_wallet));
                             self.restore_wallet(
                                 &name,
                                 &whole,
@@ -759,9 +777,9 @@ impl Faraday {
                         }
                         None => {
                             if let Some(r) = self.restore.state.as_mut() {
-                                r.error = Some(fill(
+                                r.error = Some(Text::fill(
                                     EN.act_of_keys_in_hand,
-                                    &[&m.have.len().to_string(), &m.n.to_string()],
+                                    &[&Text::num(m.have.len() as u64), &Text::num(m.n as u64)],
                                 ));
                             }
                         }
@@ -809,18 +827,18 @@ impl Faraday {
                 self.screen = Screen::Restore;
             }
             Action::RestoreShares => {
-                let texts: Vec<Zeroizing<String>> = self
+                let texts: Vec<Text> = self
                     .inbox
                     .iter()
                     .filter(|i| i.kind == FileKind::Share)
-                    .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+                    .map(|i| Text::from_utf8_lossy(&i.bytes))
                     .collect();
                 match restore::merge(&texts).map(|m| m.whole) {
                     Ok(Some(whole)) => {
                         let name = faraday_bip::multisig_config::parse_named(c, &whole)
                             .ok()
-                            .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-                            .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                            .and_then(|(_, n)| n)
+                            .unwrap_or_else(|| Text::of(EN.act_restored_wallet));
                         match self.session.add_wallet(
                             c,
                             &name,
@@ -832,10 +850,7 @@ impl Faraday {
                                 self.wallets.set_wallet(i);
                                 self.screen = Screen::Wallets;
                                 self.refresh_spend();
-                                self.toast(&fill(
-                                    EN.act_restored_from_shares,
-                                    &[&name.to_string()],
-                                ));
+                                self.toast(&Text::fill(EN.act_restored_from_shares, &[&name]));
                             }
                             Err(e) => self.toast(&e.text()),
                         }
@@ -884,7 +899,7 @@ impl Faraday {
         &self,
         fp: faraday_bip::keys::Fingerprint,
         key_at: Option<&KeyAt<'_>>,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let r = self.restore.state.as_ref().filter(|r| !r.keys_made())?;
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
@@ -898,11 +913,11 @@ impl Faraday {
                         _ => true,
                     }
             });
-            return (!ours).then(|| NOT_A_KEY.to_string());
+            return (!ours).then(|| Text::of(NOT_A_KEY));
         }
         let s = r.seeds.as_ref()?;
         (!s.keys.contains(&fp.0) && s.first_empty().is_none())
-            .then(|| EN.restore_refusal_every.to_string())
+            .then(|| Text::of(EN.restore_refusal_every))
     }
 
     /// Costs a PBKDF2, and a key derivation for each slot of the seed's
@@ -913,7 +928,7 @@ impl Faraday {
         &self,
         c: &Compute,
         m: &faraday_bip::bip39::Mnemonic,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let pass = self.entry.state().passphrase.as_str();
         let fp = faraday_keys::identity::fingerprint_of_mnemonic(c, m, pass).ok()?;
         let network = self.session.network();
@@ -1001,8 +1016,8 @@ impl Faraday {
                 true
             }
             FileKind::Share => {
-                if !r.shares.contains(&name) {
-                    r.shares.push(name);
+                if !r.shares.iter().any(|s| s.as_str() == name) {
+                    r.shares.push(Text::of(&name));
                 }
                 r.open = Some(rstep::DESCRIPTION);
                 r.scroll.follow = true;
@@ -1037,10 +1052,10 @@ impl Faraday {
             return;
         };
         if open > 0 {
-            r.error = Some(fill(
+            r.error = Some(Text::fill(
                 EN.restore_described_make_still,
                 &[
-                    &open.to_string(),
+                    &Text::num(open as u64),
                     (if open == 1 {
                         EN.restore_described_make_slot
                     } else {
@@ -1064,9 +1079,12 @@ impl Faraday {
             return;
         };
         let (Some(text), name) = (
-            rec.public_text(field::WALLET).map(str::to_string),
-            crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.restore_from_vault_wallet)
-                .into_owned(),
+            rec.public_text(field::WALLET).map(Text::of),
+            Text::of(&crate::vault::wallet_name_in(
+                rec,
+                field::WALLET_NAME,
+                EN.restore_from_vault_wallet,
+            )),
         ) else {
             return;
         };
@@ -1081,11 +1099,11 @@ impl Faraday {
             return;
         };
         // The vault's keys for this wallet's slots load with it.
-        let want: Vec<String> = self
+        let want: Vec<Text> = self
             .session
             .slots(w)
             .iter()
-            .filter_map(|s| s.fingerprint.map(fp_text))
+            .filter_map(|s| s.fingerprint.map(|f| Text::of(&fp_text(f))))
             .collect();
         let open = &self.vaults.open[v];
         let keep: BTreeSet<usize> = self
@@ -1108,10 +1126,10 @@ impl Faraday {
         let then: crate::vault::load_job::Then = Box::new(move |app, keys, _| {
             app.screen = Screen::Restore;
             if keys > 0 {
-                app.toast(&fill(
+                app.toast(&Text::fill(
                     EN.restore_from_vault_count,
                     &[
-                        &keys.to_string(),
+                        &Text::num(keys as u64),
                         (if keys == 1 {
                             EN.restore_from_vault_key
                         } else {
@@ -1131,15 +1149,15 @@ impl Faraday {
     /// share's wallet read as a description no record keeps
     /// ([`Kept::read_kept`]): a vault's share only where its wallet holds
     /// every key of the shares chosen, all of one wallet.
-    pub fn restore_share_texts(&self, c: &Compute) -> Vec<Zeroizing<String>> {
+    pub fn restore_share_texts(&self, c: &Compute) -> Vec<Text> {
         let Some(r) = self.restore.state.as_ref() else {
             return Vec::new();
         };
-        let mut texts: Vec<Zeroizing<String>> = self
+        let mut texts: Vec<Text> = self
             .inbox
             .iter()
-            .filter(|i| r.shares.contains(&i.name))
-            .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+            .filter(|i| r.shares.iter().any(|s| s.as_str() == i.name))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
         // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
         // §15.6), each where it agrees with the shares in hand.
@@ -1148,12 +1166,12 @@ impl Faraday {
         // that merges with what is in hand, and only a share whose wallet
         // holds every key the sheets in hand name and every key of its
         // own; a share whose wallet does not read is not taken.
-        let hand: Vec<(String, String)> = texts
+        let hand: Vec<(Text, Text)> = texts
             .iter()
             .filter_map(|t| parts(t.as_str()))
             .flat_map(|p| p.keys.into_iter().map(|(f, _, x)| (f, x)))
             .collect();
-        let mut wallet: Option<String> = None;
+        let mut wallet: Option<Text> = None;
         for o in &self.vaults.open {
             for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
                 let Some(t) = rec.public_text(field::SHARE) else {
@@ -1165,18 +1183,18 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let of = Some(policy.checksum().to_string());
+                let of = Some(text!("{}", policy.checksum()));
                 if wallet.is_some() && of != wallet {
                     continue;
                 }
                 let Some(own) = parts(t) else {
                     continue;
                 };
-                let holds = |(f, x): &(String, String)| {
+                let holds = |(f, x): &(Text, Text)| {
                     policy.keys().iter().any(|k| {
                         k.fingerprint()
                             .is_some_and(|p| fp_text(p).eq_ignore_ascii_case(f))
-                            && k.xpub().to_string() == x.trim()
+                            && text!("{}", k.xpub()) == x.trim()
                     })
                 };
                 let quorum = policy.quorum().or_else(|| policy.tapscript_quorum());
@@ -1185,7 +1203,7 @@ impl Faraday {
                     || !own
                         .keys
                         .iter()
-                        .all(|(f, _, x)| holds(&(f.clone(), x.clone())))
+                        .all(|(f, _, x)| holds(&(f.duplicate(), x.duplicate())))
                 {
                     continue;
                 }
@@ -1193,7 +1211,7 @@ impl Faraday {
                     continue;
                 }
                 let mut trial = texts.clone();
-                trial.push(Zeroizing::new(t.to_string()));
+                trial.push(Text::of(t));
                 if restore::merge(&trial).is_ok() {
                     texts = trial;
                     wallet = of;
@@ -1259,7 +1277,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(r) = self.restore.state.as_mut() {
-                    r.error = Some(String::from(&*e.text()));
+                    r.error = Some(e.text());
                 }
             }
         }
@@ -1280,7 +1298,7 @@ mod tests {
         let mut app = crate::Faraday::new();
         app.session = crate::testkit::session();
         let (a, b) = ("m/48'/1'/0'/2'", "m/48'/1'/1'/2'");
-        let twice = format!(
+        let twice = text!(
             "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
             key(0, a),
             key(0, b),
@@ -1289,14 +1307,15 @@ mod tests {
         let mut wf = crate::backup_flow::WalletFlow::blank();
         wf.answers.omit = 1;
         wf.name = "Test".into();
-        for (d, splits) in [(twice, false), (crate::testkit::savings(), true)] {
+        let savings = crate::testkit::savings();
+        for (d, splits) in [(&*twice, false), (&*savings, true)] {
             let i = app
                 .session
-                .add_wallet(&c, "Test", &d, "Test", wallet::Origin::Named)
+                .add_wallet(&c, "Test", d, "Test", wallet::Origin::Named)
                 .expect("reads");
             let w = &app.session.wallets[i];
             assert_eq!(crate::wallet_backup::splits(w), splits, "{d}");
-            let cs = w.checksum().to_string();
+            let cs = text!("{}", w.checksum());
             for j in 0..3 {
                 let got = crate::backup_flow::wallet_share_record(&app, &c, &wf, &cs, j);
                 if splits {
@@ -1329,12 +1348,14 @@ mod tests {
             ),
         ];
         let share = |which: &[usize]| {
-            let mut s = format!("# Partial\n{whole}");
+            use std::fmt::Write as _;
+            let mut s = text!("# Partial\n{whole}");
             for &i in which {
-                s.push_str(&format!(
+                let _ = write!(
+                    s,
                     "\nDerivation: m/48'/0'/0'/2'\n{}: {}\n",
                     keys[i].0, keys[i].1
-                ));
+                );
             }
             s
         };
@@ -1343,9 +1364,10 @@ mod tests {
         let two = merge(&[share(&[0, 1]), share(&[1, 2])]).unwrap();
         let rebuilt = two.whole.expect("two shares rebuild");
         let a = multisig_config::parse(&c, &rebuilt).unwrap();
-        let mut full = whole.to_string();
+        let mut full = Text::of(whole);
         for k in keys {
-            full.push_str(&format!("\nDerivation: m/48'/0'/0'/2'\n{}: {}\n", k.0, k.1));
+            use std::fmt::Write as _;
+            let _ = write!(full, "\nDerivation: m/48'/0'/0'/2'\n{}: {}\n", k.0, k.1);
         }
         assert_eq!(
             a.to_descriptor(),
@@ -1362,9 +1384,10 @@ mod tests {
     #[test]
     fn a_config_is_read_up_to_fifteen_keys_and_refused_past_them() {
         let config = |n: usize, lines: usize, derivation: &str| {
-            let mut s = format!("Policy: 2 of {n}\nFormat: P2WSH\nDerivation: {derivation}\n");
+            use std::fmt::Write as _;
+            let mut s = text!("Policy: 2 of {n}\nFormat: P2WSH\nDerivation: {derivation}\n");
             for i in 0..lines {
-                s.push_str(&format!("{i:08x}: xpub{i}\n"));
+                let _ = writeln!(s, "{i:08x}: xpub{i}");
             }
             s
         };
@@ -1373,13 +1396,14 @@ mod tests {
         assert!(parts(&config(15, 16, path)).is_none());
         assert!(parts(&config(16, 16, path)).is_none());
         assert!(parts(&config(3, 4, path)).is_none());
-        let deepest = format!("m{}", "/2147483647h".repeat(255));
+        let deepest = text!("m{}", "/2147483647h".repeat(255));
         assert!(parts(&config(3, 3, &deepest)).is_some());
-        assert!(parts(&config(3, 3, &format!("{deepest}/"))).is_none());
+        assert!(parts(&config(3, 3, &text!("{}/", &*deepest))).is_none());
         let share = |first: usize| {
-            let mut s = String::from("Policy: 2 of 3\nFormat: P2WSH\nDerivation: m/0\n");
+            use std::fmt::Write as _;
+            let mut s = Text::of("Policy: 2 of 3\nFormat: P2WSH\nDerivation: m/0\n");
             for i in first..first + 2 {
-                s.push_str(&format!("{i:08x}: xpub{i}\n"));
+                let _ = writeln!(s, "{i:08x}: xpub{i}");
             }
             s
         };
@@ -1404,7 +1428,7 @@ mod tests {
             ][i]
         };
         let config = |second: &str| {
-            format!(
+            text!(
                 "Policy: 2 of 2\nFormat: P2WSH\nDerivation: m/48'/0'/0'/2'\n9a6a2580: {}\n5d388376: {second}\n",
                 xpub(0)
             )
