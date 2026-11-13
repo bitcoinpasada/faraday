@@ -1006,7 +1006,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_inbox_passphrase_at_once()
     open_and_change(&mut app);
     let words = testkit::test_words("summer");
     app.storage(StorageEvent::Restored {
-        inbox: vec![("summer-words.txt".into(), words.into_bytes())],
+        inbox: vec![("summer-words.txt".into(), words.into_bytes().into())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
