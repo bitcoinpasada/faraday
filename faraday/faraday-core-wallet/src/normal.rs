@@ -370,7 +370,11 @@ mod tests {
         ] {
             let library = base58::decode_check(text).ok().filter(|b| b.len() == 78);
             let ours = extended_key_bytes(text);
-            assert_eq!(ours.as_deref().map(|b| b.as_slice()), library.as_deref(), "{text}");
+            assert_eq!(
+                ours.as_deref().map(|b| b.as_slice()),
+                library.as_deref(),
+                "{text}"
+            );
         }
         assert!(extended_key_bytes(&zeros).is_some());
     }
