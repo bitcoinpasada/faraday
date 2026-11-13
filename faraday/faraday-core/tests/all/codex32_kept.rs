@@ -85,7 +85,7 @@ pub(crate) fn wallet_and_backup(app: &mut Faraday) {
         .unwrap();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "shares-wallet.txt".into(),
+            faraday_text::Text::of("shares-wallet.txt"),
             format!("wpkh({}/<0;1>/*)", &*text).into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -815,7 +815,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
         kept: Vec::new(),
     });
     back.storage(faraday_core::StorageEvent::QrRead {
-        name: picture.0.clone(),
+        name: faraday_text::Text::of(&picture.0.clone()),
         bytes: picture.1.clone(),
         payloads: read,
     });

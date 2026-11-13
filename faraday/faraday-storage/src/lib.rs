@@ -54,18 +54,18 @@ pub fn stick_info_after(
         Some(s) => s.vaults.clone(),
         None => faraday_files::vault_names(c, &mut place, &listed)
             .iter()
-            .map(|n| n.as_str().into())
+            .map(|n| faraday_text::Text::of(n.as_str()))
             .collect(),
     };
     StickInfo {
         make: Default::default(),
-        id: id.as_str().into(),
-        label: label.into(),
+        id: faraday_text::Text::of(id.as_str()),
+        label: faraday_text::Text::of(label),
         boot,
         serial: None,
         files: listed
             .iter()
-            .map(|(n, s)| (n.as_str().into(), *s))
+            .map(|(n, s)| (faraday_text::Text::of(n.as_str()), *s))
             .collect(),
         vaults,
     }
@@ -577,9 +577,9 @@ impl Boxes {
                             continue;
                         };
                         let (name, mut bytes) = files.remove(at);
-                        let tmp = d.join(&*text!(".{name}.tmp"));
+                        let tmp = d.join(&*text!(".{}.tmp", &*name));
                         let wrote =
-                            fs::write(&tmp, &bytes).and_then(|()| fs::rename(&tmp, d.join(&name)));
+                            fs::write(&tmp, &bytes).and_then(|()| fs::rename(&tmp, d.join(&*name)));
                         zeroize::Zeroize::zeroize(&mut bytes);
                         if wrote.is_err() {
                             let _ = fs::remove_file(&tmp);
@@ -637,9 +637,12 @@ impl Boxes {
                                         let _ = fs::remove_file(e.path());
                                         return None;
                                     }
-                                    fs::read(e.path())
-                                        .ok()
-                                        .map(|b| (name.as_ref().into(), zeroize::Zeroizing::new(b)))
+                                    fs::read(e.path()).ok().map(|b| {
+                                        (
+                                            faraday_text::Text::of(name.as_ref()),
+                                            zeroize::Zeroizing::new(b),
+                                        )
+                                    })
                                 })
                                 .collect()
                         })
@@ -677,10 +680,10 @@ impl Host {
     /// The Downloads folder as the app sees it.
     pub fn files(&self) -> StorageEvent {
         StorageEvent::HostFiles {
-            dir: text!("{}", self.downloads.display()).as_str().into(),
+            dir: text!("{}", self.downloads.display()),
             files: host_listing(&self.downloads)
                 .into_iter()
-                .map(|(n, s)| (n.as_str().into(), s))
+                .map(|(n, s)| (faraday_text::Text::of(n.as_str()), s))
                 .collect(),
             opens: self.opens,
         }
@@ -819,14 +822,14 @@ pub fn serve_with(
         for (stick, name, picture) in sticks.pictures_read() {
             app.storage(match picture {
                 Ok((bytes, payloads)) => StorageEvent::QrRead {
-                    name: name.as_str().into(),
+                    name: faraday_text::Text::of(name.as_str()),
                     bytes,
                     payloads,
                 },
                 Err(reason) => StorageEvent::ReadFailed {
-                    stick: stick.as_str().into(),
-                    name: name.as_str().into(),
-                    reason: reason.as_str().into(),
+                    stick: faraday_text::Text::of(stick.as_str()),
+                    name: faraday_text::Text::of(name.as_str()),
+                    reason: faraday_text::Text::of(reason.as_str()),
                 },
             });
         }
@@ -857,9 +860,9 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
                 sha
             });
             StorageEvent::Hashed {
-                stick: stick.as_str().into(),
-                name: name.as_str().into(),
-                sha: sha.map_err(|e| e.as_str().into()),
+                stick: faraday_text::Text::of(stick.as_str()),
+                name: faraday_text::Text::of(name.as_str()),
+                sha: sha.map_err(|e| faraday_text::Text::of(e.as_str())),
             }
         }
         Transferred::Read {
@@ -868,14 +871,14 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
             result,
         } => match result {
             Ok(bytes) => StorageEvent::Read {
-                stick: stick.as_str().into(),
-                name: name.as_str().into(),
+                stick: faraday_text::Text::of(stick.as_str()),
+                name: faraday_text::Text::of(name.as_str()),
                 bytes,
             },
             Err(reason) => StorageEvent::ReadFailed {
-                stick: stick.as_str().into(),
-                name: name.as_str().into(),
-                reason: reason.as_str().into(),
+                stick: faraday_text::Text::of(stick.as_str()),
+                name: faraday_text::Text::of(name.as_str()),
+                reason: faraday_text::Text::of(reason.as_str()),
             },
         },
         Transferred::Write {
@@ -891,26 +894,26 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
                     &*name
                 ));
                 StorageEvent::NameTaken {
-                    stick: stick.as_str().into(),
-                    name: name.as_str().into(),
-                    on_stick: on_stick.as_str().into(),
+                    stick: faraday_text::Text::of(stick.as_str()),
+                    name: faraday_text::Text::of(name.as_str()),
+                    on_stick: faraday_text::Text::of(on_stick.as_str()),
                     sha,
                 }
             }
             Ok(wrote_as) => {
                 said.push(text!("wrote {}/{}", &*stick, &*wrote_as));
                 StorageEvent::Written {
-                    stick: stick.as_str().into(),
-                    name: name.as_str().into(),
-                    wrote_as: wrote_as.as_str().into(),
+                    stick: faraday_text::Text::of(stick.as_str()),
+                    name: faraday_text::Text::of(name.as_str()),
+                    wrote_as: faraday_text::Text::of(wrote_as.as_str()),
                 }
             }
             Err(faraday_files::WriteRefused::Failed(reason)) => {
                 said.push(text!("cannot write {}/{}: {}", &*stick, &*name, &*reason));
                 StorageEvent::WriteFailed {
-                    stick: stick.as_str().into(),
-                    name: name.as_str().into(),
-                    reason: reason.as_str().into(),
+                    stick: faraday_text::Text::of(stick.as_str()),
+                    name: faraday_text::Text::of(name.as_str()),
+                    reason: faraday_text::Text::of(reason.as_str()),
                 }
             }
         },
@@ -973,7 +976,7 @@ fn serve_queued(
                     Ok((free, size)) => StorageEvent::StickSpace { stick, free, size },
                     Err(reason) => StorageEvent::ZeroFailed {
                         stick,
-                        reason: reason.as_str().into(),
+                        reason: faraday_text::Text::of(reason.as_str()),
                     },
                 };
                 app.storage(ev);
@@ -987,10 +990,10 @@ fn serve_queued(
                         done,
                     },
                     Err(reason) => {
-                        said.push(text!("cannot zero {}: {}", stick, &*reason)); // not shown: a line for a verbose shell's console
+                        said.push(text!("cannot zero {}: {}", &*stick, &*reason)); // not shown: a line for a verbose shell's console
                         StorageEvent::ZeroFailed {
                             stick,
-                            reason: reason.as_str().into(),
+                            reason: faraday_text::Text::of(reason.as_str()),
                         }
                     }
                 };
@@ -999,7 +1002,7 @@ fn serve_queued(
             StorageCommand::MakeEmpty { stick } => {
                 let ev = match sticks.make_empty(&stick) {
                     Ok(()) => {
-                        said.push(text!("made {} empty", stick)); // not shown: a line for a verbose shell's console
+                        said.push(text!("made {} empty", &*stick)); // not shown: a line for a verbose shell's console
                         StorageEvent::Zeroing {
                             stick,
                             next: 2,
@@ -1008,10 +1011,10 @@ fn serve_queued(
                         }
                     }
                     Err(reason) => {
-                        said.push(text!("cannot make {} empty: {}", stick, &*reason)); // not shown: a line for a verbose shell's console
+                        said.push(text!("cannot make {} empty: {}", &*stick, &*reason)); // not shown: a line for a verbose shell's console
                         StorageEvent::ZeroFailed {
                             stick,
-                            reason: reason.as_str().into(),
+                            reason: faraday_text::Text::of(reason.as_str()),
                         }
                     }
                 };
@@ -1020,19 +1023,19 @@ fn serve_queued(
             StorageCommand::Wipe { stick, name } => {
                 let ev = match sticks.wipe(&stick, &name) {
                     Ok(faraday_files::Wiped::Zeroed) => {
-                        said.push(text!("deleted {}/{}, zeros over it first", stick, name));
+                        said.push(text!("deleted {}/{}, zeros over it first", &*stick, &*name));
                         StorageEvent::Wiped { stick, name }
                     }
                     Ok(faraday_files::Wiped::NameOnly) => {
-                        said.push(text!("removed the name {}/{}, bytes left", stick, name)); // not shown: a line for a verbose shell's console
+                        said.push(text!("removed the name {}/{}, bytes left", &*stick, &*name)); // not shown: a line for a verbose shell's console
                         StorageEvent::WipedName { stick, name }
                     }
                     Err(reason) => {
-                        said.push(text!("cannot delete {}/{}: {}", stick, name, &*reason));
+                        said.push(text!("cannot delete {}/{}: {}", &*stick, &*name, &*reason));
                         StorageEvent::WipeFailed {
                             stick,
                             name,
-                            reason: reason.as_str().into(),
+                            reason: faraday_text::Text::of(reason.as_str()),
                         }
                     }
                 };
@@ -1055,12 +1058,12 @@ fn serve_queued(
                                 faraday_core::Unrenamed::SameVault
                             }
                             faraday_files::Unrenamed::Failed(why) => {
-                                faraday_core::Unrenamed::Failed(why.as_str().into())
+                                faraday_core::Unrenamed::Failed(why)
                             }
                         });
                 said.push(match &refused {
-                    None => text!("renamed {}/{} {}", stick, from, to),
-                    Some(r) => text!("cannot rename {}/{}: {:?}", stick, from, r), // not shown: a line for a verbose shell's console
+                    None => text!("renamed {}/{} {}", &*stick, &*from, &*to),
+                    Some(r) => text!("cannot rename {}/{}: {:?}", &*stick, &*from, r), // not shown: a line for a verbose shell's console
                 });
                 app.storage(StorageEvent::Renamed {
                     stick,
@@ -1072,13 +1075,13 @@ fn serve_queued(
             StorageCommand::NameStick { stick, label } => {
                 let refused = sticks.name(&stick, &label).err();
                 said.push(match &refused {
-                    None => text!("named {} {:?}", stick, label), // not shown: a line for a verbose shell's console
-                    Some(r) => text!("cannot name {}: {}", stick, &**r), // not shown: as above
+                    None => text!("named {} {:?}", &*stick, &*label), // not shown: a line for a verbose shell's console
+                    Some(r) => text!("cannot name {}: {}", &*stick, &**r), // not shown: as above
                 });
                 app.storage(StorageEvent::StickNamed {
                     stick,
                     label,
-                    refused: refused.map(|r| r.as_str().into()),
+                    refused: refused.map(|r| faraday_text::Text::of(r.as_str())),
                 });
             }
             // A file read for its Details' SHA-256: the bytes are wiped
@@ -1095,7 +1098,7 @@ fn serve_queued(
                 app.storage(StorageEvent::Hashed {
                     stick,
                     name,
-                    sha: sha.map_err(|e| e.as_str().into()),
+                    sha: sha.map_err(|e| faraday_text::Text::of(e.as_str())),
                 });
             }
             // Read off this thread: its answer comes on a later pass.
@@ -1103,7 +1106,7 @@ fn serve_queued(
             StorageCommand::Print { name, bytes } => {
                 let ev = match print {
                     None => StorageEvent::PrintFailed {
-                        reason: EN.storage_no_print.into(),
+                        reason: faraday_text::Text::of(EN.storage_no_print),
                     },
                     Some(dir) => {
                         let saved = fs::create_dir_all(dir)
@@ -1116,10 +1119,10 @@ fn serve_queued(
                             });
                         match saved {
                             Ok(path) => StorageEvent::Printed {
-                                path: text!("{}", path.display()).as_str().into(),
+                                path: text!("{}", path.display()),
                             },
                             Err(reason) => StorageEvent::PrintFailed {
-                                reason: reason.as_str().into(),
+                                reason: faraday_text::Text::of(reason.as_str()),
                             },
                         }
                     }
@@ -1130,13 +1133,13 @@ fn serve_queued(
                 let ev = match host {
                     None => StorageEvent::HostReadFailed {
                         path,
-                        reason: EN.storage_no_host_read.into(),
+                        reason: faraday_text::Text::of(EN.storage_no_host_read),
                     },
-                    Some(_) => match read_host(Path::new(&path)) {
+                    Some(_) => match read_host(Path::new(&*path)) {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
                         Err(reason) => StorageEvent::HostReadFailed {
                             path,
-                            reason: reason.as_str().into(),
+                            reason: faraday_text::Text::of(reason.as_str()),
                         },
                     },
                 };
@@ -1145,17 +1148,17 @@ fn serve_queued(
             StorageCommand::SaveDownload { name, mut bytes } => {
                 let ev = match host {
                     None => StorageEvent::SaveFailed {
-                        reason: EN.storage_no_download.into(),
+                        reason: faraday_text::Text::of(EN.storage_no_download),
                     },
                     Some(h) => match save_download(&h.downloads, &name, &bytes) {
                         Ok(path) => {
                             said.push(text!("saved {}", path.display()));
                             StorageEvent::Saved {
-                                path: text!("{}", path.display()).as_str().into(),
+                                path: text!("{}", path.display()),
                             }
                         }
                         Err(reason) => StorageEvent::SaveFailed {
-                            reason: reason.as_str().into(),
+                            reason: faraday_text::Text::of(reason.as_str()),
                         },
                     },
                 };
@@ -1686,19 +1689,23 @@ impl DiskProcess {
                     .collect();
                 Ok(s.into_iter()
                     .map(|s| StickInfo {
-                        label: s.label.as_str().into(),
-                        id: s.id.as_str().into(),
+                        label: faraday_text::Text::of(s.label.as_str()),
+                        id: faraday_text::Text::of(s.id.as_str()),
                         boot: s.boot,
                         serial: s.serial,
                         files: s
                             .files
                             .into_iter()
-                            .map(|(n, z)| (n.as_str().into(), z))
+                            .map(|(n, z)| (faraday_text::Text::of(n.as_str()), z))
                             .collect(),
-                        vaults: s.vaults.into_iter().map(|v| v.as_str().into()).collect(),
+                        vaults: s
+                            .vaults
+                            .into_iter()
+                            .map(|v| faraday_text::Text::of(v.as_str()))
+                            .collect(),
                         make: faraday_core::StickMake {
-                            maker: s.make.maker.map(|m| m.as_str().into()),
-                            model: s.make.model.map(|m| m.as_str().into()),
+                            maker: s.make.maker.map(|m| faraday_text::Text::of(m.as_str())),
+                            model: s.make.model.map(|m| faraday_text::Text::of(m.as_str())),
                             size: s.make.size,
                         },
                     })

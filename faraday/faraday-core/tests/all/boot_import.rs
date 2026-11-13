@@ -79,19 +79,19 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
         make: Default::default(),
         serial: None,
-        id: BOOT.into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of(BOOT),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         // What the shell's listing finds: a vault by its first four bytes
         // and its length, whatever its name.
         vaults: files
             .iter()
             .filter(|(_, b)| faraday_intake::is_vault(b))
-            .map(|(n, _)| n.clone())
+            .map(|(n, _)| faraday_text::Text::of(n))
             .collect(),
     }
 }
@@ -102,7 +102,7 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
                 app.storage(StorageEvent::Read { stick, name, bytes });
             }
             StorageCommand::ReadQr { name, .. } => {
@@ -265,12 +265,12 @@ fn reads(app: &mut Faraday, files: &[(String, Vec<u8>)]) -> Vec<String> {
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                asked.push(name.clone());
-                let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                asked.push(String::from(&*name));
+                let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
                 app.storage(StorageEvent::Read { stick, name, bytes });
             }
             StorageCommand::ReadQr { name, .. } => {
-                asked.push(name.clone());
+                asked.push(String::from(&*name));
                 app.storage(StorageEvent::QrRead {
                     name,
                     bytes: Vec::new(),
@@ -885,10 +885,10 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![("wallet-qr.png".into(), 9000)],
+        files: vec![(faraday_text::Text::of("wallet-qr.png"), 9000)],
         vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Files);
@@ -941,7 +941,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
                 app.storage(StorageEvent::Read { stick, name, bytes });
             }
             StorageCommand::ReadQr { name, .. } => {
@@ -959,7 +959,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
                 app.storage(StorageEvent::Read { stick, name, bytes });
             }
             StorageCommand::ReadQr { name, .. } => {
@@ -1006,7 +1006,7 @@ fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
 fn mouse(app: &mut Faraday) {
     app.storage(StorageEvent::NewInput {
         id: 9,
-        name: "USB Optical Mouse".into(),
+        name: faraday_text::Text::of("USB Optical Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -1018,7 +1018,7 @@ fn mouse(app: &mut Faraday) {
 fn silent_mouse(app: &mut Faraday) {
     app.storage(StorageEvent::NewInput {
         id: 9,
-        name: "USB Optical Mouse".into(),
+        name: faraday_text::Text::of("USB Optical Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -1327,8 +1327,11 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("notes.txt".into(), b"Other notes\n".to_vec()),
-            wallet,
+            (
+                faraday_text::Text::of("notes.txt"),
+                b"Other notes\n".to_vec(),
+            ),
+            (faraday_text::Text::of(&wallet.0), wallet.1),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -1508,7 +1511,7 @@ fn text_picture_asked() -> faraday_core::Faraday {
         while let Some(c) = app.poll_storage() {
             match c {
                 StorageCommand::Read { stick, name } => {
-                    let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                    let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
                     app.storage(StorageEvent::Read { stick, name, bytes });
                 }
                 StorageCommand::ReadQr { name, .. } => {

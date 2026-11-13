@@ -63,8 +63,8 @@ fn stick_in(app: &mut Faraday, on: bool) {
         vec![faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "a".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),

@@ -275,7 +275,7 @@ pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
 pub use storage_api::{
     BootMedium, Files, Kept, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent,
-    files_from,
+    files_from, kept_from,
 };
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
@@ -1255,7 +1255,7 @@ impl Faraday {
             StorageEvent::ReadFailed { name, reason, .. } => {
                 self.visit.reading_done(&name);
                 self.visit
-                    .log_push((faraday_text::text!("{name}: {reason}"), false));
+                    .log_push((faraday_text::text!("{}: {}", &*name, &*reason), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
                 self.visit_written(&name, &wrote_as);
@@ -1269,19 +1269,16 @@ impl Faraday {
                     // Written, it leaves For the stick for the receipt. A
                     // vault stays in Files as the stick now holds it, to
                     // unlock again; its copy from before goes.
-                    if let Some(k) = self.outbox.iter().position(|i| i.name == name) {
+                    if let Some(k) = self.outbox.iter().position(|i| i.name == *name) {
                         let item = self.outbox.remove(k);
                         self.inbox_vault_written(&c, &item);
                     }
                     self.visit.out_unchoose(&name);
                 }
                 let line = if wrote_as == name {
-                    fill(EN.storage_event_wrote_read, &[&name.to_string()])
+                    fill(EN.storage_event_wrote_read, &[&*name])
                 } else {
-                    fill(
-                        EN.storage_event_wrote,
-                        &[&name.to_string(), &wrote_as.to_string()],
-                    )
+                    fill(EN.storage_event_wrote, &[&*name, &*wrote_as])
                 };
                 self.visit.log_push((faraday_text::Text::of(&line), true));
                 self.save_boxes();
@@ -1311,9 +1308,7 @@ impl Faraday {
                 name,
                 reason,
             } => self.wiped(&stick, &name, Some(&reason), false),
-            StorageEvent::Printed { path } => {
-                self.toast(&fill(EN.storage_event_saved, &[&path.to_string()]))
-            }
+            StorageEvent::Printed { path } => self.toast(&fill(EN.storage_event_saved, &[&*path])),
             StorageEvent::Clock { unix_secs } => {
                 self.vaults.set_clock(unix_secs, self.now_ms);
                 return;
@@ -1371,10 +1366,10 @@ impl Faraday {
                 self.qr_read(&name, payloads);
                 let holds = self.picture_holds(before);
                 // Under its own name, unless what its codes held took it.
-                let got = if self.inbox.iter().skip(before).any(|i| i.name == name) {
+                let got = if self.inbox.iter().skip(before).any(|i| i.name == *name) {
                     self.free_inbox_name(&name)
                 } else {
-                    self.inbox.retain(|i| i.name != name);
+                    self.inbox.retain(|i| i.name != *name);
                     faraday_text::Text::of(&name)
                 };
                 let mut item = Item::new(&c, &got, bytes);
@@ -1383,7 +1378,7 @@ impl Faraday {
                 self.save_boxes();
             }
             StorageEvent::PrintFailed { reason } => {
-                self.toast(&fill(EN.storage_event_not_printed, &[&reason.to_string()]))
+                self.toast(&fill(EN.storage_event_not_printed, &[&*reason]))
             }
             StorageEvent::HostFiles { dir, files, opens } => {
                 if !self.transfer_listed(dir, files, opens) {
@@ -1567,12 +1562,12 @@ impl Faraday {
 
     fn sticks_changed(&mut self, sticks: Vec<StickInfo>) {
         let had = !self.stick.is_empty();
-        let ids_before: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let ids_before: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         self.stick.set_sticks(sticks);
         // The keys follow: no way of adding one adds it with a stick in.
         let noun = (!self.stick.is_empty()).then(|| self.medium.noun());
         self.session.keys.set_stick_attached(noun);
-        let present: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let present: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         // What the shell found unusable comes with each listing: a stick
         // that no longer reports a problem has none.
         let _ = &present;
@@ -1580,11 +1575,11 @@ impl Faraday {
         // The medium the device started from goes by what it is, not by its volume label.
         let boot = self.medium.boot();
         self.stick.label_boot_sticks(boot);
-        let ids_now: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let ids_now: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         if self.visit.stick >= self.stick.len() {
             self.visit.set_stick(0);
         }
-        let names: BTreeSet<String> = self
+        let names: BTreeSet<faraday_text::Text> = self
             .stick
             .get(self.visit.stick)
             .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
@@ -1736,7 +1731,7 @@ impl Faraday {
     fn save_boxes(&mut self) {
         let pack = |v: &Vec<Item>| -> Files {
             v.iter()
-                .map(|i| (i.name.clone(), i.bytes.clone()))
+                .map(|i| (faraday_text::Text::of(&i.name), i.bytes.clone()))
                 .collect()
         };
         let kept = self.kept();
@@ -1987,9 +1982,9 @@ impl Faraday {
                     && !self
                         .inbox
                         .iter()
-                        .any(|i| i.name == *n && i.bytes.len() as u64 == *size)
+                        .any(|i| i.name == **n && i.bytes.len() as u64 == *size)
             })
-            .map(|(n, _)| n.clone())
+            .map(|(n, _)| String::from(&**n))
             .collect()
     }
 
@@ -3045,7 +3040,7 @@ impl Faraday {
         }
         match faraday_paper::pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
-                name: fill(EN.make_pdf_pdf, &[&stem(name)]),
+                name: faraday_text::Text::fill(EN.make_pdf_pdf, &[&stem(name)]),
                 bytes: pdf,
             }),
             Err(e) => self.toast(&fill(EN.make_pdf_not_printed, &[&e.to_string()])),
@@ -3226,7 +3221,7 @@ impl Faraday {
         self.stick.get(self.visit.stick).is_some_and(|s| {
             s.files
                 .iter()
-                .any(|(n, len)| *n == item.name && *len == item.bytes.len() as u64)
+                .any(|(n, len)| **n == *item.name && *len == item.bytes.len() as u64)
         })
     }
 
@@ -3326,7 +3321,7 @@ impl Faraday {
                 let size = stick
                     .files
                     .iter()
-                    .find(|(n, _)| *n == name)
+                    .find(|(n, _)| **n == *name)
                     .map_or(0, |(_, size)| *size);
                 if stick.unread_why(&self.vaults, &name, size).is_some() {
                     self.visit.inn_unchoose(&name);
@@ -3338,9 +3333,15 @@ impl Faraday {
                 self.out
                     .storage_out
                     .push_back(if name.to_ascii_lowercase().ends_with(".png") {
-                        StorageCommand::ReadQr { stick, name }
+                        StorageCommand::ReadQr {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
                     } else {
-                        StorageCommand::Read { stick, name }
+                        StorageCommand::Read {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
                     });
             }
         }

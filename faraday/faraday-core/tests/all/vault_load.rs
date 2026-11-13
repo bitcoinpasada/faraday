@@ -342,7 +342,7 @@ fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
 fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c
-            && let Some((_, bytes)) = files.iter().find(|(n, _)| *n == name)
+            && let Some((_, bytes)) = files.iter().find(|(n, _)| *n == *name)
         {
             app.storage(StorageEvent::Read {
                 stick,
@@ -371,12 +371,12 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));

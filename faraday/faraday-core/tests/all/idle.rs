@@ -18,7 +18,7 @@ fn with_wallet() -> Faraday {
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -38,7 +38,7 @@ fn kept(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
     let mut last = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept, .. } = c {
-            last = kept;
+            last = faraday_core::testkit::plain_kept(kept);
         }
     }
     last
@@ -54,7 +54,7 @@ fn after_idle_lock(outbox: Vec<(String, Vec<u8>)>) -> Faraday {
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     next
 }
@@ -269,7 +269,7 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     assert!(next.create().is_none());
     assert!(

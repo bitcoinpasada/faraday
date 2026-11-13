@@ -106,12 +106,12 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "T".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("T"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
@@ -121,7 +121,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
     // The shell answers each read.
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
@@ -253,8 +253,8 @@ fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "OTHER".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("OTHER"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -291,7 +291,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".into(),
+            faraday_text::Text::of("vault.kdbx"),
             testkit::test_vault().unwrap(),
         )]),
         outbox: Vec::new(),
@@ -362,16 +362,16 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![
-            ("vault.kdbx".into(), vault.clone()),
-            ("vault-2.kdbx".into(), vault),
+            (faraday_text::Text::of("vault.kdbx"), vault.clone()),
+            (faraday_text::Text::of("vault-2.kdbx"), vault),
         ]),
         kept: Vec::new(),
     });
     let stick = |label: &str| StickInfo {
         make: Default::default(),
         serial: None,
-        id: label.into(),
-        label: label.into(),
+        id: faraday_text::Text::of(label),
+        label: faraday_text::Text::of(label),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

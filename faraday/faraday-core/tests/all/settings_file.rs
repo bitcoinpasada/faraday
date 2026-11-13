@@ -29,11 +29,11 @@ fn stick(id: &str, boot: bool, file: Option<&[u8]>) -> StickInfo {
     StickInfo {
         make: Default::default(),
         serial: None,
-        id: id.into(),
-        label: id.to_uppercase(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of(&id.to_uppercase()),
         boot,
         files: file
-            .map(|f| vec![(FILE.to_string(), f.len() as u64)])
+            .map(|f| vec![(faraday_text::Text::of(FILE), f.len() as u64)])
             .unwrap_or_default(),
         vaults: Vec::new(),
     }
@@ -62,7 +62,7 @@ fn pump(app: &mut Faraday, file: Option<&[u8]>) -> Vec<(String, String, Vec<u8>)
                     name: name.clone(),
                     wrote_as: name.clone(),
                 });
-                wrote.push((stick, name, bytes.to_vec()));
+                wrote.push((String::from(&*stick), String::from(&*name), bytes.to_vec()));
             }
             _ => {}
         }

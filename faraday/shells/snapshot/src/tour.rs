@@ -90,11 +90,8 @@ impl Tour {
     pub(crate) fn host_files(&self) -> Option<StorageEvent> {
         let host = self.host.as_ref()?;
         Some(StorageEvent::HostFiles {
-            dir: DOWNLOADS.into(),
-            files: faraday_storage::host_listing(&host.downloads)
-                .into_iter()
-                .map(|(n, size)| (String::from(&*n), size))
-                .collect(),
+            dir: faraday_text::Text::of(DOWNLOADS),
+            files: faraday_storage::host_listing(&host.downloads),
             opens: host.opens,
         })
     }
@@ -132,7 +129,7 @@ impl Tour {
             })
             .unwrap_or_default();
         // A vault is found by its contents, as the stick's listing finds it.
-        let vaults = files
+        let vaults: Vec<String> = files
             .iter()
             .filter(|(n, _)| {
                 std::fs::read(self.kit.join(n))
@@ -145,11 +142,14 @@ impl Tour {
         StickInfo {
             make: Default::default(),
             serial: None,
-            id: self.kit.display().to_string(),
-            label: "TESTSTICK".into(),
+            id: faraday_text::Text::of(&self.kit.display().to_string()),
+            label: faraday_text::Text::of("TESTSTICK"),
             boot: false,
-            files,
-            vaults,
+            files: files
+                .iter()
+                .map(|(n, size)| (faraday_text::Text::of(n), *size))
+                .collect(),
+            vaults: vaults.iter().map(|n| faraday_text::Text::of(n)).collect(),
         }
     }
 
@@ -176,12 +176,12 @@ impl Tour {
         while let Some(c) = self.app.poll_storage() {
             match c {
                 StorageCommand::Read { stick, name } => {
-                    let ev = match std::fs::read(Path::new(&stick).join(&name)) {
+                    let ev = match std::fs::read(Path::new(&*stick).join(&*name)) {
                         Ok(bytes) => StorageEvent::Read { stick, name, bytes },
                         Err(e) => StorageEvent::ReadFailed {
                             stick,
                             name,
-                            reason: e.to_string(),
+                            reason: faraday_text::Text::of(&e.to_string()),
                         },
                     };
                     self.app.storage(ev);
@@ -191,7 +191,7 @@ impl Tour {
                     name,
                     on_taken: faraday_core::OnTaken::Ask,
                     ..
-                } if std::fs::read_dir(&stick).is_ok_and(|mut d| {
+                } if std::fs::read_dir(&*stick).is_ok_and(|mut d| {
                     d.any(|e| {
                         e.is_ok_and(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(&name))
                     })
@@ -199,20 +199,20 @@ impl Tour {
                 {
                     // A vault whose name a file on the stick has: asked, as
                     // the disk process asks.
-                    let on_stick = std::fs::read_dir(&stick)
+                    let on_stick = std::fs::read_dir(&*stick)
                         .into_iter()
                         .flatten()
                         .flatten()
                         .map(|e| e.file_name().to_string_lossy().into_owned())
                         .find(|n| n.eq_ignore_ascii_case(&name))
                         .unwrap_or_default();
-                    let sha = std::fs::read(Path::new(&stick).join(&on_stick))
+                    let sha = std::fs::read(Path::new(&*stick).join(&on_stick))
                         .ok()
                         .map(|b| faraday_crypto::sha256(&b));
                     self.app.storage(StorageEvent::NameTaken {
                         stick,
                         name,
-                        on_stick,
+                        on_stick: faraday_text::Text::of(&on_stick),
                         sha,
                     });
                 }
@@ -225,12 +225,12 @@ impl Tour {
                     });
                 }
                 StorageCommand::Print { name, bytes } => {
-                    let ev = match std::fs::write(self.out.join(&name), bytes) {
+                    let ev = match std::fs::write(self.out.join(&*name), bytes) {
                         Ok(()) => StorageEvent::Printed {
-                            path: format!("{PRINT}/{name}"),
+                            path: faraday_text::Text::of(&format!("{PRINT}/{}", &*name)),
                         },
                         Err(e) => StorageEvent::PrintFailed {
-                            reason: e.to_string(),
+                            reason: faraday_text::Text::of(&e.to_string()),
                         },
                     };
                     self.app.storage(ev);
@@ -246,7 +246,7 @@ impl Tour {
                         Err(reason) => StorageEvent::ReadFailed {
                             stick,
                             name,
-                            reason: String::from(&*reason),
+                            reason: faraday_text::Text::of(&String::from(&*reason)),
                         },
                     };
                     self.app.storage(ev);
@@ -256,7 +256,7 @@ impl Tour {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
                         Err(reason) => StorageEvent::HostReadFailed {
                             path,
-                            reason: String::from(&*reason),
+                            reason: faraday_text::Text::of(&String::from(&*reason)),
                         },
                     };
                     self.app.storage(ev);
@@ -264,16 +264,16 @@ impl Tour {
                 StorageCommand::SaveDownload { name, bytes } => {
                     let Some(host) = self.host.as_ref() else {
                         self.app.storage(StorageEvent::SaveFailed {
-                            reason: "no Downloads folder".into(),
+                            reason: faraday_text::Text::of("no Downloads folder"),
                         });
                         continue;
                     };
                     let ev = match faraday_storage::save_download(&host.downloads, &name, &bytes) {
                         Ok(path) => StorageEvent::Saved {
-                            path: shown(DOWNLOADS, &path),
+                            path: faraday_text::Text::of(&shown(DOWNLOADS, &path)),
                         },
                         Err(reason) => StorageEvent::SaveFailed {
-                            reason: String::from(&*reason),
+                            reason: faraday_text::Text::of(&String::from(&*reason)),
                         },
                     };
                     self.app.storage(ev);
@@ -298,7 +298,7 @@ impl Tour {
                     self.boxes = Some((
                         faraday_core::testkit::plain_files(inbox),
                         faraday_core::testkit::plain_files(outbox),
-                        kept,
+                        faraday_core::testkit::plain_kept(kept),
                     ))
                 }
                 StorageCommand::OpenDownloads
@@ -327,7 +327,7 @@ impl Tour {
                 self.boxes = Some((
                     faraday_core::testkit::plain_files(inbox),
                     faraday_core::testkit::plain_files(outbox),
-                    kept,
+                    faraday_core::testkit::plain_kept(kept),
                 ));
             }
         }
@@ -402,11 +402,12 @@ impl Tour {
         if !attached {
             self.sticks(true);
         }
-        let names: Vec<String> = self.stick().files.iter().map(|(n, _)| n.clone()).collect();
+        let names: Vec<faraday_text::Text> =
+            self.stick().files.iter().map(|(n, _)| n.clone()).collect();
         // Everything comes in ticked: Unselect all, then these alone.
         self.press(Action::VisitInAll);
         for (i, n) in names.iter().enumerate() {
-            if n.ends_with("-wallet.txt") && !self.app.inbox().iter().any(|it| &it.name == n) {
+            if n.ends_with("-wallet.txt") && !self.app.inbox().iter().any(|it| *it.name == **n) {
                 self.press(Action::VisitIn(i));
             }
         }

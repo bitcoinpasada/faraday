@@ -66,7 +66,7 @@ fn process_boxes(
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
@@ -362,7 +362,7 @@ fn locked_page(app: &mut Faraday) -> (Files, String) {
             kept: k, outbox: o, ..
         } = c
         {
-            kept = k;
+            kept = faraday_core::testkit::plain_kept(k);
             outbox = faraday_core::testkit::plain_files(o);
         }
     }
@@ -370,7 +370,7 @@ fn locked_page(app: &mut Faraday) -> (Files, String) {
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(outbox.clone()),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     assert_eq!(next.sheet, Some(Sheet::Locked));
     (outbox, page(&mut next))
@@ -1106,8 +1106,8 @@ fn attach_stick(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "a".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -1190,7 +1190,10 @@ fn lock_boxes(app: &mut Faraday) -> (Files, Files) {
             outbox: o, kept: k, ..
         } = c
         {
-            (outbox, kept) = (faraday_core::testkit::plain_files(o), k);
+            (outbox, kept) = (
+                faraday_core::testkit::plain_files(o),
+                faraday_core::testkit::plain_kept(k),
+            );
         }
     }
     (outbox, kept)
@@ -1789,16 +1792,16 @@ fn a_copy_of_a_file_with_the_made_keyx_name_written_to_a_stick_keeps_the_key_to_
     assert_eq!(outbox_names(&app), vec!["keyed.keyx".to_string()]);
     // A file of the same name comes in from one stick and goes to another.
     app.storage(StorageEvent::Read {
-        stick: "a".into(),
-        name: "keyed.keyx".into(),
+        stick: faraday_text::Text::of("a"),
+        name: faraday_text::Text::of("keyed.keyx"),
         bytes: vec![1, 2, 3],
     });
     // Its write to another stick was started and is answered now.
     testkit::inbox_write_started(&mut app, "keyed.keyx");
     app.storage(StorageEvent::Written {
-        stick: "b".into(),
-        wrote_as: "keyed.keyx".into(),
-        name: "keyed.keyx".into(),
+        stick: faraday_text::Text::of("b"),
+        wrote_as: faraday_text::Text::of("keyed.keyx"),
+        name: faraday_text::Text::of("keyed.keyx"),
     });
     // The Outbox's own key file is still pending: taking it out takes the
     // key back.

@@ -28,7 +28,7 @@ pub(crate) fn device(vault: Vec<u8>) -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -757,7 +757,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
     let mut app = device(cheap_vault());
     app.storage(StorageEvent::NewInput {
         id: 4,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard: true,
         pointer: false,
         touch: false,
@@ -768,7 +768,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
     randomness(&mut app, 0x22);
     app.storage(StorageEvent::NewInput {
         id: 5,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard: true,
         pointer: false,
         touch: false,
@@ -1006,7 +1006,10 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_inbox_passphrase_at_once()
     open_and_change(&mut app);
     let words = testkit::test_words("summer");
     app.storage(StorageEvent::Restored {
-        inbox: vec![("summer-words.txt".into(), words.as_bytes().to_vec().into())],
+        inbox: vec![(
+            faraday_text::Text::of("summer-words.txt"),
+            words.as_bytes().to_vec().into(),
+        )],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

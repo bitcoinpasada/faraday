@@ -98,9 +98,9 @@ fn signed_from(bytes: Vec<u8>) -> (Faraday, Vec<u8>) {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spend.psbt".to_string(), bytes),
+            (faraday_text::Text::of("spend.psbt"), bytes),
             (
-                "spending-wallet.txt".to_string(),
+                faraday_text::Text::of("spending-wallet.txt"),
                 kit().descriptor.into_bytes(),
             ),
         ]),

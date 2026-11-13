@@ -23,7 +23,7 @@ fn unlocked() -> Faraday {
     let key = faraday_vault::Record::new(kind::KEY)
         .with(field::KEY, &faraday_vault::records::words_payload(&words));
     let files = vec![(
-        "main.kdbx".to_string(),
+        faraday_text::Text::of("main.kdbx"),
         vault_of("Main", PHRASE, 1, vec![key]).into(),
     )];
     let mut app = testkit::started();
@@ -126,7 +126,7 @@ fn wallets_pressed() -> Faraday {
         .with(field::WALLET, testkit::kits()[1].descriptor.as_bytes())
         .with(field::WALLET_NAME, b"Spending");
     let files = vec![(
-        "main.kdbx".to_string(),
+        faraday_text::Text::of("main.kdbx"),
         vault_of("Main", PHRASE, 1, vec![key, wallet]).into(),
     )];
     let mut app = testkit::started();
@@ -207,7 +207,7 @@ fn wallet_record(descriptor: &str, name: &[u8]) -> faraday_vault::Record {
 /// An app on Testnet with a vault of `records`, unlocked, nothing loaded.
 fn app_with(records: Vec<faraday_vault::Record>) -> Faraday {
     let files = vec![(
-        "main.kdbx".to_string(),
+        faraday_text::Text::of("main.kdbx"),
         vault_of("Main", PHRASE, 1, records).into(),
     )];
     let mut app = testkit::started();

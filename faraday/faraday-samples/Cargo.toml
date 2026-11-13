@@ -16,6 +16,7 @@ faraday-core = { path = "../faraday-core" }
 # The test wallets the samples are checked against, and the code that
 # derives what the data states. The data itself derives nothing.
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-text = { path = "../../core/faraday-text" }
 # Faraday Demo's host, whose strip the tests read.
 faraday-host = { path = "../faraday-host" }
 faraday-keys = { path = "../faraday-keys" }

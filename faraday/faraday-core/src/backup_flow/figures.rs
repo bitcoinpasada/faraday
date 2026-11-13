@@ -258,7 +258,7 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
                 if let Some(b) = f.slots[k].bound.as_ref() {
                     let about = b.make.about(&b.label);
                     if !about.is_empty() {
-                        items.push(Item::One(about, Role::OnSurfaceVariant));
+                        items.push(Item::One(String::from(&*about), Role::OnSurfaceVariant));
                     }
                 }
                 for &v in &vaults {

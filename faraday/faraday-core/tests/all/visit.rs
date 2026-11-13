@@ -34,15 +34,18 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
     let mut files: Vec<(String, u64)> = (0..n)
         .map(|i| (format!("spend-{i:02}.psbt"), 300))
         .collect();
-    files.push(("photo.png".into(), 9000));
-    files.push(("notes.docx".into(), 9000));
+    files.push(("photo.png".to_string(), 9000));
+    files.push(("notes.docx".to_string(), 9000));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files,
+        files: files
+            .iter()
+            .map(|(n, s)| (faraday_text::Text::of(n), *s))
+            .collect(),
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
@@ -91,15 +94,15 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
         files: vec![
-            ("savings-unsigned.psbt".into(), 900),
-            ("savings-descriptor.txt".into(), 300),
-            ("savings-9a6a2580-words.txt".into(), 120),
-            ("savings-9a6a2580-seedqr.png".into(), 4000),
-            ("film.mp4".into(), 19 * 1024 * 1024),
+            (faraday_text::Text::of("savings-unsigned.psbt"), 900),
+            (faraday_text::Text::of("savings-descriptor.txt"), 300),
+            (faraday_text::Text::of("savings-9a6a2580-words.txt"), 120),
+            (faraday_text::Text::of("savings-9a6a2580-seedqr.png"), 4000),
+            (faraday_text::Text::of("film.mp4"), 19 * 1024 * 1024),
         ],
         vaults: Vec::new(),
     }]));
@@ -209,7 +212,7 @@ fn written(app: &mut Faraday) -> Vec<String> {
         if let StorageCommand::Write { name, .. } = c
             && name.starts_with("backup-")
         {
-            names.push(name);
+            names.push(String::from(&*name));
         }
     }
     names
@@ -365,7 +368,7 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(boxes.0),
         outbox: faraday_core::files_from(boxes.1),
-        kept: boxes.2,
+        kept: faraday_core::kept_from(boxes.2),
     });
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
@@ -374,8 +377,8 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "S".into(),
-            label: label.into(),
+            id: faraday_text::Text::of("S"),
+            label: faraday_text::Text::of(label),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -398,7 +401,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }
@@ -556,14 +559,16 @@ fn zeroing_takes_a_hold() {
             1,
             "Hold to zero the free space",
             StorageCommand::ZeroFree {
-                stick: "S".into(),
+                stick: faraday_text::Text::of("S"),
                 from: 2,
             },
         ),
         (
             2,
             "Hold to zero the whole partition",
-            StorageCommand::MakeEmpty { stick: "S".into() },
+            StorageCommand::MakeEmpty {
+                stick: faraday_text::Text::of("S"),
+            },
         ),
     ] {
         // Tall enough for the whole sheet, the hold at its foot.
@@ -618,7 +623,9 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Delete));
     assert_eq!(
         asked(&mut app),
-        vec![StorageCommand::StickSpace { stick: "S".into() }]
+        vec![StorageCommand::StickSpace {
+            stick: faraday_text::Text::of("S")
+        }]
     );
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
@@ -643,13 +650,13 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
     assert_eq!(
         asked(&mut app),
         vec![StorageCommand::Wipe {
-            stick: "S".into(),
-            name: "spend-01.psbt".into()
+            stick: faraday_text::Text::of("S"),
+            name: faraday_text::Text::of("spend-01.psbt")
         }]
     );
     app.storage(StorageEvent::Wiped {
-        stick: "S".into(),
-        name: "spend-01.psbt".into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("spend-01.psbt"),
     });
     let _ = app.frame();
     assert!(!app.visit().inn.contains("spend-01.psbt"));
@@ -667,8 +674,8 @@ fn a_delete_that_left_the_bytes_says_only_the_name_went() {
     app.press(Action::DeleteGo);
     asked(&mut app);
     app.storage(StorageEvent::WipedName {
-        stick: "S".into(),
-        name: "spend-01.psbt".into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("spend-01.psbt"),
     });
     let _ = app.frame();
     assert!(!app.visit().inn.contains("spend-01.psbt"));
@@ -712,7 +719,7 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     app.press(Action::DeleteFiles);
     app.press(Action::DeleteWhat(1));
     app.storage(StorageEvent::StickSpace {
-        stick: "S".into(),
+        stick: faraday_text::Text::of("S"),
         free: 3 << 30,
         size: 7 << 30,
     });
@@ -727,12 +734,12 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     assert_eq!(
         asked(&mut app),
         vec![StorageCommand::ZeroFree {
-            stick: "S".into(),
+            stick: faraday_text::Text::of("S"),
             from: 2
         }]
     );
     app.storage(StorageEvent::Zeroing {
-        stick: "S".into(),
+        stick: faraday_text::Text::of("S"),
         next: 400,
         total: 1000,
         done: false,
@@ -742,12 +749,12 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     assert_eq!(
         asked(&mut app),
         vec![StorageCommand::ZeroFree {
-            stick: "S".into(),
+            stick: faraday_text::Text::of("S"),
             from: 400
         }]
     );
     app.storage(StorageEvent::Zeroing {
-        stick: "S".into(),
+        stick: faraday_text::Text::of("S"),
         next: 1002,
         total: 1000,
         done: true,
@@ -771,10 +778,12 @@ fn the_whole_partition_is_made_empty_then_zeroed_for_each_pass() {
     hold_go(&mut app, 100);
     assert_eq!(
         asked(&mut app),
-        vec![StorageCommand::MakeEmpty { stick: "S".into() }]
+        vec![StorageCommand::MakeEmpty {
+            stick: faraday_text::Text::of("S")
+        }]
     );
     app.storage(StorageEvent::Zeroing {
-        stick: "S".into(),
+        stick: faraday_text::Text::of("S"),
         next: 2,
         total: 0,
         done: false,
@@ -784,14 +793,14 @@ fn the_whole_partition_is_made_empty_then_zeroed_for_each_pass() {
         assert_eq!(
             asked(&mut app),
             vec![StorageCommand::ZeroFree {
-                stick: "S".into(),
+                stick: faraday_text::Text::of("S"),
                 from: 2
             }],
             "pass {}",
             pass + 1
         );
         app.storage(StorageEvent::Zeroing {
-            stick: "S".into(),
+            stick: faraday_text::Text::of("S"),
             next: 1002,
             total: 1000,
             done: true,
@@ -817,7 +826,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
     asked(&mut app);
     app.press(Action::ZeroStop);
     app.storage(StorageEvent::Zeroing {
-        stick: "S".into(),
+        stick: faraday_text::Text::of("S"),
         next: 502,
         total: 1000,
         done: false,
@@ -870,10 +879,13 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: on_stick.iter().map(|(n, s)| (n.to_string(), *s)).collect(),
+        files: on_stick
+            .iter()
+            .map(|(n, s)| (faraday_text::Text::of(n), *s))
+            .collect(),
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
@@ -896,7 +908,7 @@ fn writes(app: &mut Faraday) -> Vec<(String, bool)> {
             StorageCommand::Write { name, replace, .. }
                 if name != faraday_core::stick::settings::FILE =>
             {
-                Some((name, replace))
+                Some((String::from(&*name), replace))
             }
             _ => None,
         })
@@ -976,7 +988,9 @@ fn vault_writes(app: &mut Faraday) -> Vec<(String, bool, faraday_core::OnTaken)>
                 replace,
                 on_taken,
                 ..
-            } if name != faraday_core::stick::settings::FILE => Some((name, replace, on_taken)),
+            } if name != faraday_core::stick::settings::FILE => {
+                Some((String::from(&*name), replace, on_taken))
+            }
             _ => None,
         })
         .collect()
@@ -1014,9 +1028,9 @@ fn name_taken_visit(sha: Option<[u8; 32]>) -> Faraday {
         "a vault is sent asking"
     );
     app.storage(StorageEvent::NameTaken {
-        stick: "S".into(),
-        name: "vault.kdbx".into(),
-        on_stick: "Vault.kdbx".into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("vault.kdbx"),
+        on_stick: faraday_text::Text::of("Vault.kdbx"),
         sha,
     });
     app
@@ -1158,9 +1172,9 @@ fn the_sheet_names_a_file_known_as_another_vault_and_only_then() {
             });
         }
         app.storage(StorageEvent::NameTaken {
-            stick: "S".into(),
-            name: "vault.kdbx".into(),
-            on_stick: "Vault.kdbx".into(),
+            stick: faraday_text::Text::of("S"),
+            name: faraday_text::Text::of("vault.kdbx"),
+            on_stick: faraday_text::Text::of("Vault.kdbx"),
             sha: Some(file),
         });
         faraday_core::testkit::name_taken_body(&app).expect("the sheet asks")
@@ -1182,19 +1196,19 @@ fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
     app.press(Action::VisitWrite);
     asked(&mut app);
     app.storage(StorageEvent::Written {
-        stick: "S".into(),
-        name: "vault.kdbx".into(),
-        wrote_as: "vault.kdbx".into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("vault.kdbx"),
+        wrote_as: faraday_text::Text::of("vault.kdbx"),
     });
     let first = app.receipt().expect("a receipt").clone();
     assert!(first.wrote("vault.kdbx"));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "B".into(),
-        label: "OTHERSTICK".into(),
+        id: faraday_text::Text::of("B"),
+        label: faraday_text::Text::of("OTHERSTICK"),
         boot: false,
-        files: vec![("Vault.kdbx".into(), 99)],
+        files: vec![(faraday_text::Text::of("Vault.kdbx"), 99)],
         vaults: Vec::new(),
     }]));
     app.outbox.push(Item {
@@ -1217,9 +1231,9 @@ fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
     app.press(Action::VisitWrite);
     asked(&mut app);
     app.storage(StorageEvent::NameTaken {
-        stick: "B".into(),
-        name: "vault.kdbx".into(),
-        on_stick: "Vault.kdbx".into(),
+        stick: faraday_text::Text::of("B"),
+        name: faraday_text::Text::of("vault.kdbx"),
+        on_stick: faraday_text::Text::of("Vault.kdbx"),
         sha: Some([7; 32]),
     });
     app.press(Action::Cancel);
@@ -1256,9 +1270,9 @@ fn a_file_changed_since_it_was_shown_is_not_written_and_the_receipt_says_why() {
     assert_eq!(vault_writes(&mut app).len(), 1);
     let why = "Vault.kdbx changed since it was shown: not overwritten";
     app.storage(StorageEvent::WriteFailed {
-        stick: "S".into(),
-        name: "vault.kdbx".into(),
-        reason: why.into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("vault.kdbx"),
+        reason: faraday_text::Text::of(why),
     });
     let receipt = app.receipt().expect("a receipt");
     let said = receipt
@@ -1274,9 +1288,9 @@ fn a_file_changed_since_it_was_shown_is_not_written_and_the_receipt_says_why() {
 fn the_free_name_follows_what_this_write_wrote() {
     let mut app = name_taken_visit(Some([7; 32]));
     app.storage(StorageEvent::Written {
-        stick: "S".into(),
-        name: "other.pdf".into(),
-        wrote_as: "vault-2.kdbx".into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("other.pdf"),
+        wrote_as: faraday_text::Text::of("vault-2.kdbx"),
     });
     let texts = app.drawn_texts();
     assert!(
@@ -1309,9 +1323,9 @@ fn two_clashes_in_one_write_ask_in_turn() {
     asked(&mut app);
     for (name, on_stick) in [("vault.kdbx", "Vault.kdbx"), ("other.kdbx", "Other.kdbx")] {
         app.storage(StorageEvent::NameTaken {
-            stick: "S".into(),
-            name: name.into(),
-            on_stick: on_stick.into(),
+            stick: faraday_text::Text::of("S"),
+            name: faraday_text::Text::of(name),
+            on_stick: faraday_text::Text::of(on_stick),
             sha: Some([7; 32]),
         });
     }
@@ -1381,7 +1395,7 @@ fn a_picture_asked_for_says_it_is_being_read_until_its_codes_come() {
     let _ = app.frame();
     assert!(being_read(&mut app), "{:?}", app.drawn_texts());
     app.storage(StorageEvent::QrRead {
-        name: "photo.png".into(),
+        name: faraday_text::Text::of("photo.png"),
         bytes: b"\x89PNG".to_vec(),
         payloads: Vec::new(),
     });
@@ -1414,8 +1428,8 @@ fn made_unclean(app: &mut Faraday) {
     let stick = StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -1468,9 +1482,9 @@ fn write_on_a_visit_that_is_no_longer_clean_asks_to_lock_and_names_what_a_lock_d
 fn the_disk_refusal_to_a_process_that_is_not_clean_is_said_in_the_apps_words() {
     let mut app = writing_over(&[], vec![("backup-00.pdf", b"new".to_vec())]);
     app.storage(StorageEvent::WriteFailed {
-        stick: "S".into(),
-        name: "backup-00.pdf".into(),
-        reason: faraday_files::proto::NOT_OPEN.into(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("backup-00.pdf"),
+        reason: faraday_text::Text::of(faraday_files::proto::NOT_OPEN),
     });
     let _ = app.frame();
     let texts = app.drawn_texts().join("\n");
@@ -1491,10 +1505,10 @@ fn a_stick_arriving_opens_files_with_the_stick_pane() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![("spend-00.psbt".into(), 300)],
+        files: vec![(faraday_text::Text::of("spend-00.psbt"), 300)],
         vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Files);
@@ -1568,10 +1582,10 @@ fn with_something_held_files_says_lock_to_use_the_stick_and_has_no_pane() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![("a.psbt".into(), 300)],
+        files: vec![(faraday_text::Text::of("a.psbt"), 300)],
         vaults: Vec::new(),
     }]));
     app.press(Action::NotNow);

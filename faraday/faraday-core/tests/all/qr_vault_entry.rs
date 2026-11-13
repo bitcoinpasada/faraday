@@ -79,8 +79,8 @@ fn scan_a_seedqr_with_a_stick_plugged_in_still_opens_the_tool() {
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -97,7 +97,7 @@ fn a_qr_vault_file_in_files_opens_the_tool_and_stays_listed() {
     for (name, code) in [("note.pgp", NOTE), ("seed.pgp", SEED)] {
         let mut app = testkit::started();
         app.storage(StorageEvent::Restored {
-            inbox: faraday_core::files_from(vec![(name.to_string(), code.to_vec())]),
+            inbox: faraday_core::files_from(vec![(faraday_text::Text::of(name), code.to_vec())]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -126,7 +126,7 @@ fn a_qr_vault_file_in_the_outbox_reads_as_sealed() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: faraday_core::files_from(vec![("note.pgp".to_string(), NOTE.to_vec())]),
+        outbox: faraday_core::files_from(vec![(faraday_text::Text::of("note.pgp"), NOTE.to_vec())]),
         kept: Vec::new(),
     });
     app.press(Action::Nav(Screen::Files));
@@ -140,7 +140,10 @@ fn a_qr_vault_file_in_the_outbox_reads_as_sealed() {
 fn a_refused_pgp_file_in_files_does_not_offer_the_qr_vault() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("gnupg.pgp".to_string(), GNUPG.to_vec())]),
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("gnupg.pgp"),
+            GNUPG.to_vec(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

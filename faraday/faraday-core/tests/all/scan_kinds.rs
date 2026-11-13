@@ -203,7 +203,7 @@ fn a_picture_on_a_stick_holding_a_private_key_or_words_that_are_no_seed_files_no
     for secret in [UNCHECKED, WIF, XPRV, NSEC, SPSPEND, PAPERKEY] {
         let mut app = testkit::started();
         app.storage(StorageEvent::QrRead {
-            name: "code.png".into(),
+            name: faraday_text::Text::of("code.png"),
             bytes: Vec::new(),
             payloads: vec![secret.as_bytes().to_vec()],
         });
@@ -277,7 +277,7 @@ fn vault_in_files(app: &mut Faraday) {
     testkit::vault_speed(app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".into(),
+            faraday_text::Text::of("vault.kdbx"),
             testkit::test_vault().unwrap(),
         )]),
         outbox: Vec::new(),

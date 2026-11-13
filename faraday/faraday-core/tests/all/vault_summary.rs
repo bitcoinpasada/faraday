@@ -29,7 +29,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -65,7 +65,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }
@@ -199,8 +199,8 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "VAULTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("VAULTSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -256,10 +256,10 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "VAULTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("VAULTSTICK"),
         boot: false,
-        files: vec![("vault.kdbx".into(), vault.len() as u64)],
+        files: vec![(faraday_text::Text::of("vault.kdbx"), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));

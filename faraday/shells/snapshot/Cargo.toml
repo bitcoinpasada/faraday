@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-text = { path = "../../../core/faraday-text" }
 faraday-host = { path = "../../faraday-host" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-qr = { path = "../../faraday-qr" }

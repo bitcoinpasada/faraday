@@ -2,38 +2,51 @@
 //! about them, and what the app asks it to do.
 
 use crate::Unrenamed;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// Inbox or Outbox files as the app and the shell pass them: each one's
 /// bytes wipe when dropped.
-pub type Files = Vec<(String, Zeroizing<Vec<u8>>)>;
+pub type Files = Vec<(Text, Zeroizing<Vec<u8>>)>;
 
 /// What the app keeps for itself across a lock: each entry's name and bytes.
-pub type Kept = Vec<(String, Vec<u8>)>;
+pub type Kept = Vec<(Text, Vec<u8>)>;
 
-/// Files from bytes taken as they are: `Vec<u8>` or already wiping.
-pub fn files_from<B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(String, B)>) -> Files {
-    files.into_iter().map(|(n, b)| (n, b.into())).collect()
+/// Files from bytes taken as they are: `Vec<u8>` or already wiping, under
+/// names given as `&str` or already `Text`.
+pub fn files_from<N: AsRef<str>, B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(N, B)>) -> Files {
+    files
+        .into_iter()
+        .map(|(n, b)| (Text::of(n.as_ref()), b.into()))
+        .collect()
+}
+
+/// What the app keeps, from entries named by `&str` or already `Text`.
+pub fn kept_from<N: AsRef<str>>(entries: Vec<(N, Vec<u8>)>) -> Kept {
+    entries
+        .into_iter()
+        .map(|(n, b)| (Text::of(n.as_ref()), b))
+        .collect()
 }
 
 /// A stick or card the shell sees, with the files on it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StickInfo {
     /// Where the shell finds it; the app hands this back unchanged.
-    pub id: String,
+    pub id: Text,
     /// The name a person knows it by: its volume label.
-    pub label: String,
+    pub label: Text,
     /// Whether it is the medium the machine booted from.
     pub boot: bool,
     /// Its FAT volume serial number, when the shell can read one: what
     /// tells two sticks of the same label apart (`docs/VAULT.md` §6).
     pub serial: Option<u32>,
     /// The files at its top level, with their sizes.
-    pub files: Vec<(String, u64)>,
+    pub files: Vec<(Text, u64)>,
     /// The files among them that are vaults by their contents, whatever
     /// the name (`docs/VAULT.md` §1.1): found once when the
     /// shell made the listing.
-    pub vaults: Vec<String>,
+    pub vaults: Vec<Text>,
     /// What the device reports of itself, where the shell can tell
     /// (`docs/STICK-SETUP.md` §5).
     pub make: StickMake,
@@ -44,9 +57,9 @@ pub struct StickInfo {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StickMake {
     /// A USB stick's vendor.
-    pub maker: Option<String>,
+    pub maker: Option<Text>,
     /// A USB stick's model, or a card's name.
-    pub model: Option<String>,
+    pub model: Option<Text>,
     /// The size in bytes.
     pub size: Option<u64>,
 }
@@ -55,28 +68,37 @@ impl StickMake {
     /// The maker and model as the device reports them, one after the
     /// other, where known.
     #[must_use]
-    pub fn who(&self) -> Option<String> {
+    pub fn who(&self) -> Option<Text> {
         let who: Vec<&str> = [&self.maker, &self.model]
             .into_iter()
             .flatten()
-            .map(String::as_str)
+            .map(|t| t.as_str())
             .collect();
-        (!who.is_empty()).then(|| who.join(" "))
+        (!who.is_empty()).then(|| {
+            let mut line = Text::new();
+            for (i, part) in who.iter().enumerate() {
+                if i > 0 {
+                    line.push(' ');
+                }
+                line.push_str(part);
+            }
+            line
+        })
     }
 
     /// The size in decimal GB (MB under 1 GB), where known.
     #[must_use]
-    pub fn size_text(&self) -> Option<String> {
+    pub fn size_text(&self) -> Option<Text> {
         self.size.filter(|n| *n > 0).map(|n| {
             if n < 1_000_000_000 {
-                faraday_strings::fill(
+                Text::fill(
                     faraday_strings::EN.kind_line_mb,
-                    &[&((n + 500_000) / 1_000_000).max(1).to_string()],
+                    &[&*Text::num(((n + 500_000) / 1_000_000).max(1))],
                 )
             } else {
-                faraday_strings::fill(
+                Text::fill(
                     faraday_strings::EN.kind_line_gb,
-                    &[&((n + 500_000_000) / 1_000_000_000).to_string()],
+                    &[&*Text::num((n + 500_000_000) / 1_000_000_000)],
                 )
             }
         })
@@ -88,17 +110,17 @@ impl StickMake {
     /// maker and model, its size, then its name; each part only where
     /// known.
     #[must_use]
-    pub fn about(&self, label: &str) -> String {
-        let mut parts: Vec<String> = Vec::new();
+    pub fn about(&self, label: &str) -> Text {
+        let mut parts: Vec<Text> = Vec::new();
         parts.extend(self.who());
         parts.extend(self.size_text());
         if !label.is_empty() {
-            parts.push(label.to_string());
+            parts.push(Text::of(label));
         }
         let mut parts = parts.into_iter();
         let first = parts.next().unwrap_or_default();
         parts.fold(first, |line, next| {
-            faraday_strings::fill(
+            Text::fill(
                 faraday_strings::EN.backup_flow_figure_about,
                 &[&line, &next],
             )
@@ -121,12 +143,7 @@ impl StickInfo {
     /// ([`crate::vault::Vaults::read_refusal`]). `None` when it is read. A
     /// lookup.
     #[must_use]
-    pub fn unread_why(
-        &self,
-        vaults: &crate::vault::Vaults,
-        name: &str,
-        size: u64,
-    ) -> Option<String> {
+    pub fn unread_why(&self, vaults: &crate::vault::Vaults, name: &str, size: u64) -> Option<Text> {
         // A vault is read in pieces up to its own longest file; every
         // other file stops at a frame's limit (F206 point 7).
         let limit = if self.is_vault(name) {
@@ -135,11 +152,9 @@ impl StickInfo {
             crate::READ_MAX
         };
         if size > limit {
-            return Some(faraday_strings::EN.visit_file_too_large.to_string());
+            return Some(Text::of(faraday_strings::EN.visit_file_too_large));
         }
-        vaults
-            .read_refusal(self.is_vault(name), size)
-            .map(|t| String::from(t.as_str()))
+        vaults.read_refusal(self.is_vault(name), size)
     }
 
     /// What a visit calls the file listed as `name` ([`crate::stick_kind`]),
@@ -183,51 +198,51 @@ pub enum StorageEvent {
     /// A file the app asked for.
     Read {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
         /// Its contents.
         bytes: Vec<u8>,
     },
     /// A read that failed.
     ReadFailed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// A write that was read back and matched.
     Written {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The Outbox file's name.
-        name: String,
+        name: Text,
         /// The name it was written under on the stick.
-        wrote_as: String,
+        wrote_as: Text,
     },
     /// A vault's write that asked first and was refused, nothing written: a
     /// file on the stick has its name and nothing proves it is a copy
     /// (`docs/VAULT.md` §6 step 1).
     NameTaken {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name the vault was to be written under.
-        name: String,
+        name: Text,
         /// The file's name on the stick.
-        on_stick: String,
+        on_stick: Text,
         /// Its SHA-256; none when it could not be read.
         sha: Option<[u8; 32]>,
     },
     /// A write that failed.
     WriteFailed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The Outbox file's name.
-        name: String,
+        name: Text,
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// What the app asked to be kept across a lock could not be kept. A
     /// lock with a key that waits for its backup does not go ahead.
@@ -235,36 +250,36 @@ pub enum StorageEvent {
     /// A file deleted from a stick, zeros over it first.
     Wiped {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// A file removed from a stick by its name only: its bytes were left,
     /// since another file or folder uses their clusters or the stick's
     /// folders could not all be read.
     WipedName {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// A delete that failed; the file may hold zeros in part.
     WipeFailed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// A rename's answer ([`StorageCommand::Rename`]): done, or why not.
     Renamed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file's name before.
-        from: String,
+        from: Text,
         /// The name asked for.
-        to: String,
+        to: Text,
         /// Why it was refused; `None` once renamed.
         refused: Option<Unrenamed>,
     },
@@ -272,26 +287,26 @@ pub enum StorageEvent {
     /// not.
     StickNamed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name asked for; empty for none.
-        label: String,
+        label: Text,
         /// Why it was refused; `None` once named.
-        refused: Option<String>,
+        refused: Option<Text>,
     },
     /// A file's SHA-256 ([`StorageCommand::Hash`]), or why it was not read.
     Hashed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
         /// Its SHA-256.
-        sha: Result<[u8; 32], String>,
+        sha: Result<[u8; 32], Text>,
     },
     /// A stick's free space and whole data space, in bytes; both 0 for a
     /// folder standing for a stick.
     StickSpace {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// Bytes no file holds.
         free: u64,
         /// Bytes in all.
@@ -301,7 +316,7 @@ pub enum StorageEvent {
     /// at, of `total`, and whether every free cluster is zeros.
     Zeroing {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The next step's first cluster.
         next: u32,
         /// The volume's clusters.
@@ -312,16 +327,16 @@ pub enum StorageEvent {
     /// Zeroing that stopped with an error, or a space it could not read.
     ZeroFailed {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// A picture on a stick: the QR codes the disk process read from it,
     /// and its bytes as they are. The app keeps and writes the bytes and
     /// never decodes them.
     QrRead {
         /// The image's name.
-        name: String,
+        name: Text,
         /// The picture's bytes, unchanged.
         bytes: Vec<u8>,
         /// Each code's payload.
@@ -341,12 +356,12 @@ pub enum StorageEvent {
     /// A PDF the app asked for was saved.
     Printed {
         /// Where.
-        path: String,
+        path: Text,
     },
     /// A PDF could not be saved, or this shell does not print.
     PrintFailed {
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// An input device the shell holds back until a person says it is
     /// theirs (`docs/SECURITY-MODEL.md`).
@@ -354,7 +369,7 @@ pub enum StorageEvent {
         /// The shell's number for it.
         id: u32,
         /// What it calls itself.
-        name: String,
+        name: Text,
         /// It types.
         keyboard: bool,
         /// It points.
@@ -389,7 +404,7 @@ pub enum StorageEvent {
     },
     /// The cameras the shell can open: an id it takes back from
     /// [`Faraday::take_camera`] and the name the camera gives.
-    Cameras(Vec<(String, String)>),
+    Cameras(Vec<(Text, Text)>),
     /// What one scan pass saw of a code: where it was in the frame, how
     /// fine its modules are, and whether it read (`docs/QR.md` §1).
     QrSeen {
@@ -423,7 +438,7 @@ pub enum StorageEvent {
     /// not at all when there were none.
     BootUsb {
         /// Each device's product name, or a plain generic name.
-        names: Vec<String>,
+        names: Vec<Text>,
     },
     /// A held-back or ignored device was unplugged.
     InputGone {
@@ -435,9 +450,9 @@ pub enum StorageEvent {
     /// open it in a file manager. Sent at start and when it changes.
     HostFiles {
         /// The folder's path.
-        dir: String,
+        dir: Text,
         /// Its files, newest first.
-        files: Vec<(String, u64)>,
+        files: Vec<(Text, u64)>,
         /// The shell opens it on [`StorageCommand::OpenDownloads`].
         opens: bool,
     },
@@ -447,7 +462,7 @@ pub enum StorageEvent {
     /// A file dropped on the online app's window.
     Dropped {
         /// Its path.
-        path: String,
+        path: Text,
         /// Its size in bytes.
         size: u64,
     },
@@ -455,34 +470,34 @@ pub enum StorageEvent {
     /// ([`StorageCommand::ReadHost`]).
     HostRead {
         /// Its path.
-        path: String,
+        path: Text,
         /// Its contents.
         bytes: Vec<u8>,
     },
     /// A read of this computer's files that failed.
     HostReadFailed {
         /// The path.
-        path: String,
+        path: Text,
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// A file received by Transfer was saved
     /// ([`StorageCommand::SaveDownload`]).
     Saved {
         /// Where.
-        path: String,
+        path: Text,
     },
     /// A received file could not be saved, or this shell does not save.
     SaveFailed {
         /// Why.
-        reason: String,
+        reason: Text,
     },
     /// A stick the shell cannot use as the backup flow needs: not a FAT32
     /// stick as Faraday reads one, or one that cannot be written
     /// (`docs/BACKUP-FLOW.md` §4.2).
     StickProblem {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// It is read-only (else it is not FAT32).
         read_only: bool,
     },
@@ -494,7 +509,7 @@ pub enum StorageEvent {
         outbox: Files,
         /// What the app keeps for itself across a lock: settings and the
         /// signed-amount memory.
-        kept: Vec<(String, Vec<u8>)>,
+        kept: Vec<(Text, Vec<u8>)>,
     },
 }
 
@@ -515,18 +530,18 @@ pub enum StorageCommand {
     /// Read a file from a stick.
     Read {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// Write a file to a stick: a new file, read back and compared; over
     /// a file of its name only when `replace`, which the person chose on
     /// the visit's Already on the stick sheet.
     Write {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The name to write under.
-        name: String,
+        name: Text,
         /// The contents.
         bytes: zeroize::Zeroizing<Vec<u8>>,
         /// The SHA-256 of every copy of this vault the session has seen,
@@ -549,9 +564,9 @@ pub enum StorageCommand {
     /// the app sees only what the codes hold.
     ReadQr {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The image.
-        name: String,
+        name: Text,
     },
     /// Delete a file from a stick, zeros written over it and read back
     /// first ([`StorageEvent::Wiped`]), or only its name removed where its
@@ -559,21 +574,21 @@ pub enum StorageCommand {
     /// [`StorageEvent::WipeFailed`].
     Wipe {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// A stick's free space and whole data space
     /// ([`StorageEvent::StickSpace`]).
     StickSpace {
         /// The stick's id.
-        stick: String,
+        stick: Text,
     },
     /// One step of zeros over a stick's free space, from cluster `from`
     /// ([`StorageEvent::Zeroing`] or [`StorageEvent::ZeroFailed`]).
     ZeroFree {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The cluster the step starts at.
         from: u32,
     },
@@ -581,17 +596,17 @@ pub enum StorageCommand {
     /// before its clusters are zeroed ([`StorageEvent::Zeroing`]).
     MakeEmpty {
         /// The stick's id.
-        stick: String,
+        stick: Text,
     },
     /// Rename a file on a stick in place, refused where another file has
     /// the name ([`StorageEvent::Renamed`]; `docs/FLOWS.md` decision 61).
     Rename {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The file.
-        from: String,
+        from: Text,
         /// Its new name.
-        to: String,
+        to: Text,
         /// For each vault the session has seen, the SHA-256 of its copies:
         /// two vault files are the same vault where one list has both.
         vaults: Vec<Vec<[u8; 32]>>,
@@ -600,23 +615,23 @@ pub enum StorageCommand {
     /// empty ([`StorageEvent::StickNamed`]; `docs/STICK-IDENTITY.md` §6).
     NameStick {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The name, as FAT holds it: in capitals, at most 11 characters.
-        label: String,
+        label: Text,
     },
     /// A file on a stick read for its SHA-256, for its Details
     /// ([`StorageEvent::Hashed`]). The bytes go no further than the shell.
     Hash {
         /// The stick's id.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// Save a PDF where the person prints from. Only an online shell (the
     /// desktop app) does; the device refuses.
     Print {
         /// The file's name.
-        name: String,
+        name: Text,
         /// The PDF.
         bytes: Vec<u8>,
     },
@@ -625,14 +640,14 @@ pub enum StorageCommand {
     ReadHost {
         /// Its path, as [`StorageEvent::HostFiles`] or
         /// [`StorageEvent::Dropped`] gave it.
-        path: String,
+        path: Text,
     },
     /// Save a file Transfer received into Downloads, under `name` or,
     /// when that is taken, `name (2).ext` and on: never over a file.
     /// Only the online shell does; the device refuses.
     SaveDownload {
         /// The name to save it under.
-        name: String,
+        name: Text,
         /// The contents.
         bytes: Vec<u8>,
     },
@@ -650,7 +665,7 @@ pub enum StorageCommand {
         outbox: Files,
         /// What the app keeps for itself: settings and the signed-amount
         /// memory, nothing secret (`docs/WALLETS.md` §3.3).
-        kept: Vec<(String, Vec<u8>)>,
+        kept: Vec<(Text, Vec<u8>)>,
     },
 }
 
@@ -955,9 +970,9 @@ impl StorageEvent {
     /// longer clean ([`NOT_OPEN`]) in the app's words; any other reason as
     /// the disk gave it.
     pub(crate) fn in_own_words(self) -> Self {
-        let said = |reason: String| {
+        let said = |reason: Text| {
             if reason == NOT_OPEN {
-                crate::strings::EN.storage_event_not_open.to_string()
+                Text::of(crate::strings::EN.storage_event_not_open)
             } else {
                 reason
             }

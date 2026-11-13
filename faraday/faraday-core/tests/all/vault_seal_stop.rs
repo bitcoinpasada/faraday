@@ -70,8 +70,8 @@ fn two_changed_second_nearly_full() -> Faraday {
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("a.kdbx".into(), with_plan("Plans A", A, 5)),
-            ("b.kdbx".into(), with_plan("Plans B", B, 6)),
+            (faraday_text::Text::of("a.kdbx"), with_plan("Plans A", A, 5)),
+            (faraday_text::Text::of("b.kdbx"), with_plan("Plans B", B, 6)),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -150,7 +150,7 @@ fn kept(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
     let mut last = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept, .. } = c {
-            last = kept;
+            last = faraday_core::testkit::plain_kept(kept);
         }
     }
     last
@@ -166,11 +166,11 @@ fn after(kept: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app
 }
@@ -223,8 +223,8 @@ fn two_changed() -> Faraday {
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("a.kdbx".into(), with_plan("Plans A", A, 5)),
-            ("b.kdbx".into(), with_plan("Plans B", B, 6)),
+            (faraday_text::Text::of("a.kdbx"), with_plan("Plans A", A, 5)),
+            (faraday_text::Text::of("b.kdbx"), with_plan("Plans B", B, 6)),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

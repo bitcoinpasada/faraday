@@ -402,7 +402,7 @@ impl Faraday {
     }
 
     /// What is kept across a lock: the settings and the memory.
-    pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
+    pub(crate) fn kept(&self) -> crate::storage_api::Kept {
         let settings = format!(
             "{}seal-amounts={}\nnonce-history={}\n",
             self.settings_body(),
@@ -527,12 +527,14 @@ impl Faraday {
         // A lock for idleness tells the next process how long the person
         // has been away.
         out.extend(self.idle_kept());
-        out
+        out.into_iter()
+            .map(|(name, bytes)| (faraday_text::Text::of(&name), bytes))
+            .collect()
     }
 
     /// Reads back what the previous process kept.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub(crate) fn restore_kept(&mut self, kept: &[(String, Vec<u8>)]) {
+    pub(crate) fn restore_kept(&mut self, kept: &[(faraday_text::Text, Vec<u8>)]) {
         // The flows first, then the keys that wait: each key's gate is
         // read against the flows whatever order the entries are listed in.
         let mut gate: Option<&Vec<u8>> = None;

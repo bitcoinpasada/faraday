@@ -753,8 +753,8 @@ fn a_press_that_waited_does_not_run_after_the_lock_sheet_replaced_the_sheet() {
             vec![faraday_core::StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "a".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("a"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),

@@ -51,7 +51,7 @@ fn device_full(width: u16, height: u16, dpi: u16, inbox: Files, kept: Files) -> 
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -703,7 +703,10 @@ fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
     let mut last = (Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
-            last = (faraday_core::testkit::plain_files(outbox), kept);
+            last = (
+                faraday_core::testkit::plain_files(outbox),
+                faraday_core::testkit::plain_kept(kept),
+            );
         }
     }
     last

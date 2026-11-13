@@ -42,9 +42,9 @@ fn a_psbt_signed_with_the_seed_leaves_no_copy_after_lock() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: vec![
-            ("spend.psbt".to_string(), psbt.to_bytes().into()),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes().into()),
             (
-                "leak-wallet.txt".to_string(),
+                faraday_text::Text::of("leak-wallet.txt"),
                 kit.descriptor.into_bytes().into(),
             ),
         ],

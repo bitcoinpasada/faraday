@@ -725,7 +725,10 @@ fn restored_from_vault_named(file: &str) -> Faraday {
     use faraday_core::vault::VaultAction as V;
     let mut app = shown();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(file.to_string(), testkit::test_vault().unwrap())]),
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of(file),
+            testkit::test_vault().unwrap(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

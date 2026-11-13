@@ -41,10 +41,10 @@ fn unlocked() -> Faraday {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: vec![("vault.kdbx".into(), vault.len() as u64)],
+        files: vec![(faraday_text::Text::of("vault.kdbx"), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
@@ -141,7 +141,7 @@ fn savings_only() -> (Faraday, usize) {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "savings.txt".to_string(),
+            faraday_text::Text::of("savings.txt"),
             testkit::savings().into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -289,8 +289,8 @@ fn with_a_stick_attached_scan_a_key_asks_for_it_to_be_pulled() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "s".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("s"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

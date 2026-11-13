@@ -21,14 +21,14 @@ fn spending() -> faraday_psbt::Psbt {
 fn offer(app: &mut Faraday, psbt: &faraday_psbt::Psbt, kept: Vec<(String, Vec<u8>)>) {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
             (
-                "spending-wallet.txt".to_string(),
+                faraday_text::Text::of("spending-wallet.txt"),
                 kit().descriptor.into_bytes(),
             ),
         ]),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.press(Action::LoadWallet(1));
     app.press(Action::Entry(None));
@@ -45,7 +45,7 @@ fn kept(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
     let mut last = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept, .. } = c {
-            last = kept;
+            last = faraday_core::testkit::plain_kept(kept);
         }
     }
     last
@@ -140,10 +140,10 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
     }
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("ledger.kdbx".to_string(), vault),
-            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (faraday_text::Text::of("ledger.kdbx"), vault),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
             (
-                "spending-wallet.txt".to_string(),
+                faraday_text::Text::of("spending-wallet.txt"),
                 kit().descriptor.into_bytes(),
             ),
         ]),

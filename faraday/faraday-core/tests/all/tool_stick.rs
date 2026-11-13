@@ -31,8 +31,8 @@ fn attach(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "a".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -70,7 +70,7 @@ fn tile(app: &mut Faraday, name: &str) {
 fn the_qr_tool_takes_no_passphrase_while_a_stick_is_attached_and_opens_nothing() {
     let mut app = started();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("code.pgp".to_string(), EMPTY.to_vec())]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("code.pgp"), EMPTY.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -194,7 +194,7 @@ fn the_core_wallet_tool_takes_no_passphrase_while_a_stick_is_attached() {
     app.session = Session::on(Network::Testnet);
     app.storage(StorageEvent::Restored {
         inbox: vec![(
-            "wallet.dat".to_string(),
+            faraday_text::Text::of("wallet.dat"),
             std::fs::read(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/../../tools/vectors/core-wallet/encrypted.dat"

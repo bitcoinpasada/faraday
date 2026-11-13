@@ -15,17 +15,20 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let ok = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![("backup-gate".into(), b"old".to_vec())],
+        vec![(faraday_text::Text::of("backup-gate"), b"old".to_vec())],
     );
     assert!(ok.is_ok());
     // A save that fails on a name it cannot write, listed after the gate.
     let failed = boxes.save(
-        vec![("inbox-file".into(), vec![1].into())],
+        vec![(faraday_text::Text::of("inbox-file"), vec![1].into())],
         Vec::new(),
         vec![
-            ("settings".into(), b"s".to_vec()),
-            ("bad/name".into(), b"x".to_vec()),
-            ("backup-gate".into(), b"gpg\tabc\tKey\n".to_vec()),
+            (faraday_text::Text::of("settings"), b"s".to_vec()),
+            (faraday_text::Text::of("bad/name"), b"x".to_vec()),
+            (
+                faraday_text::Text::of("backup-gate"),
+                b"gpg\tabc\tKey\n".to_vec(),
+            ),
         ],
     );
     assert!(failed.is_err());
@@ -50,7 +53,7 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let failed = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![("backup-gate".into(), b"x".to_vec())],
+        vec![(faraday_text::Text::of("backup-gate"), b"x".to_vec())],
     );
     assert!(failed.is_err());
     assert!(
@@ -66,7 +69,7 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let _ = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![("backup-flow".into(), b"old flow".to_vec())],
+        vec![(faraday_text::Text::of("backup-flow"), b"old flow".to_vec())],
     );
     fs::write(dir.join("kept/.backup-flow.tmp"), b"half").unwrap();
     assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"old flow");
@@ -75,7 +78,7 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let _ = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![("backup-flow".into(), b"new flow".to_vec())],
+        vec![(faraday_text::Text::of("backup-flow"), b"new flow".to_vec())],
     );
     assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"new flow");
     let _ = fs::remove_dir_all(&dir);

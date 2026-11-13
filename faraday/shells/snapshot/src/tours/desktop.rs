@@ -90,8 +90,8 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
         faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "boot".into(),
-            label: "BOOT".into(),
+            id: faraday_text::Text::of("boot"),
+            label: faraday_text::Text::of("BOOT"),
             boot: true,
             files: Vec::new(),
             vaults: Vec::new(),

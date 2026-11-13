@@ -45,10 +45,10 @@ fn unlocked() -> Faraday {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: vec![("vault.kdbx".into(), vault.len() as u64)],
+        files: vec![(faraday_text::Text::of("vault.kdbx"), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     app.press(Action::Import(I::Go));
@@ -186,7 +186,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
     let (mut app, w) = on_card("Spending");
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("spend.psbt".to_string(), psbt)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("spend.psbt"), psbt)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -329,7 +329,10 @@ fn wallets_sign_step_says_how_many_more_and_offers_scan_a_key() {
     let (mut app, w) = on_card("Savings");
     let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("savings.psbt".to_string(), psbt.to_bytes())]),
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("savings.psbt"),
+            psbt.to_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

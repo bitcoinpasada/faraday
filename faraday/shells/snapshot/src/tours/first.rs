@@ -122,7 +122,7 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -162,8 +162,8 @@ fn empty_stick(id: &str, serial: u32) -> faraday_core::StickInfo {
     faraday_core::StickInfo {
         make: Default::default(),
         serial: Some(serial),
-        id: id.into(),
-        label: "KEYSTICK".into(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of("KEYSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

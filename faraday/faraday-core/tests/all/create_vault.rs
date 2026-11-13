@@ -146,8 +146,8 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
         faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "a".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),

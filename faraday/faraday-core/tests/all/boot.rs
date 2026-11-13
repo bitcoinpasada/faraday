@@ -50,10 +50,10 @@ fn booted() -> (Faraday, Vec<u8>) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: vec![("vault.kdbx".into(), vault.len() as u64)],
+        files: vec![(faraday_text::Text::of("vault.kdbx"), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     pump(&mut app, &vault);

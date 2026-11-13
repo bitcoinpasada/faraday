@@ -19,8 +19,8 @@ fn visiting() -> Faraday {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: STICK.to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of(STICK),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -36,7 +36,7 @@ fn scan(app: &mut Faraday, name: &str, png: &[u8]) {
     let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec();
     assert!(!payloads.is_empty(), "{name}: no code read");
     app.storage(StorageEvent::QrRead {
-        name: name.to_string(),
+        name: faraday_text::Text::of(name),
         bytes: png.to_vec(),
         payloads,
     });

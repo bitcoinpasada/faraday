@@ -1021,6 +1021,7 @@ impl Shell {
         if !names.is_empty()
             && let Some(app) = self.app.as_mut()
         {
+            let names = names.iter().map(|n| faraday_text::Text::of(n)).collect();
             app.storage(StorageEvent::BootUsb { names });
             self.dirty = true;
         }
@@ -1365,7 +1366,11 @@ impl Shell {
                     // it is done.
                     Some(boot) if self.work.is_some() => {
                         if let Some(work) = self.work.as_mut() {
-                            work.write_timings(boot.id.clone(), files::TIMINGS, text.to_string());
+                            work.write_timings(
+                                String::from(&*boot.id),
+                                files::TIMINGS,
+                                text.to_string(),
+                            );
                         }
                         Ok(false)
                     }
@@ -1435,7 +1440,7 @@ impl Shell {
             // The kernel log is read, the report composed and written on
             // the thread, from a copy of what the loop has seen.
             work.write_boot_report(diskwork::BootReport {
-                stick: stick.clone(),
+                stick: String::from(&**stick),
                 name: report.name.clone(),
                 inventory: report.inventory.clone(),
                 system: report.system.snapshot(),
@@ -1619,7 +1624,14 @@ impl Shell {
                         // Which cameras there are, for the scan sheet's
                         // choice, as of the moment it opens.
                         if let Some(app) = self.app.as_mut() {
-                            app.storage(StorageEvent::Cameras(camera::list()));
+                            app.storage(StorageEvent::Cameras(
+                                camera::list()
+                                    .iter()
+                                    .map(|(id, name)| {
+                                        (faraday_text::Text::of(id), faraday_text::Text::of(name))
+                                    })
+                                    .collect(),
+                            ));
                         }
                         if let Err(reason) = self.camera.on() {
                             self.say(&format!("camera unavailable: {reason}"));
@@ -1730,7 +1742,7 @@ impl Shell {
             }
             app.storage(StorageEvent::NewInput {
                 id,
-                name,
+                name: faraday_text::Text::of(&name),
                 keyboard,
                 pointer,
                 touch,
@@ -2045,7 +2057,7 @@ impl Shell {
         if self.verbose {
             let said: Vec<String> = now
                 .iter()
-                .map(|s| format!("{} ({}, {} files)", s.id, s.label, s.files.len()))
+                .map(|s| format!("{} ({}, {} files)", &*s.id, &*s.label, s.files.len()))
                 .collect();
             eprintln!("sticks: [{}]", said.join(", "));
         }
@@ -2055,6 +2067,7 @@ impl Shell {
         if let Some(app) = self.app.as_mut() {
             app.storage(StorageEvent::Sticks(now));
             for (stick, read_only) in problems {
+                let stick = faraday_text::Text::of(&stick);
                 app.storage(StorageEvent::StickProblem { stick, read_only });
             }
             if let Ok(t) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
@@ -2064,7 +2077,12 @@ impl Shell {
             }
             // Which cameras there are, so a screen can offer the camera
             // or do without it.
-            app.storage(StorageEvent::Cameras(camera::list()));
+            app.storage(StorageEvent::Cameras(
+                camera::list()
+                    .iter()
+                    .map(|(id, name)| (faraday_text::Text::of(id), faraday_text::Text::of(name)))
+                    .collect(),
+            ));
         }
         // What the app asked for in answer, and the redraw.
         self.send(Event::Tick {

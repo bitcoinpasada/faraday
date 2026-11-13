@@ -289,7 +289,12 @@ impl Demo {
             changed = true;
         }
         if self.cameras.as_ref() != Some(&now.cameras) {
-            app.storage(StorageEvent::Cameras(now.cameras.clone()));
+            let cameras = now
+                .cameras
+                .iter()
+                .map(|(id, name)| (faraday_text::Text::of(id), faraday_text::Text::of(name)))
+                .collect();
+            app.storage(StorageEvent::Cameras(cameras));
             self.cameras = Some(now.cameras);
             changed = true;
         }
@@ -300,7 +305,7 @@ impl Demo {
     pub fn dropped(&mut self, app: &mut Faraday, path: &Path) {
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
         app.storage(StorageEvent::Dropped {
-            path: path.display().to_string(),
+            path: faraday_text::Text::of(&path.display().to_string()),
             size,
         });
         self.serve(app);

@@ -23,7 +23,7 @@ fn a_notch_moves_the_page_by_its_pixels_in_the_direction_asked() {
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),

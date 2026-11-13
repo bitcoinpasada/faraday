@@ -1023,8 +1023,8 @@ impl Faraday {
                 continue;
             }
             f.state = Staged::Reading;
-            let stick = imp.stick.as_str().into();
-            let name = f.name.as_str().into();
+            let stick = faraday_text::Text::of(&imp.stick);
+            let name = faraday_text::Text::of(&f.name);
             self.out.storage_out.push_back(if is_png(&f.name) {
                 StorageCommand::ReadQr { stick, name }
             } else {

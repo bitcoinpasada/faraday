@@ -20,6 +20,7 @@ path = "src/main.rs"
 [dependencies]
 faraday-starter = { path = "../../faraday-starter" }
 faraday-core = { path = "../../faraday-core" }
+faraday-text = { path = "../../../core/faraday-text" }
 # The printed sheets, the EDID rules and the build ID.
 faraday-paper = { path = "../../faraday-paper" }
 # Faraday Demo's host, which holds the app (docs/DESKTOP-HOST.md).

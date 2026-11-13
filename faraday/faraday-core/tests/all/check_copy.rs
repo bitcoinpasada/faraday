@@ -58,8 +58,8 @@ fn shown_on(width: u16, height: u16, dpi: u16) -> Faraday {
 
 fn cameras(app: &mut Faraday) {
     app.storage(StorageEvent::Cameras(vec![(
-        "/dev/video0".into(),
-        "Integrated Camera".into(),
+        faraday_text::Text::of("/dev/video0"),
+        faraday_text::Text::of("Integrated Camera"),
     )]));
 }
 

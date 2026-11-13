@@ -19,7 +19,7 @@ fn open_file(file: Vec<u8>) -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), file)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), file)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

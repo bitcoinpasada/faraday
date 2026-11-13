@@ -1237,8 +1237,8 @@ fn a_written_copy_that_is_deleted_opens_its_card_again() {
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S1");
     app.storage(faraday_core::StorageEvent::Wiped {
-        stick: "S1".into(),
-        name,
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(&name),
     });
     app.press(Action::Flow(F::Show(0)));
     assert_eq!(step(&app), Step::Write);
@@ -1470,8 +1470,8 @@ fn a_wipe_or_delete_on_an_unrelated_stick_reopens_nothing_before_or_after_a_lock
     shell.add(u);
     let wipe = |app: &mut Faraday, id: &str| {
         app.storage(faraday_core::StorageEvent::Wiped {
-            stick: id.into(),
-            name: name.clone(),
+            stick: faraday_text::Text::of(id),
+            name: faraday_text::Text::of(&name.clone()),
         });
     };
     shell.plug(&mut app, "U");
@@ -2505,8 +2505,8 @@ fn a_copy_deleted_after_done_is_written_again_and_the_key_signs() {
     shell.plug(&mut app, "S1");
     for n in &names {
         app.storage(faraday_core::StorageEvent::Wiped {
-            stick: "S1".into(),
-            name: n.clone(),
+            stick: faraday_text::Text::of("S1"),
+            name: faraday_text::Text::of(&n.clone()),
         });
     }
     shell.disk_mut("S1").files.clear();
@@ -2549,7 +2549,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
     // The partition is made empty; the person stops the wipe after that.
     app.press(Action::ZeroStop);
     app.storage(faraday_core::StorageEvent::Zeroing {
-        stick: "S1".into(),
+        stick: faraday_text::Text::of("S1"),
         next: 2,
         total: 0,
         done: false,
@@ -2675,8 +2675,8 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
         assert_eq!(app.backup_flows()[0].written_of(), (2, 2), "{cut}");
         if cut == "fails" {
             app.storage(faraday_core::StorageEvent::ZeroFailed {
-                stick: "S1".into(),
-                reason: "cannot make it empty".into(),
+                stick: faraday_text::Text::of("S1"),
+                reason: faraday_text::Text::of("cannot make it empty"),
             });
         } else {
             shell.pull(&mut app, "S1");

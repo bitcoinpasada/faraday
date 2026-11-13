@@ -2277,8 +2277,8 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
     let name = shell.disk("S1").files[0].0.clone();
     shell.plug(&mut app, "S1");
     app.storage(faraday_core::StorageEvent::Wiped {
-        stick: "S1".into(),
-        name,
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of(&name),
     });
     shell.pump(&mut app);
     app.press(Action::Cancel);

@@ -986,7 +986,7 @@ fn the_idle_warning_closes_the_eye_of_the_result() {
         .unwrap();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -2022,8 +2022,8 @@ fn an_aezeed_is_not_read_in_while_a_stick_is_attached() {
         faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -2663,8 +2663,8 @@ fn the_set_source_asks_for_the_stick_to_be_pulled() {
         faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -2684,8 +2684,8 @@ fn a_share_typed_before_a_stick_is_wiped_when_the_stick_refuses_it() {
         faraday_core::StorageEvent::Sticks(vec![faraday_core::StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),

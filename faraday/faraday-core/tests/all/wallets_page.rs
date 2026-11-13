@@ -103,7 +103,7 @@ fn another_wallets_psbt_in_files_leaves_the_card_on_spend_from_this_wallet() {
     let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
     let mut app = with_single_key_wallet();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("spend.psbt".to_string(), psbt)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("spend.psbt"), psbt)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -42,9 +42,11 @@ fuzz_target!(|data: &[u8]| {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: Vec::new(),
-        kept: NAMES
-            .iter()
-            .map(|n| ((*n).to_string(), data.to_vec()))
-            .collect(),
+        kept: faraday_core::kept_from(
+            NAMES
+                .iter()
+                .map(|n| (*n, data.to_vec()))
+                .collect(),
+        ),
     });
 });

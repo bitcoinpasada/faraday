@@ -128,7 +128,7 @@ pub(crate) struct StickArea {
     zeroing: Option<wipe::Zeroing>,
     /// The sticks present that the stick visit has been on screen for
     /// since they arrived, by id.
-    visited: Vec<String>,
+    visited: Vec<faraday_text::Text>,
     /// A stick present has not been visited since it arrived: the stick
     /// visit's badge. Invariant: true exactly when a stick in `sticks`
     /// is not in `visited`, kept by [`StickArea::set_sticks`] and
@@ -192,7 +192,7 @@ impl StickArea {
     /// the sticks that are it.
     pub(crate) fn label_boot_sticks(&mut self, label: &str) {
         for s in self.sticks.iter_mut().filter(|s| s.boot) {
-            s.label = label.to_string();
+            s.label = faraday_text::Text::of(label);
         }
     }
 

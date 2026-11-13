@@ -107,7 +107,7 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     let id = 9;
     t.app.storage(faraday_core::StorageEvent::NewInput {
         id,
-        name: "USB Touchscreen".into(),
+        name: faraday_text::Text::of("USB Touchscreen"),
         keyboard: false,
         pointer: false,
         touch: true,
@@ -130,7 +130,7 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     let id = 10;
     t.app.storage(faraday_core::StorageEvent::NewInput {
         id,
-        name: "USB Mouse".into(),
+        name: faraday_text::Text::of("USB Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -151,7 +151,10 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("home-empty")?;
     // What was plugged in at start, listed over Home for ten seconds.
     t.app.storage(faraday_core::StorageEvent::BootUsb {
-        names: vec!["USB Receiver".into(), "Backup Disk".into()],
+        names: vec![
+            faraday_text::Text::of("USB Receiver"),
+            faraday_text::Text::of("Backup Disk"),
+        ],
     });
     t.pump();
     t.shot("devices-plugged-in-at-start")
@@ -166,7 +169,7 @@ pub(crate) fn toasts_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     let held = |id, name: &str, keyboard| faraday_core::StorageEvent::NewInput {
         id,
-        name: name.into(),
+        name: faraday_text::Text::of(name),
         keyboard,
         pointer: !keyboard,
         touch: false,

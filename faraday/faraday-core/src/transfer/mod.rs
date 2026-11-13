@@ -237,7 +237,7 @@ impl TransferArea {
             return;
         }
         out.storage_out.push_back(StorageCommand::ReadHost {
-            path: path.as_str().into(),
+            path: faraday_text::Text::of(&path),
         });
         self.state.reading = Some(path);
     }
@@ -387,7 +387,7 @@ impl TransferArea {
         scan.note = Some(Text::fill(EN.transfer_saving, &[&name]));
         self.state.saving.push_back(secret);
         out.storage_out.push_back(StorageCommand::SaveDownload {
-            name: name.as_str().into(),
+            name: faraday_text::Text::of(&name),
             bytes: data,
         });
     }

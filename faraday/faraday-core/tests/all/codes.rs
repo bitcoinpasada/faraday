@@ -249,15 +249,15 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S1".to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of("S1"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
     app.storage(StorageEvent::QrRead {
-        name: name.to_string(),
+        name: faraday_text::Text::of(name),
         bytes: png.to_vec(),
         payloads: faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec(),
     });
@@ -477,7 +477,7 @@ fn with_gpg_key() -> Faraday {
         inbox: faraday_core::files_from(vec![
             vault,
             (
-                "SHA256SUMS".into(),
+                faraday_text::Text::of("SHA256SUMS").to_string(),
                 b"3d6f  faraday-0.1.0-linux-x86_64\n".to_vec(),
             ),
         ]),
@@ -558,7 +558,7 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![(
-            "key-words.txt".to_string(),
+            faraday_text::Text::of("key-words.txt"),
             format!("{}\n", &*testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
         )]),
         kept: Vec::new(),
@@ -642,7 +642,7 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".to_string(),
+            faraday_text::Text::of("spending-wallet.txt"),
             spending.descriptor.clone().into_bytes(),
         )]),
         kept: Vec::new(),
@@ -680,7 +680,7 @@ fn on_a_sheet(name: &str, descriptor: &str) -> Faraday {
     let vault = crate::common::vault_of("Sheets", "sheets", 0x5e, records);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("sheets.kdbx".to_string(), vault)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("sheets.kdbx"), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

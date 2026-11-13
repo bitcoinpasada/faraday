@@ -490,7 +490,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Lock);
     t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
     t.pump();
-    let names: Vec<String> = t.stick().files.iter().map(|(n, _)| n.clone()).collect();
+    let names: Vec<faraday_text::Text> = t.stick().files.iter().map(|(n, _)| n.clone()).collect();
     t.press(Action::VisitInAll);
     for (i, n) in names.iter().enumerate() {
         if n.starts_with("musig-") && n.ends_with(".psbt") || n == "inheritance-unsigned.psbt" {
@@ -746,8 +746,14 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         if parts == 2 {
             // Two cameras, and a code found where the scanner saw it.
             t.app.storage(StorageEvent::Cameras(vec![
-                ("/dev/video0".into(), "Integrated Camera".into()),
-                ("/dev/video2".into(), "USB Camera".into()),
+                (
+                    faraday_text::Text::of("/dev/video0"),
+                    faraday_text::Text::of("Integrated Camera"),
+                ),
+                (
+                    faraday_text::Text::of("/dev/video2"),
+                    faraday_text::Text::of("USB Camera"),
+                ),
             ]));
             t.app.storage(StorageEvent::QrSeen {
                 width: 640,

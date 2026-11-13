@@ -49,7 +49,7 @@ fn process_kept(inbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
@@ -909,7 +909,7 @@ fn with_older_beta() -> Faraday {
     let mut kept = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept: k, .. } = c {
-            kept = k;
+            kept = faraday_core::testkit::plain_kept(k);
         }
     }
     let mut app = process_kept(vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)], kept);

@@ -270,7 +270,10 @@ fn with_spend() -> Faraday {
         .expect("Savings loads");
     let psbt = testkit::unsigned(kit).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
-        inbox: crate::files_from(vec![("savings-unsigned.psbt".into(), psbt.to_bytes())]),
+        inbox: crate::files_from(vec![(
+            faraday_text::Text::of("savings-unsigned.psbt"),
+            psbt.to_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

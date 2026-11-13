@@ -65,11 +65,11 @@ fn boot_stick(file: Option<&[u8]>) -> StickInfo {
     StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "BOOT".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("BOOT"),
         boot: true,
         files: file
-            .map(|f| vec![(FILE.to_string(), f.len() as u64)])
+            .map(|f| vec![(faraday_text::Text::of(FILE), f.len() as u64)])
             .unwrap_or_default(),
         vaults: Vec::new(),
     }

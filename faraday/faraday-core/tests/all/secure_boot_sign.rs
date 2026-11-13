@@ -65,19 +65,19 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: false,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }

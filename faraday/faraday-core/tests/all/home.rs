@@ -32,8 +32,8 @@ fn stick(app: &mut Faraday, on: bool) {
         vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "a".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -394,12 +394,12 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }
@@ -409,7 +409,7 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
 fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
@@ -567,8 +567,8 @@ fn home_offers_files_on_the_stick_with_one_attached() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "a".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: Vec::new(),
         vaults: Vec::new(),

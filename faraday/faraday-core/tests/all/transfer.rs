@@ -44,7 +44,7 @@ fn a_file_saved_is_said() {
     let mut app = on_transfer(theme);
     assert_eq!(app.screen, Screen::Transfer);
     app.storage(StorageEvent::Saved {
-        path: "~/Downloads/payment-signed.psbt".into(),
+        path: faraday_text::Text::of("~/Downloads/payment-signed.psbt"),
     });
     let line = "Saved ~/Downloads/payment-signed.psbt";
     assert!(color_of(&mut app, line).is_some(), "the saved file is said");

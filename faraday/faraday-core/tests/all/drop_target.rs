@@ -65,7 +65,7 @@ fn a_drop_takes_the_edge_away() {
     app.storage(StorageEvent::Hovered(true));
     let over = edge(&mut app, w, h);
     app.storage(StorageEvent::Dropped {
-        path: "/nowhere/note.txt".into(),
+        path: faraday_text::Text::of("/nowhere/note.txt"),
         size: 6,
     });
     assert_eq!(app.screen, Screen::Transfer);

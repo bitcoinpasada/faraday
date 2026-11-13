@@ -30,7 +30,7 @@ fn contents() -> Faraday {
     app.press(Action::ReduceMotion(true));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".into(),
+            faraday_text::Text::of("vault.kdbx"),
             testkit::test_vault().unwrap(),
         )]),
         outbox: Vec::new(),

@@ -134,7 +134,7 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     let mut app = shown();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".to_string(),
+            faraday_text::Text::of("vault.kdbx"),
             crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
         )]),
         outbox: Vec::new(),
@@ -154,7 +154,7 @@ fn an_empty_unlock_field_says_nothing_wrong_until_unlock_is_pressed() {
     let mut app = shown();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".to_string(),
+            faraday_text::Text::of("vault.kdbx"),
             crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
         )]),
         outbox: Vec::new(),

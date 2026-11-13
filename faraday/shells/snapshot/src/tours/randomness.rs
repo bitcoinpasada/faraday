@@ -20,8 +20,8 @@ pub(crate) fn randomness_tour(t: &mut Tour) -> Result<(), String> {
     t.app.event(Event::EntropySource("getrandom(2)"));
     t.app.event(Event::Entropy(EntropyBytes::new([0x11; 32])));
     t.app.storage(StorageEvent::Cameras(vec![(
-        "cam0".to_string(),
-        "Camera".to_string(),
+        faraday_text::Text::of("cam0"),
+        faraday_text::Text::of("Camera"),
     )]));
     t.press(Action::Nav(Screen::Settings));
     t.shot("randomness-settings")?;

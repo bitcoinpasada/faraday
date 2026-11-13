@@ -186,12 +186,12 @@ fn boot_import(copies: usize) -> Faraday {
     app.storage(StorageEvent::Sticks(vec![crate::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "boot".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("boot"),
         boot: true,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
@@ -200,7 +200,7 @@ fn boot_import(copies: usize) -> Faraday {
             StorageCommand::Read { stick, name } => {
                 let bytes = files
                     .iter()
-                    .find(|(f, _)| *f == name)
+                    .find(|(f, _)| *f == *name)
                     .map(|f| f.1.clone())
                     .unwrap_or_default();
                 app.storage(StorageEvent::Read { stick, name, bytes });

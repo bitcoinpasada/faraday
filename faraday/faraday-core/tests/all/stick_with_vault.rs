@@ -69,8 +69,8 @@ fn stick() -> Vec<StickInfo> {
     vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "a".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

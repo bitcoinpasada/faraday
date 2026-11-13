@@ -91,7 +91,7 @@ fn kept_of(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
     let mut kept = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept: k, .. } = c {
-            kept = k;
+            kept = faraday_core::testkit::plain_kept(k);
         }
     }
     kept
@@ -108,7 +108,7 @@ fn large_is_kept_across_a_lock() {
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     assert_eq!(next.text_size(), TextSize::Large);
     next.press(Action::Nav(Screen::Settings));
@@ -129,7 +129,7 @@ fn larger_is_kept_across_a_lock() {
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     assert_eq!(next.text_size(), TextSize::Larger);
     next.press(Action::Nav(Screen::Settings));

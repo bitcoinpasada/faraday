@@ -43,7 +43,12 @@ impl Lens {
     /// of the moment it opens. The event to send back when the camera
     /// cannot start.
     pub fn on(&mut self, app: &mut Faraday) -> Option<Event> {
-        app.storage(StorageEvent::Cameras(camera::list()));
+        app.storage(StorageEvent::Cameras(
+            camera::list()
+                .iter()
+                .map(|(id, name)| (faraday_text::Text::of(id), faraday_text::Text::of(name)))
+                .collect(),
+        ));
         if let Err(reason) = self.camera.on() {
             eprintln!("faraday: camera unavailable: {reason}");
             return Some(reason.event());

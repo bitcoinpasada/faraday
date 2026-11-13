@@ -203,6 +203,11 @@ pub fn plain_files(files: crate::Files) -> Vec<(String, Vec<u8>)> {
     named(super::plain_files_t(files))
 }
 
+/// What the app kept, with its names as plain strings, for a test to compare.
+pub fn plain_kept(kept: crate::Kept) -> Vec<(String, Vec<u8>)> {
+    named(kept)
+}
+
 /// A kit's spend and its cosigner's copy, with the cosigner's fingerprint.
 pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), Text> {
     super::spend_of_t(kit).map(|(u, c)| (u, c.map(|(fp, p)| (String::from(&*fp), p))))

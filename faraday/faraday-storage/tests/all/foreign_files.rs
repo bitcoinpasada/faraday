@@ -56,7 +56,7 @@ fn visited_stick(name: &str) -> PathBuf {
 }
 
 /// Answers the app's reads from the stick folder, as the shell does.
-fn pump(app: &mut Faraday, dir: &Path) -> Vec<String> {
+fn pump(app: &mut Faraday, dir: &Path) -> Vec<faraday_text::Text> {
     let mut asked = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
@@ -114,7 +114,7 @@ fn a_visit_lists_and_copies_the_psbt_alone() {
     app.press(Action::Nav(Screen::Files));
     assert_eq!(
         app.sticks()[0].files,
-        [(PSBT.to_string(), psbt().len() as u64)],
+        [(faraday_text::Text::of(PSBT), psbt().len() as u64)],
         "the visit counts the PSBT alone"
     );
     let texts = app.drawn_texts().join("\n");
@@ -151,7 +151,7 @@ fn a_file_faraday_writes_leaves_the_psbt_and_their_files_as_they_were() {
         read(&id, "desktop.ini").is_err(),
         "Windows' own file is never read"
     );
-    let names: Vec<String> = stick_info(&compute(), &dir, "KINGSTON", false)
+    let names: Vec<faraday_text::Text> = stick_info(&compute(), &dir, "KINGSTON", false)
         .files
         .into_iter()
         .map(|(n, _)| n)

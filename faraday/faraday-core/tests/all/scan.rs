@@ -138,11 +138,11 @@ fn a_code_says_whether_it_is_safe_to_scan() {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![
             (
-                "spending-wallet.txt".to_string(),
+                faraday_text::Text::of("spending-wallet.txt"),
                 kit("spending").descriptor.into_bytes(),
             ),
             (
-                "key-words.txt".to_string(),
+                faraday_text::Text::of("key-words.txt"),
                 format!("{}\n", &*testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
             ),
         ]),
@@ -435,8 +435,14 @@ fn only_whole_frame_passes_say_a_code_is_too_fine() {
 fn a_camera_chosen_on_the_sheet_goes_to_the_shell() {
     let mut app = scanning(Vec::new());
     app.storage(StorageEvent::Cameras(vec![
-        ("/dev/video0".into(), "Integrated Camera".into()),
-        ("/dev/video2".into(), "USB Camera".into()),
+        (
+            faraday_text::Text::of("/dev/video0"),
+            faraday_text::Text::of("Integrated Camera"),
+        ),
+        (
+            faraday_text::Text::of("/dev/video2"),
+            faraday_text::Text::of("USB Camera"),
+        ),
     ]));
     assert_eq!(app.take_camera(), None);
     app.press(Action::ScanCamera(1));
@@ -936,7 +942,7 @@ fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
 fn keys_card_with_file(name: &str, bytes: &[u8]) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(name.to_string(), bytes.to_vec())]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of(name), bytes.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

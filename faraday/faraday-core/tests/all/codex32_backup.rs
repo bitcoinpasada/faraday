@@ -80,7 +80,7 @@ fn wallet_and_backup(app: &mut Faraday) {
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "shares-wallet.txt".into(),
+            faraday_text::Text::of("shares-wallet.txt"),
             format!("wpkh({}/<0;1>/*)", &*text).into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -275,7 +275,7 @@ fn words_key() -> Faraday {
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),

@@ -851,7 +851,7 @@ impl Faraday {
             .stick
             .problems()
             .iter()
-            .find(|(id, _)| *id == st.id)
+            .find(|(id, _)| *id == *st.id)
             .map(|(_, ro)| *ro);
         if faraday_boot::layout::is_boot_label(st.label.as_bytes()) {
             r.problem = Some(Problem::Boot);
@@ -871,7 +871,7 @@ impl Faraday {
             for name in kdbx {
                 self.out.storage_out.push_back(StorageCommand::Read {
                     stick: st.id.clone(),
-                    name: String::from(&*name),
+                    name,
                 });
             }
         }
@@ -1760,7 +1760,7 @@ impl Faraday {
 
     /// The set of sticks changed while a flow is kept.
     pub(crate) fn flow_sticks_changed(&mut self) {
-        let ids: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let ids: Vec<Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         for f in &mut self.flows.all {
             f.live
                 .ignored
@@ -2856,8 +2856,8 @@ impl Faraday {
     ) {
         let copies = self.vault_copies(c, &bytes);
         self.out.storage_out.push_back(StorageCommand::Write {
-            stick: stick.to_string(),
-            name,
+            stick: Text::of(stick),
+            name: Text::of(&name),
             bytes,
             copies,
             replace: vault,
@@ -2922,10 +2922,10 @@ impl Faraday {
         match ev {
             crate::StorageEvent::Written { name, wrote_as, .. } => {
                 self.name_taken_wrote(&wrote_as);
-                self.flow_write_answer(&name, Ok(wrote_as));
+                self.flow_write_answer(&name, Ok(String::from(&*wrote_as)));
             }
             crate::StorageEvent::WriteFailed { name, reason, .. } => {
-                self.flow_write_answer(&name, Err(reason));
+                self.flow_write_answer(&name, Err(String::from(&*reason)));
             }
             _ => {}
         }
@@ -2964,8 +2964,8 @@ impl Faraday {
                     w.qr.push((Text::of(&wrote_as), meant, sha));
                 }
                 self.out.storage_out.push_back(StorageCommand::ReadQr {
-                    stick,
-                    name: wrote_as,
+                    stick: Text::of(&stick),
+                    name: Text::of(&wrote_as),
                 });
             }
             Ok(wrote_as) => {
@@ -3072,8 +3072,8 @@ impl Faraday {
             crate::storage_api::OnTaken::Beside
         };
         self.out.storage_out.push_back(StorageCommand::Write {
-            stick,
-            name: sent.to_string(),
+            stick: Text::of(&stick),
+            name: Text::of(sent),
             bytes,
             copies,
             replace: over,

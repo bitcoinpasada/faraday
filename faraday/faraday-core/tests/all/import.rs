@@ -17,10 +17,10 @@ fn attach(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: STICK.to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of(STICK),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![(FILE.to_string(), words().len() as u64)],
+        files: vec![(faraday_text::Text::of(FILE), words().len() as u64)],
         vaults: Vec::new(),
     }]));
 }
@@ -37,8 +37,8 @@ fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopy);
     app.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: FILE.to_string(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(FILE),
         bytes: words().into_bytes(),
     });
     let item = app
@@ -70,8 +70,8 @@ fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
         "Import and load goes to the Inbox"
     );
     app.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: FILE.to_string(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(FILE),
         bytes: words().into_bytes(),
     });
     assert!(app.session.keys.is_empty(), "loaded before the stick left");
@@ -98,18 +98,18 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: STICK.to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of(STICK),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![(name.clone(), bytes.len() as u64)],
+        files: vec![(faraday_text::Text::of(&name.clone()), bytes.len() as u64)],
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
     app.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: name.clone(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(&name.clone()),
         bytes,
     });
     let item = app.inbox().iter().find(|i| i.name == name);
@@ -162,7 +162,7 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     attach(&mut app);
     app.press(Action::Nav(Screen::Files));
     app.storage(StorageEvent::QrRead {
-        name: "key-1-seedqr.png".to_string(),
+        name: faraday_text::Text::of("key-1-seedqr.png"),
         bytes: b"a picture".to_vec(),
         payloads: vec![seedqr_digits()],
     });
@@ -198,7 +198,7 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            FILE.to_string(),
+            faraday_text::Text::of(FILE),
             faraday_core::testkit::test_words("zebra")
                 .as_bytes()
                 .to_vec(),
@@ -211,8 +211,8 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
     app.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: FILE.to_string(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(FILE),
         bytes: words().into_bytes(),
     });
     assert!(app.inbox().iter().any(|i| i.name == "key-1-words-2.txt"));
@@ -229,7 +229,7 @@ const TEXT_SEEDQR: &[u8; 16] = b"a short note 123";
 
 fn read_text_picture(app: &mut faraday_core::Faraday, payload: Vec<u8>) {
     app.storage(StorageEvent::QrRead {
-        name: "note.png".to_string(),
+        name: faraday_text::Text::of("note.png"),
         bytes: b"a picture".to_vec(),
         payloads: vec![payload],
     });
@@ -331,18 +331,21 @@ fn stick_with_a_text_picture_and_its_wallet() -> Faraday {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: STICK.to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of(STICK),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![("note-wallet.txt".to_string(), wallet.len() as u64)],
+        files: vec![(
+            faraday_text::Text::of("note-wallet.txt"),
+            wallet.len() as u64,
+        )],
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopy);
     app.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: "note-wallet.txt".to_string(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of("note-wallet.txt"),
         bytes: wallet.into_bytes(),
     });
     read_text_picture(&mut app, TEXT_SEEDQR.to_vec());

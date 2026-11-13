@@ -336,7 +336,7 @@ fn a_step_card_grows_open_and_comes_to_rest() {
     let mut app = shown();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),

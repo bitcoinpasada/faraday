@@ -41,7 +41,7 @@ fn vault_app(clock: Option<u64>) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -100,11 +100,11 @@ fn stick(id: &str, boot: bool, file: Option<&[u8]>) -> StickInfo {
     StickInfo {
         make: Default::default(),
         serial: None,
-        id: id.into(),
-        label: id.to_uppercase(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of(&id.to_uppercase()),
         boot,
         files: file
-            .map(|f| vec![(FILE.to_string(), f.len() as u64)])
+            .map(|f| vec![(faraday_text::Text::of(FILE), f.len() as u64)])
             .unwrap_or_default(),
         vaults: Vec::new(),
     }
@@ -337,7 +337,7 @@ fn written_to_stick_shows_the_local_time() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![(
-            "vault.kdbx".into(),
+            faraday_text::Text::of("vault.kdbx"),
             testkit::test_vault().unwrap(),
         )]),
         kept: Vec::new(),

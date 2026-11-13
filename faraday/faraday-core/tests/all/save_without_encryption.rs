@@ -251,7 +251,7 @@ fn saves(app: &mut Faraday) -> Vec<String> {
     let mut out = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveDownload { name, .. } = c {
-            out.push(name);
+            out.push(String::from(&*name));
         }
     }
     out

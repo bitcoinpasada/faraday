@@ -76,12 +76,12 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: false,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
@@ -89,7 +89,7 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
@@ -876,8 +876,8 @@ fn a_ticked_file_whose_bytes_change_drops_its_tick() {
     // What a stick visit's Copy answers with: a file of the same name,
     // kept beside the ticked one.
     app.storage(StorageEvent::Read {
-        stick: "S".into(),
-        name: changed.0.clone(),
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of(&changed.0.clone()),
         bytes: changed.1.clone(),
     });
     let named: Vec<&str> = app
@@ -990,7 +990,13 @@ fn with_one_file_it_starts_ticked() {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())]),
+        inbox: faraday_core::files_from(vec![
+            vault,
+            (
+                faraday_text::Text::of("SHA256SUMS").to_string(),
+                b"hello".to_vec(),
+            ),
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -1397,17 +1403,17 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     let boot = [("vault.kdbx".to_string(), testkit::test_vault().unwrap())];
-    let listing = |files: &[(String, Vec<u8>)]| -> Vec<(String, u64)> {
+    let listing = |files: &[(String, Vec<u8>)]| -> Vec<(faraday_text::Text, u64)> {
         files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect()
     };
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "B".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("B"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: listing(&boot),
         vaults: Vec::new(),
@@ -1416,7 +1422,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
-            let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = boot.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
@@ -1448,8 +1454,8 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     let second = StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "FILES".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("FILES"),
         boot: false,
         files: listing(&files),
         vaults: Vec::new(),
@@ -1474,7 +1480,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
@@ -1536,12 +1542,12 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "B".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("B"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: boot
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
@@ -1551,7 +1557,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
-            let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            let bytes = boot.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }

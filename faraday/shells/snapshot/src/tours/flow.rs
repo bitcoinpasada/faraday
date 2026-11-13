@@ -90,11 +90,11 @@ pub(crate) fn flow_beside_tour(t: &mut Tour) -> Result<(), String> {
     let second = StickInfo {
         make: Default::default(),
         serial: Some(0x2468_ace0),
-        id: dir.display().to_string(),
-        label: "SECOND".into(),
+        id: faraday_text::Text::of(&dir.display().to_string()),
+        label: faraday_text::Text::of("SECOND"),
         boot: false,
-        files: vec![("work.kdbx".into(), other.len() as u64)],
-        vaults: vec!["work.kdbx".into()],
+        files: vec![(faraday_text::Text::of("work.kdbx"), other.len() as u64)],
+        vaults: vec![faraday_text::Text::of("work.kdbx")],
     };
     t.app.storage(StorageEvent::Sticks(vec![second]));
     t.pump();
@@ -159,8 +159,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     let empty = |id: &str| StickInfo {
         make: Default::default(),
         serial: Some(0x1357_9bdf),
-        id: id.into(),
-        label: "SPARE".into(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of("SPARE"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -208,7 +208,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -225,7 +225,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     // A stick that is not the one read for the place: Use another stick.
     let mut other = empty("other");
-    other.label = "ELSEWHERE".into();
+    other.label = faraday_text::Text::of("ELSEWHERE");
     other.serial = Some(0x2468_ace0);
     t.app.storage(StorageEvent::Sticks(vec![other]));
     t.pump();

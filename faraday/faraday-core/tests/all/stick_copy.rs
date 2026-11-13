@@ -37,13 +37,13 @@ impl Stick {
         StickInfo {
             make: Default::default(),
             serial: None,
-            id: self.id.to_string(),
-            label: self.id.to_uppercase(),
+            id: faraday_text::Text::of(self.id),
+            label: faraday_text::Text::of(&self.id.to_uppercase()),
             boot: false,
             files: self
                 .files
                 .iter()
-                .map(|(n, b)| (n.clone(), b.len() as u64))
+                .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
                 .collect(),
             vaults: Vec::new(),
         }
@@ -84,12 +84,12 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                let s = sticks.iter().find(|s| s.id == stick).expect("a stick");
-                let bytes = s.files[&name].clone();
+                let s = sticks.iter().find(|s| s.id == &*stick).expect("a stick");
+                let bytes = s.files[&*name].clone();
                 app.storage(StorageEvent::Read { stick, name, bytes });
             }
             StorageCommand::ReadQr { stick, name } => {
-                let s = sticks.iter().find(|s| s.id == stick).expect("a stick");
+                let s = sticks.iter().find(|s| s.id == &*stick).expect("a stick");
                 // The disk process's own reader, on the stick's files.
                 let (bytes, payloads) = match &s.dir {
                     Some(dir) => faraday_files::read_qr_png(
@@ -99,7 +99,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                     )
                     .expect("read"),
                     None => {
-                        let bytes = s.files[&name].clone();
+                        let bytes = s.files[&*name].clone();
                         let codes =
                             faraday_files::qr_in_png(&faraday_core::testkit::compute(), &bytes)
                                 .unwrap_or_default()
@@ -116,7 +116,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
             StorageCommand::Write {
                 stick, name, bytes, ..
             } => {
-                wrote.push((stick.clone(), name.clone(), bytes.to_vec()));
+                wrote.push((String::from(&*stick), String::from(&*name), bytes.to_vec()));
                 app.storage(StorageEvent::Written {
                     stick,
                     wrote_as: name.clone(),
@@ -349,12 +349,12 @@ fn a_file_larger_than_18_mib_is_not_read() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "a".into(),
-        label: "A".into(),
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("A"),
         boot: false,
         files: vec![
-            ("film.mp4".into(), 19 * 1024 * 1024),
-            ("savings-share-1-of-3.txt".into(), 900),
+            (faraday_text::Text::of("film.mp4"), 19 * 1024 * 1024),
+            (faraday_text::Text::of("savings-share-1-of-3.txt"), 900),
         ],
         vaults: Vec::new(),
     }]));

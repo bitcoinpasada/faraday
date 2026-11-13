@@ -130,7 +130,7 @@ fn drawn(app: &mut Faraday) -> (String, String) {
 fn keyboard_code(app: &mut Faraday, id: u32) -> Option<String> {
     app.storage(StorageEvent::NewInput {
         id,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard: true,
         pointer: false,
         touch: false,
@@ -670,8 +670,8 @@ fn with_a_camera_it_starts_only_once_chosen_and_each_picture_is_added_as_taken()
     answer(&mut app, SEED);
     answer(&mut app, POOLED);
     app.storage(StorageEvent::Cameras(vec![(
-        "cam0".to_string(),
-        "Camera".to_string(),
+        faraday_text::Text::of("cam0"),
+        faraday_text::Text::of("Camera"),
     )]));
     app.press(Action::Nav(Screen::Settings));
     crate::common::settings_section(&mut app, "Randomness");
@@ -769,8 +769,8 @@ fn new_keys_generator_offers_the_sources_on_its_card_and_takes_its_bytes_again_m
 fn new_keys_generator_with_a_camera_starts_it_only_when_camera_is_chosen() {
     let mut app = crate::keygen::opened();
     app.storage(StorageEvent::Cameras(vec![(
-        "cam0".to_string(),
-        "Camera".to_string(),
+        faraday_text::Text::of("cam0"),
+        faraday_text::Text::of("Camera"),
     )]));
     app.press(Action::KWords(12));
     let _ = commands(&mut app);

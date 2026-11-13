@@ -47,7 +47,7 @@ fn a_wallet_file_whose_label_runs_over_lines_loads_under_a_one_line_name_and_its
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "savings.json".to_string(),
+            faraday_text::Text::of("savings.json"),
             specter_file(&format!("descriptor: {other}")).into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -153,7 +153,7 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "named.kdbx".to_string(),
+            faraday_text::Text::of("named.kdbx"),
             vault_with(vec![record], "named phrase"),
         )]),
         outbox: Vec::new(),

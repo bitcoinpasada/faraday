@@ -45,8 +45,8 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     let empty = |id: &str, serial: u32| StickInfo {
         make: Default::default(),
         serial: Some(serial),
-        id: id.into(),
-        label: "KEYSTICK".into(),
+        id: faraday_text::Text::of(id),
+        label: faraday_text::Text::of("KEYSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -135,7 +135,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -194,8 +194,8 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     let boot = StickInfo {
         make: Default::default(),
         serial: Some(9),
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: Vec::new(),
         vaults: Vec::new(),

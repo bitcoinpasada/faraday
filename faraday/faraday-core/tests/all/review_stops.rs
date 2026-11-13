@@ -29,8 +29,11 @@ fn reviewing_with(psbt: &Psbt, key: bool) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
-            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (
+                faraday_text::Text::of("spending-wallet.txt"),
+                k.descriptor.into_bytes(),
+            ),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

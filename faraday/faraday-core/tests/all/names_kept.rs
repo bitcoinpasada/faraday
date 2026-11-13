@@ -36,7 +36,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -119,7 +119,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }

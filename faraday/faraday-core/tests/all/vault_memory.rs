@@ -23,11 +23,11 @@ fn stick_with(app: &mut Faraday, name: &str, size: u64) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "TESTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![(name.into(), size)],
-        vaults: vec![name.into()],
+        files: vec![(faraday_text::Text::of(name), size)],
+        vaults: vec![faraday_text::Text::of(name)],
     }]));
 }
 
@@ -343,10 +343,10 @@ fn an_unlock_is_checked_against_the_memory_free_now() {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
             (
-                "vault.kdbx".into(),
+                faraday_text::Text::of("vault.kdbx"),
                 crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7),
             ),
-            ("second.kdbx".into(), vault_of_entries()),
+            (faraday_text::Text::of("second.kdbx"), vault_of_entries()),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -553,11 +553,11 @@ fn the_boot_import_does_not_read_a_vault_file_the_memory_does_not_hold() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "BOOT".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("BOOT"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: vec![("big.kdbx".into(), 17 * MIB)],
-        vaults: vec!["big.kdbx".into()],
+        files: vec![(faraday_text::Text::of("big.kdbx"), 17 * MIB)],
+        vaults: vec![faraday_text::Text::of("big.kdbx")],
     }]));
     let _ = app.frame();
     memory(&mut app, 20);
@@ -734,15 +734,15 @@ fn n_open(n: usize) -> Faraday {
         inbox: faraday_core::files_from(
             vec![
                 (
-                    "alpha.kdbx".into(),
+                    faraday_text::Text::of("alpha.kdbx"),
                     crate::common::vault("Alpha", testkit::VAULT_PASSPHRASE, 7),
                 ),
                 (
-                    "beta.kdbx".into(),
+                    faraday_text::Text::of("beta.kdbx"),
                     crate::common::vault("Beta", testkit::VAULT_PASSPHRASE, 8),
                 ),
                 (
-                    "gamma.kdbx".into(),
+                    faraday_text::Text::of("gamma.kdbx"),
                     crate::common::vault("Gamma", testkit::VAULT_PASSPHRASE, 9),
                 ),
             ]

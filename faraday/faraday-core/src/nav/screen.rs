@@ -421,7 +421,7 @@ pub(crate) fn status_strip(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     let sticks = match app.stick.len() {
         0 if waiting => Some(EN.sidebar_import_waiting.to_string()),
         0 => None,
-        1 => Some(app.stick[0].label.clone()),
+        1 => Some(String::from(&*app.stick[0].label)),
         k => Some(fill(EN.sidebar_attached, &[&k.to_string()])),
     };
     if let Some(s) = sticks {

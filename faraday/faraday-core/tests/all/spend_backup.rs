@@ -27,7 +27,7 @@ fn with_files(files: Vec<(String, Vec<u8>)>, kept: Vec<(String, Vec<u8>)>) -> Fa
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app
 }

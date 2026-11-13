@@ -91,7 +91,10 @@ mod vault_open {
         });
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
-            inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault("Test", PASS, 7))]),
+            inbox: faraday_core::files_from(vec![(
+                faraday_text::Text::of("vault.kdbx"),
+                vault("Test", PASS, 7),
+            )]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -193,8 +196,8 @@ mod vault_open {
         StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -222,8 +225,11 @@ mod vault_open {
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
             inbox: faraday_core::files_from(vec![
-                ("vault.kdbx".into(), vault("Test", PASS, 7)),
-                ("second.kdbx".into(), vault("Second", PASS, 8)),
+                (faraday_text::Text::of("vault.kdbx"), vault("Test", PASS, 7)),
+                (
+                    faraday_text::Text::of("second.kdbx"),
+                    vault("Second", PASS, 8),
+                ),
             ]),
             outbox: Vec::new(),
             kept: Vec::new(),
@@ -271,10 +277,10 @@ mod vault_open {
         StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "stick".into(),
-            label: "STICK".into(),
+            id: faraday_text::Text::of("stick"),
+            label: faraday_text::Text::of("STICK"),
             boot: false,
-            files: vec![("note.txt".into(), 5)],
+            files: vec![(faraday_text::Text::of("note.txt"), 5)],
             vaults: Vec::new(),
         }])
     }
@@ -801,7 +807,7 @@ mod signing {
             let named = |app: &mut Faraday| {
                 app.storage(StorageEvent::Restored {
                     inbox: faraday_core::files_from(vec![(
-                        "notes.psbt".to_string(),
+                        faraday_text::Text::of("notes.psbt"),
                         b"not a psbt".to_vec(),
                     )]),
                     outbox: Vec::new(),
@@ -835,9 +841,9 @@ mod signing {
                 let mut app = testkit::started();
                 app.storage(StorageEvent::Restored {
                     inbox: faraday_core::files_from(vec![
-                        ("main.psbt".to_string(), mainnet.clone()),
+                        (faraday_text::Text::of("main.psbt"), mainnet.clone()),
                         (
-                            "spending-wallet.txt".to_string(),
+                            faraday_text::Text::of("spending-wallet.txt"),
                             kit("spending").descriptor.into_bytes(),
                         ),
                     ]),
@@ -904,8 +910,8 @@ mod signing {
             StorageEvent::Sticks(vec![StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "stick".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("stick"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),
@@ -1758,11 +1764,17 @@ mod collect {
         let mut app = testkit::started();
         app.storage(StorageEvent::Restored {
             inbox: faraday_core::files_from(vec![
-                ("spend.psbt".to_string(), layout(unsigned.to_bytes())),
-                ("same.psbt".to_string(), unsigned.to_bytes()),
-                ("other.psbt".to_string(), other.to_bytes()),
-                ("from-a.psbt".to_string(), theirs.to_bytes()),
-                ("wallet.txt".to_string(), k.descriptor.into_bytes()),
+                (
+                    faraday_text::Text::of("spend.psbt"),
+                    layout(unsigned.to_bytes()),
+                ),
+                (faraday_text::Text::of("same.psbt"), unsigned.to_bytes()),
+                (faraday_text::Text::of("other.psbt"), other.to_bytes()),
+                (faraday_text::Text::of("from-a.psbt"), theirs.to_bytes()),
+                (
+                    faraday_text::Text::of("wallet.txt"),
+                    k.descriptor.into_bytes(),
+                ),
             ]),
             outbox: Vec::new(),
             kept: Vec::new(),

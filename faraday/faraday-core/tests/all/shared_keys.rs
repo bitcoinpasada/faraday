@@ -125,7 +125,7 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
     }));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "vault.kdbx".to_string(),
+            faraday_text::Text::of("vault.kdbx"),
             testkit::test_vault().unwrap(),
         )]),
         outbox: Vec::new(),

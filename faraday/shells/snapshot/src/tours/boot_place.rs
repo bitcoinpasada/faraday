@@ -16,8 +16,8 @@ pub(crate) fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::SetTimeKeep);
     t.app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         serial: Some(0x1234_5678),
         files: Vec::new(),

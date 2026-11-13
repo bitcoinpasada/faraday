@@ -28,8 +28,8 @@ pub(crate) fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("copy-typing")?;
     t.press(Action::BCheckClear);
     t.app.storage(StorageEvent::Cameras(vec![(
-        "/dev/video0".into(),
-        "Integrated Camera".into(),
+        faraday_text::Text::of("/dev/video0"),
+        faraday_text::Text::of("Integrated Camera"),
     )]));
     type_words(t, None)?;
     scroll_to(t, Action::BScan);

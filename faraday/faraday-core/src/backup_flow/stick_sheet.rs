@@ -40,11 +40,19 @@ fn rows(f: &BackupFlow, k: usize) -> Vec<(&'static str, Vec<String>)> {
     );
     add(
         FEN.backup_flow_sheet_make,
-        b.make.who().into_iter().collect(),
+        b.make
+            .who()
+            .into_iter()
+            .map(|w| String::from(&*w))
+            .collect(),
     );
     add(
         FEN.backup_flow_sheet_size,
-        b.make.size_text().into_iter().collect(),
+        b.make
+            .size_text()
+            .into_iter()
+            .map(|w| String::from(&*w))
+            .collect(),
     );
     add(
         FEN.backup_flow_sheet_serial,

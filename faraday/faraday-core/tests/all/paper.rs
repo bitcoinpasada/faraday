@@ -42,7 +42,7 @@ fn backing_up_with(enter: impl FnOnce(&mut Faraday)) -> Faraday {
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),

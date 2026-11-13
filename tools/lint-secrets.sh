@@ -579,6 +579,7 @@ faraday/faraday-core/src/glance/mod.rs
 faraday/faraday-core/src/glance/sheet.rs
 faraday/faraday-core/src/inbox.rs
 faraday/faraday-core/src/visit_taken.rs
+faraday/faraday-core/src/storage_api.rs
 faraday/faraday-core/src/backup_flow/mod.rs
 faraday/faraday-core/src/backup_flow/wallet.rs
 faraday/faraday-core/src/kef_form/mod.rs

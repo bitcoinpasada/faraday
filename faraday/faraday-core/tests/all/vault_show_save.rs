@@ -319,8 +319,8 @@ fn shown_words_do_not_come_back_after_the_lock_sheet_replaced_the_devices_sheet(
             vec![faraday_core::StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "a".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("a"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),
@@ -427,7 +427,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("japanese.kdbx".into(), vault)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("japanese.kdbx"), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

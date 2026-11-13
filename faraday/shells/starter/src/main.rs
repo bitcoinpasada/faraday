@@ -579,9 +579,12 @@ impl Shell {
             self.redraw();
         }
         if self.cameras.as_ref() != Some(&now.cameras) {
-            self.starter
-                .held()
-                .storage(StorageEvent::Cameras(now.cameras.clone()));
+            let cameras = now
+                .cameras
+                .iter()
+                .map(|(id, name)| (faraday_text::Text::of(id), faraday_text::Text::of(name)))
+                .collect();
+            self.starter.held().storage(StorageEvent::Cameras(cameras));
             self.cameras = Some(now.cameras);
             self.redraw();
         }

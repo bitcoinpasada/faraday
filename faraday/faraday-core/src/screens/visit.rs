@@ -125,7 +125,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let why = stick.unread_why(&app.vaults, name, *size);
         let big = why.is_some();
         let kind = stick.kind_of(name).filter(|_| !big);
-        let on = app.visit.inn.contains(name);
+        let on = app.visit.inn.contains(name.as_str());
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() {
             Role::OnSurface.paint()
@@ -154,7 +154,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
-            Some(_) if app.visit.reading.contains(name) => {
+            Some(_) if app.visit.reading.contains(name.as_str()) => {
                 Text::fill(EN.visit_being_read, &[&size_text(*size)])
             }
             Some(k) => kind_and_size(k, *size),
@@ -821,7 +821,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let why = stick.unread_why(&app.vaults, name, *size);
         let big = why.is_some();
         let kind = stick.kind_of(name).filter(|_| !big);
-        let on = app.visit.inn.contains(name);
+        let on = app.visit.inn.contains(name.as_str());
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() {
             Role::OnSurface
@@ -857,7 +857,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
-            Some(_) if app.visit.reading.contains(name) => {
+            Some(_) if app.visit.reading.contains(name.as_str()) => {
                 Text::fill(EN.visit_being_read, &[&size_text(*size)])
             }
             Some(k) => kind_and_size(k, *size),

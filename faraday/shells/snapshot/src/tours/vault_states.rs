@@ -37,7 +37,7 @@ fn only(t: &mut Tour, files: Vec<(String, Vec<u8>)>, kept: Vec<(String, Vec<u8>)
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,

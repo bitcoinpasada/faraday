@@ -13,8 +13,11 @@ fn with_files(mut app: Faraday) -> Faraday {
     let kit = testkit::kits().into_iter().next().unwrap();
     let psbt = testkit::unsigned(&kit).unwrap().to_bytes();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("scanned-1.psbt".to_string(), psbt)]),
-        outbox: faraday_core::files_from(vec![("note.txt".to_string(), b"a note".to_vec())]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("scanned-1.psbt"), psbt)]),
+        outbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("note.txt"),
+            b"a note".to_vec(),
+        )]),
         kept: Vec::new(),
     });
     assert_eq!(app.inbox().len(), 1);

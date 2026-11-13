@@ -56,14 +56,14 @@ impl Disk {
     pub fn info(&self) -> StickInfo {
         StickInfo {
             make: self.make.clone(),
-            id: self.id.clone(),
-            label: self.label.clone(),
+            id: faraday_text::Text::of(&self.id.clone()),
+            label: faraday_text::Text::of(&self.label.clone()),
             boot: self.boot,
             serial: self.serial,
             files: self
                 .files
                 .iter()
-                .map(|(n, b)| (n.clone(), b.len() as u64))
+                .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
                 .collect(),
             vaults: Vec::new(),
         }
@@ -222,7 +222,7 @@ pub fn process_unseen(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -322,7 +322,7 @@ impl Shell {
                         None => app.storage(StorageEvent::ReadFailed {
                             stick,
                             name,
-                            reason: "gone".into(),
+                            reason: faraday_text::Text::of("gone"),
                         }),
                     }
                 }
@@ -334,7 +334,7 @@ impl Shell {
                     if un {
                         app.storage(StorageEvent::ZeroFailed {
                             stick,
-                            reason: "cannot open".into(),
+                            reason: faraday_text::Text::of("cannot open"),
                         });
                     } else if ro || nf {
                         app.storage(StorageEvent::StickProblem {
@@ -381,7 +381,7 @@ impl Shell {
                         app.storage(StorageEvent::WriteFailed {
                             stick,
                             name,
-                            reason: "no space".into(),
+                            reason: faraday_text::Text::of("no space"),
                         });
                         continue;
                     }
@@ -412,7 +412,7 @@ impl Shell {
                         app.storage(StorageEvent::WriteFailed {
                             stick,
                             name,
-                            reason: "no room".into(),
+                            reason: faraday_text::Text::of("no room"),
                         });
                         continue;
                     }
@@ -430,7 +430,7 @@ impl Shell {
                             app.storage(StorageEvent::NameTaken {
                                 stick,
                                 name,
-                                on_stick,
+                                on_stick: faraday_text::Text::of(&on_stick),
                                 sha,
                             });
                             continue;
@@ -439,7 +439,7 @@ impl Shell {
                             app.storage(StorageEvent::WriteFailed {
                                 stick,
                                 name,
-                                reason,
+                                reason: faraday_text::Text::of(&reason),
                             });
                             continue;
                         }
@@ -449,15 +449,16 @@ impl Shell {
                         app.storage(StorageEvent::WriteFailed {
                             stick,
                             name,
-                            reason: "read back differs".into(),
+                            reason: faraday_text::Text::of("read back differs"),
                         });
                         continue;
                     }
-                    self.writes.push((stick.clone(), wrote_as.clone()));
+                    self.writes
+                        .push((stick.clone().to_string(), wrote_as.clone()));
                     app.storage(StorageEvent::Written {
                         stick: stick.clone(),
                         name,
-                        wrote_as,
+                        wrote_as: faraday_text::Text::of(&wrote_as),
                     });
                     app.storage(StorageEvent::Sticks(self.infos()));
                 }
@@ -477,7 +478,7 @@ impl Shell {
                     app.storage(StorageEvent::Sticks(self.infos()));
                 }
                 StorageCommand::NameStick { stick, label } => {
-                    self.disk_mut(&stick).label = label.clone();
+                    self.disk_mut(&stick).label = label.clone().to_string();
                     app.storage(StorageEvent::StickNamed {
                         stick,
                         label,
@@ -492,7 +493,7 @@ impl Shell {
                         .map(|b| {
                             faraday_core::file_menu::sha256(&faraday_core::testkit::compute(), b)
                         })
-                        .ok_or_else(|| "gone".to_string());
+                        .ok_or_else(|| faraday_text::Text::of("gone"));
                     app.storage(StorageEvent::Hashed { stick, name, sha });
                 }
                 // The disk process's picture reader, on the disk's file.
@@ -501,7 +502,7 @@ impl Shell {
                         app.storage(StorageEvent::ReadFailed {
                             stick,
                             name,
-                            reason: "gone".into(),
+                            reason: faraday_text::Text::of("gone"),
                         });
                         continue;
                     };
@@ -535,7 +536,7 @@ impl Shell {
                         self.boxes = (
                             faraday_core::testkit::plain_files(inbox),
                             faraday_core::testkit::plain_files(outbox),
-                            kept,
+                            faraday_core::testkit::plain_kept(kept),
                         );
                     }
                 }
@@ -573,16 +574,17 @@ impl Shell {
                     app.storage(StorageEvent::WriteFailed {
                         stick,
                         name,
-                        reason: "name taken".into(),
+                        reason: faraday_text::Text::of("name taken"),
                     });
                     continue;
                 };
                 d.free -= bytes.len() as u64;
-                self.writes.push((stick.clone(), wrote_as.clone()));
+                self.writes
+                    .push((stick.clone().to_string(), wrote_as.clone()));
                 app.storage(StorageEvent::Written {
                     stick,
                     name,
-                    wrote_as,
+                    wrote_as: faraday_text::Text::of(&wrote_as),
                 });
             }
         }
@@ -812,7 +814,9 @@ pub fn rename(
     vaults: &[Vec<[u8; 32]>],
 ) -> Option<faraday_core::Unrenamed> {
     let Some(at) = files.iter().position(|(n, _)| n == from) else {
-        return Some(faraday_core::Unrenamed::Failed("gone".into()));
+        return Some(faraday_core::Unrenamed::Failed(faraday_text::Text::of(
+            "gone",
+        )));
     };
     if let Some((_, other)) = files
         .iter()

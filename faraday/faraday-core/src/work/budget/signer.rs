@@ -23,8 +23,14 @@ fn open_unchosen() -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: crate::files_from(vec![
-            ("sent.psbt".into(), vector("signer-core-sent.psbt")),
-            ("signed.psbt".into(), vector("signer-core-signed.psbt")),
+            (
+                faraday_text::Text::of("sent.psbt"),
+                vector("signer-core-sent.psbt"),
+            ),
+            (
+                faraday_text::Text::of("signed.psbt"),
+                vector("signer-core-signed.psbt"),
+            ),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

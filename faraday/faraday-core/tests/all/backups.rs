@@ -36,7 +36,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -192,7 +192,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }
@@ -226,8 +226,8 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "VAULTSTICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("VAULTSTICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

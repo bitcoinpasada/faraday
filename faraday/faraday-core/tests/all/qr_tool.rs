@@ -416,7 +416,7 @@ fn sealed_note(note: &str, pass: &str) -> Vec<u8> {
 /// The code chosen in Files, where the tool opens on its Open card.
 fn open_from_files(app: &mut Faraday, code: &[u8]) {
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("code.pgp".to_string(), code.to_vec())]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("code.pgp"), code.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -762,8 +762,8 @@ fn an_opened_note_is_saved_as_a_note_last_in_the_open_vault() {
     let mut app = started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("a.kdbx".to_string(), file),
-            ("code.pgp".to_string(), NOTE.to_vec()),
+            (faraday_text::Text::of("a.kdbx"), file),
+            (faraday_text::Text::of("code.pgp"), NOTE.to_vec()),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

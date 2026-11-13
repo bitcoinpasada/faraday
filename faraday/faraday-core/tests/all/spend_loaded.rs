@@ -184,9 +184,9 @@ fn spending_review(claimed: bool) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
             (
-                "spending-wallet.txt".to_string(),
+                faraday_text::Text::of("spending-wallet.txt"),
                 kit.descriptor.clone().into_bytes(),
             ),
         ]),

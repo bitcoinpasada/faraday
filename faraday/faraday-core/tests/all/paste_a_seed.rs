@@ -175,7 +175,7 @@ fn a_wallets_missing_key_pasted_loads_at_once() {
     let mut app = desktop();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "savings.txt".to_string(),
+            faraday_text::Text::of("savings.txt"),
             testkit::savings().into_bytes(),
         )]),
         outbox: Vec::new(),

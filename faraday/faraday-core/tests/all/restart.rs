@@ -36,7 +36,10 @@ fn exited(app: &mut Faraday) -> bool {
 fn with_outbox(app: &mut Faraday) {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: faraday_core::files_from(vec![("vault.kdbx".into(), vec![1, 2, 3])]),
+        outbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("vault.kdbx"),
+            vec![1, 2, 3],
+        )]),
         kept: Vec::new(),
     });
 }

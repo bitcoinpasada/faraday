@@ -134,11 +134,11 @@ fn setup(t: &mut Tour) -> Result<(), String> {
     .map_err(|e| String::from(&*e))?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("a.kdbx".into(), alpha),
-            ("b.kdbx".into(), beta),
-            ("c.kdbx".into(), newer),
-            ("d.kdbx".into(), locked),
-            ("e.kdbx".into(), tagged),
+            ("a.kdbx", alpha),
+            ("b.kdbx", beta),
+            ("c.kdbx", newer),
+            ("d.kdbx", locked),
+            ("e.kdbx", tagged),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -231,9 +231,9 @@ fn more_menu(t: &mut Tour) -> Result<(), String> {
     t.restart();
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("keyed.kdbx".into(), keyed),
-            ("backup.keyx".into(), vec![7; 32]),
-            ("spare.keyx".into(), vec![9; 32]),
+            ("keyed.kdbx", keyed),
+            ("backup.keyx", vec![7; 32]),
+            ("spare.keyx", vec![9; 32]),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

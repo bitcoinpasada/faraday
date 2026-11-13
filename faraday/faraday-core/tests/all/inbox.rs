@@ -266,18 +266,18 @@ fn boot_stick(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
             .collect(),
         vaults: Vec::new(),
     }]));
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Read { stick, name } = c
-            && let Some((_, bytes)) = files.iter().find(|(n, _)| *n == name)
+            && let Some((_, bytes)) = files.iter().find(|(n, _)| *n == *name)
         {
             app.storage(StorageEvent::Read {
                 stick,
@@ -320,7 +320,10 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         inbox: faraday_core::files_from(vec![
             kit("vault.kdbx"),
             kit("spending-wallet.txt"),
-            ("gmail-codes.txt".into(), CODES.into()),
+            (
+                faraday_text::Text::of("gmail-codes.txt").to_string(),
+                CODES.into(),
+            ),
         ]),
         outbox: faraday_core::files_from(vec![kit("savings-wallet.txt")]),
         kept: Vec::new(),
@@ -335,10 +338,10 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "S".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
-        files: vec![("spend.psbt".into(), 300)],
+        files: vec![(faraday_text::Text::of("spend.psbt"), 300)],
         vaults: Vec::new(),
     }]));
     app.sheet = None;
@@ -450,8 +453,8 @@ fn a_copy_of_an_open_vault_under_another_name_is_that_vault() {
 fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
     let mut app = with_files(vec![("notes.txt".to_string(), b"first\n".to_vec())]);
     app.storage(StorageEvent::Read {
-        stick: "s".into(),
-        name: "notes.txt".into(),
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of("notes.txt"),
         bytes: b"second\n".to_vec(),
     });
     let names: Vec<(&str, &[u8])> = app
@@ -475,8 +478,8 @@ fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
         app.visit().log
     );
     app.storage(StorageEvent::Read {
-        stick: "s".into(),
-        name: "notes.txt".into(),
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of("notes.txt"),
         bytes: b"first\n".to_vec(),
     });
     assert_eq!(app.inbox().len(), 2, "the same bytes again are no new file");
@@ -521,9 +524,9 @@ fn a_written_vault_beside_another_of_its_name_is_kept_numbered() {
         Vec::new(),
     );
     app.storage(StorageEvent::Written {
-        stick: "s".into(),
-        name: "v.kdbx".into(),
-        wrote_as: "v.kdbx".into(),
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of("v.kdbx"),
+        wrote_as: faraday_text::Text::of("v.kdbx"),
     });
     let held: Vec<(&str, bool)> = app
         .inbox()

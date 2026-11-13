@@ -922,7 +922,7 @@ impl Faraday {
         // the shell lists has none, and is told by where it is.
         let identity = match stick.serial {
             Some(s) => text!("{s:08x}"),
-            None => text!("id:{}", stick.id),
+            None => text!("id:{}", &*stick.id),
         };
         self.visit.log_clear();
         self.name_taken_wrote_clear();
@@ -961,7 +961,7 @@ impl Faraday {
             let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
-                name: (&*name).into(),
+                name: Text::of(&name),
                 bytes,
                 copies,
                 replace,
@@ -1248,8 +1248,8 @@ impl Faraday {
                 let renamed = !t.flow && self.visit.files_menu().renamed.contains(&*t.name);
                 let copies = self.vault_copies(&c, &bytes);
                 self.out.storage_out.push_back(StorageCommand::Write {
-                    stick: (&*t.stick).into(),
-                    name: (&*t.name).into(),
+                    stick: Text::of(&t.stick),
+                    name: Text::of(&t.name),
                     bytes,
                     copies,
                     replace,

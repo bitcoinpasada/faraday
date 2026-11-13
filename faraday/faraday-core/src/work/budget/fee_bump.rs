@@ -126,7 +126,7 @@ fn a_touch_or_key_with_a_finished_transaction_in_files_does_no_costly_work() {
         inbox: crate::files_from(vec![
             files().remove(0),
             (
-                "bump-core-original.tx".into(),
+                faraday_text::Text::of("bump-core-original.tx").to_string(),
                 vector("bump-core-original.tx"),
             ),
         ]),

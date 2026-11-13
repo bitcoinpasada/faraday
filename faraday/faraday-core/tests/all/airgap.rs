@@ -43,7 +43,10 @@ fn desktop() -> Faraday {
 /// A file put in the Inbox, and loaded as a wallet.
 fn load_wallet(app: &mut Faraday, text: &str) {
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("wallet.txt".to_string(), text.as_bytes().to_vec())]),
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("wallet.txt"),
+            text.as_bytes().to_vec(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -176,10 +179,10 @@ fn the_boot_import_offers_its_files_at_once() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
-        files: vec![("words.txt".into(), OTHER.len() as u64)],
+        files: vec![(faraday_text::Text::of("words.txt"), OTHER.len() as u64)],
         vaults: Vec::new(),
     }]));
     while let Some(c) = app.poll_storage() {

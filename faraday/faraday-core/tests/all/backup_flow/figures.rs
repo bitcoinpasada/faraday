@@ -20,8 +20,8 @@ fn a_checked_figure_tells_the_sticks_maker_model_size_and_name() {
     let mut app = checked_with(
         "BACKUP",
         faraday_core::StickMake {
-            maker: Some("SanDisk".into()),
-            model: Some("Ultra".into()),
+            maker: Some(faraday_text::Text::of("SanDisk")),
+            model: Some(faraday_text::Text::of("Ultra")),
             size: Some(15_700_000_000),
         },
     );
@@ -34,7 +34,7 @@ fn a_cards_figure_tells_its_name_size_and_label() {
         "DATA",
         faraday_core::StickMake {
             maker: None,
-            model: Some("SD32G".into()),
+            model: Some(faraday_text::Text::of("SD32G")),
             size: Some(31_900_000_000),
         },
     );
@@ -61,8 +61,8 @@ fn checked_with_files() -> (Shell, Faraday) {
     let mut shell = Shell::new();
     let mut d = Disk::empty("S1", "BACKUP");
     d.make = faraday_core::StickMake {
-        maker: Some("SanDisk".into()),
-        model: Some("Ultra".into()),
+        maker: Some(faraday_text::Text::of("SanDisk")),
+        model: Some(faraday_text::Text::of("Ultra")),
         size: Some(15_700_000_000),
     };
     d.files = vec![

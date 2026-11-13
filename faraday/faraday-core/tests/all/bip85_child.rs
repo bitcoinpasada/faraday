@@ -27,7 +27,7 @@ fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
@@ -89,7 +89,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }

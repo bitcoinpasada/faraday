@@ -21,6 +21,7 @@ use crate::strings::fill;
 use faraday_draw::tokens;
 use faraday_draw::tokens::{BODY_M, BODY_S, HEADLINE_S, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::screens::wrap_buttons;
@@ -64,8 +65,8 @@ impl What {
 /// The sheet: which stick, what is chosen.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeleteAsk {
-    stick: String,
-    label: String,
+    stick: Text,
+    label: Text,
     /// What is deleted.
     pub what: What,
     /// The files ticked, by name.
@@ -79,8 +80,8 @@ pub struct DeleteAsk {
 /// Zeroing under way, from the sheet's button to the last step's answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Zeroing {
-    stick: String,
-    label: String,
+    stick: Text,
+    label: Text,
     /// The whole partition, made empty first.
     pub whole: bool,
     passes: u8,
@@ -202,7 +203,7 @@ impl Faraday {
             .stick
             .get(self.visit.stick)
             .and_then(|s| s.files.get(k))
-            .map(|(n, _)| n.clone());
+            .map(|(n, _)| String::from(&**n));
         let (Some(d), Some(name)) = (self.stick.delete_ask.as_mut(), name) else {
             return;
         };
@@ -232,7 +233,7 @@ impl Faraday {
                 for name in d.chosen {
                     self.out.storage_out.push_back(StorageCommand::Wipe {
                         stick: d.stick.clone(),
-                        name,
+                        name: Text::of(&name),
                     });
                 }
                 self.sheet = None;
@@ -356,12 +357,9 @@ impl Faraday {
             z.due = true;
         } else if done {
             let line = match (z.whole, z.passes) {
-                (false, _) => fill(EN.stick_wipe_free_space, &[&z.label.to_string()]),
-                (true, 1) => fill(EN.stick_wipe_s_partition_zeroed, &[&z.label.to_string()]),
-                (true, n) => fill(
-                    EN.stick_wipe_s_partition,
-                    &[&z.label.to_string(), &n.to_string()],
-                ),
+                (false, _) => fill(EN.stick_wipe_free_space, &[&*z.label]),
+                (true, 1) => fill(EN.stick_wipe_s_partition_zeroed, &[&*z.label]),
+                (true, n) => fill(EN.stick_wipe_s_partition, &[&*z.label, &n.to_string()]),
             };
             self.zero_end(line, true);
         } else {
@@ -411,7 +409,7 @@ impl Faraday {
     /// The sticks changed: the stick of the sheet or of zeroing gone ends
     /// them.
     pub(crate) fn zero_sticks_changed(&mut self) {
-        let ids: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let ids: Vec<Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         let here = |id: &str| ids.iter().any(|x| x == id);
         if self
             .stick
@@ -448,11 +446,11 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.stick.delete_ask.as_ref() else {
         return;
     };
-    let files: &[(String, u64)] = app
+    let files: &[(Text, u64)] = app
         .stick
         .get(app.visit.stick)
         .map_or(&[], |s| s.files.as_slice());
-    let title = fill(EN.stick_wipe_delete_files, &[&d.label.to_string()]);
+    let title = fill(EN.stick_wipe_delete_files, &[&*d.label]);
     let n = d.chosen.len();
     let go = match d.what {
         What::Files => fill(
@@ -598,7 +596,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     cy += ui.advance_as(BODY_S, 28.0);
                 }
                 for (k, (name, size)) in files.iter().enumerate() {
-                    let on = d.chosen.contains(name);
+                    let on = d.chosen.iter().any(|c| **c == **name);
                     ui.checkbox(x + 2.0, cy + 10.0, on, true);
                     let sz = crate::screens::size_text(*size);
                     let sw = ui.measure_as(BODY_S, &sz);
@@ -690,9 +688,9 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let title = if z.whole {
-        fill(EN.stick_wipe_zeroing_title, &[&z.label.to_string()])
+        fill(EN.stick_wipe_zeroing_title, &[&*z.label])
     } else {
-        fill(EN.stick_wipe_zeroing, &[&z.label.to_string()])
+        fill(EN.stick_wipe_zeroing, &[&*z.label])
     };
     let share = z.done_share();
     let left = z.since.and_then(|(at, from)| {

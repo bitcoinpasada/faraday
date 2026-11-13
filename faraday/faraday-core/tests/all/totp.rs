@@ -56,7 +56,7 @@ fn fresh_app(clock: Option<u64>, online: bool) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("vault.kdbx"), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

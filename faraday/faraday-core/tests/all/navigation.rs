@@ -276,8 +276,8 @@ fn files_carries_a_dot_until_the_stick_is_visited() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "sda1@sda#1".into(),
-        label: "FARADAY".into(),
+        id: faraday_text::Text::of("sda1@sda#1"),
+        label: faraday_text::Text::of("FARADAY"),
         boot: true,
         files: Vec::new(),
         vaults: Vec::new(),

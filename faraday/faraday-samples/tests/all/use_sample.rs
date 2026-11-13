@@ -519,8 +519,8 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     let c = testkit::compute();
     let mut app = demo_app();
     app.storage(StorageEvent::Cameras(vec![(
-        "/dev/video0".into(),
-        "Integrated Camera".into(),
+        faraday_text::Text::of("/dev/video0"),
+        faraday_text::Text::of("Integrated Camera"),
     )]));
     add_a_key(&mut app);
     app.press(Action::UseSample);

@@ -710,7 +710,10 @@ fn on_paper(camera: bool) -> Faraday {
     let mut app = at_the_checklist();
     reopen_on_paper(&mut app, true);
     app.storage(StorageEvent::Cameras(if camera {
-        vec![("cam".to_string(), "Camera".to_string())]
+        vec![(
+            faraday_text::Text::of("cam"),
+            faraday_text::Text::of("Camera"),
+        )]
     } else {
         Vec::new()
     }));
@@ -822,8 +825,8 @@ fn a_code_checked_with_no_camera_stays_checked_when_a_camera_is_plugged_in() {
     check_with(&mut app, "a passphrase");
     assert!(done(&app));
     app.storage(StorageEvent::Cameras(vec![(
-        "cam".to_string(),
-        "Camera".to_string(),
+        faraday_text::Text::of("cam"),
+        faraday_text::Text::of("Camera"),
     )]));
     assert!(done(&app));
     assert_eq!(status(&mut app), "Checked");
@@ -1185,8 +1188,8 @@ fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() 
 fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() {
     let mut app = at_the_checklist();
     app.storage(StorageEvent::Cameras(vec![(
-        "cam".to_string(),
-        "Camera".to_string(),
+        faraday_text::Text::of("cam"),
+        faraday_text::Text::of("Camera"),
     )]));
     open_item(&mut app, bstep::KEF);
     make(&mut app);
@@ -1224,8 +1227,8 @@ fn checked_reopened_then_put_on_paper(camera: bool) -> Faraday {
     reopen(&mut app);
     if camera {
         app.storage(StorageEvent::Cameras(vec![(
-            "cam".to_string(),
-            "Camera".to_string(),
+            faraday_text::Text::of("cam"),
+            faraday_text::Text::of("Camera"),
         )]));
     }
     app.press(Action::BPlan);
@@ -1288,8 +1291,8 @@ fn with_a_stick_attached_the_krux_code_takes_no_passphrase() {
             vec![faraday_core::StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "a".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("a"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),
@@ -1333,8 +1336,8 @@ fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
             vec![faraday_core::StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "a".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("a"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),

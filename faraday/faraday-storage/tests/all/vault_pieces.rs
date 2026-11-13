@@ -371,11 +371,11 @@ fn stick_with(size: u64) -> faraday_core::StickInfo {
     faraday_core::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "s".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("s"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
-        files: vec![("Big.kdbx".into(), size)],
-        vaults: vec!["Big.kdbx".into()],
+        files: vec![(faraday_text::Text::of("Big.kdbx"), size)],
+        vaults: vec![faraday_text::Text::of("Big.kdbx")],
     }
 }
 

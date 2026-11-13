@@ -49,7 +49,7 @@ fn app() -> Faraday {
     testkit::move_to(&mut app.session, Network::Regtest).unwrap();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".to_string(),
+            faraday_text::Text::of("spending-wallet.txt"),
             spending().descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),
@@ -435,8 +435,8 @@ fn part_of_a_key_typed_on_the_sweep_sheet_counts_when_a_stick_comes() {
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         make: Default::default(),
         serial: None,
-        id: "stick".into(),
-        label: "STICK".into(),
+        id: faraday_text::Text::of("stick"),
+        label: faraday_text::Text::of("STICK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),

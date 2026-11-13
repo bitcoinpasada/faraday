@@ -75,7 +75,7 @@ fn locked(app: &mut Faraday) -> Boxes {
             last = Some((
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             ));
         }
     }
@@ -101,7 +101,7 @@ fn a_secret_let_out_stays_a_secret_across_a_lock() {
     next.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     assert_eq!(next.outbox.len(), 1);
     assert_eq!(

@@ -360,7 +360,7 @@ fn a_file_dropped_on_the_window_is_sent() {
     let mut boxes = boxes();
     let mut app = desktop();
     app.storage(StorageEvent::Dropped {
-        path: path.display().to_string(),
+        path: faraday_text::Text::of(&path.display().to_string()),
         size: psbt.len() as u64,
     });
     serve_with(&mut app, &mut boxes, Some(&host), &mut Dirs::default());
@@ -375,8 +375,8 @@ fn the_camera_opens_for_receive_with_a_stick_attached() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "/sticks/BLANK".into(),
-        label: "BLANK".into(),
+        id: faraday_text::Text::of("/sticks/BLANK"),
+        label: faraday_text::Text::of("BLANK"),
         boot: false,
         files: Vec::new(),
         vaults: Vec::new(),
@@ -407,7 +407,7 @@ fn transfer_is_offered_only_in_the_online_app() {
         device.press(Action::TransferReceive);
         assert!(device.scan().is_none() && device.sheet.is_none());
         device.storage(StorageEvent::Dropped {
-            path: path.display().to_string(),
+            path: faraday_text::Text::of(&path.display().to_string()),
             size: 1,
         });
         assert_ne!(device.screen, Screen::Transfer);

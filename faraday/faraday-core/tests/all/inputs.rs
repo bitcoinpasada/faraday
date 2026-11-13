@@ -33,7 +33,7 @@ fn code_of(app: &Faraday) -> String {
 fn new_device(app: &mut Faraday, id: u32, keyboard: bool, pointer: bool) {
     app.storage(StorageEvent::NewInput {
         id,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard,
         pointer,
         touch: false,
@@ -223,7 +223,7 @@ fn on_size(seed: u8, (width, height): (u16, u16), dpi: u16) -> Faraday {
 fn new_touchscreen(app: &mut Faraday, id: u32) {
     app.storage(StorageEvent::NewInput {
         id,
-        name: "USB Touchscreen".into(),
+        name: faraday_text::Text::of("USB Touchscreen"),
         keyboard: false,
         pointer: false,
         touch: true,
@@ -287,7 +287,7 @@ fn new_pointer(app: &mut Faraday, id: u32) {
     });
     app.storage(StorageEvent::NewInput {
         id,
-        name: "USB Mouse".into(),
+        name: faraday_text::Text::of("USB Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -822,7 +822,7 @@ fn announce(
 ) {
     app.storage(StorageEvent::NewInput {
         id,
-        name: name.into(),
+        name: faraday_text::Text::of(name),
         keyboard,
         pointer,
         touch,
@@ -1139,7 +1139,7 @@ fn used_undrawn(app: &mut Faraday, id: u32) {
     });
     app.storage(StorageEvent::NewInput {
         id,
-        name: "USB Mouse".into(),
+        name: faraday_text::Text::of("USB Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -1202,7 +1202,7 @@ fn a_press_just_after_the_seed_or_another_devices_sheet_counts_nothing() {
 
 fn boot_usb(app: &mut Faraday, names: &[&str]) {
     app.storage(StorageEvent::BootUsb {
-        names: names.iter().map(|n| n.to_string()).collect(),
+        names: names.iter().map(|n| faraday_text::Text::of(n)).collect(),
     });
 }
 
@@ -1272,7 +1272,7 @@ fn the_start_notice_goes_after_ten_seconds_whatever_else_is_pressed_or_toasted()
     assert_eq!(app.screen, Screen::Settings);
     app.storage(StorageEvent::NewInput {
         id: 9,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard: true,
         pointer: false,
         touch: false,
@@ -1366,7 +1366,7 @@ fn a_held_back_device_cannot_dismiss_the_start_notice() {
     let at = notice_x(&mut app);
     app.storage(StorageEvent::NewInput {
         id: 5,
-        name: "USB Keyboard".into(),
+        name: faraday_text::Text::of("USB Keyboard"),
         keyboard: true,
         pointer: true,
         touch: false,
@@ -1437,7 +1437,7 @@ fn session_with_wallet(seed: u8) -> Faraday {
     let mut app = on_screen(seed);
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
-            "spending-wallet.txt".into(),
+            faraday_text::Text::of("spending-wallet.txt"),
             kit.descriptor.into_bytes(),
         )]),
         outbox: Vec::new(),

@@ -502,16 +502,13 @@ impl Faraday {
                 }
                 self.visit.set_settings(None);
                 self.visit.log_push((
-                    faraday_text::Text::fill(EN.stick_settings_wrote, &[&wrote_as.to_string()]),
+                    faraday_text::Text::fill(EN.stick_settings_wrote, &[&*wrote_as]),
                     true,
                 ));
             }
             StorageEvent::WriteFailed { name, reason, .. } if is_file(&name) => {
                 self.visit.log_push((
-                    faraday_text::Text::fill(
-                        EN.stick_settings_not_written,
-                        &[&name.to_string(), &reason.to_string()],
-                    ),
+                    faraday_text::Text::fill(EN.stick_settings_not_written, &[&*name, &*reason]),
                     false,
                 ));
             }

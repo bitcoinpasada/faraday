@@ -479,9 +479,9 @@ fn a_file_replaced_in_files_marks_the_closed_card_and_keeps_the_copy_and_report(
     assert!(shows(&mut app, EN.signer_only_signatures));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("sent.psbt".to_string(), sent()),
+            (faraday_text::Text::of("sent.psbt"), sent()),
             (
-                "signed.psbt".to_string(),
+                faraday_text::Text::of("signed.psbt"),
                 vector("wallet-tapmulti-signed.psbt"),
             ),
         ]),
@@ -513,10 +513,10 @@ fn a_file_written_to_the_stick_or_taken_out_is_judged_by_both_boxes() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("sent.psbt".to_string(), sent()),
-            ("signed.psbt".to_string(), signed()),
+            (faraday_text::Text::of("sent.psbt"), sent()),
+            (faraday_text::Text::of("signed.psbt"), signed()),
         ]),
-        outbox: faraday_core::files_from(vec![("signed.psbt".to_string(), signed())]),
+        outbox: faraday_core::files_from(vec![(faraday_text::Text::of("signed.psbt"), signed())]),
         kept: Vec::new(),
     });
     open(&mut app);
@@ -532,14 +532,14 @@ fn a_file_written_to_the_stick_or_taken_out_is_judged_by_both_boxes() {
     let line = EN.signer_file_differs.replace("{}", "signed.psbt");
     // Written: it leaves For the stick, and the same file is in From.
     app.storage(StorageEvent::Written {
-        stick: "s".into(),
-        name: "signed.psbt".into(),
-        wrote_as: "signed.psbt".into(),
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of("signed.psbt"),
+        wrote_as: faraday_text::Text::of("signed.psbt"),
     });
     assert!(!shows(&mut app, &line), "{:?}", texts(&mut app));
     // Taken out of both boxes: marked.
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("sent.psbt".to_string(), sent())]),
+        inbox: faraday_core::files_from(vec![(faraday_text::Text::of("sent.psbt"), sent())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -553,8 +553,8 @@ fn an_empty_flow_kept_does_not_block_the_default_pair() {
     app.press(Action::SignerCheck(SignerPress::Back));
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("sent.psbt".to_string(), sent()),
-            ("signed.psbt".to_string(), signed()),
+            (faraday_text::Text::of("sent.psbt"), sent()),
+            (faraday_text::Text::of("signed.psbt"), signed()),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -625,9 +625,12 @@ fn spending_pair(returned: impl Fn(&mut faraday_psbt::Psbt)) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
-            ("a.psbt".to_string(), psbt.to_bytes()),
-            ("b.psbt".to_string(), other.to_bytes()),
+            (
+                faraday_text::Text::of("spending-wallet.txt"),
+                k.descriptor.into_bytes(),
+            ),
+            (faraday_text::Text::of("a.psbt"), psbt.to_bytes()),
+            (faraday_text::Text::of("b.psbt"), other.to_bytes()),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -736,8 +739,8 @@ fn the_entry_follows_show_as_qr_on_a_file_for_the_stick_and_checks_the_pair() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![
-            ("sent.psbt".to_string(), sent()),
-            ("signed.psbt".to_string(), signed()),
+            (faraday_text::Text::of("sent.psbt"), sent()),
+            (faraday_text::Text::of("signed.psbt"), signed()),
         ]),
         kept: Vec::new(),
     });

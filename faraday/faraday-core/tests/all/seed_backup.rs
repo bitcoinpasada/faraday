@@ -309,18 +309,18 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
     next.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: STICK.to_string(),
-        label: "TESTSTICK".to_string(),
+        id: faraday_text::Text::of(STICK),
+        label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![(name.clone(), bytes.len() as u64)],
+        files: vec![(faraday_text::Text::of(&name.clone()), bytes.len() as u64)],
         vaults: Vec::new(),
     }]));
     next.press(Action::Nav(Screen::Files));
     next.press(Action::VisitIn(0));
     next.press(Action::VisitCopy);
     next.storage(StorageEvent::Read {
-        stick: STICK.to_string(),
-        name: name.clone(),
+        stick: faraday_text::Text::of(STICK),
+        name: faraday_text::Text::of(&name.clone()),
         bytes,
     });
     next.storage(StorageEvent::Sticks(Vec::new()));
@@ -404,8 +404,8 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: STICK.to_string(),
-            label: "TESTSTICK".to_string(),
+            id: faraday_text::Text::of(STICK),
+            label: faraday_text::Text::of("TESTSTICK"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),

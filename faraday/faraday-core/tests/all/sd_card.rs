@@ -29,8 +29,8 @@ fn attach(app: &mut Faraday, on: bool) {
         vec![StickInfo {
             make: Default::default(),
             serial: None,
-            id: "a".into(),
-            label: "PHOTOS".into(),
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("PHOTOS"),
             boot: false,
             files: Vec::new(),
             vaults: Vec::new(),
@@ -80,8 +80,8 @@ fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
-        id: "boot".into(),
-        label: "FARADAYDATA".into(),
+        id: faraday_text::Text::of("boot"),
+        label: faraday_text::Text::of("FARADAYDATA"),
         boot: true,
         files: Vec::new(),
         vaults: Vec::new(),

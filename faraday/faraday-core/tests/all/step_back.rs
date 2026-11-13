@@ -284,8 +284,11 @@ fn sign_a_transaction_steps_back_and_once_signed_leaves() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spend.psbt".to_string(), psbt.to_bytes()),
-            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
+            (
+                faraday_text::Text::of("spending-wallet.txt"),
+                k.descriptor.into_bytes(),
+            ),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

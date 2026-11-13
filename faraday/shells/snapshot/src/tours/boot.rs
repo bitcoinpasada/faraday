@@ -29,7 +29,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Lock);
     let mut boot = t.stick();
     boot.boot = true;
-    boot.label = "FARADAY".into();
+    boot.label = faraday_text::Text::of("FARADAY");
     t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
     t.pump();
     t.app.storage(StorageEvent::Memory {

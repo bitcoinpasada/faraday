@@ -28,7 +28,7 @@ fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
         outbox: faraday_core::files_from(outbox),
-        kept,
+        kept: faraday_core::kept_from(kept),
     });
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
@@ -101,7 +101,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             last = (
                 faraday_core::testkit::plain_files(inbox),
                 faraday_core::testkit::plain_files(outbox),
-                kept,
+                faraday_core::testkit::plain_kept(kept),
             );
         }
     }
@@ -184,7 +184,10 @@ fn a_lock_with_too_few_answers_seals_nothing() {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![("main.kdbx".into(), made("Main", B, 1))]),
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("main.kdbx"),
+            made("Main", B, 1),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

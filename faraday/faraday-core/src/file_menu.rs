@@ -83,7 +83,7 @@ pub enum Unrenamed {
     /// That file is the same vault, by identity (`docs/VAULT.md` §6).
     SameVault,
     /// The stick refused, and why.
-    Failed(String),
+    Failed(faraday_text::Text),
 }
 
 /// A file row's ⋮ menu while it is open: worked out on the press that
@@ -194,7 +194,8 @@ impl Faraday {
     /// The file on the stick the visit shows at `k`, with its size: a
     /// lookup.
     fn stick_file(&self, k: usize) -> Option<(String, u64)> {
-        self.stick.get(self.visit.stick)?.files.get(k).cloned()
+        let (name, size) = self.stick.get(self.visit.stick)?.files.get(k)?;
+        Some((String::from(&**name), *size))
     }
 
     /// Whether a file on the stick has a ⋮: every file Faraday lists but
@@ -229,7 +230,10 @@ impl Faraday {
                     .filter(|_| why.is_none())
                 {
                     Some(kind) => format!("{kind} · {}", &*crate::screens::size_text(size)),
-                    None => why.unwrap_or_else(|| EN.visit_file_too_large.to_string()),
+                    None => why.map_or_else(
+                        || EN.visit_file_too_large.to_string(),
+                        |w| String::from(&*w),
+                    ),
                 };
                 Some((name, size, kind))
             }
@@ -386,12 +390,12 @@ impl Faraday {
                     .flatten()
                     .is_some_and(|b| b.trim_ascii_end() == s.label.as_bytes());
                 let from = if named {
-                    s.label.clone()
+                    String::from(&*s.label)
                 } else {
                     String::new()
                 };
                 self.visit.set_renaming(Renaming {
-                    what: Named::Stick(s.id.clone()),
+                    what: Named::Stick(String::from(&*s.id)),
                     stem: from.clone(),
                     from,
                     ext: String::new(),
@@ -414,10 +418,10 @@ impl Faraday {
                         if let Some(id) = &id {
                             self.out.storage_out.push_back(StorageCommand::Hash {
                                 stick: id.clone(),
-                                name: name.clone(),
+                                name: faraday_text::Text::of(&name),
                             });
                         }
-                        (None, id)
+                        (None, id.map(|i| String::from(&*i)))
                     }
                 };
                 self.visit.set_details(Details {
@@ -534,9 +538,10 @@ impl Faraday {
         self.sheet = None;
         match r.what {
             Named::Stick(stick) => {
-                self.out
-                    .storage_out
-                    .push_back(StorageCommand::NameStick { stick, label: to });
+                self.out.storage_out.push_back(StorageCommand::NameStick {
+                    stick: faraday_text::Text::of(&stick),
+                    label: faraday_text::Text::of(&to),
+                });
             }
             Named::File(Row::Out(k)) => {
                 let Some(item) = self.outbox.get_mut(k) else {
@@ -560,8 +565,8 @@ impl Faraday {
                     let vaults = self.vault_copy_lists();
                     self.out.storage_out.push_back(StorageCommand::Rename {
                         stick: s.id.clone(),
-                        from: r.from,
-                        to,
+                        from: faraday_text::Text::of(&r.from),
+                        to: faraday_text::Text::of(&to),
                         vaults,
                     });
                 }
@@ -601,7 +606,7 @@ impl Faraday {
             }
             Some(Unrenamed::Taken) => (fill(EN.rename_taken_on_medium, &[to, noun]), false),
             Some(Unrenamed::SameVault) => (fill(EN.rename_same_vault, &[to, noun]), false),
-            Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &why]), false),
+            Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &*why]), false),
         };
         self.visit
             .log_push((faraday_text::Text::of(&line.0), line.1));
@@ -625,7 +630,12 @@ impl Faraday {
     }
 
     /// A file on a stick hashed, for the Details sheet that asked.
-    pub(crate) fn file_hashed(&mut self, stick: &str, name: &str, sha: Result<[u8; 32], String>) {
+    pub(crate) fn file_hashed(
+        &mut self,
+        stick: &str,
+        name: &str,
+        sha: Result<[u8; 32], faraday_text::Text>,
+    ) {
         self.visit.details_hashed(stick, name, sha);
     }
 

@@ -24,7 +24,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // beside them, so Savings has only the vault's key here.
     let mut boot = t.stick();
     boot.boot = true;
-    boot.label = "FARADAY".into();
+    boot.label = faraday_text::Text::of("FARADAY");
     boot.files
         .retain(|(n, _)| n == "vault.kdbx" || n == "savings-unsigned.psbt");
     t.app.storage(StorageEvent::Sticks(vec![boot]));

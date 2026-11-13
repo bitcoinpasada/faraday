@@ -1928,8 +1928,14 @@ fn on_the_small_panel_a_found_vanity_address_offers_both_buttons_clear_of_each_o
 fn on_the_small_panel_the_scan_sheets_camera_buttons_leave_room_above_cancel() {
     let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
     rig.storage(StorageEvent::Cameras(vec![
-        ("/dev/video0".into(), "Integrated Camera".into()),
-        ("/dev/video2".into(), "USB Camera".into()),
+        (
+            faraday_text::Text::of("/dev/video0"),
+            faraday_text::Text::of("Integrated Camera"),
+        ),
+        (
+            faraday_text::Text::of("/dev/video2"),
+            faraday_text::Text::of("USB Camera"),
+        ),
     ]));
     testkit::open_scan(&mut rig, ScanPurpose::Seed);
     rig.settle();

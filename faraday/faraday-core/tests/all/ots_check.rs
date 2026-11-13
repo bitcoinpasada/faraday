@@ -21,9 +21,9 @@ fn checked(proof: &str, file: Vec<u8>, header: &str) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("stamp.ots".to_string(), vector(proof)),
-            ("stamped".to_string(), file),
-            ("header".to_string(), vector(header)),
+            (faraday_text::Text::of("stamp.ots"), vector(proof)),
+            (faraday_text::Text::of("stamped"), file),
+            (faraday_text::Text::of("header"), vector(header)),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -405,9 +405,12 @@ fn opened(proof: Vec<u8>, file: Vec<u8>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("stamp.ots".to_string(), proof),
-            ("stamped".to_string(), file),
-            ("header".to_string(), vector("headers/455605.hex")),
+            (faraday_text::Text::of("stamp.ots"), proof),
+            (faraday_text::Text::of("stamped"), file),
+            (
+                faraday_text::Text::of("header"),
+                vector("headers/455605.hex"),
+            ),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),

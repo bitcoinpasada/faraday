@@ -494,8 +494,8 @@ fn the_reminders_ride_on_the_sheet_that_asks_for_a_stick_to_be_pulled() {
             vec![StickInfo {
                 make: Default::default(),
                 serial: None,
-                id: "a".into(),
-                label: "STICK".into(),
+                id: faraday_text::Text::of("a"),
+                label: faraday_text::Text::of("STICK"),
                 boot: false,
                 files: Vec::new(),
                 vaults: Vec::new(),
@@ -659,7 +659,7 @@ fn a_mouse_alone_behind_the_devices_sheet_gets_its_targets_then_the_sheet_back()
     assert!(app.device_holds(Action::Entry(None)));
     app.storage(StorageEvent::NewInput {
         id: 3,
-        name: "USB Mouse".into(),
+        name: faraday_text::Text::of("USB Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,
@@ -703,7 +703,7 @@ fn a_device_that_came_due_under_the_new_device_sheet_gets_its_sheet_after() {
     let mut app = shown(laptop());
     app.storage(StorageEvent::NewInput {
         id: 3,
-        name: "USB Mouse".into(),
+        name: faraday_text::Text::of("USB Mouse"),
         keyboard: false,
         pointer: true,
         touch: false,

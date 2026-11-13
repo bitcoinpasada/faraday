@@ -25,7 +25,7 @@ fn toasted(theme: Theme) -> Faraday {
     }));
     app.draw_in(theme);
     app.storage(StorageEvent::Printed {
-        path: "plan.pdf".to_string(),
+        path: faraday_text::Text::of("plan.pdf"),
     });
     let mut clock = 1_000;
     for _ in 0..40 {

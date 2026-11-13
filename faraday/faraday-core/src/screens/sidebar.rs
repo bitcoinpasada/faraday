@@ -325,7 +325,7 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
     let sticks = match app.stick.len() {
         0 if waiting => EN.sidebar_import_waiting.to_string(),
         0 => EN.sidebar_none.to_string(),
-        1 => app.stick[0].label.clone(),
+        1 => String::from(&*app.stick[0].label),
         k => fill(EN.sidebar_attached, &[&k.to_string()]),
     };
     let open = waiting && app.sheet == Some(Sheet::Import);

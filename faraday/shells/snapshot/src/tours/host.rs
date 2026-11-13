@@ -51,8 +51,8 @@ fn desktop(t: &mut Tour, win: (u16, u16), demo: bool) {
     }
     let stick = |name: &str| StickInfo {
         make: Default::default(),
-        id: name.into(),
-        label: name.into(),
+        id: faraday_text::Text::of(name),
+        label: faraday_text::Text::of(name),
         boot: name == "BOOTSTICK",
         serial: None,
         files: Vec::new(),

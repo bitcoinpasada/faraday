@@ -22,9 +22,12 @@ fn open_unchosen() -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: crate::files_from(vec![
-            ("original.psbt".into(), vector("bump-core-original.psbt")),
             (
-                "replacement.psbt".into(),
+                faraday_text::Text::of("original.psbt"),
+                vector("bump-core-original.psbt"),
+            ),
+            (
+                faraday_text::Text::of("replacement.psbt"),
                 vector("bump-core-replacement.psbt"),
             ),
         ]),
