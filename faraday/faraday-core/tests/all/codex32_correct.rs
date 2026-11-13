@@ -337,7 +337,7 @@ fn each_refusal_is_its_own_line() {
     let mut c = ticked();
     offer(&mut c, &holes, None);
     let line = c.refusal_line().expect("refused");
-    assert!(line.contains('8') && line.contains("13"), "{line}");
+    assert!(line.contains('8') && line.contains("13"), "{}", &*line);
 
     // Not a codex32 string at all.
     let mut c = ticked();
@@ -345,7 +345,8 @@ fn each_refusal_is_its_own_line() {
     let line = c.refusal_line().expect("refused");
     assert!(
         line.starts_with(&EN.codex32_correct_malformed[..20]),
-        "{line}"
+        "{}",
+        &*line
     );
 
     // A second string of a set whose identifier box was changed: the

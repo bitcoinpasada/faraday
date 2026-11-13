@@ -24,16 +24,19 @@ use faraday_ui::parts::wrap_buttons;
 
 use super::dice_screen::{dice_rows, dice_sheet, rolled_line};
 use super::worksheet_screen as sheet;
-use super::{C32, CARDS, Card, Cell, Codex32Make, Given, Split, Tab, WAYS, Way, char_of};
+use super::{
+    C32, CARDS, Card, Cell, Codex32Make, Given, Split, Tab, WAYS, Way, char_of, letter, upper,
+};
 use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
 use crate::screens::{next_button, next_button_when};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Slot, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow};
+use faraday_text::{Num, Text, text};
 
 /// Boxes 1 to 3 of every string.
 const PREFIX: &[u8] = b"ms1";
@@ -43,8 +46,48 @@ const ID_LEN: u8 = 4;
 
 /// Symbol `v` of the booklet's second alphabet, drawn as its glyph
 /// (§7.2).
-pub(super) fn glyph(v: u8) -> String {
-    SYMBOL_GLYPHS[usize::from(v & 31)].to_string()
+pub(super) fn glyph(v: u8) -> Text {
+    letter(SYMBOL_GLYPHS[usize::from(v & 31)])
+}
+
+/// A count or position as digits, on the stack.
+fn num(v: impl Into<usize>) -> Num {
+    Text::num(v.into() as u64)
+}
+
+/// The dot a box with no character yet shows.
+fn dot() -> Text {
+    Text::of("·")
+}
+
+/// `n` dots, as a masked run is drawn.
+fn masked(n: usize) -> Text {
+    let mut out = Text::with_room(n * MASK.len());
+    for _ in 0..n {
+        out.push_str(MASK);
+    }
+    out
+}
+
+/// `parts` joined by `sep`.
+fn joined<S: AsRef<str>>(parts: &[S], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(part.as_ref());
+    }
+    out
+}
+
+/// A die's bit path as digits.
+fn digits(bits: &[u8]) -> Text {
+    let mut out = Text::with_room(bits.len());
+    for &b in bits {
+        out.push_str(&num(b));
+    }
+    out
 }
 
 /// A press of this flow.
@@ -103,15 +146,15 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
             (
                 card,
                 flow::Card {
-                    title: title(m, card),
-                    summary: summary(m, card),
+                    title: title(m, card).as_str().into(),
+                    summary: summary(m, card).as_str().into(),
                     mono: matches!(card, Card::Identifier | Card::Made) && m.done(card),
                     done: m.done(card),
                     open: open(card),
                     default: false,
                     toggle: a(C32::Card(card.index())),
                     // Built only for the open card.
-                    walkthrough: open(card).then(|| guide(card).to_string()),
+                    walkthrough: open(card).then(|| guide(card).into()),
                 },
             )
         })
@@ -132,16 +175,16 @@ fn guide(card: Card) -> &'static str {
     }
 }
 
-fn title(m: &Codex32Make, card: Card) -> String {
+fn title(m: &Codex32Make, card: Card) -> Text {
     match card {
-        Card::Scheme if m.given_kind() == Some(Given::Add) => EN.c32r_index.to_string(),
-        Card::Scheme => EN.codex32_scheme.to_string(),
-        Card::Identifier => EN.codex32_identifier.to_string(),
-        Card::Entropy => EN.codex32_entropy.to_string(),
-        Card::Enter => EN.codex32_enter.to_string(),
-        Card::Sheets => EN.codex32_worksheets.to_string(),
+        Card::Scheme if m.given_kind() == Some(Given::Add) => Text::of(EN.c32r_index),
+        Card::Scheme => Text::of(EN.codex32_scheme),
+        Card::Identifier => Text::of(EN.codex32_identifier),
+        Card::Entropy => Text::of(EN.codex32_entropy),
+        Card::Enter => Text::of(EN.codex32_enter),
+        Card::Sheets => Text::of(EN.codex32_worksheets),
         Card::Strings => strings_title(m),
-        Card::Made => EN.codex32_strings_made.to_string(),
+        Card::Made => Text::of(EN.codex32_strings_made),
     }
 }
 
@@ -150,7 +193,7 @@ fn title(m: &Codex32Make, card: Card) -> String {
 /// threshold. The top app bar's title then, so it stays in view as the
 /// page scrolls under the bar (F146); the card itself reads Characters.
 /// `short`: "Share A · 7 of 26", for a bar with no room for the whole.
-pub(crate) fn entering(m: &Codex32Make, short: bool) -> Option<String> {
+pub(crate) fn entering(m: &Codex32Make, short: bool) -> Option<Text> {
     let w = m.work().filter(|_| m.open() == Some(Card::Enter))?;
     let data = w.scheme().length().data_len();
     let (s, n) = m.front()?;
@@ -159,17 +202,17 @@ pub(crate) fn entering(m: &Codex32Make, short: bool) -> Option<String> {
     } else {
         EN.codex32_share_character
     };
-    Some(fill(
+    Some(Text::fill(
         form,
-        &[&share_name(w, s), &(n + 1).to_string(), &data.to_string()],
+        &[&share_name(w, s), &num(n + 1), &num(data)],
     ))
 }
 
 /// "Share 2 of 5", or "Codex32" for the secret alone.
-fn strings_title(m: &Codex32Make) -> String {
+fn strings_title(m: &Codex32Make) -> Text {
     let (k, n) = m.k_n();
     if k == 0 {
-        return EN.codex32_codex32.to_string();
+        return Text::of(EN.codex32_codex32);
     }
     // A string made from strings typed in is named by its index: the
     // others of the set are on paper already (§8.1, §8.2).
@@ -179,66 +222,56 @@ fn strings_title(m: &Codex32Make) -> String {
             .and_then(|s| s.get(m.at()))
             .and_then(|s| s.as_bytes().get(8).copied())
             .unwrap_or(b'?');
-        return fill(
-            EN.codex32_share_x,
-            &[&char::from(index.to_ascii_uppercase()).to_string()],
-        );
+        return Text::fill(EN.codex32_share_x, &[&upper(index)]);
     }
     if m.open() == Some(Card::Strings) {
-        fill(
-            EN.codex32_share_n_of,
-            &[&(m.at() + 1).to_string(), &n.to_string()],
-        )
+        Text::fill(EN.codex32_share_n_of, &[&num(m.at() + 1), &num(n)])
     } else {
-        EN.codex32_strings.to_string()
+        Text::of(EN.codex32_strings)
     }
 }
 
 /// "Share A", or "Secret" with no threshold or for the secret: input `s`.
-pub(super) fn share_name(work: &WorkSet, s: usize) -> String {
+pub(super) fn share_name(work: &WorkSet, s: usize) -> Text {
     let i = work.inputs().get(s).copied().unwrap_or(b'a');
     if work.scheme().threshold() == 0 || i == b's' {
-        return EN.codex32_the_secret.to_string();
+        return Text::of(EN.codex32_the_secret);
     }
-    fill(
-        EN.codex32_share_x,
-        &[&char::from(i.to_ascii_uppercase()).to_string()],
-    )
+    Text::fill(EN.codex32_share_x, &[&upper(i)])
 }
 
 /// The split's words: "2 of 3", or "None, the secret alone".
-fn split_text(m: &Codex32Make) -> String {
+fn split_text(m: &Codex32Make) -> Text {
     match m.k_n() {
-        (0, _) => EN.codex32_split_alone.to_string(),
+        (0, _) => Text::of(EN.codex32_split_alone),
         // Add a share does not know how many strings the set has.
-        (k, _) if m.given_kind() == Some(Given::Add) => fill(EN.c32r_k_needed, &[&k.to_string()]),
-        (k, n) => fill(EN.codex32_k_of_n, &[&k.to_string(), &n.to_string()]),
+        (k, _) if m.given_kind() == Some(Given::Add) => Text::fill(EN.c32r_k_needed, &[&num(k)]),
+        (k, n) => Text::fill(EN.codex32_k_of_n, &[&num(k), &num(n)]),
     }
 }
 
-fn summary(m: &Codex32Make, card: Card) -> String {
+fn summary(m: &Codex32Make, card: Card) -> Text {
     if !m.done(card) {
-        return EN.keygen_not_yet.to_string();
+        return Text::of(EN.keygen_not_yet);
     }
     match card {
-        Card::Scheme if m.given_kind() == Some(Given::Add) => fill(
-            EN.c32r_index_value,
-            &[&char::from(m.add_at().to_ascii_uppercase()).to_string()],
-        ),
-        Card::Scheme => fill(
+        Card::Scheme if m.given_kind() == Some(Given::Add) => {
+            Text::fill(EN.c32r_index_value, &[&upper(m.add_at())])
+        }
+        Card::Scheme => Text::fill(
             EN.codex32_scheme_summary,
-            &[&m.length().chars().to_string(), &split_text(m)],
+            &[&num(m.length().chars()), &split_text(m)],
         ),
         Card::Identifier => m.identifier(),
-        Card::Entropy => way_name(m.way()).to_string(),
-        Card::Enter | Card::Sheets => EN.codex32_done.to_string(),
-        Card::Strings => fill(
+        Card::Entropy => Text::of(way_name(m.way())),
+        Card::Enter | Card::Sheets => Text::of(EN.codex32_done),
+        Card::Strings => Text::fill(
             EN.codex32_strings_n,
-            &[&m.strings().map_or(0, <[_]>::len).to_string()],
+            &[&num(m.strings().map_or(0, <[_]>::len))],
         ),
         Card::Made => m
             .fingerprint()
-            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)).to_string())
+            .map(|f| Text::of(&fp_text(faraday_bip::keys::Fingerprint(f))))
             .unwrap_or_default(),
     }
 }
@@ -289,7 +322,7 @@ pub(super) fn choice(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, 
 /// One secondary tab: its label, whether it is the one shown, whether it
 /// was seen (a check icon), and what a press does.
 struct TabItem {
-    label: String,
+    label: Text,
     on: bool,
     seen: bool,
     action: Action,
@@ -379,29 +412,22 @@ fn foot_when(
 /// share, typed on the codex32 keyboard over the one offered).
 fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let from: Vec<String> = m
+    let from: Vec<Text> = m
         .input_indices()
         .iter()
         .map(|&i| {
             if i == b's' {
-                EN.codex32_the_secret.to_string()
+                Text::of(EN.codex32_the_secret)
             } else {
-                char::from(i.to_ascii_uppercase()).to_string()
+                upper(i)
             }
         })
         .collect();
-    cy += fact(ui, x, cy, w, EN.c32r_from, &from.join(", "));
-    cy += fact(
-        ui,
-        x,
-        cy,
-        w,
-        EN.codex32_length,
-        &m.length().chars().to_string(),
-    );
+    cy += fact(ui, x, cy, w, EN.c32r_from, &joined(&from, ", "));
+    cy += fact(ui, x, cy, w, EN.codex32_length, &num(m.length().chars()));
     let open = m.work().is_none();
     if m.given_kind() == Some(Given::Add) {
-        let at = char::from(m.add_at().to_ascii_uppercase()).to_string();
+        let at = upper(m.add_at());
         cy += fact(ui, x, cy, w, EN.c32r_index, &at);
         let (line, tone) = if m.add_at_taken() {
             (EN.c32r_index_taken, Role::Error)
@@ -414,7 +440,7 @@ fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     } else {
         let (k, n) = m.k_n();
-        cy += fact(ui, x, cy, w, EN.codex32_threshold, &k.to_string());
+        cy += fact(ui, x, cy, w, EN.codex32_threshold, &num(k));
         crate::screens::stepper(
             ui,
             x,
@@ -492,7 +518,7 @@ fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (x, cy, w),
             BODY_M,
             Role::OnSurfaceVariant,
-            &fill(EN.codex32_no_translation_sheet, &[&k.to_string()]),
+            &Text::fill(EN.codex32_no_translation_sheet, &[&num(k)]),
         ) + t::GAP;
     }
     cy += foot(m, ui, x, cy, w, EN.keygen_continue);
@@ -544,7 +570,7 @@ fn identifier(app: &View, m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             },
         );
         if let Some(c) = id.chars().nth(i) {
-            let s = c.to_string();
+            let s = letter(c);
             let cw = ui.measure_as(TITLE_L.mono(), &s);
             ui.text_mid_as(
                 (bx + (b - cw) / 2.0, cy, b),
@@ -707,7 +733,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy - y
 }
 
-/// The small panel's tile row: Dice · Checksum · String (§6.4.7).
+/// The small panel's tile row: Dice · Checksum · the string (§6.4.7).
 fn panel_tiles(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let names = [
         EN.codex32_tile_dice,
@@ -720,7 +746,7 @@ fn panel_tiles(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .enumerate()
         .filter(|(i, _)| *i != 0 || m.way() == Way::Dice)
         .map(|(i, &n)| TabItem {
-            label: n.to_string(),
+            label: Text::of(n),
             on: usize::from(m.panel()) == i,
             seen: false,
             action: a(C32::Panel(i as u8)),
@@ -737,7 +763,7 @@ fn view_strip(m: &Codex32Make, work: &WorkSet, ui: &mut Ui, x: f32, y: f32, w: f
         return 0.0;
     }
     let mut items = vec![TabItem {
-        label: EN.codex32_tile_checksum.to_string(),
+        label: Text::of(EN.codex32_tile_checksum),
         on: m.view() == 0,
         seen: false,
         action: a(C32::View(0)),
@@ -754,14 +780,11 @@ fn view_strip(m: &Codex32Make, work: &WorkSet, ui: &mut Ui, x: f32, y: f32, w: f
 }
 
 /// "Share D", or "Secret" for `s`.
-pub(super) fn target_name(tg: u8) -> String {
+pub(super) fn target_name(tg: u8) -> Text {
     if tg == b's' {
-        EN.codex32_the_secret.to_string()
+        Text::of(EN.codex32_the_secret)
     } else {
-        fill(
-            EN.codex32_share_x,
-            &[&char::from(tg.to_ascii_uppercase()).to_string()],
-        )
+        Text::fill(EN.codex32_share_x, &[&upper(tg)])
     }
 }
 
@@ -1011,9 +1034,9 @@ fn one_box(
     }
     if let Some(v) = v {
         let ch = if at.hide {
-            MASK.to_string()
+            Text::of(MASK)
         } else {
-            char_of(v).to_string()
+            letter(char_of(v))
         };
         let weight = if matches!(look, Look::Checksum | Look::Fixed) {
             W::S
@@ -1066,7 +1089,7 @@ fn string_boxes_drawn(
         // Every box carries its number, centred over it, smaller than
         // the characters so the row of numbers stays quiet.
         for n in b..=to {
-            let label = n.to_string();
+            let label = num(n);
             let nw = ui.measure(bx.num, W::R, &label);
             let nx = box_x(x, b, n, s) + (s - nw) / 2.0;
             ui.text(nx, cy, bx.num, W::R, Role::OnSurfaceVariant, &label);
@@ -1076,7 +1099,7 @@ fn string_boxes_drawn(
             let bx = box_x(x, b, n, s);
             if n <= 3 {
                 one_box(ui, at.to(bx, ry, 0.0), size, None, Look::Fixed, false, None);
-                let ch = char::from(PREFIX[n - 1]).to_string();
+                let ch = letter(char::from(PREFIX[n - 1]));
                 let cw = ui.measure(size.1, W::S, &ch);
                 ui.text_mid(
                     bx + (s - cw) / 2.0,
@@ -1120,7 +1143,7 @@ fn string_boxes_drawn(
 /// One row of a worksheet as drawn: its name, its first box, its cells,
 /// how they look and what a press on each opens.
 struct Row {
-    name: String,
+    name: Text,
     start: usize,
     cells: Vec<Option<u8>>,
     look: Look,
@@ -1159,7 +1182,7 @@ fn grid(
                 y,
                 LABEL_S.regular(),
                 Role::OnSurfaceVariant,
-                &n.to_string(),
+                &num(n),
             );
         }
     });
@@ -1253,7 +1276,7 @@ fn translation(
         return 0.0;
     };
     let tg = ts.target_index();
-    let head = fill(EN.codex32_translation_to, &[&target_name(tg)]);
+    let head = Text::fill(EN.codex32_translation_to, &[&target_name(tg)]);
     let mut cy = y + ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
     let k = ts.threshold();
     let label = if ts.is_recovery() {
@@ -1268,10 +1291,9 @@ fn translation(
         n as u8,
         marks,
         |i| {
-            let input = char::from(ts.input_index(i).to_ascii_uppercase());
-            fill(
+            Text::fill(
                 EN.codex32_symbol_of,
-                &[&input.to_string(), &glyph(ts.symbol(i))],
+                &[&upper(ts.input_index(i)), &glyph(ts.symbol(i))],
             )
         },
         k,
@@ -1280,7 +1302,7 @@ fn translation(
     let chars = work.scheme().length().chars();
     let mut rows = Vec::new();
     for i in 0..k {
-        let input = char::from(ts.input_index(i).to_ascii_uppercase()).to_string();
+        let input = upper(ts.input_index(i));
         rows.push(Row {
             name: input.clone(),
             start: 4,
@@ -1298,7 +1320,7 @@ fn translation(
             j: i,
         });
         rows.push(Row {
-            name: fill(EN.codex32_row_times, &[&input]),
+            name: Text::fill(EN.codex32_row_times, &[&input]),
             start: 4,
             cells: (4..=chars).map(|b| ts.translated_cell(i, b)).collect(),
             look: Look::Table,
@@ -1353,12 +1375,12 @@ fn symbols_line(
     label: &str,
     sheet: u8,
     marks: &[(Cell, bool)],
-    each: impl Fn(usize) -> String,
+    each: impl Fn(usize) -> Text,
     k: usize,
 ) -> f32 {
     let ink = Role::OnSurfaceVariant;
     let line = ui.line_as(BODY_S);
-    let head = format!("{label}:");
+    let head = text!("{label}:");
     ui.text_as(x, y, BODY_S, ink, &head);
     let (mut cx, mut cy) = (x + ui.measure_as(BODY_S, &head) + t::GAP, y);
     for i in 0..k {
@@ -1438,40 +1460,40 @@ fn dice_review(
             break;
         };
         if m.masked() {
-            let line = fill(EN.codex32_box_masked, &[&(n + 10).to_string(), MASK]);
+            let line = Text::fill(EN.codex32_box_masked, &[&num(n + 10), MASK]);
             cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurface, &line) + t::GAP_SMALL;
             continue;
         }
-        let rows: Vec<String> = made
+        let rows: Vec<Text> = made
             .rows()
             .iter()
             .map(|r| {
                 let mark = match r.bit() {
-                    Some(b) => b.to_string(),
-                    None => "×".to_string(),
+                    Some(b) => Text::of(&num(b)),
+                    None => Text::of("×"),
                 };
-                format!("{}:{}{} {mark}", r.die + 1, r.first, r.second)
+                text!("{}:{}{} {}", r.die + 1, r.first, r.second, &*mark)
             })
             .collect();
-        let bits: String = made.bits().iter().map(u8::to_string).collect();
+        let bits = digits(&made.bits());
         let line = if made.typed() {
-            fill(
+            Text::fill(
                 EN.codex32_box_typed,
-                &[&(n + 10).to_string(), &char_of(made.value()).to_string()],
+                &[&num(n + 10), &letter(char_of(made.value()))],
             )
         } else {
-            fill(
+            Text::fill(
                 EN.codex32_box_rolled,
                 &[
-                    &(n + 10).to_string(),
-                    &rows.join("  "),
+                    &num(n + 10),
+                    &joined(&rows, "  "),
                     &bits,
-                    &char_of(made.value()).to_string(),
+                    &letter(char_of(made.value())),
                 ],
             )
         };
         let line = if m.char_rolled(s, n) {
-            fill(EN.codex32_box_rolled_by, &[&line])
+            Text::fill(EN.codex32_box_rolled_by, &[&line])
         } else {
             line
         };
@@ -1490,9 +1512,9 @@ fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let ink = Role::OnSurface;
     let hide = m.masked();
     let (typed, differs) = m.typed_back();
-    let mut whole = String::from_utf8_lossy(PREFIX).into_owned();
+    let mut whole = Text::from_utf8_lossy(PREFIX);
     if hide {
-        whole.push_str(&MASK.repeat(typed.len()));
+        whole.push_str(&masked(typed.len()));
     } else {
         whole.push_str(typed);
     }
@@ -1521,7 +1543,7 @@ fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let n = typed.chars().count();
     let cols: Vec<f32> = (0..=n)
         .map(|j| {
-            let before: String = whole.chars().take(lead + j).collect();
+            let before: Text = whole.chars().take(lead + j).collect();
             ui.measure_as(BODY_M.mono(), &faraday_ui::grouped(&before))
         })
         .collect();
@@ -1544,7 +1566,7 @@ fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (x, cy, w),
             BODY_M,
             Role::Error,
-            &fill(EN.codex32_box_differs, &[&b.to_string()]),
+            &Text::fill(EN.codex32_box_differs, &[&num(b)]),
         ) + t::GAP;
     }
     cy - y
@@ -1586,7 +1608,7 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         }
         None => {
             let g = if hide {
-                faraday_ui::grouped(&MASK.repeat(s.len()))
+                faraday_ui::grouped(&masked(s.len()))
             } else {
                 faraday_ui::grouped(s)
             };
@@ -1634,19 +1656,19 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         _ => EN.codex32_your_dice,
     };
     let entropy = if m.sample() {
-        fill(EN.c32r_entropy_sample, &[&m.identifier().to_uppercase()])
+        Text::fill(EN.c32r_entropy_sample, &[&m.identifier().to_uppercase()])
     } else if m.given_kind().is_some() {
-        EN.c32r_your_shares.to_string()
+        Text::of(EN.c32r_your_shares)
     } else {
-        entropy.to_string()
+        Text::of(entropy)
     };
     let fp = m
         .fingerprint()
-        .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)).to_string())
+        .map(|f| Text::of(&fp_text(faraday_bip::keys::Fingerprint(f))))
         .unwrap_or_default();
     let rows = [
         (EN.codex32_split, split_text(m)),
-        (EN.codex32_length, m.length().chars().to_string()),
+        (EN.codex32_length, Text::of(&num(m.length().chars()))),
         (EN.codex32_identifier, m.identifier()),
         (EN.codex32_fingerprint, fp.clone()),
         (EN.codex32_entropy, entropy),
@@ -1708,9 +1730,9 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
             .and_then(|s| s.first())
             .map(|s| {
                 if m.masked() {
-                    MASK.repeat(s.len().min(12))
+                    masked(s.len().min(12))
                 } else {
-                    String::from(&*faraday_ui::short(s.as_str()))
+                    faraday_ui::short(s.as_str())
                 }
             })
             .unwrap_or_default();
@@ -1723,7 +1745,7 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
             cy,
             w,
             EN.codex32_sets_to_try,
-            &m.sets_to_try().join(" · "),
+            &joined(&m.sets_to_try(), " · "),
         );
     }
     cy - y
@@ -1795,7 +1817,7 @@ fn step_buttons(ui: &mut Ui, x: f32, y: f32, w: f32) {
 /// The working as a page of its own on a compact window: a bar with Back
 /// to the worksheets, the cell's name, the working, and the steps to its
 /// neighbours.
-fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, lines: &[String]) {
+fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, lines: &[Text]) {
     use crate::compact::{BAR_H, M};
     // The page covers the flow: nothing under it is within reach, and its
     // pinned Continue goes.
@@ -1818,7 +1840,7 @@ fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, 
 }
 
 /// The sheet's head: "Box 23 · sum row 7".
-fn cell_name(work: &WorkSet, cell: Cell) -> String {
+fn cell_name(work: &WorkSet, cell: Cell) -> Text {
     let at = |sheet: u8, j: usize, i: u8, sum: bool| {
         work.worksheet(usize::from(sheet), Reveal::PaperForm)
             .map_or(
@@ -1827,53 +1849,49 @@ fn cell_name(work: &WorkSet, cell: Cell) -> String {
             )
     };
     match cell {
-        Cell::Given { b, .. } => fill(EN.codex32_cell_box, &[&b.to_string()]),
-        Cell::Hrp { i, .. } => fill(EN.codex32_cell_ms, &[&(usize::from(i) + 4).to_string()]),
-        Cell::Sum { sheet, j, i } => fill(
+        Cell::Given { b, .. } => Text::fill(EN.codex32_cell_box, &[&num(b)]),
+        Cell::Hrp { i, .. } => Text::fill(EN.codex32_cell_ms, &[&num(usize::from(i) + 4)]),
+        Cell::Sum { sheet, j, i } => Text::fill(
             EN.codex32_cell_sum,
             &[
-                &at(sheet, usize::from(j), i, true).to_string(),
-                &(usize::from(j) + 1).to_string(),
+                &num(at(sheet, usize::from(j), i, true)),
+                &num(usize::from(j) + 1),
             ],
         ),
-        Cell::Lookup { sheet, j, i } => fill(
+        Cell::Lookup { sheet, j, i } => Text::fill(
             EN.codex32_cell_lookup,
             &[
-                &at(sheet, usize::from(j), i, false).to_string(),
-                &(usize::from(j) + 1).to_string(),
+                &num(at(sheet, usize::from(j), i, false)),
+                &num(usize::from(j) + 1),
             ],
         ),
-        Cell::Symbol { .. } => EN.codex32_translation_symbols.to_string(),
+        Cell::Symbol { .. } => Text::of(EN.codex32_translation_symbols),
         Cell::Translated { b, .. } | Cell::TSum { b, .. } => {
-            fill(EN.codex32_cell_box, &[&b.to_string()])
+            Text::fill(EN.codex32_cell_box, &[&num(b)])
         }
     }
 }
 
 /// "Sum row 4, box 38: 3": a cell named so it can be found on paper.
-fn named(row: &str, b: usize, v: Option<u8>) -> String {
-    fill(
+fn named(row: &str, b: usize, v: Option<u8>) -> Text {
+    Text::fill(
         EN.codex32_named_cell,
-        &[
-            row,
-            &b.to_string(),
-            &v.map_or("·".to_string(), |v| char_of(v).to_string()),
-        ],
+        &[row, &num(b), &v.map_or_else(dot, |v| letter(char_of(v)))],
     )
 }
 
 /// The working of `cell` as lines: its inputs, each naming its own
 /// cell, and the rule (§7.4). Read from the kept worksheet: opening it
 /// computes nothing.
-fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<String> {
+fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<Text> {
     match cell {
         Cell::Given { sheet, b } => given_working(m, work, usize::from(sheet), usize::from(b)),
         Cell::Hrp { sheet, .. } => {
-            let row: String = work
+            let row: Text = work
                 .worksheet(usize::from(sheet), Reveal::PaperForm)
                 .map(|s| s.hrp_row().iter().map(|&v| char_of(v)).collect())
                 .unwrap_or_default();
-            vec![EN.codex32_ms_residue.to_string(), row]
+            vec![Text::of(EN.codex32_ms_residue), row]
         }
         Cell::Sum { sheet, j, i } => {
             sum_working(work, usize::from(sheet), usize::from(j), usize::from(i))
@@ -1888,19 +1906,19 @@ fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<String> {
             };
             let (i, b) = (usize::from(i), usize::from(b));
             let sym = &glyph(ts.symbol(i));
-            let input = char::from(ts.input_index(i).to_ascii_uppercase()).to_string();
-            let show = |v: Option<u8>| v.map_or("·".to_string(), |v| char_of(v).to_string());
-            let mut out = vec![fill(
+            let input = upper(ts.input_index(i));
+            let show = |v: Option<u8>| v.map_or_else(dot, |v| letter(char_of(v)));
+            let mut out = vec![Text::fill(
                 EN.codex32_translated_is,
                 &[
                     &input,
-                    &b.to_string(),
+                    &num(b),
                     &show(ts.given_cell(i, b)),
                     sym,
                     &show(ts.translated_cell(i, b)),
                 ],
             )];
-            out.push(fill(EN.codex32_wheel_set_to, &[sym]));
+            out.push(Text::fill(EN.codex32_wheel_set_to, &[sym]));
             out.extend(symbol_working(work, usize::from(sheet), i));
             out
         }
@@ -1909,18 +1927,16 @@ fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<String> {
                 return Vec::new();
             };
             let b = usize::from(b);
-            let parts: Vec<String> = (0..ts.threshold())
+            let parts: Vec<Text> = (0..ts.threshold())
                 .map(|i| {
                     ts.translated_cell(i, b)
-                        .map_or("·".to_string(), |v| char_of(v).to_string())
+                        .map_or_else(dot, |v| letter(char_of(v)))
                 })
                 .collect();
-            let sum = ts
-                .sum_cell(b)
-                .map_or("·".to_string(), |v| char_of(v).to_string());
+            let sum = ts.sum_cell(b).map_or_else(dot, |v| letter(char_of(v)));
             vec![
-                fill(EN.codex32_sum_is, &[&parts.join(" + "), &sum]),
-                EN.codex32_addition_wheel.to_string(),
+                Text::fill(EN.codex32_sum_is, &[&joined(&parts, " + "), &sum]),
+                Text::of(EN.codex32_addition_wheel),
             ]
         }
     }
@@ -1928,53 +1944,42 @@ fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<String> {
 
 /// A given box's working: the header as chosen, a data character's dice
 /// rows and path (or "Typed"), a checksum character worked from below.
-fn given_working(m: &Codex32Make, work: &WorkSet, share: usize, b: usize) -> Vec<String> {
+fn given_working(m: &Codex32Make, work: &WorkSet, share: usize, b: usize) -> Vec<Text> {
     let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
         return Vec::new();
     };
-    let v = sh
-        .symbol(b)
-        .map_or("·".to_string(), |v| char_of(v).to_string());
+    let v = sh.symbol(b).map_or_else(dot, |v| letter(char_of(v)));
     match b {
-        4 => vec![fill(EN.codex32_header_threshold, &[&v])],
-        5..=8 => vec![fill(EN.codex32_header_identifier, &[&m.identifier()])],
-        9 => vec![fill(EN.codex32_header_index, &[&v])],
+        4 => vec![Text::fill(EN.codex32_header_threshold, &[&v])],
+        5..=8 => vec![Text::fill(EN.codex32_header_identifier, &[&m.identifier()])],
+        9 => vec![Text::fill(EN.codex32_header_index, &[&v])],
         _ if b <= sh.last_data_box() => match m.made_of(share, b - 10) {
-            Some(made) if made.typed() => vec![EN.codex32_typed.to_string()],
+            Some(made) if made.typed() => vec![Text::of(EN.codex32_typed)],
             Some(made) => {
-                let mut out: Vec<String> = made
+                let mut out: Vec<Text> = made
                     .rows()
                     .iter()
                     .map(|r| {
-                        let die = (usize::from(r.die) + 1).to_string();
+                        let die = num(usize::from(r.die) + 1);
                         match r.bit() {
-                            Some(bit) => fill(
+                            Some(bit) => Text::fill(
                                 EN.codex32_die_row,
-                                &[
-                                    &die,
-                                    &r.first.to_string(),
-                                    &r.second.to_string(),
-                                    &bit.to_string(),
-                                ],
+                                &[&die, &num(r.first), &num(r.second), &num(bit)],
                             ),
-                            None => fill(
+                            None => Text::fill(
                                 EN.codex32_die_equal,
-                                &[&die, &r.first.to_string(), &r.second.to_string()],
+                                &[&die, &num(r.first), &num(r.second)],
                             ),
                         }
                     })
                     .collect();
-                let bits: String = made.bits().iter().map(u8::to_string).collect();
-                out.push(fill(
+                let bits = digits(&made.bits());
+                out.push(Text::fill(
                     EN.codex32_path_leaf,
-                    &[
-                        &bits,
-                        &made.value().to_string(),
-                        &char_of(made.value()).to_string(),
-                    ],
+                    &[&bits, &num(made.value()), &letter(char_of(made.value()))],
                 ));
                 if m.char_rolled(share, b - 10) {
-                    out.push(EN.roller_by_this_computer.to_string());
+                    out.push(Text::of(EN.roller_by_this_computer));
                 }
                 out
             }
@@ -1991,13 +1996,13 @@ fn given_working(m: &Codex32Make, work: &WorkSet, share: usize, b: usize) -> Vec
             };
             let below = sh.sum_cell(j, b - sh.sum_box(j));
             let look = sh.lookup_cell(j - 1, b - sh.lookup_box(j - 1));
-            let row = |n: usize| fill(EN.codex32_row_sum, &[&(n + 1).to_string()]);
-            let lrow = fill(EN.codex32_row_lookup, &[&j.to_string()]);
+            let row = |n: usize| Text::fill(EN.codex32_row_sum, &[&num(n + 1)]);
+            let lrow = Text::fill(EN.codex32_row_lookup, &[&num(j)]);
             vec![
                 named(&row(j), b, below),
                 named(&lrow, b, look),
-                fill(EN.codex32_this_is, &[&v]),
-                EN.codex32_worked_from_below.to_string(),
+                Text::fill(EN.codex32_this_is, &[&v]),
+                Text::of(EN.codex32_worked_from_below),
             ]
         }
     }
@@ -2005,7 +2010,7 @@ fn given_working(m: &Codex32Make, work: &WorkSet, share: usize, b: usize) -> Vec
 
 /// A sum cell's working: the cell above (or the string's character) and
 /// the lookup cell, added; the final row against what it must read.
-fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<String> {
+fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text> {
     let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
         return Vec::new();
     };
@@ -2019,7 +2024,7 @@ fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<String> 
         let w = sh.step_width(j - 1);
         let above = if i + w < sh.checksum_len() {
             named(
-                &fill(EN.codex32_row_sum, &[&j.to_string()]),
+                &Text::fill(EN.codex32_row_sum, &[&num(j)]),
                 b,
                 sh.sum_cell(j - 1, i + w),
             )
@@ -2028,26 +2033,26 @@ fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<String> 
         };
         out.push(above);
         out.push(named(
-            &fill(EN.codex32_row_lookup, &[&j.to_string()]),
+            &Text::fill(EN.codex32_row_lookup, &[&num(j)]),
             b,
             sh.lookup_cell(j - 1, i),
         ));
     }
-    out.push(fill(
+    out.push(Text::fill(
         EN.codex32_this_is,
-        &[&this.map_or("·".to_string(), |v| char_of(v).to_string())],
+        &[&this.map_or_else(dot, |v| letter(char_of(v)))],
     ));
-    out.push(EN.codex32_addition_wheel.to_string());
+    out.push(Text::of(EN.codex32_addition_wheel));
     if j == sh.steps() {
-        let want = char_of(sh.target()[i]).to_string();
+        let want = letter(char_of(sh.target()[i]).to_ascii_uppercase());
         let holds = this == Some(sh.target()[i]);
-        out.push(fill(
+        out.push(Text::fill(
             if holds {
                 EN.codex32_should_read_does
             } else {
                 EN.codex32_should_read_not
             },
-            &[&want.to_uppercase()],
+            &[&want],
         ));
     }
     out
@@ -2055,45 +2060,45 @@ fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<String> 
 
 /// A lookup cell's working: the leading pair of the sum row above that
 /// selects the checksum table's row, and that row, this cell marked.
-fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<String> {
+fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text> {
     let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
         return Vec::new();
     };
     let w = sh.step_width(j);
-    let lead: Vec<String> = (0..w)
+    let lead: Vec<Text> = (0..w)
         .map(|n| {
             sh.sum_cell(j, n)
-                .map_or("·".to_string(), |v| char_of(v).to_uppercase().to_string())
+                .map_or_else(dot, |v| char_of(v).to_uppercase().collect::<Text>())
         })
         .collect();
-    let lead = lead.join(" ");
-    let row: Vec<String> = (0..sh.checksum_len())
+    let lead = joined(&lead, " ");
+    let row: Vec<Text> = (0..sh.checksum_len())
         .map(|n| {
             let c = sh
                 .lookup_cell(j, n)
-                .map_or("·".to_string(), |v| char_of(v).to_string());
-            if n == i { format!("[{c}]") } else { c }
+                .map_or_else(dot, |v| letter(char_of(v)));
+            if n == i { text!("[{}]", &*c) } else { c }
         })
         .collect();
     vec![
-        fill(EN.codex32_sum_starts, &[&(j + 1).to_string(), &lead]),
-        fill(
+        Text::fill(EN.codex32_sum_starts, &[&num(j + 1), &lead]),
+        Text::fill(
             EN.codex32_table_row,
-            &[&lead, &(i + 1).to_string(), &sh.checksum_len().to_string()],
+            &[&lead, &num(i + 1), &num(sh.checksum_len())],
         ),
-        row.join(" "),
+        joined(&row, " "),
     ]
 }
 
 /// A translation symbol: its value and name, and the pair symbols it is
 /// the fusion of (§7.3).
-fn symbol_working(work: &WorkSet, sheet: usize, i: usize) -> Vec<String> {
+fn symbol_working(work: &WorkSet, sheet: usize, i: usize) -> Vec<Text> {
     let Some(ts) = work.live_translation(sheet, Reveal::PaperForm) else {
         return Vec::new();
     };
     let v = ts.symbol(i);
-    let mut out = vec![fill(EN.codex32_symbol_value, &[&glyph(v), &v.to_string()])];
-    let pairs: Vec<String> = (0..ts.threshold())
+    let mut out = vec![Text::fill(EN.codex32_symbol_value, &[&glyph(v), &num(v)])];
+    let pairs: Vec<Text> = (0..ts.threshold())
         .filter(|&j| j != i)
         .map(|j| glyph(ts.pair(i, j)))
         .collect();
@@ -2102,6 +2107,9 @@ fn symbol_working(work: &WorkSet, sheet: usize, i: usize) -> Vec<String> {
     } else {
         EN.codex32_pair_symbols
     };
-    out.push(fill(EN.codex32_fused_from, &[kind, &pairs.join(" × ")]));
+    out.push(Text::fill(
+        EN.codex32_fused_from,
+        &[kind, &joined(&pairs, " × ")],
+    ));
     out
 }

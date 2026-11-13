@@ -2317,7 +2317,7 @@ impl crate::Faraday {
             Ok(fp) => fp,
             Err(e) => {
                 if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-                    m.refused(String::from(&*e.text()));
+                    m.refused(faraday_text::Text::of(&e.text()));
                 }
                 return;
             }

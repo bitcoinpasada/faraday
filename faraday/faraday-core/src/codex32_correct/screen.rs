@@ -22,7 +22,8 @@ use faraday_ui::sheet::buttons;
 use faraday_ui::{Style, Ui};
 
 use super::{BoxShown, Correction, Mark, Press, Step};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
+use faraday_text::Text;
 
 /// The tick's row: **Suggest corrections**, ticked or not. A press
 /// anywhere on the row is [`Press::Tick`].
@@ -222,9 +223,9 @@ fn retype<A: Copy + PartialEq>(
         (x, y + h, width),
         BODY_M,
         Role::OnSurfaceVariant,
-        &fill(
+        &Text::fill(
             EN.codex32_correct_typed_of,
-            &[&typed.to_string(), &total.to_string()],
+            &[&Text::num(typed as u64), &Text::num(total as u64)],
         ),
     );
     if c.differs() {
@@ -263,10 +264,10 @@ fn pairs<A: Copy + PartialEq>(
     for e in c.page_edits() {
         let mut was = [0u8; 4];
         let mut now = [0u8; 4];
-        let pair = fill(
+        let pair = Text::fill(
             EN.codex32_correct_pair,
             &[
-                &e.position().to_string(),
+                &Text::num(e.position() as u64),
                 char::from(e.was()).encode_utf8(&mut was),
                 char::from(e.now()).encode_utf8(&mut now),
             ],
@@ -288,9 +289,9 @@ fn pairs<A: Copy + PartialEq>(
             (x, y + h, CORRECT_PAIR_ROW),
             BODY_M,
             Role::OnSurfaceVariant,
-            &fill(
+            &Text::fill(
                 EN.codex32_correct_page,
-                &[&(page + 1).to_string(), &pages.to_string()],
+                &[&Text::num(page as u64 + 1), &Text::num(pages as u64)],
             ),
         );
         h += CORRECT_PAIR_ROW;
@@ -324,7 +325,7 @@ fn pairs<A: Copy + PartialEq>(
 
 /// Box `n`'s number under it, the box at (x, y).
 fn box_number<A: Copy + PartialEq>(ui: &mut Ui<A>, (x, y): (f32, f32), n: usize) {
-    let num = n.to_string();
+    let num = Text::num(n as u64);
     let tw = ui.measure_as(LABEL_S.regular(), &num);
     let at = (
         x + (CORRECT_BOX - tw) / 2.0,
@@ -530,7 +531,7 @@ pub(crate) fn string_boxes<A: Copy + PartialEq>(
         );
         zeroize::Zeroize::zeroize(&mut buf);
         if differs {
-            let num = (i + 1).to_string();
+            let num = Text::num(i as u64 + 1);
             let tw = ui.measure_as(LABEL_S.regular(), &num);
             ui.text_mid_as(
                 (

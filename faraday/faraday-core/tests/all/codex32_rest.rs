@@ -111,7 +111,7 @@ fn make_the_rest_from_two_shares_typed_makes_the_published_third() {
     let m = flow(&app);
     assert_eq!(m.open(), Some(Card::Sheets), "{:?}", m.note());
     assert_eq!(strings(&app), [SHARE_D]);
-    let tabs: Vec<String> = flow(&app).tabs().into_iter().map(|t| t.0).collect();
+    let tabs: Vec<faraday_text::Text> = flow(&app).tabs().into_iter().map(|t| t.0).collect();
     assert_eq!(
         tabs.len(),
         4,

@@ -913,7 +913,7 @@ impl SharesSet {
         let (k, n) = make.k_n();
         SharesSet {
             fingerprint,
-            identifier: make.identifier(),
+            identifier: String::from(&*make.identifier()),
             k,
             n,
             length: make.length().chars(),

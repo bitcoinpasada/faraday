@@ -46,7 +46,7 @@ pub(crate) fn tour_text(m: &Codex32Make, work: &WorkSet, step: TourStep) -> Stri
             }
             let pairs: Vec<String> = (0..ts.threshold())
                 .filter(|&j| j != i)
-                .map(|j| glyph(ts.pair(i, j)))
+                .map(|j| String::from(&*glyph(ts.pair(i, j))))
                 .collect();
             if pairs.len() < 2 {
                 fill(EN.codex32_tour_recovery_one, &[&name, &sym, &val])

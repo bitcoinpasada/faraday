@@ -70,12 +70,13 @@ use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
 use faraday_entropy::booklet::{self, BOOKLET_DICE, BookletChar};
 use faraday_keys::{Held, Making, Reveal, WorkSet};
+use faraday_text::{Text, text};
 pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::fresh::roller::five::FiveRoller;
 use crate::secret_text::SecretText;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 
 /// The bech32 alphabet in value order: a symbol's character.
 pub use faraday_bip::codex32::CHARSET;
@@ -503,7 +504,7 @@ pub struct Codex32Make {
     id: [u8; 4],
     id_len: u8,
     /// Identifiers already used on this device, with where.
-    taken: Vec<([u8; 4], String)>,
+    taken: Vec<([u8; 4], Text)>,
     way: Way,
     work: Option<WorkSet>,
     /// The faces entered for the character in progress, in order.
@@ -547,14 +548,14 @@ pub struct Codex32Make {
     /// ([`Codex32Make::tab_shown`]): a tab shown again shows that place.
     tab_scrolls: Vec<((u8, u8), f32)>,
     cell: Option<Cell>,
-    strings: Option<Held<Vec<faraday_text::Text>>>,
+    strings: Option<Held<Vec<Text>>>,
     fingerprint: Option<[u8; 4]>,
     at: usize,
     qr: Option<QrMatrix>,
     qr_on: bool,
     back: Back,
     check_open: bool,
-    note: Option<String>,
+    note: Option<Text>,
     locked: bool,
     /// The sheets are masked (§6.4.6): every character, roll and working
     /// drawn as dots. Set when the flow is left backwards, and by the eye.
@@ -620,7 +621,7 @@ pub struct Codex32Make {
 impl Codex32Make {
     /// A fresh flow, on the Scheme card. `taken`: the identifiers other
     /// sets on this device carry, each with where (§6.4.5).
-    pub fn new(taken: Vec<([u8; 4], String)>) -> Codex32Make {
+    pub fn new(taken: Vec<([u8; 4], Text)>) -> Codex32Make {
         Codex32Make {
             open: Some(Card::Scheme),
             done: [false; 7],
@@ -751,7 +752,7 @@ impl Codex32Make {
     /// The flow with `k` of `n` chosen and fixed: the Scheme card closed
     /// on it, the identifier open.
     #[cfg(test)]
-    pub(crate) fn with_scheme(k: u8, n: u8, taken: Vec<([u8; 4], String)>) -> Codex32Make {
+    pub(crate) fn with_scheme(k: u8, n: u8, taken: Vec<([u8; 4], Text)>) -> Codex32Make {
         let mut m = Codex32Make::new(taken);
         m.split = Split::Other;
         m.other_k = k.clamp(2, faraday_bip::codex32::MAX_THRESHOLD);
@@ -886,7 +887,7 @@ impl Codex32Make {
     }
 
     /// The identifier typed so far, lowercase.
-    pub fn identifier(&self) -> String {
+    pub fn identifier(&self) -> Text {
         self.id[..usize::from(self.id_len)]
             .iter()
             .map(|&v| char_of(v))
@@ -1494,7 +1495,7 @@ impl Codex32Make {
     }
 
     /// The strings to write, once the set is made.
-    pub fn strings(&self) -> Option<&[faraday_text::Text]> {
+    pub fn strings(&self) -> Option<&[Text]> {
         self.strings.as_ref().map(|s| s.as_slice())
     }
 
@@ -1547,7 +1548,7 @@ impl Codex32Make {
     }
 
     /// The review's tabs, in the booklet's order (§6.5): (name, what).
-    pub fn tabs(&self) -> Vec<(String, Tab)> {
+    pub fn tabs(&self) -> Vec<(Text, Tab)> {
         let Some(w) = self.work.as_ref() else {
             return Vec::new();
         };
@@ -1555,31 +1556,31 @@ impl Codex32Make {
         let mut out = Vec::new();
         let name = |s: u8| {
             if w.scheme().threshold() == 0 || s == b's' {
-                EN.codex32_the_secret.to_string()
+                Text::of(EN.codex32_the_secret)
             } else {
-                char::from(s.to_ascii_uppercase()).to_string()
+                upper(s)
             }
         };
         // The dice are the person's; with Practice's sample in place they made
         // no string shown (§12).
         if self.rolled && !self.sample {
             for (s, &i) in initial.iter().enumerate() {
-                out.push((fill(EN.codex32_tab_dice, &[&name(i)]), Tab::Dice(s)));
+                out.push((Text::fill(EN.codex32_tab_dice, &[&name(i)]), Tab::Dice(s)));
             }
         }
         // Each input's checksum worksheet: of a set typed in, the strings
         // typed, in the verification form (§8.1 step 3).
         for (s, &i) in initial.iter().enumerate() {
-            out.push((fill(EN.codex32_tab_checksum, &[&name(i)]), Tab::Checksum(s)));
+            out.push((
+                Text::fill(EN.codex32_tab_checksum, &[&name(i)]),
+                Tab::Checksum(s),
+            ));
         }
         for (n, &t) in w.targets().iter().enumerate() {
             let label = if t == b's' {
-                EN.codex32_the_secret.to_string()
+                Text::of(EN.codex32_the_secret)
             } else {
-                fill(
-                    EN.codex32_tab_share,
-                    &[&char::from(t.to_ascii_uppercase()).to_string()],
-                )
+                Text::fill(EN.codex32_tab_share, &[&upper(t)])
             };
             out.push((label, Tab::Translation(n)));
         }
@@ -1875,7 +1876,7 @@ impl Codex32Make {
             Some(Card::Scheme) => self.finish(Card::Scheme, Card::Identifier),
             Some(Card::Identifier) => {
                 if self.id_len < 4 {
-                    self.note = Some(EN.codex32_four_characters.to_string());
+                    self.note = Some(Text::of(EN.codex32_four_characters));
                 } else if self.id_refused().is_none() {
                     self.finish(Card::Identifier, Card::Entropy);
                 }
@@ -1923,7 +1924,7 @@ impl Codex32Make {
         let making = match self.given {
             Some(Given::Add) => {
                 if self.add_at_taken() {
-                    self.note = Some(EN.c32r_index_taken.to_string());
+                    self.note = Some(Text::of(EN.c32r_index_taken));
                     return;
                 }
                 Making::Add(self.add_at)
@@ -1941,7 +1942,7 @@ impl Codex32Make {
                 self.finish(Card::Scheme, Card::Sheets);
             }
             Err(e) => {
-                self.note = Some(fill(
+                self.note = Some(Text::fill(
                     EN.codex32_refused,
                     &[&faraday_strings::bip::codex32_error(&e)],
                 ))
@@ -1979,7 +1980,7 @@ impl Codex32Make {
                 true
             }
             Err(_) => {
-                self.note = Some(EN.c32r_demo_no_sample.to_string());
+                self.note = Some(Text::of(EN.c32r_demo_no_sample));
                 false
             }
         }
@@ -2032,7 +2033,7 @@ impl Codex32Make {
                 true
             }
             Err(e) => {
-                self.note = Some(fill(
+                self.note = Some(Text::fill(
                     EN.codex32_refused,
                     &[&faraday_strings::bip::codex32_error(&e)],
                 ));
@@ -2120,7 +2121,7 @@ impl Codex32Make {
             self.roller.stop();
             let done = self.entered_all();
             self.roller.trim(done, 0);
-            self.note = Some(EN.codex32_dice_changed.to_string());
+            self.note = Some(Text::of(EN.codex32_dice_changed));
         }
         self.set_faces(n);
     }
@@ -2259,7 +2260,7 @@ impl Codex32Make {
             return;
         };
         if let Err(e) = work.push(c, share, value) {
-            self.note = Some(fill(
+            self.note = Some(Text::fill(
                 EN.codex32_refused,
                 &[&faraday_strings::bip::codex32_error(&e)],
             ));
@@ -2297,6 +2298,7 @@ impl Codex32Make {
         let Some(work) = self.work.as_ref() else {
             return;
         };
+        // Copied out of the keys crate's guard, which wipes its own on drop.
         self.strings = work.strings(Reveal::PaperForm);
         self.fingerprint = work.fingerprint(c).map(|f| f.0);
         self.at = 0;
@@ -2387,7 +2389,7 @@ impl Codex32Make {
         if symbol_of(ch).is_none() || self.back.typed.len() >= room {
             return;
         }
-        let want: Zeroizing<String> = Zeroizing::new(s[3..].to_string());
+        let want = Text::of(&s[3..]);
         self.back.typed.push(ch.to_ascii_lowercase());
         self.back.skip_ask = false;
         if self.back.typed.len() == room {
@@ -2409,7 +2411,7 @@ impl Codex32Make {
     /// made after the last.
     fn string_next(&mut self, c: &Compute) {
         if !self.back.checked.get(self.at).copied().unwrap_or(false) {
-            self.note = Some(EN.codex32_type_it_back.to_string());
+            self.note = Some(Text::of(EN.codex32_type_it_back));
             return;
         }
         let n = self.strings().map_or(0, <[_]>::len);
@@ -2453,7 +2455,7 @@ impl Codex32Make {
     }
 
     /// Lock in was refused, with why.
-    pub(crate) fn refused(&mut self, why: String) {
+    pub(crate) fn refused(&mut self, why: Text) {
         self.note = Some(why);
     }
 
@@ -2469,7 +2471,7 @@ impl Codex32Make {
     /// of `k` share indices in which every string is at least once and
     /// the initial shares are not in every subset; `ceil(n / k)` of
     /// them. Cheap.
-    pub(crate) fn sets_to_try(&self) -> Vec<String> {
+    pub(crate) fn sets_to_try(&self) -> Vec<Text> {
         let (k, n) = self.k_n();
         if k == 0 {
             return Vec::new();
@@ -2478,10 +2480,14 @@ impl Codex32Make {
         let (k, n) = (usize::from(k), usize::from(n));
         (0..n.div_ceil(k))
             .map(|t| {
-                (0..k)
-                    .map(|i| char::from(order[(t * k + i) % n].to_ascii_uppercase()).to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                let mut line = Text::new();
+                for i in 0..k {
+                    if i > 0 {
+                        line.push_str(", ");
+                    }
+                    line.push_str(&upper(order[(t * k + i) % n]));
+                }
+                line
             })
             .collect()
     }
@@ -2497,27 +2503,30 @@ pub(crate) fn taken(
     keys: &faraday_keys::Keys,
     plan: Option<&crate::plan::Answers>,
     vaults: &crate::vault::VaultArea,
-) -> Vec<([u8; 4], String)> {
+) -> Vec<([u8; 4], Text)> {
     let lower = |id: [u8; 4]| id.map(|b| b.to_ascii_lowercase());
-    let mut out: Vec<([u8; 4], String)> = form
+    let mut out: Vec<([u8; 4], Text)> = form
         .iter()
         .map(|s| {
             (
                 lower(s.identifier()),
-                EN.codex32_used_in_add_a_key.to_string(),
+                Text::of(EN.codex32_used_in_add_a_key),
             )
         })
         .collect();
     for i in 0..keys.len() {
         let Some(info) = keys.info(i) else { continue };
         if let Some(set) = &info.codex32 {
-            let line = fill(EN.codex32_used_by_key_set, &[&info.fingerprint.to_string()]);
+            let line = Text::fill(
+                EN.codex32_used_by_key_set,
+                &[&text!("{}", info.fingerprint)],
+            );
             out.push((lower(set.identifier), line));
         }
     }
     if let Some(a) = plan {
         for f in &a.codex32 {
-            out.push((lower(f.identifier), EN.codex32_used_in_plan.to_string()));
+            out.push((lower(f.identifier), Text::of(EN.codex32_used_in_plan)));
         }
     }
     for open in &vaults.open {
@@ -2526,7 +2535,10 @@ pub(crate) fn taken(
             .of(faraday_vault::records::kind::CODEX32_SHARE)
         {
             if let Some((_, id, _)) = faraday_keys::vault::codex32_share_header(r) {
-                out.push((lower(id), fill(EN.codex32_used_in_vault, &[&open.name])));
+                out.push((
+                    lower(id),
+                    Text::fill(EN.codex32_used_in_vault, &[&open.name]),
+                ));
             }
         }
         for (_, r) in vaults
@@ -2534,7 +2546,10 @@ pub(crate) fn taken(
             .of(faraday_vault::records::kind::KEY)
         {
             if let Some(id) = faraday_keys::vault::codex32_key_set_identifier(r) {
-                out.push((lower(id), fill(EN.codex32_used_in_vault, &[&open.name])));
+                out.push((
+                    lower(id),
+                    Text::fill(EN.codex32_used_in_vault, &[&open.name]),
+                ));
             }
         }
     }
@@ -2543,11 +2558,23 @@ pub(crate) fn taken(
 
 /// A lookup. The identifiers of `taken`'s list, for a set drawn rather
 /// than typed.
-pub(crate) fn taken_ids(taken: &[([u8; 4], String)]) -> Vec<[u8; 4]> {
+pub(crate) fn taken_ids(taken: &[([u8; 4], Text)]) -> Vec<[u8; 4]> {
     let mut ids: Vec<[u8; 4]> = taken.iter().map(|(id, _)| *id).collect();
     ids.sort_unstable();
     ids.dedup();
     ids
+}
+
+/// A share index as the capital letter the booklet writes it with.
+pub(crate) fn upper(index: u8) -> Text {
+    letter(char::from(index.to_ascii_uppercase()))
+}
+
+/// One character as text, built in the buffer that wipes itself.
+pub(crate) fn letter(c: char) -> Text {
+    let mut out = Text::with_room(4);
+    out.push(c);
+    out
 }
 
 /// `v` moved by `d` within `lo..=hi`.

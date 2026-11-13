@@ -423,6 +423,10 @@ faraday/faraday-core/src/scan_key.rs
 faraday/faraday-core/src/decode/check.rs
 faraday/faraday-core/src/decode/mod.rs
 faraday/faraday-core/src/silent/mod.rs
+faraday/faraday-core/src/codex32/mod.rs
+faraday/faraday-core/src/codex32/screen.rs
+faraday/faraday-core/src/codex32_correct/mod.rs
+faraday/faraday-core/src/codex32_correct/screen.rs
 core/faraday-draw/src/tokens.rs
 core/faraday-selftest/src/lib.rs
 core/faraday-crypto/src/pinned.rs

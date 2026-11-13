@@ -61,7 +61,7 @@ fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
     else {
         return (name.to_string(), None);
     };
-    let Some(whole) = crate::codex32::screen::entering(m, false) else {
+    let Some(whole) = crate::codex32::screen::entering(m, false).map(|t| String::from(&*t)) else {
         return (name.to_string(), None);
     };
     let right = ui.bar_tools_x.unwrap_or(right);
@@ -69,7 +69,7 @@ fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
     if faraday_ui::nav::bar_title_one_line(ui, &whole, right) {
         return (whole, None);
     }
-    let short = crate::codex32::screen::entering(m, true);
+    let short = crate::codex32::screen::entering(m, true).map(|t| String::from(&*t));
     if let Some(short) = short.filter(|s| faraday_ui::nav::bar_title_one_line(ui, s, right)) {
         return (short, None);
     }

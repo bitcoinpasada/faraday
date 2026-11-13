@@ -43,7 +43,8 @@ use faraday_bip::codex32::{
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
+use faraday_text::Text;
 
 pub mod screen;
 
@@ -320,25 +321,25 @@ impl Correction {
     }
 
     /// The refusal's line, if one is up: each refusal its own.
-    pub fn refusal_line(&self) -> Option<String> {
+    pub fn refusal_line(&self) -> Option<Text> {
         let Stage::Refused(r, len) = self.stage else {
             return None;
         };
         Some(match r {
-            Refusal::NotFound => EN.codex32_correct_not_found.to_string(),
+            Refusal::NotFound => Text::of(EN.codex32_correct_not_found),
             Refusal::TooManyUnreadable => {
                 let run = if len == MAX_STRING_LEN { RUN_LONG } else { RUN };
-                fill(
+                Text::fill(
                     EN.codex32_correct_too_many_unreadable,
-                    &[&CORRECTION_BOUND.to_string(), &run.to_string()],
+                    &[&Text::num(CORRECTION_BOUND as u64), &Text::num(run as u64)],
                 )
             }
-            Refusal::HeaderFixed => EN.codex32_correct_header_fixed.to_string(),
-            Refusal::Malformed(e) => fill(
+            Refusal::HeaderFixed => Text::of(EN.codex32_correct_header_fixed),
+            Refusal::Malformed(e) => Text::fill(
                 EN.codex32_correct_malformed,
                 &[&faraday_strings::bip::codex32_error(&e)],
             ),
-            Refusal::NotAString(e) => fill(
+            Refusal::NotAString(e) => Text::fill(
                 EN.codex32_correct_not_a_string,
                 &[&faraday_strings::bip::codex32_error(&e)],
             ),
