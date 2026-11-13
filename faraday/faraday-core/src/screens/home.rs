@@ -135,15 +135,15 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
         let lead = if let Some(lv) = app.import_field() {
             (
                 Glyph::Icon(Icon::Lock),
-                fill(EN.home_job_unlock, &[&lv.title.to_string()]),
-                fill(EN.home_job_read_source, &[&imp.label.to_string()]),
+                fill(EN.home_job_unlock, &[&lv.title]),
+                fill(EN.home_job_read_source, &[&imp.label]),
                 crate::boot_import::OPEN,
                 true,
             )
         } else {
             (
                 Glyph::Icon(Icon::Download),
-                fill(EN.home_job_import_source, &[&imp.label.to_string()]),
+                fill(EN.home_job_import_source, &[&imp.label]),
                 String::new(),
                 crate::boot_import::OPEN,
                 true,

@@ -260,7 +260,7 @@ fn a_wallet_with_an_imported_multisig_offers_its_own_active_pairs_and_not_the_mu
         "the import is in the wallet"
     );
     let pairs = faraday_core::core_wallet::tool::active_pairs(&w);
-    let labels: Vec<&str> = pairs.iter().map(|p| p.label.as_str()).collect();
+    let labels: Vec<&str> = pairs.iter().map(|p| p.label).collect();
     assert_eq!(
         labels,
         [
@@ -376,7 +376,7 @@ fn a_multisig_active_in_the_segwit_slot_is_named_a_script_and_taken_as_the_multi
     let w = multisig_active_in_the_segwit_slot();
     assert!(w.is_whole(), "{:?}", w.failures);
     let pairs = faraday_core::core_wallet::tool::active_pairs(&w);
-    let labels: Vec<&str> = pairs.iter().map(|p| p.label.as_str()).collect();
+    let labels: Vec<&str> = pairs.iter().map(|p| p.label).collect();
     assert_eq!(
         labels,
         [

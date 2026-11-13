@@ -11,7 +11,7 @@ pub use set::{SetAct, SetState};
 use crate::copy_check::{Typed, WordCheck};
 use crate::flow;
 use crate::secrets::{Keep, SecretOut};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, Screen};
 use faraday_bip::bip39::Language;
@@ -20,6 +20,7 @@ use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
 use faraday_keys::operations::WordsForm;
 use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
+use faraday_text::{Text, text};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
@@ -200,11 +201,11 @@ impl Target {
 
     /// What the file's name holds beside the fingerprint, the list's name
     /// after it for a key not on the English list whose value carries none.
-    fn file_for(self, lang: Language) -> String {
+    fn file_for(self, lang: Language) -> Text {
         if self.lacks_list() && lang != Language::English {
-            format!("{}-{}", self.file(), lang.name())
+            text!("{}-{}", self.file(), lang.name())
         } else {
-            self.file().to_string()
+            Text::of(self.file())
         }
     }
 
@@ -428,7 +429,7 @@ pub struct ConvertState {
     /// The Paths fact: the loaded wallets that hold the key, worked out on
     /// the press. Public text. It stays right because every way to change
     /// the wallets or keys leaves the flow, which drops it.
-    pub paths: Vec<String>,
+    pub paths: Vec<Text>,
     /// Whether the target pressed has a Settings card in this session.
     pub settings: bool,
     /// Seed XOR's parts, 2 to 4.
@@ -447,14 +448,31 @@ pub struct ConvertState {
 /// What a press gave: text, or a code with its word count. Wiped on drop.
 pub enum Value {
     /// A written form.
-    Text(Held<Zeroizing<String>>),
+    Text(Text),
     /// A SeedQR or CompactSeedQR, for a seed of this many words.
     Code(Held<Box<QrMatrix>>, usize),
     /// A result of several strings, each one a secret, numbered when shown.
-    Set(Held<Vec<Zeroizing<String>>>),
+    Set(Vec<Text>),
 }
 
 impl Value {
+    /// A written form the keys gave, copied into wiping text; the keys' own
+    /// copy is wiped as it goes.
+    pub(crate) fn held_text<T: std::ops::Deref>(held: Held<T>) -> Value
+    where
+        T::Target: AsRef<str>,
+    {
+        Value::Text(Text::of((**held).as_ref()))
+    }
+
+    /// The strings of a result of several the keys gave, copied the same way.
+    pub(crate) fn held_set<T: std::ops::Deref>(held: Held<Vec<T>>) -> Value
+    where
+        T::Target: AsRef<str>,
+    {
+        Value::Set(held.iter().map(|p| Text::of((**p).as_ref())).collect())
+    }
+
     /// The text: a borrow, no work.
     pub(crate) fn text(&self) -> Option<&str> {
         match self {
@@ -467,24 +485,24 @@ impl Value {
     /// numbered when there are several, by group and place in it where
     /// `groups` (each group's share count) has several. A copy, wiped on
     /// drop; `None` for a code.
-    pub(crate) fn display(&self, groups: &[u8]) -> Option<Zeroizing<String>> {
+    pub(crate) fn display(&self, groups: &[u8]) -> Option<Text> {
         match self {
-            Value::Text(t) => Some(Zeroizing::new(t.to_string())),
+            Value::Text(t) => Some(t.duplicate()),
             Value::Set(parts) => {
-                let mut out = Zeroizing::new(String::new());
+                let mut out = Text::new();
                 for (i, part) in parts.iter().enumerate() {
                     if i > 0 {
                         out.push('\n');
                     }
                     if groups.len() > 1 {
                         let (g, m) = place_in(groups, i);
-                        out.push_str(&fill(
+                        out.push_str(&Text::fill(
                             EN.convert_group_share,
-                            &[&g.to_string(), &m.to_string()],
+                            &[&Text::num(g as u64), &Text::num(m as u64)],
                         ));
                         out.push(' ');
                     } else if parts.len() > 1 {
-                        out.push_str(&(i + 1).to_string());
+                        out.push_str(&Text::num(i as u64 + 1));
                         out.push_str(EN.convert_part_sep);
                         out.push(' ');
                     }
@@ -573,7 +591,7 @@ pub struct ConvertArea {
     /// joined and numbered), made once by the press that opens the eye
     /// and held while it is open (F195): wiped when the eye closes, the
     /// value is dropped, the flow is left and at a lock.
-    shown_text: Option<Zeroizing<String>>,
+    shown_text: Option<Text>,
     /// Check my copy, while it is open: what is typed, wiped on drop.
     check: Option<WordCheck>,
     /// The set's share being typed, wiped on drop and with the flow.
@@ -588,7 +606,7 @@ impl ConvertArea {
     /// The text the open eye shows, held since the press: a borrow, no
     /// work. `None` with the eye closed or for a code.
     pub(crate) fn shown_text(&self) -> Option<&str> {
-        self.shown_text.as_deref().map(String::as_str)
+        self.shown_text.as_deref()
     }
 
     /// The flow's state, while it is open.
@@ -918,7 +936,7 @@ impl ConvertArea {
         target: Target,
         given: Result<Value, Convert>,
         checkable: bool,
-        (paths, settings): (Vec<String>, bool),
+        (paths, settings): (Vec<Text>, bool),
     ) {
         self.drop_result(false);
         let (held, refused) = match given {
@@ -1035,7 +1053,7 @@ pub fn shown_code(app: &Faraday) -> Option<&QrMatrix> {
 /// work.
 pub fn shown_parts(app: &Faraday) -> Option<Vec<&str>> {
     match app.tools.convert.held()? {
-        Value::Set(parts) => Some(parts.iter().map(|p| p.as_str()).collect()),
+        Value::Set(parts) => Some(parts.iter().map(Text::as_str).collect()),
         _ => None,
     }
 }
@@ -1164,71 +1182,84 @@ fn row_for(app: &Faraday, place: u8) -> Option<Target> {
 }
 
 /// What a loaded key was loaded from, as far as its facts say.
-pub fn source(key: &KeyInfo) -> String {
+pub fn source(key: &KeyInfo) -> Text {
     if let Some(n) = key.word_count {
-        return fill(EN.convert_from_words, &[&n.to_string()]);
+        return Text::fill(EN.convert_from_words, &[&Text::num(u64::from(n))]);
     }
     if let Some(set) = &key.codex32 {
-        return fill(EN.convert_from_codex32, &[&set.length.to_string()]);
+        return Text::fill(EN.convert_from_codex32, &[&Text::num(set.length as u64)]);
     }
-    EN.convert_from_seed.to_string()
+    Text::of(EN.convert_from_seed)
 }
 
 /// The Standard fact of a result: the target's, with what the settings and
 /// the key made it, as made (the settings stay as they were until the card
 /// is opened, which drops the result).
-pub(crate) fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String {
+pub(crate) fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> Text {
     match target {
-        Target::SeedXor => fill(EN.convert_xor_standard, &[&s.parts.to_string()]),
-        Target::Codex32 if s.settings && s.k > 0 => fill(
+        Target::SeedXor => Text::fill(EN.convert_xor_standard, &[&Text::num(u64::from(s.parts))]),
+        Target::Codex32 if s.settings && s.k > 0 => Text::fill(
             EN.convert_codex32_set,
-            &[&s.k.to_string(), &s.n.to_string()],
+            &[&Text::num(u64::from(s.k)), &Text::num(u64::from(s.n))],
         ),
-        Target::Codex32 => EN.convert_codex32_secret.to_string(),
+        Target::Codex32 => Text::of(EN.convert_codex32_secret),
         Target::SlipSet => slip_set_standard(s),
         // 16 bytes are 20 words, 32 bytes 33.
-        Target::SlipOne => fill(
+        Target::SlipOne => Text::fill(
             EN.convert_slip39_standard,
             &[if key.seed_len == Some(16) { "20" } else { "33" }],
         ),
-        _ => target.standard().to_string(),
+        _ => Text::of(target.standard()),
     }
 }
 
 /// The Standard fact of a SLIP-39 set of the shape in the settings.
-pub(crate) fn slip_set_standard(s: &ConvertState) -> String {
+pub(crate) fn slip_set_standard(s: &ConvertState) -> Text {
     if s.slip.len() > 1 {
-        let shapes: Vec<String> = s
+        let shapes: Vec<Text> = s
             .slip
             .iter()
-            .map(|(k, n)| fill(EN.convert_slip39_shape, &[&k.to_string(), &n.to_string()]))
+            .map(|&(k, n)| {
+                Text::fill(
+                    EN.convert_slip39_shape,
+                    &[&Text::num(u64::from(k)), &Text::num(u64::from(n))],
+                )
+            })
             .collect();
-        return fill(
+        let mut shapes_joined = Text::new();
+        for (at, shape) in shapes.iter().enumerate() {
+            if at > 0 {
+                shapes_joined.push_str(EN.convert_slip39_shape_sep);
+                shapes_joined.push(' ');
+            }
+            shapes_joined.push_str(shape);
+        }
+        return Text::fill(
             EN.convert_slip39_groups_standard,
             &[
-                &s.slip_t.to_string(),
-                &s.slip.len().to_string(),
-                &shapes.join(&format!("{} ", EN.convert_slip39_shape_sep)),
+                &Text::num(u64::from(s.slip_t)),
+                &Text::num(s.slip.len() as u64),
+                &shapes_joined,
             ],
         );
     }
     let (k, n) = s.slip.first().copied().unwrap_or((2, 3));
-    fill(
+    Text::fill(
         EN.convert_slip39_set_standard,
-        &[&k.to_string(), &n.to_string()],
+        &[&Text::num(u64::from(k)), &Text::num(u64::from(n))],
     )
 }
 
 /// The Paths fact's lines: each path the loaded wallets use from `fp`. A
 /// walk of the wallets' keys.
-fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<String> {
+fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<Text> {
     let mut out = Vec::new();
     for w in &app.session.wallets {
         for k in w.policy().keys() {
             let Some(path) = k.path().filter(|_| k.fingerprint() == Some(fp)) else {
                 continue;
             };
-            let line = fill(EN.convert_wallet_path, &[&w.name, &format!("m/{path}")]);
+            let line = Text::fill(EN.convert_wallet_path, &[&w.name, &text!("m/{path}")]);
             if !out.contains(&line) {
                 out.push(line);
             }
@@ -1238,13 +1269,13 @@ fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<String> {
 }
 
 /// The Paths fact of an aezeed: the paths LND uses on this network.
-fn aezeed_paths(app: &Faraday) -> Vec<String> {
+fn aezeed_paths(app: &Faraday) -> Vec<Text> {
     let coin = if app.session.keys.network() == faraday_bip::keys::Network::Mainnet {
         "0"
     } else {
         "1"
     };
-    vec![fill(EN.convert_aezeed_paths, &[coin, coin, coin])]
+    vec![Text::fill(EN.convert_aezeed_paths, &[coin, coin, coin])]
 }
 
 /// The press on the row at `place`: a target with settings opens its
@@ -1324,7 +1355,7 @@ fn make(app: &mut Faraday, target: Target) {
         &app.vaults,
     ));
     let why = Reveal::PaperForm;
-    let written = |form| keys.words_written(&c, i, form, why).map(Value::Text);
+    let written = |form| keys.words_written(&c, i, form, why).map(Value::held_text);
     let code = |compact| {
         let (grid, words) = keys.seedqr_written(&c, i, compact, why)?;
         if !scan_reads(app, &c, i, &grid, compact) {
@@ -1333,8 +1364,8 @@ fn make(app: &mut Faraday, target: Target) {
         Ok(Value::Code(grid, words))
     };
     let given = match target {
-        Target::SeedHex => keys.master_seed_hex(&c, i, why).map(Value::Text),
-        Target::Xprv => keys.master_xprv(&c, i, why).map(Value::Text),
+        Target::SeedHex => keys.master_seed_hex(&c, i, why).map(Value::held_text),
+        Target::Xprv => keys.master_xprv(&c, i, why).map(Value::held_text),
         Target::Words => written(WordsForm::Words),
         Target::SeedQr => code(false),
         Target::CompactSeedQr => code(true),
@@ -1343,14 +1374,14 @@ fn make(app: &mut Faraday, target: Target) {
         Target::Starts => written(WordsForm::Starts),
         Target::SeedXor => keys
             .seed_xor_converted(&c, i, parts, &random, why)
-            .map(Value::Set),
-        Target::SlipOne => keys.slip39_one_of_one(&c, i, why).map(Value::Text),
+            .map(Value::held_set),
+        Target::SlipOne => keys.slip39_one_of_one(&c, i, why).map(Value::held_text),
         Target::SlipSet => keys
             .slip39_converted(&c, i, slip_t, &groups, &random, why)
-            .map(Value::Set),
+            .map(Value::held_set),
         Target::Codex32 => keys
             .codex32_converted(&c, i, k, n, (&random, &taken_ids), why)
-            .map(Value::Set),
+            .map(Value::held_set),
     };
     let Some(info) = keys.source_info(i) else {
         return;
@@ -1426,18 +1457,18 @@ fn save(app: &mut Faraday) {
                 all.push(b'\n');
             }
             (
-                format!("{lower}-{}.txt", target.file_for(lang)),
+                text!("{lower}-{}.txt", &*target.file_for(lang)),
                 all,
                 Keep::Note,
             )
         }
         Value::Text(text) => (
-            format!("{lower}-{}.txt", target.file_for(lang)),
+            text!("{lower}-{}.txt", &*target.file_for(lang)),
             Zeroizing::new(text.as_str().as_bytes().to_vec()),
             Keep::Note,
         ),
         Value::Code(grid, words) => (
-            format!("{}-{lower}.png", target.file()),
+            text!("{}-{lower}.png", target.file()),
             crate::backup_flow::seedqr_picture(&c, grid, *words, &fp),
             Keep::None,
         ),
@@ -1633,8 +1664,8 @@ pub(crate) fn tidy(app: &mut Faraday) {
 }
 
 /// The fingerprint fact: the key's, and that it is the source's.
-fn same_as_source(fp: Fingerprint) -> String {
-    fill(EN.convert_same_as_source, &[&fp_text(fp)])
+fn same_as_source(fp: Fingerprint) -> Text {
+    Text::fill(EN.convert_same_as_source, &[&fp_text(fp)])
 }
 
 /// The flow's steps, plugged into Back, Forward and the choices that

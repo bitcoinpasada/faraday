@@ -9,7 +9,8 @@ use faraday_crypto::work::Compute;
 use faraday_ots::HashOp;
 
 use super::{Faraday, FileGiven, advance, hex, hex_text_digest, judge, ostep, st};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
+use faraday_text::Text;
 
 /// The size of a file from which its hash is a job. A release build on a
 /// desktop PC hashes 1 MiB under RIPEMD-160, the slowest of the three, in
@@ -21,14 +22,14 @@ pub(crate) const JOB_BYTES: usize = 3 << 20;
 
 /// A file to hash under one operation, owned.
 pub(crate) struct HashWork {
-    name: String,
+    name: Text,
     bytes: Arc<Zeroizing<Vec<u8>>>,
     op: HashOp,
 }
 
 /// A file hashed.
 pub(crate) struct HashDone {
-    name: String,
+    name: Text,
     bytes: Arc<Zeroizing<Vec<u8>>>,
     op: HashOp,
     digest: Vec<u8>,
@@ -53,7 +54,7 @@ impl HashWork {
 pub(super) fn start(
     app: &mut Faraday,
     c: &Compute,
-    name: String,
+    name: Text,
     bytes: Arc<Zeroizing<Vec<u8>>>,
     op: HashOp,
 ) {
@@ -112,7 +113,7 @@ fn done_with(app: &mut Faraday, c: &Compute, done: HashDone) {
             given.bytes = None;
             given.digest_only = true;
             given.from_text = true;
-            given.name = fill(EN.ots_digest_from, &[&given.name]);
+            given.name = Text::fill(EN.ots_digest_from, &[&given.name]);
             s.hash_text = hex(digest);
         }
     }

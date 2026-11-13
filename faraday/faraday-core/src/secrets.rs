@@ -150,9 +150,14 @@ pub enum Ack {
 
 impl SecretOut {
     /// A secret of one form that goes into a vault as a note.
-    pub fn new(name: String, bytes: zeroize::Zeroizing<Vec<u8>>, what: &str, gives: &str) -> Self {
+    pub fn new(
+        name: impl AsRef<str>,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+        what: &str,
+        gives: &str,
+    ) -> Self {
         Self {
-            name,
+            name: name.as_ref().to_string(),
             bytes,
             what: what.to_string(),
             gives: gives.to_string(),

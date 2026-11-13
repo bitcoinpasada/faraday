@@ -301,10 +301,10 @@ fn before_import_the_sheet_lists_names_and_sizes_and_nothing_is_read() {
         );
         let f = file(&view, name);
         assert!(f.chosen && f.enabled, "{name} is not ticked");
-        assert!(f.line.contains("by its name"), "{name}: {}", f.line);
+        assert!(f.line.contains("by its name"), "{name}: {}", &*f.line);
         if bytes.len() < 1000 {
             let size = format!("{}\u{a0}B", bytes.len());
-            assert!(f.line.contains(&size), "{name}: {}", f.line);
+            assert!(f.line.contains(&size), "{name}: {}", &*f.line);
         }
     }
     assert!(file(&view, "vault.kdbx").line.starts_with("Vault"));
@@ -485,8 +485,8 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
     // The vault's Unlock, on the sheet, typing going to it.
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("vault.kdbx".into())
+        app.import_field().map(|v| v.name.as_str().to_owned()),
+        Some("vault.kdbx".to_owned())
     );
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Submit)));
@@ -696,8 +696,8 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     files.push(("spare.kdbx".into(), spare_vault()));
     let mut app = imported_with(&files);
     assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("vault.kdbx".into())
+        app.import_field().map(|v| v.name.as_str().to_owned()),
+        Some("vault.kdbx".to_owned())
     );
     type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
@@ -718,8 +718,8 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     // The second, on the sheet in its turn; Cancel shows no Load sheet.
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("spare.kdbx".into())
+        app.import_field().map(|v| v.name.as_str().to_owned()),
+        Some("spare.kdbx".to_owned())
     );
     app.press(Action::Import(I::Cancel));
     assert!(app.import().is_none());
@@ -1377,8 +1377,8 @@ fn a_vault_under_a_short_name_is_counted_and_imported_as_a_vault() {
     pull(&mut app);
     assert!(inbox_names(&app).contains(&"VAULT~1.FVL".to_string()));
     assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("VAULT~1.FVL".into())
+        app.import_field().map(|v| v.name.as_str().to_owned()),
+        Some("VAULT~1.FVL".to_owned())
     );
 }
 

@@ -72,9 +72,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 fn summary(s: &OtsState, step: u8) -> String {
     match step {
-        ostep::PROOF => s.proof.as_ref().map(|g| g.name.clone()),
-        ostep::FILE => s.file.as_ref().map(|g| g.name.clone()),
-        ostep::HEADER => s.header.as_ref().map(|g| g.name.clone()),
+        ostep::PROOF => s.proof.as_ref().map(|g| String::from(&*g.name)),
+        ostep::FILE => s.file.as_ref().map(|g| String::from(&*g.name)),
+        ostep::HEADER => s.header.as_ref().map(|g| String::from(&*g.name)),
         _ => s.shown.as_ref().map(|r| {
             match r.verdict {
                 Verdict::Committed => EN.ots_committed,
@@ -136,19 +136,23 @@ fn files(app: &View, s: &OtsState, ui: &mut Ui, (x, y, w): (f32, f32, f32), whic
             0 => (
                 is_proof(&item.bytes),
                 O::Proof(i),
-                s.proof.as_ref().is_some_and(|g| g.name == item.name),
+                s.proof
+                    .as_ref()
+                    .is_some_and(|g| g.name == item.name.as_str()),
             ),
             1 => (
                 !is_proof(&item.bytes),
                 O::File(i),
                 s.file
                     .as_ref()
-                    .is_some_and(|g| !g.digest_only && g.name == item.name),
+                    .is_some_and(|g| !g.digest_only && g.name == item.name.as_str()),
             ),
             _ => (
                 super::header_bytes(&item.bytes, true).is_some(),
                 O::Header(i),
-                s.header.as_ref().is_some_and(|g| g.name == item.name),
+                s.header
+                    .as_ref()
+                    .is_some_and(|g| g.name == item.name.as_str()),
             ),
         };
         if !fits {

@@ -7,7 +7,7 @@
 //! this area gives them the files and says what they found. The drawing
 //! is `screen.rs`.
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::{Action, Faraday, Screen, flow};
 use faraday_crypto::work::Compute;
 use faraday_ots::{Error, HashOp, Header, Network, Outcome, Proof};
@@ -16,6 +16,7 @@ use zeroize::Zeroizing;
 
 mod hash;
 use faraday_shell_api::Key;
+use faraday_text::{Text, text};
 pub(crate) use hash::{HashDone, HashWork, hashed};
 
 pub(crate) mod screen;
@@ -69,7 +70,7 @@ pub enum OtsAction {
 /// A value taken from a file, a field or a scan, and where it came from.
 pub(crate) struct Given<T> {
     /// The file's name, or Typed or Scanned.
-    pub name: String,
+    pub name: Text,
     /// The value.
     pub value: T,
 }
@@ -79,7 +80,7 @@ pub(crate) struct Given<T> {
 /// whole file was given.
 pub(crate) struct FileGiven {
     /// The file's name, or Typed.
-    pub name: String,
+    pub name: Text,
     /// The digests worked out or given so far.
     pub digests: Vec<(HashOp, Vec<u8>)>,
     /// The whole file, kept to hash it under another operation when a proof
@@ -123,10 +124,10 @@ pub(crate) struct Shown {
     /// The verdict.
     pub verdict: Verdict,
     /// The block's hash, height and time of a counted path.
-    pub facts: Vec<(String, String)>,
+    pub facts: Vec<(Text, Text)>,
     /// One line per attestation that is not counted, up to [`MAX_LINES`],
     /// then a line saying how many more there are.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
 }
 
 /// The most attestation lines the Result lists.
@@ -140,11 +141,11 @@ pub struct OtsState {
     pub(crate) proof: Option<Given<Proof>>,
     pub(crate) file: Option<FileGiven>,
     pub(crate) header: Option<Given<Header>>,
-    pub(crate) hash_text: String,
-    pub(crate) header_text: String,
+    pub(crate) hash_text: Text,
+    pub(crate) header_text: Text,
     pub(crate) typing: Option<Field>,
     /// Why a card refused what it was given.
-    pub(crate) refused: [Option<String>; 3],
+    pub(crate) refused: [Option<Text>; 3],
     pub(crate) shown: Option<Shown>,
 }
 
@@ -157,8 +158,8 @@ impl OtsState {
             proof: None,
             file: None,
             header: None,
-            hash_text: String::default(),
-            header_text: String::default(),
+            hash_text: Text::default(),
+            header_text: Text::default(),
             typing: None,
             refused: [None, None, None],
             shown: None,
@@ -281,9 +282,11 @@ fn network_of(n: faraday_bip::keys::Network) -> Network {
 }
 
 /// One refusal of the reader, as one plain line.
-pub(crate) fn error_text(e: Error) -> String {
-    match e {
-        Error::NotVersion1(v) => return fill(EN.ots_err_version, &[&v.to_string()]),
+pub(crate) fn error_text(e: Error) -> Text {
+    Text::of(match e {
+        Error::NotVersion1(v) => {
+            return Text::fill(EN.ots_err_version, &[&Text::num(u64::from(v))]);
+        }
         Error::ProofTooLarge => EN.ots_err_proof_too_large,
         Error::TooManyEntries => EN.ots_err_too_many_entries,
         Error::TooMuchWork => EN.ots_err_too_much_work,
@@ -308,8 +311,7 @@ pub(crate) fn error_text(e: Error) -> String {
         Error::HeaderTarget => EN.ots_err_header_target,
         Error::HeaderTargetTooEasy => EN.ots_err_header_easy,
         Error::HeaderWork => EN.ots_err_header_work,
-    }
-    .to_string()
+    })
 }
 
 /// The name of a hash, as the proof's operations name it.
@@ -322,16 +324,16 @@ fn op_name(op: HashOp) -> &'static str {
     }
 }
 
-fn hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+fn hex(b: &[u8]) -> Text {
+    faraday_crypto::hex::encode_string(b)
 }
 
 /// A time in seconds since 1970 as `2015-04-12 09:30 UTC`.
-fn time_text(t: u32) -> String {
+fn time_text(t: u32) -> Text {
     let days = i64::from(t / 86_400);
     let (y, m, d) = faraday_crypto::date::civil_from_days(days);
     let s = t % 86_400;
-    format!(
+    text!(
         "{y:04}-{m:02}-{d:02} {:02}:{:02} UTC",
         s / 3600,
         s % 3600 / 60
@@ -345,7 +347,7 @@ fn shown(c: &Compute, proof: &Proof, file: &FileGiven, header: &Header) -> Shown
         return Shown {
             verdict: Verdict::NeedsFile,
             facts: vec![],
-            lines: vec![fill(EN.ots_needs_file, &[op_name(proof.file_op())])],
+            lines: vec![Text::fill(EN.ots_needs_file, &[op_name(proof.file_op())])],
         };
     };
     let report = proof.verify(c, digest, header);
@@ -374,9 +376,12 @@ fn shown(c: &Compute, proof: &Proof, file: &FileGiven, header: &Header) -> Shown
         } = o
             && facts.is_empty()
         {
-            facts.push((EN.ots_block_hash.to_string(), hex(block_hash)));
-            facts.push((EN.ots_height.to_string(), height.to_string()));
-            facts.push((EN.ots_time.to_string(), time_text(*time)));
+            facts.push((Text::of(EN.ots_block_hash), hex(block_hash)));
+            facts.push((
+                Text::of(EN.ots_height),
+                Text::of(&Text::num(u64::from(*height))),
+            ));
+            facts.push((Text::of(EN.ots_time), time_text(*time)));
             continue;
         }
         if lines.len() >= MAX_LINES {
@@ -385,29 +390,35 @@ fn shown(c: &Compute, proof: &Proof, file: &FileGiven, header: &Header) -> Shown
         }
         lines.push(match o {
             Outcome::BitcoinMatched { height, .. } => {
-                fill(EN.ots_counted_also, &[&height.to_string()])
+                Text::fill(EN.ots_counted_also, &[&Text::num(u64::from(*height))])
             }
-            Outcome::BitcoinMismatch { height } => fill(EN.ots_mismatch, &[&height.to_string()]),
+            Outcome::BitcoinMismatch { height } => {
+                Text::fill(EN.ots_mismatch, &[&Text::num(u64::from(*height))])
+            }
             Outcome::BitcoinNotCounted {
                 height,
                 op,
                 reaches_header,
-            } => fill(
+            } => Text::fill(
                 if *reaches_header {
                     EN.ots_not_counted_reaches
                 } else {
                     EN.ots_not_counted
                 },
-                &[&height.to_string(), op_name(*op)],
+                &[&Text::num(u64::from(*height)), op_name(*op)],
             ),
-            Outcome::Pending { uri } => fill(EN.ots_pending, &[uri]),
-            Outcome::Litecoin { height } => fill(EN.ots_litecoin, &[&height.to_string()]),
-            Outcome::Ethereum { height } => fill(EN.ots_ethereum, &[&height.to_string()]),
-            Outcome::Unknown { tag } => fill(EN.ots_unknown, &[&hex(tag)]),
+            Outcome::Pending { uri } => Text::fill(EN.ots_pending, &[uri]),
+            Outcome::Litecoin { height } => {
+                Text::fill(EN.ots_litecoin, &[&Text::num(u64::from(*height))])
+            }
+            Outcome::Ethereum { height } => {
+                Text::fill(EN.ots_ethereum, &[&Text::num(u64::from(*height))])
+            }
+            Outcome::Unknown { tag } => Text::fill(EN.ots_unknown, &[&hex(tag)]),
         });
     }
     if more > 0 {
-        lines.push(fill(EN.ots_more, &[&more.to_string()]));
+        lines.push(Text::fill(EN.ots_more, &[&Text::num(more as u64)]));
     }
     Shown {
         verdict: if report.committed() {
@@ -441,18 +452,18 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
         OtsAction::Proof(i) => {
             let c = app.compute();
             let Some(item) = app.inbox.get(i) else { return };
-            let (name, bytes) = (item.name.clone(), item.bytes.clone());
+            let (name, bytes) = (Text::of(&item.name), item.bytes.clone());
             take_proof(app, &c, name, &bytes);
         }
         OtsAction::File(i) => {
             let c = app.compute();
             let Some(item) = app.inbox.get(i) else { return };
-            let (name, bytes) = (item.name.clone(), item.bytes.clone());
+            let (name, bytes) = (Text::of(&item.name), item.bytes.clone());
             take_file(app, &c, name, bytes);
         }
         OtsAction::Header(i) => {
             let Some(item) = app.inbox.get(i) else { return };
-            let (name, bytes) = (item.name.clone(), item.bytes.clone());
+            let (name, bytes) = (Text::of(&item.name), item.bytes.clone());
             take_header(app, name, &bytes);
         }
         OtsAction::Focus(f) => {
@@ -490,7 +501,7 @@ fn advance(s: &mut OtsState, from: u8) {
 }
 
 /// Costs the proof's parse (`Proof::parse`).
-fn take_proof(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
+fn take_proof(app: &mut Faraday, c: &Compute, name: Text, bytes: &[u8]) {
     let parsed = Proof::parse(c, bytes);
     let Some(s) = st(app) else { return };
     match parsed {
@@ -513,7 +524,7 @@ fn take_proof(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
 /// Costs a pass over the file under the hash the proof names, or the
 /// SHA-256 until a proof is in (`hash::start`): a file over
 /// [`JOB_BYTES`] is hashed on the worker.
-fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: Zeroizing<Vec<u8>>) {
+fn take_file(app: &mut Faraday, c: &Compute, name: Text, bytes: Zeroizing<Vec<u8>>) {
     let op = st(app)
         .and_then(|s| s.proof.as_ref().map(|p| p.value.file_op()))
         .unwrap_or(HashOp::Sha256);
@@ -532,7 +543,7 @@ fn hex_text_digest(bytes: &[u8]) -> Option<Vec<u8>> {
 
 /// Takes a header from a file, a scan or the sample; false when it is
 /// none. Older typed header text is cleared, taken or refused.
-pub(crate) fn take_header(app: &mut Faraday, name: String, bytes: &[u8]) -> bool {
+pub(crate) fn take_header(app: &mut Faraday, name: Text, bytes: &[u8]) -> bool {
     if let Some(s) = st(app) {
         s.header_text.clear();
     }
@@ -541,11 +552,11 @@ pub(crate) fn take_header(app: &mut Faraday, name: String, bytes: &[u8]) -> bool
 
 /// [`take_header`], with `raw_ok` for 80 bytes taken as they are (not for
 /// typed text).
-fn take_header_as(app: &mut Faraday, name: String, bytes: &[u8], raw_ok: bool) -> bool {
+fn take_header_as(app: &mut Faraday, name: Text, bytes: &[u8], raw_ok: bool) -> bool {
     let network = network_of(app.session.network());
     let parsed = match header_bytes(bytes, raw_ok) {
         Some(b) => Header::parse(network, &b).map_err(error_text),
-        None => Err(EN.ots_not_a_header.to_string()),
+        None => Err(Text::of(EN.ots_not_a_header)),
     };
     let c = app.compute();
     let Some(s) = st(app) else { return false };
@@ -572,33 +583,30 @@ fn take_typed(app: &mut Faraday, f: Field) {
     let c = app.compute();
     let Some(s) = st(app) else { return };
     match f {
-        Field::Hash => {
-            let text = s.hash_text.as_str().to_string();
-            match unhex(&text, 32) {
-                Some(d) => {
-                    s.file = Some(FileGiven {
-                        name: EN.ots_typed.to_string(),
-                        digests: vec![(HashOp::Sha256, d)],
-                        bytes: None,
-                        digest_only: true,
-                        from_text: false,
-                    });
-                    s.refused[1] = None;
-                    judge(app, &c);
-                    if let Some(s) = st(app) {
-                        advance(s, ostep::FILE);
-                    }
-                }
-                None => {
-                    s.file = None;
-                    s.shown = None;
-                    s.refused[1] = Some(EN.ots_not_a_hash.to_string());
+        Field::Hash => match unhex(&s.hash_text, 32) {
+            Some(d) => {
+                s.file = Some(FileGiven {
+                    name: Text::of(EN.ots_typed),
+                    digests: vec![(HashOp::Sha256, d)],
+                    bytes: None,
+                    digest_only: true,
+                    from_text: false,
+                });
+                s.refused[1] = None;
+                judge(app, &c);
+                if let Some(s) = st(app) {
+                    advance(s, ostep::FILE);
                 }
             }
-        }
+            None => {
+                s.file = None;
+                s.shown = None;
+                s.refused[1] = Some(Text::of(EN.ots_not_a_hash));
+            }
+        },
         Field::Header => {
-            let text = s.header_text.as_str().to_string();
-            take_header_as(app, EN.ots_typed.to_string(), text.as_bytes(), false);
+            let text = s.header_text.duplicate();
+            take_header_as(app, Text::of(EN.ots_typed), text.as_bytes(), false);
         }
     }
 }
@@ -638,20 +646,20 @@ pub(crate) fn scanned(app: &mut Faraday, bytes: &[u8]) -> bool {
         }
         _ => return false,
     }
-    if take_header(app, EN.ots_scanned.to_string(), bytes) {
+    if take_header(app, Text::of(EN.ots_scanned), bytes) {
         app.scan_close();
     } else {
         let why = st(app)
             .and_then(|s| s.refused[2].take())
-            .unwrap_or_else(|| EN.ots_not_a_header.to_string());
-        app.scan_say(why);
+            .unwrap_or_else(|| Text::of(EN.ots_not_a_header));
+        app.scan_say(&why);
     }
     true
 }
 
 /// A refused hash scan: says why on the scanner and drops the file or hash
 /// held and the Result, as a refused typed hash does.
-fn refuse_hash(app: &mut Faraday, why: String) {
+fn refuse_hash(app: &mut Faraday, why: &str) {
     if let Some(s) = st(app) {
         s.file = None;
         s.hash_text.clear();
@@ -668,19 +676,19 @@ fn refuse_hash(app: &mut Faraday, why: String) {
 fn hash_scanned(app: &mut Faraday, bytes: &[u8]) {
     let c = app.compute();
     if let Some(why) = crate::scan_key::secret_code(&c, bytes) {
-        refuse_hash(app, why.to_string());
+        refuse_hash(app, why);
         return;
     }
     let text = std::str::from_utf8(bytes).ok().map(str::trim);
     let digest = text.filter(|t| t.len() == 64).and_then(|t| unhex(t, 32));
     let (Some(text), Some(d)) = (text, digest) else {
-        refuse_hash(app, EN.ots_not_a_hash.to_string());
+        refuse_hash(app, EN.ots_not_a_hash);
         return;
     };
     let Some(s) = st(app) else { return };
-    s.hash_text = text.to_string();
+    s.hash_text = Text::of(text);
     s.file = Some(FileGiven {
-        name: EN.ots_scanned.to_string(),
+        name: Text::of(EN.ots_scanned),
         digests: vec![(HashOp::Sha256, d)],
         bytes: None,
         digest_only: true,
@@ -713,7 +721,7 @@ const FIELD_CHARS: usize = 400;
 
 /// An edit of a field drops what the field gave before and the Result
 /// with it.
-fn edit(s: &mut OtsState, f: Field, change: impl FnOnce(&mut String)) {
+fn edit(s: &mut OtsState, f: Field, change: impl FnOnce(&mut Text)) {
     match f {
         Field::Hash => {
             change(&mut s.hash_text);
@@ -793,16 +801,16 @@ pub(crate) fn open_sample(app: &mut Faraday) {
     take_proof(
         app,
         &c,
-        EN.sample_ots_proof_file.to_string(),
+        Text::of(EN.sample_ots_proof_file),
         inputs.timestamp_proof,
     );
     if let Some(s) = st(app) {
-        s.hash_text = inputs.timestamp_hash.to_string();
+        s.hash_text = Text::of(inputs.timestamp_hash);
     }
     take_typed(app, Field::Hash);
     take_header(
         app,
-        EN.sample_ots_header_file.to_string(),
+        Text::of(EN.sample_ots_header_file),
         inputs.timestamp_header.as_bytes(),
     );
 }

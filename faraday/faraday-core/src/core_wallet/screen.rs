@@ -81,7 +81,7 @@ fn verdict_line(v: Verdict) -> &'static str {
 
 fn summary(s: &CoreWalletState, step: u8) -> String {
     match step {
-        cstep::FILE => s.file.clone(),
+        cstep::FILE => s.file.as_ref().map(|f| String::from(&**f)),
         _ => s
             .shown
             .as_ref()
@@ -196,7 +196,7 @@ fn result(s: &CoreWalletState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         ) + GAP;
     }
     for (i, pair) in s.take.iter().enumerate() {
-        cy += pair_row(ui, (x, y + cy, w), &pair.label, A::Take(i)) + GAP;
+        cy += pair_row(ui, (x, y + cy, w), pair.label, A::Take(i)) + GAP;
     }
     for d in &r.descriptors {
         cy += ui.wrap_as(

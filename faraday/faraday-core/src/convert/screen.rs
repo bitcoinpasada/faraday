@@ -111,7 +111,7 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
                 .map_or(EN.convert_not_chosen, set_act_name)
                 .to_string(),
             (cstep::SETTINGS, _) if x.act == Some(SetAct::Rotate) => {
-                crate::convert::slip_set_standard(s)
+                String::from(&*crate::convert::slip_set_standard(s))
             }
             _ => String::new(),
         };
@@ -129,7 +129,7 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
             })
             .to_string(),
         cstep::SETTINGS => match (s.target, key_of(app, s)) {
-            (Some(target), Some(k)) => standard_text(s, k, target),
+            (Some(target), Some(k)) => String::from(&*standard_text(s, k, target)),
             _ => String::new(),
         },
         _ => String::new(),

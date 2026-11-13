@@ -18,7 +18,7 @@ use text_ask::Ask;
 pub use text_ask::TextSeedAnswer;
 
 use crate::strings::EN;
-use crate::strings::fill;
+use faraday_text::{Text, text};
 use std::collections::BTreeSet;
 
 use crate::vault::{Focus, VaultAction};
@@ -62,20 +62,20 @@ pub enum Staged {
     Vault,
     /// A picture whose QR codes were read: what they held, or why
     /// nothing came of them.
-    Codes(String),
+    Codes(Text),
     /// A kind Faraday does not read: listed, not read.
     NotRead,
     /// The read failed, or the stick went before it was answered.
-    Failed(String),
+    Failed(Text),
     /// A vault file this computer has not the memory to read: what it needs.
-    Short(String),
+    Short(Text),
 }
 
 /// One file of the boot stick.
 #[derive(Debug, Clone)]
 pub struct StagedFile {
     /// Its name on the stick.
-    pub name: String,
+    pub name: Text,
     /// Its size on the stick.
     pub size: u64,
     /// Whether the listing found it a vault: named `.kdbx`, or told by
@@ -91,9 +91,9 @@ pub struct StagedFile {
 #[derive(Default)]
 pub struct ImportState {
     /// The stick's label.
-    pub label: String,
+    pub label: Text,
     /// The stick's id, as the shell gave it.
-    pub stick: String,
+    pub stick: Text,
     /// Every file on it but the settings file, in the stick's order.
     pub files: Vec<StagedFile>,
     /// Import was pressed: the ticked files were asked for, and the
@@ -105,10 +105,10 @@ pub struct ImportState {
     /// The file each item came from, by place in `files`.
     item_file: Vec<usize>,
     /// Files the person unticked, by name: every other is ticked.
-    skip: BTreeSet<String>,
+    skip: BTreeSet<Text>,
     /// Once imported: the vaults brought in, by file name, each waiting
     /// for its Unlock or Cancel in turn. `None` while the sheet picks.
-    pub unlocking: Option<Vec<String>>,
+    pub unlocking: Option<Vec<Text>>,
     /// How many wallets were loaded before Import: the landing after the
     /// last unlock counts every wallet the import brought.
     pub(crate) wallets_before: usize,
@@ -118,9 +118,9 @@ pub struct ImportState {
 #[derive(Debug, Clone)]
 pub struct ImportFile {
     /// Its name on the stick.
-    pub name: String,
+    pub name: Text,
     /// What it is, or what its codes held.
-    pub line: String,
+    pub line: Text,
     /// Ticked for the import.
     pub chosen: bool,
     /// It can be ticked: Import not yet pressed, and a kind Faraday
@@ -134,10 +134,10 @@ pub struct ImportVault {
     /// Its place in [`Faraday::vault_files`].
     pub file: usize,
     /// Its file's name.
-    pub name: String,
+    pub name: Text,
     /// The name it goes by: what it was called when last seen open, or
     /// its file's name.
-    pub title: String,
+    pub title: Text,
     /// Its size.
     pub len: usize,
 }
@@ -172,19 +172,18 @@ impl ImportCount {
     /// The sheet's one line: before Import, "1 vault · 2 PSBTs · 4 other
     /// files, by their names", leaving out what there is none of; after,
     /// "3 of 7 files read".
-    pub fn line(&self) -> String {
+    pub fn line(&self) -> Text {
         if self.asked > 0 {
-            return fill(
+            return Text::fill(
                 EN.boot_import_files_read,
                 &[
-                    &(self.asked - self.reading).to_string(),
-                    &self.asked.to_string(),
+                    &Text::num((self.asked - self.reading) as u64),
+                    &Text::num(self.asked as u64),
                 ],
             );
         }
-        let n =
-            |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
-        let parts: Vec<String> = [
+        let n = |k: usize, one: &str, many: &str| text!("{k} {}", if k == 1 { one } else { many });
+        let parts: Vec<Text> = [
             (
                 self.vaults,
                 EN.boot_import_vault_inline,
@@ -202,18 +201,25 @@ impl ImportCount {
         .map(|(k, one, many)| n(k, one, many))
         .collect();
         if parts.is_empty() {
-            EN.boot_import_no_files.to_string()
+            Text::of(EN.boot_import_no_files)
         } else {
-            fill(EN.boot_import_by_names, &[&parts.join(" · ")])
+            let mut joined = Text::new();
+            for (i, p) in parts.iter().enumerate() {
+                if i > 0 {
+                    joined.push_str(" · ");
+                }
+                joined.push_str(p);
+            }
+            Text::fill(EN.boot_import_by_names, &[&joined])
         }
     }
 }
 
 /// A file's extension, lower case: all the sheet knows of what it is
 /// before Import.
-fn ext(name: &str) -> String {
+fn ext(name: &str) -> Text {
     name.rsplit_once('.')
-        .map(|(_, e)| e.to_ascii_lowercase())
+        .map(|(_, e)| e.chars().map(|c| c.to_ascii_lowercase()).collect())
         .unwrap_or_default()
 }
 
@@ -223,18 +229,18 @@ fn is_png(name: &str) -> bool {
 }
 
 /// `name`, or `stem-2.ext`, … when `taken` says it is in use.
-fn free_name(name: &str, taken: impl Fn(&str) -> bool) -> String {
+fn free_name(name: &str, taken: impl Fn(&str) -> bool) -> Text {
     if !taken(name) {
-        return name.to_string();
+        return Text::of(name);
     }
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
         _ => (name, ""),
     };
     (2..1000)
-        .map(|n| format!("{stem}-{n}{ext}"))
+        .map(|n| text!("{stem}-{n}{ext}"))
         .find(|n| !taken(n))
-        .unwrap_or_else(|| name.to_string())
+        .unwrap_or_else(|| Text::of(name))
 }
 
 impl ImportState {
@@ -267,7 +273,7 @@ pub(crate) struct BootImportArea {
     state: Option<ImportState>,
     /// Files the boot import brought in with the stick still in, by name:
     /// the seeds they hold load once it is pulled (F60).
-    load_after: BTreeSet<String>,
+    load_after: BTreeSet<Text>,
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     under_input: bool,
@@ -314,7 +320,7 @@ impl BootImportArea {
     }
 
     /// Notes `names` as files whose seeds load once the stick is pulled.
-    pub(crate) fn hold_for_pull(&mut self, names: impl IntoIterator<Item = String>) {
+    pub(crate) fn hold_for_pull(&mut self, names: impl IntoIterator<Item = Text>) {
         self.load_after.extend(names);
     }
 
@@ -324,7 +330,7 @@ impl BootImportArea {
     }
 
     /// Takes the files that wait for the pull.
-    pub(crate) fn take_load_after(&mut self) -> BTreeSet<String> {
+    pub(crate) fn take_load_after(&mut self) -> BTreeSet<Text> {
         std::mem::take(&mut self.load_after)
     }
 }
@@ -333,8 +339,10 @@ impl Faraday {
     /// What a picture's codes held, read as the camera reads them.
     pub(crate) fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
         if payloads.is_empty() {
-            self.visit
-                .log_push((fill(EN.qr_read_copied_no_qr, &[name]), true));
+            self.visit.log_push((
+                Text::fill(EN.qr_read_copied_no_qr, &[name]).as_str().into(),
+                true,
+            ));
         } else {
             // An image is read as the camera reads: a UR in parts can
             // span several images.
@@ -360,7 +368,10 @@ impl Faraday {
                     break;
                 }
             }
-            let note = self.camera.scan().and_then(|s| s.note.clone());
+            let note = self
+                .camera
+                .scan()
+                .and_then(|s| s.note.as_deref().map(Text::of));
             let seed_last = self
                 .inbox
                 .last()
@@ -368,22 +379,20 @@ impl Faraday {
             if self.inbox.len() > before + seeds && !seed_last {
                 // Named after the picture it came from.
                 let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
-                let taken: Vec<String> = self.inbox.iter().map(|i| i.name.clone()).collect();
+                let taken: Vec<_> = self.inbox.iter().map(|i| i.name.clone()).collect();
                 let got = self.inbox.name_last_after(stem, &taken).unwrap_or_default();
                 self.save_boxes();
-                self.toast(&fill(EN.qr_read_is_in_files, &[&got.to_string()]));
+                self.toast(&Text::fill(EN.qr_read_is_in_files, &[&got]));
                 self.visit.log_push((
-                    fill(EN.qr_read_read_into_files, &[name, &got.to_string()]),
+                    Text::fill(EN.qr_read_read_into_files, &[name, &got])
+                        .as_str()
+                        .into(),
                     true,
                 ));
             } else if seeds == 0 && asked == 0 {
-                self.visit.log_push((
-                    format!(
-                        "{name}: {}",
-                        note.as_ref().map_or(EN.qr_read_read, |n| n.as_str())
-                    ),
-                    true,
-                ));
+                let said = note.unwrap_or_else(|| Text::of(EN.qr_read_read));
+                self.visit
+                    .log_push((text!("{name}: {}", &*said).as_str().into(), true));
             }
         }
     }
@@ -428,17 +437,19 @@ impl Faraday {
             return false;
         };
         let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
-        let got = self.free_inbox_name(&format!("{stem}-words.txt"));
+        let got = self.free_inbox_name(&text!("{stem}-words.txt"));
         self.inbox
             .push(Item::new(&c, &got, words.as_bytes().to_vec()));
         self.visit.load_after_add(got.clone());
         self.save_boxes();
         *seeds += 1;
         self.visit.log_push((
-            fill(
+            Text::fill(
                 EN.qr_read_a_seedqr_copied,
                 &[name, &got, self.medium.noun()],
-            ),
+            )
+            .as_str()
+            .into(),
             true,
         ));
         true
@@ -447,7 +458,7 @@ impl Faraday {
     /// Holds a code for the sheet, which comes up over what is showing.
     pub(crate) fn text_seed_ask(&mut self, name: &str, code: Vec<u8>, file: Option<usize>) {
         self.import.text.queue.push_back(Ask {
-            name: name.to_string(),
+            name: Text::of(name),
             code: zeroize::Zeroizing::new(code),
             file,
         });
@@ -473,7 +484,7 @@ impl Faraday {
         match (words, ask.file) {
             (Some(words), None) => {
                 let old_stem = ask.name.rsplit_once('.').map_or(&*ask.name, |(s, _)| s);
-                let got = self.free_inbox_name(&format!("{old_stem}-words.txt"));
+                let got = self.free_inbox_name(&text!("{old_stem}-words.txt"));
                 self.inbox
                     .push(Item::new(&c, &got, words.as_bytes().to_vec()));
                 // The picture is held as the words it now is.
@@ -489,27 +500,33 @@ impl Faraday {
                 }
                 self.save_boxes();
                 self.visit.log_push((
-                    fill(
+                    Text::fill(
                         EN.qr_read_a_seedqr_copied,
                         &[&ask.name, &got, self.medium.noun()],
-                    ),
+                    )
+                    .as_str()
+                    .into(),
                     true,
                 ));
             }
             (Some(words), Some(f)) => {
                 if let Some(imp) = self.import.state.as_mut() {
-                    let item =
-                        Item::new(&c, &format!("{stem}-words.txt"), words.as_bytes().to_vec());
+                    let item = Item::new(&c, &text!("{stem}-words.txt"), words.as_bytes().to_vec());
                     let mut item = item;
-                    let taken: Vec<String> = imp.items.iter().map(|i| i.name.clone()).collect();
-                    item.name = free_name(&item.name, |n| taken.iter().any(|t| t == n));
+                    let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
+                    item.name = free_name(&item.name, |n| taken.contains(&n))
+                        .as_str()
+                        .into();
                     imp.items.push(item);
                     imp.item_file.push(f);
                 }
             }
-            (None, None) => self
-                .visit
-                .log_push((fill(EN.qr_read_text_left, &[&ask.name]), true)),
+            (None, None) => self.visit.log_push((
+                Text::fill(EN.qr_read_text_left, &[&ask.name])
+                    .as_str()
+                    .into(),
+                true,
+            )),
             (None, Some(_)) => {}
         }
         if self.import.text.queue.is_empty() {
@@ -532,8 +549,8 @@ impl Faraday {
     /// gave, none of them read (F130), and the sheet comes up over Home.
     pub(crate) fn import_start(&mut self, boot: &StickInfo) {
         let mut state = ImportState {
-            label: boot.label.clone(),
-            stick: boot.id.clone(),
+            label: Text::of(&boot.label),
+            stick: Text::of(&boot.id),
             ..ImportState::default()
         };
         for (name, size) in &boot.files {
@@ -541,7 +558,7 @@ impl Faraday {
                 continue;
             }
             state.files.push(StagedFile {
-                name: name.clone(),
+                name: Text::of(name),
                 size: *size,
                 vault: boot.is_vault(name),
                 state: if stick_kind(name).is_some() {
@@ -588,7 +605,7 @@ impl Faraday {
         let Some(imp) = self.import.state.as_mut().filter(|i| !i.asked) else {
             return false;
         };
-        imp.stick = b.id.clone();
+        imp.stick = Text::of(&b.id);
         self.import_sheet_up();
         true
     }
@@ -597,7 +614,7 @@ impl Faraday {
     fn import_stick_in(&self) -> bool {
         self.import
             .state()
-            .is_some_and(|i| self.stick.iter().any(|s| s.id == i.stick))
+            .is_some_and(|i| self.stick.iter().any(|s| i.stick == s.id.as_str()))
     }
 
     /// Takes the storage answers the import asked for and hands every
@@ -615,7 +632,7 @@ impl Faraday {
                 if let Some(imp) = self.import.state.as_mut()
                     && let Some(f) = imp.waiting(&name)
                 {
-                    imp.files[f].state = Staged::Failed(reason);
+                    imp.files[f].state = Staged::Failed(Text::of(&reason));
                 }
             }
             // The picture's bytes are not kept: what its codes hold is
@@ -633,7 +650,7 @@ impl Faraday {
     /// picture's codes, whose answer names none).
     fn import_waits(&self, stick: Option<&str>, name: &str) -> bool {
         self.import.state().is_some_and(|i| {
-            stick.is_none_or(|s| s == i.stick)
+            stick.is_none_or(|s| i.stick == s)
                 && i.waiting(name).is_some()
                 && (stick.is_some() || is_png(name))
         })
@@ -667,7 +684,7 @@ impl Faraday {
         };
         let stem = stem(name);
         let mut got: Vec<Item> = Vec::new();
-        let mut note: Option<String> = None;
+        let mut note: Option<Text> = None;
         // Read as the visit reads an image: as the camera reads, with a
         // reading of its own so a transfer in parts started elsewhere is
         // not mixed in.
@@ -684,7 +701,7 @@ impl Faraday {
                 zeroize::Zeroize::zeroize(&mut p);
                 got.push(Item::new(
                     &c,
-                    &format!("{stem}-words.txt"),
+                    &text!("{stem}-words.txt"),
                     words.as_bytes().to_vec(),
                 ));
                 continue;
@@ -692,11 +709,11 @@ impl Faraday {
             if let Some((named, ext, mut data)) = self.read_code(zeroize::Zeroizing::new(p)) {
                 let item = Item::new(
                     &c,
-                    &named.map_or_else(|| format!("{stem}.{ext}"), |n| String::from(&*n)),
+                    &named.map_or_else(|| text!("{stem}.{ext}"), |n| Text::of(&n)),
                     std::mem::take(&mut *data),
                 );
                 if item.kind == FileKind::Other {
-                    note = Some(EN.boot_import_not_a_psbt.into());
+                    note = Some(Text::of(EN.boot_import_not_a_psbt));
                 } else {
                     got.push(item);
                 }
@@ -704,39 +721,44 @@ impl Faraday {
         }
         let left = self.camera.swap(scan);
         if got.is_empty() && note.is_none() {
-            note = left.and_then(|s| s.note.as_ref().map(|n| n.as_str().into()));
+            note = left.and_then(|s| s.note.clone());
         }
         let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         let said = if codes == 0 {
-            EN.boot_import_no_qr_code.to_string()
+            Text::of(EN.boot_import_no_qr_code)
         } else if got.is_empty() {
-            note.unwrap_or_else(|| EN.boot_import_its_codes.to_string())
+            note.unwrap_or_else(|| Text::of(EN.boot_import_its_codes))
         } else {
-            let kinds: Vec<String> = got
-                .iter()
-                .map(|i| crate::screens::kind_name(i.kind).to_string())
-                .collect();
+            let mut kinds = Text::new();
+            for (k, i) in got.iter().enumerate() {
+                if k > 0 {
+                    kinds.push_str(", ");
+                }
+                kinds.push_str(crate::screens::kind_name(i.kind));
+            }
             let n = codes;
-            fill(
+            Text::fill(
                 EN.boot_import_qr,
                 &[
-                    &n.to_string(),
+                    &Text::num(n as u64),
                     (if n == 1 {
                         EN.boot_import_code
                     } else {
                         EN.boot_import_codes
                     }),
-                    &kinds.join(", ").to_string(),
+                    &kinds,
                 ],
             )
         };
         imp.files[f].state = Staged::Codes(said);
         for item in got {
-            let taken: Vec<String> = imp.items.iter().map(|i| i.name.clone()).collect();
+            let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
             let mut item = item;
-            item.name = free_name(&item.name, |n| taken.iter().any(|t| t == n));
+            item.name = free_name(&item.name, |n| taken.contains(&n))
+                .as_str()
+                .into();
             imp.items.push(item);
             imp.item_file.push(f);
         }
@@ -756,7 +778,7 @@ impl Faraday {
         };
         for f in imp.files.iter_mut() {
             if f.state == Staged::Reading {
-                f.state = Staged::Failed(fill(EN.boot_import_the_was, &[noun]));
+                f.state = Staged::Failed(Text::fill(EN.boot_import_the_was, &[noun]));
             }
         }
         self.import_if_read();
@@ -845,7 +867,7 @@ impl Faraday {
         if let Some(names) = &imp.unlocking {
             let files = self.vault_files();
             for name in names {
-                let Some(i) = files.iter().position(|f| f.name == *name) else {
+                let Some(i) = files.iter().position(|f| *name == f.name.as_str()) else {
                     continue;
                 };
                 let vf = &files[i];
@@ -854,10 +876,10 @@ impl Faraday {
                 }
                 view.vaults.push(ImportVault {
                     file: i,
-                    name: vf.name.clone(),
+                    name: Text::of(&vf.name),
                     title: self
                         .vault_summary(vf)
-                        .map_or_else(|| vf.name.clone(), |s| s.name.clone()),
+                        .map_or_else(|| Text::of(&vf.name), |s| Text::of(&s.name)),
                     len: vf.len,
                 });
             }
@@ -870,7 +892,7 @@ impl Faraday {
                 // are not listed.
                 Staged::Listed | Staged::NotRead if imp.asked => continue,
                 // What it is by its name alone: nothing of it is read.
-                Staged::Listed => fill(
+                Staged::Listed => Text::fill(
                     EN.boot_import_by_name,
                     &[
                         if file.vault {
@@ -881,11 +903,13 @@ impl Faraday {
                         &size,
                     ],
                 ),
-                Staged::NotRead => fill(EN.boot_import_not_a_kind, &[&size]),
-                Staged::Reading => fill(EN.boot_import_being_read, &[&size]),
-                Staged::Failed(why) | Staged::Short(why) => fill(EN.boot_import_not_read, &[why]),
-                Staged::Vault => fill(EN.boot_import_vault_n, &[&size]),
-                Staged::Codes(said) => said.clone(),
+                Staged::NotRead => Text::fill(EN.boot_import_not_a_kind, &[&size]),
+                Staged::Reading => Text::fill(EN.boot_import_being_read, &[&size]),
+                Staged::Failed(why) | Staged::Short(why) => {
+                    Text::fill(EN.boot_import_not_read, &[why])
+                }
+                Staged::Vault => Text::fill(EN.boot_import_vault_n, &[&size]),
+                Staged::Codes(said) => said.duplicate(),
                 Staged::Read => {
                     let kind = imp
                         .item_file
@@ -893,12 +917,12 @@ impl Faraday {
                         .position(|g| *g == f)
                         .and_then(|k| imp.items.get(k))
                         .map_or(FileKind::Other, |i| i.kind);
-                    crate::screens::kind_line(kind, file.size as usize)
+                    Text::of(&crate::screens::kind_line(kind, file.size as usize))
                 }
             };
             let enabled = !imp.asked && file.state == Staged::Listed;
             view.files.push(ImportFile {
-                name: file.name.clone(),
+                name: file.name.duplicate(),
                 line,
                 chosen: imp.asked || (enabled && !imp.skip.contains(&file.name)),
                 enabled,
@@ -1007,12 +1031,13 @@ impl Faraday {
             // A vault file this computer has not the memory for is not
             // read; the sheet says what it needs, as the Visit list does.
             if let Some(why) = self.vaults.read_refusal(f.vault, f.size) {
-                f.state = Staged::Short(why);
+                f.state = Staged::Short(Text::of(&why));
                 continue;
             }
             f.state = Staged::Reading;
-            let (stick, name) = (imp.stick.clone(), f.name.clone());
-            self.out.storage_out.push_back(if is_png(&name) {
+            let stick = imp.stick.as_str().into();
+            let name = f.name.as_str().into();
+            self.out.storage_out.push_back(if is_png(&f.name) {
                 StorageCommand::ReadQr { stick, name }
             } else {
                 StorageCommand::Read { stick, name }
@@ -1045,7 +1070,7 @@ impl Faraday {
         {
             return;
         }
-        let label = imp.label.clone();
+        let label = imp.label.duplicate();
         let failed = imp
             .files
             .iter()
@@ -1054,19 +1079,19 @@ impl Faraday {
         // The end says what memory a vault file needs when any file was not
         // read for memory, whatever the other files failed for.
         let why = imp.files.iter().find_map(|f| match &f.state {
-            Staged::Short(why) => Some(why.clone()),
+            Staged::Short(why) => Some(why.duplicate()),
             _ => None,
         });
         let items = std::mem::take(&mut imp.items);
         let item_file = std::mem::take(&mut imp.item_file);
         let files: BTreeSet<usize> = item_file.iter().copied().collect();
-        let mut vaults: Vec<String> = Vec::new();
+        let mut vaults: Vec<Text> = Vec::new();
         let mut plain: Vec<Item> = Vec::new();
         // A file whose name Files holds with other bytes comes in beside
         // it under a numbered name, said in the toast; one Files holds
         // with the same bytes is read for what it gives, not kept twice.
-        let mut renamed: Vec<String> = Vec::new();
-        let mut already: BTreeSet<String> = BTreeSet::new();
+        let mut renamed: Vec<Text> = Vec::new();
+        let mut already: BTreeSet<Text> = BTreeSet::new();
         for mut item in items {
             let again = self
                 .inbox
@@ -1078,23 +1103,23 @@ impl Faraday {
                 } else {
                     let name = self.free_inbox_name(&item.name);
                     if name != item.name {
-                        renamed.push(name.clone());
+                        renamed.push(Text::of(&name));
                     }
                     item.name = name;
                 }
                 self.vault_read_from(&item.name, &item.bytes, &label);
-                vaults.push(item.name.clone());
+                vaults.push(Text::of(&item.name));
                 self.inbox.push(item);
             } else if again {
-                already.insert(item.name.clone());
+                already.insert(Text::of(&item.name));
                 plain.push(item);
             } else {
                 let taken = |n: &str| plain.iter().any(|p: &Item| p.name == n);
                 let name = free_name(&self.free_inbox_name(&item.name), taken);
-                if name != item.name {
-                    renamed.push(name.clone());
+                if name != item.name.as_str() {
+                    renamed.push(name.duplicate());
                 }
-                item.name = name;
+                item.name = name.as_str().into();
                 plain.push(item);
             }
         }
@@ -1107,10 +1132,13 @@ impl Faraday {
         self.load_found_in(&plain, &BTreeSet::new(), &|_| true);
         if !self.may_load_keys() {
             self.import
-                .hold_for_pull(plain.iter().map(|i| i.name.clone()));
+                .hold_for_pull(plain.iter().map(|i| Text::of(&i.name)));
         }
-        self.inbox
-            .extend(plain.into_iter().filter(|i| !already.contains(&i.name)));
+        self.inbox.extend(
+            plain
+                .into_iter()
+                .filter(|i| !already.contains(i.name.as_str())),
+        );
         self.save_boxes();
         self.refresh_spend();
         self.wallets.set_wallet(0);
@@ -1145,11 +1173,11 @@ impl Faraday {
         keys: usize,
         files: usize,
         (failed, why): (usize, Option<&str>),
-        renamed: &[String],
+        renamed: &[Text],
     ) {
         let count =
-            |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
-        let mut said = fill(
+            |n: usize, one: &str, many: &str| text!("{n} {}", if n == 1 { one } else { many });
+        let mut said = Text::fill(
             EN.boot_import_imported,
             &[
                 &count(
@@ -1162,16 +1190,24 @@ impl Faraday {
             ],
         );
         if failed > 0 {
-            said = format!(
-                "{said} · {}",
-                fill(EN.boot_import_n_not_read, &[&failed.to_string()])
+            said = text!(
+                "{} · {}",
+                &*said,
+                Text::fill(EN.boot_import_n_not_read, &[&Text::num(failed as u64)]).as_str()
             );
             if let Some(why) = why {
-                said = format!("{said} · {why}");
+                said = text!("{} · {why}", &*said);
             }
         }
         if !renamed.is_empty() {
-            said = fill(EN.boot_import_kept_as, &[&said, &renamed.join(", ")]);
+            let mut names = Text::new();
+            for (i, n) in renamed.iter().enumerate() {
+                if i > 0 {
+                    names.push_str(", ");
+                }
+                names.push_str(n);
+            }
+            said = Text::fill(EN.boot_import_kept_as, &[&said, &names]);
         }
         self.toast(&said);
     }
@@ -1187,7 +1223,7 @@ impl Faraday {
         let items: Vec<Item> = self
             .inbox
             .iter()
-            .filter(|i| names.contains(&i.name))
+            .filter(|i| names.contains(i.name.as_str()))
             .map(Item::duplicate)
             .collect();
         let (_, keys) = self.load_found_in(&items, &BTreeSet::new(), &|_| true);

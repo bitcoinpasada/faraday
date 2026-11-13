@@ -8,12 +8,13 @@
 
 use super::{Fault, OutputType, Passphrase, Refusal, Wallet, is_wallet_file, read_file};
 use crate::secret_text::SecretText;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::{Action, Faraday, Screen, flow};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
+use faraday_text::{Text, text};
 
 /// The cards, in order.
 pub mod cstep {
@@ -66,19 +67,19 @@ pub(crate) enum Verdict {
 /// A descriptor of the wallet, as text.
 pub(crate) struct DescriptorText {
     /// The descriptor as Core lists it.
-    pub text: String,
+    pub text: Text,
     /// Active receive, active change and the range, one line each.
-    pub notes: Vec<String>,
+    pub notes: Vec<Text>,
 }
 
 /// An active receive descriptor of one output type and the active change
 /// descriptor of the same type, as Take sends them.
 pub struct TakePair {
     /// The output type, as the Result names it.
-    pub label: String,
+    pub label: &'static str,
     /// Receive first, then change when there is one; each as Core lists
     /// it, the checksum cut.
-    pub texts: Vec<String>,
+    pub texts: Vec<Text>,
 }
 
 /// The Result card's text, made once when the file is read.
@@ -86,16 +87,16 @@ pub(crate) struct Shown {
     /// The verdict.
     pub verdict: Verdict,
     /// Label and value, one pair each.
-    pub facts: Vec<(String, String)>,
+    pub facts: Vec<(Text, Text)>,
     /// Each descriptor.
     pub descriptors: Vec<DescriptorText>,
     /// The `combo()` descriptors Core keeps and Faraday does not take, as
     /// stored, up to [`MAX_LINES`], then a line saying how many more; the
     /// label first. Empty when there are none.
-    pub kept: Vec<String>,
+    pub kept: Vec<Text>,
     /// The failed records, up to [`MAX_LINES`], then a line saying how
     /// many more.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
     /// Said of a whole wallet that has no active receive descriptor.
     pub no_active: bool,
 }
@@ -106,18 +107,18 @@ pub struct CoreWalletState {
     pub(crate) scroll: flow::Scroll,
     pub(crate) back: Screen,
     /// The name of the file chosen.
-    pub(crate) file: Option<String>,
+    pub(crate) file: Option<Text>,
     pub(crate) passphrase: TextBox,
     pub(crate) typing: bool,
     pub(crate) revealed: bool,
     /// Why the file was refused.
-    pub(crate) refused: Option<String>,
+    pub(crate) refused: Option<Text>,
     pub(crate) shown: Option<Shown>,
     /// The active pairs, for Take to Wallets; empty when the file is not
     /// whole.
     pub(crate) take: Vec<TakePair>,
     /// Why Take refuses: the reader's first line, for a file not whole.
-    take_refused: Option<String>,
+    take_refused: Option<Text>,
 }
 
 impl CoreWalletState {
@@ -227,35 +228,37 @@ fn fault_text(f: Fault) -> &'static str {
 }
 
 /// Bitcoin Core's client version number as `27.0.0`.
-fn version_text(v: u32) -> String {
-    format!("{}.{}.{}", v / 10_000, v / 100 % 100, v % 100)
+fn version_text(v: u32) -> Text {
+    text!("{}.{}.{}", v / 10_000, v / 100 % 100, v % 100)
 }
 
 /// `name (count)` for each, joined.
-fn counted(list: &[(impl AsRef<str>, usize)]) -> String {
-    list.iter()
-        .map(|(n, k)| format!("{} ({k})", n.as_ref()))
-        .collect::<Vec<_>>()
-        .join(", ")
+fn counted(list: &[(impl AsRef<str>, usize)]) -> Text {
+    let mut out = Text::new();
+    for (i, (n, k)) in list.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&text!("{} ({k})", n.as_ref()));
+    }
+    out
 }
 
 /// The label of the kept `combo()` descriptors, then each one's text and a
 /// line for those past [`MAX_LINES`]; nothing when there are none.
-fn kept_lines(w: &Wallet) -> Vec<String> {
+fn kept_lines(w: &Wallet) -> Vec<Text> {
     if w.kept.is_empty() {
         return Vec::new();
     }
-    let mut out = vec![fill(EN.core_wallet_kept, &[&w.kept.len().to_string()])];
-    out.extend(
-        w.kept
-            .iter()
-            .take(MAX_LINES)
-            .map(|k| String::from(&*k.text)),
-    );
+    let mut out = vec![Text::fill(
+        EN.core_wallet_kept,
+        &[&Text::num(w.kept.len() as u64)],
+    )];
+    out.extend(w.kept.iter().take(MAX_LINES).map(|k| k.text.duplicate()));
     if w.kept.len() > MAX_LINES {
-        out.push(fill(
+        out.push(Text::fill(
             EN.core_wallet_kept_more,
-            &[&(w.kept.len() - MAX_LINES).to_string()],
+            &[&Text::num((w.kept.len() - MAX_LINES) as u64)],
         ));
     }
     out
@@ -268,27 +271,24 @@ fn descriptor_texts(w: &Wallet) -> Vec<DescriptorText> {
         .map(|d| {
             let mut notes = Vec::new();
             for a in w.active.iter().filter(|a| a.id == d.id) {
-                notes.push(
-                    if a.internal {
-                        EN.core_wallet_active_change
-                    } else {
-                        EN.core_wallet_active_receive
-                    }
-                    .to_string(),
-                );
+                notes.push(Text::of(if a.internal {
+                    EN.core_wallet_active_change
+                } else {
+                    EN.core_wallet_active_receive
+                }));
             }
             if let Some((first, last)) = d.range {
-                notes.push(fill(
+                notes.push(Text::fill(
                     EN.core_wallet_range,
                     &[
-                        &first.to_string(),
-                        &last.to_string(),
-                        &d.next_index.to_string(),
+                        &Text::int(i64::from(first)),
+                        &Text::int(i64::from(last)),
+                        &Text::int(i64::from(d.next_index)),
                     ],
                 ));
             }
             DescriptorText {
-                text: String::from(&*d.listed),
+                text: d.listed.duplicate(),
                 notes,
             }
         })
@@ -330,13 +330,13 @@ pub fn active_pairs(w: &Wallet) -> Vec<TakePair> {
             .iter()
             .find(|a| a.internal == internal && a.output_type == t)?;
         let d = w.descriptor(&a.id)?;
-        Some(d.listed.split('#').next().unwrap_or(&d.listed).to_string())
+        Some(Text::of(d.listed.split('#').next().unwrap_or(&d.listed)))
     };
     TYPE_ORDER
         .into_iter()
         .filter_map(|t| {
             let receive = text(false, t)?;
-            let label = descriptor_label(&receive).to_string();
+            let label = descriptor_label(&receive);
             let mut texts = vec![receive];
             texts.extend(text(true, t));
             Some(TakePair { label, texts })
@@ -345,52 +345,53 @@ pub fn active_pairs(w: &Wallet) -> Vec<TakePair> {
 }
 
 /// The Result's text, worked out once from the wallet read.
-fn shown(w: &Wallet) -> (Shown, (Vec<TakePair>, Option<String>)) {
+fn shown(w: &Wallet) -> (Shown, (Vec<TakePair>, Option<Text>)) {
     let verdict = match (w.passphrase, w.is_whole()) {
         (Passphrase::Wrong, _) => Verdict::WrongPassphrase,
         (_, true) => Verdict::Whole,
         (_, false) => Verdict::NotWhole,
     };
     let mut facts = vec![(
-        EN.core_wallet_network.to_string(),
-        crate::wallet::network_name(w.network).to_string(),
+        Text::of(EN.core_wallet_network),
+        Text::of(crate::wallet::network_name(w.network)),
     )];
     if let Some(v) = w.version {
-        facts.push((EN.core_wallet_version.to_string(), version_text(v)));
+        facts.push((Text::of(EN.core_wallet_version), version_text(v)));
     }
     facts.push((
-        EN.core_wallet_encryption.to_string(),
+        Text::of(EN.core_wallet_encryption),
         match w.master_keys.first() {
-            Some(m) => fill(EN.core_wallet_encrypted, &[&m.rounds.to_string()]),
-            None => EN.core_wallet_not_encrypted.to_string(),
+            Some(m) => Text::fill(EN.core_wallet_encrypted, &[&Text::num(u64::from(m.rounds))]),
+            None => Text::of(EN.core_wallet_not_encrypted),
         },
     ));
     facts.push((
-        EN.core_wallet_keys.to_string(),
+        Text::of(EN.core_wallet_keys),
         match w.passphrase {
-            Passphrase::NotNeeded | Passphrase::Opened => {
-                fill(EN.core_wallet_keys_checked, &[&w.keys_passed.to_string()])
-            }
-            Passphrase::NotGiven => fill(
-                EN.core_wallet_keys_not_checked,
-                &[&w.keys_unchecked.to_string()],
+            Passphrase::NotNeeded | Passphrase::Opened => Text::fill(
+                EN.core_wallet_keys_checked,
+                &[&Text::num(w.keys_passed as u64)],
             ),
-            Passphrase::Wrong => fill(
+            Passphrase::NotGiven => Text::fill(
+                EN.core_wallet_keys_not_checked,
+                &[&Text::num(w.keys_unchecked as u64)],
+            ),
+            Passphrase::Wrong => Text::fill(
                 EN.core_wallet_keys_not_opened,
-                &[&w.keys_unchecked.to_string()],
+                &[&Text::num(w.keys_unchecked as u64)],
             ),
         },
     ));
     facts.push((
-        EN.core_wallet_labels.to_string(),
-        w.labels.len().to_string(),
+        Text::of(EN.core_wallet_labels),
+        Text::of(&Text::num(w.labels.len() as u64)),
     ));
     facts.push((
-        EN.core_wallet_transactions.to_string(),
-        w.tx_count.to_string(),
+        Text::of(EN.core_wallet_transactions),
+        Text::of(&Text::num(w.tx_count as u64)),
     ));
     if !w.unread.is_empty() {
-        facts.push((EN.core_wallet_not_read.to_string(), counted(&w.unread)));
+        facts.push((Text::of(EN.core_wallet_not_read), counted(&w.unread)));
     }
     if !w.unknown.is_empty() || w.unknown_more > 0 {
         let mut line = counted(&w.unknown);
@@ -398,26 +399,26 @@ fn shown(w: &Wallet) -> (Shown, (Vec<TakePair>, Option<String>)) {
             if !line.is_empty() {
                 line.push_str(", ");
             }
-            line.push_str(&fill(
+            line.push_str(&Text::fill(
                 EN.core_wallet_unknown_more,
-                &[&w.unknown_more.to_string()],
+                &[&Text::num(w.unknown_more as u64)],
             ));
         }
-        facts.push((EN.core_wallet_unknown.to_string(), line));
+        facts.push((Text::of(EN.core_wallet_unknown), line));
     }
     let descriptors = descriptor_texts(w);
     let kept = kept_lines(w);
-    let mut lines: Vec<String> = w
+    let mut lines: Vec<Text> = w
         .failures
         .iter()
         .take(MAX_LINES)
-        .map(|f| fill(EN.core_wallet_failed, &[&f.record, fault_text(f.fault)]))
+        .map(|f| Text::fill(EN.core_wallet_failed, &[&f.record, fault_text(f.fault)]))
         .collect();
     let failed_more = (w.failures.len() + w.failures_more).saturating_sub(MAX_LINES);
     if failed_more > 0 {
-        lines.push(fill(
+        lines.push(Text::fill(
             EN.core_wallet_failed_more,
-            &[&failed_more.to_string()],
+            &[&Text::num(failed_more as u64)],
         ));
     }
     // A file that is not whole gives nothing to Wallets. Otherwise each
@@ -429,12 +430,11 @@ fn shown(w: &Wallet) -> (Shown, (Vec<TakePair>, Option<String>)) {
     let take = if w.is_whole() {
         (active_pairs(w), None)
     } else {
-        let line = lines.first().cloned().unwrap_or_else(|| {
-            match verdict {
+        let line = lines.first().map(Text::duplicate).unwrap_or_else(|| {
+            Text::of(match verdict {
                 Verdict::WrongPassphrase => EN.core_wallet_wrong_passphrase,
                 _ => EN.core_wallet_not_whole,
-            }
-            .to_string()
+            })
         });
         (Vec::new(), Some(line))
     };
@@ -455,7 +455,7 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
     match action {
         CoreWalletAction::Open => open(app, None),
         CoreWalletAction::OpenFile(i) => {
-            let name = app.inbox.get(i).map(|item| item.name.clone());
+            let name = app.inbox.get(i).map(|item| Text::of(&item.name));
             open(app, name);
         }
         CoreWalletAction::Step(k) => {
@@ -466,7 +466,7 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
             }
         }
         CoreWalletAction::File(i) => {
-            let Some(name) = app.inbox.get(i).map(|item| item.name.clone()) else {
+            let Some(name) = app.inbox.get(i).map(|item| Text::of(&item.name)) else {
                 return;
             };
             if let Some(s) = st(app) {
@@ -491,7 +491,7 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
     }
 }
 
-fn open(app: &mut Faraday, file: Option<String>) {
+fn open(app: &mut Faraday, file: Option<Text>) {
     let back = app.screen;
     let mut s = CoreWalletState::new(back);
     if let Some(name) = file {
@@ -502,7 +502,7 @@ fn open(app: &mut Faraday, file: Option<String>) {
 }
 
 /// A file chosen: what was read of another is dropped.
-fn choose(s: &mut CoreWalletState, name: String) {
+fn choose(s: &mut CoreWalletState, name: Text) {
     s.file = Some(name);
     s.refused = None;
     s.shown = None;
@@ -513,9 +513,9 @@ fn choose(s: &mut CoreWalletState, name: String) {
 
 /// A read of the chosen file, owned, for the worker.
 pub(crate) struct ReadWork {
-    name: String,
+    name: Text,
     bytes: zeroize::Zeroizing<Vec<u8>>,
-    beside: Vec<String>,
+    beside: Vec<Text>,
     mode: Network,
     passphrase: Option<SecretText>,
 }
@@ -545,11 +545,11 @@ impl ReadWork {
 /// read.
 fn begin(app: &mut Faraday) -> Option<ReadWork> {
     let mode = app.session.network();
-    let beside: Vec<String> = app.inbox.iter().map(|i| i.name.clone()).collect();
+    let beside: Vec<Text> = app.inbox.iter().map(|i| Text::of(&i.name)).collect();
     let s = app.tools.core_wallet.state.as_mut()?;
-    let name = s.file.clone()?;
-    let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
-        s.refused = Some(EN.core_wallet_none_in_files.to_string());
+    let name = s.file.as_ref()?.duplicate();
+    let Some(item) = app.inbox.iter().find(|i| name == i.name.as_str()) else {
+        s.refused = Some(Text::of(EN.core_wallet_none_in_files));
         return None;
     };
     let given = !s.passphrase.text.is_empty();
@@ -620,8 +620,8 @@ pub(crate) fn fill_faraday(app: &mut Faraday) {
     }
 }
 
-fn refusal_text(e: &Refusal) -> String {
-    String::from(&*e.message())
+fn refusal_text(e: &Refusal) -> Text {
+    e.message()
 }
 
 /// Costs what `add_wallet` costs: the descriptors go to Wallets as a
@@ -630,15 +630,21 @@ fn take(app: &mut Faraday, pair: usize) {
     let Some(s) = app.tools.core_wallet.state() else {
         return;
     };
-    if let Some(line) = s.take_refused.clone() {
+    if let Some(line) = s.take_refused.as_ref().map(Text::duplicate) {
         app.toast(&line);
         return;
     }
     let Some(chosen) = s.take.get(pair) else {
         return;
     };
-    let text = chosen.texts.join("\n");
-    let source = s.file.clone().unwrap_or_default();
+    let mut text = Text::new();
+    for (i, t) in chosen.texts.iter().enumerate() {
+        if i > 0 {
+            text.push('\n');
+        }
+        text.push_str(t);
+    }
+    let source = s.file.as_ref().map(Text::duplicate).unwrap_or_default();
     let c = app.compute();
     let name = crate::register::name_of_file(&source);
     match app
@@ -760,7 +766,7 @@ fn open_sample(app: &mut Faraday) {
     }
     act(app, CoreWalletAction::Open);
     if let Some(s) = st(app) {
-        choose(s, names[0].to_string());
+        choose(s, Text::of(names[0]));
     }
     read_now(app, &c);
 }

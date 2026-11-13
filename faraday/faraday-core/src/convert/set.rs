@@ -5,10 +5,11 @@
 
 use super::{ConvertAction, ConvertArea, Value, cstep, slip_need};
 use crate::Faraday;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use faraday_bip::slip39::GroupSpec;
 use faraday_keys::slip39_set::{RotateGroup, SetFacts, SetRefused, rotate_count};
 use faraday_keys::{Held, Reveal};
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// What can be done with the set held.
@@ -38,9 +39,9 @@ pub struct SetState {
     /// Every other share held is destroyed.
     pub others: bool,
     /// Why the last share typed was not held.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// Why nothing was made, for Result.
-    pub refused: Option<String>,
+    pub refused: Option<Text>,
 }
 
 /// Whether `act` is offered for `f`; else how many more are needed (shares
@@ -115,14 +116,14 @@ fn free_member(f: &SetFacts, group: u8, from: u8, step: i8) -> u8 {
 }
 
 /// What a refusal says.
-pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> String {
+pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> Text {
     match r {
-        SetRefused::Stick(_) => crate::stick::keys_load(medium),
-        SetRefused::Practice => EN.convert_set_practice.to_string(),
-        SetRefused::Share(e) => String::from(&*faraday_strings::bip::slip39_error(e)),
-        SetRefused::NotGiven => EN.convert_not_given.to_string(),
-        SetRefused::NoRandomness => EN.no_randomness.to_string(),
-        SetRefused::SameIdentifier | SetRefused::NotSameSet => EN.convert_not_same_set.to_string(),
+        SetRefused::Stick(_) => Text::of(&crate::stick::keys_load(medium)),
+        SetRefused::Practice => Text::of(EN.convert_set_practice),
+        SetRefused::Share(e) => faraday_strings::bip::slip39_error(e),
+        SetRefused::NotGiven => Text::of(EN.convert_not_given),
+        SetRefused::NoRandomness => Text::of(EN.no_randomness),
+        SetRefused::SameIdentifier | SetRefused::NotSameSet => Text::of(EN.convert_not_same_set),
     }
 }
 
@@ -201,7 +202,7 @@ impl ConvertArea {
     }
 
     /// What was made: Result opens.
-    fn set_made(&mut self, given: Result<Value, String>) {
+    fn set_made(&mut self, given: Result<Value, Text>) {
         self.drop_result(true);
         let (held, refused) = match given {
             Ok(v) => (Some(v), None),
@@ -262,7 +263,15 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
 /// Holds the share typed, on the press: a refusal shows its reason and
 /// adds nothing.
 fn hold(app: &mut Faraday) {
-    let text = Zeroizing::new(app.tools.convert.set_typed().trim().to_lowercase());
+    let mut text = Text::new();
+    text.extend(
+        app.tools
+            .convert
+            .set_typed()
+            .trim()
+            .chars()
+            .flat_map(char::to_lowercase),
+    );
     if text.is_empty() {
         return;
     }
@@ -417,7 +426,7 @@ pub(crate) fn make(app: &mut Faraday) {
             .session
             .keys
             .slip39_set_share(x.group, x.member, why)
-            .map(|h: Held<_>| Value::Text(h)),
+            .map(|h: Held<_>| Value::held_text(h)),
         SetAct::Rotate => {
             let count = rotate_count(f.group_threshold, &rotate_groups(&f, &x.lost));
             if count.may_be_in_other_hands || !all_destroyed(&f, &x) {
@@ -437,7 +446,7 @@ pub(crate) fn make(app: &mut Faraday) {
                     .session
                     .keys
                     .slip39_set_rotated(slip_t, &groups, &random, why)
-                    .map(Value::Set);
+                    .map(Value::held_set);
                 if !matches!(out, Err(SetRefused::SameIdentifier)) {
                     break;
                 }
@@ -454,15 +463,15 @@ pub(crate) fn make(app: &mut Faraday) {
 }
 
 /// The Standard fact of a share or set made.
-pub fn standard(f: &SetFacts, s: &super::ConvertState, x: &SetState) -> String {
+pub fn standard(f: &SetFacts, s: &super::ConvertState, x: &SetState) -> Text {
     match x.act {
         Some(SetAct::Rotate) => super::slip_set_standard(s),
-        _ => fill(
+        _ => Text::fill(
             EN.convert_set_share_standard,
             &[
-                &(x.group + 1).to_string(),
-                &(x.member + 1).to_string(),
-                &format!("{:04x}", f.identifier),
+                &Text::num(u64::from(x.group) + 1),
+                &Text::num(u64::from(x.member) + 1),
+                &text!("{:04x}", f.identifier),
             ],
         ),
     }
@@ -471,11 +480,11 @@ pub fn standard(f: &SetFacts, s: &super::ConvertState, x: &SetState) -> String {
 /// What the file saved is named: the identifier of the set it belongs to
 /// (`id`: the new set's, for a rotated one) and what it holds; a share
 /// by its group and its member, as a person counts them.
-pub fn file(id: u16, x: &SetState) -> String {
+pub fn file(id: u16, x: &SetState) -> Text {
     if x.act == Some(SetAct::Rotate) {
-        format!("{id:04x}-slip39-set.txt")
+        text!("{id:04x}-slip39-set.txt")
     } else {
-        format!(
+        text!(
             "{id:04x}-slip39-group-{}-member-{}.txt",
             x.group + 1,
             x.member + 1

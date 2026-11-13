@@ -4,11 +4,12 @@
 
 use super::BootImportArea;
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Sheet};
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 use std::collections::VecDeque;
 use zeroize::Zeroizing;
 
@@ -24,7 +25,7 @@ pub enum TextSeedAnswer {
 /// One code waiting for its answer.
 pub(super) struct Ask {
     /// The picture's name.
-    pub(super) name: String,
+    pub(super) name: Text,
     /// The code's bytes, wiped when answered.
     pub(super) code: Zeroizing<Vec<u8>>,
     /// The Import file the picture is, or `None` at a stick visit.
@@ -61,7 +62,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(name) = app.import.text_front() else {
         return;
     };
-    let title = fill(EN.text_seed_title, &[name]);
+    let title = Text::fill(EN.text_seed_title, &[name]);
     let head = (Icon::File.into(), Role::OnSurface.paint(), title.as_str());
     crate::compact::dialog(
         ui,

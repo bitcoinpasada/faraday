@@ -476,6 +476,13 @@ faraday/faraday-storage/src/lib.rs
 faraday/faraday-core/src/testkit.rs
 faraday/faraday-core/src/samples/mod.rs
 faraday/faraday-core/src/review.rs
+faraday/faraday-core/src/convert/mod.rs
+faraday/faraday-core/src/convert/set.rs
+faraday/faraday-core/src/core_wallet/tool.rs
+faraday/faraday-core/src/ots_check/hash.rs
+faraday/faraday-core/src/ots_check/mod.rs
+faraday/faraday-core/src/boot_import/mod.rs
+faraday/faraday-core/src/boot_import/text_ask.rs
 faraday/faraday-qr/src/bbqr.rs
 faraday/faraday-qr/src/send.rs
 faraday/faraday-intake/src/lib.rs
