@@ -411,7 +411,8 @@ fn codex32qr_pictures_scanned_load_the_stated_keys() {
                 assert!(
                     app.scan().is_none(),
                     "{p}: {:?}",
-                    app.scan().and_then(|s| s.note.clone())
+                    app.scan()
+                        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
                 );
             }
             if app.session.keys.is_empty() {

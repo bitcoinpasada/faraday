@@ -222,9 +222,86 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
         }
         // Specter DIY's `addwallet` command, in Specter's numbered
         // parts, which Specter DIY scans, past one code.
-        14 => qr_view::specter_diy_pictures(c, w, shape, fps(&|_| true), &stem),
+        14 => specter_diy_pictures(c, w, shape, fps(&|_| true), &stem),
         _ => Vec::new(),
     }
+}
+
+/// The file names of the pictures of Specter DIY's `addwallet` command
+/// `text` for the wallet whose file stem is `stem`, as Specter's
+/// numbered parts carry it (`faraday_qr::send::parts_frames`, at the
+/// middle part size), without making them: `{stem}-specter-diy.png` for
+/// one code, else `{stem}-specter-diy-part-{j}-of-{k}.png`. Costs the
+/// splitting of `text` into parts; no code is drawn.
+fn specter_diy_names(stem: &str, text: &str) -> Vec<String> {
+    let part = qr_view::QR_PARTS[1];
+    let k = if text.chars().count() <= part {
+        1
+    } else {
+        faraday_qr::specter::encode(text, part).len()
+    };
+    if k == 1 {
+        return vec![format!("{stem}-specter-diy.png")];
+    }
+    (1..=k)
+        .map(|j| format!("{stem}-specter-diy-part-{j}-of-{k}.png"))
+        .collect()
+}
+
+/// Costs the splitting of the command into parts and a QR code made per
+/// part. Specter DIY's `addwallet` command for `w` as labelled pictures,
+/// one per numbered part past one code: `shape` and the keys'
+/// fingerprints `fps` on each, with what reads it.
+pub(crate) fn specter_diy_pictures(
+    c: &Compute,
+    w: &wallet::Wallet,
+    shape: String,
+    fps: Vec<String>,
+    stem: &str,
+) -> Vec<picture::Labelled> {
+    let Some(text) = faraday_intake::specter_diy::command(&w.name, w.policy()) else {
+        return Vec::new();
+    };
+    let Ok((_, codes)) = faraday_qr::send::parts_frames(c, &text, qr_view::QR_PARTS[1]) else {
+        return Vec::new();
+    };
+    let mut lines = vec![shape];
+    if !fps.is_empty() {
+        let word = if fps.len() == 1 {
+            EN.public_pictures_key
+        } else {
+            EN.public_pictures_keys
+        };
+        lines.push(format!("{word} {}", fps.join(" · ")));
+    }
+    lines.push(EN.public_files_specter_diy_reads.to_string());
+    lines.push(EN.public_pictures_public_watch.to_string());
+    picture::labelled_parts(codes, specter_diy_names(stem, &text), &w.name, &lines)
+}
+
+/// The title, the picture's file name and the lines under the code of
+/// wallet `w`'s text file `what` as a picture: 2 the multisig config,
+/// 6 BIP 129's.
+pub(crate) fn wallet_code_head(
+    app: &Faraday,
+    w: &wallet::Wallet,
+    what: u8,
+) -> (String, String, Vec<String>) {
+    let stem = file_stem(&w.name);
+    let (title, name) = if what == 2 {
+        (
+            fill(EN.code_view_multisig, &[&w.name.to_string()]),
+            format!("{stem}-multisig-config.png"),
+        )
+    } else {
+        (
+            fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
+            format!("{stem}-bsms.png"),
+        )
+    };
+    let mut lines = app.wallet_label(w);
+    lines.push(EN.code_view_public_watch.to_string());
+    (title, name, lines)
 }
 
 /// Costs what the files cost: [`file_text`], `faraday_paper::pdf::sheet`, [`pictures`].
@@ -410,7 +487,8 @@ pub(crate) fn parts_made(c: &Compute, inputs: &Inputs, parts: Vec<Part>) -> Made
                         shown.files.extend(
                             file_text(c, inputs.network, &w, what)
                                 .and_then(|t| qr_view::QrView::text(c, &title, &t).ok())
-                                .and_then(|v| v.public(&name, lines).png(c)),
+                                .and_then(|v| v.public(&name, lines).png(c))
+                                .map(|(n, bytes)| (n.as_str().into(), bytes)),
                         );
                     }
                     None => {}
@@ -580,7 +658,7 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
                         _ if !qr => None,
                         1 => Some(Picture::Descriptor),
                         2 | 6 => app.session.wallets.get(w).map(|wl| {
-                            let (title, name, lines) = app.wallet_code_head(wl, what);
+                            let (title, name, lines) = wallet_code_head(app, wl, what);
                             Picture::Code {
                                 what,
                                 title,

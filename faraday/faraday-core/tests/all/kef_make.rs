@@ -189,7 +189,13 @@ fn the_label_and_the_files_say_nothing_of_the_contents() {
         .unwrap();
     let code = made(&mut app, &options);
     let view = code.view.as_ref().unwrap();
-    let said = format!("{} {} {:?}", view.title, view.subtitle, view.label).to_lowercase();
+    let label = view
+        .label
+        .iter()
+        .map(|l| l.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let said = format!("{} {} {label}", view.title.as_str(), view.subtitle.as_str()).to_lowercase();
     for word in [
         "seed",
         "words",

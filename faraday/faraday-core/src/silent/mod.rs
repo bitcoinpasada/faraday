@@ -563,7 +563,8 @@ impl SilentArea {
             QrSource::Text(faraday_text::Text::of(&text)),
             QrFormat::Ur,
             crate::QR_PARTS[1],
-        )?
+        )
+        .map_err(|e| String::from(&*e))?
         .public(&format!("{name}.png"), lines))
     }
 

@@ -130,7 +130,9 @@ fn camera_on(app: &Faraday) -> bool {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 /// The Savings wallet alone loaded, with none of its keys.

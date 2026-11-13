@@ -8,6 +8,7 @@ use crate::strings::EN;
 use crate::wallet::FileKind;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 /// What a code is: §2's kinds, in the words the scanner names them with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -160,11 +161,11 @@ impl Kind {
 
     /// The scanner's line for a kind it does not take: "A transaction to
     /// sign · not used here"; what is nothing Faraday reads is said so.
-    pub fn not_here(self) -> String {
+    pub fn not_here(self) -> Text {
         if self == Kind::Unreadable {
-            return EN.read_unreadable.to_string();
+            return Text::of(EN.read_unreadable);
         }
-        crate::strings::fill(EN.read_not_here, &[self.label()])
+        Text::fill(EN.read_not_here, &[self.label()])
     }
 }
 
@@ -181,7 +182,7 @@ pub(crate) fn secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
     if faraday_codec::classify::is_compact_seedqr(bytes) {
         return Some(Kind::CompactSeedQr);
     }
-    let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+    let text = Text::of(Text::from_utf8_lossy(bytes).trim());
     secret_text_kind(c, &text)
 }
 
@@ -200,7 +201,7 @@ pub(crate) fn message_secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
         return Some(Kind::Paperkey);
     }
     if is_compact_text(bytes) {
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let text = Text::of(Text::from_utf8_lossy(bytes).trim());
         return secret_text_kind(c, &text);
     }
     secret_kind(c, bytes)
@@ -336,7 +337,7 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
     let text = match std::str::from_utf8(data) {
         Ok(t) => t,
         Err(_) => {
-            lossy = zeroize::Zeroizing::new(String::from_utf8_lossy(data).into_owned());
+            lossy = Text::from_utf8_lossy(data);
             lossy.as_str()
         }
     };
@@ -390,7 +391,7 @@ pub(crate) fn unknown_kind(data: &[u8]) -> Kind {
         return Kind::QrVault;
     }
     let printable = std::str::from_utf8(data).is_ok();
-    text_kind(&String::from_utf8_lossy(data), printable)
+    text_kind(&Text::from_utf8_lossy(data), printable)
 }
 
 /// What text Files keeps as a note, or reads as nothing, is: an
@@ -453,9 +454,9 @@ pub enum Way {
     /// An LND aezeed to Lightning, typed in.
     Lightning,
     /// A TOTP setup code or vault entries into the open vault, named.
-    AddTo(String),
+    AddTo(Text),
     /// Vault file n unlocked first, named; the code carried through.
-    Unlock(usize, String),
+    Unlock(usize, Text),
     /// Create a vault, the code not kept.
     MakeVault,
     /// A PSBT filed, and its spend.
@@ -491,27 +492,27 @@ pub enum Way {
 
 impl Way {
     /// Its button's label.
-    pub fn label(&self) -> String {
+    pub fn label(&self) -> Text {
         match self {
-            Way::Key => EN.read_go_key.to_string(),
-            Way::Share => EN.read_go_share.to_string(),
-            Way::Sweep => EN.catalog_sweep_key.to_string(),
-            Way::Lightning => EN.read_go_lightning.to_string(),
-            Way::AddTo(v) => crate::strings::fill(EN.read_go_vault, &[v]),
-            Way::Unlock(_, v) => crate::strings::fill(EN.read_go_unlock, &[v]),
-            Way::MakeVault => EN.read_go_make_vault.to_string(),
-            Way::Sign => EN.read_go_sign.to_string(),
-            Way::Collect => EN.read_go_collect.to_string(),
-            Way::Decode | Way::Invoice => EN.read_go_decode.to_string(),
-            Way::Wallet => EN.read_go_wallet.to_string(),
-            Way::Restore => EN.read_go_restore.to_string(),
-            Way::Check => EN.read_go_check.to_string(),
-            Way::SignMessage => EN.read_go_message.to_string(),
-            Way::Note => EN.read_go_note.to_string(),
-            Way::Keep => EN.read_keep.to_string(),
-            Way::OpenQrVault => EN.read_go_qr_vault.to_string(),
-            Way::Open => EN.kef_open.to_string(),
-            Way::NotEncrypted => EN.kef_not_encrypted.to_string(),
+            Way::Key => Text::of(EN.read_go_key),
+            Way::Share => Text::of(EN.read_go_share),
+            Way::Sweep => Text::of(EN.catalog_sweep_key),
+            Way::Lightning => Text::of(EN.read_go_lightning),
+            Way::AddTo(v) => Text::fill(EN.read_go_vault, &[v]),
+            Way::Unlock(_, v) => Text::fill(EN.read_go_unlock, &[v]),
+            Way::MakeVault => Text::of(EN.read_go_make_vault),
+            Way::Sign => Text::of(EN.read_go_sign),
+            Way::Collect => Text::of(EN.read_go_collect),
+            Way::Decode | Way::Invoice => Text::of(EN.read_go_decode),
+            Way::Wallet => Text::of(EN.read_go_wallet),
+            Way::Restore => Text::of(EN.read_go_restore),
+            Way::Check => Text::of(EN.read_go_check),
+            Way::SignMessage => Text::of(EN.read_go_message),
+            Way::Note => Text::of(EN.read_go_note),
+            Way::Keep => Text::of(EN.read_keep),
+            Way::OpenQrVault => Text::of(EN.read_go_qr_vault),
+            Way::Open => Text::of(EN.kef_open),
+            Way::NotEncrypted => Text::of(EN.kef_not_encrypted),
         }
     }
 
@@ -531,7 +532,7 @@ pub struct ReadCard {
     /// What was read.
     pub kind: Kind,
     /// The lines that say which one it is, never a secret's value.
-    pub facts: Vec<String>,
+    pub facts: Vec<Text>,
     /// The ways over, the one filled last.
     pub ways: Vec<Way>,
     /// The code is not carried on ("Not kept · scan it again once the
@@ -542,7 +543,7 @@ pub struct ReadCard {
     /// Text that is none of §2's other kinds, as read: the card shows it
     /// masked behind its eye (`docs/SCANNING.md` §5.2, §10 item 8). Set
     /// once, at the read; it goes with the card.
-    pub(crate) masked: Option<zeroize::Zeroizing<String>>,
+    pub(crate) masked: Option<Text>,
     /// The masked text is shown: a press on its eye, the next hides it.
     pub shown: bool,
     /// A transfer in parts' name when it brought one, and its extension.
@@ -559,36 +560,38 @@ pub struct ReadCard {
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":
 /// which share of which set a share read is, and how many make the key.
-pub(crate) fn share_fact(text: &str) -> Option<String> {
-    use crate::strings::fill;
+pub(crate) fn share_fact(text: &str) -> Option<Text> {
     if let Ok(s) = faraday_bip::codex32::Codex32::parse(text) {
-        let id = String::from_utf8_lossy(&s.identifier()).to_uppercase();
-        let index = char::from(s.share_index()).to_ascii_uppercase().to_string();
-        return Some(fill(
+        let id: Text = Text::from_utf8_lossy(&s.identifier())
+            .chars()
+            .flat_map(char::to_uppercase)
+            .collect();
+        let index = char::from(s.share_index()).to_ascii_uppercase();
+        return Some(Text::fill(
             EN.read_share_fact,
-            &[&index, &id, &s.threshold().to_string()],
+            &[&text!("{index}"), &id, &text!("{}", s.threshold())],
         ));
     }
-    let lower = zeroize::Zeroizing::new(text.to_lowercase());
+    let lower: Text = text.chars().flat_map(char::to_lowercase).collect();
     let s = faraday_bip::slip39::Share::parse(&lower).ok()?;
-    Some(fill(
+    Some(Text::fill(
         EN.read_share_fact,
         &[
-            &(u16::from(s.member_index()) + 1).to_string(),
-            &s.identifier().to_string(),
-            &s.member_threshold().to_string(),
+            &Text::num(u64::from(s.member_index()) + 1),
+            &text!("{}", s.identifier()),
+            &text!("{}", s.member_threshold()),
         ],
     ))
 }
 
 /// "73c5da0a · m/48h/1h/0h/2h": an account key's master and path. A
 /// read of the key's text.
-pub(crate) fn account_fact(text: &str) -> Option<String> {
+pub(crate) fn account_fact(text: &str) -> Option<Text> {
     let key = crate::create::read_key(text)?;
     let origin = key.strip_prefix('[')?.split(']').next()?;
     Some(match origin.split_once('/') {
-        Some((fp, path)) => format!("{fp} · m/{path}"),
-        None => origin.to_string(),
+        Some((fp, path)) => text!("{fp} · m/{path}"),
+        None => Text::of(origin),
     })
 }
 
@@ -612,14 +615,13 @@ mod tests {
     use super::*;
 
     /// A paperkey's first line of `data` bytes, written as text.
-    fn paperkey_line(data: &[u8]) -> String {
+    fn paperkey_line(data: &[u8]) -> Text {
         let crc = faraday_pgp::crc24(data).to_be_bytes();
-        let hex: String = data
-            .iter()
-            .chain(&crc[1..])
-            .map(|b| format!("{b:02x}"))
-            .collect();
-        format!("1:{hex}")
+        let mut line = text!("1:");
+        for b in data.iter().chain(&crc[1..]) {
+            line.push_str(&text!("{b:02x}"));
+        }
+        line
     }
 
     #[test]
@@ -630,7 +632,7 @@ mod tests {
             &[0, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
         ] {
             let text = paperkey_line(data);
-            assert!(matches!(text.len(), 16 | 32), "{text}");
+            assert!(matches!(text.len(), 16 | 32), "{}", text.as_str());
             assert_eq!(secret_kind(&c, text.as_bytes()), Some(Kind::Paperkey));
             assert_eq!(
                 message_secret_kind(&c, text.as_bytes()),

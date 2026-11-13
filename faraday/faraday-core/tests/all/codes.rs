@@ -26,7 +26,7 @@ fn read_png(png: &[u8]) -> String {
 /// The code the QR sheet shows, as a camera reads it.
 fn shown(app: &Faraday) -> String {
     let q = app.qr().expect("no QR sheet");
-    assert_eq!(q.frames.len(), 1, "{}: one code", q.title);
+    assert_eq!(q.frames.len(), 1, "{}: one code", q.title.as_str());
     read_png(&faraday_codec::png::qr_png(&q.frames[0], 4))
 }
 

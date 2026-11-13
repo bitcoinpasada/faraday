@@ -192,7 +192,9 @@ fn scan(app: &mut Faraday, bytes: Vec<u8>) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 fn seeds_done(app: &Faraday) -> bool {

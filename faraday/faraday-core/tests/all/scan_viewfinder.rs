@@ -208,7 +208,9 @@ fn a_code_in_the_picture_is_outlined_where_it_is_and_not_once_it_is_gone() {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 #[test]

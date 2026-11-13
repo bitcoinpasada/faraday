@@ -378,7 +378,10 @@ impl Faraday {
                 ));
             } else if seeds == 0 && asked == 0 {
                 self.visit.log_push((
-                    format!("{name}: {}", note.unwrap_or_else(|| EN.qr_read_read.into())),
+                    format!(
+                        "{name}: {}",
+                        note.as_ref().map_or(EN.qr_read_read, |n| n.as_str())
+                    ),
                     true,
                 ));
             }
@@ -701,7 +704,7 @@ impl Faraday {
         }
         let left = self.camera.swap(scan);
         if got.is_empty() && note.is_none() {
-            note = left.and_then(|s| s.note.clone());
+            note = left.and_then(|s| s.note.as_ref().map(|n| n.as_str().into()));
         }
         let Some(imp) = self.import.state.as_mut() else {
             return;

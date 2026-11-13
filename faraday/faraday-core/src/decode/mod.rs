@@ -1284,7 +1284,7 @@ impl Faraday {
             if let Some(s) = self.decode.check.as_mut() {
                 s.refused[usize::from(slot.card())] = None;
             }
-            self.scan_say(EN.wallet_not_a_psbt.to_string());
+            self.scan_say(EN.wallet_not_a_psbt);
         }
         true
     }
@@ -1745,7 +1745,7 @@ impl Faraday {
             if let Some(s) = self.decode.compare.as_mut() {
                 s.refused[usize::from(slot.card())] = None;
             }
-            self.scan_say(EN.compare_not_a_transaction.to_string());
+            self.scan_say(EN.compare_not_a_transaction);
         }
         true
     }

@@ -45,14 +45,19 @@ fn read(app: &mut Faraday, code: &[u8]) {
 fn ways(app: &Faraday) -> Vec<String> {
     app.scan()
         .and_then(|s| s.card.as_ref())
-        .map(|c| c.ways.iter().map(|w| w.label()).collect())
+        .map(|c| {
+            c.ways
+                .iter()
+                .map(|w| String::from(w.label().as_str()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 fn facts(app: &Faraday) -> Vec<String> {
     app.scan()
         .and_then(|s| s.card.as_ref())
-        .map(|c| c.facts.clone())
+        .map(|c| c.facts.iter().map(|f| String::from(f.as_str())).collect())
         .unwrap_or_default()
 }
 

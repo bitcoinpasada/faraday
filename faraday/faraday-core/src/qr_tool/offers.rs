@@ -5,25 +5,25 @@
 //! plugged in (`docs/SECURITY-MODEL.md`).
 
 use faraday_keys::{QrError, QrHolds, QrPassOffer, Reveal};
-use zeroize::Zeroizing;
 
 use super::st;
 use crate::scan_read::Kind;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::{Faraday, Screen};
+use faraday_text::{Text, text};
 
 /// The line the stick rule is told in, when a stick is plugged in.
-fn stick_line(app: &Faraday) -> Option<String> {
-    (!app.stick.is_empty()).then(|| crate::stick::keys_load(app.medium))
+fn stick_line(app: &Faraday) -> Option<Text> {
+    (!app.stick.is_empty()).then(|| Text::of(&crate::stick::keys_load(app.medium)))
 }
 
 /// A refusal from loading the opened seed, on the Open card.
-pub(crate) fn say_error(app: &mut Faraday, line: Option<String>) {
-    say(app, line);
+pub(crate) fn say_error(app: &mut Faraday, line: Option<impl AsRef<str>>) {
+    say(app, line.map(|l| Text::of(l.as_ref())));
 }
 
 /// Says `line` on the Open card.
-fn say(app: &mut Faraday, line: Option<String>) {
+fn say(app: &mut Faraday, line: Option<Text>) {
     if let Some(s) = st(app) {
         s.error = line;
     }
@@ -61,7 +61,7 @@ pub(super) fn seed(app: &mut Faraday) {
     if let Some(line) = stick_line(app) {
         return say(app, Some(line));
     }
-    let words = Zeroizing::new(app.session.keys.qr_words(Reveal::QrVault).to_string());
+    let words = Text::of(&app.session.keys.qr_words(Reveal::QrVault));
     if words.is_empty() {
         return;
     }
@@ -78,7 +78,7 @@ pub(super) fn share(app: &mut Faraday) {
     if let Some(line) = stick_line(app) {
         return say(app, Some(line));
     }
-    let given = Zeroizing::new(app.session.keys.qr_share(Reveal::QrVault).to_string());
+    let given = Text::of(&app.session.keys.qr_share(Reveal::QrVault));
     if given.is_empty() {
         return;
     }
@@ -99,16 +99,16 @@ pub(super) fn add_to_key(app: &mut Faraday) {
         .session
         .keys
         .find(base)
-        .map(|k| fill(EN.seed_read_key_passphrase, &[&k.label.to_string()]))
+        .map(|k| Text::fill(EN.seed_read_key_passphrase, &[&k.label]))
         .unwrap_or_default();
     let c = app.compute();
     match app.session.keys.qr_add_passphrase(&c, &label) {
         Ok(fp) => {
             say(app, None);
-            app.toast(&fill(EN.qr_tool_pass_added, &[&fp.to_string()]));
+            app.toast(&Text::fill(EN.qr_tool_pass_added, &[&text!("{fp}")]));
         }
         Err(QrError::Key(r)) if !matches!(r, crate::wallet::Refusal::Duplicate(_)) => {
-            return say(app, Some(String::from(&*r.text())));
+            return say(app, Some(r.text()));
         }
         Err(_) => {}
     }
@@ -133,11 +133,11 @@ pub(super) fn save_note(app: &mut Faraday) {
                 s.note_saved = Some(id);
             }
             say(app, None);
-            app.toast(&fill(EN.qr_tool_note_saved, &[&name]));
+            app.toast(&Text::fill(EN.qr_tool_note_saved, &[&name]));
         }
         Err(QrError::Short(len)) => {
             let line = app.vaults.short_text(id, len);
-            say(app, Some(line));
+            say(app, Some(Text::of(&line)));
         }
         Err(QrError::NoRoom) => {
             let line = if app.vaults.store().read_only(id).is_some() {
@@ -145,7 +145,7 @@ pub(super) fn save_note(app: &mut Faraday) {
             } else {
                 EN.vaults_slot_too_small
             };
-            say(app, Some(line.to_string()));
+            say(app, Some(Text::of(line)));
         }
         Err(_) => {}
     }

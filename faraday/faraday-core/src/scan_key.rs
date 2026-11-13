@@ -12,6 +12,7 @@ use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
+use faraday_text::Text;
 
 use crate::plan::{At, What};
 use crate::qr_view::TOO_FINE_PASSES;
@@ -70,9 +71,9 @@ impl Camera {
     }
 
     /// The scanner's line says `note`, while the sheet is open.
-    pub(crate) fn say(&mut self, note: String) {
+    pub(crate) fn say(&mut self, note: impl AsRef<str>) {
         if let Some(scan) = self.scan.as_mut() {
-            scan.note = Some(note);
+            scan.note = Some(faraday_text::Text::of(note.as_ref()));
         }
     }
 
@@ -99,14 +100,14 @@ impl Camera {
 
     /// The read card's facts are made again by `make` from its Krux
     /// header; whether there was one.
-    pub(crate) fn remake_card_facts(
+    pub(crate) fn remake_card_facts<L: AsRef<str>>(
         &mut self,
-        make: impl FnOnce(&crate::seeds::kef::Header) -> Vec<String>,
+        make: impl FnOnce(&crate::seeds::kef::Header) -> Vec<L>,
     ) -> bool {
         if let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut())
             && let Some(h) = card.kef.as_ref()
         {
-            card.facts = make(h);
+            card.facts = make(h).iter().map(|l| Text::of(l.as_ref())).collect();
             return true;
         }
         false
@@ -141,7 +142,7 @@ impl Camera {
             s.too_fine += 1;
         }
         if s.too_fine >= TOO_FINE_PASSES {
-            s.note = Some(crate::qr_view::too_fine_line(&s.purpose).to_string());
+            s.note = Some(Text::of(crate::qr_view::too_fine_line(&s.purpose)));
         }
         // Large enough and still not read after a while: the
         // picture is the problem (`docs/QR.md` §8 item 8).
@@ -151,7 +152,7 @@ impl Camera {
             match s.unread_since {
                 Some(since) if !away => {
                     if now_ms.saturating_sub(since) >= faraday_draw::tokens::POOR_PICTURE_MS {
-                        s.note = Some(EN.scan_hold_square_hint.to_string());
+                        s.note = Some(Text::of(EN.scan_hold_square_hint));
                     }
                 }
                 _ => s.unread_since = Some(now_ms),
@@ -411,7 +412,7 @@ impl Faraday {
     pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            self.camera.say(EN.scan_key_not_a_seedqr.to_string());
+            self.camera.say(EN.scan_key_not_a_seedqr);
             return;
         };
         match self.wallet_key_found(w, fp) {
@@ -469,9 +470,9 @@ impl Faraday {
         if short > 0
             && let Some(scan) = self.camera.scan.as_mut()
         {
-            scan.note = Some(fill(
+            scan.note = Some(Text::fill(
                 EN.scan_key_key_added_more,
-                &[&(n + 1).to_string(), &short.to_string()],
+                &[&Text::num(n as u64 + 1), &Text::num(short as u64)],
             ));
             return;
         }
@@ -563,7 +564,7 @@ impl Faraday {
                 if let Some((decoder, assembler)) = self.camera.take_parts() {
                     scan.decoder = decoder;
                     scan.assembler = assembler;
-                    scan.note = Some(EN.act_carrying_on_parts.to_string());
+                    scan.note = Some(Text::of(EN.act_carrying_on_parts));
                 }
                 self.camera.open(scan);
                 self.sheet = Some(Sheet::Scan);
@@ -856,7 +857,7 @@ impl Faraday {
             }
             scan.nothing_to_paste = None;
             if let Some(why) = pasted_secret(&c, t, seeds).filter(|_| !sweep_key) {
-                scan.note = Some(why.to_string());
+                scan.note = Some(Text::of(why));
                 return;
             }
         }
@@ -1182,7 +1183,7 @@ impl Faraday {
     }
 
     /// The scanner's line says `why`; the camera stays on.
-    pub(crate) fn scan_say(&mut self, why: String) {
+    pub(crate) fn scan_say(&mut self, why: impl AsRef<str>) {
         self.camera.say(why);
     }
 
@@ -1209,7 +1210,7 @@ impl Faraday {
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
         if let Some(said) = self.address_note(&c, &text) {
             let mut card = self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
-            card.facts.push(said);
+            card.facts.push(Text::of(&said));
             return self.read_card_put(card);
         }
         drop(text);
@@ -1316,13 +1317,13 @@ impl Faraday {
         ),
     ) -> scan_read::ReadCard {
         use scan_read::Way;
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
-        let mut facts = Vec::new();
+        let text = Text::of(Text::from_utf8_lossy(&code).trim());
+        let mut facts: Vec<Text> = Vec::new();
         let mut not_kept = false;
         let mut kef = None;
         let ways = match kind {
             k if k.seed() => {
-                facts.extend(self.read_key_fact(c, k, &code, &text));
+                facts.extend(self.read_key_fact(c, k, &code, &text).map(|f| Text::of(&f)));
                 vec![Way::Key]
             }
             Kind::Codex32Share | Kind::Slip39Share => {
@@ -1333,14 +1334,14 @@ impl Faraday {
             Kind::Aezeed => vec![Way::Lightning],
             Kind::Totp | Kind::Entries => {
                 if let Some((issuer, account)) = faraday_vault::entries::otpauth_names(&text) {
-                    facts.push(fill(EN.read_totp_fact, &[&issuer, &account]));
+                    facts.push(Text::fill(EN.read_totp_fact, &[&issuer, &account]));
                 }
                 let way = self.read_vault_way();
                 not_kept = way == Way::MakeVault;
                 vec![way]
             }
             Kind::Psbt => {
-                facts.extend(self.read_psbt_fact(c, &code));
+                facts.extend(self.read_psbt_fact(c, &code).map(|f| Text::of(&f)));
                 vec![if self.read_same_spend(c, &code) {
                     Way::Collect
                 } else {
@@ -1349,7 +1350,7 @@ impl Faraday {
             }
             Kind::Transaction => vec![Way::Decode],
             Kind::Wallet => {
-                facts.extend(read_wallet_fact(c, &text));
+                facts.extend(read_wallet_fact(c, &text).map(|f| Text::of(&f)));
                 vec![Way::Wallet]
             }
             Kind::SplitSheets => vec![Way::Restore],
@@ -1359,7 +1360,7 @@ impl Faraday {
             }
             Kind::Kef => match crate::seeds::kef::kef_header(self, &code) {
                 Some((h, lines)) => {
-                    facts.extend(lines);
+                    facts.extend(lines.iter().map(|l| Text::of(l)));
                     kef = Some(h);
                     vec![Way::NotEncrypted, Way::Open]
                 }
@@ -1387,7 +1388,7 @@ impl Faraday {
         };
         // Unrecognised text is shown masked behind its eye, kept here as
         // read so drawing makes nothing (`docs/SCANNING.md` §10 item 8).
-        let masked = (kind == Kind::Text).then(|| text.clone());
+        let masked = (kind == Kind::Text).then(|| text.duplicate());
         drop(text);
         scan_read::ReadCard {
             kind,
@@ -1456,10 +1457,10 @@ impl Faraday {
         if self.vaults.current_id().is_some()
             && let Some(f) = files.iter().find(|f| f.open.is_some())
         {
-            return Way::AddTo(crate::stem(&f.name));
+            return Way::AddTo(Text::of(&crate::stem(&f.name)));
         }
         match files.first() {
-            Some(f) => Way::Unlock(0, crate::stem(&f.name)),
+            Some(f) => Way::Unlock(0, Text::of(&crate::stem(&f.name))),
             None => Way::MakeVault,
         }
     }
@@ -2123,7 +2124,7 @@ impl Faraday {
         let item = crate::Item::new(c, &name, std::mem::take(&mut *data));
         if item.kind == crate::wallet::FileKind::Other && !enveloped {
             if let Some(scan) = self.camera.scan.as_mut() {
-                scan.note = Some(EN.scanned_not_a_psbt.to_string());
+                scan.note = Some(Text::of(EN.scanned_not_a_psbt));
                 scan.decoder = faraday_codec::ur::Decoder::new();
             }
             return;
@@ -2203,7 +2204,7 @@ impl Faraday {
         let copy = crate::copy_check::copy_indices(&bytes);
         drop(bytes);
         let Some(copy) = copy else {
-            self.camera.say(EN.copy_scanned_not_seedqr.to_string());
+            self.camera.say(EN.copy_scanned_not_seedqr);
             return;
         };
         let found = self
@@ -2229,7 +2230,7 @@ impl Faraday {
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
         } else if let Some(scan) = self.camera.scan.as_mut() {
-            scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
+            scan.note = Some(Text::of(&crate::wallet_backup::copy_scan_line(&found)));
         }
     }
 
@@ -2264,7 +2265,7 @@ impl Faraday {
             Some(_) => None,
         };
         if let Some(note) = note {
-            self.camera.say(note.to_string());
+            self.camera.say(note);
             return;
         }
         let found = copy.and_then(|copy| {
@@ -2285,7 +2286,7 @@ impl Faraday {
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
         } else if let Some(scan) = self.camera.scan.as_mut() {
-            scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
+            scan.note = Some(Text::of(&crate::wallet_backup::copy_scan_line(&found)));
         }
     }
 
@@ -2312,7 +2313,7 @@ impl Faraday {
             secret_code(&c, &bytes)
         };
         if let Some(why) = refused {
-            scan.note = Some(why.to_string());
+            scan.note = Some(Text::of(why));
             return None;
         }
         // BBQr and numbered parts are put together here; anything else is
@@ -2348,7 +2349,7 @@ impl Faraday {
                     return None;
                 }
                 Err(why) => {
-                    scan.note = Some(why.to_string());
+                    scan.note = Some(Text::of(why));
                     return None;
                 }
             };
@@ -2425,7 +2426,7 @@ fn ur_item(
                     (None, "txt", t.into_bytes())
                 }
                 Ok(None) => {
-                    scan.note = Some(fill(EN.read_code_ur_unknown, &[&ur_type]));
+                    scan.note = Some(Text::of(&fill(EN.read_code_ur_unknown, &[&ur_type])));
                     return None;
                 }
                 Err(why) => {

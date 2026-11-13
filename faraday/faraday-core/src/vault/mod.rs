@@ -2873,7 +2873,9 @@ impl Faraday {
             }
             _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
         };
-        Ok(crate::QrView::text(c, &title, &text)?.public(&name, lines))
+        Ok(crate::QrView::text(c, &title, &text)
+            .map_err(|e| String::from(&*e))?
+            .public(&name, lines))
     }
 
     /// Offers a revocation file through the secret sheet: whoever has it

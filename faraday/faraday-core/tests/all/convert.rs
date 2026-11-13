@@ -445,7 +445,9 @@ fn a_code_masked_shows_nothing_and_its_copy_is_scanned() {
 /// The scanner's note after `bytes` are read in Check my copy.
 fn scan_copy(app: &mut Faraday, bytes: Vec<u8>) -> String {
     app.event(Event::Scanned { bytes });
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 #[test]

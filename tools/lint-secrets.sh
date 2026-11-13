@@ -491,7 +491,13 @@ faraday/faraday-vault/src/lib.rs
 faraday/faraday-vault/src/entries.rs
 faraday/faraday-vault/src/totp.rs
 faraday/faraday-pgp/src/certificate.rs
-faraday/faraday-pgp/src/lib.rs"
+faraday/faraday-pgp/src/lib.rs
+faraday/faraday-core/src/qr_view.rs
+faraday/faraday-core/src/qr_tool/item.rs
+faraday/faraday-core/src/qr_tool/mod.rs
+faraday/faraday-core/src/qr_tool/offers.rs
+faraday/faraday-core/src/qr_tool/open.rs
+faraday/faraday-core/src/scan_read.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

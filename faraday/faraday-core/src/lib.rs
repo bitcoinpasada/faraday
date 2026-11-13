@@ -3097,20 +3097,20 @@ impl Faraday {
         })
     }
 
-    fn open_qr(&mut self, view: Result<QrView, String>) {
+    fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {
         match view {
             Ok(v) => self.qr.open(v, &mut self.sheet),
-            Err(e) => self.toast(&fill(EN.open_qr_cannot_make, &[&e.to_string()])),
+            Err(e) => self.toast(&fill(EN.open_qr_cannot_make, &[e.as_ref()])),
         }
     }
 
     /// A view's code as a labelled picture to the Outbox, when it is one
     /// code of public content.
-    fn code_png(&mut self, view: Result<&QrView, &String>) {
+    fn code_png(&mut self, view: Result<&QrView, &impl AsRef<str>>) {
         let c = self.compute();
         let v = match view {
             Ok(v) => v,
-            Err(e) => return self.toast(&fill(EN.code_png_cannot_make, &[&e.to_string()])),
+            Err(e) => return self.toast(&fill(EN.code_png_cannot_make, &[e.as_ref()])),
         };
         match v.png(&c) {
             Some((name, bytes)) => {
@@ -3118,7 +3118,7 @@ impl Faraday {
                 self.toast_out(&name);
             }
             None if v.public && v.frames.len() > 1 => {
-                self.toast(&fill(EN.code_png_is_more_than, &[&v.title.to_string()]));
+                self.toast(&fill(EN.code_png_is_more_than, &[&v.title]));
             }
             None => {}
         }

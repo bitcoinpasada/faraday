@@ -1,11 +1,12 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
 use crate::file_stem;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,7 +113,7 @@ pub struct ScanState {
     /// A multi-part UR being put together.
     pub decoder: faraday_codec::ur::Decoder,
     /// The last thing worth saying about what was read.
-    pub note: Option<String>,
+    pub note: Option<Text>,
     /// Codes read so far.
     pub reads: usize,
     /// What the codes read are for.
@@ -293,9 +294,9 @@ pub(crate) fn ur_feed(
 
 /// The state line for a UR read in parts: that another message started,
 /// or how far this one is and which parts it still wants.
-pub(crate) fn ur_note(decoder: &faraday_codec::ur::Decoder, restarted: bool) -> Option<String> {
+pub(crate) fn ur_note(decoder: &faraday_codec::ur::Decoder, restarted: bool) -> Option<Text> {
     if restarted {
-        return Some(EN.ur_feed_new_qr.to_string());
+        return Some(Text::of(EN.ur_feed_new_qr));
     }
     let (have, of) = decoder.progress()?;
     Some(part_note("UR", have, of, &decoder.missing()))
@@ -317,9 +318,9 @@ impl Drop for ScanState {
 /// What a QR sheet shows.
 pub struct QrView {
     /// What the code holds.
-    pub title: String,
+    pub title: Text,
     /// One line under the title: the format, and the frame count.
-    pub subtitle: String,
+    pub subtitle: Text,
     /// The codes, cycled when there is more than one.
     pub frames: Vec<faraday_codec::qr::QrMatrix>,
     /// The frame shown.
@@ -340,12 +341,12 @@ pub struct QrView {
     /// one code, the sheet offers it as a labelled PNG.
     pub public: bool,
     /// The lines under the title in that picture, one statement each.
-    pub label: Vec<String>,
+    pub label: Vec<Text>,
     /// The picture's file name.
-    pub png_name: String,
+    pub png_name: Text,
     /// The text the code holds, shown whole under it: a wallet's
     /// descriptor, so it can be read against the code.
-    pub whole: Option<String>,
+    pub whole: Option<Text>,
     /// One static code with no choice of format, speed or size (a GPG
     /// key's paperkey, `docs/GPG-PAPERKEY.md` §12).
     pub one_code: bool,
@@ -455,24 +456,24 @@ pub use faraday_qr::send::SPEEDS as QR_SPEEDS;
 
 /// The line under the codes the sender made: their format, and how many
 /// frames.
-fn made_line(made: faraday_qr::send::Made) -> String {
+fn made_line(made: faraday_qr::send::Made) -> Text {
     use faraday_qr::send::Made;
-    let n = |k: usize| k.to_string();
+    let n = |k: usize| Text::num(k as u64);
     match made {
-        Made::UrPsbtOne => EN.of_ur_crypto_psbt_one.to_string(),
-        Made::UrPsbtFrames(k) => fill(EN.of_ur_crypto_psbt_frames, &[&n(k)]),
-        Made::TextOne => EN.of_text_one_code.to_string(),
-        Made::KeyOne => EN.of_key_one_code.to_string(),
-        Made::UrAccount => EN.of_ur_crypto_account.to_string(),
-        Made::UrBytesOne { file } => fill(EN.ur_bytes_frames_one, &[ur_bytes_what(file)]),
-        Made::UrBytesFrames { file, frames } => fill(
+        Made::UrPsbtOne => Text::of(EN.of_ur_crypto_psbt_one),
+        Made::UrPsbtFrames(k) => Text::fill(EN.of_ur_crypto_psbt_frames, &[&n(k)]),
+        Made::TextOne => Text::of(EN.of_text_one_code),
+        Made::KeyOne => Text::of(EN.of_key_one_code),
+        Made::UrAccount => Text::of(EN.of_ur_crypto_account),
+        Made::UrBytesOne { file } => Text::fill(EN.ur_bytes_frames_one, &[ur_bytes_what(file)]),
+        Made::UrBytesFrames { file, frames } => Text::fill(
             EN.ur_bytes_frames_frames,
             &[ur_bytes_what(file), &n(frames)],
         ),
-        Made::BbqrOne(t) => fill(EN.bbqr_frames_bbqr_one, &[&t.to_string()]),
-        Made::BbqrFrames(t, k) => fill(EN.bbqr_frames_bbqr_frames, &[&t.to_string(), &n(k)]),
-        Made::PartsOne => EN.parts_frames_text_one.to_string(),
-        Made::PartsNumbered(k) => fill(EN.parts_frames_numbered, &[&n(k)]),
+        Made::BbqrOne(t) => Text::fill(EN.bbqr_frames_bbqr_one, &[&text!("{t}")]),
+        Made::BbqrFrames(t, k) => Text::fill(EN.bbqr_frames_bbqr_frames, &[&text!("{t}"), &n(k)]),
+        Made::PartsOne => Text::of(EN.parts_frames_text_one),
+        Made::PartsNumbered(k) => Text::fill(EN.parts_frames_numbered, &[&n(k)]),
     }
 }
 
@@ -486,35 +487,35 @@ fn ur_bytes_what(file: bool) -> &'static str {
 }
 
 /// Why the sender made no codes, as the sheet says it.
-pub(crate) fn send_error(e: faraday_qr::send::Error) -> String {
+pub(crate) fn send_error(e: faraday_qr::send::Error) -> Text {
     use faraday_qr::send::Error;
     match e {
-        Error::TooLargeForBbqr => EN.bbqr_frames_too_large.to_string(),
-        Error::Envelope(why) => envelope_text(why).to_string(),
-        Error::Code => EN.qr_send_code_failed.to_string(),
+        Error::TooLargeForBbqr => Text::of(EN.bbqr_frames_too_large),
+        Error::Envelope(why) => Text::of(envelope_text(why)),
+        Error::Code => Text::of(EN.qr_send_code_failed),
     }
 }
 
 /// Why a UR registry type was refused, as the line under the scanner
 /// says it.
-pub(crate) fn registry_text(e: &faraday_qr::registry::Error) -> String {
+pub(crate) fn registry_text(e: &faraday_qr::registry::Error) -> Text {
     use faraday_qr::registry::Error;
     match e {
-        Error::Shape(ur_type) => fill(EN.ur_registry_shape, &[ur_type]),
-        Error::Psbt => fill(EN.ur_registry_shape, &["PSBT"]),
-        Error::Seed => EN.ur_registry_seed.to_string(),
-        Error::Path => EN.ur_registry_path.to_string(),
-        Error::Key => EN.ur_registry_key.to_string(),
-        Error::Private => EN.ur_registry_private_key.to_string(),
-        Error::NoChainCode => EN.ur_registry_no_chain_code.to_string(),
-        Error::Wallet => EN.ur_registry_wallet.to_string(),
-        Error::NotExtended => EN.ur_registry_not_extended.to_string(),
-        Error::NoThreshold => EN.ur_registry_no_threshold.to_string(),
-        Error::NoMultisigKeys => EN.ur_registry_no_multisig_keys.to_string(),
-        Error::Script(t) => fill(EN.ur_registry_script, &[&t.to_string()]),
-        Error::NoFingerprint => EN.ur_registry_no_fingerprint.to_string(),
-        Error::NoAccountKeys => EN.ur_registry_no_account_keys.to_string(),
-        Error::NoKeyRead => EN.ur_registry_no_key_read.to_string(),
+        Error::Shape(ur_type) => Text::fill(EN.ur_registry_shape, &[ur_type]),
+        Error::Psbt => Text::fill(EN.ur_registry_shape, &["PSBT"]),
+        Error::Seed => Text::of(EN.ur_registry_seed),
+        Error::Path => Text::of(EN.ur_registry_path),
+        Error::Key => Text::of(EN.ur_registry_key),
+        Error::Private => Text::of(EN.ur_registry_private_key),
+        Error::NoChainCode => Text::of(EN.ur_registry_no_chain_code),
+        Error::Wallet => Text::of(EN.ur_registry_wallet),
+        Error::NotExtended => Text::of(EN.ur_registry_not_extended),
+        Error::NoThreshold => Text::of(EN.ur_registry_no_threshold),
+        Error::NoMultisigKeys => Text::of(EN.ur_registry_no_multisig_keys),
+        Error::Script(t) => Text::fill(EN.ur_registry_script, &[&text!("{t}")]),
+        Error::NoFingerprint => Text::of(EN.ur_registry_no_fingerprint),
+        Error::NoAccountKeys => Text::of(EN.ur_registry_no_account_keys),
+        Error::NoKeyRead => Text::of(EN.ur_registry_no_key_read),
     }
 }
 
@@ -545,7 +546,7 @@ pub(crate) fn transfer_name(what: faraday_qr::Transfer) -> &'static str {
 
 /// Why the scanner refused a code (`faraday_qr::Assembler`), as the
 /// line under it says it.
-pub(crate) fn scan_refusal(r: faraday_qr::Refusal) -> String {
+pub(crate) fn scan_refusal(r: faraday_qr::Refusal) -> Text {
     use faraday_qr::Refusal;
     use faraday_qr::bbqr::{Error as Bbqr, Malformed};
     use faraday_qr::specter::Fault;
@@ -559,18 +560,20 @@ pub(crate) fn scan_refusal(r: faraday_qr::Refusal) -> String {
         Malformed::Inflate => EN.scan_bbqr_malformed_inflate,
     };
     match r {
-        Refusal::TooLong => EN.scan_refused_too_long.to_string(),
-        Refusal::Bbqr(Bbqr::Malformed(m)) => fill(EN.scan_refused_bbqr_malformed, &[malformed(m)]),
-        Refusal::Bbqr(Bbqr::Type(t)) => fill(EN.scan_refused_bbqr_type, &[&t.to_string()]),
-        Refusal::Bbqr(Bbqr::OtherTransfer) => EN.scan_refused_bbqr_other.to_string(),
-        Refusal::Bbqr(Bbqr::Conflict) => EN.scan_refused_bbqr_conflict.to_string(),
-        Refusal::Bbqr(Bbqr::TooLarge) => EN.scan_refused_bbqr_large.to_string(),
-        Refusal::Numbered(Fault::OtherSet) => EN.scan_refused_numbered_other.to_string(),
-        Refusal::Numbered(Fault::Conflict) => EN.scan_refused_numbered_conflict.to_string(),
-        Refusal::Numbered(Fault::TooLarge) => EN.scan_refused_numbered_large.to_string(),
-        Refusal::BbqrText => EN.scan_refused_bbqr_text.to_string(),
-        Refusal::BbqrJson => EN.scan_refused_bbqr_json.to_string(),
-        Refusal::Envelope(e) => envelope_text(e).to_string(),
+        Refusal::TooLong => Text::of(EN.scan_refused_too_long),
+        Refusal::Bbqr(Bbqr::Malformed(m)) => {
+            Text::fill(EN.scan_refused_bbqr_malformed, &[malformed(m)])
+        }
+        Refusal::Bbqr(Bbqr::Type(t)) => Text::fill(EN.scan_refused_bbqr_type, &[&text!("{t}")]),
+        Refusal::Bbqr(Bbqr::OtherTransfer) => Text::of(EN.scan_refused_bbqr_other),
+        Refusal::Bbqr(Bbqr::Conflict) => Text::of(EN.scan_refused_bbqr_conflict),
+        Refusal::Bbqr(Bbqr::TooLarge) => Text::of(EN.scan_refused_bbqr_large),
+        Refusal::Numbered(Fault::OtherSet) => Text::of(EN.scan_refused_numbered_other),
+        Refusal::Numbered(Fault::Conflict) => Text::of(EN.scan_refused_numbered_conflict),
+        Refusal::Numbered(Fault::TooLarge) => Text::of(EN.scan_refused_numbered_large),
+        Refusal::BbqrText => Text::of(EN.scan_refused_bbqr_text),
+        Refusal::BbqrJson => Text::of(EN.scan_refused_bbqr_json),
+        Refusal::Envelope(e) => Text::of(envelope_text(e)),
     }
 }
 
@@ -588,7 +591,7 @@ impl QrView {
     /// Costs what `secret` costs. A secret as one static code with no
     /// choice of format, speed or size, the sheet marked Secret (a GPG
     /// key's paperkey, `docs/GPG-PAPERKEY.md` §12).
-    pub(crate) fn secret_one_code(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+    pub(crate) fn secret_one_code(c: &Compute, title: &str, text: &str) -> Result<QrView, Text> {
         QrView::secret(c, title, text).map(|mut v| {
             v.one_code = true;
             v
@@ -597,7 +600,7 @@ impl QrView {
 
     /// Costs what `of` costs. A PSBT as `ur:crypto-psbt`: one code when it
     /// fits, else animated.
-    pub fn psbt(c: &Compute, title: &str, bytes: &[u8]) -> Result<QrView, String> {
+    pub fn psbt(c: &Compute, title: &str, bytes: &[u8]) -> Result<QrView, Text> {
         QrView::of(
             c,
             title,
@@ -610,7 +613,7 @@ impl QrView {
     /// Costs what `of` costs. Text as one code while it fits version 25 at
     /// medium error correction (the rule for a descriptor), and as animated
     /// `ur:bytes` when it does not.
-    pub fn text(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+    pub fn text(c: &Compute, title: &str, text: &str) -> Result<QrView, Text> {
         QrView::of(
             c,
             title,
@@ -625,22 +628,22 @@ impl QrView {
     /// `low` and medium otherwise (`docs/KEF.md` §5), public (`docs/QR.md`
     /// §7.1): the picture is named `png_name` and has `lines` under it.
     /// An error when it does not fit one code.
-    pub fn kef(
+    pub fn kef<L: AsRef<str>>(
         c: &Compute,
         text: &str,
         low: bool,
         png_name: &str,
-        lines: Vec<String>,
-    ) -> Result<QrView, String> {
+        lines: Vec<L>,
+    ) -> Result<QrView, Text> {
         use faraday_codec::qr::{Ecc, Payload, encode_bounded};
         /// The largest code written: a descriptor's (`docs/QR.md`).
         const LARGEST: u8 = 25;
         let ecc = if low { Ecc::Low } else { Ecc::Medium };
         let code = encode_bounded(c, Payload::Alphanumeric(text.as_bytes()), ecc, LARGEST)
-            .map_err(|_| EN.kef_code_too_big.to_string())?;
+            .map_err(|_| Text::of(EN.kef_code_too_big))?;
         Ok(QrView {
-            title: EN.kef_code_title.to_string(),
-            subtitle: EN.kef_code_subtitle.to_string(),
+            title: Text::of(EN.kef_code_title),
+            subtitle: Text::of(EN.kef_code_subtitle),
             frames: vec![code],
             frame: 0,
             next_ms: 0,
@@ -649,9 +652,9 @@ impl QrView {
             part: QR_PARTS[1],
             secret: false,
             public: true,
-            label: lines,
-            png_name: png_name.to_string(),
-            whole: Some(text.to_string()),
+            label: texts(&lines),
+            png_name: Text::of(png_name),
+            whole: Some(Text::of(text)),
             one_code: true,
         })
     }
@@ -659,7 +662,7 @@ impl QrView {
     /// Costs what `text` costs. A secret as one plain-text code, the sheet
     /// marked Secret: it offers no picture (an entry's TOTP secret,
     /// `docs/QR.md` §7.1).
-    pub fn secret(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+    pub fn secret(c: &Compute, title: &str, text: &str) -> Result<QrView, Text> {
         QrView::text(c, title, text).map(|mut v| {
             v.secret = true;
             v
@@ -674,7 +677,7 @@ impl QrView {
         source: QrSource,
         format: QrFormat,
         part: usize,
-    ) -> Result<QrView, String> {
+    ) -> Result<QrView, Text> {
         let (made, frames) =
             faraday_qr::send::frames(c, &source, format, part).map_err(send_error)?;
         let sub = made_line(made);
@@ -685,7 +688,7 @@ impl QrView {
             _ => false,
         };
         Ok(QrView {
-            title: title.to_string(),
+            title: Text::of(title),
             subtitle: sub,
             frames,
             frame: 0,
@@ -696,7 +699,7 @@ impl QrView {
             secret,
             public: false,
             label: Vec::new(),
-            png_name: String::new(),
+            png_name: Text::new(),
             whole: None,
             one_code: false,
         })
@@ -704,7 +707,7 @@ impl QrView {
 
     /// Costs what `of` costs. The same source in another format or part
     /// size.
-    pub fn redo(&self, c: &Compute, format: QrFormat, part: usize) -> Result<QrView, String> {
+    pub fn redo(&self, c: &Compute, format: QrFormat, part: usize) -> Result<QrView, Text> {
         let secret = self.secret;
         QrView::of(c, &self.title, self.source.clone(), format, part).map(|mut v| {
             v.secret |= secret;
@@ -719,10 +722,10 @@ impl QrView {
 
     /// The view as public content a picture may keep: the file `name`,
     /// the title and then `lines` under the code.
-    pub fn public(mut self, name: &str, lines: Vec<String>) -> QrView {
+    pub fn public<L: AsRef<str>>(mut self, name: &str, lines: Vec<L>) -> QrView {
         self.public = true;
-        self.png_name = name.to_string();
-        self.label = lines;
+        self.png_name = Text::of(name);
+        self.label = texts(&lines);
         self
     }
 
@@ -734,7 +737,7 @@ impl QrView {
 
     /// Costs what `labelled_png` costs. The code on show as a labelled
     /// picture, its file's name and bytes, when it offers one.
-    pub fn png(&self, c: &Compute) -> Option<(String, Vec<u8>)> {
+    pub fn png(&self, c: &Compute) -> Option<(Text, Vec<u8>)> {
         if !self.offers_png() {
             return None;
         }
@@ -813,17 +816,13 @@ impl Faraday {
     /// Costs a QR code made per part. The QR view of Specter DIY's
     /// `addwallet` command for `w`, in Specter's numbered parts at the
     /// middle part size, its whole text under it.
-    pub(crate) fn specter_diy_view(
-        &self,
-        c: &Compute,
-        w: &wallet::Wallet,
-    ) -> Result<QrView, String> {
+    pub(crate) fn specter_diy_view(&self, c: &Compute, w: &wallet::Wallet) -> Result<QrView, Why> {
         let text = faraday_intake::specter_diy::command(&w.name, w.policy())
             .ok_or(EN.code_view_this_wallet_has)?;
-        let title = fill(EN.code_view_specter_diy, &[&w.name.to_string()]);
-        let name = format!("{}-specter-diy.png", crate::file_stem(&w.name));
-        let mut lines = self.wallet_label(w);
-        lines.push(EN.code_view_public_watch.to_string());
+        let title = Text::fill(EN.code_view_specter_diy, &[&text!("{}", w.name)]);
+        let name = text!("{}-specter-diy.png", crate::file_stem(&w.name));
+        let mut lines = texts(&self.wallet_label(w));
+        lines.push(Text::of(EN.code_view_public_watch));
         let mut view = QrView::of(
             c,
             &title,
@@ -832,7 +831,7 @@ impl Faraday {
             QR_PARTS[1],
         )?
         .public(&name, lines);
-        view.whole = Some(text);
+        view.whole = Some(Text::of(&text));
         Ok(view)
     }
 
@@ -891,7 +890,7 @@ impl Faraday {
             }
             Action::QrPng => {
                 if let Some(q) = self.qr.take() {
-                    self.code_png(Ok(&q));
+                    self.code_png(Ok::<&QrView, &Text>(&q));
                     self.qr.put(q);
                 }
             }
@@ -983,14 +982,14 @@ impl Faraday {
         };
         let public = faraday_pgp::read_public_armor(&data) == Some(faraday_pgp::Armor::PublicKey);
         let (from, name) = match (self.gpg_public_name(&data), named) {
-            (Some((None, _)), Some(n)) => (None, String::from(&*n)),
-            (Some((from, name)), _) => (from, name),
-            (None, Some(n)) => (None, String::from(&*n)),
-            (None, None) => (None, format!("scanned-{}.asc", self.camera.next_number())),
+            (Some((None, _)), Some(n)) => (None, Text::of(&n)),
+            (Some((from, name)), _) => (from, Text::of(&name)),
+            (None, Some(n)) => (None, Text::of(&n)),
+            (None, None) => (None, text!("scanned-{}.asc", self.camera.next_number())),
         };
         let item = crate::Item::new(&c, &self.free_inbox_name(&name), std::mem::take(&mut *data));
         if !public || item.kind != crate::FileKind::Gpg {
-            self.camera.say(EN.gpg_restore_not_public.to_string());
+            self.camera.say(Text::of(EN.gpg_restore_not_public));
             return true;
         }
         let at = self.inbox_file_in(item);
@@ -1000,7 +999,7 @@ impl Faraday {
         self.out
             .commands
             .push_back(faraday_shell_api::Command::CameraOff);
-        self.toast(&fill(EN.scanned_is_in_files, &[&name]));
+        self.toast(&Text::fill(EN.scanned_is_in_files, &[&name]));
         if from.is_some() {
             self.gpg_restore_from(at);
         } else {
@@ -1018,11 +1017,11 @@ impl Faraday {
     /// they were. Nothing is read while a stick is in.
     fn gpg_paperkey_scanned(&mut self, bytes: &[u8]) {
         let said = if !self.stick.is_empty() {
-            Err(crate::stick::keys_load(self.medium))
+            Err(Text::of(&crate::stick::keys_load(self.medium)))
         } else if let Some(i) = self.flows.on() {
-            self.flows.restore_code(i, bytes)
+            self.flows.restore_code(i, bytes).map_err(|e| Text::of(&e))
         } else {
-            Err(EN.gpg_restore_not_paperkey.to_string())
+            Err(Text::of(EN.gpg_restore_not_paperkey))
         };
         match said {
             Ok(()) => {
@@ -1041,74 +1040,54 @@ impl Faraday {
 }
 
 /// The progress of a multi-part code: parts read, and which are missing.
-pub(crate) fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String {
-    let list: Vec<String> = missing.iter().take(8).map(usize::to_string).collect();
+pub(crate) fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> Text {
+    let mut list = Text::new();
+    for (k, m) in missing.iter().take(8).enumerate() {
+        if k > 0 {
+            list.push_str(", ");
+        }
+        list.push_str(&Text::num(*m as u64));
+    }
     let more = if missing.len() > 8 { ", …" } else { "" };
-    fill(
+    Text::fill(
         EN.part_note_of_missing,
-        &[
-            what,
-            &have.to_string(),
-            &total.to_string(),
-            &list.join(", ").to_string(),
-            more,
-        ],
+        &[what, &text!("{have}"), &text!("{total}"), &list, more],
     )
 }
 
 /// The QR views of the public files and values a flow shows
 /// (`docs/QR.md` §4 item 4, §7).
 impl Faraday {
-    /// The title, the picture's file name and the lines under the code of
-    /// wallet `w`'s text file `what` as a picture: 2 the multisig config,
-    /// 6 BIP 129's.
-    pub(crate) fn wallet_code_head(
-        &self,
-        w: &wallet::Wallet,
-        what: u8,
-    ) -> (String, String, Vec<String>) {
-        let stem = file_stem(&w.name);
-        let (title, name) = if what == 2 {
-            (
-                fill(EN.code_view_multisig, &[&w.name.to_string()]),
-                format!("{stem}-multisig-config.png"),
-            )
-        } else {
-            (
-                fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
-                format!("{stem}-bsms.png"),
-            )
-        };
-        let mut lines = self.wallet_label(w);
-        lines.push(EN.code_view_public_watch.to_string());
-        (title, name, lines)
-    }
-
     /// Costs what `text`, `wallet_file_text`, `create_key_text` and the
     /// rest it calls cost. The QR view of a public file a flow makes: its
     /// code, and the name and label of its picture.
+    pub fn code_view(&self, c: &Compute, code: Code) -> Result<QrView, Text> {
+        self.code_view_inner(c, code).map_err(|why| why.0)
+    }
+
+    /// Costs what [`Faraday::code_view`] costs. It is that, its refusals as any text.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub fn code_view(&self, c: &Compute, code: Code) -> Result<QrView, String> {
+    fn code_view_inner(&self, c: &Compute, code: Code) -> Result<QrView, Why> {
         let wallet = |i: usize| {
             self.session
                 .wallets
                 .get(i)
-                .ok_or_else(|| EN.code_view_that_wallet.to_string())
+                .ok_or_else(|| Text::of(EN.code_view_that_wallet))
         };
         match code {
             Code::Descriptor(i) => {
                 let w = wallet(i)?;
                 let stem = file_stem(&w.name);
-                let mut lines = self.silent_marks(c, i, self.wallet_label(w))?;
+                let mut lines = texts(&self.silent_marks(c, i, self.wallet_label(w))?);
                 let text = w.policy().to_descriptor_checksummed();
                 if let Some((_, sum)) = text.rsplit_once('#') {
-                    lines.push(fill(EN.code_view_descriptor, &[sum]));
+                    lines.push(Text::fill(EN.code_view_descriptor, &[sum]));
                 }
-                let title = fill(EN.code_view_wallet_descriptor, &[&w.name.to_string()]);
-                let name = format!("{stem}-descriptor.png");
-                lines.push(EN.code_view_public_watch.to_string());
+                let title = Text::fill(EN.code_view_wallet_descriptor, &[&text!("{}", w.name)]);
+                let name = text!("{stem}-descriptor.png");
+                lines.push(Text::of(EN.code_view_public_watch));
                 let mut view = QrView::text(c, &title, &text)?.public(&name, lines);
-                view.whole = Some(text);
+                view.whole = Some(Text::of(&text));
                 Ok(view)
             }
             Code::MultisigConfig(i) | Code::Bsms(i) => {
@@ -1121,7 +1100,7 @@ impl Faraday {
                 let text = self
                     .wallet_file_text(c, i, what)
                     .ok_or(EN.code_view_this_wallet_has)?;
-                let (title, name, lines) = self.wallet_code_head(w, what);
+                let (title, name, lines) = crate::public_files::wallet_code_head(self, w, what);
                 Ok(QrView::text(c, &title, &text)?.public(&name, lines))
             }
             Code::SpecterDiy(i) => self.specter_diy_view(c, wallet(i)?),
@@ -1131,11 +1110,11 @@ impl Faraday {
                 let account = self.create_key_account(c, k);
                 let lines = vec![
                     key_label(&fp, kind, &text),
-                    EN.code_view_public_spends.to_string(),
+                    Text::of(EN.code_view_public_spends),
                 ];
                 Ok(QrView::of(
                     c,
-                    &fill(EN.code_view_xpub_kind, &[&fp.to_string(), kind]),
+                    &Text::fill(EN.code_view_xpub_kind, &[&text!("{fp}"), kind]),
                     QrSource::Key(
                         faraday_text::Text::of(&text),
                         account.as_deref().map(faraday_text::Text::of),
@@ -1143,7 +1122,7 @@ impl Faraday {
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
-                .public(&format!("xpub-{fp}.png"), lines))
+                .public(&text!("xpub-{fp}.png"), lines))
             }
             Code::KeyBsms(k) => {
                 let (fp, key) = self.create_key_text(c, k)?;
@@ -1153,13 +1132,15 @@ impl Faraday {
                     .ok_or(EN.code_view_bip_129_covers)?;
                 let lines = vec![
                     key_label(&fp, kind, &key),
-                    EN.code_view_bip_129_key.to_string(),
-                    EN.code_view_public_spends.to_string(),
+                    Text::of(EN.code_view_bip_129_key),
+                    Text::of(EN.code_view_public_spends),
                 ];
-                Ok(
-                    QrView::text(c, &fill(EN.code_view_key_bsms, &[&fp.to_string()]), &text)?
-                        .public(&format!("xpub-{fp}-bsms.png"), lines),
-                )
+                Ok(QrView::text(
+                    c,
+                    &Text::fill(EN.code_view_key_bsms, &[&text!("{fp}")]),
+                    &text,
+                )?
+                .public(&text!("xpub-{fp}-bsms.png"), lines))
             }
             Code::WalletKey(i, slot) => {
                 let k = self.wallet_key(c, i, slot)?;
@@ -1168,13 +1149,13 @@ impl Faraday {
                 });
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
-                    EN.code_view_public_spends.to_string(),
+                    Text::of(EN.code_view_public_spends),
                 ];
                 Ok(QrView::of(
                     c,
-                    &fill(
+                    &Text::fill(
                         EN.code_view_xpub_kind,
-                        &[&k.fp.to_string(), &k.kind.to_string()],
+                        &[&text!("{}", k.fp), &text!("{}", k.kind)],
                     ),
                     QrSource::Key(
                         faraday_text::Text::of(&k.text),
@@ -1183,7 +1164,7 @@ impl Faraday {
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
-                .public(&format!("xpub-{}.png", k.fp), lines))
+                .public(&text!("xpub-{}.png", k.fp), lines))
             }
             Code::CosignerKey(i, slot) => {
                 let w = self
@@ -1200,56 +1181,58 @@ impl Faraday {
                     .get(usize::from(slot))
                     .ok_or(EN.code_view_this_wallet)?
                     .clone();
-                let fp = pk
-                    .fingerprint()
-                    .map_or_else(|| EN.code_view_no_origin.to_string(), fp_text);
+                let fp = pk.fingerprint().map_or_else(
+                    || Text::of(EN.code_view_no_origin),
+                    |f| Text::of(&fp_text(f)),
+                );
                 let text = pk.key_text();
                 let lines = vec![
-                    fill(
-                        EN.code_view_key,
-                        &[&fp.to_string(), &Session::shape(w).to_string()],
-                    ),
-                    EN.code_view_public_spends.to_string(),
+                    Text::fill(EN.code_view_key, &[&fp, &Session::shape(w)]),
+                    Text::of(EN.code_view_public_spends),
                 ];
                 Ok(QrView::of(
                     c,
-                    &fill(EN.code_view_xpub, &[&fp.to_string()]),
+                    &Text::fill(EN.code_view_xpub, &[&fp]),
                     QrSource::Key(faraday_text::Text::of(&text), None),
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
-                .public(&format!("xpub-{fp}.png"), lines))
+                .public(&text!("xpub-{}.png", fp.as_str()), lines))
             }
             Code::WalletKeyBsms(i, slot) => {
                 let k = self.wallet_key(c, i, slot)?;
                 let (_, text) = self.wallet_key_record(c, i, slot)?;
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
-                    EN.code_view_bip_129_key.to_string(),
-                    EN.code_view_public_spends.to_string(),
+                    Text::of(EN.code_view_bip_129_key),
+                    Text::of(EN.code_view_public_spends),
                 ];
-                Ok(
-                    QrView::text(c, &fill(EN.code_view_key_bsms, &[&k.fp.to_string()]), &text)?
-                        .public(&format!("xpub-{}-bsms.png", k.fp), lines),
-                )
+                Ok(QrView::text(
+                    c,
+                    &Text::fill(EN.code_view_key_bsms, &[&text!("{}", k.fp)]),
+                    &text,
+                )?
+                .public(&text!("xpub-{}-bsms.png", k.fp), lines))
             }
-            Code::Silent(_) | Code::SilentRecord | Code::SilentDns => self.silent_code(c, code),
+            Code::Silent(_) | Code::SilentRecord | Code::SilentDns => {
+                self.silent_code(c, code).map_err(Why::from)
+            }
             Code::Message => {
                 let m = self.message.state().ok_or(EN.code_view_no_message)?;
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
                 let text =
                     faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
-                let name = format!(
+                let name = text!(
                     "message-{}.png",
                     &sig.address[sig.address.len().saturating_sub(6)..]
                 );
                 let lines = vec![
-                    fill(EN.code_view_signed_by_address, &[&sig.address]),
-                    EN.code_view_public_proves.to_string(),
+                    Text::fill(EN.code_view_signed_by_address, &[&sig.address]),
+                    Text::of(EN.code_view_public_proves),
                 ];
                 Ok(QrView::text(c, EN.code_view_signed_message, &text)?.public(&name, lines))
             }
-            Code::GpgKey | Code::GpgSignature(_) => self.gpg_code(c, code),
+            Code::GpgKey | Code::GpgSignature(_) => self.gpg_code(c, code).map_err(Why::from),
             Code::Receive(..)
             | Code::VanityAddress
             | Code::ExploreAddress
@@ -1266,16 +1249,25 @@ impl Faraday {
     /// view of a public value a screen shows (`docs/QR.md` §7): the value
     /// exactly as the screen prints it, whole under the code; a picture
     /// only for the node id and a recovery sheet.
-    fn value_code(&self, c: &Compute, code: Code) -> Result<QrView, String> {
-        let plain = |title: &str, text: &str| -> Result<QrView, String> {
+    fn value_code(&self, c: &Compute, code: Code) -> Result<QrView, Why> {
+        let plain = |title: &str, text: &str| -> Result<QrView, Why> {
             let mut view = QrView::text(c, title, text)?;
-            view.whole = Some(text.to_string());
+            view.whole = Some(Text::of(text));
             Ok(view)
         };
         let path = || {
             self.explore
                 .path()
-                .map(|p| fill(EN.explore_path_m, &[&p.to_string().replace('\'', "h")]))
+                .map(|p| {
+                    Text::fill(
+                        EN.explore_path_m,
+                        &[&Text::from_iter(
+                            text!("{p}")
+                                .chars()
+                                .map(|c| if c == '\'' { 'h' } else { c }),
+                        )],
+                    )
+                })
                 .unwrap_or_default()
         };
         let explore = || self.explore_reading(c).ok_or(EN.code_view_no_address);
@@ -1297,9 +1289,9 @@ impl Faraday {
                     return Err(EN.code_view_no_address.into());
                 }
                 let a = self.session.address_shown(c, w, false, at);
-                let title = fill(
+                let title = Text::fill(
                     EN.code_view_receive,
-                    &[&w.name.to_string(), &at.to_string()],
+                    &[&text!("{}", w.name), &text!("{at}")],
                 );
                 plain(&title, &a)
             }
@@ -1313,37 +1305,40 @@ impl Faraday {
             }
             Code::ExploreAddress => {
                 let r = explore()?;
-                plain(&fill(EN.code_view_explore_address, &[&path()]), &r.address)
+                plain(
+                    &Text::fill(EN.code_view_explore_address, &[&path()]),
+                    &r.address,
+                )
             }
             Code::ExplorePublicKey => {
                 let r = explore()?;
                 plain(
-                    &fill(EN.code_view_explore_public_key, &[&path()]),
+                    &Text::fill(EN.code_view_explore_public_key, &[&path()]),
                     &r.public_key,
                 )
             }
             Code::ExploreXpub => {
                 let r = explore()?;
-                plain(&fill(EN.code_view_explore_xpub, &[&path()]), &r.xpub)
+                plain(&Text::fill(EN.code_view_explore_xpub, &[&path()]), &r.xpub)
             }
             Code::NodeId => {
                 let l = self.lightning.state().ok_or(EN.code_view_no_node)?;
                 let n = l.node.as_ref().ok_or(EN.code_view_no_node)?;
-                let id: String = String::from(&*faraday_crypto::hex::encode_string(n.public()));
+                let id = faraday_crypto::hex::encode_string(n.public());
                 let kind = match l.source {
                     Some(crate::lightning::NodeSource::Key(fp)) => {
-                        fill(EN.lightning_ldk_node, &[&fp_text(Fingerprint(fp))])
+                        Text::fill(EN.lightning_ldk_node, &[&fp_text(Fingerprint(fp))])
                     }
                     Some(crate::lightning::NodeSource::KeyCln(fp)) => {
-                        fill(EN.lightning_cln_node, &[&fp_text(Fingerprint(fp))])
+                        Text::fill(EN.lightning_cln_node, &[&fp_text(Fingerprint(fp))])
                     }
                     Some(crate::lightning::NodeSource::CoreLightning) => {
-                        EN.code_view_node_cln.to_string()
+                        Text::of(EN.code_view_node_cln)
                     }
-                    _ => EN.code_view_node_lnd.to_string(),
+                    _ => Text::of(EN.code_view_node_lnd),
                 };
-                let lines = vec![kind, EN.code_view_public_node.to_string()];
-                let name = format!("lightning-{}.png", &id[..8]);
+                let lines = vec![kind, Text::of(EN.code_view_public_node)];
+                let name = text!("lightning-{}.png", &id[..8]);
                 plain(EN.code_view_node_id, &id).map(|v| v.public(&name, lines))
             }
             Code::VaultSheet => self.vault_sheet_code(c),
@@ -1355,7 +1350,7 @@ impl Faraday {
     /// recovery sheet's descriptor in the open vault as its record keeps
     /// it, as `Code::Descriptor` shows a wallet's: labelled with the
     /// wallet's shape and checksum, its picture `{name}-descriptor.png`.
-    fn vault_sheet_code(&self, c: &Compute) -> Result<QrView, String> {
+    fn vault_sheet_code(&self, c: &Compute) -> Result<QrView, Why> {
         let (_, r) = self
             .vault_record_of(faraday_vault::records::kind::SHEET)
             .ok_or(EN.code_view_no_sheet)?;
@@ -1365,17 +1360,22 @@ impl Faraday {
         }
         let mut lines = Vec::new();
         if let Ok(policy) = wallet::read_wallet(c, &text) {
-            let w = wallet::Wallet::new(name.clone(), policy, String::new(), wallet::Origin::Vault);
-            lines.push(wallet::Session::shape(&w));
+            let w = wallet::Wallet::new(
+                name.clone(),
+                policy,
+                Default::default(),
+                wallet::Origin::Vault,
+            );
+            lines.push(Text::of(&wallet::Session::shape(&w)));
         }
         if let Some((_, sum)) = text.rsplit_once('#') {
-            lines.push(fill(EN.code_view_descriptor, &[sum]));
+            lines.push(Text::fill(EN.code_view_descriptor, &[sum]));
         }
-        lines.push(EN.code_view_public_watch.to_string());
-        let title = fill(EN.code_view_sheet, &[&name]);
-        let png = format!("{}-descriptor.png", crate::file_stem(&name));
+        lines.push(Text::of(EN.code_view_public_watch));
+        let title = Text::fill(EN.code_view_sheet, &[&name]);
+        let png = text!("{}-descriptor.png", crate::file_stem(&name));
         let mut view = QrView::text(c, &title, &text)?.public(&png, lines);
-        view.whole = Some(text);
+        view.whole = Some(Text::of(&text));
         Ok(view)
     }
 
@@ -1407,7 +1407,7 @@ impl Faraday {
     /// file: the one code of a secret that has not passed the secret
     /// sheet, shown only from the entry's own page while the URI reads as
     /// TOTP (`docs/QR.md` §7.1, F28). `None` where there is none to show.
-    fn vault_totp_view(&self, c: &Compute) -> Option<Result<QrView, String>> {
+    fn vault_totp_view(&self, c: &Compute) -> Option<Result<QrView, Text>> {
         use faraday_keys::{Part, Reveal};
         use faraday_vault::records::field;
         if !self.vault_on_page() {
@@ -1419,7 +1419,7 @@ impl Faraday {
         let store = self.vaults.store();
         // An HOTP or unreadable URI has no code here.
         store.totp(id, i, None, why).filter(|t| t.code.is_ok())?;
-        let title = fill(
+        let title = Text::fill(
             EN.code_view_totp,
             &[r.public_text(field::TITLE).unwrap_or("")],
         );
@@ -1432,7 +1432,7 @@ impl Faraday {
     /// the sheet marked Secret, with no picture and no file, made through
     /// the eye's reveal and held with the view (`docs/GPG-PAPERKEY.md`
     /// §12, F215). `None` where there is none to show.
-    fn vault_paperkey_view(&self, c: &Compute) -> Option<Result<QrView, String>> {
+    fn vault_paperkey_view(&self, c: &Compute) -> Option<Result<QrView, Text>> {
         use faraday_vault::records::kind;
         if !self.vault_on_page() {
             return None;
@@ -1442,73 +1442,36 @@ impl Faraday {
         let name = faraday_keys::vault::gpg_facts(r)
             .and_then(|f| f.user_ids.first().cloned())
             .unwrap_or_default();
-        let title = fill(EN.code_view_paperkey, &[&name]);
+        let title = Text::fill(EN.code_view_paperkey, &[&name]);
         Some(QrView::secret_one_code(c, &title, text.as_str()))
     }
 }
 
-/// The file names of the pictures of Specter DIY's `addwallet` command
-/// `text` for the wallet whose file stem is `stem`, as Specter's
-/// numbered parts carry it (`faraday_qr::send::parts_frames`, at the
-/// middle part size), without making them: `{stem}-specter-diy.png` for
-/// one code, else `{stem}-specter-diy-part-{j}-of-{k}.png`. Costs the
-/// splitting of `text` into parts; no code is drawn.
-fn specter_diy_names(stem: &str, text: &str) -> Vec<String> {
-    let part = QR_PARTS[1];
-    let k = if text.chars().count() <= part {
-        1
-    } else {
-        faraday_qr::specter::encode(text, part).len()
-    };
-    if k == 1 {
-        return vec![format!("{stem}-specter-diy.png")];
-    }
-    (1..=k)
-        .map(|j| format!("{stem}-specter-diy-part-{j}-of-{k}.png"))
-        .collect()
-}
-
-/// Costs the splitting of the command into parts and a QR code made per
-/// part. Specter DIY's `addwallet` command for `w` as labelled pictures,
-/// one per numbered part past one code: `shape` and the keys'
-/// fingerprints `fps` on each, with what reads it.
-pub(crate) fn specter_diy_pictures(
-    c: &Compute,
-    w: &wallet::Wallet,
-    shape: String,
-    fps: Vec<String>,
-    stem: &str,
-) -> Vec<picture::Labelled> {
-    let Some(text) = faraday_intake::specter_diy::command(&w.name, w.policy()) else {
-        return Vec::new();
-    };
-    let Ok((_, codes)) = faraday_qr::send::parts_frames(c, &text, QR_PARTS[1]) else {
-        return Vec::new();
-    };
-    let mut lines = vec![shape];
-    if !fps.is_empty() {
-        let word = if fps.len() == 1 {
-            EN.public_pictures_key
-        } else {
-            EN.public_pictures_keys
-        };
-        lines.push(format!("{word} {}", fps.join(" · ")));
-    }
-    lines.push(EN.public_files_specter_diy_reads.to_string());
-    lines.push(EN.public_pictures_public_watch.to_string());
-    picture::labelled_parts(codes, specter_diy_names(stem, &text), &w.name, &lines)
-}
-
 /// The line that names a cosigner's key under its code: `Key {fp} ·
 /// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
-fn key_label(fp: &str, kind: &str, key: &str) -> String {
+fn key_label(fp: &str, kind: &str, key: &str) -> Text {
     let path = key
         .strip_prefix('[')
         .and_then(|k| k.split_once(']'))
         .and_then(|(origin, _)| origin.split_once('/'))
-        .map(|(_, p)| format!("m/{p}"));
+        .map(|(_, p)| text!("m/{p}"));
     match path {
-        Some(p) => fill(EN.key_label_key_kind_path, &[fp, kind, &p.to_string()]),
-        None => fill(EN.key_label_key, &[fp, kind]),
+        Some(p) => Text::fill(EN.key_label_key_kind_path, &[fp, kind, &p]),
+        None => Text::fill(EN.key_label_key, &[fp, kind]),
+    }
+}
+
+/// Lines of a label as wiping text.
+fn texts<L: AsRef<str>>(lines: &[L]) -> Vec<Text> {
+    lines.iter().map(|l| Text::of(l.as_ref())).collect()
+}
+
+/// Why a code view could not be made: the line that says it, from fixed
+/// wording or from text another area made.
+pub(crate) struct Why(Text);
+
+impl<S: AsRef<str>> From<S> for Why {
+    fn from(line: S) -> Why {
+        Why(Text::of(line.as_ref()))
     }
 }

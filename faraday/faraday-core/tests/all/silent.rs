@@ -139,10 +139,18 @@ fn the_dns_record_of_a_labelled_address_names_its_label() {
     type_into(&mut app, Here::SilentDomain, "example.com");
     let c = faraday_core::testkit::compute();
     let plain = app.code_view(&c, faraday_core::Code::SilentDns).unwrap();
-    assert!(!plain.png_name.contains("label"), "{}", plain.png_name);
+    assert!(
+        !plain.png_name.as_str().contains("label"),
+        "{}",
+        plain.png_name.as_str()
+    );
     app.press(Action::SLabel(1));
     let view = app.code_view(&c, faraday_core::Code::SilentDns).unwrap();
-    assert!(view.png_name.contains("label-1"), "{}", view.png_name);
+    assert!(
+        view.png_name.as_str().contains("label-1"),
+        "{}",
+        view.png_name.as_str()
+    );
     assert!(
         view.label.iter().any(|l| l == "Label 1"),
         "{:?}",
@@ -607,7 +615,11 @@ fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
     let view = app
         .code_view(&c, faraday_core::Code::Descriptor(0))
         .unwrap();
-    assert!(view.label.contains(&line), "{:?}", view.label);
+    assert!(
+        view.label.iter().any(|l| l.as_str() == line),
+        "{:?}",
+        view.label
+    );
 }
 
 // BIP-392's `sp()` descriptor, written and read (`docs/INTEROP.md` §5, BIP-392 sp()).

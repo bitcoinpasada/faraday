@@ -101,7 +101,7 @@ fn a_named_code_goes_to_the_outbox_under_its_name() {
     let item = app
         .outbox
         .iter()
-        .find(|i| i.name == format!("{stem}.pgp"))
+        .find(|i| i.name == format!("{}.pgp", stem.as_str()).as_str())
         .unwrap();
     assert_eq!(item.bytes.len(), 396);
 }

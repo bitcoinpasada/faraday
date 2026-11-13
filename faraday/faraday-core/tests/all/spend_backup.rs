@@ -142,7 +142,9 @@ fn scan_seed(app: &mut Faraday, word: &str) {
 
 /// The camera's note.
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 /// The first receive address of the test kit's wallet `id`.

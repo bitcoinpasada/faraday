@@ -12,6 +12,7 @@ use super::{Field, refusal_line, say, st};
 use crate::strings::EN;
 use crate::worker::Job;
 use crate::{Faraday, Screen};
+use faraday_text::Text;
 
 /// A code to open, to run on the worker.
 pub(crate) struct OpenWork {
@@ -33,17 +34,17 @@ impl OpenWork {
 }
 
 /// The line an open's refusal is told in.
-fn open_line(e: &QrError) -> String {
+fn open_line(e: &QrError) -> Text {
     match e {
-        QrError::WrongPassphrase => EN.qr_tool_wrong_pass.to_string(),
+        QrError::WrongPassphrase => Text::of(EN.qr_tool_wrong_pass),
         QrError::NotQrVault(QrUnsupported::Other) | QrError::NotAMessage => {
-            EN.qr_tool_not_message.to_string()
+            Text::of(EN.qr_tool_not_message)
         }
-        QrError::NotQrVault(_) => EN.qr_tool_not_vault.to_string(),
-        QrError::Cost => EN.qr_tool_cost.to_string(),
-        QrError::Damaged => EN.qr_tool_damaged.to_string(),
+        QrError::NotQrVault(_) => Text::of(EN.qr_tool_not_vault),
+        QrError::Cost => Text::of(EN.qr_tool_cost),
+        QrError::Damaged => Text::of(EN.qr_tool_damaged),
         QrError::Contents(_) | QrError::Unreadable | QrError::Memory(_) => {
-            EN.qr_tool_not_opened.to_string()
+            Text::of(EN.qr_tool_not_opened)
         }
         other => refusal_line(other),
     }
@@ -71,7 +72,7 @@ pub(super) fn press(app: &mut Faraday) {
         .vaults
         .open_refusal(cost.memory_kib() / 1024, code.len())
     {
-        return say(app, line);
+        return say(app, Text::of(&line));
     }
     let Some(s) = st(app) else { return };
     s.error = None;

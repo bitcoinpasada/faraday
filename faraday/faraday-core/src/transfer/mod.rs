@@ -149,7 +149,7 @@ fn read_any(
                 return None;
             }
             Err(why) => {
-                scan.note = Some(why.to_string());
+                scan.note = Some(faraday_text::Text::of(why));
                 return None;
             }
         };
@@ -251,7 +251,7 @@ impl TransferArea {
         online: bool,
         medium: Medium,
         out: &mut Out,
-    ) -> Option<Result<QrView, String>> {
+    ) -> Option<Result<QrView, faraday_text::Text>> {
         if self.state.reading.as_deref() != Some(path.as_str()) || !online {
             zeroize::Zeroize::zeroize(&mut bytes);
             return None;
@@ -331,7 +331,11 @@ impl TransferArea {
         };
         if self.state.last == Some(digest) {
             // Already saved: the line says so again.
-            scan.note = self.state.saved.last().map(|(l, _)| l.clone());
+            scan.note = self
+                .state
+                .saved
+                .last()
+                .map(|(l, _)| faraday_text::Text::of(l));
             return None;
         }
         self.state.last = Some(digest);
@@ -365,7 +369,10 @@ impl TransferArea {
         secret: bool,
         out: &mut Out,
     ) {
-        scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
+        scan.note = Some(faraday_text::Text::of(&fill(
+            EN.transfer_saving,
+            &[&name.to_string()],
+        )));
         self.state.saving.push_back(secret);
         out.storage_out
             .push_back(StorageCommand::SaveDownload { name, bytes: data });
@@ -384,7 +391,7 @@ impl TransferArea {
         if let Some(scan) = scan
             && scan.purpose == ScanPurpose::Transfer
         {
-            scan.note = Some(line.clone());
+            scan.note = Some(faraday_text::Text::of(&line));
         }
         self.state.saved.push((line, warn));
     }

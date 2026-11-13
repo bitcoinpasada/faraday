@@ -23,7 +23,9 @@ const TOTP: &str = "otpauth://totp/Scanned:me?secret=JBSWY3DPEHPK3PXP";
 const WIF: &str = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 /// Home's Scan, open.
@@ -184,7 +186,7 @@ fn make_a_vault(app: &Faraday) -> Option<bool> {
             && card
                 .ways
                 .iter()
-                .map(|w| w.label())
+                .map(|w| String::from(w.label().as_str()))
                 .eq(["Make a vault".to_string()]),
     )
 }

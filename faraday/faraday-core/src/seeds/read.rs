@@ -836,7 +836,7 @@ impl Faraday {
                 self.sweep_psbt(bytes.clone());
             }
             ScanPurpose::Sweep => {
-                self.camera.say(EN.wif_not_a_key.to_string());
+                self.camera.say(EN.wif_not_a_key);
             }
             _ if wif && home => {
                 self.seed_read.sweep = Some(Sweep::default());
@@ -849,7 +849,7 @@ impl Faraday {
             // (`docs/SCANNING.md` §4.2).
             _ if wif && self.read_card_here() => return false,
             _ if wif => {
-                self.camera.say(EN.sweep_elsewhere.to_string());
+                self.camera.say(EN.sweep_elsewhere);
             }
             _ => return false,
         }
@@ -866,7 +866,7 @@ impl Faraday {
             return;
         };
         let Some(psbt) = crate::wallet::read_psbt_kept(&c, &data) else {
-            self.camera.say(EN.sweep_not_psbt.to_string());
+            self.camera.say(EN.sweep_not_psbt);
             return;
         };
         let review = crate::seeds::sweep::review(&c, &self.session, psbt);

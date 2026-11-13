@@ -310,13 +310,19 @@ fn a_copy_drawn_on_the_sheet_scanned_back_is_checked() {
     app.event(Event::Scanned {
         bytes: other.into_bytes(),
     });
-    let note = app.scan().and_then(|s| s.note.clone()).unwrap_or_default();
+    let note = app
+        .scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default();
     assert!(note.starts_with("Box 9 differs"), "{note}");
     // Not a codex32 string at all.
     app.event(Event::Scanned {
         bytes: b"hello".to_vec(),
     });
-    let note = app.scan().and_then(|s| s.note.clone()).unwrap_or_default();
+    let note = app
+        .scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default();
     assert_eq!(note, "Not a codex32 string");
     // The drawn copy holds: checked, and the camera closes.
     app.event(Event::Scanned {

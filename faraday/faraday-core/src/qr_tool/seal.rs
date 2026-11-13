@@ -11,17 +11,18 @@ use super::{Made, qstep, refusal_line, st};
 use crate::strings::EN;
 use crate::worker::Job;
 use crate::{Faraday, Screen};
+use faraday_text::Text;
 
 /// A code to seal, to run on the worker, with the name it goes by.
 pub(crate) struct SealWork {
     job: QrSealJob,
-    stem: String,
+    stem: Text,
 }
 
 /// A seal's answer: the code made or why there is none.
 pub(crate) struct SealDone {
     sealed: Result<Vec<u8>, QrError>,
-    stem: String,
+    stem: Text,
 }
 
 impl SealWork {
@@ -36,7 +37,7 @@ impl SealWork {
 }
 
 /// Starts sealing `job`, the code to go by `stem`, under the busy screen.
-pub(super) fn start(app: &mut Faraday, job: QrSealJob, stem: String) {
+pub(super) fn start(app: &mut Faraday, job: QrSealJob, stem: Text) {
     app.start(
         Job::QrSeal(Box::new(SealWork { job, stem })),
         EN.qr_tool_sealing,
@@ -53,7 +54,7 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     }
     // The vault locked, closed or changed while it ran: nothing is made.
     let gone = super::item::gone(app);
-    let date = app.clock_now().map(crate::gpg::date);
+    let date = app.clock_now().map(|t| Text::of(&crate::gpg::date(t)));
     let Some(s) = st(app) else { return };
     match sealed {
         Ok(_) if gone => s.error = Some(refusal_line(&QrError::NoItem)),

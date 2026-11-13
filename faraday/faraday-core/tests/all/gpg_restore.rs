@@ -300,7 +300,8 @@ fn a_lock_at_step_four_forgets_the_lines_and_keeps_the_public_key() {
 
 /// The scanner's note, while it is open.
 fn scan_note(app: &Faraday) -> Option<String> {
-    app.scan().and_then(|s| s.note.clone())
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
 }
 
 /// A code read by the camera on screen.

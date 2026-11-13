@@ -133,7 +133,10 @@ fn something_else_scanned_is_not_a_psbt() {
     app.press(Action::SignerCheck(SignerPress::Scan(Slot::Returned)));
     read(&mut app, b"hello");
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    let note = app.scan().and_then(|s| s.note.clone()).unwrap_or_default();
+    let note = app
+        .scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default();
     assert_eq!(note, "Not a PSBT");
     assert!(app.inbox().is_empty());
 }

@@ -15,6 +15,7 @@ use faraday_keys::{
     QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, QrHolds, qr_note_over, qr_seal_note_job,
 };
 use faraday_shell_api::Key;
+use faraday_text::{Text, text};
 use zeroize::{Zeroize, Zeroizing};
 
 mod item;
@@ -26,7 +27,7 @@ mod seal;
 pub(crate) use open::{OpenDone, OpenWork};
 pub(crate) use seal::{SealDone, SealWork};
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 
 /// The cards, in order.
 pub mod qstep {
@@ -119,8 +120,8 @@ pub enum QrToolAction {
 /// A code made. Public (`docs/QR.md` §7.1); wiped with the tool.
 struct Made {
     bytes: Vec<u8>,
-    stem: String,
-    date: Option<String>,
+    stem: Text,
+    date: Option<Text>,
 }
 
 impl Drop for Made {
@@ -148,7 +149,7 @@ pub struct QrToolState {
     focus: Option<Field>,
     shown: bool,
     exponent: u8,
-    error: Option<String>,
+    error: Option<Text>,
     made: Option<Made>,
     /// A QR vault's bytes brought to the Open card (public: encrypted).
     code: Option<Zeroizing<Vec<u8>>>,
@@ -255,7 +256,7 @@ impl QrToolState {
     }
 
     /// The name of the file the code goes to, without its suffix.
-    pub fn stem(&self) -> String {
+    pub fn stem(&self) -> Text {
         stem_of(self.name.text.as_str())
     }
 
@@ -284,20 +285,20 @@ impl QrToolState {
 }
 
 /// The name a typed one makes: its file stem.
-fn stem_of(typed: &str) -> String {
+fn stem_of(typed: &str) -> Text {
     if typed.trim().is_empty() {
-        DEFAULT_STEM.to_string()
+        Text::of(DEFAULT_STEM)
     } else {
-        vault_stem(typed)
+        Text::of(&vault_stem(typed))
     }
 }
 
 /// The plain characters that still fit after `note`: the most `a`s whose
 /// addition keeps the note inside the limit.
 fn room(note: &str) -> usize {
-    let mut text = Zeroizing::new(String::from(note));
+    let mut text = Text::of(note);
     let base = text.len();
-    let fits = |text: &mut Zeroizing<String>, n: usize| {
+    let fits = |text: &mut Text, n: usize| {
         text.truncate(base);
         text.extend(std::iter::repeat_n('a', n));
         qr_note_over(text) == 0
@@ -541,11 +542,11 @@ fn step(app: &mut Faraday, k: u8) {
 }
 
 /// The line a refusal is told in.
-fn refusal_line(e: &QrError) -> String {
+fn refusal_line(e: &QrError) -> Text {
     match e {
-        QrError::Memory(mib) => fill(EN.qr_tool_no_memory, &[&mib.to_string()]),
-        QrError::NoItem => EN.qr_tool_item_gone.to_string(),
-        _ => EN.qr_tool_not_made.to_string(),
+        QrError::Memory(mib) => Text::fill(EN.qr_tool_no_memory, &[&Text::num(u64::from(*mib))]),
+        QrError::NoItem => Text::of(EN.qr_tool_item_gone),
+        _ => Text::of(EN.qr_tool_not_made),
     }
 }
 
@@ -576,8 +577,8 @@ fn make(app: &mut Faraday) {
     }
     let Some(s) = st(app) else { return };
     let (note, pass) = (
-        Zeroizing::new(s.note.text.as_str().to_string()),
-        Zeroizing::new(s.pass.text.as_str().to_string()),
+        Text::of(s.note.text.as_str()),
+        Text::of(s.pass.text.as_str()),
     );
     let (key, exponent) = (s.key, s.exponent);
     let stem = s.stem();
@@ -611,7 +612,7 @@ fn make(app: &mut Faraday) {
     }
 }
 
-fn say(app: &mut Faraday, line: String) {
+fn say(app: &mut Faraday, line: Text) {
     if let Some(s) = st(app) {
         s.error = Some(line);
     }
@@ -621,27 +622,27 @@ fn say(app: &mut Faraday, line: String) {
 /// message as one static code at medium error correction, version 15,
 /// public (`docs/QR.md` §7.1), its picture labelled with the name and
 /// the date sealed and never with what it holds.
-fn view(c: &Compute, made: &Made) -> Result<QrView, String> {
+fn view(c: &Compute, made: &Made) -> Result<QrView, Text> {
     use faraday_codec::qr::{Ecc, Payload, encode_bounded};
     /// The version a QR vault is drawn at.
     const VERSION: u8 = 15;
     let code = encode_bounded(c, Payload::Bytes(&made.bytes), Ecc::Medium, VERSION)
-        .map_err(|_| EN.kef_code_too_big.to_string())?;
-    let mut label = vec![made.stem.clone()];
-    label.extend(made.date.clone());
+        .map_err(|_| Text::of(EN.kef_code_too_big))?;
+    let mut label = vec![made.stem.duplicate()];
+    label.extend(made.date.as_ref().map(Text::duplicate));
     Ok(QrView {
-        title: EN.qr_tool_view_title.to_string(),
-        subtitle: EN.qr_tool_view_subtitle.to_string(),
+        title: Text::of(EN.qr_tool_view_title),
+        subtitle: Text::of(EN.qr_tool_view_subtitle),
         frames: vec![code],
         frame: 0,
         next_ms: 0,
-        source: QrSource::File(faraday_text::text!("{}.pgp", made.stem), made.bytes.clone()),
+        source: QrSource::File(text!("{}.pgp", made.stem.as_str()), made.bytes.clone()),
         format: QrFormat::Ur,
         part: crate::QR_PARTS[1],
         secret: false,
         public: true,
         label,
-        png_name: format!("{}.png", made.stem),
+        png_name: text!("{}.png", made.stem.as_str()),
         whole: None,
         one_code: true,
     })
@@ -664,7 +665,7 @@ fn png(app: &mut Faraday) {
     let Ok(v) = view(&c, made) else { return };
     if let Some((name, bytes)) = v.png(&c) {
         let put = app.put_outbox_beside(&name, bytes);
-        app.toast(&fill(EN.qr_tool_saved, &[&put]));
+        app.toast(&Text::fill(EN.qr_tool_saved, &[&put]));
     }
 }
 
@@ -672,9 +673,9 @@ fn file(app: &mut Faraday) {
     let Some(made) = state(app).and_then(|s| s.made.as_ref()) else {
         return;
     };
-    let (name, bytes) = (format!("{}.pgp", made.stem), made.bytes.clone());
+    let (name, bytes) = (text!("{}.pgp", made.stem.as_str()), made.bytes.clone());
     let put = app.put_outbox_beside(&name, bytes);
-    app.toast(&fill(EN.qr_tool_saved, &[&put]));
+    app.toast(&Text::fill(EN.qr_tool_saved, &[&put]));
 }
 
 /// The field typing goes to on the tool, with the press that focuses it

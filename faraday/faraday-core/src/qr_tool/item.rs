@@ -5,10 +5,11 @@
 
 use super::{Pick, QrToolState, go_to_passphrase, st};
 use crate::Faraday;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::VaultId;
 use faraday_keys::{QR_RANDOM_LEN, QrError, QrSealJob};
+use faraday_text::Text;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
 
@@ -21,19 +22,19 @@ pub(crate) struct Source {
     kind: u8,
     /// A seed that keeps a passphrase: it is not in the code.
     pass_kept: bool,
-    vault: String,
+    vault: Text,
 }
 
 impl Source {
     /// The Contents line: what the code holds and where it is from.
-    pub(crate) fn line(&self) -> String {
+    pub(crate) fn line(&self) -> Text {
         let what = match self.kind {
             kind::KEY => EN.qr_tool_item_seed,
             kind::CODEX32_SHARE => EN.qr_tool_item_share,
             kind::PASSPHRASE => EN.qr_tool_item_passphrase,
             _ => EN.qr_tool_item_note,
         };
-        fill(what, &[&self.vault])
+        Text::fill(what, &[&self.vault])
     }
 
     /// Whether the item is a seed that keeps a passphrase.
@@ -60,7 +61,7 @@ pub(crate) fn open(app: &mut Faraday, id: VaultId, at: usize) {
             .open
             .iter()
             .find(|o| o.id == id)
-            .map_or_else(String::new, |o| o.label(store)),
+            .map_or_else(Text::new, |o| Text::of(&o.label(store))),
     };
     super::open(app);
     if let Some(s) = st(app) {

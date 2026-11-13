@@ -1041,7 +1041,7 @@ impl Faraday {
             scan.assembler = assembler;
         }
         scan.purpose = ScanPurpose::Intake;
-        scan.note = note;
+        scan.note = note.map(|n| faraday_text::Text::of(&n));
         self.camera.open(scan);
         self.sheet = Some(Sheet::Scan);
         self.out.commands.push_back(Command::CameraOn);
@@ -1058,7 +1058,7 @@ impl Faraday {
     pub(crate) fn spend_backup_intake_seed(&mut self, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            self.camera.say(EN.spend_backup_not_a_seedqr.to_string());
+            self.camera.say(EN.spend_backup_not_a_seedqr);
             return;
         };
         let Some(w) = self.spend_backup_described() else {

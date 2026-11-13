@@ -130,7 +130,9 @@ fn open(app: &mut Faraday, at: Opened) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 fn read(app: &mut Faraday, code: &[u8]) {
@@ -250,8 +252,11 @@ fn card(app: &Faraday) -> Option<(String, Vec<String>, Vec<String>)> {
     let c = app.scan()?.card.as_ref()?;
     Some((
         c.kind.label().to_string(),
-        c.facts.clone(),
-        c.ways.iter().map(|w| w.label()).collect(),
+        c.facts.iter().map(|f| String::from(f.as_str())).collect(),
+        c.ways
+            .iter()
+            .map(|w| String::from(w.label().as_str()))
+            .collect(),
     ))
 }
 

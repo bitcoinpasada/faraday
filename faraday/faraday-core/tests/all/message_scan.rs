@@ -77,7 +77,9 @@ fn stick_in(app: &mut Faraday, on: bool) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+    app.scan()
+        .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
+        .unwrap_or_default()
 }
 
 #[test]
@@ -279,7 +281,9 @@ fn a_ur_bytes_message_that_is_no_text_is_refused_whole_or_in_parts() {
         assert_eq!(app.sheet, Some(Sheet::Scan));
         assert_eq!(
             note(&app),
-            faraday_core::scan_read::Kind::Unreadable.not_here()
+            faraday_core::scan_read::Kind::Unreadable
+                .not_here()
+                .as_str()
         );
         assert_eq!(testkit::message(&app).unwrap().text, "");
     }

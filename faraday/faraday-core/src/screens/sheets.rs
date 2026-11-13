@@ -1074,9 +1074,9 @@ fn read_card(
 /// A way over's label on the read card.
 fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> String {
     if *way == crate::scan_read::Way::Open && card.kef.as_ref().is_some_and(|h| h.sure) {
-        EN.kef_open_anyway.to_string()
+        EN.kef_open_anyway.into()
     } else {
-        way.label()
+        way.label().as_str().into()
     }
 }
 
@@ -1303,13 +1303,13 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         fill(
             EN.qr_frame_count,
             &[
-                &q.subtitle.to_string(),
+                &q.subtitle,
                 &(q.frame + 1).to_string(),
                 &q.frames.len().to_string(),
             ],
         )
     } else {
-        q.subtitle.clone()
+        q.subtitle.as_str().into()
     };
     let sub = ui.fit_as(BODY_S, &sub, sw - 64.0);
     ui.text_as(x + 32.0, ty, BODY_S, Role::OnSurfaceVariant, &sub);
@@ -1458,13 +1458,13 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
             fill(
                 EN.qr_sheet_frame_count,
                 &[
-                    &q.title.to_string(),
+                    &q.title,
                     &(q.frame + 1).to_string(),
                     &q.frames.len().to_string(),
                 ],
             )
         } else {
-            q.title.clone()
+            q.title.as_str().into()
         };
         let t = ui.fit_as(TITLE_M, &title, iw);
         ui.text_as(x, cy, TITLE_M, Role::OnSurface, &t);

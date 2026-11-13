@@ -263,7 +263,7 @@ pub struct Made {
     /// The envelope's bytes.
     pub bytes: zeroize::Zeroizing<Vec<u8>>,
     /// The code on a sheet, when it fits one code; otherwise why not.
-    pub view: Result<QrView, String>,
+    pub view: Result<QrView, faraday_text::Text>,
     /// The picture's file name.
     pub png_name: String,
     /// The bytes' file name.

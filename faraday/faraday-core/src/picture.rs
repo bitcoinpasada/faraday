@@ -36,7 +36,12 @@ const MAX_HEIGHT: u16 = 1600;
 /// Costs what `png` costs. `code` with `title` and then each of `lines`
 /// under it, as a PNG file. The pixels drawn are wiped before this
 /// returns, so a secret's code leaves only the file.
-pub fn labelled_png(c: &Compute, code: &QrMatrix, title: &str, lines: &[String]) -> Vec<u8> {
+pub fn labelled_png<L: AsRef<str>>(
+    c: &Compute,
+    code: &QrMatrix,
+    title: &str,
+    lines: &[L],
+) -> Vec<u8> {
     let mut canvas = draw(code, title, lines);
     let bytes = png(c, &canvas);
     canvas.clear(Color::WHITE);
@@ -46,7 +51,7 @@ pub fn labelled_png(c: &Compute, code: &QrMatrix, title: &str, lines: &[String])
 /// `code` with its title and label lines under it, drawn: what
 /// [`labelled_png`] writes. The canvas records the text it drew
 /// ([`Canvas::ink`]).
-pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
+pub fn draw<L: AsRef<str>>(code: &QrMatrix, title: &str, lines: &[L]) -> Canvas {
     let scale = Scale::for_class(DPI, SizeClass::Mobile);
     let w = i32::from(WIDTH);
     let modules = code.size() + 2 * QUIET_ZONE;
@@ -64,7 +69,7 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
     };
     let mut h = side + height_of(title_font, title);
     for l in lines {
-        h += gap + height_of(line_font, l);
+        h += gap + height_of(line_font, l.as_ref());
     }
     h += margin;
     let h = h.clamp(side, i32::from(MAX_HEIGHT));
@@ -124,7 +129,7 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
         }
         y += canvas.text_wrapped(
             Rect::new(margin, y, text_w, h - y),
-            l,
+            l.as_ref(),
             line_font,
             Color::BLACK,
             TextAlign::Start,
@@ -225,7 +230,7 @@ pub(crate) fn picture_codes(
     }
     faraday_qr::send::bbqr_frames(c, 'U', text.as_bytes(), crate::QR_PARTS[1])
         .map(|(_, frames)| frames)
-        .map_err(crate::send_error)
+        .map_err(|e| crate::send_error(e).as_str().into())
 }
 
 /// The file names of the pictures [`picture_codes`] makes of `text`,
