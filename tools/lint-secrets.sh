@@ -191,6 +191,53 @@ rule2_types() {
                 return b ~ re
             }
             BEGIN { OFS = "\t" }
+            # The line without its comments and with each string or char
+            # literal emptied, so that a bracket or a type name in one is
+            # not counted. A block comment or a string may run on to later
+            # lines (cdepth, instr); a lifetime is not a char literal.
+            function strip(s,   out, i, n, c, d, p, j) {
+                if (!cdepth && !instr && s !~ /["\047\/]/) return s
+                out = ""; n = length(s); i = 1
+                while (i <= n) {
+                    c = substr(s, i, 1); d = substr(s, i + 1, 1)
+                    if (cdepth) {
+                        if (c == "/" && d == "*") { cdepth++; i += 2 }
+                        else if (c == "*" && d == "/") { cdepth--; i += 2; if (!cdepth) out = out " " }
+                        else i++
+                        continue
+                    }
+                    if (instr == 1) {
+                        if (c == "\\") i += 2
+                        else if (c == "\"") { instr = 0; out = out "\"\""; i++ }
+                        else i++
+                        continue
+                    }
+                    if (instr == 2) {
+                        if (c == "\"" && substr(s, i + 1, length(rawh)) == rawh) { instr = 0; out = out "\"\""; i += 1 + length(rawh) }
+                        else i++
+                        continue
+                    }
+                    p = substr(s, i - 1, 1)
+                    if (c == "/" && d == "/") { sub(/[[:space:]]+$/, "", out); break }
+                    if (c == "/" && d == "*") { cdepth = 1; i += 2; continue }
+                    if (c == "\"") { instr = 1; i++; continue }
+                    if (c == "r" && (p !~ /[A-Za-z0-9_]/ || (p == "b" && substr(s, i - 2, 1) !~ /[A-Za-z0-9_]/)) && match(substr(s, i + 1), /^#*"/)) {
+                        instr = 2; rawh = substr(s, i + 1, RLENGTH - 1); i += 1 + RLENGTH; continue
+                    }
+                    if (c == "\047") {
+                        if (d == "\\") {
+                            j = index(substr(s, i + 3), "\047")
+                            if (j) { out = out "\047\047"; i += 3 + j; continue }
+                        } else if (substr(s, i + 2, 1) == "\047") { out = out "\047\047"; i += 3; continue }
+                        else if (d != "" && d !~ /[ -~]/) {
+                            j = index(substr(s, i + 1, 6), "\047")
+                            if (j > 1) { out = out "\047\047"; i += 1 + j; continue }
+                        }
+                    }
+                    out = out c; i++
+                }
+                return out
+            }
             function flush(   toks, t, n, i) {
                 if (name != "") {
                     # One record a type: what the final pass needs to follow
@@ -213,7 +260,7 @@ rule2_types() {
                 l = $0; sub(/^.*Display[[:space:]]+for[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l)
                 disp[l] = FNR
             }
-            { sub(/[[:space:]]*\/\/.*$/, ""); if ($0 == "") $0 = "|" }
+            { $0 = strip($0); if ($0 == "") $0 = "|" }
             name != "" {
                 # The name of an enum variant is not a type it holds; a line
                 # inside the parentheses of a wrapped tuple variant is a type.
@@ -234,7 +281,10 @@ rule2_types() {
                 next
             }
             { pend = "" }
-            END { for (t in disp) print "D", file, disp[t], t }
+            END {
+                for (t in disp) print "D", file, disp[t], t
+                if (cdepth || instr) print file ": a string or block comment is not closed"
+            }
         ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
     done | awk -F'\t' -v allowed="$ALLOWED_TYPES_LIST" '
         # A type is secret when it holds a secret type directly, derives

@@ -264,16 +264,38 @@ impl Language {
         let nfkd = &buf.expose()[..len];
         let exact = Padded::new(nfkd)?;
         let plain = core::str::from_utf8(nfkd).ok().and_then(fold_bytes);
-        let plain = plain.as_ref().and_then(|(b, n)| Padded::new(&b[..*n]));
+        let plain = plain
+            .as_ref()
+            .and_then(|(b, n)| Padded::new(&b.expose()[..*n]));
         let mut found = 0u16;
         let mut hit = Choice::from(0);
         for (i, entry) in self.words_nfkd().iter().enumerate() {
             let mut eq = exact.ct_eq_entry(entry.as_bytes());
             if let (Some(p), Some((e, n))) = (plain.as_ref(), fold_bytes(entry)) {
-                eq |= p.ct_eq_entry(&e[..n]);
+                eq |= p.ct_eq_entry(&e.expose()[..n]);
             }
             found.conditional_assign(&(i as u16), eq & !hit);
             hit |= eq;
+        }
+        bool::from(hit).then_some(found)
+    }
+
+    /// Costs the whole list: the index of the word whose
+    /// [`typed`](Self::typed) keys are `keys`.
+    ///
+    /// About as much as [`candidates_typed`](Self::candidates_typed) run to
+    /// its end: every entry's keys are worked out and compared in full with
+    /// `keys`, with no early exit, so the time does not follow the word's
+    /// place in the list.
+    pub fn index_of_typed(self, keys: &Typed) -> Option<u16> {
+        let mut found = 0u16;
+        let mut hit = Choice::from(0);
+        for i in 0..wordlists::WORDLIST_LEN as u16 {
+            if let Some(entry) = self.typed(i) {
+                let eq = entry.ct_same_keys(keys);
+                found.conditional_assign(&i, eq & !hit);
+                hit |= eq;
+            }
         }
         bool::from(hit).then_some(found)
     }
@@ -604,11 +626,17 @@ impl Typed {
     /// Whether `other` holds the same keys, in time that does not depend
     /// on where they differ (the unused tail of both is always `'\0'`).
     pub fn same_keys(&self, other: &Typed) -> bool {
+        self.ct_same_keys(other).into()
+    }
+
+    /// [`same_keys`](Self::same_keys) as a `subtle` choice, for a scan
+    /// that must not branch on it.
+    fn ct_same_keys(&self, other: &Typed) -> Choice {
         let mut same = self.len.ct_eq(&other.len);
         for (a, b) in self.buf.iter().zip(&other.buf) {
             same &= u32::from(*a).ct_eq(&u32::from(*b));
         }
-        same.into()
+        same
     }
 
     /// Forgets everything typed.
@@ -644,15 +672,24 @@ impl core::fmt::Debug for Typed {
 /// exceeds [`MAX_TYPED`].
 pub fn fold(word: &str) -> Option<Typed> {
     let mut out = Typed::new();
+    fold_into(word, &mut out).then_some(out)
+}
+
+/// [`fold`] into `out`, which the caller holds, so that a typed word's
+/// keys are never moved. False, with `out` cleared, where [`fold`] gives
+/// `None`.
+pub fn fold_into(word: &str, out: &mut Typed) -> bool {
+    out.clear();
     for c in word.chars() {
         if ('\u{0300}'..='\u{036F}').contains(&c) {
             continue;
         }
         if !c.is_ascii_alphabetic() || !out.push(c.to_ascii_lowercase()) {
-            return None;
+            out.clear();
+            return false;
         }
     }
-    Some(out)
+    true
 }
 
 /// The word as the lists store it: decomposed (NFKD) and in lower case,
@@ -663,11 +700,14 @@ pub fn nfkd_lower(word: &str) -> impl Iterator<Item = char> + '_ {
     word.nfkd().flat_map(char::to_lowercase)
 }
 
-/// [`fold`]'s result as ASCII bytes and their count.
-fn fold_bytes(word: &str) -> Option<([u8; MAX_TYPED], usize)> {
-    let typed = fold(word)?;
-    let mut out = [0u8; MAX_TYPED];
-    for (o, c) in out.iter_mut().zip(typed.as_chars()) {
+/// [`fold`]'s result as ASCII bytes, wiped on drop, and their count.
+fn fold_bytes(word: &str) -> Option<(Secret<[u8; MAX_TYPED]>, usize)> {
+    let mut typed = Typed::new();
+    if !fold_into(word, &mut typed) {
+        return None;
+    }
+    let mut out = Secret::new([0u8; MAX_TYPED]);
+    for (o, c) in out.expose_mut().iter_mut().zip(typed.as_chars()) {
         *o = *c as u8;
     }
     Some((out, typed.len()))

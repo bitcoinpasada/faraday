@@ -281,11 +281,14 @@ fn words_kind(text: &str) -> Option<PayloadKind> {
     })
 }
 
-/// Index of `word` in `lang`: the stored (published or NFKD) form, or,
+/// Costs the whole list, twice for a Latin word not in its stored form:
+/// the index of `word` in `lang`, in the stored (published or NFKD) form, or,
 /// for the Latin-script lists, an accent-folded match so that text with
 /// precomposed accents (`ábaco` as one code point, the usual form in a
 /// QR or a file) is found without Unicode tables. Words are matched
-/// whole; the Load wizard's checksum step catches a wrong one.
+/// whole, and every entry is compared in full, so the time does not
+/// follow the word's place in the list; the Load wizard's checksum step
+/// catches a wrong one.
 pub fn word_index(lang: Language, word: &str) -> Option<u16> {
     if let Some(i) = lang.index_of(word) {
         return Some(i);
@@ -293,16 +296,20 @@ pub fn word_index(lang: Language, word: &str) -> Option<u16> {
     if !lang.is_latin() {
         return None;
     }
-    let folded = fold_precomposed(word)?;
-    lang.candidates_typed(folded.as_chars())
-        .find(|&i| lang.typed(i).is_some_and(|t| t.same_keys(&folded)))
+    let mut folded = faraday_bip::bip39::Typed::new();
+    if !fold_precomposed(word, &mut folded) {
+        return None;
+    }
+    lang.index_of_typed(&folded)
 }
 
 /// Lower-case ASCII of a Latin word whose accents may be precomposed:
 /// the Latin-1 and Latin Extended-A letters the five accented wordlists
 /// use (Spanish, French, Italian, Czech, Portuguese) map to their base
-/// letter; combining marks are dropped. `None` for anything else.
-fn fold_precomposed(word: &str) -> Option<faraday_bip::bip39::Typed> {
+/// letter; combining marks are dropped. Written into `out`, which wipes
+/// itself; false, with `out` cleared, for anything else or a word too
+/// long for it.
+fn fold_precomposed(word: &str, out: &mut faraday_bip::bip39::Typed) -> bool {
     const BASES: &[(&str, u8)] = &[
         ("àáâãäå", b'a'),
         ("ç", b'c'),
@@ -322,21 +329,26 @@ fn fold_precomposed(word: &str) -> Option<faraday_bip::bip39::Typed> {
         ("ů", b'u'),
         ("ž", b'z'),
     ];
-    let mut ascii = String::with_capacity(word.len());
+    out.clear();
     for c in word.chars() {
         let c = c.to_lowercase().next().unwrap_or(c);
         if ('\u{0300}'..='\u{036F}').contains(&c) {
             continue;
         }
-        if c.is_ascii() {
-            ascii.push(c);
-        } else if let Some((_, base)) = BASES.iter().find(|(set, _)| set.contains(c)) {
-            ascii.push(char::from(*base));
+        let base = if c.is_ascii_alphabetic() {
+            Some(c.to_ascii_lowercase())
         } else {
-            return None;
+            BASES
+                .iter()
+                .find(|(set, _)| set.contains(c))
+                .map(|(_, base)| char::from(*base))
+        };
+        if !base.is_some_and(|b| out.push(b)) {
+            out.clear();
+            return false;
         }
     }
-    faraday_bip::bip39::fold(&ascii)
+    true
 }
 
 #[cfg(test)]
@@ -345,6 +357,48 @@ mod tests {
     use faraday_crypto::work::Compute;
 
     const XPUB: &str = "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
+
+    /// A word from a QR or a file, in capitals or with its accents as one
+    /// code point each, is found at its place on the published list,
+    /// wherever on the list it is.
+    #[test]
+    fn latin_words_in_capitals_or_precomposed_are_found() {
+        const COMPOSE: [(&str, &str); 6] = [
+            ("a\u{301}", "á"),
+            ("e\u{301}", "é"),
+            ("i\u{301}", "í"),
+            ("o\u{301}", "ó"),
+            ("u\u{301}", "ú"),
+            ("n\u{303}", "ñ"),
+        ];
+        for lang in Language::ALL.into_iter().filter(|l| l.is_latin()) {
+            for i in (0..2048u16).step_by(101).chain([2047]) {
+                let upper = lang.word(i).to_uppercase();
+                assert_eq!(word_index(lang, &upper), Some(i), "{lang:?} {upper}");
+            }
+        }
+        let mut composed = 0;
+        for i in 0..2048u16 {
+            let nfkd = Language::Spanish.word_nfkd(i);
+            if nfkd.is_ascii() {
+                continue;
+            }
+            let word = COMPOSE
+                .iter()
+                .fold(nfkd.to_string(), |w, (d, c)| w.replace(d, c));
+            assert!(word.chars().all(|c| !('\u{300}'..='\u{36f}').contains(&c)));
+            assert_eq!(word_index(Language::Spanish, &word), Some(i), "{word}");
+            assert_eq!(
+                word_index(Language::Spanish, &word.to_uppercase()),
+                Some(i),
+                "{word}"
+            );
+            composed += 1;
+        }
+        assert!(composed > 0);
+        assert_eq!(word_index(Language::Spanish, "abacoo"), None);
+        assert_eq!(word_index(Language::Spanish, "ábac0"), None);
+    }
 
     #[test]
     fn routing_table() {
