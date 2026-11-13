@@ -283,7 +283,11 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
         assert_eq!(testkit::secret_out(&app).map(|o| o.ack), Some(Ack::Seed));
         // Going to another stick, not the Outbox: no line about staying.
         let _ = app.frame();
-        assert!(!app.drawn_texts().iter().any(|t| t == "Stays in the Outbox"));
+        assert!(
+            !app.drawn_texts()
+                .iter()
+                .any(|t| t == "Until it is sent or removed, or until power-off")
+        );
         // Nothing until the line is ticked.
         app.press(Action::SecretUnprotected);
         assert!(

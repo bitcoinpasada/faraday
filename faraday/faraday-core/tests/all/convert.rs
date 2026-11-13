@@ -548,7 +548,7 @@ fn the_sheet_for_a_file_going_to_the_outbox_says_it_stays_there() {
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Stays in the Outbox"));
+    assert!(texts.iter().any(|t| t == "Stays"));
     assert!(
         texts
             .iter()
