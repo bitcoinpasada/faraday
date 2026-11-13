@@ -232,7 +232,7 @@ pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
                 }
             }
             INNER_STREAM_KEY => {
-                if key.replace(Zeroizing::new(value.to_vec())).is_some() {
+                if key.replace(crate::wiped_copy(value)).is_some() {
                     return Err(Error::Damaged);
                 }
             }

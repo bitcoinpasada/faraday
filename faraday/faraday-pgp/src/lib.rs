@@ -113,6 +113,10 @@ impl Hash {
         }
     }
 
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the digest of the public data a signature covers, which EdDSA signs"
+    )]
     fn digest(self, data: &[u8]) -> Vec<u8> {
         match self {
             Hash::Sha256 => Sha256::digest(data).to_vec(),

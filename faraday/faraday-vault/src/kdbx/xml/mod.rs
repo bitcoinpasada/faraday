@@ -239,7 +239,7 @@ fn room(buf: &mut Zeroizing<Vec<u8>>, extra: usize) {
 
 /// A copy of a wiping buffer, in a wiping buffer.
 fn dup(b: &Zeroizing<Vec<u8>>) -> Zeroizing<Vec<u8>> {
-    Zeroizing::new(b.to_vec())
+    crate::wiped_copy(b)
 }
 
 /// A piece of carried bytes.
@@ -275,7 +275,7 @@ impl Carried {
             room(last, b.len());
             last.extend_from_slice(b);
         } else {
-            self.0.push(Piece::Bytes(Zeroizing::new(b.to_vec())));
+            self.0.push(Piece::Bytes(crate::wiped_copy(b)));
         }
     }
 
@@ -408,7 +408,7 @@ impl W<'_> {
             *n += Base64::encoded_len(plain);
             return;
         }
-        let mut ct = Zeroizing::new(plain.to_vec());
+        let mut ct = crate::wiped_copy(plain);
         self.stream.apply(&mut ct);
         let text = Base64::encode_string(&ct);
         self.raw(text.as_bytes());
@@ -461,7 +461,7 @@ impl<P: Part> Frame<P> {
     fn read(tag: &'static [u8], open: &[u8], selfclosed: bool) -> Self {
         Self {
             tag,
-            open: Zeroizing::new(open.to_vec()),
+            open: crate::wiped_copy(open),
             close: if selfclosed {
                 None
             } else {
@@ -473,6 +473,7 @@ impl<P: Part> Frame<P> {
     }
 
     /// A frame the document did not have.
+    #[expect(clippy::disallowed_methods, reason = "a constant tag name")]
     fn absent(tag: &'static [u8]) -> Self {
         let mut open = tag[..tag.len() - 1].to_vec();
         open.extend_from_slice(b"/>");
@@ -486,12 +487,13 @@ impl<P: Part> Frame<P> {
     }
 
     /// A new frame, with content.
+    #[expect(clippy::disallowed_methods, reason = "a constant tag name")]
     fn fresh(tag: &'static [u8]) -> Self {
         let mut close = b"</".to_vec();
         close.extend_from_slice(&tag[1..]);
         Self {
             tag,
-            open: Zeroizing::new(tag.to_vec()),
+            open: crate::wiped_copy(tag),
             close: Some(Zeroizing::new(close)),
             absent: false,
             parts: Vec::new(),
@@ -595,8 +597,8 @@ impl Pair {
     /// A new pair.
     pub fn new(key: &str, value: &str, protected: bool) -> Self {
         Self {
-            key: Zeroizing::new(key.as_bytes().to_vec()),
-            value: Zeroizing::new(value.as_bytes().to_vec()),
+            key: crate::wiped_copy(key.as_bytes()),
+            value: crate::wiped_copy(value.as_bytes()),
             protected,
             ambiguous: None,
             orig: None,
@@ -620,7 +622,7 @@ impl Pair {
 
     /// Replaces the value and its protection.
     pub fn set(&mut self, value: &str, protected: bool) {
-        self.value = Zeroizing::new(value.as_bytes().to_vec());
+        self.value = crate::wiped_copy(value.as_bytes());
         self.protected = protected;
     }
 
@@ -827,7 +829,7 @@ pub struct Entry {
     custom: CustomData,
     modified: Option<i64>,
     mod_leaf: Option<Leaf>,
-    dup_keys: Vec<Vec<u8>>,
+    dup_keys: Vec<Zeroizing<Vec<u8>>>,
     dup_uuid: bool,
     ambiguous: Option<&'static str>,
 }
@@ -843,7 +845,7 @@ impl Entry {
             custom: self.custom.duplicate(),
             modified: self.modified,
             mod_leaf: dup_leaf(&self.mod_leaf),
-            dup_keys: self.dup_keys.iter().map(|k| k.to_vec()).collect(),
+            dup_keys: self.dup_keys.iter().map(|k| crate::wiped_copy(k)).collect(),
             dup_uuid: self.dup_uuid,
             ambiguous: self.ambiguous,
         }
@@ -1019,9 +1021,20 @@ impl Entry {
             EntryPart::Times(t) => t.write(w, |tp, w| match tp {
                 TimesPart::Carried(c) => c.write(w),
                 TimesPart::Modified => {
-                    let value = match (self.modified, &self.mod_leaf) {
+                    let carried = match &self.mod_leaf {
+                        Some(l) => {
+                            #[expect(
+                                clippy::disallowed_methods,
+                                reason = "the text of a modification time, which is not secret"
+                            )]
+                            let text = l.text.to_vec();
+                            Some(text)
+                        }
+                        None => None,
+                    };
+                    let value = match (self.modified, carried) {
                         (Some(t), _) => encode_time(t),
-                        (None, Some(l)) => l.text.to_vec(),
+                        (None, Some(text)) => text,
                         (None, None) => Vec::new(),
                     };
                     w.leaf(T_MODIFIED, &self.mod_leaf, &value);
@@ -1110,7 +1123,7 @@ impl Group {
             frame: Frame::fresh(T_GROUP),
             uuid,
             uuid_leaf: None,
-            name: Zeroizing::new(name.as_bytes().to_vec()),
+            name: crate::wiped_copy(name.as_bytes()),
             name_leaf: None,
             custom: CustomData::none(),
             dup_uuid: false,
@@ -1172,7 +1185,7 @@ impl Group {
     /// Renames the group. An ambiguous group is refused, unchanged.
     pub fn set_name(&mut self, name: &str) -> R<()> {
         self.editable()?;
-        self.name = Zeroizing::new(name.as_bytes().to_vec());
+        self.name = crate::wiped_copy(name.as_bytes());
         Ok(())
     }
 
@@ -1300,9 +1313,14 @@ struct Meta {
 
 impl Meta {
     fn duplicate(&self) -> Self {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the vault label, a name and not a secret"
+        )]
+        let label = self.label.to_vec();
         Self {
             frame: self.frame.duplicate(),
-            label: self.label.to_vec(),
+            label,
             label_leaf: dup_leaf(&self.label_leaf),
             custom: self.custom.duplicate(),
             ambiguous: self.ambiguous,
@@ -1422,9 +1440,19 @@ impl Document {
     /// A second copy, its secret bytes in wiping buffers like the first's.
     #[must_use]
     pub fn duplicate(&self) -> Self {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the XML declaration before the root, which is not secret"
+        )]
+        let prolog = self.prolog.to_vec();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the text after the root, which is not secret"
+        )]
+        let epilog = self.epilog.to_vec();
         Self {
-            prolog: self.prolog.to_vec(),
-            epilog: self.epilog.to_vec(),
+            prolog,
+            epilog,
             file: self.file.duplicate(),
             history: self.history,
             dropped: self.dropped,
@@ -1435,6 +1463,10 @@ impl Document {
     /// The document Faraday makes for a new vault: the root group named as
     /// the vault with this UUID, and `Meta` with the generator and the
     /// label. No history, no recycle bin.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the constant prolog of the template"
+    )]
     pub fn new(id: [u8; 16], name: &str) -> Self {
         let mut text = PROLOG.to_vec();
         text.extend_from_slice(
@@ -1573,6 +1605,10 @@ impl Document {
     }
 
     /// Sets the label. An ambiguous `Meta` is refused, unchanged.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the vault label, a name and not a secret"
+    )]
     pub fn set_label(&mut self, label: &str) -> R<()> {
         let meta = self.meta_mut();
         if let Some(why) = meta.ambiguous {

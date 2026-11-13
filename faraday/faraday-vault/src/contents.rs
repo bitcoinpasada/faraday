@@ -137,7 +137,7 @@ impl KeyName {
     /// A second copy, in a wiping buffer like the first.
     #[must_use]
     pub fn duplicate(&self) -> KeyName {
-        KeyName(Zeroizing::new(self.0.to_vec()))
+        KeyName(crate::wiped_copy(&self.0))
     }
 
     /// `prefix`, a dot where there is a prefix, and the first 64

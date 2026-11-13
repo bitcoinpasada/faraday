@@ -551,6 +551,10 @@ fn wrap_session_key(
     session: &[u8],
 ) -> (Vec<u8>, [u8; TAG_LEN]) {
     let kek = wrapping_key(cipher, s2k_output);
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "sealed in place and returned as ciphertext, so the copy leaves as the wrapped key, not the session key"
+    )]
     let mut buf = session.to_vec();
     let tag = ocb_seal(
         cipher,
@@ -571,6 +575,10 @@ fn unwrap_session_key(
     tag: &[u8; TAG_LEN],
 ) -> Result<Zeroizing<Vec<u8>>, ()> {
     let kek = wrapping_key(cipher, s2k_output);
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the copy is moved straight into Zeroizing, with no other holder"
+    )]
     let mut buf = Zeroizing::new(wrapped.to_vec());
     ocb_open(
         cipher,
@@ -744,6 +752,10 @@ fn read_literal(plain: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
         return Err(Error::Literal);
     }
     let data = tail.get(4..).ok_or(Error::Malformed)?;
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the copy is moved straight into Zeroizing, with no other holder"
+    )]
     Ok(Zeroizing::new(data.to_vec()))
 }
 
@@ -768,6 +780,10 @@ impl<'a> Body<'a> {
     }
 
     /// The body from `skip` on.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the copy is moved straight into Zeroizing, and the joined body it is cut from is wiped when dropped"
+    )]
     fn tail(self, skip: usize) -> Body<'a> {
         match self {
             Body::Borrowed(b) => Body::Borrowed(&b[skip..]),

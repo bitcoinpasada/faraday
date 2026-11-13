@@ -48,6 +48,16 @@ use zeroize::Zeroizing;
 pub use faraday_crypto::Argon2FileCost as Cost;
 pub use records::{Field, Record};
 
+/// A copy of `bytes` in a wiping buffer: the one place a slice is copied
+/// straight into wiping memory.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the copy is made in a Zeroizing buffer and held by nothing else"
+)]
+pub(crate) fn wiped_copy(bytes: &[u8]) -> Zeroizing<alloc::vec::Vec<u8>> {
+    Zeroizing::new(bytes.to_vec())
+}
+
 /// The Unicode version a passphrase is put in NFC under: the
 /// normaliser's tables.
 pub use unicode_normalization::UNICODE_VERSION;

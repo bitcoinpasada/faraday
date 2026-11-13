@@ -316,6 +316,10 @@ fn empty_element(
 
 /// The text of the Version or Data element that has closed, if `text` is
 /// one at `depth`.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the version text of a key file, which is not secret"
+)]
 fn close_text(found: &mut Found, text: &mut Option<Wanted>, depth: usize) {
     if text.as_ref().is_some_and(|(d, _, _)| *d == depth)
         && let Some((_, is_version, buf)) = text.take()
@@ -515,6 +519,10 @@ fn bare_pi(event: &Event<'_>) -> bool {
 
 /// The state after the document element opens: whether it is also closed
 /// (it is empty), and the path.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the constant name of the root element"
+)]
 fn open_root(empty: bool) -> (bool, Vec<Vec<u8>>) {
     (
         empty,
@@ -607,6 +615,15 @@ fn scan(bytes: &[u8]) -> Result<Option<Found>, KeyFileError> {
     Ok(found)
 }
 
+/// The name of an open element, the structure of a key file and not its key.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the name of an open element, the structure of a key file and not its key"
+)]
+fn element_name(e: &BytesStart<'_>) -> Vec<u8> {
+    e.name().as_ref().to_vec()
+}
+
 /// What the `KeyFile` document `src` states, none if it is not one. Something
 /// XML does not allow in what was read makes both readers hash the file; after
 /// the root KeePassXC does not read that far and pykeepass does, so that is
@@ -668,7 +685,7 @@ fn scan_document(
                     return Err(KeyFileError::Damaged);
                 }
                 text = start_text(&e, &path, &mut found, src.len())?;
-                path.push(e.name().as_ref().to_vec());
+                path.push(element_name(&e));
             }
             Event::Empty(e) => {
                 if !attributes_ok(&e) {
@@ -813,6 +830,10 @@ fn attributes_ok(e: &BytesStart<'_>) -> bool {
 }
 
 /// The `Hash` attribute of a `Data` element, kept; a second one is noted.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the Hash attribute of a key file, 4 bytes of the SHA-256 of the key, a check value that does not help find the key"
+)]
 fn take_hash(e: &BytesStart<'_>, found: &mut Found) -> Result<(), KeyFileError> {
     for attr in e.attributes() {
         let Ok(attr) = attr else {

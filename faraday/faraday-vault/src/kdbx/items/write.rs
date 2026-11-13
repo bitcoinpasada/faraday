@@ -67,7 +67,7 @@ fn text_of(r: &Record, n: u8) -> &str {
 type Pairs = Vec<(&'static str, Zeroizing<Vec<u8>>, bool)>;
 
 fn z(s: &str) -> Zeroizing<Vec<u8>> {
-    Zeroizing::new(s.as_bytes().to_vec())
+    crate::wiped_copy(s.as_bytes())
 }
 
 /// A seed's fields and custom data.

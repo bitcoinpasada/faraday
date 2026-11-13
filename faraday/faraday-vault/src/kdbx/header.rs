@@ -182,9 +182,23 @@ pub(super) fn read_fields(bytes: &[u8]) -> Result<Parsed, Error> {
             FIELD_MASTER_SEED => master_seed
                 .replace(value.try_into().map_err(|_| Error::Damaged)?)
                 .is_some(),
-            FIELD_ENCRYPTION_IV => iv.replace(value.to_vec()).is_some(),
+            FIELD_ENCRYPTION_IV => {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the cipher IV, which the file header holds in the clear"
+                )]
+                let value = value.to_vec();
+                iv.replace(value).is_some()
+            }
             FIELD_KDF_PARAMS => kdf.replace(kdf_of(value)?).is_some(),
-            FIELD_PUBLIC_CUSTOM_DATA => public_custom_data.replace(value.to_vec()).is_some(),
+            FIELD_PUBLIC_CUSTOM_DATA => {
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the public custom data, which the file header holds in the clear"
+                )]
+                let value = value.to_vec();
+                public_custom_data.replace(value).is_some()
+            }
             other => return Err(Error::UnknownField(other)),
         };
         if seen {
@@ -236,6 +250,10 @@ fn compression_of(value: &[u8]) -> Result<Compression, Error> {
 
 /// The KDF, its cost and its salt from the parameters' VariantDictionary.
 /// The cost is checked here, before any caller allocates for it.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the key derivation salt, which the file header holds in the clear"
+)]
 fn kdf_of(bytes: &[u8]) -> Result<(Kdf, Cost, Vec<u8>), Error> {
     // The dictionary's version: major 1, whatever the minor.
     if bytes.len() < 3 || bytes[1] != 1 {

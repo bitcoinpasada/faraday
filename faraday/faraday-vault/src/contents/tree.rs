@@ -62,11 +62,11 @@ pub(super) struct Name(Zeroizing<Vec<u8>>);
 impl Name {
     /// A second copy, in a wiping buffer like the first.
     pub fn duplicate(&self) -> Name {
-        Name(Zeroizing::new(self.0.to_vec()))
+        Name(crate::wiped_copy(&self.0))
     }
 
     fn of(text: &str) -> Name {
-        Name(Zeroizing::new(text.as_bytes().to_vec()))
+        Name(crate::wiped_copy(text.as_bytes()))
     }
 
     /// Whether the key is `key`.
