@@ -8318,7 +8318,7 @@ strings! {
     /// Text in `secret_out_sheet`.
     secret_out_who_can: "Who can use it",
     /// Text in `secret_out_sheet`.
-    secret_out_stays_label: "Stays in the Outbox",
+    secret_out_stays_label: "Stays",
     /// Text in `secret_out_sheet`.
     secret_out_stays: "Until it is sent or removed, or until power-off",
     /// Line in `secret_out_sheet`.
