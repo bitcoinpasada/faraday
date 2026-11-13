@@ -204,6 +204,16 @@ fn signing() -> Faraday {
     app
 }
 
+/// Every listed small text file's eye pressed: its text shows.
+fn show_texts(app: &mut Faraday) {
+    for (name, _) in release_files() {
+        if name != "build.tar.gz" {
+            let k = listed(app, &name);
+            app.press(Action::Vault(V::SignText(k)));
+        }
+    }
+}
+
 /// The listed position of Inbox file `name` on the signing page.
 fn listed(app: &Faraday, name: &str) -> usize {
     app.inbox()
@@ -803,6 +813,7 @@ fn a_signature_verifies_in_gnupg() {
 fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
     let c = faraday_core::testkit::compute();
     let mut app = signing();
+    show_texts(&mut app);
     // The page is longer than the window: read it top to bottom, as a
     // person scrolling would.
     let mut page = drawn(&mut app);
@@ -1611,6 +1622,7 @@ fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 #[test]
 fn a_lock_leaves_none_of_a_signed_files_text_held() {
     let mut app = signing();
+    show_texts(&mut app);
     let _ = app.frame();
     assert!(
         testkit::sign_text_kept(&app) > 0,
@@ -1634,6 +1646,7 @@ fn a_lock_leaves_none_of_a_signed_files_text_held() {
 #[test]
 fn the_page_follows_a_files_text_and_the_displays_width() {
     let mut app = signing();
+    show_texts(&mut app);
     let page = drawn(&mut app);
     assert!(page.contains("3d6f"), "{page}");
     let at = app
@@ -1646,6 +1659,10 @@ fn the_page_follows_a_files_text_and_the_displays_width() {
         at,
         b"# Faraday 0.1.0, commit 7fcc43a\n9a1e  faraday-0.1.0-linux-x86_64\n".to_vec(),
     );
+    // A file whose bytes changed is a new file: its text is hidden again.
+    let k = listed(&app, "SHA256SUMS");
+    assert!(!drawn(&mut app).contains("9a1e"));
+    app.press(Action::Vault(V::SignText(k)));
     let page = drawn(&mut app);
     assert!(page.contains("9a1e"), "{page}");
     assert!(!page.contains("3d6f"), "{page}");
@@ -1668,4 +1685,35 @@ fn the_page_follows_a_files_text_and_the_displays_width() {
             "{width} {dpi}: {page}"
         );
     }
+}
+
+/// A small text file's text starts hidden behind its eye, shows after a
+/// press, and is hidden again by a lock and by leaving the page.
+#[test]
+fn a_files_text_is_hidden_until_its_eye_and_after_a_lock_or_leaving() {
+    let hidden = |page: &str| !page.contains("3d6f");
+    let mut app = signing();
+    let page = drawn(&mut app);
+    assert!(hidden(&page), "{page}");
+    assert!(page.contains("SHA256SUMS"), "the file is still listed");
+    show_texts(&mut app);
+    let page = drawn(&mut app);
+    assert!(page.contains("3d6f"), "{page}");
+    // The eye hides one file again.
+    let k = listed(&app, "SHA256SUMS");
+    app.press(Action::Vault(V::SignText(k)));
+    let page = drawn(&mut app);
+    assert!(hidden(&page), "{page}");
+    // Leaving the page and coming back.
+    app.press(Action::Vault(V::SignText(k)));
+    app.press(Action::Vault(V::GpgSignPick));
+    app.press(Action::Vault(V::GpgSignPick));
+    let page = drawn(&mut app);
+    assert!(hidden(&page), "{page}");
+    // A lock.
+    show_texts(&mut app);
+    assert!(drawn(&mut app).contains("3d6f"));
+    app.press(Action::Lock);
+    let page = drawn(&mut app);
+    assert!(hidden(&page), "{page}");
 }

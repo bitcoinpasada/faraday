@@ -833,9 +833,11 @@ impl Faraday {
                     self.gpg_default_ticks();
                 } else {
                     self.vaults.state.sign_ticked.clear();
+                    self.vaults.state.sign_shown.clear();
                 }
             }
             V::GpgTick(k) => self.gpg_tick(k),
+            V::SignText(k) => self.gpg_sign_text(k),
             V::GpgTickAll => self.gpg_tick_all(),
             // Sign opens the sheet; only its hold signs, and it reads the
             // time the sheet shows rather than asking for it (F63).
@@ -3111,6 +3113,14 @@ impl Faraday {
         }
     }
 
+    /// Shows the text of the listed file at `k`, or hides it again.
+    pub(crate) fn gpg_sign_text(&mut self, k: usize) {
+        let c = self.compute();
+        if let Some(f) = self.gpg_files(&c).into_iter().nth(k) {
+            self.vaults.toggle_sign_text(f.hash);
+        }
+    }
+
     /// Ticks every listed file, or none when every one is ticked.
     pub(crate) fn gpg_tick_all(&mut self) {
         let c = self.compute();
@@ -3130,6 +3140,7 @@ impl Faraday {
         }
         self.vaults.state.signing = false;
         self.vaults.state.sign_ticked.clear();
+        self.vaults.state.sign_shown.clear();
         self.vaults.state.sign_key = None;
         self.vaults.state.renew_years = None;
         self.vaults.state.revoke_reason = 0;

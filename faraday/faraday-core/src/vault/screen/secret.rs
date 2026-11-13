@@ -145,3 +145,46 @@ pub(crate) fn code_with(
     secret_eye(ui, x, y, w, eye);
     bh
 }
+
+/// A small text file's text on the signing page: masked until its eye
+/// shows it. Its lines are kept with the text only while it shows.
+/// Returns the height.
+pub(super) fn sign_text(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    text: &str,
+    eye: (Action, bool),
+) -> f32 {
+    let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
+    let (ink, warn) = (Role::OnSurface, Role::Warning);
+    let shown = eye.1;
+    // The text stops short of the eye.
+    let tw = w - 14.0 - tokens::TOUCH;
+    let role = BODY_S.mono();
+    let laid = shown.then(|| {
+        let basis = ui.wrap_basis(role, tw);
+        let lines = crate::gpg::SignWrap::lines_of(&app.vaults.sign_wraps, text, basis, || {
+            ui.wrap_ranges(role, text, tw)
+        });
+        ui.wrapped_with(role, text, tw, lines)
+    });
+    let th = laid.as_ref().map_or(20.0, |l| l.h);
+    let bh = (th.max(20.0) + 28.0).max(tokens::TOUCH);
+    ui.fill(x, y, w, bh, 8.0, inset);
+    let edge = if shown {
+        warn.paint()
+    } else {
+        Role::Outline.paint()
+    };
+    ui.stroke(x, y, w, bh, 8.0, edge);
+    match &laid {
+        Some(l) => ui.draw_wrapped((x + 14.0, y + 14.0), ink, l),
+        None => {
+            let dots = "\u{2022}".repeat(24);
+            ui.text_as(x + 14.0, y + 14.0, BODY_M.mono(), muted, &dots);
+        }
+    }
+    secret_eye(ui, x, y, w, eye);
+    bh
+}

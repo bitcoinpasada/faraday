@@ -547,6 +547,11 @@ impl VaultArea {
         if left {
             self.hide_item_secrets();
         }
+        // A file's text on the signing page goes with the page, or with
+        // a sheet (the idle warning, the Lock sheet) coming over it.
+        if !self.state.signing || !on_page {
+            self.state.sign_shown.clear();
+        }
     }
 
     /// The item page's secret fields, the SeedQR, a key's words and a
@@ -566,6 +571,23 @@ impl VaultArea {
         self.hide_item_secrets();
         if let Some(c) = self.state.create.as_mut() {
             c.shown = false;
+        }
+        self.state.sign_shown.clear();
+    }
+
+    /// Whether the signing page shows the text of the file with `hash`.
+    pub(crate) fn sign_text_shown(&self, hash: &[u8; 32]) -> bool {
+        self.state.sign_shown.contains(hash)
+    }
+
+    /// The eye of a file's text on the signing page: shows it, or hides it
+    /// again.
+    pub(crate) fn toggle_sign_text(&mut self, hash: [u8; 32]) {
+        match self.state.sign_shown.iter().position(|h| *h == hash) {
+            Some(at) => {
+                self.state.sign_shown.swap_remove(at);
+            }
+            None => self.state.sign_shown.push(hash),
         }
     }
 
@@ -2265,6 +2287,10 @@ pub struct Vaults {
     /// default (the only file ticked, several none) whenever the page
     /// opens.
     pub sign_ticked: Vec<(String, [u8; 32])>,
+    /// The small text files, by SHA-256, whose text the signing page shows
+    /// now: each starts hidden behind its eye, and a lock, the idle
+    /// warning and leaving the page hide them again.
+    pub sign_shown: Vec<[u8; 32]>,
     /// The fingerprint of the key the signing page was opened for.
     pub sign_key: Option<[u8; 20]>,
     /// The files the signing page hashed, so that it hashes each once.
@@ -2647,6 +2673,7 @@ impl Vaults {
     /// Closes every open vault, at a lock what is shown with them.
     pub fn close_all(&mut self) {
         self.drop_shown();
+        self.sign_shown.clear();
         self.codes = None;
         self.moved.clear();
         self.moved_subjects.clear();
@@ -3662,6 +3689,9 @@ pub enum VaultAction {
     GpgSignPick,
     /// Tick or untick Inbox file n to sign.
     GpgTick(usize),
+    /// Show the text of listed file n on the signing page, or hide it
+    /// again: its eye.
+    SignText(usize),
     /// Tick every signable file, or untick them all when every one is
     /// already ticked.
     GpgTickAll,

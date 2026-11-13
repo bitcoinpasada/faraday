@@ -1180,6 +1180,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         t.press(Action::Vault(V::GpgTick(k)));
     }
     t.shot("vault-gpg-sign")?;
+    // The text of a file is behind its eye: shown, then hidden again.
+    if let Some(k) = signable.iter().position(|n| n == "vault-entries.txt") {
+        t.press(Action::Vault(V::SignText(k)));
+        t.press(Action::Vault(V::SignText(k)));
+    }
     // Sign opens Sign with {key}: the files, the time, the hold (F63).
     t.press(Action::Vault(V::GpgSign));
     if t.app.sheet != Some(faraday_core::Sheet::GpgSign) {

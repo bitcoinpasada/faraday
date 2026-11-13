@@ -407,7 +407,7 @@ extent; a motion left from another screen or sheet is stopped.
     desktop shell answers a frame's own asks after presenting it). At
     once from a frame drawn while a secret was typed or shown (seed words,
     a passphrase, a prompt's line: `Faraday::secret_typed`; the vault
-    page's sign list holding a file's text: `Faraday::secret_shown`), so no
+    page's sign list with a file's text shown: `Faraday::secret_shown`), so no
     image of it is kept to fade from (`docs/SECRET-LEAKS.md` §5). At
     once with reduce motion, and at once on a machine whose fades come
     in steps too far apart to read as one: the core times the gap

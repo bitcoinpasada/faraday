@@ -41,7 +41,7 @@ pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
 pub(crate) use search::bar as search_bar;
 mod unread;
-use secret::{secret, secret_with, seedqr_box};
+use secret::{secret, secret_with, seedqr_box, sign_text};
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -2868,17 +2868,8 @@ fn detail(
             let hex: String = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {
-                // The lines are kept with the text and what they are
-                // broken from, so a page of files breaks each once.
-                let indent = 30.0;
-                let basis = ui.wrap_basis(BODY_S.mono(), dw - indent);
-                let lines =
-                    crate::gpg::SignWrap::lines_of(&app.vaults.sign_wraps, t, basis, || {
-                        ui.wrap_ranges(BODY_S.mono(), t, dw - indent)
-                    });
-                let laid = ui.wrapped_with(BODY_S.mono(), t, dw - indent, lines);
-                ui.draw_wrapped((dx + indent, ey), ink, &laid);
-                ey += laid.h + 6.0;
+                let eye = (va(V::SignText(fi)), app.vaults.sign_text_shown(&f.hash));
+                ey += sign_text(app, ui, (dx + 30.0, ey, dw - 30.0), t, eye) + 6.0;
             }
             ui.rule(dx, ey, dw, Role::OutlineVariant);
             dy = ey + 8.0;

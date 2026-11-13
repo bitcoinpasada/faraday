@@ -21,7 +21,7 @@ use faraday_core::{Action, Screen, Sheet};
 use faraday_shell_api::App;
 
 /// Words of an action's name that hide what a screen shows.
-const HIDES: [&str; 5] = ["hide", "eye", "reveal", "cover", "conceal"];
+const HIDES: [&str; 6] = ["hide", "eye", "reveal", "cover", "conceal", "signtext"];
 
 /// The published 24-word BIP-39 vector.
 const VECTOR: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \

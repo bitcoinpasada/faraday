@@ -442,11 +442,12 @@ impl Faraday {
     }
 
     /// Whether the frame shows a file's text a secret may be in: the vault
-    /// page's sign list, once it has read the files. Reads state only.
+    /// page's sign list with a file's text shown behind its eye. Reads
+    /// state only.
     fn secret_shown(&self) -> bool {
         self.screen == crate::Screen::VaultContents
             && self.vaults.signing
-            && !self.vaults.sign_seen.borrow().is_empty()
+            && !self.vaults.sign_shown.is_empty()
     }
 
     /// After a frame is drawn in full on `canvas`: while a fade is under
