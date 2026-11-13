@@ -295,7 +295,7 @@ pub fn word_index(lang: Language, word: &str) -> Option<u16> {
     }
     let folded = fold_precomposed(word)?;
     lang.candidates_typed(folded.as_chars())
-        .find(|&i| lang.typed(i).is_some_and(|t| t == folded))
+        .find(|&i| lang.typed(i).is_some_and(|t| t.same_keys(&folded)))
 }
 
 /// Lower-case ASCII of a Latin word whose accents may be precomposed:

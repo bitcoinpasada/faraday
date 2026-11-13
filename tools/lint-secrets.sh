@@ -167,7 +167,6 @@ report "Debug derived on a secret type (rule 2)" "$(rule2)"
 # reason ("fixed in a later change": the type's callers copy, compare or print
 # it and are not yet changed to a function of the type that does).
 ALLOWED_TYPES=$(cat <<'EOF'
-core/faraday-bip/src/bip39.rs:Typed Clone,PartialEq,Debug the keys typed so far of a mnemonic word, which is secret; let through because no production code prints it (the Debug is used by the tests' failure messages only) and the entry's matching copies and compares it; fixed in a later change by a Debug that prints nothing and a matching that borrows
 faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's two values, a Copy element of wiped buffers that the tour and the tests compare and print
 core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
 core/faraday-shell-api/src/lib.rs:Event Clone,PartialEq its only wiping part is EntropyBytes, which wipes on drop and compares without a branch on a byte, so the derived copy and comparison are its own; the snapshot and replay shells copy events and the tests compare them

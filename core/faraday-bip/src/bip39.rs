@@ -518,7 +518,8 @@ pub const MAX_TYPED: usize = 16;
 
 /// The keys that type one word, inline. Latin lists hold letters, the
 /// Japanese list its NFKD kana and marks, the Korean list two-set keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The keys are part of a seed word: wiped on drop, compared only by
+/// [`same_keys`](Self::same_keys), never copied and printed only by length.
 pub struct Typed {
     buf: [char; MAX_TYPED],
     len: u8,
@@ -592,16 +593,48 @@ impl Typed {
         self.as_chars().starts_with(prefix)
     }
 
+    /// A copy, itself wiped on drop: the one way to copy the keys.
+    pub fn duplicate(&self) -> Typed {
+        Typed {
+            buf: self.buf,
+            len: self.len,
+        }
+    }
+
+    /// Whether `other` holds the same keys, in time that does not depend
+    /// on where they differ (the unused tail of both is always `'\0'`).
+    pub fn same_keys(&self, other: &Typed) -> bool {
+        let mut same = self.len.ct_eq(&other.len);
+        for (a, b) in self.buf.iter().zip(&other.buf) {
+            same &= u32::from(*a).ct_eq(&u32::from(*b));
+        }
+        same.into()
+    }
+
     /// Forgets everything typed.
     pub fn clear(&mut self) {
-        self.buf = ['\0'; MAX_TYPED];
-        self.len = 0;
+        self.zeroize();
     }
 }
 
 impl Zeroize for Typed {
     fn zeroize(&mut self) {
-        self.clear();
+        self.buf.zeroize();
+        self.len.zeroize();
+    }
+}
+
+impl Drop for Typed {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for Typed {}
+
+impl core::fmt::Debug for Typed {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Typed({} keys)", self.len)
     }
 }
 
@@ -1124,8 +1157,8 @@ mod tests {
             ['n', 'i', 'n', 'o']
         );
         assert_eq!(fold("e\u{030C}s\u{030C}").unwrap().as_chars(), ['e', 's']);
-        assert_eq!(fold("\u{3042}"), None, "non-Latin");
-        assert_eq!(fold("abandonabandonabc"), None, "too long");
+        assert!(fold("\u{3042}").is_none(), "non-Latin");
+        assert!(fold("abandonabandonabc").is_none(), "too long");
     }
 
     /// Every word of every list a keyboard can type is reachable by
