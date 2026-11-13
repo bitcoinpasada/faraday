@@ -24,6 +24,7 @@ use faraday_core::in_progress::Going;
 use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::spend_backup::SpendBackupAction as F;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, ScanPurpose, Screen, Sheet, StorageEvent, testkit};
@@ -329,7 +330,7 @@ fn check(rig: &mut Rig, what: &str) -> (Vec<String>, Vec<Action>) {
     let mut offered: Vec<Action> = Vec::new();
     let mut last = None;
     for _ in 0..80 {
-        let (past, texts) = rig.drawn_past_sides_and_text();
+        let (past, texts) = rig.drawn_past_sides_and_text().plain();
         let mut lines = past;
         if rig.sheet.is_none() {
             let toast = rig.toast_text().map(str::to_string);
@@ -1054,7 +1055,7 @@ fn on_the_small_panel_the_plain_save_hold_reads_whole_clear_of_the_sheets_other_
     for a in [Action::PApp(4), Action::PNext, Action::PNext, Action::POut] {
         rig.press(a);
     }
-    let page = rig.drawn_past_sides_and_text().1;
+    let page = rig.drawn_past_sides_and_text().plain().1;
     rig.press(Action::SecretUnprotected);
     rig.settle();
     assert!(testkit::plain_asked(&rig).is_some(), "the hold is asked");
@@ -1329,6 +1330,7 @@ fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
     let f = f32::from(rig.w) / rig.size().0;
     let others = ["?", "Cancel", "Testnet", "Practice", "Start", "Home"];
     rig.drawn_past_sides_and_text()
+        .plain()
         .1
         .into_iter()
         .filter(|(t, r)| (r.1 as f32) < 32.0 * f && !others.contains(&t.as_str()))
@@ -1715,7 +1717,7 @@ fn sheet_clear(rig: &mut Rig, what: &str, page: &[DrawnText]) {
     let mut found: Vec<String> = Vec::new();
     let mut last = None;
     for _ in 0..40 {
-        let (past, texts) = rig.drawn_past_sides_and_text();
+        let (past, texts) = rig.drawn_past_sides_and_text().plain();
         found.extend(past);
         let own: Vec<DrawnText> = texts
             .iter()
@@ -1761,7 +1763,7 @@ fn on_the_small_panel_the_vault_memory_sheet_keeps_each_size_clear_of_its_label(
     rig.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    let page = rig.drawn_past_sides_and_text().1;
+    let page = rig.drawn_past_sides_and_text().plain().1;
     rig.press(Action::Vault(V::MemoryAsk));
     rig.settle();
     assert!(
@@ -1769,7 +1771,7 @@ fn on_the_small_panel_the_vault_memory_sheet_keeps_each_size_clear_of_its_label(
             .iter()
             .any(|t| t.contains("MiB") || t.contains("GiB")),
         "no memory sizes on the sheet: {:?}",
-        rig.drawn_texts()
+        rig.drawn_texts().plain()
     );
     sheet_clear(&mut rig, "the memory sheet", &page);
 }
@@ -1780,7 +1782,7 @@ fn on_the_small_panel_the_lock_sheets_randomness_line_is_clear_of_its_button() {
     // The vault holds a change the lock will seal.
     let id = rig.vaults().open[0].id;
     testkit::vault_changed(&mut rig, id);
-    let page = rig.drawn_past_sides_and_text().1;
+    let page = rig.drawn_past_sides_and_text().plain().1;
     rig.sheet = Some(Sheet::LockAsk);
     rig.settle();
     // Down to the foot of the sheet, where the Randomness line is.
@@ -2109,7 +2111,7 @@ fn on_the_pi_change_passphrase_is_inside_its_button() {
 fn scrolled_to(rig: &mut Rig, want: &[&str]) -> Vec<DrawnText> {
     for _ in 0..20 {
         let _ = rig.frame();
-        let drawn = rig.drawn_text_boxes();
+        let drawn = rig.drawn_text_boxes().plain();
         if want.iter().all(|w| drawn.iter().any(|(t, _)| t == w)) {
             return drawn;
         }

@@ -6,6 +6,7 @@
 use crate::common::{demo_app, fingerprint_of_seed, json, show};
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_core::samples::{Pick, SampleKey};
+use faraday_core::testkit::Plain;
 use faraday_core::testkit::{self, compute};
 use faraday_core::wallet::{Origin, Session};
 use faraday_core::{Action, Faraday, Screen, Sheet};
@@ -131,7 +132,7 @@ const TYPES: &[&str] = &[
 fn every_row_of_the_sheet_says_what_the_sample_is() {
     let mut app = demo_app();
     open(&mut app);
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     for want in TYPES {
         assert!(texts.iter().any(|t| t == want), "no row says {want:?}");
     }

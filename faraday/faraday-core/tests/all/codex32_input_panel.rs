@@ -11,6 +11,7 @@
 
 use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, Step, WAYS, WalkAct, Way};
 use faraday_core::keygen::Start;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
@@ -131,6 +132,7 @@ fn rolls_by(app: &mut Faraday, key: (i32, i32, i32, i32), near: i32, (w, h): (u1
     (1..=5).all(|d| {
         let name = format!("Die {d}");
         app.drawn_text_boxes()
+            .plain()
             .into_iter()
             .any(|(t, b)| t == name && in_window(b, w, h) && (b.1 - key.1).abs() < near)
     })
@@ -402,6 +404,7 @@ fn the_step_throughs_next_brings_the_die_it_rolls_into_view() {
         let name = format!("Die {}", die + 1);
         let mut at: Vec<(i32, i32, i32, i32)> = app
             .drawn_text_boxes()
+            .plain()
             .into_iter()
             .filter(|(t, b)| *t == name && in_window(*b, 1280, 800))
             .map(|(_, b)| b)

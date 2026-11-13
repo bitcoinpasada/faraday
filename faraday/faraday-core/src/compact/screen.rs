@@ -15,8 +15,7 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, LABEL_S, SHAPE_M,
-    TITLE_M,
+    BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, LABEL_S, SHAPE_M, TITLE_M,
 };
 use faraday_ui::Status;
 
@@ -814,7 +813,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         Some(e) => (faraday_text::Text::of(e), Role::Error.paint()),
         None => crate::screens::keyed_status(app, lang, &taken),
     };
-    y = keyed_head(
+    y = crate::screens::keyed_head(
         ui,
         (x, y, iw),
         w,
@@ -855,70 +854,6 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
     );
     // Under the word fields.
     y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
-}
-
-/// A list typed on its own keyboard, on a small panel: the word being
-/// typed under `label`, `status` under it, the words it can be as pills
-/// and the keyboard, with the on-screen keyboard's shift as `shift`, and
-/// with `chip`, Use a sample (or `chip`'s own label) handed to the "Practice
-/// only" card (`docs/DEMO.md` §14). Add a key's word entry and Check my
-/// copy's both draw it. Returns where the next row starts.
-pub(crate) fn keyed_head(
-    ui: &mut Ui,
-    (x, y, iw): (f32, f32, f32),
-    w: &crate::word_entry::WordEntry,
-    lang: faraday_bip::bip39::Language,
-    label: &str,
-    status: Option<(&str, crate::ui::Paint)>,
-    (caret, shift, chip): (bool, bool, Option<&'static str>),
-) -> f32 {
-    let mut y = y;
-    let prefix: String = w.prefix().iter().collect();
-    // The word being typed.
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
-    let off = (ui.measure_as(BODY_S, label) + 12.0).max(64.0);
-    // A word of Check my copy's opened for an edit stays hidden, the
-    // caret at its end; another's caret stands at its place in the keys
-    // (`docs/TEXT-CURSOR.md`).
-    use crate::edit::Here;
-    let hide = w.is_open() && ui.edit.field == Some(Action::TypeHere(Here::CheckKeyed));
-    let shown = if prefix.is_empty() && !caret {
-        "…".to_string()
-    } else if hide {
-        "••••••".to_string()
-    } else {
-        prefix.clone()
-    };
-    let pw = ui.text_as(x + off, y - 4.0, BODY_L.mono(), Role::Primary, &shown);
-    if let Some(label) = chip {
-        ui.demo_offer(label, Action::UseSample);
-    }
-    let at = ui.edit.caret_in(w.prefix().len());
-    let cw = if hide || at >= w.prefix().len() {
-        pw
-    } else {
-        let b = prefix
-            .char_indices()
-            .nth(at)
-            .map_or(prefix.len(), |(b, _)| b);
-        ui.measure_as(BODY_L.mono(), &prefix[..b])
-    };
-    if caret {
-        ui.caret(x + off + 2.0 + cw, y - 2.0, 20.0);
-    }
-    y += 26.0;
-    if let Some((status, tone)) = status {
-        let status = ui.fit_as(LABEL_M, status, iw);
-        ui.text_as(x, y, LABEL_M, tone, &status);
-    }
-    y += 22.0;
-    // What the keys typed can be: a pill each.
-    y += crate::screens::keyed_pills(ui, x, y, iw, w, lang, false);
-    // The keyboard, unless the passphrase has the docked one up.
-    if caret {
-        y = crate::screens::word_keys(shift, w, ui, x - 4.0, y, iw + 8.0, 34.0);
-    }
-    y
 }
 
 /// The words taken on a small panel, as `count` boxes; `masked` draws a

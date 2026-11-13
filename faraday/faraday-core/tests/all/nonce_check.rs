@@ -17,6 +17,7 @@ use faraday_bip::bitcoin::secp256k1::{
 use faraday_bip::bitcoin::sighash::{EcdsaSighashType, SighashCache};
 use faraday_bip::bitcoin::{OutPoint, PublicKey, ecdsa, hashes::Hash};
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::Unmatched;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
@@ -499,6 +500,7 @@ fn finish_line(app: &mut Faraday) -> Option<String> {
     }
     let _ = app.frame();
     app.drawn_texts()
+        .plain()
         .into_iter()
         .find(|t| t.starts_with("Nonce check ·"))
 }

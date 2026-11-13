@@ -19,6 +19,7 @@ use faraday_core::create::NewKind;
 use faraday_core::plan::{self, Answers, At, Item, Preset, Row, What, form};
 use faraday_core::testkit;
 use faraday_core::testkit::KindText;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, bstep, cstep, qrow};
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::kind;
@@ -2277,7 +2278,7 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
     app.press(Action::BNext(bstep::ENVELOPE));
     app.press(Action::BStep(bstep::STICKS));
     app.settle();
-    let boxes = app.drawn_text_boxes();
+    let boxes = app.drawn_text_boxes().plain();
     for row in ["Vault 1 (Place 1)", "Vault 1 (Place 2)"] {
         assert!(
             stick_row_written(&boxes, row, "KEYSTICK"),
@@ -2296,7 +2297,7 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
     shell.pump(&mut app);
     app.press(Action::Cancel);
     app.settle();
-    let boxes = app.drawn_text_boxes();
+    let boxes = app.drawn_text_boxes().plain();
     assert!(
         !stick_row_written(&boxes, "Vault 1 (Place 1)", "KEYSTICK"),
         "{boxes:?}"

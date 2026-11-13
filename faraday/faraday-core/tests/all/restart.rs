@@ -1,6 +1,7 @@
 //! Restart beside Power off on the PC stick and the Pi, with the BIOS key
 //! where the Secure Boot reminder shows (`docs/FLOWS.md`, Restart; F42).
 
+use faraday_core::testkit::Plain;
 use faraday_core::vault::HOLD_MS;
 use faraday_core::{
     Action, Faraday, Medium, RESTART_CODE, RESTART_COMPUTER_CODE, SecureBootAtStart, Sheet,
@@ -22,7 +23,7 @@ fn shown(app: &mut Faraday) -> Vec<String> {
         memory_mib: None,
     }));
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 fn exited(app: &mut Faraday) -> bool {

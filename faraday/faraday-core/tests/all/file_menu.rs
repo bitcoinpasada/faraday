@@ -6,6 +6,7 @@
 
 use crate::common::*;
 use faraday_core::file_menu::{FilePress, Row};
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, BootMedium, Faraday, Item, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
@@ -359,7 +360,7 @@ fn details_shows_the_sha_256_of_the_bytes() {
     choose(&mut app, "Details");
     assert_eq!(app.sheet, Some(Sheet::Details));
     let sha = faraday_core::file_menu::sha_groups(&faraday_core::file_menu::sha256(&c, bytes));
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     for line in &sha {
         assert!(texts.contains(line), "{line} in {texts:?}");
     }
@@ -370,7 +371,7 @@ fn details_shows_the_sha_256_of_the_bytes() {
     menu_of(&mut app, Row::Stick(0));
     choose(&mut app, "Details");
     shell.pump(&mut app);
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(
         texts.contains(&sha[0]) && texts.contains(&sha[1]),
         "{texts:?}"

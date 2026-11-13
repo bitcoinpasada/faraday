@@ -4,6 +4,7 @@
 //! addresses through the code Restore uses.
 
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::{Origin, Session, Wallet, read_wallet};
 use faraday_core::wallet_backup::{multisig_config, split_plan, split_share, splits};
 
@@ -221,7 +222,7 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
         app.press(Action::Backup(i));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
         let _ = app.frame();
-        let texts = app.drawn_texts();
+        let texts = app.drawn_texts().plain();
         let said = texts
             .iter()
             .find(|t| t.starts_with("Partial descriptions:"))

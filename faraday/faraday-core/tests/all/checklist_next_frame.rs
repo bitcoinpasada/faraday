@@ -4,6 +4,7 @@
 
 use crate::common::{CLOCK, Shell, no_words, process, type_text};
 use faraday_core::plan::Item;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -109,7 +110,7 @@ type TextBox = (String, (i32, i32, i32, i32));
 /// The strings the next frame draws, with their boxes.
 fn next_frame(app: &mut Faraday) -> Vec<TextBox> {
     app.settle();
-    app.drawn_text_boxes()
+    app.drawn_text_boxes().plain()
 }
 
 /// Whether the card titled `title` shows a tick: its number, drawn left

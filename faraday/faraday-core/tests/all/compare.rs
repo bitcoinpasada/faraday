@@ -14,6 +14,7 @@ use faraday_core::decode::check::SignerPress;
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::strings::EN;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event};
 
@@ -59,7 +60,7 @@ fn open(app: &mut Faraday) {
 
 fn texts(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 fn shows(app: &mut Faraday, line: &str) -> bool {

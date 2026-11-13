@@ -19,6 +19,7 @@ use faraday_core::plan::{
     self, Answers, At, Item, Preset, Seed, Shape, Spot, What, checklist, form, kept_nowhere,
 };
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, bstep, cstep, qstep};
 use faraday_shell_api::{App, Event, Key};
 
@@ -1230,6 +1231,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     let name = String::from(&*shape.seeds[away].name);
     let (_, (x, y, bw, bh)) = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .find(|(t, _)| *t == name)
         .expect("its chip is drawn");
@@ -2583,6 +2585,7 @@ fn the_read_only_board_shows_no_dots() {
 fn vault_band(app: &mut Faraday, title: &str) -> String {
     let _ = app.frame();
     app.drawn_texts()
+        .plain()
         .into_iter()
         .find(|t| {
             t.starts_with(&format!("{title} ·")) && (t.contains("sealed") || t.ends_with(" · new"))

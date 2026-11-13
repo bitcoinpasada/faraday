@@ -13,7 +13,7 @@ use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Code, Faraday, Screen, flow, walkthrough};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as T;
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
@@ -972,42 +972,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             cy = iy + 52.0;
             // The seed is not drawn while the typed check is open.
             if b.reveal && b.check.is_none() {
-                let shown = app.reveal(b.key, Reveal::CopyByHand);
-                let list: Vec<&str> = shown.split_whitespace().collect();
-                // The words, with each word's index as SeedQR writes it.
                 let lang = key.language;
-                // Two columns on a small panel, the index at each one's end.
-                let cols = if ui.compact { 2 } else { 4 };
-                let colw = w / cols as f32;
-                let rows = list.len().div_ceil(cols);
-                for (i, wd) in list.iter().enumerate() {
-                    let cx = x + (i / rows) as f32 * colw;
-                    let ry = cy + (i % rows) as f32 * 26.0;
-                    let idx = app
-                        .backup_word_number(i)
-                        .map(|v| format!("{v:04}"))
-                        .unwrap_or_default();
-                    ui.text_as(
-                        cx,
-                        ry,
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        &format!("{:>2}", i + 1),
-                    );
-                    if ui.compact {
-                        ui.text_as(cx + 20.0, ry, BODY_S.mono(), Role::OnSurface, wd);
-                        ui.text_right_as(
-                            (cx + colw - 8.0, ry - 3.0, 20.0),
-                            LABEL_S.mono(),
-                            Role::OnSurfaceVariant,
-                            &idx,
-                        );
-                    } else {
-                        ui.text_as(cx + 26.0, ry, BODY_M.mono(), Role::OnSurface, wd);
-                        ui.text_as(cx + 104.0, ry, BODY_S.mono(), Role::OnSurfaceVariant, &idx);
-                    }
-                }
-                cy += rows as f32 * 26.0 + 16.0;
+                cy += super::parts::seed_word_grid(app, ui, (x, cy, w), b.key);
                 // SeedQR numbers the English list's words: another list's
                 // words have no SeedQR another signer would read right.
                 if forms.seedqr && lang != faraday_bip::bip39::Language::English {
@@ -1465,7 +1431,7 @@ fn word_check(
         }
         Some(k) if ui.compact => {
             let status = error.map(|e| (e, Role::Error.paint()));
-            cy = crate::compact::screen::keyed_head(
+            cy = crate::screens::keyed_head(
                 ui,
                 (x, cy, w),
                 k,

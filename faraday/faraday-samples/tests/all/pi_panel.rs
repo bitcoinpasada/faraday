@@ -5,6 +5,7 @@
 
 use crate::psbt::with_savings;
 use faraday_core::spend_backup::SpendBackupAction as F;
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, Event};
@@ -18,7 +19,7 @@ fn cut_off(app: &mut Faraday, what: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut last = None;
     for _ in 0..60 {
-        for p in app.drawn_past_sides() {
+        for p in app.drawn_past_sides().plain() {
             let line = format!("{what}: {p}");
             if !found.contains(&line) {
                 found.push(line);

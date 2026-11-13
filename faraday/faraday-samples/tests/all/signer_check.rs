@@ -7,6 +7,7 @@ use crate::common::{demo_app, strip_offers};
 use faraday_core::catalog::{Go, TILES};
 use faraday_core::decode::check::{SignerPress, Slot};
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use faraday_shell_api::App;
 
@@ -47,6 +48,7 @@ fn the_sample_pair_reads_clean_then_a_second_returned_has_a_proprietary_finding(
     assert!(!shows(&mut app, EN.signer_only_signatures));
     let found: Vec<String> = app
         .drawn_texts()
+        .plain()
         .into_iter()
         .filter(|t| t.contains("proprietary field added"))
         .collect();

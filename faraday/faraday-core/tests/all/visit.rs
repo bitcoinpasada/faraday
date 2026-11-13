@@ -5,6 +5,7 @@
 //! list it is over and not the other. The chip says where pulling the
 //! stick goes: Unlock when a vault was sealed for the visit, else Home.
 
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::FileKind;
 use faraday_core::{
     Action, Column, Faraday, Item, Screen, StickInfo, StorageCommand, StorageEvent,
@@ -410,7 +411,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
 
 fn files_texts(app: &mut Faraday) -> Vec<String> {
     app.press(Action::Nav(Screen::Files));
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// A write leaves a receipt (`docs/history/SIMPLIFY.md` §4.3): Files lists it
@@ -696,6 +697,7 @@ fn a_files_size_reads_the_same_on_the_visit_and_the_delete_sheet() {
     let size = |app: &mut Faraday| -> Vec<String> {
         let _ = app.frame();
         app.drawn_texts()
+            .plain()
             .into_iter()
             .filter(|t| t.contains("KB") || t.contains("KiB"))
             .collect()

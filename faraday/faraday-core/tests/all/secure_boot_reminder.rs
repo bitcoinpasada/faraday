@@ -1,6 +1,7 @@
 //! At power-off a stick that started with Secure Boot off says so; with it
 //! on or unread, and on the Pi or the desktop app, it says nothing.
 
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Medium, SecureBootAtStart};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -18,7 +19,7 @@ fn shown(mut app: Faraday) -> Vec<String> {
         memory_mib: None,
     }));
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 const LINE: &str = "Turn Secure Boot back on in the BIOS before starting Windows.";

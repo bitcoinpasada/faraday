@@ -4,6 +4,7 @@
 
 use faraday_core::samples::Pick;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, DESKTOP_MODES, Faraday, strings};
 use faraday_shell_api::{App, Event};
 
@@ -1589,7 +1590,7 @@ mod signing {
                 app.press(Action::StepNext(n));
             }
             app.press(Action::Step(5));
-            app.drawn_texts()
+            app.drawn_texts().plain()
         }
 
         #[test]

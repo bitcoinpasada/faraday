@@ -7,6 +7,7 @@
 //! the computer was off.
 
 use crate::common::type_text;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
@@ -66,7 +67,7 @@ fn unlock(app: &mut Faraday, at: usize, phrase: &str) {
 fn open_anyway(app: &mut Faraday, found: &str) {
     assert_eq!(app.sheet, Some(Sheet::OlderCopy), "no older-copy dialog");
     let _ = app.frame();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(said(&texts, "Open this copy?"), "{texts:?}");
     assert!(said(&texts, found), "{texts:?}");
     app.press(Action::Vault(V::OlderOpen));
@@ -81,7 +82,7 @@ fn head(app: &mut Faraday) -> Vec<String> {
     }
     app.press(Action::Nav(Screen::VaultContents));
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 fn said(texts: &[String], part: &str) -> bool {
@@ -306,7 +307,7 @@ fn an_older_copy_stops_at_a_dialog_and_opens_only_on_open() {
     let mut app = older_unlocked();
     assert_eq!(app.sheet, Some(Sheet::OlderCopy));
     let _ = app.frame();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     for part in ["Open this copy?", "Main", OLDER, "Keep locked", "Open"] {
         assert!(said(&texts, part), "{part}: {texts:?}");
     }
@@ -339,7 +340,7 @@ fn keep_locked_or_escape_leaves_the_older_copy_locked() {
         assert_eq!(app.sheet, None, "{way:?}");
         assert_eq!(app.screen, Screen::Unlock, "{way:?}");
         let _ = app.frame();
-        let texts = app.drawn_texts();
+        let texts = app.drawn_texts().plain();
         assert!(!said(&texts, "Open this copy?"), "{texts:?}");
         // Unlocked again, it stops at the dialog again.
         unlock(&mut app, 0, B);

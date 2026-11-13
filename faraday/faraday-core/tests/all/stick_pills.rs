@@ -11,6 +11,7 @@ use crate::common::*;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Kind, Slot, Step, Target};
 use faraday_core::create::NewKind;
+use faraday_core::testkit::Plain;
 use faraday_core::{
     Action, BOOT_FOLDER, Faraday, Medium, Screen, SticksWanted, StorageEvent, cstep,
 };
@@ -37,7 +38,7 @@ fn desktop(shell: &mut Shell) -> Faraday {
 /// What the pills say, as drawn.
 fn drawn(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 fn click(app: &mut Faraday, a: Action) {
@@ -492,7 +493,7 @@ fn on_the_pis_panel_a_five_stick_flow_fits_on_one_row_in_numbers_alone() {
     // The boot card's pill, then the five.
     assert_eq!(app.stick_pills().len(), 6);
     let _ = app.frame();
-    let boxes = app.drawn_text_boxes();
+    let boxes = app.drawn_text_boxes().plain();
     // Each number's topmost drawing is its pill, across the top.
     let pills: Vec<(i32, i32, i32, i32)> = (1..=6)
         .map(|n| {
@@ -748,7 +749,7 @@ fn on_the_pi_panel_the_boards_sticks_are_numbered_as_their_pills() {
     }
     let mut read: Vec<String> = Vec::new();
     for _ in 0..40 {
-        for t in app.drawn_texts() {
+        for t in app.drawn_texts().plain() {
             if !read.contains(&t) {
                 read.push(t);
             }

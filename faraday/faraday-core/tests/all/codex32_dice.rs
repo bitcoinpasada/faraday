@@ -7,6 +7,7 @@
 use faraday_core::codex32::WalkAct;
 use faraday_core::codex32::{C32, Card, DIE_SIZES, DieColour, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -275,7 +276,10 @@ fn the_sheet_shows_both_rolls_the_tracks_and_a_struck_pair() {
     // Every pad of the booklet's track, 1 to 20, on each of the five.
     for n in 1..=20 {
         let n = n.to_string();
-        assert!(texts.iter().filter(|t| **t == n).count() >= 5, "pad {n}");
+        assert!(
+            texts.iter().filter(|t| t.as_str() == n).count() >= 5,
+            "pad {n}"
+        );
     }
 }
 
@@ -359,7 +363,7 @@ fn leaf_box(boxes: &[(String, Box4)], s: &str) -> Box4 {
 /// fill round it, by its letter.
 fn filled_leaves(app: &mut Faraday) -> Vec<String> {
     const LEAVES: &str = "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L";
-    let boxes = app.drawn_text_boxes();
+    let boxes = app.drawn_text_boxes().plain();
     let frame = app.frame();
     let (w, rgba) = (usize::from(frame.width), frame.rgba.to_vec());
     let beside = |s: &str| {

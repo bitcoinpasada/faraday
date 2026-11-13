@@ -7,6 +7,7 @@ use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::What;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
@@ -72,7 +73,7 @@ fn held(app: &mut Faraday, action: Action, t0: u64, t1: u64) {
 
 fn shown(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 #[test]

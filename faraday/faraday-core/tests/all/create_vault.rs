@@ -6,6 +6,7 @@
 
 use crate::common::type_text;
 use faraday_core::keygen::Way;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
@@ -422,6 +423,7 @@ fn a_new_vault_reads_made_in_the_checklist_until_the_checklist_makes_it() {
         app.press(Action::BPlan);
         let _ = app.frame();
         app.drawn_texts()
+            .plain()
             .into_iter()
             .find(|t| t.starts_with("Vault 1 ·") && (t.contains("sealed") || t.ends_with(" · new")))
             .unwrap_or_else(|| panic!("no band: {:?}", app.drawn_texts()))

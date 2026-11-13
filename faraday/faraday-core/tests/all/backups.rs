@@ -10,6 +10,7 @@ use crate::common::type_text;
 use faraday_core::backups::Line;
 use faraday_core::plan::Tag;
 use faraday_core::seeds::SeedsAction as S;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet_backup::Tone;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, testkit};
@@ -340,7 +341,7 @@ fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
     let mut app = shown(inbox, outbox, kept);
     assert!(app.session.wallets.is_empty());
     app.press(Action::Nav(Screen::Backups));
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(texts.contains(&name), "{name}: {texts:?}");
     assert!(texts.iter().any(|t| t == "No backup plan"), "{texts:?}");
 }
@@ -350,7 +351,7 @@ fn the_wallet_card_of_a_backed_up_wallet_says_where_its_backup_is() {
     let mut app = backed_up(2);
     let file = String::from(app.vault_files()[0].name.as_str());
     app.press(Action::Nav(Screen::Wallets));
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     let want = format!("Backup: paper ×2 checked · {file} · for the stick");
     assert!(texts.contains(&want), "{want}: {texts:?}");
     tap(&mut app, Action::BackupsOf(0));

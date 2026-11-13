@@ -5,6 +5,7 @@
 //! unlock it to see. Each row reads its currency too (§3.5).
 
 use crate::common::type_text;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
@@ -167,7 +168,7 @@ fn answer_writes(app: &mut Faraday) {
 /// The Vaults list's lines as drawn.
 fn vaults_list(app: &mut Faraday) -> Vec<String> {
     app.press(Action::Nav(Screen::Vaults));
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// A vault's currency (`docs/history/SIMPLIFY.md` §3.5), on its Vaults list row:

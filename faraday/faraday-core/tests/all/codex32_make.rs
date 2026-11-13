@@ -7,6 +7,7 @@
 
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::{Start, kstep};
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -815,7 +816,7 @@ fn every_box_of_the_string_carries_its_number() {
     // The small panel's String tile: the share's boxes alone.
     let mut app = rolled_z(480, 640, 286);
     c32(&mut app, C32::Panel(2));
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     for n in 1..=48 {
         assert!(
             texts.iter().any(|t| *t == n.to_string()),
@@ -1065,6 +1066,7 @@ fn at_larger_on_a_compact_window_the_strings_box_numbers_stand_apart() {
     frames(&mut app, 40);
     let numbers: Vec<_> = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(t, _)| t.parse::<usize>().is_ok_and(|n| (10..=48).contains(&n)))
         .collect();

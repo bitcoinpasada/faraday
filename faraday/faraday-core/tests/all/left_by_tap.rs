@@ -5,6 +5,7 @@
 //! and a secret it showed is not drawn.
 
 use faraday_core::keygen::Start;
+use faraday_core::testkit::Plain;
 use faraday_core::tools::Tool;
 use faraday_core::vanity::{VanityAction as V, vstep};
 use faraday_core::{Action, Faraday, Screen, testkit};
@@ -30,7 +31,7 @@ fn typed(app: &mut Faraday, text: &str) {
 
 fn texts(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// What `show` puts on screen that was not drawn before it.

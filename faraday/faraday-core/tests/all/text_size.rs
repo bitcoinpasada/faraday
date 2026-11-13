@@ -6,6 +6,7 @@
 //! cut off at a side or over other text.
 
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::ui::TextSize;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -171,7 +172,7 @@ fn text_cut_or_over(app: &mut Faraday, what: &str, over: bool) -> (Vec<String>, 
     let mut offered: Vec<Action> = Vec::new();
     let mut last = None;
     for _ in 0..40 {
-        let (past, texts) = app.drawn_past_sides_and_text();
+        let (past, texts) = app.drawn_past_sides_and_text().plain();
         let mut lines: Vec<String> = past
             .into_iter()
             .filter(|p| p.starts_with("text "))

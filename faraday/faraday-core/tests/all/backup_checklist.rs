@@ -11,6 +11,7 @@ use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::Item;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -680,7 +681,7 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
     // which every card after it not done names.
     let check = |app: &mut Faraday, ticks: [bool; 6], waiting: Option<&str>| {
         app.settle();
-        let boxes = app.drawn_text_boxes();
+        let boxes = app.drawn_text_boxes().plain();
         for (i, title) in titles.iter().enumerate() {
             assert_eq!(ticked(&boxes, title, i + 1), ticks[i], "{title}: {boxes:?}");
         }

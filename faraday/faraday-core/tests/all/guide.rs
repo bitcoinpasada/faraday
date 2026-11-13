@@ -5,6 +5,7 @@
 //! follows the page, scrolls on its own and closes; below it, it is the
 //! sheet.
 
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -261,7 +262,7 @@ fn vaults_page_read_to_its_foot(width: u16, height: u16) -> (Vec<String>, Vec<St
     let (mut lines, mut past) = (Vec::new(), Vec::new());
     let mut last = -1.0;
     for _ in 0..400 {
-        let (p, t) = app.drawn_past_sides_and_text();
+        let (p, t) = app.drawn_past_sides_and_text().plain();
         past.extend(p);
         lines.extend(t.into_iter().map(|(s, _)| s));
         if app.guide().scroll == last {

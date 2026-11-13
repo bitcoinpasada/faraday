@@ -3,6 +3,7 @@
 //! its reading column, its long values wrapping between groups.
 
 use crate::common::process;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -112,7 +113,12 @@ fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
     for i in 0..app.session.wallets.len() {
         app.press(Action::PickWallet(i));
         let _ = app.frame();
-        let texts: Vec<String> = app.drawn_text_boxes().into_iter().map(|(t, _)| t).collect();
+        let texts: Vec<String> = app
+            .drawn_text_boxes()
+            .plain()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let at = texts
             .iter()
             .position(|t| t == "First receive address · 0/0")
@@ -166,6 +172,7 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
         let _ = app.frame();
         let xpub_lines: Vec<(String, (i32, i32, i32, i32))> = app
             .drawn_text_boxes()
+            .plain()
             .into_iter()
             .filter(|(t, _)| t.starts_with("xpub") || t.starts_with("zpub"))
             .collect();

@@ -5,6 +5,7 @@
 //! included.
 
 use crate::vault_seal::{device, open_and_change, sealed};
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
@@ -590,7 +591,7 @@ fn a_lock_past_the_ceiling_for_want_of_memory_to_count_says_memory_is_short() {
     assert_eq!(app.vaults().open.len(), 1);
     assert!(app.vaults().open[0].changes > 0);
     let _ = app.frame();
-    let mut texts = app.drawn_texts();
+    let mut texts = app.drawn_texts().plain();
     texts.extend(app.toast_text().map(str::to_string));
     assert!(
         texts

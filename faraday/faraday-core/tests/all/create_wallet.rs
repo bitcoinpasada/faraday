@@ -9,6 +9,7 @@
 use crate::common::{add_key, type_text};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{Answers, Preset};
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
 
@@ -623,7 +624,7 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     app.press(Action::CNext(cstep::WHERE));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let line = format!("Needs Key {}'s xpub at account 1", pos + 1);
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(texts.contains(&line), "{line}: {texts:?}");
     app.press(Action::CNext(cstep::KEYS));
     assert!(
@@ -1225,7 +1226,7 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     let line = format!("Needs Key {}'s xpub at BIP-87, account 0", pos + 1);
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(texts.contains(&line), "{line}: {texts:?}");
     app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(false));

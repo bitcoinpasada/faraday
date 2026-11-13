@@ -5,6 +5,7 @@
 
 use faraday_core::spend_backup::{Open, SpendBackupAction as F, page};
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -254,6 +255,7 @@ fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i3
     app.press(Action::Nav(Screen::SpendBackup));
     let lines: Vec<_> = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(t, _)| t == "Savings" || t.starts_with("2 of 3") || t.starts_with("1 key"))
         .collect();

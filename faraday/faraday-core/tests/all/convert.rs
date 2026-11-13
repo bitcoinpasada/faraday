@@ -4,6 +4,7 @@
 
 use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
 use faraday_core::forms::Form;
+use faraday_core::testkit::Plain;
 use faraday_core::wallet::Origin;
 use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
@@ -846,7 +847,7 @@ const ZOO_24: &str = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zo
 /// What is drawn on the screen, as one list.
 fn drawn(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts().to_vec()
+    app.drawn_texts().plain().to_vec()
 }
 
 #[test]

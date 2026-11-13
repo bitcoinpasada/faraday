@@ -16,6 +16,7 @@ use crate::common::*;
 use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
 use faraday_core::backup_flow::{BackupFlow, Kind, Plan, RestoreFrom, Step};
 use faraday_core::file_menu::{FilePress, Row};
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
 use faraday_pgp::{Armor, Key, armor, fingerprint_text};
@@ -560,6 +561,7 @@ fn cut_off(app: &mut Faraday, what: &str) -> Vec<String> {
         let _ = app.frame();
         found.extend(
             app.drawn_past_sides()
+                .plain()
                 .into_iter()
                 .map(|p| format!("{what}: {p}")),
         );

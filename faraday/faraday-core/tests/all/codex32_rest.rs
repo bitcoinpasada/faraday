@@ -12,6 +12,7 @@ use faraday_core::forms::{C32Press, Form};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::samples::{SampleForm, SampleKey, SampleSize, Samples};
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, Event, Key};
 use faraday_ui::keyboard::OskPress;
@@ -275,7 +276,7 @@ fn check_a_string_shows_its_final_row_and_its_worksheet() {
     let want: Vec<String> = std::iter::once("=".to_string())
         .chain("SECRETSHARE32".chars().map(String::from))
         .collect();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(
         texts.windows(want.len()).any(|w| w == want.as_slice()),
         "{texts:?}"

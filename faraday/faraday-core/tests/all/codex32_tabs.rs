@@ -6,6 +6,7 @@
 
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -93,7 +94,7 @@ fn roll(app: &mut Faraday, ch: u8) {
 fn place(app: &mut Faraday) -> (f32, Vec<DrawnText>) {
     let _ = app.frame();
     let y = app.keygen().map_or(0.0, |k| k.scroll.y);
-    (y, app.drawn_text_boxes())
+    (y, app.drawn_text_boxes().plain())
 }
 
 /// The page scrolled by the wheel at (`x`, `y`), then tab `away` shown

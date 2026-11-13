@@ -2222,3 +2222,45 @@ pub(crate) fn word_cell_edge(ui: &mut Ui, at: (f32, f32, f32, f32), current: boo
     };
     crate::menu::outline(ui, at, SHAPE_S, width, edge.paint());
 }
+
+/// The words of the seed `key` shown on the backup's copy page, each with
+/// its place in the list and its SeedQR number (held since the eye opened
+/// it), in four columns, two on a small panel, at (x, y) `w` wide; the
+/// height they take.
+pub(crate) fn seed_word_grid(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    key: usize,
+) -> f32 {
+    let shown = app.reveal(key, faraday_keys::Reveal::CopyByHand);
+    let list: Vec<&str> = shown.split_whitespace().collect();
+    let cols = if ui.compact { 2 } else { 4 };
+    let colw = w / cols as f32;
+    let rows = list.len().div_ceil(cols);
+    for (i, wd) in list.iter().enumerate() {
+        let cx = x + (i / rows) as f32 * colw;
+        let ry = y + (i % rows) as f32 * 26.0;
+        let idx = app.backup_word_number(i).unwrap_or("");
+        ui.text_as(
+            cx,
+            ry,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &text!("{:>2}", i + 1),
+        );
+        if ui.compact {
+            ui.text_as(cx + 20.0, ry, BODY_S.mono(), Role::OnSurface, wd);
+            ui.text_right_as(
+                (cx + colw - 8.0, ry - 3.0, 20.0),
+                LABEL_S.mono(),
+                Role::OnSurfaceVariant,
+                idx,
+            );
+        } else {
+            ui.text_as(cx + 26.0, ry, BODY_M.mono(), Role::OnSurface, wd);
+            ui.text_as(cx + 104.0, ry, BODY_S.mono(), Role::OnSurfaceVariant, idx);
+        }
+    }
+    rows as f32 * 26.0 + 16.0
+}

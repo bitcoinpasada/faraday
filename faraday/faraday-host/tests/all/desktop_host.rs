@@ -7,6 +7,7 @@
 use crate::common::*;
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
 use faraday_core::keygen::Start;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, testkit};
 use faraday_host::{Host, HostMenu, HostPress};
 use faraday_shell_api::{
@@ -122,7 +123,7 @@ fn strip(host: &mut Host) -> Vec<String> {
 /// What the app draws inside its area now.
 fn app_texts(host: &mut Host) -> Vec<String> {
     let _ = host.frame();
-    host.app.drawn_texts()
+    host.app.drawn_texts().plain()
 }
 
 /// Nothing only Faraday Demo or Practice has is drawn inside the app.

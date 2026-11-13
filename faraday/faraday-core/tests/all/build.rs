@@ -7,6 +7,7 @@
 //! another commit; a higher version number is Newer. And Settings, which
 //! no longer offers to upgrade a stick (F128).
 
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_paper::build::{Fit, build_id, compare, version};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -125,7 +126,7 @@ fn about_shows_the_version_label_local_build_without_a_faraday_build_id() {
     let mut app = device();
     app.press(Action::Nav(Screen::Settings));
     crate::common::settings_section(&mut app, "About");
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     // The test binary carries no FARADAY_BUILD (faraday_core::lib.rs).
     assert!(faraday_core::BUILD.is_none());
     let want = format!("Faraday {}", faraday_core::version_label());

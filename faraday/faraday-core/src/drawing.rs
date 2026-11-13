@@ -102,7 +102,7 @@ pub(crate) struct Drawing {
     pub inbox_found: OnceCell<crate::inbox::Found>,
     /// The session's keys and wallets no open vault holds
     /// ([`crate::Faraday::unsaved_now`]).
-    pub unsaved: OnceCell<(Vec<String>, Vec<String>)>,
+    pub unsaved: OnceCell<(Vec<faraday_text::Text>, Vec<faraday_text::Text>)>,
 }
 
 impl Drawing {
@@ -329,7 +329,7 @@ pub(crate) struct After {
 }
 
 /// A string a frame draws and the box of its ink in pixels (x, y, w, h).
-pub type DrawnText = (String, (i32, i32, i32, i32));
+pub type DrawnText = (faraday_text::Text, (i32, i32, i32, i32));
 
 impl Faraday {
     /// Whether (x, y), in pixels, is empty room in the top strip: in the
@@ -567,7 +567,7 @@ impl Faraday {
 
     /// The strings the current frame draws, for a test to check what a
     /// title or a label actually reads.
-    pub fn drawn_texts(&mut self) -> Vec<String> {
+    pub fn drawn_texts(&mut self) -> Vec<faraday_text::Text> {
         self.drawn_text_boxes()
             .into_iter()
             .map(|(t, _)| t)
@@ -577,13 +577,14 @@ impl Faraday {
     /// The strings the current frame draws, each with the box of its ink
     /// in pixels (x, y, w, h): for a test of where a line is put, such as
     /// whether a row of labels fits on one line.
-    pub fn drawn_text_boxes(&mut self) -> Vec<(String, (i32, i32, i32, i32))> {
+    pub fn drawn_text_boxes(&mut self) -> Vec<DrawnText> {
         self.drawn_ink()
             .into_iter()
             .filter_map(|i| match i.kind {
-                faraday_draw::canvas::InkKind::Text { text, .. } => {
-                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
-                }
+                faraday_draw::canvas::InkKind::Text { text, .. } => Some((
+                    faraday_text::Text::of(&text),
+                    (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
+                )),
                 _ => None,
             })
             .collect()
@@ -595,7 +596,7 @@ impl Faraday {
     /// page that scrolls is not counted. A control reads as its action and
     /// its box's left and right, pixels; a string as `text "…"`. For a
     /// test that nothing is cut off at a panel's width.
-    pub fn drawn_past_sides(&mut self) -> Vec<String> {
+    pub fn drawn_past_sides(&mut self) -> Vec<faraday_text::Text> {
         let _ = self.drawn_ink();
         self.past_sides()
     }
@@ -603,14 +604,15 @@ impl Faraday {
     /// [`Self::drawn_past_sides`] and [`Self::drawn_text_boxes`] from one
     /// frame drawn: for a test that walks a page and checks it at each
     /// place it scrolls to.
-    pub fn drawn_past_sides_and_text(&mut self) -> (Vec<String>, Vec<DrawnText>) {
+    pub fn drawn_past_sides_and_text(&mut self) -> (Vec<faraday_text::Text>, Vec<DrawnText>) {
         let texts = self
             .drawn_ink()
             .into_iter()
             .filter_map(|i| match i.kind {
-                faraday_draw::canvas::InkKind::Text { text, .. } => {
-                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
-                }
+                faraday_draw::canvas::InkKind::Text { text, .. } => Some((
+                    faraday_text::Text::of(&text),
+                    (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
+                )),
                 _ => None,
             })
             .collect();
@@ -657,20 +659,20 @@ impl Faraday {
     }
 
     /// What the frame last drawn ran past the sides of its clips.
-    fn past_sides(&self) -> Vec<String> {
+    fn past_sides(&self) -> Vec<faraday_text::Text> {
         let Some(c) = self.canvas.as_ref() else {
             return Vec::new();
         };
-        let mut past: Vec<String> = c
+        let mut past: Vec<faraday_text::Text> = c
             .cut()
             .iter()
-            .map(|s| format!("text {s:?}")) // not shown: a test line
+            .map(|s| faraday_text::text!("text {s:?}")) // not shown: a test line
             .collect();
         past.extend(
             self.pointer
                 .cut()
                 .iter()
-                .map(|(r, a)| format!("{a:?} {:?}", (r.x, r.right()))), // not shown: a test line
+                .map(|(r, a)| faraday_text::text!("{a:?} {:?}", (r.x, r.right()))), // not shown: a test line
         );
         past
     }

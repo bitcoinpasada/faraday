@@ -1400,7 +1400,11 @@ impl Starter {
     pub fn drawn_texts(&mut self) -> Vec<String> {
         // The held app's words, and the Starter's own bar over it.
         let mut texts = if self.showing {
-            self.held.drawn_texts()
+            self.held
+                .drawn_texts()
+                .iter()
+                .map(|t| String::from(t.as_str()))
+                .collect()
         } else {
             self.demo_texts()
         };

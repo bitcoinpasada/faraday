@@ -5,6 +5,7 @@ use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::tools::Tool;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -149,6 +150,7 @@ fn a_calculator_opened_from_tools_names_tools_as_its_way_back() {
     // where its way back goes.
     let bar: Vec<String> = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(_, (x, y, _, h))| *x > 240 && y + h <= 64)
         .map(|(t, _)| t)

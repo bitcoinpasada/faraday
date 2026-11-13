@@ -7,6 +7,7 @@
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::seeds::read::Choice;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Sheet, testkit};
 use faraday_shell_api::{App, Event};
 
@@ -14,7 +15,7 @@ pub const REFUSED: &str = "A passphrase here is printable ASCII only";
 
 fn drawn(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 #[test]

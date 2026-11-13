@@ -6,6 +6,7 @@
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::testkit::KindText;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -325,6 +326,7 @@ fn the_files_row_names_the_session_stage() {
     let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
     let boxes: Vec<(String, (i32, i32, i32, i32))> = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(_, (x, _, _, _))| *x < edge)
         .collect();
@@ -477,6 +479,7 @@ fn sidebar_texts(app: &mut Faraday) -> Vec<String> {
     let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
     let mut v: Vec<(String, i32, i32)> = app
         .drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(_, (x, _, _, _))| *x < edge)
         .map(|(t, (x, y, _, _))| (t, y, x))
@@ -674,7 +677,7 @@ fn row_on_settings(app: &mut Faraday, g: Going) -> bool {
 /// The texts drawn now, the sheet's among them.
 fn texts(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// [`create_at_places`], Make a new wallet opened from Wallets.

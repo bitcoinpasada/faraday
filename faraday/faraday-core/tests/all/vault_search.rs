@@ -9,6 +9,7 @@
 use crate::common::{know_files, type_text, vault_with};
 use faraday_core::codes::codes_rows;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::{SearchAct, SearchIn, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{
@@ -250,11 +251,11 @@ fn whole_page(app: &mut Faraday) -> (Vec<String>, Vec<String>) {
     let mut last = None;
     for _ in 0..60 {
         let _ = app.frame();
-        cut.extend(app.drawn_past_sides());
-        texts.extend(app.drawn_texts());
+        cut.extend(app.drawn_past_sides().plain());
+        texts.extend(app.drawn_texts().plain());
         // At the foot when nothing moved: the same texts in the same
         // places.
-        let shown = app.drawn_past_sides_and_text().1;
+        let shown = app.drawn_past_sides_and_text().plain().1;
         if last.as_ref() == Some(&shown) {
             break;
         }

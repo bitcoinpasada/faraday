@@ -7,6 +7,7 @@
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
@@ -911,7 +912,7 @@ fn the_lock_sheet_saves_a_key_in_no_vault_into_the_open_vault() {
 fn drawn(app: &mut Faraday) -> Vec<String> {
     app.settle();
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// A screen with a secret behind its eye, the vault open and changed: the

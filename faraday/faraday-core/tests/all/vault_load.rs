@@ -9,6 +9,7 @@
 
 use crate::common::RecordsOf as _;
 use crate::common::{device, type_text};
+use faraday_core::testkit::Plain;
 use std::rc::Rc;
 
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -688,7 +689,7 @@ fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
     let seeds = app.vault_passphrase_seeds_now(&c);
     assert_eq!(seeds.len(), 2);
     let _ = app.frame();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(texts.iter().any(|t| t == "Seeds with no passphrase stored"));
     for s in seeds.iter() {
         assert!(texts.contains(&s.line), "{} not in {texts:?}", s.line);

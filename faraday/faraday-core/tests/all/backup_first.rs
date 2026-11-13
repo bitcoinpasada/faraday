@@ -12,6 +12,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Way;
 use faraday_core::plan::{CHECK_LINES, Item, Preset};
+use faraday_core::testkit::Plain;
 use faraday_core::testkit::backup_as;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::vault::VaultAction as V;
@@ -593,7 +594,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     let _ = app.frame();
     assert!(!app.offers(Action::BChecklist));
     let nowhere = format!("Seed {} is kept nowhere", String::from(&*fp_text(fp)));
-    assert!(app.drawn_texts().contains(&nowhere));
+    assert!(app.drawn_texts().plain().contains(&nowhere));
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)

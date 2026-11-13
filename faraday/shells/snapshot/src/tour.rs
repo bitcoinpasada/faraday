@@ -578,7 +578,8 @@ impl Tour {
     /// as test 5 checks (`docs/TEXT-SIZE.md` §7).
     fn note_cut(&mut self, name: &str) -> Result<(), String> {
         use std::io::Write;
-        let (past, texts) = self.app.drawn_past_sides_and_text();
+        let (past, texts) =
+            faraday_core::testkit::Plain::plain(self.app.drawn_past_sides_and_text());
         let mut cut: Vec<String> = past
             .into_iter()
             .filter(|p| p.starts_with("text "))

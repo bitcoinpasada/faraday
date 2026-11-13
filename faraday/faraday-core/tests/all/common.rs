@@ -7,6 +7,7 @@
 use faraday_core::backup_flow::Kind;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::catalog::{Go, TILES};
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
@@ -970,7 +971,7 @@ pub fn start(app: &mut Faraday, kind: Kind) {
 
 pub fn texts(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// Whether the screen drawn now offers this action.

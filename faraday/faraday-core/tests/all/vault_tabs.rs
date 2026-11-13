@@ -5,6 +5,7 @@
 //! finds the same place.
 
 use crate::common::type_text;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
@@ -54,7 +55,7 @@ fn contents() -> Faraday {
 
 fn shown(app: &mut Faraday) -> Vec<(String, (i32, i32, i32, i32))> {
     let _ = app.frame();
-    app.drawn_text_boxes()
+    app.drawn_text_boxes().plain()
 }
 
 #[test]

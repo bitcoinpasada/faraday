@@ -123,7 +123,13 @@ impl Starter {
             .iter()
             .map(|t| String::from(&**t))
             .collect();
-        texts.extend(held.host.app.drawn_texts());
+        texts.extend(
+            held.host
+                .app
+                .drawn_texts()
+                .iter()
+                .map(|t| String::from(t.as_str())),
+        );
         texts
     }
 

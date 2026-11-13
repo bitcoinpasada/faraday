@@ -5,6 +5,7 @@
 
 use crate::common::RecordsOf as _;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
@@ -258,7 +259,12 @@ const SCREENS: [S; 27] = [
 
 /// What `app` draws, each string tagged with where it was drawn.
 fn texts_at(app: &mut Faraday, at: &str, all: &mut Vec<(String, String)>) {
-    all.extend(app.drawn_texts().into_iter().map(|t| (at.to_string(), t)));
+    all.extend(
+        app.drawn_texts()
+            .plain()
+            .into_iter()
+            .map(|t| (at.to_string(), t)),
+    );
 }
 
 /// A boot stick holding `files`, every read it asks for answered.

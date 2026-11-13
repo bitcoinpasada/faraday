@@ -8,6 +8,7 @@
 //! on its next spend, across a lock, until the machine starts afresh.
 
 use crate::common::add_key;
+use faraday_core::testkit::Plain;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
@@ -659,7 +660,7 @@ fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
         .iter()
         .map(|o| String::from(&*faraday_core::decode::btc(o.amount)))
         .collect();
-    let texts = app.drawn_text_boxes();
+    let texts = app.drawn_text_boxes().plain();
     // Each amount's end and the end of the address on its row.
     let rows: Vec<(i32, i32)> = amounts
         .iter()

@@ -8,6 +8,7 @@
 //! says so once.
 
 use crate::common::type_text;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, cstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
@@ -304,6 +305,7 @@ fn page_texts(app: &mut Faraday) -> Vec<String> {
     // middle is the sidebar's edge.
     let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
     app.drawn_text_boxes()
+        .plain()
         .into_iter()
         .filter(|(_, (x, _, _, _))| *x >= edge)
         .map(|(t, _)| t)

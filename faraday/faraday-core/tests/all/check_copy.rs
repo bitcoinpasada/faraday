@@ -24,6 +24,7 @@ use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::plan::{self, Item};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, ScanPurpose, Sheet, StorageEvent, bstep};
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
@@ -772,7 +773,7 @@ type Shown = (
 fn checklist(app: &mut Faraday) -> Shown {
     let c = faraday_core::testkit::compute();
     app.settle();
-    let boxes = app.drawn_text_boxes();
+    let boxes = app.drawn_text_boxes().plain();
     (
         boxes,
         app.backup_items_now(&c),

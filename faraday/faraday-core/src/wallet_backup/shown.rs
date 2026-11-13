@@ -5,26 +5,29 @@ use super::WalletBackupArea;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
 use faraday_keys::Keys;
+use faraday_text::{Text, text};
 
 /// The seed shown on the copy page, worked out once when the eye opened
 /// it (F195): each word's SeedQR number and the SeedQR grid. Wiped on
-/// drop (the numbers in a `Zeroizing`, the grid zeroized by its type),
+/// drop (the numbers as wiping text, the grid zeroized by its type),
 /// dropped the moment the seed is hidden, the page is left or the
 /// session locks; drawing only reads it.
 pub(super) struct SeedShown {
     /// The key shown, by index into the session.
     key: usize,
-    /// Each word's number, `u16::MAX` where the list has no such word.
-    numbers: zeroize::Zeroizing<Vec<u16>>,
+    /// Each word's number as four digits, empty where the list has no
+    /// such word, as wiping text.
+    numbers: Vec<Text>,
     /// The SeedQR grid and whether it is Compact, when the page draws one.
     qr: Option<(bool, faraday_codec::qr::QrMatrix)>,
 }
 
 impl WalletBackupArea {
-    /// The SeedQR number of shown word `i`; none when no seed is shown.
-    pub(crate) fn shown_number(&self, i: usize) -> Option<u16> {
-        let n = *self.shown.as_ref()?.numbers.get(i)?;
-        (n != u16::MAX).then_some(n)
+    /// The SeedQR number of shown word `i` as four digits; none when no
+    /// seed is shown.
+    pub(crate) fn shown_number(&self, i: usize) -> Option<&str> {
+        let n = self.shown.as_ref()?.numbers.get(i)?;
+        (!n.is_empty()).then_some(n.as_str())
     }
 
     /// The shown seed's SeedQR grid, when it is held and is `compact`.
@@ -69,12 +72,13 @@ impl WalletBackupArea {
             Some(h) => h.numbers,
             None => {
                 let words = keys.reveal(k, faraday_keys::Reveal::CopyByHand);
-                zeroize::Zeroizing::new(
-                    words
-                        .split_whitespace()
-                        .map(|w| lang.index_of(w).unwrap_or(u16::MAX))
-                        .collect(),
-                )
+                words
+                    .split_whitespace()
+                    .map(|w| match lang.index_of(w) {
+                        Some(v) => text!("{v:04}"),
+                        None => Text::of(""),
+                    })
+                    .collect()
             }
         };
         let qr = seedqr

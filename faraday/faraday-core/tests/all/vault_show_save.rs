@@ -12,6 +12,7 @@
 //! back from.
 
 use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
@@ -376,7 +377,7 @@ fn save_to_a_stick_says_the_seed_line_first_and_writes_the_ticked_forms() {
     assert_eq!(app.sheet, Some(Sheet::VaultSave));
     assert!(app.outbox.is_empty(), "nothing is written before Save");
     let _ = app.frame();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     let line = texts
         .iter()
         .position(|t| t == "Anyone who finds this stick has this seed")
@@ -517,7 +518,7 @@ fn a_wallet_s_save_writes_its_descriptor_text_qr_and_software_files() {
     app.press(Action::Vault(V::SaveToStick));
     assert_eq!(app.sheet, Some(Sheet::VaultSave));
     let _ = app.frame();
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(
         !texts.contains(&"Anyone who finds this stick has this seed".to_string()),
         "a wallet's files are public"

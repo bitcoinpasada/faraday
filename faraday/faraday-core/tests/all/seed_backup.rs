@@ -14,6 +14,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_core::board::{Thing, Zone};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::wallet_backup::{Kept, Tone};
@@ -643,7 +644,7 @@ fn as_child(app: &mut Faraday) -> usize {
 
 fn texts(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 /// The sheet's tick of key `k`'s field `number` pressed.

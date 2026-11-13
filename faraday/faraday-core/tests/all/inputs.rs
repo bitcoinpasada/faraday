@@ -15,6 +15,7 @@
 //! when it is used: a notice at plug-in, its sheet at its first act.
 
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Sheet, StorageEvent, inputs, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
@@ -545,7 +546,7 @@ fn the_sheet_says_which_target_of_how_many() {
     let (at, of) = shown(&app, 1, 0).expect("target");
     let says = |app: &mut Faraday, n: usize| {
         let want = format!("Target {n} of {of}");
-        app.drawn_texts().contains(&want)
+        app.drawn_texts().plain().contains(&want)
     };
     assert!(says(&mut app, 1));
     tap_held(&mut app, 1, at);

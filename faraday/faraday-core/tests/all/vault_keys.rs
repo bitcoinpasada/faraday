@@ -4,6 +4,7 @@
 //! asked for, and a vault holding wallets with their seeds loads each
 //! with its seeds in one press.
 
+use faraday_core::testkit::Plain;
 use faraday_core::vault::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -450,7 +451,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     let r = key_record(&app, testkit::TEST_SEEDS[0].1);
     let fp = fp_of_words(&testkit::test_words(testkit::TEST_SEEDS[0].0));
     let press = Action::CSlotVault(0, 0, r);
-    let texts = app.drawn_texts();
+    let texts = app.drawn_texts().plain();
     assert!(app.offers(press), "Key 1 offers the vault's key");
     assert!(
         texts.iter().any(|t| t == "vault.kdbx"),

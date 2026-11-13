@@ -312,19 +312,10 @@ impl View<'_> {
 
     /// The session's keys and wallets no open vault holds
     /// ([`crate::Faraday::unsaved_now`]), once a frame.
-    pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
+    pub fn unsaved(&self) -> &(Vec<faraday_text::Text>, Vec<faraday_text::Text>) {
         self.drawing
             .unsaved
-            .get_or_init(|| {
-                self.filled(|c| {
-                    let (a, b) = self.app.unsaved_now(c);
-                    let owned = |v: Vec<faraday_text::Text>| -> Vec<String> {
-                        v.iter().map(|t| String::from(t.as_str())).collect()
-                    };
-                    (owned(a), owned(b))
-                })
-            })
-            .clone()
+            .get_or_init(|| self.filled(|c| self.app.unsaved_now(c)))
     }
 
     /// What a lock keeps and wipes ([`crate::Faraday::kept_wiped_now`]), once a

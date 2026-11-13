@@ -5,6 +5,7 @@
 //! idle lock until its keys are kept somewhere (`docs/history/NEW-WALLET.md`
 //! §18).
 
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
@@ -136,7 +137,7 @@ fn the_idle_warning_carries_no_clock() {
             .map_or(rest.len(), |e| e + "keeps it".len());
         rest[..end].to_string()
     };
-    let first = app.drawn_texts();
+    let first = app.drawn_texts().plain();
     assert!(
         first.iter().any(|t| t == "Locking soon"),
         "no countdown title: {first:?}"
@@ -152,7 +153,7 @@ fn the_idle_warning_carries_no_clock() {
         ),
     );
     tick(&mut app, 25 * MIN + 1_000);
-    let second = app.drawn_texts();
+    let second = app.drawn_texts().plain();
     assert_eq!(
         first_body,
         body(&second),

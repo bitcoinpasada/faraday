@@ -8,6 +8,7 @@
 //! nowhere else.
 
 use faraday_core::testkit;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
@@ -262,7 +263,7 @@ fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
         vaults: Vec::new(),
     }]));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
-    app.drawn_texts()
+    app.drawn_texts().plain()
 }
 
 #[test]

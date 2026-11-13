@@ -4,6 +4,7 @@
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::vault::KeyChoice;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{
@@ -1288,7 +1289,11 @@ fn tall_open_vault() -> Faraday {
 fn too_large_rows(app: &mut Faraday, machine: &str) -> usize {
     let _ = app.frame();
     let note = EN.vault_too_large.replace("{}", machine);
-    app.drawn_texts().iter().filter(|t| **t == note).count()
+    app.drawn_texts()
+        .plain()
+        .iter()
+        .filter(|t| **t == note)
+        .count()
 }
 
 /// The Zero's place among the machines.

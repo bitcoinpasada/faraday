@@ -3,12 +3,14 @@
 //! building them. Nothing here is secret, so it is plain text (`String`);
 //! the seeds, their words and what is made from them stay in the parent
 //! module, which hands this one only the public text it makes. This file
-//! names no secret type and none of the wiping text: it takes what the
-//! parent makes by its dereference to `str`.
+//! names no secret type, and names the wiping text only in [`Plain`], which
+//! copies a frame's drawn text out for a test; it takes what the parent
+//! makes by its dereference to `str`.
 
 use super::{KitError, NUMS, compute, key_t, net, text_of};
 use faraday_bip::policy::WalletPolicy;
 use faraday_psbt::Psbt;
+use faraday_text::Text;
 
 /// `[fingerprint/path]tpub` for test seed `n` at `path`, its coin type
 /// [`net`]'s ([`on_net`]): an `xpub` at coin type 0 on Mainnet.
@@ -262,4 +264,38 @@ pub fn kdbx_edited(
     Ok(super::kdbx_edited_t(label, passphrase, id, edit, |xml| {
         text_of(&tweak(String::from(&*xml)))
     })?)
+}
+
+/// What a frame drew as ordinary strings, for a test or a shell that
+/// compares them: `drawn_texts().plain()`. The strings in a frame may
+/// include a revealed seed's words, so this is for tests and tours that
+/// plant their own data, never for the device.
+pub trait Plain {
+    /// The same strings, as the standard library's text.
+    type Out;
+    /// Copies the strings out of their wiping text.
+    fn plain(self) -> Self::Out;
+}
+
+impl Plain for Vec<Text> {
+    type Out = Vec<String>;
+    fn plain(self) -> Vec<String> {
+        self.iter().map(|t| String::from(t.as_str())).collect()
+    }
+}
+
+impl<B> Plain for Vec<(Text, B)> {
+    type Out = Vec<(String, B)>;
+    fn plain(self) -> Vec<(String, B)> {
+        self.into_iter()
+            .map(|(t, b)| (String::from(t.as_str()), b))
+            .collect()
+    }
+}
+
+impl<B> Plain for (Vec<Text>, Vec<(Text, B)>) {
+    type Out = (Vec<String>, Vec<(String, B)>);
+    fn plain(self) -> Self::Out {
+        (self.0.plain(), self.1.plain())
+    }
 }

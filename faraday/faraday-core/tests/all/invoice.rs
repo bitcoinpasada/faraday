@@ -4,6 +4,7 @@
 
 use crate::common::type_text;
 use faraday_core::catalog::TILES;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -135,7 +136,7 @@ fn a_refused_invoice_shows_one_line_and_no_rows() {
         .expect_err("decoded")
         .clone();
     assert!(line.starts_with("Refused"), "{line}");
-    assert!(app.drawn_texts().contains(&line));
+    assert!(app.drawn_texts().plain().contains(&line));
 }
 
 #[test]
@@ -245,7 +246,7 @@ fn a_refused_offer_shows_one_line_and_no_rows() {
     let mut app = decoded(&offer("Invalid: zero offer_amount"));
     let line = refusal(&app);
     assert!(line.starts_with("Refused"), "{line}");
-    assert!(app.drawn_texts().contains(&line));
+    assert!(app.drawn_texts().plain().contains(&line));
     assert!(value(&app, "Kind").is_none());
 }
 

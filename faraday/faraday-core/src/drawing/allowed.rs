@@ -100,9 +100,9 @@ impl View<'_> {
     }
 
     /// The SeedQR number of the seed shown on the backup's copy page,
-    /// word `i`, held since the eye opened it (F195): a read, nothing
+    /// word `i` as four digits, held since the eye opened it (F195): a read, nothing
     /// costs.
-    pub fn backup_word_number(&self, i: usize) -> Option<u16> {
+    pub fn backup_word_number(&self, i: usize) -> Option<&str> {
         self.app.backup.shown_number(i)
     }
 

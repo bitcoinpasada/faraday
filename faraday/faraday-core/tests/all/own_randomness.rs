@@ -17,6 +17,7 @@ use crate::vault_seal::{device as vault_device, open_and_change, sealed};
 use faraday_core::fresh::page::Act;
 use faraday_core::fresh::{OwnCounts, OwnSource};
 use faraday_core::keygen::Way;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_entropy::{CameraNoise, CoinFlips, DiceRolls};
 use faraday_shell_api::{App, Command, EntropyBytes, Event, Key};
@@ -444,6 +445,7 @@ fn own(a: Act) -> Action {
 /// The status line on show.
 fn status_shown(app: &mut Faraday) -> Option<String> {
     app.drawn_texts()
+        .plain()
         .into_iter()
         .find(|t| t.starts_with("System: "))
 }
@@ -525,6 +527,7 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
 /// Add randomness's added line on show, if any.
 fn added_shown(app: &mut Faraday) -> Option<String> {
     app.drawn_texts()
+        .plain()
         .into_iter()
         .find(|t| t.starts_with("Added to the pool"))
 }

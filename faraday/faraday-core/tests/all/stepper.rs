@@ -8,6 +8,7 @@ use faraday_core::codex32::{C32, SPLITS, Split};
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Start;
 use faraday_core::strings::EN;
+use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
@@ -85,7 +86,7 @@ fn the_count_is_drawn_and_moves_by_one_with_minus_and_plus() {
         let _ = app.frame();
         let shown = (n + 1).to_string();
         assert!(
-            app.drawn_texts().contains(&shown),
+            app.drawn_texts().plain().contains(&shown),
             "{w}x{h}: the new count is drawn"
         );
         tap(&mut app, Action::Codex32(C32::K(1)));
