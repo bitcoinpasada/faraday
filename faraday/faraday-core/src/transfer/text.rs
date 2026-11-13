@@ -13,6 +13,7 @@ use crate::secrets::Exposure;
 use crate::wallet;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use zeroize::Zeroizing;
@@ -55,7 +56,7 @@ pub enum TextCheck {
 
 /// The Send text card's field, and what its check said.
 pub struct SendText {
-    text: Zeroizing<String>,
+    text: Text,
     check: TextCheck,
     /// A paste was longer than the field holds, so it is cut: refused
     /// until the field is cleared.
@@ -76,7 +77,7 @@ impl std::fmt::Debug for SendText {
 impl Default for SendText {
     fn default() -> Self {
         Self {
-            text: Zeroizing::new(String::new()),
+            text: Text::new(),
             check: TextCheck::Fine,
             over: false,
         }
@@ -108,7 +109,7 @@ impl SendText {
 
     /// Empties the field, wiping what it held.
     pub(crate) fn clear(&mut self) {
-        self.text = Zeroizing::new(String::new());
+        self.text.clear();
         self.check = TextCheck::Fine;
         self.over = false;
     }
@@ -144,7 +145,7 @@ impl SendText {
         while !text.is_char_boundary(cut) {
             cut -= 1;
         }
-        self.text = Zeroizing::new(text[..cut].to_string());
+        self.text = Text::of(&text[..cut]);
         self.over = cut < text.len();
         self.recheck(c);
     }
@@ -425,7 +426,7 @@ fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Opti
             Err(faraday_qr::registry::Error::Seed) => Some(TextCheck::Inside(Kind::UrSeed)),
             _ => None,
         },
-        Message::Bytes(b) => match check(c, &String::from_utf8_lossy(&b)) {
+        Message::Bytes(b) => match check(c, &Text::from_utf8_lossy(&b)) {
             TextCheck::Secret(k) | TextCheck::Inside(k) => Some(TextCheck::Inside(k)),
             r @ (TextCheck::Partial | TextCheck::SeedHex) => Some(r),
             TextCheck::Fine | TextCheck::TooLong => None,
@@ -436,16 +437,18 @@ fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Opti
 
 /// The words of each BIP-39 list Faraday reads, in NFKD and without their
 /// accents where a Latin list has them, and the SLIP-39 list.
-fn lists() -> &'static (Vec<HashSet<String>>, HashSet<&'static str>) {
-    static LISTS: OnceLock<(Vec<HashSet<String>>, HashSet<&'static str>)> = OnceLock::new();
+fn lists() -> &'static (Vec<HashSet<Text>>, HashSet<&'static str>) {
+    static LISTS: OnceLock<(Vec<HashSet<Text>>, HashSet<&'static str>)> = OnceLock::new();
     LISTS.get_or_init(|| {
         let bip39 = Language::ALL
             .iter()
             .map(|l| {
-                let mut set: HashSet<String> = HashSet::new();
+                let mut set: HashSet<Text> = HashSet::new();
                 for w in l.words_nfkd() {
-                    set.extend(faraday_bip::bip39::fold(w).map(|f| f.as_chars().iter().collect()));
-                    set.insert((*w).to_owned());
+                    set.extend(
+                        faraday_bip::bip39::fold(w).map(|f| f.as_chars().iter().copied().collect()),
+                    );
+                    set.insert(Text::of(w));
                 }
                 set
             })
@@ -494,7 +497,7 @@ fn is_mark(ch: char) -> bool {
 fn words(c: &Compute, t: &str) -> Option<Kind> {
     let (bip39, slip39) = lists();
     // As the lists are stored: decomposed, in lower case.
-    let ws: Vec<String> = t
+    let ws: Vec<Text> = t
         .split_whitespace()
         .flat_map(|tok| tok.split(|ch: char| !(ch.is_alphabetic() || is_mark(ch))))
         .filter(|w| !w.is_empty())
@@ -519,17 +522,17 @@ fn words(c: &Compute, t: &str) -> Option<Kind> {
         start = end + 1;
     }
     if best.1 - best.0 >= 12 {
-        let full: Vec<String> = ws[best.0..best.1]
+        let full: Vec<Text> = ws[best.0..best.1]
             .iter()
-            .map(|w| (*short.get(w.as_str()).unwrap_or(&"")).to_string())
+            .map(|w| Text::of(short.get(w.as_str()).unwrap_or(&"")))
             .collect();
         return Some(run_kind(c, &full));
     }
     // A word on a list as it is, or without its accents.
-    let on = |list: &HashSet<String>, w: &str| {
+    let on = |list: &HashSet<Text>, w: &str| {
         list.contains(w)
             || faraday_bip::bip39::fold(w)
-                .is_some_and(|f| list.contains(&f.as_chars().iter().collect::<String>()))
+                .is_some_and(|f| list.contains(&f.as_chars().iter().copied().collect::<Text>()))
     };
     for list in bip39 {
         let mut start = 0;
@@ -555,7 +558,7 @@ fn words(c: &Compute, t: &str) -> Option<Kind> {
 /// The start of the first window of `size` consecutive words of which at
 /// least `need` are on the list: a seed with one word misspelt.
 fn dense_window(
-    ws: &[String],
+    ws: &[Text],
     size: usize,
     need: usize,
     on_list: impl Fn(&str) -> bool,
@@ -575,7 +578,7 @@ fn dense_window(
 }
 
 /// The length of the longest run of words `on_list` holds.
-fn longest_run(ws: &[String], on_list: impl Fn(&str) -> bool) -> usize {
+fn longest_run(ws: &[Text], on_list: impl Fn(&str) -> bool) -> usize {
     let (mut best, mut run) = (0, 0);
     for w in ws {
         run = if on_list(w) { run + 1 } else { 0 };
@@ -588,7 +591,7 @@ fn longest_run(ws: &[String], on_list: impl Fn(&str) -> bool) -> usize {
 /// name of a run of 11 or more words: what the classifier says of its
 /// first and its last 12, 15, 18, 21 or 24 words, else words that fail
 /// their checksum.
-fn run_kind(c: &Compute, run: &[String]) -> Kind {
+fn run_kind(c: &Compute, run: &[Text]) -> Kind {
     for n in [12usize, 15, 18, 21, 24] {
         if n > run.len() {
             break;

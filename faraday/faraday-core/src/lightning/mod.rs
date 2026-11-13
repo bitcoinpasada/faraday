@@ -7,9 +7,9 @@
 
 pub(crate) mod screen;
 
-use crate::strings::fill;
 use crate::strings::{EN, fill_secret};
 use faraday_bip::bip39::Language;
+use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
@@ -67,22 +67,22 @@ impl ReadWork {
 }
 
 /// The line for a refusal of Core Lightning's file or words.
-fn refusal_line(r: NodeRefusal) -> String {
+fn refusal_line(r: NodeRefusal) -> Text {
     use NodeRefusal as N;
     use faraday_keys::hsm_node::WordsRefusal as W;
     use faraday_keys::hsm_secret::Refusal as R;
     match r {
-        N::File(R::Words) => EN.lightning_hsm_words.to_string(),
-        N::File(R::Passphrase) => EN.lightning_hsm_passphrase.to_string(),
-        N::File(R::PassphraseNotAscii) => crate::state::ascii_refused(),
-        N::File(R::PassphraseTooLong) => EN.lightning_hsm_passphrase_long.to_string(),
+        N::File(R::Words) => Text::of(EN.lightning_hsm_words),
+        N::File(R::Passphrase) => Text::of(EN.lightning_hsm_passphrase),
+        N::File(R::PassphraseNotAscii) => Text::of(&crate::state::ascii_refused()),
+        N::File(R::PassphraseTooLong) => Text::of(EN.lightning_hsm_passphrase_long),
         // A file changed since it was listed reads as a changed file.
         N::File(R::Length | R::PassphraseNotNeeded | R::Opening) => {
-            EN.lightning_hsm_opening.to_string()
+            Text::of(EN.lightning_hsm_opening)
         }
-        N::File(R::Memory) => EN.lightning_hsm_memory.to_string(),
-        N::Words(W::NotEnglish) => EN.lightning_hsm_not_english.to_string(),
-        N::Words(W::Words(line)) | N::Demo(line) => line,
+        N::File(R::Memory) => Text::of(EN.lightning_hsm_memory),
+        N::Words(W::NotEnglish) => Text::of(EN.lightning_hsm_not_english),
+        N::Words(W::Words(line)) | N::Demo(line) => Text::of(&line),
     }
 }
 
@@ -99,7 +99,7 @@ pub struct LightningState {
     /// The node key, once found.
     pub node: Option<Node>,
     /// Why it was not.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The private key is on screen.
     pub shown: bool,
     /// Where it returns to.
@@ -109,7 +109,7 @@ pub struct LightningState {
     /// Core Lightning's `hsm_secret` chosen in Files: its name there.
     /// Only the name is kept here; the bytes stay in Files until a read
     /// looks the file up by name and moves a copy into its job.
-    pub(crate) file: Option<String>,
+    pub(crate) file: Option<Text>,
     /// The chosen file asks for a passphrase.
     pub(crate) file_asks: bool,
     /// Opened from Convert: only the entry shows, and what it reads is
@@ -187,16 +187,16 @@ impl LightningArea {
         let Some(l) = self.state.as_ref() else {
             return;
         };
-        let found: Result<Node, String> = match l.source {
+        let found: Result<Node, Text> = match l.source {
             Some(NodeSource::Key(fp)) => {
                 match keys.position_of(fp).and_then(|k| keys.lightning_node(c, k)) {
-                    None => Err(EN.lightning_this_key.to_string()),
-                    Some(node) => node,
+                    None => Err(Text::of(EN.lightning_this_key)),
+                    Some(node) => node.map_err(|e| Text::of(&e)),
                 }
             }
             Some(NodeSource::KeyCln(fp)) => {
                 match keys.position_of(fp).and_then(|k| keys.hsm_key_node(c, k)) {
-                    None => Err(EN.lightning_this_key.to_string()),
+                    None => Err(Text::of(EN.lightning_this_key)),
                     Some(node) => node.map_err(|e| refusal_line(NodeRefusal::Words(e))),
                 }
             }
@@ -226,12 +226,18 @@ impl LightningArea {
         let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
         let words: Vec<&str> = l.typed.split_whitespace().collect();
         let refused = if words.len() != faraday_keys::lightning::AEZEED_WORDS {
-            Some(fill(EN.lightning_an_aezeed, &[&words.len().to_string()]))
+            Some(Text::fill(
+                EN.lightning_an_aezeed,
+                &[&Text::num(words.len() as u64)],
+            ))
         } else if let Some(k) = words
             .iter()
             .position(|w| Language::English.index_of(w).is_none())
         {
-            Some(fill(EN.lightning_word_not_in_list, &[&(k + 1).to_string()]))
+            Some(Text::fill(
+                EN.lightning_word_not_in_list,
+                &[&Text::num(k as u64 + 1)],
+            ))
         } else {
             for (slot, w) in idx.iter_mut().zip(&words) {
                 *slot = Language::English.index_of(w).unwrap_or(0);
@@ -255,7 +261,7 @@ impl LightningArea {
     /// Core Lightning's file chosen in Files by `name`, `asks` for whether
     /// it wants a passphrase. The typed words, the passphrase and the node
     /// are dropped; typing goes to the passphrase where the file asks.
-    pub(crate) fn choose_file(&mut self, name: String, asks: bool) {
+    pub(crate) fn choose_file(&mut self, name: Text, asks: bool) {
         if let Some(l) = self.state.as_mut() {
             l.source = Some(NodeSource::CoreLightning);
             l.file = Some(name);
@@ -302,7 +308,7 @@ impl LightningArea {
         let found = match done {
             ReadDone::Aezeed(read) => keys
                 .aezeed_node(read)
-                .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e])),
+                .map_err(|e| Text::fill(EN.lightning_not_an_aezeed, &[&e])),
             ReadDone::Hsm(read) => keys.hsm_node(read).map_err(refusal_line),
         };
         if let Some(l) = self.state.as_mut() {
@@ -334,7 +340,7 @@ impl LightningArea {
             }
             Err(e) => {
                 if let Some(l) = self.state.as_mut() {
-                    l.error = Some(e);
+                    l.error = Some(Text::of(&e));
                 }
                 None
             }
@@ -342,13 +348,10 @@ impl LightningArea {
     }
 
     /// The node id and the private key, for `why`.
-    pub(crate) fn secret_text(
-        &self,
-        why: faraday_keys::Reveal,
-    ) -> Option<(String, Zeroizing<String>)> {
+    pub(crate) fn secret_text(&self, why: faraday_keys::Reveal) -> Option<(Text, Text)> {
         let n = self.state.as_ref()?.node.as_ref()?;
-        let id: String = String::from(&*faraday_crypto::hex::encode_string(n.public()));
-        Some((id, n.private_hex(why)?))
+        let id = faraday_crypto::hex::encode_string(n.public());
+        Some((id, Text::of(&n.private_hex(why)?)))
     }
 
     /// Costs a key derivation when a loaded key is chosen. A press that
@@ -429,7 +432,7 @@ impl LightningArea {
     }
 
     /// The name of the file chosen in Files.
-    pub(crate) fn chosen_file(&self) -> Option<String> {
+    pub(crate) fn chosen_file(&self) -> Option<Text> {
         self.state.as_ref()?.file.clone()
     }
 
@@ -446,7 +449,7 @@ impl LightningArea {
             l.file_asks = false;
             l.on_passphrase = false;
             l.node = None;
-            l.error = Some(fill(EN.lightning_hsm_file_gone, &[&name]));
+            l.error = Some(Text::fill(EN.lightning_hsm_file_gone, &[&name]));
         }
     }
 
@@ -457,7 +460,7 @@ impl LightningArea {
             l.file_asks = asks;
             l.on_passphrase = asks;
             l.node = None;
-            l.error = Some(EN.lightning_hsm_opening.to_string());
+            l.error = Some(Text::of(EN.lightning_hsm_opening));
         }
     }
 
@@ -503,7 +506,7 @@ impl LightningArea {
             K::Char(c) if l.on_passphrase && (' '..='~').contains(&c) => field.push(c),
             // Anything else is refused, and the screen says so.
             K::Char(c) if l.on_passphrase && !c.is_control() => {
-                l.error = Some(crate::state::ascii_refused());
+                l.error = Some(Text::of(&crate::state::ascii_refused()));
                 return true;
             }
             K::Char(c) if c.is_ascii_alphabetic() => field.push(c.to_ascii_lowercase()),
@@ -643,9 +646,11 @@ impl Faraday {
                     return;
                 };
                 self.offer_secret(crate::secrets::SecretOut::new(
-                    format!("lightning-{}.txt", &id[..16]),
+                    text!("lightning-{}.txt", &id[..16]),
                     Zeroizing::new(
-                        format!("node id {id}\nprivate key {}\n", private.as_str()).into_bytes(),
+                        text!("node id {}\nprivate key {}\n", &*id, &*private)
+                            .as_bytes()
+                            .to_vec(),
                     ),
                     EN.lightning_a_lightning,
                     EN.lightning_whoever_has,
@@ -709,7 +714,7 @@ impl Faraday {
             .filter(|i| could_be_hsm(i.kind, i.bytes.len()))
             .map(|i| {
                 (
-                    i.name.clone(),
+                    Text::of(&i.name),
                     faraday_keys::hsm_secret::needs_passphrase(&i.bytes),
                 )
             })
@@ -730,7 +735,7 @@ impl Faraday {
             };
             // Looked up by name now: the file may have gone or changed
             // since it was chosen.
-            let Some(item) = self.inbox.iter().find(|i| i.name == name) else {
+            let Some(item) = self.inbox.iter().find(|i| i.name == *name) else {
                 return self.lightning.file_gone();
             };
             let asks = faraday_keys::hsm_secret::needs_passphrase(&item.bytes);

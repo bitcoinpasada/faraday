@@ -1178,7 +1178,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         }
         Target::Confirm => {
             let ask = app.glance.work().ask.as_ref()?;
-            let mut v = View::new(Icon::House, ask.title.clone());
+            let mut v = View::new(Icon::House, ask.title.as_str());
             v.facts = check_facts(ask.before, ask.after);
             if let Edit::Drop(..) | Edit::Clear(_) | Edit::RemovePlace(_) = ask.edit {
                 v.lines.push((
@@ -1340,7 +1340,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     true,
                 )
             } else {
-                (EN.glance_sheet_holder, t.clone(), false)
+                (EN.glance_sheet_holder, t.as_str().into(), false)
             });
             v.go = Some((
                 EN.glance_sheet_keep.to_string(),
@@ -1355,7 +1355,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             v.field = Some(if t.is_empty() {
                 (EN.glance_sheet_name, EN.glance_sheet_name.to_string(), true)
             } else {
-                (EN.glance_sheet_name, t.clone(), false)
+                (EN.glance_sheet_name, t.as_str().into(), false)
             });
             v.go = Some((
                 EN.glance_sheet_keep.to_string(),
@@ -1794,15 +1794,19 @@ impl Faraday {
                     }
                     Target::Holder(k) => {
                         self.glance.work.text = chart(&glance::Now { app: self, c: &c }, press)
-                            .and_then(|g| g.keys.get(usize::from(k)).and_then(|k| k.holder.clone()))
+                            .and_then(|g| {
+                                g.keys
+                                    .get(usize::from(k))
+                                    .and_then(|k| k.holder.as_deref().map(faraday_text::Text::of))
+                            })
                             .unwrap_or_default();
                     }
                     Target::VaultName(n) => {
                         self.glance.work.text = chart(&glance::Now { app: self, c: &c }, press)
                             .and_then(|g| match g.backup {
-                                Backup::Plan { nodes, .. } => {
-                                    nodes.get(usize::from(n)).map(|x| x.name.clone())
-                                }
+                                Backup::Plan { nodes, .. } => nodes
+                                    .get(usize::from(n))
+                                    .map(|x| faraday_text::Text::of(&x.name)),
                                 _ => None,
                             })
                             .filter(|name| {

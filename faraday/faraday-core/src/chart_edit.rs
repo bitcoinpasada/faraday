@@ -11,9 +11,9 @@ use crate::glance::{self, Press};
 use crate::plan::{self, At, Edit, Mark, Note, What};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::{Action, Faraday, Sheet};
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 /// What the chart's sheets hold between presses.
 #[derive(Default)]
@@ -21,7 +21,7 @@ pub struct Work {
     /// The change asked for, waiting to be confirmed.
     pub ask: Option<Ask>,
     /// The name typed: a key's holder, a vault's.
-    pub text: String,
+    pub text: Text,
     /// A passphrase typed to be checked, wiped once compared.
     pub secret: SecretText,
     /// What the last check of a passphrase found.
@@ -35,9 +35,9 @@ pub struct Work {
     pub reveal: bool,
     /// The wallet whose money is moving to a new wallet, by checksum
     /// (`docs/history/NEW-WALLET.md` §9.6).
-    pub moving: Option<String>,
+    pub moving: Option<Text>,
     /// The new wallet it moves to, once Create has made it, by checksum.
-    pub moving_to: Option<String>,
+    pub moving_to: Option<Text>,
 }
 
 impl Work {
@@ -45,7 +45,7 @@ impl Work {
     /// to, while a move is under way.
     pub(crate) fn moved_to(&mut self, session: &crate::wallet::Session, i: usize) {
         if self.moving.is_some() {
-            self.moving_to = session.wallets.get(i).map(|w| w.checksum().to_string());
+            self.moving_to = session.wallets.get(i).map(|w| Text::of(w.checksum()));
         }
     }
 }
@@ -70,7 +70,7 @@ pub struct Ask {
     /// The change.
     pub edit: Edit,
     /// What it does, as the sheet's title says it.
-    pub title: String,
+    pub title: Text,
     /// The check now.
     pub before: plan::Check,
     /// The check once it is made.
@@ -78,7 +78,7 @@ pub struct Ask {
     /// The plan once it is made.
     answers: plan::Answers,
     /// The places' names once it is made.
-    names: Vec<String>,
+    names: Vec<Text>,
     /// For a place removed: where each thing goes.
     dest: Vec<(What, Option<usize>)>,
 }
@@ -116,7 +116,7 @@ impl Faraday {
             for b in r.public_all(field::PLAN_NOTE) {
                 // The seeds are counted only for a record that has notes.
                 let seeds = self.plan_shape_of(wallet).seeds.len();
-                out.extend(Note::from_text(&String::from_utf8_lossy(b), seeds));
+                out.extend(Note::from_text(&Text::from_utf8_lossy(b), seeds));
             }
         }
         out
@@ -124,12 +124,17 @@ impl Faraday {
 
     /// Today's local date, `YYYY-MM-DD`; empty unless the clock is
     /// checked (`docs/TOTP.md` §1.3): a date kept is a checked one.
-    pub(crate) fn today(&self) -> String {
+    pub(crate) fn today(&self) -> Text {
         if !self.clock_checked() {
-            return String::new();
+            return Text::new();
         }
         self.clock_now()
-            .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min())))
+            .map(|t| {
+                Text::of(&crate::gpg::date(crate::vault::local_secs(
+                    t,
+                    self.tz_min(),
+                )))
+            })
             .unwrap_or_default()
     }
 
@@ -279,14 +284,14 @@ impl Faraday {
                 after.set_map(plan::edited(&boxes, edit, &dest));
             }
         }
-        let mut new_names = names.clone();
-        new_names.resize(places, String::new());
+        let mut new_names: Vec<Text> = names.iter().map(|n| Text::of(n)).collect();
+        new_names.resize(places, Text::new());
         match edit {
             Edit::RemovePlace(p) if p < new_names.len() => {
                 new_names.remove(p);
             }
             Edit::Add(At::Place(p), _) | Edit::Move(_, _, At::Place(p)) if p >= places => {
-                new_names.push(String::new());
+                new_names.push(Text::new());
             }
             _ => {}
         }
@@ -314,8 +319,8 @@ impl Faraday {
         press: Press,
         w: usize,
         edit: Edit,
-        names: &[String],
-    ) -> String {
+        names: &[impl AsRef<str>],
+    ) -> Text {
         let g = match press {
             Press::Loaded(_) => glance::of_now(c, self, w),
             Press::Vault(v, r) => glance::of_vault_now(c, self, v, r),
@@ -329,15 +334,15 @@ impl Faraday {
                 _ => 0,
             });
             if p >= places {
-                EN.chart_edit_a_new_place.to_string()
+                Text::of(EN.chart_edit_a_new_place)
             } else {
                 names
                     .get(p)
-                    .map(|n| n.trim())
+                    .map(|n| n.as_ref().trim())
                     .filter(|n| !n.is_empty())
                     .map_or_else(
-                        || fill(EN.chart_edit_place, &[&(p + 1).to_string()]),
-                        str::to_string,
+                        || Text::fill(EN.chart_edit_place, &[&Text::num(p as u64 + 1)]),
+                        Text::of,
                     )
             }
         };
@@ -346,50 +351,39 @@ impl Faraday {
             other => g
                 .as_ref()
                 .and_then(|g| match &g.backup {
-                    glance::Backup::Plan { nodes, .. } => {
-                        nodes.iter().find(|n| n.at == other).map(|n| n.name.clone())
-                    }
+                    glance::Backup::Plan { nodes, .. } => nodes
+                        .iter()
+                        .find(|n| n.at == other)
+                        .map(|n| Text::of(&n.name)),
                     _ => None,
                 })
                 .unwrap_or_else(|| match other {
-                    At::Vault(v) => fill(EN.chart_edit_vault, &[&(v + 1).to_string()]),
-                    At::Files => fill(EN.chart_edit_of_files, &[self.medium.cap()]),
-                    _ => EN.chart_edit_watch_only.to_string(),
+                    At::Vault(v) => Text::fill(EN.chart_edit_vault, &[&Text::num(v as u64 + 1)]),
+                    At::Files => Text::fill(EN.chart_edit_of_files, &[self.medium.cap()]),
+                    _ => Text::of(EN.chart_edit_watch_only),
                 }),
         };
         let label = |at: At, what: What| {
             g.as_ref()
                 .and_then(|g| glance::label_of(g, at, what))
-                .unwrap_or_else(|| {
-                    String::from(&*what.label(&self.plan_shape_now(w), self.medium.cap()))
-                })
+                .map(|l| Text::of(&l))
+                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium.cap()))
         };
+        let thing = |what: What| Text::of(&glance::thing_label(g.as_ref(), what));
         match edit {
-            Edit::Add(at @ At::Vault(_), what) => fill(
-                EN.chart_edit_save_into,
-                &[
-                    &glance::thing_label(g.as_ref(), what).to_string(),
-                    &spot(at).to_string(),
-                ],
-            ),
-            Edit::Add(At::Files, what) => fill(
-                EN.chart_edit_as_a_file,
-                &[&glance::thing_label(g.as_ref(), what).to_string()],
-            ),
-            Edit::Add(at, what) => fill(
-                EN.chart_edit_place_title,
-                &[
-                    &glance::thing_label(g.as_ref(), what).to_string(),
-                    &spot(at).to_string(),
-                ],
-            ),
-            Edit::Move(from, what, to) => fill(
-                EN.chart_edit_move_title,
-                &[&label(from, what).to_string(), &spot(to).to_string()],
-            ),
-            Edit::Drop(at, what) => fill(EN.chart_edit_off_plan, &[&label(at, what).to_string()]),
-            Edit::RemovePlace(p) => fill(EN.chart_edit_remove, &[&place(p).to_string()]),
-            Edit::Clear(at) => fill(EN.chart_edit_off_plan, &[&spot(at).to_string()]),
+            Edit::Add(at @ At::Vault(_), what) => {
+                Text::fill(EN.chart_edit_save_into, &[&thing(what), &spot(at)])
+            }
+            Edit::Add(At::Files, what) => Text::fill(EN.chart_edit_as_a_file, &[&thing(what)]),
+            Edit::Add(at, what) => {
+                Text::fill(EN.chart_edit_place_title, &[&thing(what), &spot(at)])
+            }
+            Edit::Move(from, what, to) => {
+                Text::fill(EN.chart_edit_move_title, &[&label(from, what), &spot(to)])
+            }
+            Edit::Drop(at, what) => Text::fill(EN.chart_edit_off_plan, &[&label(at, what)]),
+            Edit::RemovePlace(p) => Text::fill(EN.chart_edit_remove, &[&place(p)]),
+            Edit::Clear(at) => Text::fill(EN.chart_edit_off_plan, &[&spot(at)]),
         }
     }
 
@@ -437,19 +431,35 @@ impl Faraday {
                 return;
             }
         }
-        let mut extras = self.backup.chart_edit(&ask.answers, &ask.names);
+        let mut extras = self.backup.chart_edit(
+            &ask.answers,
+            &ask.names
+                .iter()
+                .map(|n| n.as_str().into())
+                .collect::<Vec<_>>(),
+        );
         self.backups_sync();
         if let Some(v) = self.notes_vault(&c, ask.press, w)
             && let Some(wallet) = self.session.wallets.get(w)
         {
             for line in self.plan_extras(&c, wallet, v) {
-                if !extras.contains(&line) {
-                    extras.push(line);
+                if !extras.iter().any(|e| *e == *line) {
+                    extras.push(line.as_str().into());
                 }
             }
             let notes =
                 plan::notes_after(&self.plan_notes(&c, wallet, Some(v)), ask.edit, &ask.dest);
-            self.plan_store(v, w, &ask.answers, &ask.names, &extras, Some(&notes));
+            self.plan_store(
+                v,
+                w,
+                &ask.answers,
+                &ask.names
+                    .iter()
+                    .map(|n| n.as_str().into())
+                    .collect::<Vec<_>>(),
+                &extras,
+                Some(&notes),
+            );
             self.vault_summaries_refresh();
         }
         self.chart_then(ask.press, w, ask.edit);
@@ -458,7 +468,7 @@ impl Faraday {
     /// Costs what `described_of` costs. The lines of work a later plan
     /// dropped that open vault `v`'s record keeps for `wallet` ("vault.kdbx
     /// holds seed 9A6A2580").
-    fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
+    fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<Text> {
         use faraday_vault::records::{field, kind};
         let want = wallet.same();
         // What stands between the vault and the seed in such a line.
@@ -474,7 +484,7 @@ impl Faraday {
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
                 r.public_all(field::PLAN_HOLDS)
-                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .map(Text::from_utf8_lossy)
                     .filter(|l| l.contains(holds_seed) && !l.contains(": "))
                     .collect::<Vec<_>>()
             })
@@ -596,7 +606,7 @@ impl Faraday {
             let sum = self
                 .press_wallet(press)
                 .and_then(|w| self.session.wallets.get(w))
-                .map(|w| w.checksum().to_string());
+                .map(|w| Text::of(w.checksum()));
             if let Some(sum) = sum {
                 for &(at, what) in &things {
                     if let At::Place(p) = at {
@@ -654,7 +664,7 @@ impl Faraday {
         let Some((_, target)) = self.glance.chart() else {
             return;
         };
-        let name = self.glance.work().text.trim().to_string();
+        let name = Text::of(self.glance.work().text.trim());
         let done = match target {
             Target::Holder(k) => {
                 let Some(fp) = self.chart_key_fp(&c, press, k) else {
@@ -767,15 +777,10 @@ impl Faraday {
         let Some(w) = self.press_wallet(press) else {
             return;
         };
-        let Some(sum) = self
-            .session
-            .wallets
-            .get(w)
-            .map(|x| x.checksum().to_string())
-        else {
+        let Some(sum) = self.session.wallets.get(w).map(|x| Text::of(x.checksum())) else {
             return;
         };
-        self.glance.set_moving(sum);
+        self.glance.set_moving(sum.as_str().into());
         self.glance.set_chart(None);
         self.sheet = None;
         self.act(Action::CreateWallet);
@@ -792,7 +797,7 @@ impl Faraday {
         self.session
             .wallets
             .iter()
-            .position(|w| w.checksum() == *from)
+            .position(|w| w.checksum() == from.as_str())
     }
 
     /// Typing into the open sheet's field: a name, or a passphrase to be
@@ -875,7 +880,7 @@ impl Faraday {
         let glance::Backup::Plan { nodes, .. } = &g.backup else {
             return;
         };
-        let mut text = format!(
+        let mut text = text!(
             "faraday-sheet 1\nkind: envelopes\nname: {}\nshape: {}\n",
             crate::wallet::wallet_name(&g.name),
             g.shape
@@ -884,19 +889,21 @@ impl Faraday {
             let At::Place(p) = n.at else {
                 continue;
             };
-            text.push_str(&format!("place: Place {}\n", p + 1));
+            text.push_str(&text!("place: Place {}\n", p + 1));
             for what in &n.whats {
                 let label = match what {
-                    What::VaultStick(v) => fill(EN.chart_edit_vault_stick, &[&(v + 1).to_string()]),
-                    w => glance::thing_label(Some(&g), *w),
+                    What::VaultStick(v) => {
+                        Text::fill(EN.chart_edit_vault_stick, &[&Text::num(*v as u64 + 1)])
+                    }
+                    w => Text::of(&glance::thing_label(Some(&g), *w)),
                 };
-                text.push_str(&format!("thing: {label}\n"));
+                text.push_str(&text!("thing: {}\n", &*label));
             }
         }
         let Ok(pdf) = faraday_paper::pdf::sheet(&c, &text) else {
             return;
         };
-        let name = format!("{}-envelopes.pdf", crate::file_stem(&g.name));
+        let name = text!("{}-envelopes.pdf", crate::file_stem(&g.name));
         self.put_outbox(&name, pdf);
         self.toast_out(&name);
     }
@@ -905,15 +912,19 @@ impl Faraday {
 /// Where the money moving from loaded wallet `w` goes: the new wallet's
 /// name and its first receive address, read through `r`
 /// ([`glance::Reads`]).
-pub(crate) fn moving_to_on(r: &impl glance::Reads, w: usize) -> Option<(String, String)> {
+pub(crate) fn moving_to_on(r: &impl glance::Reads, w: usize) -> Option<(Text, Text)> {
     let app = r.app();
     if app.moving_from() != Some(w) {
         return None;
     }
     let to = app.glance.work().moving_to.as_ref()?;
-    let nw = app.session.wallets.iter().find(|x| x.checksum() == *to)?;
+    let nw = app
+        .session
+        .wallets
+        .iter()
+        .find(|x| x.checksum() == to.as_str())?;
     Some((
-        nw.name.clone(),
-        crate::held::receive_line_on(r, nw, false, 0).0,
+        Text::of(&nw.name),
+        Text::of(&crate::held::receive_line_on(r, nw, false, 0).0),
     ))
 }

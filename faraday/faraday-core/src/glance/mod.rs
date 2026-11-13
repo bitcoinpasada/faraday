@@ -398,7 +398,7 @@ impl GlanceArea {
 
     /// The wallet whose money is moving to a new wallet, by checksum.
     pub(crate) fn set_moving(&mut self, sum: String) {
-        self.work.moving = Some(sum);
+        self.work.moving = Some(faraday_text::Text::of(&sum));
     }
 
     /// The new wallet `sum` is gone: the money is no longer moving to it.

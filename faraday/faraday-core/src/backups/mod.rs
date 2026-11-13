@@ -1485,7 +1485,7 @@ impl Faraday {
                     &c,
                     v,
                     &sum,
-                    &[(At::Place(p), what, date.clone(), line.clone())],
+                    &[(At::Place(p), what, date.as_str().into(), line.clone())],
                 );
             }
             return;
@@ -1495,7 +1495,7 @@ impl Faraday {
             Dated {
                 place: p,
                 what,
-                date,
+                date: date.as_str().into(),
                 written: false,
                 line,
                 copy,

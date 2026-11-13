@@ -5,7 +5,6 @@ use crate::Action;
 use crate::drawing::View;
 use crate::screens::{section_label, size_text};
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::transfer::{MAX_TEXT, TextCheck, TextPress};
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -14,6 +13,7 @@ use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
 use faraday_draw::tokens::{
     BUTTON_H, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP,
 };
+use faraday_text::Text;
 use faraday_ui::parts::wrap_buttons;
 
 /// A row of the Downloads list.
@@ -73,12 +73,12 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.text_as(x, y, BODY_S.mono(), Role::OnSurfaceVariant, &dir);
         y += ui.advance_as(BODY_S.mono(), 22.0);
     }
-    if let Some(path) = t.reading.as_deref() {
+    if let Some(path) = t.reading.as_ref().map(|p| p.as_str()) {
         let name = path.rsplit('/').next().unwrap_or(path);
-        let line = ui.fit_as(BODY_M, &fill(EN.transfer_reading, &[name]), w);
+        let line = ui.fit_as(BODY_M, &Text::fill(EN.transfer_reading, &[name]), w);
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
         y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
-    } else if let Some(why) = t.refused.as_deref() {
+    } else if let Some(why) = t.refused.as_ref().map(|p| p.as_str()) {
         y += ui.wrap_as((x, y, w), LABEL_L, Role::Error, why) + 10.0;
     }
     if t.files.is_empty() {
@@ -96,9 +96,9 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let action = Action::TransferSend(i);
         let over = *size > crate::transfer::MAX_SEND;
         let tail = if over {
-            fill(EN.transfer_over, &[&size_text(crate::transfer::MAX_SEND)])
+            Text::fill(EN.transfer_over, &[&size_text(crate::transfer::MAX_SEND)])
         } else {
-            size_text(*size)
+            Text::of(&size_text(*size))
         };
         let tw = ui.measure_as(BODY_S, &tail);
         ui.text_right_as(
@@ -190,25 +190,25 @@ fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let said = match card.check() {
         TextCheck::Fine if card.is_empty() => None,
         TextCheck::Fine => {
-            let n = card.text().trim().chars().count().to_string();
+            let n = Text::num(card.text().trim().chars().count() as u64);
             let size = size_text(card.text().trim().len() as u64);
             Some((
-                fill(EN.transfer_text_count, &[&n, &size]),
+                Text::fill(EN.transfer_text_count, &[&n, &size]),
                 Role::OnSurfaceVariant,
             ))
         }
         TextCheck::TooLong => Some((
-            fill(EN.transfer_text_too_long, &[&size_text(MAX_TEXT as u64)]),
+            Text::fill(EN.transfer_text_too_long, &[&size_text(MAX_TEXT as u64)]),
             Role::Error,
         )),
         TextCheck::Secret(k) => Some((
-            fill(EN.transfer_text_secret, &[&lower_first(k.label())]),
+            Text::fill(EN.transfer_text_secret, &[&lower_first(k.label())]),
             Role::Error,
         )),
-        TextCheck::Partial => Some((EN.transfer_text_partial.to_string(), Role::Error)),
-        TextCheck::SeedHex => Some((EN.transfer_text_seed_hex.to_string(), Role::Error)),
+        TextCheck::Partial => Some((Text::of(EN.transfer_text_partial), Role::Error)),
+        TextCheck::SeedHex => Some((Text::of(EN.transfer_text_seed_hex), Role::Error)),
         TextCheck::Inside(k) => Some((
-            fill(EN.transfer_text_maybe_secret, &[&lower_first(k.label())]),
+            Text::fill(EN.transfer_text_maybe_secret, &[&lower_first(k.label())]),
             Role::Error,
         )),
     };
@@ -238,7 +238,7 @@ fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 /// `s` with its first letter in lower case, to follow other words.
-fn lower_first(s: &str) -> String {
+fn lower_first(s: &str) -> Text {
     let mut it = s.chars();
     it.next()
         .map(|c| c.to_lowercase().chain(it).collect())

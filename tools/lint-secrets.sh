@@ -505,7 +505,13 @@ faraday/faraday-core/src/qr_tool/item.rs
 faraday/faraday-core/src/qr_tool/mod.rs
 faraday/faraday-core/src/qr_tool/offers.rs
 faraday/faraday-core/src/qr_tool/open.rs
-faraday/faraday-core/src/scan_read.rs"
+faraday/faraday-core/src/scan_read.rs
+faraday/faraday-core/src/transfer/mod.rs
+faraday/faraday-core/src/transfer/screen.rs
+faraday/faraday-core/src/transfer/text.rs
+faraday/faraday-core/src/lightning/mod.rs
+faraday/faraday-core/src/lightning/screen.rs
+faraday/faraday-core/src/chart_edit.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

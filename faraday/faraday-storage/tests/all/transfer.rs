@@ -323,7 +323,10 @@ fn a_seeds_words_received_are_saved_past_the_hold_and_said_to_hold_a_secret() {
         app.scan().and_then(|s| s.note.clone()),
         Some(faraday_text::Text::of(&said))
     );
-    assert_eq!(app.transfer().saved.last(), Some(&(said, true)));
+    assert_eq!(
+        app.transfer().saved.last(),
+        Some(&(faraday_text::Text::of(&said), true))
+    );
 }
 
 #[test]

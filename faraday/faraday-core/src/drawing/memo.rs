@@ -170,6 +170,7 @@ impl View<'_> {
     /// wallet's kept address.
     pub(crate) fn moving_to(&self, w: usize) -> Option<(String, String)> {
         crate::chart_edit::moving_to_on(self, w)
+            .map(|(name, line)| (name.as_str().into(), line.as_str().into()))
     }
 
     /// The first checklist item not done ([`crate::Faraday::backup_waiting`]),

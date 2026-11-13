@@ -828,7 +828,7 @@ impl View<'_> {
             // Only against the day the frame began on: a chart made after
             // midnight within the frame tells other ages.
             #[cfg(debug_assertions)]
-            if self.app.kept.frame_today() == self.app.today() {
+            if self.app.kept.frame_today() == *self.app.today() {
                 assert_eq!(
                     g.as_deref(),
                     make().as_ref(),

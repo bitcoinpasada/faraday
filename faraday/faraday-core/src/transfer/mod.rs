@@ -16,8 +16,8 @@ mod text;
 pub use text::{MAX_TEXT, SendText, TextCheck, TextPress};
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 use std::collections::VecDeque;
 
 use faraday_shell_api::Command;
@@ -38,15 +38,15 @@ pub const MAX_SEND: u64 = faraday_qr::envelope::MAX_FILE as u64;
 #[derive(Debug, Default)]
 pub struct TransferState {
     /// The folder the shell lists and saves into, as it names it.
-    pub dir: String,
+    pub dir: Text,
     /// Its files, newest first, with their sizes.
-    pub files: Vec<(String, u64)>,
+    pub files: Vec<(Text, u64)>,
     /// The shell can open the folder in this computer's file manager.
     pub opens: bool,
     /// The file being read to send, by its path.
-    pub reading: Option<String>,
+    pub reading: Option<Text>,
     /// Why the last file picked was not sent.
-    pub refused: Option<String>,
+    pub refused: Option<Text>,
     /// Files received without a name of their own so far, for
     /// `received-{n}`.
     pub received: u32,
@@ -58,7 +58,7 @@ pub struct TransferState {
     last: Option<[u8; 32]>,
     /// What was saved this session: the line said for each, and whether
     /// it is a warning (a secret saved, or a save that failed).
-    pub saved: Vec<(String, bool)>,
+    pub saved: Vec<(Text, bool)>,
 }
 
 /// Transfer's state, with its logic.
@@ -149,7 +149,7 @@ fn read_any(
                 return None;
             }
             Err(why) => {
-                scan.note = Some(faraday_text::Text::of(why));
+                scan.note = Some(Text::of(why));
                 return None;
             }
         };
@@ -217,27 +217,29 @@ impl TransferArea {
             return;
         };
         let dir = self.state.dir.trim_end_matches('/');
-        let path = format!("{dir}/{name}");
+        let path = text!("{dir}/{}", name.as_str());
         self.send(path, size, medium, out);
     }
 
     /// Sends the file at `path`, `size` bytes long, once the shell has
     /// read it; one over the envelope's limit is refused unread.
-    pub(crate) fn send(&mut self, path: String, size: u64, medium: Medium, out: &mut Out) {
+    pub(crate) fn send(&mut self, path: Text, size: u64, medium: Medium, out: &mut Out) {
         self.state.refused = None;
         if size > MAX_SEND {
-            self.state.refused = Some(fill(
+            self.state.refused = Some(Text::fill(
                 EN.transfer_larger_than,
                 &[&crate::screens::size_text(MAX_SEND), medium.a()],
             ));
             return;
         }
         if size == 0 {
-            self.state.refused = Some(fill(EN.transfer_is_empty, &[base_name(&path)]));
+            self.state.refused = Some(Text::fill(EN.transfer_is_empty, &[base_name(&path)]));
             return;
         }
-        self.state.reading = Some(path.clone());
-        out.storage_out.push_back(StorageCommand::ReadHost { path });
+        out.storage_out.push_back(StorageCommand::ReadHost {
+            path: path.as_str().into(),
+        });
+        self.state.reading = Some(path);
     }
 
     /// Costs what `QrView::of` costs, and a classification of the file.
@@ -246,13 +248,13 @@ impl TransferArea {
     pub(crate) fn read(
         &mut self,
         c: &Compute,
-        path: String,
+        path: Text,
         mut bytes: Vec<u8>,
         online: bool,
         medium: Medium,
         out: &mut Out,
-    ) -> Option<Result<QrView, faraday_text::Text>> {
-        if self.state.reading.as_deref() != Some(path.as_str()) || !online {
+    ) -> Option<Result<QrView, Text>> {
+        if self.state.reading.as_ref() != Some(&path) || !online {
             zeroize::Zeroize::zeroize(&mut bytes);
             return None;
         }
@@ -262,37 +264,54 @@ impl TransferArea {
             self.send(path, MAX_SEND + 1, medium, out);
             return None;
         }
-        let name = base_name(&path).to_string();
+        let name = Text::of(base_name(&path));
         let kind = wallet::classify(c, &name, &bytes);
         let secret = kind.exposure() == Exposure::Secret;
         let source = qr_source(&name, &bytes, kind);
         zeroize::Zeroize::zeroize(&mut bytes);
         Some(
-            QrView::of(c, &name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
-                v.secret |= secret;
-                v
-            }),
+            QrView::of(c, &name, source, QrFormat::Ur, QR_PARTS[1])
+                .map(|mut v| {
+                    v.secret |= secret;
+                    v
+                })
+                .map_err(|e| Text::of(&e)),
         )
     }
 
     /// A file the shell could not read for Send.
-    pub(crate) fn read_failed(&mut self, path: String, reason: String) {
-        if self.state.reading.as_deref() != Some(path.as_str()) {
+    pub(crate) fn read_failed(&mut self, path: Text, reason: &str) {
+        if self.state.reading.as_ref() != Some(&path) {
             return;
         }
         self.state.reading = None;
-        self.state.refused = Some(format!("{}: {reason}", base_name(&path)));
+        self.state.refused = Some(text!("{}: {reason}", base_name(&path)));
     }
 
     /// The Downloads folder as the shell lists it. Whether anything
     /// changed, to draw again.
-    pub(crate) fn listed(&mut self, dir: String, files: Vec<(String, u64)>, opens: bool) -> bool {
+    pub(crate) fn listed(
+        &mut self,
+        dir: &str,
+        files: &[(impl AsRef<str>, u64)],
+        opens: bool,
+    ) -> bool {
         let t = &mut self.state;
-        if t.dir == dir && t.files == files && t.opens == opens {
+        if t.dir == dir
+            && t.opens == opens
+            && t.files.len() == files.len()
+            && t.files
+                .iter()
+                .zip(files)
+                .all(|(a, b)| a.0 == b.0.as_ref() && a.1 == b.1)
+        {
             return false;
         }
-        t.dir = dir;
-        t.files = files;
+        t.dir = Text::of(dir);
+        t.files = files
+            .iter()
+            .map(|(name, size)| (Text::of(name.as_ref()), *size))
+            .collect();
         t.opens = opens;
         true
     }
@@ -314,7 +333,7 @@ impl TransferArea {
         scan: &mut ScanState,
         bytes: &zeroize::Zeroizing<Vec<u8>>,
         out: &mut Out,
-    ) -> Option<(String, zeroize::Zeroizing<Vec<u8>>)> {
+    ) -> Option<(Text, zeroize::Zeroizing<Vec<u8>>)> {
         let mut registry_secret = false;
         let (named, ext, data) = read_any(c, scan, bytes, &mut registry_secret)?;
         let digest = {
@@ -331,19 +350,15 @@ impl TransferArea {
         };
         if self.state.last == Some(digest) {
             // Already saved: the line says so again.
-            scan.note = self
-                .state
-                .saved
-                .last()
-                .map(|(l, _)| faraday_text::Text::of(l));
+            scan.note = self.state.saved.last().map(|(l, _)| l.clone());
             return None;
         }
         self.state.last = Some(digest);
         let name = match named {
-            Some(n) => String::from(&*n),
+            Some(n) => n,
             None => {
                 self.state.received += 1;
-                format!("received-{}.{ext}", self.state.received)
+                text!("received-{}.{ext}", self.state.received)
             }
         };
         // A secret the device let out past its secret sheet is saved as
@@ -364,34 +379,37 @@ impl TransferArea {
     fn save(
         &mut self,
         scan: &mut ScanState,
-        name: String,
+        name: Text,
         data: Vec<u8>,
         secret: bool,
         out: &mut Out,
     ) {
-        scan.note = Some(faraday_text::Text::of(&fill(
-            EN.transfer_saving,
-            &[&name.to_string()],
-        )));
+        scan.note = Some(Text::fill(EN.transfer_saving, &[&name]));
         self.state.saving.push_back(secret);
-        out.storage_out
-            .push_back(StorageCommand::SaveDownload { name, bytes: data });
+        out.storage_out.push_back(StorageCommand::SaveDownload {
+            name: name.as_str().into(),
+            bytes: data,
+        });
     }
 
     /// The shell saved a received file, or could not; Receive's camera
     /// (`scan`, when open) says so.
-    pub(crate) fn saved(&mut self, saved: Result<String, String>, scan: Option<&mut ScanState>) {
+    pub(crate) fn saved(
+        &mut self,
+        saved: Result<impl AsRef<str>, impl AsRef<str>>,
+        scan: Option<&mut ScanState>,
+    ) {
         let secret = self.state.saving.pop_front().unwrap_or(false);
         let warn = secret || saved.is_err();
         let line = match saved {
-            Ok(path) if secret => fill(EN.transfer_saved_secret, &[&path.to_string()]),
-            Ok(path) => fill(EN.transfer_saved, &[&path.to_string()]),
-            Err(reason) => fill(EN.transfer_not_saved, &[&reason.to_string()]),
+            Ok(path) if secret => Text::fill(EN.transfer_saved_secret, &[path.as_ref()]),
+            Ok(path) => Text::fill(EN.transfer_saved, &[path.as_ref()]),
+            Err(reason) => Text::fill(EN.transfer_not_saved, &[reason.as_ref()]),
         };
         if let Some(scan) = scan
             && scan.purpose == ScanPurpose::Transfer
         {
-            scan.note = Some(faraday_text::Text::of(&line));
+            scan.note = Some(line.clone());
         }
         self.state.saved.push((line, warn));
     }
@@ -479,8 +497,8 @@ impl Faraday {
             StorageEvent::HostReadFailed { path, reason } => {
                 self.transfer_read_failed(path, reason);
             }
-            StorageEvent::Saved { path } => self.transfer_saved(Ok(path)),
-            StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(reason)),
+            StorageEvent::Saved { path } => self.transfer_saved(Ok(&path)),
+            StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(&reason)),
             // `storage` passes only the events matched above.
             _ => {}
         }
@@ -493,7 +511,7 @@ impl Faraday {
         self.transfer.hovered = over && self.online;
     }
 
-    pub(crate) fn transfer_dropped(&mut self, path: String, size: u64) {
+    pub(crate) fn transfer_dropped(&mut self, path: impl AsRef<str>, size: u64) {
         self.transfer.hovered = false;
         if !self.online {
             return;
@@ -501,34 +519,41 @@ impl Faraday {
         if self.screen != Screen::Transfer {
             self.transfer_open();
         }
-        self.transfer.send(path, size, self.medium, &mut self.out);
+        self.transfer
+            .send(Text::of(path.as_ref()), size, self.medium, &mut self.out);
     }
 
     /// A file the shell read for Send: shown as codes.
-    pub(crate) fn transfer_read(&mut self, path: String, bytes: Vec<u8>) {
+    pub(crate) fn transfer_read(&mut self, path: impl AsRef<str>, bytes: Vec<u8>) {
         let c = self.compute();
-        let view = self
-            .transfer
-            .read(&c, path, bytes, self.online, self.medium, &mut self.out);
+        let view = self.transfer.read(
+            &c,
+            Text::of(path.as_ref()),
+            bytes,
+            self.online,
+            self.medium,
+            &mut self.out,
+        );
         if let Some(view) = view {
             self.open_qr(view);
         }
     }
 
     /// A file the shell could not read for Send.
-    pub(crate) fn transfer_read_failed(&mut self, path: String, reason: String) {
-        self.transfer.read_failed(path, reason);
+    pub(crate) fn transfer_read_failed(&mut self, path: impl AsRef<str>, reason: impl AsRef<str>) {
+        self.transfer
+            .read_failed(Text::of(path.as_ref()), reason.as_ref());
     }
 
     /// The Downloads folder as the shell lists it. Whether anything
     /// changed, to draw again.
     pub(crate) fn transfer_listed(
         &mut self,
-        dir: String,
-        files: Vec<(String, u64)>,
+        dir: impl AsRef<str>,
+        files: Vec<(impl AsRef<str>, u64)>,
         opens: bool,
     ) -> bool {
-        self.transfer.listed(dir, files, opens)
+        self.transfer.listed(dir.as_ref(), &files, opens)
     }
 
     /// Receive: the camera, reading anything, until Cancel.
@@ -554,22 +579,30 @@ impl Faraday {
             return;
         };
         // A secret waits for **Hold to save without encryption** (F129).
-        let dir = self.transfer.state.dir.clone();
         self.plain_ask(crate::secrets::Plain {
-            name: name.clone(),
-            on: dir,
-            keep: EN.plain_computer.to_string(),
-            then: crate::secrets::PlainThen::Transfer(name, data),
+            name: name.as_str().into(),
+            on: self.transfer.state.dir.as_str().into(),
+            keep: EN.plain_computer.into(),
+            then: crate::secrets::PlainThen::Transfer(name.as_str().into(), data),
         });
     }
 
     /// A received secret, past its hold: saved into the folder, and the
     /// camera's sheet back for the next code.
-    pub(crate) fn transfer_save(&mut self, name: String, data: zeroize::Zeroizing<Vec<u8>>) {
+    pub(crate) fn transfer_save(
+        &mut self,
+        name: impl AsRef<str>,
+        data: zeroize::Zeroizing<Vec<u8>>,
+    ) {
         self.transfer_skip();
         self.camera.with_scan(|scan| {
-            self.transfer
-                .save(scan, name, data.to_vec(), true, &mut self.out)
+            self.transfer.save(
+                scan,
+                Text::of(name.as_ref()),
+                data.to_vec(),
+                true,
+                &mut self.out,
+            )
         });
     }
 
@@ -582,7 +615,7 @@ impl Faraday {
     }
 
     /// The shell saved a received file, or could not.
-    pub(crate) fn transfer_saved(&mut self, saved: Result<String, String>) {
+    pub(crate) fn transfer_saved(&mut self, saved: Result<&str, &str>) {
         self.camera
             .with_scan_or_none(|scan| self.transfer.saved(saved, scan));
     }
@@ -605,7 +638,7 @@ impl Faraday {
             TextPress::Show => {
                 let c = self.compute();
                 self.transfer.text.recheck(&c);
-                let Some(text) = self.transfer.text.sendable().map(str::to_owned) else {
+                let Some(text) = self.transfer.text.sendable().map(Text::of) else {
                     return;
                 };
                 let view = QrView::text(&c, EN.transfer_text_sheet_title, &text);

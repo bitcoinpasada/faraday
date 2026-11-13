@@ -5,11 +5,11 @@ use crate::drawing::View;
 use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text};
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
+use faraday_text::{Text, text};
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.lightning.state().is_none() {
@@ -82,18 +82,18 @@ fn body(
     };
     // Opened from Convert, the entry stands alone: the source is the aezeed.
     let keys = app.session.keys.all().filter(|_| !l.for_convert);
-    let mut row: Vec<(String, Style, Action)> = keys
+    let mut row: Vec<(_, Style, Action)> = keys
         .flat_map(|k| {
             let fp = k.fingerprint;
-            let name = crate::wallet::key_line(fp, &k.label).to_string();
+            let name = crate::wallet::key_line(fp, &k.label);
             [
                 (
-                    fill(EN.lightning_ldk_node, &[&name]),
+                    Text::fill(EN.lightning_ldk_node, &[&name]).as_str().into(),
                     Style::chosen(l.source == Some(NodeSource::Key(fp.0))),
                     Action::LKey(fp.0),
                 ),
                 (
-                    fill(EN.lightning_cln_node, &[&name]),
+                    Text::fill(EN.lightning_cln_node, &[&name]).as_str().into(),
                     Style::chosen(l.source == Some(NodeSource::KeyCln(fp.0))),
                     Action::LCln(Some(fp.0)),
                 ),
@@ -102,12 +102,12 @@ fn body(
         .collect();
     if !l.for_convert {
         row.push((
-            EN.lightning_lnd_type.to_string(),
+            EN.lightning_lnd_type.into(),
             Style::chosen(l.source == Some(NodeSource::Aezeed)),
             Action::LAezeed,
         ));
         row.push((
-            EN.lightning_cln_type.to_string(),
+            EN.lightning_cln_type.into(),
             Style::chosen(l.source == Some(NodeSource::CoreLightning)),
             Action::LCln(None),
         ));
@@ -218,7 +218,7 @@ fn body(
     let Some(n) = &l.node else {
         return y;
     };
-    let id: String = String::from(&*faraday_crypto::hex::encode_string(n.public()));
+    let id = faraday_crypto::hex::encode_string(n.public());
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.lightning_node_id);
     y += below;
     y += ui
@@ -230,12 +230,12 @@ fn body(
     let code = crate::Code::NodeId;
     let codes = [
         (
-            EN.lightning_show_as_qr.to_string(),
+            EN.lightning_show_as_qr.into(),
             Style::Secondary,
             Action::ShowCode(code),
         ),
         (
-            EN.lightning_png.to_string(),
+            EN.lightning_png.into(),
             Style::Secondary,
             Action::CodePng(code),
         ),
@@ -249,7 +249,7 @@ fn body(
             y,
             BODY_M.mono(),
             Role::OnSurface,
-            &format!("{yy}-{m:02}-{d:02}"),
+            &text!("{yy}-{m:02}-{d:02}"),
         );
         y += ui.advance_as(BODY_M.mono(), 30.0);
     }
@@ -261,14 +261,18 @@ fn body(
         EN.lightning_private_key,
     );
     y += below;
-    let private: zeroize::Zeroizing<String> = if l.shown {
-        n.private_hex(faraday_keys::Reveal::LightningKey)
-            .unwrap_or_default()
+    // Held only while shown; hidden, a mask stands where the key was.
+    let revealed = l
+        .shown
+        .then(|| n.private_hex(faraday_keys::Reveal::LightningKey))
+        .flatten();
+    let private = if l.shown {
+        revealed.as_ref().map_or("", |p| p.as_str())
     } else {
-        zeroize::Zeroizing::new("••••••••••••".to_string())
+        "••••••••••••"
     };
     y += ui
-        .wrap_as((vx, y, vw), BODY_M.mono(), Role::OnSurface, &private)
+        .wrap_as((vx, y, vw), BODY_M.mono(), Role::OnSurface, private)
         .max(20.0)
         + 12.0;
     let mut row = vec![(
@@ -277,13 +281,15 @@ fn body(
         } else {
             EN.lightning_show
         }
-        .to_string(),
+        .into(),
         Style::Secondary,
         Action::LShow,
     )];
     match app.vaults.open.get(app.vaults.current) {
         Some(v) => row.push((
-            fill(EN.lightning_save_into, &[&v.name.to_string()]),
+            Text::fill(EN.lightning_save_into, &[&v.name])
+                .as_str()
+                .into(),
             Style::Primary,
             Action::LVault,
         )),
@@ -294,7 +300,7 @@ fn body(
         ),
     }
     row.push((
-        EN.lightning_out_unprotected.to_string(),
+        EN.lightning_out_unprotected.into(),
         Style::Ghost,
         Action::LOut,
     ));
@@ -376,9 +382,9 @@ fn words_field(
         BODY_S,
         Role::OnSurfaceVariant,
         &if cln {
-            fill(EN.lightning_words_typed, &[&n.to_string()])
+            Text::fill(EN.lightning_words_typed, &[&Text::num(n as u64)])
         } else {
-            fill(EN.lightning_word_count, &[&n.to_string()])
+            Text::fill(EN.lightning_word_count, &[&Text::num(n as u64)])
         },
     );
     y += 52.0;
@@ -394,12 +400,12 @@ fn hsm_files(
     l: &crate::lightning::LightningState,
     (x, y, width): (f32, f32, f32),
 ) -> f32 {
-    let files: Vec<(usize, String)> = app
+    let files: Vec<(usize, Text)> = app
         .inbox
         .iter()
         .enumerate()
         .filter(|(_, i)| crate::lightning::could_be_hsm(i.kind, i.bytes.len()))
-        .map(|(k, i)| (k, i.name.clone()))
+        .map(|(k, i)| (k, Text::of(&i.name)))
         .collect();
     if files.is_empty() {
         let used = ui.wrap_as(
@@ -410,12 +416,12 @@ fn hsm_files(
         );
         return used + 8.0;
     }
-    let row: Vec<(String, Style, Action)> = files
+    let row: Vec<(_, Style, Action)> = files
         .into_iter()
         .map(|(k, name)| {
             (
-                fill(EN.lightning_use_file, &[&name]),
-                Style::chosen(l.file.as_deref() == Some(name.as_str())),
+                Text::fill(EN.lightning_use_file, &[&name]).as_str().into(),
+                Style::chosen(l.file.as_ref() == Some(&name)),
                 Action::LFile(k),
             )
         })
