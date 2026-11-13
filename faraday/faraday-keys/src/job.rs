@@ -726,6 +726,7 @@ impl KeysJob {
             if let (Some(fp), Some(path)) = (k.fingerprint(), k.path())
                 && path.len() <= faraday_bip::keys::MAX_PATH_STEPS
             {
+                #[expect(clippy::disallowed_methods, reason = "a derivation path is public")]
                 self.checks.push((fp, path.clone()));
             }
         }
@@ -733,6 +734,7 @@ impl KeysJob {
 
     /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per
     /// kept wallet key under `master`'s fingerprint.
+    #[expect(clippy::disallowed_methods, reason = "a derivation path is public")]
     fn derive_checks(
         &self,
         c: &Compute,
