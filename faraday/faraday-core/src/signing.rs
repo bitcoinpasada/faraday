@@ -20,7 +20,7 @@ use crate::worker::Job;
 use crate::{Faraday, spend_opens_round};
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// A signing to run on the worker: the job, what the press that started
@@ -37,7 +37,7 @@ pub(crate) struct SignWork {
 struct After {
     session: wallet::Session,
     spend: wallet::Spend,
-    part: (String, bool),
+    part: (Text, bool),
     waiting: Option<Zeroizing<Vec<u8>>>,
 }
 
@@ -145,7 +145,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
     // A key made here signs nothing until its backup is done
     // (`docs/history/NEW-WALLET.md` §14.3).
     let held = app.held_keys_now(&c);
-    let waiting: Vec<String> = app
+    let waiting: Vec<Text> = app
         .wallets
         .spend()
         .map(|s| {
@@ -153,15 +153,20 @@ pub(crate) fn sign_here(app: &mut Faraday) {
                 .participating_keys
                 .iter()
                 .filter(|fp| held.contains(fp))
-                .map(|fp| String::from(&*fp_text(*fp)))
+                .map(|fp| fp_text(*fp))
                 .collect()
         })
         .unwrap_or_default();
     if !waiting.is_empty() {
-        app.wallets.signers_shown_with(Text::fill(
-            EN.sign_here_backup_first,
-            &[&waiting.join(", ")],
-        ));
+        let mut joined = Text::with_room(0);
+        for (i, fp) in waiting.iter().enumerate() {
+            if i > 0 {
+                joined.push_str(", ");
+            }
+            joined.push_str(fp);
+        }
+        app.wallets
+            .signers_shown_with(Text::fill(EN.sign_here_backup_first, &[&joined]));
         return;
     }
     // A MuSig2 round opened here draws its secret nonces
@@ -206,7 +211,7 @@ pub(crate) fn sign_start(app: &mut Faraday, job: faraday_keys::job::SignJob, bef
     let waiting = app
         .outbox
         .iter()
-        .find(|i| i.name == part)
+        .find(|i| i.name == *part)
         .map(|i| i.bytes.clone());
     let from = Origin {
         input: s.spend.psbt.clone(),
@@ -289,7 +294,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, Text>) {
 /// made against, which is worked out again here.
 pub(crate) fn collect_end(
     app: &mut Faraday,
-    nothing: Option<&String>,
+    nothing: Option<&Text>,
     part: Option<collect::Planned>,
 ) {
     if let Some(name) = nothing {
@@ -309,7 +314,7 @@ fn part_put(app: &mut Faraday, part: Option<collect::Planned>) {
     };
     let kept = app.wallets.spend().is_some_and(|s| {
         let (name, _) = part_name(s);
-        let waiting = app.outbox.iter().find(|i| i.name == name);
+        let waiting = app.outbox.iter().find(|i| i.name == *name);
         name == planned.name
             && waiting.map(|w| w.bytes.as_slice()) == planned.waiting.as_ref().map(|w| w.as_slice())
     });
@@ -322,11 +327,11 @@ fn part_put(app: &mut Faraday, part: Option<collect::Planned>) {
 
 /// The file a spend puts its part under, and whether it put one before:
 /// the name recorded, else the fixed one. A lookup.
-pub(crate) fn part_name(s: &wallet::SpendState) -> (String, bool) {
+pub(crate) fn part_name(s: &wallet::SpendState) -> (Text, bool) {
     match &s.out_names.part {
-        Some(name) => (String::from(&**name), true),
+        Some(name) => (name.duplicate(), true),
         None => (
-            format!("{}-part.psbt", crate::result_stem(&s.spend.source).as_str()),
+            text!("{}-part.psbt", crate::result_stem(&s.spend.source).as_str()),
             false,
         ),
     }
@@ -337,13 +342,13 @@ pub(crate) fn part_name(s: &wallet::SpendState) -> (String, bool) {
 pub(crate) enum PartPlan {
     /// A spend that needs no more: the file of this name is taken back from
     /// the Outbox, if it is there.
-    Take(String),
+    Take(Text),
     /// A spend that needs no more, whose file is not this spend's to take.
     Keep,
     /// The PSBT could not be written.
     NotWritten,
     /// The same transaction as the file waiting under the name: replaces it.
-    Replace(String, Box<crate::Item>),
+    Replace(Text, Box<crate::Item>),
     /// A different transaction, or none waiting: beside any file of the name.
     Beside(crate::visit_taken::Beside),
 }
@@ -370,7 +375,7 @@ pub(crate) fn part_plan(
             || waiting
                 .is_some_and(|w| unsigned_tx_of(c, w).as_ref() == Some(spend.psbt.unsigned_tx()));
         return if ours {
-            PartPlan::Take(name.to_string())
+            PartPlan::Take(Text::of(name))
         } else {
             PartPlan::Keep
         };
@@ -383,7 +388,7 @@ pub(crate) fn part_plan(
     let waiting_tx = waiting.and_then(|w| unsigned_tx_of(c, w));
     let same = waiting_tx.is_some() && waiting_tx == unsigned_tx_of(c, &bytes);
     if same {
-        PartPlan::Replace(name.to_string(), Box::new(crate::Item::new(c, name, bytes)))
+        PartPlan::Replace(Text::of(name), Box::new(crate::Item::new(c, name, bytes)))
     } else {
         PartPlan::Beside(crate::visit_taken::beside_plan(
             c,
@@ -406,8 +411,8 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
     }
     let name = match plan {
         PartPlan::Take(name) => {
-            if app.outbox.iter().any(|i| i.name == name) {
-                app.outbox.retain(|i| i.name != name);
+            if app.outbox.iter().any(|i| i.name == *name) {
+                app.outbox.retain(|i| i.name != *name);
                 app.save_boxes();
             }
             return;
@@ -418,9 +423,9 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
             app.put_item(*item);
             name
         }
-        PartPlan::Beside(plan) => String::from(&*app.beside_apply(plan)),
+        PartPlan::Beside(plan) => app.beside_apply(plan),
     };
-    app.wallets.set_part_name(Text::of(&name));
+    app.wallets.set_part_name(name);
 }
 
 /// Costs what `part_plan` costs. The part file of the open spend, worked
@@ -431,7 +436,7 @@ pub(crate) fn part_out(app: &mut Faraday) {
         return;
     };
     let (name, recorded) = part_name(s);
-    let waiting = app.outbox.iter().find(|i| i.name == name);
+    let waiting = app.outbox.iter().find(|i| i.name == *name);
     let plan = part_plan(
         &c,
         &s.spend,

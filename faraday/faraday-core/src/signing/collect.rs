@@ -29,7 +29,7 @@ use zeroize::Zeroizing;
 pub(crate) struct CollectWork {
     /// The Inbox file's bytes and name.
     bytes: Zeroizing<Vec<u8>>,
-    name: String,
+    name: Text,
     spend: Spend,
     /// The MuSig2 round's public facts, when the spend holds a round.
     view: Option<MusigSessionView>,
@@ -38,7 +38,7 @@ pub(crate) struct CollectWork {
     session: Session,
     /// The part file's name, whether this spend put one before, and the
     /// bytes waiting in the Outbox under it.
-    part: (String, bool),
+    part: (Text, bool),
     waiting: Option<Zeroizing<Vec<u8>>>,
     /// Came while the Spend tab's spend is under way.
     spend_backup: bool,
@@ -47,7 +47,7 @@ pub(crate) struct CollectWork {
 /// The part file's plan and what it was made against.
 pub(crate) struct Planned {
     pub(crate) plan: PartPlan,
-    pub(crate) name: String,
+    pub(crate) name: Text,
     pub(crate) waiting: Option<Zeroizing<Vec<u8>>>,
 }
 
@@ -58,7 +58,7 @@ pub(crate) struct CollectDone {
     input: Psbt,
     spend: Spend,
     /// The file's name, when it held nothing the spend did not have.
-    nothing: Option<String>,
+    nothing: Option<Text>,
     /// What the merge refused, if it did.
     error: Option<Text>,
     fresh: Option<Fresh>,
@@ -140,7 +140,7 @@ fn start(app: &mut Faraday, index: usize, spend_backup: bool) {
     let Some(item) = app.inbox.get(index) else {
         return;
     };
-    let (bytes, name) = (item.bytes.clone(), item.name.clone());
+    let (bytes, name) = (item.bytes.clone(), Text::of(&item.name));
     let Some(s) = app.wallets.spend() else {
         return;
     };
@@ -149,7 +149,7 @@ fn start(app: &mut Faraday, index: usize, spend_backup: bool) {
     let waiting = app
         .outbox
         .iter()
-        .find(|i| i.name == part)
+        .find(|i| i.name == *part)
         .map(|i| i.bytes.clone());
     let work = CollectWork {
         bytes,

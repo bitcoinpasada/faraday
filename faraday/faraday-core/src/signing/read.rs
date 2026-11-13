@@ -20,6 +20,7 @@ use crate::wallet::{self, Session, Spend, SpendState, Wallet};
 use crate::worker::Job;
 use crate::{Faraday, Screen, Sheet};
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// Where the press that opened the spend goes on from the answer.
@@ -43,7 +44,7 @@ pub(crate) struct ReadWork {
 pub(crate) struct Origin {
     /// The Inbox file the job was given, by place and name.
     index: usize,
-    name: String,
+    name: Text,
     then: Then,
     /// The screen and sheet the person pressed on.
     screen: Screen,
@@ -116,7 +117,7 @@ pub(crate) fn start_spend(app: &mut Faraday, index: usize, then: Then) {
     let Some((name, bytes)) = app
         .inbox
         .get(index)
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (Text::of(&i.name), i.bytes.clone()))
     else {
         return;
     };
@@ -148,7 +149,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     let held = app
         .inbox
         .get(from.index)
-        .is_some_and(|i| i.name == from.name && i.bytes == bytes);
+        .is_some_and(|i| i.name == *from.name && i.bytes == bytes);
     if !held || (app.screen, app.sheet) != (from.screen, from.sheet) {
         return;
     }

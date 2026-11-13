@@ -581,6 +581,9 @@ faraday/faraday-core/src/screens/sheets.rs
 faraday/faraday-core/src/screens/visit.rs
 faraday/faraday-core/src/restore.rs
 faraday/faraday-core/src/gpg.rs
+faraday/faraday-core/src/signing.rs
+faraday/faraday-core/src/signing/collect.rs
+faraday/faraday-core/src/signing/read.rs
 faraday/faraday-core/src/secrets.rs
 faraday/faraday-core/src/codex32_backup/mod.rs
 faraday/faraday-core/src/glance/mod.rs
