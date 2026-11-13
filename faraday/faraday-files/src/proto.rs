@@ -166,18 +166,18 @@ pub enum Request {
 impl std::fmt::Debug for Request {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Request::List => "List",
-            Request::Read { .. } => "Read",
-            Request::ReadPart { .. } => "ReadPart",
-            Request::Piece { .. } => "Piece",
-            Request::Write { .. } => "Write",
-            Request::ReadQr { .. } => "ReadQr",
-            Request::Wipe { .. } => "Wipe",
-            Request::Space { .. } => "Space",
-            Request::ZeroFree { .. } => "ZeroFree",
-            Request::MakeEmpty { .. } => "MakeEmpty",
-            Request::Rename { .. } => "Rename",
-            Request::Name { .. } => "Name",
+            Request::List => "List", // not shown: Debug text
+            Request::Read { .. } => "Read", // not shown: Debug text
+            Request::ReadPart { .. } => "ReadPart", // not shown: Debug text
+            Request::Piece { .. } => "Piece", // not shown: Debug text
+            Request::Write { .. } => "Write", // not shown: Debug text
+            Request::ReadQr { .. } => "ReadQr", // not shown: Debug text
+            Request::Wipe { .. } => "Wipe", // not shown: Debug text
+            Request::Space { .. } => "Space", // not shown: Debug text
+            Request::ZeroFree { .. } => "ZeroFree", // not shown: Debug text
+            Request::MakeEmpty { .. } => "MakeEmpty", // not shown: Debug text
+            Request::Rename { .. } => "Rename", // not shown: Debug text
+            Request::Name { .. } => "Name", // not shown: Debug text
         })
     }
 }
