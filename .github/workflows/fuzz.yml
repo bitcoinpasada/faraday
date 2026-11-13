@@ -84,8 +84,10 @@ jobs:
           rustup show active-toolchain || rustup toolchain install
           rustup toolchain install "$(sed -n 's/^channel *= *"\(.*\)"$/\1/p' fuzz/rust-toolchain.toml)" --profile minimal
           cargo install --locked "cargo-fuzz@${CARGO_FUZZ_VERSION}"
-      - name: Compile every target and archive them
+      - name: Compile the targets (the listed ones, or every target) and archive them
         id: build
+        env:
+          FARADAY_FUZZ_TARGETS: ${{ inputs.targets }}
         run: |
           . tools/fuzz-common.sh
           build_all >targets.txt
@@ -106,6 +108,7 @@ jobs:
           parts=$((count < 19 ? count : 19))
           [ "$parts" -ge 1 ] || { echo "no targets to run" >&2; exit 2; }
           echo "parts=[$(seq -s, 1 "$parts")]" >>"$GITHUB_OUTPUT"
+          only_named targets.txt
           awk -v host="$host" '{ print $1 "/target/" host "/release/" $2 }' targets.txt >binaries.txt
           du -ch $(cat binaries.txt) | tail -1
           tar --zstd -cf fuzz-build.tar.zst -T binaries.txt -C "$HOME/.cargo/bin" cargo-fuzz
@@ -200,7 +203,9 @@ jobs:
       - name: Unpack the parts
         run: |
           mkdir -p parts crashes
-          for f in packed/*/*.tar.zst; do
+          # A run of one part downloads its one artifact without a folder.
+          for f in packed/*.tar.zst packed/*/*.tar.zst; do
+            [ -e "$f" ] || continue
             p="parts/$(basename "$f" .tar.zst)"
             mkdir -p "$p"
             tar --zstd -xf "$f" -C "$p"

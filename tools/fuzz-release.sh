@@ -242,8 +242,7 @@ if [ -n "$selected" ]; then
     for n in $names; do
         [ "$n" = none ] || grep -q " $n\$" "$list" || { echo "fuzz-release: no target named $n" >&2; rm -f "$list"; exit 2; }
     done
-    awk -v names="$names" '{ if (index(names, " " $2 " ")) print }' "$list" >"$list.named"
-    mv "$list.named" "$list"
+    FARADAY_FUZZ_TARGETS="$selected" only_named "$list"
 fi
 total="$(wc -l <"$list")"
 select_targets "$list" >"$list.picked" || { rm -f "$list" "$list.picked"; exit 2; }

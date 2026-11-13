@@ -12,7 +12,8 @@
 # Run it on the machine whose store the run grew, after `just fuzz-release`.
 # `FARADAY_FUZZ_JOBS` is how many targets are minimized at once, and
 # `FARADAY_FUZZ_PARTITION` which, as for that run: a run split into
-# partitions exports each part where it ran.
+# partitions exports each part where it ran, and `FARADAY_FUZZ_TARGETS`
+# limits it to the targets that run named.
 
 set -euo pipefail
 
@@ -63,6 +64,7 @@ export store out host
 echo "fuzz-corpus-export: building every target with $nightly"
 list="$(mktemp)"
 build_all >"$list"
+only_named "$list"
 select_targets "$list" >"$list.picked" || { rm -f "$list" "$list.picked"; exit 2; }
 mapfile -t jobs_list <"$list.picked"
 rm -f "$list" "$list.picked"

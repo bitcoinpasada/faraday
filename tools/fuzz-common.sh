@@ -54,16 +54,38 @@ dictionary() {
 # (`cargo fuzz` has no --locked of its own), and a build then changes none.
 # `FARADAY_FUZZ_PREBUILT=1` says the binaries are already in place (a job of
 # `.github/workflows/fuzz.yml`, from the job that compiled them): only lists.
+# With `FARADAY_FUZZ_TARGETS` set, only those targets are compiled.
 build_all() {
+    local dir n
     for dir in fuzz faraday/fuzz; do
         if [ "${FARADAY_FUZZ_PREBUILT:-}" != 1 ]; then
             cargo metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
-            cargo fuzz build --fuzz-dir "$dir" >&2
+            if [ -n "${FARADAY_FUZZ_TARGETS// /}" ]; then
+                # A list: only the listed targets of this crate are compiled
+                # (a name in neither crate is refused by the caller).
+                for n in ${FARADAY_FUZZ_TARGETS//,/ }; do
+                    if cargo fuzz list --fuzz-dir "$dir" | grep -qx "$n"; then
+                        cargo fuzz build --fuzz-dir "$dir" "$n" >&2
+                    fi
+                done
+            else
+                cargo fuzz build --fuzz-dir "$dir" >&2
+            fi
         fi
         cargo fuzz list --fuzz-dir "$dir" | while read -r name; do
             [ -n "$name" ] && echo "$dir $name"
         done
     done
+}
+
+# Keeps in the file $1 ("DIR TARGET" lines) only the targets
+# `FARADAY_FUZZ_TARGETS` names, when it is set; a run's partitions are then
+# those of the listed targets, in the run and in its corpus export alike.
+only_named() {
+    local names=" ${FARADAY_FUZZ_TARGETS//,/ } "
+    [ -n "${FARADAY_FUZZ_TARGETS// /}" ] || return 0
+    awk -v names="$names" '{ if (index(names, " " $2 " ")) print }' "$1" >"$1.named"
+    mv "$1.named" "$1"
 }
 
 # The "DIR TARGET" lines of the file $1 in the partitions
