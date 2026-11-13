@@ -86,7 +86,7 @@ pub(crate) fn out_title(title: &str) -> &str {
 /// the Outbox rather than over it, since that may be a sealed vault (F172).
 pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, Text) {
     let out = out_title(title);
-    let name = text!("{}.kdbx", crate::file_stem(out));
+    let name = text!("{}.kdbx", crate::file_stem(out).as_str());
     (
         out,
         Text::of(&crate::visit_taken::outbox_free_name(outbox, &name)),
@@ -651,7 +651,7 @@ impl Faraday {
             // A password goes as one of its own, named by nothing of the
             // key it came from or its index, and holding itself alone
             // (F172), beside any other waiting in the Outbox.
-            let name = text!("{}.txt", crate::file_stem(EN.bip85_password_out));
+            let name = text!("{}.txt", crate::file_stem(EN.bip85_password_out).as_str());
             let name = Text::of(&crate::visit_taken::outbox_free_name(&self.outbox, &name));
             (name, text!("{}\n", value.as_str()))
         } else {

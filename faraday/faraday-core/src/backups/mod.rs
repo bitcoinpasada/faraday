@@ -938,6 +938,7 @@ impl Faraday {
             Some(self.session.keys.info(k)?.fingerprint.0)
         };
         let stem = file_stem(&wallet.name);
+        let stem = stem.as_str();
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
         // A place with what its sticks keep.
         self.kept

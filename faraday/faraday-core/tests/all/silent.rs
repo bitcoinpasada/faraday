@@ -640,7 +640,7 @@ fn descriptor_out() -> (Faraday, String) {
     app.press(Action::SecretHold);
     let name = format!(
         "{}-sp-descriptor.txt",
-        faraday_core::file_stem(&app.session.wallets[0].name)
+        faraday_core::file_stem(&app.session.wallets[0].name).as_str()
     );
     let item = app
         .outbox

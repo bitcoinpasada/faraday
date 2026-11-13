@@ -339,10 +339,8 @@ impl Faraday {
     /// What a picture's codes held, read as the camera reads them.
     pub(crate) fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
         if payloads.is_empty() {
-            self.visit.log_push((
-                Text::fill(EN.qr_read_copied_no_qr, &[name]).as_str().into(),
-                true,
-            ));
+            self.visit
+                .log_push((Text::fill(EN.qr_read_copied_no_qr, &[name]), true));
         } else {
             // An image is read as the camera reads: a UR in parts can
             // span several images.
@@ -379,20 +377,15 @@ impl Faraday {
             if self.inbox.len() > before + seeds && !seed_last {
                 // Named after the picture it came from.
                 let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
-                let taken: Vec<_> = self.inbox.iter().map(|i| i.name.clone()).collect();
+                let taken: Vec<Text> = self.inbox.iter().map(|i| Text::of(&i.name)).collect();
                 let got = self.inbox.name_last_after(stem, &taken).unwrap_or_default();
                 self.save_boxes();
                 self.toast(&Text::fill(EN.qr_read_is_in_files, &[&got]));
-                self.visit.log_push((
-                    Text::fill(EN.qr_read_read_into_files, &[name, &got])
-                        .as_str()
-                        .into(),
-                    true,
-                ));
+                self.visit
+                    .log_push((Text::fill(EN.qr_read_read_into_files, &[name, &got]), true));
             } else if seeds == 0 && asked == 0 {
                 let said = note.unwrap_or_else(|| Text::of(EN.qr_read_read));
-                self.visit
-                    .log_push((text!("{name}: {}", &*said).as_str().into(), true));
+                self.visit.log_push((text!("{name}: {}", &*said), true));
             }
         }
     }
@@ -447,9 +440,7 @@ impl Faraday {
             Text::fill(
                 EN.qr_read_a_seedqr_copied,
                 &[name, &got, self.medium.noun()],
-            )
-            .as_str()
-            .into(),
+            ),
             true,
         ));
         true
@@ -481,6 +472,7 @@ impl Faraday {
             TextSeedAnswer::Leave => None,
         };
         let stem = stem(&ask.name);
+        let stem = stem.as_str();
         match (words, ask.file) {
             (Some(words), None) => {
                 let old_stem = ask.name.rsplit_once('.').map_or(&*ask.name, |(s, _)| s);
@@ -503,9 +495,7 @@ impl Faraday {
                     Text::fill(
                         EN.qr_read_a_seedqr_copied,
                         &[&ask.name, &got, self.medium.noun()],
-                    )
-                    .as_str()
-                    .into(),
+                    ),
                     true,
                 ));
             }
@@ -521,12 +511,9 @@ impl Faraday {
                     imp.item_file.push(f);
                 }
             }
-            (None, None) => self.visit.log_push((
-                Text::fill(EN.qr_read_text_left, &[&ask.name])
-                    .as_str()
-                    .into(),
-                true,
-            )),
+            (None, None) => self
+                .visit
+                .log_push((Text::fill(EN.qr_read_text_left, &[&ask.name]), true)),
             (None, Some(_)) => {}
         }
         if self.import.text.queue.is_empty() {
@@ -683,6 +670,7 @@ impl Faraday {
             return;
         };
         let stem = stem(name);
+        let stem = stem.as_str();
         let mut got: Vec<Item> = Vec::new();
         let mut note: Option<Text> = None;
         // Read as the visit reads an image: as the camera reads, with a

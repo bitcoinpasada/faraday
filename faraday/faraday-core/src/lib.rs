@@ -1246,7 +1246,7 @@ impl Faraday {
                 });
                 self.inbox.push(item);
                 if let Some(line) = line {
-                    self.visit.log_push((line, true));
+                    self.visit.log_push((faraday_text::Text::of(&line), true));
                 }
                 self.visit.inn_unchoose(&name);
                 self.visit.reading_done(&name);
@@ -1254,7 +1254,8 @@ impl Faraday {
             }
             StorageEvent::ReadFailed { name, reason, .. } => {
                 self.visit.reading_done(&name);
-                self.visit.log_push((format!("{name}: {reason}"), false));
+                self.visit
+                    .log_push((faraday_text::text!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
                 self.visit_written(&name, &wrote_as);
@@ -1282,7 +1283,7 @@ impl Faraday {
                         &[&name.to_string(), &wrote_as.to_string()],
                     )
                 };
-                self.visit.log_push((line, true));
+                self.visit.log_push((faraday_text::Text::of(&line), true));
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
@@ -1925,7 +1926,7 @@ impl Faraday {
         }
         let hash = self.hash_to_keep(&c, hash);
         self.visit.receipt_push(ReceiptFile {
-            name,
+            name: String::from(&*name),
             hash,
             verified: failure.is_none(),
             failure,
@@ -1962,8 +1963,7 @@ impl Faraday {
     /// stick labelled `label`.
     pub(crate) fn vault_read_from(&mut self, name: &str, bytes: &[u8], label: &str) {
         let c = self.compute();
-        self.visit
-            .vault_from_set(name, sha256_of(&c, bytes), label.to_string());
+        self.visit.vault_from_set(name, sha256_of(&c, bytes), label);
     }
 
     /// Costs a read of the free memory (on macOS a process, `vm_stat`;
@@ -2134,9 +2134,9 @@ impl Faraday {
         for (signed, name, bytes) in made {
             let name = self.put_outbox_beside(&name, bytes);
             if signed {
-                self.wallets.set_signed_name(name);
+                self.wallets.set_signed_name(String::from(&*name));
             } else {
-                self.wallets.set_tx_name(name);
+                self.wallets.set_tx_name(String::from(&*name));
             }
         }
     }
@@ -3045,7 +3045,7 @@ impl Faraday {
         }
         match faraday_paper::pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
-                name: fill(EN.make_pdf_pdf, &[&stem(name).to_string()]),
+                name: fill(EN.make_pdf_pdf, &[&stem(name)]),
                 bytes: pdf,
             }),
             Err(e) => self.toast(&fill(EN.make_pdf_not_printed, &[&e.to_string()])),
@@ -3209,7 +3209,7 @@ impl Faraday {
             .inbox
             .iter()
             .enumerate()
-            .filter(|(_, i)| names.contains(&i.name) && i.kind == FileKind::Words)
+            .filter(|(_, i)| names.contains(i.name.as_str()) && i.kind == FileKind::Words)
             .map(|(k, _)| k)
             .collect();
         let n = indices.into_iter().filter(|&i| self.load_key(i)).count();

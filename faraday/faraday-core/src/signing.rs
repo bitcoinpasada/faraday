@@ -326,7 +326,7 @@ pub(crate) fn part_name(s: &wallet::SpendState) -> (String, bool) {
     match &s.out_names.part {
         Some(name) => (name.clone(), true),
         None => (
-            format!("{}-part.psbt", crate::result_stem(&s.spend.source)),
+            format!("{}-part.psbt", crate::result_stem(&s.spend.source).as_str()),
             false,
         ),
     }
@@ -418,7 +418,7 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
             app.put_item(*item);
             name
         }
-        PartPlan::Beside(plan) => app.beside_apply(plan),
+        PartPlan::Beside(plan) => String::from(&*app.beside_apply(plan)),
     };
     app.wallets.set_part_name(name);
 }

@@ -199,7 +199,7 @@ impl View<'_> {
             .wallets
             .into_iter()
             .find(|w| w.keys.contains(&with))
-            .map(|w| w.name)
+            .map(|w| String::from(&*w.name))
     }
 
     /// The flows in progress ([`crate::Faraday::flows_in_progress_now`]), once

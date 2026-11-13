@@ -2276,7 +2276,7 @@ pub fn vault_read_from_stick(app: &mut crate::Faraday, name: &str, label: &str) 
 /// started: a write can start only while no secret was held, so a test
 /// with a vault open cannot press Write.
 pub fn inbox_write_started(app: &mut crate::Faraday, name: &str) {
-    app.visit.writing_inbox_add(name.into());
+    app.visit.writing_inbox_add(name);
 }
 
 /// A test-only way to let open vault `o` go unsealed while the app runs

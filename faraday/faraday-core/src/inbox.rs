@@ -15,7 +15,6 @@
 //! here; they are put together in Add a key.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::wallet::KeyTexts;
 use std::collections::BTreeSet;
 
@@ -25,6 +24,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key as KeyIn;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
@@ -50,15 +50,19 @@ pub enum SeedSource {
 
 impl SeedSource {
     /// What the source is called on screen.
-    pub fn name(&self, app: &Faraday) -> String {
+    pub fn name(&self, app: &Faraday) -> Text {
         match self {
             SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
-                app.inbox.get(*k).map_or(String::new(), |i| i.name.clone())
+                app.inbox.get(*k).map_or(Text::new(), |i| Text::of(&i.name))
             }
-            SeedSource::Slip39(ks) => fill(EN.inbox_slip39_share_count, &[&ks.len().to_string()]),
-            SeedSource::Codex32(ks) if ks.len() == 1 => "codex32".to_string(),
-            SeedSource::Codex32(ks) => fill(EN.inbox_codex32_shares, &[&ks.len().to_string()]),
-            SeedSource::Loaded => EN.inbox_loaded.to_string(),
+            SeedSource::Slip39(ks) => {
+                Text::fill(EN.inbox_slip39_share_count, &[&*Text::num(ks.len() as u64)])
+            }
+            SeedSource::Codex32(ks) if ks.len() == 1 => Text::of("codex32"),
+            SeedSource::Codex32(ks) => {
+                Text::fill(EN.inbox_codex32_shares, &[&*Text::num(ks.len() as u64)])
+            }
+            SeedSource::Loaded => Text::of(EN.inbox_loaded),
         }
     }
 
@@ -76,7 +80,7 @@ pub struct FoundSeed {
     pub fingerprint: Fingerprint,
     /// A label: the file's name without its extension, or the loaded
     /// key's label.
-    pub label: String,
+    pub label: Text,
     /// Where it comes from: the first is the one used.
     pub sources: Vec<SeedSource>,
     /// The session has it already.
@@ -87,9 +91,9 @@ pub struct FoundSeed {
 #[derive(Debug, Clone)]
 pub struct FoundWallet {
     /// What it will be called.
-    pub name: String,
+    pub name: Text,
     /// The descriptor, as text: one wallet however many files say it.
-    pub descriptor: String,
+    pub descriptor: Text,
     /// The files that describe it, by Inbox place.
     pub files: Vec<usize>,
     /// Rebuilt from split sheets rather than read from one file.
@@ -97,7 +101,7 @@ pub struct FoundWallet {
     /// Its keys' fingerprints.
     pub keys: Vec<Fingerprint>,
     /// Its shape: single key, or m of n and the script.
-    pub shape: String,
+    pub shape: Text,
     /// Signatures it needs.
     pub needed: usize,
     /// Of its keys, how many a seed here or loaded gives.
@@ -115,7 +119,7 @@ pub(crate) const PAIRS_TRIED: usize = 64;
 #[derive(Debug, Clone)]
 pub struct Waiting {
     /// What it is and what it lacks.
-    pub line: String,
+    pub line: Text,
 }
 
 /// The Inbox's files, with what they give ([`Found`]) kept worked out
@@ -153,8 +157,8 @@ pub struct InboxFiles {
 
 /// The session as [`InboxFiles`]' kept copy was worked out from it.
 struct SessionSeen {
-    keys: Vec<(Fingerprint, String)>,
-    wallets: Vec<(String, faraday_bip::policy::WalletPolicy)>,
+    keys: Vec<(Fingerprint, Text)>,
+    wallets: Vec<(Text, faraday_bip::policy::WalletPolicy)>,
 }
 
 impl SessionSeen {
@@ -163,12 +167,12 @@ impl SessionSeen {
             keys: s
                 .keys
                 .all()
-                .map(|k| (k.fingerprint, String::from(&*k.label)))
+                .map(|k| (k.fingerprint, Text::of(&k.label)))
                 .collect(),
             wallets: s
                 .wallets
                 .iter()
-                .map(|w| (w.name.clone(), w.policy().clone()))
+                .map(|w| (Text::of(&w.name), w.policy().clone()))
                 .collect(),
         }
     }
@@ -182,12 +186,12 @@ impl SessionSeen {
                 .keys
                 .iter()
                 .zip(s.keys.all())
-                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label.as_str())
+                .all(|(a, k)| a.0 == k.fingerprint && *a.1 == *k.label)
             && self
                 .wallets
                 .iter()
                 .zip(&s.wallets)
-                .all(|(a, w)| a.0 == w.name && a.1 == *w.policy())
+                .all(|(a, w)| *a.0 == *w.name && a.1 == *w.policy())
     }
 }
 
@@ -223,7 +227,7 @@ pub(crate) struct InboxArea {
     files: InboxFiles,
     /// Wallets the Inbox describes left out of its next load, by
     /// descriptor.
-    skip: BTreeSet<String>,
+    skip: BTreeSet<Text>,
     /// A seed from the Inbox being made a wallet.
     potential: Option<Potential>,
     /// When a passphrase was last typed on a sheet that shows the key it
@@ -269,18 +273,14 @@ impl InboxArea {
     /// Names the last file after `stem` and its own extension (`txt`
     /// when it has none) unless a name in `taken` is that; its name
     /// after, or `None` when there is no file.
-    pub(crate) fn name_last_after(&mut self, stem: &str, taken: &[String]) -> Option<String> {
+    pub(crate) fn name_last_after(&mut self, stem: &str, taken: &[Text]) -> Option<Text> {
         let last = self.files.changed().last_mut()?;
-        let ext = last
-            .name
-            .rsplit_once('.')
-            .map_or("txt", |(_, e)| e)
-            .to_string();
-        let wanted = format!("{stem}.{ext}");
+        let ext = Text::of(last.name.rsplit_once('.').map_or("txt", |(_, e)| e));
+        let wanted = text!("{stem}.{}", &*ext);
         if !taken.contains(&wanted) {
-            last.name = wanted;
+            last.name = (&*wanted).into();
         }
-        Some(last.name.clone())
+        Some(Text::of(&last.name))
     }
 
     /// Notes that every file named `name` is a picture holding `kind`.
@@ -305,8 +305,8 @@ impl InboxArea {
 
     /// Gives file `at` the name `name`.
     #[cfg(test)]
-    pub(crate) fn rename(&mut self, at: usize, name: String) {
-        self.files.changed()[at].name = name;
+    pub(crate) fn rename(&mut self, at: usize, name: Text) {
+        self.files.changed()[at].name = (&*name).into();
     }
 
     /// Puts `item` in place of file `at`.
@@ -351,7 +351,7 @@ impl InboxArea {
     }
 
     /// The wallets left out of the next load, by descriptor.
-    pub(crate) fn skip(&self) -> &BTreeSet<String> {
+    pub(crate) fn skip(&self) -> &BTreeSet<Text> {
         &self.skip
     }
 
@@ -518,11 +518,11 @@ pub struct Found {
 #[derive(Debug, Clone)]
 pub struct FoundXpub {
     /// The key expression, `[fingerprint/path]xpub`.
-    pub key: String,
+    pub key: Text,
     /// Its master fingerprint, when it has an origin.
     pub fingerprint: Option<Fingerprint>,
     /// Its path from the master, as text, when it has an origin.
-    pub path: Option<String>,
+    pub path: Option<Text>,
     /// The single-key kind its path says (BIP-44, 49, 84 or 86), or
     /// `None` when it has no origin and the person chooses.
     pub kind: Option<NewKind>,
@@ -619,15 +619,16 @@ impl Secret {
 }
 
 /// A mnemonic's words, one space between each.
-fn phrase(m: &Mnemonic) -> Zeroizing<String> {
+fn phrase(m: &Mnemonic) -> Text {
     let lang = m.language();
-    Zeroizing::new(
-        m.indices()
-            .iter()
-            .map(|&i| lang.word(i))
-            .collect::<Vec<_>>()
-            .join(" "),
-    )
+    let mut words = Text::new();
+    for (n, &i) in m.indices().iter().enumerate() {
+        if n > 0 {
+            words.push(' ');
+        }
+        words.push_str(lang.word(i));
+    }
+    words
 }
 
 /// Costs what `parse_words` costs. The words a text file spells, in
@@ -655,11 +656,7 @@ impl Faraday {
         items: &[Item],
         source: &SeedSource,
     ) -> Option<Secret> {
-        let text = |k: &usize| {
-            items
-                .get(*k)
-                .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
-        };
+        let text = |k: &usize| items.get(*k).map(|i| Text::from_utf8_lossy(&i.bytes));
         match source {
             SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
                 words_of(c, &text(k)?).map(Secret::Words)
@@ -740,23 +737,19 @@ impl Faraday {
 
     /// The passphrase a seed source among `items` brings: a passphrase
     /// file's one line, else none.
-    pub(crate) fn source_passphrase(
-        &self,
-        items: &[Item],
-        source: &SeedSource,
-    ) -> Zeroizing<String> {
+    pub(crate) fn source_passphrase(&self, items: &[Item], source: &SeedSource) -> Text {
         let SeedSource::WordsWith(_, p) = source else {
-            return Zeroizing::new(String::new());
+            return Text::new();
         };
         let Some(item) = items.get(*p) else {
-            return Zeroizing::new(String::new());
+            return Text::new();
         };
-        let text = Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+        let text = Text::from_utf8_lossy(&item.bytes);
         let line = text
             .strip_suffix('\n')
             .map(|t| t.strip_suffix('\r').unwrap_or(t))
             .unwrap_or(&text);
-        Zeroizing::new(line.to_string())
+        Text::of(line)
     }
 
     /// Costs what `found_in` costs. Everything the Inbox gives, put
@@ -780,21 +773,21 @@ impl Faraday {
     /// its own, replacing a file of that name with the same bytes. A file
     /// Files holds under it with other bytes is kept, this one numbered
     /// beside it, and the visit says so. A lookup per file.
-    pub(crate) fn inbox_name_for(&mut self, name: &str, bytes: &[u8]) -> String {
+    pub(crate) fn inbox_name_for(&mut self, name: &str, bytes: &[u8]) -> Text {
         if !self
             .inbox
             .iter()
             .any(|i| i.name == name && *i.bytes != bytes)
         {
             self.inbox.retain(|i| i.name != name);
-            return name.to_string();
+            return Text::of(name);
         }
         let kept = self.free_inbox_name(name);
         // The seed asked for is this copy's, not the file held before.
         self.visit.load_after_renamed(name, &kept);
-        let told = fill(EN.storage_event_kept_as, &[name, &kept]);
+        let told = Text::fill(EN.storage_event_kept_as, &[name, &kept]);
         self.visit.log_push((told, true));
-        String::from(&*kept)
+        kept
     }
 
     /// Costs a SHA-256 of the vault (through `Item::new`). A vault written from For the stick stays in
@@ -809,7 +802,7 @@ impl Faraday {
             .retain(|i| !(i.kind == FileKind::Vault && vaults.same_vault_files(i.sha, item.sha)));
         let kept = self.free_inbox_name(&item.name);
         if kept.as_str() != item.name {
-            let told = fill(EN.storage_event_kept_as, &[&item.name, &kept]);
+            let told = Text::fill(EN.storage_event_kept_as, &[&item.name, &kept]);
             self.visit.log_push((told, true));
         }
         self.inbox.push(Item::new(c, &kept, item.bytes.clone()));
@@ -827,7 +820,7 @@ impl Faraday {
         // Seeds: words files, then split seeds that add up, then the
         // session's own keys; once each, by fingerprint.
         let add_seed =
-            |found: &mut Found, fp: Fingerprint, label: String, src: SeedSource, loaded: bool| {
+            |found: &mut Found, fp: Fingerprint, label: Text, src: SeedSource, loaded: bool| {
                 match found.seeds.iter_mut().find(|s| s.fingerprint == fp) {
                     Some(s) => {
                         s.loaded |= loaded;
@@ -848,13 +841,13 @@ impl Faraday {
         // the fingerprint the words make with it (`docs/BACKUP-FLOW.md`
         // §17.12 item 6): the words with it are that key, and the words
         // alone no seed of their own.
-        let passphrase_files: Vec<(usize, String)> = items
+        let passphrase_files: Vec<(usize, Text)> = items
             .iter()
             .enumerate()
             .filter_map(|(k, it)| {
                 let fp = it.name.strip_prefix("passphrase-")?.strip_suffix(".txt")?;
                 (fp.len() == 8 && fp.bytes().all(|b| b.is_ascii_hexdigit()))
-                    .then(|| (k, fp.to_ascii_lowercase()))
+                    .then(|| (k, Text::of(&fp.to_ascii_lowercase())))
             })
             .collect();
         // Each pair is a seed worked out: past the bound the rest are not
@@ -890,9 +883,9 @@ impl Faraday {
         }
         if untried > 0 {
             found.waiting.push(Waiting {
-                line: fill(
+                line: Text::fill(
                     EN.inbox_pairs_untried,
-                    &[&untried.to_string(), &PAIRS_TRIED.to_string()],
+                    &[&*Text::num(untried as u64), &*Text::num(PAIRS_TRIED as u64)],
                 ),
             });
         }
@@ -904,7 +897,7 @@ impl Faraday {
             if item.kind != FileKind::SeedPart {
                 continue;
             }
-            match part_of(&String::from_utf8_lossy(&item.bytes)) {
+            match part_of(&Text::from_utf8_lossy(&item.bytes)) {
                 Some(Part::Slip39(s)) => match slip.iter_mut().find(|g| g.0 == s.identifier()) {
                     Some(g) => g.1.push(k),
                     None => slip.push((s.identifier(), vec![k], s.member_threshold())),
@@ -936,14 +929,14 @@ impl Faraday {
                 Some(fp) => add_seed(
                     &mut found,
                     fp,
-                    EN.inbox_slip_39_seed.to_string(),
+                    Text::of(EN.inbox_slip_39_seed),
                     src,
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: fill(
+                    line: Text::fill(
                         EN.inbox_slip_39_shares,
-                        &[&ks.len().to_string(), &need.to_string()],
+                        &[&*Text::num(ks.len() as u64), &*Text::num(u64::from(need))],
                     ),
                 }),
             }
@@ -957,14 +950,14 @@ impl Faraday {
                 Some(fp) => add_seed(
                     &mut found,
                     fp,
-                    EN.inbox_codex32_seed.to_string(),
+                    Text::of(EN.inbox_codex32_seed),
                     src,
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: fill(
+                    line: Text::fill(
                         EN.inbox_codex32_shares_inline,
-                        &[&ks.len().to_string(), &need.to_string()],
+                        &[&*Text::num(ks.len() as u64), &*Text::num(need as u64)],
                     ),
                 }),
             }
@@ -973,7 +966,7 @@ impl Faraday {
             add_seed(
                 &mut found,
                 key.fingerprint,
-                String::from(&*key.label),
+                Text::of(&key.label),
                 SeedSource::Loaded,
                 true,
             );
@@ -983,7 +976,7 @@ impl Faraday {
         // then split sheets that add up; and the session's own, so a seed
         // they name is not a potential wallet.
         let push_wallet = |found: &mut Found,
-                           name: String,
+                           name: Text,
                            policy: faraday_bip::policy::WalletPolicy,
                            file: Option<usize>,
                            shares: bool,
@@ -992,7 +985,7 @@ impl Faraday {
             if let Some(w) = found
                 .wallets
                 .iter_mut()
-                .find(|w| w.descriptor == descriptor)
+                .find(|w| *w.descriptor == *descriptor)
             {
                 if let Some(k) = file {
                     w.files.push(k);
@@ -1001,9 +994,9 @@ impl Faraday {
                 return;
             }
             let wallet = Wallet::new(
-                name.clone(),
+                (&*name).into(),
                 policy,
-                String::new(),
+                Default::default(),
                 crate::wallet::Origin::Named,
             );
             let keys: Vec<Fingerprint> = self
@@ -1014,28 +1007,28 @@ impl Faraday {
                 .collect();
             found.wallets.push(FoundWallet {
                 name,
-                descriptor,
+                descriptor: Text::of(&descriptor),
                 files: file.into_iter().collect(),
                 from_shares: shares,
                 keys,
-                shape: Session::shape(&wallet),
+                shape: Text::of(&Session::shape(&wallet)),
                 needed: crate::wallet::needed(&wallet),
                 seeds_here: 0,
                 loaded,
             });
         };
-        let loaded_desc: BTreeSet<String> = self
+        let loaded_desc: BTreeSet<Text> = self
             .session
             .wallets
             .iter()
-            .map(|w| crate::wallet::same_wallet(w.policy()))
+            .map(|w| Text::of(&crate::wallet::same_wallet(w.policy())))
             .collect();
         for (k, item) in items.iter().enumerate() {
             // Read when the file came in.
             let Some(policy) = item.wallet() else {
                 continue;
             };
-            let loaded = loaded_desc.contains(&crate::wallet::same_wallet(policy));
+            let loaded = loaded_desc.contains(&*crate::wallet::same_wallet(policy));
             push_wallet(
                 &mut found,
                 self.wallet_name_in(items, k),
@@ -1045,10 +1038,10 @@ impl Faraday {
                 loaded,
             );
         }
-        let shares: Vec<zeroize::Zeroizing<String>> = items
+        let shares: Vec<Text> = items
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
         if !shares.is_empty() {
             match crate::restore::merge(&shares) {
@@ -1057,21 +1050,21 @@ impl Faraday {
                         let name = self
                             .kept
                             .config_name_kept(c, &whole)
-                            .unwrap_or_else(|| EN.inbox_restored_wallet.to_string());
+                            .map_or_else(|| Text::of(EN.inbox_restored_wallet), |n| Text::of(&n));
                         if let Some(p) = self.kept.read_kept(c, &whole) {
-                            let loaded = loaded_desc.contains(&crate::wallet::same_wallet(&p));
+                            let loaded = loaded_desc.contains(&*crate::wallet::same_wallet(&p));
                             push_wallet(&mut found, name, p, None, true, loaded);
                         }
                     }
                     None => found.waiting.push(Waiting {
-                        line: fill(
+                        line: Text::fill(
                             EN.inbox_split_sheets_progress,
-                            &[&m.have.len().to_string(), &m.n.to_string()],
+                            &[&*Text::num(m.have.len() as u64), &*Text::num(m.n as u64)],
                         ),
                     }),
                 },
                 Err(e) => found.waiting.push(Waiting {
-                    line: fill(EN.inbox_split_sheets, &[&e]),
+                    line: Text::fill(EN.inbox_split_sheets, &[&e]),
                 }),
             }
         }
@@ -1083,7 +1076,7 @@ impl Faraday {
                 continue;
             }
             let policy = w.policy().clone();
-            push_wallet(&mut found, w.name.clone(), policy, None, false, true);
+            push_wallet(&mut found, Text::of(&w.name), policy, None, false, true);
         }
         let seeds: Vec<Fingerprint> = found.seeds.iter().map(|s| s.fingerprint).collect();
         for w in found.wallets.iter_mut() {
@@ -1095,7 +1088,7 @@ impl Faraday {
             if item.kind != FileKind::Key {
                 continue;
             }
-            let text = String::from_utf8_lossy(&item.bytes);
+            let text = Text::from_utf8_lossy(&item.bytes);
             let Some(key) = crate::create::read_key(&text) else {
                 continue;
             };
@@ -1111,19 +1104,25 @@ impl Faraday {
                 Err(()) => continue,
                 Ok(k) => k,
             };
-            let xpub = parsed.xpub().to_string();
+            let xpub = text!("{}", parsed.xpub());
             let fp = parsed.fingerprint();
-            if found.wallets.iter().any(|w| w.descriptor.contains(&xpub))
+            if found.wallets.iter().any(|w| w.descriptor.contains(&*xpub))
                 || fp.is_some_and(|f| seeds.contains(&f))
             {
                 continue;
             }
-            match found.xpubs.iter_mut().find(|x| x.key == key.as_str()) {
+            match found.xpubs.iter_mut().find(|x| *x.key == *key) {
                 Some(x) => x.files.push(k),
                 None => found.xpubs.push(FoundXpub {
-                    key: key.as_str().into(),
+                    key: Text::of(&key),
                     fingerprint: fp,
-                    path: parsed.path().map(|p| format!("m/{p}").replace('\'', "h")),
+                    path: parsed.path().map(|p| {
+                        let mut path = Text::new();
+                        for ch in text!("m/{p}").chars() {
+                            path.push(if ch == '\'' { 'h' } else { ch });
+                        }
+                        path
+                    }),
                     kind,
                     files: vec![k],
                 }),
@@ -1134,31 +1133,35 @@ impl Faraday {
 
     /// The name a wallet file gives its wallet: a wallet .json's label or
     /// an addwallet command's name, or the file's name in words.
-    pub(crate) fn inbox_wallet_name(&self, index: usize) -> String {
+    pub(crate) fn inbox_wallet_name(&self, index: usize) -> Text {
         self.wallet_name_in(&self.inbox, index)
     }
 
     /// [`Faraday::inbox_wallet_name`] for a file among `items`.
-    pub(crate) fn wallet_name_in(&self, items: &[Item], index: usize) -> String {
+    pub(crate) fn wallet_name_in(&self, items: &[Item], index: usize) -> Text {
         let Some(item) = items.get(index) else {
-            return String::new();
+            return Text::new();
         };
-        let text = String::from_utf8_lossy(&item.bytes);
+        let text = Text::from_utf8_lossy(&item.bytes);
         let name = stem(&item.name);
-        let name = name
+        let mut words = Text::new();
+        for (n, w) in name
             .strip_suffix("-wallet")
             .unwrap_or(&name)
             .split(['-', '_'])
-            .map(|w| {
-                let mut c = w.chars();
-                c.next()
-                    .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
-                    .unwrap_or_default()
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        let carried = crate::wallet::carried_name(&text).map_or(name, |t| String::from(&*t));
-        crate::wallet::wallet_name(&carried).into_owned()
+            .enumerate()
+        {
+            if n > 0 {
+                words.push(' ');
+            }
+            let mut c = w.chars();
+            if let Some(f) = c.next() {
+                words.extend(f.to_uppercase());
+                words.push_str(c.as_str());
+            }
+        }
+        let carried = crate::wallet::carried_name(&text).map_or(words, |t| Text::of(&t));
+        Text::of(&crate::wallet::wallet_name(&carried))
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds
@@ -1181,7 +1184,7 @@ impl Faraday {
     pub(crate) fn load_found_in(
         &mut self,
         items: &[Item],
-        skip: &BTreeSet<String>,
+        skip: &BTreeSet<Text>,
         also: &dyn Fn(Fingerprint) -> bool,
     ) -> (usize, usize) {
         let c = self.compute();
@@ -1223,21 +1226,21 @@ impl Faraday {
             let (name, text) = match w.files.first() {
                 Some(k) => (
                     self.wallet_name_in(items, *k),
-                    Zeroizing::new(String::from_utf8_lossy(&items[*k].bytes).into_owned()),
+                    Text::from_utf8_lossy(&items[*k].bytes),
                 ),
-                None => (w.name.clone(), Zeroizing::new(w.descriptor.clone())),
+                None => (w.name.clone(), w.descriptor.clone()),
             };
             let source = w
                 .files
                 .first()
-                .map_or(EN.inbox_its_shares.to_string(), |k| items[*k].name.clone());
+                .map_or(Text::of(EN.inbox_its_shares), |k| Text::of(&items[*k].name));
             match self
                 .session
                 .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
             {
                 Ok(_) => wallets += 1,
                 Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
-                    self.toast(&fill(EN.vaults_refused, &[&name, &e.text()]));
+                    self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
                 Err(_) => {}
             }
@@ -1261,13 +1264,13 @@ impl Faraday {
             let (name, text, source) = match w.files.first() {
                 Some(k) => (
                     self.inbox_wallet_name(*k),
-                    Zeroizing::new(String::from_utf8_lossy(&self.inbox[*k].bytes).into_owned()),
-                    self.inbox[*k].name.clone(),
+                    Text::from_utf8_lossy(&self.inbox[*k].bytes),
+                    Text::of(&self.inbox[*k].name),
                 ),
                 None => (
                     w.name.clone(),
-                    Zeroizing::new(w.descriptor.clone()),
-                    EN.inbox_its_shares.to_string(),
+                    w.descriptor.clone(),
+                    Text::of(EN.inbox_its_shares),
                 ),
             };
             match self
@@ -1276,7 +1279,7 @@ impl Faraday {
             {
                 Ok(_) => n += 1,
                 Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
-                    self.toast(&fill(EN.vaults_refused, &[&name, &e.text()]));
+                    self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
                 Err(_) => {}
             }
@@ -1310,10 +1313,10 @@ pub struct Potential {
     /// The fingerprint with the passphrase, worked out when it changes.
     pub with: Option<Fingerprint>,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// An account xpub becoming a watch-only wallet instead, with whether
     /// its path fixes the kind.
-    pub xpub: Option<(String, bool)>,
+    pub xpub: Option<(Text, bool)>,
 }
 
 /// The single-key kinds a potential wallet may become, the most common
@@ -1431,17 +1434,15 @@ impl Faraday {
         let Some((key, kind, fp)) = self.inbox.potential().and_then(|p| {
             p.xpub
                 .as_ref()
-                .map(|(k, _)| (k.clone(), p.kind, p.fingerprint))
+                .map(|(k, _)| (k.duplicate(), p.kind, p.fingerprint))
         }) else {
             return;
         };
-        let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&key)]);
-        let name = fill(
+        let descriptor = kind.descriptor(1, &[key.duplicate()]);
+        let name = Text::fill(
             EN.inbox_watch_only,
             &[
-                &fp.map(fp_text)
-                    .unwrap_or_else(|| EN.inbox_xpub.to_string())
-                    .to_string(),
+                &fp.map_or_else(|| Text::of(EN.inbox_xpub), |f| Text::of(&fp_text(f))),
                 crate::spend_backup::kind_name(kind),
             ],
         );
@@ -1457,11 +1458,11 @@ impl Faraday {
                 self.inbox.clear_potential();
                 self.sheet = None;
                 self.refresh_spend();
-                self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
+                self.toast(&Text::fill(EN.inbox_is_a_wallet, &[&name]));
             }
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(String::from(&*e.text()));
+                    p.error = Some(Text::of(&e.text()));
                 }
             }
         }
@@ -1515,7 +1516,7 @@ impl Faraday {
     /// Costs what `inbox_found_now` costs. The wallet here, in the Inbox or
     /// loaded, whose key the potential wallet's seed with its passphrase
     /// is.
-    pub(crate) fn potential_match(&self, c: &Compute) -> Option<String> {
+    pub(crate) fn potential_match(&self, c: &Compute) -> Option<Text> {
         let with = self.inbox.potential()?.with?;
         self.inbox_found_now(c)
             .wallets
@@ -1543,7 +1544,7 @@ impl Faraday {
             return;
         }
         if !self.may_load_keys() {
-            let error = fill(EN.inbox_remove_the_first, &[self.medium.noun()]);
+            let error = Text::fill(EN.inbox_remove_the_first, &[self.medium.noun()]);
             if let Some(p) = self.inbox.potential.as_mut() {
                 p.error = Some(error);
             }
@@ -1558,9 +1559,9 @@ impl Faraday {
             return;
         };
         let label = if pass.is_empty() {
-            seed.label.clone()
+            seed.label.duplicate()
         } else {
-            fill(EN.inbox_with_passphrase, &[&seed.label.to_string()])
+            Text::fill(EN.inbox_with_passphrase, &[&seed.label])
         };
         // A passphrase file beside the words, where none is typed.
         let kept = seed
@@ -1596,7 +1597,7 @@ impl Faraday {
             Err(Refusal::Duplicate(fp)) => fp,
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(String::from(&*e.text()));
+                    p.error = Some(Text::of(&e.text()));
                 }
                 return;
             }
@@ -1612,10 +1613,7 @@ impl Faraday {
             self.inbox_load_named();
             self.inbox.clear_potential();
             self.sheet = None;
-            self.toast(&fill(
-                EN.inbox_loaded_with_wallet,
-                &[&fp_text(fp).to_string()],
-            ));
+            self.toast(&Text::fill(EN.inbox_loaded_with_wallet, &[&fp_text(fp)]));
             return;
         }
         // Else a single-key wallet of the kind chosen.
@@ -1626,13 +1624,13 @@ impl Faraday {
             Ok(t) => t,
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(e);
+                    p.error = Some(Text::of(&e));
                 }
                 return;
             }
         };
-        let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&text)]);
-        let name = format!("{} · {}", fp_text(fp), crate::spend_backup::kind_name(kind));
+        let descriptor = kind.descriptor(1, &[text]);
+        let name = text!("{} · {}", fp_text(fp), crate::spend_backup::kind_name(kind));
         match self.session.add_wallet(
             &c,
             &name,
@@ -1645,11 +1643,11 @@ impl Faraday {
                 self.inbox.clear_potential();
                 self.sheet = None;
                 self.refresh_spend();
-                self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
+                self.toast(&Text::fill(EN.inbox_is_a_wallet, &[&name]));
             }
             Err(e) => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.error = Some(String::from(&*e.text()));
+                    p.error = Some(Text::of(&e.text()));
                 }
             }
         }
@@ -1679,23 +1677,23 @@ impl Faraday {
             }
             Action::InboxLoad => {
                 let (w, k) = self.inbox_load();
-                self.toast(&fill(
+                self.toast(&Text::fill(
                     EN.act_and_loaded,
                     &[
-                        &w.to_string(),
+                        &Text::num(w as u64),
                         (if w == 1 {
                             EN.act_wallet
                         } else {
                             EN.act_wallets
                         }),
-                        &k.to_string(),
+                        &Text::num(k as u64),
                         (if k == 1 { EN.act_seed } else { EN.act_seeds }),
                     ],
                 ));
             }
             Action::InboxChoose(i) => {
                 if let Some(w) = self.inbox_found_now(c).to_load().get(i) {
-                    let d = w.descriptor.clone();
+                    let d = w.descriptor.duplicate();
                     if !self.inbox.skip.remove(&d) {
                         self.inbox.skip.insert(d);
                     }
@@ -1705,7 +1703,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     self.potential_open(faraday_bip::keys::Fingerprint(fp));
                 } else {
-                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
+                    self.toast(&Text::fill(EN.act_remove_the_first, &[self.medium.noun()]));
                 }
             }
             Action::XpubOpen(i) => self.xpub_open(i),
@@ -1742,29 +1740,28 @@ impl Faraday {
 }
 
 /// A file name without its extension.
-pub(crate) fn stem(name: &str) -> String {
+pub(crate) fn stem(name: &str) -> Text {
     match name.rfind('.') {
-        Some(i) if i > 0 => name[..i].to_string(),
-        _ => name.to_string(),
+        Some(i) if i > 0 => Text::of(&name[..i]),
+        _ => Text::of(name),
     }
 }
 
 /// The stem a wallet's public files are named by: its name in lower case,
 /// with anything but letters and digits as a hyphen.
-pub fn file_stem(name: &str) -> String {
-    name.to_lowercase()
-        .chars()
+pub fn file_stem(name: &str) -> Text {
+    name.chars()
+        .flat_map(char::to_lowercase)
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect()
 }
 
 /// The name a result file takes from the PSBT it came from: the stem,
 /// without an `-unsigned` the coordinator put on it.
-pub(crate) fn result_stem(source: &str) -> String {
+pub(crate) fn result_stem(source: &str) -> Text {
     let s = stem(source);
     ["-unsigned", "-partly-signed"]
         .iter()
         .find_map(|end| s.strip_suffix(end))
-        .map(str::to_string)
-        .unwrap_or(s)
+        .map_or_else(|| s.duplicate(), Text::of)
 }

@@ -653,7 +653,10 @@ impl WalletsArea {
             .spend
             .as_mut()
             .filter(|s| !s.spend.nonce_hold && s.reviewed_now())?;
-        let name = format!("{}-signed.psbt", crate::result_stem(&s.spend.source));
+        let name = format!(
+            "{}-signed.psbt",
+            crate::result_stem(&s.spend.source).as_str()
+        );
         let Ok(bytes) = s.spend.out_bytes() else {
             return Some(Err(()));
         };
@@ -666,7 +669,7 @@ impl WalletsArea {
     pub(crate) fn take_tx_file(&mut self) -> Option<(String, Vec<u8>)> {
         let s = self.spend.as_mut().filter(|s| s.reviewed_now())?;
         let hex = s.spend.finished_hex()?;
-        let name = format!("{}-final.txn", crate::result_stem(&s.spend.source));
+        let name = format!("{}-final.txn", crate::result_stem(&s.spend.source).as_str());
         s.out_tx = true;
         Some((name, hex.into_bytes()))
     }
@@ -683,6 +686,7 @@ impl WalletsArea {
             return Ok(Vec::new());
         };
         let stem = crate::result_stem(&s.spend.source);
+        let stem = stem.as_str();
         let mut made = Vec::new();
         if !s.out_signed {
             let Ok(bytes) = s.spend.out_bytes() else {

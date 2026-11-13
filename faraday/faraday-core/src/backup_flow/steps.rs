@@ -1261,8 +1261,8 @@ impl Faraday {
         };
         let hash = it.hash(c);
         self.visit
-            .vault_from_find(|(n, h, _)| n == &it.name || *h == hash)
-            .map_or_else(|| it.name.clone(), |(_, _, label)| label.clone())
+            .vault_from_find(|(n, h, _)| **n == *it.name || *h == hash)
+            .map_or_else(|| it.name.clone(), |(_, _, label)| String::from(&**label))
     }
 
     /// Which copy of a vault that differs from the one in Files to unlock:

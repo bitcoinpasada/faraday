@@ -257,7 +257,7 @@ fn a_bare_xpub_with_no_origin_is_not_offered_as_a_wallet() {
     ]);
     let found = app.inbox_found_now(&c);
     assert_eq!(found.xpubs.len(), 1);
-    assert_eq!(found.xpubs[0].key, with_origin);
+    assert_eq!(&*found.xpubs[0].key, with_origin.as_str());
 }
 
 #[test]

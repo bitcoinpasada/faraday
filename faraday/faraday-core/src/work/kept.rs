@@ -456,7 +456,25 @@ fn kept_found(app: &crate::Faraday) -> crate::inbox::Found {
 /// [`kept_found`]'s fresh counterpart.
 fn found_fresh(app: &crate::Faraday) -> String {
     let c = crate::testkit::compute();
-    format!("{:?}", app.found_in(&c, &app.inbox))
+    shown(&app.found_in(&c, &app.inbox))
+}
+
+/// What a result says, its text read out (a `Text` prints only its length).
+fn shown(f: &crate::inbox::Found) -> String {
+    let mut out = format!("{f:?}");
+    for w in &f.wallets {
+        out += &format!("|{}|{}|{}", &*w.name, &*w.descriptor, &*w.shape);
+    }
+    for s in &f.seeds {
+        out += &format!("|{}", &*s.label);
+    }
+    for w in &f.waiting {
+        out += &format!("|{}", &*w.line);
+    }
+    for x in &f.xpubs {
+        out += &format!("|{}|{}", &*x.key, x.path.as_deref().unwrap_or_default());
+    }
+    out
 }
 
 /// The first file on the test stick of wallet `id` that reads as a
@@ -487,9 +505,9 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     let (n2, b2) = wallet_file(two.id);
     let mut app = testkit::started();
     let _ = testkit::move_to(&mut app.session, testkit::NET);
-    let mut last = format!("{:?}", kept_found(&app));
+    let mut last = shown(&kept_found(&app));
     let mut step = |app: &mut crate::Faraday, what: &str, changes: bool| {
-        let kept = format!("{:?}", kept_found(app));
+        let kept = shown(&kept_found(app));
         assert_eq!(
             kept,
             found_fresh(app),
@@ -515,7 +533,8 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     app.inbox.push(Item::new(&c, &n1, b1.clone()));
     step(&mut app, "a wallet file added", true);
     assert_eq!(kept_found(&app).wallets.len(), 1);
-    app.inbox.rename(0, "renamed-wallet.txt".to_string());
+    app.inbox
+        .rename(0, faraday_text::Text::of("renamed-wallet.txt"));
     step(&mut app, "the file renamed", true);
     assert_eq!(kept_found(&app).wallets[0].name, "Renamed");
     app.inbox.replace_at(0, Item::new(&c, &n2, b2.clone()));

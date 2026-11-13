@@ -501,7 +501,7 @@ impl Faraday {
                 .iter()
                 .map(|(name, hash, label)| {
                     let hex: String = String::from(&*faraday_crypto::hex::encode_string(hash));
-                    format!("{hex}\t{label}\t{name}")
+                    format!("{hex}\t{}\t{}", label.as_str(), name.as_str())
                 })
                 .collect();
             out.push(("vault-from".to_string(), lines.join("\n").into_bytes()));
@@ -577,7 +577,7 @@ impl Faraday {
                         String::from_utf8_lossy(bytes)
                             .lines()
                             .map(str::to_string)
-                            .collect(),
+                            .collect::<Vec<String>>(),
                     );
                 }
                 "backup-flow" => self.flow_restore(bytes),
@@ -593,8 +593,7 @@ impl Faraday {
                         };
                         let hash = faraday_crypto::hex::decode_exact::<32>(hex);
                         if let Some(hash) = hash {
-                            self.visit
-                                .vault_from_add(name.to_string(), hash, label.to_string());
+                            self.visit.vault_from_add(name, hash, label);
                         }
                     }
                 }

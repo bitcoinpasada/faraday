@@ -134,6 +134,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
     }
     let w = &inp.wallet();
     let stem = file_stem(&w.name);
+    let stem = stem.as_str();
     let net = inp.network;
     let shape = if net.is_mainnet() {
         Session::shape(w)
@@ -222,7 +223,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
         }
         // Specter DIY's `addwallet` command, in Specter's numbered
         // parts, which Specter DIY scans, past one code.
-        14 => specter_diy_pictures(c, w, shape, fps(&|_| true), &stem),
+        14 => specter_diy_pictures(c, w, shape, fps(&|_| true), stem),
         _ => Vec::new(),
     }
 }
@@ -288,6 +289,7 @@ pub(crate) fn wallet_code_head(
     what: u8,
 ) -> (String, String, Vec<String>) {
     let stem = file_stem(&w.name);
+    let stem = stem.as_str();
     let (title, name) = if what == 2 {
         (
             fill(EN.code_view_multisig, &[&w.name.to_string()]),
@@ -317,6 +319,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
     let w = &inp.wallet();
     let net = inp.network;
     let stem = file_stem(&w.name);
+    let stem = stem.as_str();
     let files = &mut out.files;
     match what {
         // The blank templates are printed from Faraday Starter: none is

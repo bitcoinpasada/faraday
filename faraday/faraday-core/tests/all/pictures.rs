@@ -111,6 +111,7 @@ fn descriptor_picture_reads_back(id: &str) {
     let kit = testkit::kits().into_iter().find(|k| k.id == id).unwrap();
     let files = testkit::public_files(kit.name, &kit.descriptor).unwrap();
     let stem = faraday_core::file_stem(kit.name);
+    let stem = stem.as_str();
     let want = String::from_utf8(file(&files, &format!("{stem}-descriptor.txt"))).unwrap();
     let png = file(&files, &format!("{stem}-descriptor.png"));
     let mut app = visiting();

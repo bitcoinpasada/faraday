@@ -284,11 +284,13 @@ impl Faraday {
                 } else {
                     EN.stick_wipe_name_only
                 };
-                self.visit.log_push((fill(said, &[name]), true));
+                self.visit
+                    .log_push((faraday_text::Text::fill(said, &[name]), true));
             }
-            Some(why) => self
-                .visit
-                .log_push((fill(EN.stick_wipe_not_deleted, &[name, why]), false)),
+            Some(why) => self.visit.log_push((
+                faraday_text::Text::fill(EN.stick_wipe_not_deleted, &[name, why]),
+                false,
+            )),
         }
     }
 
@@ -432,7 +434,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::Zeroing) {
             self.sheet = None;
         }
-        self.visit.log_push((line, ok));
+        self.visit.log_push((faraday_text::Text::of(&line), ok));
         self.out.redraw();
         self.out
             .commands

@@ -420,6 +420,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         "the item is open on the descriptor"
     );
     let stem = faraday_core::file_stem(&app.session.wallets[built].name);
+    let stem = stem.as_str();
     // Descriptor, multisig config, wallet file, BSMS record, Core import.
     let files = [
         (1u8, "descriptor.txt"),

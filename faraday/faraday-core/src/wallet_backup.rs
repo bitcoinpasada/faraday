@@ -50,6 +50,7 @@ mod shown;
 /// and its row goes through the secret sheet, not `public_out`.
 pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
     let stem = file_stem(&w.name);
+    let stem = stem.as_str();
     let p = w.policy();
     [
         (
@@ -1773,9 +1774,10 @@ impl Faraday {
                 // The seeds' files item makes the first one not yet made.
                 let next = self.backup.state().and_then(|b| {
                     let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
+                    let stem = stem.as_str();
                     self.backup_keys(b.wallet)
                         .into_iter()
-                        .find(|&k| !self.seed_file_made(&stem, &self.session.keys[k]))
+                        .find(|&k| !self.seed_file_made(stem, &self.session.keys[k]))
                 });
                 if let Some(k) = next {
                     self.backup.file_key(k);
@@ -2119,6 +2121,7 @@ impl Faraday {
             None => (EN.backup_kept_wallet.to_string(), Tone::Warn),
         };
         let stem = file_stem(&wallet.name);
+        let stem = stem.as_str();
         let here = self.backup_keys(b.wallet);
         let seed_lines = |key: &faraday_keys::KeyInfo| -> Vec<(String, Tone)> {
             let fp = key.fingerprint;
@@ -2306,6 +2309,7 @@ impl Faraday {
             return false;
         };
         let stem = file_stem(&w.name);
+        let stem = stem.as_str();
         // For the stick, or written by the last visit, or by the flow.
         let out = |name: &str| {
             self.outbox.iter().any(|i| i.name == name)
@@ -2342,7 +2346,7 @@ impl Faraday {
             plan::Item::KefCode(i) => kef::checked(self, c, i),
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
             plan::Item::SeedFiles => {
-                !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
+                !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(stem, k))
             }
             plan::Item::Sheets => {
                 if b.answers.split && splits(w) {
@@ -2914,6 +2918,7 @@ impl Faraday {
             return Vec::new();
         };
         let stem = file_stem(&w.name);
+        let stem = stem.as_str();
         let (qr, text) = (a.form[plan::form::QR], a.form[plan::form::TEXT]);
         let mut out = Vec::new();
         for what in Self::backup_public_for(w, a) {

@@ -11,8 +11,8 @@
 use crate::drawing::View;
 use crate::storage_api::OnTaken;
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_draw::widgets::Icon;
+use faraday_text::{Text, text};
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
@@ -26,18 +26,15 @@ use zeroize::Zeroizing;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Taken {
     /// The name asked for.
-    pub name: String,
+    pub name: Text,
     /// The name Keep both writes it under.
-    pub keep_as: String,
+    pub keep_as: Text,
 }
 
 impl Taken {
     /// The row as the sheet says it.
-    pub fn line(&self) -> String {
-        fill(
-            EN.visit_taken_keep_both_n,
-            &[&self.name.to_string(), &self.keep_as.to_string()],
-        )
+    pub fn line(&self) -> Text {
+        Text::fill(EN.visit_taken_keep_both_n, &[&self.name, &self.keep_as])
     }
 }
 
@@ -47,19 +44,19 @@ impl Taken {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NameTaken {
     /// The stick's id.
-    pub(crate) stick: String,
+    pub(crate) stick: Text,
     /// The name the vault was to be written under.
-    pub(crate) name: String,
+    pub(crate) name: Text,
     /// The file on the stick that has it.
-    pub(crate) on_stick: String,
+    pub(crate) on_stick: Text,
     /// That file's SHA-256, when it could be read.
     pub(crate) sha: Option<[u8; 32]>,
     /// The backup flow's write, not the stick visit's.
     pub(crate) flow: bool,
     /// The line under the title.
-    pub(crate) body: String,
+    pub(crate) body: Text,
     /// The free name Save beside writes it under.
-    pub(crate) beside: String,
+    pub(crate) beside: Text,
     /// The SHA-256 of the bytes the write sent, which the answer sends
     /// again; none where the write is no longer known.
     pub(crate) sent: Option<[u8; 32]>,
@@ -72,22 +69,28 @@ pub(crate) fn is_vault(bytes: &[u8]) -> bool {
 }
 
 /// `name` for suffix 1, else `stem-n.ext`.
-fn suffixed(name: &str, n: u32) -> String {
+fn suffixed(name: &str, n: u32) -> Text {
     if n <= 1 {
-        return name.to_string();
+        return Text::of(name);
     }
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
         _ => (name, ""),
     };
-    format!("{stem}-{n}{ext}")
+    text!("{stem}-{n}{ext}")
+}
+
+/// `s` in ASCII lower case.
+fn lower(s: &str) -> Text {
+    s.chars().map(|c| c.to_ascii_lowercase()).collect()
 }
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`
 /// (lower case), as `faraday_files` names a file kept beside another.
-pub(crate) fn free_name(taken: &[String], name: &str) -> String {
-    if !taken.contains(&name.to_ascii_lowercase()) {
-        return name.to_string();
+pub(crate) fn free_name(taken: &[impl AsRef<str>], name: &str) -> Text {
+    let is_taken = |n: &str| taken.iter().any(|t| t.as_ref() == &*lower(n));
+    if !is_taken(name) {
+        return Text::of(name);
     }
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
@@ -95,8 +98,8 @@ pub(crate) fn free_name(taken: &[String], name: &str) -> String {
     };
     let mut n = 2u32;
     loop {
-        let beside = format!("{stem}-{n}{ext}");
-        if !taken.contains(&beside.to_ascii_lowercase()) {
+        let beside = text!("{stem}-{n}{ext}");
+        if !is_taken(&beside) {
             return beside;
         }
         n += 1;
@@ -106,15 +109,15 @@ pub(crate) fn free_name(taken: &[String], name: &str) -> String {
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… that no file waiting
 /// in `outbox` is called, so that a file put there under a name it shares
 /// with others goes beside the one waiting rather than over it.
-pub(crate) fn outbox_free_name(outbox: &[crate::Item], name: &str) -> String {
-    let taken: Vec<String> = outbox.iter().map(|i| i.name.to_ascii_lowercase()).collect();
+pub(crate) fn outbox_free_name(outbox: &[crate::Item], name: &str) -> Text {
+    let taken: Vec<Text> = outbox.iter().map(|i| lower(&i.name)).collect();
     free_name(&taken, name)
 }
 
 /// Where a file that goes beside the Outbox's goes ([`beside_plan`]).
 pub(crate) enum Beside {
     /// The Outbox holds this file already, under this name.
-    Same(String),
+    Same(Text),
     /// The file, made and classified under the name asked, to be put under
     /// the first name that is free.
     Put(Box<crate::Item>),
@@ -130,7 +133,7 @@ pub(crate) fn beside_plan(
     waiting: Option<&[u8]>,
 ) -> Beside {
     if waiting == Some(bytes.as_slice()) {
-        return Beside::Same(name.to_string());
+        return Beside::Same(Text::of(name));
     }
     Beside::Put(Box::new(crate::Item::new(c, name, bytes)))
 }
@@ -152,7 +155,7 @@ pub(crate) struct VisitArea {
     receipt: Option<crate::Receipt>,
     /// Each vault file read from a stick this power-on: its name, the
     /// hash of its bytes as read, and the stick's label (§3.5).
-    vault_from: Vec<(String, [u8; 32], String)>,
+    vault_from: Vec<(Text, [u8; 32], Text)>,
     /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
     /// decision 61).
     files_menu: crate::file_menu::FileMenus,
@@ -163,7 +166,7 @@ pub(crate) struct VisitArea {
     /// name-taken sheet ([`Sheet::NameTaken`]).
     name_taken: std::collections::VecDeque<NameTaken>,
     /// The names this write wrote, for the free name the sheet offers.
-    wrote: Vec<String>,
+    wrote: Vec<Text>,
 }
 
 impl std::ops::Deref for VisitArea {
@@ -232,28 +235,35 @@ impl VisitArea {
     }
 
     /// Vault files written from: name, hash and the stick's id.
-    pub(crate) fn vault_from(&self) -> &Vec<(String, [u8; 32], String)> {
+    pub(crate) fn vault_from(&self) -> &Vec<(Text, [u8; 32], Text)> {
         &self.vault_from
     }
 
     /// The first vault file read from a stick that `matches`.
     pub(crate) fn vault_from_find(
         &self,
-        matches: impl Fn(&(String, [u8; 32], String)) -> bool,
-    ) -> Option<&(String, [u8; 32], String)> {
+        matches: impl Fn(&(Text, [u8; 32], Text)) -> bool,
+    ) -> Option<&(Text, [u8; 32], Text)> {
         self.vault_from.iter().find(|x| matches(x))
     }
 
     /// The vault file `name` was read from a stick: its hash and the
     /// stick's label, in place of any earlier read of that name.
-    pub(crate) fn vault_from_set(&mut self, name: &str, sha: [u8; 32], label: String) {
+    pub(crate) fn vault_from_set(&mut self, name: &str, sha: [u8; 32], label: impl AsRef<str>) {
         self.vault_from.retain(|(n, ..)| n != name);
-        self.vault_from.push((name.to_string(), sha, label));
+        self.vault_from
+            .push((Text::of(name), sha, Text::of(label.as_ref())));
     }
 
     /// A vault file read from a stick, added as it was.
-    pub(crate) fn vault_from_add(&mut self, name: String, sha: [u8; 32], label: String) {
-        self.vault_from.push((name, sha, label));
+    pub(crate) fn vault_from_add(
+        &mut self,
+        name: impl AsRef<str>,
+        sha: [u8; 32],
+        label: impl AsRef<str>,
+    ) {
+        self.vault_from
+            .push((Text::of(name.as_ref()), sha, Text::of(label.as_ref())));
     }
 
     /// The vault writes waiting for an answer to the name-taken sheet.
@@ -267,7 +277,7 @@ impl VisitArea {
     }
 
     /// The queue's free names, one for each entry in order.
-    pub(crate) fn name_taken_set_besides(&mut self, besides: Vec<String>) {
+    pub(crate) fn name_taken_set_besides(&mut self, besides: Vec<Text>) {
         for (t, b) in self.name_taken.iter_mut().zip(besides) {
             t.beside = b;
         }
@@ -279,7 +289,7 @@ impl VisitArea {
     }
 
     /// The entries for the sticks in `ids` leave the queue.
-    pub(crate) fn name_taken_drop_sticks(&mut self, ids: &[String]) {
+    pub(crate) fn name_taken_drop_sticks(&mut self, ids: &[Text]) {
         self.name_taken.retain(|t| !ids.contains(&t.stick));
     }
 
@@ -300,7 +310,7 @@ impl VisitArea {
 
     /// A name this write wrote.
     pub(crate) fn wrote_add(&mut self, name: &str) {
-        self.wrote.push(name.to_string());
+        self.wrote.push(Text::of(name));
     }
 
     /// A new write starts with no names written.
@@ -396,13 +406,13 @@ impl VisitArea {
         &mut self,
         stick: &str,
         name: &str,
-        sha: Result<[u8; 32], String>,
+        sha: Result<[u8; 32], impl AsRef<str>>,
     ) {
         if let Some(d) = self.files_menu.details.as_mut()
             && d.stick.as_deref() == Some(stick)
             && d.name == name
         {
-            d.sha = Some(sha);
+            d.sha = Some(sha.map_err(|e| e.as_ref().into()));
         }
     }
 
@@ -414,12 +424,12 @@ impl VisitArea {
     /// The file `from` For the stick was renamed `to`.
     pub(crate) fn renamed_to(&mut self, from: &str, to: &str) {
         self.files_menu.renamed.remove(from);
-        self.files_menu.renamed.insert(to.to_string());
+        self.files_menu.renamed.insert(to.into());
     }
 
     /// The files the person renamed, as they were kept.
-    pub(crate) fn set_renamed(&mut self, names: std::collections::BTreeSet<String>) {
-        self.files_menu.renamed = names;
+    pub(crate) fn set_renamed(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.files_menu.renamed = names.into_iter().map(|n| n.as_ref().into()).collect();
     }
 
     /// How far the For the stick list is scrolled.
@@ -458,8 +468,8 @@ impl VisitArea {
     }
 
     /// A line of what the last write or copy did.
-    pub(crate) fn log_push(&mut self, line: (String, bool)) {
-        self.visit.log.push(line);
+    pub(crate) fn log_push(&mut self, line: (Text, bool)) {
+        self.visit.log.push(((&*line.0).into(), line.1));
     }
 
     /// The log is emptied.
@@ -478,8 +488,11 @@ impl VisitArea {
     }
 
     /// The names loaded as keys when the stick is pulled, given as it is.
-    pub(crate) fn take_load_after(&mut self) -> std::collections::BTreeSet<String> {
+    pub(crate) fn take_load_after(&mut self) -> std::collections::BTreeSet<Text> {
         std::mem::take(&mut self.visit.load_after)
+            .iter()
+            .map(|n| Text::of(n))
+            .collect()
     }
 
     /// Nothing is taken: the sheet is not asking.
@@ -488,8 +501,8 @@ impl VisitArea {
     }
 
     /// The Outbox files chosen to write are `chosen`.
-    pub(crate) fn set_out(&mut self, chosen: std::collections::BTreeSet<String>) {
-        self.visit.out = chosen;
+    pub(crate) fn set_out(&mut self, chosen: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.visit.out = chosen.into_iter().map(|n| n.as_ref().into()).collect();
     }
 
     /// The Outbox file `name` is no longer chosen; whether it was.
@@ -498,9 +511,10 @@ impl VisitArea {
     }
 
     /// Choosing `name` flipped.
-    pub(crate) fn out_toggle(&mut self, name: String) {
-        if !self.visit.out.remove(&name) {
-            self.visit.out.insert(name);
+    pub(crate) fn out_toggle(&mut self, name: impl AsRef<str>) {
+        let name = name.as_ref();
+        if !self.visit.out.remove(name) {
+            self.visit.out.insert(name.into());
         }
     }
 
@@ -510,20 +524,22 @@ impl VisitArea {
     }
 
     /// Every name in `names` is chosen.
-    pub(crate) fn out_extend(&mut self, names: impl IntoIterator<Item = String>) {
-        self.visit.out.extend(names);
+    pub(crate) fn out_extend(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.visit
+            .out
+            .extend(names.into_iter().map(|n| n.as_ref().into()));
     }
 
     /// The chosen Outbox file `from` was renamed `to`, and stays chosen.
     pub(crate) fn out_renamed(&mut self, from: &str, to: &str) {
         if self.visit.out.remove(from) {
-            self.visit.out.insert(to.to_string());
+            self.visit.out.insert(to.into());
         }
     }
 
     /// The stick files chosen to copy are `chosen`.
-    pub(crate) fn set_inn(&mut self, chosen: std::collections::BTreeSet<String>) {
-        self.visit.inn = chosen;
+    pub(crate) fn set_inn(&mut self, chosen: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.visit.inn = chosen.into_iter().map(|n| n.as_ref().into()).collect();
     }
 
     /// The stick file `name` is no longer chosen.
@@ -532,9 +548,10 @@ impl VisitArea {
     }
 
     /// Choosing the stick file `name` flipped.
-    pub(crate) fn inn_toggle(&mut self, name: String) {
-        if !self.visit.inn.remove(&name) {
-            self.visit.inn.insert(name);
+    pub(crate) fn inn_toggle(&mut self, name: impl AsRef<str>) {
+        let name = name.as_ref();
+        if !self.visit.inn.remove(name) {
+            self.visit.inn.insert(name.into());
         }
     }
 
@@ -544,20 +561,20 @@ impl VisitArea {
     }
 
     /// Only the chosen stick files that `keep` says are kept.
-    pub(crate) fn inn_retain(&mut self, keep: impl Fn(&String) -> bool) {
+    pub(crate) fn inn_retain(&mut self, keep: impl Fn(&str) -> bool) {
         self.visit.inn.retain(|n| keep(n));
     }
 
     /// The chosen stick file `from` was renamed `to`, and stays chosen.
     pub(crate) fn inn_renamed(&mut self, from: &str, to: &str) {
         if self.visit.inn.remove(from) {
-            self.visit.inn.insert(to.to_string());
+            self.visit.inn.insert(to.into());
         }
     }
 
     /// A stick file is asked for and not yet answered.
-    pub(crate) fn reading_add(&mut self, name: String) {
-        self.visit.reading.insert(name);
+    pub(crate) fn reading_add(&mut self, name: impl AsRef<str>) {
+        self.visit.reading.insert(name.as_ref().into());
     }
 
     /// A stick file asked for is answered.
@@ -567,24 +584,26 @@ impl VisitArea {
 
     /// `name` is loaded as keys when the stick is pulled.
     pub(crate) fn load_after_add(&mut self, name: impl AsRef<str>) {
-        self.visit.load_after.insert(name.as_ref().to_owned());
+        self.visit.load_after.insert(name.as_ref().into());
     }
 
     /// Every name in `names` is loaded as keys when the stick is pulled.
-    pub(crate) fn load_after_extend(&mut self, names: impl IntoIterator<Item = String>) {
-        self.visit.load_after.extend(names);
+    pub(crate) fn load_after_extend(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.visit
+            .load_after
+            .extend(names.into_iter().map(|n| n.as_ref().into()));
     }
 
     /// The copy of `name` kept as `kept` is loaded in its place.
     pub(crate) fn load_after_renamed(&mut self, name: &str, kept: &str) {
         if self.visit.load_after.remove(name) {
-            self.visit.load_after.insert(kept.to_string());
+            self.visit.load_after.insert(kept.into());
         }
     }
 
     /// The Inbox file `name` is chosen to write to the stick.
-    pub(crate) fn inbox_pick(&mut self, name: String) {
-        self.visit.from_inbox.insert(name);
+    pub(crate) fn inbox_pick(&mut self, name: impl AsRef<str>) {
+        self.visit.from_inbox.insert(name.as_ref().into());
     }
 
     /// The Inbox file `name` is no longer chosen; whether it was.
@@ -593,8 +612,10 @@ impl VisitArea {
     }
 
     /// Every name in `names` is chosen from the Inbox.
-    pub(crate) fn inbox_pick_all(&mut self, names: impl IntoIterator<Item = String>) {
-        self.visit.from_inbox.extend(names);
+    pub(crate) fn inbox_pick_all(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.visit
+            .from_inbox
+            .extend(names.into_iter().map(|n| n.as_ref().into()));
     }
 
     /// No Inbox file is chosen.
@@ -603,8 +624,8 @@ impl VisitArea {
     }
 
     /// The Inbox file `name` is sent to be written.
-    pub(crate) fn writing_inbox_add(&mut self, name: String) {
-        self.visit.writing_inbox.insert(name);
+    pub(crate) fn writing_inbox_add(&mut self, name: impl AsRef<str>) {
+        self.visit.writing_inbox.insert(name.as_ref().into());
     }
 
     /// The Inbox file `name` is answered; whether it was sent.
@@ -613,8 +634,9 @@ impl VisitArea {
     }
 
     /// The write under way starts as `writing`.
-    pub(crate) fn set_writing(&mut self, writing: crate::Writing) {
-        self.visit.writing = Some(writing);
+    pub(crate) fn set_writing(&mut self, label: &str, identity: &str, sent: &[(Text, [u8; 32])]) {
+        let sent = sent.iter().map(|(n, h)| ((&**n).into(), *h)).collect();
+        self.visit.writing = Some((label.into(), identity.into(), sent, false));
     }
 
     /// `name` is no longer waited for in the write under way; the write is
@@ -636,7 +658,7 @@ impl VisitArea {
         &mut self,
         name: &str,
         now: Option<u64>,
-    ) -> Option<(String, [u8; 32], Option<crate::Receipt>)> {
+    ) -> Option<(Text, [u8; 32], Option<crate::Receipt>)> {
         let (label, stick, sent, started) = self.visit.writing.as_mut()?;
         let k = sent.iter().position(|(n, _)| n == name)?;
         let (name, hash) = sent.remove(k);
@@ -654,7 +676,7 @@ impl VisitArea {
         if sent.is_empty() {
             self.visit.writing = None;
         }
-        Some((name, hash, opened))
+        Some((Text::of(&name), hash, opened))
     }
 }
 
@@ -668,7 +690,7 @@ impl Faraday {
         &mut self,
         name: &str,
         bytes: impl Into<Zeroizing<Vec<u8>>>,
-    ) -> String {
+    ) -> Text {
         let bytes: Zeroizing<Vec<u8>> = bytes.into();
         let c = self.compute();
         let waiting = self
@@ -694,12 +716,12 @@ impl Faraday {
 
     /// Moves only. Puts the file a [`beside_plan`] made, under the first
     /// name of its own that no file waiting in the Outbox has.
-    pub(crate) fn beside_apply(&mut self, plan: Beside) -> String {
+    pub(crate) fn beside_apply(&mut self, plan: Beside) -> Text {
         match plan {
             Beside::Same(name) => name,
             Beside::Put(mut item) => {
                 let free = outbox_free_name(&self.outbox, &item.name);
-                item.name.clone_from(&free);
+                item.name = (&*free).into();
                 self.put_item(*item);
                 free
             }
@@ -718,15 +740,15 @@ impl Faraday {
         &mut self,
         png: Option<(&str, Vec<u8>)>,
         file: (&str, Vec<u8>),
-    ) -> (Option<String>, String) {
+    ) -> (Option<Text>, Text) {
         let files: Vec<(&str, &Vec<u8>)> = png
             .iter()
             .map(|(n, b)| (*n, b))
             .chain([(file.0, &file.1)])
             .collect();
         let free =
-            |n: u32| -> Vec<String> { files.iter().map(|(name, _)| suffixed(name, n)).collect() };
-        let fits = |names: &[String], this: &Faraday| {
+            |n: u32| -> Vec<Text> { files.iter().map(|(name, _)| suffixed(name, n)).collect() };
+        let fits = |names: &[Text], this: &Faraday| {
             names.iter().zip(&files).all(|(name, (_, bytes))| {
                 this.outbox
                     .iter()
@@ -743,7 +765,7 @@ impl Faraday {
             if !self
                 .outbox
                 .iter()
-                .any(|i| i.name == *name && *i.bytes == **bytes)
+                .any(|i| i.name == **name && *i.bytes == **bytes)
             {
                 self.put_outbox(name, (*bytes).clone());
             }
@@ -776,17 +798,17 @@ impl Faraday {
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.
-    fn visit_files(&self) -> Vec<(String, Zeroizing<Vec<u8>>, bool)> {
-        let mut out: Vec<(String, Zeroizing<Vec<u8>>, bool)> = self
+    fn visit_files(&self) -> Vec<(Text, Zeroizing<Vec<u8>>, bool)> {
+        let mut out: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = self
             .outbox
             .iter()
             .filter(|i| self.visit.out.contains(&i.name))
-            .map(|i| (i.name.clone(), i.bytes.clone(), false))
+            .map(|i| (Text::of(&i.name), i.bytes.clone(), false))
             .collect();
         for k in self.visit_inbox_rows() {
             let item = &self.inbox[k];
             if self.visit.from_inbox.contains(&item.name) {
-                out.push((item.name.clone(), item.bytes.clone(), true));
+                out.push((Text::of(&item.name), item.bytes.clone(), true));
             }
         }
         out
@@ -794,18 +816,18 @@ impl Faraday {
 
     /// The Inbox files a lock drops ([`crate::Item::dropped_at_lock`]),
     /// by name.
-    pub(crate) fn lock_drops(&self) -> Vec<String> {
+    pub(crate) fn lock_drops(&self) -> Vec<Text> {
         self.inbox
             .iter()
             .filter(|i| i.dropped_at_lock())
-            .map(|i| i.name.clone())
+            .map(|i| Text::of(&i.name))
             .collect()
     }
 
     /// A write the disk refused: the receipt says why, and the visit's log
     /// says what becomes of the file.
     pub(crate) fn visit_write_failed(&mut self, name: &str, reason: &str) {
-        self.receipt_add(name, Some(reason.to_string()));
+        self.receipt_add(name, Some(reason.into()));
         self.visit_write_logged(name, reason);
     }
 
@@ -819,11 +841,11 @@ impl Faraday {
     /// The visit's log line for a file not written.
     fn visit_write_logged(&mut self, name: &str, reason: &str) {
         let stays = if self.visit.writing_inbox_done(name) {
-            EN.storage_event_it_stays.to_string()
+            Text::of(EN.storage_event_it_stays)
         } else {
-            fill(EN.storage_event_it_still, &[self.medium.for_the()])
+            Text::fill(EN.storage_event_it_still, &[self.medium.for_the()])
         };
-        let line = fill(EN.storage_event_not_written, &[name, reason, &stays]);
+        let line = Text::fill(EN.storage_event_not_written, &[name, reason, &stays]);
         self.visit.log_push((line, false));
     }
 
@@ -833,11 +855,7 @@ impl Faraday {
         let Some(stick) = self.stick.get(self.visit.stick) else {
             return Vec::new();
         };
-        let mut names: Vec<String> = stick
-            .files
-            .iter()
-            .map(|(n, _)| n.to_ascii_lowercase())
-            .collect();
+        let mut names: Vec<Text> = stick.files.iter().map(|(n, _)| lower(n)).collect();
         let mut rows = Vec::new();
         for (name, bytes, _) in self.visit_files() {
             let on = stick
@@ -852,7 +870,7 @@ impl Faraday {
                 continue;
             }
             let keep_as = free_name(&names, &name);
-            names.push(keep_as.to_ascii_lowercase());
+            names.push(lower(&keep_as));
             rows.push(Taken { name, keep_as });
         }
         rows
@@ -889,7 +907,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::Taken) {
             self.sheet = None;
         }
-        let taken: Vec<String> = self
+        let taken: Vec<Text> = self
             .visit
             .take_taken()
             .into_iter()
@@ -903,23 +921,23 @@ impl Faraday {
         // A stick is told from another by its FAT volume serial; a folder
         // the shell lists has none, and is told by where it is.
         let identity = match stick.serial {
-            Some(s) => format!("{s:08x}"),
-            None => format!("id:{}", stick.id),
+            Some(s) => text!("{s:08x}"),
+            None => text!("id:{}", stick.id),
         };
         self.visit.log_clear();
         self.name_taken_wrote_clear();
-        let mut sends: Vec<(String, Zeroizing<Vec<u8>>, bool)> = Vec::new();
+        let mut sends: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = Vec::new();
 
         if self.visit_settings_on() {
             sends.push((
-                stick::settings::FILE.to_string(),
+                Text::of(stick::settings::FILE),
                 Zeroizing::new(self.settings_file_text().into_bytes()),
                 false,
             ));
         }
         for (name, bytes, from_inbox) in self.visit_files() {
             if from_inbox {
-                self.visit.writing_inbox_add(name.clone());
+                self.visit.writing_inbox_add(&*name);
             }
             // A vault goes over the same vault on the stick (same salt and
             // length, decided where the stick is read) only when this
@@ -933,17 +951,17 @@ impl Faraday {
             sends.push((name, bytes, over));
         }
         // What this write sends, for its receipt.
-        let sent: Vec<(String, [u8; 32])> = sends
+        let sent: Vec<(Text, [u8; 32])> = sends
             .iter()
             .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         for (name, bytes, replace) in sends {
             let vault = is_vault(&bytes);
-            let renamed = self.visit.files_menu().renamed.contains(&name);
+            let renamed = self.visit.files_menu().renamed.contains(&*name);
             let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
-                name,
+                name: (&*name).into(),
                 bytes,
                 copies,
                 replace,
@@ -953,7 +971,7 @@ impl Faraday {
             });
         }
         if !sent.is_empty() {
-            self.visit.set_writing((label, identity, sent, false));
+            self.visit.set_writing(&label, &identity, &sent);
         }
     }
 }
@@ -961,8 +979,8 @@ impl Faraday {
 /// The Already on the stick sheet: a row per taken file, then Replace,
 /// Keep both and Cancel.
 pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let title = fill(EN.visit_taken_already, &[app.medium.on_the()]);
-    let rows: Vec<String> = app.visit.taken.iter().map(Taken::line).collect();
+    let title = Text::fill(EN.visit_taken_already, &[app.medium.on_the()]);
+    let rows: Vec<Text> = app.visit.taken.iter().map(Taken::line).collect();
     let place = if ui.compact {
         (8.0, w - 16.0)
     } else {
@@ -1017,9 +1035,9 @@ pub(crate) fn name_taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(t) = app.visit.name_taken().front() else {
         return;
     };
-    let title = fill(EN.vault_taken_title, &[&t.name, app.medium.on_the()]);
-    let overwrite = fill(EN.vault_taken_overwrite, &[&t.on_stick]);
-    let beside = fill(EN.vault_taken_beside, &[&t.beside]);
+    let title = Text::fill(EN.vault_taken_title, &[&t.name, app.medium.on_the()]);
+    let overwrite = Text::fill(EN.vault_taken_overwrite, &[&t.on_stick]);
+    let beside = Text::fill(EN.vault_taken_beside, &[&t.beside]);
     let head = (Icon::Warning.into(), Role::Warning.paint(), title.as_str());
     crate::compact::dialog(
         ui,
@@ -1073,27 +1091,28 @@ impl Faraday {
         let sent = if flow {
             self.flow_pending_sha(&stick, &name)
         } else {
-            self.visit
-                .writing
-                .as_ref()
-                .and_then(|(_, _, s, _)| s.iter().find(|(n, _)| *n == name).map(|(_, h)| *h))
+            self.visit.writing.as_ref().and_then(|(_, _, s, _)| {
+                s.iter()
+                    .find(|(n, _)| n.as_str() == &*name)
+                    .map(|(_, h)| *h)
+            })
         };
         // What the file is is said only where the session knows both the
         // bytes sent and the file as copies, of two different vaults.
         let ours = self.vaults.vault_id_of_file(sent);
         let body = match self.vaults.summary_of_file(sha) {
-            _ if sha.is_none() => EN.vault_taken_unreadable.to_string(),
+            _ if sha.is_none() => Text::of(EN.vault_taken_unreadable),
             Some(v) if ours.is_some_and(|id| id != v.id) => {
                 let known = if v.name.is_empty() { &v.file } else { &v.name };
-                fill(EN.vault_taken_other, &[known])
+                Text::fill(EN.vault_taken_other, &[known])
             }
-            _ => EN.vault_taken_unknown.to_string(),
+            _ => Text::of(EN.vault_taken_unknown),
         };
         let beside = self.name_taken_beside(&stick, &name);
         self.visit.name_taken_push(NameTaken {
-            stick,
-            name,
-            on_stick,
+            stick: Text::of(&stick),
+            name: Text::of(&name),
+            on_stick: Text::of(&on_stick),
             sha,
             flow,
             body,
@@ -1134,25 +1153,20 @@ impl Faraday {
     }
 
     /// The free name beside what `stick` lists and what this write wrote.
-    fn name_taken_beside(&self, stick: &str, name: &str) -> String {
-        let mut names: Vec<String> = self
+    fn name_taken_beside(&self, stick: &str, name: &str) -> Text {
+        let mut names: Vec<Text> = self
             .stick
             .iter()
             .find(|s| s.id == stick)
-            .map(|s| {
-                s.files
-                    .iter()
-                    .map(|(n, _)| n.to_ascii_lowercase())
-                    .collect()
-            })
+            .map(|s| s.files.iter().map(|(n, _)| lower(n)).collect())
             .unwrap_or_default();
-        names.extend(self.visit.wrote.iter().map(|n| n.to_ascii_lowercase()));
+        names.extend(self.visit.wrote.iter().map(|n| lower(n)));
         free_name(&names, name)
     }
 
     /// The free names of the queue worked out again.
     fn name_taken_refresh(&mut self) {
-        let besides: Vec<String> = self
+        let besides: Vec<Text> = self
             .visit
             .name_taken()
             .iter()
@@ -1231,11 +1245,11 @@ impl Faraday {
             .and_then(|h| self.name_taken_sent(&c, t.flow, &t.name, h));
         match sent {
             Some((bytes, replace)) => {
-                let renamed = !t.flow && self.visit.files_menu().renamed.contains(&t.name);
+                let renamed = !t.flow && self.visit.files_menu().renamed.contains(&*t.name);
                 let copies = self.vault_copies(&c, &bytes);
                 self.out.storage_out.push_back(StorageCommand::Write {
-                    stick: t.stick,
-                    name: t.name,
+                    stick: (&*t.stick).into(),
+                    name: (&*t.name).into(),
                     bytes,
                     copies,
                     replace,
@@ -1277,18 +1291,18 @@ impl Faraday {
             .visit
             .name_taken()
             .iter()
-            .filter(|t| !self.stick.iter().any(|s| s.id == t.stick))
+            .filter(|t| !self.stick.iter().any(|s| s.id == *t.stick))
             .cloned()
             .collect();
         if gone.is_empty() {
             return;
         }
-        let ids: Vec<String> = gone.iter().map(|t| t.stick.clone()).collect();
+        let ids: Vec<Text> = gone.iter().map(|t| t.stick.clone()).collect();
         self.visit.name_taken_drop_sticks(&ids);
         for t in gone {
             // A flow's write ends with its own pulled problem.
             if !t.flow {
-                let reason = fill(EN.visit_taken_pulled, &[self.medium.noun()]);
+                let reason = Text::fill(EN.visit_taken_pulled, &[self.medium.noun()]);
                 self.visit_write_cancelled(&t.name, &reason);
             }
         }
@@ -1422,11 +1436,11 @@ impl Faraday {
 
     /// Files a flow made and put For the stick, by how many: one by its
     /// name ([`Self::toast_out`]), more as "3 files wait for the stick".
-    pub(crate) fn toast_out_files(&mut self, names: &[String]) {
+    pub(crate) fn toast_out_files(&mut self, names: &[impl AsRef<str>]) {
         match names {
             [] => {}
-            [name] => self.toast_out(name),
-            more => self.toast_waits(EN.toast_out_files_wait, &[&more.len().to_string()]),
+            [name] => self.toast_out(name.as_ref()),
+            more => self.toast_waits(EN.toast_out_files_wait, &[&Text::num(more.len() as u64)]),
         }
     }
 
@@ -1435,7 +1449,7 @@ impl Faraday {
     pub(crate) fn toast_waits(&mut self, template: &str, what: &[&str]) {
         let mut args = what.to_vec();
         args.push(self.medium.for_the());
-        let text = fill(template, &args);
+        let text = Text::fill(template, &args);
         self.toast(&text);
     }
 }

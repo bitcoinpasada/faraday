@@ -603,7 +603,8 @@ impl Faraday {
             Some(Unrenamed::SameVault) => (fill(EN.rename_same_vault, &[to, noun]), false),
             Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &why]), false),
         };
-        self.visit.log_push(line);
+        self.visit
+            .log_push((faraday_text::Text::of(&line.0), line.1));
     }
 
     /// A stick named, or its name taken away, or refused
@@ -619,7 +620,8 @@ impl Faraday {
             None => (fill(EN.stick_name_done, &[noun, &label]), true),
             Some(why) => (fill(EN.stick_name_not_done, &[&why]), false),
         };
-        self.visit.log_push(line);
+        self.visit
+            .log_push((faraday_text::Text::of(&line.0), line.1));
     }
 
     /// A file on a stick hashed, for the Details sheet that asked.

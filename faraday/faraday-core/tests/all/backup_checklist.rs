@@ -303,7 +303,7 @@ fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick()
     }
     let name = format!(
         "{}-wallet.json",
-        faraday_core::file_stem(&app.session.wallets[w].name)
+        faraday_core::file_stem(&app.session.wallets[w].name).as_str()
     );
     assert!(
         app.outbox.iter().any(|i| i.name == name),
@@ -799,6 +799,7 @@ fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made
     press_offered(&mut app, Action::BVaultSave(0));
     // Making the checklist makes no file that is under More options.
     let stem = faraday_core::file_stem(&app.session.wallets[w].name);
+    let stem = stem.as_str();
     let electrum = format!("{stem}-electrum.json");
     let core = format!("{stem}-bitcoin-core-before-29.json");
     assert!(

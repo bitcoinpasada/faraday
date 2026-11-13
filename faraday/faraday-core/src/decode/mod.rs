@@ -702,7 +702,7 @@ impl Faraday {
         let hex = finished.as_ref().map(|t| Text::of(&serialize_hex(t)));
         let out = match (&raw, &hex) {
             (None, Some(h)) => (
-                text!("{}-final.txn", crate::result_stem(&name)),
+                text!("{}-final.txn", crate::result_stem(&name).as_str()),
                 Zeroizing::new(h.as_bytes().to_vec()),
             ),
             _ => (Text::of(&name), bytes),

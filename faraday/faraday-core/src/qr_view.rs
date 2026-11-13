@@ -820,7 +820,7 @@ impl Faraday {
         let text = faraday_intake::specter_diy::command(&w.name, w.policy())
             .ok_or(EN.code_view_this_wallet_has)?;
         let title = Text::fill(EN.code_view_specter_diy, &[&text!("{}", w.name)]);
-        let name = text!("{}-specter-diy.png", crate::file_stem(&w.name));
+        let name = text!("{}-specter-diy.png", crate::file_stem(&w.name).as_str());
         let mut lines = texts(&self.wallet_label(w));
         lines.push(Text::of(EN.code_view_public_watch));
         let mut view = QrView::of(
@@ -1078,6 +1078,7 @@ impl Faraday {
             Code::Descriptor(i) => {
                 let w = wallet(i)?;
                 let stem = file_stem(&w.name);
+                let stem = stem.as_str();
                 let mut lines = self.silent_marks(c, i, texts(&self.wallet_label(w)))?;
                 let text = w.policy().to_descriptor_checksummed();
                 if let Some((_, sum)) = text.rsplit_once('#') {
@@ -1371,7 +1372,7 @@ impl Faraday {
         }
         lines.push(Text::of(EN.code_view_public_watch));
         let title = Text::fill(EN.code_view_sheet, &[&name]);
-        let png = text!("{}-descriptor.png", crate::file_stem(&name));
+        let png = text!("{}-descriptor.png", crate::file_stem(&name).as_str());
         let mut view = QrView::text(c, &title, &text)?.public(&png, lines);
         view.whole = Some(Text::of(&text));
         Ok(view)

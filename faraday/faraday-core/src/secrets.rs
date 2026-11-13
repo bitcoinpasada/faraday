@@ -295,7 +295,8 @@ impl Faraday {
         }
         let fp = key.fingerprint;
         let fps = Text::of(&crate::wallet::fp_text(fp));
-        let stem = text!("{}-{}", crate::file_stem(&wallet.name), fps.to_lowercase());
+        let name = crate::file_stem(&wallet.name);
+        let stem = text!("{}-{}", name.as_str(), fps.to_lowercase());
         // The words, one line, as Add a key and other signers read them.
         // Sized first so that no copy is left behind by a reallocation.
         let words = self.session.keys.reveal(
@@ -663,7 +664,7 @@ impl Faraday {
         // From the Inbox to another stick: ticked on the visit, written
         // from the Inbox when the person presses Write.
         if out.to_visit {
-            self.visit.inbox_pick(out.name.as_str().into());
+            self.visit.inbox_pick(&out.name);
             return;
         }
         let name = out.name.clone();

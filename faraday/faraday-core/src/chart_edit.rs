@@ -902,7 +902,7 @@ impl Faraday {
         let Ok(pdf) = faraday_paper::pdf::sheet(&c, &text) else {
             return;
         };
-        let name = text!("{}-envelopes.pdf", crate::file_stem(&g.name));
+        let name = text!("{}-envelopes.pdf", crate::file_stem(&g.name).as_str());
         self.put_outbox(&name, pdf);
         self.toast_out(&name);
     }

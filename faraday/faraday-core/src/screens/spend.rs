@@ -1600,7 +1600,10 @@ pub(crate) fn step_body(
                             .as_deref()
                             .map(Text::of)
                             .unwrap_or_else(|| {
-                                text!("{}-signed.psbt", crate::result_stem(&s.spend.source))
+                                text!(
+                                    "{}-signed.psbt",
+                                    crate::result_stem(&s.spend.source).as_str()
+                                )
                             })
                     } else {
                         let Some(tx) = s.spend.finished.as_ref() else {

@@ -1999,6 +1999,7 @@ impl Faraday {
             return;
         };
         let stem = crate::stem(&it.name);
+        let stem = stem.as_str();
         let text = wiped_text(&it.bytes);
         let (record, said, category) = match it.kind {
             FileKind::Text => {
@@ -4009,7 +4010,7 @@ impl Faraday {
                 );
             }
             (names, false) => {
-                let names: Vec<_> = names.iter().map(|n| n.as_str().into()).collect();
+                let names: Vec<&str> = names.iter().map(|n| n.as_str()).collect();
                 self.toast_out_files(&names)
             }
         }

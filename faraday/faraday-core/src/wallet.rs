@@ -3755,13 +3755,13 @@ impl Faraday {
                         return self.toast(EN.spend_v2_not_written);
                     };
                     let name = self.put_outbox_beside(&name, bytes);
-                    self.wallets.set_signed_name(name);
+                    self.wallets.set_signed_name(String::from(&*name));
                 }
             }
             Action::TxToOutbox => {
                 if let Some((name, bytes)) = self.wallets.take_tx_file() {
                     let name = self.put_outbox_beside(&name, bytes);
-                    self.wallets.set_tx_name(name);
+                    self.wallets.set_tx_name(String::from(&*name));
                 }
             }
             Action::Primary => self.primary(),

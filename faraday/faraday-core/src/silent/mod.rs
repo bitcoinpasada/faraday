@@ -996,7 +996,7 @@ impl Faraday {
         ) else {
             return;
         };
-        let name = text!("{}-sp-descriptor.txt", crate::file_stem(&w.name));
+        let name = text!("{}-sp-descriptor.txt", crate::file_stem(&w.name).as_str());
         self.offer_secret(crate::secrets::SecretOut::new(
             name,
             Zeroizing::new(text!("{}\n", d.as_str()).as_bytes().to_vec()),

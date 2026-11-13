@@ -227,6 +227,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let share = |j: usize| texts[j].clone();
     let made = app.session.wallets[w].policy().to_descriptor_checksummed();
     let stem = faraday_core::file_stem(&app.session.wallets[w].name);
+    let stem = stem.as_str();
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert!(!app.backup_item_done_now(&c, Item::Vault(0)));

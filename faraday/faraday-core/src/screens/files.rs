@@ -1,7 +1,7 @@
 //! `Screen::Files`: Inbox and Outbox.
 
 use super::parts::{guide_text, kind_line, pull_line};
-use super::spend::{fp_label, joined};
+use super::spend::fp_label;
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Region;
@@ -104,7 +104,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let line = Text::fill(
                 EN.inbox_panel_of_here,
                 &[
-                    &text!("{}", fw.shape),
+                    &fw.shape,
                     &text!("{}", fw.seeds_here),
                     &text!("{}", n),
                     (if n == 1 {
@@ -228,12 +228,8 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Role::OnSurface,
                 &fp_label(s.fingerprint),
             );
-            let from: Vec<Text> = s
-                .sources
-                .iter()
-                .map(|src| Text::of(&src.name(app)))
-                .collect();
-            let line = ui.fit_as(BODY_S, &joined(&from, " · "), w - 420.0);
+            let from: Vec<faraday_text::Text> = s.sources.iter().map(|src| src.name(app)).collect();
+            let line = ui.fit_as(BODY_S, &from.join(" · "), w - 420.0);
             ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
             let label = EN.inbox_panel_make_wallet;
             let bw = ui.measure_as(LABEL_L, label) + 28.0;
@@ -291,7 +287,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui.text_mid_as((x + 46.0, ty, 38.0), BODY_M.mono(), Role::OnSurface, &fp);
             let line = text!(
                 "{} · {}",
-                xp.path.clone().unwrap_or_default(),
+                xp.path.as_deref().unwrap_or_default(),
                 xp.files
                     .first()
                     .and_then(|k| app.inbox.get(*k))
@@ -1299,7 +1295,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 let line = Text::fill(
                     EN.inbox_of_here,
                     &[
-                        &text!("{}", fw.shape),
+                        &fw.shape,
                         &text!("{}", fw.seeds_here),
                         &text!("{}", n),
                         (if n == 1 { EN.inbox_key } else { EN.inbox_keys }),
@@ -1381,12 +1377,9 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     &fp_label(s.fingerprint),
                 );
                 ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
-                let from: Vec<Text> = s
-                    .sources
-                    .iter()
-                    .map(|src| Text::of(&src.name(app)))
-                    .collect();
-                let line = ui.fit_as(BODY_S, &joined(&from, " · "), iw - 26.0);
+                let from: Vec<faraday_text::Text> =
+                    s.sources.iter().map(|src| src.name(app)).collect();
+                let line = ui.fit_as(BODY_S, &from.join(" · "), iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += ui.advance_as(BODY_S, 22.0);
                 let style = if may {
@@ -1439,7 +1432,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 let line = text!(
                     "{} · {}",
-                    xp.path.clone().unwrap_or_default(),
+                    xp.path.as_deref().unwrap_or_default(),
                     xp.files
                         .first()
                         .and_then(|k| app.inbox.get(*k))

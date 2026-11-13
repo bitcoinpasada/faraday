@@ -692,6 +692,9 @@ impl Faraday {
             png.as_ref().map(|(n, b)| (n.as_str(), b.clone())),
             (&made.file_name, made.bytes.to_vec()),
         );
-        kef_make::Saved { png, file }
+        kef_make::Saved {
+            png: png.map(|t| String::from(&*t)),
+            file: String::from(&*file),
+        }
     }
 }

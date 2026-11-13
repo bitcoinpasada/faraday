@@ -179,15 +179,18 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
         ),
         Item::Sheets => (
             EN.item_title_the_wallet.to_string(),
-            app.wallet_item_written(&[format!("{}-backup.pdf", crate::file_stem(&wallet.name))])
-                .unwrap_or_else(|| {
-                    if done {
-                        app.medium.for_box()
-                    } else {
-                        EN.item_title_print_pdf
-                    }
-                    .to_string()
-                }),
+            app.wallet_item_written(&[format!(
+                "{}-backup.pdf",
+                crate::file_stem(&wallet.name).as_str()
+            )])
+            .unwrap_or_else(|| {
+                if done {
+                    app.medium.for_box()
+                } else {
+                    EN.item_title_print_pdf
+                }
+                .to_string()
+            }),
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
@@ -1144,6 +1147,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         bstep::SHEETS if !(b.answers.split && crate::wallet_backup::splits(wallet)) => {
             let stem = crate::file_stem(&wallet.name);
+            let stem = stem.as_str();
             let file = format!("{stem}-backup.pdf");
             let (state, button) = made_state(
                 app,
@@ -1172,6 +1176,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // Each share's sheet, text and picture, made For the stick
             // with the checklist; Remove takes them all.
             let stem = crate::file_stem(&wallet.name);
+            let stem = stem.as_str();
             let file = format!("{stem}-share-1-of-{}.pdf", Session::quorum(wallet).1);
             let (state, button) = made_state(
                 app,
@@ -1927,10 +1932,11 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let stem = crate::file_stem(&wallet.name);
+    let stem = stem.as_str();
     let mut cy = y + 4.0;
     for k in app.backup_keys(b.wallet) {
         let key = &app.session.keys[k];
-        let made = app.seed_file_made(&stem, key);
+        let made = app.seed_file_made(stem, key);
         ui.dot(
             x + 4.0,
             cy + 9.0,
@@ -2170,6 +2176,7 @@ fn public_files(
         return (Vec::new(), Vec::new());
     };
     let stem = crate::file_stem(&wl.name);
+    let stem = stem.as_str();
     let codes = |show: Action, png: Action| vec![(EN.public_files_show_as, show), ("PNG", png)];
     let mut rows: Vec<FileRow<String>> = vec![
         (

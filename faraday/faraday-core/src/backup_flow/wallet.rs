@@ -416,6 +416,7 @@ impl Faraday {
             return (Vec::new(), Vec::new());
         };
         let stem = file_stem(&wl.name);
+        let stem = stem.as_str();
         let in_outbox = |n: &str| self.outbox.iter().any(|i| i.name == n);
         let mut public: Vec<String> = self.backup_public_names_for_now(c, w, &b.answers);
         let split = b.answers.split && crate::wallet_backup::splits(wl);
@@ -446,7 +447,7 @@ impl Faraday {
         let seed_files: Vec<String> = self
             .outbox
             .iter()
-            .filter(|i| i.secret && seed_file_of(&stem, &fps, &i.name))
+            .filter(|i| i.secret && seed_file_of(stem, &fps, &i.name))
             .map(|i| i.name.clone())
             .collect();
         (public, seed_files)
@@ -518,6 +519,7 @@ impl Faraday {
             return Vec::new();
         };
         let stem = file_stem(&wl.name);
+        let stem = stem.as_str();
         match what {
             P::SeedFile(i) | P::SeedQrFile(i) | P::PassphraseFile(i) => shape
                 .seeds
@@ -544,7 +546,7 @@ impl Faraday {
                     .map(|text| crate::picture_names(&head, "-part-", &text))
                     .unwrap_or_default()
             }
-            P::SoftwareFile => software_files(&stem, &Self::backup_public_for(wl, a)),
+            P::SoftwareFile => software_files(stem, &Self::backup_public_for(wl, a)),
             P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
                 crate::codex32_backup::stick_names(shape, a, what)
                     .iter()
@@ -2490,13 +2492,14 @@ impl Faraday {
     pub fn wallet_seeds_written(&self) -> Option<String> {
         let b = self.backup.state()?;
         let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
+        let stem = stem.as_str();
         let fps: Vec<String> = self
             .backup_seed_list_now(b.wallet)
             .into_iter()
             .filter(|(_, k)| k.is_some())
             .map(|(n, _)| n)
             .collect();
-        self.wallet_written_where(&|n| seed_file_of(&stem, &fps, n))
+        self.wallet_written_where(&|n| seed_file_of(stem, &fps, n))
             .map(|l| fill(EN.backup_flow_written_place, &[&l]))
     }
 
@@ -2505,6 +2508,7 @@ impl Faraday {
     pub fn wallet_shares_written(&self) -> Option<String> {
         let b = self.backup.state()?;
         let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
+        let stem = stem.as_str();
         let head = format!("{stem}-share-");
         self.wallet_written_where(&|n| n.starts_with(&head))
             .map(|l| fill(EN.backup_flow_written_place, &[&l]))
