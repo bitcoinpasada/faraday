@@ -993,7 +993,7 @@ impl Faraday {
                                     *what,
                                     &fp_text(faraday_bip::keys::Fingerprint(fp)),
                                 );
-                                out.secret.extend(name);
+                                out.secret.extend(name.map(|n| String::from(&*n)));
                             }
                         }
                         // A codex32 string's file is a share of a seed: a
@@ -3549,10 +3549,10 @@ impl Faraday {
     pub(crate) fn c32_stick_file(
         &mut self,
         c: &Compute,
-        list: &[(String, Option<usize>)],
+        list: &[(faraday_text::Text, Option<usize>)],
         what: plan::What,
-        names: &[String],
-    ) -> Vec<(String, crate::backup_flow::ReadBack)> {
+        names: &[faraday_text::Text],
+    ) -> Vec<(faraday_text::Text, crate::backup_flow::ReadBack)> {
         let Some((i, j)) = plan::codex32::string_of(what) else {
             return Vec::new();
         };
@@ -3567,10 +3567,13 @@ impl Faraday {
             let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
             expect.push((
                 name.clone(),
-                crate::backup_flow::ReadBack::Codex32(fp, plan::codex32::CHARSET[j]),
+                crate::backup_flow::ReadBack::Codex32(
+                    faraday_text::Text::of(&fp),
+                    plan::codex32::CHARSET[j],
+                ),
             ));
         }
-        self.outbox.retain(|it| it.name != *name);
+        self.outbox.retain(|it| it.name != **name);
         let item = crate::Item::new(c, name, bytes.to_vec());
         self.outbox_secret(crate::secrets::OutReason::StickBackup, item);
         expect

@@ -743,7 +743,8 @@ impl Faraday {
             .is_some_and(|b| !b.before.iter().any(|(s, _)| *s == salt))
         {
             let held = self.vault_tokens(&c, cur);
-            self.backup.note_before(salt, held);
+            self.backup
+                .note_before(salt, held.iter().map(|t| String::from(&**t)).collect());
         }
         let Some(b) = self.backup.state() else {
             return;

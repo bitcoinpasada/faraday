@@ -3,20 +3,23 @@
 /// The name seed form `what` of the seed with fingerprint `fp` is written
 /// as on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6): `seed-{fp}.txt`,
 /// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
-pub(crate) fn seed_stick_name(what: crate::plan::What, fp: &str) -> Option<String> {
-    let fp = fp.to_lowercase();
+pub(crate) fn seed_stick_name(what: crate::plan::What, fp: &str) -> Option<faraday_text::Text> {
+    let fp: faraday_text::Text = fp.chars().flat_map(char::to_lowercase).collect();
     match what {
-        crate::plan::What::SeedFile(_) => Some(format!("seed-{fp}.txt")),
-        crate::plan::What::SeedQrFile(_) => Some(format!("seedqr-{fp}.png")),
-        crate::plan::What::PassphraseFile(_) => Some(format!("passphrase-{fp}.txt")),
+        crate::plan::What::SeedFile(_) => Some(faraday_text::text!("seed-{}.txt", &*fp)),
+        crate::plan::What::SeedQrFile(_) => Some(faraday_text::text!("seedqr-{}.png", &*fp)),
+        crate::plan::What::PassphraseFile(_) => {
+            Some(faraday_text::text!("passphrase-{}.txt", &*fp))
+        }
         _ => None,
     }
 }
 
 /// Whether `name` is a file on a stick of one of the seeds `fps`, in any
 /// form ([`seed_stick_name`]).
-pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
+pub(crate) fn seed_stick_file_of(fps: &[impl AsRef<str>], name: &str) -> bool {
     fps.iter().any(|fp| {
+        let fp = fp.as_ref();
         [
             crate::plan::What::SeedFile(0),
             crate::plan::What::SeedQrFile(0),

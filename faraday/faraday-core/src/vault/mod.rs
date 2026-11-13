@@ -3882,7 +3882,7 @@ impl Faraday {
                     files.push(out::SaveFile {
                         label: Text::of(label),
                         what,
-                        names: vec![Text::of(&name)],
+                        names: vec![name],
                         made: Vec::new(),
                         ticked: true,
                     });
@@ -4123,7 +4123,7 @@ impl Faraday {
         // What the record is, for a wallet flow that keeps what a vault held
         // before it: worked out while it is still in `from`.
         let c = self.compute();
-        let mut tokens = self
+        let mut tokens: Vec<faraday_text::Text> = self
             .vaults
             .records(from)
             .get(at)
@@ -4171,7 +4171,6 @@ impl Faraday {
             .into_iter()
             .find(|k| r.kind() == k.record_kind())
             .and_then(|k| crate::backup_flow::subject_of(k, r))
-            .map(|s| Text::of(&s))
         })
     }
 

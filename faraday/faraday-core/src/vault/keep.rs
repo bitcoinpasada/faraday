@@ -76,7 +76,7 @@ pub struct Ask {
     /// The seed's fingerprint.
     pub fp: [u8; 4],
     /// Its label.
-    pub label: String,
+    pub label: faraday_text::Text,
     /// The fields it has: codex32 set and BIP-85 origin, by number.
     pub fields: Vec<u8>,
 }
@@ -170,7 +170,7 @@ pub(crate) fn asks_for(app: &Faraday, keys: &[usize]) -> Vec<Ask> {
             let fields = fields_of(app, k);
             (!fields.is_empty()).then(|| Ask {
                 fp: info.fingerprint.0,
-                label: info.label.to_string(),
+                label: faraday_text::Text::of(&info.label),
                 fields,
             })
         })

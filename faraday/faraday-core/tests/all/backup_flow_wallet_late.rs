@@ -1547,7 +1547,7 @@ fn shares_files_follow_the_plan_after_the_lock() {
             .slots
             .iter()
             .find(|s| s.target == Target::PlaceFiles(at))
-            .map(|s| s.files.clone())
+            .map(|s| s.files.iter().map(|t| String::from(&**t)).collect())
             .unwrap_or_default()
     };
     let before = files_at(&app, p);
@@ -1777,7 +1777,7 @@ fn a_stick_of_files_keeps_its_list_after_a_vault_edit() {
             .slots
             .iter()
             .find(|s| s.target == Target::PlaceFiles(1))
-            .map(|s| s.files.clone())
+            .map(|s| s.files.iter().map(|t| String::from(&**t)).collect())
             .unwrap()
     };
     let before = files(&app);

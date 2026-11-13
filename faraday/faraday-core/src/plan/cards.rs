@@ -82,7 +82,7 @@ impl PlanCtx {
                 if backup_names {
                     app.place_name(p)
                 } else {
-                    crate::backup_flow::BackupFlow::place_name(p)
+                    String::from(&*crate::backup_flow::BackupFlow::place_name(p))
                 }
             })
             .collect();

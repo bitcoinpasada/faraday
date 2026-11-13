@@ -44,7 +44,11 @@ pub(crate) type SeedList = Vec<(String, Option<usize>)>;
 /// A stick the wallet being backed up is written to: its place, the files
 /// it will hold, and the stick's label once written
 /// ([`crate::Faraday::wallet_stick_rows_now`]).
-pub type StickRow = (String, Vec<String>, Option<String>);
+pub type StickRow = (
+    faraday_text::Text,
+    Vec<faraday_text::Text>,
+    Option<faraday_text::Text>,
+);
 
 /// The answers kept for one frame.
 #[derive(Default)]

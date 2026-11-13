@@ -108,7 +108,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                     crate::strings::EN.backup_flow_home_lead,
                     &[&f.subject
                         .as_ref()
-                        .map_or_else(|| f.kind.name().to_string(), |s| s.name.clone())],
+                        .map_or_else(|| f.kind.name().to_string(), |s| String::from(&*s.name))],
                 ),
                 String::new(),
                 Action::Flow(crate::backup_flow::steps::FlowAction::Show(i)),

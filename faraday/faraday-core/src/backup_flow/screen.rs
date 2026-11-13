@@ -208,7 +208,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
             )
         }
         Step::Make => match &f.subject {
-            Some(s) => s.name.clone(),
+            Some(s) => String::from(&*s.name),
             None => FEN.backup_flow_not_made.to_string(),
         },
         Step::Lock => {
@@ -306,7 +306,10 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         let keeps = if vs.is_empty() {
             String::new()
         } else {
-            let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
+            let names: Vec<String> = vs
+                .iter()
+                .map(|&v| String::from(&*BackupFlow::vault_name(v)))
+                .collect();
             format!(
                 "{} {}",
                 fill(FEN.backup_flow_place_keeps, &[app.medium.noun()]),
@@ -329,7 +332,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             for v in 0..f.plan.vaults.len() {
                 let on = vs.contains(&v);
                 items.push((
-                    BackupFlow::vault_name(v),
+                    String::from(&*BackupFlow::vault_name(v)),
                     Style::chosen(on),
                     fa(F::PlaceVault(p, v)),
                 ));
@@ -407,7 +410,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             .plan
             .places_of(v)
             .iter()
-            .map(|&p| BackupFlow::place_name(p))
+            .map(|&p| String::from(&*BackupFlow::place_name(p)))
             .collect();
         ui.text_as(x, cy, LABEL_L, Role::OnSurface, &line);
         ui.text_as(
@@ -833,13 +836,13 @@ fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, s
     let mut cy = y;
     for v in f.vaults_of(slot) {
         if let Some(s) = f.sealed_of(v) {
-            let line = format!("{} · {}", s.name, vault::file_text(s.len).as_str());
+            let line = format!("{} · {}", &*s.name, vault::file_text(s.len).as_str());
             cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     for n in &f.slots[slot].files {
-        if let Some(it) = app.outbox.iter().find(|i| &i.name == n) {
-            let line = format!("{} · {}", n, vault::file_text(it.bytes.len()).as_str());
+        if let Some(it) = app.outbox.iter().find(|i| i.name.as_str() == n.as_str()) {
+            let line = format!("{} · {}", &**n, vault::file_text(it.bytes.len()).as_str());
             cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
@@ -919,7 +922,7 @@ fn bind_card(
                 .unwrap_or_default();
             let line = format!(
                 "{} · {}{}",
-                vr.name,
+                &*vr.name,
                 vault::file_text(vr.len).as_str(),
                 if seen.is_empty() {
                     String::new()
@@ -1029,7 +1032,7 @@ fn beside_block(app: &View, f: &BackupFlow, ui: &mut Ui, (x, y, w): (f32, f32, f
         ) + 8.0;
         for k in files {
             let vr = &r.files[k].0;
-            let line = format!("{} · {}", vr.name, vault::file_text(vr.len).as_str());
+            let line = format!("{} · {}", &*vr.name, vault::file_text(vr.len).as_str());
             let t = ui.fit_as(BODY_S.mono(), &line, w);
             ui.text_as(x, cy, BODY_S.mono(), Role::OnSurface, &t);
             cy += ui.advance_as(BODY_S.mono(), 24.0);
@@ -1084,7 +1087,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 cy + 2.0,
                 BODY_M,
                 Role::OnSurface,
-                &format!("{name} · {}", FEN.backup_flow_unlocked),
+                &format!("{} · {}", &*name, FEN.backup_flow_unlocked),
             );
             cy += ui.advance_as(BODY_M, 30.0);
             continue;
@@ -1503,9 +1506,9 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         let Some(wr) = &s.written else {
             continue;
         };
-        let name = app.flow_slot_row(k).unwrap_or_else(|| {
-            faraday_text::Text::of(&f.target_short(&s.target, app.medium.noun()))
-        });
+        let name = app
+            .flow_slot_row(k)
+            .unwrap_or_else(|| f.target_short(&s.target, app.medium.noun()));
         let at = read_time(app, wr.time);
         // What was written to it, the public files with the copies.
         let files: Vec<&str> = wr.files.iter().map(|(n, _)| n.as_str()).collect();

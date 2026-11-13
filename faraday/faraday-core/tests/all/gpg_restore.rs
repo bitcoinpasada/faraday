@@ -467,7 +467,7 @@ fn restore_at_make(app: &mut Faraday, from: RestoreFrom) {
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(String::from(name.as_str()));
+    plan.vaults[0].file = Some(faraday_text::Text::of(&name));
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::restoring(&c, from);
     f.plan = plan;

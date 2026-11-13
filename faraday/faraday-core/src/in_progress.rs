@@ -743,7 +743,7 @@ impl Faraday {
                 } else {
                     Screen::Catalog
                 };
-                (tab, f.title(), step)
+                (tab, String::from(&*f.title()), step)
             }
         };
         Some(Row {

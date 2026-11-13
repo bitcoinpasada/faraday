@@ -2010,8 +2010,8 @@ pub(crate) fn names_of(g: &Glance) -> impl Fn(usize) -> Text + '_ {
             .iter()
             .find(|n| n.at == At::Place(p))
             .map(|n| n.name.clone())
-            .unwrap_or_else(|| Text::of(&crate::backup_flow::BackupFlow::place_name(p))),
-        _ => Text::of(&crate::backup_flow::BackupFlow::place_name(p)),
+            .unwrap_or_else(|| crate::backup_flow::BackupFlow::place_name(p)),
+        _ => crate::backup_flow::BackupFlow::place_name(p),
     }
 }
 

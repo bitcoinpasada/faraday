@@ -1306,7 +1306,7 @@ mod tests {
         );
         let mut wf = crate::backup_flow::WalletFlow::blank();
         wf.answers.omit = 1;
-        wf.name = "Test".into();
+        wf.name = faraday_text::Text::of("Test");
         let savings = crate::testkit::savings();
         for (d, splits) in [(&*twice, false), (&*savings, true)] {
             let i = app

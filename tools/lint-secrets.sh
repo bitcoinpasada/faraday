@@ -572,7 +572,9 @@ faraday/faraday-core/src/codex32_backup/mod.rs
 faraday/faraday-core/src/glance/mod.rs
 faraday/faraday-core/src/glance/sheet.rs
 faraday/faraday-core/src/inbox.rs
-faraday/faraday-core/src/visit_taken.rs"
+faraday/faraday-core/src/visit_taken.rs
+faraday/faraday-core/src/backup_flow/mod.rs
+faraday/faraday-core/src/backup_flow/wallet.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

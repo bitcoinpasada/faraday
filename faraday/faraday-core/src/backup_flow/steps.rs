@@ -4,6 +4,7 @@
 //! The state is `backup_flow.rs`; the cards are `backup_flow/screen.rs`.
 
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use faraday_vault::{self as fv, records::kind};
 
 use crate::backup_flow::{
@@ -427,7 +428,7 @@ impl Faraday {
         } else if f.plan.public_at > p {
             f.plan.public_at -= 1;
         }
-        let mut orphaned: Vec<String> = Vec::new();
+        let mut orphaned: Vec<Text> = Vec::new();
         f.slots.retain(|s| {
             let gone = s.target.place() == Some(p) || s.target.files_place() == Some(p);
             if gone {
@@ -757,7 +758,12 @@ impl Faraday {
             return;
         };
         let st = self.stick[k].clone();
-        if self.flows[i].live.ignored.contains(&st.id) {
+        if self.flows[i]
+            .live
+            .ignored
+            .iter()
+            .any(|x| x.as_str() == st.id.as_str())
+        {
             return;
         }
         let Some(slot) = self.flow_slot_wanted(i) else {
@@ -805,26 +811,26 @@ impl Faraday {
         // Which vault files fit is by what is free now.
         self.vaults.read_free();
         let mut short = None;
-        let mut kdbx: Vec<String> = Vec::new();
+        let mut kdbx: Vec<Text> = Vec::new();
         for (n, size) in &st.files {
             if !n.to_ascii_lowercase().ends_with(".kdbx") {
                 continue;
             }
             match self.vaults.read_refusal(true, *size) {
-                None => kdbx.push(n.clone()),
-                Some(why) => short = short.or(Some(String::from(why.as_str()))),
+                None => kdbx.push(Text::of(n)),
+                Some(why) => short = short.or(Some(Text::of(&why))),
             }
         }
         // A file that does not fit is left unread, and the stick is refused
         // for it only if the plan needs a vault it might be.
         let mut r = Reading {
-            id: st.id.clone(),
+            id: Text::of(&st.id),
             slot,
             purpose,
-            label: st.label.clone(),
+            label: Text::of(&st.label),
             make: st.make.clone(),
             serial: st.serial,
-            listing: st.files.clone(),
+            listing: st.files.iter().map(|(n, s)| (Text::of(n), *s)).collect(),
             pending: kdbx.clone(),
             space_pending: false,
             free: None,
@@ -865,7 +871,7 @@ impl Faraday {
             for name in kdbx {
                 self.out.storage_out.push_back(StorageCommand::Read {
                     stick: st.id.clone(),
-                    name,
+                    name: String::from(&*name),
                 });
             }
         }
@@ -897,7 +903,7 @@ impl Faraday {
         {
             r.files.push((
                 VaultRead {
-                    name: name.to_string(),
+                    name: Text::of(name),
                     len: bytes.len(),
                     sha,
                 },
@@ -1088,7 +1094,7 @@ impl Faraday {
                     // unlock (§4.2).
                     let label = self.flow_files_copy_label(&c, &salt);
                     if let Some(r) = self.flows.all[i].live.reading.as_mut() {
-                        r.differs = Some((v, name.clone(), label));
+                        r.differs = Some((v, Text::of(name), Text::of(&label)));
                     }
                     return;
                 }
@@ -1233,7 +1239,7 @@ impl Faraday {
                 self.inbox
                     .iter()
                     .chain(self.outbox.iter())
-                    .find(|it| &it.name == n)
+                    .find(|it| it.name.as_str() == n.as_str())
                     .is_some_and(|it| it.sha == Some(vr.sha))
             })
     }
@@ -1372,7 +1378,7 @@ impl Faraday {
             let label = self.flow_files_copy_label(&c, &s);
             if let Some(r) = self.flows.all[i].live.reading.as_mut() {
                 r.picks.retain(|(x, _)| *x != v);
-                r.differs = Some((v, name, label));
+                r.differs = Some((v, Text::of(&name), Text::of(&label)));
             }
             return;
         }
@@ -1426,12 +1432,13 @@ impl Faraday {
                 }) || self.flows[i].plan.vaults[v].file.as_deref()
                     == Some(prev.as_str());
                 if !shared {
-                    self.inbox
-                        .retain(|it| !(it.kind == FileKind::Vault && it.name == prev));
+                    self.inbox.retain(|it| {
+                        !(it.kind == FileKind::Vault && it.name.as_str() == prev.as_str())
+                    });
                 }
             }
             let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
-            self.flows.all[i].plan.vaults[v].trying = Some(own);
+            self.flows.all[i].plan.vaults[v].trying = Some(Text::of(&own));
             let live = &mut self.flows.all[i].live;
             live.tried_from.retain(|(tv, _, _)| *tv != v);
             live.tried_from.push((v, slot, vr.name.clone()));
@@ -1454,7 +1461,7 @@ impl Faraday {
             }
             let id = self.vaults.vault_id_of_file(Some(vr.sha));
             let vp = &mut self.flows.all[i].plan.vaults[v];
-            vp.file = Some(own);
+            vp.file = Some(Text::of(&own));
             vp.from = Some((place, vr.name.clone()));
             vp.len = vr.len;
             vp.salt = id;
@@ -1531,7 +1538,7 @@ impl Faraday {
                 .outbox
                 .iter()
                 .chain(self.inbox.iter())
-                .find(|it| &it.name == name)
+                .find(|it| it.name.as_str() == name.as_str())
             {
                 need += it.bytes.len() as u64;
             }
@@ -1621,7 +1628,7 @@ impl Faraday {
                 let item_name = self.flow_take_copy(i, *v, name, bytes.clone(), &r.label);
                 let vp = &mut self.flows.all[i].plan.vaults[*v];
                 vp.existing = true;
-                vp.file = Some(item_name);
+                vp.file = Some(Text::of(&item_name));
                 // Known now when the session has seen these bytes; else
                 // the unlock proves it.
                 vp.salt = self.vaults.vault_id_of_file(Some(vr.sha));
@@ -1692,8 +1699,9 @@ impl Faraday {
                 .enumerate()
                 .any(|(x, o)| x != v && o.file.as_deref() == Some(prev.as_str()));
             if !shared {
-                self.inbox
-                    .retain(|it| !(it.kind == FileKind::Vault && it.name == prev));
+                self.inbox.retain(|it| {
+                    !(it.kind == FileKind::Vault && it.name.as_str() == prev.as_str())
+                });
             }
         }
         // A different vault already under that name keeps its name: one
@@ -1754,12 +1762,14 @@ impl Faraday {
     pub(crate) fn flow_sticks_changed(&mut self) {
         let ids: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         for f in &mut self.flows.all {
-            f.live.ignored.retain(|id| ids.contains(id));
+            f.live
+                .ignored
+                .retain(|id| ids.iter().any(|x| x.as_str() == id.as_str()));
             let gone = f
                 .live
                 .reading
                 .as_ref()
-                .is_some_and(|r| !ids.contains(&r.id));
+                .is_some_and(|r| !ids.iter().any(|x| x.as_str() == r.id.as_str()));
             if gone {
                 let writing = f.live.writing.take();
                 if let Some(r) = f.live.reading.take()
@@ -1812,7 +1822,7 @@ impl Faraday {
                 self.inbox
                     .iter()
                     .chain(self.outbox.iter())
-                    .find(|it| &it.name == n)
+                    .find(|it| it.name.as_str() == n.as_str())
             })
             .and_then(|it| it.sha);
         let files = self.vault_files();
@@ -1926,7 +1936,7 @@ impl Faraday {
         {
             let vp = &mut self.flows.all[i].plan.vaults[v];
             vp.existing = false;
-            vp.file = Some(name.to_string());
+            vp.file = Some(Text::of(name));
             vp.salt = Some(id);
             vp.len = len;
         }
@@ -2002,7 +2012,7 @@ impl Faraday {
                 .inbox
                 .iter()
                 .chain(self.outbox.iter())
-                .find(|it| &it.name == name)
+                .find(|it| it.name.as_str() == name.as_str())
                 .and_then(|it| it.sha)
             else {
                 continue;
@@ -2028,7 +2038,7 @@ impl Faraday {
                 _ => {
                     if opened
                         && let Some(o) = self.vaults.open.iter().rposition(|o| {
-                            o.vault_id() == id && o.name.as_str() == name.as_str() && o.changes == 0
+                            o.vault_id() == id && o.name == name.as_str() && o.changes == 0
                         })
                     {
                         self.vaults.close_at(o);
@@ -2237,17 +2247,17 @@ impl Faraday {
             && let Some(k) = f.public_slot()
         {
             for n in &public {
-                if !f.slots[k].files.contains(n) {
-                    f.slots[k].files.push(n.clone());
+                if !f.slots[k].files.iter().any(|x| x.as_str() == n.as_str()) {
+                    f.slots[k].files.push(Text::of(n));
                 }
             }
         }
-        f.public = public;
+        f.public = public.iter().map(|n| Text::of(n)).collect();
         f.made = true;
         f.made_in = targets;
         f.subject = Some(Subject {
             id: hex_text(&built.subject),
-            name: built.name,
+            name: Text::of(&built.name),
         });
         self.vaults.close_form();
         // The result's Show as QR and PNG point at the key just made.
@@ -2499,11 +2509,11 @@ impl Faraday {
                 }
                 if f.plan.vaults[v].salt == Some(salt) && f.made_in.contains(&v) {
                     f.plan.vaults[v].len = bytes.len();
-                    f.plan.vaults[v].file = Some(name.to_string());
+                    f.plan.vaults[v].file = Some(Text::of(name));
                     if !f.sealing.iter().any(|s| s.vault == v && s.sha == sha) {
                         f.sealing.push(Sealed {
                             vault: v,
-                            name: name.to_string(),
+                            name: Text::of(name),
                             len: bytes.len(),
                             sha,
                         });
@@ -2583,13 +2593,13 @@ impl Faraday {
             .collect();
         want.sort_by(|a, b| a.name.cmp(&b.name));
         got.sort_by(|a, b| a.name.cmp(&b.name));
-        let mut l1: Vec<(String, u64)> = b
+        let mut l1: Vec<(Text, u64)> = b
             .listing
             .iter()
             .filter(|(n, _)| !skip(n))
             .cloned()
             .collect();
-        let mut l2: Vec<(String, u64)> = r
+        let mut l2: Vec<(Text, u64)> = r
             .listing
             .iter()
             .filter(|(n, _)| !skip(n) && !own_files.contains(&n.as_str()) && !own_name(n))
@@ -2604,7 +2614,7 @@ impl Faraday {
         // The write landed and its answer was lost: the flow's own sealed
         // bytes are all there.
         let vs = f.vaults_of(r.slot);
-        let landed: Vec<(String, [u8; 32])> = vs
+        let landed: Vec<(Text, [u8; 32])> = vs
             .iter()
             .filter_map(|&v| f.sealed_of(v))
             .filter_map(|s| {
@@ -2682,7 +2692,11 @@ impl Faraday {
         let mut names = f.slots[slot].files.clone();
         names.extend(f.last_write_files(slot));
         for name in &names {
-            if let Some(it) = self.outbox.iter().find(|it| &it.name == name) {
+            if let Some(it) = self
+                .outbox
+                .iter()
+                .find(|it| it.name.as_str() == name.as_str())
+            {
                 need += it.bytes.len() as u64;
             }
         }
@@ -2711,10 +2725,9 @@ impl Faraday {
             // The Outbox, or Files once the flow was done: found by name and
             // SHA-256, so a copy deleted later can be written again.
             let item = f.sealed_of(v).and_then(|s| {
-                self.outbox
-                    .iter()
-                    .chain(self.inbox.iter())
-                    .find(|it| it.name == s.name && sha256_of(&c, &it.bytes) == s.sha)
+                self.outbox.iter().chain(self.inbox.iter()).find(|it| {
+                    it.name.as_str() == s.name.as_str() && sha256_of(&c, &it.bytes) == s.sha
+                })
             });
             match item {
                 Some(it) if it.exposure() != crate::secrets::Exposure::Secret => {
@@ -2729,9 +2742,9 @@ impl Faraday {
         let mut names: Vec<String> = f
             .slots
             .get(slot)
-            .map(|s| s.files.clone())
+            .map(|s| s.files.iter().map(|t| String::from(&**t)).collect())
             .unwrap_or_default();
-        names.extend(f.last_write_files(slot));
+        names.extend(f.last_write_files(slot).iter().map(|t| String::from(&**t)));
         // The seeds' files a wallet's plan keeps, let out unprotected,
         // go to the stick the plan keeps them on and to no other: the stick
         // of files, or a stick at a place, beside its vault or not
@@ -2765,16 +2778,19 @@ impl Faraday {
         if refused || sends.is_empty() {
             return self.flows.all[i].refuse(Problem::NotChecked);
         }
-        let pending: Vec<(String, [u8; 32])> = sends
+        let pending: Vec<(Text, [u8; 32])> = sends
             .iter()
-            .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
+            .map(|(n, b, _)| (Text::of(n), sha256_of(&c, b)))
             .collect();
-        let plain: Vec<String> = sends
+        let plain: Vec<Text> = sends
             .iter()
             .filter(|(_, _, vault)| !vault)
-            .map(|(n, _, _)| n.clone())
+            .map(|(n, _, _)| Text::of(n))
             .collect();
         let (vaults_open, held) = self.flow_send_first(&c, &r.id, sends, &asks);
+        let vaults_open: Vec<Text> = vaults_open.iter().map(|n| Text::of(n)).collect();
+        let held: Vec<(Text, Zeroizing<Vec<u8>>)> =
+            held.into_iter().map(|(n, b)| (Text::of(&n), b)).collect();
         let f = &mut self.flows.all[i];
         if let Some(r) = f.live.reading.as_mut() {
             r.hold = false;
@@ -2866,7 +2882,7 @@ impl Faraday {
         let stick = w.id.clone();
         let c = self.compute();
         for (name, bytes) in held {
-            self.flow_push_write(&c, &stick, name, bytes, false, false);
+            self.flow_push_write(&c, &stick, String::from(&*name), bytes, false, false);
         }
     }
 
@@ -2935,9 +2951,9 @@ impl Faraday {
             .aliases
             .iter()
             .find(|(sent, _)| sent == name)
-            .map_or_else(|| name.to_string(), |(_, m)| m.clone());
+            .map_or_else(|| Text::of(name), |(_, m)| m.clone());
         let plain = w.plain.contains(&meant);
-        let stick = w.id.clone();
+        let stick = String::from(&*w.id);
         let picture = self.flows[i]
             .wallet
             .as_ref()
@@ -2945,7 +2961,7 @@ impl Faraday {
         match answer {
             Ok(wrote_as) if picture => {
                 if let Some(w) = self.flows.all[i].live.writing.as_mut() {
-                    w.qr.push((wrote_as.clone(), meant, sha));
+                    w.qr.push((Text::of(&wrote_as), meant, sha));
                 }
                 self.out.storage_out.push_back(StorageCommand::ReadQr {
                     stick,
@@ -2954,7 +2970,7 @@ impl Faraday {
             }
             Ok(wrote_as) => {
                 if let Some(w) = self.flows.all[i].live.writing.as_mut() {
-                    w.done.push((wrote_as, sha));
+                    w.done.push((Text::of(&wrote_as), sha));
                 }
             }
             Err(_) if plain => return self.flow_write_again(i, &meant, name, false),
@@ -3038,15 +3054,15 @@ impl Faraday {
         let (Some(bytes), false) = (item, w.retried.iter().any(|n| n == meant)) else {
             self.flows.all[i].live.writing = None;
             self.name_taken_flow_ended();
-            return self.flows.all[i].refuse(Problem::NoReadBack(meant.to_string()));
+            return self.flows.all[i].refuse(Problem::NoReadBack(Text::of(meant)));
         };
-        let stick = w.id.clone();
+        let stick = String::from(&*w.id);
         let sha = sha256_of(&c, &bytes);
         if let Some(w) = self.flows.all[i].live.writing.as_mut() {
-            w.retried.push(meant.to_string());
-            w.pending.push((sent.to_string(), sha));
+            w.retried.push(Text::of(meant));
+            w.pending.push((Text::of(sent), sha));
             if sent != meant {
-                w.aliases.push((sent.to_string(), meant.to_string()));
+                w.aliases.push((Text::of(sent), Text::of(meant)));
             }
         }
         let copies = self.vault_copies(&c, &bytes);
@@ -3077,7 +3093,7 @@ impl Faraday {
             return;
         }
         self.flows.all[i].live.writing = None;
-        self.flows.all[i].refuse(Problem::NameTaken(name.to_string()));
+        self.flows.all[i].refuse(Problem::NameTaken(Text::of(name)));
     }
 
     /// Every file of the write under way is answered and read back: the
@@ -3108,14 +3124,14 @@ impl Faraday {
         &mut self,
         i: usize,
         slot: usize,
-        id: String,
-        label: String,
+        id: Text,
+        label: Text,
         serial: Option<u32>,
-        done: Vec<(String, [u8; 32])>,
+        done: Vec<(Text, [u8; 32])>,
     ) {
         let c = self.compute();
         let time = self.clock_now();
-        let done: Vec<(String, [u8; 32])> = done
+        let done: Vec<(Text, [u8; 32])> = done
             .into_iter()
             .map(|(n, h)| (n, self.hash_to_keep(&c, h)))
             .collect();
@@ -3131,13 +3147,13 @@ impl Faraday {
         });
         self.visit.set_receipt(Some(crate::Receipt {
             by_flow: true,
-            label,
-            stick: id,
+            label: String::from(&*label),
+            stick: String::from(&*id),
             time,
             files: done
                 .iter()
                 .map(|(n, h)| crate::ReceiptFile {
-                    name: n.clone(),
+                    name: String::from(&**n),
                     hash: *h,
                     verified: true,
                     failure: None,
@@ -3169,11 +3185,9 @@ impl Faraday {
             .cloned()
             .collect();
         for s in seals {
-            if let Some(k) = self
-                .outbox
-                .iter()
-                .position(|it| it.name == s.name && sha256_of(&c, &it.bytes) == s.sha)
-            {
+            if let Some(k) = self.outbox.iter().position(|it| {
+                it.name.as_str() == s.name.as_str() && sha256_of(&c, &it.bytes) == s.sha
+            }) {
                 let item = self.outbox.remove(k);
                 if let Some(id) = self.vaults.vault_id_of_file(item.sha) {
                     let vaults = &self.vaults;
@@ -3194,8 +3208,8 @@ impl Faraday {
             .slots
             .iter()
             .filter(|s| s.written.is_some())
-            .flat_map(|s| s.files.iter().cloned())
-            .chain(self.flows[i].public.iter().cloned())
+            .flat_map(|s| s.files.iter().map(|t| String::from(&**t)))
+            .chain(self.flows[i].public.iter().map(|t| String::from(&**t)))
             .collect();
         let (moved, kept): (Vec<Item>, Vec<Item>) = std::mem::take(&mut self.outbox)
             .into_iter()
@@ -3301,7 +3315,7 @@ impl Faraday {
     }
 
     /// The kind and public value of the key selected in Vault contents.
-    pub(crate) fn flow_selected_subject(&self) -> Option<(Kind, String)> {
+    pub(crate) fn flow_selected_subject(&self) -> Option<(Kind, Text)> {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
@@ -3396,13 +3410,15 @@ impl Faraday {
     pub fn flow_problem_text(&self, p: &Problem) -> String {
         let m = self.medium.noun();
         let f = self.flow();
-        let target = |t: &Target| -> String { f.map_or_else(String::new, |f| f.target_name(t, m)) };
+        let target = |t: &Target| -> String {
+            f.map_or_else(String::new, |f| String::from(&*f.target_name(t, m)))
+        };
         match p {
             Problem::Boot => fill(FEN.backup_flow_boot_part, &[m]),
             Problem::NotFat => fill(FEN.backup_flow_not_fat, &[m, m]),
             Problem::Unreadable => fill(FEN.backup_flow_unreadable, &[m, m]),
             Problem::ReadOnly => fill(FEN.backup_flow_read_only, &[m]),
-            Problem::Memory(why) => why.clone(),
+            Problem::Memory(why) => String::from(&**why),
             Problem::NoRoom(need, free) => fill(
                 FEN.backup_flow_no_room,
                 &[
@@ -3431,7 +3447,10 @@ impl Faraday {
                     }
                     _ => fill(
                         FEN.backup_flow_not_read,
-                        &[m, &f.map_or_else(String::new, |f| f.target_short(t, m))],
+                        &[
+                            m,
+                            &f.map_or_else(String::new, |f| String::from(&*f.target_short(t, m))),
+                        ],
                     ),
                 }
             }
@@ -3439,7 +3458,7 @@ impl Faraday {
             Problem::HasFilesOf(t) => {
                 let place = match t.place() {
                     Some(p) => BackupFlow::place_name(p),
-                    None => target(t),
+                    None => Text::of(&target(t)),
                 };
                 fill(FEN.backup_flow_other_files, &[m, &place])
             }

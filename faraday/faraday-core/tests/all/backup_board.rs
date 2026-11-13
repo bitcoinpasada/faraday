@@ -320,8 +320,12 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
         let f = app.flow().unwrap();
         let targets: Vec<Target> = f.slots.iter().map(|s| s.target).collect();
         assert_eq!(targets, vec![Target::Place(0), Target::PlaceFiles(1)]);
-        assert_eq!(f.slots[0].files, vec![seed_b.clone()], "beside the vault");
-        assert_eq!(f.slots[1].files, vec![seed_c.clone()]);
+        assert_eq!(
+            f.slots[0].files,
+            vec![faraday_text::Text::of(&seed_b)],
+            "beside the vault"
+        );
+        assert_eq!(f.slots[1].files, vec![faraday_text::Text::of(&seed_c)]);
     }
     // One visit: the vault and Seed B's file, both on S1.
     write_stick(&mut shell, &mut app, "S1");
@@ -707,8 +711,14 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
             targets,
             vec![Target::PlaceFiles(0), Target::Another(0, None, 1)]
         );
-        assert_eq!(f.slots[0].files, vec![seed(0)]);
-        assert_eq!(f.slots[1].files, vec![seed(1), seed(2)]);
+        assert_eq!(f.slots[0].files, vec![faraday_text::Text::of(&seed(0))]);
+        assert_eq!(
+            f.slots[1].files,
+            vec![
+                faraday_text::Text::of(&seed(1)),
+                faraday_text::Text::of(&seed(2))
+            ]
+        );
     }
     write_stick(&mut shell, &mut app, "S1");
     // Put back while the second is wanted: it is the first, written, and

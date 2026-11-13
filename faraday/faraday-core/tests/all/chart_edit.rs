@@ -2030,9 +2030,9 @@ fn checklist_past_a_lock(other: bool, unloaded: bool) -> Faraday {
     let mut f = BackupFlow::new_wallet(&testkit::compute(), shape, answers, "w");
     let wf = f.wallet.as_mut().expect("a wallet flow");
     wf.checksum = Some(if unloaded {
-        "notloaded".to_string()
+        faraday_text::Text::of("notloaded")
     } else {
-        app.session.wallets[at].checksum().to_string()
+        faraday_text::Text::of(app.session.wallets[at].checksum())
     });
     f.made = true;
     f.step = Step::Lock;

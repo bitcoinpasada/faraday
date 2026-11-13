@@ -38,10 +38,11 @@ use steps::{Built, RestorePress};
 
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
+use faraday_text::{Text, text};
 use faraday_vault::records::kind as rkind;
 
 use crate::flow;
-use crate::strings::{EN as FEN, fill};
+use crate::strings::EN as FEN;
 
 /// The fewest places a key that cannot be made again from seed words is
 /// planned at (`docs/BACKUP-FLOW.md` §1).
@@ -190,7 +191,7 @@ pub enum Pick {
     /// Written beside what the stick holds, under a free name.
     New,
     /// The copy of the vault the stick holds, which step 6 replaces.
-    Over(String),
+    Over(Text),
 }
 
 /// How the person confirmed a stick's place.
@@ -206,7 +207,7 @@ pub enum Confirm {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VaultRead {
     /// Its name on the stick.
-    pub name: String,
+    pub name: Text,
     /// Its length.
     pub len: usize,
     /// SHA-256 of its bytes.
@@ -217,14 +218,14 @@ pub struct VaultRead {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bound {
     /// Its volume label.
-    pub label: String,
+    pub label: Text,
     /// What the device reports of itself (`docs/STICK-SETUP.md` §5); not
     /// kept with the flow.
     pub make: crate::StickMake,
     /// Its FAT volume serial.
     pub serial: Option<u32>,
     /// Its files, names and sizes.
-    pub listing: Vec<(String, u64)>,
+    pub listing: Vec<(Text, u64)>,
     /// The vault files among them.
     pub vaults: Vec<VaultRead>,
     /// Its free space, bytes, when the shell said.
@@ -249,16 +250,16 @@ pub struct Bound {
 pub struct Written {
     /// The stick's id when it was written (not kept across a lock, since a
     /// stick put back is another id).
-    pub stick: String,
+    pub stick: Text,
     /// The stick's label.
-    pub label: String,
+    pub label: Text,
     /// The stick's FAT volume serial: with the label and the files, what
     /// a wipe or a delete is matched on.
     pub serial: Option<u32>,
     /// When, Unix seconds.
     pub time: Option<u64>,
     /// Each file's name as written and its SHA-256.
-    pub files: Vec<(String, [u8; 32])>,
+    pub files: Vec<(Text, [u8; 32])>,
 }
 
 /// What a stick is for.
@@ -289,15 +290,15 @@ pub enum Target {
 }
 
 impl Target {
-    pub(crate) fn code(self) -> String {
+    pub(crate) fn code(self) -> Text {
         match self {
-            Target::Place(p) => format!("p{p}"),
-            Target::PlaceVault(p, v) => format!("q{p}.{v}"),
-            Target::Files => "f".into(),
-            Target::Public => "u".into(),
-            Target::PlaceFiles(p) => format!("r{p}"),
-            Target::Another(p, Some(v), n) => format!("a{p}.{v}.{n}"),
-            Target::Another(p, None, n) => format!("a{p}.-.{n}"),
+            Target::Place(p) => text!("p{p}"),
+            Target::PlaceVault(p, v) => text!("q{p}.{v}"),
+            Target::Files => Text::of("f"),
+            Target::Public => Text::of("u"),
+            Target::PlaceFiles(p) => text!("r{p}"),
+            Target::Another(p, Some(v), n) => text!("a{p}.{v}.{n}"),
+            Target::Another(p, None, n) => text!("a{p}.-.{n}"),
         }
     }
 
@@ -375,7 +376,7 @@ pub struct Slot {
     /// What it is for.
     pub target: Target,
     /// Other files it will hold, by Outbox name: a wallet's, in B1b.
-    pub files: Vec<String>,
+    pub files: Vec<Text>,
     /// What step 2 (or step 6, for a stick named later) read.
     pub bound: Option<Bound>,
     /// Put off at Bring in the sticks: checked when written, as a stick
@@ -391,16 +392,16 @@ pub struct VaultPlan {
     /// The plan gives it as a vault that exists already, not a new one.
     pub existing: bool,
     /// Its file in Files once chosen (existing) or made (new).
-    pub file: Option<String>,
+    pub file: Option<Text>,
     /// Its salt, once it has one: set when the vault has opened.
     pub salt: Option<[u8; 32]>,
     /// Its length.
     pub len: usize,
     /// The place and the stick's file the existing vault was chosen from.
-    pub from: Option<(usize, String)>,
+    pub from: Option<(usize, Text)>,
     /// A known vault's file in Files, named by the person and not proved
     /// yet.
-    pub trying: Option<String>,
+    pub trying: Option<Text>,
 }
 
 impl VaultPlan {
@@ -672,9 +673,9 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
 pub struct Subject {
     /// The public value, hex: the GPG primary
     /// key's fingerprint, the Secure Boot owner GUID.
-    pub id: String,
+    pub id: Text,
     /// The name the key is called.
-    pub name: String,
+    pub name: Text,
 }
 
 /// The SHA-256 of a sealing of a vault, which a stick is written with.
@@ -683,7 +684,7 @@ pub struct Sealed {
     /// The plan's vault.
     pub vault: usize,
     /// The Outbox file's name.
-    pub name: String,
+    pub name: Text,
     /// Its length.
     pub len: usize,
     /// SHA-256 of its bytes.
@@ -703,13 +704,13 @@ pub enum Problem {
     ReadOnly,
     /// A vault file on it that the plan needs is not read: this computer has
     /// not the memory for it (the line says what it needs and what is free).
-    Memory(String),
+    Memory(Text),
     /// Too little room: needed and free, bytes.
     NoRoom(u64, u64),
     /// The plan gives an existing vault and the stick holds none.
     NoVault(usize),
     /// Two files of one vault: the vault, and the two names.
-    TwoCopies(usize, String, String),
+    TwoCopies(usize, Text, Text),
     /// Reads like the stick bound to this target.
     BoundTo(Target),
     /// Not the stick read for this target at step 2.
@@ -722,10 +723,10 @@ pub enum Problem {
     NotChecked,
     /// This file, written again once, still did not read back as it was
     /// meant (`docs/BACKUP-FLOW.md` §17.12 item 10).
-    NoReadBack(String),
+    NoReadBack(Text),
     /// The person went back from the sheet that asks about this vault's
     /// name, which a file on the stick has: nothing was written.
-    NameTaken(String),
+    NameTaken(Text),
     /// Pulled before the copy was checked.
     Pulled,
 }
@@ -745,21 +746,21 @@ pub enum Purpose {
 #[derive(Debug, Clone)]
 pub struct Reading {
     /// The shell's id for it.
-    pub id: String,
+    pub id: Text,
     /// The slot it is read for.
     pub slot: usize,
     /// What for.
     pub purpose: Purpose,
     /// Its label, serial and listing.
-    pub label: String,
+    pub label: Text,
     /// What the device reports of itself (`docs/STICK-SETUP.md` §5).
     pub make: crate::StickMake,
     /// Its serial.
     pub serial: Option<u32>,
     /// Its files.
-    pub listing: Vec<(String, u64)>,
+    pub listing: Vec<(Text, u64)>,
     /// Files still being read.
-    pub pending: Vec<String>,
+    pub pending: Vec<Text>,
     /// The space is still being asked for.
     pub space_pending: bool,
     /// Free bytes.
@@ -771,7 +772,7 @@ pub struct Reading {
     /// Why a vault file on the stick was not read: this computer has not the
     /// memory for it. The stick is refused for it only where the plan gives
     /// an existing vault and no other file on it is that vault's.
-    pub short: Option<String>,
+    pub short: Option<Text>,
     /// How each vault the stick keeps is kept on it, as chosen.
     pub picks: Vec<(usize, Pick)>,
     /// Bound: waits for the stick to be pulled.
@@ -782,7 +783,7 @@ pub struct Reading {
     /// Files: which copy to unlock is asked before the place (§4.2). Holds
     /// the vault, this stick's file and the label of the copy in Files,
     /// worked out when the difference is found.
-    pub differs: Option<(usize, String, String)>,
+    pub differs: Option<(usize, Text, Text)>,
     /// The vaults whose copy on this stick was declined.
     pub declined: Vec<usize>,
     /// The stick is the medium the machine started from: it stays in, so
@@ -802,36 +803,36 @@ pub struct Reading {
 /// A write under way (step 6).
 pub struct Writing {
     /// The stick's id.
-    pub id: String,
+    pub id: Text,
     /// The slot.
     pub slot: usize,
     /// The stick it is for: its result is counted for this target,
     /// wherever its slot is by then.
     pub target: Target,
     /// Files sent and not yet answered: the name sent and its SHA-256.
-    pub pending: Vec<(String, [u8; 32])>,
+    pub pending: Vec<(Text, [u8; 32])>,
     /// Files answered, read back and matched: the name written as.
-    pub done: Vec<(String, [u8; 32])>,
+    pub done: Vec<(Text, [u8; 32])>,
     /// The files sent that are not vaults, by the name sent: each may be
     /// written again once when it does not read back (§19.12 item 10).
-    pub plain: Vec<String>,
+    pub plain: Vec<Text>,
     /// The files written again, by the name the flow meant them under.
-    pub retried: Vec<String>,
+    pub retried: Vec<Text>,
     /// A name a file was sent again under, with the name the flow meant
     /// it under.
-    pub aliases: Vec<(String, String)>,
+    pub aliases: Vec<(Text, Text)>,
     /// Pictures written whose codes are being read back: the name written
     /// as, the name meant, and the file's SHA-256.
-    pub qr: Vec<(String, String, [u8; 32])>,
+    pub qr: Vec<(Text, Text, [u8; 32])>,
     /// The vault files sent and not yet written: the plain files wait for
     /// them, so that a vault's name asked about leaves the stick with no
     /// other file of this write.
-    pub vaults_open: Vec<String>,
+    pub vaults_open: Vec<Text>,
     /// The plain files held back until `vaults_open` is empty: name and
     /// bytes.
-    pub held: Vec<(String, zeroize::Zeroizing<Vec<u8>>)>,
+    pub held: Vec<(Text, zeroize::Zeroizing<Vec<u8>>)>,
     /// The stick's label.
-    pub label: String,
+    pub label: Text,
     /// The stick's FAT volume serial.
     pub serial: Option<u32>,
 }
@@ -896,7 +897,7 @@ pub struct Live {
     /// The stick being read.
     pub reading: Option<Reading>,
     /// Sticks (by id) left alone until they are pulled.
-    pub ignored: Vec<String>,
+    pub ignored: Vec<Text>,
     /// A write under way.
     pub writing: Option<Writing>,
     /// A line over the card: why the last stick was refused.
@@ -905,10 +906,10 @@ pub struct Live {
     pub no_pass: Option<usize>,
     /// The vault and the file of the last mismatch: that file is another
     /// vault. Not kept.
-    pub not_it: Option<(usize, String)>,
+    pub not_it: Option<(usize, Text)>,
     /// For each known vault, the slot and the stick's file name of the
     /// file tried for it. Not kept.
-    pub tried_from: Vec<(usize, usize, String)>,
+    pub tried_from: Vec<(usize, usize, Text)>,
     /// The vault being unlocked.
     pub unlocking: Option<usize>,
     /// The vault being made, while its form shows.
@@ -991,7 +992,7 @@ pub struct BackupFlow {
     pub sealing: Vec<Sealed>,
     /// The key's public files made with it (the Outbox names): written to
     /// the stick of the place the plan names.
-    pub public: Vec<String>,
+    pub public: Vec<Text>,
     /// The extra round for a vault added after the key was made (§4.8).
     pub adding: bool,
     /// The flow was on screen when it was last kept.
@@ -1020,12 +1021,12 @@ pub struct WalletFlow {
     /// The answers the plan is drawn from.
     pub answers: crate::plan::Answers,
     /// The wallet's descriptor checksum once the wallet exists.
-    pub checksum: Option<String>,
+    pub checksum: Option<Text>,
     /// The wallet's name.
-    pub name: String,
+    pub name: Text,
     /// The fingerprints, as text, of the keys that spend nothing until
     /// the last stick is written (F6's hold, moved here at the lock).
-    pub held: Vec<String>,
+    pub held: Vec<Text>,
     /// The seeds each vault of the plan was sealed with, by vault: what a
     /// plan changed after the lock is compared with (§4.8).
     pub sealed: Vec<(usize, Vec<usize>)>,
@@ -1034,17 +1035,17 @@ pub struct WalletFlow {
     /// `p{fp}` one with its passphrase, `w{sum}` a
     /// wallet's description, `s{sum}:{n}` a wallet's share. The round
     /// takes none of it out (`docs/BACKUP-FLOW.md` §15). Never a secret.
-    pub before: Vec<([u8; 32], Vec<String>)>,
+    pub before: Vec<([u8; 32], Vec<Text>)>,
     /// The keys, by fingerprint, another wallet's record in each vault
     /// names, by the vault's salt: the round takes none of them out.
-    pub others: Vec<([u8; 32], Vec<String>)>,
+    pub others: Vec<([u8; 32], Vec<Text>)>,
     /// At the lock the plan kept the description, a sheet or a share, on
     /// paper or as files: whole or in shares, and the keys left off each
     /// share, are fixed from then on (`docs/BACKUP-FLOW.md` §15).
     pub pieces: bool,
     /// Each seed's fingerprint without its passphrase, as text, for the
     /// round to find a record of the same words; empty where unknown.
-    pub base: Vec<String>,
+    pub base: Vec<Text>,
     /// Which Make a new wallet or Restore the flow belongs to while the
     /// wallet is being made; not kept across a lock.
     pub owner: u64,
@@ -1061,7 +1062,7 @@ pub struct WalletFlow {
     /// Made at the lock, where the pictures are. Nothing in it is derived
     /// from a seed or a passphrase: a SeedQR is named by its key's
     /// fingerprint only.
-    pub readback: Vec<(String, ReadBack)>,
+    pub readback: Vec<(Text, ReadBack)>,
 }
 
 /// What a picture written to a stick must read back as.
@@ -1074,13 +1075,13 @@ pub enum ReadBack {
     /// must hold the digits of the key's words while the key is loaded,
     /// and the picture must be the Outbox's byte for byte. Nothing of the
     /// seed is kept for it.
-    Seed(String),
+    Seed(Text),
     /// The Codex32QR of the codex32 string at this share index (a bech32
     /// character, lower case) of the set of the key with this fingerprint
     /// (as text): its codes must hold the string while the key is loaded
     /// and holds it, and the picture must be the Outbox's byte for byte.
     /// Nothing of the string is kept for it.
-    Codex32(String, u8),
+    Codex32(Text, u8),
 }
 
 /// The non-secret state of Make a new wallet or Restore, kept while its
@@ -1198,7 +1199,7 @@ impl BackupFlow {
             shape,
             answers,
             checksum: None,
-            name: name.to_string(),
+            name: Text::of(name),
             held: Vec::new(),
             sealed: Vec::new(),
             before: Vec::new(),
@@ -1307,12 +1308,12 @@ impl BackupFlow {
     /// Its name, as its page's title and its row on the rail both say
     /// it: a named wallet's backup by the wallet's name ("Backup of New
     /// wallet 1"), any other by its kind's.
-    pub fn title(&self) -> String {
+    pub fn title(&self) -> Text {
         match self.wallet.as_ref() {
             Some(w) if self.kind == Kind::Wallet && !w.name.is_empty() => {
-                crate::strings::fill(crate::strings::EN.sidebar_flow_backup_wallet, &[&w.name])
+                Text::fill(crate::strings::EN.sidebar_flow_backup_wallet, &[&w.name])
             }
-            _ => self.kind.name().to_string(),
+            _ => Text::of(self.kind.name()),
         }
     }
 
@@ -1424,7 +1425,7 @@ impl BackupFlow {
         }
         let want = self.plan.place_targets();
         let extras = self.plan.extra_targets();
-        let mut orphaned: Vec<String> = Vec::new();
+        let mut orphaned: Vec<Text> = Vec::new();
         self.slots.retain(|s| {
             let keep = match s.target {
                 Target::Place(_) | Target::PlaceVault(..) | Target::Another(_, Some(_), _) => {
@@ -1554,7 +1555,7 @@ impl BackupFlow {
     /// key's enrolment files go in the last write of step 6, once every
     /// other stick is written, so that the backup is done when they are
     /// put out (`docs/BACKUP-FLOW.md` §3).
-    pub(crate) fn last_write_files(&self, slot: usize) -> Vec<String> {
+    pub(crate) fn last_write_files(&self, slot: usize) -> Vec<Text> {
         if self.kind == Kind::SecureBoot
             && self
                 .slots
@@ -1607,28 +1608,53 @@ impl BackupFlow {
     }
 
     /// "Vault 1".
-    pub fn vault_name(v: usize) -> String {
-        crate::strings::fill(
+    pub fn vault_name(v: usize) -> Text {
+        Text::fill(
             crate::strings::EN.backup_flow_vault_n,
-            &[&(v + 1).to_string()],
+            &[&Text::num((v + 1) as u64)],
         )
     }
 
     /// "Place 1".
-    pub fn place_name(p: usize) -> String {
-        crate::strings::fill(
+    pub fn place_name(p: usize) -> Text {
+        Text::fill(
             crate::strings::EN.backup_flow_place_n,
-            &[&(p + 1).to_string()],
+            &[&Text::num((p + 1) as u64)],
         )
     }
 }
 
-/// A field of the kept state: no tab or line break.
-fn clean(s: &str) -> String {
-    s.replace(['\t', '\n', '\r'], " ")
+/// `items` with `sep` between them.
+pub(crate) fn joined<T: AsRef<str>>(items: &[T], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(item.as_ref());
+    }
+    out
 }
 
-fn hex(h: &[u8; 32]) -> String {
+/// `s` with each `from` made `to`.
+fn swap(s: &str, from: char, to: char) -> Text {
+    s.chars().map(|c| if c == from { to } else { c }).collect()
+}
+
+/// A field of the kept state: no tab or line break.
+fn clean(s: &str) -> Text {
+    s.chars()
+        .map(|c| {
+            if matches!(c, '\t' | '\n' | '\r') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+fn hex(h: &[u8; 32]) -> Text {
     hex_text(h)
 }
 
@@ -1650,29 +1676,26 @@ const MAX_SLOTS: usize = 20_000;
 /// hashes, labels and public values.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
-    let mut out = format!("version\t{VERSION}\n");
+    let mut out = text!("version\t{VERSION}\n");
     for f in flows {
-        let (id, name) = f
-            .subject
-            .as_ref()
-            .map_or((String::new(), String::new()), |s| {
-                (s.id.clone(), clean(&s.name))
-            });
-        out.push_str(&format!(
+        let (id, name) = f.subject.as_ref().map_or((Text::new(), Text::new()), |s| {
+            (s.id.clone(), clean(&s.name))
+        });
+        out.push_str(&text!(
             "flow\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             f.kind.code(),
             f.step.n(),
             u8::from(f.made),
             u8::from(f.adding),
-            id,
-            name,
+            &*id,
+            &*name,
             u8::from(f.on_screen),
         ));
-        let together: Vec<String> = f.plan.together.iter().map(|p| p.to_string()).collect();
-        out.push_str(&format!(
+        let together: Vec<Text> = f.plan.together.iter().map(|p| text!("{p}")).collect();
+        out.push_str(&text!(
             "plan\t{}\t{}\t{}\t{}\t{}\n",
             f.plan.public_at,
-            together.join(","),
+            &*joined(&together, ","),
             u8::from(f.plan.files),
             u8::from(f.plan.public),
             match f.plan.public_on {
@@ -1682,31 +1705,31 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             },
         ));
         for (p, l, v) in &f.plan.joined {
-            out.push_str(&format!("joined\t{p}\t{l}\t{v}\n"));
+            out.push_str(&text!("joined\t{p}\t{l}\t{v}\n"));
         }
         if !f.plan.place_files.is_empty() {
-            let list: Vec<String> = f.plan.place_files.iter().map(|p| p.to_string()).collect();
-            out.push_str(&format!("pfiles\t{}\n", list.join(",")));
+            let list: Vec<Text> = f.plan.place_files.iter().map(|p| text!("{p}")).collect();
+            out.push_str(&text!("pfiles\t{}\n", &*joined(&list, ",")));
         }
         if let Some(t) = f.plan.public_stick {
-            out.push_str(&format!("pstick\t{}\n", t.code()));
+            out.push_str(&text!("pstick\t{}\n", &*t.code()));
         }
         if let Some(r) = &f.restore {
-            out.push_str(&format!("restore\t{}\n", gpg_restore::file_hex(&r.file)));
+            out.push_str(&text!("restore\t{}\n", gpg_restore::file_hex(&r.file)));
         }
         if let Some(w) = &f.wallet {
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "wallet\t{}\t{}\t{}\n",
-                clean(w.checksum.as_deref().unwrap_or("")),
-                clean(&w.name),
-                w.held.join(",")
+                &*clean(w.checksum.as_deref().unwrap_or("")),
+                &*clean(&w.name),
+                &*joined(&w.held, ",")
             ));
             if !w.base.is_empty() {
-                out.push_str(&format!("wbase\t{}\n", w.base.join(",")));
+                out.push_str(&text!("wbase\t{}\n", &*joined(&w.base, ",")));
             }
             for (v, seeds) in &w.sealed {
-                let list: Vec<String> = seeds.iter().map(|s| s.to_string()).collect();
-                out.push_str(&format!("wsealed\t{v}\t{}\n", list.join(",")));
+                let list: Vec<Text> = seeds.iter().map(|s| text!("{s}")).collect();
+                out.push_str(&text!("wsealed\t{v}\t{}\n", &*joined(&list, ",")));
             }
             if w.pieces {
                 out.push_str("wpieces\t1\n");
@@ -1714,32 +1737,36 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             for (name, back) in &w.readback {
                 match back {
                     ReadBack::Codes(sha) => {
-                        out.push_str(&format!("wqr\t{}\t{}\n", clean(name), hex_text(sha)));
+                        out.push_str(&text!("wqr\t{}\t{}\n", &*clean(name), &*hex_text(sha)));
                     }
                     ReadBack::Seed(fp) => {
-                        out.push_str(&format!("wqs\t{}\t{}\n", clean(name), clean(fp)));
+                        out.push_str(&text!("wqs\t{}\t{}\n", &*clean(name), &*clean(fp)));
                     }
                     ReadBack::Codex32(fp, index) => {
-                        out.push_str(&format!(
+                        out.push_str(&text!(
                             "wqc\t{}\t{}\t{}\n",
-                            clean(name),
-                            clean(fp),
+                            &*clean(name),
+                            &*clean(fp),
                             char::from(*index)
                         ));
                     }
                 }
             }
             for (salt, held) in &w.before {
-                out.push_str(&format!(
+                out.push_str(&text!(
                     "wbefore\t{}\t{}\n",
-                    hex_text(salt),
-                    held.join(",")
+                    &*hex_text(salt),
+                    &*joined(held, ",")
                 ));
             }
             for (salt, fps) in &w.others {
-                out.push_str(&format!("wothers\t{}\t{}\n", hex_text(salt), fps.join(",")));
+                out.push_str(&text!(
+                    "wothers\t{}\t{}\n",
+                    &*hex_text(salt),
+                    &*joined(fps, ",")
+                ));
             }
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "wshape\t{}\t{}\t{}\t{}\n",
                 w.shape.m,
                 w.shape.keys,
@@ -1747,9 +1774,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 w.shape.vaults
             ));
             for sd in &w.shape.seeds {
-                out.push_str(&format!(
+                out.push_str(&text!(
                     "wseed\t{}\t{}\t{}\n",
-                    clean(&sd.name),
+                    &*clean(&sd.name),
                     u8::from(sd.here),
                     u8::from(sd.passphrase)
                 ));
@@ -1758,7 +1785,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 out.push_str("wsetup\t1\n");
             }
             if let Some(a) = &w.again {
-                out.push_str(&format!(
+                out.push_str(&text!(
                     "wagain\t{}\t{}\t{}\t{}\t{}\n",
                     u8::from(a.restore),
                     a.kind.code(),
@@ -1767,100 +1794,102 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                     a.backup.map_or(0, |f| f.index() + 1)
                 ));
             }
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "wans\t{}\n",
-                clean(&w.answers.to_text().replace('\n', "|"))
+                &*clean(&swap(&w.answers.to_text(), '\n', '|'))
             ));
         }
         for name in &f.public {
-            out.push_str(&format!("pub\t{}\n", clean(name)));
+            out.push_str(&text!("pub\t{}\n", &*clean(name)));
         }
         for (p, vs) in f.plan.places.iter().enumerate() {
-            let vs: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
-            out.push_str(&format!("place\t{p}\t{}\n", vs.join(",")));
+            let vs: Vec<Text> = vs.iter().map(|v| text!("{v}")).collect();
+            out.push_str(&text!("place\t{p}\t{}\n", &*joined(&vs, ",")));
         }
         for (v, vp) in f.plan.vaults.iter().enumerate() {
             let (fp, fname) = vp
                 .from
                 .as_ref()
-                .map_or((String::new(), String::new()), |(p, n)| {
-                    (p.to_string(), clean(n))
+                .map_or((Text::new(), Text::new()), |(p, n)| {
+                    (text!("{p}"), clean(n))
                 });
-            out.push_str(&format!(
+            let (fp, fname) = (fp.as_str(), fname.as_str());
+            out.push_str(&text!(
                 "vault\t{v}\t{}\t{}\t{}\t{}\t{fp}\t{fname}\t{}\t{}\n",
                 u8::from(vp.existing),
-                clean(vp.file.as_deref().unwrap_or("")),
-                vp.salt.as_ref().map_or(String::new(), hex),
+                &*clean(vp.file.as_deref().unwrap_or("")),
+                &*vp.salt.as_ref().map_or(Text::new(), hex),
                 vp.len,
                 u8::from(f.made_in.contains(&v)),
-                clean(vp.trying.as_deref().unwrap_or("")),
+                &*clean(vp.trying.as_deref().unwrap_or("")),
             ));
         }
         for (k, s) in f.slots.iter().enumerate() {
-            out.push_str(&format!("slot\t{k}\t{}\n", s.target.code()));
+            out.push_str(&text!("slot\t{k}\t{}\n", &*s.target.code()));
             for file in &s.files {
-                out.push_str(&format!("sfile\t{k}\t{}\n", clean(file)));
+                out.push_str(&text!("sfile\t{k}\t{}\n", &*clean(file)));
             }
             if let Some(b) = &s.bound {
-                out.push_str(&format!(
+                out.push_str(&text!(
                     "bound\t{k}\t{}\t{}\t{}\t{}\t{}\n",
-                    clean(&b.label),
-                    b.serial.map_or(String::new(), |s| s.to_string()),
-                    b.free.map_or(String::new(), |s| s.to_string()),
-                    b.at.map_or(String::new(), |s| s.to_string()),
+                    &*clean(&b.label),
+                    &*b.serial.map_or(Text::new(), |s| text!("{s}")),
+                    &*b.free.map_or(Text::new(), |s| text!("{s}")),
+                    &*b.at.map_or(Text::new(), |s| text!("{s}")),
                     match b.confirm {
                         Confirm::Tap => "t",
                         Confirm::Hold => "h",
                     },
                 ));
                 if b.boot {
-                    out.push_str(&format!("bootstick\t{k}\n"));
+                    out.push_str(&text!("bootstick\t{k}\n"));
                 }
                 for (n, size) in &b.listing {
-                    out.push_str(&format!("list\t{k}\t{}\t{size}\n", clean(n)));
+                    out.push_str(&text!("list\t{k}\t{}\t{size}\n", &*clean(n)));
                 }
                 for r in &b.vaults {
-                    out.push_str(&format!(
+                    out.push_str(&text!(
                         "vread\t{k}\t{}\t{}\t{}\n",
-                        clean(&r.name),
+                        &*clean(&r.name),
                         r.len,
-                        hex(&r.sha),
+                        &*hex(&r.sha),
                     ));
                 }
                 for (v, p) in &b.picks {
                     let over = match p {
-                        Pick::New => String::new(),
+                        Pick::New => Text::new(),
                         Pick::Over(n) => clean(n),
                     };
-                    out.push_str(&format!(
-                        "pick\t{k}\t{v}\t{over}\t{}\n",
+                    out.push_str(&text!(
+                        "pick\t{k}\t{v}\t{}\t{}\n",
+                        &*over,
                         u8::from(b.declined.contains(v))
                     ));
                 }
             }
             if let Some(w) = &s.written {
-                out.push_str(&format!(
+                out.push_str(&text!(
                     "wrote\t{k}\t{}\t{}\t{}\n",
-                    clean(&w.label),
-                    w.time.map_or(String::new(), |t| t.to_string()),
-                    w.serial.map_or(String::new(), |t| t.to_string()),
+                    &*clean(&w.label),
+                    &*w.time.map_or(Text::new(), |t| text!("{t}")),
+                    &*w.serial.map_or(Text::new(), |t| text!("{t}")),
                 ));
                 for (n, sha) in &w.files {
-                    out.push_str(&format!("wfile\t{k}\t{}\t{}\n", clean(n), hex(sha)));
+                    out.push_str(&text!("wfile\t{k}\t{}\t{}\n", &*clean(n), &*hex(sha)));
                 }
             }
         }
         for s in &f.sealing {
-            out.push_str(&format!(
+            out.push_str(&text!(
                 "seal\t{}\t{}\t{}\t{}\n",
                 s.vault,
-                clean(&s.name),
+                &*clean(&s.name),
                 s.len,
-                hex(&s.sha)
+                &*hex(&s.sha)
             ));
         }
     }
-    out.into_bytes()
+    out.as_bytes().to_vec()
 }
 
 /// Costs what `valid` costs. Read back what [`encode`] kept, and how
@@ -1869,7 +1898,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
 /// stick that the plan does not name, a step past the key with nothing
 /// sealed) is dropped whole.
 pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
-    let text = String::from_utf8_lossy(bytes);
+    let text = Text::from_utf8_lossy(bytes);
     let mut lines = text.lines();
     if lines.next().map(|l| l.split('\t').collect::<Vec<_>>()) != Some(vec!["version", VERSION]) {
         return (Vec::new(), usize::from(!bytes.is_empty()));
@@ -1890,8 +1919,8 @@ pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
                         made: made == "1",
                         made_in: Vec::new(),
                         subject: (!id.is_empty()).then(|| Subject {
-                            id: id.to_string(),
-                            name: name.to_string(),
+                            id: Text::of(id),
+                            name: Text::of(name),
                         }),
                         sealing: Vec::new(),
                         public: Vec::new(),
@@ -1985,18 +2014,18 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         }
         ["wallet", checksum, name, held] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
-            w.checksum = (!checksum.is_empty()).then(|| checksum.to_string());
-            w.name = name.to_string();
+            w.checksum = (!checksum.is_empty()).then(|| Text::of(checksum));
+            w.name = Text::of(name);
             w.held = held
                 .split(',')
                 .filter(|x| !x.is_empty())
-                .map(str::to_string)
+                .map(Text::of)
                 .collect();
             true
         }
         ["wbase", list] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
-            w.base = list.split(',').map(str::to_string).collect();
+            w.base = list.split(',').map(Text::of).collect();
             true
         }
         ["wqr", name, sha] => {
@@ -2004,13 +2033,13 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 return false;
             };
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
-            w.readback.push((name.to_string(), ReadBack::Codes(sha)));
+            w.readback.push((Text::of(name), ReadBack::Codes(sha)));
             true
         }
         ["wqs", name, fp] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.readback
-                .push((name.to_string(), ReadBack::Seed(fp.to_string())));
+                .push((Text::of(name), ReadBack::Seed(Text::of(fp))));
             true
         }
         ["wqc", name, fp, index] => {
@@ -2019,7 +2048,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             };
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.readback
-                .push((name.to_string(), ReadBack::Codex32(fp.to_string(), *index)));
+                .push((Text::of(name), ReadBack::Codex32(Text::of(fp), *index)));
             true
         }
         ["wpieces", on] => {
@@ -2030,10 +2059,10 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             let Some(salt) = hex_array(salt) else {
                 return false;
             };
-            let items: Vec<String> = list
+            let items: Vec<Text> = list
                 .split(',')
                 .filter(|x| !x.is_empty())
-                .map(str::to_string)
+                .map(Text::of)
                 .collect();
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             if f[0] == "wbefore" {
@@ -2113,7 +2142,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         }
         ["wans", text] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
-            let text = text.replace('|', "\n");
+            let text = swap(text, '|', '\n');
             match crate::plan::Answers::from_text(&w.shape, &text) {
                 Some(a) => {
                     w.answers = a;
@@ -2130,7 +2159,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             _ => false,
         },
         ["pub", name] => {
-            fl.public.push(name.to_string());
+            fl.public.push(Text::of(name));
             true
         }
         ["place", p, vs] => {
@@ -2165,11 +2194,11 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             }
             fl.plan.vaults.push(VaultPlan {
                 existing: existing == "1",
-                file: (!file.is_empty()).then(|| file.to_string()),
+                file: (!file.is_empty()).then(|| Text::of(file)),
                 salt: hex_array(salt),
                 len: len.parse().unwrap_or(0),
-                from: from_p.parse().ok().map(|p| (p, from_n.to_string())),
-                trying: (!trying.is_empty()).then(|| trying.to_string()),
+                from: from_p.parse().ok().map(|p| (p, Text::of(from_n))),
+                trying: (!trying.is_empty()).then(|| Text::of(trying)),
             });
             if held == "1" {
                 fl.made_in.push(v);
@@ -2194,7 +2223,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         }
         ["sfile", k, name] => match slot(fl, k).and_then(|k| fl.slots.get_mut(k)) {
             Some(s) => {
-                s.files.push(name.to_string());
+                s.files.push(Text::of(name));
                 true
             }
             None => false,
@@ -2203,7 +2232,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             match slot(fl, k).and_then(|k| fl.slots.get_mut(k)) {
                 Some(s) => {
                     s.bound = Some(Bound {
-                        label: label.to_string(),
+                        label: Text::of(label),
                         make: crate::StickMake::default(),
                         serial: serial.parse().ok(),
                         listing: Vec::new(),
@@ -2240,8 +2269,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 .and_then(|s| s.bound.as_mut())
             {
                 Some(b) => {
-                    b.listing
-                        .push((name.to_string(), size.parse().unwrap_or(0)));
+                    b.listing.push((Text::of(name), size.parse().unwrap_or(0)));
                     true
                 }
                 None => false,
@@ -2256,7 +2284,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             ) {
                 (Some(b), Some(sha)) => {
                     b.vaults.push(VaultRead {
-                        name: name.to_string(),
+                        name: Text::of(name),
                         len: len.parse().unwrap_or(0),
                         sha,
                     });
@@ -2279,7 +2307,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 if over.is_empty() {
                     Pick::New
                 } else {
-                    Pick::Over(over.to_string())
+                    Pick::Over(Text::of(over))
                 },
             ));
             if declined == "1" {
@@ -2290,8 +2318,8 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         ["wrote", k, label, time, serial] => match slot(fl, k).and_then(|k| fl.slots.get_mut(k)) {
             Some(s) => {
                 s.written = Some(Written {
-                    stick: String::new(),
-                    label: label.to_string(),
+                    stick: Text::new(),
+                    label: Text::of(label),
                     serial: serial.parse().ok(),
                     time: time.parse().ok(),
                     files: Vec::new(),
@@ -2308,7 +2336,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 hex_array(sha),
             ) {
                 (Some(w), Some(sha)) => {
-                    w.files.push((name.to_string(), sha));
+                    w.files.push((Text::of(name), sha));
                     true
                 }
                 _ => false,
@@ -2318,7 +2346,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             (Ok(vault), Some(sha)) => {
                 fl.sealing.push(Sealed {
                     vault,
-                    name: name.to_string(),
+                    name: Text::of(name),
                     len: len.parse().unwrap_or(0),
                     sha,
                 });
@@ -2343,7 +2371,7 @@ impl WalletFlow {
             },
             answers: crate::plan::Answers::default(),
             checksum: None,
-            name: String::new(),
+            name: Text::new(),
             held: Vec::new(),
             sealed: Vec::new(),
             before: Vec::new(),
@@ -2453,30 +2481,30 @@ impl BackupFlow {
 /// flow that does not read cannot open the gate: one line each, the kind,
 /// the key's id and its name.
 pub(crate) fn gate_encode(flows: &[BackupFlow]) -> Vec<u8> {
-    let mut out = String::new();
+    let mut out = Text::new();
     for f in flows.iter().filter(|f| f.waiting()) {
         if let Some(s) = &f.subject {
             let held = f
                 .wallet
                 .as_ref()
-                .map_or(String::new(), |w| w.held.join(","));
-            out.push_str(&format!(
+                .map_or(Text::new(), |w| joined(&w.held, ","));
+            out.push_str(&text!(
                 "{}\t{}\t{}\t{}\n",
                 f.kind.code(),
-                s.id,
-                clean(&s.name),
-                held
+                &*s.id,
+                &*clean(&s.name),
+                &*held
             ));
         }
     }
-    out.into_bytes()
+    out.as_bytes().to_vec()
 }
 
 /// What a key's page says of its backup (§8).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackupRow {
     /// "Not written", "Written to 1 of 2 places", "Written to every place".
-    pub line: String,
+    pub line: Text,
     /// The backup is not done: the page offers Continue the backup.
     pub waiting: bool,
 }
@@ -2500,12 +2528,12 @@ pub(crate) fn record_in(
 }
 
 /// Bytes as lower-case hex.
-pub(crate) fn hex_text(b: &[u8]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(b))
+pub(crate) fn hex_text(b: &[u8]) -> Text {
+    faraday_crypto::hex::encode_string(b)
 }
 
 /// The public value a record of `kind` is known by, as hex.
-pub(crate) fn subject_of(kind: Kind, r: RecordView<'_>) -> Option<String> {
+pub(crate) fn subject_of(kind: Kind, r: RecordView<'_>) -> Option<Text> {
     Some(match kind {
         Kind::Gpg => hex_text(&faraday_keys::vault::gpg_facts(r)?.fingerprint),
         Kind::SecureBoot => hex_text(r.public(crate::secure_boot::OWNER_FIELD)?),
@@ -2522,10 +2550,10 @@ pub(crate) fn seedqr_picture(
     words: usize,
     fp: &str,
 ) -> zeroize::Zeroizing<Vec<u8>> {
-    let title = crate::strings::fill(crate::strings::EN.secrets_seed, &[fp]);
-    let lines = [crate::strings::fill(
+    let title = Text::fill(crate::strings::EN.secrets_seed, &[fp]);
+    let lines = [Text::fill(
         crate::strings::EN.secrets_words_secret,
-        &[&words.to_string()],
+        &[&Text::num(words as u64)],
     )];
     zeroize::Zeroizing::new(crate::picture::labelled_png(c, mx, &title, &lines))
 }
@@ -2534,20 +2562,24 @@ pub(crate) fn seedqr_picture(
 
 impl BackupFlow {
     /// "Vault 1 (Place 1)", "the stick of files".
-    pub fn target_short(&self, t: &Target, medium: &str) -> String {
+    pub fn target_short(&self, t: &Target, medium: &str) -> Text {
         if self.is_setup() {
             return self.target_name(t, medium);
         }
         match t {
             Target::Place(p) => {
                 let vs = self.plan.places.get(*p).cloned().unwrap_or_default();
-                let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
-                format!("{} ({})", names.join(", "), BackupFlow::place_name(*p))
+                let names: Vec<Text> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
+                text!(
+                    "{} ({})",
+                    &*joined(&names, ", "),
+                    &*BackupFlow::place_name(*p)
+                )
             }
-            Target::PlaceVault(p, v) | Target::Another(p, Some(v), _) => format!(
+            Target::PlaceVault(p, v) | Target::Another(p, Some(v), _) => text!(
                 "{} ({})",
-                BackupFlow::vault_name(*v),
-                BackupFlow::place_name(*p)
+                &*BackupFlow::vault_name(*v),
+                &*BackupFlow::place_name(*p)
             ),
             t => self.target_name(t, medium),
         }
@@ -2555,58 +2587,56 @@ impl BackupFlow {
 
     /// What a stick is for, with no "the stick": "Vault 1 (Place 1)",
     /// "Files", "Public files"; after its number on a device (§18).
-    pub fn target_what(&self, t: &Target, medium: &str) -> String {
+    pub fn target_what(&self, t: &Target, medium: &str) -> Text {
         match t {
             t if t.vault_stick() && self.is_setup() => self.target_vaults(t),
             t if t.vault_stick() => self.target_short(t, medium),
-            Target::Files => FEN.backup_flow_for_files.to_string(),
-            Target::Public => FEN.backup_flow_for_public.to_string(),
+            Target::Files => Text::of(FEN.backup_flow_for_files),
+            Target::Public => Text::of(FEN.backup_flow_for_public),
             _ => self.target_name(t, medium),
         }
     }
 
     /// "the stick for Vault 1 (Place 1)", "the stick of files".
-    pub fn target_name(&self, t: &Target, medium: &str) -> String {
+    pub fn target_name(&self, t: &Target, medium: &str) -> Text {
         match t {
             // Before the keys, a stick is a vault's: no place is asked.
-            t if t.vault_stick() && self.is_setup() => fill(
+            t if t.vault_stick() && self.is_setup() => Text::fill(
                 FEN.backup_flow_stick_for_vault,
                 &[medium, &self.target_vaults(t)],
             ),
-            t if t.vault_stick() => fill(
+            t if t.vault_stick() => Text::fill(
                 FEN.backup_flow_vault_stick,
                 &[medium, &self.target_vaults(t), &self.target_place(t)],
             ),
-            Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
-            Target::Public => fill(FEN.backup_flow_public_stick, &[medium]),
+            Target::Files => Text::fill(FEN.backup_flow_files_stick, &[medium]),
+            Target::Public => Text::fill(FEN.backup_flow_public_stick, &[medium]),
             // A place's sticks of files, each named alike: the pill's
             // number tells them apart (§18).
             Target::PlaceFiles(p) | Target::Another(p, None, _) => {
-                fill(FEN.backup_flow_place_files, &[&BackupFlow::place_name(*p)])
+                Text::fill(FEN.backup_flow_place_files, &[&BackupFlow::place_name(*p)])
             }
-            _ => String::new(),
+            _ => Text::new(),
         }
     }
 
-    fn target_vaults(&self, t: &Target) -> String {
+    fn target_vaults(&self, t: &Target) -> Text {
         match t {
             Target::Place(p) => self
                 .plan
                 .places
                 .get(*p)
                 .map(|vs| {
-                    vs.iter()
-                        .map(|&v| BackupFlow::vault_name(v))
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    let names: Vec<Text> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
+                    joined(&names, ", ")
                 })
                 .unwrap_or_default(),
             Target::PlaceVault(_, v) | Target::Another(_, Some(v), _) => BackupFlow::vault_name(*v),
-            _ => String::new(),
+            _ => Text::new(),
         }
     }
 
-    fn target_place(&self, t: &Target) -> String {
+    fn target_place(&self, t: &Target) -> Text {
         t.place().map(BackupFlow::place_name).unwrap_or_default()
     }
 }

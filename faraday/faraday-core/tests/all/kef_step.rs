@@ -203,7 +203,7 @@ fn stick_lists(app: &Faraday) -> Vec<Vec<String>> {
         .expect("the lock's flow")
         .slots
         .iter()
-        .map(|s| s.files.clone())
+        .map(|s| s.files.iter().map(|t| String::from(&**t)).collect())
         .collect()
 }
 

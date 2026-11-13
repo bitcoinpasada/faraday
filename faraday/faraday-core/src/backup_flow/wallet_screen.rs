@@ -120,7 +120,10 @@ fn card_head(
 pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if f.made {
-        let name = f.subject.as_ref().map_or(String::new(), |s| s.name.clone());
+        let name = f
+            .subject
+            .as_ref()
+            .map_or(String::new(), |s| String::from(&*s.name));
         cy += ui.wrap_as((x, cy, w), TITLE_M, Role::Ok, &name) + 12.0;
         for &v in &f.made_in {
             cy += ui.wrap_as(

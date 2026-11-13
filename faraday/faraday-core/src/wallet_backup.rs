@@ -1307,14 +1307,15 @@ impl WalletBackupArea {
 
     /// `tokens`, moved into the vault of salt `salt` since this backup
     /// saved into it, added to what that vault held before.
-    pub(crate) fn before_add(&mut self, salt: [u8; 32], tokens: &[String]) {
+    pub(crate) fn before_add(&mut self, salt: [u8; 32], tokens: &[faraday_text::Text]) {
         let Some(b) = self.state.as_mut() else {
             return;
         };
         if let Some((_, held)) = b.before.iter_mut().find(|(s, _)| *s == salt) {
             for t in tokens {
-                if !held.contains(t) {
-                    held.push(t.clone());
+                let t = String::from(&**t);
+                if !held.contains(&t) {
+                    held.push(t);
                 }
             }
         }

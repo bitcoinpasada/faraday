@@ -243,8 +243,10 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
             let mut items = Vec::new();
             let vaults = f.vaults_of(k);
             if !vaults.is_empty() {
-                let names: Vec<String> =
-                    vaults.iter().map(|&v| BackupFlow::vault_name(v)).collect();
+                let names: Vec<String> = vaults
+                    .iter()
+                    .map(|&v| String::from(&*BackupFlow::vault_name(v)))
+                    .collect();
                 items.push(Item::Text(
                     fill(FEN.backup_flow_figure_holds, &[&names.join(", ")]),
                     Role::OnSurfaceVariant,

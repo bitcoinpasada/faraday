@@ -798,7 +798,7 @@ fn a_failed_press_gives_up_only_the_pressed_sticks_pick() {
     assert!(
         picks(0)
             .iter()
-            .any(|(v, p)| *v == 0 && *p == Pick::Over("a.kdbx".into())),
+            .any(|(v, p)| *v == 0 && *p == Pick::Over(faraday_text::Text::of("a.kdbx"))),
         "Stick 1 still replaces its copy: {:?}",
         picks(0)
     );

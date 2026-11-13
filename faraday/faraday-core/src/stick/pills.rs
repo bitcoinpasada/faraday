@@ -256,7 +256,7 @@ impl Faraday {
     pub(crate) fn flow_stick_slot(&self, st: &StickInfo) -> Option<usize> {
         use crate::backup_flow::Problem;
         let f = self.flow()?;
-        let reading = f.live.reading.as_ref().filter(|r| r.id == st.id);
+        let reading = f.live.reading.as_ref().filter(|r| r.id == st.id.as_str());
         if let Some(r) = reading {
             let settled = r.pending.is_empty() && !r.space_pending;
             match &r.problem {
@@ -281,7 +281,7 @@ impl Faraday {
     /// SHA-256; none where it matches none or several alike.
     fn flow_record_slot(&self, st: &StickInfo) -> Option<usize> {
         let f = self.flow()?;
-        let reading = f.live.reading.as_ref().filter(|r| r.id == st.id);
+        let reading = f.live.reading.as_ref().filter(|r| r.id == st.id.as_str());
         let read: Option<Vec<(&str, [u8; 32])>> =
             reading.filter(|r| r.pending.is_empty()).map(|r| {
                 r.files
@@ -289,18 +289,22 @@ impl Faraday {
                     .map(|(v, _)| (v.name.as_str(), v.sha))
                     .collect()
             });
-        let mut listing = st.files.clone();
+        let mut listing: Vec<(faraday_text::Text, u64)> = st
+            .files
+            .iter()
+            .map(|(n, s)| (faraday_text::Text::of(n), *s))
+            .collect();
         listing.sort();
         let matches = |k: usize| -> bool {
             let s = &f.slots[k];
             if let Some(w) = &s.written {
-                return w.label == st.label
+                return w.label == st.label.as_str()
                     && w.serial == st.serial
                     && w.files.iter().all(|(n, sha)| {
-                        st.files.iter().any(|(x, _)| x == n)
+                        st.files.iter().any(|(x, _)| x.as_str() == n.as_str())
                             && read.as_ref().is_none_or(|rd| {
                                 !n.to_ascii_lowercase().ends_with(".kdbx")
-                                    || rd.iter().any(|(x, h)| x == n && h == sha)
+                                    || rd.iter().any(|(x, h)| *x == n.as_str() && h == sha)
                             })
                     });
             }
@@ -309,13 +313,13 @@ impl Faraday {
             };
             let mut was = b.listing.clone();
             was.sort();
-            b.label == st.label
+            b.label == st.label.as_str()
                 && b.serial == st.serial
                 && was == listing
                 && read.as_ref().is_none_or(|rd| {
                     b.vaults
                         .iter()
-                        .all(|v| rd.iter().any(|(x, h)| *x == v.name && *h == v.sha))
+                        .all(|v| rd.iter().any(|(x, h)| *x == v.name.as_str() && *h == v.sha))
                 })
         };
         let mut found = (0..f.slots.len()).filter(|&k| matches(k));
@@ -389,7 +393,7 @@ impl Faraday {
         if !r.pending.is_empty() || r.space_pending {
             return None;
         }
-        let st = self.stick.iter().find(|s| s.id == r.id)?;
+        let st = self.stick.iter().find(|s| s.id.as_str() == r.id.as_str())?;
         let m = self.flow_record_slot(st).filter(|&m| m != r.slot)?;
         let (word, n) = self.flow_slot_word_n(m)?;
         Some(Text::fill(EN.backup_flow_reads_as, &[word, &n]))
@@ -417,7 +421,7 @@ impl Faraday {
         ) {
             return None;
         }
-        let st = self.stick.iter().find(|s| s.id == r.id)?;
+        let st = self.stick.iter().find(|s| s.id.as_str() == r.id.as_str())?;
         match self.flow_stick_slot(st) {
             Some(m) if m == r.slot => None,
             Some(m) => {

@@ -10,6 +10,7 @@ use crate::file_stem;
 use crate::plan;
 use crate::strings::EN as FEN;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 use faraday_vault::records::kind as rkind;
 
 /// The stick at a place on the map `boxes` that the flow's stick for
@@ -25,10 +26,12 @@ pub(crate) fn target_sticks(boxes: &[plan::Spot], target: Target) -> Vec<plan::A
 /// Whether `name` is a seed file of this wallet: `{stem}-{fp}-words.txt`,
 /// `-seedqr.png` or `-compactseedqr.png` for one of its seeds `fps`,
 /// exactly.
-pub(crate) fn seed_file_of(stem: &str, fps: &[String], name: &str) -> bool {
+pub(crate) fn seed_file_of(stem: &str, fps: &[impl AsRef<str>], name: &str) -> bool {
     fps.iter().any(|fp| {
-        let head = format!("{stem}-{}-", fp.to_lowercase());
-        name.strip_prefix(&head)
+        let fp = fp.as_ref();
+        let lower: Text = fp.chars().flat_map(char::to_lowercase).collect();
+        let head = text!("{stem}-{}-", &*lower);
+        name.strip_prefix(&*head)
             .is_some_and(|rest| ["words.txt", "seedqr.png", "compactseedqr.png"].contains(&rest))
     })
 }
@@ -129,7 +132,7 @@ impl BackupFlow {
         let Some(seed) = w.shape.seeds.get(s) else {
             return false;
         };
-        let fps = [String::from(&*seed.name)];
+        let fps = [&*seed.name];
         seed_file_of(&file_stem(&w.name), &fps, name) || seed_stick_file_of(&fps, name)
     }
 
@@ -147,13 +150,13 @@ impl BackupFlow {
         };
         let boxes = plan::map(c, &w.shape, &w.answers);
         if target == Target::Files {
-            let fps: Vec<String> = plan::holds_at(&boxes, plan::At::Files)
+            let fps: Vec<&str> = plan::holds_at(&boxes, plan::At::Files)
                 .into_iter()
                 .filter_map(|what| match what {
                     plan::What::SeedFile(i) => w.shape.seeds.get(i).filter(|x| x.here),
                     _ => None,
                 })
-                .map(|x| String::from(&*x.name))
+                .map(|x| &*x.name)
                 .collect();
             return seed_file_of(&file_stem(&w.name), &fps, name);
         }
@@ -183,13 +186,13 @@ impl BackupFlow {
             return false;
         };
         let kept = w.answers.seeds_as_files(c, &w.shape);
-        let fps: Vec<String> = w
+        let fps: Vec<&str> = w
             .shape
             .seeds
             .iter()
             .enumerate()
             .filter(|(s, x)| x.here && kept.contains(s))
-            .map(|(_, s)| String::from(&*s.name))
+            .map(|(_, s)| &*s.name)
             .collect();
         if seed_file_of(&file_stem(&w.name), &fps, name) {
             return true;
@@ -284,7 +287,7 @@ pub(crate) fn wallet_share_record(
     j: usize,
 ) -> Option<Result<faraday_vault::Record, &'static str>> {
     use faraday_vault::records::field;
-    type Made = Result<(String, usize, String), &'static str>;
+    type Made = Result<(Text, usize, Text), &'static str>;
     let of_wallet = |t: &str| {
         crate::wallet::read_wallet(c, t)
             .ok()
@@ -298,9 +301,9 @@ pub(crate) fn wallet_share_record(
             return Some(Err(FEN.backup_sheets_rebuild_another));
         }
         Some(Ok((
-            share,
+            Text::of(&share),
             plan.len(),
-            String::from(crate::Faraday::wallet_text(wl).as_str()),
+            Text::of(&crate::Faraday::wallet_text(wl)),
         )))
     };
     let made = match app.session.wallets.iter().find(|wl| wl.checksum() == cs) {
@@ -321,7 +324,7 @@ pub(crate) fn wallet_share_record(
                             rkind::PLAN => r.public_text(field::PLAN_WALLET),
                             _ => None,
                         })
-                        .map(|s| zeroize::Zeroizing::new(s.to_string()))
+                        .map(Text::of)
                         .collect::<Vec<_>>()
                 })
                 .chain(
@@ -329,11 +332,7 @@ pub(crate) fn wallet_share_record(
                         .iter()
                         .chain(app.outbox.iter())
                         .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                        .filter_map(|it| {
-                            std::str::from_utf8(&it.bytes)
-                                .ok()
-                                .map(|s| zeroize::Zeroizing::new(s.to_owned()))
-                        }),
+                        .filter_map(|it| std::str::from_utf8(&it.bytes).ok().map(Text::of)),
                 )
                 .find(|t| of_wallet(t))?;
             let mut s = crate::wallet::Session::on(app.session.network());

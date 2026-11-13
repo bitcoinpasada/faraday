@@ -9,6 +9,7 @@
 use faraday_bip::keys::Fingerprint;
 
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 
 use super::{
     BackupFlow, BackupRow, Kind, Pick, Problem, Reading, Step, Subject, VaultPlan, WalletFlow,
@@ -84,12 +85,12 @@ impl BackupFlowArea {
     /// A record the person moved into the vault of file id `salt` is one
     /// the vault held before every wallet flow that keeps what it held
     /// (`WalletFlow::before`): `tokens` are added to that.
-    pub(crate) fn held_before_add(&mut self, salt: [u8; 32], tokens: &[String]) {
+    pub(crate) fn held_before_add(&mut self, salt: [u8; 32], tokens: &[Text]) {
         for f in self.all.iter_mut().filter_map(|f| f.wallet.as_mut()) {
             if let Some((_, held)) = f.before.iter_mut().find(|(s, _)| *s == salt) {
                 for t in tokens {
-                    if !held.contains(t) {
-                        held.push(t.clone());
+                    if !held.iter().any(|h| h.as_str() == t.as_str()) {
+                        held.push(Text::of(t));
                     }
                 }
             }
@@ -374,7 +375,7 @@ impl BackupFlowArea {
                 }
                 for (n, _) in &mut w.files {
                     if n.eq_ignore_ascii_case(from) {
-                        *n = to.to_string();
+                        *n = Text::of(to);
                     }
                 }
             }
@@ -429,11 +430,14 @@ impl BackupFlowArea {
         let (n, m) = f.written_of();
         let en = &crate::strings::EN;
         let line = if f.all_written() {
-            en.backup_flow_row_all.to_string()
+            Text::of(en.backup_flow_row_all)
         } else if n == 0 {
-            en.backup_flow_row_none.to_string()
+            Text::of(en.backup_flow_row_none)
         } else {
-            crate::strings::fill(en.backup_flow_row_some, &[&n.to_string(), &m.to_string()])
+            Text::fill(
+                en.backup_flow_row_some,
+                &[&Text::num(n as u64), &Text::num(m as u64)],
+            )
         };
         Some(BackupRow {
             line,
@@ -474,7 +478,7 @@ impl BackupFlowArea {
                 {
                     for h in held.split(',').filter(|x| !x.is_empty()) {
                         if !w.held.iter().any(|x| x.eq_ignore_ascii_case(h)) {
-                            w.held.push(h.to_string());
+                            w.held.push(Text::of(h));
                         }
                     }
                 }
@@ -484,17 +488,17 @@ impl BackupFlowArea {
             f.made = true;
             f.on_screen = false;
             f.subject = Some(Subject {
-                id: id.to_string(),
-                name: name.to_string(),
+                id: Text::of(id),
+                name: Text::of(name),
             });
             if kind.is_wallet() {
                 let mut w = WalletFlow::blank();
-                w.checksum = Some(id.to_string());
-                w.name = name.to_string();
+                w.checksum = Some(Text::of(id));
+                w.name = Text::of(name);
                 w.held = held
                     .split(',')
                     .filter(|x| !x.is_empty())
-                    .map(str::to_string)
+                    .map(Text::of)
                     .collect();
                 f.wallet = Some(w);
             }
@@ -520,7 +524,7 @@ impl BackupFlowArea {
                     &[
                         &f.subject
                             .as_ref()
-                            .map_or(f.kind.name().to_string(), |s| s.name.clone()),
+                            .map_or(f.kind.name().to_string(), |s| String::from(&*s.name)),
                         &n.to_string(),
                         &m.to_string(),
                     ],
@@ -695,10 +699,10 @@ impl BackupFlow {
 /// Whether `n`, a file on a stick, is one of `files` the flow writes
 /// there, or a numbered copy of one: its stem, `-` and more, then the same
 /// extension. A lookup per file.
-pub(super) fn own_name(files: &[String], n: &str) -> bool {
+pub(super) fn own_name(files: &[Text], n: &str) -> bool {
     let numbered = |stem: &str, of: &str| of.strip_prefix(stem).is_some_and(|t| t.starts_with('-'));
     files.iter().any(|x| {
-        x == n
+        *x == n
             || match (x.rsplit_once('.'), n.rsplit_once('.')) {
                 (Some((xs, xe)), Some((ns, ne))) => xe == ne && numbered(xs, ns),
                 (None, None) => numbered(x, n),
@@ -716,7 +720,7 @@ mod tests {
     /// else's, and the stick reads as changed.
     #[test]
     fn a_file_under_an_own_stem_of_another_type_is_not_the_flows_own() {
-        let files = vec!["release-descriptor.txt".to_string()];
+        let files = vec![faraday_text::Text::of("release-descriptor.txt")];
         assert!(own_name(&files, "release-descriptor.txt"));
         assert!(own_name(&files, "release-descriptor-2.txt"));
         assert!(!own_name(&files, "release-descriptor-2.pdf"));

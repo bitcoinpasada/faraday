@@ -156,26 +156,30 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
         }
         Item::SeedFiles => (
             EN.item_title_the_seeds.to_string(),
-            app.wallet_seeds_written().unwrap_or_else(|| {
-                if done {
-                    app.medium.for_box()
-                } else {
-                    EN.item_title_not_made
-                }
-                .to_string()
-            }),
+            app.wallet_seeds_written()
+                .map(|t| String::from(&*t))
+                .unwrap_or_else(|| {
+                    if done {
+                        app.medium.for_box()
+                    } else {
+                        EN.item_title_not_made
+                    }
+                    .to_string()
+                }),
         ),
         Item::Sheets if a.split && shape.splits => (
             EN.item_title_the_shares.to_string(),
-            app.wallet_shares_written().unwrap_or_else(|| {
-                fill(
-                    EN.item_title_shares_keys,
-                    &[
-                        &keys_n.to_string(),
-                        &(keys_n - a.omit.min(shape.m.saturating_sub(1))).to_string(),
-                    ],
-                )
-            }),
+            app.wallet_shares_written()
+                .map(|t| String::from(&*t))
+                .unwrap_or_else(|| {
+                    fill(
+                        EN.item_title_shares_keys,
+                        &[
+                            &keys_n.to_string(),
+                            &(keys_n - a.omit.min(shape.m.saturating_sub(1))).to_string(),
+                        ],
+                    )
+                }),
         ),
         Item::Sheets => (
             EN.item_title_the_wallet.to_string(),
@@ -183,6 +187,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 "{}-backup.pdf",
                 crate::file_stem(&wallet.name).as_str()
             )])
+            .map(|t| String::from(&*t))
             .unwrap_or_else(|| {
                 if done {
                     app.medium.for_box()
@@ -194,14 +199,10 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
-            app.wallet_item_written(
-                &reads
-                    .backup_public_names_for(b.wallet, a)
-                    .iter()
-                    .map(|n| String::from(&**n))
-                    .collect::<Vec<_>>(),
-            )
-            .unwrap_or_else(|| String::from(&*ticked(&SOFTWARE_ROWS, &a.software))),
+            app.wallet_item_written(&reads.backup_public_names_for(b.wallet, a))
+                .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software))
+                .as_str()
+                .into(),
         ),
         Item::Sticks => {
             let (n, m) = app

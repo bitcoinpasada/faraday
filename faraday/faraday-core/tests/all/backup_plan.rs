@@ -1428,7 +1428,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
         "seed-{}.txt",
         faraday_core::wallet::fp_text(Fingerprint(fp.0)).to_lowercase()
     );
-    assert_eq!(rows[0].1, vec![name], "{rows:?}");
+    assert_eq!(rows[0].1, vec![faraday_text::Text::of(&name)], "{rows:?}");
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
         app.key_held(&c, Fingerprint(fp.0)),

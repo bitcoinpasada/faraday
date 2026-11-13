@@ -630,9 +630,11 @@ impl Faraday {
         let shape = self.plan_shape_now(b.wallet);
         for (p, what) in plain_files(&crate::plan::map(c, &shape, &b.answers)) {
             let names = self.stick_file_names_now(b.wallet, &shape, &b.answers, what);
-            if let Some(n) = names.into_iter().find(|n| !b.files_warned.contains(n)) {
+            if let Some(n) = names
+                .into_iter()
+                .find(|n| !b.files_warned.iter().any(|x| x.as_str() == n.as_str()))
+            {
                 let noun = self.medium.noun();
-                let n = Text::of(&n);
                 return Some(Plain {
                     name: n.clone(),
                     on: Text::fill(EN.plain_stick_at, &[noun, &self.board_place_name(p)]),

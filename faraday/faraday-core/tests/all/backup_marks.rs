@@ -48,7 +48,11 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     let wrote: Vec<String> = app
         .backup_flows()
         .iter()
-        .flat_map(|f| f.slots.iter().flat_map(|s| s.files.clone()))
+        .flat_map(|f| {
+            f.slots
+                .iter()
+                .flat_map(|s| s.files.iter().map(|t| String::from(&**t)))
+        })
         .collect();
     assert!(!wrote.is_empty());
     for n in &wrote {

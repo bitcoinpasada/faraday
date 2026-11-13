@@ -1070,7 +1070,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(String::from(name.as_str()));
+    plan.vaults[0].file = Some(faraday_text::Text::of(&name));
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(&c, kind, plan);
     f.step = Step::Make;
@@ -1104,9 +1104,9 @@ pub fn release_all(app: &mut Faraday) {
         for f in flows {
             for s in &mut f.slots {
                 s.written = Some(Written {
-                    stick: String::new(),
+                    stick: faraday_text::Text::new(),
                     serial: None,
-                    label: "STICK".into(),
+                    label: faraday_text::Text::of("STICK"),
                     time: None,
                     files: Vec::new(),
                 });

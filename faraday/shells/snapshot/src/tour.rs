@@ -893,7 +893,7 @@ pub(crate) fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
-    plan.vaults[0].file = Some(String::from(name.as_str()));
+    plan.vaults[0].file = Some(std::iter::once(name.as_str()).collect());
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(c, kind, plan);
     f.step = Step::Make;
@@ -922,9 +922,9 @@ pub(crate) fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> 
         for f in flows {
             for s in &mut f.slots {
                 s.written = Some(faraday_core::backup_flow::Written {
-                    stick: String::new(),
+                    stick: Default::default(),
                     serial: None,
-                    label: "STICK".into(),
+                    label: std::iter::once("STICK").collect(),
                     time: None,
                     files: Vec::new(),
                 });

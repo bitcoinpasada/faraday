@@ -858,7 +858,7 @@ fn a_wallets_backup_is_named_alike_on_its_page_and_on_the_rail() {
     assert_eq!(app.screen, Screen::BackupFlow);
     let name = app.flow().unwrap().wallet.as_ref().unwrap().name.clone();
     assert!(!name.is_empty());
-    expect(&mut app, &format!("Backup of {name}"));
+    expect(&mut app, &format!("Backup of {}", &*name));
     let t = app.drawn_texts();
     assert!(!t.iter().any(|s| s == "Bitcoin wallet"), "{t:?}");
 }
@@ -2227,7 +2227,13 @@ fn the_public_files_are_written_to_the_stick_of_the_place_the_plan_names() {
         for at in [0usize, 1] {
             let mut shell = Shell::new();
             let mut app = locked_of(&mut shell, kind, &fields, Some(at));
-            let names = app.flow().unwrap().public.clone();
+            let names: Vec<String> = app
+                .flow()
+                .unwrap()
+                .public
+                .iter()
+                .map(|t| String::from(&**t))
+                .collect();
             assert!(!names.is_empty(), "{kind:?}: public files were made");
             // A Secure Boot key's enrolment files go in the last write,
             // not the first.
@@ -2577,7 +2583,13 @@ fn a_stick_the_space_of_which_cannot_be_asked_is_unusable_and_not_waited_on() {
 fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickable() {
     let mut shell = Shell::new();
     let mut app = locked_of(&mut shell, Kind::SecureBoot, &["Owner"], None);
-    let names = app.flow().unwrap().public.clone();
+    let names: Vec<String> = app
+        .flow()
+        .unwrap()
+        .public
+        .iter()
+        .map(|t| String::from(&**t))
+        .collect();
     assert!(!names.is_empty());
     write_all(&mut shell, &mut app, &[("S1", false)]);
     // The flow is left before the last write; an ordinary visit follows.
@@ -2970,7 +2982,7 @@ fn with_a_plain_file(app: &mut Faraday) {
     faraday_core::testkit::change_flows(app, |flows| {
         for f in flows {
             for s in &mut f.slots {
-                s.files.push("note.pdf".into());
+                s.files.push(faraday_text::Text::of("note.pdf"));
             }
         }
     });

@@ -1857,7 +1857,7 @@ fn lone_passphrase_round(
         .session
         .wallets
         .iter()
-        .position(|x| x.name == name)
+        .position(|x| x.name.as_str() == name.as_str())
         .expect("the wallet, from its vaults");
     // Key 1 typed in again with its passphrase, which no vault keeps:
     // the chart reads the plan of the wallet with it.

@@ -33,7 +33,7 @@ fn rows(f: &BackupFlow, k: usize) -> Vec<(&'static str, Vec<String>)> {
     };
     add(
         FEN.backup_flow_sheet_name,
-        Some(b.label.clone())
+        Some(String::from(&*b.label))
             .filter(|l| !l.is_empty())
             .into_iter()
             .collect(),
@@ -71,7 +71,7 @@ fn rows(f: &BackupFlow, k: usize) -> Vec<(&'static str, Vec<String>)> {
     );
     add(
         FEN.backup_flow_sheet_vaults,
-        b.vaults.iter().map(|v| v.name.clone()).collect(),
+        b.vaults.iter().map(|v| String::from(&*v.name)).collect(),
     );
     rows
 }

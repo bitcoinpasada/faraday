@@ -939,7 +939,7 @@ impl Faraday {
         if self.board_backup_names() {
             self.place_name(p)
         } else {
-            crate::backup_flow::BackupFlow::place_name(p)
+            String::from(&*crate::backup_flow::BackupFlow::place_name(p))
         }
     }
 
@@ -1502,8 +1502,8 @@ impl Faraday {
                 };
                 (
                     self.flow_open_index(i, v),
-                    &wf.before,
-                    wf.checksum.clone().unwrap_or_default(),
+                    wf.before.clone(),
+                    wf.checksum.as_deref().map(String::from).unwrap_or_default(),
                 )
             }
             _ => {
@@ -1516,7 +1516,14 @@ impl Faraday {
                     .get(b.wallet)
                     .map(|w| w.checksum().to_string())
                     .unwrap_or_default();
-                (self.backup_vault_set_up(v), &b.before, sum)
+                (
+                    self.backup_vault_set_up(v),
+                    b.before
+                        .iter()
+                        .map(|(s, t)| (*s, t.iter().map(|x| faraday_text::Text::of(x)).collect()))
+                        .collect(),
+                    sum,
+                )
             }
         };
         let Some(o) = o else {

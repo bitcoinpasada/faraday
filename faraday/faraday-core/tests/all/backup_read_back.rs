@@ -469,7 +469,7 @@ fn a_picture_that_does_not_read_back_twice_leaves_the_stick_not_done() {
     assert!(f.slots[0].written.is_none(), "not done");
     assert_eq!(
         f.live.reading.as_ref().and_then(|r| r.problem.clone()),
-        Some(Problem::NoReadBack(name.clone()))
+        Some(Problem::NoReadBack(faraday_text::Text::of(&name)))
     );
     expect(
         &mut app,
