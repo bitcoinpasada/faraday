@@ -27,7 +27,7 @@ fn set_actions(shares: &[Share], data: &[u8]) {
     let one_group: Vec<Share> = shares
         .iter()
         .filter(|s| s.group_index() == shares[0].group_index())
-        .cloned()
+        .map(Share::duplicate)
         .collect();
     let _ = slip39::derive_member(&one_group, data[0] & 31);
     let Ok(ems) = slip39::recover_ems(shares) else {

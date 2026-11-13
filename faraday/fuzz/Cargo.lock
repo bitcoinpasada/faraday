@@ -886,6 +886,7 @@ dependencies = [
  "faraday-fat",
  "faraday-strings",
  "png",
+ "subtle",
  "zeroize",
 ]
 
