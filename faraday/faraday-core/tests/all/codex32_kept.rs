@@ -894,8 +894,7 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     assert!(app.restart_requested(), "locked: {:?}", app.toast_text());
 }
 
-#[test]
-fn the_idle_warning_keeps_what_is_typed_back_and_draws_neither_the_string_nor_its_code() {
+fn warned_with_typing(by_key: bool) {
     let mut app = device(Vec::new());
     key_from_strings(&mut app);
     wallet_and_backup(&mut app);
@@ -928,13 +927,66 @@ fn the_idle_warning_keeps_what_is_typed_back_and_draws_neither_the_string_nor_it
     app.press(Action::Cancel);
     let t = drawn(&mut app);
     assert!(!shows_share(&t), "the string stays on show: {t}");
-    assert!(!t.contains(&A[3..9]), "the typed text stays on show: {t}");
-    // The person's press shows it again, the typed text kept.
-    app.press(Action::BC32(Press::Qr));
+    let joined = |t: &str| t.replace(' ', "");
+    assert!(
+        joined(&t).contains("\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}"),
+        "the typed text is not dots: {t}"
+    );
+    assert!(
+        !joined(&t).contains(&A[3..9]),
+        "the typed text stays on show: {t}"
+    );
+    // The person's press, or a key (a string with no String chip is never
+    // typed blind), shows it again, the typed text kept.
+    if by_key {
+        app.press(Action::BC32(Press::Key(OskPress::Char('p'))));
+    } else {
+        app.press(Action::BC32(Press::Qr));
+    }
     let t = drawn(&mut app);
     assert!(shows_share(&t), "the string did not come back: {t}");
-    assert_eq!(
-        app.backup().unwrap().c32.as_ref().unwrap().typed.as_str(),
-        &A[3..9]
+    assert!(
+        joined(&t).contains(&A[3..9]),
+        "the typed text did not come back: {t}"
+    );
+}
+
+#[test]
+fn the_idle_warning_keeps_what_is_typed_back_and_draws_neither_the_string_nor_its_code() {
+    warned_with_typing(false);
+}
+
+#[test]
+fn a_key_after_the_idle_warning_shows_the_string_and_its_typed_text_again() {
+    warned_with_typing(true);
+}
+
+#[test]
+fn the_idle_warning_leaves_a_set_actions_typing_drawn() {
+    let mut app = device(Vec::new());
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    open_item(&mut app, bstep::of(plan::Item::Codex32(0)));
+    app.press(Action::BC32(Press::Set(
+        faraday_core::codex32_backup::SetPress::Add,
+    )));
+    for ch in "zyxw".chars() {
+        app.press(Action::BC32(Press::Key(OskPress::Char(ch))));
+    }
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::IdleWarn));
+    app.press(Action::Cancel);
+    app.press(Action::BC32(Press::Key(OskPress::Char('v'))));
+    app.settle();
+    let _ = app.frame();
+    let t = app.drawn_texts().join("\n");
+    assert!(
+        t.replace(' ', "").contains("zyxwv"),
+        "typing is masked: {t}"
     );
 }

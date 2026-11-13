@@ -650,16 +650,20 @@ fn a_lock_that_stops_keeps_the_check_being_typed_on_the_checklist() {
 fn a_lock_that_stops_keeps_new_key_s_selected_cell() {
     use faraday_core::codex32::{C32, Cell};
     let mut app = codex32_made();
-    app.press(Action::Codex32(C32::Cell(Cell::Given { sheet: 0, b: 0 })));
-    let cell = |app: &Faraday| app.keygen().unwrap().codex32.as_ref().unwrap().cell();
-    assert!(cell(&app).is_some(), "no cell is selected");
+    app.press(Action::Codex32(C32::Cell(Cell::Given { sheet: 0, b: 10 })));
+    let done = EN.codex32_done_button;
+    assert!(text_on_screen(&mut app, done), "no cell is open");
     lock_stops(&mut app);
     app.press(Action::Cancel);
     // Masked or not, the eye brings the working back.
     if app.keygen().unwrap().codex32.as_ref().unwrap().masked() {
         app.press(Action::Codex32(C32::Eye));
     }
-    assert!(cell(&app).is_some(), "the selected cell was thrown away");
+    assert!(
+        text_on_screen(&mut app, done),
+        "the open cell is not drawn: {:?}",
+        app.drawn_texts()
+    );
 }
 
 #[test]
@@ -1075,8 +1079,15 @@ fn the_idle_warning_keeps_the_seed_xor_parts_and_hides_the_words() {
     });
     assert_eq!(app.sheet, Some(Sheet::IdleWarn));
     app.press(Action::Cancel);
-    assert!(parts_shown(&mut app), "the idle warning dropped the parts");
     assert!(!word_shown(&mut app), "the idle warning left the words");
+    // The parts sit with the words under Show the seed: the eye brings
+    // both back, the parts the same.
+    app.press(Action::BReveal);
+    assert!(
+        parts_shown(&mut app),
+        "the idle warning dropped the parts: {:?}",
+        app.drawn_texts()
+    );
 }
 
 #[test]

@@ -234,7 +234,9 @@ impl Strings {
             self.list();
         } else {
             self.qr = None;
-            self.shut = true;
+            // Only an open string is shut: a set action's typing is no
+            // string on show.
+            self.shut = self.at.is_some();
         }
     }
 
@@ -284,6 +286,7 @@ impl Strings {
     /// typed whole, its checksum and header holding, is returned to be
     /// counted; one already in is not counted twice.
     pub fn type_in(&mut self, form: &C32, press: OskPress) -> Option<String> {
+        self.shut = false;
         let room = match self.set {
             SetStep::Typing { .. } => usize::from(form.length).saturating_sub(3),
             SetStep::Scheme(..) => 4,
@@ -337,6 +340,9 @@ impl Strings {
     /// box it is checked ([`check`]). Returns the string typed whole once
     /// it holds, to be counted towards the rebuild.
     pub fn key(&mut self, form: &C32, press: OskPress) -> Option<String> {
+        // Any key shows the typed text again, so a shut string with no
+        // chip (not made here, not 48 characters) is never typed blind.
+        self.shut = false;
         let room = usize::from(form.length).saturating_sub(3);
         match press {
             OskPress::Char(ch) => {

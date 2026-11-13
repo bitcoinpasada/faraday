@@ -2806,6 +2806,7 @@ impl Faraday {
                 st.set = SetStep::None;
                 st.held.clear();
                 st.typed.clear();
+                st.shut = false;
                 st.found = None;
                 st.note = None;
             }

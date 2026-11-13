@@ -12,8 +12,8 @@
 //! vault and goes on with what was waiting for it. What a lock does that
 //! cannot be undone is only what the seals themselves need: the running
 //! job's answer is dropped and every secret on show goes off the screen
-//! ([`secrets_off_screen`]); what was typed is kept, to be finished if the
-//! lock stops.
+//! ([`lock_secrets_off_screen`], the lock's list); what was typed is
+//! kept, to be finished if the lock stops.
 
 use std::collections::VecDeque;
 
