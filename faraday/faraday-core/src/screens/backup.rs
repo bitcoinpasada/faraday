@@ -355,12 +355,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }
             } else {
                 flow::Card {
-                    title: ctx
-                        .as_ref()
-                        .map_or_else(String::new, |c| crate::plan::cards::title(c, k)),
-                    summary: ctx
-                        .as_ref()
-                        .map_or_else(String::new, |c| crate::plan::cards::summary(c, k)),
+                    title: ctx.as_ref().map_or_else(String::new, |c| {
+                        String::from(crate::plan::cards::title(c, k))
+                    }),
+                    summary: ctx.as_ref().map_or_else(String::new, |c| {
+                        String::from(&*crate::plan::cards::summary(c, k))
+                    }),
                     mono: false,
                     done: false,
                     open: b.q == Some(k),
@@ -513,7 +513,12 @@ fn plan_body(
     if let Some(line) = crate::plan::cards::stickless_line(app, ctx) {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
     }
-    if let Some(line) = crate::plan::cards::held_line(app, ctx, app.backup_kept_nowhere()) {
+    if let Some(line) = crate::plan::cards::held_line(
+        app,
+        ctx,
+        app.backup_kept_nowhere()
+            .map(|s| faraday_text::Text::of(&s)),
+    ) {
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
         if ui.pinning {

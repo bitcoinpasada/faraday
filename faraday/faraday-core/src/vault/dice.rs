@@ -97,7 +97,7 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
         let (phrase, bits): (&str, f32) = if public {
             (crate::demo::PASSPHRASE, 0.0)
         } else {
-            (&u.phrase, u.bits)
+            (u.phrase.as_str(), u.bits)
         };
         a.set(phrase);
         b.set(phrase);

@@ -25,6 +25,7 @@
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_draw::tokens::PRESS_EMPHASIS_MS;
 use faraday_shell_api::Command;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::{Action, Faraday, out::Out, strings::EN, vault::VaultAction as V};
@@ -113,31 +114,32 @@ impl OwnCounts {
 /// or the operating system when the shell named none, then "· your own:"
 /// and each count taken, or "none". Nothing is credited: a count says
 /// what was taken, not how strong it is.
-pub(crate) fn own_status(source: Option<&str>, c: OwnCounts) -> String {
-    use crate::strings::{EN, fill};
-    let system = fill(EN.own_system, &[source.unwrap_or(EN.create_device_os)]);
-    let counts: Vec<String> = [
+pub(crate) fn own_status(source: Option<&str>, c: OwnCounts) -> Text {
+    use crate::strings::EN;
+    let system = Text::fill(EN.own_system, &[source.unwrap_or(EN.create_device_os)]);
+    let mut yours = Text::new();
+    for (n, one, many) in [
         (c.camera_frames, EN.own_camera_frame, EN.own_camera_frames),
         (c.dice_rolls, EN.own_dice_roll, EN.own_dice_rolls),
         (c.coin_flips, EN.own_coin_flip, EN.own_coin_flips),
         (c.cards, EN.own_card, EN.own_cards),
         (c.pointer_keys, EN.own_pointer_key, EN.own_pointer_keys),
-    ]
-    .into_iter()
-    .filter(|&(n, _, _)| n > 0)
-    .map(|(n, one, many)| {
-        fill(
+    ] {
+        if n == 0 {
+            continue;
+        }
+        if !yours.is_empty() {
+            yours.push_str(", ");
+        }
+        yours.push_str(&Text::fill(
             EN.own_count,
-            &[&n.to_string(), if n == 1 { one } else { many }],
-        )
-    })
-    .collect();
-    let yours = if counts.is_empty() {
-        EN.own_none.to_string()
-    } else {
-        counts.join(", ")
-    };
-    fill(EN.own_status, &[&system, &yours])
+            &[&Text::num(u64::from(n)), if n == 1 { one } else { many }],
+        ));
+    }
+    if yours.is_empty() {
+        yours.push_str(EN.own_none);
+    }
+    Text::fill(EN.own_status, &[&system, &yours])
 }
 
 /// What Add randomness says was added: how many batches in all and the
@@ -148,7 +150,7 @@ pub(crate) struct OwnAdded {
     /// Batches taken in this session.
     times: u32,
     /// The line, kept: made again only by the next batch taken.
-    line: String,
+    line: Text,
     /// When the emphasis started: `None` until the first tick after the
     /// batch.
     at: Option<u64>,
@@ -189,13 +191,16 @@ fn own_noun(source: OwnSource, n: u32) -> &'static str {
 /// Add randomness's line after `times` batches, the last `n` from
 /// `source`: "Added to the pool once: 6 dice rolls", or "Added to the
 /// pool 3 times · last: 6 dice rolls".
-fn own_added_line(times: u32, source: OwnSource, n: u32) -> String {
-    use crate::strings::{EN, fill};
-    let last = fill(EN.own_count, &[&n.to_string(), own_noun(source, n)]);
+fn own_added_line(times: u32, source: OwnSource, n: u32) -> Text {
+    use crate::strings::EN;
+    let last = Text::fill(
+        EN.own_count,
+        &[&Text::num(u64::from(n)), own_noun(source, n)],
+    );
     if times == 1 {
-        fill(EN.own_added_once, &[&last])
+        Text::fill(EN.own_added_once, &[&last])
     } else {
-        fill(EN.own_added_times, &[&times.to_string(), &last])
+        Text::fill(EN.own_added_times, &[&Text::num(u64::from(times)), &last])
     }
 }
 
@@ -615,7 +620,7 @@ impl Faraday {
     /// The status line (`docs/OWN-RANDOMNESS.md` §2.4) of Settings'
     /// Randomness row and Add randomness: the system's source, then what
     /// the person added. A lookup and a format.
-    pub fn own_status(&self) -> String {
+    pub fn own_status(&self) -> Text {
         own_status(self.keygen.entropy_source(), self.own_counts())
     }
 

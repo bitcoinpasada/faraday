@@ -135,7 +135,12 @@ fn keyboard_code(app: &mut Faraday, id: u32) -> Option<String> {
         pointer: false,
         touch: false,
     });
-    app.new_inputs().iter().find(|i| i.id == id)?.code.clone()
+    app.new_inputs()
+        .iter()
+        .find(|i| i.id == id)?
+        .code
+        .as_ref()
+        .map(|c| String::from(&**c))
 }
 
 #[test]

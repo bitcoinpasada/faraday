@@ -9,7 +9,7 @@ use faraday_core::kef_form::{IdKind, KefAct, KefForm, Source, Stage};
 use faraday_core::{Faraday, testkit};
 use faraday_keys::kef::{Envelope, unwrap};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 const TWENTY_FOUR: &str = "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
 
@@ -140,7 +140,7 @@ fn the_options_line_reads_the_choices_and_the_side_on_paper() {
 fn a_refused_version_names_one_that_works() {
     let mut app = app_with_seed();
     // Two equal blocks, which ECB would show.
-    let mut form = KefForm::new(Source::Text(Zeroizing::new("a".repeat(32))), false);
+    let mut form = KefForm::new(Source::Text(Text::of(&"a".repeat(32))), false);
     type_in(&mut form, &mut app, "a passphrase");
     form.act(&mut app, KefAct::FieldAgain);
     type_in(&mut form, &mut app, "a passphrase");
@@ -261,7 +261,7 @@ fn a_wrong_passphrase_reads_not_matching_and_can_be_tried_again() {
 #[test]
 fn a_typed_text_is_checked_against_the_text_the_form_holds() {
     let mut app = app_with_seed();
-    let mut form = KefForm::new(Source::Text(Zeroizing::new("a note".to_string())), false);
+    let mut form = KefForm::new(Source::Text(Text::of("a note")), false);
     form.act(&mut app, KefAct::Field);
     type_in(&mut form, &mut app, "a passphrase");
     form.act(&mut app, KefAct::FieldAgain);
@@ -318,7 +318,7 @@ fn options_offers_the_sizes_the_contents_can_take() {
     // under version 11 also reaches 37); 24 words 29, 33 and 37.
     assert_eq!(sides(&seed_form_of(16)), [25, 29, 33, 37]);
     assert_eq!(sides(&seed_form_of(32)), [29, 33, 37]);
-    let long = KefForm::new(Source::Text(Zeroizing::new("x".repeat(300))), false);
+    let long = KefForm::new(Source::Text(Text::of(&"x".repeat(300))), false);
     assert!(sides(&long).is_empty());
 }
 
@@ -338,10 +338,7 @@ fn the_options_line_and_size_follow_the_choice_off_paper_too() {
 fn picking_a_size_makes_a_code_of_that_size() {
     let mut app = app_with_seed();
     // A text of 16 distinct bytes, as long as a 12-word seed's entropy.
-    let mut form = KefForm::new(
-        Source::Text(Zeroizing::new("0123456789abcdef".into())),
-        false,
-    );
+    let mut form = KefForm::new(Source::Text(Text::of("0123456789abcdef")), false);
     form.act(&mut app, KefAct::Field);
     type_in(&mut form, &mut app, "a passphrase");
     form.act(&mut app, KefAct::FieldAgain);

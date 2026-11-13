@@ -8,14 +8,13 @@ use faraday_bip::keys::ScriptType;
 use crate::explore::shown::xprv_path;
 use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
 use crate::screens::{button_rows, guide_text};
-use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Code};
 use faraday_draw::tokens::{self as T, COLUMN_MAX, EXPLORE_INSET, PATH_FIELD_W};
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD};
 use faraday_keys::Reveal;
-use zeroize::Zeroizing;
+use faraday_text::{Text, text};
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -33,14 +32,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !compact {
         y = header(app, ui, x, y, width, guide);
     }
-    let keys: Vec<(String, Style, Action)> = app
+    let keys: Vec<(Text, Style, Action)> = app
         .session
         .keys
         .all()
         .map(|k| {
             let fp = k.fingerprint;
             (
-                crate::wallet::key_line(fp, &crate::bip85::key_name(k)),
+                Text::of(&crate::wallet::key_line(fp, &crate::bip85::key_name(k))),
                 Style::chosen(e.key == Some(fp.0)),
                 Action::XKey(fp.0),
             )
@@ -52,7 +51,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|fp| app.session.keys.position_of(*fp).is_some())
     {
         let way_in = [(
-            EN.convert_way_in.to_string(),
+            EN.convert_way_in,
             Style::Secondary,
             Action::Convert(crate::convert::ConvertAction::OpenOn(fp)),
         )];
@@ -82,7 +81,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fw = if compact {
         pw
     } else {
-        let whole = format!("m/{}|", e.path);
+        let whole = text!("m/{}|", e.path);
         (ui.measure_as(BODY_L.mono(), &whole) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
     };
     // Dropped to the box's own width: its error line wraps under it.
@@ -110,21 +109,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         here,
     );
     y += boxed + 8.0;
-    let presets: Vec<(String, Style, Action)> = PRESETS
+    let presets: Vec<(&str, Style, Action)> = PRESETS
         .iter()
         .enumerate()
-        .map(|(i, (name, _))| (name.to_string(), Style::Ghost, Action::XPreset(i as u8)))
+        .map(|(i, (name, _))| (*name, Style::Ghost, Action::XPreset(i as u8)))
         .chain([
-            (
-                EN.explore_index_prev.to_string(),
-                Style::Ghost,
-                Action::XIndex(-1),
-            ),
-            (
-                EN.explore_index_next.to_string(),
-                Style::Ghost,
-                Action::XIndex(1),
-            ),
+            (EN.explore_index_prev, Style::Ghost, Action::XIndex(-1)),
+            (EN.explore_index_next, Style::Ghost, Action::XIndex(1)),
         ])
         .collect();
     y += button_rows(ui, px, y, pw, &presets) + 8.0;
@@ -132,12 +123,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::compact::screen::finish(app, ui, h, y - top + 16.0);
         return;
     };
-    let scripts: Vec<(String, Style, Action)> = ScriptType::ALL
+    let scripts: Vec<(&str, Style, Action)> = ScriptType::ALL
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
-                script_name(*s).to_string(),
+                script_name(*s),
                 Style::chosen(*s == r.script),
                 Action::XScript(i as u8),
             )
@@ -193,7 +184,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some((at, root, account)) = xprvs {
         y += value_row(ui, cols, y, EN.explore_xprv_root, root);
         if !at.is_empty() && path.as_ref().is_some_and(|p| xprv_path(p) == *at) {
-            let name = fill(EN.explore_path_m, &[&at.to_string().replace('\'', "h")]);
+            let name = Text::fill(EN.explore_path_m, &[&text!("{at}").replace('\'', "h")]);
             y += value_row(ui, cols, y, &name, account);
         }
     }
@@ -201,12 +192,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.explore_account().is_some_and(|of| of.4) {
         let more = [
             (
-                EN.explore_addresses.to_string(),
+                EN.explore_addresses,
                 Style::Secondary,
                 Action::X(XAction::Page(Page::Addresses)),
             ),
             (
-                EN.explore_find.to_string(),
+                EN.explore_find,
                 Style::Secondary,
                 Action::X(XAction::Page(Page::Find)),
             ),
@@ -281,8 +272,8 @@ fn name(ui: &mut Ui, at: Cols, y: f32, label: &str) -> f32 {
 
 /// `value` in groups of four on the wide layout, whole on a small panel,
 /// in a buffer that wipes itself when dropped.
-fn grouped(compact: bool, value: &str) -> Zeroizing<String> {
-    let mut out = Zeroizing::new(String::with_capacity(value.len() + value.len() / 4 + 1));
+fn grouped(compact: bool, value: &str) -> Text {
+    let mut out = Text::with_room(value.len() + value.len() / 4 + 1);
     for (i, ch) in value.chars().enumerate() {
         if !compact && i > 0 && i % 4 == 0 {
             out.push(' ');
@@ -359,9 +350,12 @@ fn secret(app: &View, ui: &mut Ui, at: Cols, y: f32) -> f32 {
         for (k, form) in forms.iter().enumerate() {
             let index = form.as_bytes().get(8).copied().unwrap_or(b's');
             let name = match (k, index) {
-                (0, _) => EN.explore_master_seed.to_string(),
-                (_, b's') => EN.explore_codex32_secret.to_string(),
-                (_, i) => fill(EN.explore_codex32_share, &[&char::from(i).to_string()]),
+                (0, _) => Text::of(EN.explore_master_seed),
+                (_, b's') => Text::of(EN.explore_codex32_secret),
+                (_, i) => Text::fill(
+                    EN.explore_codex32_share,
+                    &[char::from(i).encode_utf8(&mut [0; 4])],
+                ),
             };
             cy += value_row(ui, at, cy, &name, form);
         }
@@ -397,7 +391,7 @@ fn word_grid(ui: &mut Ui, words: &str, x: f32, y: f32, w: f32) -> f32 {
             Role::SurfaceContainerHighest,
         );
         ui.stroke(cx, cy, cell, h, T::FIELD_RADIUS, Role::OutlineVariant);
-        let number = (i + 1).to_string();
+        let number = Text::num(i as u64 + 1);
         ui.text_mid_as((cx + gap, cy, h), BODY_S, Role::OnSurfaceVariant, &number);
         let wx = cx + gap + T::ENTRY_CELL_NUMBER;
         ui.text_mid_as((wx, cy, h), BODY_M.mono(), Role::OnSurface, word);

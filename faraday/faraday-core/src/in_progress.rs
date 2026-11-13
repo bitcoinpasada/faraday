@@ -777,9 +777,9 @@ impl Faraday {
     fn backup_step(&self, c: &Compute) -> Option<String> {
         let b = self.backup.state()?;
         if b.stage == BStage::Plan {
-            return Some(crate::plan::cards::q_title(
+            return Some(String::from(crate::plan::cards::q_title(
                 b.q.unwrap_or(crate::qstep::PLAN),
-            ));
+            )));
         }
         let n = b.open.or_else(|| {
             self.backup_items_now(c)

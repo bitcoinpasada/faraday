@@ -11,12 +11,13 @@
 //! says; the label is plain statements, one a line, each wrapped to the
 //! picture's width.
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use faraday_codec::qr::{QUIET_ZONE, QrMatrix};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens;
 use faraday_draw::{Canvas, Color, Dp, Font, Rect, Scale, SizeClass, TextAlign};
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+use faraday_text::{Text, text};
 
 /// The picture's width in pixels, whatever the code's size: the code is
 /// scaled to it in whole pixels a module, and the label is set at one
@@ -159,13 +160,13 @@ pub fn png(_c: &Compute, canvas: &Canvas) -> Vec<u8> {
 /// label lines under it.
 pub struct Labelled {
     /// The file's name.
-    pub name: String,
+    pub name: Text,
     /// The code.
     pub code: QrMatrix,
     /// The first line under the code, set large.
-    pub title: String,
+    pub title: Text,
     /// The lines under the title, one statement each.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
 }
 
 /// Costs nothing. The pictures of `codes`, one per name in `names`: each
@@ -173,9 +174,9 @@ pub struct Labelled {
 /// codes, then `lines`.
 pub(crate) fn labelled_parts(
     codes: Vec<QrMatrix>,
-    names: Vec<String>,
+    names: Vec<impl AsRef<str>>,
     title: &str,
-    lines: &[String],
+    lines: &[impl AsRef<str>],
 ) -> Vec<Labelled> {
     let k = codes.len();
     codes
@@ -186,16 +187,16 @@ pub(crate) fn labelled_parts(
             let mut label = if k == 1 {
                 Vec::new()
             } else {
-                vec![fill(
+                vec![Text::fill(
                     EN.public_pictures_part,
-                    &[&(j + 1).to_string(), &k.to_string()],
+                    &[&Text::num(j as u64 + 1), &Text::num(k as u64)],
                 )]
             };
-            label.extend(lines.iter().cloned());
+            label.extend(lines.iter().map(|l| Text::of(l.as_ref())));
             Labelled {
-                name,
+                name: Text::of(name.as_ref()),
                 code,
-                title: title.to_string(),
+                title: Text::of(title),
                 lines: label,
             }
         })
@@ -223,14 +224,14 @@ impl Labelled {
 pub(crate) fn picture_codes(
     c: &Compute,
     text: &str,
-) -> Result<Vec<faraday_codec::qr::QrMatrix>, String> {
+) -> Result<Vec<faraday_codec::qr::QrMatrix>, Text> {
     use faraday_codec::qr::{Ecc, Payload, encode_bounded};
     if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
         return Ok(vec![m]);
     }
     faraday_qr::send::bbqr_frames(c, 'U', text.as_bytes(), crate::QR_PARTS[1])
         .map(|(_, frames)| frames)
-        .map_err(|e| crate::send_error(e).as_str().into())
+        .map_err(crate::send_error)
 }
 
 /// The file names of the pictures [`picture_codes`] makes of `text`,
@@ -238,20 +239,20 @@ pub(crate) fn picture_codes(
 /// `{name}{part}{j}-of-{k}.png` for each of the `k` parts, and none when
 /// the text cannot be sent as parts. Costs the splitting of `text` into
 /// BBQr parts when it needs more than one code, and no code is drawn.
-pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
+pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<Text> {
     use faraday_codec::qr::{Ecc, byte_capacity};
     if text.len() <= byte_capacity(25, Ecc::Medium) {
-        return vec![format!("{name}.png")];
+        return vec![text!("{name}.png")];
     }
     let Some(parts) = faraday_qr::bbqr::encode('U', text.as_bytes(), crate::QR_PARTS[1]) else {
         return Vec::new();
     };
     let k = parts.len();
     if k == 1 {
-        return vec![format!("{name}.png")];
+        return vec![text!("{name}.png")];
     }
     (1..=k)
-        .map(|j| format!("{name}{part}{j}-of-{k}.png"))
+        .map(|j| text!("{name}{part}{j}-of-{k}.png"))
         .collect()
 }
 

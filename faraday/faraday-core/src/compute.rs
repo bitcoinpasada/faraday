@@ -616,7 +616,7 @@ impl Faraday {
     pub fn kef_make_text(
         &mut self,
         passphrase: Zeroizing<Vec<u8>>,
-        text: Zeroizing<String>,
+        text: faraday_text::Text,
         options: &kef_make::Options,
     ) -> Result<(), kef_make::MakeStart> {
         self.kef_make(

@@ -40,7 +40,7 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
             x,
             cy,
             w,
-            &cards::title(&ctx, q),
+            cards::title(&ctx, q),
             &cards::summary(&ctx, q),
             open == Some(q),
             ctx.act(crate::PlanPress::Q(q)),

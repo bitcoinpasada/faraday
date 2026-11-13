@@ -690,7 +690,7 @@ impl Faraday {
             Action::QrTool(_) => crate::qr_tool::field(self)?.1,
             Action::OtsCheck(_) => crate::ots_check::field(self)?.1,
             Action::CoreWallet(_) => crate::core_wallet::tool::field(self)?.1,
-            Action::Rename => self.wallets.renaming().map(String::as_str)?,
+            Action::Rename => self.wallets.renaming().map(|n| n.as_str())?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
             Action::BName(p) => self.backup.state()?.names.get(usize::from(p))?,

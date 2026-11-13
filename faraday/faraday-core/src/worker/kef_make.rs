@@ -23,7 +23,7 @@ pub enum IdChoice {
     /// This many fresh random bytes: 8 by default, 16 one level down.
     Random(usize),
     /// A label typed by the person; public, printed on the code.
-    Label(String),
+    Label(faraday_text::Text),
     /// The wallet's fingerprint; public, printed on the code.
     Fingerprint([u8; 4]),
 }

@@ -27,7 +27,7 @@ fn seeded() -> Faraday {
 
 /// The code the first waiting device must type.
 fn code_of(app: &Faraday) -> String {
-    app.new_inputs()[0].code.clone().expect("a code")
+    String::from(&**app.new_inputs()[0].code.as_ref().expect("a code"))
 }
 
 fn new_device(app: &mut Faraday, id: u32, keyboard: bool, pointer: bool) {

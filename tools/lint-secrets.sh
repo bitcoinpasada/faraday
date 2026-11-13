@@ -574,7 +574,17 @@ faraday/faraday-core/src/glance/sheet.rs
 faraday/faraday-core/src/inbox.rs
 faraday/faraday-core/src/visit_taken.rs
 faraday/faraday-core/src/backup_flow/mod.rs
-faraday/faraday-core/src/backup_flow/wallet.rs"
+faraday/faraday-core/src/backup_flow/wallet.rs
+faraday/faraday-core/src/kef_form/mod.rs
+faraday/faraday-core/src/plan/cards.rs
+faraday/faraday-core/src/explore/screen.rs
+faraday/faraday-core/src/picture.rs
+faraday/faraday-core/src/inputs.rs
+faraday/faraday-core/src/fresh.rs
+faraday/faraday-core/src/fresh/roller/mod.rs
+faraday/faraday-core/src/edit.rs
+faraday/faraday-core/src/dice_entry/mod.rs
+faraday/faraday-core/src/kef_tool/mod.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -590,10 +600,11 @@ done
 #   faraday-text lib   declares and documents the wiping text type of text.rs
 #   codex32_backup     holds the codex32 strings typed back and made as wiping text
 #   glance/sheet.rs    shows a passphrase it reads from the store as wiping text
-#   faraday-text lib   declares and documents the wiping text type of text.rs
+#   dice_entry/mod.rs holds a diceware passphrase and the rolls as wiping text
+#   kef_tool/mod.rs    holds a KEF plaintext as wiping text
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

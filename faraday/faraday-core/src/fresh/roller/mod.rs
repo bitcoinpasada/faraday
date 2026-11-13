@@ -22,6 +22,7 @@
 use faraday_draw::tokens::{
     ROLLER_COUNT_DIGITS, ROLLER_COUNT_MAX, ROLLER_FACE_MS, ROLLER_ONE_TUMBLE_MS,
 };
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 pub mod five;
@@ -94,7 +95,7 @@ pub enum Sim {
 pub struct Roller {
     per: PerClick,
     /// The typed number's digits.
-    typed: String,
+    typed: Text,
     /// Values still to land from this click.
     left: usize,
     stage: Stage,

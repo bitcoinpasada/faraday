@@ -2936,8 +2936,8 @@ impl Faraday {
                     "-",
                     &w.policy().to_descriptor_checksummed(),
                 )
-                .into_iter()
-                .next(),
+                .first()
+                .map(|n| String::from(&**n)),
                 2 => Some(format!("{stem}-multisig-config.png")),
                 6 => Some(format!("{stem}-bsms.png")),
                 _ => None,

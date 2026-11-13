@@ -1585,7 +1585,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let bw = ((iw - (n - 1.0) * 6.0) / n).min(52.0);
                 let typed = d.typed.chars().count();
                 for (k, c) in code.chars().enumerate() {
-                    let done = code.starts_with(&d.typed) && k < typed;
+                    let done = code.starts_with(&*d.typed) && k < typed;
                     let cx = x + k as f32 * (bw + 6.0);
                     ui.fill(
                         cx,

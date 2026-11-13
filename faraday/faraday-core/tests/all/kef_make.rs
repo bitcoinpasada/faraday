@@ -8,6 +8,7 @@ use faraday_core::worker::kef_make::{IdChoice, MakeStart, Options};
 use faraday_core::{Faraday, testkit};
 use faraday_keys::kef::{OpenError, unwrap};
 use faraday_shell_api::{App, EntropyBytes, Event};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 const TWENTY_FOUR: &str = "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
@@ -109,7 +110,7 @@ fn each_option_changes_the_code_as_it_says() {
     });
     assert_eq!(e.id.len(), 16);
     let (m, e) = make(Options {
-        id: IdChoice::Label("my label".into()),
+        id: IdChoice::Label(Text::of("my label")),
         ..quick()
     });
     assert_eq!(e.id, b"my label");
@@ -137,8 +138,7 @@ fn each_option_changes_the_code_as_it_says() {
     };
     let note = "0123456789abcdefghijklmnopqrstuv";
     let mut size = |o: Options| {
-        app.kef_make_text(pass(), Zeroizing::new(note.into()), &o)
-            .unwrap();
+        app.kef_make_text(pass(), Text::of(note), &o).unwrap();
         made(&mut app, &o).view.unwrap().frames[0].size()
     };
     let size_medium = size(medium);
@@ -154,7 +154,7 @@ fn a_refused_version_names_one_that_works() {
         version: 5,
         ..quick()
     };
-    app.kef_make_text(pass(), Zeroizing::new("a".repeat(40)), &options)
+    app.kef_make_text(pass(), Text::of(&"a".repeat(40)), &options)
         .unwrap();
     testkit::settle(&mut app);
     let refused = app.kef_take_made(&options).unwrap().err().expect("refused");
@@ -168,7 +168,7 @@ fn a_refused_version_names_one_that_works() {
         version: named,
         ..quick()
     };
-    app.kef_make_text(pass(), Zeroizing::new("a".repeat(40)), &again)
+    app.kef_make_text(pass(), Text::of(&"a".repeat(40)), &again)
         .unwrap();
     assert!(made(&mut app, &again).view.is_ok());
 }
@@ -185,7 +185,7 @@ fn a_passphrase_the_keypads_lack_is_refused_before_any_work() {
 fn the_label_and_the_files_say_nothing_of_the_contents() {
     let mut app = app_with(TWENTY_FOUR);
     let options = quick();
-    app.kef_make_text(pass(), Zeroizing::new("hunter two".into()), &options)
+    app.kef_make_text(pass(), Text::of("hunter two"), &options)
         .unwrap();
     let code = made(&mut app, &options);
     let view = code.view.as_ref().unwrap();
@@ -235,7 +235,7 @@ fn the_picture_and_the_file_go_to_the_outbox() {
 fn a_second_code_with_the_same_label_keeps_the_first_in_the_outbox() {
     let mut app = app_with(TWENTY_FOUR);
     let options = Options {
-        id: IdChoice::Label("cold".into()),
+        id: IdChoice::Label(Text::of("cold")),
         ..quick()
     };
     app.kef_make_seed(0, pass(), &options).unwrap();
@@ -301,7 +301,7 @@ fn the_size_predicted_is_the_size_of_the_code_made() {
         };
         // No two blocks alike, which the ECB versions refuse.
         let counted: String = (0..len / 8 + 1).map(|i| format!("{i:08}")).collect();
-        let text = Zeroizing::new(counted[..len].to_string());
+        let text = Text::of(&counted[..len]);
         for i in 0..2u8 {
             app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
         }

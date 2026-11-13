@@ -10,7 +10,7 @@ use crate::vault::TextBox;
 use crate::{Action, Faraday, Screen, Sheet, flow};
 use faraday_keys::kef::COMPRESS_MAX;
 use faraday_shell_api::Key;
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 pub(crate) mod screen;
 
@@ -147,14 +147,14 @@ fn st(app: &mut Faraday) -> Option<&mut KefToolState> {
 
 /// The text the wallet at `i` makes: its checksummed public descriptor,
 /// and the fingerprint offered as the id when it has one key.
-fn wallet_text(app: &Faraday, i: usize) -> Option<(String, Option<[u8; 4]>)> {
+fn wallet_text(app: &Faraday, i: usize) -> Option<(Text, Option<[u8; 4]>)> {
     let w = app.session.wallets.get(i)?;
     let keys = w.policy().keys();
     let fp = match keys {
         [k] => k.fingerprint().map(|f| f.0),
         _ => None,
     };
-    Some((w.policy().to_descriptor_checksummed(), fp))
+    Some((Text::of(&w.policy().to_descriptor_checksummed()), fp))
 }
 
 /// A stick is attached: the typed text and the form's secret fields lose
@@ -229,7 +229,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 return;
             }
             let Some(s) = st(app) else { return };
-            let text = s.typed.text.as_str().to_string();
+            let text = Text::of(s.typed.text.as_str());
             begin(app, text, None, None);
         }
         KefToolAction::Form(a) => {
@@ -247,8 +247,8 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
 }
 
 /// Starts the form on `text` and opens its card.
-fn begin(app: &mut Faraday, text: String, fp: Option<[u8; 4]>, wallet: Option<usize>) {
-    let mut form = KefForm::new(Source::Text(Zeroizing::new(text)), false);
+fn begin(app: &mut Faraday, text: Text, fp: Option<[u8; 4]>, wallet: Option<usize>) {
+    let mut form = KefForm::new(Source::Text(text), false);
     form.offer_fingerprint(fp);
     form.offer_by_hand();
     if let Some(s) = st(app) {

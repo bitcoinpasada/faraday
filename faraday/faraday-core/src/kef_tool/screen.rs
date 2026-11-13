@@ -97,7 +97,7 @@ fn summary(app: &View, s: &KefToolState, step: u8) -> String {
         kstep::MAKE => s
             .form()
             .filter(|_| s.done[usize::from(step)])
-            .map(|f| f.summary())
+            .map(|f| String::from(&*f.summary()))
             .unwrap_or_default(),
         kstep::CODE if s.done[usize::from(step)] => match s.form() {
             Some(f) if f.checked() => EN.kef_tool_code_checked_sum.to_string(),

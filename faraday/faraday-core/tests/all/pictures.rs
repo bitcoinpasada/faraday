@@ -167,7 +167,10 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
     let k = pictures.len();
     assert!(k > 1, "one code");
     for (j, p) in pictures.iter().enumerate() {
-        assert_eq!(p.name, format!("big-descriptor-{}-of-{k}.png", j + 1));
+        assert_eq!(
+            p.name,
+            format!("big-descriptor-{}-of-{k}.png", j + 1).as_str()
+        );
         let text = label(p);
         assert!(
             text.iter().any(|t| *t == format!("Part {} of {k}", j + 1)),
@@ -303,7 +306,7 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     let pictures: Vec<String> = app
         .public_pictures(&c, w, 8)
         .into_iter()
-        .map(|p| p.name)
+        .map(|p| String::from(&*p.name))
         .collect();
     assert_eq!(pictures.len() > 1, parts, "{pictures:?}");
     let written = |app: &Faraday| -> Vec<String> {

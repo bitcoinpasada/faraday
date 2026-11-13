@@ -11,10 +11,10 @@
 //! simulated marks.
 
 use crate::fresh::roller::{Act, PerClick, Roller, Sim};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::vault::TextBox;
 use faraday_shell_api::Key as K;
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 pub(crate) mod screen;
 
@@ -24,13 +24,13 @@ pub const STRONG_BITS: u32 = 77;
 
 /// The words this list needs for a strong passphrase, said with where the
 /// lists come from: text, since Faraday is offline.
-pub fn dice_aim(list: faraday_bip::diceware::List) -> String {
+pub fn dice_aim(list: faraday_bip::diceware::List) -> Text {
     let n = (1..=20)
         .find(|&n| list.bits(n) >= STRONG_BITS)
         .unwrap_or(20);
-    fill(
+    Text::fill(
         EN.vaults_aim_for_words,
-        &[&n.to_string(), &STRONG_BITS.to_string()],
+        &[&Text::num(n as u64), &Text::num(u64::from(STRONG_BITS))],
     )
 }
 
@@ -116,7 +116,7 @@ pub struct Used {
     /// The owner's tag the entry was opened with.
     pub tag: usize,
     /// The words joined; empty when the rolls made none.
-    pub phrase: Zeroizing<String>,
+    pub phrase: Text,
     /// Their bits.
     pub bits: f32,
     /// Which of the rolls this computer made.
@@ -245,7 +245,7 @@ impl DiceEntry {
         self.roller.reset();
         Some(Used {
             tag,
-            phrase: Zeroizing::new(words.join("")),
+            phrase: words.iter().copied().collect::<Text>(),
             bits: words.len() as f32 * list.bits_per_word(),
             sim,
         })

@@ -42,6 +42,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Action, Faraday, Sheet, StorageEvent};
 use faraday_draw::tokens::TOUCH;
+use faraday_text::Text;
 use std::collections::VecDeque;
 
 /// How long the code is.
@@ -81,7 +82,7 @@ pub struct NewInput {
     /// The shell's number for it.
     pub id: u32,
     /// What it calls itself: a claim, not a fact.
-    pub name: String,
+    pub name: Text,
     /// It types.
     pub keyboard: bool,
     /// It points.
@@ -89,7 +90,7 @@ pub struct NewInput {
     /// It names places on the screen: a touchscreen.
     pub touch: bool,
     /// The code it must type; `None` until the session's seed arrived.
-    pub code: Option<String>,
+    pub code: Option<Text>,
     /// Where each target it must press is, as fractions of the room the
     /// sheet leaves for it (0 to `u16::MAX` across and down), each drawn
     /// apart; `None` until the session's seed arrived.
@@ -99,7 +100,7 @@ pub struct NewInput {
     /// How many times it pressed beside a target.
     pub missed: usize,
     /// What it has typed so far, the last few letters.
-    pub typed: String,
+    pub typed: Text,
     /// How many letters it has typed in all.
     pub letters: usize,
     /// It has acted (moved, pressed, typed or touched) since it was held:
@@ -157,7 +158,7 @@ pub(crate) enum Typed {
     /// target too often, and is kept out; `touch` is whether it is a
     /// touchscreen, and `limit` whether the door is now closed.
     KeptOut {
-        name: String,
+        name: Text,
         touch: bool,
         limit: bool,
     },
@@ -173,7 +174,7 @@ pub(crate) struct InputsArea {
     held: Vec<NewInput>,
     /// Devices kept out until they are unplugged: the shell's number and
     /// the name it gave.
-    ignored: Vec<(u32, String)>,
+    ignored: Vec<(u32, Text)>,
     /// How many keyboards and touchscreens were kept out for the wrong
     /// code or taps beside the target this session.
     kept_out: usize,
@@ -193,7 +194,7 @@ pub(crate) struct InputsArea {
     /// out (`false`).
     decisions: VecDeque<(u32, bool)>,
     /// What was plugged in at start, and when the first frame drew it.
-    boot_notice: Option<(String, Option<u64>)>,
+    boot_notice: Option<(Text, Option<u64>)>,
     /// The lock notice waits under a held device's sheet, and comes back
     /// when the device is decided.
     locked_under: bool,
@@ -227,7 +228,7 @@ impl InputsArea {
     }
 
     /// The devices kept out until unplugged.
-    pub(crate) fn ignored(&self) -> &[(u32, String)] {
+    pub(crate) fn ignored(&self) -> &[(u32, Text)] {
         &self.ignored
     }
 
@@ -313,9 +314,9 @@ impl InputsArea {
     pub(crate) fn admit(
         &mut self,
         id: u32,
-        name: String,
+        name: Text,
         (keyboard, pointer, touch): (bool, bool, bool),
-        draw: impl FnOnce() -> Option<(String, [(u16, u16); TARGETS_MAX])>,
+        draw: impl FnOnce() -> Option<(Text, [(u16, u16); TARGETS_MAX])>,
     ) -> Admitted {
         if self.held.iter().any(|i| i.id == id) {
             return Admitted::Known;
@@ -336,7 +337,7 @@ impl InputsArea {
             spots,
             reached: 0,
             missed: 0,
-            typed: String::new(),
+            typed: Text::new(),
             letters: 0,
             used: false,
         });
@@ -347,7 +348,7 @@ impl InputsArea {
     /// and its targets' places, from `draw`.
     pub(crate) fn coded(
         &mut self,
-        draw: impl Fn(u32) -> Option<(String, [(u16, u16); TARGETS_MAX])>,
+        draw: impl Fn(u32) -> Option<(Text, [(u16, u16); TARGETS_MAX])>,
     ) {
         for d in &mut self.held {
             if d.code.is_none() {
@@ -520,7 +521,7 @@ impl Faraday {
 
     /// The devices kept out until they are unplugged: the shell's number
     /// and the name each gave.
-    pub fn ignored_inputs(&self) -> &[(u32, String)] {
+    pub fn ignored_inputs(&self) -> &[(u32, Text)] {
         self.inputs.ignored()
     }
 
@@ -611,13 +612,14 @@ impl Faraday {
     /// What was plugged in when the shell's start window closed: one toast
     /// lists it, which only its × or Escape dismisses and nothing replaces.
     /// It comes once.
-    fn input_boot_usb(&mut self, names: &[String]) {
+    fn input_boot_usb(&mut self, names: &[impl AsRef<str>]) {
         if names.is_empty() || self.inputs.boot_notice.is_some() {
             return;
         }
         let named: Vec<&str> = names
             .iter()
             .map(|n| {
+                let n = n.as_ref();
                 if n.is_empty() {
                     EN.inputs_usb_device_unnamed
                 } else {
@@ -625,7 +627,7 @@ impl Faraday {
                 }
             })
             .collect();
-        let text = fill(EN.inputs_plugged_in_at_start, &[&named.join(", ")]);
+        let text = Text::fill(EN.inputs_plugged_in_at_start, &[&named.join(", ")]);
         self.inputs.boot_notice = Some((text, None));
         self.out.redraw();
     }
@@ -693,7 +695,7 @@ impl Faraday {
                 keyboard,
                 pointer,
                 touch,
-            } => self.input_new(id, name, (keyboard, pointer, touch)),
+            } => self.input_new(id, &name, (keyboard, pointer, touch)),
             StorageEvent::InputTyped { id, ch } => self.input_typed(id, ch),
             StorageEvent::InputTapped { id, x, y } => self.input_tapped(id, x, y),
             StorageEvent::InputUsed { id } => self.input_used(id),
@@ -712,11 +714,11 @@ impl Faraday {
 
     /// A device the shell holds back, with what it says it is: keyboard,
     /// pointer, touchscreen.
-    pub(crate) fn input_new(&mut self, id: u32, name: String, kinds: (bool, bool, bool)) {
+    pub(crate) fn input_new(&mut self, id: u32, name: &str, kinds: (bool, bool, bool)) {
         let (fresh, now) = (&self.fresh, self.now_ms);
         match self
             .inputs
-            .admit(id, name, kinds, || input_code(fresh, id, now))
+            .admit(id, Text::of(name), kinds, || input_code(fresh, id, now))
         {
             Admitted::Known => return,
             Admitted::Ignored => {
@@ -912,7 +914,7 @@ fn input_code(
     fresh: &crate::fresh::Fresh,
     id: u32,
     now_ms: u64,
-) -> Option<(String, [(u16, u16); TARGETS_MAX])> {
+) -> Option<(Text, [(u16, u16); TARGETS_MAX])> {
     let count = [id.to_le_bytes().as_slice(), &now_ms.to_le_bytes()].concat();
     let draw = fresh.draw(b"faraday input code", &count)?;
     let code = draw

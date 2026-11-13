@@ -8,12 +8,13 @@
 use crate::Faraday;
 use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed, Used};
 use crate::screens::pass_pair;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::worker::kef::KefStart;
 use crate::worker::kef_make::{self, IdChoice, Made, MakeStart, Options, Saved};
 use faraday_keys::kef::{DEFAULT_ID_LEN, ID_MAX, LONG_ID_LEN};
 use faraday_shell_api::Key;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 pub(crate) mod screen;
@@ -34,7 +35,7 @@ pub enum Source {
         fingerprint: Option<[u8; 4]>,
     },
     /// A text: a passphrase, a share, a note.
-    Text(Zeroizing<String>),
+    Text(Text),
 }
 
 /// Where the form stands.
@@ -163,7 +164,7 @@ pub struct KefForm {
     sheet: bool,
     legacy: bool,
     stage: Stage,
-    error: Option<String>,
+    error: Option<Text>,
     made: Option<Made>,
     saved: Option<Saved>,
     check: TextBox,
@@ -236,7 +237,7 @@ impl KefForm {
     pub fn new(source: Source, paper: bool) -> Self {
         let options = Options::default();
         let mut rounds = TextBox::default();
-        rounds.set(&options.count.to_string());
+        rounds.set(&Text::num(u64::from(options.count)));
         let mut form = KefForm {
             source,
             pass: TextBox::default(),
@@ -359,11 +360,11 @@ impl KefForm {
     }
 
     /// The code as its picture holds it: the base43 text of its bytes.
-    pub(crate) fn code_text(&self) -> Option<String> {
+    pub(crate) fn code_text(&self) -> Option<Text> {
         self.by_hand_side()?;
-        Some(faraday_codec::kef::base43_encode(
+        Some(Text::of(&faraday_codec::kef::base43_encode(
             &self.made.as_ref()?.bytes,
-        ))
+        )))
     }
 
     /// The drawn copy was read and is the code: one field and Compare,
@@ -453,7 +454,7 @@ impl KefForm {
     }
 
     /// The options button's line.
-    pub fn summary(&self) -> String {
+    pub fn summary(&self) -> Text {
         let o = &self.options;
         let id = match &o.id {
             IdChoice::Random(n) if *n == LONG_ID_LEN => EN.kef_id_random16_fact,
@@ -461,14 +462,14 @@ impl KefForm {
             IdChoice::Label(_) => EN.kef_id_label_fact,
             IdChoice::Fingerprint(_) => EN.kef_id_fingerprint_fact,
         };
-        let line = fill(
+        let line = Text::fill(
             EN.kef_form_summary,
-            &[&o.version.to_string(), &group(o.count), id],
+            &[&Text::num(u64::from(o.version)), &group(o.count), id],
         );
         match self.side() {
-            Some(s) => fill(
+            Some(s) => Text::fill(
                 EN.kef_form_summary_side,
-                &[&line, &s.to_string(), &s.to_string()],
+                &[&line, &Text::num(s as u64), &Text::num(s as u64)],
             ),
             _ => line,
         }
@@ -571,7 +572,7 @@ impl KefForm {
                 self.options.id = match k {
                     IdKind::Random8 => IdChoice::Random(DEFAULT_ID_LEN),
                     IdKind::Random16 => IdChoice::Random(LONG_ID_LEN),
-                    IdKind::Label => IdChoice::Label(self.label.text.as_str().to_string()),
+                    IdKind::Label => IdChoice::Label(Text::of(self.label.text.as_str())),
                     IdKind::Fingerprint => match self.fingerprint() {
                         Some(f) => IdChoice::Fingerprint(f),
                         None => return,
@@ -580,7 +581,7 @@ impl KefForm {
                 self.focus = (k == IdKind::Label).then_some(Focus::Label);
             }
             KefAct::Label => {
-                self.options.id = IdChoice::Label(self.label.text.as_str().to_string());
+                self.options.id = IdChoice::Label(Text::of(self.label.text.as_str()));
                 self.focus = Some(Focus::Label);
             }
             KefAct::Make => self.make(app),
@@ -747,7 +748,7 @@ impl KefForm {
                 true
             }
             Some(Err(e)) => {
-                self.error = Some(e);
+                self.error = Some(Text::of(&e));
                 self.stage = Stage::Entry;
                 true
             }
@@ -890,7 +891,7 @@ impl KefForm {
     }
 
     fn no_match(&mut self) {
-        self.error = Some(EN.kef_check_no_match.to_string());
+        self.error = Some(Text::of(EN.kef_check_no_match));
         self.stage = Stage::Check;
     }
 
@@ -901,7 +902,7 @@ impl KefForm {
 
     fn sync_label(&mut self) {
         if matches!(self.options.id, IdChoice::Label(_)) {
-            self.options.id = IdChoice::Label(self.label.text.as_str().to_string());
+            self.options.id = IdChoice::Label(Text::of(self.label.text.as_str()));
         }
         self.error = None;
     }
@@ -942,14 +943,14 @@ impl KefForm {
         let phrase = if app.makes_secrets() {
             u.phrase
         } else {
-            Zeroizing::new(crate::demo::PASSPHRASE.to_string())
+            Text::of(crate::demo::PASSPHRASE)
         };
         if faraday_keys::kef::writable_passphrase(&phrase) {
             self.pass.set(&phrase);
             self.pass2.set(&phrase);
             self.error = None;
         } else {
-            self.error = Some(EN.kef_refuse_passphrase.to_string());
+            self.error = Some(Text::of(EN.kef_refuse_passphrase));
         }
     }
 
@@ -964,28 +965,26 @@ impl KefForm {
         let pass = Zeroizing::new(self.pass.text.as_str().as_bytes().to_vec());
         let started = match &self.source {
             Source::Seed { index, .. } => app.kef_make_seed(*index, pass, &self.options),
-            Source::Text(t) => app.kef_make_text(pass, t.clone(), &self.options),
+            Source::Text(t) => app.kef_make_text(pass, t.duplicate(), &self.options),
         };
         match started {
             Ok(()) => self.stage = Stage::Making,
-            Err(MakeStart::Refused(line)) => self.error = Some(line.to_string()),
-            Err(MakeStart::NotOffered) => {
-                self.error = Some(kef_make::not_offered_line().to_string())
-            }
+            Err(MakeStart::Refused(line)) => self.error = Some(Text::of(line)),
+            Err(MakeStart::NotOffered) => self.error = Some(Text::of(kef_make::not_offered_line())),
             Err(MakeStart::Not(KefStart::NoFreshBytes)) => {
-                self.error = Some(EN.kef_form_need_random.to_string());
+                self.error = Some(Text::of(EN.kef_form_need_random));
             }
             Err(MakeStart::Not(KefStart::Refused(e))) => {
-                self.error = Some(kef_make::refusal_text(e));
+                self.error = Some(Text::of(&kef_make::refusal_text(e)));
             }
         }
     }
 }
 
 /// A count with thousands separated: 100,000.
-fn group(n: u32) -> String {
-    let s = n.to_string();
-    let mut out = String::new();
+fn group(n: u32) -> Text {
+    let s = Text::num(u64::from(n));
+    let mut out = Text::new();
     for (i, c) in s.chars().enumerate() {
         if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push(',');

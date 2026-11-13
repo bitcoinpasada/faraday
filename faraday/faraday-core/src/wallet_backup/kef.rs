@@ -227,7 +227,7 @@ fn remade(c: &Compute, bytes: &[u8], m: &KefMark) -> Option<kef_make::Made> {
         low: m.low,
         count: env.count,
         id: if m.label {
-            IdChoice::Label(String::new())
+            IdChoice::Label(faraday_text::Text::new())
         } else {
             Options::default().id
         },
@@ -463,7 +463,10 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
 
 /// The code made for seed `i` as a scanner's sample: its base43 text.
 pub(crate) fn sample_text(app: &Faraday, i: usize) -> Option<String> {
-    app.backup.kef_form(i)?.code_text()
+    app.backup
+        .kef_form(i)?
+        .code_text()
+        .map(|t| String::from(&*t))
 }
 
 /// A press on the form.

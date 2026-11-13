@@ -388,14 +388,20 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                             .strip_prefix(share.as_str())
                             .is_some_and(|rest| rest == ".png" || rest.starts_with("-part-"))
                     }) {
-                        files.push((p.name.clone(), if bytes { p.png(c) } else { Vec::new() }));
+                        files.push((
+                            String::from(&*p.name),
+                            if bytes { p.png(c) } else { Vec::new() },
+                        ));
                     }
                 }
             }
         }
         8 | 14 => {
             for p in pictures(c, inp, what) {
-                files.push((p.name.clone(), if bytes { p.png(c) } else { Vec::new() }));
+                files.push((
+                    String::from(&*p.name),
+                    if bytes { p.png(c) } else { Vec::new() },
+                ));
             }
         }
         9 => {

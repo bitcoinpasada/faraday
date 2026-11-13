@@ -10,11 +10,11 @@ use crate::drawing::View;
 use crate::plan::{self, At};
 use crate::screens::{SOFTWARE_ROWS, held_item, next_button, section_label, ticked};
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use crate::{Action, PlanPress, qrow, qstep};
 use faraday_draw::tokens::{BODY_S, LABEL_L};
+use faraday_text::Text;
 
 /// The plan a set of cards draws, and whose it is.
 pub(crate) struct PlanCtx {
@@ -28,7 +28,7 @@ pub(crate) struct PlanCtx {
     /// The plan's check, kept with its map ([`View::plan_check`]).
     pub check: plan::Check,
     /// What each place is called; "Place 1" where it has no name.
-    pub names: Vec<String>,
+    pub names: Vec<Text>,
     /// A wallet flow's plan, by index; `None` for Back up's.
     pub flow: Option<usize>,
     /// The rows take presses: not while a stick is written.
@@ -36,7 +36,7 @@ pub(crate) struct PlanCtx {
     /// The loaded wallet, where it is: its shares' keys and the slider.
     pub wallet: Option<usize>,
     /// Work an earlier plan did that this one dropped.
-    pub extras: Vec<String>,
+    pub extras: Vec<Text>,
     /// Back up's checklist is showing: the map's lines carry their
     /// items' marks.
     pub checklist: bool,
@@ -49,7 +49,7 @@ impl PlanCtx {
         let shape = app.plan_shape(b.wallet);
         let a = b.answers.clone();
         let names = (0..a.places.max(1) + 1)
-            .map(|p| app.place_name(p))
+            .map(|p| Text::of(&app.place_name(p)))
             .collect();
         Some(PlanCtx {
             mapped: app.plan_mapped(&shape, &a),
@@ -60,7 +60,7 @@ impl PlanCtx {
             flow: None,
             enabled: true,
             wallet: Some(b.wallet),
-            extras: b.extras.clone(),
+            extras: b.extras.iter().map(|e| Text::of(e)).collect(),
             checklist: b.stage == crate::BStage::Checklist,
         })
     }
@@ -80,9 +80,9 @@ impl PlanCtx {
         let names = (0..a.places.max(1) + 1)
             .map(|p| {
                 if backup_names {
-                    app.place_name(p)
+                    Text::of(&app.place_name(p))
                 } else {
-                    String::from(&*crate::backup_flow::BackupFlow::place_name(p))
+                    crate::backup_flow::BackupFlow::place_name(p)
                 }
             })
             .collect();
@@ -101,21 +101,15 @@ impl PlanCtx {
     }
 
     /// Place `p`'s name.
-    pub(crate) fn name(&self, p: usize) -> String {
-        self.names
-            .get(p)
-            .cloned()
-            .unwrap_or_else(|| fill(EN.place_name_place, &[&(p + 1).to_string()]))
+    pub(crate) fn name(&self, p: usize) -> Text {
+        self.name_text(p)
     }
 
     /// Place `p`'s name, made once as wiping text.
-    pub(crate) fn name_text(&self, p: usize) -> faraday_text::Text {
+    pub(crate) fn name_text(&self, p: usize) -> Text {
         match self.names.get(p) {
-            Some(n) => faraday_text::Text::of(n),
-            None => faraday_text::Text::fill(
-                EN.place_name_place,
-                &[&faraday_text::Text::num(p as u64 + 1)],
-            ),
+            Some(n) => n.duplicate(),
+            None => Text::fill(EN.place_name_place, &[&Text::num(p as u64 + 1)]),
         }
     }
 
@@ -130,32 +124,31 @@ impl PlanCtx {
 
 /// A plan card's title (`docs/BACKUP-FLOW.md` §15.1): a place's card is
 /// titled with the place's name.
-pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> String {
+pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> &'static str {
     q_title(q)
 }
 
 /// A plan card's title by its number alone.
-pub(crate) fn q_title(q: u8) -> String {
+pub(crate) fn q_title(q: u8) -> &'static str {
     match q {
         qstep::BOARD => EN.board_title,
         qstep::SOFTWARE => EN.question_title_software,
         _ => EN.backup_flow_the_plan,
     }
-    .to_string()
 }
 
 /// A plan card's line while it is closed: its answers.
-pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
+pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> Text {
     let a = &ctx.answers;
     match q {
         qstep::BOARD => {
             if a.places == 1 {
-                EN.board_one_place.to_string()
+                Text::of(EN.board_one_place)
             } else {
-                fill(EN.board_places, &[&a.places.to_string()])
+                Text::fill(EN.board_places, &[&Text::num(a.places as u64)])
             }
         }
-        qstep::SOFTWARE => String::from(&*ticked(&SOFTWARE_ROWS, &a.software)),
+        qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
         _ => {
             let c = ctx.check;
             let lost = if c.single && c.lost == plan::Lost::No {
@@ -163,7 +156,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
             } else {
                 c.lost.text()
             };
-            fill(EN.question_summary_any, &[lost])
+            Text::fill(EN.question_summary_any, &[lost])
         }
     }
 }
@@ -171,11 +164,11 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
 /// The warning over The plan's way on, which does not hold it: a vault
 /// that exists already whose stick no place keeps
 /// (`docs/BACKUP-FLOW.md` §17.16 item 3, §19.5).
-pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<String> {
+pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<Text> {
     let v = ctx.answers.stickless(&ctx.shape)?;
-    Some(fill(
+    Some(Text::fill(
         EN.plan_vault_s_needs,
-        &[&(v + 1).to_string(), app.medium.noun()],
+        &[&Text::num(v as u64 + 1), app.medium.noun()],
     ))
 }
 
@@ -183,15 +176,11 @@ pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<String> {
 /// vault that holds nothing, a key made here kept nowhere
 /// (`kept_nowhere`, the caller's). A vault's stick at no place is a
 /// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §17.16).
-pub(crate) fn held_line(
-    _app: &View,
-    ctx: &PlanCtx,
-    kept_nowhere: Option<String>,
-) -> Option<String> {
+pub(crate) fn held_line(_app: &View, ctx: &PlanCtx, kept_nowhere: Option<Text>) -> Option<Text> {
     if let Some(v) = ctx.answers.empty_vault() {
-        return Some(fill(
+        return Some(Text::fill(
             EN.backup_flow_vault_holds_nothing,
-            &[&(v + 1).to_string()],
+            &[&Text::num(v as u64 + 1)],
         ));
     }
     kept_nowhere
@@ -223,14 +212,12 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
     } else {
         match q {
             qstep::SOFTWARE => {
-                let rows = |list: u8, labels: &[&str], ticked: &[bool]| {
+                let rows = |list: u8, labels: &[&'static str], ticked: &[bool]| {
                     labels
                         .iter()
                         .zip(ticked)
                         .enumerate()
-                        .map(|(r, (l, o))| {
-                            (l.to_string(), *o, on, act(PlanPress::Answer(list, r as u8)))
-                        })
+                        .map(|(r, (l, o))| (*l, *o, on, act(PlanPress::Answer(list, r as u8))))
                         .collect::<Vec<_>>()
                 };
                 cy += ui.multi_list(x, cy, w, &rows(qrow::SOFTWARE, &SOFTWARE_ROWS, &a.software))
@@ -284,7 +271,7 @@ pub(crate) fn map_rows(
         let name = match spot.at {
             At::Place(p) | At::Stick(p, _) => ctx.name_text(p),
             At::Vault(v) => a.vault_name(shape, v),
-            At::Files => faraday_text::Text::fill(EN.map_rows_of_files, &[app.medium.cap()]),
+            At::Files => Text::fill(EN.map_rows_of_files, &[app.medium.cap()]),
             At::Software => faraday_text::Text::of(EN.map_rows_watch_only),
             At::Away => faraday_text::Text::of(EN.map_rows_on_its_own),
         };

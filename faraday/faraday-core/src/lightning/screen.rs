@@ -230,15 +230,11 @@ fn body(
     let code = crate::Code::NodeId;
     let codes = [
         (
-            Text::of(EN.lightning_show_as_qr),
+            EN.lightning_show_as_qr,
             Style::Secondary,
             Action::ShowCode(code),
         ),
-        (
-            Text::of(EN.lightning_png),
-            Style::Secondary,
-            Action::CodePng(code),
-        ),
+        (EN.lightning_png, Style::Secondary, Action::CodePng(code)),
     ];
     y += button_rows(ui, vx, y, vw, &codes) + T::GAP;
     if let Some((yy, m, d)) = n.birthday() {
