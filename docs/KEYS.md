@@ -195,7 +195,8 @@ Moved to `docs/history/KEYS-LOG.md`.
   allocates itself (C libraries, the graphics stack, the window system's
   text input and clipboard, the kernel's pipe buffers, files written);
   and swap, sleep images and crash dumps, none on the stick and the Pi,
-  the desktop operating system's for Faraday Demo and the Starter.
+  the desktop operating system's for Faraday Demo and the Starter. How a
+  leftover copy in freed heap is found by test is `docs/SECRET-LEAKS.md`.
 - **The crates that compute and keep nothing** stay as they are:
   faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.

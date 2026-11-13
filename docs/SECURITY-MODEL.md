@@ -229,7 +229,8 @@ internal error rather than carrying on.
   stick, which hold only public or encrypted files, are kept for the
   fresh process, with the receipt of the last stick visit's write.
   Nothing can be paged out first: there is no swap, no hibernation and
-  no core dumps.
+  no core dumps. How a copy that step 1 leaves behind is found by test
+  is `docs/SECRET-LEAKS.md`.
 - **Panic key.** Holding Super and S together for two seconds powers
   the machine off at once, from any screen: the panel goes black, the
   application wipes what it holds as it ends, and nothing is asked or

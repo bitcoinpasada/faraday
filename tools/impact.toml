@@ -844,6 +844,41 @@ held_by = ["lint-secrets"]
 misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
 
 [[rule]]
+id = "keys.leak-tests"
+title = "a change to a flow that touches a secret runs the leak tests (a test secret in no freed block and, after Lock, in no live block) and the tours' check (none on screen or in a kept image after Lock, a hide or leaving a page); a flow added runs under them"
+source = ["docs/decisions/F250.md", "docs/SECRET-LEAKS.md §4, §5"]
+when = ["faraday/faraday-core/src/**", "faraday/faraday-keys/src/**", "faraday/faraday-vault/src/**"]
+kind = "held"
+held_by = ["nextest"]
+misses = "a flow the leaks test binary does not run, and the tours' check, which runs when the tours are walked and not under nextest"
+
+[[rule]]
+id = "keys.secret-types"
+title = "a secret type derives no Clone, PartialEq, Debug or Display, and clippy refuses to_vec, clone, to_owned and String::from on a secret buffer; lint-secrets finds a secret file by the types it uses"
+source = ["docs/decisions/F250.md", "docs/SECRET-LEAKS.md §6"]
+when = ["faraday/**/src/**", "core/**/src/**"]
+kind = "held"
+held_by = ["lint-secrets", "clippy"]
+misses = "the clippy list of copying methods is not built yet (docs/SECRET-LEAKS.md Open line), and clippy names methods, not types"
+
+[[rule]]
+id = "keys.leak-entries"
+title = "an entry in tools/leak-entries.toml, or a form the leak tests look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry"
+source = ["docs/decisions/F250.md", "docs/SECRET-LEAKS.md §7, §9"]
+when = ["tools/leak-entries.toml", "faraday/faraday-core/tests/leaks/forms.rs"]
+kind = "review"
+held_by = ["nextest"]
+misses = "whether the reason is true and the fix is the right one"
+
+[[rule]]
+id = "keys.stack-and-indexed"
+title = "a change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see"
+source = ["docs/decisions/F250.md", "docs/SECRET-LEAKS.md §8"]
+when = ["faraday/faraday-keys/src/**", "faraday/faraday-vault/src/**", "core/faraday-crypto/src/secret.rs"]
+kind = "review"
+misses = "everything; no test or script sees a stack temporary, timing or a load indexed by a secret (later work under the Security scope)"
+
+[[rule]]
 id = "keys.child-vault-only"
 title = "that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password"
 source = ["docs/decisions/F166.md", "docs/decisions/F172.md"]
