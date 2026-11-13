@@ -1114,7 +1114,7 @@ impl Faraday {
                 ];
                 Ok(QrView::of(
                     c,
-                    &Text::fill(EN.code_view_xpub_kind, &[&text!("{fp}"), kind]),
+                    &Text::fill(EN.code_view_xpub_kind, &[&fp, kind]),
                     QrSource::Key(
                         faraday_text::Text::of(&text),
                         account.as_deref().map(faraday_text::Text::of),
@@ -1122,7 +1122,7 @@ impl Faraday {
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
-                .public(&text!("xpub-{fp}.png"), lines))
+                .public(&text!("xpub-{}.png", fp.as_str()), lines))
             }
             Code::KeyBsms(k) => {
                 let (fp, key) = self.create_key_text(c, k)?;
@@ -1135,12 +1135,10 @@ impl Faraday {
                     Text::of(EN.code_view_bip_129_key),
                     Text::of(EN.code_view_public_spends),
                 ];
-                Ok(QrView::text(
-                    c,
-                    &Text::fill(EN.code_view_key_bsms, &[&text!("{fp}")]),
-                    &text,
-                )?
-                .public(&text!("xpub-{fp}-bsms.png"), lines))
+                Ok(
+                    QrView::text(c, &Text::fill(EN.code_view_key_bsms, &[&fp]), &text)?
+                        .public(&text!("xpub-{}-bsms.png", fp.as_str()), lines),
+                )
             }
             Code::WalletKey(i, slot) => {
                 let k = self.wallet_key(c, i, slot)?;

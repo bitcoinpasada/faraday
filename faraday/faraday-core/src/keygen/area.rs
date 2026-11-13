@@ -519,7 +519,7 @@ impl KeyGenArea {
                 Some(kstep::SOURCE) => k.source_next(),
                 Some(kstep::ENTER) => {
                     if k.slip39 && draw.is_none() {
-                        k.note = Some(EN.no_randomness.to_string());
+                        k.note = Some(Text::of(EN.no_randomness));
                         return;
                     }
                     if k.finish_entry() {

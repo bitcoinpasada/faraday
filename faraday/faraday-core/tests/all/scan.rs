@@ -210,7 +210,7 @@ fn a_descriptor_of_one_key_scanned_while_making_a_multisig_fills_the_waiting_slo
         assert_eq!(app.screen, faraday_core::Screen::Create, "{text}");
         assert_eq!(
             slot(&app, 1),
-            faraday_core::create::Source::Cosigner(key.clone()),
+            faraday_core::create::Source::Cosigner(faraday_text::Text::of(&key)),
             "{text}"
         );
         assert!(

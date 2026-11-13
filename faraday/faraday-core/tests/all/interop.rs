@@ -94,7 +94,8 @@ fn a_keystone_cobo_account_code_scans_in_as_its_multisig_account_key() {
     // BlueWallet reads this code as fingerprint 01EBDA7D at m/48'/0'/0'/2'.
     assert!(
         key.starts_with("[01ebda7d/48h/0h/0h/2h]") || key.starts_with("[01ebda7d/48'/0'/0'/2']"),
-        "{key}"
+        "{}",
+        key.as_str()
     );
 }
 
@@ -156,15 +157,16 @@ fn coldcards_multisig_key_file_gives_the_key_its_multisig_setup_file_lists() {
         &file("sparrow/cc-multisig-keystore-1.json"),
     )
     .unwrap();
-    assert!(key.starts_with("[0f056943/48"), "{key}");
+    assert!(key.starts_with("[0f056943/48"), "{}", key.as_str());
     assert!(
         key.ends_with("tpubDF2rnouQaaYrUEy2JM1YD3RFzew4onawGM4X2Re67gguTf5CbHonBRiFGe3Xjz7DK88dxBFGf2i7K1hef3PM4cFKyUjcbJXddaY9F5tJBoP"),
-        "{key}"
+        "{}", key.as_str()
     );
     let wsh = key_for(NewKind::Multi, &file("sparrow/cc-multisig-keystore-1.json")).unwrap();
     assert!(
         wsh.contains("/48h/1h/0h/2h]") || wsh.contains("/48'/1'/0'/2']"),
-        "{wsh}"
+        "{}",
+        wsh.as_str()
     );
     let legacy = key_for(
         NewKind::MultiLegacy,
@@ -173,7 +175,8 @@ fn coldcards_multisig_key_file_gives_the_key_its_multisig_setup_file_lists() {
     .unwrap();
     assert!(
         legacy.contains("/45h]") || legacy.contains("/45']"),
-        "{legacy}"
+        "{}",
+        legacy.as_str()
     );
 }
 
@@ -185,7 +188,8 @@ fn unchaineds_key_file_and_the_same_coldcards_generic_export_give_one_key() {
     let from_export = key_for(NewKind::Multi, &file("bluewallet/coldcardQ.json")).unwrap();
     assert!(
         from_unchained.starts_with("[b68af6e4/48"),
-        "{from_unchained}"
+        "{}",
+        from_unchained.as_str()
     );
     assert_eq!(from_unchained, from_export);
     let nested = key_for(NewKind::MultiNested, &file("bluewallet/unchained.json")).unwrap();
@@ -248,7 +252,8 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
             assert!(
                 k.starts_with("[b68af6e4/48h/0h/0h/2h]")
                     || k.starts_with("[b68af6e4/48'/0'/0'/2']"),
-                "{k}"
+                "{}",
+                k.as_str()
             )
         }
         other => panic!("slot 2 is {other:?}"),
@@ -277,7 +282,8 @@ fn specter_diys_keystore_fills_a_native_segwit_slot_and_no_multisig_one() {
     let key = key_for(NewKind::NativeSegwit, &text).unwrap();
     assert!(
         key.starts_with("[b317ec86/84h/1h/0h]tpub") || key.starts_with("[b317ec86/84'/1'/0']tpub"),
-        "{key}"
+        "{}",
+        key.as_str()
     );
     assert!(key_for(NewKind::Multi, &text).is_none());
     assert!(key_for(NewKind::NestedSegwit, &text).is_none());
@@ -363,7 +369,8 @@ fn cobos_single_key_file_for_bip_84s_seed_has_bip_84s_first_address() {
     let key = key_for(NewKind::NativeSegwit, &text).unwrap();
     assert!(
         key.starts_with("[73c5da0a/84h/0h/0h]xpub") || key.starts_with("[73c5da0a/84'/0'/0']xpub"),
-        "{key}"
+        "{}",
+        key.as_str()
     );
     assert!(key_for(NewKind::Multi, &text).is_none());
 }

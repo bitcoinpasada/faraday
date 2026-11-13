@@ -1503,7 +1503,7 @@ impl Faraday {
                 return;
             }
         };
-        let descriptor = kind.descriptor(1, &[text]);
+        let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&text)]);
         // Only a wallet guessed from Spend from a backup's own typed words is dropped
         // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
         // is left alone. Deliberate, not an oversight: the two screens

@@ -4,11 +4,11 @@
 //! account key in a file. Nothing secret leaves the session.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::keys::{MultisigScriptType, Network, ScriptType};
 use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 use crate::wallet::{KeyTexts, fp_text};
 use crate::{
@@ -209,11 +209,14 @@ impl NewKind {
     /// The second line of the kind's row on Make a new wallet's Kind card:
     /// a fact of the row, with the counts the creation holds now, `m` of
     /// `n` for a multisig.
-    pub fn create_line(self, (m, n): (usize, usize)) -> String {
+    pub fn create_line(self, (m, n): (usize, usize)) -> Text {
         match self {
-            NewKind::NativeSegwit => EN.create_single_key_line.to_string(),
-            NewKind::Multi => fill(EN.create_multisig_line, &[&n.to_string(), &m.to_string()]),
-            other => other.line().to_string(),
+            NewKind::NativeSegwit => Text::of(EN.create_single_key_line),
+            NewKind::Multi => Text::fill(
+                EN.create_multisig_line,
+                &[&Text::num(n as u64), &Text::num(m as u64)],
+            ),
+            other => Text::of(other.line()),
         }
     }
 
@@ -264,25 +267,25 @@ impl NewKind {
 
     /// The path a key of this kind is taken at, from its master, on
     /// `network`.
-    pub fn path(self, network: faraday_bip::keys::Network) -> String {
+    pub fn path(self, network: faraday_bip::keys::Network) -> Text {
         let c = network.coin_type();
         match self {
-            NewKind::NativeSegwit => format!("m/84'/{c}'/0'"),
-            NewKind::Taproot => format!("m/86'/{c}'/0'"),
-            NewKind::NestedSegwit => format!("m/49'/{c}'/0'"),
-            NewKind::Legacy => format!("m/44'/{c}'/0'"),
-            NewKind::Multi => format!("m/48'/{c}'/0'/2'"),
-            NewKind::MultiNested => format!("m/48'/{c}'/0'/1'"),
-            NewKind::MultiLegacy => "m/45'".to_string(),
-            NewKind::TapMulti => format!("m/48'/{c}'/0'/3'"),
-            NewKind::MuSig => format!("m/86'/{c}'/0'"),
+            NewKind::NativeSegwit => text!("m/84'/{c}'/0'"),
+            NewKind::Taproot => text!("m/86'/{c}'/0'"),
+            NewKind::NestedSegwit => text!("m/49'/{c}'/0'"),
+            NewKind::Legacy => text!("m/44'/{c}'/0'"),
+            NewKind::Multi => text!("m/48'/{c}'/0'/2'"),
+            NewKind::MultiNested => text!("m/48'/{c}'/0'/1'"),
+            NewKind::MultiLegacy => Text::of("m/45'"),
+            NewKind::TapMulti => text!("m/48'/{c}'/0'/3'"),
+            NewKind::MuSig => text!("m/86'/{c}'/0'"),
         }
     }
 
     /// The kind's path with account `account` in place of 0: the
     /// account is BIP-44's third step, BIP-48's too. `m/45'` has none
     /// and stays as it is.
-    pub fn path_at(self, network: faraday_bip::keys::Network, account: u32) -> String {
+    pub fn path_at(self, network: faraday_bip::keys::Network, account: u32) -> Text {
         self.path_with(network, account, false)
     }
 
@@ -298,21 +301,23 @@ impl NewKind {
 
     /// [`NewKind::path_at`], or with `bip87` and a kind that
     /// [`NewKind::has_bip87`], BIP-87's `m/87'/coin'/account'`.
-    pub fn path_with(
-        self,
-        network: faraday_bip::keys::Network,
-        account: u32,
-        bip87: bool,
-    ) -> String {
+    pub fn path_with(self, network: faraday_bip::keys::Network, account: u32, bip87: bool) -> Text {
         if bip87 && self.has_bip87() {
-            return format!("m/87'/{}'/{account}'", network.coin_type());
+            return text!("m/87'/{}'/{account}'", network.coin_type());
         }
         let path = self.path(network);
-        let mut steps: Vec<String> = path.split('/').map(str::to_string).collect();
+        let mut steps: Vec<Text> = path.split('/').map(Text::of).collect();
         if steps.len() >= 4 {
-            steps[3] = format!("{account}'");
+            steps[3] = text!("{account}'");
         }
-        steps.join("/")
+        let mut out = Text::new();
+        for (i, step) in steps.iter().enumerate() {
+            if i > 0 {
+                out.push('/');
+            }
+            out.push_str(step);
+        }
+        out
     }
 
     /// Whether the kind's path has an account to choose: every kind but
@@ -337,7 +342,7 @@ impl NewKind {
 
     /// Which key text this kind is at `account` on `network`: its script's
     /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2).
-    pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, String> {
+    pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, Text> {
         use faraday_keys::Spec;
         Ok(match self {
             NewKind::NativeSegwit => Spec::Single(ScriptType::NativeSegwit, account),
@@ -350,7 +355,7 @@ impl NewKind {
             NewKind::MultiLegacy | NewKind::TapMulti => Spec::Path(
                 self.path_at(network, account)
                     .parse()
-                    .map_err(|e| format!("{e}"))?,
+                    .map_err(|e| text!("{e}"))?,
             ),
         })
     }
@@ -364,7 +369,7 @@ impl NewKind {
         keys: &faraday_keys::Keys,
         i: usize,
         bip87: bool,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         self.account_ur_at(c, keys, i, 0, bip87)
     }
 
@@ -377,7 +382,7 @@ impl NewKind {
         i: usize,
         account: u32,
         bip87: bool,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         if self != NewKind::Multi {
             return None;
         }
@@ -386,10 +391,7 @@ impl NewKind {
             .ok()?;
         let path: Vec<_> = a.path.into_iter().copied().collect();
         let cbor = faraday_qr::registry::account_cbor(a.fingerprint.0, &path, &a.xpub, false);
-        Some(String::from(&*faraday_codec::ur::encode_single(
-            "crypto-account",
-            &cbor,
-        )))
+        Some(faraday_codec::ur::encode_single("crypto-account", &cbor))
     }
 
     /// Costs a key derivation and a signature. Session key `i`'s BIP 129
@@ -406,35 +408,51 @@ impl NewKind {
         account: u32,
         bip87: bool,
         fp: &str,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let script = match self {
             NewKind::Multi => MultisigScriptType::NativeSegwit,
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
-        keys.bsms_record(c, i, script, account, bip87, &format!("Faraday key {fp}"))
-            .map(|t| String::from(&*t))
+        keys.bsms_record(c, i, script, account, bip87, &text!("Faraday key {fp}"))
     }
 
     /// The descriptor over these keys.
-    pub fn descriptor(self, m: usize, keys: &[String]) -> String {
-        let list = keys
-            .iter()
-            .map(|k| format!("{k}/<0;1>/*"))
-            .collect::<Vec<_>>()
-            .join(",");
+    pub fn descriptor(self, m: usize, keys: &[impl AsRef<str>]) -> Text {
+        let mut list = Text::new();
+        for (i, k) in keys.iter().enumerate() {
+            if i > 0 {
+                list.push(',');
+            }
+            list.push_str(&text!("{}/<0;1>/*", k.as_ref()));
+        }
+        let list = list.as_str();
+        let mut plain = Text::new();
+        for (i, k) in keys.iter().enumerate() {
+            if i > 0 {
+                plain.push(',');
+            }
+            plain.push_str(k.as_ref());
+        }
+        let mut plain = Text::new();
+        for (i, k) in keys.iter().enumerate() {
+            if i > 0 {
+                plain.push(',');
+            }
+            plain.push_str(k.as_ref());
+        }
         match self {
-            NewKind::NativeSegwit => format!("wpkh({list})"),
-            NewKind::Taproot => format!("tr({list})"),
-            NewKind::NestedSegwit => format!("sh(wpkh({list}))"),
-            NewKind::Legacy => format!("pkh({list})"),
-            NewKind::Multi => format!("wsh(sortedmulti({m},{list}))"),
-            NewKind::MultiNested => format!("sh(wsh(sortedmulti({m},{list})))"),
-            NewKind::MultiLegacy => format!("sh(sortedmulti({m},{list}))"),
-            NewKind::TapMulti => format!("tr({NUMS},sortedmulti_a({m},{list}))"),
+            NewKind::NativeSegwit => text!("wpkh({list})"),
+            NewKind::Taproot => text!("tr({list})"),
+            NewKind::NestedSegwit => text!("sh(wpkh({list}))"),
+            NewKind::Legacy => text!("pkh({list})"),
+            NewKind::Multi => text!("wsh(sortedmulti({m},{list}))"),
+            NewKind::MultiNested => text!("sh(wsh(sortedmulti({m},{list})))"),
+            NewKind::MultiLegacy => text!("sh(sortedmulti({m},{list}))"),
+            NewKind::TapMulti => text!("tr({NUMS},sortedmulti_a({m},{list}))"),
             // BIP-390: the wallet's derivation is on the aggregate, not on
             // each participant.
-            NewKind::MuSig => format!("tr(musig({})/<0;1>/*)", keys.join(",")),
+            NewKind::MuSig => text!("tr(musig({})/<0;1>/*)", plain.as_str()),
         }
     }
 }
@@ -456,19 +474,19 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
 /// Costs what `derive` and `to_xpub` cost. The key text at `path`, written
 /// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`, as a [`faraday_keys::Spec`]: what
 /// [`NewKind::spec`] gives at a kind's own path, at any other.
-pub fn path_spec(path: &str) -> Result<faraday_keys::Spec, String> {
-    let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
+pub fn path_spec(path: &str) -> Result<faraday_keys::Spec, Text> {
+    let path = normal_path(path).ok_or_else(|| Text::fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: faraday_bip::bitcoin::bip32::DerivationPath =
-        path.parse().map_err(|e| format!("{e}"))?;
+        path.parse().map_err(|e| text!("{e}"))?;
     Ok(faraday_keys::Spec::Path(parsed))
 }
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with
 /// spaces, as `m/48'/0'/0'/2'`; `None` when a step is not a number.
-pub(crate) fn normal_path(text: &str) -> Option<String> {
-    let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+pub(crate) fn normal_path(text: &str) -> Option<Text> {
+    let t: Text = text.chars().filter(|c| !c.is_whitespace()).collect();
     let t = t.trim_start_matches(['m', 'M']).trim_start_matches('/');
-    let mut out = String::from("m");
+    let mut out = Text::of("m");
     for step in t.split('/').filter(|s| !s.is_empty()) {
         let (num, hard) = match step.strip_suffix(['\'', 'h', 'H']) {
             Some(n) => (n, true),
@@ -478,7 +496,7 @@ pub(crate) fn normal_path(text: &str) -> Option<String> {
         if n >= 1 << 31 {
             return None;
         }
-        out.push_str(&format!("/{n}{}", if hard { "'" } else { "" }));
+        out.push_str(&text!("/{n}{}", if hard { "'" } else { "" }));
     }
     Some(out)
 }
@@ -492,7 +510,7 @@ pub enum Source {
     /// A key loaded in this session, by fingerprint.
     Here([u8; 4]),
     /// A cosigner's account key, `[fingerprint/path]xpub`, from a file.
-    Cosigner(String),
+    Cosigner(Text),
     /// Left for a cosigner, whose key file comes later.
     Later,
 }
@@ -503,7 +521,7 @@ pub enum Source {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FromWallet {
     /// The wallet's name.
-    pub name: String,
+    pub name: Text,
     /// Its kind.
     pub kind: NewKind,
     /// The account its keys are at.
@@ -513,7 +531,7 @@ pub struct FromWallet {
     pub bip87: bool,
     /// A cosigner's `[fingerprint/path]xpub` for each slot held only as
     /// an xpub; `None` for a key held here or in a vault.
-    pub xpubs: Vec<Option<String>>,
+    pub xpubs: Vec<Option<Text>>,
 }
 
 impl FromWallet {
@@ -546,19 +564,19 @@ impl FromWallet {
 
     /// The name proposed for the new wallet: the wallet's, or the kind's
     /// once the kind is changed, with the account.
-    pub fn name_at(&self, kind: NewKind, account: u32) -> String {
+    pub fn name_at(&self, kind: NewKind, account: u32) -> Text {
         let base = if kind == self.kind {
             self.name.as_str()
         } else {
             kind.name()
         };
-        fill(EN.create_at_account, &[base, &account.to_string()])
+        Text::fill(EN.create_at_account, &[base, &Text::num(account as u64)])
     }
 }
 
 /// The account key in a file, if the file is one: the first of
 /// [`read_keys`].
-pub fn read_key(text: &str) -> Option<String> {
+pub fn read_key(text: &str) -> Option<Text> {
     read_keys(text).into_iter().next()
 }
 
@@ -569,12 +587,12 @@ pub fn read_key(text: &str) -> Option<String> {
 /// generic export, one object per account; a single-key file (Cobo's,
 /// Keystone's, Coldcard's for Wasabi); or `[fingerprint/path]xpub` on
 /// lines of their own.
-pub fn read_keys(text: &str) -> Vec<String> {
+pub fn read_keys(text: &str) -> Vec<Text> {
     if faraday_bip::bsms::is_signer_record(text) {
         return faraday_bip::bsms::SignerRecord::parse(text)
             .ok()
             .filter(|r| r.verify().is_ok())
-            .map(|r| r.key.key_text())
+            .map(|r| Text::of(&r.key.key_text()))
             .into_iter()
             .collect();
     }
@@ -587,12 +605,15 @@ pub fn read_keys(text: &str) -> Vec<String> {
             return read
                 .ok()
                 .and_then(|k| PolicyKey::parse(&k.key).ok())
-                .map(|k| k.key_text())
+                .map(|k| Text::of(&k.key_text()))
                 .into_iter()
                 .collect();
         }
         // Coldcard's multisig key file or generic export.
-        return faraday_bip::coldcard::cosigner_keys(text);
+        return faraday_bip::coldcard::cosigner_keys(text)
+            .iter()
+            .map(|k| Text::of(k))
+            .collect();
     }
     text.lines()
         .map(str::trim)
@@ -601,13 +622,13 @@ pub fn read_keys(text: &str) -> Vec<String> {
             Some(read) => PolicyKey::parse(&read.ok()?.text).ok(),
             None => PolicyKey::parse(l).ok(),
         })
-        .map(|k| k.key_text())
+        .map(|k| Text::of(&k.key_text()))
         .collect()
 }
 
 /// The key in a file for a slot of a `kind` wallet ([`key_for_slot`]),
 /// when there is one.
-pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
+pub fn key_for(kind: NewKind, text: &str) -> Option<Text> {
     key_for_slot(kind, false, text).ok()
 }
 
@@ -618,9 +639,9 @@ pub struct KeyFile {
     /// Its place in the Inbox.
     pub at: usize,
     /// Its name.
-    pub name: String,
+    pub name: Text,
     /// [`key_for_slot`] for the kind being made.
-    pub key: Result<String, String>,
+    pub key: Result<Text, Text>,
 }
 
 impl Faraday {
@@ -641,8 +662,8 @@ impl Faraday {
                 })
                 .map(|(at, it)| KeyFile {
                     at,
-                    name: it.name.clone(),
-                    key: key_for_slot(kind, bip87, &String::from_utf8_lossy(&it.bytes)),
+                    name: Text::of(&it.name),
+                    key: key_for_slot(kind, bip87, &Text::from_utf8_lossy(&it.bytes)),
                 })
                 .collect(),
         )
@@ -656,8 +677,8 @@ impl Faraday {
 /// has one, naming the kind's script type. A key with no origin, or at another path, is never taken
 /// for the slot: its path would be a guess. None for the kinds whose
 /// keys are dealt here.
-pub fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, String> {
-    let none = || fill(EN.create_scan_no_key, &[kind.name()]);
+pub fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<Text, Text> {
+    let none = || Text::fill(EN.create_scan_no_key, &[kind.name()]);
     if path_shape(&kind.path(Network::Mainnet)).is_none() {
         return Err(none());
     }
@@ -668,17 +689,17 @@ pub fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, St
     {
         if keys.len() == 1 && !named_agrees(kind, text) {
             let path = origin_path(k).unwrap_or_default();
-            return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
+            return Err(Text::fill(EN.create_scan_not_for, &[path, kind.name()]));
         }
         return Ok(k.clone());
     }
     match keys.as_slice() {
         [k] => Err(match origin_path(k) {
-            None => EN.create_scan_no_origin.to_string(),
+            None => Text::of(EN.create_scan_no_origin),
             Some(path) if !at_kind(kind, k, bip87) => {
-                fill(EN.create_scan_not_for, &[path, kind.name()])
+                Text::fill(EN.create_scan_not_for, &[path, kind.name()])
             }
-            Some(_) => EN.create_scan_coin.to_string(),
+            Some(_) => Text::of(EN.create_scan_coin),
         }),
         _ => Err(none()),
     }
@@ -712,16 +733,16 @@ fn coin_agrees(key: &str) -> bool {
 
 /// Purpose, and for BIP-48 the script type: what a derivation path says
 /// apart from its coin type and account.
-fn path_shape(path: &str) -> Option<String> {
-    let steps: Vec<String> = path
+fn path_shape(path: &str) -> Option<Text> {
+    let steps: Vec<Text> = path
         .trim_start_matches('m')
         .split('/')
         .filter(|s| !s.is_empty())
-        .map(|s| s.trim_end_matches(['h', '\'', 'H']).to_string())
+        .map(|s| Text::of(s.trim_end_matches(['h', '\'', 'H'])))
         .collect();
-    match steps.first().map(String::as_str) {
-        Some("48") => steps.get(3).map(|t| format!("48/{t}")),
-        Some(p) => Some(p.to_string()),
+    match steps.first().map(Text::as_str) {
+        Some("48") => steps.get(3).map(|t| text!("48/{}", t.as_str())),
+        Some(p) => Some(Text::of(p)),
         None => None,
     }
 }
@@ -805,19 +826,19 @@ pub(crate) fn key_of_wallet(
     bip87: bool,
     policy: &WalletPolicy,
     current: Network,
-) -> Result<(String, Network), String> {
+) -> Result<(Text, Network), Text> {
     let [key] = policy.keys() else {
-        return Err(fill(
+        return Err(Text::fill(
             EN.create_scan_keys,
-            &[&policy.keys().len().to_string()],
+            &[&Text::num(policy.keys().len() as u64)],
         ));
     };
-    let text = key.key_text();
+    let text = Text::of(&key.key_text());
     let (Some(_), Some(path)) = (key.fingerprint(), origin_path(&text)) else {
-        return Err(EN.create_scan_no_origin.into());
+        return Err(Text::of(EN.create_scan_no_origin));
     };
     if kind_script(kind) != Some(policy.script_type()) || !at_kind(kind, &text, bip87) {
-        return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
+        return Err(Text::fill(EN.create_scan_not_for, &[path, kind.name()]));
     }
     let net = wallet::network_of_key(key, current);
     let coin = path
@@ -825,9 +846,9 @@ pub(crate) fn key_of_wallet(
         .nth(1)
         .map(|s| s.trim_end_matches(['h', '\'', 'H']));
     if path_shape(path).as_deref() != Some("45")
-        && coin != Some(net.coin_type().to_string().as_str())
+        && coin != Some(Text::num(u64::from(net.coin_type())).as_str())
     {
-        return Err(EN.create_scan_coin.into());
+        return Err(Text::of(EN.create_scan_coin));
     }
     Ok((text, net))
 }
@@ -854,39 +875,39 @@ fn named_agrees(kind: NewKind, text: &str) -> bool {
 
 /// Costs a parse of the description (through `parse_any`). Builds and
 /// reads back the wallet a creation describes.
-pub fn build(
-    c: &Compute,
-    kind: NewKind,
-    m: usize,
-    keys: &[String],
-) -> Result<WalletPolicy, String> {
+pub fn build(c: &Compute, kind: NewKind, m: usize, keys: &[Text]) -> Result<WalletPolicy, Text> {
     WalletPolicy::parse_any(c, &kind.descriptor(m, keys))
-        .map_err(|e| String::from(&*faraday_strings::bip::policy_error(&e)))
+        .map_err(|e| faraday_strings::bip::policy_error(&e))
 }
 
 /// A wallet's derivation paths as Make a new wallet's Check shows them
 /// (`docs/history/NEW-WALLET.md` §17): the one path when every key has it, else
 /// each key's fingerprint and path. A key that came with no origin
 /// reads as such.
-pub(crate) fn paths_text(policy: &WalletPolicy) -> String {
+pub(crate) fn paths_text(policy: &WalletPolicy) -> Text {
     let shown = |k: &PolicyKey| match k.path() {
-        Some(p) => format!("m/{p}"),
-        None => EN.create_path_not_given.to_string(),
+        Some(p) => text!("m/{p}"),
+        None => Text::of(EN.create_path_not_given),
     };
     let keys = policy.keys();
-    let paths: Vec<String> = keys.iter().map(shown).collect();
+    let paths: Vec<Text> = keys.iter().map(shown).collect();
     match paths.first() {
-        None => String::new(),
+        None => Text::new(),
         Some(first) if paths.iter().all(|p| p == first) => first.clone(),
         Some(_) => keys
             .iter()
             .zip(&paths)
             .map(|(k, p)| {
                 let fp = k.fingerprint().or(Some(k.identifier_fingerprint()));
-                format!("{} {p}", crate::wallet_backup::fp_of(fp))
+                text!("{} {}", crate::wallet_backup::fp_of(fp), p.as_str())
             })
-            .collect::<Vec<_>>()
-            .join(" · "),
+            .fold(Text::new(), |mut all, one| {
+                if !all.is_empty() {
+                    all.push_str(" · ");
+                }
+                all.push_str(&one);
+                all
+            }),
     }
 }
 
@@ -898,7 +919,7 @@ pub struct SharesSet {
     /// The key the set rebuilds.
     pub fingerprint: [u8; 4],
     /// The set's four-character identifier, lower case.
-    pub identifier: String,
+    pub identifier: Text,
     /// How many strings rebuild the key.
     pub k: u8,
     /// How many strings were made.
@@ -913,7 +934,7 @@ impl SharesSet {
         let (k, n) = make.k_n();
         SharesSet {
             fingerprint,
-            identifier: String::from(&*make.identifier()),
+            identifier: make.identifier(),
             k,
             n,
             length: make.length().chars(),
@@ -921,10 +942,14 @@ impl SharesSet {
     }
 
     /// Check's row: "codex32 w0za · 2 of 3".
-    pub fn line(&self) -> String {
-        fill(
+    pub fn line(&self) -> Text {
+        Text::fill(
             EN.create_shares_set,
-            &[&self.identifier, &self.k.to_string(), &self.n.to_string()],
+            &[
+                &self.identifier,
+                &Text::num(self.k as u64),
+                &Text::num(self.n as u64),
+            ],
         )
     }
 }
@@ -962,7 +987,7 @@ pub struct CreateState {
     /// The wallet, once made, by index into the session.
     pub built: Option<usize>,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The Kind card's **More kinds** is expanded: the other eight kinds
     /// are shown too.
     pub more_kinds: bool,
@@ -978,7 +1003,7 @@ pub struct CreateState {
     /// Which of the two fields typing goes to, if either.
     pub pass_focus: Option<u8>,
     /// Why the last Lock in did nothing.
-    pub pass_note: Option<String>,
+    pub pass_note: Option<Text>,
     /// Keys locked in with a passphrase here, by fingerprint: their slot
     /// shows **Locked in**.
     pub pass_locked: Vec<[u8; 4]>,
@@ -1007,7 +1032,7 @@ pub struct CreateState {
     pub from: Option<FromWallet>,
     /// The made wallet's derivation paths as Check shows them, worked out
     /// once when it is made (`docs/history/NEW-WALLET.md` §17).
-    pub path: String,
+    pub path: Text,
     /// The made wallet was added to the session by this creation, not
     /// found there already: taking it back removes it.
     pub added: bool,
@@ -1571,7 +1596,7 @@ impl Faraday {
                     && let Some(w) = self.create.state.as_ref().and_then(|c| c.built)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.checksum().to_string();
+                    let checksum = Text::of(wallet.checksum());
                     self.mark_checked(&checksum);
                 }
             }
@@ -1636,9 +1661,8 @@ impl Faraday {
             Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotFile(k, i) => {
-                let Some(text) = self.inbox.get(i).map(|it| {
-                    zeroize::Zeroizing::new(String::from_utf8_lossy(&it.bytes).into_owned())
-                }) else {
+                let Some(text) = self.inbox.get(i).map(|it| Text::from_utf8_lossy(&it.bytes))
+                else {
                     return;
                 };
                 if let Err(e) = self.create_slot_file_key(k, &text)
@@ -1656,10 +1680,16 @@ impl Faraday {
                             let view = self.code_view(c, Code::Key(k));
                             self.open_qr(view);
                         } else {
-                            let name = format!("xpub-{fp}.txt");
+                            let name = text!("xpub-{}.txt", fp.as_str());
                             let name = self.put_outbox_beside(
                                 &name,
-                                format!("# Account xpub {fp}, {kind}\n{text}\n").into_bytes(),
+                                text!(
+                                    "# Account xpub {}, {kind}\n{}\n",
+                                    fp.as_str(),
+                                    text.as_str()
+                                )
+                                .as_bytes()
+                                .to_vec(),
                             );
                             self.toast_out(&name);
                         }
@@ -1669,8 +1699,8 @@ impl Faraday {
             }
             Action::CKeyBsms(k) => match self.create_key_bsms(c, k) {
                 Some((fpt, text)) => {
-                    let name = format!("xpub-{fpt}-bsms.txt");
-                    let name = self.put_outbox_beside(&name, text.into_bytes());
+                    let name = text!("xpub-{}-bsms.txt", fpt.as_str());
+                    let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                     self.toast_out(&name);
                 }
                 None => self.toast(EN.act_bip_129_covers),
@@ -1831,26 +1861,22 @@ impl Faraday {
 
     /// Costs what `account_text` costs. The account key expression for a
     /// slot held here, with its fingerprint, for the cosigners.
-    pub(crate) fn create_key_text(
-        &self,
-        c: &Compute,
-        slot: u8,
-    ) -> Result<(String, String), String> {
+    pub(crate) fn create_key_text(&self, c: &Compute, slot: u8) -> Result<(Text, Text), Text> {
         let cs = self
             .create
             .state
             .as_ref()
-            .ok_or(EN.create_key_text_nothing)?;
+            .ok_or_else(|| Text::of(EN.create_key_text_nothing))?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
-            return Err(EN.create_key_text_not_held.into());
+            return Err(Text::of(EN.create_key_text_not_held));
         };
         let key = self
             .session
             .keys
             .position_of(*fp)
-            .ok_or(EN.create_key_text_a_chosen)?;
+            .ok_or_else(|| Text::of(EN.create_key_text_a_chosen))?;
         Ok((
-            fp_text(faraday_bip::keys::Fingerprint(*fp)),
+            Text::of(&fp_text(faraday_bip::keys::Fingerprint(*fp))),
             self.create_slot_key_text(c, key, cs)?,
         ))
     }
@@ -1863,20 +1889,29 @@ impl Faraday {
         c: &Compute,
         key: usize,
         cs: &CreateState,
-    ) -> Result<String, String> {
+    ) -> Result<Text, Text> {
         if cs.at_bip87() {
             let path = cs
                 .kind
                 .path_with(self.session.keys.network(), cs.account, true);
-            return self.session.keys.text_at(c, key, &path);
+            return self
+                .session
+                .keys
+                .text_at(c, key, &path)
+                .map(|t| Text::of(&t))
+                .map_err(|e| Text::of(&e));
         }
-        self.session.keys.account_text(c, key, cs.kind, cs.account)
+        self.session
+            .keys
+            .account_text(c, key, cs.kind, cs.account)
+            .map(|t| Text::of(&t))
+            .map_err(|e| Text::of(&e))
     }
 
     /// Costs a key derivation (through `account_ur_at`). A slot's key as
     /// `ur:crypto-account`, for a `wsh` multisig, the one script that type
     /// writes a cosigner's key under.
-    pub(crate) fn create_key_account(&self, c: &Compute, slot: u8) -> Option<String> {
+    pub(crate) fn create_key_account(&self, c: &Compute, slot: u8) -> Option<Text> {
         let cs = self.create.state.as_ref()?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
@@ -1889,7 +1924,7 @@ impl Faraday {
     /// Costs a key derivation (through `bsms_record`). A slot's key as a
     /// signed BIP 129 key record, with its fingerprint: for a `wsh` or
     /// `sh(wsh)` multisig only.
-    pub(crate) fn create_key_bsms(&self, c: &Compute, slot: u8) -> Option<(String, String)> {
+    pub(crate) fn create_key_bsms(&self, c: &Compute, slot: u8) -> Option<(Text, Text)> {
         let cs = self.create.state.as_ref()?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
@@ -1898,23 +1933,34 @@ impl Faraday {
         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
         cs.kind
             .bsms_record(c, &self.session.keys, key, cs.account, cs.at_bip87(), &fpt)
-            .map(|r| (fpt, r))
+            .map(|r| (Text::of(&fpt), Text::of(&r)))
     }
 
     /// Costs what `account_text` costs. The key texts of a creation's
     /// slots, or why they are not ready.
-    pub fn create_keys(&self, c: &Compute) -> Result<Vec<String>, String> {
-        let cs = self.create.state.as_ref().ok_or(EN.create_keys_nothing)?;
+    pub fn create_keys(&self, c: &Compute) -> Result<Vec<Text>, Text> {
+        let cs = self
+            .create
+            .state
+            .as_ref()
+            .ok_or_else(|| Text::of(EN.create_keys_nothing))?;
         let mut out = Vec::new();
         for (i, s) in cs.slots.iter().enumerate() {
             match s {
                 create::Source::Empty => {
-                    return Err(fill(EN.create_keys_key_has, &[&(i + 1).to_string()]));
+                    return Err(Text::fill(
+                        EN.create_keys_key_has,
+                        &[&Text::num((i + 1) as u64)],
+                    ));
                 }
                 create::Source::Later => {
-                    return Err(fill(
+                    return Err(Text::fill(
                         EN.create_keys_key_waits,
-                        &[&(i + 1).to_string(), self.medium.a(), &(i + 1).to_string()],
+                        &[
+                            &Text::num((i + 1) as u64),
+                            self.medium.a(),
+                            &Text::num((i + 1) as u64),
+                        ],
                     ));
                 }
                 create::Source::Here(fp) => {
@@ -1922,7 +1968,7 @@ impl Faraday {
                         .session
                         .keys
                         .position_of(*fp)
-                        .ok_or(EN.create_keys_a_chosen)?;
+                        .ok_or_else(|| Text::of(EN.create_keys_a_chosen))?;
                     out.push(self.create_slot_key_text(c, key, cs)?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
@@ -1932,7 +1978,7 @@ impl Faraday {
         seen.sort();
         seen.dedup();
         if seen.len() != out.len() || !faraday_bip::policy::repeated_key_texts(&out).is_empty() {
-            return Err(EN.create_keys_the_same.into());
+            return Err(Text::of(EN.create_keys_the_same));
         }
         Ok(out)
     }
@@ -1956,12 +2002,10 @@ impl Faraday {
     fn create_slot_cosigner(
         &mut self,
         k: u8,
-        key: Option<String>,
+        key: Option<Text>,
         net: Option<Network>,
-    ) -> Result<(), String> {
-        self.session
-            .follow(net)
-            .map_err(|e| String::from(&*e.text()))?;
+    ) -> Result<(), Text> {
+        self.session.follow(net).map_err(|e| e.text())?;
         if let Some(c) = self.create.state.as_mut()
             && let Some(s) = c.slots.get_mut(k as usize)
             && let Some(key) = key
@@ -1975,7 +2019,7 @@ impl Faraday {
     /// key a file offers for slot `k` ([`key_for_slot`]) in it, the wallet
     /// then made on the key's network; why not, when the file has no key
     /// for the slot or its network is refused.
-    fn create_slot_file_key(&mut self, k: u8, text: &str) -> Result<(), String> {
+    fn create_slot_file_key(&mut self, k: u8, text: &str) -> Result<(), Text> {
         let (kind, bip87) = self
             .create
             .state
@@ -2015,15 +2059,13 @@ impl Faraday {
         let current = self.session.network();
         let taken = match (item.kind, item.wallet()) {
             (wallet::FileKind::Key, _) => {
-                let text =
-                    zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+                let text = Text::from_utf8_lossy(&item.bytes);
                 self.create_slot_file_key(slot, &text)
             }
             // A file of account keys (Coldcard's export, a single-key
             // file) as Keys offers it, else a descriptor of one key.
             (wallet::FileKind::Wallet, Some(policy)) => {
-                let text =
-                    zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+                let text = Text::from_utf8_lossy(&item.bytes);
                 if key_for_slot(kind, bip87, &text).is_ok() {
                     self.create_slot_file_key(slot, &text)
                 } else {
@@ -2034,21 +2076,24 @@ impl Faraday {
             }
             // A descriptor that does not read: its checksum, its keys.
             (wallet::FileKind::Text, _) => {
-                let text = String::from_utf8_lossy(&item.bytes);
+                let text = Text::from_utf8_lossy(&item.bytes);
                 if faraday_bip::descriptor::script_type(text.trim()).is_none() {
                     return false;
                 }
                 match wallet::read_wallet(c, &text) {
-                    Err(e) => Err(String::from(&*e.text())),
+                    Err(e) => Err(e.text()),
                     Ok(_) => return false,
                 }
             }
             _ => return false,
         };
-        let number = (slot + 1).to_string();
+        let number = Text::num(slot as u64 + 1);
         match taken {
-            Ok(()) => self.toast(&fill(EN.scanned_is_key, &[name, &number])),
-            Err(why) => self.toast(&fill(EN.create_scan_not_in_slot, &[name, &number, &why])),
+            Ok(()) => self.toast(&Text::fill(EN.scanned_is_key, &[name, &number])),
+            Err(why) => self.toast(&Text::fill(
+                EN.create_scan_not_in_slot,
+                &[name, &number, &why],
+            )),
         }
         self.screen = Screen::Create;
         true
@@ -2110,7 +2155,7 @@ impl Faraday {
         if !key.has_words() {
             return;
         }
-        let label = fill(EN.create_pass_lock_passphrase, &[&key.label]);
+        let label = Text::fill(EN.create_pass_lock_passphrase, &[&key.label]);
         let (added, new) = match self
             .session
             .keys
@@ -2122,12 +2167,10 @@ impl Faraday {
                 self.session
                     .keys
                     .fingerprint_with(&c, place, &pass)
-                    .ok_or_else(|| {
-                        String::from(&*wallet::Refusal::Words(faraday_text::Text::of("")).text())
-                    }),
+                    .ok_or_else(|| wallet::Refusal::Words(faraday_text::Text::of("")).text()),
                 false,
             ),
-            Err(e) => (Err(String::from(&*e.text())), false),
+            Err(e) => (Err(e.text()), false),
         };
         // The passphrase exists nowhere else: the key is made here
         // (`docs/history/NEW-WALLET.md` §14.3).
@@ -2169,7 +2212,7 @@ impl Faraday {
             KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
             // Anything else is refused, and the slot says so.
             KeyIn::Char(ch) if !ch.is_control() => {
-                c.pass_note = Some(crate::state::ascii_refused());
+                c.pass_note = Some(Text::of(&crate::state::ascii_refused()));
                 return true;
             }
             KeyIn::Backspace => {
@@ -2275,9 +2318,9 @@ impl Faraday {
         // (`docs/history/NEW-WALLET.md` §16.2).
         let name = match c.from.as_ref() {
             Some(f) => f.name_at(c.kind, c.account),
-            None => fill(
+            None => Text::fill(
                 EN.create_make_new_wallet,
-                &[&(self.session.wallets.len() + 1).to_string()],
+                &[&Text::num((self.session.wallets.len() + 1) as u64)],
             ),
         };
         let before = self.session.wallets.len();
@@ -2315,7 +2358,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(c) = self.create.state.as_mut() {
-                    c.error = Some(String::from(&*e.text()));
+                    c.error = Some(e.text());
                 }
             }
         }

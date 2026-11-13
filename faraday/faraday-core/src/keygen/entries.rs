@@ -4,6 +4,7 @@
 
 use super::{KeyGen, Source, kstep};
 use crate::strings::EN;
+use faraday_text::Text;
 
 impl KeyGen {
     /// Forgets every entry, the mix and the words.
@@ -109,7 +110,7 @@ impl KeyGen {
             K::Char(c) if (' '..='~').contains(&c) => field.push(c),
             // Anything else is refused, and the card says so.
             K::Char(c) if !c.is_control() => {
-                self.note = Some(crate::state::ascii_refused());
+                self.note = Some(Text::of(&crate::state::ascii_refused()));
                 return true;
             }
             K::Backspace => {
@@ -193,9 +194,9 @@ impl KeyGen {
         }
         self.note = (!taken).then(|| {
             if self.procedure().direct() {
-                EN.keygen_reroll_rule.to_string()
+                Text::of(EN.keygen_reroll_rule)
             } else {
-                EN.keygen_a_die_has_six.to_string()
+                Text::of(EN.keygen_a_die_has_six)
             }
         });
     }
@@ -220,7 +221,7 @@ impl KeyGen {
             return;
         }
         if !(1..=6).contains(&face) {
-            self.note = Some(EN.keygen_a_die_has_six.to_string());
+            self.note = Some(Text::of(EN.keygen_a_die_has_six));
             return;
         }
         self.note = None;
@@ -248,7 +249,7 @@ impl KeyGen {
             return;
         }
         if self.progress().0 >= self.progress().1 {
-            self.note = Some(EN.keygen_no_more_are.to_string());
+            self.note = Some(Text::of(EN.keygen_no_more_are));
             return;
         }
         match (self.active(), c) {

@@ -137,7 +137,7 @@ impl SeedsState {
     pub fn path(&self, network: faraday_bip::keys::Network) -> String {
         match &self.custom {
             Some(p) => p.clone(),
-            None => self.kind.path_at(network, self.account),
+            None => self.kind.path_at(network, self.account).as_str().into(),
         }
     }
 
@@ -521,7 +521,7 @@ impl Faraday {
             s.error = Some(EN.seeds_no_account_key.to_string());
             return false;
         };
-        s.cosigners[slot] = key;
+        s.cosigners[slot] = key.as_str().into();
         s.focus = None;
         s.error = None;
         true
@@ -585,7 +585,7 @@ impl Faraday {
         };
         let d = kind.descriptor(s.m.max(1), &keys);
         self.kept.parsed_kept(c, &d)?;
-        Ok(d)
+        Ok(d.as_str().into())
     }
 
     /// Costs a parse of the description and an address the first time. The
@@ -674,7 +674,7 @@ impl Faraday {
             S::Standard => s.custom = None,
             S::Custom => {
                 if s.custom.is_none() {
-                    s.custom = Some(s.kind.path_at(net, s.account));
+                    s.custom = Some(s.kind.path_at(net, s.account).as_str().into());
                 }
                 s.focus = Some(Focus::Path);
             }

@@ -1118,10 +1118,10 @@ impl Faraday {
             {
                 continue;
             }
-            match found.xpubs.iter_mut().find(|x| x.key == key) {
+            match found.xpubs.iter_mut().find(|x| x.key == key.as_str()) {
                 Some(x) => x.files.push(k),
                 None => found.xpubs.push(FoundXpub {
-                    key,
+                    key: key.as_str().into(),
                     fingerprint: fp,
                     path: parsed.path().map(|p| format!("m/{p}").replace('\'', "h")),
                     kind,
@@ -1435,7 +1435,7 @@ impl Faraday {
         }) else {
             return;
         };
-        let descriptor = kind.descriptor(1, &[key]);
+        let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&key)]);
         let name = fill(
             EN.inbox_watch_only,
             &[
@@ -1631,7 +1631,7 @@ impl Faraday {
                 return;
             }
         };
-        let descriptor = kind.descriptor(1, &[text]);
+        let descriptor = kind.descriptor(1, &[faraday_text::Text::of(&text)]);
         let name = format!("{} · {}", fp_text(fp), crate::spend_backup::kind_name(kind));
         match self.session.add_wallet(
             &c,

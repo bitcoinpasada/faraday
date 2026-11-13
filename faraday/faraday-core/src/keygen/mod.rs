@@ -18,13 +18,13 @@ pub(crate) mod dice_panel;
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::wallet::KeyTexts;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_entropy::{
     CameraNoise, CardDraws, CoinFlips, DiceProcedure, DiceRolls, MIN_MIX, Mixed, RawHex, Strength,
     Warnings,
 };
+use faraday_text::Text;
 
 pub use crate::quiz::QuizState;
 pub use faraday_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
@@ -270,7 +270,7 @@ pub struct KeyGen {
     /// other than BIP-39 words is done.
     pub parts_in: usize,
     /// The last thing worth saying.
-    pub note: Option<String>,
+    pub note: Option<Text>,
     /// The Create slot the key fills, if it was made for one.
     pub slot: Option<u8>,
     /// The key is made as SLIP-39 shares rather than BIP-39 words: the
@@ -320,10 +320,10 @@ pub struct KeyGen {
     pub handed: Option<(&'static str, u8)>,
     /// The name of the sample the words made are, when Practice kept them
     /// as made: they are a sample's own words (`docs/MODES.md` §7).
-    pub kept: Option<String>,
+    pub kept: Option<Text>,
     /// The key as `[fingerprint/path]xpub` at the kind's path, once
     /// locked in: the Create kind's for a slot, native SegWit on its own.
-    pub key_text: Option<String>,
+    pub key_text: Option<Text>,
     /// The Start card's choice (`docs/history/NEW-WALLET.md` §15.1).
     pub start: Start,
     /// The choice the cards after Start were opened for: a different
@@ -613,13 +613,13 @@ impl KeyGen {
     /// [`KeyGen::deal_random_len`] of the secret's length used, the first
     /// two the identifier and the rest taken by the split in turn; what
     /// is left over is not used. Fewer are refused, and nothing is dealt.
-    pub fn deal(&mut self, c: &Compute, random: &[u8]) -> Result<(), String> {
+    pub fn deal(&mut self, c: &Compute, random: &[u8]) -> Result<(), Text> {
         use faraday_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
-            return Err(EN.keygen_no_secret_yet.to_string());
+            return Err(Text::of(EN.keygen_no_secret_yet));
         };
         let Some(random) = random.get(..self.deal_random_len(secret.len())) else {
-            return Err(EN.no_randomness.to_string());
+            return Err(Text::of(EN.no_randomness));
         };
         let (id, mut rest) = random.split_at(2);
         let identifier = u16::from_le_bytes([id[0], id[1]]) & 0x7fff;
@@ -645,13 +645,13 @@ impl KeyGen {
             &mut out,
         )
         .map_err(|e| {
-            crate::strings::fill(
+            Text::fill(
                 EN.keygen_the_shares_could,
                 &[&faraday_strings::bip::slip39_error(&e)],
             )
         })?;
         if short || !rest.is_empty() {
-            return Err(EN.no_randomness.to_string());
+            return Err(Text::of(EN.no_randomness));
         }
         out.truncate(n);
         self.shares = out;
@@ -932,7 +932,7 @@ impl KeyGen {
             }
             self.note = match faraday_entropy::card_index(r, s) {
                 Some(i) if self.cards.push(i) => None,
-                Some(_) => Some(EN.keygen_card_already_drawn.to_string()),
+                Some(_) => Some(Text::of(EN.keygen_card_already_drawn)),
                 None => None,
             };
             self.rank = None;
@@ -953,15 +953,15 @@ impl KeyGen {
             return;
         }
         let Some(luma) = self.frame.as_ref() else {
-            self.note = Some(EN.keygen_no_camera_picture.to_string());
+            self.note = Some(Text::of(EN.keygen_no_camera_picture));
             return;
         };
         let (stats, taken) = self.camera.push(luma);
         self.note = (!taken).then(|| {
             if stats.usable() && self.camera.repeats(luma) {
-                EN.keygen_picture_already_taken.to_string()
+                Text::of(EN.keygen_picture_already_taken)
             } else {
-                EN.keygen_too_little_variation.to_string()
+                Text::of(EN.keygen_too_little_variation)
             }
         });
     }
@@ -984,9 +984,9 @@ impl KeyGen {
     pub fn finish_entry(&mut self) -> bool {
         if !self.ready() {
             let (have, need) = self.progress();
-            self.note = Some(fill(
+            self.note = Some(Text::fill(
                 EN.keygen_entry_count,
-                &[&have.to_string(), &need.to_string()],
+                &[&Text::num(have as u64), &Text::num(need as u64)],
             ));
             return false;
         }
@@ -1085,11 +1085,11 @@ impl KeyGen {
             self.scroll.follow = true;
         } else {
             self.note = Some(if self.source.is_none() {
-                EN.keygen_choose_a_source.to_string()
+                Text::of(EN.keygen_choose_a_source)
             } else if self.mix_count() < MIN_MIX {
-                EN.keygen_choose_two_sources.to_string()
+                Text::of(EN.keygen_choose_two_sources)
             } else {
-                EN.keygen_mix_needs_dice_or_device.to_string()
+                Text::of(EN.keygen_mix_needs_dice_or_device)
             });
         }
     }
@@ -1124,7 +1124,7 @@ impl crate::Faraday {
         c: &Compute,
         fp: faraday_bip::keys::Fingerprint,
         for_slot: bool,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let key = self.session.keys.position(fp)?;
         match self.create.state().filter(|_| for_slot) {
             Some(cs) => self.create_slot_key_text(c, key, cs).ok(),
@@ -1132,7 +1132,8 @@ impl crate::Faraday {
                 .session
                 .keys
                 .account_text(c, key, crate::create::NewKind::NativeSegwit, 0)
-                .ok(),
+                .ok()
+                .map(|t| Text::of(&t)),
         }
     }
 
@@ -1149,7 +1150,10 @@ impl crate::Faraday {
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
-            self.toast(&fill(EN.keygen_remove_the_first, &[self.medium.noun()]));
+            self.toast(&Text::fill(
+                EN.keygen_remove_the_first,
+                &[self.medium.noun()],
+            ));
             return;
         }
         // A flow already open ends first, giving back what it kept; one
@@ -1251,12 +1255,12 @@ impl crate::Faraday {
                 .ok()
                 .and_then(|seed| faraday_keys::identity::fingerprint_of_seed(&c, &seed));
             if let Some(fp) = fp.filter(|&fp| !self.session.keys.is_public(fp)) {
-                self.entry.set_error(String::from(
-                    &*crate::wallet::Refusal::NotAllowed(faraday_text::Text::of(
+                self.entry.set_error(
+                    crate::wallet::Refusal::NotAllowed(faraday_text::Text::of(
                         &crate::wallet::fp_text(fp),
                     ))
                     .text(),
-                ));
+                );
                 return;
             }
         }
@@ -1579,9 +1583,9 @@ impl crate::Faraday {
             return;
         }
         let slot = k.slot;
-        let label = fill(
+        let label = Text::fill(
             EN.keygen_new_key_n,
-            &[&(self.keygen.new_keys + 1).to_string()],
+            &[&Text::num((self.keygen.new_keys + 1) as u64)],
         );
         // The demo adds its next sample of this length in place of the key
         // just made, which goes unused (`Keys::next_handout`).
@@ -1618,7 +1622,7 @@ impl crate::Faraday {
             }
             Err(e) => {
                 if let Some(k) = self.keygen.state.as_mut() {
-                    k.note = Some(String::from(&*e.text()));
+                    k.note = Some(e.text());
                 }
             }
         }
@@ -1638,7 +1642,7 @@ impl crate::Faraday {
             return;
         }
         // Words that are a sample's own are kept as made (`docs/MODES.md` §7).
-        let kept = self.made_sample_now().map(|s| String::from(&*s.label()));
+        let kept = self.made_sample_now().map(|s| s.label());
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -1668,9 +1672,9 @@ impl crate::Faraday {
             pass.push_str(k.passphrase.as_str());
         }
         let slot = k.slot;
-        let label = fill(
+        let label = Text::fill(
             EN.keygen_new_key_n,
-            &[&(self.keygen.new_keys + 1).to_string()],
+            &[&Text::num((self.keygen.new_keys + 1) as u64)],
         );
         let added = if let Some((word, n)) = handed {
             self.session.keys.add_words_with(
@@ -1689,7 +1693,7 @@ impl crate::Faraday {
             Ok(fp) => fp,
             Err(e) => {
                 if let Some(k) = self.keygen.state.as_mut() {
-                    k.note = Some(String::from(&*e.text()));
+                    k.note = Some(e.text());
                 }
                 return;
             }
@@ -1737,7 +1741,7 @@ impl crate::Faraday {
             if let Some(w) = self.create.state().and_then(|c| c.built)
                 && let Some(wallet) = self.session.wallets.get(w)
             {
-                let checksum = wallet.checksum().to_string();
+                let checksum = Text::of(wallet.checksum());
                 self.mark_checked(&checksum);
             }
         }
@@ -1782,10 +1786,10 @@ impl crate::Faraday {
         let added = match words {
             Some(m) => self
                 .typed_load(&m, &pass, "", None, None, |_, _| {})
-                .map_err(|e| String::from(&*e.text())),
+                .map_err(|e| e.text()),
             None if form != Form::Words => {
                 self.entry.set_passphrase(&pass);
-                self.form_key()
+                self.form_key().map_err(|e| Text::of(&e))
             }
             None => return,
         };
@@ -1849,15 +1853,15 @@ impl crate::Faraday {
         }
         if let Some(fp) = k.fingerprint.filter(|_| k.typed()) {
             // A key typed: Add a key's own toast.
-            self.toast(&fill(
+            self.toast(&Text::fill(
                 EN.entry_add_key_added,
-                &[&crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+                &[&crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp))],
             ));
         } else if let Some(fp) = k.fingerprint {
-            self.toast(&fill(
+            self.toast(&Text::fill(
                 EN.keygen_key_added_back,
                 &[
-                    &crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_string(),
+                    &crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)),
                     (if k.slip39 || k.codex32.is_some() {
                         EN.keygen_shares_inline
                     } else {
@@ -2293,9 +2297,9 @@ impl crate::Faraday {
         if !self.selftest_passed() || !self.may_load_keys() {
             return;
         }
-        let label = fill(
+        let label = Text::fill(
             EN.keygen_new_key_n,
-            &[&(self.keygen.new_keys + 1).to_string()],
+            &[&Text::num((self.keygen.new_keys + 1) as u64)],
         );
         let Some(k) = self.keygen.state.as_ref() else {
             return;
@@ -2317,7 +2321,7 @@ impl crate::Faraday {
             Ok(fp) => fp,
             Err(e) => {
                 if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-                    m.refused(faraday_text::Text::of(&e.text()));
+                    m.refused(e.text());
                 }
                 return;
             }

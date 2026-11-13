@@ -2,10 +2,10 @@
 //! this file only lays the options out.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bip39::Language;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M, TITLE_S};
 use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, SUITS};
+use faraday_text::{Text, text};
 
 use crate::codex32::input_panel::PanelAt;
 use crate::drawing::{Scrolled, View};
@@ -48,7 +48,7 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 /// fits beside the bar's tools, the step is returned second, for the
 /// Characters card to read in place of its name. Cheap: a string filled
 /// and a width or two measured.
-fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
+fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (Text, Option<Text>) {
     let name = if k.slot.is_some() || k.back == crate::Screen::Entry {
         EN.keygen_new_key
     } else {
@@ -59,40 +59,36 @@ fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
         .as_ref()
         .filter(|_| k.open == Some(kstep::CODEX32))
     else {
-        return (name.to_string(), None);
+        return (Text::of(name), None);
     };
-    let Some(whole) = crate::codex32::screen::entering(m, false).map(|t| String::from(&*t)) else {
-        return (name.to_string(), None);
+    let Some(whole) = crate::codex32::screen::entering(m, false) else {
+        return (Text::of(name), None);
     };
     let right = ui.bar_tools_x.unwrap_or(right);
     // One line first, the short form before the whole wrapped onto two.
     if faraday_ui::nav::bar_title_one_line(ui, &whole, right) {
         return (whole, None);
     }
-    let short = crate::codex32::screen::entering(m, true).map(|t| String::from(&*t));
+    let short = crate::codex32::screen::entering(m, true);
     if let Some(short) = short.filter(|s| faraday_ui::nav::bar_title_one_line(ui, s, right)) {
         return (short, None);
     }
     if faraday_ui::nav::bar_title_whole(ui, &whole, right) {
         return (whole, None);
     }
-    (name.to_string(), Some(whole))
+    (Text::of(name), Some(whole))
 }
 
 /// Where the bar has no room for the codex32 entry's `step`, the
 /// Characters card reads it in place of its name (F146). A lookup.
-fn step_on_card(
-    cards: &mut [flow::Card],
-    at: &[Option<crate::codex32::Card>],
-    step: Option<String>,
-) {
+fn step_on_card(cards: &mut [flow::Card], at: &[Option<crate::codex32::Card>], step: Option<Text>) {
     if let Some(step) = step
         && let Some(i) = at
             .iter()
             .position(|c| *c == Some(crate::codex32::Card::Enter))
         && let Some(card) = cards.get_mut(i)
     {
-        card.title = step;
+        card.title = step.as_str().into();
     }
 }
 
@@ -106,8 +102,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut cards: Vec<flow::Card> = steps
         .iter()
         .map(|&s| flow::Card {
-            title: title_of(k, s),
-            summary: summary(k, s),
+            title: title_of(k, s).as_str().into(),
+            summary: summary(k, s).as_str().into(),
             mono: (s == kstep::KEY && k.locked)
                 || (s == kstep::QUIZ && k.fingerprint.is_some() && k.done[usize::from(s)]),
             done: k.done[usize::from(s)] || (s == kstep::KEY && k.locked),
@@ -237,10 +233,10 @@ pub(crate) fn codex32_work_w(cw: f32, side: f32) -> f32 {
 }
 
 /// A card's title.
-fn title_of(k: &KeyGen, s: u8) -> String {
+fn title_of(k: &KeyGen, s: u8) -> Text {
     match s {
         kstep::ENTER => entries_title(k),
-        _ => card_name(k, s).to_string(),
+        _ => Text::of(card_name(k, s)),
     }
 }
 
@@ -362,16 +358,20 @@ fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
-fn entries_title(k: &KeyGen) -> String {
+fn entries_title(k: &KeyGen) -> Text {
     let what = entries_name(k);
     if k.source == Some(Source::Mix) {
         let n = k.mix_list().len();
-        fill(
+        Text::fill(
             EN.keygen_source_count,
-            &[what, &((k.mix_at + 1).min(n)).to_string(), &n.to_string()],
+            &[
+                what,
+                &Text::num(((k.mix_at + 1).min(n)) as u64),
+                &Text::num(n as u64),
+            ],
         )
     } else {
-        what.to_string()
+        Text::of(what)
     }
 }
 
@@ -389,26 +389,29 @@ fn entries_name(k: &KeyGen) -> &'static str {
 }
 
 /// What a source asks for at this length, as its row's second line.
-fn asks(k: &KeyGen, s: Source) -> String {
+fn asks(k: &KeyGen, s: Source) -> Text {
     let st = k.strength();
     match s {
-        Source::Dice => fill(EN.keygen_rolls_of_a_six, &[&k.dice_needed().to_string()]),
-        Source::Coins => fill(
+        Source::Dice => Text::fill(
+            EN.keygen_rolls_of_a_six,
+            &[&Text::num(k.dice_needed() as u64)],
+        ),
+        Source::Coins => Text::fill(
             EN.keygen_flips_or_rolls,
-            &[&CoinFlips::needed(st).to_string()],
+            &[&Text::num(CoinFlips::needed(st) as u64)],
         ),
-        Source::Cards => fill(
+        Source::Cards => Text::fill(
             EN.keygen_cards_source,
-            &[&CardDraws::needed(st).to_string()],
+            &[&Text::num(CardDraws::needed(st) as u64)],
         ),
-        Source::Hex => fill(EN.keygen_digits_made, &[&st.hex_digits().to_string()]),
-        Source::Camera => fill(
+        Source::Hex => Text::fill(EN.keygen_digits_made, &[&Text::num(st.hex_digits() as u64)]),
+        Source::Camera => Text::fill(
             EN.keygen_pictures_n,
-            &[&CameraNoise::needed(st).to_string()],
+            &[&Text::num(CameraNoise::needed(st) as u64)],
         ),
-        Source::Mix => EN.keygen_two_or_more.to_string(),
+        Source::Mix => Text::of(EN.keygen_two_or_more),
         Source::Device => device_source(k),
-        Source::SeedXor => String::new(),
+        Source::SeedXor => Text::new(),
     }
 }
 
@@ -426,99 +429,112 @@ fn start_name(s: Start) -> &'static str {
     }
 }
 
-fn summary(k: &KeyGen, s: u8) -> String {
+/// The Enter card's summary: what the roller says of rolls made, or the
+/// count entered so far.
+fn enter_summary(k: &KeyGen) -> Text {
+    if k.done[usize::from(kstep::ENTER)] {
+        // Rolls the roller made say so (`docs/CODEX32.md` §5.6).
+        let rolls = if k.by_die {
+            k.coins.len()
+        } else {
+            k.dice.len()
+        };
+        let sim = k.roller.sim(rolls);
+        let label =
+            crate::fresh::roller::five_screen::entropy_label(sim).unwrap_or(EN.keygen_complete);
+        Text::of(label)
+    } else {
+        let (have, need) = k.progress();
+        Text::fill(
+            EN.keygen_entry_count,
+            &[&Text::num(have as u64), &Text::num(need as u64)],
+        )
+    }
+}
+
+fn summary(k: &KeyGen, s: u8) -> Text {
     match s {
         // Strings typed in going on into the rest or a share (§8.1, §8.2)
         // are a key the person has.
-        kstep::START if k.codex32.as_ref().is_some_and(|m| m.given_kind().is_some()) => fill(
+        kstep::START if k.codex32.as_ref().is_some_and(|m| m.given_kind().is_some()) => Text::fill(
             EN.c32r_start_typed,
             &[EN.keygen_add_a_key_you_have, EN.keygen_type_a_codex32],
         ),
-        kstep::START if k.start.new_key() => fill(EN.keygen_start_new_key, &[start_name(k.start)]),
-        kstep::START => start_name(k.start).to_string(),
+        kstep::START if k.start.new_key() => {
+            Text::fill(EN.keygen_start_new_key, &[start_name(k.start)])
+        }
+        kstep::START => Text::of(start_name(k.start)),
         kstep::TYPED => match k.mnemonic.as_ref() {
-            _ if !k.done[usize::from(kstep::TYPED)] => EN.keygen_not_yet.to_string(),
-            Some(m) => fill(EN.keygen_words_n, &[&m.word_count().to_string()]),
-            None => fill(EN.entry_form_count_many, &[&k.parts_in.to_string()]),
+            _ if !k.done[usize::from(kstep::TYPED)] => Text::of(EN.keygen_not_yet),
+            Some(m) => Text::fill(EN.keygen_words_n, &[&Text::num(m.word_count() as u64)]),
+            None => Text::fill(EN.entry_form_count_many, &[&Text::num(k.parts_in as u64)]),
         },
-        kstep::LENGTH if k.slip39 => fill(
+        kstep::LENGTH if k.slip39 => Text::fill(
             EN.keygen_slip_39_of_shares,
             &[
-                &k.slip_m.to_string(),
-                &k.slip_n.to_string(),
-                &k.words.to_string(),
+                &Text::num(k.slip_m as u64),
+                &Text::num(k.slip_n as u64),
+                &Text::num(k.words as u64),
             ],
         ),
-        kstep::LENGTH if !k.length_chosen => EN.keygen_not_chosen.to_string(),
-        kstep::LENGTH => fill(EN.keygen_words_n, &[&k.words.to_string()]),
+        kstep::LENGTH if !k.length_chosen => Text::of(EN.keygen_not_chosen),
+        kstep::LENGTH => Text::fill(EN.keygen_words_n, &[&Text::num(k.words as u64)]),
         kstep::SOURCE => match k.source {
             Some(Source::Dice) => k.way().map(way_name).unwrap_or_default(),
             Some(Source::Coins) if k.by_die => {
-                fill(EN.keygen_coins_from_die, &[source_name(Source::Coins)])
+                Text::fill(EN.keygen_coins_from_die, &[source_name(Source::Coins)])
             }
-            Some(Source::Mix) => k
-                .mix_list()
-                .iter()
-                .map(|s| source_name(*s))
-                .collect::<Vec<_>>()
-                .join(" + "),
-            Some(s) => source_name(s).to_string(),
-            None => EN.keygen_not_chosen.to_string(),
+            Some(Source::Mix) => Text::of(
+                &k.mix_list()
+                    .iter()
+                    .map(|s| source_name(*s))
+                    .collect::<Vec<_>>()
+                    .join(" + "),
+            ),
+            Some(s) => Text::of(source_name(s)),
+            None => Text::of(EN.keygen_not_chosen),
         },
-        kstep::ENTER => {
-            if k.done[usize::from(kstep::ENTER)] {
-                // Rolls the roller made say so (`docs/CODEX32.md` §5.6).
-                let rolls = if k.by_die {
-                    k.coins.len()
-                } else {
-                    k.dice.len()
-                };
-                let sim = k.roller.sim(rolls);
-                crate::fresh::roller::five_screen::entropy_label(sim)
-                    .unwrap_or(EN.keygen_complete)
-                    .to_string()
-            } else {
-                let (have, need) = k.progress();
-                fill(
-                    EN.keygen_entry_count,
-                    &[&have.to_string(), &need.to_string()],
-                )
-            }
-        }
+        kstep::ENTER => enter_summary(k),
         kstep::KEY => match k.fingerprint.filter(|_| k.locked) {
-            None => EN.keygen_not_locked.to_string(),
+            None => Text::of(EN.keygen_not_locked),
             Some(fp) => {
                 let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
                 match (k.asks_passphrase(), k.with_passphrase) {
-                    (false, _) => fill(EN.keygen_locked_summary, &[&fp.to_string()]),
-                    (true, true) => fill(EN.keygen_passphrase_set, &[&fp.to_string()]),
-                    (true, false) => fill(EN.keygen_locked_no_passphrase, &[&fp.to_string()]),
+                    (false, _) => Text::fill(EN.keygen_locked_summary, &[&fp]),
+                    (true, true) => Text::fill(EN.keygen_passphrase_set, &[&fp]),
+                    (true, false) => Text::fill(EN.keygen_locked_no_passphrase, &[&fp]),
                 }
             }
         },
         kstep::CHECK => match k.source {
-            Some(Source::Device) => EN.create_trusts_device.to_string(),
-            Some(Source::Mix) => fill(EN.keygen_sources_combined, &[&k.mixed.len().to_string()]),
-            _ if !k.done[usize::from(kstep::ENTER)] => EN.keygen_not_yet.to_string(),
+            Some(Source::Device) => Text::of(EN.create_trusts_device),
+            Some(Source::Mix) => Text::fill(
+                EN.keygen_sources_combined,
+                &[&Text::num(k.mixed.len() as u64)],
+            ),
+            _ if !k.done[usize::from(kstep::ENTER)] => Text::of(EN.keygen_not_yet),
             _ => match k.caution_lines().len() {
-                0 => EN.keygen_no_cautions.to_string(),
-                1 => EN.keygen_1_caution.to_string(),
-                n => fill(EN.keygen_cautions, &[&n.to_string()]),
+                0 => Text::of(EN.keygen_no_cautions),
+                1 => Text::of(EN.keygen_1_caution),
+                n => Text::fill(EN.keygen_cautions, &[&Text::num(n as u64)]),
             },
         },
         kstep::WORDS if k.slip39 => match k.shares.len() {
-            0 => EN.keygen_not_made_yet.to_string(),
-            n => fill(EN.keygen_shares_n, &[&n.to_string()]),
+            0 => Text::of(EN.keygen_not_made_yet),
+            n => Text::fill(EN.keygen_shares_n, &[&Text::num(n as u64)]),
         },
         kstep::WORDS => match k.mnemonic.as_ref() {
-            Some(m) => fill(EN.keygen_words_n, &[&m.indices().len().to_string()]),
-            None => EN.keygen_not_made_yet.to_string(),
+            Some(m) => Text::fill(EN.keygen_words_n, &[&Text::num(m.indices().len() as u64)]),
+            None => Text::of(EN.keygen_not_made_yet),
         },
         _ => match (k.fingerprint, k.done[usize::from(kstep::QUIZ)]) {
-            (Some(fp), true) => fp_text(faraday_bip::keys::Fingerprint(fp)),
+            (Some(fp), true) => Text::of(&fp_text(faraday_bip::keys::Fingerprint(fp))),
             _ => match k.quiz.as_ref().map(|q| q.progress()) {
-                Some((d, n)) => fill(EN.keygen_entry_count, &[&d.to_string(), &n.to_string()]),
-                None => EN.keygen_not_yet.to_string(),
+                Some((d, n)) => Text::fill(
+                    EN.keygen_entry_count,
+                    &[&Text::num(d as u64), &Text::num(n as u64)],
+                ),
+                None => Text::of(EN.keygen_not_yet),
             },
         },
     }
@@ -625,7 +641,7 @@ fn word_grid(
             (cx + 10.0, wy, 38.0),
             LABEL_S.regular(),
             Role::OnSurfaceVariant,
-            &(i + 1).to_string(),
+            &Text::num((i + 1) as u64),
         );
         let word = if shown {
             lang.word_display(idx)
@@ -837,9 +853,9 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (x, cy, w),
             LABEL_L,
             Role::OnSurface,
-            &fill(
+            &Text::fill(
                 EN.keygen_any_of_the_shares,
-                &[&k.slip_m.to_string(), &k.slip_n.to_string()],
+                &[&Text::num(k.slip_m as u64), &Text::num(k.slip_n as u64)],
             ),
         ) + 12.0;
         ui.text_as(
@@ -873,13 +889,13 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 const MAIN_COUNTS: [u8; 2] = [12, 24];
 
 /// The counts in Length's Other menu, as `(label, press)` rows.
-fn other_lengths() -> Vec<(String, Action)> {
+fn other_lengths() -> Vec<(Text, Action)> {
     crate::keygen::COUNTS
         .iter()
         .filter(|n| !MAIN_COUNTS.contains(n))
         .map(|&n| {
             (
-                fill(EN.keygen_words_n, &[&n.to_string()]),
+                Text::fill(EN.keygen_words_n, &[&Text::num(n as u64)]),
                 Action::KWords(n),
             )
         })
@@ -898,15 +914,15 @@ fn picked(on: bool) -> Style {
 /// the person chooses one. Returns the height used.
 fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let chosen = |n: u8| (k.slip39 || k.length_chosen) && usize::from(n) == k.words;
-    let mut buttons: Vec<(String, Style, Action)> = Vec::new();
+    let mut buttons: Vec<(Text, Style, Action)> = Vec::new();
     if k.slip39 {
         for &n in k.counts() {
-            let label = fill(EN.keygen_words_n, &[&n.to_string()]);
+            let label = Text::fill(EN.keygen_words_n, &[&Text::num(n as u64)]);
             buttons.push((label, picked(chosen(n)), Action::KSlipWords(n)));
         }
     } else {
         for n in MAIN_COUNTS {
-            let label = fill(EN.keygen_words_n, &[&n.to_string()]);
+            let label = Text::fill(EN.keygen_words_n, &[&Text::num(n as u64)]);
             buttons.push((label, picked(chosen(n)), Action::KWords(n)));
         }
         let other = k
@@ -915,8 +931,8 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .copied()
             .find(|&n| !MAIN_COUNTS.contains(&n) && chosen(n));
         let label = other.map_or_else(
-            || EN.keygen_other_lengths.to_string(),
-            |n| fill(EN.keygen_words_n, &[&n.to_string()]),
+            || Text::of(EN.keygen_other_lengths),
+            |n| Text::fill(EN.keygen_words_n, &[&Text::num(n as u64)]),
         );
         buttons.push((label, picked(other.is_some()), Action::KOtherLengths));
     }
@@ -950,7 +966,7 @@ pub(crate) fn lengths_menu(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let lines: Vec<crate::menu::Line> = other_lengths()
         .into_iter()
-        .map(|(l, a)| crate::menu::Line::Item(l, a))
+        .map(|(l, a)| crate::menu::Line::Item(l.as_str().into(), a))
         .collect();
     crate::menu::draw(
         ui,
@@ -1057,10 +1073,10 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
 }
 
 /// An option's name on the Randomness card and in its summary.
-fn way_name(w: Way) -> String {
+fn way_name(w: Way) -> Text {
     match w {
-        Way::DiceFlips => fill(EN.keygen_flip_mode, &[source_name(Source::Dice)]),
-        Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => format!(
+        Way::DiceFlips => Text::fill(EN.keygen_flip_mode, &[source_name(Source::Dice)]),
+        Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => text!(
             "{} · {}",
             source_name(Source::Dice),
             procedure_name(match w {
@@ -1069,17 +1085,17 @@ fn way_name(w: Way) -> String {
                 _ => DiceProcedure::Hashed,
             })
         ),
-        w => source_name(w.source()).to_string(),
+        w => Text::of(source_name(w.source())),
     }
 }
 
 /// What an option asks for at this length, as its row's second line.
-fn way_line(k: &KeyGen, w: Way) -> String {
+fn way_line(k: &KeyGen, w: Way) -> Text {
     let st = k.strength();
     match w {
-        Way::DiceFlips => fill(
+        Way::DiceFlips => Text::fill(
             EN.keygen_rolls_read_as,
-            &[&CoinFlips::needed(st).to_string()],
+            &[&Text::num(CoinFlips::needed(st) as u64)],
         ),
         Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => {
             let p = match w {
@@ -1087,8 +1103,10 @@ fn way_line(k: &KeyGen, w: Way) -> String {
                 Way::DiceSixAsZero => DiceProcedure::SixAsZero,
                 _ => DiceProcedure::Hashed,
             };
-            EN.dice_procedure_rolls
-                .replacen("{}", &k.rolls_for(p).to_string(), 1)
+            Text::of(
+                &EN.dice_procedure_rolls
+                    .replacen("{}", &Text::num(k.rolls_for(p) as u64), 1),
+            )
         }
         w => asks(k, w.source()),
     }
@@ -1325,9 +1343,8 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(Source::Hex) => {
             let bw = ((w - 7.0 * 6.0) / 8.0).min(60.0);
             for v in 0..16u8 {
-                let label = char::from_digit(u32::from(v), 16)
-                    .unwrap_or('0')
-                    .to_string();
+                let mut label = Text::new();
+                label.push(char::from_digit(u32::from(v), 16).unwrap_or('0'));
                 ui.button(
                     x + f32::from(v % 8) * (bw + 6.0),
                     cy + f32::from(v / 8) * 48.0,
@@ -1560,7 +1577,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         faraday_entropy::DICE_WORD_ROLLS
     };
     let checksum = k.words / 3;
-    let code_of = |slot: usize, len: usize| -> String {
+    let code_of = |slot: usize, len: usize| -> Text {
         let from = slot * per;
         if coins {
             flips
@@ -1598,14 +1615,14 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         )
     };
     let row = |ui: &mut Ui, cy: f32, slot: usize, code: &str, index: Option<u16>, note: &str| {
-        let n = (slot + 1).to_string();
+        let n = Text::num(slot as u64 + 1);
         let nw = ui.measure_as(BODY_M.mono(), &n);
         ui.text_mid_as((x + num_w - nw, cy, 30.0), BODY_M.mono(), muted, &n);
         ui.text_mid_as((cx, cy, 30.0), BODY_M.mono(), muted, code);
         let cy = cy + down;
         match index {
             Some(i) => {
-                let num = (i + 1).to_string();
+                let num = Text::num(u64::from(i) + 1);
                 let tw = ui.measure_as(BODY_M.mono(), &num);
                 ui.text_mid_as((ix + index_w - tw, cy, 30.0), BODY_M.mono(), muted, &num);
                 ui.word_pill(wx, cy + 2.0, Language::English.word(i), open_word(i));
@@ -1626,9 +1643,12 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let part = entered.saturating_sub(at * per);
     if at < last && part > 0 {
         let note = if coins {
-            fill(EN.keygen_of_11_bits, &[&part.to_string()])
+            Text::fill(EN.keygen_of_11_bits, &[&Text::num(part as u64)])
         } else {
-            fill(EN.keygen_of_rolls, &[&part.to_string(), &per.to_string()])
+            Text::fill(
+                EN.keygen_of_rolls,
+                &[&Text::num(part as u64), &Text::num(per as u64)],
+            )
         };
         row(ui, cy, at, &code_of(at, part.min(per)), None, &note);
         cy += step;
@@ -1636,10 +1656,10 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The last word: its own bits so far, then the checksum's.
     let made = k.checksum_word();
     let code = match made {
-        Some(i) if coins => format!("{i:011b}"),
+        Some(i) if coins => text!("{i:011b}"),
         _ if coins => {
             let have = entered.saturating_sub(last * 11).min(11 - checksum);
-            format!("{}{}", code_of(last, have), "·".repeat(11 - have))
+            text!("{}{}", code_of(last, have).as_str(), "·".repeat(11 - have))
         }
         _ => code_of(last, per),
     };
@@ -1650,9 +1670,9 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (x, cy, w),
             BODY_S,
             muted,
-            &fill(
+            &Text::fill(
                 EN.keygen_the_last_bits,
-                &[&checksum.to_string(), &(last + 1).to_string()],
+                &[&Text::num(checksum as u64), &Text::num((last + 1) as u64)],
             ),
         ) + 8.0;
     }
@@ -1692,11 +1712,11 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let row = |ui: &mut Ui,
                cy: f32,
                slot: usize,
-               cells: &[(String, String)],
+               cells: &[(Text, Text)],
                sum: Option<&str>,
                index: Option<u16>,
                note: &str| {
-        let n = (slot + 1).to_string();
+        let n = Text::num(slot as u64 + 1);
         let nw = ui.measure_as(BODY_M.mono(), &n);
         ui.text_mid_as((x + num_w - nw, cy, 22.0), BODY_M.mono(), muted, &n);
         for (c, (face, bits)) in cells.iter().enumerate() {
@@ -1726,7 +1746,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         match index {
             Some(i) if compact => {
                 let pw = ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
-                let line = fill(EN.keygen_word, &[&i.to_string(), &(i + 1).to_string()]);
+                let line = Text::fill(
+                    EN.keygen_word,
+                    &[&Text::num(i as u64), &Text::num((i + 1) as u64)],
+                );
                 ui.text_mid_as((info_x + pw + 8.0, cy - 3.0, 26.0), BODY_S, muted, &line);
             }
             Some(i) => {
@@ -1735,9 +1758,9 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     (info_x, cy + 22.0, 22.0),
                     BODY_S,
                     muted,
-                    &fill(
+                    &Text::fill(
                         EN.keygen_word_number,
-                        &[&i.to_string(), &(i + 1).to_string()],
+                        &[&Text::num(i as u64), &Text::num((i + 1) as u64)],
                     ),
                 );
             }
@@ -1750,11 +1773,11 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
     };
-    let bits = |pos: usize, face: u8| -> String {
+    let bits = |pos: usize, face: u8| -> Text {
         if pos < faces {
-            format!("{:02b}", face - 1)
+            text!("{:02b}", face - 1)
         } else {
-            (if face >= 4 { "1" } else { "0" }).to_string()
+            Text::of(if face >= 4 { "1" } else { "0" })
         }
     };
     let at = rolls.len() / per;
@@ -1763,18 +1786,15 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if got.is_empty() {
             break;
         }
-        let cells: Vec<(String, String)> = (0..per)
+        let cells: Vec<(Text, Text)> = (0..per)
             .map(|p| match got.get(p) {
-                Some(&f) => (f.to_string(), bits(p, f)),
-                None => (
-                    "·".to_string(),
-                    if p < faces { "··" } else { "·" }.to_string(),
-                ),
+                Some(&f) => (text!("{f}"), bits(p, f)),
+                None => (Text::of("·"), Text::of(if p < faces { "··" } else { "·" })),
             })
             .collect();
-        let note = fill(
+        let note = Text::fill(
             EN.keygen_of_rolls,
-            &[&got.len().to_string(), &per.to_string()],
+            &[&Text::num(got.len() as u64), &Text::num(per as u64)],
         );
         row(ui, cy, slot, &cells, None, live.get(slot).copied(), &note);
         cy += 50.0 + info_y;
@@ -1784,7 +1804,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let from = last * per;
     let got = rolls.get(from..).unwrap_or(&[]);
     let kept = k.last_bits();
-    let cells: Vec<(String, String)> = (0..kept.div_ceil(2))
+    let cells: Vec<(Text, Text)> = (0..kept.div_ceil(2))
         .map(|p| {
             let (at, width) = if p < faces {
                 (2 * p, 2)
@@ -1796,18 +1816,18 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Some(&f) => {
                     let all = bits(p, f);
                     (
-                        f.to_string(),
-                        format!("{}{}", &all[..keep], "·".repeat(width - keep)),
+                        text!("{f}"),
+                        text!("{}{}", &all[..keep], "·".repeat(width - keep)),
                     )
                 }
-                None => ("·".to_string(), "·".repeat(width)),
+                None => (Text::of("·"), Text::of(&"·".repeat(width))),
             }
         })
         .collect();
     let made = k.checksum_word();
     let sum = match made {
-        Some(i) => format!("{:0width$b}", i & ((1 << checksum) - 1), width = checksum),
-        None => "·".repeat(checksum),
+        Some(i) => text!("{:0width$b}", i & ((1 << checksum) - 1), width = checksum),
+        None => Text::of(&"·".repeat(checksum)),
     };
     row(
         ui,
@@ -1828,15 +1848,15 @@ fn open_word(i: u16) -> Action {
 
 /// This device's randomness as the shell named it: "operating system ·
 /// /dev/random", or "operating system" alone when it named none. A lookup.
-fn device_source(k: &KeyGen) -> String {
+fn device_source(k: &KeyGen) -> Text {
     let system = match k.entropy_source {
-        Some(name) => fill(EN.keygen_device_source, &[EN.create_device_os, name]),
-        None => EN.create_device_os.to_string(),
+        Some(name) => Text::fill(EN.keygen_device_source, &[EN.create_device_os, name]),
+        None => Text::of(EN.create_device_os),
     };
     // What the person added of their own is mixed in
     // (`docs/OWN-RANDOMNESS.md` §2.4).
     if k.with_own {
-        fill(EN.keygen_device_with_own, &[&system])
+        Text::fill(EN.keygen_device_with_own, &[&system])
     } else {
         system
     }
@@ -1900,7 +1920,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
         x,
         cy,
         EN.create_heads,
-        &st.heads.to_string(),
+        &Text::num(st.heads as u64),
         ink.paint(),
     );
     cy = stat(
@@ -1908,7 +1928,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
         x,
         cy,
         EN.create_tails,
-        &st.tails.to_string(),
+        &Text::num(st.tails as u64),
         ink.paint(),
     );
     let side = if st.run_heads {
@@ -1921,9 +1941,9 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
         x,
         cy,
         EN.create_longest_run,
-        &crate::strings::fill(
+        &Text::fill(
             EN.create_run_face,
-            &[&st.longest_run.to_string(), &side.to_lowercase()],
+            &[&Text::num(st.longest_run as u64), &side.to_lowercase()],
         ),
         ink.paint(),
     )
@@ -1969,12 +1989,19 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
         Some(Source::Dice) => {
             let st = k.dice.stats();
             let n = k.dice.len();
-            cy = stat(ui, x, cy, EN.keygen_rolls, &n.to_string(), ink.paint());
+            cy = stat(
+                ui,
+                x,
+                cy,
+                EN.keygen_rolls,
+                &Text::num(n as u64),
+                ink.paint(),
+            );
             let counts = st
                 .counts
                 .iter()
                 .enumerate()
-                .map(|(i, c)| format!("{}:{c}", i + 1))
+                .map(|(i, c)| text!("{}:{c}", i + 1))
                 .collect::<Vec<_>>()
                 .join("  ");
             cy = stat(ui, x, cy, EN.keygen_faces, &counts, ink.paint());
@@ -1991,10 +2018,10 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     x,
                     cy,
                     EN.create_chi_square,
-                    &format!(
+                    &text!(
                         "{:.1} · {}",
                         st.chi_square,
-                        judged.replacen("{}", &n.to_string(), 1)
+                        judged.replacen("{}", &Text::num(n as u64), 1)
                     ),
                     if high {
                         Role::Warning.paint()
@@ -2008,9 +2035,9 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 x,
                 cy,
                 EN.create_longest_run,
-                &crate::strings::fill(
+                &Text::fill(
                     EN.create_run_face,
-                    &[&st.longest_run.to_string(), face_name(st.run_face)],
+                    &[&Text::num(st.longest_run as u64), face_name(st.run_face)],
                 ),
                 ink.paint(),
             );
@@ -2025,13 +2052,13 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 x,
                 cy,
                 EN.create_cards_row,
-                &k.cards.len().to_string(),
+                &Text::num(k.cards.len() as u64),
                 ink.paint(),
             );
             let suits = SUITS
                 .iter()
                 .zip(st.suits)
-                .map(|(s, c)| format!("{s} {c}"))
+                .map(|(s, c)| text!("{s} {c}"))
                 .collect::<Vec<_>>()
                 .join("   ");
             cy = stat(ui, x, cy, EN.keygen_suits, &suits, ink.paint());
@@ -2042,7 +2069,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 x,
                 cy,
                 EN.keygen_digits,
-                &k.hex.len().to_string(),
+                &Text::num(k.hex.len() as u64),
                 ink.paint(),
             );
         }
@@ -2052,7 +2079,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 x,
                 cy,
                 EN.create_frames_row,
-                &k.camera.len().to_string(),
+                &Text::num(k.camera.len() as u64),
                 ink.paint(),
             );
             if let Some(st) = k.camera.last() {
@@ -2061,20 +2088,20 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     x,
                     cy,
                     EN.create_distinct_row,
-                    &st.distinct.to_string(),
+                    &Text::num(st.distinct as u64),
                     ink.paint(),
                 );
             }
         }
         Some(Source::Mix) => {
             for (i, (s, c)) in k.mix_list().iter().zip(k.mixed.commitments()).enumerate() {
-                let hex: String = String::from(&*faraday_crypto::hex::encode_string(&c[..8]));
+                let hex = faraday_crypto::hex::encode_string(&c[..8]);
                 cy = stat(
                     ui,
                     x,
                     cy,
-                    &format!("{}. {}", i + 1, source_name(*s)),
-                    &fill(EN.keygen_sha_256, &[&hex.to_string()]),
+                    &text!("{}. {}", i + 1, source_name(*s)),
+                    &Text::fill(EN.keygen_sha_256, &[&*hex]),
                     ink.paint(),
                 );
             }
@@ -2092,11 +2119,11 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 /// sample the words made are, when it kept them.
 fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let line = match (k.kept.as_deref(), k.handed, k.fingerprint) {
-        (Some(name), _, _) => fill(EN.keygen_words_are_sample, &[name]),
+        (Some(name), _, _) => Text::fill(EN.keygen_words_are_sample, &[name]),
         (None, Some((word, n)), Some(fp)) => {
             let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
-            let name = fill(EN.sample_words, &[word, &n.to_string()]);
-            fill(EN.keygen_added_sample, &[&name, &fp])
+            let name = Text::fill(EN.sample_words, &[word, &Text::num(n as u64)]);
+            Text::fill(EN.keygen_added_sample, &[&name, &fp])
         }
         _ => return 0.0,
     };
@@ -2126,12 +2153,12 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         x,
         cy,
         EN.keygen_share,
-        &fill(
+        &Text::fill(
             EN.keygen_of_needed,
             &[
-                &(k.share_at + 1).to_string(),
-                &k.shares.len().to_string(),
-                &k.slip_m.to_string(),
+                &Text::num((k.share_at + 1) as u64),
+                &Text::num(k.shares.len() as u64),
+                &Text::num(k.slip_m as u64),
             ],
         ),
         ink.paint(),
@@ -2144,7 +2171,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let wy = cy + (i / cols) as f32 * 46.0;
         ui.fill(cx, wy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(cx, wy, cellw, 38.0, 8.0, Role::OutlineVariant);
-        let n = (i + 1).to_string();
+        let n = Text::num(i as u64 + 1);
         ui.text_mid_as((cx + 10.0, wy, 38.0), LABEL_S.regular(), muted, &n);
         let shown = if k.shown {
             faraday_bip::slip39::word(idx)
@@ -2294,16 +2321,19 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += handed_line(k, ui, x, cy, w);
         let (said, tone) = if q.state() == QuizState::Passed && k.slip39 {
             (
-                fill(EN.keygen_all_shares_right, &[&k.shares.len().to_string()]),
+                Text::fill(
+                    EN.keygen_all_shares_right,
+                    &[&Text::num(k.shares.len() as u64)],
+                ),
                 Role::Ok.paint(),
             )
         } else if q.state() == QuizState::Passed {
             (
-                fill(EN.keygen_all_words_right, &[&n.to_string()]),
+                Text::fill(EN.keygen_all_words_right, &[&Text::num(n as u64)]),
                 Role::Ok.paint(),
             )
         } else {
-            (EN.keygen_quiz_skipped.to_string(), Role::Warning.paint())
+            (Text::of(EN.keygen_quiz_skipped), Role::Warning.paint())
         };
         cy = stat(ui, x, cy, EN.keygen_quiz, &said, tone);
         if let Some(e) = &k.note {
@@ -2324,17 +2354,20 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return cy + (if drawn { 48.0 } else { 8.0 }) - y;
     }
     let progress = if k.slip39 {
-        fill(
+        Text::fill(
             EN.keygen_quiz_progress,
             &[
-                &(k.quiz_share + 1).to_string(),
-                &k.shares.len().to_string(),
-                &done.to_string(),
-                &n.to_string(),
+                &Text::num((k.quiz_share + 1) as u64),
+                &Text::num(k.shares.len() as u64),
+                &Text::num(done as u64),
+                &Text::num(n as u64),
             ],
         )
     } else {
-        fill(EN.keygen_of_right, &[&done.to_string(), &n.to_string()])
+        Text::fill(
+            EN.keygen_of_right,
+            &[&Text::num(done as u64), &Text::num(n as u64)],
+        )
     };
     ui.text_as(x, cy, BODY_M, muted, &progress);
     cy += ui.advance_as(BODY_M, 26.0);
@@ -2343,7 +2376,10 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         TITLE_M,
         Role::OnSurface,
-        &fill(EN.keygen_which_is_word, &[&(q.position() + 1).to_string()]),
+        &Text::fill(
+            EN.keygen_which_is_word,
+            &[&Text::num((q.position() + 1) as u64)],
+        ),
     );
     cy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let wrong = q.wrong_slot();

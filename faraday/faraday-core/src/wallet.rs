@@ -96,7 +96,9 @@ impl KeyTexts for faraday_keys::Keys {
         kind: crate::create::NewKind,
         account: u32,
     ) -> Result<String, String> {
-        let spec = kind.spec(self.network(), account)?;
+        let spec = kind
+            .spec(self.network(), account)
+            .map_err(|e| String::from(&*e))?;
         self.key_text(c, i, &spec).map_or_else(
             || Err(String::new()),
             |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),
@@ -104,7 +106,7 @@ impl KeyTexts for faraday_keys::Keys {
     }
 
     fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String> {
-        let spec = crate::create::path_spec(path)?;
+        let spec = crate::create::path_spec(path).map_err(|e| String::from(&*e))?;
         self.key_text(c, i, &spec).map_or_else(
             || Err(String::new()),
             |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),

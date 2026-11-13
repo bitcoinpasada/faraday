@@ -262,7 +262,7 @@ impl Faraday {
                 }
                 _ => {
                     slots.push(Source::Empty);
-                    xpubs.push(Some(text.clone()));
+                    xpubs.push(Some(faraday_text::Text::of(text)));
                 }
             }
         }
@@ -273,7 +273,7 @@ impl Faraday {
         done[cstep::QUORUM as usize] = true;
         let owner = self.fresh_owner();
         let from = FromWallet {
-            name,
+            name: faraday_text::Text::of(&name),
             kind,
             account,
             bip87,

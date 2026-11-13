@@ -3007,7 +3007,7 @@ impl Faraday {
                 let bip87 = kind.has_bip87() && k.bip87;
                 kind.bsms_record(c, &self.session.keys, k.key, 0, bip87, &k.fp)
             })
-            .map(|r| (k.fp.clone(), r))
+            .map(|r| (k.fp.clone(), r.as_str().into()))
             .ok_or_else(|| EN.wallet_key_record_bip.to_string())
     }
 

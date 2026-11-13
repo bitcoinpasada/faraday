@@ -542,6 +542,10 @@ faraday/faraday-core/src/transfer/text.rs
 faraday/faraday-core/src/lightning/mod.rs
 faraday/faraday-core/src/lightning/screen.rs
 faraday/faraday-core/src/chart_edit.rs
+faraday/faraday-core/src/create.rs
+faraday/faraday-core/src/keygen/area.rs
+faraday/faraday-core/src/keygen/mod.rs
+faraday/faraday-core/src/keygen/screen.rs
 faraday/faraday-keys/src/bip85.rs
 faraday/faraday-keys/src/codex32.rs
 faraday/faraday-keys/src/gpg.rs

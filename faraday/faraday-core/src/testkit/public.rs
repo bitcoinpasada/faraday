@@ -296,8 +296,14 @@ impl KindText for crate::create::NewKind {
         master: &MasterKey,
         account: u32,
     ) -> Result<String, String> {
-        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), account)?)
-            .map(|t| String::from(&*t))
-            .map_err(|e| String::from(&*e))
+        faraday_keys::texts::key_text(
+            c,
+            master,
+            &self
+                .spec(master.network(), account)
+                .map_err(|e| String::from(&*e))?,
+        )
+        .map(|t| String::from(&*t))
+        .map_err(|e| String::from(&*e))
     }
 }

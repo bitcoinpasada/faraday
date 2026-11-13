@@ -289,7 +289,15 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let shown = crate::create::NewKind::create_rows(c.more_kinds);
             let lines: Vec<(usize, String)> = shown
                 .into_iter()
-                .map(|i| (i, crate::create::NewKind::ALL[i].create_line((c.m, c.n))))
+                .map(|i| {
+                    (
+                        i,
+                        crate::create::NewKind::ALL[i]
+                            .create_line((c.m, c.n))
+                            .as_str()
+                            .into(),
+                    )
+                })
                 .collect();
             let rows: Vec<(usize, &str)> = lines.iter().map(|(i, l)| (*i, l.as_str())).collect();
             let more = (!c.more_kinds).then_some(Action::CMoreKinds);

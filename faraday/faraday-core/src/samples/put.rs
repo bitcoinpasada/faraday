@@ -594,17 +594,19 @@ impl Faraday {
             return;
         };
         let c = self.compute();
-        let made = crate::create::path_spec(&s.path(net)).and_then(|spec| {
-            faraday_keys::identity::key_text_of_words(
-                &c,
-                set.keys[i].parts.first().copied().unwrap_or_default(),
-                "",
-                net,
-                &spec,
-            )
-            .map(|t| String::from(&*t))
-            .map_err(|e| String::from(&*e))
-        });
+        let made = crate::create::path_spec(&s.path(net))
+            .map_err(|e| e.as_str().into())
+            .and_then(|spec| {
+                faraday_keys::identity::key_text_of_words(
+                    &c,
+                    set.keys[i].parts.first().copied().unwrap_or_default(),
+                    "",
+                    net,
+                    &spec,
+                )
+                .map(|t| String::from(&*t))
+                .map_err(|e| String::from(&*e))
+            });
         if let Some(st) = self.seeds_mut() {
             match made {
                 Ok(text) => {

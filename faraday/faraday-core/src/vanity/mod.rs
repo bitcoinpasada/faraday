@@ -506,7 +506,7 @@ impl Faraday {
         match self.session.add_wallet(
             &c,
             &name,
-            &kind.descriptor(1, &[String::from(&*text)]),
+            &kind.descriptor(1, &[faraday_text::Text::of(&text)]),
             EN.vanity_vanity_search,
             crate::wallet::Origin::Named,
         ) {

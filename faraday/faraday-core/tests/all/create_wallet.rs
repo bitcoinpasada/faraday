@@ -632,7 +632,10 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     );
     // At the wallet's own account the xpub it has is that key again.
     app.press(Action::CAccount(-1));
-    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
+    assert_eq!(
+        app.create().unwrap().slots[pos],
+        Source::Cosigner(faraday_text::Text::of(&xpub))
+    );
 }
 
 #[test]
@@ -743,7 +746,11 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
     }
     let want = NewKind::Multi.path_at(app.session.network(), 1);
     let text = drawn_joined(&mut app);
-    assert!(text.contains(&want), "Check shows {want}: {text}");
+    assert!(
+        text.contains(want.as_str()),
+        "Check shows {}: {text}",
+        want.as_str()
+    );
     app.press(Action::CPathChange);
     let c = app.create().expect("create");
     assert_eq!(c.built, None, "the wallet is taken back");
@@ -1187,7 +1194,10 @@ fn a_wallet_made_from_a_bip_87_wallet_opens_with_bip_87_and_gets_the_cosigners_k
     app.press(Action::NewWalletFrom(i));
     assert!(app.create().unwrap().bip87, "BIP-87 is chosen");
     app.press(Action::CAccount(-1));
-    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
+    assert_eq!(
+        app.create().unwrap().slots[pos],
+        Source::Cosigner(faraday_text::Text::of(&xpub))
+    );
     // Back to the kind's own path: that key is not at it.
     app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(false));
@@ -1204,7 +1214,7 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
     app.press(Action::CAccount(-1));
     assert_eq!(
         app.create().unwrap().slots[pos],
-        Source::Cosigner(xpub.clone())
+        Source::Cosigner(faraday_text::Text::of(&xpub))
     );
     app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(true));
@@ -1216,7 +1226,10 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
     assert!(texts.contains(&line), "{line}: {texts:?}");
     app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(false));
-    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
+    assert_eq!(
+        app.create().unwrap().slots[pos],
+        Source::Cosigner(faraday_text::Text::of(&xpub))
+    );
 }
 
 #[test]
@@ -1228,11 +1241,11 @@ fn a_cosigner_key_at_m_87_is_taken_only_when_bip_87_is_chosen_and_the_kinds_path
     assert!(key_for_slot(NewKind::Multi, false, &at_87).is_err());
     assert_eq!(
         key_for_slot(NewKind::Multi, true, &at_87),
-        Ok(at_87.clone())
+        Ok(faraday_text::Text::of(&at_87))
     );
     assert_eq!(
         key_for_slot(NewKind::Multi, false, &at_48),
-        Ok(at_48.clone())
+        Ok(faraday_text::Text::of(&at_48))
     );
     assert!(key_for_slot(NewKind::Multi, true, &at_48).is_err());
 }
@@ -1247,7 +1260,7 @@ fn changing_the_kind_empties_a_cosigners_slot_whose_key_is_not_at_the_new_kinds_
     app.press(Action::CAccount(-1));
     assert_eq!(
         app.create().unwrap().slots[pos],
-        Source::Cosigner(xpub.clone())
+        Source::Cosigner(faraday_text::Text::of(&xpub))
     );
     let nested = NewKind::ALL
         .iter()
@@ -1256,5 +1269,8 @@ fn changing_the_kind_empties_a_cosigners_slot_whose_key_is_not_at_the_new_kinds_
     crate::common::ckind(&mut app, nested as u8);
     let c = app.create().unwrap();
     assert!(!c.bip87, "the new kind starts at its own path");
-    assert_ne!(c.slots[pos], Source::Cosigner(xpub));
+    assert_ne!(
+        c.slots[pos],
+        Source::Cosigner(faraday_text::Text::of(&xpub))
+    );
 }

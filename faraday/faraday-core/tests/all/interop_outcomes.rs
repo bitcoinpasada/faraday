@@ -27,11 +27,11 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
         Err(e) => out.push_str(&format!("refused {}\n", &*e.text())),
     }
     for k in read_keys(&text) {
-        out.push_str(&format!("key {k}\n"));
+        out.push_str(&format!("key {}\n", k.as_str()));
     }
     for kind in NewKind::ALL {
         if let Some(k) = key_for(kind, &text) {
-            out.push_str(&format!("slot {kind:?} {k}\n"));
+            out.push_str(&format!("slot {kind:?} {}\n", k.as_str()));
         }
     }
     if let Some(l) = faraday_intake::wallet::carried_name(&text) {

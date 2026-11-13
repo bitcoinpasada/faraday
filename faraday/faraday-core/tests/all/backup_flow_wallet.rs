@@ -1708,7 +1708,7 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
     faraday_core::testkit::create_set_slot(
         &mut app,
         1,
-        faraday_core::create::Source::Cosigner(cosigner),
+        faraday_core::create::Source::Cosigner(faraday_text::Text::of(&cosigner)),
     );
     app.press(Action::CSlotHere(2, k3));
     app.press(Action::CNext(cstep::KEYS));
