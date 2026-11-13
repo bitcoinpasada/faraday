@@ -1,15 +1,14 @@
 # Secret leaks: tests that fail on a secret left in memory or on screen
 
-**Kind:** Spec
-**Status:** Specified (F250); the allocator, the flow tests, the tours' check and the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) are built, the rest is in its Open line.
-**Open:** §6's rule on every secret type: the types `lint-secrets` rule 2 still lets keep a derive.
+**Kind:** Reference
+**Status:** Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type. The files that name a secret type and still build heap text are later work (§8).
 
 Faraday keeps its secrets in types that wipe on drop (`Secret`,
 `SecretText`, `Zeroizing`, `faraday-keys`' holders, `docs/KEYS.md`), and
 `tools/lint-secrets.sh` keeps heap text out of the files that hold them.
 Neither says whether a copy was made anyway: a `Vec` that grew and left
 its old block, a `to_vec` into a type that does not wipe, a string made
-for the screen. This document designs tests that find such a copy by
+for the screen. This document describes the tests that find such a copy by
 looking for the secret itself: in freed memory, in memory still live
 after Lock, and on the screen after a frame that should have forgotten
 it. It does for secrets what the budget tests of `docs/SPEED.md` §7 do
@@ -144,9 +143,10 @@ had to list one screen by hand.
 - **No derived `Clone`, `PartialEq`, `Debug` or `Display`** on a type
   that holds a secret. A copy is written where it is needed, and a
   comparison goes through a function of the type that does not branch on
-  the bytes. `lint-secrets` rule 2 holds the `Debug` derive today for a
-  list of type names and one-by-one exceptions; it becomes a rule on
-  every secret type, found as below.
+  the bytes. `lint-secrets` rule 2 holds this on every secret type and on
+  every type that holds one, through any depth of nesting; a type that
+  keeps a derive is named in its `ALLOWED_TYPES` with the reason it is
+  safe.
 - **`clippy::disallowed_methods`** in the crates that hold secrets
   refuses `to_vec`, `clone`, `to_owned` and `to_string` on a secret
   buffer (`Secret<_>`, `SecretText`, `Zeroizing<_>`, a `faraday-keys`
@@ -201,6 +201,11 @@ entry is made only in a commit that says why, and passes review.
 - **Faraday Demo and the Starter** run on an online computer and hold
   test data: no leak work is done for them alone (F181 point 3). The
   tests run in the crates they share with the device.
+- **The excepted files.** A file that names a secret type and still
+  builds heap text is listed with its reason in
+  `tools/lint-secrets-excepted.txt` rather than held by rule 3. This is
+  later work: each is rewritten to build no heap text and moves to
+  `SECRET_FILES`, and the list is then removed.
 - **Nothing is shipped.** The allocator is a dev-dependency, no shipped
   program installs it or any other global allocator, and F181's rule
   (`speed.no-wiping-allocator`) holds as it is. If the hits argue for
