@@ -2,6 +2,7 @@
 //! what the worker sent back. Drawing reads this and changes nothing.
 
 use aqrv::{Header, Item, Size, Step};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::samples::SAMPLES;
@@ -117,7 +118,7 @@ pub enum Dialog {
 /// What Open holds.
 pub struct OpenState {
     /// The typed path.
-    pub path: Zeroizing<String>,
+    pub path: Text,
     /// How far it has come.
     pub stage: OpenStage,
     /// The code's bytes, once the file is one.
@@ -125,7 +126,7 @@ pub struct OpenState {
     /// Its size and step.
     pub header: Option<Header>,
     /// The passphrase typed.
-    pub pass: Zeroizing<String>,
+    pub pass: Text,
     /// The item, once opened.
     pub shown: Option<Shown>,
     /// The request the worker is answering.
@@ -135,11 +136,11 @@ pub struct OpenState {
 impl OpenState {
     fn new() -> OpenState {
         OpenState {
-            path: Zeroizing::new(String::new()),
+            path: Text::new(),
             stage: OpenStage::Empty,
             envelope: None,
             header: None,
-            pass: Zeroizing::new(String::new()),
+            pass: Text::new(),
             shown: None,
             job: None,
         }
@@ -206,15 +207,15 @@ pub struct State {
     /// The typed kind.
     pub own_kind: OwnKind,
     /// What is typed as the item.
-    pub own_text: Zeroizing<String>,
+    pub own_text: Text,
     /// The size chosen.
     pub size: Size,
     /// The memory step chosen.
     pub step: Step,
     /// The passphrase.
-    pub pass: Zeroizing<String>,
+    pub pass: Text,
     /// The passphrase again.
-    pub again: Zeroizing<String>,
+    pub again: Text,
     /// The passphrase is shown, not dotted.
     pub shown: bool,
     /// The field typing goes to.
@@ -240,7 +241,7 @@ pub struct State {
     /// The request for the working.
     pub work_job: Option<u64>,
     /// What the snackbar says.
-    pub snack: Option<String>,
+    pub snack: Option<Text>,
     pub(crate) next_job: u64,
 }
 
@@ -252,11 +253,11 @@ impl State {
             page: Page::Item,
             source: Source::Sample(0),
             own_kind: OwnKind::Note,
-            own_text: Zeroizing::new(String::new()),
+            own_text: Text::new(),
             size: Size::Small,
             step: Step::DEFAULT,
-            pass: Zeroizing::new(String::new()),
-            again: Zeroizing::new(String::new()),
+            pass: Text::new(),
+            again: Text::new(),
             shown: false,
             focus: None,
             timing: None,
@@ -315,7 +316,7 @@ impl State {
         }
     }
 
-    fn focused_text(&mut self) -> Option<&mut Zeroizing<String>> {
+    fn focused_text(&mut self) -> Option<&mut Text> {
         match self.focus? {
             Field::Own => Some(&mut self.own_text),
             Field::Pass => Some(&mut self.pass),
@@ -349,13 +350,9 @@ impl Default for State {
 fn own_item(kind: OwnKind, text: &str) -> Option<Item> {
     let hex = |t: &str| faraday_codec::encodings::from_hex(t.trim());
     match kind {
-        OwnKind::Note if !text.is_empty() => Some(Item::Note(Zeroizing::new(text.to_owned()))),
-        OwnKind::Passphrase if !text.is_empty() => {
-            Some(Item::Passphrase(Zeroizing::new(text.to_owned())))
-        }
-        OwnKind::Codex32 if text.len() >= 48 => {
-            Some(Item::Codex32(Zeroizing::new(text.trim().to_owned())))
-        }
+        OwnKind::Note if !text.is_empty() => Some(Item::Note(Text::of(text))),
+        OwnKind::Passphrase if !text.is_empty() => Some(Item::Passphrase(Text::of(text))),
+        OwnKind::Codex32 if text.len() >= 48 => Some(Item::Codex32(Text::of(text.trim()))),
         OwnKind::Entropy => {
             let bytes = hex(text)?;
             matches!(bytes.len(), 16 | 20 | 24 | 28 | 32)

@@ -111,6 +111,7 @@ dependencies = [
  "faraday-files",
  "faraday-shell-api",
  "faraday-strings",
+ "faraday-text",
  "faraday-ui",
  "png",
  "zeroize",
@@ -125,6 +126,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-files",
+ "faraday-text",
  "getrandom 0.4.3",
  "zeroize",
 ]

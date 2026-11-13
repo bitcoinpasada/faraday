@@ -4,6 +4,7 @@
 
 use aqrv::Item;
 use faraday_strings::Strings;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// One sample: its name and its type as the list shows them, and its item.
@@ -45,31 +46,23 @@ pub static SAMPLES: [Sample; 7] = [
     Sample {
         name: |s| s.aqrv_sample_codex_secret,
         kind: |s| s.aqrv_type_codex32,
-        item: || {
-            Item::Codex32(Zeroizing::new(
-                "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw".to_owned(),
-            ))
-        },
+        item: || Item::Codex32(Text::of("ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw")),
     },
     Sample {
         name: |s| s.aqrv_sample_codex_share,
         kind: |s| s.aqrv_type_codex32,
-        item: || {
-            Item::Codex32(Zeroizing::new(
-                "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm".to_owned(),
-            ))
-        },
+        item: || Item::Codex32(Text::of("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")),
     },
     Sample {
         name: |s| s.aqrv_sample_note,
         kind: |s| s.aqrv_type_note,
         // not wording: the sample note's content, test text in several scripts
-        item: || Item::Note(Zeroizing::new("Zoë café 日本語 ✓".to_owned())),
+        item: || Item::Note(Text::of("Zoë café 日本語 ✓")),
     },
     Sample {
         name: |s| s.aqrv_sample_passphrase,
         kind: |s| s.aqrv_type_passphrase,
-        item: || Item::Passphrase(Zeroizing::new("0123456789abcdefghijklmnopqrstu".to_owned())),
+        item: || Item::Passphrase(Text::of("0123456789abcdefghijklmnopqrstu")),
     },
     Sample {
         name: |s| s.aqrv_sample_raw_key,

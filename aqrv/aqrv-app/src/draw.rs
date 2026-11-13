@@ -9,13 +9,14 @@ use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, FIELD_PAD, GAP, GAP_SMALL, LABEL_L, PAD, TITLE_M, TITLE_S, TOUCH,
 };
 use faraday_draw::widgets::Icon;
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 use faraday_ui::tabs::{Tab as TabItem, TabKind};
 use faraday_ui::{Glyph, Role, Style, Ui, W};
 
 use crate::samples::SAMPLES;
 use crate::state::{Action, Dialog, Field, OpenStage, OwnKind, Page, SIZES, Source, State, Tab};
-use crate::worker::{Label, Value};
+use crate::worker::{Label, Value, hex};
 
 /// The widest a column of content grows, in design units.
 const COLUMN: f32 = 480.0;
@@ -117,10 +118,12 @@ fn field(
 ) -> f32 {
     let by = y + ui.field_label(x, y, label);
     let fh = ui.field_h();
-    let shown: String = if masked {
-        text.chars().map(|_| '•').collect()
+    let dots: Text;
+    let shown: &str = if masked {
+        dots = text.chars().map(|_| '•').collect();
+        &dots
     } else {
-        text.to_owned()
+        text
     };
     ui.field_box((x, by, w), focused, None);
     ui.typed(
@@ -130,7 +133,7 @@ fn field(
         BODY_L.size,
         W::R,
         Role::OnSurface,
-        &shown,
+        shown,
         w - 2.0 * FIELD_PAD,
         focused,
         a,
@@ -233,19 +236,19 @@ fn memory_label(s: Step) -> &'static str {
     }
 }
 
-fn time_label(st: &State, s: Step) -> String {
+fn time_label(st: &State, s: Step) -> Text {
     match st.seconds(s) {
-        Some(t) => fill(EN.aqrv_seconds, &[&seconds(t)]),
-        None => EN.aqrv_timing.to_owned(),
+        Some(t) => Text::fill(EN.aqrv_seconds, &[&seconds(t)]),
+        None => Text::of(EN.aqrv_timing),
     }
 }
 
 /// A time in seconds, rounded up: one decimal under 10 s, else whole.
-fn seconds(t: f32) -> String {
+fn seconds(t: f32) -> Text {
     if t < 10.0 {
-        format!("{:.1}", (t * 10.0).ceil().max(1.0) / 10.0)
+        text!("{:.1}", (t * 10.0).ceil().max(1.0) / 10.0)
     } else {
-        format!("{}", t.ceil())
+        text!("{}", t.ceil())
     }
 }
 
@@ -272,7 +275,7 @@ fn settings(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
     );
     y += ui.line_as(TITLE_S) + GAP_SMALL;
     for s in Step::ALL {
-        let name = fill(EN.aqrv_memory_row, &[memory_label(s), &time_label(st, s)]);
+        let name = Text::fill(EN.aqrv_memory_row, &[memory_label(s), &time_label(st, s)]);
         let line = if s == Step::DEFAULT {
             EN.aqrv_memory_suggested
         } else {
@@ -333,7 +336,7 @@ fn settings(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// reports no progress.
 fn working(ui: U, st: &State, (x, y0, w): (f32, f32, f32), phase: Option<f32>) -> f32 {
     let mut y = y0;
-    let line = fill(EN.aqrv_working, &[memory_label(st.step)]);
+    let line = Text::fill(EN.aqrv_working, &[memory_label(st.step)]);
     y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &line) + GAP;
     ui.progress((x, y, w), None, phase);
     y += 4.0 + 2.0 * GAP;
@@ -372,12 +375,12 @@ fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
     for (label, value) in &made.lines {
         y += pair(ui, (x, y, w), item_label(*label), value);
     }
-    let step = fill(EN.aqrv_code_step, &[memory_label(made.step)]);
+    let step = Text::fill(EN.aqrv_code_step, &[memory_label(made.step)]);
     y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, &step) + GAP;
     ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, EN.aqrv_code_bytes);
     y += ui.line_as(TITLE_S) + GAP_SMALL;
     for chunk in made.bytes.chunks(8) {
-        let hex: String = chunk.iter().map(|b| format!("{b:02x}")).collect();
+        let hex = hex(chunk);
         y += ui.code_height(BODY_M.size) + GAP_SMALL;
         ui.code_box(
             x,
@@ -392,7 +395,7 @@ fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
         y += ui.line_as(TITLE_S) + GAP_SMALL;
         let chars: Vec<char> = text.chars().collect();
         for chunk in chars.chunks(16) {
-            let line: String = chunk.iter().collect();
+            let line: Text = chunk.iter().copied().collect();
             ui.code_box(x, y, BODY_M.size, &line);
             y += ui.code_height(BODY_M.size) + GAP_SMALL;
         }
@@ -434,7 +437,7 @@ fn item_label(l: Label) -> &'static str {
     match l {
         Label::Words => EN.aqrv_item_words,
         Label::Fingerprint => EN.aqrv_item_fingerprint,
-        Label::String => EN.aqrv_item_string,
+        Label::Codex => EN.aqrv_item_string,
         Label::Threshold => EN.aqrv_item_threshold,
         Label::Identifier => EN.aqrv_item_identifier,
         Label::Index => EN.aqrv_item_index,
@@ -487,13 +490,13 @@ fn open(ui: U, st: &State, (x, y0, w): (f32, f32, f32), phase: Option<f32>) -> f
         _ => {
             if let Some(h) = o.header {
                 y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, size_label(h.size)) + GAP_SMALL;
-                let step = fill(EN.aqrv_code_step, &[memory_label(h.step)]);
+                let step = Text::fill(EN.aqrv_code_step, &[memory_label(h.step)]);
                 y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, &step) + GAP;
             }
             match o.stage {
                 OpenStage::Working => {
                     let step = o.header.map_or("", |h| memory_label(h.step));
-                    let line = fill(EN.aqrv_opening, &[step]);
+                    let line = Text::fill(EN.aqrv_opening, &[step]);
                     y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &line) + GAP;
                     ui.progress((x, y, w), None, phase);
                     y += 4.0 + 2.0 * GAP;
@@ -550,17 +553,17 @@ fn open(ui: U, st: &State, (x, y0, w): (f32, f32, f32), phase: Option<f32>) -> f
     y - GAP
 }
 
-fn value_label(v: Value) -> String {
+fn value_label(v: Value) -> Text {
     match v {
-        Value::Pw => EN.aqrv_w_pw.to_owned(),
-        Value::Prk => EN.aqrv_w_prk.to_owned(),
-        Value::KEnc => EN.aqrv_w_k_enc.to_owned(),
-        Value::KMac => EN.aqrv_w_k_mac.to_owned(),
-        Value::Keystream => EN.aqrv_w_keystream.to_owned(),
-        Value::P => EN.aqrv_w_p.to_owned(),
-        Value::C => EN.aqrv_w_c.to_owned(),
-        Value::Message => EN.aqrv_w_message.to_owned(),
-        Value::Tag(k) => fill(EN.aqrv_w_tag, &[&format!("{k:02x}")]),
+        Value::Pw => Text::of(EN.aqrv_w_pw),
+        Value::Prk => Text::of(EN.aqrv_w_prk),
+        Value::KEnc => Text::of(EN.aqrv_w_k_enc),
+        Value::KMac => Text::of(EN.aqrv_w_k_mac),
+        Value::Keystream => Text::of(EN.aqrv_w_keystream),
+        Value::P => Text::of(EN.aqrv_w_p),
+        Value::C => Text::of(EN.aqrv_w_c),
+        Value::Message => Text::of(EN.aqrv_w_message),
+        Value::Tag(k) => Text::fill(EN.aqrv_w_tag, &[&text!("{k:02x}")]),
     }
 }
 

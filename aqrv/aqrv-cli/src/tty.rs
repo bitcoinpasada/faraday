@@ -9,6 +9,7 @@
 
 use std::io::{self, BufRead, BufReader, Write};
 
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// The character a terminal sends for interrupt (Ctrl-C).
@@ -16,7 +17,7 @@ const INTERRUPT: u8 = 0x03;
 
 /// Asks `label` on the terminal and returns one line, without its line
 /// ending. A line holding an interrupt character is an error.
-pub fn prompt(label: &str) -> io::Result<Zeroizing<String>> {
+pub fn prompt(label: &str) -> io::Result<Text> {
     let mut tty = open()?;
     write!(tty.output, "{label}")?;
     tty.output.flush()?;
@@ -31,7 +32,7 @@ pub fn prompt(label: &str) -> io::Result<Zeroizing<String>> {
     finish(line)
 }
 
-fn finish(mut bytes: Zeroizing<Vec<u8>>) -> io::Result<Zeroizing<String>> {
+fn finish(mut bytes: Zeroizing<Vec<u8>>) -> io::Result<Text> {
     if bytes.contains(&INTERRUPT) {
         return Err(io::Error::new(io::ErrorKind::Interrupted, "interrupted"));
     }
@@ -41,8 +42,8 @@ fn finish(mut bytes: Zeroizing<Vec<u8>>) -> io::Result<Zeroizing<String>> {
             bytes.pop();
         }
     }
-    String::from_utf8(std::mem::take(&mut *bytes))
-        .map(Zeroizing::new)
+    core::str::from_utf8(&bytes)
+        .map(Text::of)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "input is not UTF-8"))
 }
 
@@ -63,7 +64,7 @@ fn open() -> io::Result<Tty> {
 #[cfg(unix)]
 struct Quiet {
     input: std::fs::File,
-    saved: String,
+    saved: Text,
 }
 
 #[cfg(unix)]
@@ -78,7 +79,7 @@ fn quiet(tty: &Tty) -> io::Result<Quiet> {
     if !saved.status.success() {
         return Err(io::Error::other("stty did not read the terminal"));
     }
-    let saved = String::from_utf8_lossy(&saved.stdout).trim().to_owned();
+    let saved = Text::of(Text::from_utf8_lossy(&saved.stdout).trim());
     // The guard exists before echo goes off, so a failure half way restores.
     let guard = Quiet {
         input: tty.input.try_clone()?,
@@ -101,7 +102,7 @@ impl Drop for Quiet {
 
         if let Ok(input) = self.input.try_clone() {
             let _ = Command::new("stty")
-                .arg(&self.saved)
+                .arg(self.saved.as_str())
                 .stdin(Stdio::from(input))
                 .status();
         }

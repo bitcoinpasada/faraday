@@ -15,7 +15,8 @@ use std::collections::VecDeque;
 
 use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, FileKind, Frame, Key, TouchPhase};
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 pub use state::{Action, Dialog, Field, OpenStage, OwnKind, Page, Source, State, Tab};
@@ -41,7 +42,7 @@ pub struct ArgonQrVault {
     waiting: Option<u64>,
     pool: Zeroizing<Vec<u8>>,
     /// The name of the file a write was asked for, until it is answered.
-    saving: Option<String>,
+    saving: Option<Text>,
 }
 
 impl ArgonQrVault {
@@ -113,7 +114,7 @@ impl ArgonQrVault {
         open.envelope = None;
         open.header = None;
         open.shown = None;
-        open.pass = Zeroizing::new(String::new());
+        open.pass = Text::new();
         open.job = Some(id);
         self.state.tab = Tab::Open;
         self.state.offset = 0.0;
@@ -148,7 +149,7 @@ impl ArgonQrVault {
                     Ok(shown) => {
                         open.shown = Some(shown);
                         open.stage = OpenStage::Opened;
-                        open.pass = Zeroizing::new(String::new());
+                        open.pass = Text::new();
                         self.state.focus = None;
                     }
                     Err(aqrv::NotOpened::NotEnoughMemory) => {
@@ -200,13 +201,14 @@ impl ArgonQrVault {
                 st.open.stage = OpenStage::Asking;
             }
             Action::ReadPath => {
-                let path = st.open.path.trim().to_owned();
+                let path = st.open.path.trim();
                 if !path.is_empty() {
+                    let name = path.into();
                     st.open.stage = OpenStage::Reading;
                     st.open.job = None;
                     self.commands.push_back(Command::ReadFile {
                         kind: FileKind::Any,
-                        name: path,
+                        name,
                     });
                 }
             }
@@ -237,7 +239,7 @@ impl ArgonQrVault {
                 st.open.header = None;
                 st.open.shown = None;
                 st.open.job = None;
-                st.open.pass = Zeroizing::new(String::new());
+                st.open.pass = Text::new();
                 st.focus = Some(Field::Path);
             }
             Action::SavePicture | Action::SaveFile => {
@@ -247,10 +249,10 @@ impl ArgonQrVault {
                     } else {
                         (FileKind::Any, "argon-qr-vault.aqrv", made.bytes.clone())
                     };
-                    self.saving = Some(name.to_owned());
+                    self.saving = Some(Text::of(name));
                     self.commands.push_back(Command::WriteFile {
                         kind,
-                        name_hint: name.to_owned(),
+                        name_hint: name.into(),
                         bytes,
                     });
                 }
@@ -367,8 +369,8 @@ impl ArgonQrVault {
             }
             Action::Again => {
                 st.made = None;
-                st.pass = Zeroizing::new(String::new());
-                st.again = Zeroizing::new(String::new());
+                st.pass = Text::new();
+                st.again = Text::new();
                 st.page = Page::Item;
                 st.offset = 0.0;
             }
@@ -518,12 +520,12 @@ impl App for ArgonQrVault {
             Event::FileCancelled { .. } => self.state.open.stage = OpenStage::Empty,
             Event::FileWritten { .. } => {
                 if let Some(name) = self.saving.take() {
-                    self.state.snack = Some(fill(EN.aqrv_saved, &[&name]));
+                    self.state.snack = Some(Text::fill(EN.aqrv_saved, &[&name]));
                 }
             }
             Event::FileNotWritten { .. } => {
                 self.saving = None;
-                self.state.snack = Some(EN.aqrv_not_saved.to_owned());
+                self.state.snack = Some(Text::of(EN.aqrv_not_saved));
             }
             Event::Entropy(e) => {
                 if self.waiting.is_some() {

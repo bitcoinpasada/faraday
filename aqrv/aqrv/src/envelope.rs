@@ -7,6 +7,7 @@ use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Argon2Cost, Argon2Error, Secret, hkdf_sha256_expand, hmac_sha256};
+use faraday_text::Text;
 use subtle::ConstantTimeEq;
 use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
@@ -92,7 +93,7 @@ fn expand_keys(prk: &[u8; 32]) -> Keys {
 fn passphrase_bytes(passphrase: &str) -> Zeroizing<Vec<u8>> {
     // NFC can lengthen text, so this leaves room for it: nothing is
     // reallocated, and no copy is left unwiped.
-    let mut nfc = Zeroizing::new(String::with_capacity(passphrase.len() * 4));
+    let mut nfc = Text::with_room(passphrase.len() * 4);
     nfc.extend(passphrase.nfc());
     Zeroizing::new(nfc.as_bytes().to_vec())
 }

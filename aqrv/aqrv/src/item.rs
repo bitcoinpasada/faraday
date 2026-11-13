@@ -2,6 +2,7 @@
 //! as the bytes, a text as `len` then the bytes, a codex32 string as
 //! `codex32.rs` packs it.
 
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::{Kind, Layout, Refused, Size, codex32};
@@ -12,11 +13,11 @@ pub enum Item {
     /// kind.
     Entropy(Zeroizing<Vec<u8>>),
     /// A codex32 string, exactly as written, in its case.
-    Codex32(Zeroizing<String>),
+    Codex32(Text),
     /// A BIP-39 passphrase, as given.
-    Passphrase(Zeroizing<String>),
+    Passphrase(Text),
     /// A note, as given.
-    Note(Zeroizing<String>),
+    Note(Text),
     /// A raw 32-byte key.
     RawKey(Zeroizing<[u8; 32]>),
 }
@@ -123,7 +124,7 @@ pub(crate) fn read(kind: Kind, p: &[u8]) -> Result<Item, Layout> {
 }
 
 /// §3: `len` in 1 to the room less one, then that many bytes of UTF-8.
-fn text(p: &[u8]) -> Result<Zeroizing<String>, Layout> {
+fn text(p: &[u8]) -> Result<Text, Layout> {
     let len = usize::from(p[0]);
     if len == 0 {
         return Err(Layout::LenZero);
@@ -132,7 +133,7 @@ fn text(p: &[u8]) -> Result<Zeroizing<String>, Layout> {
         return Err(Layout::LenPastRoom);
     }
     let text = core::str::from_utf8(&p[1..=len]).map_err(|_| Layout::NotUtf8)?;
-    Ok(Zeroizing::new(text.to_owned()))
+    Ok(Text::of(text))
 }
 
 /// The fuzz target `aqrv_item`'s entry: [`read`] on a room of bytes, then

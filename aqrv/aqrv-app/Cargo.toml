@@ -14,6 +14,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-ui = { path = "../../faraday/faraday-ui" }
 faraday-draw = { path = "../../core/faraday-draw" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
+faraday-text = { path = "../../core/faraday-text" }
 faraday-strings = { path = "../../faraday/faraday-strings", features = ["aqrv"] }
 faraday-codec = { path = "../../core/faraday-codec" }
 faraday-crypto = { path = "../../core/faraday-crypto" }

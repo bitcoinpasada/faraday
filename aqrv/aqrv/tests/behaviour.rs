@@ -6,6 +6,7 @@ use aqrv::{
     seal,
 };
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 fn compute() -> Compute {
@@ -27,8 +28,8 @@ fn entropy(len: usize) -> Item {
     Item::Entropy(Zeroizing::new(vec![0x5a; len]))
 }
 
-fn text(s: &str) -> Zeroizing<String> {
-    Zeroizing::new(s.to_owned())
+fn text(s: &str) -> Text {
+    Text::of(s)
 }
 
 /// A codex32 string of a 28-byte seed (67 characters), BIP 93's
@@ -55,7 +56,7 @@ fn codex32_33_bytes() -> String {
 fn shown(item: &Item) -> String {
     match item {
         Item::Entropy(b) => format!("{b:?}"),
-        Item::Passphrase(s) | Item::Note(s) | Item::Codex32(s) => s.to_string(),
+        Item::Passphrase(s) | Item::Note(s) | Item::Codex32(s) => String::from(&**s),
         Item::RawKey(k) => format!("{:?}", &k[..]),
     }
 }
@@ -91,7 +92,7 @@ fn a_33_byte_codex32_string_is_refused_at_53_bytes_and_written_at_62() {
     let c = compute();
     let mut random = counter();
     let string = codex32_33_bytes();
-    let item = Item::Codex32(Zeroizing::new(string.clone()));
+    let item = Item::Codex32(Text::of(&string));
     let small = seal(&c, &item, "pass", Step::Mib64, Size::Small, &mut random);
     assert!(matches!(small, Err(Refused::Codex32TooLongForSmall)));
     let large = seal(&c, &item, "pass", Step::Mib64, Size::Large, &mut random).unwrap();

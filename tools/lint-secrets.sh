@@ -443,7 +443,17 @@ faraday/faraday-strings/src/bip.rs
 core/faraday-text/src/lib.rs
 core/faraday-text/src/text.rs
 core/faraday-text/src/num.rs
-faraday/faraday-intake/src/secret_buf.rs"
+faraday/faraday-intake/src/secret_buf.rs
+aqrv/aqrv/src/codex32.rs
+aqrv/aqrv/src/envelope.rs
+aqrv/aqrv/src/item.rs
+aqrv/aqrv-app/src/draw.rs
+aqrv/aqrv-app/src/lib.rs
+aqrv/aqrv-app/src/samples.rs
+aqrv/aqrv-app/src/state.rs
+aqrv/aqrv-app/src/worker.rs
+aqrv/aqrv-cli/src/main.rs
+aqrv/aqrv-cli/src/tty.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

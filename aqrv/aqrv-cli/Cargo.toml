@@ -19,6 +19,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-codec = { path = "../../core/faraday-codec" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-files = { path = "../../faraday/faraday-files" }
+faraday-text = { path = "../../core/faraday-text" }
 getrandom.workspace = true
 zeroize.workspace = true
 

@@ -17,6 +17,7 @@ use aqrv::{Item, Layout, NotOpened, Size, Step, open, recognise_code, recognise_
 use faraday_bip::codex32::Codex32;
 use faraday_bip::json::{self, Value, quote};
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 fn hex(b: &[u8]) -> String {
@@ -94,7 +95,7 @@ fn read_line(c: &Compute, v: &Value) -> Option<String> {
 }
 
 fn item_of(v: &Value) -> Option<Item> {
-    let text = || Some(Zeroizing::new(v.get("text")?.as_str()?.to_owned()));
+    let text = || Some(Text::of(v.get("text")?.as_str()?));
     Some(match v.get("type")?.as_str()? {
         "entropy" => Item::Entropy(Zeroizing::new(unhex(v.get("hex")?.as_str()?)?)),
         "raw_key" => Item::RawKey(Zeroizing::new(
@@ -102,7 +103,7 @@ fn item_of(v: &Value) -> Option<Item> {
         )),
         "passphrase" => Item::Passphrase(text()?),
         "note" => Item::Note(text()?),
-        "codex32" => Item::Codex32(Zeroizing::new(v.get("string")?.as_str()?.to_owned())),
+        "codex32" => Item::Codex32(Text::of(v.get("string")?.as_str()?)),
         _ => return None,
     })
 }

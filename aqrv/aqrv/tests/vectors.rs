@@ -11,6 +11,7 @@ use aqrv::{
     to_text, workings,
 };
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use serde_json::Value;
 use zeroize::Zeroizing;
 
@@ -68,9 +69,9 @@ fn item_of(item: &Value) -> Item {
     match text(item, "type") {
         "entropy" => Item::Entropy(Zeroizing::new(unhex(text(item, "hex")))),
         "raw_key" => Item::RawKey(Zeroizing::new(unhex(text(item, "hex")).try_into().unwrap())),
-        "passphrase" => Item::Passphrase(Zeroizing::new(text(item, "text").to_owned())),
-        "note" => Item::Note(Zeroizing::new(text(item, "text").to_owned())),
-        "codex32" => Item::Codex32(Zeroizing::new(text(item, "string").to_owned())),
+        "passphrase" => Item::Passphrase(Text::of(text(item, "text"))),
+        "note" => Item::Note(Text::of(text(item, "text"))),
+        "codex32" => Item::Codex32(Text::of(text(item, "string"))),
         other => panic!("an item of type {other}"),
     }
 }
@@ -80,9 +81,9 @@ fn shown(item: &Item) -> (&'static str, String) {
     match item {
         Item::Entropy(b) => ("entropy", hex(b)),
         Item::RawKey(k) => ("raw_key", hex(&k[..])),
-        Item::Passphrase(t) => ("passphrase", t.to_string()),
-        Item::Note(t) => ("note", t.to_string()),
-        Item::Codex32(s) => ("codex32", s.to_string()),
+        Item::Passphrase(t) => ("passphrase", String::from(&**t)),
+        Item::Note(t) => ("note", String::from(&**t)),
+        Item::Codex32(s) => ("codex32", String::from(&**s)),
     }
 }
 
@@ -260,7 +261,7 @@ fn the_writer_refuses_a_64_byte_codex32_seed_and_a_bad_checksum() {
     assert!(!strings.is_empty());
     for entry in strings {
         for size in [Size::Small, Size::Large] {
-            let item = Item::Codex32(Zeroizing::new(text(entry, "string").to_owned()));
+            let item = Item::Codex32(Text::of(text(entry, "string")));
             let got = seal(&compute(), &item, "pass", Step::Mib64, size, &mut |_| {
                 panic!("a refusal comes before any draw")
             });

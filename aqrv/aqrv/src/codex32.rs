@@ -4,6 +4,7 @@
 //! reader makes it with faraday-bip's, so no third BIP 93 checksum exists.
 
 use faraday_bip::codex32::{CHARSET, Codex32, Error, charval, checksum, symbol_char};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::{Layout, Refused, Size};
@@ -50,7 +51,7 @@ pub(crate) fn pack(string: &str, size: Size) -> Result<(Zeroizing<Vec<u8>>, u8),
 
 /// §3.1 Reading: the string an item stands for, or the rule it fails.
 /// `p` is the whole room.
-pub(crate) fn unpack(p: &[u8]) -> Result<Zeroizing<String>, Layout> {
+pub(crate) fn unpack(p: &[u8]) -> Result<Text, Layout> {
     let field = usize::from(get_bits(p, 0, 3));
     let upper = get_bits(p, 3, 1) == 1;
     let &(c, item_len) = FORMS.get(field).ok_or(Layout::Codex32Size)?;
@@ -74,12 +75,12 @@ pub(crate) fn unpack(p: &[u8]) -> Result<Zeroizing<String>, Layout> {
     // The checksum is made here, so it always passes (§3.1, §7).
     let sum = checksum(&symbols);
     symbols.extend_from_slice(&sum);
-    let mut string = Zeroizing::new(String::with_capacity(PREFIX + symbols.len()));
-    string.push_str("ms1");
-    string.extend(symbols.iter().map(|&v| char::from(symbol_char(v))));
-    if upper {
-        string.make_ascii_uppercase();
-    }
+    let mut string = Text::with_room(PREFIX + symbols.len());
+    string.push_str(if upper { "MS1" } else { "ms1" });
+    string.extend(symbols.iter().map(|&v| {
+        let c = char::from(symbol_char(v));
+        if upper { c.to_ascii_uppercase() } else { c }
+    }));
     Ok(string)
 }
 

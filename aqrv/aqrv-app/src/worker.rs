@@ -12,7 +12,8 @@ use faraday_bip::keys::{MasterKey, Network};
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// What the thread is asked.
@@ -26,7 +27,7 @@ pub enum Job {
         /// The item.
         item: Item,
         /// The passphrase.
-        passphrase: Zeroizing<String>,
+        passphrase: Text,
         /// The memory step.
         step: Step,
         /// The size.
@@ -49,7 +50,7 @@ pub enum Job {
         /// The envelope's bytes.
         envelope: Vec<u8>,
         /// The passphrase.
-        passphrase: Zeroizing<String>,
+        passphrase: Text,
     },
     /// Work out every value of the opening.
     Workings {
@@ -58,7 +59,7 @@ pub enum Job {
         /// The envelope's bytes.
         envelope: Vec<u8>,
         /// The passphrase.
-        passphrase: Zeroizing<String>,
+        passphrase: Text,
     },
 }
 
@@ -70,7 +71,7 @@ pub enum Label {
     /// The master fingerprint.
     Fingerprint,
     /// A codex32 string.
-    String,
+    Codex,
     /// Its threshold.
     Threshold,
     /// Its identifier.
@@ -92,7 +93,7 @@ pub struct Shown {
     /// The size and step the file's header gave.
     pub header: Header,
     /// What to show, in order.
-    pub lines: Vec<(Label, Zeroizing<String>)>,
+    pub lines: Vec<(Label, Text)>,
 }
 
 /// What a line of the working is.
@@ -119,7 +120,7 @@ pub enum Value {
 }
 
 /// The working: each value as lower-case hex.
-pub type Working = Vec<(Value, Zeroizing<String>)>;
+pub type Working = Vec<(Value, Text)>;
 
 /// Why no code was made.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,13 +138,13 @@ pub struct Made {
     /// The QR code of those bytes, kept to draw from.
     pub matrix: QrMatrix,
     /// The 47-character text form the 32-byte size's code holds (§3).
-    pub text: Option<String>,
+    pub text: Option<Text>,
     /// The item that was sealed, as lines to show, the same lines Open
     /// shows for it.
-    pub lines: Vec<(Label, Zeroizing<String>)>,
+    pub lines: Vec<(Label, Text)>,
     /// The QR's version, size, level, mode and the envelope's bytes, as a
     /// line to show.
-    pub label: String,
+    pub label: Text,
     /// The size.
     pub size: Size,
     /// The memory step.
@@ -218,7 +219,7 @@ fn answer(c: &Compute, job: Job) -> Answer {
     match job {
         Job::Time => {
             let started = Instant::now();
-            let item = Item::Note(Zeroizing::new("x".to_owned()));
+            let item = Item::Note(Text::of("x"));
             let mut random = |b: &mut [u8]| b.fill(0x5a);
             let _ = aqrv::seal(c, &item, "timing", Step::Mib64, Size::Small, &mut random);
             Answer::Timed(started.elapsed())
@@ -294,14 +295,19 @@ fn working(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Working, No
     Ok(out)
 }
 
-fn hex(bytes: &[u8]) -> Zeroizing<String> {
-    Zeroizing::new(bytes.iter().map(|b| format!("{b:02x}")).collect())
+/// The bytes as lowercase hex.
+pub(crate) fn hex(bytes: &[u8]) -> Text {
+    let mut out = Text::with_room(bytes.len() * 2);
+    for b in bytes {
+        let _ = core::fmt::Write::write_fmt(&mut out, format_args!("{b:02x}"));
+    }
+    out
 }
 
 /// Costs a BIP-39 seed and a master key for the fingerprint of an entropy
 /// item or a codex32 secret.
-fn lines(c: &Compute, item: &Item) -> Vec<(Label, Zeroizing<String>)> {
-    let text = |s: &str| Zeroizing::new(s.to_owned());
+fn lines(c: &Compute, item: &Item) -> Vec<(Label, Text)> {
+    let line = |s: &str| Text::of(s);
     match item {
         Item::Entropy(e) => {
             let mut out = Vec::new();
@@ -309,40 +315,44 @@ fn lines(c: &Compute, item: &Item) -> Vec<(Label, Zeroizing<String>)> {
                 let words = Language::English.words();
                 let sentence: Vec<&str> =
                     m.indices().iter().map(|i| words[usize::from(*i)]).collect();
-                out.push((Label::Words, text(&sentence.join(" "))));
+                let mut joined = Text::new();
+                for (i, w) in sentence.iter().enumerate() {
+                    if i > 0 {
+                        joined.push(' ');
+                    }
+                    joined.push_str(w);
+                }
+                out.push((Label::Words, joined));
                 if let Ok(seed) = m.to_seed(c, b"") {
                     let fp = MasterKey::from_seed(c, &seed, Network::Mainnet).fingerprint();
-                    out.push((Label::Fingerprint, text(&fp.to_string())));
+                    out.push((Label::Fingerprint, text!("{fp}")));
                 }
             }
             out
         }
         Item::Codex32(s) => {
-            let mut out = vec![(Label::String, text(s))];
+            let mut out = vec![(Label::Codex, line(s))];
             if let Ok(parsed) = Codex32::parse(s) {
-                out.push((Label::Threshold, text(&parsed.threshold().to_string())));
+                out.push((Label::Threshold, text!("{}", parsed.threshold())));
                 let id = parsed.identifier();
-                out.push((Label::Identifier, text(&String::from_utf8_lossy(&id))));
-                out.push((
-                    Label::Index,
-                    text(&char::from(parsed.share_index()).to_string()),
-                ));
+                out.push((Label::Identifier, Text::from_utf8_lossy(&id)));
+                out.push((Label::Index, text!("{}", char::from(parsed.share_index()))));
                 if parsed.is_secret() {
-                    out.push((Label::Secret, text("")));
+                    out.push((Label::Secret, line("")));
                     if let Ok(seed) = parsed.to_seed()
                         && let Some(bytes) = SeedBytes::new(seed.expose().bytes())
                     {
                         let key =
                             MasterKey::from_seed_bytes(c, &Secret::new(bytes), Network::Mainnet);
-                        out.push((Label::Fingerprint, text(&key.fingerprint().to_string())));
+                        out.push((Label::Fingerprint, text!("{}", key.fingerprint())));
                     }
                 } else {
-                    out.push((Label::Share, text("")));
+                    out.push((Label::Share, line("")));
                 }
             }
             out
         }
-        Item::Passphrase(t) | Item::Note(t) => vec![(Label::Text, text(t))],
+        Item::Passphrase(t) | Item::Note(t) => vec![(Label::Text, line(t))],
         Item::RawKey(k) => vec![(Label::Key, hex(&k[..]))],
     }
 }
@@ -406,7 +416,7 @@ fn make(
     // The 32-byte size is carried as its text in alphanumeric mode,
     // version 2 at level L; the others as their bytes (§9).
     let text = match <&[u8; 32]>::try_from(bytes.as_slice()) {
-        Ok(b) if size == Size::Tiny => Some(String::from(&*aqrv::to_text(b))),
+        Ok(b) if size == Size::Tiny => Some(aqrv::to_text(b)),
         _ => None,
     };
     let matrix = match (&text, size) {
@@ -431,7 +441,7 @@ fn make(
 
 /// The QR's version, size, error-correction level, mode and the
 /// envelope's byte count, as one line.
-fn code_label(matrix: &QrMatrix, alphanumeric: bool, bytes: usize) -> String {
+fn code_label(matrix: &QrMatrix, alphanumeric: bool, bytes: usize) -> Text {
     let level = match matrix.ecc() {
         Ecc::Low => EN.aqrv_level_l,
         Ecc::Medium => EN.aqrv_level_m,
@@ -443,16 +453,16 @@ fn code_label(matrix: &QrMatrix, alphanumeric: bool, bytes: usize) -> String {
     } else {
         EN.aqrv_mode_byte
     };
-    let n = matrix.size().to_string();
-    fill(
+    let n = Text::num(matrix.size() as u64);
+    Text::fill(
         EN.aqrv_code_label,
         &[
-            &matrix.version().to_string(),
+            &Text::num(matrix.version() as u64),
             &n,
             &n,
             level,
             mode,
-            &bytes.to_string(),
+            &Text::num(bytes as u64),
         ],
     )
 }
