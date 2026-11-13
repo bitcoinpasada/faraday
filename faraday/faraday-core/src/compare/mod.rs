@@ -278,7 +278,7 @@ pub(crate) fn rows(
                     && s.origin
                         == (Origin::File {
                             outbox: *outbox,
-                            name: item.name.clone(),
+                            name: faraday_text::Text::of(&item.name),
                         })
                 {
                     continue;

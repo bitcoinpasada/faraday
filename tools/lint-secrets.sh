@@ -419,6 +419,10 @@ faraday/faraday-core/src/nav/mod.rs
 faraday/faraday-core/src/fresh/roller/five.rs
 faraday/faraday-core/src/codex32/walk.rs
 faraday/faraday-core/src/codex32/tracker.rs
+faraday/faraday-core/src/scan_key.rs
+faraday/faraday-core/src/decode/check.rs
+faraday/faraday-core/src/decode/mod.rs
+faraday/faraday-core/src/silent/mod.rs
 core/faraday-draw/src/tokens.rs
 core/faraday-selftest/src/lib.rs
 core/faraday-crypto/src/pinned.rs

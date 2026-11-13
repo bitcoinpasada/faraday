@@ -12,10 +12,10 @@ pub mod check;
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::silent_wallet::{MAX_LABELS, SilentWallet};
 use faraday_crypto::work::Compute;
 use faraday_keys::silent::Receiver;
+use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
@@ -55,13 +55,13 @@ pub struct SilentState {
     pub wallet: Option<usize>,
     /// A transaction being checked: the file it came from, and the check
     /// with its previous outputs as far as Files has them.
-    pub check: Option<(String, crate::silent::check::Check)>,
+    pub check: Option<(Text, crate::silent::check::Check)>,
     /// Where the flow returns to.
     pub back: Screen,
     /// The name typed for the address's DNS record.
-    pub dns_name: String,
+    pub dns_name: Text,
     /// The domain typed for the address's DNS record.
-    pub dns_domain: String,
+    pub dns_domain: Text,
     /// Which of the two fields typing goes to: `Some(false)` the name,
     /// `Some(true)` the domain.
     pub dns_focus: Option<bool>,
@@ -79,7 +79,7 @@ pub(crate) struct Dns {
     pub domain_bad: bool,
     /// The human-readable name and the record line, when both fields are
     /// filled and valid.
-    pub record: Option<(String, String)>,
+    pub record: Option<(Text, Text)>,
 }
 
 impl SilentState {
@@ -87,7 +87,7 @@ impl SilentState {
     /// string formatting.
     pub(crate) fn dns(&self, address: &str) -> Dns {
         use faraday_bip::silent::dns_record;
-        let (n, d) = (&self.dns_name, &self.dns_domain);
+        let (n, d) = (self.dns_name.as_str(), self.dns_domain.as_str());
         let name_bad = !n.is_empty() && dns_record(n, "a", address).is_err();
         let domain_bad = !d.is_empty() && dns_record("a", d, address).is_err();
         let record = if n.is_empty() || d.is_empty() {
@@ -95,7 +95,7 @@ impl SilentState {
         } else {
             dns_record(n, d, address)
                 .ok()
-                .map(|r| (format!("\u{20bf}{n}@{d}"), r.as_str().to_string()))
+                .map(|r| (text!("\u{20bf}{n}@{d}"), Text::of(r.as_str())))
         };
         Dns {
             name_bad,
@@ -117,7 +117,7 @@ pub struct SilentShown {
     /// points ([`Faraday::silent_key_here`]).
     pub key_here: bool,
     /// The address on show ([`Faraday::silent_address`]).
-    pub address: Option<String>,
+    pub address: Option<Text>,
     /// How the record of the wallet the page is of stands against the
     /// loaded keys; `None` on a key's page with no wallet, whose address
     /// is derived from the key.
@@ -298,8 +298,8 @@ impl SilentArea {
             wallet,
             check: None,
             back,
-            dns_name: String::new(),
-            dns_domain: String::new(),
+            dns_name: Text::new(),
+            dns_domain: Text::new(),
             dns_focus: None,
             shown: Default::default(),
         });
@@ -323,8 +323,8 @@ impl SilentArea {
             wallet: Some(i),
             check: None,
             back: Screen::Wallets,
-            dns_name: String::new(),
-            dns_domain: String::new(),
+            dns_name: Text::new(),
+            dns_domain: Text::new(),
             dns_focus: None,
             shown: Default::default(),
         });
@@ -394,14 +394,14 @@ impl SilentArea {
         session: &Session,
         check: Option<RecordCheck>,
         r: Option<&(Receiver, [u8; 4])>,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let s = self.state.as_ref()?;
         if let Some((r, _)) = r {
-            return r.address(s.label).map(|t| String::from(&*t));
+            return r.address(s.label);
         }
         match check {
             Some(RecordCheck::Unchecked) if s.label == 0 => {
-                self.wallet(session).map(SilentWallet::address)
+                self.wallet(session).map(|w| Text::of(&w.address()))
             }
             _ => None,
         }
@@ -446,7 +446,7 @@ impl SilentArea {
     /// wallet's own unlabelled address as its record states it, which
     /// [`SilentShown::check`] marks unchecked; none where a loaded key
     /// with its fingerprint gives other points.
-    pub(crate) fn address(&self, c: &Compute, session: &Session) -> Option<String> {
+    pub(crate) fn address(&self, c: &Compute, session: &Session) -> Option<Text> {
         let (check, r) = self.derived(c, session);
         self.address_of(session, check, r.as_ref())
     }
@@ -455,17 +455,17 @@ impl SilentArea {
     /// the network, the key's origin, the labels handed out and the
     /// address. A wallet's record as it is, checked or not; none where a
     /// loaded key with its fingerprint gives other points.
-    pub(crate) fn record(&self, c: &Compute, session: &Session) -> Option<String> {
+    pub(crate) fn record(&self, c: &Compute, session: &Session) -> Option<Text> {
         if let Some(w) = self.wallet(session) {
             return match self.derived(c, session).0 {
                 Some(RecordCheck::Differs) => None,
-                _ => Some(w.to_text()),
+                _ => Some(Text::of(&w.to_text())),
             };
         }
         let s = self.state.as_ref()?;
         let (r, fp) = self.receiver(c, session)?;
-        Some(
-            SilentWallet {
+        Some(Text::of(
+            &SilentWallet {
                 network: r.network(),
                 fingerprint: faraday_bip::keys::Fingerprint(fp),
                 account: 0,
@@ -474,19 +474,7 @@ impl SilentArea {
                 labels: s.labels.max(s.label),
             }
             .to_text(),
-        )
-    }
-
-    /// Costs what `receiver` costs. The scan key, BIP-392's `spscan1q…`,
-    /// for `why`, and the key's fingerprint.
-    pub(crate) fn scan_key(
-        &self,
-        c: &Compute,
-        session: &Session,
-        why: faraday_keys::Reveal,
-    ) -> Option<(faraday_keys::Held<faraday_text::Text>, [u8; 4])> {
-        let (r, fp) = self.receiver(c, session)?;
-        Some((r.scan_key(why)?, fp))
+        ))
     }
 
     /// Costs what `address`, `record` and `of` cost. The QR view of the
@@ -497,75 +485,92 @@ impl SilentArea {
         c: &Compute,
         session: &Session,
         code: crate::Code,
-    ) -> Result<QrView, String> {
-        let s = self.state.as_ref().ok_or(EN.silent_not_open)?;
+    ) -> Result<QrView, Text> {
+        let s = self
+            .state
+            .as_ref()
+            .ok_or_else(|| Text::of(EN.silent_not_open))?;
         let fp = fp_text(faraday_bip::keys::Fingerprint(
-            s.key.ok_or(EN.silent_choose_a_key)?,
+            s.key.ok_or_else(|| Text::of(EN.silent_choose_a_key))?,
         ));
-        let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
+        let mut lines = vec![Text::fill(EN.silent_silent_payment, &[&text!("{fp}")])];
         let check = self.derived(c, session).0;
         if check == Some(RecordCheck::Differs) {
-            return Err(fill(EN.silent_record_differs, &[&fp.to_string()]));
+            return Err(Text::fill(EN.silent_record_differs, &[&text!("{fp}")]));
         }
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
-                let a = self.address(c, session).ok_or(EN.silent_no_address)?;
-                let mut name = format!("silent-{fp}");
+                let a = self
+                    .address(c, session)
+                    .ok_or_else(|| Text::of(EN.silent_no_address))?;
+                let mut name = text!("silent-{fp}");
                 if s.label > 0 {
-                    lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
-                    name.push_str(&format!("-label-{}", s.label));
+                    lines.push(Text::fill(
+                        EN.silent_label,
+                        &[&Text::num(u64::from(s.label))],
+                    ));
+                    name.push_str(&text!("-label-{}", s.label));
                 }
                 let text = if uri {
                     name.push_str("-link");
                     faraday_bip::silent::uri(&a)
-                        .map(|u| u.as_str().to_string())
+                        .map(|u| Text::of(u.as_str()))
                         .unwrap_or(a)
                 } else {
                     a
                 };
-                lines.push(EN.silent_public_receives.to_string());
+                lines.push(Text::of(EN.silent_public_receives));
                 if check == Some(RecordCheck::Unchecked) {
-                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                    lines.push(Text::fill(EN.silent_not_checked, &[&text!("{fp}")]));
                 }
                 (EN.silent_silent_payments_address, text, name)
             }
             crate::Code::SilentDns => {
-                let a = self.address(c, session).ok_or(EN.silent_no_address)?;
-                let (_, text) = s.dns(&a).record.ok_or(EN.silent_no_dns_record)?;
-                let mut name = format!("silent-{fp}");
+                let a = self
+                    .address(c, session)
+                    .ok_or_else(|| Text::of(EN.silent_no_address))?;
+                let (_, text) = s
+                    .dns(&a)
+                    .record
+                    .ok_or_else(|| Text::of(EN.silent_no_dns_record))?;
+                let mut name = text!("silent-{fp}");
                 if s.label > 0 {
-                    lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
-                    name.push_str(&format!("-label-{}", s.label));
+                    lines.push(Text::fill(
+                        EN.silent_label,
+                        &[&Text::num(u64::from(s.label))],
+                    ));
+                    name.push_str(&text!("-label-{}", s.label));
                 }
                 name.push_str("-dns");
-                lines.push(EN.silent_public_receives.to_string());
+                lines.push(Text::of(EN.silent_public_receives));
                 if check == Some(RecordCheck::Unchecked) {
-                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                    lines.push(Text::fill(EN.silent_not_checked, &[&text!("{fp}")]));
                 }
                 (EN.silent_silent_payments_dns_record, text, name)
             }
             _ => {
-                let text = self.record(c, session).ok_or(EN.silent_no_record)?;
-                lines.push(EN.silent_public_watch.to_string());
+                let text = self
+                    .record(c, session)
+                    .ok_or_else(|| Text::of(EN.silent_no_record))?;
+                lines.push(Text::of(EN.silent_public_watch));
                 if check == Some(RecordCheck::Unchecked) {
-                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                    lines.push(Text::fill(EN.silent_not_checked, &[&text!("{fp}")]));
                 }
                 (
                     EN.silent_silent_payments_record,
                     text,
-                    format!("silent-{fp}-record"),
+                    text!("silent-{fp}-record"),
                 )
             }
         };
         Ok(QrView::of(
             c,
             title,
-            QrSource::Text(faraday_text::Text::of(&text)),
+            QrSource::Text(text.duplicate()),
             QrFormat::Ur,
             crate::QR_PARTS[1],
-        )
-        .map_err(|e| String::from(&*e))?
-        .public(&format!("{name}.png"), lines))
+        )?
+        .public(&text!("{}.png", &*name), lines))
     }
 
     /// A press that changes only this flow: a card, the key, the label.
@@ -633,7 +638,7 @@ impl SilentArea {
     }
 
     /// The transaction checked, with the file it came from.
-    pub(crate) fn set_check(&mut self, name: String, check: crate::silent::check::Check) {
+    pub(crate) fn set_check(&mut self, name: Text, check: crate::silent::check::Check) {
         if let Some(s) = self.state.as_mut() {
             s.check = Some((name, check));
         }
@@ -751,7 +756,7 @@ impl Faraday {
                 let name = self.session.wallets[i].name.clone();
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
-                self.toast(&fill(EN.wallet_key_path_added, &[&name]));
+                self.toast(&Text::fill(EN.wallet_key_path_added, &[&name]));
             }
             Err(e) => self.toast(&e.text()),
         }
@@ -795,11 +800,7 @@ impl Faraday {
     /// Costs what `silent_wallet_check` costs and an address the first
     /// time. Session wallet `i`'s silent payments record check and its
     /// encoded address, kept together; `None` for any other wallet.
-    pub(crate) fn silent_wallet_card(
-        &self,
-        c: &Compute,
-        i: usize,
-    ) -> Option<(RecordCheck, String)> {
+    pub(crate) fn silent_wallet_card(&self, c: &Compute, i: usize) -> Option<(RecordCheck, Text)> {
         let w = self.session.wallets.get(i)?.policy().silent()?;
         Some(self.kept.silent_card(c, &self.session.keys, w))
     }
@@ -820,8 +821,8 @@ impl Faraday {
         &self,
         c: &Compute,
         i: usize,
-        mut lines: Vec<String>,
-    ) -> Result<Vec<String>, String> {
+        mut lines: Vec<Text>,
+    ) -> Result<Vec<Text>, Text> {
         let Some(r) = self
             .session
             .wallets
@@ -830,11 +831,11 @@ impl Faraday {
         else {
             return Ok(lines);
         };
-        let fp = fp_text(r.fingerprint).to_string();
+        let fp = text!("{}", fp_text(r.fingerprint));
         match self.silent_wallet_check_now(c, i) {
-            Some(RecordCheck::Differs) => Err(fill(EN.silent_record_differs, &[&fp])),
+            Some(RecordCheck::Differs) => Err(Text::fill(EN.silent_record_differs, &[&fp])),
             Some(RecordCheck::Unchecked) => {
-                lines.push(fill(EN.silent_not_checked, &[&fp]));
+                lines.push(Text::fill(EN.silent_not_checked, &[&fp]));
                 Ok(lines)
             }
             _ => Ok(lines),
@@ -868,18 +869,18 @@ impl Faraday {
 
     /// Costs two key derivations and an address, none for the wallet's own:
     /// the address on show.
-    pub fn silent_address(&self, c: &Compute) -> Option<String> {
+    pub fn silent_address(&self, c: &Compute) -> Option<Text> {
         self.silent.address(c, &self.session)
     }
 
     /// Costs two key derivations. The public record a coordinator keeps.
-    pub fn silent_record(&self, c: &Compute) -> Option<String> {
+    pub fn silent_record(&self, c: &Compute) -> Option<Text> {
         self.silent.record(c, &self.session)
     }
 
     /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
     /// view of the address on show or of the record.
-    pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
+    pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, Text> {
         self.silent.code(c, &self.session, code)
     }
 
@@ -903,9 +904,8 @@ impl Faraday {
             A::SRecord => {
                 let fp = self.silent.state().and_then(|s| s.key);
                 if let (Some(text), Some(fp)) = (self.silent_record(&c), fp) {
-                    let name =
-                        format!("silent-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
-                    self.put_outbox(&name, text.into_bytes());
+                    let name = text!("silent-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
+                    self.put_outbox(&name, text.as_bytes().to_vec());
                     self.toast_out(&name);
                 }
             }
@@ -913,35 +913,39 @@ impl Faraday {
                 if self.vaults.open.get(self.vaults.current).is_none() {
                     return self.toast(EN.silent_no_vault_open);
                 }
-                let Some((key, fp)) = self.silent.scan_key(
-                    &c,
-                    &self.session,
-                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::ScanKey),
-                ) else {
+                // The scan key, BIP-392's `spscan1q…`, and the key's fingerprint.
+                let Some((r, fp)) = self.silent.receiver(&c, &self.session) else {
                     return;
                 };
-                let title = fill(
+                let Some(key) = r.scan_key(faraday_keys::Reveal::VaultEntry(
+                    faraday_keys::Part::ScanKey,
+                )) else {
+                    return;
+                };
+                let title = Text::fill(
                     EN.silent_silent_payments_scan,
-                    &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+                    &[&text!("{}", fp_text(faraday_bip::keys::Fingerprint(fp)))],
                 );
-                let note = Zeroizing::new(format!("{title}\n{}", key.as_str()));
+                let note = text!("{}\n{}", &*title, key.as_str());
                 self.vault_push(
                     Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    &fill(EN.silent_is_in_the_vault, &[&title.to_string()]),
+                    &Text::fill(EN.silent_is_in_the_vault, &[&title]),
                 );
             }
             A::SScanOut => {
-                let Some((key, fp)) = self.silent.scan_key(
-                    &c,
-                    &self.session,
-                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::ScanKey),
-                ) else {
+                // The scan key, BIP-392's `spscan1q…`, and the key's fingerprint.
+                let Some((r, fp)) = self.silent.receiver(&c, &self.session) else {
                     return;
                 };
-                let name = format!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
+                let Some(key) = r.scan_key(faraday_keys::Reveal::OutboxFile(
+                    faraday_keys::Part::ScanKey,
+                )) else {
+                    return;
+                };
+                let name = text!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
                 self.offer_secret(crate::secrets::SecretOut::new(
                     name,
-                    Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
+                    Zeroizing::new(text!("{}\n", key.as_str()).as_bytes().to_vec()),
                     EN.silent_a_silent_payments,
                     EN.silent_whoever_has,
                 ));
@@ -980,9 +984,9 @@ impl Faraday {
         };
         let (_, found) = check_record(&c, &self.session.keys, record);
         let Some((r, _)) = found else {
-            return self.toast(&fill(
+            return self.toast(&Text::fill(
                 EN.silent_descriptor_needs_key,
-                &[&fp_text(record.fingerprint).to_string()],
+                &[&text!("{}", fp_text(record.fingerprint))],
             ));
         };
         let Some(d) = r.descriptor(
@@ -992,10 +996,10 @@ impl Faraday {
         ) else {
             return;
         };
-        let name = format!("{}-sp-descriptor.txt", crate::file_stem(&w.name));
+        let name = text!("{}-sp-descriptor.txt", crate::file_stem(&w.name));
         self.offer_secret(crate::secrets::SecretOut::new(
             name,
-            Zeroizing::new(format!("{}\n", d.as_str()).into_bytes()),
+            Zeroizing::new(text!("{}\n", d.as_str()).as_bytes().to_vec()),
             EN.silent_a_silent_payments_descriptor,
             EN.silent_whoever_has,
         ));
@@ -1009,9 +1013,9 @@ impl Faraday {
         let Some(fp) = self.silent.state().and_then(|s| s.key) else {
             return;
         };
-        let name = fill(
+        let name = Text::fill(
             EN.silent_silent_payments_n,
-            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+            &[&text!("{}", fp_text(faraday_bip::keys::Fingerprint(fp)))],
         );
         match self.session.add_wallet(
             &c,
@@ -1039,7 +1043,7 @@ impl Faraday {
         let Some(mut check) = crate::silent::check::Check::read(&item.bytes) else {
             return self.toast(EN.silent_not_a_transaction);
         };
-        let name = item.name.clone();
+        let name = Text::of(&item.name);
         // Each pass takes a transaction Files has for an input still
         // open; a pass that takes nothing ends it.
         while check.waiting_for().is_some() {

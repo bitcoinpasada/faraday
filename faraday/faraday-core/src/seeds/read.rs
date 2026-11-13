@@ -515,7 +515,7 @@ impl Faraday {
                 return;
             }
             Found::Here(n) => fill(EN.seed_read_key_already, &[&(n + 1).to_string()]),
-            Found::None => self.not_a_wallet_key(w, fp),
+            Found::None => String::from(&*self.not_a_wallet_key(w, fp)),
         };
         if let Some(s) = self.seed_read.state.as_mut() {
             s.error = Some(refused);

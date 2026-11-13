@@ -82,7 +82,7 @@ type KeptSilentCheck = (
     faraday_bip::silent_wallet::SilentWallet,
     Vec<[u8; 32]>,
     crate::silent::RecordCheck,
-    String,
+    faraday_text::Text,
 );
 
 /// A description's first receive address on a network, or why there is
@@ -479,7 +479,7 @@ impl Kept {
         c: &Compute,
         keys: &faraday_keys::Keys,
         w: &faraday_bip::silent_wallet::SilentWallet,
-    ) -> (crate::silent::RecordCheck, String) {
+    ) -> (crate::silent::RecordCheck, faraday_text::Text) {
         let ids = crate::silent::ids_of(keys, w.fingerprint.0);
         if let Some((.., check, address)) = self
             .silent_checks
@@ -487,15 +487,15 @@ impl Kept {
             .iter()
             .find(|(r, i, ..)| r == w && *i == ids)
         {
-            return (*check, address.clone());
+            return (*check, address.duplicate());
         }
         let check = crate::silent::check_record(c, keys, w).0;
-        let address = w.address();
+        let address = faraday_text::Text::of(&w.address());
         let mut kept = self.silent_checks.borrow_mut();
         if kept.len() >= SILENT_CHECKS_KEPT {
             kept.remove(0);
         }
-        kept.push((w.clone(), ids, check, address.clone()));
+        kept.push((w.clone(), ids, check, address.duplicate()));
         (check, address)
     }
 
@@ -916,7 +916,7 @@ impl View<'_> {
     /// The keys the key scanner for wallet `w` takes
     /// ([`crate::Faraday::wallet_key_lines`]), from the wallet's chart.
     /// Costs what the chart costs the first time.
-    pub(crate) fn wallet_key_lines(&self, w: usize) -> Vec<String> {
+    pub(crate) fn wallet_key_lines(&self, w: usize) -> Vec<faraday_text::Text> {
         self.kept(|c| self.app.wallet_key_lines(c, w))
     }
 
@@ -950,7 +950,7 @@ impl View<'_> {
     pub(crate) fn silent_wallet_card(
         &self,
         i: usize,
-    ) -> Option<(crate::silent::RecordCheck, String)> {
+    ) -> Option<(crate::silent::RecordCheck, faraday_text::Text)> {
         self.kept(|c| self.app.silent_wallet_card(c, i))
     }
 

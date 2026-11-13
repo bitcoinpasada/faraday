@@ -32,7 +32,7 @@ fn place(at: Where) -> String {
 
 /// An amount in BTC.
 fn amount(sats: u64) -> String {
-    crate::decode::btc(sats)
+    String::from(&*crate::decode::btc(sats))
 }
 
 /// A script as its address in short form, or its length where it has none.

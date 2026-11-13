@@ -38,7 +38,7 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let mut other = SilentWallet::parse(&honest).ok_or("the record does not read")?;
     other.scan = other.spend;
     for (name, text, key) in [
-        ("silent-unchecked", honest, false),
+        ("silent-unchecked", honest.as_str().into(), false),
         ("silent-differs", other.to_text(), true),
     ] {
         t.restart();

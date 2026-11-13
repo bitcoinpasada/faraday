@@ -2795,7 +2795,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             .as_mut()
             .and_then(faraday_core::Faraday::take_camera)
         {
-            shell.camera.choose(std::path::PathBuf::from(id));
+            shell.camera.choose(std::path::PathBuf::from(&*id));
         }
         if !shell.done {
             let now_ms = shell.now_ms();

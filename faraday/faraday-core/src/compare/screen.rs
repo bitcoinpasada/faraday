@@ -157,7 +157,7 @@ fn row(
     let on = chosen
         == Some(&Origin::File {
             outbox: *outbox,
-            name: item.name.clone(),
+            name: faraday_text::Text::of(&item.name),
         });
     let line = s.line(item);
     let size = TITLE_S;

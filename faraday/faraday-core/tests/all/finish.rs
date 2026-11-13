@@ -250,7 +250,7 @@ fn the_finished_transaction_decodes_to_what_it_pays() {
     app.press(Action::DecodeFinished);
     assert_eq!(app.screen, Screen::Decode);
     let d = &app.decode().unwrap().decoded;
-    assert_eq!(d.txid, tx.compute_txid().to_string());
+    assert_eq!(d.txid.as_str(), tx.compute_txid().to_string());
     assert_eq!(d.outputs.len(), tx.output.len());
     assert!(
         d.fee.is_some_and(|f| f > 0),
@@ -290,7 +290,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
     assert_eq!(alone.inbox()[0].kind, FileKind::Transaction);
     alone.press(Action::DecodeInbox(0));
     let d = &alone.decode().unwrap().decoded;
-    assert_eq!(d.txid, txid);
+    assert_eq!(d.txid.as_str(), txid);
     assert_eq!(d.fee, None);
 
     // Beside its PSBT: the fee too.
@@ -639,7 +639,7 @@ fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
         .decoded
         .outputs
         .iter()
-        .map(|o| faraday_core::decode::btc(o.amount))
+        .map(|o| String::from(&*faraday_core::decode::btc(o.amount)))
         .collect();
     let texts = app.drawn_text_boxes();
     // Each amount's end and the end of the address on its row.
@@ -666,7 +666,7 @@ fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
         .decoded
         .inputs
         .iter()
-        .map(|i| i.outpoint.clone())
+        .map(|i| String::from(&*i.outpoint))
         .collect();
     let longest = texts
         .iter()

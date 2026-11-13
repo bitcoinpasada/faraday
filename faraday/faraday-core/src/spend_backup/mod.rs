@@ -662,7 +662,7 @@ impl Faraday {
             }
             F::StrayPass(fp) => {
                 if let Some(w) = self.spend_backup_described() {
-                    let reason = self.not_a_wallet_key(w, Fingerprint(fp));
+                    let reason = String::from(&*self.not_a_wallet_key(w, Fingerprint(fp)));
                     self.seed_read_stray(Fingerprint(fp), w, reason);
                 }
             }
@@ -1084,7 +1084,7 @@ impl Faraday {
             }
             Found::Here(n) => fill(EN.spend_backup_key_already, &[&(n + 1).to_string()]),
             Found::None => {
-                let reason = self.not_a_wallet_key(w, fp);
+                let reason = String::from(&*self.not_a_wallet_key(w, fp));
                 self.seed_read_for_wallet(words, w, reason);
                 self.seed_read.for_spend_backup_intake();
                 return;

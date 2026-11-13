@@ -13,12 +13,12 @@ pub(crate) mod check_words;
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_psbt::transaction::money_total;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 use crate::Screen;
@@ -30,13 +30,13 @@ use crate::{Action, Faraday, Item, QrView, decode, wallet};
 #[derive(Debug, Clone)]
 pub struct DecodedInput {
     /// The output it spends, `txid:vout`.
-    pub outpoint: String,
+    pub outpoint: Text,
     /// Its sequence, and what it says.
-    pub sequence: String,
+    pub sequence: Text,
     /// The amount it spends, when the source says.
     pub amount: Option<u64>,
     /// The witness items, in hex.
-    pub witness: Vec<String>,
+    pub witness: Vec<Text>,
     /// The scriptSig's length in bytes.
     pub script_sig: usize,
 }
@@ -47,26 +47,26 @@ pub struct DecodedOutput {
     /// Its amount in satoshis.
     pub amount: u64,
     /// Its address on the session's network, or the script in hex.
-    pub address: String,
+    pub address: Text,
     /// The script's type.
     pub kind: &'static str,
     /// The loaded wallet it pays: its name, change or receive, index.
-    pub ours: Option<(String, bool, u32)>,
+    pub ours: Option<(Text, bool, u32)>,
 }
 
 /// A transaction taken apart.
 #[derive(Debug, Clone)]
 pub struct Decoded {
     /// Where it came from: a file's name, or the spend it finished.
-    pub source: String,
+    pub source: Text,
     /// The transaction id.
-    pub txid: String,
+    pub txid: Text,
     /// The witness transaction id.
-    pub wtxid: String,
+    pub wtxid: Text,
     /// The version.
     pub version: i32,
     /// The locktime, and what it says.
-    pub locktime: String,
+    pub locktime: Text,
     /// Bytes, virtual bytes, weight units.
     pub size: (usize, usize, u64),
     /// The inputs.
@@ -78,7 +78,7 @@ pub struct Decoded {
     /// Where the amounts going in came from.
     pub amounts_from: AmountsFrom,
     /// The whole transaction in hex.
-    pub hex: String,
+    pub hex: Text,
 }
 
 /// Where a decoded transaction's amounts going in came from: a PSBT
@@ -86,7 +86,7 @@ pub struct Decoded {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AmountsFrom {
     /// This PSBT, by its file's name or the spend's.
-    Psbt(String),
+    Psbt(Text),
     /// No PSBT of this transaction is here.
     None,
     /// PSBTs of this transaction state different amounts: none is used.
@@ -95,11 +95,11 @@ pub enum AmountsFrom {
 
 impl AmountsFrom {
     /// The row's value.
-    pub fn text(&self) -> String {
+    pub fn text(&self) -> Text {
         match self {
-            AmountsFrom::Psbt(name) => fill(EN.decode_amounts_from, &[name]),
-            AmountsFrom::None => EN.decode_amounts_none.to_string(),
-            AmountsFrom::Disagree => EN.decode_amounts_disagree.to_string(),
+            AmountsFrom::Psbt(name) => Text::fill(EN.decode_amounts_from, &[name]),
+            AmountsFrom::None => Text::of(EN.decode_amounts_none),
+            AmountsFrom::Disagree => Text::of(EN.decode_amounts_disagree),
         }
     }
 }
@@ -139,7 +139,7 @@ fn script_kind(s: &Script) -> &'static str {
 }
 
 /// What a sequence number says.
-pub(crate) fn sequence_text(n: u32) -> String {
+pub(crate) fn sequence_text(n: u32) -> Text {
     let what = if n == 0xffff_ffff {
         EN.decode_final
     } else if n == 0xffff_fffe {
@@ -151,15 +151,15 @@ pub(crate) fn sequence_text(n: u32) -> String {
     } else {
         "replace-by-fee"
     };
-    format!("0x{n:08x} · {what}")
+    text!("0x{n:08x} · {what}")
 }
 
 /// What a locktime says.
-pub(crate) fn locktime_text(n: u32) -> String {
+pub(crate) fn locktime_text(n: u32) -> Text {
     match n {
-        0 => EN.decode_0_none.to_string(),
-        n if n < 500_000_000 => fill(EN.decode_block_height, &[&n.to_string()]),
-        n => fill(EN.decode_unix_time, &[&n.to_string()]),
+        0 => Text::of(EN.decode_0_none),
+        n if n < 500_000_000 => Text::fill(EN.decode_block_height, &[&Text::num(u64::from(n))]),
+        n => Text::fill(EN.decode_unix_time, &[&Text::num(u64::from(n))]),
     }
 }
 
@@ -194,9 +194,10 @@ pub fn decode(
         .iter()
         .enumerate()
         .map(|(i, txin)| DecodedInput {
-            outpoint: format!(
+            outpoint: text!(
                 "{}:{}",
-                txin.previous_output.txid, txin.previous_output.vout
+                txin.previous_output.txid,
+                txin.previous_output.vout
             ),
             sequence: sequence_text(txin.sequence.0),
             amount: prevouts
@@ -219,13 +220,13 @@ pub fn decode(
                 session.wallets.iter().find_map(|w| {
                     w.policy()
                         .find_address(c, network, a, 100)
-                        .map(|(change, index)| (w.name.clone(), change, index))
+                        .map(|(change, index)| (Text::of(&w.name), change, index))
                 })
             });
             DecodedOutput {
                 amount: o.value.to_sat(),
                 address: address
-                    .map(|a| a.to_string())
+                    .map(|a| text!("{a}"))
                     .unwrap_or_else(|_| hex(o.script_pubkey.as_bytes())),
                 kind: script_kind(&o.script_pubkey),
                 ours,
@@ -233,9 +234,9 @@ pub fn decode(
         })
         .collect();
     Ok(Decoded {
-        source: source.to_string(),
-        txid: tx.compute_txid().to_string(),
-        wtxid: tx.compute_wtxid().to_string(),
+        source: Text::of(source),
+        txid: text!("{}", tx.compute_txid()),
+        wtxid: text!("{}", tx.compute_wtxid()),
         version: tx.version.0,
         locktime: locktime_text(tx.lock_time.to_consensus_u32()),
         size: (tx.total_size(), tx.vsize(), tx.weight().to_wu()),
@@ -243,7 +244,7 @@ pub fn decode(
         outputs,
         fee: paid_in.and_then(|i| i.checked_sub(paid_out)),
         amounts_from: AmountsFrom::None,
-        hex: serialize_hex(tx),
+        hex: Text::of(&serialize_hex(tx)),
     })
 }
 
@@ -255,15 +256,15 @@ pub fn prevouts_of(psbt: &faraday_psbt::Psbt) -> Vec<Option<TxOut>> {
 }
 
 /// Satoshis as bitcoin, eight places.
-pub fn btc(sats: u64) -> String {
-    fill(
+pub fn btc(sats: u64) -> Text {
+    Text::fill(
         EN.decode_btc,
-        &[&Amount::from_sat(sats).to_btc().to_string()],
+        &[&text!("{}", Amount::from_sat(sats).to_btc())],
     )
 }
 
-fn hex(bytes: impl AsRef<[u8]>) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(bytes.as_ref()))
+fn hex(bytes: impl AsRef<[u8]>) -> Text {
+    faraday_crypto::hex::encode_string(bytes.as_ref())
 }
 
 /// A transaction being decoded, and where the person came from.
@@ -289,7 +290,7 @@ pub struct DecodeState {
 /// nothing else goes out of step.
 pub struct OutsideCheck {
     /// The file's name.
-    pub source: String,
+    pub source: Text,
     /// What the check found.
     pub check: crate::wallet::NonceCheck,
     /// The finished transaction: the one that came, or the PSBT
@@ -298,12 +299,12 @@ pub struct OutsideCheck {
     /// signatures are wanted.
     pub finished: Option<Transaction>,
     /// The finished transaction in hex, kept with it.
-    pub hex: Option<String>,
+    pub hex: Option<Text>,
     /// The name the file went out under, beside any other file of its name;
     /// `None` until Save to a stick.
-    pub out_name: Option<String>,
+    pub out_name: Option<Text>,
     /// The file Save to a stick puts For the stick: its name and bytes.
-    pub out: (String, Zeroizing<Vec<u8>>),
+    pub out: (Text, Zeroizing<Vec<u8>>),
     /// The screen its back link returns to.
     pub back: Screen,
     /// The hex is shown.
@@ -324,8 +325,8 @@ pub struct OutsideCheck {
 /// What [`OutsideCheck`] offers when the nonce history refuses nothing.
 struct Worked {
     finished: Option<Transaction>,
-    hex: Option<String>,
-    out: (String, Zeroizing<Vec<u8>>),
+    hex: Option<Text>,
+    out: (Text, Zeroizing<Vec<u8>>),
 }
 
 impl OutsideCheck {
@@ -533,12 +534,12 @@ impl Faraday {
             i.witness = faraday_bip::bitcoin::Witness::new();
         }
         let txid = bare.compute_txid();
-        let mut found: Vec<(String, Vec<Option<TxOut>>)> = Vec::new();
+        let mut found: Vec<(Text, Vec<Option<TxOut>>)> = Vec::new();
         if let Some(s) = self.wallets.spend()
             && same_unsigned(s.spend.psbt.unsigned_tx(), tx)
         {
             found.push((
-                s.spend.source.to_string(),
+                Text::of(&s.spend.source),
                 decode::prevouts_of(&s.spend.psbt),
             ));
         }
@@ -550,13 +551,13 @@ impl Faraday {
             if let Some(p) = wallet::read_psbt(c, &i.bytes)
                 && same_unsigned(p.unsigned_tx(), tx)
             {
-                found.push((i.name.clone(), decode::prevouts_of(&p)));
+                found.push((Text::of(&i.name), decode::prevouts_of(&p)));
             }
         }
         // Input by input, the amount any of them states: one that leaves
         // it out does not disagree, two that state different ones do.
         let mut amounts: Vec<Option<TxOut>> = vec![None; tx.input.len()];
-        let mut name: Option<String> = None;
+        let mut name: Option<Text> = None;
         for (from, prevouts) in &found {
             for (have, got) in amounts.iter_mut().zip(prevouts) {
                 match (have.as_ref(), got) {
@@ -614,7 +615,7 @@ impl Faraday {
             self.nonce_check_open(c, at);
             return;
         }
-        self.toast(&fill(EN.scanned_is_in_files, &[name]));
+        self.toast(&Text::fill(EN.scanned_is_in_files, &[name]));
         if !matches!(
             self.screen,
             Screen::Spend | Screen::Restore | Screen::Home | Screen::SpendBackup
@@ -660,7 +661,7 @@ impl Faraday {
                 let Some(p) = wallet::read_psbt(c, &bytes) else {
                     return;
                 };
-                let from = AmountsFrom::Psbt(name.clone());
+                let from = AmountsFrom::Psbt(Text::of(&name));
                 let prevouts = decode::prevouts_of(&p);
                 (p, None, (prevouts, from))
             }
@@ -698,13 +699,13 @@ impl Faraday {
             let mut copy = psbt.clone();
             faraday_psbt::finalize(&mut copy).ok().flatten()
         };
-        let hex = finished.as_ref().map(serialize_hex);
+        let hex = finished.as_ref().map(|t| Text::of(&serialize_hex(t)));
         let out = match (&raw, &hex) {
             (None, Some(h)) => (
-                format!("{}-final.txn", crate::result_stem(&name)),
-                Zeroizing::new(h.clone().into_bytes()),
+                text!("{}-final.txn", crate::result_stem(&name)),
+                Zeroizing::new(h.as_bytes().to_vec()),
             ),
-            _ => (name.clone(), bytes),
+            _ => (Text::of(&name), bytes),
         };
         let worked = Worked {
             finished: finished.clone(),
@@ -717,7 +718,7 @@ impl Faraday {
             (finished, hex)
         };
         self.decode.outside = Some(Box::new(OutsideCheck {
-            source: name,
+            source: Text::of(&name),
             check,
             finished,
             hex,
@@ -815,7 +816,7 @@ impl Faraday {
                     let (name, bytes) = o.out.clone();
                     let name = self.put_outbox_beside(&name, bytes);
                     if let Some(o) = self.decode.outside.as_mut() {
-                        o.out_name = Some(name.clone());
+                        o.out_name = Some(Text::of(&name));
                     }
                     self.toast_out(&name);
                 }
@@ -853,10 +854,10 @@ impl Faraday {
                     && let Some(tx) = s.spend.finished.as_ref()
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
-                    let source = fill(EN.act_finished_from_source, &[&s.spend.source.to_string()]);
+                    let source = Text::fill(EN.act_finished_from_source, &[&s.spend.source]);
                     match decode::decode(c, tx, &prevouts, &self.session, &source) {
                         Ok(mut decoded) => {
-                            decoded.amounts_from = AmountsFrom::Psbt(s.spend.source.to_string());
+                            decoded.amounts_from = AmountsFrom::Psbt(Text::of(&s.spend.source));
                             self.decode.show(decoded, &mut self.screen);
                         }
                         Err(line) => self.toast(line),
@@ -902,8 +903,7 @@ impl Faraday {
                     return;
                 }
                 if let Some(hex) = self.decode.hex() {
-                    let hex = hex.to_string();
-                    self.open_qr(QrView::text(c, EN.act_transaction, &hex));
+                    self.open_qr(QrView::text(c, EN.act_transaction, hex));
                 }
             }
             Action::DecodeHex => {
@@ -967,7 +967,7 @@ impl Faraday {
                             item.bytes.clone(),
                             check::Origin::File {
                                 outbox: *out,
-                                name: item.name.clone(),
+                                name: Text::of(&item.name),
                             },
                         )
                     })
@@ -975,7 +975,7 @@ impl Faraday {
                 if let Some((bytes, origin)) = picked {
                     let name = match &origin {
                         check::Origin::File { name, .. } => name.clone(),
-                        check::Origin::Scanned => EN.signer_scanned.to_string(),
+                        check::Origin::Scanned => Text::of(EN.signer_scanned),
                     };
                     self.signer_check_take(c, slot, &bytes, name, origin);
                 }
@@ -1095,14 +1095,14 @@ impl Faraday {
     fn check_file_at(
         all: &[(bool, usize, &Item)],
         n: usize,
-    ) -> (Zeroizing<Vec<u8>>, String, check::Origin) {
+    ) -> (Zeroizing<Vec<u8>>, Text, check::Origin) {
         let (out, _, item) = all[n];
         (
             item.bytes.clone(),
-            item.name.clone(),
+            Text::of(&item.name),
             check::Origin::File {
                 outbox: out,
-                name: item.name.clone(),
+                name: Text::of(&item.name),
             },
         )
     }
@@ -1112,8 +1112,8 @@ impl Faraday {
     fn signer_check_start(
         &mut self,
         c: &Compute,
-        sent: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
-        returned: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
+        sent: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
+        returned: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
     ) {
         let back = match (self.screen, self.decode.check()) {
             (Screen::SignerCheck, Some(s)) => s.back,
@@ -1137,12 +1137,12 @@ impl Faraday {
         c: &Compute,
         slot: check::Slot,
         bytes: &[u8],
-        name: String,
+        name: Text,
         origin: check::Origin,
     ) -> bool {
         let Some((psbt, _)) = wallet::read_psbt_kept(c, bytes) else {
             if let Some(s) = self.decode.check.as_mut() {
-                s.refused[usize::from(slot.card())] = Some(EN.wallet_not_a_psbt.to_string());
+                s.refused[usize::from(slot.card())] = Some(Text::of(EN.wallet_not_a_psbt));
             }
             return false;
         };
@@ -1235,7 +1235,7 @@ impl Faraday {
                     .inbox
                     .iter()
                     .chain(self.outbox.iter())
-                    .any(|i| i.name == *name && check::same_bytes(&i.bytes, bytes)),
+                    .any(|i| i.name == name.as_str() && check::same_bytes(&i.bytes, bytes)),
                 _ => false,
             };
         let marks = self
@@ -1276,7 +1276,7 @@ impl Faraday {
             _ => return false,
         };
         let c = self.compute();
-        let name = EN.signer_scanned.to_string();
+        let name = Text::of(EN.signer_scanned);
         if self.signer_check_take(&c, slot, bytes, name, check::Origin::Scanned) {
             self.scan_close();
         } else {
@@ -1376,7 +1376,7 @@ impl Faraday {
             P::CheckSigner => {
                 let both = self.decode.compare().and_then(|s| {
                     let one =
-                        |d: &compare::Side| (d.bytes.clone(), d.name.clone(), d.origin.clone());
+                        |d: &compare::Side| (d.bytes.clone(), Text::of(&d.name), d.origin.clone());
                     Some((one(s.first.as_ref()?), one(s.second.as_ref()?)))
                 });
                 if let Some((first, second)) = both {
@@ -1412,14 +1412,14 @@ impl Faraday {
     fn compare_file_at(
         all: &[(bool, usize, &Item)],
         item: &Item,
-    ) -> (Zeroizing<Vec<u8>>, String, check::Origin) {
+    ) -> (Zeroizing<Vec<u8>>, Text, check::Origin) {
         let outbox = all.iter().any(|(o, _, i)| *o && std::ptr::eq(*i, item));
         (
             item.bytes.clone(),
-            item.name.clone(),
+            Text::of(&item.name),
             check::Origin::File {
                 outbox,
-                name: item.name.clone(),
+                name: Text::of(&item.name),
             },
         )
     }
@@ -1429,7 +1429,7 @@ impl Faraday {
         &self,
         outbox: bool,
         k: usize,
-    ) -> Option<(Zeroizing<Vec<u8>>, String, check::Origin)> {
+    ) -> Option<(Zeroizing<Vec<u8>>, Text, check::Origin)> {
         let item = if outbox {
             self.outbox.get(k)
         } else {
@@ -1442,10 +1442,10 @@ impl Faraday {
         .then(|| {
             (
                 item.bytes.clone(),
-                item.name.clone(),
+                Text::of(&item.name),
                 check::Origin::File {
                     outbox,
-                    name: item.name.clone(),
+                    name: Text::of(&item.name),
                 },
             )
         })
@@ -1472,10 +1472,10 @@ impl Faraday {
                         let in_outbox = self.outbox.iter().any(|i| std::ptr::eq(i, *one));
                         Some((
                             one.bytes.clone(),
-                            one.name.clone(),
+                            Text::of(&one.name),
                             check::Origin::File {
                                 outbox: in_outbox,
-                                name: one.name.clone(),
+                                name: Text::of(&one.name),
                             },
                         ))
                     }
@@ -1503,7 +1503,9 @@ impl Faraday {
             s.others_from.as_ref().is_some_and(|from| {
                 from.iter().any(|(name, txid, place)| {
                     *place == (outbox, k)
-                        && item.is_some_and(|i| i.name == *name && i.unsigned_txid == Some(*txid))
+                        && item.is_some_and(|i| {
+                            i.name == name.as_str() && i.unsigned_txid == Some(*txid)
+                        })
                 })
             })
         });
@@ -1517,7 +1519,7 @@ impl Faraday {
                 .unwrap_or_else(|_| s.spend.psbt.to_bytes());
             (
                 Zeroizing::new(bytes),
-                s.spend.source.clone(),
+                Text::of(&s.spend.source),
                 check::Origin::Scanned,
             )
         });
@@ -1529,8 +1531,8 @@ impl Faraday {
     fn compare_start(
         &mut self,
         c: &Compute,
-        first: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
-        second: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
+        first: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
+        second: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
     ) {
         let back = match (self.screen, self.decode.compare()) {
             (Screen::Compare, Some(s)) => s.back,
@@ -1556,7 +1558,7 @@ impl Faraday {
         c: &Compute,
         slot: Slot,
         bytes: &[u8],
-        name: String,
+        name: Text,
         origin: check::Origin,
     ) -> bool {
         let read = match wallet::read_psbt_kept(c, bytes) {
@@ -1565,8 +1567,7 @@ impl Faraday {
         };
         let Some((psbt, version)) = read else {
             if let Some(s) = self.decode.compare.as_mut() {
-                s.refused[usize::from(slot.card())] =
-                    Some(EN.compare_not_a_transaction.to_string());
+                s.refused[usize::from(slot.card())] = Some(EN.compare_not_a_transaction.into());
             }
             return false;
         };
@@ -1582,7 +1583,7 @@ impl Faraday {
             psbt,
             version,
             outpoints,
-            name,
+            name: name.as_str().into(),
             origin,
             differs: false,
         };
@@ -1677,7 +1678,7 @@ impl Faraday {
                     .inbox
                     .iter()
                     .chain(self.outbox.iter())
-                    .any(|i| i.name == *name && i.bytes == *bytes),
+                    .any(|i| i.name == name.as_str() && i.bytes == *bytes),
                 _ => false,
             };
         let marks = self
@@ -1737,7 +1738,7 @@ impl Faraday {
             _ => return false,
         };
         let c = self.compute();
-        let name = EN.signer_scanned.to_string();
+        let name = Text::of(EN.signer_scanned);
         if self.compare_take(&c, slot, bytes, name, check::Origin::Scanned) {
             self.scan_close();
         } else {

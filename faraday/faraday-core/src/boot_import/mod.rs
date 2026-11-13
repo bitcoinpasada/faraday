@@ -440,7 +440,7 @@ impl Faraday {
         let got = self.free_inbox_name(&text!("{stem}-words.txt"));
         self.inbox
             .push(Item::new(&c, &got, words.as_bytes().to_vec()));
-        self.visit.load_after_add(got.clone());
+        self.visit.load_after_add(&*got);
         self.save_boxes();
         *seeds += 1;
         self.visit.log_push((
@@ -496,7 +496,7 @@ impl Faraday {
                         self.inbox_load_named();
                     }
                 } else {
-                    self.visit.load_after_add(got.clone());
+                    self.visit.load_after_add(&*got);
                 }
                 self.save_boxes();
                 self.visit.log_push((
@@ -1102,10 +1102,10 @@ impl Faraday {
                     self.inbox.retain(|i| i.name != item.name);
                 } else {
                     let name = self.free_inbox_name(&item.name);
-                    if name != item.name {
+                    if name.as_str() != item.name {
                         renamed.push(Text::of(&name));
                     }
-                    item.name = name;
+                    item.name = name.as_str().into();
                 }
                 self.vault_read_from(&item.name, &item.bytes, &label);
                 vaults.push(Text::of(&item.name));

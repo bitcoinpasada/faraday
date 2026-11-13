@@ -5,7 +5,7 @@
 //! Everything kept here is public data (two PSBTs and the report on
 //! them), kept until a lock or power-off as Decode's state is.
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::{InspectInputs, PsbtSeen};
 use crate::{Item, Screen, flow};
 use faraday_bip::base64;
@@ -13,6 +13,7 @@ use faraday_bip::bitcoin::Txid;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_psbt::signer::{Report, Verdict};
 use faraday_psbt::{Inspection, Level, OutputKind, Psbt};
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// The two cards that choose a PSBT.
@@ -71,7 +72,7 @@ pub enum SignerPress {
 /// stick when `outbox`), or a scan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Origin {
-    File { outbox: bool, name: String },
+    File { outbox: bool, name: Text },
     Scanned,
 }
 
@@ -84,7 +85,7 @@ pub(crate) struct Side {
     /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`).
     pub psbt: Psbt,
     /// What the closed card shows: the file's name, or "Scanned".
-    pub name: String,
+    pub name: Text,
     /// Where it came from.
     pub origin: Origin,
     /// Whether Files holds no file of this name, in either box, with these
@@ -119,7 +120,7 @@ pub(crate) struct CheckState {
     /// The card open.
     pub open: u8,
     /// Why a card refused what was given it.
-    pub refused: [Option<String>; 2],
+    pub refused: [Option<Text>; 2],
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// Where the flow was opened from.
@@ -246,7 +247,7 @@ pub(crate) fn rows(
                     && s.origin
                         == (Origin::File {
                             outbox: *outbox,
-                            name: item.name.clone(),
+                            name: Text::of(&item.name),
                         })
                 {
                     continue;
@@ -332,25 +333,25 @@ pub(crate) enum Tone {
 }
 
 /// The verdict as words (SIGNER-CHECK §5) and its tone.
-pub(crate) fn verdict_line(report: &Report) -> (String, Tone) {
+pub(crate) fn verdict_line(report: &Report) -> (Text, Tone) {
     match report.verdict {
         Verdict::Clean { finalized, nonces } => {
             let text = if nonces {
-                EN.signer_only_nonces.to_string()
+                Text::of(EN.signer_only_nonces)
             } else if finalized == 1 {
-                EN.signer_only_one_finalized.to_string()
+                Text::of(EN.signer_only_one_finalized)
             } else if finalized > 1 {
-                crate::strings::fill(EN.signer_only_finalized, &[&finalized.to_string()])
+                Text::fill(EN.signer_only_finalized, &[&Text::num(finalized as u64)])
             } else {
-                EN.signer_only_signatures.to_string()
+                Text::of(EN.signer_only_signatures)
             };
             (text, Tone::Ok)
         }
         Verdict::Findings { count, worst } => {
             let text = if count == 1 {
-                EN.signer_one_finding.to_string()
+                Text::of(EN.signer_one_finding)
             } else {
-                crate::strings::fill(EN.signer_findings, &[&count.to_string()])
+                Text::fill(EN.signer_findings, &[&Text::num(count as u64)])
             };
             let tone = if worst >= Level::Danger {
                 Tone::Err
@@ -359,24 +360,49 @@ pub(crate) fn verdict_line(report: &Report) -> (String, Tone) {
             };
             (text, tone)
         }
-        Verdict::NotSameTransaction => (EN.signer_not_the_same.to_string(), Tone::Err),
+        Verdict::NotSameTransaction => (Text::of(EN.signer_not_the_same), Tone::Err),
     }
 }
 
 /// The Result card's text, in the order it is drawn.
 pub(crate) struct Shown {
     /// Label and value, one fact each.
-    pub facts: Vec<(String, String)>,
+    pub facts: Vec<(Text, Text)>,
     /// A line per finding in the report's order, with its level.
-    pub findings: Vec<(Level, String)>,
+    pub findings: Vec<(Level, Text)>,
     /// The lines stated, which are no finding.
-    pub stated: Vec<String>,
+    pub stated: Vec<Text>,
     /// Whether the findings section is drawn: not where the two PSBTs
     /// share no input.
     pub has_findings: bool,
     /// The keys that signed and whose seed is not loaded, one **Load**
     /// each.
     pub load: Vec<Fingerprint>,
+}
+
+/// The rows for the nonces the signer's file recomputed.
+fn nonce_facts(facts: &mut Vec<(Text, Text)>, r: &faraday_psbt::signer::Recomputed) {
+    let label = EN.signer_nonces_recomputed;
+    let counts = Text::fill(
+        EN.signer_nonces_of,
+        &[&Text::num(r.recomputed as u64), &Text::num(r.of as u64)],
+    );
+    if r.recomputed == 0 && !r.not_loaded.is_empty() {
+        for fp in &r.not_loaded {
+            facts.push((
+                Text::of(label),
+                Text::fill(EN.signer_nonces_none, &[&text!("{fp}")]),
+            ));
+        }
+    } else {
+        facts.push((Text::of(label), counts));
+        for fp in &r.not_loaded {
+            facts.push((
+                Text::of(label),
+                Text::fill(EN.signer_nonces_not_loaded, &[&text!("{fp}")]),
+            ));
+        }
+    }
 }
 
 /// Costs the text and nothing beyond it; the inspection is the caller's.
@@ -389,62 +415,42 @@ pub(crate) fn shown(
     network: Network,
 ) -> Shown {
     use super::check_words as words;
-    let id = |t: &Txid| String::from(&*faraday_ui::grouped(&t.to_string()));
+    let id = |t: &Txid| faraday_ui::grouped(&text!("{t}"));
     let mut facts = Vec::new();
     let same = report.verdict != Verdict::NotSameTransaction;
     if sent == returned {
-        facts.push((EN.signer_transaction.to_string(), id(sent)));
+        facts.push((Text::of(EN.signer_transaction), id(sent)));
     } else {
-        facts.push((EN.signer_sent.to_string(), id(sent)));
-        facts.push((EN.signer_returned.to_string(), id(returned)));
+        facts.push((Text::of(EN.signer_sent), id(sent)));
+        facts.push((Text::of(EN.signer_returned), id(returned)));
     }
     if same {
         let f = &report.facts;
         facts.push((
-            EN.signer_signatures_added.to_string(),
-            (f.added.len() + f.partial_sigs_added).to_string(),
+            Text::of(EN.signer_signatures_added),
+            text!("{}", f.added.len() + f.partial_sigs_added),
         ));
         if !f.finalized.is_empty() {
             facts.push((
-                EN.signer_inputs_finalized.to_string(),
-                f.finalized.len().to_string(),
+                Text::of(EN.signer_inputs_finalized),
+                text!("{}", f.finalized.len()),
             ));
         }
         if let Some(r) = &f.recomputed
             && (r.of > 0 || !r.not_loaded.is_empty())
         {
-            let label = EN.signer_nonces_recomputed;
-            let counts = fill(
-                EN.signer_nonces_of,
-                &[&r.recomputed.to_string(), &r.of.to_string()],
-            );
-            if r.recomputed == 0 && !r.not_loaded.is_empty() {
-                for fp in &r.not_loaded {
-                    facts.push((
-                        label.to_string(),
-                        fill(EN.signer_nonces_none, &[&fp.to_string()]),
-                    ));
-                }
-            } else {
-                facts.push((label.to_string(), counts));
-                for fp in &r.not_loaded {
-                    facts.push((
-                        label.to_string(),
-                        fill(EN.signer_nonces_not_loaded, &[&fp.to_string()]),
-                    ));
-                }
-            }
+            nonce_facts(&mut facts, r);
         }
         facts.push((
-            EN.step_sends.to_string(),
-            String::from(&*super::btc(inspection.amount_to_others.to_sat())),
+            Text::of(EN.step_sends),
+            super::btc(inspection.amount_to_others.to_sat()),
         ));
         facts.push((
-            EN.step_fee.to_string(),
+            Text::of(EN.step_fee),
             if inspection.fee_rate_sat_vb.is_some() {
-                String::from(&*super::btc(inspection.fee.to_sat()))
+                super::btc(inspection.fee.to_sat())
             } else {
-                EN.step_fee_not_known.to_string()
+                Text::of(EN.step_fee_not_known)
             },
         ));
         // Verified where an output is change on the change chain and none
@@ -460,13 +466,12 @@ pub(crate) fn shown(
             .iter()
             .any(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }));
         facts.push((
-            EN.step_change.to_string(),
-            if verified {
+            Text::of(EN.step_change),
+            Text::of(if verified {
                 EN.signer_change_verified
             } else {
                 EN.signer_change_not_verified
-            }
-            .to_string(),
+            }),
         ));
     }
     Shown {
@@ -478,11 +483,15 @@ pub(crate) fn shown(
                 let line = words::finding(f, network);
                 (
                     f.level,
-                    fill(EN.signer_finding_line, &[words::level_word(f.level), &line]),
+                    Text::fill(EN.signer_finding_line, &[words::level_word(f.level), &line]),
                 )
             })
             .collect(),
-        stated: report.info.iter().map(words::stated).collect(),
+        stated: report
+            .info
+            .iter()
+            .map(|i| Text::of(&words::stated(i)))
+            .collect(),
         has_findings: same,
         load: report
             .facts

@@ -214,7 +214,10 @@ pub(crate) fn review(
                 .and_then(|x| x.amount)
                 .map_or(0, |a| a.to_sat());
             total = total.saturating_add(sats);
-            (spent_address(&psbt, i, net), crate::decode::btc(sats))
+            (
+                spent_address(&psbt, i, net),
+                String::from(&*crate::decode::btc(sats)),
+            )
         })
         .collect();
     let others = inspection
@@ -227,7 +230,7 @@ pub(crate) fn review(
         .iter()
         .map(|o| Out {
             address: o.address.clone(),
-            amount: crate::decode::btc(o.amount.to_sat()),
+            amount: String::from(&*crate::decode::btc(o.amount.to_sat())),
             wallet: whose(c, session, &o.address),
         })
         .collect();
@@ -272,7 +275,7 @@ pub(crate) fn review(
             &[&if inspection.fee_rate_sat_vb.is_some() {
                 crate::decode::btc(inspection.fee.to_sat())
             } else {
-                EN.step_fee_not_known.to_string()
+                faraday_text::Text::of(EN.step_fee_not_known)
             }],
         ),
         warnings,

@@ -1113,7 +1113,7 @@ impl Faraday {
 
     /// The camera the person chose since the last call, by the id
     /// [`StorageEvent::Cameras`] gave it, for the shell to open.
-    pub fn take_camera(&mut self) -> Option<String> {
+    pub fn take_camera(&mut self) -> Option<faraday_text::Text> {
         self.camera.take_change()
     }
 
@@ -1374,7 +1374,7 @@ impl Faraday {
                     self.free_inbox_name(&name)
                 } else {
                     self.inbox.retain(|i| i.name != name);
-                    name
+                    faraday_text::Text::of(&name)
                 };
                 let mut item = Item::new(&c, &got, bytes);
                 item.picture = Some(holds);
@@ -4629,8 +4629,10 @@ impl App for Faraday {
                 faraday_shell_api::CameraFailure::InUse => NoPicture::InUse,
                 faraday_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
             }),
-            Event::Clipboard { text, .. } => self.pasted(zeroize::Zeroizing::new(text)),
-            Event::ClipboardUnavailable { .. } => self.pasted(String::new().into()),
+            Event::Clipboard { text, .. } => {
+                self.pasted(faraday_text::Text::of(&zeroize::Zeroizing::new(text)))
+            }
+            Event::ClipboardUnavailable { .. } => self.pasted(faraday_text::Text::new()),
             Event::RotationOffered { native } => self.rotation_offered_by(native),
             Event::ExternalScreen => self.external_screen(),
             _ => return,

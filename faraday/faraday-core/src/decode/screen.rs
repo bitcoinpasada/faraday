@@ -75,10 +75,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None => EN.decode_fee_not_stated.to_string(),
     };
     let facts: [(&str, String, bool); 7] = [
-        (EN.decode_transaction, t.txid.clone(), true),
-        (EN.decode_witness_id, t.wtxid.clone(), true),
+        (EN.decode_transaction, String::from(&*t.txid), true),
+        (EN.decode_witness_id, String::from(&*t.wtxid), true),
         (EN.decode_version, t.version.to_string(), false),
-        (EN.decode_locktime, t.locktime.clone(), false),
+        (EN.decode_locktime, String::from(&*t.locktime), false),
         (
             EN.decode_size,
             fill(
@@ -92,7 +92,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             false,
         ),
         (EN.decode_fee, fee, false),
-        (EN.decode_amounts_in, t.amounts_from.text(), false),
+        (
+            EN.decode_amounts_in,
+            String::from(&*t.amounts_from.text()),
+            false,
+        ),
     ];
     for (k, v, mono) in facts.iter() {
         let face = if *mono { BODY_M.mono() } else { BODY_M };
@@ -292,7 +296,7 @@ fn input_line(input: &crate::decode::DecodedInput) -> String {
     fill(
         EN.decode_sequence,
         &[
-            &input.sequence.to_string(),
+            &input.sequence,
             &wit.to_string(),
             &(if input.script_sig > 0 {
                 format!(
@@ -312,14 +316,11 @@ fn input_line(input: &crate::decode::DecodedInput) -> String {
 fn whose(out: &crate::decode::DecodedOutput) -> (String, Role) {
     match &out.ours {
         Some((name, true, n)) => (
-            fill(EN.decode_change_back, &[&name.to_string(), &n.to_string()]),
+            fill(EN.decode_change_back, &[name, &n.to_string()]),
             Role::Ok,
         ),
         Some((name, false, n)) => (
-            fill(
-                EN.decode_back_to_receive,
-                &[&name.to_string(), &n.to_string()],
-            ),
+            fill(EN.decode_back_to_receive, &[name, &n.to_string()]),
             Role::Ok,
         ),
         None => (EN.decode_pays_from_loaded.to_string(), Role::Warning),

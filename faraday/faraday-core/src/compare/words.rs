@@ -36,15 +36,15 @@ fn value(label: Option<&'static str>, text: String) -> Value {
 }
 
 fn amount(a: Amount) -> String {
-    btc(a.to_sat())
+    String::from(&*btc(a.to_sat()))
 }
 
 fn seq(s: Sequence) -> String {
-    sequence_text(s.0)
+    String::from(&*sequence_text(s.0))
 }
 
 fn lock(l: Locktime) -> String {
-    locktime_text(l.raw)
+    String::from(&*locktime_text(l.raw))
 }
 
 /// An output by its address in short form, or by its script's length

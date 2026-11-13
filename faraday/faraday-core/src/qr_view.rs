@@ -1078,7 +1078,7 @@ impl Faraday {
             Code::Descriptor(i) => {
                 let w = wallet(i)?;
                 let stem = file_stem(&w.name);
-                let mut lines = texts(&self.silent_marks(c, i, self.wallet_label(w))?);
+                let mut lines = self.silent_marks(c, i, texts(&self.wallet_label(w)))?;
                 let text = w.policy().to_descriptor_checksummed();
                 if let Some((_, sum)) = text.rsplit_once('#') {
                     lines.push(Text::fill(EN.code_view_descriptor, &[sum]));

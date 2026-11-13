@@ -794,7 +794,7 @@ impl Faraday {
         self.visit.load_after_renamed(name, &kept);
         let told = fill(EN.storage_event_kept_as, &[name, &kept]);
         self.visit.log_push((told, true));
-        kept
+        String::from(&*kept)
     }
 
     /// Costs a SHA-256 of the vault (through `Item::new`). A vault written from For the stick stays in
@@ -808,7 +808,7 @@ impl Faraday {
         self.inbox
             .retain(|i| !(i.kind == FileKind::Vault && vaults.same_vault_files(i.sha, item.sha)));
         let kept = self.free_inbox_name(&item.name);
-        if kept != item.name {
+        if kept.as_str() != item.name {
             let told = fill(EN.storage_event_kept_as, &[&item.name, &kept]);
             self.visit.log_push((told, true));
         }

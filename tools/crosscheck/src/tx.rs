@@ -62,14 +62,14 @@ fn decode(req: &Value) -> Answer {
         .iter()
         .zip(&tx.output)
         .map(|(shown, out)| {
-            if shown.address == hex(out.script_pubkey.as_bytes()) {
+            if *shown.address == *hex(out.script_pubkey.as_bytes()) {
                 Value::Null
             } else {
-                json!(shown.address)
+                json!(shown.address.as_str())
             }
         })
         .collect();
-    Ok(json!({"txid": shown.txid, "wtxid": shown.wtxid, "addresses": addresses}))
+    Ok(json!({"txid": shown.txid.as_str(), "wtxid": shown.wtxid.as_str(), "addresses": addresses}))
 }
 
 /// A signature hash of the kind `mode` names.

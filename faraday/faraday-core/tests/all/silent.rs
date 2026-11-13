@@ -314,7 +314,7 @@ fn a_record_read_from_files_is_a_wallet_whose_address_needs_no_key() {
     let record = keyed.silent_record(&c).unwrap();
     let address = keyed.silent_address(&c).unwrap();
     let mut app = faraday_core::testkit::started();
-    files(&mut app, &[("silent-1.txt", record.into_bytes())]);
+    files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
@@ -410,7 +410,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
         &mut app,
         &[
             ("vault.kdbx", testkit::test_vault().unwrap()),
-            ("silent-1.txt", record.clone().into_bytes()),
+            ("silent-1.txt", record.as_bytes().to_vec()),
         ],
     );
     // Opened from a flow (the vault way), not the Vaults list: it shows
@@ -604,7 +604,10 @@ fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
     files(&mut app, &[("silent-1.txt", honest.to_text().into_bytes())]);
     app.press(Action::LoadWallet(0));
     app.press(Action::SWallet(0));
-    assert_eq!(app.silent_address(&c), Some(honest.address()));
+    assert_eq!(
+        app.silent_address(&c).as_deref(),
+        Some(honest.address().as_str())
+    );
     let line = format!("Not checked: load key {fp} to check this address");
     let text = drawn(&mut app);
     assert!(text.contains("Not checked"), "{text}");
@@ -679,7 +682,7 @@ fn an_sp_descriptor_with_no_key_loaded_offers_nothing_out() {
     keyed.press(Action::Silent);
     let record = keyed.silent_record(&c).unwrap();
     let mut app = faraday_core::testkit::started();
-    files(&mut app, &[("silent-1.txt", record.into_bytes())]);
+    files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
     app.press(Action::LoadWallet(0));
     app.press(Action::SDescriptorOut(0));
     assert_ne!(app.sheet, Some(Sheet::SecretOut));

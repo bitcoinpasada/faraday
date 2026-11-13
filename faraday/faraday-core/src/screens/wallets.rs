@@ -877,7 +877,7 @@ pub(crate) fn silent_address_lines(
     let fp = fp_text(r.fingerprint).to_string();
     let (check, address) = match app.silent_wallet_card(app.wallets.wallet()) {
         Some((check, address)) => (Some(check), address),
-        None => (None, r.address()),
+        None => (None, faraday_text::Text::of(&r.address())),
     };
     match check {
         Some(RecordCheck::Differs) => ui.wrap_as(

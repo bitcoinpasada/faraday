@@ -566,8 +566,8 @@ impl VisitArea {
     }
 
     /// `name` is loaded as keys when the stick is pulled.
-    pub(crate) fn load_after_add(&mut self, name: String) {
-        self.visit.load_after.insert(name);
+    pub(crate) fn load_after_add(&mut self, name: impl AsRef<str>) {
+        self.visit.load_after.insert(name.as_ref().to_owned());
     }
 
     /// Every name in `names` is loaded as keys when the stick is pulled.

@@ -64,7 +64,7 @@ impl Lens {
     /// A camera the person chose on the scan sheet.
     pub fn chosen(&mut self, app: &mut Faraday) {
         if let Some(id) = app.take_camera() {
-            self.camera.choose(PathBuf::from(id));
+            self.camera.choose(PathBuf::from(&*id));
         }
     }
 

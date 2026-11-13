@@ -34,9 +34,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 title: titles[usize::from(n)].to_string(),
                 summary: side.map_or_else(String::new, |d| {
                     if d.differs {
-                        fill(EN.signer_file_differs, &[&d.name])
+                        String::from(&*fill(EN.signer_file_differs, &[&d.name]))
                     } else {
-                        d.name.clone()
+                        String::from(&*d.name)
                     }
                 }),
                 mono: false,
@@ -146,7 +146,7 @@ fn row(
     let on = chosen
         == Some(&Origin::File {
             outbox: *outbox,
-            name: item.name.clone(),
+            name: faraday_text::Text::of(&item.name),
         });
     let line = item.psbt().map_or_else(String::new, |p| {
         let id = faraday_ui::short(&p.txid.to_string());

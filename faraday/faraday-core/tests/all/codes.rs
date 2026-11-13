@@ -337,13 +337,13 @@ fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
     // The address on show, from its own Show as QR.
     let address = app.silent_address(&c).unwrap();
     app.press(Action::SQr(false));
-    assert_eq!(shown(&app), address);
+    assert_eq!(shown(&app), address.as_str());
     let l = label(&app);
     assert!(l.contains(&format!("Silent payment address · {fp}")), "{l}");
     app.press(Action::QrPng);
     assert_eq!(
         read_png(&outbox(&app, &format!("silent-{fp}.png"))),
-        address
+        address.as_str()
     );
 }
 

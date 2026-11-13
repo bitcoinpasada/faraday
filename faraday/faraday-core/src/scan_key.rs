@@ -7,12 +7,11 @@
 //! Here too: the scanner's Paste, and what it refuses (F75).
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 
 use crate::plan::{At, What};
 use crate::qr_view::TOO_FINE_PASSES;
@@ -49,16 +48,16 @@ pub(crate) struct Camera {
     /// The cameras the shell can open (id, name). With none, the
     /// backup's seeds step checks a copy by its typed numbers instead of
     /// the camera.
-    cameras: Vec<(String, String)>,
+    cameras: Vec<(Text, Text)>,
     /// The one chosen, by id; the shell's first when none is.
-    chosen: Option<String>,
+    chosen: Option<Text>,
     /// A camera chosen that the shell has not opened yet.
-    change: Option<String>,
+    change: Option<Text>,
     /// Files made of codes read, for their names.
     scanned: u32,
     /// A TOTP setup code the read card carries through **Unlock {vault}**
     /// (`docs/SCANNING.md` §5.3), wiped once Unlock is left.
-    carried: Option<zeroize::Zeroizing<String>>,
+    carried: Option<Text>,
     /// Create's key slot whose scanner read a seed: the key goes into it
     /// once the seed sheet loads it (`docs/SCANNING.md` §4.3).
     slot: Option<u8>,
@@ -194,7 +193,7 @@ impl Camera {
     }
 
     /// Keeps `text` through an unlock.
-    pub(crate) fn carry(&mut self, text: zeroize::Zeroizing<String>) {
+    pub(crate) fn carry(&mut self, text: Text) {
         self.carried = Some(text);
     }
 
@@ -209,7 +208,7 @@ impl Camera {
     }
 
     /// The code carried, once.
-    pub(crate) fn take_carried(&mut self) -> Option<zeroize::Zeroizing<String>> {
+    pub(crate) fn take_carried(&mut self) -> Option<Text> {
         self.carried.take()
     }
 
@@ -245,16 +244,25 @@ impl Camera {
     }
 
     /// The cameras the shell can open.
-    pub(crate) fn cameras(&self) -> &[(String, String)] {
+    pub(crate) fn cameras(&self) -> &[(Text, Text)] {
         &self.cameras
     }
 
     /// Takes the shell's list; whether it differs from the last.
-    pub(crate) fn set_cameras(&mut self, list: Vec<(String, String)>) -> bool {
-        if self.cameras == list {
+    pub(crate) fn set_cameras(&mut self, list: Vec<(impl AsRef<str>, impl AsRef<str>)>) -> bool {
+        let same = self.cameras.len() == list.len()
+            && self
+                .cameras
+                .iter()
+                .zip(&list)
+                .all(|((i, n), (a, b))| i.as_str() == a.as_ref() && n.as_str() == b.as_ref());
+        if same {
             return false;
         }
-        self.cameras = list;
+        self.cameras = list
+            .iter()
+            .map(|(i, n)| (Text::of(i.as_ref()), Text::of(n.as_ref())))
+            .collect();
         true
     }
 
@@ -269,13 +277,13 @@ impl Camera {
         let Some((id, _)) = self.cameras.get(i) else {
             return false;
         };
-        self.chosen = Some(id.clone());
-        self.change = Some(id.clone());
+        self.chosen = Some(id.duplicate());
+        self.change = Some(id.duplicate());
         true
     }
 
     /// The camera chosen since the last call.
-    pub(crate) fn take_change(&mut self) -> Option<String> {
+    pub(crate) fn take_change(&mut self) -> Option<Text> {
         self.change.take()
     }
 
@@ -293,7 +301,7 @@ impl Faraday {
     }
 
     /// The cameras the shell can open.
-    pub fn cameras(&self) -> &[(String, String)] {
+    pub fn cameras(&self) -> &[(Text, Text)] {
         self.camera.cameras()
     }
 
@@ -339,39 +347,39 @@ impl Faraday {
 
     /// Costs what `plan_notes` costs. The name a key of wallet `w` loads
     /// under: who holds it, as the backup's plan keeps it, else none.
-    pub(crate) fn wallet_key_label(&self, c: &Compute, w: usize, fp: Fingerprint) -> String {
+    pub(crate) fn wallet_key_label(&self, c: &Compute, w: usize, fp: Fingerprint) -> Text {
         let Some(wl) = self.session.wallets.get(w) else {
-            return String::new();
+            return Text::new();
         };
         self.plan_notes(c, wl, None)
             .into_iter()
             .find_map(|n| match n {
-                crate::plan::Note::Holder(f, name) if f == fp.0 => Some(String::from(&*name)),
+                crate::plan::Note::Holder(f, name) if f == fp.0 => Some(Text::of(&name)),
                 _ => None,
             })
             .unwrap_or_default()
     }
 
     /// The line a seed that is no key of wallet `w` is refused with.
-    pub(crate) fn not_a_wallet_key(&self, w: usize, fp: Fingerprint) -> String {
+    pub(crate) fn not_a_wallet_key(&self, w: usize, fp: Fingerprint) -> Text {
         let name = self
             .session
             .wallets
             .get(w)
             .map(|wl| wl.name.as_str())
             .unwrap_or_default();
-        fill(EN.scan_key_is_not_one, &[&fp_text(fp).to_string(), name])
+        Text::fill(EN.scan_key_is_not_one, &[&fp_text(fp), name])
     }
 
     /// Costs what `of_now` costs. The keys the key scanner for wallet `w`
     /// takes, a line each: "Key 2 · 1A2B3C4D · Place 2", the place where
     /// the backup's plan keeps that seed.
-    pub(crate) fn wallet_key_lines(&self, c: &Compute, w: usize) -> Vec<String> {
+    pub(crate) fn wallet_key_lines(&self, c: &Compute, w: usize) -> Vec<Text> {
         let Some(wl) = self.session.wallets.get(w) else {
             return Vec::new();
         };
         let glance = crate::glance::of_now(c, self, w);
-        let place = |n: usize| -> Option<String> {
+        let place = |n: usize| -> Option<Text> {
             let g = glance.as_ref()?;
             let seed = g.keys.get(n)?.seed?;
             let crate::glance::Backup::Plan { nodes, .. } = &g.backup else {
@@ -387,7 +395,7 @@ impl Faraday {
                             | What::SeedQrFile(i) if i == seed)
                     })
                 })
-                .map(|b| b.name.clone())
+                .map(|b| Text::of(&b.name))
         };
         self.session
             .slots(wl)
@@ -396,12 +404,9 @@ impl Faraday {
             .filter(|(_, s)| s.held_by.is_none())
             .filter_map(|(n, s)| {
                 let fp = s.fingerprint?;
-                let line = fill(
-                    EN.scan_key_key,
-                    &[&(n + 1).to_string(), &fp_text(fp).to_string()],
-                );
+                let line = Text::fill(EN.scan_key_key, &[&Text::num((n + 1) as u64), &fp_text(fp)]);
                 Some(match place(n) {
-                    Some(p) => format!("{line} · {p}"),
+                    Some(p) => text!("{} · {}", &*line, &*p),
                     None => line,
                 })
             })
@@ -417,8 +422,10 @@ impl Faraday {
         };
         match self.wallet_key_found(w, fp) {
             Found::Here(n) => {
-                self.camera
-                    .say(fill(EN.scan_key_key_already, &[&(n + 1).to_string()]));
+                self.camera.say(Text::fill(
+                    EN.scan_key_key_already,
+                    &[&Text::num((n + 1) as u64)],
+                ));
             }
             Found::Missing(n) => {
                 let label = self.wallet_key_label(&c, w, fp);
@@ -429,14 +436,14 @@ impl Faraday {
                 {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
-                        self.camera.say(String::from(&*e.text()));
+                        self.camera.say(&*e.text());
                     }
                 }
             }
             // Perhaps a seed with a passphrase: the sheet asks for it.
             Found::None => {
                 let reason = self.not_a_wallet_key(w, fp);
-                self.seed_read_for_wallet(words, w, reason);
+                self.seed_read_for_wallet(words, w, reason.as_str().into());
             }
         }
     }
@@ -483,12 +490,15 @@ impl Faraday {
             }
         }
         if short > 0 {
-            self.toast(&fill(
+            self.toast(&Text::fill(
                 EN.scan_key_key_added_more,
-                &[&(n + 1).to_string(), &short.to_string()],
+                &[&Text::num((n + 1) as u64), &Text::num(short as u64)],
             ));
         } else {
-            self.toast(&fill(EN.scan_key_key_added, &[&(n + 1).to_string()]));
+            self.toast(&Text::fill(
+                EN.scan_key_key_added,
+                &[&Text::num((n + 1) as u64)],
+            ));
         }
     }
 }
@@ -576,21 +586,30 @@ impl Faraday {
     }
 }
 
+/// The text of `bytes` with white space trimmed off both ends, wiped when
+/// dropped.
+fn trimmed(bytes: &[u8]) -> Text {
+    Text::of(Text::from_utf8_lossy(bytes).trim())
+}
+
 /// Costs a mnemonic's checksum. The words of `text`, pasted onto the
 /// words form typed from `lang`, as the list's places: split at any
 /// white space and matched in any case, as typing them would be; 12, 15,
 /// 18, 21 or 24 of them, each on the list, with a checksum that holds.
 /// Else what is wrong, in the words a typed key is refused with.
-fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16>>, String> {
+fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16>>, Text> {
     let words: Vec<&str> = text.split_whitespace().collect();
     if words.is_empty() {
-        return Err(EN.pasted_nothing.to_string());
+        return Err(Text::of(EN.pasted_nothing));
     }
     if !crate::EntryState::COUNTS
         .iter()
         .any(|n| usize::from(*n) == words.len())
     {
-        return Err(fill(EN.paste_words_count, &[&words.len().to_string()]));
+        return Err(Text::fill(
+            EN.paste_words_count,
+            &[&Text::num(words.len() as u64)],
+        ));
     }
     let mut idx = zeroize::Zeroizing::new(Vec::with_capacity(words.len()));
     for (k, w) in words.iter().enumerate() {
@@ -598,15 +617,18 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
         let i = crate::forms::typed_index(lang, &lower)
             .or_else(|| lang.index_of(&lower))
             .ok_or_else(|| {
-                fill(
+                Text::fill(
                     EN.forms_word_not_in_list,
-                    &[&(k + 1).to_string(), crate::forms::language_name(lang)],
+                    &[
+                        &Text::num((k + 1) as u64),
+                        crate::forms::language_name(lang),
+                    ],
                 )
             })?;
         idx.push(i);
     }
     faraday_keys::words::from_indices(lang, &idx)
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     Ok(idx)
 }
 
@@ -831,7 +853,7 @@ impl Faraday {
     /// moment (`docs/QR.md` §8 item 5). A scanner that loads a seed takes
     /// its words, SeedQR digits and shares as typed or scanned (F75); the
     /// words go on as one space between each, in lower case.
-    pub(crate) fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
+    pub(crate) fn pasted(&mut self, text: Text) {
         if self.entry_pasted(&text)
             || self.explore_pasted(&text)
             || (!self.scan_pastes() && self.transfer_pasted(&text))
@@ -911,7 +933,7 @@ impl Faraday {
         {
             return Some(item);
         }
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).trim().to_string());
+        let text = trimmed(&item.bytes);
         zeroize::Zeroize::zeroize(&mut item.bytes);
         if item.kind == FileKind::Entries {
             self.scanned_entries(text, intake);
@@ -919,9 +941,9 @@ impl Faraday {
         }
         drop(text);
         let why = if self.may_load_keys() {
-            EN.secret_text_those_are.to_string()
+            EN.secret_text_those_are
         } else {
-            crate::stick::keys_load(self.medium)
+            &crate::stick::keys_load(self.medium)
         };
         self.camera.say(why);
         None
@@ -933,9 +955,9 @@ impl Faraday {
     /// vault's own Scan fills it; with no vault open the scanner says to
     /// unlock one, and the intake, which adds to no vault, says it is not
     /// used there. The camera stays on unless the vault took them.
-    fn scanned_entries(&mut self, text: zeroize::Zeroizing<String>, intake: bool) {
+    fn scanned_entries(&mut self, text: Text, intake: bool) {
         let said = if intake {
-            Some(EN.scanned_totp_not_here.to_string())
+            Some(EN.scanned_totp_not_here.into())
         } else if self.vaults.current_id().is_none() {
             // The read card's Unlock {vault} or Make a vault
             // (`docs/SCANNING.md` §4.5).
@@ -978,7 +1000,7 @@ impl Faraday {
         {
             return false;
         }
-        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let given = trimmed(bytes);
         if faraday_bip::codex32::Codex32::parse(&given).is_err() {
             return false;
         }
@@ -1019,11 +1041,7 @@ impl Faraday {
 
 /// A code read as a file: its name when it carries one, its extension
 /// and its bytes, wiped when dropped.
-pub(crate) type ReadFile = (
-    Option<faraday_text::Text>,
-    &'static str,
-    zeroize::Zeroizing<Vec<u8>>,
-);
+pub(crate) type ReadFile = (Option<Text>, &'static str, zeroize::Zeroizing<Vec<u8>>);
 
 impl Faraday {
     /// Costs what reading the code costs (a mnemonic's checksum, a
@@ -1137,49 +1155,44 @@ impl Faraday {
     pub(crate) fn gpg_public_name(
         &mut self,
         data: &[u8],
-    ) -> Option<(Option<crate::backup_flow::RestoreFrom>, String)> {
+    ) -> Option<(Option<crate::backup_flow::RestoreFrom>, Text)> {
         let from = crate::backup_flow::RestoreFrom::read(data).ok();
         if let Some(r) = &from {
-            let name = format!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint));
+            let name = text!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint));
             return Some((from, name));
         }
         (faraday_pgp::read_public_armor(data) == Some(faraday_pgp::Armor::PublicKey))
-            .then(|| (None, format!("scanned-{}.asc", self.camera.next_number())))
+            .then(|| (None, text!("scanned-{}.asc", self.camera.next_number())))
     }
 
     /// Costs a SHA-1 of each key. The name a code read as a file is filed
     /// under in Files: the name it was sent under in the Faraday file
     /// envelope (`docs/QR.md` §2), a GPG public key's own, else
     /// `scanned-N` and its extension.
-    fn scanned_file_name(
-        &mut self,
-        named: Option<faraday_text::Text>,
-        ext: &str,
-        data: &[u8],
-    ) -> String {
+    fn scanned_file_name(&mut self, named: Option<Text>, ext: &str, data: &[u8]) -> Text {
         if let Some(n) = named {
             return self.free_inbox_name(&n);
         }
         match self.gpg_public_name(data) {
             Some((_, n)) => self.free_inbox_name(&n),
-            None => format!("scanned-{}.{ext}", self.camera.next_number()),
+            None => text!("scanned-{}.{ext}", self.camera.next_number()),
         }
     }
 
     /// `name`, or `stem-2.ext`, … when the Inbox has it.
-    pub(crate) fn free_inbox_name(&self, name: &str) -> String {
+    pub(crate) fn free_inbox_name(&self, name: &str) -> Text {
         let taken = |n: &str| self.inbox.iter().any(|i| i.name == n);
         if !taken(name) {
-            return name.to_string();
+            return Text::of(name);
         }
         let (stem, ext) = match name.rfind('.') {
             Some(i) if i > 0 => (&name[..i], &name[i..]),
             _ => (name, ""),
         };
         (2..1000)
-            .map(|n| format!("{stem}-{n}{ext}"))
+            .map(|n| text!("{stem}-{n}{ext}"))
             .find(|n| !taken(n))
-            .unwrap_or_else(|| name.to_string())
+            .unwrap_or_else(|| Text::of(name))
     }
 
     /// The scanner's line says `why`; the camera stays on.
@@ -1207,7 +1220,7 @@ impl Faraday {
         }
         // An address is checked against the loaded wallets: that is the
         // card's fact.
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        let text = trimmed(&bytes);
         if let Some(said) = self.address_note(&c, &text) {
             let mut card = self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
             card.facts.push(Text::of(&said));
@@ -1231,11 +1244,7 @@ impl Faraday {
         &mut self,
         c: &Compute,
         kind: Kind,
-        code: (
-            Option<faraday_text::Text>,
-            &'static str,
-            zeroize::Zeroizing<Vec<u8>>,
-        ),
+        code: (Option<Text>, &'static str, zeroize::Zeroizing<Vec<u8>>),
     ) {
         let card = self.read_card(c, kind, code);
         self.read_card_put(card);
@@ -1258,7 +1267,7 @@ impl Faraday {
     /// is what they make, otherwise `read` itself.
     pub(crate) fn scanned_own(&self, read: &[u8]) -> Vec<u8> {
         match self.camera.scan().and_then(|s| s.single.as_ref()) {
-            Some(own) if String::from_utf8_lossy(own).trim().as_bytes() == read => own.to_vec(),
+            Some(own) if trimmed(own).as_bytes() == read => own.to_vec(),
             _ => read.to_vec(),
         }
     }
@@ -1310,11 +1319,7 @@ impl Faraday {
         &mut self,
         c: &Compute,
         kind: Kind,
-        (named, ext, code): (
-            Option<faraday_text::Text>,
-            &'static str,
-            zeroize::Zeroizing<Vec<u8>>,
-        ),
+        (named, ext, code): (Option<Text>, &'static str, zeroize::Zeroizing<Vec<u8>>),
     ) -> scan_read::ReadCard {
         use scan_read::Way;
         let text = Text::of(Text::from_utf8_lossy(&code).trim());
@@ -1408,7 +1413,7 @@ impl Faraday {
     /// Costs a PBKDF2 (a BIP-39 seed's key) or a codex32 recovery and a
     /// key derivation. "Key 73c5da0a": the key a seed read makes with no
     /// passphrase, as the seed sheet shows it.
-    fn read_key_fact(&self, c: &Compute, kind: Kind, code: &[u8], text: &str) -> Option<String> {
+    fn read_key_fact(&self, c: &Compute, kind: Kind, code: &[u8], text: &str) -> Option<Text> {
         let fp = if kind == Kind::Codex32Secret {
             let s = faraday_bip::codex32::Codex32::parse(text).ok()?;
             let seed = faraday_keys::codex32_seed(&[s]).ok()?;
@@ -1417,22 +1422,22 @@ impl Faraday {
             let words = seed_in_code(c, code)?;
             key_of(c, &words, "")?
         };
-        Some(fill(EN.read_key_fact, &[&fp_text(fp)]))
+        Some(Text::fill(EN.read_key_fact, &[&fp_text(fp)]))
     }
 
     /// Costs a PSBT read and the wallet it spends from (a script
     /// derivation). "2 inputs · Savings": a PSBT's inputs, and the loaded
     /// wallet it spends from when one does.
-    fn read_psbt_fact(&self, c: &Compute, code: &[u8]) -> Option<String> {
+    fn read_psbt_fact(&self, c: &Compute, code: &[u8]) -> Option<Text> {
         let p = crate::wallet::read_psbt(c, code)?;
         let n = p.unsigned_tx().input.len();
         let inputs = if n == 1 {
-            EN.read_psbt_input.to_string()
+            Text::of(EN.read_psbt_input)
         } else {
-            fill(EN.read_psbt_inputs, &[&n.to_string()])
+            Text::fill(EN.read_psbt_inputs, &[&Text::num(n as u64)])
         };
         Some(match self.session.wallet_for(c, &p) {
-            Some(w) => fill(EN.read_psbt_fact, &[&inputs, &self.session.wallets[w].name]),
+            Some(w) => Text::fill(EN.read_psbt_fact, &[&inputs, &self.session.wallets[w].name]),
             None => inputs,
         })
     }
@@ -1496,7 +1501,7 @@ impl Faraday {
             kef,
             ..
         } = card;
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
+        let text = trimmed(&code);
         match way {
             Way::Key if kind == Kind::Codex32Secret => {
                 self.intake_key_part(&code);
@@ -1594,11 +1599,7 @@ impl Faraday {
         &mut self,
         way: scan_read::Way,
         kef: Option<crate::seeds::kef::Header>,
-        (named, ext, code): (
-            Option<faraday_text::Text>,
-            &'static str,
-            zeroize::Zeroizing<Vec<u8>>,
-        ),
+        (named, ext, code): (Option<Text>, &'static str, zeroize::Zeroizing<Vec<u8>>),
     ) {
         if way == scan_read::Way::Open {
             drop(code);
@@ -1619,7 +1620,7 @@ impl Faraday {
     fn read_go_file(
         &mut self,
         way: scan_read::Way,
-        named: Option<faraday_text::Text>,
+        named: Option<Text>,
         ext: &str,
         code: zeroize::Zeroizing<Vec<u8>>,
     ) {
@@ -1647,7 +1648,7 @@ impl Faraday {
             Way::Restore => self.act(Action::RestoreShares),
             Way::Check => self.act(Action::CheckMessage(at)),
             Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
-            _ => self.toast(&fill(EN.scanned_is_in_files, &[&name])),
+            _ => self.toast(&Text::fill(EN.scanned_is_in_files, &[&name])),
         }
     }
 
@@ -1671,7 +1672,7 @@ impl Faraday {
             }
             _ => return false,
         };
-        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let given = trimmed(bytes);
         let codex32 = faraday_bip::codex32::Codex32::parse(&given).is_ok_and(|s| s.is_secret());
         let words = if codex32 {
             None
@@ -1851,7 +1852,7 @@ impl Faraday {
     /// vault's Scan a setup code: a TOTP setup code or vault entries go
     /// into the open vault; anything else is named.
     fn entry_code_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
+        let text = Text::from_utf8_lossy(&bytes);
         let refused = self.vault_scanned_entry(&text).err();
         drop(text);
         let Some(why) = refused else {
@@ -1894,8 +1895,8 @@ impl Faraday {
         let text = match faraday_intake::seedqr_words(&bytes) {
             Some(w) => w,
             None => {
-                let lossy = faraday_text::Text::from_utf8_lossy(&bytes);
-                faraday_text::Text::of(lossy.trim())
+                let lossy = Text::from_utf8_lossy(&bytes);
+                Text::of(lossy.trim())
             }
         };
         let ours = kind_form.is_some() || starts_as_form(self.entry.state().form, &text);
@@ -1909,7 +1910,7 @@ impl Faraday {
                 self.entry.wipe_typed();
                 self.entry.forget_error();
                 if ours {
-                    self.scan_say(String::from(&*why));
+                    self.scan_say(&*why);
                 } else {
                     self.scan_not_taken(bytes);
                 }
@@ -1935,9 +1936,9 @@ impl Faraday {
             Some(Kind::Slip39Share) => Form::Slip39,
             _ => return self.scan_not_taken(bytes),
         };
-        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        let given = trimmed(&bytes);
         let text = if form == Form::Slip39 {
-            zeroize::Zeroizing::new(given.to_lowercase())
+            Text::of(&zeroize::Zeroizing::new(given.to_lowercase()))
         } else {
             given
         };
@@ -2112,7 +2113,7 @@ impl Faraday {
     fn file_scanned(
         &mut self,
         c: &Compute,
-        named: Option<faraday_text::Text>,
+        named: Option<Text>,
         ext: &str,
         mut data: zeroize::Zeroizing<Vec<u8>>,
         intake: bool,
@@ -2154,7 +2155,7 @@ impl Faraday {
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
         if is_key && self.seeds_take_file(at) {
-            self.toast(&fill(EN.scanned_is_a_cosigner, &[&name.to_string()]));
+            self.toast(&Text::fill(EN.scanned_is_a_cosigner, &[&name]));
             return;
         }
         // A cosigner's key, or a descriptor of one, scanned while a wallet
@@ -2300,8 +2301,8 @@ impl Faraday {
         let scan = self.camera.scan.as_mut()?;
         scan.reads += 1;
         scan.single = None;
-        let raw = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
-        let text = zeroize::Zeroizing::new(raw.trim().to_string());
+        let raw = Text::from_utf8_lossy(&bytes);
+        let text = Text::of(raw.trim());
         // A wrong arrival is named, not refused generically (`docs/QR.md`
         // §1): a seed in any form, a private key or a paperkey never goes
         // in a box.
@@ -2318,7 +2319,7 @@ impl Faraday {
         }
         // BBQr and numbered parts are put together here; anything else is
         // read as before.
-        let mut item: Option<(Option<faraday_text::Text>, &str, Vec<u8>)> = None;
+        let mut item: Option<(Option<Text>, &str, Vec<u8>)> = None;
         match scan.assembler.feed(&raw) {
             faraday_qr::Step::Part {
                 what,
@@ -2390,15 +2391,15 @@ impl Faraday {
 
 /// Costs a wallet description's read. "2 of 3 · Native SegWit": a wallet
 /// description's shape, as its card says it.
-fn read_wallet_fact(c: &Compute, text: &str) -> Option<String> {
+fn read_wallet_fact(c: &Compute, text: &str) -> Option<Text> {
     let policy = crate::wallet::read_wallet(c, text).ok()?;
     let w = crate::wallet::Wallet::new(
-        String::new(),
+        Default::default(),
         policy,
-        String::new(),
+        Default::default(),
         crate::wallet::Origin::Named,
     );
-    Some(crate::wallet::Session::shape(&w))
+    Some(Text::of(&crate::wallet::Session::shape(&w)))
 }
 
 /// What a whole UR message read by a scanner is as a file; `None`, with
@@ -2408,7 +2409,7 @@ fn read_wallet_fact(c: &Compute, text: &str) -> Option<String> {
 fn ur_item(
     scan: &mut ScanState,
     message: faraday_codec::ur::Message,
-) -> Option<(Option<faraday_text::Text>, &'static str, Vec<u8>)> {
+) -> Option<(Option<Text>, &'static str, Vec<u8>)> {
     Some(match message {
         faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
         faraday_codec::ur::Message::Bytes(b) => {
@@ -2416,7 +2417,7 @@ fn ur_item(
                 scan.note = Some(scan_read::Kind::Unreadable.not_here());
                 return None;
             }
-            faraday_intake::arrival(faraday_qr::classify_text(&String::from_utf8_lossy(&b)))
+            faraday_intake::arrival(faraday_qr::classify_text(&Text::from_utf8_lossy(&b)))
         }
         faraday_codec::ur::Message::Other { ur_type, cbor } => {
             match faraday_qr::registry::read(&ur_type, &cbor) {
@@ -2426,7 +2427,7 @@ fn ur_item(
                     (None, "txt", t.into_bytes())
                 }
                 Ok(None) => {
-                    scan.note = Some(Text::of(&fill(EN.read_code_ur_unknown, &[&ur_type])));
+                    scan.note = Some(Text::fill(EN.read_code_ur_unknown, &[&ur_type]));
                     return None;
                 }
                 Err(why) => {
