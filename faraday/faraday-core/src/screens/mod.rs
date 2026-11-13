@@ -36,7 +36,9 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Screen, Sheet};
-pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title, item_title_now};
+#[cfg(test)]
+pub(crate) use backup::item_title;
+pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title_now};
 pub(crate) use create::CSTEPS;
 pub(crate) use decode::{decode_back, decode_back_to};
 pub(crate) use entry::{

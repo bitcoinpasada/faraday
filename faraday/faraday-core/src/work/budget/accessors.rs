@@ -367,7 +367,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
             "item_title",
             Box::new(|v| {
                 for n in v.backup_items() {
-                    let _ = v.item_title(n);
+                    let _ = crate::screens::item_title(v, n);
                 }
             }),
         ),

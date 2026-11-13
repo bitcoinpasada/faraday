@@ -41,6 +41,9 @@ fn listed(app: &mut Faraday, change: bool, from: u32) -> Vec<(u32, String)> {
     app.press(Action::X(XAction::Chain(change)));
     faraday_core::testkit::explore_list_from(app, from);
     app.explore_list(&c)
+        .into_iter()
+        .map(|(i, a)| (i, String::from(&*a)))
+        .collect()
 }
 
 /// The address at `change`/`index` as Explore's own reading of the whole

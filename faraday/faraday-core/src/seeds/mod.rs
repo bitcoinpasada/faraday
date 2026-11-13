@@ -614,7 +614,6 @@ impl Faraday {
         let net = self.session.network();
         self.kept
             .seeds_address(c, &d, net)
-            .map(|a| Text::of(&a))
             .map_err(|e| Text::of(&e))
     }
 

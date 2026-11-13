@@ -23,6 +23,7 @@ use super::implied_script;
 use crate::strings::EN;
 use crate::wallet::Session;
 use crate::{Faraday, Screen};
+use faraday_text::Text;
 
 /// Addresses on one page of the list.
 pub const PAGE: u32 = 10;
@@ -106,9 +107,9 @@ pub struct Kept {
     policy: Option<WalletPolicy>,
     /// Each chain's addresses from index 0, as far as derived:
     /// `run[1][i]` is change address `i`. At most [`RUN_KEPT`] each.
-    run: [Vec<String>; 2],
+    run: [Vec<Text>; 2],
     /// One page past the run: its chain, its first index, its addresses.
-    window: Option<(bool, u32, Vec<String>)>,
+    window: Option<(bool, u32, Vec<Text>)>,
 }
 
 impl Kept {
@@ -145,7 +146,7 @@ impl Kept {
         net: Network,
         change: bool,
         index: u32,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         let policy = self.policy.as_ref()?;
         let run = &mut self.run[usize::from(change)];
         let i = index as usize;
@@ -162,7 +163,7 @@ impl Kept {
     /// Costs an address derivation for each address not kept. The page
     /// of [`PAGE`] addresses from `from` on `change`'s chain: in the run
     /// where it reaches, else as the one page kept past it.
-    fn page(&mut self, c: &Compute, net: Network, change: bool, from: u32) -> Vec<(u32, String)> {
+    fn page(&mut self, c: &Compute, net: Network, change: bool, from: u32) -> Vec<(u32, Text)> {
         let secp = Secp256k1::verification_only();
         let end = from.saturating_add(PAGE).min(INDEX_END);
         let reach = self.run[usize::from(change)].len();
@@ -180,7 +181,7 @@ impl Kept {
         let Some(policy) = self.policy.as_ref() else {
             return Vec::new();
         };
-        let list: Vec<String> = (from..end)
+        let list: Vec<Text> = (from..end)
             .map(|i| derive(c, &secp, policy, net, change, i))
             .collect();
         self.window = Some((change, from, list.clone()));
@@ -204,12 +205,12 @@ fn derive(
     net: Network,
     change: bool,
     index: u32,
-) -> String {
+) -> Text {
     policy
         .script_at_with(c, secp, change, index)
         .ok()
         .and_then(|s| Address::from_script(&s, BtcNetwork::from(net)).ok())
-        .map_or_else(String::new, |a| a.to_string())
+        .map_or_else(Text::default, |a| Text::of(&a.to_string()))
 }
 
 /// One address a search found, and where in it the match lies.
@@ -386,7 +387,7 @@ impl ExploreArea {
     /// address not yet kept. The list's page as it stands: each index
     /// with its address, worked out by whoever asks first, a frame
     /// included, and kept on Explore's state ([`Kept`]), a lookup after.
-    pub(crate) fn list(&self, c: &Compute, session: &Session) -> Vec<(u32, String)> {
+    pub(crate) fn list(&self, c: &Compute, session: &Session) -> Vec<(u32, Text)> {
         let (Some(e), Some(of)) = (self.state.as_ref(), self.account(session)) else {
             return Vec::new();
         };
@@ -522,7 +523,7 @@ impl ExploreArea {
                     s.found.push(Found {
                         change,
                         index: i,
-                        address: a,
+                        address: String::from(&*a),
                         mark,
                     });
                 }
@@ -645,7 +646,7 @@ impl Faraday {
     /// Costs a key derivation and an address derivation for each address
     /// not yet kept. The list's page as it stands, kept on Explore's
     /// state.
-    pub fn explore_list(&self, c: &Compute) -> Vec<(u32, String)> {
+    pub fn explore_list(&self, c: &Compute) -> Vec<(u32, Text)> {
         self.explore.list(c, &self.session)
     }
 

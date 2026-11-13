@@ -6,7 +6,7 @@
 //! state; only drawing asks them here. Each is handed the view's token
 //! (`View::kept`).
 
-use faraday_text::Text;
+use faraday_text::{Text, text};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -73,7 +73,7 @@ struct Charts {
     backups: Option<Rc<Vec<Entry>>>,
     /// The date they were worked out on (ages are told against it): a
     /// frame on another day starts them again.
-    today: String,
+    today: Text,
 }
 
 /// A silent payments record checked, by the record and the ids of the
@@ -88,14 +88,14 @@ type KeptSilentCheck = (
 
 /// A description's first receive address on a network, or why there is
 /// none ([`Kept::seeds_address`]).
-type KeptAddress = (String, Network, Result<String, String>);
+type KeptAddress = (Text, Network, Result<Text, Text>);
 
 /// A signed message checked, by what its check is worked out from
 /// ([`Kept::message_check`]).
 struct KeptMessage {
-    text: String,
+    text: Text,
     network: Network,
-    wallets: Vec<String>,
+    wallets: Vec<Text>,
     check: Option<Rc<MessageCheck>>,
 }
 
@@ -108,16 +108,16 @@ struct KeptMessage {
 pub(crate) struct Kept {
     /// QR codes of public text a screen shows (a guide's address), each
     /// made once, by its text.
-    public_qrs: RefCell<Vec<(String, Option<Rc<QrMatrix>>)>>,
+    public_qrs: RefCell<Vec<(Text, Option<Rc<QrMatrix>>)>>,
     /// Wallet descriptions read that no file or record keeps read, each
     /// by its text.
-    texts_read: RefCell<Vec<(String, Option<WalletPolicy>)>>,
+    texts_read: RefCell<Vec<(Text, Option<WalletPolicy>)>>,
     /// The `Name:` line of each multisig config put together from split
     /// sheets, by its text.
-    config_names: RefCell<Vec<(String, Option<String>)>>,
+    config_names: RefCell<Vec<(Text, Option<Text>)>>,
     /// Descriptions the Seeds tool puts together, each parsed as Create
     /// builds it, by its text.
-    texts_parsed: RefCell<Vec<(String, Result<WalletPolicy, String>)>>,
+    texts_parsed: RefCell<Vec<(Text, Result<WalletPolicy, Text>)>>,
     /// The signed message last checked, by its text, the network and the
     /// loaded wallets' checksums.
     message_checked: RefCell<Option<KeptMessage>>,
@@ -147,7 +147,7 @@ impl Kept {
         let mut k = self.charts.borrow_mut();
         if whole || k.today != today {
             *k = Charts::default();
-            k.today = today.to_string();
+            k.today.set(today);
         }
         k.open = true;
     }
@@ -156,8 +156,8 @@ impl Kept {
     /// ([`Kept::charts_frame`]), so a day that changes within a frame
     /// leaves it as it was.
     #[cfg(debug_assertions)]
-    fn frame_today(&self) -> String {
-        self.charts.borrow().today.clone()
+    fn frame_today(&self) -> Text {
+        self.charts.borrow().today.duplicate()
     }
 
     /// The frame is drawn: lookups stop until the next one.
@@ -265,7 +265,12 @@ impl Kept {
     /// asked, by whoever asks, a frame included, and kept by its text, a
     /// lookup after (`docs/SPEED.md` §2 rule 1: what is kept is public).
     pub(crate) fn public_qr(&self, c: &Compute, text: &str) -> Option<Rc<QrMatrix>> {
-        if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
+        if let Some((_, m)) = self
+            .public_qrs
+            .borrow()
+            .iter()
+            .find(|(t, _)| t.as_str() == text)
+        {
             return m.clone();
         }
         let m = faraday_codec::qr::encode(
@@ -279,7 +284,7 @@ impl Kept {
         if kept.len() >= PUBLIC_QRS_KEPT {
             kept.clear();
         }
-        kept.push((text.to_string(), m.clone()));
+        kept.push((Text::of(text), m.clone()));
         m
     }
 
@@ -289,7 +294,12 @@ impl Kept {
     /// after. For a description no Inbox file or vault record keeps read:
     /// split sheets put together.
     pub(crate) fn read_kept(&self, c: &Compute, text: &str) -> Option<WalletPolicy> {
-        if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
+        if let Some((_, p)) = self
+            .texts_read
+            .borrow()
+            .iter()
+            .find(|(t, _)| t.as_str() == text)
+        {
             return p.clone();
         }
         let p = crate::wallet::read_wallet(c, text).ok();
@@ -297,7 +307,7 @@ impl Kept {
         if kept.len() >= TEXTS_READ_KEPT {
             kept.remove(0);
         }
-        kept.push((text.to_string(), p.clone()));
+        kept.push((Text::of(text), p.clone()));
         p
     }
 
@@ -305,35 +315,45 @@ impl Kept {
     /// config `text` carries on its `Name:` line
     /// (`faraday_bip::multisig_config::parse_named`), kept by its text, a
     /// lookup after.
-    pub(crate) fn config_name_kept(&self, c: &Compute, text: &str) -> Option<String> {
-        if let Some((_, n)) = self.config_names.borrow().iter().find(|(t, _)| t == text) {
+    pub(crate) fn config_name_kept(&self, c: &Compute, text: &str) -> Option<Text> {
+        if let Some((_, n)) = self
+            .config_names
+            .borrow()
+            .iter()
+            .find(|(t, _)| t.as_str() == text)
+        {
             return n.clone();
         }
         let n = faraday_bip::multisig_config::parse_named(c, text)
             .ok()
-            .and_then(|(_, n)| n.map(|n| String::from(&*n)));
+            .and_then(|(_, n)| n);
         let mut kept = self.config_names.borrow_mut();
         if kept.len() >= CONFIG_NAMES_KEPT {
             kept.remove(0);
         }
-        kept.push((text.to_string(), n.clone()));
+        kept.push((Text::of(text), n.clone()));
         n
     }
 
     /// Costs a parse of the description the first time: description
     /// `text` parsed as Create builds a wallet (`WalletPolicy::parse_any`),
     /// with the parser's refusal, kept by its text, a lookup after.
-    pub(crate) fn parsed_kept(&self, c: &Compute, text: &str) -> Result<WalletPolicy, String> {
-        if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
+    pub(crate) fn parsed_kept(&self, c: &Compute, text: &str) -> Result<WalletPolicy, Text> {
+        if let Some((_, p)) = self
+            .texts_parsed
+            .borrow()
+            .iter()
+            .find(|(t, _)| t.as_str() == text)
+        {
             return p.clone();
         }
-        let p = WalletPolicy::parse_any(c, text)
-            .map_err(|e| String::from(&*faraday_strings::bip::policy_error(&e)));
+        let p =
+            WalletPolicy::parse_any(c, text).map_err(|e| faraday_strings::bip::policy_error(&e));
         let mut kept = self.texts_parsed.borrow_mut();
         if kept.len() >= TEXTS_PARSED_KEPT {
             let _ = kept.remove(0);
         }
-        kept.push((text.to_string(), p.clone()));
+        kept.push((Text::of(text), p.clone()));
         p
     }
 
@@ -350,10 +370,10 @@ impl Kept {
         session: &Session,
     ) -> Option<Rc<MessageCheck>> {
         let network = session.network();
-        let sums: Vec<String> = session
+        let sums: Vec<Text> = session
             .wallets
             .iter()
-            .map(|w| w.checksum().to_string())
+            .map(|w| Text::of(w.checksum()))
             .collect();
         if let Some(k) = self.message_checked.borrow().as_ref()
             && k.text == text
@@ -364,7 +384,7 @@ impl Kept {
         }
         let check = session.check_message(c, text).map(Rc::new);
         *self.message_checked.borrow_mut() = Some(KeptMessage {
-            text: text.to_string(),
+            text: Text::of(text),
             network,
             wallets: sums,
             check: check.clone(),
@@ -428,32 +448,27 @@ impl Kept {
     /// `net`: worked out the first time it is asked for this description,
     /// by whoever asks, a frame included, and kept by the description and
     /// network it comes from, a lookup after (public).
-    pub(crate) fn seeds_address(
-        &self,
-        c: &Compute,
-        d: &str,
-        net: Network,
-    ) -> Result<String, String> {
+    pub(crate) fn seeds_address(&self, c: &Compute, d: &str, net: Network) -> Result<Text, Text> {
         if let Some((.., a)) = self
             .seeds_addresses
             .borrow()
             .iter()
-            .find(|(x, n, _)| x == d && *n == net)
+            .find(|(x, n, _)| x.as_str() == d && *n == net)
         {
             return a.clone();
         }
         let a = crate::wallet::read_wallet(c, d)
-            .map_err(|e| String::from(&*e.text()))
+            .map_err(|e| e.text())
             .and_then(|p| {
                 p.address_at(c, net, false, 0)
-                    .map(|a| a.to_string())
-                    .map_err(|e| String::from(&*faraday_strings::bip::policy_error(&e)))
+                    .map(|a| text!("{a}"))
+                    .map_err(|e| faraday_strings::bip::policy_error(&e))
             });
         let mut kept = self.seeds_addresses.borrow_mut();
         if kept.len() >= SEEDS_ADDRESSES_KEPT {
             kept.clear();
         }
-        kept.push((d.to_string(), net, a.clone()));
+        kept.push((Text::of(d), net, a.clone()));
         a
     }
 
@@ -584,10 +599,7 @@ impl View<'_> {
     /// while typing goes on, before it is worked out
     /// ([`crate::Faraday::typing_now`]). Costs a PBKDF2 and an
     /// elliptic-curve multiplication the first time after typing pauses.
-    pub(crate) fn entry_probed(
-        &self,
-        m: &Mnemonic,
-    ) -> Option<Result<Fingerprint, faraday_text::Text>> {
+    pub(crate) fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, Text>> {
         if self.typing_now() {
             return self.entry.state().probe_kept();
         }
@@ -605,7 +617,7 @@ impl View<'_> {
     /// ([`crate::Faraday::explore_list`]), kept by the account it is of.
     /// Costs a key derivation and an address derivation per address the
     /// first time.
-    pub fn explore_list(&self) -> Vec<(u32, String)> {
+    pub fn explore_list(&self) -> Vec<(u32, Text)> {
         self.kept(|c| self.app.explore_list(c))
     }
 
@@ -757,8 +769,8 @@ impl View<'_> {
     /// ([`crate::Faraday::vault_changed`]), from each vault file's hash
     /// taken when it came in. Costs a hash of a file whose hash was not
     /// taken.
-    pub fn vault_changed(&self) -> Option<String> {
-        self.kept(|c| self.app.vault_changed(c).map(|t| String::from(t.as_str())))
+    pub fn vault_changed(&self) -> Option<Text> {
+        self.kept(|c| self.app.vault_changed(c))
     }
 
     /// Where vault file `f` stands against the last write
@@ -804,12 +816,8 @@ impl View<'_> {
     /// ([`crate::Faraday::vault_key_wallet`]), from the record's kept
     /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
     /// the first time.
-    pub(crate) fn vault_key_wallet(&self, v: usize, r: usize) -> Option<String> {
-        self.kept(|c| {
-            self.app
-                .vault_key_wallet(c, v, r)
-                .map(|t| String::from(t.as_str()))
-        })
+    pub(crate) fn vault_key_wallet(&self, v: usize, r: usize) -> Option<Text> {
+        self.kept(|c| self.app.vault_key_wallet(c, v, r))
     }
 
     /// The keys open vaults hold that are not loaded
@@ -853,7 +861,7 @@ impl View<'_> {
     /// The account key in slot `slot` of wallet `i`
     /// ([`crate::Faraday::wallet_key`]), from the key's kept account
     /// text. Costs a key derivation the first time.
-    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey, faraday_text::Text> {
+    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey, Text> {
         self.kept(|c| self.app.wallet_key(c, i, slot))
     }
 
@@ -912,13 +920,6 @@ impl View<'_> {
     /// record the first time.
     pub fn backup_vault_taken(&self, v: usize, o: usize) -> bool {
         self.kept(|c| self.app.backup_vault_taken(c, v, o))
-    }
-
-    /// Checklist item `n`'s title and closed line
-    /// ([`crate::screens::item_title`]), from the memo. Costs what the
-    /// memo's answers cost the first time in a frame.
-    pub(crate) fn item_title(&self, n: u8) -> (String, String) {
-        crate::screens::item_title(self, n)
     }
 
     /// The keys the key scanner for wallet `w` takes
@@ -1031,10 +1032,8 @@ impl View<'_> {
     /// A vault key record's fingerprint
     /// (`vault::screen::key_fingerprint`), kept by the key's id. Costs a
     /// PBKDF2 and two elliptic-curve multiplications the first time.
-    pub fn vault_key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
-        self.kept(|c| {
-            crate::vault::screen::key_fingerprint(c, self.app, r).map(|t| String::from(&*t))
-        })
+    pub fn vault_key_fingerprint(&self, r: RecordView<'_>) -> Option<Text> {
+        self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
     }
 }
 
@@ -1084,7 +1083,7 @@ impl crate::glance::Reads for View<'_> {
         self.kept(|c| self.app.plan_notes(c, wallet, v))
     }
     fn key_fingerprint(&self, r: RecordView<'_>) -> Option<Text> {
-        View::vault_key_fingerprint(self, r).map(|f| Text::of(&f))
+        View::vault_key_fingerprint(self, r)
     }
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
         self.kept(|c| self.app.vaults.described(c, id, r))
@@ -1103,7 +1102,6 @@ impl crate::glance::Reads for View<'_> {
     }
     fn backup_vault_fits(&self, v: usize) -> Option<Text> {
         self.kept(|c| self.app.backup_vault_fits(c, v))
-            .map(|s| Text::of(&s))
     }
     fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         View::wallet_stick_rows(self)
@@ -1115,7 +1113,7 @@ impl crate::glance::Reads for View<'_> {
         View::backup_seed_list(self, w)
     }
     fn address_shown(&self, wl: &Wallet, change: bool, index: u32) -> Text {
-        Text::of(&View::address_shown(self, wl, change, index))
+        View::address_shown(self, wl, change, index)
     }
     fn psbt_for(&self, w: usize) -> Option<usize> {
         View::psbt_for(self, w)

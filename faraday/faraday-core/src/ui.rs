@@ -182,7 +182,7 @@ impl CoreUi for Ui<'_> {
             Role::Primary.paint()
         };
         self.dot(vx, mid, r, bg);
-        let v = value.to_string();
+        let v = faraday_text::Text::num(u64::from(value));
         let vw = self.measure_as(LABEL_M, &v);
         self.text_mid_as(
             (vx - vw / 2.0, mid - 10.0, 20.0),
@@ -190,7 +190,10 @@ impl CoreUi for Ui<'_> {
             Role::OnPrimary,
             &v,
         );
-        let (l, h) = (lo.to_string(), hi.to_string());
+        let (l, h) = (
+            faraday_text::Text::num(u64::from(lo)),
+            faraday_text::Text::num(u64::from(hi)),
+        );
         self.text_as(
             x + pad - self.measure_as(LABEL_S, &l) / 2.0,
             y + 38.0,

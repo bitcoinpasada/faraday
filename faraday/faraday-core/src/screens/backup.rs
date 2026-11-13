@@ -298,7 +298,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         None
     };
-    let waiting_title = waiting.map(|n| app.item_title(n).0);
+    let waiting_title = waiting.map(|n| item_title(app, n).0);
     let ctx = crate::plan::cards::PlanCtx::backup(app);
     // Each item's done mark, and whether it is reachable (every item
     // before it done), in one pass (`Faraday::backup_reachable`, for a
@@ -325,15 +325,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .enumerate()
         .map(|(i, &k)| {
             if checklist {
-                let (title, summary) = app.item_title(k);
+                let (title, summary) = item_title(app, k);
                 let summary = match (&waiting_title, waiting) {
                     (Some(t), Some(n)) if n != k && !reachable[i] && !marks[i] => {
-                        fill(EN.backup_after, &[&t.to_string()])
+                        fill(EN.backup_after, &[t.as_str()])
                     }
-                    _ => summary,
+                    _ => String::from(summary.as_str()),
                 };
                 flow::Card {
-                    title,
+                    title: String::from(title.as_str()),
                     summary,
                     mono: false,
                     done: marks[i],

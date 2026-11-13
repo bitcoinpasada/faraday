@@ -485,6 +485,8 @@ faraday/faraday-core/src/work/budget/presses.rs
 faraday/faraday-core/src/work/budget/shown.rs
 faraday/faraday-core/src/work.rs
 faraday/faraday-core/src/drawing/allowed.rs
+faraday/faraday-core/src/drawing/kept.rs
+faraday/faraday-core/src/ui.rs
 faraday/faraday-core/src/explore/shown.rs
 faraday/faraday-core/src/paper.rs
 faraday/faraday-keys/src/message.rs
@@ -650,7 +652,8 @@ done
 #   codes/mod.rs       holds the entry's account and title as wiping text and the shown one-time code
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs"
+#   drawing/kept.rs    holds the worked-out text a screen shows (a seed's address, a key's text) as wiping text
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

@@ -193,7 +193,7 @@ pub(super) fn save_panel(
     dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let mut any = false;
     if keys {
-        let held: Vec<String> = app
+        let held: Vec<faraday_text::Text> = app
             .vaults
             .records(v.id)
             .of(kind::KEY)

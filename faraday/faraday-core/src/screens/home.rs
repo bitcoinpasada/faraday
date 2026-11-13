@@ -210,10 +210,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             None,
             (
                 Glyph::Icon(Icon::Export),
-                fill(
-                    EN.home_job_write_target,
-                    &[&name.to_string(), app.medium.a()],
-                ),
+                fill(EN.home_job_write_target, &[name.as_str(), app.medium.a()]),
                 String::from(crate::vault::Currency::Changed.line().as_str()),
                 Action::Nav(Screen::Files),
                 true,
