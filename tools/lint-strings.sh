@@ -155,7 +155,7 @@ function allowed(s, b) {
     if (s ~ /[\/\\]/ || b ~ /^[.-]/ || s ~ /^[A-Za-z0-9_{}-]+\.([a-z0-9]{2,6}|[A-Z0-9]{2,6}|\{[a-z]*\})$/) return 1
     if (s ~ /\\[nt]/ || s ~ /^[a-z0-9-]+ [0-9]+$/) return 1
     if (b ~ /^ *([0-9.]+ )?(s|h|B|sat|sats|BTC|mBTC|bits|[KMGT]i?B)$/) return 1
-    if (s ~ /^m$/ || s ~ /^(wpkh|wsh|sh|tr|pkh|musig)\(/ || s ~ /^ms1/ || s ~ /^0x/) return 1
+    if (s ~ /^m$/ || s ~ /^(wpkh|wsh|sh|tr|pkh|musig|multi|sortedmulti|multi_a|sortedmulti_a)\(/ || s ~ /^ms1/ || s ~ /^0x/) return 1
     if (b ~ /^( +[A-Za-z0-9][A-Za-z0-9]?)( +[A-Za-z0-9][A-Za-z0-9]?)+ *$/ || s ~ /^[0-9A-F ]+$/ || s ~ /^[A-Z][A-Za-z]+\(.*\)$/) return 1
     return 0
 }

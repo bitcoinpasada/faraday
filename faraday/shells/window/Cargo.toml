@@ -13,14 +13,15 @@ publish = false
 # `wake_on_work`. The Argon QR Vault's window turns it off (F245).
 default = ["faraday"]
 faraday = ["dep:faraday-core", "dep:faraday-camera", "dep:faraday-scanner",
-    "dep:faraday-text", "dep:faraday-v4l2", "dep:faraday-avfoundation", "dep:faraday-mediafoundation"]
+    "dep:faraday-v4l2", "dep:faraday-avfoundation", "dep:faraday-mediafoundation"]
 
 [dependencies]
 faraday-core = { path = "../../faraday-core", optional = true }
 faraday-camera = { path = "../camera", optional = true }
 faraday-scanner = { path = "../../faraday-scanner", optional = true }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
-faraday-text = { path = "../../../core/faraday-text", optional = true }
+# The clipboard's pasted text, handed on as wiping text (clipboard.rs).
+faraday-text = { path = "../../../core/faraday-text" }
 winit.workspace = true
 softbuffer.workspace = true
 getrandom.workspace = true
