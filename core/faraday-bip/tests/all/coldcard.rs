@@ -32,7 +32,7 @@ fn an_export_is_rooted_at_the_masters_xfp_and_has_its_stated_first_address() {
     let (policy, field) = coldcard::read(&c, MK4).unwrap();
     assert_eq!(field, "bip84");
     let d = policy.to_descriptor();
-    assert!(d.starts_with("wpkh([086ee178/84h/0h/0h]xpub"), "{d}");
+    assert!(d.starts_with("wpkh([086ee178/84h/0h/0h]xpub"), "{}", &*d);
     assert_eq!(
         policy
             .address_at(&c, Network::Mainnet, false, 0)

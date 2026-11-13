@@ -2468,7 +2468,7 @@ mod musig_partials {
         let policy = faraday_core::testkit::musig_policy().unwrap();
         (
             "wallet.txt".to_string(),
-            policy.to_descriptor_checksummed().into_bytes(),
+            policy.to_descriptor_checksummed().as_bytes().to_vec(),
         )
     }
 

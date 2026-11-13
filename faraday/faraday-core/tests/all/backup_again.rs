@@ -455,7 +455,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
             .expect("the key's file");
         let text = String::from_utf8(file.bytes.to_vec()).unwrap();
         let key = app.session.wallets[w].policy().keys()[usize::from(slot)].key_text();
-        assert!(text.contains(&key), "{text}");
+        assert!(text.contains(&*key), "{text}");
         let record = app
             .outbox
             .iter()

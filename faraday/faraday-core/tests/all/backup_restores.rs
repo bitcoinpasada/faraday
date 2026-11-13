@@ -193,7 +193,9 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
     let add = "Add partial descriptions to this backup";
     let musig = testkit::musig_policy()
         .expect("the MuSig2 kit")
-        .to_descriptor_checksummed();
+        .to_descriptor_checksummed()
+        .as_str()
+        .to_owned();
     let cases = [
         (
             kit("savings").replace("sortedmulti(", "multi("),

@@ -159,7 +159,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
     let dir = std::path::PathBuf::from(dir);
-    let mut files = vec![(POLICY_NAME, format!("{}\n", policy().to_text()))];
+    let mut files = vec![(POLICY_NAME, format!("{}\n", &*policy().to_text()))];
     // The signed fixture needs Core's funded PSBT, which
     // `tools/scripts/tapmulti-regtest.sh setup` writes; without it the
     // policy is still rewritten.

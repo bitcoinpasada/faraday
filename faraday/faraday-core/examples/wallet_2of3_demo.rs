@@ -89,7 +89,7 @@ fn main() {
         println!("{word} {} {}", m.fingerprint(), a.xpub());
     }
     let policy = multisig(&masters, 2);
-    println!("{}", policy.to_descriptor_checksummed());
+    println!("{}", &*policy.to_descriptor_checksummed());
     for change in [false, true] {
         for i in 0..3 {
             let address = policy.address_at(&c, NET, change, i).expect("address");

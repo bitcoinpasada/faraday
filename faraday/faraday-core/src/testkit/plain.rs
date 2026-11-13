@@ -65,7 +65,7 @@ pub fn savings() -> String {
         key(2, p)
     );
     WalletPolicy::parse_any(&c, &d)
-        .map(|w| w.to_descriptor_checksummed())
+        .map(|w| String::from(&*w.to_descriptor_checksummed()))
         .unwrap_or(d)
 }
 

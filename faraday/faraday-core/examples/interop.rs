@@ -124,7 +124,7 @@ fn run(args: &[String]) -> Result<(), String> {
             println!("{:?}", faraday_core::wallet::classify(&c, &name, &bytes));
             match faraday_core::wallet::read_wallet(&c, &String::from_utf8_lossy(&bytes)) {
                 Ok(w) => {
-                    println!("{}", w.to_descriptor_checksummed());
+                    println!("{}", &*w.to_descriptor_checksummed());
                     if let Ok(a) = w.address_at(&c, Network::Regtest, false, 0) {
                         println!("{a}");
                     }

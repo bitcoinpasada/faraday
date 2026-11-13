@@ -107,7 +107,7 @@ fn definite(policy: &WalletPolicy, change: bool, index: u32) -> Descriptor<Defin
                 .0;
             (
                 derived,
-                format!("{}/{}/{index}", key.key_text(), u32::from(change)),
+                format!("{}/{}/{index}", &*key.key_text(), u32::from(change)),
             )
         })
         .collect();
@@ -177,7 +177,7 @@ fn a_taproot_multisig_wallet_states_what_it_is() {
             .to_descriptor()
             .starts_with(&format!("tr({NUMS},sortedmulti_a(2,")),
         "the wallet is written back as the sorted form it was read as: {}",
-        policy.to_descriptor()
+        &*policy.to_descriptor()
     );
     assert_eq!(
         WalletPolicy::parse_any(&c, &policy.to_descriptor_checksummed())
@@ -189,9 +189,9 @@ fn a_taproot_multisig_wallet_states_what_it_is() {
         &c,
         &format!(
             "tr({NUMS},sortedmulti_a(2,@0/**,@1/**,@2/**))\n{}\n{}\n{}",
-            policy.keys()[0].key_text(),
-            policy.keys()[1].key_text(),
-            policy.keys()[2].key_text()
+            &*policy.keys()[0].key_text(),
+            &*policy.keys()[1].key_text(),
+            &*policy.keys()[2].key_text()
         ),
     )
     .expect("the same wallet in the two-part form");
@@ -307,7 +307,7 @@ fn the_committed_policy_is_the_wallet_core_imported() {
     // hardened steps as `h`; its checksum holds over that text.
     let as_core_had_it = committed.to_descriptor();
     assert_eq!(
-        WalletPolicy::parse_any(&c, &format!("{as_core_had_it}#{CHECKSUM}"))
+        WalletPolicy::parse_any(&c, &format!("{}#{CHECKSUM}", &*as_core_had_it))
             .expect("the checksum Bitcoin Core computed for the same descriptor"),
         committed
     );

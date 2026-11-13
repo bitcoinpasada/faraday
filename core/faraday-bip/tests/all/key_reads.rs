@@ -115,7 +115,7 @@ fn twin_record(network: Network) -> String {
     let address = policy.address_at(&c, network, false, 0).unwrap();
     format!(
         "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
-        policy.to_descriptor_template()
+        &*policy.to_descriptor_template()
     )
 }
 

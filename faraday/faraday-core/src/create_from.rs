@@ -221,7 +221,7 @@ impl Faraday {
             .policy()
             .keys()
             .iter()
-            .map(|k| (k.fingerprint().map(|f| f.0), k.key_text()))
+            .map(|k| (k.fingerprint().map(|f| f.0), String::from(&*k.key_text())))
             .collect();
         let wallet_slots = self.session.slots(w);
         let n = keys.len().max(1);

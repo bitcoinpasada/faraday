@@ -327,7 +327,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
         1 => {
             files.push((
                 format!("{stem}-descriptor.txt"),
-                format!("{}\n", w.policy().to_descriptor_checksummed()).into_bytes(),
+                format!("{}\n", &*w.policy().to_descriptor_checksummed()).into_bytes(),
             ));
         }
         5 => files.push((

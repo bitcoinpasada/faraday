@@ -17,17 +17,17 @@ fn the_committed_wallet_fixtures_are_the_ones_the_example_builds() {
     for (name, body) in [
         (
             wallet::POLICY_NAME,
-            format!("{}\n", wallet::policy().to_text()),
+            format!("{}\n", &*wallet::policy().to_text()),
         ),
         (wallet::PSBT_NAME, wallet::psbt().to_base64()),
         (
             wallet::LIANA_POLICY_NAME,
-            format!("{}\n", wallet::liana_policy().to_text()),
+            format!("{}\n", &*wallet::liana_policy().to_text()),
         ),
         (wallet::LIANA_PSBT_NAME, wallet::liana_psbt().to_base64()),
         (
             wallet::TREE_POLICY_NAME,
-            format!("{}\n", wallet::tree_policy().to_text()),
+            format!("{}\n", &*wallet::tree_policy().to_text()),
         ),
         (
             wallet::LIANA_RECOVERY_PSBT_NAME,

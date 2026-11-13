@@ -36,7 +36,9 @@ fn testkit_wallets() -> Vec<(&'static str, String, Vec<u8>)> {
         "sample_musig",
         testkit::musig_policy()
             .expect("musig")
-            .to_descriptor_checksummed(),
+            .to_descriptor_checksummed()
+            .as_str()
+            .into(),
         testkit::musig_unsigned().expect("a spend").to_bytes(),
     ));
     all.push(("sample_three_of_five", testkit::three_of_five(), Vec::new()));

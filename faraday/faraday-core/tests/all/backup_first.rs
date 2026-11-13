@@ -148,7 +148,11 @@ fn kit_of(app: &Faraday, w: usize) -> Kit {
     Kit {
         id: "made",
         name: "Made here",
-        descriptor: app.session.wallets[w].policy().to_descriptor_checksummed(),
+        descriptor: app.session.wallets[w]
+            .policy()
+            .to_descriptor_checksummed()
+            .as_str()
+            .into(),
         cosigner: None,
         fee: 1_000,
     }

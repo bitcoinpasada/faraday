@@ -34,7 +34,11 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                     })
                     .collect()
             };
-            let keys: Vec<String> = policy.keys().iter().map(|k| k.key_text()).collect();
+            let keys: Vec<String> = policy
+                .keys()
+                .iter()
+                .map(|k| String::from(&*k.key_text()))
+                .collect();
             Ok(json!({"keys": keys, "receive": chain(false)?, "change": chain(true)?}))
         }
         // A signer's key record, read and its signature checked. A record

@@ -264,7 +264,7 @@ pub fn signer_record<C: Signing + Verification>(
     let key = PolicyKey::parse(&origin).map_err(|_| Error::Key)?;
     let mut record = SignerRecord {
         token: Text::of(token),
-        key_line: Text::of(&key.key_text()),
+        key_line: key.key_text(),
         key,
         description: Text::of(description),
         signature: Text::new(),
@@ -372,7 +372,8 @@ impl DescriptorRecord {
             self.policy.to_descriptor_template()
         };
         text!(
-            "{VERSION}\n{descriptor}\n{}\n{}",
+            "{VERSION}\n{}\n{}\n{}",
+            &*descriptor,
             paths.as_str(),
             self.first_address.as_str()
         )

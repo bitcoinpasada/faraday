@@ -13,8 +13,9 @@
 //! — "on the keys that are to be put into the output script, i.e. after
 //! all extended keys are derived".
 
-use alloc::string::String;
 use alloc::vec::Vec;
+
+use faraday_text::Text;
 
 use bitcoin::opcodes::all::{OP_CHECKSIG, OP_CHECKSIGADD, OP_NUMEQUAL};
 use bitcoin::script::Builder;
@@ -80,14 +81,21 @@ pub fn output_script<C: Verification>(
 /// Nothing else is rewritten: a `sortedmulti_a` deeper in a tree would
 /// need the whole tree rebuilt at every index, and no wallet in the
 /// field writes one.
-pub(crate) fn unsorted_text(text: &str) -> Option<String> {
+pub(crate) fn unsorted_text(text: &str) -> Option<Text> {
     let inner = text.trim().strip_prefix("tr(")?.strip_suffix(')')?;
     let (_, tree) = inner.split_once(',')?;
     let tree = tree.trim();
     if !tree.starts_with("sortedmulti_a(") || !tree.ends_with(')') {
         return None;
     }
-    Some(text.trim().replacen("sortedmulti_a(", "multi_a(", 1)) // not wording: a descriptor's function name
+    // not wording: a descriptor's function name
+    let text = text.trim();
+    let at = text.find("sortedmulti_a(")?;
+    let mut out = Text::with_room(text.len());
+    out.push_str(&text[..at]);
+    out.push_str("multi_a(");
+    out.push_str(&text[at + "sortedmulti_a(".len()..]);
+    Some(out)
 }
 
 /// The internal key and the x-only keys of a derived one-leaf

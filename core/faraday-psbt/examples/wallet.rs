@@ -374,17 +374,20 @@ fn main() -> ExitCode {
     let dir = std::path::PathBuf::from(dir);
     let policy = policy();
     let mut files = vec![
-        (POLICY_NAME, format!("{}\n", policy.to_text())),
+        (POLICY_NAME, format!("{}\n", &*policy.to_text())),
         (PSBT_NAME, psbt().to_base64()),
-        (LIANA_POLICY_NAME, format!("{}\n", liana_policy().to_text())),
+        (
+            LIANA_POLICY_NAME,
+            format!("{}\n", &*liana_policy().to_text()),
+        ),
         (LIANA_PSBT_NAME, liana_psbt().to_base64()),
-        (TREE_POLICY_NAME, format!("{}\n", tree_policy().to_text())),
+        (TREE_POLICY_NAME, format!("{}\n", &*tree_policy().to_text())),
         (LIANA_RECOVERY_PSBT_NAME, liana_recovery_psbt().to_base64()),
         (TREE_PSBT_NAME, tree_psbt().to_base64()),
         (TREE_KEYPATH_PSBT_NAME, tree_keypath_psbt().to_base64()),
     ];
     for (i, name) in COSIGNER_NAMES.iter().enumerate() {
-        files.push((*name, format!("{}\n", policy.keys()[i + 1].key_text())));
+        files.push((*name, format!("{}\n", &*policy.keys()[i + 1].key_text())));
     }
     for (name, body) in files {
         let path = dir.join(name);

@@ -38,7 +38,7 @@ fn sheets(name: &str, descriptor: &str) -> (Vec<String>, String) {
         .iter()
         .map(|row| String::from(&*split_share(w, row).expect("a sheet")))
         .collect();
-    (out, w.policy().to_descriptor_checksummed())
+    (out, w.policy().to_descriptor_checksummed().as_str().into())
 }
 
 /// Two wallets over the same seeds at two accounts: a sheet of each does

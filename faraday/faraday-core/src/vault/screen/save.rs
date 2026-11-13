@@ -270,7 +270,7 @@ pub(super) fn save_panel(
             dy += ui.advance_as(BODY_S, 30.0);
         }
     } else {
-        let held: Vec<String> = app
+        let held: Vec<faraday_text::Text> = app
             .described_of(v.id, kind::WALLET)
             .iter()
             .map(|(_, _, d)| d.policy.to_descriptor())

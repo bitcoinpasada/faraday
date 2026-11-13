@@ -759,7 +759,11 @@ fn a_coldcard_export_of_both_accounts_loads_the_one_chosen() {
     let mut app = coldcard_asked();
     app.press(Action::LoadAccount(Some(Account::SingleSig)));
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
-    let d = app.session.wallets[0].policy().to_descriptor();
+    let d = app.session.wallets[0]
+        .policy()
+        .to_descriptor()
+        .as_str()
+        .to_owned();
     assert!(d.starts_with("wpkh([0f056943/84h/1h/0h]"), "{d}");
     let mut app = coldcard_asked();
     app.press(Action::LoadAccount(None));

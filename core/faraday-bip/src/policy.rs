@@ -38,7 +38,6 @@
 //! `multi_a`; the sorted form is read through [`crate::tapmulti`],
 //! which puts the keys in the script's order at every index.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 use core::str::FromStr;
@@ -53,6 +52,7 @@ use miniscript::descriptor::{DescriptorMultiXKey, DescriptorPublicKey, Wildcard}
 use miniscript::{Descriptor, ForEachKey, ToPublicKey};
 
 use faraday_crypto::work::{Compute, Work};
+use faraday_text::{Text, text};
 
 use crate::descriptor::descriptor_checksum;
 use crate::keys::{Fingerprint, Network, ScriptType};
@@ -156,7 +156,7 @@ pub enum MiniscriptKind {
 /// every hardened step written `h` however it was read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Origin {
-    text: String,
+    text: Text,
     fingerprint: Fingerprint,
     path: DerivationPath,
 }
@@ -221,10 +221,10 @@ impl PolicyKey {
     /// The key as a descriptor key expression, without the multipath
     /// suffix: `[fingerprint/path]xpub`, or the bare xpub when there is
     /// no origin, which BIP-380 allows.
-    pub fn key_text(&self) -> String {
+    pub fn key_text(&self) -> Text {
         match &self.origin {
-            Some(o) => alloc::format!("[{}]{}", o.text, self.xpub),
-            None => alloc::format!("{}", self.xpub),
+            Some(o) => text!("[{}]{}", &*o.text, self.xpub),
+            None => text!("{}", self.xpub),
         }
     }
 }
@@ -247,7 +247,7 @@ pub enum KeyPath {
     /// not `H`. Whoever holds it spends every coin alone. The x-only
     /// public key in hex. (An extended key with no origin is read only
     /// over `H`; the variant names any key that could arrive here.)
-    Other(String),
+    Other(Text),
 }
 
 /// A registered wallet: a descriptor template and its keys.
@@ -521,7 +521,7 @@ impl WalletPolicy {
         let Some(Descriptor::Tr(tr)) = &self.script else {
             return None;
         };
-        let text = alloc::format!("{tr}");
+        let text = text!("{tr}");
         let mut leaves = tr.iter_scripts();
         let (_, leaf) = leaves.next()?;
         if leaves.next().is_some() || !text.contains("multi_a(") {
@@ -581,21 +581,19 @@ impl WalletPolicy {
     }
 
     /// The descriptor template, with `@i` in place of every key.
-    pub fn template_text(&self) -> String {
+    pub fn template_text(&self) -> Text {
         if self.script.is_some() {
             // The descriptor is what `miniscript` wrote, so the template
             // is that text with each key expression — which is unique
             // within it — put back as its placeholder.
             let mut text = self.to_descriptor();
             for (i, key) in self.keys.iter().enumerate().rev() {
-                let expr = alloc::format!("{}{DESCRIPTOR_SUFFIX}", key.key_text());
-                text = text.replace(&expr, &alloc::format!("@{i}{TEMPLATE_SUFFIX}"));
+                let expr = text!("{}{DESCRIPTOR_SUFFIX}", &*key.key_text());
+                text = replaced(&text, &expr, &text!("@{i}{TEMPLATE_SUFFIX}"), usize::MAX);
             }
             return text;
         }
-        let keys: Vec<String> = (0..self.keys.len())
-            .map(|i| alloc::format!("@{i}"))
-            .collect();
+        let keys: Vec<Text> = (0..self.keys.len()).map(|i| text!("@{i}")).collect();
         self.render(&keys, TEMPLATE_SUFFIX)
     }
 
@@ -609,9 +607,9 @@ impl WalletPolicy {
     /// [`parse_any`](Self::parse_any) reads back as the same wallet. A
     /// refusal would leave the caller with nothing to write down, and
     /// inventing an origin would state a fact the device does not have.
-    pub fn to_text(&self) -> String {
+    pub fn to_text(&self) -> Text {
         if let Some(silent) = &self.silent {
-            return silent.to_text();
+            return Text::of(&silent.to_text());
         }
         if self.keys.iter().any(|k| k.origin.is_none()) {
             return self.to_descriptor();
@@ -626,29 +624,30 @@ impl WalletPolicy {
 
     /// The multipath descriptor the policy stands for, without a
     /// checksum.
-    pub fn to_descriptor(&self) -> String {
+    pub fn to_descriptor(&self) -> Text {
         // A silent payments wallet has no descriptor anyone can be
         // handed: BIP-392's `sp(spscan1q…)` carries the scan private
         // key, so it is an export and not an identity. What identifies
         // the wallet is its address, which is in the descriptor
         // character set and is what its checksum is taken over.
         if let Some(silent) = &self.silent {
-            return silent.address();
+            return Text::of(&silent.address());
         }
         if let Some(script) = &self.script {
-            let text = alloc::format!("{script}");
+            let text = text!("{script}");
             // `miniscript` writes the checksum; this crate's callers ask
             // for it separately. It writes a hardened step `'`, which in
             // a descriptor is only ever that marker: kept and written `h`.
-            let text = text.split('#').next().unwrap_or(&text).replace('\'', "h");
+            let body = text.split('#').next().unwrap_or(&text);
+            let text = replaced(&Text::of(body), "'", "h", usize::MAX);
             // A sorted leaf is held as its `multi_a` twin and written
             // back as what it is.
             if self.sorted_a.is_some() {
-                return text.replacen("multi_a(", "sortedmulti_a(", 1); // not wording: a descriptor's function name
+                return replaced(&text, "multi_a(", "sortedmulti_a(", 1); // not wording: a descriptor's function name
             }
             return text;
         }
-        let keys: Vec<String> = self.keys.iter().map(PolicyKey::key_text).collect();
+        let keys: Vec<Text> = self.keys.iter().map(PolicyKey::key_text).collect();
         self.render(&keys, DESCRIPTOR_SUFFIX)
     }
 
@@ -656,13 +655,12 @@ impl WalletPolicy {
     /// `suffix` as the multipath derivation. A MuSig2 wallet derives
     /// from the aggregate, so its suffix follows the `musig()`; every
     /// other template derives per key.
-    fn render(&self, keys: &[String], suffix: &str) -> String {
+    fn render(&self, keys: &[Text], suffix: &str) -> Text {
         match self.template {
-            Template::MuSig => alloc::format!("tr(musig({}){suffix})", keys.join(",")),
+            Template::MuSig => text!("tr(musig({}){suffix})", &*Text::joined(keys, ",")),
             template => {
-                let args: Vec<String> =
-                    keys.iter().map(|k| alloc::format!("{k}{suffix}")).collect();
-                wrap(template, &args.join(","))
+                let args: Vec<Text> = keys.iter().map(|k| text!("{}{suffix}", &**k)).collect();
+                wrap(template, &Text::joined(&args, ","))
             }
         }
     }
@@ -671,20 +669,20 @@ impl WalletPolicy {
     /// chains: the form a BSMS descriptor record's second line carries.
     /// A wallet whose script comes from `miniscript` has no such form
     /// here, and gets the plain descriptor.
-    pub fn to_descriptor_template(&self) -> String {
+    pub fn to_descriptor_template(&self) -> Text {
         if self.silent.is_some() {
             return self.to_descriptor();
         }
         if self.script.is_some() {
             return self.to_descriptor();
         }
-        let keys: Vec<String> = self.keys.iter().map(PolicyKey::key_text).collect();
+        let keys: Vec<Text> = self.keys.iter().map(PolicyKey::key_text).collect();
         self.render(&keys, TEMPLATE_SUFFIX)
     }
 
     /// That descriptor with its BIP-380 checksum, the form a person
     /// compares against another wallet's.
-    pub fn to_descriptor_checksummed(&self) -> String {
+    pub fn to_descriptor_checksummed(&self) -> Text {
         let mut desc = self.to_descriptor();
         desc.push('#');
         desc.push_str(self.checksum());
@@ -1025,31 +1023,31 @@ fn multisig_script(threshold: usize, keys: &[PublicKey]) -> ScriptBuf {
 /// inside the template's functions. A MuSig2 template is written by
 /// [`WalletPolicy::render`], which puts the derivation outside the
 /// `musig()`.
-fn wrap(template: Template, args: &str) -> String {
+fn wrap(template: Template, args: &str) -> Text {
     match template {
         Template::Miniscript { .. } | Template::Tree => {
             unreachable!("a miniscript wallet is written by `miniscript`")
         }
         Template::Silent => unreachable!("a silent payments wallet has no key expression"),
-        Template::MuSig => alloc::format!("tr(musig({args}))"),
+        Template::MuSig => text!("tr(musig({args}))"),
         Template::Multi {
             threshold,
             sorted,
             wrapper,
         } => {
             let name = if sorted { "sortedmulti" } else { "multi" };
-            let inner = alloc::format!("{name}({threshold},{args})");
+            let inner = text!("{name}({threshold},{args})");
             match wrapper {
-                Wrapper::Sh => alloc::format!("sh({inner})"),
-                Wrapper::Wsh => alloc::format!("wsh({inner})"),
-                Wrapper::ShWsh => alloc::format!("sh(wsh({inner}))"),
+                Wrapper::Sh => text!("sh({})", &*inner),
+                Wrapper::Wsh => text!("wsh({})", &*inner),
+                Wrapper::ShWsh => text!("sh(wsh({}))", &*inner),
             }
         }
         Template::Single { script } => match script {
-            ScriptType::Legacy => alloc::format!("pkh({args})"),
-            ScriptType::NestedSegwit => alloc::format!("sh(wpkh({args}))"),
-            ScriptType::NativeSegwit => alloc::format!("wpkh({args})"),
-            ScriptType::Taproot => alloc::format!("tr({args})"),
+            ScriptType::Legacy => text!("pkh({args})"),
+            ScriptType::NestedSegwit => text!("sh(wpkh({args}))"),
+            ScriptType::NativeSegwit => text!("wpkh({args})"),
+            ScriptType::Taproot => text!("tr({args})"),
         },
     }
 }
@@ -1060,7 +1058,7 @@ fn wrap(template: Template, args: &str) -> String {
 /// the order it gives is not the order a person reads; the position of
 /// each key expression in the descriptor is.
 fn descriptor_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPublicKey> {
-    let text = alloc::format!("{script}");
+    let text = text!("{script}");
     let mut keys: Vec<DescriptorPublicKey> = Vec::new();
     script.for_each_key(|key| {
         if !keys.contains(key) {
@@ -1068,7 +1066,7 @@ fn descriptor_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPu
         }
         true
     });
-    keys.sort_by_key(|key| text.find(&alloc::format!("{key}")).unwrap_or(usize::MAX));
+    keys.sort_by_key(|key| text.find(&*text!("{key}")).unwrap_or(usize::MAX));
     keys
 }
 
@@ -1193,7 +1191,7 @@ fn wallet_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPublic
         .into_iter()
         .filter(|key| {
             !matches!(key, DescriptorPublicKey::Single(_))
-                || internal.as_deref() != Some(alloc::format!("{key}").as_str())
+                || internal.as_deref() != Some(&*text!("{key}"))
         })
         .collect()
 }
@@ -1212,7 +1210,7 @@ fn key_path_of(internal: &DescriptorPublicKey, keys: &[PolicyKey]) -> KeyPath {
             if crate::tapmulti::is_nums(&key) {
                 KeyPath::Unspendable
             } else {
-                KeyPath::Other(alloc::format!("{key}"))
+                KeyPath::Other(text!("{key}"))
             }
         }
         DescriptorPublicKey::XPub(x) => xkey_path(&x.xkey, keys),
@@ -1232,14 +1230,14 @@ fn xkey_path(xkey: &Xpub, keys: &[PolicyKey]) -> KeyPath {
         .position(|k| k.xpub == *xkey && k.origin.is_some())
     {
         Some(i) => KeyPath::WalletKey(i),
-        None => KeyPath::Other(alloc::format!("{xkey}")),
+        None => KeyPath::Other(text!("{xkey}")),
     }
 }
 
 /// The internal key of a `tr()`, as the descriptor writes it.
-fn internal_key_text(script: &Descriptor<DescriptorPublicKey>) -> Option<String> {
+fn internal_key_text(script: &Descriptor<DescriptorPublicKey>) -> Option<Text> {
     match script {
-        Descriptor::Tr(tr) => Some(alloc::format!("{}", tr.internal_key())),
+        Descriptor::Tr(tr) => Some(text!("{}", tr.internal_key())),
         _ => None,
     }
 }
@@ -1274,10 +1272,9 @@ fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
         return Err(Error::Derivation);
     }
     let origin = multi.origin.as_ref().map(|(fingerprint, path)| {
-        let mut text = String::new();
-        text.push_str(&faraday_crypto::hex::encode_string(fingerprint.as_bytes()));
+        let mut text = Text::of(&faraday_crypto::hex::encode_string(fingerprint.as_bytes()));
         for step in path {
-            text.push_str(&alloc::format!("/{step:#}"));
+            text.push_str(&text!("/{step:#}"));
         }
         Origin {
             text,
@@ -1300,9 +1297,9 @@ fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
 /// threshold is the usual reason — so a placeholder already seen may
 /// appear again. With `lenient`, a placeholder may also carry any BIP 389
 /// multipath suffix (`/<2;3>/*`), which the wallet's own read refuses.
-fn fill(template: &str, keys: &[&str], lenient: bool) -> Result<String, Error> {
+fn fill(template: &str, keys: &[&str], lenient: bool) -> Result<Text, Error> {
     let template = template.trim();
-    let mut out = String::with_capacity(template.len());
+    let mut out = Text::with_room(template.len());
     let mut rest = template;
     let mut next = 0usize;
     while let Some(at) = rest.find('@') {
@@ -1359,6 +1356,24 @@ fn multipath_suffix(text: &str) -> Option<(&str, &str)> {
     ok.then(|| (&text[..text.len() - tail.len()], tail))
 }
 
+/// `text` with up to `limit` occurrences of `from` written as `to`.
+fn replaced(text: &str, from: &str, to: &str, limit: usize) -> Text {
+    debug_assert!(!from.is_empty(), "an empty pattern matches forever");
+    let mut out = Text::with_room(text.len());
+    let mut rest = text;
+    let mut done = 0;
+    while done < limit
+        && let Some(at) = rest.find(from)
+    {
+        out.push_str(&rest[..at]);
+        out.push_str(to);
+        rest = &rest[at + from.len()..];
+        done += 1;
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Whether two extended keys hold the same key material.
 fn same_material(a: &Xpub, b: &Xpub) -> bool {
     a.public_key == b.public_key && a.chain_code == b.chain_code
@@ -1400,14 +1415,14 @@ struct Placed {
 #[derive(PartialEq)]
 enum Id {
     Xpub(Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub),
-    Plain(String),
+    Plain(Text),
 }
 
 fn id_of(key: &DescriptorPublicKey) -> Id {
     match key {
         DescriptorPublicKey::XPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
         DescriptorPublicKey::MultiXPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
-        DescriptorPublicKey::Single(_) => Id::Plain(alloc::format!("{key}")),
+        DescriptorPublicKey::Single(_) => Id::Plain(text!("{key}")),
     }
 }
 
@@ -1648,7 +1663,7 @@ fn lenient_script(text: &str) -> Option<(Descriptor<DescriptorPublicKey>, Option
         // An origin written on a key in the template is dropped: such a
         // key has no number, so its origin does not matter, and none may
         // look like the marker a listed key is given.
-        let mut template = String::new();
+        let mut template = Text::default();
         let mut inside = false;
         for ch in lines.next()?.chars() {
             match ch {
@@ -1665,20 +1680,20 @@ fn lenient_script(text: &str) -> Option<(Descriptor<DescriptorPublicKey>, Option
             .collect();
         // Each key of the list gets an origin that holds its place in the
         // list, so that the script says which key each use came from.
-        let tagged: Vec<String> = keys
+        let tagged: Vec<Text> = keys
             .iter()
             .enumerate()
             .map(|(n, k)| {
                 let bare = k.rsplit_once(']').map_or(*k, |(_, rest)| rest);
-                alloc::format!("[{:08x}]{bare}", TAG_BASE | n as u32)
+                text!("[{:08x}]{bare}", TAG_BASE | n as u32)
             })
             .collect();
-        let tagged: Vec<&str> = tagged.iter().map(String::as_str).collect();
+        let tagged: Vec<&str> = tagged.iter().map(Text::as_str).collect();
         listed = Some(tagged.len());
         fill(&template, &tagged, true).ok()?
     } else {
         let text = text.trim();
-        String::from(text.split_once('#').map_or(text, |(body, _)| body))
+        Text::of(text.split_once('#').map_or(text, |(body, _)| body))
     };
     if !crate::descriptor::tokens_fit(&body) {
         return None;
@@ -1830,7 +1845,7 @@ fn parse_key(text: &str) -> Result<PolicyKey, Error> {
     Ok(PolicyKey {
         origin: Some(Origin {
             // Read with `'` or `h`, kept and written `h`.
-            text: origin.replace('\'', "h"),
+            text: replaced(origin, "'", "h", usize::MAX),
             fingerprint: Fingerprint(bytes),
             path,
         }),
@@ -1974,6 +1989,12 @@ fn inside<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
 mod tests {
     use super::*;
 
+    /// `s` with each hardened step's `'` written `h`, worked out here
+    /// rather than by the code under test.
+    fn hardened_as_h(s: &str) -> Text {
+        s.chars().map(|c| if c == '\'' { 'h' } else { c }).collect()
+    }
+
     /// The BIP-388 "Examples" section: every template with its keys
     /// produces the descriptor the BIP lists.
     #[test]
@@ -2020,7 +2041,7 @@ mod tests {
         for (template, keys, descriptor) in CASES {
             let policy = WalletPolicy::from_parts(&c, template, keys).expect(template);
             // The BIP writes a hardened step `'`; the policy writes `h`.
-            let written = descriptor.replace('\'', "h");
+            let written = hardened_as_h(descriptor);
             assert_eq!(policy.to_descriptor(), written);
             assert_eq!(&policy.template_text(), template);
             // The descriptor read back is the same policy, so both forms
@@ -2064,7 +2085,7 @@ mod tests {
     fn a_miniscript_key_with_one_chain_is_refused() {
         let c = Compute::unchecked();
         const KEY: &str = "[d34db33f/48'/0'/0'/2']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
-        let one_chain = alloc::format!("wsh(and_v(v:pk({KEY}/0/*),older(12960)))");
+        let one_chain = text!("wsh(and_v(v:pk({KEY}/0/*),older(12960)))");
         assert_eq!(
             WalletPolicy::from_descriptor(&c, &one_chain),
             Err(Error::Derivation)
@@ -2088,7 +2109,7 @@ mod tests {
         assert_eq!(policy.template_text(), "tr(musig(@0,@1)/**)");
         assert_eq!(
             policy.to_descriptor(),
-            alloc::format!("tr(musig({MUSIG_A},{MUSIG_B})/<0;1>/*)").replace('\'', "h")
+            hardened_as_h(&text!("tr(musig({MUSIG_A},{MUSIG_B})/<0;1>/*)"))
         );
         assert_eq!(policy.script_type(), ScriptType::Taproot);
         assert_eq!(policy.quorum(), None);
@@ -2123,7 +2144,7 @@ mod tests {
                 "{template} was accepted"
             );
         }
-        let no_origin = alloc::format!(
+        let no_origin = text!(
             "tr(musig({},{})/<0;1>/*)",
             MUSIG_A.split_once(']').unwrap().1,
             MUSIG_B.split_once(']').unwrap().1
@@ -2148,14 +2169,14 @@ mod tests {
         assert_eq!(script, ScriptType::NativeSegwit);
         let policy = WalletPolicy::from_xpub(xpub, script).unwrap();
         assert_eq!(
-            alloc::format!(
+            text!(
                 "{}",
                 policy.address_at(&c, Network::Mainnet, false, 0).unwrap()
             ),
             "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
         );
         assert_eq!(
-            alloc::format!(
+            text!(
                 "{}",
                 policy.address_at(&c, Network::Mainnet, true, 0).unwrap()
             ),
@@ -2166,10 +2187,7 @@ mod tests {
         // own, and the same wallet reads back out of it. BIP-388 has no
         // form for it, so the two-part text is that descriptor.
         let descriptor = policy.to_descriptor();
-        assert_eq!(
-            descriptor,
-            alloc::format!("wpkh({xpub}{DESCRIPTOR_SUFFIX})")
-        );
+        assert_eq!(descriptor, text!("wpkh({xpub}{DESCRIPTOR_SUFFIX})"));
         assert_eq!(policy.to_text(), descriptor);
         assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
         assert_eq!(
@@ -2212,12 +2230,12 @@ mod tests {
             ("wpkh", ScriptType::NativeSegwit),
             ("tr", ScriptType::Taproot),
         ] {
-            let descriptor = alloc::format!("{template}({A}{DESCRIPTOR_SUFFIX})");
+            let descriptor = text!("{template}({A}{DESCRIPTOR_SUFFIX})");
             let policy = WalletPolicy::from_descriptor(&c, &descriptor).expect(&descriptor);
             assert_eq!(policy.script_type(), script);
             assert_eq!(policy.to_descriptor(), descriptor);
         }
-        let nested = alloc::format!("sh(wpkh({A}{DESCRIPTOR_SUFFIX}))");
+        let nested = text!("sh(wpkh({A}{DESCRIPTOR_SUFFIX}))");
         assert_eq!(
             WalletPolicy::from_descriptor(&c, &nested)
                 .unwrap()
@@ -2225,14 +2243,15 @@ mod tests {
             ScriptType::NestedSegwit
         );
         for descriptor in [
-            alloc::format!("wsh(sortedmulti(2,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
-            alloc::format!("sh(multi(1,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
-            alloc::format!("tr(musig({A},{B}){DESCRIPTOR_SUFFIX})"),
+            text!("wsh(sortedmulti(2,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
+            text!("sh(multi(1,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
+            text!("tr(musig({A},{B}){DESCRIPTOR_SUFFIX})"),
         ] {
             assert_eq!(
                 WalletPolicy::from_descriptor(&c, &descriptor),
                 Err(Error::Key),
-                "{descriptor} was accepted with no origin on its keys"
+                "{} was accepted with no origin on its keys",
+                &*descriptor
             );
         }
     }
@@ -2294,7 +2313,7 @@ mod tests {
             [6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw\n\
             [b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
         let policy = WalletPolicy::parse_any(&c, text).unwrap();
-        assert_eq!(policy.to_text(), text.replace('\'', "h"));
+        assert_eq!(policy.to_text(), hardened_as_h(text));
         assert_eq!(policy.quorum(), Some((2, 2)));
         let descriptor = policy.to_descriptor_checksummed();
         assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
@@ -2317,7 +2336,7 @@ mod tests {
                 .and_then(|t| t.strip_suffix("))"))
                 .and_then(|t| t.split_once(",["))
                 .unwrap();
-            alloc::format!("wsh(or_d(pk({a}),and_v(v:pkh([{b}),older(144))))")
+            text!("wsh(or_d(pk({a}),and_v(v:pkh([{b}),older(144))))")
         };
         let text_h = WalletPolicy::from_descriptor(&c, H).unwrap().to_text();
         assert!(!text_h.contains('\''));

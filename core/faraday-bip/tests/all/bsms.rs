@@ -185,7 +185,7 @@ fn a_bsms_wallet_is_the_same_wallet_as_its_coordinator_config_twin() {
         .unwrap();
     let record = format!(
         "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
-        from_config.to_descriptor_template()
+        &*from_config.to_descriptor_template()
     );
     let from_bsms = DescriptorRecord::parse(&c, &record).expect("the coordinator's BSMS record");
 
@@ -276,7 +276,7 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
         &c,
         &format!(
             "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
-            policy.to_descriptor_template()
+            &*policy.to_descriptor_template()
         ),
     )
     .expect("the descriptor record");
@@ -356,7 +356,8 @@ fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
     let r = DescriptorRecord::parse(&c, &sparrow(6)).unwrap();
     let descriptor = r.policy.to_descriptor();
     let untemplated = format!(
-        "BSMS 1.0\n{descriptor}\nNo path restrictions\n{}\n",
+        "BSMS 1.0\n{}\nNo path restrictions\n{}\n",
+        &*descriptor,
         r.first_address.as_str()
     );
     assert_eq!(

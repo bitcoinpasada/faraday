@@ -61,7 +61,7 @@ pub fn command(name: &str, policy: &WalletPolicy) -> Option<String> {
         Template::Multi { .. } | Template::Single { .. } => {
             descriptor.replace(DESCRIPTOR_SUFFIX, "")
         }
-        _ => descriptor,
+        _ => String::from(&*descriptor),
     };
     Some(format!(
         "{PREFIX}{}&{descriptor}",

@@ -34,7 +34,11 @@ fn recovery(delay: u32, path: Path) -> Recovery {
 /// it imposes, so that a spend path is read without knowing what order
 /// the compiler wrote the keys in.
 fn ways(policy: &WalletPolicy) -> Vec<(Vec<String>, Vec<Lock>)> {
-    let keys: Vec<String> = policy.keys().iter().map(|k| k.key_text()).collect();
+    let keys: Vec<String> = policy
+        .keys()
+        .iter()
+        .map(|k| String::from(&*k.key_text()))
+        .collect();
     let mut ways: Vec<(Vec<String>, Vec<Lock>)> = policy
         .spend_paths()
         .into_iter()
@@ -75,7 +79,7 @@ fn a_segwit_recovery_wallet_is_the_descriptor_liana_wrote() {
     .expect("a recovery wallet");
     let fixture = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     assert_eq!(built.to_descriptor(), fixture.to_descriptor());
-    assert_eq!(format!("{}\n", built.to_text()), *LIANA);
+    assert_eq!(format!("{}\n", &*built.to_text()), *LIANA);
 }
 
 /// That same fixture, read the other way: a person opening Liana's
@@ -167,7 +171,7 @@ fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
                 RecoveryPolicy::from_wallet_policy(&policy).as_ref(),
                 Some(&wanted),
                 "{wanted:?} in {form:?} is {}",
-                policy.to_descriptor()
+                &*policy.to_descriptor()
             );
             // The wallet written down and read back from its text is
             // still the same wallet.
@@ -239,7 +243,7 @@ fn a_taproot_wallet_puts_one_primary_key_on_the_key_path() {
     assert!(
         one.to_descriptor().starts_with(&format!("tr({A}/<0;1>/*,")),
         "{}",
-        one.to_descriptor()
+        &*one.to_descriptor()
     );
 
     let two = RecoveryPolicy {
@@ -251,7 +255,7 @@ fn a_taproot_wallet_puts_one_primary_key_on_the_key_path() {
     assert!(
         two.to_descriptor().starts_with("tr(tpub"),
         "{}",
-        two.to_descriptor()
+        &*two.to_descriptor()
     );
     // Nothing of the primary is on the key path, so both keys are still
     // wanted for a spend that imposes no wait.

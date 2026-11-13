@@ -57,7 +57,10 @@ fn a_nums_internal_key_reads_as_k_of_n_with_no_key_path() {
 fn another_internal_key_is_stated_and_has_no_quorum() {
     for sorted in [false, true] {
         let policy = read(&multi_a(OTHER, sorted));
-        assert_eq!(policy.key_path(), Some(&KeyPath::Other(OTHER.to_string())));
+        assert_eq!(
+            policy.key_path(),
+            Some(&KeyPath::Other(faraday_text::Text::of(OTHER)))
+        );
         assert!(!policy.key_path_unspendable());
         assert_eq!(policy.tapscript_quorum(), None, "sorted {sorted}");
         assert_eq!(policy.template(), Template::Tree);

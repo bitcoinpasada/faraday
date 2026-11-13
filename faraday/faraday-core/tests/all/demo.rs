@@ -757,7 +757,11 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
     let kit = Kit {
         id: "demo",
         name: "Demo",
-        descriptor: app.session.wallets[w].policy().to_descriptor_checksummed(),
+        descriptor: app.session.wallets[w]
+            .policy()
+            .to_descriptor_checksummed()
+            .as_str()
+            .into(),
         cosigner: None,
         fee: 1_000,
     };

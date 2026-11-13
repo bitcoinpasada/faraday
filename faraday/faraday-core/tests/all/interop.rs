@@ -128,7 +128,7 @@ fn sparrows_specter_and_coldcard_exports_of_one_wallet_read_as_one_wallet() {
 fn bitcoin_cores_listdescriptors_reads_as_its_native_segwit_wallet() {
     let text = file("core/listdescriptors.json");
     let w = wallet("core/listdescriptors.json");
-    let d = w.to_descriptor();
+    let d = w.to_descriptor().as_str().to_owned();
     assert!(d.starts_with("wpkh("), "{d}");
     // The key is the one in Core's own BIP-84 receive descriptor.
     let at = text.find("\"wpkh(").unwrap() + 2;
@@ -383,7 +383,7 @@ fn blue_wallets_cobo_skeleton_is_the_wallet_keystone_exports_for_the_same_key() 
     assert!(cobo.to_descriptor().starts_with("wpkh([5271c071/84"));
     // Keystone's keeps its fingerprint upper-case.
     assert_eq!(
-        cobo.to_descriptor(),
+        cobo.to_descriptor().as_str(),
         wallet("sparrow/keystone-singlesig-keystore-1.txt")
             .to_descriptor()
             .replace("5271C071", "5271c071")
@@ -831,7 +831,7 @@ fn sparrows_electrum_multisig_file_is_the_coldcards_own_setup_file_its_fingerpri
     // the setup file of the same wallet.
     let electrum = wallet("sparrow/electrum-multisig-wallet.json");
     let coldcard = wallet("sparrow/cc-multisig-export-2.txt");
-    let d = electrum.to_descriptor();
+    let d = electrum.to_descriptor().as_str().to_owned();
     assert!(d.starts_with("sh(wsh(sortedmulti(2,"), "{d}");
     for fp in ["0f056943", "6ba6cfd0", "747b698e", "7bb026be"] {
         assert!(d.contains(&format!("[{fp}/48h/1h/0h/1h]")), "{fp}: {d}");
@@ -850,7 +850,7 @@ fn blue_wallets_electrum_file_loads_as_its_native_segwit_key_at_its_root_fingerp
     let zpub = text.split('"').find(|t| t.starts_with("zpub")).unwrap();
     let plain = faraday_bip::slip132::decode(zpub).unwrap().plain;
     assert_eq!(
-        w.to_descriptor(),
+        w.to_descriptor().as_str(),
         format!("wpkh([b616be56/84h/0h/0h]{}/<0;1>/*)", plain.as_str())
     );
 }

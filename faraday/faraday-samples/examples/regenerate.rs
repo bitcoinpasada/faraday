@@ -428,7 +428,7 @@ fn wallets(c: &Compute, keys: &[Key]) -> Vec<Wallet> {
         testkit::musig_unsigned().expect("a spend").to_bytes(),
     )
     .expect("write");
-    let musig_text = musig.to_descriptor_checksummed();
+    let musig_text: String = musig.to_descriptor_checksummed().as_str().into();
     let (kind, script) = describe(c, &musig_text);
     out.push(Wallet {
         name: "sample_musig",

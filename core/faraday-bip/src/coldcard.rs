@@ -257,7 +257,9 @@ pub fn cosigner_keys(text: &str) -> Vec<String> {
         {
             return None;
         }
-        PolicyKey::parse(&line.text).ok().map(|k| k.key_text())
+        PolicyKey::parse(&line.text)
+            .ok()
+            .map(|k| String::from(&*k.key_text()))
     };
     let mut keys = Vec::new();
     for (field, around) in [

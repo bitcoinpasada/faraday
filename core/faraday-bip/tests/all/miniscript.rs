@@ -158,7 +158,7 @@ fn a_miniscript_wallet_reads_the_same_from_both_forms() {
     let c = Compute::unchecked();
     for text in [LIANA, TREE] {
         let policy = WalletPolicy::parse_any(&c, text).expect("the fixture wallet");
-        assert_eq!(format!("{}\n", policy.to_text()), *text);
+        assert_eq!(format!("{}\n", &*policy.to_text()), *text);
         let descriptor = policy.to_descriptor_checksummed();
         assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
         // The checksum this crate computes is the one `miniscript`
@@ -234,7 +234,7 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
         .expect("the fixture wallet")
         .keys()
         .iter()
-        .map(|k| k.key_text())
+        .map(|k| String::from(&*k.key_text()))
         .collect();
     // The recovery key is a fourth key: a miniscript that names one key
     // twice is not sane, and is refused.
@@ -242,7 +242,9 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
         WalletPolicy::parse_any(&c, LIANA)
             .expect("the fixture wallet")
             .keys()[1]
-            .key_text(),
+            .key_text()
+            .as_str()
+            .into(),
     );
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     let policy = WalletPolicy::from_parts(
@@ -267,7 +269,11 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
 fn an_absolute_locktime_is_a_height_or_a_time() {
     let c = Compute::unchecked();
     let policy = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
-    let keys: Vec<String> = policy.keys().iter().map(|k| k.key_text()).collect();
+    let keys: Vec<String> = policy
+        .keys()
+        .iter()
+        .map(|k| String::from(&*k.key_text()))
+        .collect();
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     for (template, lock) in [
         (

@@ -578,7 +578,7 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
     let keys = w.policy().keys();
     assert_eq!(keys.len(), 3);
     for k in keys {
-        assert_eq!(account_of_key(k), 1, "{} is at account 1", k.key_text());
+        assert_eq!(account_of_key(k), 1, "{} is at account 1", &*k.key_text());
     }
     let mut fps: Vec<[u8; 4]> = keys.iter().map(|k| k.fingerprint().unwrap().0).collect();
     fps.sort();
@@ -745,7 +745,7 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
     app.press(Action::CNext(cstep::KEYS));
     let made = app.create().and_then(|c| c.built).expect("made");
     for k in app.session.wallets[made].policy().keys() {
-        assert_eq!(account_of_key(k), 1, "{} is at account 1", k.key_text());
+        assert_eq!(account_of_key(k), 1, "{} is at account 1", &*k.key_text());
     }
     let want = NewKind::Multi.path_at(app.session.network(), 1);
     let text = drawn_joined(&mut app);

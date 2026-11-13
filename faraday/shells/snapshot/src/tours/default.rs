@@ -952,7 +952,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     let read = t.decode(c);
     let want = t.app.session.wallets[0]
         .policy()
-        .to_descriptor_checksummed();
+        .to_descriptor_checksummed()
+        .as_str()
+        .to_owned();
     if read.first() != Some(&want) {
         return Err(format!("the wallet QR reads {read:?}, not the descriptor"));
     }

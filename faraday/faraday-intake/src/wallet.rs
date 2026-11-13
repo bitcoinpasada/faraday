@@ -432,7 +432,9 @@ fn multipath<S: AsRef<str>>(c: &Compute, descs: &[S]) -> Option<Result<WalletPol
     let mut seen: Vec<Seen> = Vec::new();
     for d in wallets {
         if let Ok(w) = WalletPolicy::parse_any(c, &d) {
-            let this = Seen(faraday_crypto::Secret::new(w.to_descriptor().into_bytes()));
+            let this = Seen(faraday_crypto::Secret::new(
+                w.to_descriptor().as_bytes().to_vec(),
+            ));
             if !seen.contains(&this) {
                 seen.push(this);
                 found.push((rank(&w), w));
@@ -557,7 +559,9 @@ fn one_of_several<S: AsRef<str>>(c: &Compute, all: &[S]) -> Result<WalletPolicy,
     let mut found: Vec<(u8, WalletPolicy)> = Vec::new();
     let mut seen: Vec<Seen> = Vec::new();
     let mut add = |w: WalletPolicy| {
-        let this = Seen(faraday_crypto::Secret::new(w.to_descriptor().into_bytes()));
+        let this = Seen(faraday_crypto::Secret::new(
+            w.to_descriptor().as_bytes().to_vec(),
+        ));
         if !seen.contains(&this) {
             seen.push(this);
             found.push((rank(&w), w));

@@ -76,7 +76,11 @@ fn lock(l: &Lock) -> Value {
 /// keys (indices into that list) that sign and the locks that must have
 /// passed.
 pub(crate) fn inspect(policy: &WalletPolicy) -> Value {
-    let keys: Vec<String> = policy.keys().iter().map(|k| k.key_text()).collect();
+    let keys: Vec<String> = policy
+        .keys()
+        .iter()
+        .map(|k| String::from(&*k.key_text()))
+        .collect();
     let paths: Vec<Value> = policy
         .spend_paths()
         .iter()
@@ -84,7 +88,7 @@ pub(crate) fn inspect(policy: &WalletPolicy) -> Value {
         .collect();
     json!({
         "type": kind(policy),
-        "descriptor": policy.to_descriptor(),
+        "descriptor": &*policy.to_descriptor(),
         "keys": keys,
         "paths": paths,
     })

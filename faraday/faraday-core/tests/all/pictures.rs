@@ -162,7 +162,11 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
         .collect();
     let descriptor = format!("wsh(sortedmulti(2,{}))", keys.join(","));
     let (app, w) = holding("Big", &descriptor);
-    let want = app.session.wallets[w].policy().to_descriptor_checksummed();
+    let want = app.session.wallets[w]
+        .policy()
+        .to_descriptor_checksummed()
+        .as_str()
+        .to_owned();
     let pictures = app.public_pictures(&c, w, 8);
     let k = pictures.len();
     assert!(k > 1, "one code");

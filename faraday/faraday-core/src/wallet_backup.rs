@@ -323,7 +323,7 @@ pub(crate) fn sheet_wallet_on(
     out.push_str(&text!("shape: {}\n", &*Session::shape(wallet)));
     out.push_str(&text!(
         "descriptor: {}\n",
-        wallet.policy().to_descriptor_checksummed()
+        &*wallet.policy().to_descriptor_checksummed()
     ));
     for (i, fingerprint) in slots.iter().enumerate() {
         let key = &wallet.policy().keys()[i];
@@ -331,7 +331,7 @@ pub(crate) fn sheet_wallet_on(
             "key: {} {} {}\n",
             i + 1,
             &*fp_of(*fingerprint),
-            key.key_text()
+            &*key.key_text()
         ));
     }
     out.push_str(&crate::wallet::paths::sheet_lines(wallet.waits()));

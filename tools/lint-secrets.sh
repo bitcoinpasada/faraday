@@ -634,7 +634,9 @@ faraday/faraday-core/src/worker/kef_make.rs
 faraday/faraday-core/src/held.rs
 faraday/faraday-core/src/lib.rs
 faraday/faraday-core/src/state.rs
-faraday/faraday-core/src/testkit/public.rs"
+faraday/faraday-core/src/testkit/public.rs
+core/faraday-bip/src/policy.rs
+core/faraday-bip/src/tapmulti.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -661,9 +663,10 @@ done
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
 #   caravan.rs         builds the key lines of a config's xpub field, which may hold a private key, as wiping text
+#   policy.rs, tapmulti.rs   hold descriptor and key text from a file, which may carry a private key, as wiping text
 #   drawing/kept.rs    holds the worked-out text a screen shows (a seed's address, a key's text) as wiping text
 #   intake lib.rs      reads a split seed's part from a file as wiping text
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs faraday/faraday-intake/src/caravan.rs faraday/faraday-intake/src/lib.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs faraday/faraday-intake/src/caravan.rs faraday/faraday-intake/src/lib.rs core/faraday-bip/src/policy.rs core/faraday-bip/src/tapmulti.rs"
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
 unlisted=$(for f in $(type_files); do
     names_secret "$f" || continue

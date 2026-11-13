@@ -136,7 +136,11 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
         .collect();
     wallets.push((
         "musig".into(),
-        testkit::musig_policy().unwrap().to_descriptor_checksummed(),
+        testkit::musig_policy()
+            .unwrap()
+            .to_descriptor_checksummed()
+            .as_str()
+            .into(),
     ));
     let mut seen = 0;
     for (id, descriptor) in &wallets {

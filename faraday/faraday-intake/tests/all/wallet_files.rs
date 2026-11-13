@@ -101,7 +101,7 @@ fn a_coldcard_setup_file_whose_cosigners_derive_differently_reads_with_each_ones
     let w = wallet("sparrow/cc-multisig-export-multideriv.txt");
     assert_eq!(quorum(&w).0, 3);
     let d = w.to_descriptor();
-    assert!(d.contains("/47h/0h/0h/1h]"), "{d}");
+    assert!(d.contains("/47h/0h/0h/1h]"), "{}", &*d);
     assert_eq!(
         first(&w).1,
         "bc1qhkcnw08rcwhwr9lq6tfczd9jz5zrp7fcatxfq0wwfqafzhcfer3qm59y4m"
@@ -568,7 +568,7 @@ fn an_addwallet_command_with_its_keys_derived_reads_those_derivations() {
     let c = crate::common::compute();
     let w = wallet("sparrow/specter-diy-export.txt");
     let d = w.to_descriptor();
-    let a = read_wallet(&c, &format!("addwallet W&{d}")).unwrap();
+    let a = read_wallet(&c, &format!("addwallet W&{}", &*d)).unwrap();
     assert_eq!(a.to_descriptor(), d);
     // Other chains are not taken for the two default ones: refused, as
     // every descriptor of them is.
@@ -583,7 +583,7 @@ fn an_addwallet_command_faraday_cannot_verify_is_refused() {
     let w = wallet("sparrow/specter-diy-export.txt");
     let d = w.to_descriptor_checksummed();
     // The checksum, where there is one, is checked: Specter DIY drops it.
-    assert!(read_wallet(&c, &format!("addwallet W&{d}")).is_ok());
+    assert!(read_wallet(&c, &format!("addwallet W&{}", &*d)).is_ok());
     let last = d.chars().last().unwrap();
     let wrong = format!(
         "{}{}",
@@ -615,8 +615,8 @@ fn keystones_sp_and_specter_diys_key_alone_read_as_one_silent_payments_wallet_of
     assert_eq!(k.network, Network::Testnet);
     // What is kept is the record, which holds no scan key.
     let record = keystone.to_text();
-    assert!(record.starts_with("faraday-silent 1"), "{record}");
-    assert!(!record.contains("spscan"), "{record}");
+    assert!(record.starts_with("faraday-silent 1"), "{}", &*record);
+    assert!(!record.contains("spscan"), "{}", &*record);
     // The files hold the scan key, which sees payments and spends none:
     // each is a wallet file in Files. The spend key in its place is a
     // secret.
@@ -794,7 +794,7 @@ fn a_wallet_with_a_repeated_key_or_keys_of_two_networks_is_refused_with_its_own_
     assert_eq!(why(&mixed), "keys are of more than one network");
 }
 
-fn silent_record() -> String {
+fn silent_record() -> faraday_text::Text {
     wallet("sparrow/keystone-singlesig-sp-keystore-1.txt").to_text()
 }
 

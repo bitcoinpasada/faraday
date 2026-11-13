@@ -291,7 +291,7 @@ Derivation: m/48'/1'/0'/2'
             assert!(
                 policy.to_descriptor().starts_with(head),
                 "{format}: {}",
-                policy.to_descriptor()
+                &*policy.to_descriptor()
             );
             assert_eq!(policy.quorum(), Some((2, 2)));
         }

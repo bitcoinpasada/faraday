@@ -341,7 +341,7 @@ fn definite(
                     .0;
                 (
                     derived,
-                    text!("{}/{}/{index}", k.key_text(), u32::from(change)),
+                    text!("{}/{}/{index}", &*k.key_text(), u32::from(change)),
                 )
             })
             .collect();
@@ -557,7 +557,7 @@ fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
         Text::of("musig-wallet.txt"),
         text!(
             "# MuSig2: 3 of 3 over the dummy test seeds\n{}\n",
-            policy.to_descriptor_checksummed()
+            &*policy.to_descriptor_checksummed()
         )
         .as_bytes()
         .to_vec(),
