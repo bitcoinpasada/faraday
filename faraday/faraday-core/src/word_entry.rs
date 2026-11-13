@@ -414,7 +414,7 @@ impl WordEntry {
         let end = self.committed();
         self.held[..n].copy_from_slice(&self.words[k + 1..end]);
         self.held_n = n as u8;
-        self.held_prefix = self.prefix;
+        self.held_prefix = self.prefix.duplicate();
         self.open = Some(self.words[k]);
         while self.committed() > k {
             self.uncommit();
@@ -450,7 +450,7 @@ impl WordEntry {
                 c
             }
         });
-        let old = self.prefix;
+        let old = core::mem::take(&mut self.prefix);
         let chars = old.as_chars();
         let mut new = Typed::new();
         let hi = hi.min(chars.len());
@@ -461,12 +461,11 @@ impl WordEntry {
             .chain(chars[hi..].iter().copied())
             .all(|c| new.push(c));
         self.prefix = new;
-        let ok =
-            fits && (new.is_empty() || self.candidate_page().1 > 0 || self.enabled_keys() != 0);
+        let ok = fits
+            && (self.prefix.is_empty() || self.candidate_page().1 > 0 || self.enabled_keys() != 0);
         if !ok {
             self.prefix = old;
         }
-        new.zeroize();
         ok
     }
 
@@ -662,7 +661,7 @@ impl WordEntry {
     fn small_toggled(&self) -> Option<Typed> {
         let last = self.prefix.last()?;
         let other = kana::small(last).or_else(|| kana::large(last))?;
-        let mut swapped = self.prefix;
+        let mut swapped = self.prefix.duplicate();
         swapped.set_last(other);
         Some(swapped)
     }
@@ -812,7 +811,7 @@ impl WordEntry {
             let at = self.committed();
             self.words[at..at + n].copy_from_slice(&self.held[..n]);
             self.committed += self.held_n;
-            self.prefix = self.held_prefix;
+            self.prefix = core::mem::take(&mut self.held_prefix);
             self.held.zeroize();
             self.held_n = 0;
             self.held_prefix.zeroize();
