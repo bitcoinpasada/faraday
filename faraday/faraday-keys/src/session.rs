@@ -857,21 +857,28 @@ impl Keys {
     /// Costs what `adopt_loaded` costs. [`Keys::adopt_loaded`], and with the
     /// fingerprints of the keys that joined what each gives at the origin
     /// paths the job was asked for ([`crate::job::KeysJob::check_at`]); a
-    /// key left out gives none.
+    /// key left out gives none, and why it was left out is given.
     pub fn adopt_loaded_derived(
         &mut self,
         c: &Compute,
         loaded: crate::job::KeysLoaded,
-    ) -> (Vec<Fingerprint>, crate::job::Derived) {
+    ) -> (Vec<Fingerprint>, crate::job::Derived, Vec<Refusal>) {
         let mut out = Vec::new();
         if loaded.network != self.network {
             return (out, crate::job::Derived::default());
         }
         let mut derived = Vec::new();
+        // Why keys were left out: those the job could not make, then those
+        // the session refuses.
+        let mut refused = loaded.refused;
         for item in loaded.items {
             let fp = item.entry.info.fingerprint;
-            if self.no_stick().is_err() || self.allowed(fp).is_err() || self.position(fp).is_some()
-            {
+            if let Err(e) = self.no_stick().and_then(|()| self.allowed(fp)) {
+                refused.push(e);
+                continue;
+            }
+            if self.position(fp).is_some() {
+                refused.push(Refusal::Duplicate(fp));
                 continue;
             }
             self.push(c, item.entry);
@@ -885,7 +892,7 @@ impl Keys {
             }
             out.push(fp);
         }
-        (out, crate::job::Derived(derived))
+        (out, crate::job::Derived(derived), refused)
     }
 
     /// Costs what `add_words_with` costs. Adds the key key `i`'s words and

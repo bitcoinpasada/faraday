@@ -68,8 +68,8 @@ pub(crate) fn start(app: &mut Faraday, v: usize, set: &BTreeSet<usize>) {
 /// Costs what [`start`] costs. A load of the records `set` names of open
 /// vault `v`, then `then` with the counts, on the main thread: at once for
 /// wallets alone, else when the job answers (a stale answer is dropped,
-/// `then` never run). Nothing starts for a press run again after its own
-/// load ([`replay`]): it finds what the first load left.
+/// `then` never run). Nothing starts of a vault for a press run again after its
+/// load of it ([`replay`]): it finds what the first load left.
 pub(crate) fn start_then(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, then: Then) {
     begin(app, v, set, Kind::Plain, then);
 }
@@ -83,19 +83,23 @@ pub(crate) fn start_replay(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, t
     let Some(action) = app.vaults.state.acting else {
         return begin(app, v, set, Kind::Plain, then);
     };
+    // The vaults this press has loaded, this one with them: the press run
+    // again loads none of them a second time.
+    let mut seen = app.vaults.state.replayed.clone();
+    seen.push(v);
     let both: Then = Box::new(move |app, keys, wallets| {
         then(app, keys, wallets);
-        replay(app, action);
+        replay(app, action, seen);
     });
     begin(app, v, set, Kind::Replay, both)
 }
 
-/// Runs `action` again, its load done: a load it asks for now starts no
-/// job.
-fn replay(app: &mut Faraday, action: crate::Action) {
-    let was = std::mem::replace(&mut app.vaults.state.replaying, true);
+/// Runs `action` again, its load done: a load it asks for of a vault in
+/// `seen` starts no job.
+fn replay(app: &mut Faraday, action: crate::Action, seen: Vec<usize>) {
+    let was = std::mem::replace(&mut app.vaults.state.replayed, seen);
     app.act(action);
-    app.vaults.state.replaying = was;
+    app.vaults.state.replayed = was;
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -107,7 +111,7 @@ enum Kind {
 
 /// Whether a job was started.
 fn begin(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, kind: Kind, then: Then) -> bool {
-    if app.vaults.state.replaying {
+    if app.vaults.state.replayed.contains(&v) {
         return false;
     }
     let c = app.compute();
@@ -137,6 +141,7 @@ fn begin(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, kind: Kind, then: T
             then,
         },
     };
+    app.vaults.state.loads_started = app.vaults.state.loads_started.wrapping_add(1);
     app.start(Job::KeysLoad(Box::new(work)), EN.working_load_seeds);
     true
 }
@@ -152,7 +157,8 @@ pub(crate) fn loaded(app: &mut Faraday, done: LoadKeysDone) {
     if !still {
         return;
     }
-    let (added, derived) = app.session.keys.adopt_loaded_derived(&c, loaded);
+    let (added, derived, refused) = app.session.keys.adopt_loaded_derived(&c, loaded);
+    app.vaults.state.key_refused = refused.first().map(|e| e.text());
     let wallets = app.vault_load_wallets(&c, plan.wallets, &derived);
     (plan.then)(app, added.len(), wallets);
 }

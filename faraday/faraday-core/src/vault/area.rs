@@ -53,6 +53,17 @@ impl std::ops::Deref for VaultArea {
 }
 
 impl VaultArea {
+    /// How many loads of seeds have been started.
+    pub(crate) fn loads_started(&self) -> u32 {
+        self.state.loads_started
+    }
+
+    /// Notes the key a load for one key record added, and gives the one
+    /// noted before.
+    pub(crate) fn key_added_swap(&mut self, fp: Option<[u8; 4]>) -> Option<[u8; 4]> {
+        std::mem::replace(&mut self.state.key_added, fp)
+    }
+
     /// The press now being acted on is `action`, until it is put back:
     /// returns the one it replaces.
     pub(crate) fn acting_swap(&mut self, action: Option<crate::Action>) -> Option<crate::Action> {
@@ -2192,8 +2203,16 @@ pub struct Vaults {
     /// The press being acted on, to be run again when a load it started
     /// has answered ([`crate::vault::load_job`]).
     pub(crate) acting: Option<crate::Action>,
-    /// A press is run again after its load: it starts no load of its own.
-    pub(crate) replaying: bool,
+    /// A press is run again after its load: it starts no load again of the
+    /// vaults whose seeds were loaded for it (by their places).
+    pub(crate) replayed: Vec<usize>,
+    /// How many loads of seeds were started: a press that starts one stops
+    /// where it is, and says so by this moving.
+    pub(crate) loads_started: u32,
+    /// The key a load for one key record added, until its press takes it.
+    pub(crate) key_added: Option<[u8; 4]>,
+    /// Why the last load left a key out, as the person is told.
+    pub(crate) key_refused: Option<String>,
     /// Where an unlock or a creation started from another flow returns.
     pub back_to: Option<Screen>,
     /// Create a vault was opened from Home: Back goes to Home, not the

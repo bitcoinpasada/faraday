@@ -53,6 +53,16 @@ impl Work {
 /// A destination of [`Work::dest`]: off the map, the copy destroyed.
 pub const OFF: u8 = u8::MAX;
 
+/// What [`Faraday::press_wallet_wait`] found.
+pub(crate) enum PressWallet {
+    /// The loaded wallet's place.
+    Ready(usize),
+    /// Its seeds are being loaded; the press is run again after.
+    Loading,
+    /// No wallet.
+    None,
+}
+
 /// A change to where things are kept, asked for and not yet made.
 pub struct Ask {
     /// The chart it was asked on.
@@ -129,6 +139,19 @@ impl Faraday {
         match press {
             Press::Loaded(w) => Some(w).filter(|&w| w < self.session.wallets.len()),
             Press::Vault(v, r) => self.vault_load_wallet(v, r),
+        }
+    }
+
+    /// Costs what `press_wallet` costs. As `press_wallet`, saying whether
+    /// a load of seeds was started for it: a press that has changed state
+    /// of its own must do so only after this answers, for it is run again
+    /// when the load has, and finds that state used up.
+    pub(crate) fn press_wallet_wait(&mut self, press: Press) -> PressWallet {
+        let started = self.vaults.loads_started();
+        match self.press_wallet(press) {
+            Some(w) => PressWallet::Ready(w),
+            None if self.vaults.loads_started() != started => PressWallet::Loading,
+            None => PressWallet::None,
         }
     }
 
@@ -374,6 +397,16 @@ impl Faraday {
     /// copy, where it makes one.
     pub(crate) fn chart_confirm(&mut self) {
         let c = self.compute();
+        let Some(press) = self.glance.work().ask.as_ref().map(|a| a.press) else {
+            return;
+        };
+        // The change asked for stays until the seeds are loaded and the
+        // press is run again.
+        let w = match self.press_wallet_wait(press) {
+            PressWallet::Ready(w) => Some(w),
+            PressWallet::Loading => return,
+            PressWallet::None => None,
+        };
         let Some(ask) = self.glance.take_ask() else {
             return;
         };
@@ -381,7 +414,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::Chart) {
             self.sheet = None;
         }
-        let Some(w) = self.press_wallet(ask.press) else {
+        let Some(w) = w else {
             return;
         };
         let from_vault = matches!(ask.press, Press::Vault(..));
@@ -522,8 +555,15 @@ impl Faraday {
     /// Costs what `notes_vault` costs. Whether the vault a date would be
     /// written into is a copy that is not the current one: it would live
     /// only there, so nothing is written, and the toast says so.
+    /// True too while the wallet's seeds are loading: the press is run
+    /// again after.
     fn chart_copy_not_current(&mut self, c: &Compute, press: Press) -> bool {
-        if let Some(w) = self.press_wallet(press)
+        let w = match self.press_wallet_wait(press) {
+            PressWallet::Ready(w) => Some(w),
+            PressWallet::Loading => return true,
+            PressWallet::None => None,
+        };
+        if let Some(w) = w
             && let Some(v) = self.notes_vault(c, press, w)
             && self.vaults.open.get(v).is_some_and(|o| o.is_not_current())
         {
@@ -657,6 +697,11 @@ impl Faraday {
         let Some((_, Target::PassCheck(k, n, j))) = self.glance.chart() else {
             return;
         };
+        // The typed passphrase stays until the wallet's seeds are loaded
+        // and the press is run again.
+        if matches!(self.press_wallet_wait(press), PressWallet::Loading) {
+            return;
+        }
         let fp = self.chart_key_fp(&c, press, k);
         let matched = fp.and_then(|fp| {
             let key = self.session.keys.position_of(fp)?;

@@ -19,6 +19,7 @@ use faraday_bip::keys::{Fingerprint, MasterKey, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
+use faraday_intake::wallet::Refusal;
 use faraday_vault as fv;
 use zeroize::Zeroizing;
 
@@ -670,6 +671,9 @@ pub struct KeysLoaded {
     /// The network the keys were worked out on; a session on another adds none.
     pub(crate) network: Network,
     pub(crate) items: Vec<LoadedKey>,
+    /// Why a key of the load was left out in the job: words that make no
+    /// key, a seed of no length a master seed has.
+    pub(crate) refused: Vec<Refusal>,
 }
 
 /// What the keys a load added give at the origin paths of the wallets'
@@ -750,11 +754,14 @@ impl KeysJob {
     /// Costs a PBKDF2 for each passphrase kept alone that a words record
     /// has no passphrase of its own to be tried with, and what
     /// `add_words_with` and `add_seed` cost for each key: a parse of the
-    /// words, a PBKDF2, a master key and its id. A key that does not
-    /// stretch is left out. Everything the job held is wiped as it ends.
+    /// words, a PBKDF2, a master key and its id, and a derivation at the
+    /// origin path of each kept wallet key under the key's fingerprint
+    /// ([`KeysJob::check_at`]). A key that does not stretch is left out,
+    /// with why. Everything the job held is wiped as it ends.
     pub fn run(self, c: &Compute) -> KeysLoaded {
         let network = self.network;
         let mut items = Vec::new();
+        let mut refused = Vec::new();
         for w in &self.words {
             #[expect(
                 clippy::disallowed_methods,
@@ -765,11 +772,19 @@ impl KeysJob {
                 None => self.kept_for(c, w).unwrap_or_default(),
             };
             let (phrase, pass) = (text(&w.phrase), text(&pass));
-            let Ok(m) = crate::session::parse_words(c, phrase) else {
-                continue;
+            let m = match crate::session::parse_words(c, phrase) {
+                Ok(m) => m,
+                Err(e) => {
+                    refused.push(e);
+                    continue;
+                }
             };
-            let Ok(master) = crate::session::mnemonic_master(c, &m, pass, network) else {
-                continue;
+            let master = match crate::session::mnemonic_master(c, &m, pass, network) {
+                Ok(master) => master,
+                Err(e) => {
+                    refused.push(e);
+                    continue;
+                }
             };
             let derived = self.derive_checks(c, &master);
             #[expect(
@@ -784,8 +799,12 @@ impl KeysJob {
             });
         }
         for s in &self.seeds {
-            let Ok(master) = crate::session::seed_master(c, &s.seed, network) else {
-                continue;
+            let master = match crate::session::seed_master(c, &s.seed, network) {
+                Ok(master) => master,
+                Err(e) => {
+                    refused.push(e);
+                    continue;
+                }
             };
             let derived = self.derive_checks(c, &master);
             #[expect(
@@ -799,7 +818,11 @@ impl KeysJob {
                 child: None,
             });
         }
-        KeysLoaded { network, items }
+        KeysLoaded {
+            network,
+            items,
+            refused,
+        }
     }
 
     /// Costs a PBKDF2 for each passphrase kept alone. The `chosen`th of

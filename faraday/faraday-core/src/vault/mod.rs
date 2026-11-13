@@ -1593,6 +1593,7 @@ impl Faraday {
         set: &BTreeSet<usize>,
     ) -> Option<(faraday_keys::job::KeysJob, Vec<LoadWallet>)> {
         self.vaults.state.refused = None;
+        self.vaults.state.key_refused = None;
         let open = self.vaults.open.get(v)?;
         // The passphrase asked for on each key's card, where the Load
         // sheet of this vault is up.
@@ -1701,8 +1702,6 @@ impl Faraday {
                 // The key's words are stretched in a job; the press waits
                 // for the answer.
                 let v = self.vaults.current;
-                let want = crate::vault::screen::key_fingerprint(&c, self, r)
-                    .and_then(|t| keep::fp_bytes(&t));
                 let then: load_job::Then = Box::new(move |app, keys, _| {
                     if keys > 0 {
                         let fp = app.session.keys.all().last().map(|k| k.fingerprint);
@@ -1712,11 +1711,10 @@ impl Faraday {
                                 &[&crate::wallet::fp_text(fp).to_string()],
                             ));
                         }
-                    } else if let Some(fp) = want {
-                        let fp = faraday_bip::keys::Fingerprint(fp);
-                        if app.session.keys.all().any(|k| k.fingerprint == fp) {
-                            app.toast(&crate::wallet::Refusal::Duplicate(fp).text());
-                        }
+                    } else if let Some(why) = app.vaults.state.key_refused.take() {
+                        // Why the key was left out: not a sample in
+                        // Practice, words that make no key, already held.
+                        app.toast(&why);
                     }
                     app.refresh_spend();
                 });

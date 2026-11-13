@@ -148,16 +148,21 @@ impl Faraday {
         let want = crate::vault::screen::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
         // The key's words are stretched in a job; the press is run again
         // when it is in, and finds it.
-        let nothing: crate::vault::load_job::Then = Box::new(|_, _, _| {});
-        if crate::vault::load_job::start_replay(self, v, &BTreeSet::from([r]), nothing) {
+        let added: crate::vault::load_job::Then = Box::new(|app, keys, _| {
+            if keys > 0 {
+                let fp = app.session.keys.all().last().map(|k| k.fingerprint.0);
+                app.vaults.key_added_swap(fp);
+            }
+        });
+        self.vaults.key_added_swap(None);
+        if crate::vault::load_job::start_replay(self, v, &BTreeSet::from([r]), added) {
             return None;
         }
-        let before = self.session.keys.len();
-        let fp = if self.session.keys.len() > before {
-            self.session.keys.all().last().map(|k| k.fingerprint.0)
-        } else {
-            want.filter(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == *fp))
-        }?;
+        // The key the job added, else the one the record names if it is held.
+        let fp = match self.vaults.key_added_swap(None) {
+            Some(fp) => fp,
+            None => want.filter(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == *fp))?,
+        };
         let name = self.vaults.open[v].name.clone();
         self.toast(&fill(
             EN.vaults_loaded_note,
@@ -217,31 +222,36 @@ impl Faraday {
             .collect();
         let wallet_slots = self.session.slots(w);
         let n = keys.len().max(1);
+        // The seeds the vault keeps of every slot's key are stretched in
+        // one job per vault; the press is run again when they are in.
+        if self.may_load_keys() {
+            let mut wanted: Vec<(usize, BTreeSet<usize>)> = Vec::new();
+            for (j, (fp, _)) in keys.iter().enumerate() {
+                let held =
+                    fp.is_none_or(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == fp));
+                if held {
+                    continue;
+                }
+                if let Some((v, r)) = wallet_slots.get(j).and_then(|s| self.vault_key_for(&c, s)) {
+                    match wanted.iter_mut().find(|(u, _)| *u == v) {
+                        Some((_, set)) => {
+                            set.insert(r);
+                        }
+                        None => wanted.push((v, BTreeSet::from([r]))),
+                    }
+                }
+            }
+            for (v, set) in wanted {
+                let nothing: crate::vault::load_job::Then = Box::new(|_, _, _| {});
+                if crate::vault::load_job::start_replay(self, v, &set, nothing) {
+                    return;
+                }
+            }
+        }
         let mut slots = Vec::new();
         let mut xpubs = Vec::new();
-        for (j, (fp, text)) in keys.iter().enumerate() {
-            let here =
-                |app: &Faraday, fp: [u8; 4]| app.session.keys.all().any(|k| k.fingerprint.0 == fp);
-            let held = match fp {
-                Some(fp) if here(self, *fp) => true,
-                Some(fp) if self.may_load_keys() => {
-                    if let Some((v, r)) =
-                        wallet_slots.get(j).and_then(|s| self.vault_key_for(&c, s))
-                    {
-                        let nothing: crate::vault::load_job::Then = Box::new(|_, _, _| {});
-                        if crate::vault::load_job::start_replay(
-                            self,
-                            v,
-                            &BTreeSet::from([r]),
-                            nothing,
-                        ) {
-                            return;
-                        }
-                    }
-                    here(self, *fp)
-                }
-                _ => false,
-            };
+        for (fp, text) in &keys {
+            let held = fp.is_some_and(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == fp));
             match fp {
                 Some(fp) if held => {
                     slots.push(Source::Here(*fp));
