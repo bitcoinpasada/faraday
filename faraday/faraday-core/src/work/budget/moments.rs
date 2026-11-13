@@ -5,6 +5,7 @@
 //! starts doing a costly thing twice, or something new, fails here.
 
 use faraday_shell_api::{App, Event};
+use faraday_text::text;
 
 use super::type_text;
 use crate::vault::VaultAction as V;
@@ -22,7 +23,7 @@ fn check(moment: &str, work: &Counts, table: Table) {
         let want = table.iter().find(|t| t.0 == k).map_or(0, |t| t.1);
         let n = work.of(k);
         if n != want {
-            wrong.push(format!("{k:?} {n} (budget {want})"));
+            wrong.push(text!("{k:?} {n} (budget {want})"));
         }
     }
     assert!(wrong.is_empty(), "{moment}: {}", wrong.join(", "));

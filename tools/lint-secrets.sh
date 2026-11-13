@@ -475,7 +475,12 @@ core/faraday-psbt/src/message.rs
 core/faraday-psbt/src/sign.rs
 core/faraday-psbt/src/verify.rs
 faraday/faraday-core/src/fresh/page.rs
+faraday/faraday-core/src/work/budget.rs
 faraday/faraday-core/src/work/budget/codex32.rs
+faraday/faraday-core/src/work/budget/identities.rs
+faraday/faraday-core/src/work/budget/moments.rs
+faraday/faraday-core/src/work/budget/presses.rs
+faraday/faraday-core/src/work/budget/shown.rs
 faraday/faraday-core/src/work.rs
 faraday/faraday-core/src/drawing/allowed.rs
 faraday/faraday-core/src/explore/shown.rs

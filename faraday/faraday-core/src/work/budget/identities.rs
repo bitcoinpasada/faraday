@@ -40,7 +40,7 @@ fn vault(extra: Option<Record>) -> Vec<u8> {
     testkit::kdbx_vault("Keys", testkit::VAULT_PASSPHRASE, 0x41, rs).expect("a vault")
 }
 
-fn app_with(files: Vec<(String, Vec<u8>)>) -> Faraday {
+fn app_with(files: Vec<(&str, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -82,7 +82,7 @@ fn unlock(app: &mut Faraday, name: &str) {
 #[test]
 fn an_unlock_shows_each_keys_fingerprint_and_stretches_no_key_to_show_them() {
     let c = testkit::compute();
-    let mut app = app_with(vec![("vault.kdbx".into(), vault(None))]);
+    let mut app = app_with(vec![("vault.kdbx", vault(None))]);
     unlock(&mut app, "vault.kdbx");
     assert_eq!(app.vaults.open.len(), 1, "the vault opened");
     // What the job counted is brought home with its answer, so the counts
@@ -118,8 +118,8 @@ fn an_unlock_shows_each_keys_fingerprint_and_stretches_no_key_to_show_them() {
 #[test]
 fn a_second_copy_of_an_open_vault_is_refused_and_keeps_nothing_of_its_own() {
     let files = vec![
-        ("vault.kdbx".to_string(), vault(None)),
-        ("copy.kdbx".to_string(), vault(Some(seed("summer", None)))),
+        ("vault.kdbx", vault(None)),
+        ("copy.kdbx", vault(Some(seed("summer", None)))),
     ];
     let mut app = app_with(files);
     unlock(&mut app, "vault.kdbx");

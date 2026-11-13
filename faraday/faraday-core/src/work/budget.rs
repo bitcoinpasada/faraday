@@ -35,6 +35,7 @@ static ALLOC: faraday_alloc_count::Counting = faraday_alloc_count::Counting;
 
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_text::{Text, text};
 
 use super::{Counts, KINDS, Work, since, snapshot};
 use crate::backup_flow::steps::FlowAction as F;
@@ -361,11 +362,11 @@ fn hover_work(app: &mut Faraday) -> Counts {
 struct Report {
     /// The frame costs measured, against.
     costs: &'static [(&'static str, u64, u64)],
-    lines: Vec<String>,
+    lines: Vec<Text>,
     /// Each screen's allocations and lines, as [`FRAME_COSTS`] writes
     /// them.
-    measured: Vec<String>,
-    failures: Vec<String>,
+    measured: Vec<Text>,
+    failures: Vec<Text>,
 }
 
 impl Report {
@@ -382,49 +383,49 @@ impl Report {
         let (frame, allocs, drawn, fills) = frame_costs(app);
         let hover = hover_work(app);
         if fills > 0 {
-            self.failures.push(format!(
+            self.failures.push(text!(
                 "{name}: a frame drawn again filled {fills} shapes from their outlines: the name and the mark are kept (docs/SPEED.md §3.8)"
             ));
         }
         self.measured
-            .push(format!("    (\"{name}\", {allocs}, {drawn}),"));
+            .push(text!("    (\"{name}\", {allocs}, {drawn}),"));
         match self.costs.iter().find(|(n, ..)| *n == name) {
-            None => self.failures.push(format!(
+            None => self.failures.push(text!(
                 "{name}: no measured frame costs (allocations {allocs}, lines {drawn})"
             )),
             Some(&(_, a, l)) => {
                 if allocs > with_margin(a) {
-                    self.failures.push(format!(
+                    self.failures.push(text!(
                         "{name}: a frame made {allocs} allocations, measured {a} (most {}): a frame did work no one marked",
                         with_margin(a)
                     ));
                 }
                 if drawn > with_margin(l) {
-                    self.failures.push(format!(
+                    self.failures.push(text!(
                         "{name}: a frame drew {drawn} lines of text, measured {l} (most {}): a frame drew what no one marked",
                         with_margin(l)
                     ));
                 }
             }
         }
-        let mut line = format!("{name} ({:?}, {:?}):", app.screen, app.sheet);
+        let mut line = text!("{name} ({:?}, {:?}):", app.screen, app.sheet);
         for &k in &KINDS {
             let n = frame.of(k);
             if n > 0 {
-                line.push_str(&format!(" {k:?} {n}"));
+                line.push_str(&text!(" {k:?} {n}"));
             }
             let mut budget = budget(name, k);
             if k == Work::FullCanvas && app.sheet.is_some() {
                 budget = budget.max(SHEET_CANVAS);
             }
             if n > budget {
-                self.failures.push(format!(
+                self.failures.push(text!(
                     "{name}: a frame did {k:?} {n} times (budget {budget}): a frame did work the drawing memo should keep (docs/SPEED.md §3.3)"
                 ));
             }
             let h = hover.of(k);
             if h > 0 {
-                self.failures.push(format!(
+                self.failures.push(text!(
                     "{name}: a pointer move did {k:?} {h} times: an event that changes nothing does no costly work (docs/SPEED.md §3.5)"
                 ));
             }

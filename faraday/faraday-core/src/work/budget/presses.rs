@@ -6,6 +6,7 @@
 //! offer their own presses.
 
 use faraday_shell_api::{App, Event};
+use faraday_text::{Text, text};
 
 use super::{DESKTOP, MAIN, PI, Panel, walk_on};
 use crate::work::{Counts, KINDS, Work, since, snapshot};
@@ -171,8 +172,8 @@ fn budget(name: &str, kind: Work) -> u64 {
 }
 
 /// An action's name with its numbers written `#`.
-fn name_of(a: Action) -> String {
-    format!("{a:?}")
+fn name_of(a: Action) -> Text {
+    text!("{a:?}")
         .chars()
         .map(|c| if c.is_ascii_digit() { '#' } else { c })
         .collect()
@@ -235,20 +236,21 @@ fn presses_hold_on(panel: Panel, least: usize) {
             }
             let work = press_work(&mut app, a);
             pressed += 1;
-            let mut line = format!("{screen_name}: {name}:");
+            let mut line = text!("{screen_name}: {}:", &*name);
             for k in KINDS {
                 let n = work.of(k);
                 if n == 0 {
                     continue;
                 }
-                line.push_str(&format!(" {k:?} {n}"));
+                line.push_str(&text!(" {k:?} {n}"));
                 let mut b = budget(&name, k);
                 if k == Work::FullCanvas && app.sheet.is_some() {
                     b = b.max(SHEET_CANVAS);
                 }
                 if n > b {
-                    failures.push(format!(
-                        "{screen_name}: {name} did {k:?} {n} times (budget {b})"
+                    failures.push(text!(
+                        "{screen_name}: {} did {k:?} {n} times (budget {b})",
+                        &*name
                     ));
                 }
             }
@@ -367,10 +369,10 @@ fn press_within(app: &mut Faraday, a: Action, canvas: u64) {
             budget(&name, k)
         };
         if work.of(k) > b {
-            over.push(format!("{k:?} {} (budget {b})", work.of(k)));
+            over.push(text!("{k:?} {} (budget {b})", work.of(k)));
         }
     }
-    assert!(over.is_empty(), "{name} did {}", over.join(", "));
+    assert!(over.is_empty(), "{} did {}", &*name, over.join(", "));
 }
 
 /// Frames drawn again on the sheet at rest do nothing costly.

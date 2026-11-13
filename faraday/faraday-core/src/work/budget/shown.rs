@@ -13,6 +13,7 @@ use crate::vault::VaultAction as V;
 use crate::work::{Counts, KINDS, PIXELS, Work, since, snapshot};
 use crate::{Action, Faraday, Screen, bstep, testkit};
 use faraday_shell_api::App;
+use faraday_text::Text;
 
 /// The heavy session on the backup's first copy page, the seed hidden.
 fn copy_page() -> Faraday {
@@ -265,8 +266,8 @@ fn vault_page(category: usize) -> Faraday {
 }
 
 /// Everything the current frame draws, as one text.
-fn page_text(app: &mut Faraday) -> String {
-    app.drawn_texts().join(" ")
+fn page_text(app: &mut Faraday) -> Text {
+    Text::of(&app.drawn_texts().join(" "))
 }
 
 /// A lock, to its end: the vaults are closed.
@@ -370,14 +371,14 @@ fn a_gpg_paperkey_is_made_once_when_shown() {
     costs(&work, &[]);
     assert!(held(&app).1, "the paperkey is held");
     frames_work_out_nothing(&mut app);
-    let key = app
-        .vaults
-        .paperkey_shown(app.vault_on_page())
-        .expect("held")
-        .to_string();
-    let shown: String = page_text(&mut app).split_whitespace().collect();
-    let first: String = key.split_whitespace().take(3).collect();
-    assert!(shown.contains(&first), "the paperkey is drawn");
+    let key = Text::of(
+        app.vaults
+            .paperkey_shown(app.vault_on_page())
+            .expect("held"),
+    );
+    let shown: Text = page_text(&mut app).split_whitespace().collect();
+    let first: Text = key.split_whitespace().take(3).collect();
+    assert!(shown.contains(first.as_str()), "the paperkey is drawn");
     let _ = press_work(&mut app, Action::Vault(V::Reveal(0)));
     assert!(!held(&app).1);
     // Shown again, then the page left, then a lock.
@@ -410,12 +411,11 @@ fn a_gpg_paperkeys_code_is_made_once_at_the_press_and_dropped_with_the_sheet() {
 }
 
 /// The code the entry gives now, as the page draws it.
-fn code_now(app: &Faraday) -> String {
+fn code_now(app: &Faraday) -> Text {
     let now = app.clock_now().expect("a checked clock");
     faraday_keys::totp::code_at("JBSWY3DPEHPK3PXP", now)
         .expect("a TOTP key")
         .grouped
-        .to_string()
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn an_entrys_code_is_worked_out_once_for_each_period() {
     assert!(held(&app).2, "the code is held");
     app.settle();
     let _ = app.frame();
-    assert!(page_text(&mut app).contains(&code_now(&app)));
+    assert!(page_text(&mut app).contains(code_now(&app).as_str()));
     frames_work_out_nothing(&mut app);
     // The clock runs on inside the period: frames and ticks, no work.
     let period = app.vaults.code_held(true).expect("held").period;
@@ -454,7 +454,7 @@ fn an_entrys_code_is_worked_out_once_for_each_period() {
     let _ = app.frame();
     assert_eq!(since(&before).of(Work::TotpCode), 1);
     assert_ne!(code_now(&app), old);
-    assert!(page_text(&mut app).contains(&code_now(&app)));
+    assert!(page_text(&mut app).contains(code_now(&app).as_str()));
 }
 
 #[test]
@@ -503,10 +503,13 @@ fn the_codes_screen_works_out_each_entrys_code_once_for_each_period() {
     let texts = page_text(&mut app);
     let held = app.vaults.codes_held().expect("held");
     let first = held.0.iter().find_map(|l| match &l.result {
-        Some(Ok(Some(s))) => Some(s.grouped.to_string()),
+        Some(Ok(Some(s))) => Some(s.grouped.duplicate()),
         _ => None,
     });
-    assert!(texts.contains(&first.expect("a code")), "the code is drawn");
+    assert!(
+        texts.contains(first.expect("a code").as_str()),
+        "the code is drawn"
+    );
     // Inside the period the clock runs on: ticks and frames, no work.
     let period = held.0.first().map_or(0, |l| l.period);
     assert!(period > 0, "the first entry listed gives a code");
@@ -578,11 +581,13 @@ fn an_edited_entrys_row_shows_its_new_code_and_typing_in_the_search_works_out_no
     let now = app.clock_now().expect("a clock");
     let new = faraday_keys::totp::code_at("GEZDGNBVGY3TQOJQ", now)
         .expect("a key")
-        .grouped
-        .to_string();
+        .grouped;
     app.settle();
     let _ = app.frame();
-    assert!(page_text(&mut app).contains(&new), "the new code is drawn");
+    assert!(
+        page_text(&mut app).contains(new.as_str()),
+        "the new code is drawn"
+    );
     // Typing in the search bar works out no code.
     app.press(Action::Vault(V::Search(crate::vault::SearchAct::Focus(
         crate::vault::SearchIn::Codes,
@@ -610,9 +615,9 @@ fn type_in(app: &mut Faraday, text: &str) {
 }
 
 /// The code the entry page holds, as drawn grouped.
-fn page_code(app: &Faraday) -> String {
+fn page_code(app: &Faraday) -> Text {
     match app.vaults.code_held(true).map(|h| &h.result) {
-        Some(Ok(Some(s))) => s.grouped.to_string(),
+        Some(Ok(Some(s))) => s.grouped.duplicate(),
         _ => panic!("the page holds no code"),
     }
 }
@@ -623,7 +628,7 @@ fn typing_in_the_items_search_shows_the_new_entrys_code_after_the_frame() {
     let id = app.vaults.open[0].id;
     // A second entry with a TOTP secret, so the search moves the page.
     let c = testkit::compute();
-    let title = "Zeta".to_string();
+    let title = "Zeta";
     app.vaults
         .edit(id, |s| {
             s.set_fields(
@@ -662,8 +667,8 @@ fn typing_in_the_items_search_shows_the_new_entrys_code_after_the_frame() {
     assert_eq!(app.vaults.selected_place(), Some(at));
     assert_eq!(app.vaults.code_held(true).map(|h| h.at.record), Some(at));
     let text = page_text(&mut app);
-    assert!(text.contains(&page_code(&app)), "the code is drawn");
-    assert!(!text.contains(crate::EN.vault_unreadable), "{text}");
+    assert!(text.contains(page_code(&app).as_str()), "the code is drawn");
+    assert!(!text.contains(crate::EN.vault_unreadable), "{}", &*text);
 }
 
 #[test]
@@ -684,7 +689,7 @@ fn deleting_the_codes_query_brings_every_row_back_and_works_out_no_code() {
     assert_eq!(held.0.len(), n);
     for l in &held.0 {
         if let Some(Ok(Some(s))) = &l.result {
-            assert!(text.contains(&*s.grouped), "every row is back: {text}");
+            assert!(text.contains(&*s.grouped), "every row is back: {}", &*text);
         }
     }
 }
@@ -699,8 +704,16 @@ fn leaving_an_entrys_edit_form_by_escape_or_enter_shows_its_code_after_the_frame
     key(&mut app, Key::Escape);
     assert!(app.vaults.form.is_none());
     let text = page_text(&mut app);
-    assert!(text.contains(&page_code(&app)), "Escape: {text}");
-    assert!(!text.contains(crate::EN.vault_unreadable), "Escape: {text}");
+    assert!(
+        text.contains(page_code(&app).as_str()),
+        "Escape: {}",
+        &*text
+    );
+    assert!(
+        !text.contains(crate::EN.vault_unreadable),
+        "Escape: {}",
+        &*text
+    );
     // Enter on the last field saves; a longer URI gives other digits.
     let old = page_code(&app);
     app.press(Action::Vault(V::Edit));
@@ -711,7 +724,7 @@ fn leaving_an_entrys_edit_form_by_escape_or_enter_shows_its_code_after_the_frame
     let text = page_text(&mut app);
     let new = page_code(&app);
     assert_ne!(new, old, "the new secret's code");
-    assert!(text.contains(&new), "Enter: {text}");
+    assert!(text.contains(new.as_str()), "Enter: {}", &*text);
 }
 
 #[test]
@@ -721,7 +734,7 @@ fn a_sheet_over_an_entrys_page_draws_no_unreadable_badge() {
     let _ = app.frame();
     assert!(app.sheet.is_some(), "a sheet is over the page");
     let text = page_text(&mut app);
-    assert!(!text.contains(crate::EN.vault_unreadable), "{text}");
+    assert!(!text.contains(crate::EN.vault_unreadable), "{}", &*text);
 }
 
 #[test]
@@ -753,8 +766,8 @@ fn the_codes_screen_draws_hotp_unreadable_and_two_periods_each_rolling_over_alon
     }
     let _ = app.frame();
     let text = page_text(&mut app);
-    assert!(text.contains(crate::EN.codes_hotp), "{text}");
-    assert!(text.contains(crate::EN.codes_unreadable), "{text}");
+    assert!(text.contains(crate::EN.codes_hotp), "{}", &*text);
+    assert!(text.contains(crate::EN.codes_unreadable), "{}", &*text);
     assert_eq!(app.vaults.codes_held().map(|h| h.0.len()), Some(5));
     let mut moved_some = false;
     for round in 1..=2 {
