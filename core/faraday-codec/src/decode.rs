@@ -12,7 +12,6 @@ use zeroize::Zeroizing;
 use crate::classify::{PayloadKind, classify};
 
 /// One QR code found in a frame.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decoded {
     /// The payload bytes: digits for numeric mode, the text's bytes for
     /// alphanumeric, the raw bytes for byte mode. Wiped when dropped: a
@@ -20,6 +19,17 @@ pub struct Decoded {
     pub bytes: Zeroizing<Vec<u8>>,
     /// What [`classify`] makes of the bytes.
     pub kind: PayloadKind,
+}
+
+// No `Clone` and no `PartialEq`: the bytes may be a SeedQR. The Debug prints
+// the kind and no bytes.
+impl core::fmt::Debug for Decoded {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Decoded")
+            .field("bytes", &"<redacted>")
+            .field("kind", &self.kind)
+            .finish()
+    }
 }
 
 /// Costs a thresholding and a search of the image, counted once its

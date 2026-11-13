@@ -39,7 +39,11 @@ pub const PIECE: usize = 16 * 1024 * 1024;
 pub const NOT_OPEN: &str = "stick-not-open";
 
 /// What the shell asks.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// It holds a file's bytes, which may be a seed in the clear: it has no
+/// `Clone`, its `Debug` names the variant and prints no field, and two
+/// requests are equal when every field is, the file bytes compared without
+/// a branch on a byte.
 pub enum Request {
     /// The partitions handed out, with their files.
     List,
@@ -158,6 +162,184 @@ pub enum Request {
         label: String,
     },
 }
+
+impl std::fmt::Debug for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Request::List => "List",
+            Request::Read { .. } => "Read",
+            Request::ReadPart { .. } => "ReadPart",
+            Request::Piece { .. } => "Piece",
+            Request::Write { .. } => "Write",
+            Request::ReadQr { .. } => "ReadQr",
+            Request::Wipe { .. } => "Wipe",
+            Request::Space { .. } => "Space",
+            Request::ZeroFree { .. } => "ZeroFree",
+            Request::MakeEmpty { .. } => "MakeEmpty",
+            Request::Rename { .. } => "Rename",
+            Request::Name { .. } => "Name",
+        })
+    }
+}
+
+impl PartialEq for Request {
+    /// Field by field, the file bytes in constant time.
+    fn eq(&self, other: &Self) -> bool {
+        use Request::*;
+        match (self, other) {
+            (List, List) => true,
+            (
+                Read {
+                    stick: s1,
+                    name: n1,
+                },
+                Read {
+                    stick: s2,
+                    name: n2,
+                },
+            )
+            | (
+                ReadQr {
+                    stick: s1,
+                    name: n1,
+                },
+                ReadQr {
+                    stick: s2,
+                    name: n2,
+                },
+            )
+            | (
+                Wipe {
+                    stick: s1,
+                    name: n1,
+                },
+                Wipe {
+                    stick: s2,
+                    name: n2,
+                },
+            ) => s1 == s2 && n1 == n2,
+            (
+                ReadPart {
+                    stick: s1,
+                    name: n1,
+                    from: f1,
+                    len: l1,
+                },
+                ReadPart {
+                    stick: s2,
+                    name: n2,
+                    from: f2,
+                    len: l2,
+                },
+            ) => s1 == s2 && n1 == n2 && f1 == f2 && l1 == l2,
+            (Piece { .. }, Piece { .. }) | (Write { .. }, Write { .. }) => {
+                self.same_file_bytes(other)
+            }
+            (Space { stick: s1 }, Space { stick: s2 })
+            | (MakeEmpty { stick: s1 }, MakeEmpty { stick: s2 }) => s1 == s2,
+            (
+                ZeroFree {
+                    stick: s1,
+                    from: f1,
+                },
+                ZeroFree {
+                    stick: s2,
+                    from: f2,
+                },
+            ) => s1 == s2 && f1 == f2,
+            (
+                Rename {
+                    stick: s1,
+                    from: f1,
+                    to: t1,
+                    vaults: v1,
+                },
+                Rename {
+                    stick: s2,
+                    from: f2,
+                    to: t2,
+                    vaults: v2,
+                },
+            ) => s1 == s2 && f1 == f2 && t1 == t2 && v1 == v2,
+            (
+                Name {
+                    stick: s1,
+                    label: l1,
+                },
+                Name {
+                    stick: s2,
+                    label: l2,
+                },
+            ) => s1 == s2 && l1 == l2,
+            _ => false,
+        }
+    }
+}
+
+impl Request {
+    /// Two pieces or two writes, the bytes compared in constant time.
+    fn same_file_bytes(&self, other: &Request) -> bool {
+        use Request::*;
+        match (self, other) {
+            (
+                Piece {
+                    stick: s1,
+                    name: n1,
+                    at: a1,
+                    total: t1,
+                    bytes: b1,
+                },
+                Piece {
+                    stick: s2,
+                    name: n2,
+                    at: a2,
+                    total: t2,
+                    bytes: b2,
+                },
+            ) => s1 == s2 && n1 == n2 && a1 == a2 && t1 == t2 && same_bytes(b1, b2),
+            (
+                Write {
+                    stick: s1,
+                    name: n1,
+                    copies: c1,
+                    replace: r1,
+                    renamed: m1,
+                    on_taken: o1,
+                    total: t1,
+                    bytes: b1,
+                },
+                Write {
+                    stick: s2,
+                    name: n2,
+                    copies: c2,
+                    replace: r2,
+                    renamed: m2,
+                    on_taken: o2,
+                    total: t2,
+                    bytes: b2,
+                },
+            ) => {
+                s1 == s2
+                    && n1 == n2
+                    && c1 == c2
+                    && r1 == r2
+                    && m1 == m2
+                    && o1 == o2
+                    && t1 == t2
+                    && same_bytes(b1, b2)
+            }
+            _ => false,
+        }
+    }
+}
+
+/// File bytes compared without a branch on a byte; the length is not hidden.
+fn same_bytes(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
+    a.len() == b.len() && bool::from(a.ct_eq(b))
+}
+
+impl Eq for Request {}
 
 /// One stick partition, as the disk process lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -974,6 +1156,19 @@ mod tests {
                 on_taken: crate::OnTaken::Beside,
                 total: 6,
                 bytes: vec![6],
+            },
+            Request::ReadPart {
+                stick: "sdb1@7".into(),
+                name: "vault.kdbx".into(),
+                from: 1 << 33,
+                len: 4096,
+            },
+            Request::Piece {
+                stick: "sdb1@7".into(),
+                name: "vault.kdbx".into(),
+                at: 4096,
+                total: 9000,
+                bytes: vec![10, 11, 12],
             },
             Request::ReadQr {
                 stick: "sdb1@7".into(),

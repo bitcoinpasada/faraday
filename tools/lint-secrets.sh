@@ -21,7 +21,10 @@
 #      secret type (Secret, SecretText, Zeroizing, SeedBytes, MnemonicBytes,
 #      a faraday-keys Held*, rule 4a's key types) as a field's type, that derives
 #      Zeroize, or that has an `impl Drop`, `Zeroize` or `ZeroizeOnDrop`
-#      for it. A copy is a function of the type (`duplicate`), a comparison
+#      for it. A
+#      struct or enum of the same crate whose body names a secret type found
+#      this way, and that has no Drop of its own, is secret too, repeated
+#      until nothing new is found (a name the crate defines once). A copy is a function of the type (`duplicate`), a comparison
 #      one that does not branch on the bytes, a Debug one that prints a
 #      redaction. Types named Secret, Mnemonic, MnemonicBytes, Seed,
 #      Entropy, MasterKey, DerivedKey, PinEntry, Session, Key or Item
@@ -167,10 +170,16 @@ ALLOWED_TYPES=$(cat <<'EOF'
 core/faraday-bip/src/bip39.rs:Typed Clone,PartialEq,Debug the keys typed so far of a mnemonic word, which is secret; let through because no production code prints it (the Debug is used by the tests' failure messages only) and the entry's matching copies and compares it; fixed in a later change by a Debug that prints nothing and a matching that borrows
 faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's two values, a Copy element of wiped buffers that the tour and the tests compare and print
 core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
-core/faraday-codec/src/decode.rs:Decoded Clone,PartialEq,Debug fixed in a later change
-core/faraday-shell-api/src/lib.rs:Command Clone,PartialEq,Debug fixed in a later change
-faraday/faraday-files/src/proto.rs:Request Clone,PartialEq,Debug fixed in a later change
-faraday/faraday-intake/src/wallet.rs:Seen PartialEq fixed in a later change
+core/faraday-shell-api/src/lib.rs:Event Clone,PartialEq its only wiping part is EntropyBytes, which wipes on drop and compares without a branch on a byte, so the derived copy and comparison are its own; the snapshot and replay shells copy events and the tests compare them
+faraday/faraday-core/src/backup_flow/mod.rs:Live Debug holds Writing, whose Debug is its own and prints the names and sizes of what it holds; its copy is its own
+faraday/faraday-core/src/backup_flow/mod.rs:BackupFlow Clone,Debug holds Live, whose copy is its own and whose Debug is Writing's own
+faraday/faraday-core/src/dice_entry/screen.rs:Ask Clone,Copy for it is Copy: it borrows the dice entry and holds no copy of it
+faraday/faraday-core/src/transfer/mod.rs:TransferArea Debug holds SendText, whose Debug is its own and prints lengths only
+faraday/faraday-keys/src/vault/mod.rs:Records Clone,Copy for it is Copy: a view of an open vault's records that holds references, not bytes
+faraday/faraday-pgp/src/message.rs:Message Debug holds Body, whose Debug is its own and prints a length only
+faraday/faraday-vault/src/records.rs:Record Debug holds Field, whose Debug is its own and prints a number and a length only
+faraday/faraday-vault/src/contents.rs:Refusal Debug,PartialEq holds KeyName, whose Debug and PartialEq are its own, written by hand over the name as text, not derived over its bytes
+faraday/faraday-vault/src/qr.rs:Error Debug,PartialEq holds Refusal, whose Debug and PartialEq come from KeyName's own
 EOF
 )
 ALLOWED_TYPES_LIST=$(echo "$ALLOWED_TYPES" | awk '{print $1 "=" $2}' | tr '\n' ' ')
@@ -182,25 +191,18 @@ rule2_types() {
                 re = "([:(<,&[]|&mut)[[:space:]]*(pub(\\([a-z]+\\))?[[:space:]]+)?([a-z_]+::)*(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)([^A-Za-z0-9_(]|$)"
                 return b ~ re
             }
-            function excepts(key,   i, n, a) {
-                n = split(allowed, a, " ")
-                for (i = 1; i <= n; i++)
-                    if (index(a[i], key "=") == 1) return substr(a[i], length(key) + 2)
-                return ""
-            }
-            BEGIN { split_d[1] = "Clone"; split_d[2] = "PartialEq"; split_d[3] = "Debug" }
-            function flush() {
-                if (name != "" && (inbody(body) || derive ~ /Zeroize/ || index(" " names, " " name " "))) {
-                    ex = excepts(file ":" name)
-                    bad = ""
-                    for (k = 1; k <= 3; k++)
-                        if (derive ~ ("(^|[^A-Za-z0-9_])" split_d[k] "([^A-Za-z0-9_]|$)") && index("," ex ",", "," split_d[k] ",") == 0)
-                            bad = bad " " split_d[k]
-                    if (bad != "")
-                        printf "%s:%d: %s: %s\n", file, dline, name, derive
-                    secret[name] = 1
+            BEGIN { OFS = "\t" }
+            function flush(   toks, t, n, i) {
+                if (name != "") {
+                    # One record a type: what the final pass needs to follow
+                    # nesting. Its tokens are the words of its body.
+                    t = body; toks = ""
+                    while (match(t, /[A-Za-z_][A-Za-z0-9_]*/)) {
+                        if (substr(t, RSTART, 1) ~ /[A-Z]/) toks = toks " " substr(t, RSTART, RLENGTH)
+                        t = substr(t, RSTART + RLENGTH)
+                    }
+                    print "T", file, dline, name, derive, ((inbody(body) || derive ~ /Zeroize/) ? 1 : 0), (index(" " names, " " name " ") ? 1 : 0), toks
                 }
-                if (name != "") seen[name] = 1
                 name = ""; body = ""
             }
             collecting { pend = pend " " $0; if ($0 ~ /\)\]/) collecting = 0; next }
@@ -214,7 +216,11 @@ rule2_types() {
             }
             { sub(/[[:space:]]*\/\/.*$/, ""); if ($0 == "") $0 = "|" }
             name != "" {
+                # The name of an enum variant is not a type it holds; a line
+                # inside the parentheses of a wrapped tuple variant is a type.
+                if (is_enum && depth == 1 && pdepth == 0) sub(/^[[:space:]]*[A-Z][A-Za-z0-9_]*/, " _")
                 body = body " " $0
+                pdepth += gsub(/\(/, "(") - gsub(/\)/, ")")
                 if (depth_open) { n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth += n - m; if (depth <= 0) flush() }
                 else if ($0 ~ /;/) flush()
                 next
@@ -222,19 +228,62 @@ rule2_types() {
             /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+[A-Za-z_]/ && !/\/\// {
                 derive = pend; dline = pline; pend = ""
                 l = $0; sub(/^.*(struct|enum)[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l); name = l
+                is_enum = ($0 ~ /(^|[^A-Za-z0-9_])enum[[:space:]]/); pdepth = 0
                 body = $0
                 if ($0 ~ /\{/) { depth_open = 1; n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth = n - m; if (depth <= 0) flush() }
                 else { depth_open = 0; if ($0 ~ /;/) flush() }
                 next
             }
             { pend = "" }
-            END {
-                for (t in disp)
-                    if ((t in secret) && index("," excepts(file ":" t) ",", ",Display,") == 0)
-                        printf "%s:%d: %s: Display implemented\n", file, disp[t], t
-            }
+            END { for (t in disp) print "D", file, disp[t], t }
         ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
-    done
+    done | awk -F'\t' -v allowed="$ALLOWED_TYPES_LIST" '
+        # A type is secret when it holds a secret type directly, derives
+        # Zeroize or has a Drop of its own; and, repeated until nothing new is
+        # found, when its body names a type already found secret and it has no
+        # Drop of its own (the Drop is what wipes it). Types are matched by
+        # name within a crate, and only a name the crate defines once, since
+        # two types of one name cannot be told apart here.
+        function excepts(key,   i, n, a) {
+            n = split(allowed, a, " ")
+            for (i = 1; i <= n; i++)
+                if (index(a[i], key "=") == 1) return substr(a[i], length(key) + 2)
+            return ""
+        }
+        BEGIN { split_d[1] = "Clone"; split_d[2] = "PartialEq"; split_d[3] = "Debug" }
+        $1 == "T" {
+            n++; file[n] = $2; dline[n] = $3; name[n] = $4; derive[n] = $5; drop[n] = $7; toks[n] = $8
+            krate[n] = $2; sub(/\/src\/.*$/, "", krate[n])
+            defs[krate[n] SUBSEP $4]++
+            if ($6 == 1 || $7 == 1) { sec[n] = 1; secname[krate[n] SUBSEP $4] = 1 }
+            next
+        }
+        $1 == "D" { nd++; dfile[nd] = $2; dl[nd] = $3; dname[nd] = $4; next }
+        { print }
+        END {
+            do {
+                changed = 0
+                for (i = 1; i <= n; i++) {
+                    if (sec[i] || drop[i]) continue
+                    m = split(toks[i], w, " ")
+                    for (j = 1; j <= m; j++)
+                        if (((krate[i] SUBSEP w[j]) in secname) && defs[krate[i] SUBSEP w[j]] == 1 && w[j] != name[i]) { sec[i] = 1; secname[krate[i] SUBSEP name[i]] = 1; changed = 1; nested[i] = w[j]; break }
+                }
+            } while (changed)
+            for (i = 1; i <= n; i++) {
+                if (!sec[i]) continue
+                ex = excepts(file[i] ":" name[i])
+                for (k = 1; k <= 3; k++)
+                    if (derive[i] ~ ("(^|[^A-Za-z0-9_])" split_d[k] "([^A-Za-z0-9_]|$)") && index("," ex ",", "," split_d[k] ",") == 0) {
+                        printf "%s:%d: %s: %s%s\n", file[i], dline[i], name[i], derive[i], (i in nested ? " (holds " nested[i] ")" : "")
+                        break
+                    }
+                secfile[file[i] SUBSEP name[i]] = 1
+            }
+            for (i = 1; i <= nd; i++)
+                if (((dfile[i] SUBSEP dname[i]) in secfile) && index("," excepts(dfile[i] ":" dname[i]) ",", ",Display,") == 0)
+                    printf "%s:%d: %s: Display implemented\n", dfile[i], dl[i], dname[i]
+        }'
 }
 report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
 

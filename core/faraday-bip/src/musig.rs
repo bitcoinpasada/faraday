@@ -25,6 +25,7 @@
 //! derivation and before aggregation, which BIP-390 requires; [`key_agg`]
 //! itself sorts nothing, because BIP-327's own test vectors depend on the
 //! order they are given in.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -411,6 +412,7 @@ impl AggregateKey {
 /// BIP-327's `KeySort`: the keys in ascending order of their compressed
 /// serialisation.
 pub fn sort_keys(pubkeys: &[PublicKey]) -> Vec<PublicKey> {
+    #[expect(clippy::disallowed_methods, reason = "public keys, no secret")]
     let mut sorted = pubkeys.to_vec();
     sorted.sort_by_key(|k| k.serialize());
     sorted
@@ -530,6 +532,10 @@ enum Step {
 
 /// A derivation path as a descriptor writes it: fixed and multipath
 /// steps, and whether it ends in `/*`.
+// Public data only (keys, paths, session values); the signing secret is the
+// `SecNonce`, which has no `Clone`. `allow`, not `expect`: a derive copies `allow`
+// onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct Path {
     steps: Vec<Step>,
@@ -570,6 +576,10 @@ impl Path {
 
 /// A participant's key: a plain compressed public key, or an extended
 /// public key that the participant's own path derives from.
+// Public data only (keys, paths, session values); the signing secret is the
+// `SecNonce`, which has no `Clone`. `allow`, not `expect`: a derive copies `allow`
+// onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ParticipantKey {
     Plain(PublicKey),
@@ -577,6 +587,10 @@ enum ParticipantKey {
 }
 
 /// One key inside a `musig()`.
+// Public data only (keys, paths, session values); the signing secret is the
+// `SecNonce`, which has no `Clone`. `allow`, not `expect`: a derive copies `allow`
+// onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Participant {
     origin: Option<String>,
@@ -619,6 +633,10 @@ impl Participant {
 
 /// A parsed `musig(KEY,…)` expression, with the derivation that follows
 /// it when there is one.
+// Public data only (keys, paths, session values); the signing secret is the
+// `SecNonce`, which has no `Clone`. `allow`, not `expect`: a derive copies `allow`
+// onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MusigExpr {
     participants: Vec<Participant>,
@@ -1183,6 +1201,10 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
 ///
 /// Every value here is public; the secret of a signing session is the
 /// [`SecNonce`], which this does not hold.
+// Public data only (keys, paths, session values); the signing secret is the
+// `SecNonce`, which has no `Clone`. `allow`, not `expect`: a derive copies `allow`
+// onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone)]
 pub struct SessionValues {
     pubkeys: Vec<PublicKey>,
@@ -1228,8 +1250,10 @@ pub fn session_values<C: Verification>(
         b"BIP0340/challenge",
         &[&r.x_only_public_key().0.serialize(), &q, msg],
     ));
+    #[expect(clippy::disallowed_methods, reason = "public keys, no secret")]
+    let pubkeys = pubkeys.to_vec();
     Ok(SessionValues {
-        pubkeys: pubkeys.to_vec(),
+        pubkeys,
         aggregate,
         b,
         r,
