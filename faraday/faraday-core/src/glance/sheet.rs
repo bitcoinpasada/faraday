@@ -1414,7 +1414,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 None => {}
             }
             if app.glance.work().refused {
-                let line = Text::of(&crate::state::ascii_refused());
+                let line = Text::of(crate::state::ascii_refused());
                 v.lines.push((line, Role::Error.paint()));
             }
             v.go = Some((

@@ -277,8 +277,8 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
 
     // Select all leaves both alone.
     app.press(Action::VisitOutAll);
-    assert!(!app.visit().from_inbox.contains(&words.0));
-    assert!(!app.visit().from_inbox.contains(&seedqr.0));
+    assert!(!app.visit().from_inbox.contains(words.0.as_str()));
+    assert!(!app.visit().from_inbox.contains(seedqr.0.as_str()));
 
     for (name, bytes) in [&words, &seedqr] {
         let r = row(&app, name).expect("not offered");
@@ -295,13 +295,16 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
         // Nothing until the line is ticked.
         app.press(Action::SecretUnprotected);
         assert!(
-            !app.visit().from_inbox.contains(name),
+            !app.visit().from_inbox.contains(name.as_str()),
             "{name} ticked unasked"
         );
         app.press(Action::SecretUnprotected);
         app.press(Action::SecretHold);
         assert_eq!(app.sheet, None);
-        assert!(app.visit().from_inbox.contains(name), "{name} not ticked");
+        assert!(
+            app.visit().from_inbox.contains(name.as_str()),
+            "{name} not ticked"
+        );
         assert!(app.outbox.is_empty(), "{name} went to the Outbox");
         let wrote = write(&mut app, &[&a, &b]);
         assert_eq!(wrote.len(), 1);
@@ -535,7 +538,10 @@ fn a_gpg_public_key_and_signature_copied_between_sticks_are_public() {
 
     app.press(Action::VisitOutAll);
     for (name, _) in &files {
-        assert!(app.visit().from_inbox.contains(name), "{name} not ticked");
+        assert!(
+            app.visit().from_inbox.contains(name.as_str()),
+            "{name} not ticked"
+        );
     }
     assert_eq!(app.sheet, None);
     assert!(testkit::secret_out(&app).is_none(), "a secret sheet opened");

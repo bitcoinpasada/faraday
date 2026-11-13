@@ -149,7 +149,7 @@ impl WordCheck {
                 }
                 // Anything else is refused, and the check says so.
                 KeyIn::Char(ch) if !ch.is_control() => {
-                    self.error = Some(Text::of(&crate::state::ascii_refused()));
+                    self.error = Some(Text::of(crate::state::ascii_refused()));
                 }
                 KeyIn::Backspace | KeyIn::Delete => {
                     self.typed.pop();

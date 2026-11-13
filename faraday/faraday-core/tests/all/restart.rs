@@ -179,7 +179,7 @@ fn the_idle_power_off_never_restarts() {
 fn sheet_texts(maker: &str, secure_boot: SecureBootAtStart) -> Vec<String> {
     let mut app = Faraday::new();
     app.medium = Medium::Stick;
-    app.maker = maker.into();
+    app.maker = faraday_text::Text::of(maker);
     app.secure_boot = secure_boot;
     app.press(Action::PowerAsk);
     shown(&mut app)

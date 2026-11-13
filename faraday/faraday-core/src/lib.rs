@@ -283,7 +283,7 @@ pub use version::{
 pub use wallet::SpendState;
 pub use wallet_backup::BackupState;
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::BTreeSet;
 
@@ -603,11 +603,11 @@ pub(crate) fn qr_fits(item: &Item) -> bool {
 /// An account key of a loaded wallet held here, as [`Faraday::wallet_key`] finds it.
 pub struct WalletKey {
     /// The master fingerprint, as text.
-    pub fp: String,
+    pub fp: faraday_text::Text,
     /// `[fingerprint/path]xpub`, as the wallet's descriptor writes it.
-    pub text: String,
+    pub text: faraday_text::Text,
     /// What kind of wallet it is a key of, by name.
-    pub kind: String,
+    pub kind: faraday_text::Text,
     /// The kind, when the key is at Create's own account for it.
     pub standard: Option<create::NewKind>,
     /// Whether this key's own origin path is at BIP-87's purpose (87'),
@@ -798,7 +798,12 @@ pub enum Column {
 /// A write under way: the stick's label, the stick's identity (its FAT
 /// volume serial, else where the shell found it), each file sent with its
 /// SHA-256, and whether an answer has started its receipt.
-pub type Writing = (String, String, Vec<(String, [u8; 32])>, bool);
+pub type Writing = (
+    faraday_text::Text,
+    faraday_text::Text,
+    Vec<(faraday_text::Text, [u8; 32])>,
+    bool,
+);
 
 /// Where a stick visit column's scrollbar was drawn, in pixels: the
 /// track's top and height, the thumb's height, and the furthest the list
@@ -990,12 +995,12 @@ pub struct Faraday {
     /// read it once at start. Unknown everywhere else.
     pub secure_boot: SecureBootAtStart,
     /// The computer's maker (`sys_vendor`), as the stick shell read it.
-    pub maker: String,
+    pub maker: faraday_text::Text,
     /// The computer's product family (`product_family`), as the stick
     /// shell read it.
-    pub maker_family: String,
+    pub maker_family: faraday_text::Text,
     /// The computer's model (`product_name`), as the stick shell read it.
-    pub maker_model: String,
+    pub maker_model: faraday_text::Text,
     /// What is attached that can capture the screen or the keys, as the
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
@@ -1099,9 +1104,9 @@ impl Faraday {
             clipboard: false,
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
-            maker: String::new(),
-            maker_family: String::new(),
-            maker_model: String::new(),
+            maker: faraday_text::Text::default(),
+            maker_family: faraday_text::Text::default(),
+            maker_model: faraday_text::Text::default(),
             devices: devices::DeviceCheck::default(),
             next_mode: modes::ModesArea::default(),
             samples: None,
@@ -1142,10 +1147,10 @@ impl Faraday {
 
     /// The screen's name, and the sheet's when one is up, for a shell's
     /// slow-frame line: `Backup` or `Backup / Qr` (a small string).
-    pub fn screen_name(&self) -> String {
+    pub fn screen_name(&self) -> faraday_text::Text {
         match self.sheet {
-            Some(sheet) => format!("{:?} / {:?}", self.screen, sheet), // not shown: a log line
-            None => format!("{:?}", self.screen),                      // not shown: a log line
+            Some(sheet) => faraday_text::text!("{:?} / {:?}", self.screen, sheet), // not shown: a log line
+            None => faraday_text::text!("{:?}", self.screen), // not shown: a log line
         }
     }
 
@@ -1239,14 +1244,14 @@ impl Faraday {
                 let line = (item.kind == FileKind::Words
                     && self.visit.load_after.contains(&*item.name))
                 .then(|| {
-                    fill(
+                    faraday_text::Text::fill(
                         EN.storage_event_copied_words,
                         &[&item.name, self.medium.noun()],
                     )
                 });
                 self.inbox.push(item);
                 if let Some(line) = line {
-                    self.visit.log_push((faraday_text::Text::of(&line), true));
+                    self.visit.log_push((line, true));
                 }
                 self.visit.inn_unchoose(&name);
                 self.visit.reading_done(&name);
@@ -1276,11 +1281,11 @@ impl Faraday {
                     self.visit.out_unchoose(&name);
                 }
                 let line = if wrote_as == name {
-                    fill(EN.storage_event_wrote_read, &[&*name])
+                    faraday_text::Text::fill(EN.storage_event_wrote_read, &[&*name])
                 } else {
-                    fill(EN.storage_event_wrote, &[&*name, &*wrote_as])
+                    faraday_text::Text::fill(EN.storage_event_wrote, &[&*name, &*wrote_as])
                 };
-                self.visit.log_push((faraday_text::Text::of(&line), true));
+                self.visit.log_push((line, true));
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
@@ -1308,7 +1313,9 @@ impl Faraday {
                 name,
                 reason,
             } => self.wiped(&stick, &name, Some(&reason), false),
-            StorageEvent::Printed { path } => self.toast(&fill(EN.storage_event_saved, &[&*path])),
+            StorageEvent::Printed { path } => {
+                self.toast(&faraday_text::Text::fill(EN.storage_event_saved, &[&*path]))
+            }
             StorageEvent::Clock { unix_secs } => {
                 self.vaults.set_clock(unix_secs, self.now_ms);
                 return;
@@ -1377,9 +1384,10 @@ impl Faraday {
                 self.inbox.push(item);
                 self.save_boxes();
             }
-            StorageEvent::PrintFailed { reason } => {
-                self.toast(&fill(EN.storage_event_not_printed, &[&*reason]))
-            }
+            StorageEvent::PrintFailed { reason } => self.toast(&faraday_text::Text::fill(
+                EN.storage_event_not_printed,
+                &[&*reason],
+            )),
             StorageEvent::HostFiles { dir, files, opens } => {
                 if !self.transfer_listed(dir, files, opens) {
                     return;
@@ -1604,13 +1612,13 @@ impl Faraday {
             if had {
                 let loaded = self.load_after_pull() + self.import_load_after_pull();
                 let said = if loaded == 0 {
-                    fill(EN.sticks_changed_removed_only, &[self.medium.cap()])
+                    faraday_text::Text::fill(EN.sticks_changed_removed_only, &[self.medium.cap()])
                 } else {
-                    fill(
+                    faraday_text::Text::fill(
                         EN.sticks_changed_removed,
                         &[
                             self.medium.cap(),
-                            &loaded.to_string(),
+                            &faraday_text::Text::num(loaded as u64),
                             (if loaded == 1 {
                                 EN.sticks_changed_key
                             } else {
@@ -1910,7 +1918,7 @@ impl Faraday {
 
     /// A write's answer onto the receipt: the first answer of a write
     /// replaces the last receipt with a new one (`docs/history/SIMPLIFY.md` §4.3).
-    fn receipt_add(&mut self, name: &str, failure: Option<String>) {
+    fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {
         let c = self.compute();
         let now = self.clock_now();
         let Some((name, hash, opened)) = self.visit.writing_answered(name, now) else {
@@ -1921,10 +1929,10 @@ impl Faraday {
         }
         let hash = self.hash_to_keep(&c, hash);
         self.visit.receipt_push(ReceiptFile {
-            name: String::from(&*name),
+            name: name.as_str().into(),
             hash,
             verified: failure.is_none(),
-            failure,
+            failure: failure.map(|f| f.as_str().into()),
         });
     }
 
@@ -1946,11 +1954,13 @@ impl Faraday {
     /// The stick visit's chip (`docs/history/SIMPLIFY.md` §4.7): where pulling
     /// the stick goes. Back to the flow the stick came in during, Unlock
     /// when a vault was sealed for the visit, else Home.
-    pub fn visit_then(&self) -> String {
+    pub fn visit_then(&self) -> faraday_text::Text {
         match *self.visit.after_visit() {
-            Some(s) => fill(EN.visit_then_then, &[self.back_name(s)]),
-            None if self.visit_unlocks().is_some() => EN.visit_then_then_unlock.to_string(),
-            None => EN.visit_then_then_home.to_string(),
+            Some(s) => faraday_text::Text::fill(EN.visit_then_then, &[self.back_name(s)]),
+            None if self.visit_unlocks().is_some() => {
+                faraday_text::Text::of(EN.visit_then_then_unlock)
+            }
+            None => faraday_text::Text::of(EN.visit_then_then_home),
         }
     }
 
@@ -1966,7 +1976,7 @@ impl Faraday {
     /// on the stick shown that Faraday reads, but a seed's by its name
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.
-    pub(crate) fn visit_default_in(&mut self) -> std::collections::BTreeSet<String> {
+    pub(crate) fn visit_default_in(&mut self) -> std::collections::BTreeSet<faraday_text::Text> {
         // Which vault files fit is by what is free now.
         self.vaults.read_free();
         let Some(stick) = self.stick.get(self.visit.stick) else {
@@ -1984,18 +1994,18 @@ impl Faraday {
                         .iter()
                         .any(|i| i.name == **n && i.bytes.len() as u64 == *size)
             })
-            .map(|(n, _)| String::from(&**n))
+            .map(|(n, _)| faraday_text::Text::of(n))
             .collect()
     }
 
     /// Every Outbox file a visit may write unasked: all but an
     /// unprotected secret.
-    fn visit_all_out(&self) -> std::collections::BTreeSet<String> {
+    fn visit_all_out(&self) -> std::collections::BTreeSet<faraday_text::Text> {
         self.outbox
             .iter()
             .filter(|i| i.exposure() != secrets::Exposure::Secret)
             .filter(|i| !self.in_the_backup(&i.name))
-            .map(|i| String::from(&*i.name))
+            .map(|i| faraday_text::Text::of(&i.name))
             .collect()
     }
 
@@ -2004,7 +2014,7 @@ impl Faraday {
     /// waiting, one vault for this stick (`docs/history/NEW-WALLET.md` §5.3): the
     /// first the last write did not write. The rest wait for the next
     /// stick.
-    fn visit_default_out(&self, c: &Compute) -> std::collections::BTreeSet<String> {
+    fn visit_default_out(&self, c: &Compute) -> std::collections::BTreeSet<faraday_text::Text> {
         let mut out = self.visit_all_out();
         let vaults: Vec<&Item> = self
             .outbox
@@ -2865,7 +2875,7 @@ impl Faraday {
 
     /// The names of the files [`Faraday::public_made`] makes, with no
     /// picture or PDF made: a PDF that cannot be made is named anyway.
-    fn public_names(&mut self, wallet: usize, what: u8) -> Vec<String> {
+    fn public_names(&mut self, wallet: usize, what: u8) -> Vec<faraday_text::Text> {
         self.public_files(wallet, what, false)
             .into_iter()
             .map(|(n, _)| n)
@@ -2874,7 +2884,12 @@ impl Faraday {
 
     /// Costs what `public_files::files` costs. [`Faraday::public_made`], its
     /// pictures and PDFs made only when `bytes`, else named with no bytes.
-    fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
+    fn public_files(
+        &mut self,
+        wallet: usize,
+        what: u8,
+        bytes: bool,
+    ) -> Vec<(faraday_text::Text, Vec<u8>)> {
         let c = self.compute();
         let Some(inputs) = self.public_inputs(&c, wallet) else {
             return Vec::new();
@@ -2884,6 +2899,9 @@ impl Faraday {
             self.toast(t);
         }
         made.files
+            .into_iter()
+            .map(|(n, b)| (faraday_text::Text::of(&n), b))
+            .collect()
     }
 
     /// Costs two key derivations for a silent payments wallet, nothing for
@@ -2919,36 +2937,40 @@ impl Faraday {
     /// wallet `i`, when this session holds its seed: for the cosigners of a
     /// wallet of more than one key. `None` for a silent payments wallet,
     /// whose slot is not an account key.
-    pub fn wallet_key(&self, c: &Compute, i: usize, slot: u8) -> Result<WalletKey, String> {
+    pub fn wallet_key(
+        &self,
+        c: &Compute,
+        i: usize,
+        slot: u8,
+    ) -> Result<WalletKey, faraday_text::Text> {
         let w = self
             .session
             .wallets
             .get(i)
-            .ok_or(EN.wallet_key_that_wallet)?;
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_wallet))?;
         if w.policy().silent().is_some() {
-            return Err(EN.wallet_key_this_wallet_s.into());
+            return Err(faraday_text::Text::of(EN.wallet_key_this_wallet_s));
         }
         let pk = w
             .policy()
             .keys()
             .get(usize::from(slot))
-            .ok_or(EN.wallet_key_this_wallet)?;
-        let fp = pk.fingerprint().ok_or(EN.wallet_key_that_key_names)?;
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_this_wallet))?;
+        let fp = pk
+            .fingerprint()
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_key_names))?;
         let key = self
             .session
             .keys
             .position(fp)
-            .ok_or(EN.wallet_key_that_key)?;
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_key))?;
         let kind = create::NewKind::of(w.policy());
         let bip87 = create::bip87_key(pk);
         let standard = kind.filter(|&k| create::at_own_account(c, &self.session.keys, key, k, pk));
         Ok(WalletKey {
-            fp: String::from(&*fp_text(fp)),
-            text: pk.key_text(),
-            kind: kind.map_or_else(
-                || String::from(&*Session::shape(w)),
-                |k| k.name().to_string(),
-            ),
+            fp: fp_text(fp),
+            text: faraday_text::Text::of(&pk.key_text()),
+            kind: kind.map_or_else(|| Session::shape(w), |k| faraday_text::Text::of(k.name())),
             standard,
             bip87,
             key,
@@ -3003,24 +3025,25 @@ impl Faraday {
         c: &Compute,
         i: usize,
         slot: u8,
-    ) -> Result<(String, String), String> {
+    ) -> Result<(faraday_text::Text, faraday_text::Text), faraday_text::Text> {
         let k = self.wallet_key(c, i, slot)?;
         k.standard
             .and_then(|kind| {
                 let bip87 = kind.has_bip87() && k.bip87;
                 kind.bsms_record(c, &self.session.keys, k.key, 0, bip87, &k.fp)
             })
-            .map(|r| (k.fp.clone(), r.as_str().into()))
-            .ok_or_else(|| EN.wallet_key_record_bip.to_string())
+            .map(|r| (k.fp.clone(), faraday_text::Text::of(r.as_str())))
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_record_bip))
     }
 
     fn wallet_key_out(&mut self, i: usize, slot: u8) {
         let c = self.compute();
         match self.wallet_key(&c, i, slot) {
             Ok(k) => {
-                let name = format!("xpub-{}.txt", k.fp);
-                let bytes = format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text);
-                let name = self.put_outbox_beside(&name, bytes.into_bytes());
+                let name = faraday_text::text!("xpub-{}.txt", &*k.fp);
+                let bytes =
+                    faraday_text::text!("# Account xpub {}, {}\n{}\n", &*k.fp, &*k.kind, &*k.text);
+                let name = self.put_outbox_beside(&name, bytes.as_bytes().to_vec());
                 self.backup_xpub_sent(i, slot, false, &name);
                 self.toast_out(&name);
             }
@@ -3032,8 +3055,8 @@ impl Faraday {
         let c = self.compute();
         match self.wallet_key_record(&c, i, slot) {
             Ok((fp, text)) => {
-                let name = format!("xpub-{fp}-bsms.txt");
-                let name = self.put_outbox_beside(&name, text.into_bytes());
+                let name = faraday_text::text!("xpub-{}-bsms.txt", &*fp);
+                let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                 self.backup_xpub_sent(i, slot, true, &name);
                 self.toast_out(&name);
             }
@@ -3046,12 +3069,15 @@ impl Faraday {
         if !self.online {
             return;
         }
-        match faraday_paper::pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
+        match faraday_paper::pdf::sheet(&c, &faraday_text::Text::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
                 name: faraday_text::Text::fill(EN.make_pdf_pdf, &[&stem(name)]),
                 bytes: pdf,
             }),
-            Err(e) => self.toast(&fill(EN.make_pdf_not_printed, &[&e.to_string()])),
+            Err(e) => self.toast(&faraday_text::Text::fill(
+                EN.make_pdf_not_printed,
+                &[&faraday_text::text!("{e}")],
+            )),
         }
     }
 
@@ -3059,7 +3085,7 @@ impl Faraday {
     /// address is to the loaded wallets: one of a wallet's first hundred on
     /// either chain, or none of them (`docs/QR.md` §2: "Is this address
     /// mine?"). `None` when the text is not an address.
-    fn address_note(&self, c: &Compute, text: &str) -> Option<String> {
+    fn address_note(&self, c: &Compute, text: &str) -> Option<faraday_text::Text> {
         let t = text.trim();
         let t = t.strip_prefix("bitcoin:").unwrap_or(t);
         let t = t.split('?').next().unwrap_or(t);
@@ -3073,10 +3099,10 @@ impl Faraday {
                 && faraday_bip::keys::Network::ALL
                     .iter()
                     .any(|&n| faraday_bip::address::is_address_prefix(t, n));
-            return whole.then(|| EN.address_note_that_address_fails.to_string());
+            return whole.then(|| faraday_text::Text::of(EN.address_note_that_address_fails));
         };
         let Ok(addr) = addr.require_network(net.into()) else {
-            return Some(fill(
+            return Some(faraday_text::Text::fill(
                 EN.address_note_wrong_network,
                 &[wallet::network_name(net)],
             ));
@@ -3088,23 +3114,26 @@ impl Faraday {
                 } else {
                     EN.address_note_receive
                 };
-                return Some(fill(
+                return Some(faraday_text::Text::fill(
                     EN.address_note_found,
-                    &[&w.name, chain, &index.to_string()],
+                    &[&w.name, chain, &faraday_text::Text::num(u64::from(index))],
                 ));
             }
         }
         Some(if self.session.wallets.is_empty() {
-            EN.address_note_no_wallet.to_string()
+            faraday_text::Text::of(EN.address_note_no_wallet)
         } else {
-            EN.address_note_that_address.to_string()
+            faraday_text::Text::of(EN.address_note_that_address)
         })
     }
 
     fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {
         match view {
             Ok(v) => self.qr.open(v, &mut self.sheet),
-            Err(e) => self.toast(&fill(EN.open_qr_cannot_make, &[e.as_ref()])),
+            Err(e) => self.toast(&faraday_text::Text::fill(
+                EN.open_qr_cannot_make,
+                &[e.as_ref()],
+            )),
         }
     }
 
@@ -3114,7 +3143,12 @@ impl Faraday {
         let c = self.compute();
         let v = match view {
             Ok(v) => v,
-            Err(e) => return self.toast(&fill(EN.code_png_cannot_make, &[e.as_ref()])),
+            Err(e) => {
+                return self.toast(&faraday_text::Text::fill(
+                    EN.code_png_cannot_make,
+                    &[e.as_ref()],
+                ));
+            }
         };
         match v.png(&c) {
             Some((name, bytes)) => {
@@ -3122,7 +3156,10 @@ impl Faraday {
                 self.toast_out(&name);
             }
             None if v.public && v.frames.len() > 1 => {
-                self.toast(&fill(EN.code_png_is_more_than, &[&v.title]));
+                self.toast(&faraday_text::Text::fill(
+                    EN.code_png_is_more_than,
+                    &[&v.title],
+                ));
             }
             None => {}
         }
@@ -3131,9 +3168,10 @@ impl Faraday {
     /// Costs an address derivation (through `address_at`), or `checked_config`.
     /// A wallet's public text file `what` (as [`Faraday::public_out`] numbers
     /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
-    fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
+    fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<faraday_text::Text> {
         let w = self.session.wallets.get(wallet)?;
         public_files::file_text(c, self.session.network(), w, what)
+            .map(|t| faraday_text::Text::of(&t))
     }
 
     /// Where leaving Add a key goes: the Spend tab when it came from
@@ -3189,7 +3227,10 @@ impl Faraday {
         let words = forms::file_words(text);
         match self.session.keys.add_words(&c, &words, &label, None) {
             Ok(fp) => {
-                self.toast(&fill(EN.load_key_key_added, &[&fp_text(fp)]));
+                self.toast(&faraday_text::Text::fill(
+                    EN.load_key_key_added,
+                    &[&fp_text(fp)],
+                ));
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
                 true
@@ -3256,12 +3297,12 @@ impl Faraday {
 
     /// The Inbox files Select all chooses on a visit: the public and
     /// sealed ones it lists, never one that may be a secret.
-    fn visit_inbox_plain(&self) -> BTreeSet<String> {
+    fn visit_inbox_plain(&self) -> BTreeSet<faraday_text::Text> {
         self.visit_inbox_rows()
             .into_iter()
             .filter_map(|k| self.inbox.get(k))
             .filter(|i| i.copy_ack().is_none())
-            .map(|i| String::from(&*i.name))
+            .map(|i| faraday_text::Text::of(&i.name))
             .collect()
     }
 
@@ -3285,13 +3326,16 @@ impl Faraday {
         };
         let holds = item.holds();
         let what = match (item.picture, holds) {
-            (Some(FileKind::Other), _) => EN.visit_inbox_png_no_qr.to_string(),
-            (Some(k), _) => fill(
+            (Some(FileKind::Other), _) => faraday_text::Text::of(EN.visit_inbox_png_no_qr),
+            (Some(k), _) => faraday_text::Text::fill(
                 EN.visit_inbox_png_kind,
-                &[&screens::kind_name(k).to_lowercase().to_string()],
+                &[&screens::kind_name(k)
+                    .chars()
+                    .flat_map(char::to_lowercase)
+                    .collect::<faraday_text::Text>()],
             ),
-            (None, FileKind::Other) => EN.visit_inbox_a_file.to_string(),
-            (None, k) => screens::kind_name(k).to_string(),
+            (None, FileKind::Other) => faraday_text::Text::of(EN.visit_inbox_a_file),
+            (None, k) => faraday_text::Text::of(screens::kind_name(k)),
         };
         let gives = match holds {
             FileKind::Words => EN.visit_inbox_whoever_has_it_holds,
@@ -3523,7 +3567,7 @@ impl Faraday {
                 KeyIn::Char(c) => self.wallets.rename_type(c),
                 KeyIn::Backspace => self.wallets.rename_backspace(),
                 KeyIn::Enter => {
-                    let n = wallet::wallet_name(name).into_owned();
+                    let n = wallet::wallet_name(name);
                     if !n.is_empty()
                         && let Some(w) = self.session.wallets.get_mut(self.wallets.wallet())
                     {

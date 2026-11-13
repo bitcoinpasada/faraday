@@ -418,7 +418,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
         let _ = app.frame();
         assert!(app.visit().out.contains("wallet-descriptor.txt"));
         assert!(
-            !app.visit().out.contains(&name),
+            !app.visit().out.contains(name.as_str()),
             "{name} is ticked for writing"
         );
     }

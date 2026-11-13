@@ -110,7 +110,7 @@ impl KeyGen {
             K::Char(c) if (' '..='~').contains(&c) => field.push(c),
             // Anything else is refused, and the card says so.
             K::Char(c) if !c.is_control() => {
-                self.note = Some(Text::of(&crate::state::ascii_refused()));
+                self.note = Some(Text::of(crate::state::ascii_refused()));
                 return true;
             }
             K::Backspace => {

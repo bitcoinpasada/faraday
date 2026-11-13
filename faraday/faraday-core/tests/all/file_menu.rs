@@ -86,7 +86,7 @@ fn visiting_as(known: bool, outbox: Files, on_stick: Files) -> (Shell, Faraday) 
     shell.press(&mut app, Action::Nav(Screen::Files));
     let names: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     for (i, n) in names.iter().enumerate() {
-        if !app.visit().out.contains(n) {
+        if !app.visit().out.contains(n.as_str()) {
             shell.press(&mut app, Action::VisitOut(i));
         }
     }

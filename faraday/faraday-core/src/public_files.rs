@@ -596,8 +596,8 @@ fn keep_xpub_names(app: &mut Faraday, wallet: usize, made: &Made) {
             continue;
         };
         for (bsms, name) in [
-            (false, format!("xpub-{}.txt", k.fp)),
-            (true, format!("xpub-{}-bsms.txt", k.fp)),
+            (false, format!("xpub-{}.txt", &*k.fp)),
+            (true, format!("xpub-{}-bsms.txt", &*k.fp)),
         ] {
             if made.files.iter().any(|(n, _)| *n == name) {
                 app.backup_xpub_sent(wallet, slot, bsms, &name);

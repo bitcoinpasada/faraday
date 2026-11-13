@@ -74,7 +74,7 @@ fn refusal_line(r: NodeRefusal) -> Text {
     match r {
         N::File(R::Words) => Text::of(EN.lightning_hsm_words),
         N::File(R::Passphrase) => Text::of(EN.lightning_hsm_passphrase),
-        N::File(R::PassphraseNotAscii) => Text::of(&crate::state::ascii_refused()),
+        N::File(R::PassphraseNotAscii) => Text::of(crate::state::ascii_refused()),
         N::File(R::PassphraseTooLong) => Text::of(EN.lightning_hsm_passphrase_long),
         // A file changed since it was listed reads as a changed file.
         N::File(R::Length | R::PassphraseNotNeeded | R::Opening) => {
@@ -506,7 +506,7 @@ impl LightningArea {
             K::Char(c) if l.on_passphrase && (' '..='~').contains(&c) => field.push(c),
             // Anything else is refused, and the screen says so.
             K::Char(c) if l.on_passphrase && !c.is_control() => {
-                l.error = Some(Text::of(&crate::state::ascii_refused()));
+                l.error = Some(Text::of(crate::state::ascii_refused()));
                 return true;
             }
             K::Char(c) if c.is_ascii_alphabetic() => field.push(c.to_ascii_lowercase()),

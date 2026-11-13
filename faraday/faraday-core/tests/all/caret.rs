@@ -174,7 +174,7 @@ fn message(text: &str) -> Faraday {
 
 fn message_text(app: &Faraday) -> String {
     testkit::message(app)
-        .map(|m| m.text.clone())
+        .map(|m| m.text.as_str().to_owned())
         .unwrap_or_default()
 }
 

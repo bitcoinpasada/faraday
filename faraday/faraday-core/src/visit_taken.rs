@@ -469,7 +469,7 @@ impl VisitArea {
 
     /// A line of what the last write or copy did.
     pub(crate) fn log_push(&mut self, line: (Text, bool)) {
-        self.visit.log.push(((&*line.0).into(), line.1));
+        self.visit.log.push(line);
     }
 
     /// The log is emptied.
@@ -490,9 +490,6 @@ impl VisitArea {
     /// The names loaded as keys when the stick is pulled, given as it is.
     pub(crate) fn take_load_after(&mut self) -> std::collections::BTreeSet<Text> {
         std::mem::take(&mut self.visit.load_after)
-            .iter()
-            .map(|n| Text::of(n))
-            .collect()
     }
 
     /// Nothing is taken: the sheet is not asking.
@@ -502,7 +499,7 @@ impl VisitArea {
 
     /// The Outbox files chosen to write are `chosen`.
     pub(crate) fn set_out(&mut self, chosen: impl IntoIterator<Item = impl AsRef<str>>) {
-        self.visit.out = chosen.into_iter().map(|n| n.as_ref().into()).collect();
+        self.visit.out = chosen.into_iter().map(|n| Text::of(n.as_ref())).collect();
     }
 
     /// The Outbox file `name` is no longer chosen; whether it was.
@@ -514,7 +511,7 @@ impl VisitArea {
     pub(crate) fn out_toggle(&mut self, name: impl AsRef<str>) {
         let name = name.as_ref();
         if !self.visit.out.remove(name) {
-            self.visit.out.insert(name.into());
+            self.visit.out.insert(Text::of(name));
         }
     }
 
@@ -527,19 +524,19 @@ impl VisitArea {
     pub(crate) fn out_extend(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
         self.visit
             .out
-            .extend(names.into_iter().map(|n| n.as_ref().into()));
+            .extend(names.into_iter().map(|n| Text::of(n.as_ref())));
     }
 
     /// The chosen Outbox file `from` was renamed `to`, and stays chosen.
     pub(crate) fn out_renamed(&mut self, from: &str, to: &str) {
         if self.visit.out.remove(from) {
-            self.visit.out.insert(to.into());
+            self.visit.out.insert(Text::of(to));
         }
     }
 
     /// The stick files chosen to copy are `chosen`.
     pub(crate) fn set_inn(&mut self, chosen: impl IntoIterator<Item = impl AsRef<str>>) {
-        self.visit.inn = chosen.into_iter().map(|n| n.as_ref().into()).collect();
+        self.visit.inn = chosen.into_iter().map(|n| Text::of(n.as_ref())).collect();
     }
 
     /// The stick file `name` is no longer chosen.
@@ -551,7 +548,7 @@ impl VisitArea {
     pub(crate) fn inn_toggle(&mut self, name: impl AsRef<str>) {
         let name = name.as_ref();
         if !self.visit.inn.remove(name) {
-            self.visit.inn.insert(name.into());
+            self.visit.inn.insert(Text::of(name));
         }
     }
 
@@ -568,13 +565,13 @@ impl VisitArea {
     /// The chosen stick file `from` was renamed `to`, and stays chosen.
     pub(crate) fn inn_renamed(&mut self, from: &str, to: &str) {
         if self.visit.inn.remove(from) {
-            self.visit.inn.insert(to.into());
+            self.visit.inn.insert(Text::of(to));
         }
     }
 
     /// A stick file is asked for and not yet answered.
     pub(crate) fn reading_add(&mut self, name: impl AsRef<str>) {
-        self.visit.reading.insert(name.as_ref().into());
+        self.visit.reading.insert(Text::of(name.as_ref()));
     }
 
     /// A stick file asked for is answered.
@@ -584,26 +581,26 @@ impl VisitArea {
 
     /// `name` is loaded as keys when the stick is pulled.
     pub(crate) fn load_after_add(&mut self, name: impl AsRef<str>) {
-        self.visit.load_after.insert(name.as_ref().into());
+        self.visit.load_after.insert(Text::of(name.as_ref()));
     }
 
     /// Every name in `names` is loaded as keys when the stick is pulled.
     pub(crate) fn load_after_extend(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
         self.visit
             .load_after
-            .extend(names.into_iter().map(|n| n.as_ref().into()));
+            .extend(names.into_iter().map(|n| Text::of(n.as_ref())));
     }
 
     /// The copy of `name` kept as `kept` is loaded in its place.
     pub(crate) fn load_after_renamed(&mut self, name: &str, kept: &str) {
         if self.visit.load_after.remove(name) {
-            self.visit.load_after.insert(kept.into());
+            self.visit.load_after.insert(Text::of(kept));
         }
     }
 
     /// The Inbox file `name` is chosen to write to the stick.
     pub(crate) fn inbox_pick(&mut self, name: impl AsRef<str>) {
-        self.visit.from_inbox.insert(name.as_ref().into());
+        self.visit.from_inbox.insert(Text::of(name.as_ref()));
     }
 
     /// The Inbox file `name` is no longer chosen; whether it was.
@@ -615,7 +612,7 @@ impl VisitArea {
     pub(crate) fn inbox_pick_all(&mut self, names: impl IntoIterator<Item = impl AsRef<str>>) {
         self.visit
             .from_inbox
-            .extend(names.into_iter().map(|n| n.as_ref().into()));
+            .extend(names.into_iter().map(|n| Text::of(n.as_ref())));
     }
 
     /// No Inbox file is chosen.
@@ -625,7 +622,7 @@ impl VisitArea {
 
     /// The Inbox file `name` is sent to be written.
     pub(crate) fn writing_inbox_add(&mut self, name: impl AsRef<str>) {
-        self.visit.writing_inbox.insert(name.as_ref().into());
+        self.visit.writing_inbox.insert(Text::of(name.as_ref()));
     }
 
     /// The Inbox file `name` is answered; whether it was sent.
@@ -635,8 +632,8 @@ impl VisitArea {
 
     /// The write under way starts as `writing`.
     pub(crate) fn set_writing(&mut self, label: &str, identity: &str, sent: &[(Text, [u8; 32])]) {
-        let sent = sent.iter().map(|(n, h)| ((&**n).into(), *h)).collect();
-        self.visit.writing = Some((label.into(), identity.into(), sent, false));
+        let sent = sent.iter().map(|(n, h)| (n.duplicate(), *h)).collect();
+        self.visit.writing = Some((Text::of(label), Text::of(identity), sent, false));
     }
 
     /// `name` is no longer waited for in the write under way; the write is
@@ -666,8 +663,8 @@ impl VisitArea {
         let opened = (!*started).then(|| {
             *started = true;
             crate::Receipt {
-                label: label.clone(),
-                stick: stick.clone(),
+                label: label.as_str().into(),
+                stick: stick.as_str().into(),
                 time: now,
                 files: Vec::new(),
                 by_flow: false,
@@ -827,7 +824,7 @@ impl Faraday {
     /// A write the disk refused: the receipt says why, and the visit's log
     /// says what becomes of the file.
     pub(crate) fn visit_write_failed(&mut self, name: &str, reason: &str) {
-        self.receipt_add(name, Some(reason.into()));
+        self.receipt_add(name, Some(Text::of(reason)));
         self.visit_write_logged(name, reason);
     }
 

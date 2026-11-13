@@ -2979,14 +2979,14 @@ impl Faraday {
         let mut out = Vec::new();
         for slot in self.wallet_keys_here(wi) {
             if let Ok(k) = self.wallet_key(c, wi, slot) {
-                out.push(text!("xpub-{}.txt", k.fp));
+                out.push(text!("xpub-{}.txt", &*k.fp));
                 // The BIP 129 record is signed by the key, for a `wsh` or
                 // `sh(wsh)` multisig at Create's own account.
                 if matches!(
                     k.standard,
                     Some(crate::create::NewKind::Multi | crate::create::NewKind::MultiNested)
                 ) {
-                    out.push(text!("xpub-{}-bsms.txt", k.fp));
+                    out.push(text!("xpub-{}-bsms.txt", &*k.fp));
                 }
             }
         }
@@ -3003,14 +3003,14 @@ impl Faraday {
         for slot in self.wallet_keys_here(wi) {
             if let Ok(k) = self.wallet_key(c, wi, slot) {
                 out.push((
-                    text!("xpub-{}.txt", k.fp),
-                    text!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text)
+                    text!("xpub-{}.txt", &*k.fp),
+                    text!("# Account xpub {}, {}\n{}\n", &*k.fp, &*k.kind, &*k.text)
                         .as_bytes()
                         .to_vec(),
                 ));
             }
             if let Ok((fp, text)) = self.wallet_key_record(c, wi, slot) {
-                out.push((text!("xpub-{fp}-bsms.txt"), text.into_bytes()));
+                out.push((text!("xpub-{}-bsms.txt", &*fp), text.as_bytes().to_vec()));
             }
         }
         out

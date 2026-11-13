@@ -584,7 +584,10 @@ impl View<'_> {
     /// while typing goes on, before it is worked out
     /// ([`crate::Faraday::typing_now`]). Costs a PBKDF2 and an
     /// elliptic-curve multiplication the first time after typing pauses.
-    pub(crate) fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, String>> {
+    pub(crate) fn entry_probed(
+        &self,
+        m: &Mnemonic,
+    ) -> Option<Result<Fingerprint, faraday_text::Text>> {
         if self.typing_now() {
             return self.entry.state().probe_kept();
         }
@@ -850,7 +853,7 @@ impl View<'_> {
     /// The account key in slot `slot` of wallet `i`
     /// ([`crate::Faraday::wallet_key`]), from the key's kept account
     /// text. Costs a key derivation the first time.
-    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey, String> {
+    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey, faraday_text::Text> {
         self.kept(|c| self.app.wallet_key(c, i, slot))
     }
 

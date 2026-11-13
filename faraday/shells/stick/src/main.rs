@@ -2267,14 +2267,12 @@ fn run(args: Args) -> Result<Exit, String> {
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
             if app.medium == Medium::Stick {
                 app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
-                app.maker = std::fs::read_to_string(SYS_VENDOR)
-                    .map(|m| m.trim().to_string())
-                    .unwrap_or_default();
                 let read = |p: &str| {
                     std::fs::read_to_string(p)
-                        .map(|m| m.trim().to_string())
+                        .map(|m| faraday_text::Text::of(m.trim()))
                         .unwrap_or_default()
                 };
+                app.maker = read(SYS_VENDOR);
                 app.maker_family = read(PRODUCT_FAMILY);
                 app.maker_model = read(PRODUCT_NAME);
                 // What the machine says of itself, once: a virtual

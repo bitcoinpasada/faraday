@@ -383,7 +383,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
             .out
             .iter()
             .filter(|n| n.ends_with(".kdbx"))
-            .cloned()
+            .map(|n| n.as_str().to_owned())
             .collect()
     };
     app.storage(StorageEvent::Sticks(vec![stick("FIRST")]));

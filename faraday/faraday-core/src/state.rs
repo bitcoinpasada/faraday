@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use crate::codex32_correct::{Offered, typable};
 use crate::forms::{Form, completion, slip39_completion};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::fp_text;
 use crate::{
     Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
@@ -30,7 +30,7 @@ pub struct EntryState {
     /// The loaded wallet any of whose missing keys the words may give.
     pub wallet: Option<usize>,
     /// The label for the key.
-    pub label: String,
+    pub label: faraday_text::Text,
     /// The last refusal.
     pub error: Option<faraday_text::Text>,
     /// `error` is the passphrase field's refusal of the key just typed:
@@ -80,7 +80,7 @@ pub struct EntryState {
     /// Worked out by the first frame that asks for it and kept until the
     /// next event that can change the words, list or passphrase clears it
     /// ([`EntryState::probed`], [`EntryState::forget_probe`]).
-    probe: std::cell::RefCell<Option<Result<faraday_bip::keys::Fingerprint, String>>>,
+    probe: std::cell::RefCell<Option<Result<faraday_bip::keys::Fingerprint, faraday_text::Text>>>,
 }
 
 impl EntryState {
@@ -136,16 +136,14 @@ impl EntryState {
         &self,
         c: &Compute,
         m: &faraday_bip::bip39::Mnemonic,
-    ) -> Result<faraday_bip::keys::Fingerprint, String> {
+    ) -> Result<faraday_bip::keys::Fingerprint, faraday_text::Text> {
         if let Some(r) = self.probe.borrow().as_ref() {
             return r.clone();
         }
         // Kept until an event forgets it: worked out once, by the frame
         // that asks first.
-        let r =
-            faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase).map_err(|e| {
-                String::from(&*crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text())
-            });
+        let r = faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase)
+            .map_err(|e| crate::wallet::Refusal::Words(faraday_text::Text::of(&e)).text());
         *self.probe.borrow_mut() = Some(r.clone());
         r
     }
@@ -157,7 +155,9 @@ impl EntryState {
     }
 
     /// The status line's key as kept, if it is: a lookup.
-    pub(crate) fn probe_kept(&self) -> Option<Result<faraday_bip::keys::Fingerprint, String>> {
+    pub(crate) fn probe_kept(
+        &self,
+    ) -> Option<Result<faraday_bip::keys::Fingerprint, faraday_text::Text>> {
         self.probe.borrow().clone()
     }
 }
@@ -269,8 +269,8 @@ impl EntryArea {
     }
 
     /// Takes the last refusal away.
-    pub(crate) fn take_error(&mut self) -> Option<String> {
-        self.state.error.take().map(|t| String::from(&*t))
+    pub(crate) fn take_error(&mut self) -> Option<faraday_text::Text> {
+        self.state.error.take()
     }
 
     /// Puts `text` in as typed.
@@ -520,10 +520,10 @@ impl EntryArea {
             }
             e.keys = Some(w);
         } else {
-            let mut typed = zeroize::Zeroizing::new(String::new());
+            let mut typed = faraday_text::Text::default();
             for &i in idx.iter() {
                 if let Some(t) = lang.typed(i) {
-                    typed.extend(t.as_chars());
+                    typed.extend(t.as_chars().iter().copied());
                 }
                 typed.push(' ');
             }
@@ -572,7 +572,7 @@ impl EntryArea {
     /// The words typed on Add a key's words form, the word being typed
     /// on a list's own keyboard taken first, as a key's words: whole and
     /// with a checksum that holds, or what is wrong with them.
-    pub(crate) fn mnemonic(&mut self) -> Result<faraday_bip::bip39::Mnemonic, String> {
+    pub(crate) fn mnemonic(&mut self) -> Result<faraday_bip::bip39::Mnemonic, faraday_text::Text> {
         let e = &mut self.state;
         let lang = e.language();
         if let Some(w) = e.keys.as_mut() {
@@ -582,11 +582,11 @@ impl EntryArea {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
                 let m = faraday_keys::words::from_indices(lang, &idx)
-                    .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)));
+                    .map_err(|e| faraday_strings::bip::bip39_error(&e));
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
-            None => forms::typed_mnemonic(lang, &e.typed).map_err(|t| String::from(&*t)),
+            None => forms::typed_mnemonic(lang, &e.typed),
         }
     }
 
@@ -604,7 +604,7 @@ impl EntryArea {
             // Anything else is refused, and the field says so
             // (`docs/STANDARDS.md`).
             K::Char(c) if !c.is_control() => {
-                e.error = Some(faraday_text::Text::of(&ascii_refused()));
+                e.error = Some(faraday_text::Text::of(ascii_refused()));
                 e.refused = true;
             }
             K::Backspace if second => {
@@ -701,8 +701,13 @@ impl EntryArea {
         }
         let e = &mut self.state;
         let form = e.form;
-        let text = zeroize::Zeroizing::new(e.typed.trim().to_lowercase());
-        let result: Result<(), String> = match form {
+        let text: faraday_text::Text = e
+            .typed
+            .trim()
+            .chars()
+            .flat_map(char::to_lowercase)
+            .collect();
+        let result: Result<(), faraday_text::Text> = match form {
             Form::Slip39 => add_slip39(&mut e.parts, &text),
             Form::Xor => add_xor(c, &mut e.parts, &text),
             Form::Codex32 | Form::Words => Ok(()),
@@ -715,7 +720,7 @@ impl EntryArea {
                 false
             }
             Err(msg) => {
-                e.error = Some(faraday_text::Text::of(&msg));
+                e.error = Some(msg);
                 false
             }
         }
@@ -731,7 +736,7 @@ impl EntryArea {
     fn codex32_part(&mut self, c: &Compute) -> bool {
         let e = &mut self.state;
         // Read as typed: BIP 93 refuses mixed case.
-        let given = zeroize::Zeroizing::new(e.typed.trim().to_string());
+        let given = faraday_text::Text::of(e.typed.trim());
         e.codex32.already = false;
         e.codex32.forget_check();
         let parses = Codex32::parse(&given).is_ok();
@@ -812,7 +817,7 @@ impl EntryArea {
                 false
             }
             Err(msg) => {
-                e.error = Some(faraday_text::Text::of(&msg));
+                e.error = Some(msg);
                 false
             }
         }
@@ -895,25 +900,25 @@ enum Added {
 /// What a passphrase field says of a letter it refuses: a passphrase
 /// here is printable ASCII (`docs/STANDARDS.md`). It names no letter: the
 /// field is masked.
-pub(crate) fn ascii_refused() -> String {
-    EN.passphrase_ascii_only.to_string()
+pub(crate) fn ascii_refused() -> &'static str {
+    EN.passphrase_ascii_only
 }
 
 /// One SLIP-39 share more, refused when it is not one or is a repeat.
-fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
+fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), faraday_text::Text> {
     let s = slip39::Share::parse(text).map_err(|e| {
-        fill(
+        faraday_text::Text::fill(
             EN.forms_not_slip39_share,
             &[&faraday_strings::bip::slip39_error(&e)],
         )
     })?;
     if parts.slip39.iter().any(|t| t.indices() == s.indices()) {
-        return Err(EN.forms_share_duplicate.to_string());
+        return Err(faraday_text::Text::of(EN.forms_share_duplicate));
     }
     // Never past the room made at the start: a list that grows leaves a
     // copy of every share behind.
     if parts.slip39.len() >= parts.slip39.capacity().min(forms::SLIP39_ROOM) {
-        return Err(EN.forms_shares_full.to_string());
+        return Err(faraday_text::Text::of(EN.forms_shares_full));
     }
     parts.slip39.push(s);
     Ok(())
@@ -922,12 +927,12 @@ fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
 /// One codex32 string more, refused when it is not one or is of another
 /// seed. The same string again changes nothing; another at an index
 /// already in is handed back to ask about (`docs/CODEX32.md` §8.5).
-fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, String> {
-    let c = Codex32::parse(given).map_err(|e| String::from(&*forms::codex32_refusal(given, &e)))?;
+fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, faraday_text::Text> {
+    let c = Codex32::parse(given).map_err(|e| forms::codex32_refusal(given, &e))?;
     if let Some(first) = parts.codex32.first()
         && first.identifier() != c.identifier()
     {
-        return Err(EN.forms_other_seed_string.to_string());
+        return Err(faraday_text::Text::of(EN.forms_other_seed_string));
     }
     if let Some(at) = parts
         .codex32
@@ -947,9 +952,9 @@ fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, String> {
 
 /// Costs what reading the words costs, a checksum and a hash. One Seed
 /// XOR part more, its words checked.
-fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), String> {
+fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), faraday_text::Text> {
     let m = crate::wallet::parse_words(c, Language::English, text).map_err(|e| {
-        fill(
+        faraday_text::Text::fill(
             EN.forms_not_bip_39_words,
             &[&faraday_strings::bip::bip39_error(&e)],
         )
@@ -958,7 +963,7 @@ fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), Stri
     parts
         .xor
         .push(ent.expose().as_bytes())
-        .map_err(|_| EN.forms_every_part_has.to_string())
+        .map_err(|_| faraday_text::Text::of(EN.forms_every_part_has))
 }
 
 /// Signing a message: the cards' state.
@@ -975,7 +980,7 @@ pub struct MessageState {
     /// The receive address's index.
     pub index: u32,
     /// The message.
-    pub text: String,
+    pub text: faraday_text::Text,
     /// Typing goes to the message.
     pub typing: bool,
     /// BIP-322 rather than BIP-137.
@@ -983,7 +988,7 @@ pub struct MessageState {
     /// The signature, once made.
     pub signed: Option<faraday_psbt::message::Signed>,
     /// The name the signed message's file went out under.
-    pub out_name: Option<String>,
+    pub out_name: Option<faraday_text::Text>,
     /// The last refusal.
     pub error: Option<faraday_text::Text>,
 }
@@ -1111,7 +1116,7 @@ impl MessageArea {
     #[cfg(feature = "testkit")]
     pub(crate) fn set_text(&mut self, text: &str) {
         if let Some(m) = self.state.as_mut() {
-            m.text = text.to_string();
+            m.text = faraday_text::Text::of(text);
         }
     }
 }
@@ -1125,20 +1130,20 @@ pub struct VisitState {
     /// shown (else In Faraday).
     pub tab_stick: bool,
     /// Outbox files chosen to write, by name.
-    pub out: BTreeSet<String>,
+    pub out: BTreeSet<faraday_text::Text>,
     /// Stick files chosen to copy, by name.
-    pub inn: BTreeSet<String>,
+    pub inn: BTreeSet<faraday_text::Text>,
     /// Stick files asked for and not yet answered, by name: a picture's
     /// codes are read off the shell's thread, one picture at a time.
-    pub reading: BTreeSet<String>,
+    pub reading: BTreeSet<faraday_text::Text>,
     /// The settings file's row as the person set it; `None` for its
     /// default (`Faraday::visit_settings_on`).
     pub settings: Option<bool>,
     /// What the last write or copy did, one line per file.
-    pub log: Vec<(String, bool)>,
+    pub log: Vec<(faraday_text::Text, bool)>,
     /// Names from an "Import and load" copy, by name: loaded as keys the
     /// moment the stick is pulled, no further press needed.
-    pub load_after: BTreeSet<String>,
+    pub load_after: BTreeSet<faraday_text::Text>,
     /// How far the Outbox list is scrolled, design units. The stick's
     /// files scroll by [`Faraday::list_offset`].
     pub out_offset: f32,
@@ -1147,9 +1152,9 @@ pub struct VisitState {
     /// Inbox files chosen to write, by name: a copy from one stick to
     /// another. One that may be a secret is chosen only on the secret
     /// sheet.
-    pub from_inbox: BTreeSet<String>,
+    pub from_inbox: BTreeSet<faraday_text::Text>,
     /// Inbox files sent to be written and not yet answered, by name.
-    pub writing_inbox: BTreeSet<String>,
+    pub writing_inbox: BTreeSet<faraday_text::Text>,
     /// The write under way: the stick's label, and each file sent with
     /// the SHA-256 of its bytes. Its first answer starts a new receipt.
     pub writing: Option<Writing>,
@@ -1251,13 +1256,13 @@ impl Faraday {
                     let text =
                         faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
                     if action == Action::MOut {
-                        let name = format!(
+                        let name = faraday_text::text!(
                             "message-{}.txt",
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
                         let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
                         if let Some(m) = self.message.state.as_mut() {
-                            m.out_name = Some(String::from(&*name));
+                            m.out_name = Some(name.duplicate());
                         }
                         self.toast_out(&name);
                     } else {
@@ -1316,7 +1321,8 @@ impl Faraday {
         }
         // The text as scanned: a single code's own bytes, not the trimmed
         // text filed for it, and refused when they are not UTF-8.
-        let Ok(text) = String::from_utf8(self.scanned_own(&data)) else {
+        let Ok(text) = std::str::from_utf8(&self.scanned_own(&data)).map(faraday_text::Text::of)
+        else {
             self.scan_say(Kind::Unreadable.not_here());
             return true;
         };
@@ -1344,7 +1350,7 @@ impl Faraday {
         }
         self.act(Action::SignMessage);
         if let Some(m) = self.message.state.as_mut() {
-            m.text = text.to_string();
+            m.text = faraday_text::Text::of(text);
         }
     }
 
@@ -1423,7 +1429,7 @@ impl Faraday {
         &mut self,
         c: &Compute,
         label: &str,
-    ) -> Result<faraday_bip::keys::Fingerprint, String> {
+    ) -> Result<faraday_bip::keys::Fingerprint, faraday_text::Text> {
         let typed = &self.entry.state().parts.codex32;
         let fp =
             match self
@@ -1431,11 +1437,11 @@ impl Faraday {
                 .store()
                 .codex32_with_typed(c, &mut self.session.keys, typed, label)
             {
-                Some(r) => r.map_err(|e| String::from(&*e.text()))?,
+                Some(r) => r.map_err(|e| e.text())?,
                 None => {
                     let fp = faraday_keys::codex32_seed(typed)
                         .map_err(|e| {
-                            fill(
+                            faraday_text::Text::fill(
                                 EN.forms_the_strings_do,
                                 &[&faraday_strings::bip::codex32_error(&e)],
                             )
@@ -1444,12 +1450,12 @@ impl Faraday {
                             self.session
                                 .keys
                                 .add_seed(c, &seed, label)
-                                .map_err(|e| String::from(&*e.text()))
+                                .map_err(|e| e.text())
                         })?;
                     let typed = &self.entry.state().parts.codex32;
-                    let texts: Vec<zeroize::Zeroizing<String>> = typed
+                    let texts: Vec<faraday_text::Text> = typed
                         .iter()
-                        .map(|s| zeroize::Zeroizing::new(s.encode().as_str().to_string()))
+                        .map(|s| faraday_text::Text::of(s.encode().as_str()))
                         .collect();
                     let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
                     if let Some(i) = self.session.keys.position(fp) {
@@ -1580,7 +1586,10 @@ impl Faraday {
         }
         match self.form_key() {
             Ok(fp) => {
-                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp)]));
+                self.toast(&faraday_text::Text::fill(
+                    EN.forms_key_added,
+                    &[&fp_text(fp)],
+                ));
                 let back = self.entry.state().back;
                 self.seeds_took(fp, back);
                 self.entry.reset();
@@ -1598,7 +1607,9 @@ impl Faraday {
     /// the passphrase typed (not for codex32); what is wrong otherwise.
     /// Add a key's Make the key and New key's Lock in for a form other
     /// than words both load through here (`docs/history/NEW-WALLET.md` §15.2).
-    pub(crate) fn form_key(&mut self) -> Result<faraday_bip::keys::Fingerprint, String> {
+    pub(crate) fn form_key(
+        &mut self,
+    ) -> Result<faraday_bip::keys::Fingerprint, faraday_text::Text> {
         let c = self.compute();
         let form = self.entry.state().form;
         let label = match form {
@@ -1613,7 +1624,7 @@ impl Faraday {
                 self.entry.state().passphrase.as_bytes(),
             )
             .map_err(|e| {
-                fill(
+                faraday_text::Text::fill(
                     EN.forms_the_shares_do,
                     &[&faraday_strings::bip::slip39_error(&e)],
                 )
@@ -1622,7 +1633,7 @@ impl Faraday {
                 self.session
                     .keys
                     .add_seed(&c, &seed, label)
-                    .map_err(|e| String::from(&*e.text()))
+                    .map_err(|e| e.text())
             }),
             Form::Codex32 => self.form_key_codex32(&c, label),
             Form::Xor => self
@@ -1631,10 +1642,10 @@ impl Faraday {
                 .parts
                 .xor
                 .entropy()
-                .map_err(|_| EN.forms_seed_xor_needs.to_string())
+                .map_err(|_| faraday_text::Text::of(EN.forms_seed_xor_needs))
                 .and_then(|e| {
                     faraday_keys::words::from_entropy(Language::English, e.as_bytes())
-                        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))
+                        .map_err(|e| faraday_strings::bip::bip39_error(&e))
                 })
                 .and_then(|m| {
                     let words: Vec<&str> = m
@@ -1642,14 +1653,20 @@ impl Faraday {
                         .iter()
                         .map(|&i| Language::English.word(i))
                         .collect();
-                    let phrase = zeroize::Zeroizing::new(words.join(" "));
+                    let mut phrase = faraday_text::Text::default();
+                    for (n, w) in words.iter().enumerate() {
+                        if n > 0 {
+                            phrase.push(' ');
+                        }
+                        phrase.push_str(w);
+                    }
                     self.session
                         .keys
                         .add_words_with(&c, &phrase, &self.entry.state().passphrase, label, None)
-                        .map_err(|e| String::from(&*e.text()))
+                        .map_err(|e| e.text())
                 }),
             // Words are loaded as words (`Faraday::typed_load`), never here.
-            Form::Words => Err(String::new()),
+            Form::Words => Err(faraday_text::Text::default()),
         }
     }
 }

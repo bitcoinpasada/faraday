@@ -621,7 +621,9 @@ faraday/faraday-qr/src/specter.rs
 faraday/faraday-core/src/backup_flow/wallet_files.rs
 faraday/faraday-core/src/compute.rs
 faraday/faraday-core/src/worker/kef_make.rs
-faraday/faraday-core/src/held.rs"
+faraday/faraday-core/src/held.rs
+faraday/faraday-core/src/lib.rs
+faraday/faraday-core/src/state.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

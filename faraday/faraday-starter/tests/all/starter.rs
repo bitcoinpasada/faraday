@@ -1151,9 +1151,9 @@ fn the_stick_and_the_starter_show_the_same_address_for_a_computer() {
         };
         let mut app = faraday_core::Faraday::new();
         app.secure_boot = faraday_core::SecureBootAtStart::Off;
-        app.maker = maker.into();
-        app.maker_family = family.into();
-        app.maker_model = model.into();
+        app.maker.set(maker);
+        app.maker_family.set(family);
+        app.maker_model.set(model);
         assert_eq!(
             app.secure_boot_guide(),
             Some(StartGuide::for_computer(&c).address()),

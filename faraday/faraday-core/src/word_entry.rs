@@ -1076,7 +1076,8 @@ impl Faraday {
                     }
                     crate::scan_key::Found::Missing(n) => {
                         if label.trim().is_empty() {
-                            label = self.wallet_key_label(&c, w, fp).as_str().into();
+                            label =
+                                faraday_text::Text::of(self.wallet_key_label(&c, w, fp).as_str());
                         }
                         for_wallet = Some((w, n));
                     }

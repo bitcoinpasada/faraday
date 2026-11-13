@@ -1152,10 +1152,7 @@ impl Faraday {
                 ];
                 Ok(QrView::of(
                     c,
-                    &Text::fill(
-                        EN.code_view_xpub_kind,
-                        &[&text!("{}", k.fp), &text!("{}", k.kind)],
-                    ),
+                    &Text::fill(EN.code_view_xpub_kind, &[&*k.fp, &*k.kind]),
                     QrSource::Key(
                         faraday_text::Text::of(&k.text),
                         account.as_deref().map(faraday_text::Text::of),
@@ -1163,7 +1160,7 @@ impl Faraday {
                     QrFormat::Ur,
                     QR_PARTS[1],
                 )?
-                .public(&text!("xpub-{}.png", k.fp), lines))
+                .public(&text!("xpub-{}.png", &*k.fp), lines))
             }
             Code::CosignerKey(i, slot) => {
                 let w = self
@@ -1206,12 +1203,10 @@ impl Faraday {
                     Text::of(EN.code_view_bip_129_key),
                     Text::of(EN.code_view_public_spends),
                 ];
-                Ok(QrView::text(
-                    c,
-                    &Text::fill(EN.code_view_key_bsms, &[&text!("{}", k.fp)]),
-                    &text,
-                )?
-                .public(&text!("xpub-{}-bsms.png", k.fp), lines))
+                Ok(
+                    QrView::text(c, &Text::fill(EN.code_view_key_bsms, &[&*k.fp]), &text)?
+                        .public(&text!("xpub-{}-bsms.png", &*k.fp), lines),
+                )
             }
             Code::Silent(_) | Code::SilentRecord | Code::SilentDns => {
                 self.silent_code(c, code).map_err(Why::from)

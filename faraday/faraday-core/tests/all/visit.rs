@@ -107,7 +107,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
         vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Files);
-    let ticked: Vec<&str> = app.visit().inn.iter().map(String::as_str).collect();
+    let ticked: Vec<&str> = app.visit().inn.iter().map(|t| t.as_str()).collect();
     assert_eq!(ticked, ["savings-descriptor.txt", "savings-unsigned.psbt"]);
 }
 
@@ -891,7 +891,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
     app.press(Action::Nav(Screen::Files));
     let names: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     for (i, n) in names.iter().enumerate() {
-        if !app.visit().out.contains(n) {
+        if !app.visit().out.contains(n.as_str()) {
             app.press(Action::VisitOut(i));
         }
     }

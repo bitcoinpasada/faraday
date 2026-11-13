@@ -257,7 +257,7 @@ impl Shell {
         eprintln!(
             "faraday: slow {what} {} ms · {}",
             took.as_millis(),
-            app.screen_name()
+            &*app.screen_name()
         );
     }
 

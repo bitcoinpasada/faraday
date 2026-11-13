@@ -2205,7 +2205,7 @@ impl Faraday {
             KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
             // Anything else is refused, and the slot says so.
             KeyIn::Char(ch) if !ch.is_control() => {
-                c.pass_note = Some(Text::of(&crate::state::ascii_refused()));
+                c.pass_note = Some(Text::of(crate::state::ascii_refused()));
                 return true;
             }
             KeyIn::Backspace => {

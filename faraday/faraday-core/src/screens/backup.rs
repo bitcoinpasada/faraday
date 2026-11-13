@@ -2259,9 +2259,9 @@ fn public_files(
             Some(crate::create::NewKind::Multi | crate::create::NewKind::MultiNested)
         );
         rows.push((
-            fill(EN.public_files_key, &[&fp.to_string()]),
+            fill(EN.public_files_key, &[&*fp]),
             EN.public_files_cosigners,
-            app.backup_xpub_name(i, slot, false, &fp.to_string())
+            app.backup_xpub_name(i, slot, false, &fp)
                 .unwrap_or_default()
                 .to_string(),
             Action::WalletKeyOut(i, slot),
@@ -2272,9 +2272,9 @@ fn public_files(
         ));
         if record {
             rows.push((
-                fill(EN.public_files_key_bsms, &[&fp.to_string()]),
+                fill(EN.public_files_key_bsms, &[&*fp]),
                 EN.public_files_signed,
-                app.backup_xpub_name(i, slot, true, &fp.to_string())
+                app.backup_xpub_name(i, slot, true, &fp)
                     .unwrap_or_default()
                     .to_string(),
                 Action::WalletKeyBsms(i, slot),

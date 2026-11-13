@@ -2598,17 +2598,20 @@ fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickab
     app.press(Action::Nav(Screen::Files));
     for n in &names {
         assert!(app.in_the_backup(n), "{n}");
-        assert!(!app.visit().out.contains(n), "{n} is not ticked");
+        assert!(!app.visit().out.contains(n.as_str()), "{n} is not ticked");
         let k = app
             .outbox
             .iter()
             .position(|i| i.name.as_str() == n.as_str())
             .unwrap();
         app.press(Action::VisitOut(k));
-        assert!(!app.visit().out.contains(n), "{n} cannot be ticked");
+        assert!(
+            !app.visit().out.contains(n.as_str()),
+            "{n} cannot be ticked"
+        );
     }
     app.press(Action::VisitOutAll);
-    assert!(names.iter().all(|n| !app.visit().out.contains(n)));
+    assert!(names.iter().all(|n| !app.visit().out.contains(n.as_str())));
 }
 
 #[test]

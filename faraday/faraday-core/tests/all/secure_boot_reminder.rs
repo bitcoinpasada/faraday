@@ -53,7 +53,7 @@ fn it_says_nothing_when_secure_boot_was_on() {
 fn a_mac_stick_never_shows_it() {
     let mut app = Faraday::new();
     app.medium = Medium::Stick;
-    app.maker = "Apple Inc.".into();
+    app.maker = faraday_text::Text::of("Apple Inc.");
     app.press(Action::PowerAsk);
     assert!(!shown(app).iter().any(|s| s == LINE));
 }
@@ -180,9 +180,9 @@ fn guide_texts(
     let mut app = Faraday::new();
     app.medium = medium;
     app.secure_boot = secure_boot;
-    app.maker = maker.0.into();
-    app.maker_family = maker.1.into();
-    app.maker_model = maker.2.into();
+    app.maker = faraday_text::Text::of(maker.0);
+    app.maker_family = faraday_text::Text::of(maker.1);
+    app.maker_model = faraday_text::Text::of(maker.2);
     app.press(Action::PowerAsk);
     shown(app)
 }
@@ -232,7 +232,7 @@ fn no_guide_code_when_secure_boot_was_on_or_off_the_stick() {
     // The desktop app keeps the defaults.
     let mut app = Faraday::new();
     app.shell_sticks = true;
-    app.maker = dell.0.into();
+    app.maker = faraday_text::Text::of(dell.0);
     app.press(Action::PowerAsk);
     assert!(address(&shown(app)).is_none());
 }

@@ -614,7 +614,7 @@ impl Faraday {
             // Anything else is refused, and the sheet says so
             // (`docs/STANDARDS.md`).
             KeyIn::Char(c) if !c.is_control() => {
-                s.error = Some(Text::of(&crate::state::ascii_refused()));
+                s.error = Some(Text::of(crate::state::ascii_refused()));
                 return true;
             }
             KeyIn::Backspace => {

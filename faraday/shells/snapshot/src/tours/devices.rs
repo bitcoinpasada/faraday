@@ -202,9 +202,9 @@ pub(crate) fn power_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("power-sheet")?;
     t.app.event(Event::Key(Key::Escape));
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
-    t.app.maker = "LENOVO".into();
-    t.app.maker_family = "ThinkPad X1 Carbon".into();
-    t.app.maker_model = "Example 14".into();
+    t.app.maker = faraday_text::Text::of("LENOVO");
+    t.app.maker_family = faraday_text::Text::of("ThinkPad X1 Carbon");
+    t.app.maker_model = faraday_text::Text::of("Example 14");
     t.press(Action::PowerAsk);
     t.shot("power-sheet-secure-boot-off")
 }
