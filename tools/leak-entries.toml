@@ -14,20 +14,6 @@
 [[entry]]
 flow = "core wallet read"
 form = "core master chain code"
-place = "faraday_core_wallet::"
-reason = "the reader's decryption and descriptor normalising hold the wallet's master key in buffers (vectors, tables, base58 decoding) that are not wiped before they are freed; the copies live until the process restarts at every lock (F181 point 2)"
-fix = "none planned yet"
-
-[[entry]]
-flow = "core wallet read"
-form = "core master chain code"
 place = "parse_xkey_deriv"
-reason = "miniscript's parsing of a descriptor key (bitcoin's base58 decoding of the xpub, in a library) frees the decoded bytes, which hold the chain code, unwiped; the copy lives until the process restarts at every lock (F181 point 2)"
-fix = "none planned yet"
-
-[[entry]]
-flow = "core wallet read"
-form = "core master chain code"
-place = "read<alloc::vec::Vec<u8"
-reason = "the reader's table of the wallet's keys (faraday_core::core_wallet::read, inlined into the caller) frees its buckets holding the chain code unwiped; the copy lives until the process restarts at every lock (F181 point 2)"
+reason = "miniscript's parsing of a descriptor key (bitcoin's base58 decoding of the xpub, in a library) frees the decoded bytes, which hold the chain code, unwiped; the descriptor's text must reach miniscript as it is for the reader to accept what it accepts now, and miniscript decodes the key itself; the copy lives until the process restarts at every lock (F181 point 2)"
 fix = "none planned yet"

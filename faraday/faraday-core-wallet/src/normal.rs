@@ -13,8 +13,9 @@
 //! every hardened mark is written `h`, as Core writes it.
 
 use faraday_bip::bitcoin::base58;
-use faraday_bip::bitcoin::hashes::{Hash, hash160};
+use faraday_bip::bitcoin::hashes::{Hash, hash160, sha256d as hash256};
 use faraday_bip::descriptor::descriptor_checksum;
+use zeroize::Zeroizing;
 
 /// The functions whose arguments are not keys.
 const NOT_KEYS: [&str; 8] = [
@@ -30,14 +31,13 @@ const NOT_KEYS: [&str; 8] = [
 
 /// A key Core caches the account key of: what the check of the cached key
 /// needs.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Need {
     /// The key's place in the descriptor, counted over every key.
     pub index: u32,
     /// The master key's compressed public key.
     pub root: [u8; 33],
-    /// The master key's chain code.
-    pub chain_code: [u8; 32],
+    /// The master key's chain code, wiped when dropped.
+    pub chain_code: Zeroizing<[u8; 32]>,
     /// Its depth, parent fingerprint and child number.
     pub meta: [u8; 9],
     /// The steps from it to the cached key: the hardened ones and the
@@ -67,7 +67,14 @@ pub(super) fn normalize(
     cache: &dyn Fn(u32) -> Option<[u8; 74]>,
 ) -> Result<(String, Vec<Need>), Failed> {
     let mut out = String::with_capacity(body.len() + 64);
-    let mut needs = Vec::new();
+    // Sized up front, so that no growth leaves a copy of a chain code
+    // behind: at most one key to a separator, and one after the last.
+    let mut needs = Vec::with_capacity(
+        1 + body
+            .bytes()
+            .filter(|b| matches!(b, b')' | b',' | b'{' | b'}'))
+            .count(),
+    );
     let mut names: Vec<String> = Vec::new();
     let mut token = String::new();
     let mut index = 0u32;
@@ -138,6 +145,48 @@ fn path_text(steps: &[u32]) -> String {
     out
 }
 
+const BASE58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+/// The 78 bytes of an extended key written in base58check, or `None` where
+/// the text is not base58, its checksum fails or it does not decode to 82
+/// bytes. The same as `base58::decode_check` with a 78-byte result, but
+/// the work is in wiped memory: a decoded key holds a chain code, and the
+/// library's decoding frees its buffer unwiped.
+fn extended_key_bytes(text: &str) -> Option<Zeroizing<[u8; 78]>> {
+    const TOTAL: usize = 82;
+    // The number so far, least significant byte first.
+    let mut number = Zeroizing::new([0u8; TOTAL]);
+    let mut used = 0usize;
+    for ch in text.bytes() {
+        let mut carry = BASE58.iter().position(|&b| b == ch)?;
+        for byte in &mut number[..used] {
+            carry += usize::from(*byte) * 58;
+            *byte = (carry & 0xFF) as u8;
+            carry >>= 8;
+        }
+        while carry > 0 {
+            *number.get_mut(used)? = (carry & 0xFF) as u8;
+            used += 1;
+            carry >>= 8;
+        }
+    }
+    let zeros = text.bytes().take_while(|&b| b == b'1').count();
+    if zeros + used != TOTAL {
+        return None;
+    }
+    let mut bytes = Zeroizing::new([0u8; TOTAL]);
+    for (to, from) in bytes[zeros..].iter_mut().zip(number[..used].iter().rev()) {
+        *to = *from;
+    }
+    let (payload, check) = bytes.split_at(78);
+    if hash256::Hash::hash(payload).to_byte_array()[..4] != *check {
+        return None;
+    }
+    let mut key = Zeroizing::new([0u8; 78]);
+    key.copy_from_slice(payload);
+    Some(key)
+}
+
 /// One key expression, Core's way.
 fn key(
     token: &str,
@@ -169,7 +218,7 @@ fn key(
     let mut parts = rest.split('/');
     let head = parts.next().ok_or(Failed::Unreadable)?;
     let raw = parts.collect::<Vec<&str>>();
-    let decoded = base58::decode_check(head).ok().filter(|b| b.len() == 78);
+    let decoded = extended_key_bytes(head);
     let Some(x) = decoded else {
         // A single key: written as hex, which is how Core lists it.
         if !raw.is_empty() {
@@ -233,10 +282,10 @@ fn key(
     }
     let mut version = [0u8; 4];
     version.copy_from_slice(&x[..4]);
-    let mut bytes = Vec::with_capacity(78);
+    let mut bytes = Zeroizing::new(Vec::with_capacity(78));
     bytes.extend_from_slice(&version);
     bytes.extend_from_slice(&cached);
-    let mut chain_code = [0u8; 32];
+    let mut chain_code = Zeroizing::new([0u8; 32]);
     chain_code.copy_from_slice(&x[13..45]);
     let (fp, path) = match &origin {
         Some((fp, path)) => (fp.clone(), [path.as_slice(), &steps[..=last]].concat()),
@@ -291,6 +340,39 @@ mod tests {
         let by = cached(4, 2 | 1 << 31);
         normalize(body, &move |i| (i == 0).then_some(by))
             .map(|(text, needs)| (text.split('#').next().expect("text").to_string(), needs))
+    }
+
+    #[test]
+    fn an_extended_key_decodes_as_the_library_decodes_it() {
+        let good = master();
+        let mut flipped = good.clone().into_bytes();
+        flipped[20] = if flipped[20] == b'2' { b'3' } else { b'2' };
+        let flipped = String::from_utf8(flipped).expect("text");
+        let ones = format!("1{good}");
+        let twice = format!("{good}{good}");
+        let short = base58::encode_check(&[5u8; 77]);
+        let long = base58::encode_check(&[5u8; 79]);
+        let mut zeros = [5u8; 78];
+        zeros[..2].fill(0);
+        let zeros = base58::encode_check(&zeros);
+        for text in [
+            good.as_str(),
+            flipped.as_str(),
+            ones.as_str(),
+            twice.as_str(),
+            short.as_str(),
+            long.as_str(),
+            zeros.as_str(),
+            "",
+            "1111",
+            "0OIl",
+            "tpub",
+        ] {
+            let library = base58::decode_check(text).ok().filter(|b| b.len() == 78);
+            let ours = extended_key_bytes(text);
+            assert_eq!(ours.as_deref().map(|b| b.as_slice()), library.as_deref(), "{text}");
+        }
+        assert!(extended_key_bytes(&zeros).is_some());
     }
 
     #[test]

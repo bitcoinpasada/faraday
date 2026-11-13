@@ -42,7 +42,7 @@ use faraday_keys::core_wallet::{
 };
 use faraday_strings::{EN, fill};
 use std::collections::{HashMap, HashSet};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use faraday_intake::wallet::network_name;
 
@@ -553,6 +553,23 @@ fn key_pubkey(tail: &[u8]) -> Option<&[u8]> {
 /// A key record held for its check: the descriptor's id, the public key,
 /// the value (wiped on drop) and the record's key tail.
 type KeyRecord = ([u8; 32], Vec<u8>, Zeroizing<Vec<u8>>, Vec<u8>);
+
+/// The cached account keys a master key is the root of: their places in
+/// the descriptor and what the check of each needs. The checks hold the
+/// master key's chain code, so they are wiped when this is dropped.
+#[derive(Default)]
+struct Accounts {
+    places: Vec<u32>,
+    checks: Vec<AccountCheck>,
+}
+
+impl Drop for Accounts {
+    fn drop(&mut self) {
+        for check in &mut self.checks {
+            check.chain_code.zeroize();
+        }
+    }
+}
 
 /// The cached account keys of a wallet's descriptors, borrowed from the
 /// records: the descriptor's id and the key's place give the 74 bytes.
@@ -1142,24 +1159,24 @@ impl Reader<'_> {
 
     /// The cached account keys of descriptor `id` that this master key
     /// (`pubkey`) is the root of.
-    fn accounts(&self, id: &[u8; 32], pubkey: &[u8]) -> Vec<(u32, AccountCheck)> {
-        self.needs.get(id).map_or_else(Vec::new, |needs| {
-            needs
-                .iter()
-                .filter(|n| n.root[..] == *pubkey)
-                .map(|n| {
-                    (
-                        n.index,
-                        AccountCheck {
-                            meta: n.meta,
-                            chain_code: n.chain_code,
-                            path: n.path.clone(),
-                            cached: n.cached,
-                        },
-                    )
-                })
-                .collect()
-        })
+    fn accounts(&self, id: &[u8; 32], pubkey: &[u8]) -> Accounts {
+        let Some(needs) = self.needs.get(id) else {
+            return Accounts::default();
+        };
+        let mut found = Accounts {
+            places: Vec::with_capacity(needs.len()),
+            checks: Vec::with_capacity(needs.len()),
+        };
+        for n in needs.iter().filter(|n| n.root[..] == *pubkey) {
+            found.places.push(n.index);
+            found.checks.push(AccountCheck {
+                meta: n.meta,
+                chain_code: *n.chain_code,
+                path: n.path.clone(),
+                cached: n.cached,
+            });
+        }
+        found
     }
 
     /// The cached keys no master key was compared with. Where the keys
@@ -1198,8 +1215,8 @@ impl Reader<'_> {
 
     /// Fails each cached key of `id` that `matches` says is not the one
     /// its master key gives.
-    fn cached_keys(&mut self, id: &[u8; 32], places: &[(u32, AccountCheck)], matches: &[bool]) {
-        for ((place, _), ok) in places.iter().zip(matches) {
+    fn cached_keys(&mut self, id: &[u8; 32], places: &[u32], matches: &[bool]) {
+        for (place, ok) in places.iter().zip(matches) {
             self.compared.insert((*id, *place));
             if !ok {
                 let tail = [id.as_slice(), &place.to_le_bytes()].concat();
@@ -1226,11 +1243,11 @@ impl Reader<'_> {
 
     fn private_keys(&mut self, keys: &[KeyRecord]) {
         for (id, pubkey, value, tail) in keys {
-            let places = self.accounts(id, pubkey);
-            let checks: Vec<AccountCheck> = places.iter().map(|(_, a)| a.clone()).collect();
-            let (v, matches) = check_private_key_accounts(self.c, pubkey, value.clone(), &checks);
+            let found = self.accounts(id, pubkey);
+            let (v, matches) =
+                check_private_key_accounts(self.c, pubkey, value.clone(), &found.checks);
             self.verdict("walletdescriptorkey", tail, id, v, false);
-            self.cached_keys(id, &places, &matches);
+            self.cached_keys(id, &found.places, &matches);
         }
     }
 
@@ -1260,27 +1277,20 @@ impl Reader<'_> {
         let (Some(passphrase), Some(mkey)) = (passphrase, mkey) else {
             return;
         };
-        let places: Vec<Vec<(u32, AccountCheck)>> = keys
+        let found: Vec<Accounts> = keys
             .iter()
             .map(|(id, pubkey, _, _)| self.accounts(id, pubkey))
             .collect();
-        let checks: Vec<Vec<AccountCheck>> = places
-            .iter()
-            .map(|p| p.iter().map(|(_, a)| a.clone()).collect())
-            .collect();
-        let list = keys
-            .iter()
-            .zip(&checks)
-            .map(|((_, pubkey, value, _), c)| (pubkey.as_slice(), value.as_slice(), c.as_slice()));
+        let list = keys.iter().zip(&found).map(|((_, pubkey, value, _), f)| {
+            (pubkey.as_slice(), value.as_slice(), f.checks.as_slice())
+        });
         match check_encrypted_keys_accounts(self.c, mkey, passphrase, list) {
             Ok(verdicts) => {
                 self.wallet.passphrase = Passphrase::Opened;
                 self.wallet.keys_unchecked = 0;
-                for (((id, _, _, tail), (v, matches)), places) in
-                    keys.iter().zip(verdicts).zip(&places)
-                {
+                for (((id, _, _, tail), (v, matches)), f) in keys.iter().zip(verdicts).zip(&found) {
                     self.verdict(name, tail, id, v, true);
-                    self.cached_keys(id, places, &matches);
+                    self.cached_keys(id, &f.places, &matches);
                 }
             }
             Err(OpenError::WrongPassphrase) => self.wallet.passphrase = Passphrase::Wrong,
