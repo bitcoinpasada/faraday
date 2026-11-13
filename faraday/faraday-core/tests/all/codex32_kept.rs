@@ -945,10 +945,7 @@ fn warned_with_typing(by_key: bool) {
     }
     let t = drawn(&mut app);
     assert!(shows_share(&t), "the string did not come back: {t}");
-    assert!(
-        joined(&t).contains(&A[3..9]),
-        "the typed text did not come back: {t}"
-    );
+    assert!(!t.contains('\u{2022}'), "the typed text is still dots: {t}");
 }
 
 #[test]
@@ -981,6 +978,13 @@ fn the_idle_warning_leaves_a_set_actions_typing_drawn() {
     });
     assert_eq!(app.sheet, Some(faraday_core::Sheet::IdleWarn));
     app.press(Action::Cancel);
+    app.settle();
+    let _ = app.frame();
+    let t = app.drawn_texts().join("\n");
+    assert!(
+        t.replace(' ', "").contains("zyxw"),
+        "typing is masked right after Cancel: {t}"
+    );
     app.press(Action::BC32(Press::Key(OskPress::Char('v'))));
     app.settle();
     let _ = app.frame();

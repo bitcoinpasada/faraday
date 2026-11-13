@@ -651,7 +651,8 @@ fn a_lock_that_stops_keeps_new_key_s_selected_cell() {
     use faraday_core::codex32::{C32, Cell};
     let mut app = codex32_made();
     app.press(Action::Codex32(C32::Cell(Cell::Given { sheet: 0, b: 10 })));
-    let done = EN.codex32_done_button;
+    let done = EN.codex32_cell_box.replace("{}", "10");
+    let done = done.as_str();
     assert!(text_on_screen(&mut app, done), "no cell is open");
     lock_stops(&mut app);
     app.press(Action::Cancel);
