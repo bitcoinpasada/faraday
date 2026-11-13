@@ -18,15 +18,30 @@ use crate::totp;
 
 /// The field a `name:` line fills.
 fn field_of(name: &str) -> Option<u8> {
-    Some(match name.trim().to_ascii_lowercase().as_str() {
-        "title" | "name" => field::TITLE,
-        "username" | "user" | "login" | "email" => field::USERNAME,
-        "password" | "pass" => field::PASSWORD,
-        "url" | "website" | "site" => field::URL,
-        "notes" | "note" => field::NOTES,
-        "totp" | "otp" | "otpauth" => field::TOTP,
-        _ => return None,
-    })
+    // Compared in place, ignoring ASCII case, so the name is never copied.
+    const NAMES: &[(&str, u8)] = &[
+        ("title", field::TITLE),
+        ("name", field::TITLE),
+        ("username", field::USERNAME),
+        ("user", field::USERNAME),
+        ("login", field::USERNAME),
+        ("email", field::USERNAME),
+        ("password", field::PASSWORD),
+        ("pass", field::PASSWORD),
+        ("url", field::URL),
+        ("website", field::URL),
+        ("site", field::URL),
+        ("notes", field::NOTES),
+        ("note", field::NOTES),
+        ("totp", field::TOTP),
+        ("otp", field::TOTP),
+        ("otpauth", field::TOTP),
+    ];
+    let name = name.trim();
+    NAMES
+        .iter()
+        .find(|(n, _)| name.eq_ignore_ascii_case(n))
+        .map(|&(_, f)| f)
 }
 
 /// `%XX` escapes undone, as an `otpauth://` label carries them.

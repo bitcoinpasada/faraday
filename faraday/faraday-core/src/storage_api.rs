@@ -656,13 +656,18 @@ fn same_bytes(a: &[u8], b: &[u8]) -> bool {
     a.ct_eq(b).into()
 }
 
-/// Whether two sets of files are the same: names and, in constant time,
-/// bytes.
+/// Whether two sets of files are the same, names and bytes: every file is
+/// compared, in time that does not depend on which differs or where.
 fn same_files(a: &Files, b: &Files) -> bool {
-    a.len() == b.len()
-        && a.iter()
-            .zip(b)
-            .all(|((an, ab), (bn, bb))| an == bn && same_bytes(ab, bb))
+    use subtle::ConstantTimeEq;
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut same = subtle::Choice::from(1);
+    for ((an, ab), (bn, bb)) in a.iter().zip(b) {
+        same &= an.as_bytes().ct_eq(bn.as_bytes()) & ab.ct_eq(bb);
+    }
+    same.into()
 }
 
 /// Compares the bytes a command carries in constant time and the rest

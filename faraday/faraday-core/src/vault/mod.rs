@@ -866,7 +866,7 @@ impl Faraday {
         let mut records = Vec::new();
         for &k in files {
             if let Some(it) = self.inbox.get(k) {
-                records.extend(fv::entries::parse(&String::from_utf8_lossy(&it.bytes)));
+                records.extend(fv::entries::parse(&wiped_text(&it.bytes)));
             }
         }
         let n = records.len();
@@ -1912,8 +1912,12 @@ impl Faraday {
             .fields
             .iter()
             .find(|(n, ..)| *n == field::TOTP)
-            .map(|(_, _, b, _)| b.text.to_string());
-        let totp_store = self.form_totp_store(&form, id, totp_text.as_deref());
+            .map(|(_, _, b, _)| {
+                let mut t = Zeroizing::new(String::with_capacity(b.text.len()));
+                t.push_str(&b.text);
+                t
+            });
+        let totp_store = self.form_totp_store(&form, id, totp_text.as_ref().map(|t| t.as_str()));
         let Ok(totp_store) = totp_store else {
             self.vaults.state.form = Some(form);
             self.toast(EN.vaults_not_a_totp_key);
@@ -1997,7 +2001,7 @@ impl Faraday {
             return;
         };
         let stem = crate::stem(&it.name);
-        let text = Zeroizing::new(String::from_utf8_lossy(&it.bytes).into_owned());
+        let text = wiped_text(&it.bytes);
         let (record, said, category) = match it.kind {
             FileKind::Text => {
                 // A note's first line is its title.
@@ -4277,6 +4281,24 @@ impl Faraday {
             self.sheet = None;
         }
     }
+}
+
+/// A file's bytes as text, a run that is not UTF-8 read as U+FFFD, in a
+/// buffer that is wiped when it drops; its room is measured and reserved
+/// first, so it never grows.
+fn wiped_text(bytes: &[u8]) -> Zeroizing<String> {
+    let room = bytes
+        .utf8_chunks()
+        .map(|c| c.valid().len() + if c.invalid().is_empty() { 0 } else { 3 })
+        .sum();
+    let mut text = Zeroizing::new(String::with_capacity(room));
+    for chunk in bytes.utf8_chunks() {
+        text.push_str(chunk.valid());
+        if !chunk.invalid().is_empty() {
+            text.push(char::REPLACEMENT_CHARACTER);
+        }
+    }
+    text
 }
 
 /// Costs a SHA-256. The id of a key record or a codex32 share record as it

@@ -179,9 +179,10 @@ impl From<&str> for KeyName {
     }
 }
 
+/// Prints nothing of the name: a key of a value is the user's own text.
 impl core::fmt::Debug for KeyName {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::Debug::fmt(self.as_str(), f)
+        f.write_str("KeyName(..)")
     }
 }
 
