@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use faraday_codec::vault_file::SIGNATURE;
 use faraday_crypto::work::Compute;
 use faraday_files::{
-    OnTaken, Place, Unrenamed, WriteRefused, Zeroed, finish_vault_writes, listing, rename,
-    vault_names, write_any, write_replacing, write_vault, write_vault_over,
+    OnTaken, Place, Unrenamed, WriteRefused, Zeroed, finish_vault_writes, rename, vault_names,
+    write_any, write_replacing, write_vault, write_vault_over,
 };
 use faraday_text::Text;
 
