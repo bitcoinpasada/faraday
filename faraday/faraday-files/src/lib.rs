@@ -43,9 +43,7 @@ fn io_text(e: std::io::Error) -> Text {
     Text::of(s)
 }
 
-/// The largest file read from a stick other than a vault, which has its own
-/// limit ([`MAX_VAULT_READ`]). A PSBT or a wallet is kilobytes.
-pub const MAX_READ: u64 = 18 * 1024 * 1024;
+pub use faraday_codec::MAX_READ;
 
 /// The largest file read from a stick that begins as KDBX 4: the longest
 /// file a vault has (`docs/VAULT.md` §2). It travels between the app and

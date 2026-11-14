@@ -5,9 +5,9 @@
 **Open:** all of it (§12).
 
 The problem it solves: a stick visit reads at most 18 MiB of a file
-(`faraday-files` `MAX_READ`, `faraday-core` `READ_MAX`). The figure was
-set because a vault with four 4 MiB slots is the largest thing Faraday
-writes; it was never a judgement about what a person needs to sign. A
+(`faraday-codec` `MAX_READ`, which `faraday-files` re-exports). The figure is what one frame of the disk
+process carries beside a name; it was never a judgement about what a person
+needs to sign. A
 release artifact or a disk image to sign with GPG can be larger,
 and today it is listed and cannot be ticked. Lifting the cap means
 holding large files in memory that a vault unlock also needs, so a large
@@ -45,7 +45,7 @@ The rest: moved to `docs/history/LARGE-FILES-LOG.md`.
 
 ## 2. Sizes
 
-- **No cap.** `MAX_READ` and `READ_MAX` go. A file is read up to FAT32's
+- **No cap.** `MAX_READ` goes. A file is read up to FAT32's
   4 GiB less one byte; FAT16 files are smaller still.
 - **The threshold is 64 MiB.** It is 3.5 times the old cap, is
   about 6% of a Pi 3's 1 GB. Up to it, a file comes in ticked as

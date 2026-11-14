@@ -419,10 +419,6 @@ struct Disclosed {
     moving: bool,
 }
 
-/// The largest file read from a stick, as the disk process reads them
-/// (`faraday-files` `MAX_READ`): a larger one is listed and not read.
-pub(crate) const READ_MAX: u64 = 18 * 1024 * 1024;
-
 /// A file named as Faraday names a seed it writes out: its words, its SeedQR, a BIP-85 child.
 fn seed_by_name(name: &str) -> bool {
     let lower = faraday_text::Text::ascii_lowercase(name);

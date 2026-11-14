@@ -138,8 +138,8 @@ impl StickInfo {
     }
 
     /// Why the file listed as `name`, of `size` bytes, is not read in: the
-    /// disk process reads no more than [`crate::READ_MAX`] of a file and the longest vault file of a vault, and a vault is
-    /// not read where this computer has not the memory for it
+    /// disk process reads no more than [`faraday_codec::MAX_READ`] of a file and the longest vault file of a vault,
+    /// and a vault is not read where this computer has not the memory for it
     /// ([`crate::vault::Vaults::read_refusal`]). `None` when it is read. A
     /// lookup.
     #[must_use]
@@ -149,7 +149,7 @@ impl StickInfo {
         let limit = if self.is_vault(name) {
             faraday_codec::vault_file::MAX_FILE_LEN
         } else {
-            crate::READ_MAX
+            faraday_codec::MAX_READ
         };
         if size > limit {
             return Some(Text::of(faraday_strings::EN.visit_file_too_large));
