@@ -2384,10 +2384,10 @@ standards = [
 ]
 screens = []
 functions = [
-  "core/faraday-bip/src/policy.rs::lift",
+  "core/faraday-bip/src/policy.rs::xkey_path",
 ]
 code = [
-  "core/faraday-bip/src/policy.rs::lift",
+  "core/faraday-bip/src/policy.rs::xkey_path",
 ]
 
 [action.implementation]
@@ -2396,13 +2396,15 @@ libraries = [
   "miniscript",
   "bitcoin",
 ]
-adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot internal key that is BIP-341's NUMS point over a chain code made from the leaves' keys is not a way to spend. The miniscript area reads wallets of these shapes and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
+adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot internal key that is BIP-341's NUMS point, or any extended key over it, is not a way to spend (F132). The miniscript area reads wallets of these shapes and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
 
 [action.checked]
 vectors = [
   "miniscript",
 ]
 tests = [
+  "core/faraday-bip/tests/all/miniscript.rs::a_wsh_miniscript_wallet_names_its_two_spend_paths",
+  "core/faraday-bip/tests/all/miniscript.rs::the_fixture_wallets_pay_the_addresses_bitcoin_core_derives",
   "core/faraday-bip/tests/all/liana_shapes.rs::the_ways_a_recovery_wallet_spends_are_its_primary_and_recovery_paths",
   "core/faraday-bip/tests/all/liana_shapes.rs::an_unspendable_internal_key_is_not_a_way_to_spend",
   "core/faraday-bip/tests/all/liana_shapes.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
@@ -2426,11 +2428,6 @@ wiped = "Nothing secret is held."
 lines = [
   "Create makes no recovery wallet; one is read as any miniscript wallet.",
 ]
-
-[[action.own]]
-text = "Script shape is left to rust-miniscript's compiler."
-kind = "Neutral"
-decision = "no decision"
 
 [action.review]
 places = [

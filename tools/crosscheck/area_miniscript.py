@@ -318,6 +318,18 @@ class Miniscript(Area):
         core = acct.with_test(True).serialize() + "/{chain}/*"
         return text, core
 
+    def nums_xpub(self, test):
+        """An extended key over BIP 341's NUMS point with a random chain
+        code, no origin, as Liana writes a taproot wallet's internal key
+        when its primary needs more than one key: Faraday's text of it
+        and Core's (the same key as a tpub, a chain to fill)."""
+        data = bip32_ref.bip32.BIP32KeyData(
+            next(v for v, t in bip32_ref.PUB.items() if t == test), 0, b"\0" * 4, 0,
+            self.randbytes(32), b"\x02" + NUMS)
+        key = bip32_ref.Key(data)
+        return (key.serialize() + CHAINS,
+                key.with_test(True).serialize() + "/{chain}/*")
+
     def timelocks(self):
         return {"N": self.rng.randrange(1, 65536), "T": self.rng.randrange(1, 500_000_000)}
 
@@ -478,7 +490,13 @@ class Miniscript(Area):
             texts, cores = zip(*[self.account(test) for _ in range(m)])
             leaves = [("sortedmulti_a({k},{keys})", m, list(texts), list(cores))]
             k = self.rng.randrange(1, m + 1)
-        internal = self.account(test) if self.rng.random() < 0.5 else (NUMS.hex(), NUMS.hex())
+        pick = self.rng.random()
+        if pick < 0.4:
+            internal = self.account(test)
+        elif pick < 0.7:
+            internal = (NUMS.hex(), NUMS.hex())
+        else:
+            internal = self.nums_xpub(test)
         shape = self.shape(count)
 
         def text_of(i, keys):
@@ -533,8 +551,8 @@ CHAINS = "/<0;1>/*"
 def core_text(descriptor, accounts, chain):
     """Faraday's descriptor as Core is given it: each account's key
     written as its tpub with the one chain, and any other extended key
-    (the unspendable internal key of a taproot wallet whose primary needs more than one key) a tpub
-    with that chain."""
+    (the unspendable internal key of a taproot wallet whose primary
+    needs more than one key) a tpub with that chain."""
     for text, core in accounts:
         xpub = text[:-len(CHAINS)].rsplit("]", 1)[-1]
         descriptor = re.sub(r"\[[^\]]*\]" + re.escape(xpub) + re.escape(CHAINS),

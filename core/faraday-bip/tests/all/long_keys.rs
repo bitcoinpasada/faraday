@@ -144,10 +144,10 @@ fn a_key_with_a_long_tail_is_refused() {
     }
 }
 
-/// A key of a Liana-shaped wallet is read alone, not as part of a
-/// descriptor, so no character of a long key divides it.
+/// A long key inside a Liana-shaped descriptor is refused, whether it is
+/// all key characters or ends in the `(` and `,` the descriptor is split on.
 #[test]
-fn a_recovery_wallet_with_a_long_key_is_refused() {
+fn a_long_key_inside_a_liana_shaped_descriptor_is_refused() {
     let start = "2".repeat(1020);
     for key in [
         long_xpub(),

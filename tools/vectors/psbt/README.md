@@ -86,9 +86,9 @@ Core also accepted both descriptors' checksums, `#d9zz2z8e` for the
 
 ## The taproot recovery wallets' addresses
 
-Two taproot descriptors of Liana's shapes, one key now and one key after
-52 560 blocks, are not Liana's own fixtures. Their first two receive and
-change addresses were checked against Bitcoin Core v31.1.0
+Two taproot descriptors of Liana's shapes (one key now and one key after
+52 560 blocks; the second with a two-of-two primary) are not Liana's own
+fixtures. Their first two receive and change addresses were checked against Bitcoin Core v31.1.0
 `deriveaddresses` on this machine on 2026-09-18, and the test reads the
 same descriptors as fixed text
 (`core/faraday-bip/tests/all/liana_shapes.rs`):

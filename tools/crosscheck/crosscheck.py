@@ -92,7 +92,7 @@ AREAS = {
     "taproot": ("area_taproot", "Taproot", ("taproot.tree", "taproot.verify"), 900),
     "compile": ("area_compile", "Compile", ("compile.compile", "compile.lift"), 150),
     "miniscript": ("area_miniscript", "Miniscript",
-                   ("miniscript.script", "miniscript.inspect", "miniscript.recovery"), 460),
+                   ("miniscript.script", "miniscript.inspect"), 460),
     "msg": ("area_msg", "Msg", ("msg.sign", "msg.verify", "msg.bip322"), 150),
     "own-randomness": ("area_own", "Own", "own.session", 80),
     "entropy": ("area_entropy", "Entropy", ("entropy.cards", "entropy.seedsigner"), 140),
