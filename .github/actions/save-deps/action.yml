@@ -1,6 +1,7 @@
 # After a job's own work has passed on a push to main: its compiled
 # dependencies, and nothing of Faraday's own, into GitHub's cache under the key
-# setup worked out (docs/decisions/F212.md). A key already there is left.
+# setup worked out (docs/decisions/F212.md), and the tools cache when its exact
+# key was not there. A key already there is left.
 name: save-deps
 description: The job's compiled dependencies into GitHub's cache
 runs:
@@ -23,3 +24,17 @@ runs:
       with:
         path: target
         key: ${{ env.DEPS_KEY }}
+
+    # The tools cache (restored by setup, never saved by a branch's run).
+    - if: env.TOOLS_HIT != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/bin/just
+          ~/.cargo/bin/cargo-nextest
+          ~/.cargo/bin/cargo-deny
+          ~/.cargo/bin/cargo-vet
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+        key: ${{ env.TOOLS_KEY }}

@@ -50,7 +50,11 @@ runs:
       run: |
         rustup show active-toolchain || rustup toolchain install
 
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    # Restored here, saved only by save-deps on a push to main: a branch's run
+    # never writes it (75 copies saved from agent branches in a day pushed main's
+    # caches out of GitHub's size limit).
+    - id: tools
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.cargo/bin/just
@@ -64,6 +68,13 @@ runs:
         restore-keys: |
           cargo-${{ runner.os }}-${{ env.TOOLS }}-
 
+    - name: The key of the tools cache
+      shell: bash
+      # For save-deps, which saves it on main when this exact key was not there.
+      run: |
+        echo "TOOLS_KEY=cargo-${{ runner.os }}-${{ env.TOOLS }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') }}" >> "$GITHUB_ENV"
+        echo "TOOLS_HIT=${{ steps.tools.outputs.cache-hit }}" >> "$GITHUB_ENV"
+
     - name: The key of this job's compiled dependencies
       if: inputs.deps != ''
       shell: bash
@@ -76,6 +87,10 @@ runs:
       with:
         path: target
         key: ${{ env.DEPS_KEY }}
+        # A changed manifest finds the last dependencies saved for this job; cargo
+        # rebuilds only what changed, and save-deps saves the new set on main.
+        restore-keys: |
+          deps-${{ runner.os }}-${{ inputs.deps }}-
 
     - name: The check's tools
       shell: bash
