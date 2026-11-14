@@ -1,5 +1,5 @@
-"""A released btcd's answer program (`tools/reference/btcd/`, vendored Go,
-built by `run.sh` with the Go toolchain, offline) for the areas that ask it:
+"""A released btcd's answer program (`tools/reference/btcd/`, Go,
+built by `run.sh` with the Go toolchain over the modules `go.sum` pins) for the areas that ask it:
 `hdkeychain` for `bip32`, `txscript`'s control-block check for `taproot`.
 One process for an area's batches: a JSON array of requests a line, the
 array of answers back, in order (the program's header says the requests).

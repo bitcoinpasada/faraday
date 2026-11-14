@@ -62,7 +62,7 @@ with that group, are the second lineage for the curve (§10.7).
 | `python-shamir-mnemonic` (Trezor) | Python | none needed | SLIP-39 | The SLIP's reference implementation |
 | embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
 | noble-curves, scure-bip32/39, btc-signer | JavaScript | its own, audited | the same set as embit | Needs a JavaScript engine (QuickJS is about 1 MB) |
-| btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | Vendored in `tools/reference/lnd/` and built by `run.sh`; the `lightning` area asks it |
+| btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | In `tools/reference/lnd/`, built by `run.sh` over the Go modules its `go.sum` pins, fetched once per machine; the `lightning` area asks it |
 | `argon2-cffi` | Python over C | n/a | Argon2id (the PHC reference C) | Outside RustCrypto's lineage |
 | pykeepass | Python | pure Python | KDBX 4 | `tools/vault/open.py` opens a vault this way |
 
@@ -367,7 +367,14 @@ The cross-check fetches nothing, ever.
 - **btcd's BIP-322** (pull request 2521, unmerged, at its head commit)
   is a Go module vendored with `go mod vendor`
   (`tools/reference/btcd-bip322/`), built by `run.sh` with
-  `GOFLAGS=-mod=vendor`, `GOPROXY=off` and `GOTOOLCHAIN=local`.
+  `GOFLAGS=-mod=vendor`, `GOPROXY=off` and `GOTOOLCHAIN=local`; its vendor
+  tree stays because its `go.mod` replaces four modules with folders of the
+  unmerged pull request that are not kept, so only the vendor tree holds
+  them. LND's and a released btcd's Go programs
+  (`tools/reference/lnd/`, `tools/reference/btcd/`) have no vendor tree: the
+  Go toolchain fetches their modules into its module cache, each checked
+  against `go.sum`, so the cross-check needs the network once per machine
+  for that fetch (`GOFLAGS=-mod=readonly`, `GOTOOLCHAIN=local`).
 - **Bitcoin Core v31.1 itself** (`bitcoind` and `bitcoin-cli`) is a
   binary reference, required (owner, 2026-10-29). Its release tarball
   is over the tree's 2 MiB limit and is not in the tree, nor in Ubuntu's
@@ -431,7 +438,7 @@ The cross-check fetches nothing, ever.
    (area `entropy`), Faraday Demo's dice rollers (`roller`), SeedQR
    and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
    (`ur`), the vanity search (`vanity`), the Lightning node keys and the aezeed read by
-   LND's own Go code (`lightning`, vendored in `tools/reference/lnd/`),
+   LND's own Go code (`lightning`, in `tools/reference/lnd/`, its modules pinned by `go.sum`),
    and BIP 380's own checksum code beside Core's in `addr`. Built.
 
 ### 10.6 What it does not catch

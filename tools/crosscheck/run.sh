@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # `just crosscheck`: builds Faraday's side of the crypto cross-check
-# offline and runs the Python side with no network (F79,
+# offline (but for two Go programs' modules, fetched once) and runs the Python
+# side with no network (F79,
 # docs/CROSSCHECK.md §10.4). Arguments go to crosscheck.py:
 #
 #   tools/crosscheck/run.sh                 the stamp run
@@ -56,17 +57,19 @@ if [ "${1:-}" = "--sweep-core-wallet" ]; then
         python3 -I -B tools/crosscheck/sweep_core_wallet.py --rust "$exe" "$@"
 fi
 
-# The Go answer programs, LND's over the vendored tree of tools/reference/lnd/
-# btcd's BIP-322 over tools/reference/btcd-bip322/ and a released btcd's
-# hdkeychain and control-block check over tools/reference/btcd/ (offline: the
-# vendor folders only, the installed toolchain only). A missing or older Go stops
-# the run.
-say "build: LND's answer program (go build -mod=vendor, tools/reference/lnd)"
+# The Go answer programs, LND's over tools/reference/lnd/, btcd's BIP-322 over
+# tools/reference/btcd-bip322/ (offline: its vendor folder only) and a released
+# btcd's hdkeychain and control-block check over tools/reference/btcd/. LND's
+# and btcd's modules are fetched by the Go toolchain into its module cache the
+# first time on a machine (the network, once), each checked against its go.sum;
+# a later run reads the cache. The installed toolchain only. A missing or older
+# Go stops the run.
+say "build: LND's answer program (go build -mod=readonly, tools/reference/lnd)"
 if ! command -v go >/dev/null; then
     say "build: FAILED: no Go toolchain on the PATH (docs/DEVELOPING.md §1)"
     exit 2
 fi
-if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+if ! GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOTELEMETRY=off CGO_ENABLED=0 \
         go build -C tools/reference/lnd -trimpath -o "$PWD/$progress/lnd-ref" . \
         2>"$progress/go-build.log"; then
     cat "$progress/go-build.log" >&2
@@ -115,8 +118,8 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
     exit 2
 fi
 say "build: btcd's BIP-322 program done"
-say "build: btcd's answer program (go build -mod=vendor, tools/reference/btcd)"
-if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+say "build: btcd's answer program (go build -mod=readonly, tools/reference/btcd)"
+if ! GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOTELEMETRY=off CGO_ENABLED=0 \
         go build -C tools/reference/btcd -trimpath -o "$PWD/$progress/btcd-ref" . \
         2>"$progress/go-build-btcd.log"; then
     cat "$progress/go-build-btcd.log" >&2
@@ -164,7 +167,7 @@ for line in sys.stdin:
         say "build: FAILED: the Rust command with the software AES round did not build"
         exit 2
     fi
-    if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+    if ! GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOTELEMETRY=off CGO_ENABLED=0 \
             go build -C tools/reference/lnd -trimpath -tags noasm,purego \
             -o "$PWD/$progress/lnd-ref-soft" . 2>"$progress/go-build-soft.log"; then
         cat "$progress/go-build-soft.log" >&2

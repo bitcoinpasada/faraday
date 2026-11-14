@@ -542,8 +542,8 @@ leaves uncompared.
 - `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
   scrypt, AEZ) and derives the node key, and its published answers
   (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
-  the Go program is built offline from the vendored tree
-  (`GOFLAGS=-mod=vendor`, `GOTOOLCHAIN=local`) and its version is
+  the Go program is built from the modules `go.sum` pins
+  (`GOFLAGS=-mod=readonly`, `GOTOOLCHAIN=local`) and its version is
   written into the stamp; the area stops when the program is missing;
   the software-round pass runs only on programs `soft.py` has checked to
   be soft (the tags `noasm` and `purego`; no AES-NI instruction in
@@ -1409,8 +1409,9 @@ faster (above). Nothing is installed with pip. The
 OpenSSL 3.2 or later (`python3-cryptography`), pykeepass (`python3-pykeepass`) and
 KeePassXC's `keepassxc-cli` (`keepassxc`); without them it stops and names them,
 and the run fails. The `lightning` area needs Go 1.27 or later
-(`go version`; `run.sh` builds `tools/reference/lnd/` offline from its
-vendored modules, with `GOTOOLCHAIN=local`) and stops the run when `go`
+(`go version`; `run.sh` builds `tools/reference/lnd/` from the modules its
+`go.sum` pins, with `GOTOOLCHAIN=local`; the Go toolchain fetches them from
+the network once on a machine, as it does for `tools/reference/btcd/`) and stops the run when `go`
 is missing or older, and a C compiler, `pkg-config` and libsodium's headers
 (Debian and Ubuntu: `build-essential`, `pkg-config`, `libsodium-dev`) for
 Core Lightning's program (`tools/reference/cln/`, compiled by `run.sh`); it

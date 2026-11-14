@@ -51,8 +51,12 @@ recipe (F243), nothing else.
   builds LND's own aezeed code from `tools/reference/lnd/` and its `msg`
   area btcd's BIP-322 code from `tools/reference/btcd-bip322/`, and its
   `bip32` and `taproot` areas a released btcd's `hdkeychain` and
-  control-block check from `tools/reference/btcd/` (all vendored, so
-  offline, with `GOTOOLCHAIN=local`). Install it from
+  control-block check from `tools/reference/btcd/`. The BIP-322 code is
+  vendored; LND's and btcd's modules are not: the Go toolchain fetches them
+  from the network once on each machine into its module cache, each checked
+  against the module's `go.sum`, so the first `just crosscheck` on a machine
+  needs the network for that and a later one does not (`GOTOOLCHAIN=local`
+  always). Install it from
   <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
   distribution's `golang` package; `go version` must say 1.27 or later,
   or `just crosscheck` stops.

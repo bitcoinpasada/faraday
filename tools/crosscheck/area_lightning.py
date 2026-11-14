@@ -1,5 +1,5 @@
 """Lightning node keys and the aezeed (`faraday_bip::aezeed`) against
-LND's own code (the vendored Go tree of `tools/reference/lnd/`, one
+LND's own code (the Go module of `tools/reference/lnd/`, one
 process for the run: `main.go` there) and ldk's published answers
 (`tools/vectors/aezeed/`), with ldk's derivation written here from the
 sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
@@ -224,7 +224,7 @@ class Cln:
 
 def lnd_exe():
     """LND's answers as a program: built by `tools/crosscheck/run.sh` from
-    the vendored Go tree (`FARADAY_LND_REF` names another place)."""
+    the Go module (`FARADAY_LND_REF` names another place)."""
     path = os.environ.get("FARADAY_LND_REF") or str(ROOT / "out/crosscheck/lnd-ref")
     if not os.access(path, os.X_OK):
         raise HarnessError(
@@ -505,8 +505,8 @@ class Lightning(Area):
     reference_checked = (
         "LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and "
         "derives the node key, and its published answers (`tools/vectors/aezeed/`) are "
-        "required of it as well as of Faraday; the Go program is built offline from the "
-        "vendored tree (`GOFLAGS=-mod=vendor`, `GOTOOLCHAIN=local`) and its version is "
+        "required of it as well as of Faraday; the Go program is built from the "
+        "modules `go.sum` pins (`GOFLAGS=-mod=readonly`, `GOTOOLCHAIN=local`) and its version is "
         "written into the stamp; the area stops when the program is missing; "
         "the software-round pass runs only on programs `soft.py` has checked to be soft "
         "(the tags `noasm` and `purego`; no AES-NI instruction in Faraday's command) and "

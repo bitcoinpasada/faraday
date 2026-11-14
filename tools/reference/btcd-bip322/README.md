@@ -43,7 +43,9 @@ tree, which covers its four replaced folders (they carry none of their own).
   `go mod vendor`). They replace the four modules with folders named
   `btcd/…`, as the pull request's own `bip322/go.mod` replaces three of
   them; those folders were the pull request's, copied in for `go mod
-  vendor` and not kept: a build reads `vendor/` only.
+  vendor` and not kept: a build reads `vendor/` only, so `vendor/` is the only
+  copy of those four modules and is kept (the sibling programs, `../btcd/` and
+  `../lnd/`, have no vendor tree and are fetched by `go.sum`).
 - `main.go`: Faraday's, the only source file here that is not upstream's.
   It reads one JSON array of requests a line and answers with one array a
   line. `verify` calls `bip322.VerifyMessage` and reports valid, invalid or
