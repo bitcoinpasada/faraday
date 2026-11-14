@@ -148,6 +148,7 @@ impl Faraday {
             })
             .collect();
         Some(plan::Shape {
+            paths: Vec::new(),
             m: if n > 1 { m.min(n) } else { 1 },
             keys: n,
             seeds,

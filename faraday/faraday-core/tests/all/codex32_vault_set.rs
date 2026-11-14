@@ -481,6 +481,7 @@ fn a_key_saved_on_vaults_with_the_set_unticked_has_no_set_in_its_entry_after_a_l
 /// lines after it.
 fn plan_text_with(extra: &str, before: bool) -> Option<plan::Answers> {
     let shape = plan::Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {

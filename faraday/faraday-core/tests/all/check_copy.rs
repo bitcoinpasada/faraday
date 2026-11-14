@@ -1121,6 +1121,7 @@ fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
     };
     let c = testkit::compute();
     let shape = Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![Seed {
@@ -1181,6 +1182,7 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
     use faraday_core::plan::{Answers, At, Seed, Shape, Spot, Tag, What, keep_words, seeds};
     let c = testkit::compute();
     let shape = Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![Seed {

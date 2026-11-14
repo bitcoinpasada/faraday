@@ -587,6 +587,7 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
 fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
     let c = faraday_core::testkit::compute();
     let shape = Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {

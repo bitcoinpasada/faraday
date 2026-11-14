@@ -5,7 +5,7 @@
 
 use std::cell::Cell;
 
-use super::{AloneKind, Reach};
+use super::{AloneKind, Reach, Shape};
 use faraday_strings::{EN, fill};
 
 /// The most places whose groups are listed in full.
@@ -17,6 +17,7 @@ const STEPS: u32 = 200_000;
 
 /// The groups of one plan's places, by the keys each place holds as seeds.
 pub(super) struct Groups<'a> {
+    shape: &'a Shape,
     seeds: &'a [u64],
     m: usize,
     all: u64,
@@ -30,7 +31,7 @@ impl<'a> Groups<'a> {
     /// The groups of the places holding `seeds` for an `m`-of plan whose
     /// keys are the bits of `all`: every group of `m` places, and every
     /// group holding `m` seeds. Costs a pass over the groups, up to 2^16.
-    pub(super) fn new(seeds: &'a [u64], m: usize, all: u64) -> Self {
+    pub(super) fn new(shape: &'a Shape, seeds: &'a [u64], m: usize, all: u64) -> Self {
         let places = seeds.len();
         let listed = if places <= LISTED {
             (1u64..(1 << places))
@@ -38,13 +39,14 @@ impl<'a> Groups<'a> {
                     let keys = (0..places)
                         .filter(|p| g & (1 << p) != 0)
                         .fold(0u64, |k, p| k | seeds[p]);
-                    g.count_ones() as usize >= m || keys.count_ones() as usize >= m
+                    g.count_ones() as usize >= m || shape.spends(keys)
                 })
                 .collect()
         } else {
             Vec::new()
         };
         Groups {
+            shape,
             seeds,
             m,
             all,
@@ -86,7 +88,7 @@ impl<'a> Groups<'a> {
     /// on from place `from`: larger groups hold what a group of `m`
     /// holds, so a group is checked where it first can rebuild.
     fn walk(&self, held: &[u64], from: usize, size: usize, seed_keys: u64, keys: u64) -> bool {
-        if size > 0 && (size >= self.m || seed_keys.count_ones() as usize >= self.m) {
+        if size > 0 && (size >= self.m || self.shape.spends(seed_keys)) {
             return self.spend() && keys == self.all;
         }
         (from..held.len()).all(|p| {
@@ -145,21 +147,20 @@ impl Reach {
 
 /// [`super::reach_on`]'s search, a step per group of places looked at: whether
 /// `have` with at most `left` more of the places `from` holds
-/// enough seeds to sign (`signs` of it at least `m`): `Err` once `steps`
+/// enough seeds to sign (`spends`): `Err` once `steps`
 /// reaches [`REACH_STEPS`].
 pub(super) fn reach_search(
     from: &[(u64, u64)],
     have: (u64, u64),
     left: usize,
-    signs: &dyn Fn((u64, u64)) -> usize,
-    m: usize,
+    spends: &dyn Fn((u64, u64)) -> bool,
     steps: &std::cell::Cell<usize>,
 ) -> Result<bool, ()> {
     if steps.get() >= REACH_STEPS {
         return Err(());
     }
     steps.set(steps.get() + 1);
-    if signs(have) >= m {
+    if spends(have) {
         return Ok(true);
     }
     if left == 0 {
@@ -168,7 +169,7 @@ pub(super) fn reach_search(
     for i in 0..from.len() {
         let (s, ps) = from[i];
         let next = (have.0 | s, have.1 | ps);
-        if reach_search(&from[i + 1..], next, left - 1, signs, m, steps)? {
+        if reach_search(&from[i + 1..], next, left - 1, spends, steps)? {
             return Ok(true);
         }
     }

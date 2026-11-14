@@ -168,6 +168,11 @@ pub struct Seed {
 pub struct Shape {
     /// Signatures needed.
     pub m: usize,
+    /// The ways to spend where `m` alone does not say it (a wallet whose
+    /// script lists several): each way is the seeds that must all sign,
+    /// as a mask of seed places, and any one way spends. Empty where `m`
+    /// seeds of any kind spend.
+    pub paths: Vec<u64>,
     /// Keys in the description, which the shares split.
     pub keys: usize,
     /// The seeds, one each.
@@ -189,6 +194,26 @@ impl Shape {
     /// More than one seed signs.
     pub fn multi(&self) -> bool {
         self.seeds.len() > 1
+    }
+
+    /// Whether the seeds in `mask` (bit `i` is seed `i`) can sign a spend.
+    pub fn spends(&self, mask: u64) -> bool {
+        if self.paths.is_empty() {
+            mask.count_ones() as usize >= self.m.max(1)
+        } else {
+            self.paths.iter().any(|&p| p & !mask == 0)
+        }
+    }
+
+    /// The most seeds a way to spend needs.
+    pub fn depth(&self) -> usize {
+        self.paths
+            .iter()
+            .map(|p| p.count_ones() as usize)
+            .max()
+            .unwrap_or(0)
+            .max(self.m)
+            .max(1)
     }
 
     /// The seeds loaded here, by place among the wallet's.
@@ -1807,6 +1832,18 @@ impl Have {
         }
     }
 
+    /// The seeds that can sign, as a mask of places (the first 64).
+    fn ok_mask(&self, shape: &Shape) -> u64 {
+        (0..shape.seeds.len().min(64))
+            .filter(|&i| self.seeds[i] && (!shape.seeds[i].passphrase || self.pass[i]))
+            .fold(0, |m, i| m | 1 << i)
+    }
+
+    /// The seeds read here are enough to spend.
+    fn spends(&self, shape: &Shape) -> bool {
+        shape.spends(self.ok_mask(shape))
+    }
+
     fn seeds_ok(&self, shape: &Shape) -> usize {
         (0..shape.seeds.len())
             .filter(|&i| self.seeds[i] && (!shape.seeds[i].passphrase || self.pass[i]))
@@ -1844,7 +1881,7 @@ impl Have {
     /// The wallet rebuilds: a quorum of seeds, and for more than one seed
     /// the description; one seed rebuilds its own wallet.
     fn rebuilds(&self, shape: &Shape, a: &Answers) -> bool {
-        self.seeds_ok(shape) >= shape.m.max(1) && (!shape.multi() || self.wallet_ok(shape, a))
+        self.spends(shape) && (!shape.multi() || self.wallet_ok(shape, a))
     }
 
     /// The balance can be seen: the description, or the one seed of a
@@ -2026,8 +2063,11 @@ pub struct Reach {
     /// them it needs more places, or cannot.
     pub vault: bool,
     /// The seeds this place gives to sign with, its vaults read, at most
-    /// the quorum.
+    /// the seeds of one way to spend.
     pub seeds: usize,
+    /// The seeds that way needs: the quorum, or for a wallet with several
+    /// ways the one this place is closest to completing.
+    pub of: usize,
     /// The search stopped at its bound ([`REACH_STEPS`]): `more` and
     /// `vault` are not worked out, and the tag says so.
     pub cut: bool,
@@ -2045,7 +2085,7 @@ pub fn reach(c: &Compute, shape: &Shape, a: &Answers, p: usize) -> Option<Reach>
 /// the quorum deep and [`REACH_STEPS`] long.
 pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
     let boxes: &[Spot] = &mapped.places;
-    let m = shape.m.max(1);
+    let m = shape.depth();
     let n = shape.seeds.len().min(64);
     let need: u64 = (0..n)
         .filter(|&i| shape.seeds[i].passphrase)
@@ -2059,7 +2099,8 @@ pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
         };
         (bits(&h.seeds), bits(&h.pass))
     };
-    let signs = |(s, ps): (u64, u64)| (s & (ps | !need)).count_ones() as usize;
+    let signs = |(s, ps): (u64, u64)| s & (ps | !need);
+    let spends = |h: (u64, u64)| shape.spends(signs(h));
     let read = |q: usize, vaults: bool| -> (u64, u64) {
         let at = At::Place(q);
         let mut have = Have::none(shape, &mapped.needs);
@@ -2100,17 +2141,29 @@ pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
             .collect();
         let most = useful.len().min(m);
         for k in 0..=most {
-            if groups::reach_search(&useful, start, k, &signs, m, &steps)? {
+            if groups::reach_search(&useful, start, k, &spends, &steps)? {
                 return Ok(Some(k));
             }
         }
         Ok(None)
     };
-    let seeds = signs(open).min(m);
+    let held = signs(open);
+    let (seeds, of) = if shape.paths.is_empty() {
+        ((held.count_ones() as usize).min(m), shape.m.max(1))
+    } else {
+        // The way this place has most of, the smaller on a tie.
+        shape
+            .paths
+            .iter()
+            .map(|&w| ((w & held).count_ones() as usize, w.count_ones() as usize))
+            .max_by_key(|&(have, need)| (have, std::cmp::Reverse(need)))
+            .unwrap_or((0, m))
+    };
     let cut = Reach {
         more: 0,
         vault: false,
         seeds,
+        of,
         cut: true,
     };
     let Ok(with) = fewest(open) else {
@@ -2130,6 +2183,7 @@ pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
         more: with,
         vault: without != Some(with),
         seeds,
+        of,
         cut: false,
     })
 }
@@ -2193,7 +2247,7 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
     };
     Alone {
         // Seeds alone spend: the description is public (§19.22).
-        spend: found(&|h| h.seeds_ok(shape) >= shape.m.max(1)),
+        spend: found(&|h| h.spends(shape)),
         balance: found(&|h| h.sees(shape, a)),
     }
 }
@@ -2514,7 +2568,7 @@ pub fn lost_why_on(
         holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
     }
     let have = opened_in(boxes, &have, &readable);
-    if have.seeds_ok(shape) >= shape.m.max(1) && !have.wallet_ok(shape, a) {
+    if have.spends(shape) && !have.wallet_ok(shape, a) {
         return Some(Text::fill(
             EN.plan_without_no_description,
             &[&name_at(gone, name, noun)],
@@ -3818,8 +3872,7 @@ pub fn follows_on(
             .into_iter()
             .chain(sealed)
             .for_each(|w| have.add(w));
-        let spend =
-            have.seeds_ok(shape) >= shape.m.max(1) && (!shape.multi() || have.wallet_ok(shape, a));
+        let spend = have.spends(shape) && (!shape.multi() || have.wallet_ok(shape, a));
         if spend && found.spend == Found::No {
             found.spend = Found::OnlyWithVault;
         }
@@ -3937,14 +3990,14 @@ pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
     let all: u64 = (1u64 << n) - 1;
     let seeds: Vec<u64> = (0..places).map(|p| seed_keys(&boxes, p)).collect();
     let most = m.saturating_sub(1).min(n.saturating_sub(1)).max(1);
-    let groups = groups::Groups::new(&seeds, m, all);
+    let groups = groups::Groups::new(shape, &seeds, m, all);
     let masks = |omit: usize| -> Vec<u64> {
         split_plan(n, m, omit)
             .iter()
             .map(|row| row.iter().fold(0u64, |k, &i| k | (1 << i)))
             .collect()
     };
-    let can_spend = |p: usize| seeds[p].count_ones() as usize >= m;
+    let can_spend = |p: usize| shape.spends(seeds[p]);
     let sees_alone = |shares: &[u64], pick: &[usize]| -> Vec<usize> {
         (0..places)
             .filter(|&p| !can_spend(p) && (seeds[p] | shares[pick[p]]) == all)

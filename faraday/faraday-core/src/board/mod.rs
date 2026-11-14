@@ -2490,7 +2490,7 @@ impl Faraday {
                 } else {
                     EN.board_spend_line
                 },
-                &[&place, &r.seeds.to_string(), &shape.m.to_string()],
+                &[&place, &r.seeds.to_string(), &r.of.to_string()],
             );
             self.board_edit(|st| {
                 st.sees = Some(Sees {

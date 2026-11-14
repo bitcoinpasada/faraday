@@ -1043,12 +1043,18 @@ impl Session {
 
     /// The quorum: (signatures needed, keys).
     pub fn quorum(wallet: &Wallet) -> (usize, usize) {
+        Self::stated_quorum(wallet).unwrap_or((1, wallet.policy.keys().len().max(1)))
+    }
+
+    /// [`Session::quorum`] where the script states one; `None` for a
+    /// wallet whose keys must sign in a way no `m` of `n` says (MuSig2, a
+    /// miniscript, a tree with several ways to spend).
+    pub fn stated_quorum(wallet: &Wallet) -> Option<(usize, usize)> {
         wallet
             .policy
             .quorum()
             .or_else(|| wallet.policy.tapscript_quorum())
             .or_else(|| another_key_spends(wallet).then(|| wallet.policy.leaf_quorum())?)
-            .unwrap_or((1, wallet.policy.keys().len().max(1)))
     }
 
     /// The wallet's shape in a few words.

@@ -2222,6 +2222,7 @@ pub(crate) fn card_frame(
     let (f, ox, oy) = (ui.f.max(0.1), ui.ox, ui.oy);
     CardFrame(Frame {
         shape: crate::plan::Shape {
+            paths: Vec::new(),
             m: 1,
             keys: 1,
             seeds: Vec::new(),

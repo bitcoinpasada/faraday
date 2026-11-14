@@ -32,6 +32,7 @@ fn a_seed_past_the_checklists_numbers_is_kept_nowhere() {
         .map(|i| seed(&format!("{:08x}", 0x1000_0000u32 + i), i == 28))
         .collect();
     let shape = Shape {
+        paths: Vec::new(),
         m: 2,
         keys: 29,
         seeds,
@@ -48,6 +49,7 @@ fn a_seed_past_the_checklists_numbers_is_kept_nowhere() {
 
 fn one_key() -> Shape {
     Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![seed("aaaa0001", true)],
@@ -58,6 +60,7 @@ fn one_key() -> Shape {
 
 fn three_of_five() -> Shape {
     Shape {
+        paths: Vec::new(),
         m: 3,
         keys: 5,
         seeds: (1..=5)
@@ -70,6 +73,7 @@ fn three_of_five() -> Shape {
 
 fn two_of_three() -> Shape {
     Shape {
+        paths: Vec::new(),
         m: 2,
         keys: 3,
         seeds: vec![
@@ -741,6 +745,7 @@ fn a_seed_ticked_into_a_second_vault_is_kept_in_both() {
 #[test]
 fn no_place_holds_two_different_keys_where_the_places_allow_it() {
     let five = Shape {
+        paths: Vec::new(),
         m: 3,
         keys: 5,
         seeds: (1..=5)
@@ -1619,6 +1624,7 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
         })
         .collect();
     let shape = faraday_core::plan::Shape {
+        paths: Vec::new(),
         m: 13,
         keys: 26,
         seeds,

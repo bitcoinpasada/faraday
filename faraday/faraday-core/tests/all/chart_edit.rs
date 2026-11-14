@@ -738,6 +738,7 @@ fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
     let c = faraday_core::testkit::compute();
     use faraday_core::plan::{Answers, Seed, Shape};
     let shape = Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![Seed {

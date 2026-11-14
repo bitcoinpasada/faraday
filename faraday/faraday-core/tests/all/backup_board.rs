@@ -445,6 +445,7 @@ fn seed(name: &str) -> Seed {
 
 fn two_of_three() -> Shape {
     Shape {
+        paths: Vec::new(),
         m: 2,
         keys: 3,
         seeds: vec![seed("aaaa0001"), seed("aaaa0002"), seed("aaaa0003")],

@@ -2351,6 +2351,7 @@ impl WalletFlow {
     pub(crate) fn blank() -> WalletFlow {
         WalletFlow {
             shape: crate::plan::Shape {
+                paths: Vec::new(),
                 m: 1,
                 keys: 1,
                 seeds: Vec::new(),

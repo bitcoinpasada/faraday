@@ -235,3 +235,114 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
         assert_eq!(texts.iter().any(|t| t == add), offers, "{d}: {texts:?}");
     }
 }
+
+/// The default plan of a wallet whose seeds must all sign does not say
+/// that losing any one place leaves a wallet that rebuilds, nor that one
+/// place with one seed and the sheet can spend; a 2-of-3 reads as it
+/// always did.
+#[test]
+fn a_plan_of_a_wallet_whose_keys_must_all_sign_does_not_say_one_place_can_be_lost() {
+    use faraday_core::plan::{Answers, Found, Lost, check};
+    let path = "m/48'/1'/0'/2'";
+    let both = format!(
+        "wsh(and_v(v:pk({}/<0;1>/*),pk({}/<0;1>/*)))",
+        testkit::key(0, path),
+        testkit::key(1, path)
+    );
+    let musig = testkit::musig_policy()
+        .expect("the MuSig2 kit")
+        .to_descriptor_checksummed()
+        .as_str()
+        .to_owned();
+    let c = testkit::compute();
+    let read = |d: &str| {
+        let mut app = crate::common::device(Vec::new());
+        let i = app
+            .session
+            .add_wallet(&c, "Test", d, "Test wallet", Origin::Named)
+            .expect("reads");
+        let mut shape = app.plan_shape_now(i);
+        shape.seeds.iter_mut().for_each(|s| s.here = true);
+        let check = check(&c, &shape, &Answers::defaults(&shape));
+        (shape.seeds.len(), check)
+    };
+    for d in [&musig, &both] {
+        let (seeds, got) = read(d);
+        assert!(seeds >= 2, "{d}");
+        assert_ne!(got.lost, Lost::Yes, "{d}");
+        assert_eq!(got.spend, Found::No, "{d}");
+    }
+    let (_, got) = read(&kit("savings"));
+    assert_eq!(got.lost, Lost::Yes);
+    assert_eq!(got.spend, Found::No);
+}
+
+/// A way to spend that needs a hash's preimage is not a way a backup of
+/// seeds can spend: the plan does not say the key beside the preimage can
+/// spend alone, nor reads that way as needing no seed.
+#[test]
+fn a_plan_does_not_count_a_way_that_needs_a_preimage_as_spendable_from_seeds() {
+    use faraday_core::plan::{Answers, Found, Lost, check};
+    let path = "m/48'/1'/0'/2'";
+    let (a, b, k) = (
+        testkit::key(0, path),
+        testkit::key(1, path),
+        testkit::key(2, path),
+    );
+    let h = "11".repeat(32);
+    let c = testkit::compute();
+    let wallets = [format!(
+        "wsh(or_d(multi(2,{a}/<0;1>/*,{b}/<0;1>/*),and_v(v:pk({k}/<0;1>/*),sha256({h}))))"
+    )];
+    for d in wallets {
+        let mut app = crate::common::device(Vec::new());
+        let i = app
+            .session
+            .add_wallet(&c, "Test", &d, "Test wallet", Origin::Named)
+            .unwrap_or_else(|e| panic!("{d}: {e:?}"));
+        let mut shape = app.plan_shape_now(i);
+        shape.seeds.iter_mut().for_each(|s| s.here = true);
+        assert!(shape.paths.iter().all(|&p| p != 0), "{d}");
+        let got = check(&c, &shape, &Answers::defaults(&shape));
+        assert_ne!(got.lost, Lost::Yes, "{d}");
+        assert_eq!(got.spend, Found::No, "{d}");
+    }
+}
+
+/// The board's line for a place in a wallet with several ways to spend
+/// never says it keeps more seeds than the way it is closest to needs.
+#[test]
+fn the_board_line_for_a_wallet_with_several_ways_never_says_more_seeds_than_a_way_needs() {
+    use faraday_core::plan::{At, Seed, Shape, Spot, Tag, What};
+    let c = testkit::compute();
+    let seeds: Vec<Seed> = (0..3)
+        .map(|i| Seed {
+            name: faraday_text::text!("{:08x}", 0x1000_0000u32 + i),
+            here: true,
+            passphrase: false,
+        })
+        .collect();
+    let shape = Shape {
+        paths: vec![0b011, 0b100],
+        m: 1,
+        keys: 3,
+        seeds,
+        splits: false,
+        vaults: 0,
+    };
+    let mut a = faraday_core::plan::Answers::default();
+    a.set_map(
+        (0..3)
+            .map(|i| Spot {
+                at: At::Place(i),
+                holds: vec![(What::Words(i), Tag::Secret)],
+            })
+            .collect(),
+    );
+    for p in 0..3 {
+        let r = faraday_core::plan::reach(&c, &shape, &a, p).expect("keeps a seed");
+        assert!(r.seeds <= r.of, "place {p}: {} of {}", r.seeds, r.of);
+    }
+    let r = faraday_core::plan::reach(&c, &shape, &a, 0).expect("keeps a seed");
+    assert_eq!((r.seeds, r.of), (1, 2));
+}

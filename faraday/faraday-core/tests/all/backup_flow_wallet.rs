@@ -560,6 +560,7 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
         passphrase: false,
     };
     let shape = Shape {
+        paths: Vec::new(),
         m: 2,
         keys: 3,
         seeds: vec![seed("a"), seed("b"), seed("c")],
@@ -617,6 +618,7 @@ fn a_paper_place_has_no_stick_and_a_plan_with_no_stick_has_no_stick_step() {
 
 fn one_key_shape() -> Shape {
     Shape {
+        paths: Vec::new(),
         m: 1,
         keys: 1,
         seeds: vec![plan::Seed {
@@ -1008,6 +1010,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
 
 fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
     Shape {
+        paths: Vec::new(),
         m: seeds_n.min(2),
         keys: seeds_n,
         seeds: (0..seeds_n)
@@ -2289,6 +2292,7 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
     assert!(p.pass_at(0, p.places - 1));
     // Seeds are renumbered by where they turned out to be.
     let shape3 = Shape {
+        paths: Vec::new(),
         m: 2,
         keys: 3,
         seeds: (0..3)
