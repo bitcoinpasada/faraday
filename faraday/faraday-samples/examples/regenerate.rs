@@ -250,7 +250,7 @@ fn aezeed_key() -> Key {
     }
 }
 
-/// The key the user guide makes (`docs/history/guide/walk/new-key.md`): the
+/// The key the user guide makes (`tools/vectors/entropy/dice.json`): the
 /// words EntropyLab's published BitBox dice transcript names, as
 /// `entropy/dice.json`'s first words vector gives their entropy.
 fn guide_key(c: &Compute) -> Key {

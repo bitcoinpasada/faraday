@@ -1,4 +1,4 @@
-//! The user guide's key (`docs/history/guide/walk/new-key.md`, `docs/MODES.md`
+//! The user guide's key (`tools/vectors/entropy/dice.json`, `docs/MODES.md`
 //! §5.1) is a sample: it is the key EntropyLab's published dice transcript
 //! names, Practice takes its words in Add a key, New key from the guide's
 //! rolls ends with it rather than a handout, and Load samples lists it
@@ -17,7 +17,7 @@ use faraday_shell_api::{App, Event, Key};
 /// The guide's key's fingerprint.
 const GUIDE: [u8; 4] = [0x3d, 0xca, 0x68, 0x05];
 
-/// The guide's rolls, as `docs/history/guide/walk/new-key.md` prints them.
+/// The guide's rolls, as `tools/vectors/entropy/dice.json` prints them.
 const ROLLS: &str = "1234112341223412334123441234152341263412314123421234132341243412354321";
 
 fn held(app: &Faraday, fp: [u8; 4]) -> bool {

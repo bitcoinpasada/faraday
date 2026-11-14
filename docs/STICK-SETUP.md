@@ -234,12 +234,12 @@ writes a vault and its files now.
 
 ## 7. The guide
 
-Bring in the sticks' Guided text and the guide's walks (`docs/history/guide/walk/make-a-wallet.md`,
-`docs/history/guide/walk/restore.md`, `docs/history/guide/walk/back-up.md`) say why the
+Bring in the sticks' Guided text and the guide's pages (`docs/guide/create.md`,
+`docs/guide/restore.md`, `docs/guide/backup.md`) say why the
 sticks are laid out and read here, before the keys: a stick is not read
 while a key or a vault is open; reading them now makes sure every vault
 has a stick that works before there is anything to lose; nothing is
-written to them until the lock; and what Check it later means (§4). The guide shows the stick's sheet on `docs/history/guide/walk/gpg.md` §3.
+written to them until the lock; and what Check it later means (§4).
 
 ## 8. What changes with it
 

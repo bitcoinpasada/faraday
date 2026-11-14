@@ -11,7 +11,7 @@ says so and keeps the guides to starting a computer from the stick.
 The owner's choices are F247.
 
 The name of this document: GUIDE.md was the website's index
-of walkthroughs and is now `docs/history/GUIDE.md` (§7). This document
+of walkthroughs and is gone (§7). This document
 keeps its name, so that what cites it still resolves.
 
 ## 1. Structure: by place, not by concept

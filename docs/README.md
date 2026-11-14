@@ -12,7 +12,7 @@ need. Each document's header says what kind it is:
 - **Record** is kept as written: the decisions.
 - **History**, in `docs/history/`, describes how things were built and
   the tree as it was. A section moved there leaves its heading and one
-  line naming where it went, so a cited section number still resolves.
+  line naming where it went, so a cited section number still resolves. Documents deleted from `docs/history/` are kept at the git tag `history/docs-2026-11`.
 
 ## By question
 
@@ -25,7 +25,7 @@ need. Each document's header says what kind it is:
 | Why does Faraday write a piece of cryptography itself rather than take a library, and which libraries does it not establish? | `docs/ESTABLISHED.md` |
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | What does the in-app guide hold, how does it open at the step the person is on, and what replaces Learn and the website's walkthroughs? | `docs/GUIDE-IN-APP.md`; the decision, `docs/decisions/F247.md` |
-| How does a person use Faraday, step by step, with the screens? | the guide's pages, `docs/guide/<place>.md` (`docs/GUIDE-IN-APP.md`); the earlier walkthroughs, screen pages and pictures, `docs/history/GUIDE.md` and `docs/history/guide/` |
+| How does a person use Faraday, step by step, with the screens? | the guide's pages, `docs/guide/<place>.md` (`docs/GUIDE-IN-APP.md`) |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
