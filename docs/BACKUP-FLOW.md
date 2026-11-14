@@ -1191,7 +1191,7 @@ cards, keeping what each checked; none is deleted.
 
 `docs/WALLETS.md` §5 (the questions), `docs/history/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17", now §15), `docs/DESIGN.md` §4.2's "Used for".
-`docs/history/learn/04-backups.md` is not covered here.
+Learn's Backups page (since removed) is not covered here.
 
 ### 15.6 A share in a vault
 
@@ -2138,7 +2138,7 @@ which share goes where.
    hidden in Steps only), one line: "More copies can be made once the
    wallet is made: a vault copied to another stick, words copied by hand.
    They are not part of the plan." and a Learn link **Extra copies**: a
-   new Faraday Learn page (`docs/history/learn/faraday/extra-copies.md`) saying
+   new Faraday Learn page (since removed) saying
    how: a vault's file copied to another stick with Copy between sticks
    (the visit), the words written again by hand from the paper, the
    description saved again; that these copies are not checked by the
@@ -2654,7 +2654,7 @@ the chart's sheets) points here.
 - **Recovery wallets.** `core/faraday-bip/src/recovery.rs` builds a
   Liana-shaped wallet from keys and delays (`blocks_for_days`,
   `days_of_blocks`, 144 blocks a day, at most 455 days). Make a new
-  wallet does not offer the kind yet (`docs/history/learn/17-wallet-kinds.md`);
+  wallet does not offer the kind yet;
   such a wallet arrives by its descriptor, from Liana or the Miniscript
   compiler. Its create step, **After how long?** (30, 90, 180 or 365
   days, or a number typed from 1 to 455), is `docs/WALLETS.md` §5's
@@ -2862,9 +2862,9 @@ Faraday is offline: it does not know when a coin arrived or whether it
 moved. It shows the wait and the margin; the dates are the person's to
 keep, on the sheet. Learn says why (below).
 
-**Learn.** Edited as `docs/history/learn/`:
+**Learn.** Edited as the Learn pages, since removed:
 
-- `docs/history/learn/10-spend-paths.md` has **Moving coins before the wait
+- Learn's Spend paths page had **Moving coins before the wait
   ends**: each coin's wait starts at its own block; a spend that moves
   every coin to the wallet starts them all again; blocks come about
   every ten minutes on average and faster while mining grows, so a
@@ -2872,7 +2872,7 @@ keep, on the sheet. Learn says why (below).
   within** keeps a margin; the wallet sheet's table is where deposits
   and their dates go, since this device cannot see them; **I moved every coin** dates it and
   sets the copies' interval with the margin.
-- `docs/history/learn/12-inheritance.md` has **A wallet that opens to an heir
+- Learn's Inheritance page had **A wallet that opens to an heir
   after a wait**: what the heir does (waits, then spends with the
   recovery keys alone), what the owner must do meanwhile (move coins
   before each wait ends), and that a wait which ends while the owner is

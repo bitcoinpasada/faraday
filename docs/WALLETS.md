@@ -413,7 +413,7 @@ small panel:
   finding the place alone gives, as the map words it.
 - **The wallet description** (a multisig): **Whole** or **In shares**,
   with **What is a share?** beside In shares opening the Learn page
-  *Shares of a wallet description* (`docs/history/learn/faraday/shares.md`); in
+  *Shares of a wallet description*; in
   shares, **Keys left off each share** on a slider from 0 to m − 1, the
   shares with their keys' fingerprints and the split audit's lines,
   drawn as the checklist's Shares card draws them.

@@ -1667,7 +1667,7 @@ Moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.7 The guides' new text
 
-Applied in `docs/history/learn/` (the guides are compiled into
+Applied in the Learn pages, since removed (the guides are compiled into
 every app, so the pages change with the code that reads them).
 
 - **The last step, everywhere.** In the Windows, Linux and maker pages

@@ -376,7 +376,7 @@ The screen says what was checked: "The boot partition matches the
 release", or, with a signed boot file, "The boot partition matches the
 release, except the boot file you signed, as expected"; the table and
 data partition are not named, being made, not copied.
-`docs/history/learn/faraday/checking-written.md` says the hand check is the
+The Learn page Checking what is written (since removed) said the hand check is the
 boot partition's, one command on Linux: `sha256sum /dev/sdX1`, compared
 with the `-boot.vfat` line of `SHA256SUMS` once its signature is
 checked (a stick with a signed boot file holds that file, so its sum is
@@ -517,7 +517,7 @@ with the Starter for it to have its own IDs.
 
 ## 8. Learn and the guide
 
-- `docs/history/learn/faraday/checking-written.md` says what the check after
+- The Learn page Checking what is written (since removed) said what the check after
   writing compares, what is expected to differ, and how to repeat
   §4.3's check by hand: on a stick, the boot partition's SHA-256
   against its `-boot.vfat` line; on a Pi card, the image's IDs put back
@@ -570,7 +570,7 @@ With F182:
   pass in `faraday/faraday-strings/src/en.rs`.
 - Docs: F80's data partition size, `docs/STARTER.md` §1.3, §3.2, §4.1,
   `docs/IMAGES.md`, `docs/ESTABLISHED.md` §3.2,
-  `docs/history/learn/faraday/checking-written.md`, the guide's Written picture
+  the Learn page Checking what is written (since removed), the guide's Written picture
   (`docs/guide/starter-make.md`) and Get Faraday on a stick
   (`docs/guide/starter-install.md`).
 

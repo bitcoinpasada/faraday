@@ -2368,7 +2368,7 @@ check page:
   (F194), and a read-only vault (a newer format) is compared against
   nothing;
 - nothing with no vault open or the setting off. What the history is
-  and what it cannot show is Learn's (`docs/history/learn/13-nonces.md`).
+  and what it cannot show is Learn's.
 
 **Vaults.** The history is read when a vault is unlocked and written
 into every open vault when the vaults are sealed, as signed amounts are

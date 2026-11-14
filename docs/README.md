@@ -39,11 +39,11 @@ need. Each document's header says what kind it is:
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
-| What does Check a timestamp take and show, and what does a proof prove? | `docs/DESIGN.md` §5 (`OtsCheck`), `docs/decisions/F230.md`, `docs/history/learn/22-timestamps.md` |
-| What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/history/learn/23-core-wallet.md` |
-| What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/history/learn/21-lightning-invoices.md` |
+| What does Check a timestamp take and show, and what does a proof prove? | `docs/DESIGN.md` §5 (`OtsCheck`), `docs/decisions/F230.md`, `docs/guide/ots-check.md` |
+| What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/guide/core-wallet.md` |
+| What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/guide/invoice.md` |
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
-| What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/signer-check.md`, `docs/history/learn/06-verifying.md` |
+| What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/signer-check.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
@@ -149,4 +149,4 @@ need. Each document's header says what kind it is:
 
 **History** (`docs/history/`): every finished Spec's log and every replaced decision, read by listing the folder.
 
-**Elsewhere:** `docs/decisions/` holds one file per decision, `docs/history/learn/` the old Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.
+**Elsewhere:** `docs/decisions/` holds one file per decision, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.

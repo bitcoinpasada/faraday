@@ -244,9 +244,7 @@ Found in the tree (§13 lists every one): `docs/SECURITY-MODEL.md`
 construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`,
 `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`,
 the crate READMEs (`core/faraday-bip/README.md`, `core/faraday-psbt/README.md`
-and the others), the Learn pages' own prose (`docs/history/learn/13-nonces.md`
-says how every nonce is derived), Faraday's own pages under
-`docs/history/learn/faraday/`, the guide's screen pages (`docs/guide/`),
+and the others), the guide's screen pages (`docs/guide/`),
 `tools/reference/` and each vector folder's README, and the strings in
 `faraday/faraday-strings/src/en.rs` that state a construction (the
 Settings explainers on how added randomness is mixed).
@@ -654,8 +652,7 @@ draws them, scrolling within the sheet; at its foot **Close**, a text
 button. A press beside it, Escape and the back arrow close it. The
 Starter has no supporting pane, so the sheet is the same at every
 size. The Starter's Learn destination gets a page for them, Checking
-what is written (`docs/history/learn/faraday/checking-written.md`, id
-`checking-written`), listed after **Replacing Faraday on a stick**,
+what is written (id `checking-written`), listed after **Replacing Faraday on a stick**,
 built from the same blocks after its sections.
 
 The Starter's templates draw a blank SeedQR grid and a blank codex32
@@ -1220,7 +1217,7 @@ checked, or named for review.
 | `docs/INTEROP.md` | What is read and written, the refusals | Named for review |
 | `docs/VAULT.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
-| `docs/history/learn/` and `docs/history/learn/faraday/` | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
+| The former Learn pages (since removed) | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
 | `docs/guide/` pages | What a screen's control computes | Named for review |
 | `faraday/faraday-strings/src/en.rs` | Strings that state a construction: Settings' Guided explainers, the Tools tiles' lines | Named for review |
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
@@ -1291,8 +1288,7 @@ what:
 5. The screens are designed before they are built (§8): the icon, the
    bar's order, the Learn tab and the block's drawing at every size and
    the Pi, the Starter's sheet; the strings (§8.6); the two new Learn
-   pages (`docs/history/learn/faraday/secure-boot-keys.md`,
-   `docs/history/learn/faraday/checking-written.md`); DESIGN §4.1 and §4.12 and
+   pages (Secure Boot keys, Checking what is written); DESIGN §4.1 and §4.12 and
    LAYOUT §8 point to §8; the guide's pages (§8.7). The code follows: the
    icon baked, the strings, the pages registered (`secure-boot-keys` in
    `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
@@ -1398,7 +1394,7 @@ not go into a block's field. Three forms were weighed:
 - **A field on the vault actions** (`action.account`): three actions
   would carry one text, or one would carry it for the others; a tenth
   field breaks §1's fixed nine and the block's drawing (§8.5).
-- **A Learn page of Faraday's own** (`docs/history/learn/faraday/`): its prose is
+- **A Learn page of Faraday's own** (since removed): its prose is
   not in the manifest, so the website's /cryptography page would not
   render it from the pin, and no lint would hold its numbers to the code.
 - **A manifest table, `[[construction]]`** (chosen): one text, in the
@@ -1656,7 +1652,7 @@ to a new seed afterwards.
 A second construction, `id = "passphrase-strength"`, on the same Learn
 page (`learn = "faraday:vaults"`, which Create a vault's Learn opens) and
 on /cryptography beside vault-create. It replaces the "Passphrase
-strength" section of `docs/history/learn/faraday/vaults.md`, whose facts it
+strength" section of Faraday's Vaults Learn page, whose facts it
 keeps. As it ships:
 
 **Words from dice**
@@ -1785,7 +1781,7 @@ a typed digit, a planned item no Open line names), gen.py's tables and
 placeholders, the two constructions in docs/crypto/actions.toml with
 §18.3's and §18.4's text, `CONSTRUCTIONS` in
 `faraday/faraday-guide/src/how.rs`, the Learn page's drawing of them, and
-`docs/history/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
+Faraday's Vaults Learn page's "Passphrase strength" section removed.
 They may come before or after the rename of the vault hardening document
 (§2), its sentences marked. Each later change of that document rewrites
 its planned paragraphs (§18.6).
