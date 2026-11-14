@@ -331,7 +331,7 @@ body, is not a function of its own to the inventory (§17).
 
 One JSON line per function: its file and qualified name
 (the file, two colons and the function, as the manifest's `functions`
-write them; a method as `Type::name`), the rules it meets, its body hash, the functions
+write them; a method as `Type::name`), the rules it meets, the functions
 of its crate it calls, and the crate it is in. One more line per `#[test]`
 function: its file, name, whether it is `#[ignore]`d, and the cfg it
 sits under. The Python checker, docs/crypto/check.py (new), reads these
@@ -339,8 +339,8 @@ and the manifest.
 
 A function that meets no rule is printed too, with `"rules":[]`, when a
 cryptographic function of its crate calls it, directly or through others:
-the closure of §4.4 passes through such helpers, and their body hashes
-and callees are needed to follow the closure. `--all` prints every function
+the closure of §4.4 passes through such helpers, and their callees
+are needed to follow the closure. `--all` prints every function
 of every crate. `--roots FILE` prints, besides, the functions whose ids
 FILE lists (one `file::Type::name` per line) and what they reach in their
 crate: `check.py` writes the manifest's roots and `not_crypto` functions
@@ -1176,11 +1176,10 @@ function it finds, with no transitional exemptions. What comes before
 what:
 
 1. The inventory (`crypto-inventory` in `tools/costs-lint`, the walker
-   shared with the costs lint: rules 1 to 4 of §4.2, closures, body
-   hashes, test functions, call sites in `faraday-core`, JSON lines out)
+   shared with the costs lint: rules 1 to 4 of §4.2, closures, test
+   functions, call sites in `faraday-core`, JSON lines out)
    comes first. A self-test over a fixture crate, as
-   `tools/lint-guide.py --self-test` has, shows each rule and each row of
-   §5.1's table.
+   `tools/lint-guide.py --self-test` has, shows each rule.
 2. The schema of §2.2 and the checker (docs/crypto/check.py: `check`,
    `review <id>`, `changes <tag>`) come next, with the `**Cryptography:**`
    line on the primitive crates' `docs/deps/` pages. The entries follow,

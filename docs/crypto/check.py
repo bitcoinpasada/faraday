@@ -154,9 +154,6 @@ class Inventory:
                 self.tests.append(r)
             elif r.get("kind") == "call_site":
                 self.sites.append(r)
-        self.by_hash = {}
-        for r in self.fns.values():
-            self.by_hash.setdefault(r["hash"], []).append(r["id"])
         self.cryptographic = {i for i, r in self.fns.items() if r["rules"]}
 
     def find_test(self, spec):
@@ -1742,9 +1739,9 @@ def cmd_check(root, inv_path, show_all):
 
 # ---------------------------------------------------------------- self-test
 
-def fn_rec(file, name, h, rules=(3,), callees=(), cross=(), crate="c"):
+def fn_rec(file, name, rules=(3,), callees=(), cross=(), crate="c"):
     return {"kind": "fn", "crate": crate, "file": file, "name": name, "id": f"{file}::{name}",
-            "line": 1, "public": True, "rules": list(rules), "hash": h,
+            "line": 1, "public": True, "rules": list(rules),
             "callees": list(callees),
             "cross": list(cross)}
 
@@ -1926,17 +1923,17 @@ checksum = "abc"
 '''
 
 
-def fixture_inventory(g_hash="g1", f_hash="f1", h_hash="h1", moved=False, extra=False,
+def fixture_inventory(moved=False, extra=False,
                       ignored=False, test=True):
     fl = "src/b.rs" if moved else "src/a.rs"
     recs = [
-        fn_rec(fl, "f", f_hash, callees=["src/a.rs::h", "src/a.rs::g"]),
-        fn_rec("src/a.rs", "g", g_hash),
-        fn_rec("src/a.rs", "h", h_hash, rules=()),
+        fn_rec(fl, "f", callees=["src/a.rs::h", "src/a.rs::g"]),
+        fn_rec("src/a.rs", "g"),
+        fn_rec("src/a.rs", "h", rules=()),
     ]
     if extra:
-        recs.append(fn_rec("src/a.rs", "k", "k1"))
-        recs.append(fn_rec("aqrv/aqrv/src/x.rs", "seal", "s1"))
+        recs.append(fn_rec("src/a.rs", "k"))
+        recs.append(fn_rec("aqrv/aqrv/src/x.rs", "seal"))
     if test:
         recs.append({"kind": "test", "crate": "c", "file": "src/a.rs", "name": "tests::t_one",
                      "line": 9, "ignored": ignored, "cfg": "cfg(test)"})
@@ -1979,14 +1976,14 @@ def self_test():
         print("a closure in faraday-core stops at glue (§4.4):")
         core = "faraday-core"
         c = Ctx(root, Inventory(json.dumps(r) for r in [
-            fn_rec("src/a.rs", "f", "f1", crate=core,
+            fn_rec("src/a.rs", "f", crate=core,
                    callees=["src/a.rs::h", "src/a.rs::q", "src/a.rs::Faraday::t"]),
-            fn_rec("src/a.rs", "g", "g1", crate=core),
-            fn_rec("src/a.rs", "h", "h1", rules=(), crate=core),
-            fn_rec("src/a.rs", "q", "q1", rules=(), crate=core, callees=["src/a.rs::g"]),
-            fn_rec("src/a.rs", "Faraday::t", "t1", rules=(), crate=core,
+            fn_rec("src/a.rs", "g", crate=core),
+            fn_rec("src/a.rs", "h", rules=(), crate=core),
+            fn_rec("src/a.rs", "q", rules=(), crate=core, callees=["src/a.rs::g"]),
+            fn_rec("src/a.rs", "Faraday::t", rules=(), crate=core,
                    callees=["src/a.rs::k"]),
-            fn_rec("src/a.rs", "k", "k1", crate=core),
+            fn_rec("src/a.rs", "k", crate=core),
         ]))
         expect(c.closure["one"] == {"src/a.rs::f", "src/a.rs::q"},
                f"a helper reaching no crypto and a Faraday method are left out: {sorted(c.closure['one'])}")
@@ -2266,8 +2263,8 @@ def self_test():
             if r.get("id") == "src/a.rs::f":
                 r["cross"] = ["t::w"]
         via_inv = Inventory(json.dumps(r) for r in recs + [
-            fn_rec("lib/t/src/lib.rs", "w", "w1", crate="t"),
-            fn_rec("lib/u/src/lib.rs", "w", "w2", crate="u")])
+            fn_rec("lib/t/src/lib.rs", "w", crate="t"),
+            fn_rec("lib/u/src/lib.rs", "w", crate="u")])
         cargo_before = (root / "Cargo.lock").read_text()
         (root / "Cargo.lock").write_text(cargo_before + '\n[[package]]\nname = "lib2"\n'
                                          'version = "2.0.0"\nchecksum = "def"\n')
@@ -2318,7 +2315,7 @@ def self_test():
         c = check(base)
         expect(not c.errors.items, f"a whole construction passes {msgs(c)}")
         g = gen_module()
-        secs, probs, _ = g.render_construction(root, tomllib.loads(
+        secs, probs = g.render_construction(root, tomllib.loads(
             (root / MANIFEST).read_text())["construction"][0])
         expect(not probs and secs[0][1] == [
             ("para", "A die has 6 sides, six in words; SHA-256 (BIP 1) of 3 words is 3.6 bits."),

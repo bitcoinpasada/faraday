@@ -63,8 +63,8 @@
 # out/crosscheck-record.txt; --crosscheck FILE names another) is staged
 # beside SHA256SUMS as crosscheck-VERSION.txt and listed in it, so it is
 # signed with the release. The first pass refuses a record that is missing,
-# that names another tree than HEAD's (without the fingerprints, which are
-# stamped from its result: tools/crosscheck/record.py), or whose result is not
+# that names another tree than HEAD's (the manifest left out:
+# tools/crosscheck/record.py), or whose result is not
 # "every answer agreed"; --any-build stages none, for trying the script.
 #
 # The images must carry VERSION as their build ID (a release build,
@@ -243,8 +243,8 @@ PY
     # The cross-check's record: of this commit's tree, and every answer
     # agreed. The tree, not the commit: the cross-check runs on the tree
     # the release commit then records, and a builder's checkout stands on
-    # a commit of its own. Without the fingerprints, which the release commit
-    # stamps from the run's result.
+    # a commit of its own. The manifest, which the release commit
+    # may correct after the run, is left out.
     # --any-build stages none, whatever out/ holds, so a trial staging
     # reads nothing a real run left there.
     have_record=0
@@ -253,7 +253,7 @@ PY
     elif [ -f "$record" ]; then
         tree="$(python3 -I -B tools/crosscheck/record.py tree HEAD)" \
             || unstage "could not work out this commit's tree for the record"
-        [ "$(sed -n 's/^tree without fingerprints //p' "$record")" = "$tree" ] \
+        [ "$(sed -n 's/^tree cross-checked //p' "$record")" = "$tree" ] \
             || unstage "$record is not the cross-check of this tree, $tree (just crosscheck --fresh)"
         grep -qx 'result: every answer agreed' "$record" \
             || unstage "$record does not end in 'every answer agreed'"

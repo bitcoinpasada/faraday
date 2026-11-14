@@ -47,7 +47,6 @@ from it (`render_construction`, which check.py also runs). Standard library only
 """
 
 import ast
-import hashlib
 import math
 import pathlib
 import re
@@ -485,13 +484,11 @@ def rust_body(text, name):
 
 
 class Code:
-    """What a construction's placeholders and tables read from the tree. Each
-    value read is noted as a lock line: the construction's fingerprint (§18.6)."""
+    """What a construction's placeholders and tables read from the tree."""
 
     def __init__(self, root):
         self.root = pathlib.Path(root)
         self.files = {}
-        self.lines = set()
 
     def read(self, rel):
         if rel not in self.files:
@@ -515,7 +512,6 @@ class Code:
             raise Unresolved(f"{rel}::{name} refers to itself")
         _, val = self.item(rel, name)
         v = self.int_expr(rel, val, f"{rel}::{name}", depth)
-        self.lines.add(f"val c:{rel}::{name} {v}")
         return v
 
     def int_expr(self, rel, expr, what, depth=0):
@@ -550,7 +546,6 @@ class Code:
         if not m:
             raise Unresolved(f"{rel}::{name} is not an array of a stated length")
         v = self.int_expr(rel, m.group(1), f"the length of {rel}::{name}")
-        self.lines.add(f"val len:{rel}::{name} {v}")
         return v
 
     def int_list(self, rel, name):
@@ -560,7 +555,6 @@ class Code:
             raise Unresolved(f"{rel}::{name} is not an array literal")
         out = [self.int_expr(rel, x, f"an element of {rel}::{name}")
                for x in m.group(1).split(",") if x.strip()]
-        self.lines.add(f"val list:{rel}::{name} {' '.join(map(str, out))}")
         return out
 
     def byte_string(self, rel, name):
@@ -568,7 +562,6 @@ class Code:
         m = re.fullmatch(r'\*?b"([ -~]*)"', val.strip())
         if not m or "\\" in m.group(1):
             raise Unresolved(f"{rel}::{name} is not a byte string literal")
-        self.lines.add(f"val b:{rel}::{name} {m.group(1)}")
         return m.group(1)
 
     def body(self, rel, name):
@@ -579,7 +572,6 @@ class Code:
 
     def function(self, rel, name):
         self.body(rel, name.split("::")[-1])
-        self.lines.add(f"val fn:{rel}::{name}")
         return name
 
     def value(self, name):
@@ -590,7 +582,6 @@ class Code:
         if not m:
             raise Unresolved(f"{rel}::{fn} no longer has the shape `{{v:{name}}}` reads ({pat})")
         v = get(m)
-        self.lines.add(f"val v:{name} {v}")
         return v
 
 
@@ -779,7 +770,7 @@ def para_source(p):
 
 
 def render_construction(root, con):
-    """(sections, problems, lock lines): each section (heading, [item]), an item
+    """(sections, problems): each section (heading, [item]), an item
     ("para", text) or ("table", head, rows)."""
     code = Code(root)
     problems, sections = [], []
@@ -790,8 +781,6 @@ def render_construction(root, con):
                 if "table" in p:
                     head, rows = render_table(code, p)
                     items.append(("table", head, rows))
-                    digest = hashlib.sha256(repr((head, rows)).encode()).hexdigest()[:16]
-                    code.lines.add(f"table {p['table']} {digest}")
                 else:
                     planned = "planned" in p
                     t = render_text(code, para_source(p) or "", planned)
@@ -799,7 +788,7 @@ def render_construction(root, con):
             except Unresolved as e:
                 problems.append(f"{s.get('heading')}: {e}")
         sections.append((s.get("heading", ""), items))
-    return sections, problems, sorted(code.lines)
+    return sections, problems
 
 
 def rs_str(s):
@@ -814,7 +803,7 @@ def gen_constructions(root, data):
            "#[rustfmt::skip]",
            "pub static CONSTRUCTIONS: &[Construction] = &["]
     for con in data.get("construction", []):
-        sections, problems, _ = render_construction(root, con)
+        sections, problems = render_construction(root, con)
         if problems:
             raise SystemExit(f"construction {con.get('id')}: " + "; ".join(problems)
                              + " (docs/crypto/check.py check says more)")
@@ -1033,7 +1022,6 @@ def self_test():
                         "{f:log2({len:k.rs::W})} and {f:log2(7776)}, \"{b:k.rs::TAG}\"")
         expect(t == "1 029 bytes, four, 10 and 12.9, \"a v1 b\"",
                f"constants, lengths, arithmetic, words and byte strings fill a paragraph: {t}")
-        expect(sorted(code.lines)[0] == "val b:k.rs::TAG a v1 b", "each value read is a lock line")
         for bad in ("{c:k.rs::NONE}", "{f:{c:k.rs::LEN}|lots}", "{c:k.rs::LEN|words}",
                     "{planned:3}", "{q:k.rs::LEN}", "{c:k.rs::LEN"):
             try:

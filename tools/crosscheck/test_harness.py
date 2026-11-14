@@ -680,7 +680,7 @@ class Pool(unittest.TestCase):
         self.assertTrue((folder / "found" / "beta-test-seed.json").is_file())
         self.assertFalse((HERE / "found").exists())
         self.assertRegex(record, r"inputs:\n  shared [0-9a-f]{64}\n  alpha [0-9a-f]{64}\n")
-        for line in ("tree without fingerprints ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
+        for line in ("tree cross-checked ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
                      "beta: mismatch", "tools/reference/bbqr  commit ",
                      "result: first disagreement in beta at case corpus:"):
             self.assertIn(line, record)
@@ -794,7 +794,7 @@ class Combine(unittest.TestCase):
         self.assertEqual(len(runs), 2)
         self.assertRegex(runs[0], r"^  \d{4}-\d\d-\d\d [\d:]+ UTC, tree \S+, areas left right$")
         self.assertRegex(runs[1], r"^  \d{4}-\d\d-\d\d [\d:]+ UTC, tree \S+, areas right$")
-        tree = re.search(r"^tree without fingerprints (\S+)$", combined, re.M).group(1)
+        tree = re.search(r"^tree cross-checked (\S+)$", combined, re.M).group(1)
         self.assertTrue(runs[1].endswith(f"tree {tree}, areas right"))
         # The combined record can itself be combined: nothing changed, nothing runs.
         again = self.tmp / "again"

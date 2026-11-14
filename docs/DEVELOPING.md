@@ -451,11 +451,10 @@ is not kept cross-checked (F197): `just` does not check the stamp, and a
 change to the crypto commits none. A change to an area's code runs that
 area (`--area`, which writes no stamp). A passing full run writes
 `tools/crosscheck/stamp`, committed with the release; `just lint-release`
-fails when the crypto changed since it or an action's code changed since
-its fingerprint.
+fails when the crypto changed since it.
 
 `just crosscheck --fresh` also writes `out/crosscheck-record.txt`: the
-tree it checked without the fingerprints (`python3 -I -B
+tree it checked, the manifest left out (`python3 -I -B
 tools/crosscheck/record.py tree <tag>` gives it for a release), seed, scale
 and UTC date; each area's cases, answers, known
 differences and result; each folder of `tools/reference/` with the commit

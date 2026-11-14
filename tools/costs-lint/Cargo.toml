@@ -17,7 +17,7 @@ name = "costs-lint"
 path = "src/main.rs"
 
 # The crypto inventory (docs/CRYPTO-LEARN.md §4): the cryptographic
-# functions, their body hashes, closures and call sites, as JSON lines.
+# functions, closures and call sites, as JSON lines.
 [[bin]]
 name = "crypto-inventory"
 path = "src/crypto_inventory.rs"

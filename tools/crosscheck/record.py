@@ -3,7 +3,7 @@
 carries beside SHA256SUMS to say what was checked.
 
 A full `just crosscheck --fresh` writes `out/crosscheck-record.txt`, plain
-text in a stable order: the tree it checked without the fingerprints, the
+text in a stable order: the tree it checked (the manifest left out), the
 seed, the scale and the UTC date;
 each area with its corpus cases, answers compared, known differences and
 result; each reference under `tools/reference/` with the commit its README
@@ -38,8 +38,8 @@ NAME = "crosscheck-record.txt"
 # The tree a record names leaves the manifest out: it is documentation of the
 # cryptography, not something the run reads, and the release commit may
 # correct it after the run.
-FINGERPRINTS = ("docs/crypto/actions.toml",)
-TREE_LINE = "tree without fingerprints"
+LEFT_OUT = ("docs/crypto/actions.toml",)
+TREE_LINE = "tree cross-checked"
 
 
 def git(*args):
@@ -52,7 +52,7 @@ def git(*args):
 def tree(commit=None):
     """Costs a git index of the working tree, or of `commit`'s tree when one
     is named. The git tree of the files as they stand (what git would commit,
-    ignored files left out) without `FINGERPRINTS`: the commit a release is
+    ignored files left out) without `LEFT_OUT`: the commit a release is
     made at gives this tree when the record is its cross-check, whichever
     commit the run's checkout stood on."""
     with tempfile.TemporaryDirectory() as d:
@@ -65,7 +65,7 @@ def tree(commit=None):
         fill = [("read-tree", commit)] if commit else [("read-tree", "--empty"), ("add", "-A")]
         if any(run(*step) is None for step in fill):
             return "unknown"
-        if run("update-index", "--force-remove", "--", *FINGERPRINTS) is None:
+        if run("update-index", "--force-remove", "--", *LEFT_OUT) is None:
             return "unknown"
         return run("write-tree") or "unknown"
 

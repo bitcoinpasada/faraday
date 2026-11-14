@@ -4,5 +4,4 @@
 
 pub mod inventory;
 pub mod selftest;
-pub mod sha256;
 pub mod walk;

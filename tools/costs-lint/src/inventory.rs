@@ -1,6 +1,5 @@
-//! The crypto inventory (`docs/CRYPTO-LEARN.md` §4, §5.1, §9.2): which
-//! functions of the repository are cryptographic, what each one's body
-//! hashes to, which functions of its crate it calls, which other crates
+//! The crypto inventory (`docs/CRYPTO-LEARN.md` §4, §9.2): which
+//! functions of the repository are cryptographic, which functions of its crate it calls, which other crates
 //! it calls, which `#[test]` functions exist, and where `faraday-core`
 //! calls the cryptography of `faraday-keys` and `core/`. Printed as JSON
 //! lines for the manifest's checker; it reads the same shipped code the
@@ -17,7 +16,7 @@
 //! - `{"kind":"fn", …}`: a function of a cryptographic crate with its
 //!   `rules` (§4.2; empty for a function printed only because a
 //!   cryptographic one calls it, directly or through others, which is
-//!   the closure's input), its `hash` (§5.1), its same-crate `callees`
+//!   the closure's input), its same-crate `callees`
 //!   (ids) and its `cross` crate calls. `--all` prints every function of
 //!   every crate; `--roots FILE` prints, besides the cryptographic
 //!   functions, the functions whose ids (`file::Type::name`, one per
@@ -45,7 +44,6 @@ use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-use crate::sha256;
 use crate::walk;
 
 /// The crates that compute (§4.1): a crate whose normal dependencies
@@ -249,8 +247,6 @@ pub(crate) struct Func {
     public: bool,
     /// The rules of §4.2 it meets.
     pub(crate) rules: BTreeSet<u8>,
-    /// §5.1's body hash.
-    pub(crate) hash: String,
     /// Same-crate functions it calls (indexes).
     pub(crate) callees: BTreeSet<usize>,
     /// Calls into other workspace crates, `crate::path`.
@@ -733,88 +729,6 @@ impl<'a> Visit<'a> for Scan {
     }
 }
 
-// -------------------------------------------------------------- body hashes
-
-fn starts_with_doc(ts: TokenStream) -> bool {
-    matches!(ts.into_iter().next(), Some(TokenTree::Ident(i)) if i == "doc")
-}
-
-/// The tokens of `ts` as text pieces, `#[doc …]` and `#![doc …]` left out,
-/// and a `,` that ends a group left out.
-fn render(ts: TokenStream, out: &mut Vec<String>) {
-    let mut toks: Vec<TokenTree> = ts.into_iter().collect();
-    // A `,` just before the closing delimiter is rustfmt's to add or drop.
-    if is_punct(toks.last(), ',') {
-        toks.pop();
-    }
-    let mut it = toks.into_iter();
-    while let Some(t) = it.next() {
-        match t {
-            TokenTree::Punct(p) if p.as_char() == '#' => {
-                let mut look = it.clone();
-                let mut next = look.next();
-                if is_punct(next.as_ref(), '!') {
-                    next = look.next();
-                }
-                if let Some(TokenTree::Group(g)) = &next
-                    && g.delimiter() == Delimiter::Bracket
-                    && starts_with_doc(g.stream())
-                {
-                    it = look;
-                    continue;
-                }
-                out.push("#".to_string());
-            }
-            TokenTree::Punct(p) => out.push(p.as_char().to_string()),
-            TokenTree::Group(g) => {
-                let (open, close) = match g.delimiter() {
-                    Delimiter::Parenthesis => ("(", ")"),
-                    Delimiter::Brace => ("{", "}"),
-                    Delimiter::Bracket => ("[", "]"),
-                    Delimiter::None => ("", ""),
-                };
-                out.push(open.to_string());
-                render(g.stream(), out);
-                out.push(close.to_string());
-            }
-            other => out.push(other.to_string()),
-        }
-    }
-}
-
-/// §5.1: SHA-256 over the function's tokens with one space between them:
-/// attributes but `#[doc]`, visibility, signature without its name, bounds
-/// and body.
-fn body_hash(
-    attrs: &[syn::Attribute],
-    vis: &syn::Visibility,
-    sig: &syn::Signature,
-    block: &syn::Block,
-) -> String {
-    let mut ts = TokenStream::new();
-    for a in attrs.iter().filter(|a| !a.path().is_ident("doc")) {
-        a.to_tokens(&mut ts);
-    }
-    vis.to_tokens(&mut ts);
-    // The signature as `syn` prints it, less the name.
-    sig.constness.to_tokens(&mut ts);
-    sig.asyncness.to_tokens(&mut ts);
-    sig.unsafety.to_tokens(&mut ts);
-    sig.abi.to_tokens(&mut ts);
-    sig.fn_token.to_tokens(&mut ts);
-    sig.generics.to_tokens(&mut ts);
-    sig.paren_token.surround(&mut ts, |t| {
-        sig.inputs.to_tokens(t);
-        sig.variadic.to_tokens(t);
-    });
-    sig.output.to_tokens(&mut ts);
-    sig.generics.where_clause.to_tokens(&mut ts);
-    block.to_tokens(&mut ts);
-    let mut pieces = Vec::new();
-    render(ts, &mut pieces);
-    sha256::hex(pieces.join(" ").as_bytes())
-}
-
 // -------------------------------------------------------------------- rules
 
 /// What a file is, for the rules.
@@ -958,16 +872,13 @@ impl Finder<'_> {
         }
         scan.params = ps.locals;
         scan.visit_block(block);
-        self.funcs
-            .push(self.analyze(attrs, vis, sig, block, line, scan));
+        self.funcs.push(self.analyze(vis, sig, line, scan));
     }
 
     fn analyze(
         &self,
-        attrs: &[syn::Attribute],
         vis: &syn::Visibility,
         sig: &syn::Signature,
-        block: &syn::Block,
         line: usize,
         scan: Scan,
     ) -> Func {
@@ -1027,7 +938,6 @@ impl Finder<'_> {
             line,
             public: matches!(vis, syn::Visibility::Public(_)),
             rules,
-            hash: body_hash(attrs, vis, sig, block),
             callees: BTreeSet::new(),
             cross: BTreeSet::new(),
             calls,
@@ -1592,7 +1502,7 @@ impl Inventory {
         for i in self.printed(all, roots) {
             let f = &self.funcs[i];
             out.push(format!(
-                "{{\"kind\":\"fn\",\"crate\":{},\"file\":{},\"name\":{},\"id\":{},\"line\":{},\"public\":{},\"rules\":{},\"hash\":{},\"callees\":{},\"cross\":{}}}",
+                "{{\"kind\":\"fn\",\"crate\":{},\"file\":{},\"name\":{},\"id\":{},\"line\":{},\"public\":{},\"rules\":{},\"callees\":{},\"cross\":{}}}",
                 js(&self.crates[f.krate].name),
                 js(&f.file),
                 js(&f.name),
@@ -1600,7 +1510,6 @@ impl Inventory {
                 f.line,
                 f.public,
                 js_list(f.rules.iter().map(|r| r.to_string())),
-                js(&f.hash),
                 js_list(f.callees.iter().map(|&j| js(&self.id(j)))),
                 js_list(f.cross.iter().map(|c| js(c))),
             ));
