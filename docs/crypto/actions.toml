@@ -237,8 +237,8 @@ completeness = "`sortedmulti_a` is parsed here because miniscript lacks it, as a
 [[row]]
 id = "miniscript-recovery"
 section = 2
-what = "Miniscript and timelocked recovery, Liana shapes (`core/faraday-bip/src/recovery.rs`, `core/faraday-bip/src/policy.rs`)"
-completeness = "Reads any sane `wsh`, `sh(wsh)` or `tr` miniscript, as Bitcoin Core does; Create does not make one; the compiler is in Tools; the builder of Liana's shapes is in core and not reached from the app; a taproot leaf with a `pkh` is signed but left for the coordinator to finalize"
+what = "Miniscript and timelocked recovery, Liana shapes (`core/faraday-bip/src/policy.rs`)"
+completeness = "Reads any sane `wsh`, `sh(wsh)` or `tr` miniscript, as Bitcoin Core does; Create does not make one; the compiler is in Tools; a taproot leaf with a `pkh` is signed but left for the coordinator to finalize"
 
 [[row]]
 id = "musig2"
@@ -2374,8 +2374,8 @@ places = [
 
 [[action]]
 id = "recovery"
-name = "Build a recovery wallet"
-action = "Builds a timelocked recovery wallet from its parts and reads the parts back out of one."
+name = "Read a recovery wallet"
+action = "Reads a timelocked recovery wallet of Liana's shapes as the ways its coins move, leaving out a taproot internal key no one can spend."
 row = "miniscript-recovery"
 standards = [
   "BIP 379",
@@ -2384,11 +2384,10 @@ standards = [
 ]
 screens = []
 functions = [
-  "core/faraday-bip/src/recovery.rs::RecoveryPolicy::to_wallet_policy",
-  "core/faraday-bip/src/recovery.rs::RecoveryPolicy::from_wallet_policy",
+  "core/faraday-bip/src/policy.rs::lift",
 ]
 code = [
-  "core/faraday-bip/src/recovery.rs::RecoveryPolicy::to_wallet_policy",
+  "core/faraday-bip/src/policy.rs::lift",
 ]
 
 [action.implementation]
@@ -2397,22 +2396,19 @@ libraries = [
   "miniscript",
   "bitcoin",
 ]
-through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
-adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused. The miniscript area builds wallets of these shapes with RecoveryPolicy in both forms and reads them back, and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
+adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot internal key that is BIP-341's NUMS point over a chain code made from the leaves' keys is not a way to spend. The miniscript area reads wallets of these shapes and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
 
 [action.checked]
 vectors = [
   "miniscript",
 ]
 tests = [
-  "core/faraday-bip/tests/all/recovery.rs::a_segwit_recovery_wallet_is_the_descriptor_liana_wrote",
-  "core/faraday-bip/tests/all/recovery.rs::liana_s_own_wallet_reads_back_as_its_keys_and_its_delay",
-  "core/faraday-bip/tests/all/recovery.rs::every_built_wallet_reads_back_as_the_paths_it_was_built_from",
-  "core/faraday-bip/tests/all/recovery.rs::a_wallet_no_one_could_recover_is_refused",
-  "core/faraday-bip/tests/all/recovery.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
+  "core/faraday-bip/tests/all/liana_shapes.rs::the_ways_a_recovery_wallet_spends_are_its_primary_and_recovery_paths",
+  "core/faraday-bip/tests/all/liana_shapes.rs::an_unspendable_internal_key_is_not_a_way_to_spend",
+  "core/faraday-bip/tests/all/liana_shapes.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
 ]
 crosscheck = "miniscript"
-independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys, and its descriptors and miniscript, by the btclib developers, on btclib's own curve, for each descriptor's kind, text and script at an index, Core's vectors' types, sanity and scripts, and the satisfaction of each way a wallet's coins move under its lock times (and, for recovery wallets, each built from its parts)" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys, and its descriptors and miniscript, by the btclib developers, on btclib's own curve, for each descriptor's kind, text and script at an index, Core's vectors' types, sanity and scripts, and the satisfaction of each way a wallet's coins move under its lock times" }
 fuzz = [
   "policy",
 ]
@@ -2428,9 +2424,7 @@ wiped = "Nothing secret is held."
 
 [action.limits]
 lines = [
-  "A wallet no one could recover is refused.",
-  "A wallet that never waits is not read back as a recovery wallet.",
-  "Not reached from the app: Create makes no recovery wallet, and one is read as any miniscript wallet.",
+  "Create makes no recovery wallet; one is read as any miniscript wallet.",
 ]
 
 [[action.own]]

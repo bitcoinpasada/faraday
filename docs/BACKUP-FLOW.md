@@ -2652,12 +2652,10 @@ the chart's sheets) points here.
   waits and the margin on its card, the chart's wallet sheet and the
   wallet sheet PDF (`wallet::paths`, `faraday/faraday-core/src/wallet/paths.rs`),
   and the spend review's **Path** shows the wait.
-- **Recovery wallets.** `core/faraday-bip/src/recovery.rs` builds a
-  Liana-shaped wallet from keys and delays (`blocks_for_days`,
-  `days_of_blocks`, 144 blocks a day, at most 455 days). Make a new
-  wallet does not offer the kind yet;
+- **Recovery wallets.** Make a new wallet does not offer the kind yet;
   such a wallet arrives by its descriptor, from Liana or the Miniscript
-  compiler. Its create step, **After how long?** (30, 90, 180 or 365
+  compiler (a delay counts 144 blocks a day, at most 455 days). Its
+  create step, **After how long?** (30, 90, 180 or 365
   days, or a number typed from 1 to 455), is `docs/WALLETS.md` §5's
   Recovery row and not in the tree; where it is built it shows each
   choice in days and blocks ("365 days · 52 560 blocks").
@@ -2882,7 +2880,7 @@ keep, on the sheet. Learn says why (below).
 
 ### 18.5 Days, blocks and the margin
 
-- Blocks to days: `recovery::days_of_blocks` (144 a day, rounded down),
+- Blocks to days: `policy::days_of_blocks` (144 a day, rounded down),
   shown as "about {days} days".
 - 512-second units to days: `n × 512 / 86 400`, rounded down, shown
   without "about": the network counts them by median time past.

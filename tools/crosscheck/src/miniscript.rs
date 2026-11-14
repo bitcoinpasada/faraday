@@ -14,7 +14,6 @@ use faraday_bip::miniscript::{Descriptor, ExtParams, Miniscript, Segwitv0, Tap};
 use faraday_bip::policy::{
     MiniscriptKind, Template, WalletPolicy, Wrapper, parse_script_descriptor,
 };
-use faraday_bip::recovery::{Form, Path, Recovery, RecoveryPolicy};
 use faraday_bip::spend::Lock;
 use faraday_crypto::work::Compute;
 use serde_json::{Value, json};
@@ -94,16 +93,6 @@ pub(crate) fn inspect(policy: &WalletPolicy) -> Value {
     })
 }
 
-fn path_of(v: &Value) -> Path {
-    let keys: Vec<&str> = v["keys"]
-        .as_array()
-        .expect("keys")
-        .iter()
-        .map(|k| k.as_str().expect("key text"))
-        .collect();
-    Path::multi(v["threshold"].as_u64().expect("threshold") as usize, &keys)
-}
-
 /// Handles `miniscript.<name>`.
 pub fn handle(name: &str, req: &Value) -> Answer {
     let c = Compute::unchecked();
@@ -122,47 +111,6 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "inspect" => {
             let policy = WalletPolicy::from_descriptor(&c, text(req, "descriptor")).map_err(err)?;
             Ok(inspect(&policy))
-        }
-        // A recovery wallet built from its parts (`RecoveryPolicy`): what
-        // it is, the script it pays at one index, and the parts read back
-        // out of it.
-        "recovery" => {
-            let recovery: Vec<Recovery> = req["recovery"]
-                .as_array()
-                .expect("recovery")
-                .iter()
-                .map(|r| Recovery {
-                    delay: u32::try_from(r["delay"].as_u64().expect("delay")).expect("delay"),
-                    path: path_of(r),
-                })
-                .collect();
-            let policy = RecoveryPolicy {
-                primary: path_of(&req["primary"]),
-                recovery,
-            };
-            let form = match text(req, "form") {
-                "segwit" => Form::SegWit,
-                "taproot" => Form::Taproot,
-                other => return Err(format!("unknown form {other}")),
-            };
-            let wallet = policy.to_wallet_policy(&c, form).map_err(err)?;
-            let index = u32::try_from(num(req, "index")).map_err(err)?;
-            let script = wallet
-                .script_at(&c, flag(req, "change"), index)
-                .map_err(err)?;
-            let back = RecoveryPolicy::from_wallet_policy(&wallet);
-            let mut out = inspect(&wallet);
-            out["script_pubkey"] = json!(hex(script.as_bytes()));
-            out["back"] = match back {
-                None => Value::Null,
-                Some(b) => json!({
-                    "primary": {"threshold": b.primary.threshold, "keys": b.primary.keys},
-                    "recovery": b.recovery.iter().map(|r| json!({
-                        "delay": r.delay, "threshold": r.path.threshold, "keys": r.path.keys,
-                    })).collect::<Vec<_>>(),
-                }),
-            };
-            Ok(out)
         }
         // A miniscript with raw keys: its P2WSH witness script, or its
         // tapscript leaf.

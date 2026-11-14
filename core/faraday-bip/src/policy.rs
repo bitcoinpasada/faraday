@@ -90,6 +90,84 @@ pub const TEMPLATE_SUFFIX: &str = "/**";
 /// The same two chains as a descriptor writes them (BIP-389).
 pub const DESCRIPTOR_SUFFIX: &str = "/<0;1>/*";
 
+/// BIP-341's NUMS point, the internal key of a taproot wallet no key of
+/// which can take the key path.
+const NUMS: &str = "0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+
+/// Blocks mined in a day, as a delay of a Liana-shaped wallet counts them.
+const BLOCKS_A_DAY: u32 = 144;
+
+/// The whole days `blocks` of mining is expected to be, rounded down.
+pub fn days_of_blocks(blocks: u32) -> u32 {
+    blocks / BLOCKS_A_DAY
+}
+
+fn nums() -> bitcoin::secp256k1::PublicKey {
+    bitcoin::secp256k1::PublicKey::from_str(NUMS).expect("BIP-341's NUMS point")
+}
+
+/// The internal key of a taproot wallet no key of which can take the key
+/// path: BIP-341's NUMS point with a chain code that is the SHA-256 of
+/// every leaf key's public key, so that anyone holding the descriptor
+/// can recompute it and see that the key path cannot be spent.
+fn unspendable_xpub(tr: &miniscript::descriptor::Tr<DescriptorPublicKey>) -> Option<Xpub> {
+    use bitcoin::hashes::Hash;
+    let tree = tr.tap_tree().as_ref()?;
+    let first = tree.iter().flat_map(|(_, ms)| ms.iter_pk()).next()?;
+    let network = multi_xkey(&first)?.network;
+    let mut concat = Vec::new();
+    for key in tree.iter().flat_map(|(_, ms)| ms.iter_pk()) {
+        concat.extend_from_slice(&multi_xkey(&key)?.public_key.serialize());
+    }
+    Some(Xpub {
+        public_key: nums(),
+        chain_code: bitcoin::bip32::ChainCode::from(
+            bitcoin::hashes::sha256::Hash::hash(&concat).to_byte_array(),
+        ),
+        depth: 0,
+        parent_fingerprint: [0u8; 4].into(),
+        child_number: 0.into(),
+        network,
+    })
+}
+
+fn multi_xkey(key: &DescriptorPublicKey) -> Option<Xpub> {
+    match key {
+        DescriptorPublicKey::MultiXPub(multi) => Some(multi.xkey),
+        _ => None,
+    }
+}
+
+/// The semantic policy of a wallet's script, with an unspendable taproot
+/// internal key left out of it, as Liana reads one.
+///
+/// A key path no one can take is not a way to spend, so a review built
+/// on this never offers one.
+fn lift(
+    script: &Descriptor<DescriptorPublicKey>,
+) -> Option<miniscript::policy::Semantic<DescriptorPublicKey>> {
+    match script {
+        Descriptor::Tr(tr) if tr.tap_tree().is_some() => {
+            let tree = tr.tap_tree().as_ref()?;
+            let leaves = miniscript::policy::Liftable::lift(tree).ok()?;
+            let internal = multi_xkey(tr.internal_key())?;
+            if Some(internal) == unspendable_xpub(tr) {
+                Some(leaves)
+            } else {
+                Some(miniscript::policy::Semantic::Thresh(
+                    miniscript::Threshold::or(
+                        alloc::sync::Arc::new(miniscript::policy::Semantic::Key(
+                            tr.internal_key().clone(),
+                        )),
+                        alloc::sync::Arc::new(leaves),
+                    ),
+                ))
+            }
+        }
+        _ => miniscript::policy::Liftable::lift(script).ok(),
+    }
+}
+
 /// How a multisig script is wrapped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wrapper {
@@ -917,13 +995,6 @@ impl WalletPolicy {
         named.then_some(out)
     }
 
-    /// The parsed descriptor, for the miniscript and taproot-tree
-    /// templates and for no other, which is what
-    /// [`crate::recovery`] reads a recovery wallet out of.
-    pub(crate) fn script(&self) -> Option<&Descriptor<DescriptorPublicKey>> {
-        self.script.as_ref()
-    }
-
     /// The ways this wallet's coins can be spent: one entry per
     /// combination of keys and waits the script allows, each key named
     /// by its index in [`keys`](Self::keys).
@@ -949,7 +1020,7 @@ impl WalletPolicy {
                 use miniscript::policy::Liftable;
                 tr.tap_tree().as_ref().and_then(|t| t.lift().ok())
             }
-            _ => crate::recovery::lift(script),
+            _ => lift(script),
         };
         let Some(semantic) = semantic else {
             return Vec::new();

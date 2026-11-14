@@ -86,13 +86,12 @@ Core also accepted both descriptors' checksums, `#d9zz2z8e` for the
 
 ## The taproot recovery wallets' addresses
 
-`faraday_bip::recovery` builds a recovery wallet from keys and delays. Its
-`wsh` answer for one key now and one key after 52 560 blocks is
-`wallet-liana.policy` character for character, so its addresses are the
-rows above. Its two taproot answers are new descriptors, and their first
-two receive and change addresses were checked against Bitcoin Core
-v31.1.0 `deriveaddresses` on this machine on 2026-09-18
-(`core/faraday-bip/tests/all/recovery.rs`):
+Two taproot descriptors of Liana's shapes, one key now and one key after
+52 560 blocks, are not Liana's own fixtures. Their first two receive and
+change addresses were checked against Bitcoin Core v31.1.0
+`deriveaddresses` on this machine on 2026-09-18, and the test reads the
+same descriptors as fixed text
+(`core/faraday-bip/tests/all/liana_shapes.rs`):
 
 - **key path**, one primary key and one recovery key after 52 560
   blocks, the primary on the key path —

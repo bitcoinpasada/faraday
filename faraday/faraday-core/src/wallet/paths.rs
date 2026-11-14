@@ -55,7 +55,7 @@ fn lock_text(lock: Lock) -> String {
             EN.wallet_paths_blocks,
             &[
                 &spaced(u64::from(n)),
-                &faraday_bip::recovery::days_of_blocks(n).to_string(),
+                &faraday_bip::policy::days_of_blocks(n).to_string(),
             ],
         ),
         Lock::Intervals(n) => fill(

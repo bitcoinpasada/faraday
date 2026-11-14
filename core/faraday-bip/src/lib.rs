@@ -71,7 +71,6 @@ pub mod keys;
 pub mod multisig_config;
 pub mod musig;
 pub mod policy;
-pub mod recovery;
 pub mod silent;
 pub mod silent_wallet;
 pub mod slip132;

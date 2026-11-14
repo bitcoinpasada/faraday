@@ -14,8 +14,8 @@ Poinsot's python-bip380 (`tools/reference/miniscript/`, through
   script read back as a PSBT input's witness script is read
   (`ExtParams::sane` with raw `pkh`, as `faraday_psbt` reads one) and
   written out again unchanged, and refused when not sane.
-- Random wallets of the shapes Liana, Nunchuk, Sparrow and Faraday's
-  recovery wallets write, over random accounts on mainnet and the test
+- Random wallets of the shapes Liana, Nunchuk and Sparrow
+  write, over random accounts on mainnet and the test
   networks: `wsh()` and `sh(wsh())` miniscripts, `multi` and
   `sortedmulti` in `sh()`, `wsh()` and `sh(wsh())`, and `tr()` with
   trees of one to six leaves of `pk`, `pkh`, timelocked keys, `or_d`,
@@ -42,14 +42,6 @@ Poinsot's python-bip380 (`tools/reference/miniscript/`, through
   nSequence and an nLockTime) must spend at each way's keys and waits,
   refuse a block or a height one short of them, and, with every wait passed,
   spend with a set of keys exactly when it holds a way's keys.
-- Recovery wallets in both forms (`faraday_bip::recovery::RecoveryPolicy`:
-  one to three recovery paths of one to three keys each, a primary path, delays
-  of 1 to 65,535 blocks): the script at a random index of either chain is
-  Core's and btclib's, the kind and text are btclib's, the parts read back out
-  (`RecoveryPolicy::from_wallet_policy`) are the parts given, and btclib's
-  satisfaction spends with the primary keys at no wait and with each recovery
-  path's keys at its delay and not a block before, and not one signature short.
-
 python-bip380 writes `v:` over a `multi_a` as `OP_NUMEQUAL OP_VERIFY`
 where BIP 379 and Core write `OP_NUMEQUALVERIFY`, so the corpus has no
 `v:multi_a`; Core's vector of one is checked against Core's script.
@@ -147,9 +139,7 @@ class Miniscript(Area):
         "`faraday_bip::policy::WalletPolicy` (a wallet's descriptor and the script it "
         'pays at an index, its kind, text and spend paths), '
         '`faraday_bip::policy::parse_script_descriptor`, a witness '
-        'script read back as `faraday_psbt` reads one, '
-        "`faraday_bip::recovery::RecoveryPolicy` (a recovery wallet built from its parts and "
-        'read back)'
+        'script read back as `faraday_psbt` reads one'
     )
     reference = (
         "Bitcoin Core v31.1's `bitcoind` on regtest (`deriveaddresses`) for random "
@@ -174,12 +164,11 @@ class Miniscript(Area):
         '(`tools/vectors/miniscript/`)'
     )
     corpus = (
-        'wallets of the Liana, Nunchuk, Sparrow and recovery shapes in `wsh()` and '
+        'wallets of the Liana, Nunchuk and Sparrow shapes in `wsh()` and '
         '`sh(wsh())`, `multi`/`sortedmulti` in `sh()`, `wsh()`, `sh(wsh())`, `tr()` '
         'with trees of one to six leaves or a lone `sortedmulti_a`, over random '
         'accounts on every network, at random indices of both chains; the same made not '
-        'sane, refused; recovery wallets of both forms with one to three recovery paths, '
-        'and the ways each wallet\'s coins move spent at their lock times'
+        'sane, refused; and the ways each wallet\'s coins move spent at their lock times'
     )
     differences = [
         (
@@ -524,97 +513,6 @@ class Miniscript(Area):
             return [build(lo, mid), build(mid, hi)]
         return build(0, count)
 
-    # ----- recovery wallets ----------------------------------------------------
-
-    def recovery_case(self, test):
-        """A recovery wallet built from its parts by `RecoveryPolicy`, in
-        both forms: its script at a random index against Core's and
-        btclib's, its kind and text against btclib's, the parts read back
-        out of it, the ways its coins move by btclib's satisfaction, and
-        what the parts say (the primary keys spend with no wait, each
-        recovery path's keys spend once its delay has passed and not a
-        block before) by btclib's satisfaction too."""
-        rng = self.rng
-        network = network_of(test)
-        count = rng.randint(1, 3)
-        delays = rng.sample(range(1, 65536), count)
-        if rng.random() < 0.2:
-            delays[0] = rng.choice([1, 65535])
-        sizes = [rng.randint(1, 3) for _ in range(count + 1)]
-        accounts = [self.account(test) for _ in range(sum(sizes))]
-        bare = [text[:-len(CHAINS)] for text, _ in accounts]
-        parts, at = [], 0
-        for size in sizes:
-            parts.append({"threshold": rng.randint(1, size), "keys": bare[at:at + size]})
-            at += size
-        recovery = [dict(part, delay=delay) for part, delay in zip(parts[1:], delays)]
-        change = rng.random() < 0.5
-        index = rng.choice([0, 1, rng.randrange(0, 1 << 31)])
-        form = rng.choice(["segwit", "taproot"])
-        inputs = {"form": form, "primary": parts[0], "recovery": recovery,
-                  "change": change, "index": index}
-        got = self.rust.call("miniscript.recovery", **inputs)
-        self.compared += 1
-        if got[0] != "ok":
-            raise AssertionError(f"recovery: refused a valid wallet: {got[1]}")
-        wallet = got[1]
-
-        def agree(what, faraday, reference):
-            if faraday != reference:
-                raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", {what: faraday}),
-                               ("ok", {what: reference}), what)
-        both = btclib.chains(wallet["descriptor"], network)
-        agree("type", wallet["type"], btclib.shape(both[0]))
-        agree("descriptor", btclib.split(wallet["descriptor"]), [btclib.text_of(d) for d in both])
-        agree("script_pubkey", wallet["script_pubkey"],
-              btclib.script_at(wallet["descriptor"], network, change, index))
-        chain = int(change)
-        core = core_text(wallet["descriptor"], accounts, chain)
-        (said,) = core_node.answers([("deriveaddresses", descsum_create(core), [index, index])])
-        if said[0] == "err":
-            raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", wallet),
-                           ("err", f"Core: {said[1]}"), "Core refuses the wallet")
-        agree("script_pubkey", wallet["script_pubkey"], read_on(said[1][0], "regtest").hex())
-        want = {"primary": {"threshold": parts[0]["threshold"], "keys": sorted(parts[0]["keys"])},
-                "recovery": sorted(({"delay": r["delay"], "threshold": r["threshold"],
-                                     "keys": sorted(r["keys"])} for r in recovery),
-                                   key=lambda r: r["delay"])}
-        back = wallet["back"] and {
-            "primary": dict(wallet["back"]["primary"], keys=sorted(wallet["back"]["primary"]["keys"])),
-            "recovery": [dict(r, keys=sorted(r["keys"])) for r in wallet["back"]["recovery"]]}
-        agree("back", back, want)
-        self.spend_check("miniscript.recovery", inputs, wallet, wallet["descriptor"], network,
-                         change, index)
-        self.parts_check(inputs, wallet, network, index, bare, parts, recovery, form == "taproot")
-
-    def parts_check(self, inputs, wallet, network, index, bare, parts, recovery, tap):
-        """btclib's satisfaction of the wallet against the parts it was
-        built from."""
-        one = btclib.chains(wallet["descriptor"], network)[int(inputs["change"])]
-        keys = btclib.keys_of(one, index, network, bare)
-        self.compared += 1
-        if len(keys) != len(bare):
-            raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", {"keys": len(bare)}),
-                           ("ok", {"keys": len(keys)}), "btclib does not name every key")
-        top = max(r["delay"] for r in recovery)
-        position = {key: i for i, key in enumerate(bare)}
-
-        def ask(signing, sequence, expect, what):
-            self.compared += 1
-            got = btclib.spends(one, index, network, keys, signing, sequence, 0, tap)
-            if got != expect:
-                raise Mismatch(self.name, "miniscript.recovery", inputs,
-                               ("ok", {"spends": expect, "keys": signing, "sequence": sequence}),
-                               ("ok", {"spends": got}), f"btclib's satisfaction, {what}")
-        for path, delay, name in [(parts[0], 0, "the primary keys")] + \
-                [(r, r["delay"], "a recovery path") for r in recovery]:
-            have = [position[k] for k in path["keys"]][:path["threshold"]]
-            ask(have, delay, True, f"{name} once their wait has passed")
-            if delay:
-                ask(have, delay - 1, False, f"{name} a block short of their wait")
-            if path["threshold"] > 1:
-                ask(have[:-1], top, False, f"{name} one signature short")
-
     LOOPS = (("corpus", 250),)
 
     def prelude(self):
@@ -623,13 +521,10 @@ class Miniscript(Area):
 
     def case_corpus(self):
         test = self.rng.random() < 0.6
-        pick = self.rng.random()
-        if pick < 0.5:
+        if self.rng.random() < 0.6:
             self.segwit_case(test)
-        elif pick < 0.85:
-            self.taproot_case(test)
         else:
-            self.recovery_case(test)
+            self.taproot_case(test)
 
 
 CHAINS = "/<0;1>/*"
@@ -638,7 +533,7 @@ CHAINS = "/<0;1>/*"
 def core_text(descriptor, accounts, chain):
     """Faraday's descriptor as Core is given it: each account's key
     written as its tpub with the one chain, and any other extended key
-    (the unspendable internal key of a taproot recovery wallet) a tpub
+    (the unspendable internal key of a taproot wallet whose primary needs more than one key) a tpub
     with that chain."""
     for text, core in accounts:
         xpub = text[:-len(CHAINS)].rsplit("]", 1)[-1]

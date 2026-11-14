@@ -6,7 +6,6 @@ use faraday_bip::bitcoin::base58;
 use faraday_bip::descriptor::{descriptor_checksum, reads_as_descriptor};
 use faraday_bip::miniscript::{Descriptor, DescriptorPublicKey};
 use faraday_bip::policy::{WalletPolicy, parse_script_descriptor};
-use faraday_bip::recovery::{Form, Path, Recovery, RecoveryPolicy};
 use faraday_bip::{slip132, xkey};
 use faraday_crypto::work::Compute;
 
@@ -145,8 +144,8 @@ fn a_key_with_a_long_tail_is_refused() {
     }
 }
 
-/// A recovery wallet's key is read alone, not as part of a descriptor, so
-/// no character of a long key divides it.
+/// A key of a Liana-shaped wallet is read alone, not as part of a
+/// descriptor, so no character of a long key divides it.
 #[test]
 fn a_recovery_wallet_with_a_long_key_is_refused() {
     let start = "2".repeat(1020);
@@ -155,14 +154,9 @@ fn a_recovery_wallet_with_a_long_key_is_refused() {
         format!("xpub{start}{}", "(".repeat(LONG)),
         format!("xpub{start}{}", ",".repeat(LONG)),
     ] {
-        let policy = RecoveryPolicy {
-            primary: Path::single(&key),
-            recovery: vec![Recovery {
-                delay: 1000,
-                path: Path::single(XPUB2),
-            }],
-        };
-        assert!(policy.to_wallet_policy(&c(), Form::SegWit).is_err());
+        let text =
+            format!("wsh(or_d(pk({key}/<0;1>/*),and_v(v:pkh({XPUB2}/<0;1>/*),older(1000))))");
+        assert!(WalletPolicy::from_descriptor(&c(), &text).is_err());
     }
 }
 
