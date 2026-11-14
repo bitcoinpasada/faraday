@@ -20,7 +20,9 @@ advisory is not reachable in Faraday, which never decrypts with RSA and
 signs with blinding. Key generation's prime search is not constant time
 (`docs/ESTABLISHED.md` §4.10). 0.10 is still a release candidate, so the
 version is pinned exactly
-(`=0.10.0-rc.18`). Writing RSA key generation by hand (prime search over a
+(`=0.10.0-rc.18`). It moves to 0.10.0 when that is released, or to a
+later release candidate when an advisory names this one, with the Secure
+Boot tests (`faraday-sb`) run on the change. Writing RSA key generation by hand (prime search over a
 big-integer library) was the alternative and is not one.
 
 **Cost.** With `default-features = false` and `sha2` and `encoding`:
