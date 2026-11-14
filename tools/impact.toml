@@ -71,7 +71,7 @@ misses = "Learn pages and the self-test's check names, by rule"
 id = "lint-tokens"
 run = "tools/lint-tokens.sh"
 stage = "just lint"
-catches = "a layout number in widgets; numbers and colours written in screens beyond lint-tokens.counts"
+catches = "a layout number in widgets; numbers written in screens beyond each file's count in lint-tokens.counts, colours in faraday-core beyond its count, any colour in the Starter"
 
 [[check]]
 id = "lint-docs"
@@ -173,7 +173,7 @@ misses = "STANDARDS §9, written by hand; whether a named test tests the row's s
 id = "lint-upstream"
 run = "python3 -I -B tools/lint-upstream.py"
 stage = "just lint"
-catches = "a tracked file other than LICENSE whose bytes name the upstream project (the name read from LICENSE), beyond tools/lint-upstream.counts (F73)"
+catches = "a tracked file other than LICENSE whose bytes name the upstream project (the name read from LICENSE) (F73)"
 misses = "the name spelled with spaces between its words, or abbreviated"
 
 [[check]]
@@ -1042,7 +1042,7 @@ held_by = ["budget-tests"]
 id = "structure.ratchet-raised"
 title = "a ratchet count raised (Faraday's fields, impl Faraday) is the owner's decision, recorded in a decision that names the raised file or token"
 source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md"]
-when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts", "tools/lint-crypto.counts"]
+when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-crypto.counts"]
 rises = true
 names_raised = true
 kind = "pair"

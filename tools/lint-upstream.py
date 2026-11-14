@@ -7,14 +7,11 @@
 The name is read from LICENSE's notice, `Copyright (c) <year> The <Name>
 Authors`, and is written nowhere else, this lint included. A LICENSE
 without that notice names no upstream project: there is then nothing to
-look for, and the counts file must list no file. A file names it
-when its bytes hold the name, or the name without its last capitalised
-word, in any case, its words run together or joined by `-` or `_`. Every
-file git tracks is read, binary files too. `tools/lint-upstream.counts`
-lists the files that may still name it, with how many times; a count only
-falls (raising one is the owner's decision, recorded in DECISIONS), and
-one that falls fails until the file is lowered. A path and a count are
-printed, never the name. Standard library only.
+look for. A file names it when its bytes hold the name, or the name
+without its last capitalised word, in any case, its words run together or
+joined by `-` or `_`. Every file git tracks is read, binary files too, and
+any occurrence fails. A path and a count are printed, never the name.
+Standard library only.
 """
 
 import pathlib
@@ -23,7 +20,6 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-COUNTS = "tools/lint-upstream.counts"
 NOTICE = re.compile(r"^Copyright \(c\) \d{4} The (\S+) Authors$", re.M)
 
 
@@ -36,16 +32,6 @@ def pattern(license_text):
     forms = [words] + ([words[:-1]] if len(words) > 2 else [])
     alts = ["[-_]?".join(re.escape(w) for w in ws) for ws in forms]
     return re.compile(("|".join(alts)).encode(), re.I)
-
-
-def read_counts(text):
-    out = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            path, n = line.rsplit(None, 1)
-            out[path] = int(n)
-    return out
 
 
 def found(root, files, rx):
@@ -61,17 +47,9 @@ def found(root, files, rx):
     return out
 
 
-def compare(hits, allowed):
-    errs = []
-    for f, n in sorted(hits.items()):
-        if f not in allowed:
-            errs.append(f"{f} names the upstream project {n} time(s); F73 allows it in LICENSE only")
-        elif n > allowed[f]:
-            errs.append(f"{f} names the upstream project {n} times, {COUNTS} allows {allowed[f]}")
-    for f, n in sorted(allowed.items()):
-        if hits.get(f, 0) < n:
-            errs.append(f"{f} names the upstream project {hits.get(f, 0)} times: lower it to that in {COUNTS}")
-    return errs
+def compare(hits):
+    return [f"{f} names the upstream project {n} time(s); F73 allows it in LICENSE only"
+            for f, n in sorted(hits.items())]
 
 
 def tracked(root):
@@ -88,10 +66,8 @@ def self_test():
                     (b"Example Thing", 0), (b"ExampleKit", 0)):
         if len(rx.findall(text)) != n:
             fails.append(f"{text!r} should match {n} time(s)")
-    if compare({"a": 2}, {"a": 1}) == [] or compare({}, {"a": 1}) == [] or compare({"b": 1}, {}) == []:
-        fails.append("a count risen, fallen or new passes")
-    if compare({"a": 1}, {"a": 1}):
-        fails.append("a count kept fails")
+    if compare({"a": 1}) == [] or compare({}):
+        fails.append("a file naming the project passes, or a clean tree fails")
     if pattern("Copyright (c) 2026 Someone\n") is not None:
         fails.append("a LICENSE without the notice yields a name")
     for f in fails:
@@ -109,19 +85,15 @@ def main(argv):
     if self_test():
         return 1
     rx = pattern((ROOT / "LICENSE").read_text())
-    allowed = read_counts((ROOT / COUNTS).read_text())
     if rx is None:
-        if allowed:
-            print(f"lint-upstream: LICENSE names no upstream project, so {COUNTS} lists no file")
-            return 1
         print("lint-upstream: ok (LICENSE names no upstream project)")
         return 0
-    errs = compare(found(ROOT, tracked(ROOT), rx), allowed)
+    errs = compare(found(ROOT, tracked(ROOT), rx))
     for e in errs:
         print(f"lint-upstream: {e}")
     if errs:
         return 1
-    print(f"lint-upstream: ok ({len(allowed)} file(s) listed in {COUNTS})")
+    print("lint-upstream: ok")
     return 0
 
 

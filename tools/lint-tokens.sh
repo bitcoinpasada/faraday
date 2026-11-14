@@ -110,58 +110,91 @@ if [ -n "$hits" ]; then
     status=1
 fi
 
-# 2. The screens: no more than the committed counts, and no fewer.
+# 2. The screens: no file above its count; a file below it fails until
+# the count is lowered (`--write` lowers them).
 if [ ! -f "$COUNTS" ]; then
     echo "lint-tokens: missing $COUNTS"
     exit 1
 fi
-# Every crate measured below must have a line: an empty or short counts
-# file fails closed.
-MEASURED="faraday-core faraday-ui faraday-starter faraday-core:colour faraday-starter:colour"
+
+# The files whose numbers are counted: faraday-core's screen files only.
+number_files() {
+    files_of faraday/faraday-ui/src
+    files_of faraday/faraday-starter/src
+    files_of faraday/faraday-core/src | grep -E '(/screen\.rs|/screens/.*)$'
+}
+mapfile -t NUMFILES < <(number_files | sort)
+mapfile -t COREFILES < <(files_of faraday/faraday-core/src)
+core_colours=$(scan_colours "${COREFILES[@]}" | wc -l)
+
+# "path count" for every counted file that has a literal.
+current_counts() {
+    scan "${NUMFILES[@]}" | sed 's/:[0-9]*: .*//' | sort | uniq -c | awk '{ print $2, $1 }'
+    echo "faraday-core:colour $core_colours"
+}
+
+if [ "${1:-}" = "--write" ]; then
+    {
+        echo "# Held by tools/lint-tokens.sh: per file, how many decimal literals it still"
+        echo "# writes in place, and faraday-core's colours written in place. A count"
+        echo "# only falls; tools/lint-tokens.sh --write lowers it."
+        current_counts
+    } > "$COUNTS"
+    echo "lint-tokens: wrote $COUNTS"
+    exit 0
+fi
+
 seen=" "
-while read -r crate want; do
-    [ -n "$crate" ] || continue
-    seen="$seen$crate "
-    case "$crate" in
-        faraday-core | faraday-core:colour) dir=faraday/faraday-core/src ;;
-        faraday-ui) dir=faraday/faraday-ui/src ;;
-        faraday-starter | faraday-starter:colour) dir=faraday/faraday-starter/src ;;
-        *)
-            echo "lint-tokens: $COUNTS names an unknown crate: $crate"
+while read -r name want; do
+    case "$name" in "" | "#"*) continue ;; esac
+    if [ "$name" = "faraday-core:colour" ]; then
+        have=$core_colours
+        what="colours written in place"
+        fix="use a colour role, or name the colour in faraday-ui's palette"
+    else
+        seen="$seen$name "
+        if [ ! -f "$name" ]; then
+            echo "lint-tokens: $COUNTS names a file that is not there: $name"
             status=1
             continue
-            ;;
-    esac
-    mapfile -t SRC < <(files_of "$dir")
-    case "$crate" in
-        *:colour)
-            have=$(scan_colours "${SRC[@]}" | wc -l)
-            what="colours written in place"
-            fix="use a colour role, or name the colour in faraday-ui's palette"
-            ;;
-        *)
-            have=$(scan "${SRC[@]}" | wc -l)
-            what="layout numbers written in place"
-            fix="name the new numbers as tokens in $TOKENS"
-            ;;
-    esac
+        fi
+        have=$(scan "$name" | wc -l)
+        what="layout numbers written in place"
+        fix="name the new numbers as tokens in $TOKENS"
+    fi
     if [ "$have" -gt "$want" ]; then
-        echo "lint-tokens: $crate has $have $what, $COUNTS allows $want; $fix"
+        echo "lint-tokens: $name has $have $what, $COUNTS allows $want; $fix"
         status=1
     elif [ "$have" -lt "$want" ]; then
-        echo "lint-tokens: $crate has $have $what, $COUNTS says $want; lower the number in $COUNTS to $have"
+        echo "lint-tokens: $name has $have $what, $COUNTS says $want; lower it with tools/lint-tokens.sh --write"
         status=1
     fi
 done < "$COUNTS"
-for crate in $MEASURED; do
-    case "$seen" in
-        *" $crate "*) ;;
-        *)
-            echo "lint-tokens: $crate has no line in $COUNTS"
-            status=1
-            ;;
-    esac
-done
+if ! grep -q '^faraday-core:colour ' "$COUNTS"; then
+    echo "lint-tokens: faraday-core:colour has no line in $COUNTS"
+    status=1
+fi
+# A counted file with a literal and no line allows none.
+hits=$(scan "${NUMFILES[@]}" | while IFS= read -r l; do
+    f=${l%%:*}
+    case "$seen" in *" $f "*) ;; *) echo "$l" ;; esac
+done)
+if [ -n "$hits" ]; then
+    echo "lint-tokens: layout number written in a file with no count in $COUNTS; name it in $TOKENS"
+    echo "$hits"
+    status=1
+fi
+
+# 3. The screens' colours. faraday-core keeps a count (above): the few
+# there stand for something outside the theme (a physical die's colour).
+# faraday-starter: none.
+mapfile -t STARTER < <(files_of faraday/faraday-starter/src)
+hits=$(scan_colours "${STARTER[@]}")
+if [ -n "$hits" ]; then
+    echo "lint-tokens: colour written in place in the Starter; use a colour role"
+    echo "$hits"
+    status=1
+fi
 
 if [ "$status" -eq 0 ]; then
     echo "lint-tokens: ok"
