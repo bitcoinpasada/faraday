@@ -1861,6 +1861,12 @@ impl Faraday {
         self.selftest
     }
 
+    /// Run again was pressed and its frame is drawn, the run waiting for
+    /// the tick after (`slow`).
+    pub(crate) fn selftest_running(&self) -> bool {
+        matches!(self.later, Some(Later::Press(Action::SelfTestRun)))
+    }
+
     /// The self-test has run and every check passed.
     ///
     /// Used by faraday-host.
@@ -2415,6 +2421,15 @@ impl Faraday {
                 if self.selftest_failed() {
                     self.sheet = None;
                 }
+                let said = match self.selftest {
+                    Some(Ok(n)) => {
+                        EN.settings_selftest_toast_passed
+                            .replacen("{}", &n.to_string(), 1)
+                    }
+                    Some(Err(check)) => EN.settings_selftest_toast_failed.replacen("{}", check, 1),
+                    None => String::new(),
+                };
+                self.toast(&said);
             }
             Action::Flow(a) => self.flow_act(a),
             Action::Vault(v) => {

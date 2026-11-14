@@ -11916,6 +11916,12 @@ strings! {
     settings_selftest_failed: "failed · {}",
     /// Action that runs the self-test again.
     settings_selftest_run: "Run again",
+    /// The self-test's button while it runs.
+    settings_selftest_running: "Running",
+    /// Snackbar after Run again passed: `{}` is the check count.
+    settings_selftest_toast_passed: "Self-test passed: {} checks",
+    /// Snackbar after Run again failed: `{}` is the check.
+    settings_selftest_toast_failed: "Self-test failed: {}",
     /// Failure title.
     selftest_failed_title: "Self-test failed",
     /// Row label: the check that did not reproduce.

@@ -443,11 +443,19 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         y,
         w,
         BUTTON_H,
-        &[(
-            s.settings_selftest_run,
-            Style::Secondary,
-            Action::SelfTestRun,
-        )],
+        &[if app.selftest_running() {
+            (
+                s.settings_selftest_running,
+                Style::Disabled,
+                Action::SelfTestRun,
+            )
+        } else {
+            (
+                s.settings_selftest_run,
+                Style::Secondary,
+                Action::SelfTestRun,
+            )
+        }],
     ) + 4.0;
     y += institute_note(app, ui, x, y, w);
     y - y0

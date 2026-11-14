@@ -34,6 +34,21 @@ fn the_self_test_passes_at_start_and_settings_runs_it_again() {
 }
 
 #[test]
+fn run_again_says_its_result_in_a_snackbar() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "About");
+    let _ = app.frame();
+    assert_eq!(app.toast_text(), None);
+    app.press(Action::SelfTestRun);
+    let said = format!(
+        "Self-test passed: {} checks",
+        faraday_selftest::CHECKS.len()
+    );
+    assert_eq!(app.toast_text(), Some(said.as_str()));
+}
+
+#[test]
 fn no_key_is_accepted_before_the_self_test_has_run() {
     let mut app = Faraday::new();
     assert_eq!(app.selftest(), None);
