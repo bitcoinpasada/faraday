@@ -50,6 +50,9 @@
 //! pointer argument, which `std` cannot make, and it lives here
 //! because the stick shell has no `unsafe` of its own; the shell keeps no `unsafe`
 //! of its own. It takes a borrowed `File` and returns an `io::Result`.
+//! [`grab_input`] is the other one: `EVIOCGRAB` on an input device, so
+//! that the kernel's own keyboard handling is given nothing of what is
+//! typed.
 //!
 //! # Shape
 //!
@@ -717,6 +720,25 @@ pub fn wait_vblank(fb: &File) -> io::Result<()> {
     ioctl(fb.as_raw_fd(), abi::FBIO_WAITFORVSYNC, &raw mut crtc)
 }
 
+/// Takes an input device exclusively (`EVIOCGRAB`): while this file is
+/// open, the kernel's own handlers (the virtual terminal's keyboard
+/// among them) are given none of the device's events, and only this
+/// reader is. The grab ends when the file is closed.
+///
+/// A file that is not an input device (a regular file given as
+/// `--input`) fails with `ENOTTY`; a device another process holds fails
+/// with `EBUSY`.
+pub fn grab_input(device: &File) -> io::Result<()> {
+    // SAFETY: `device` is a live `File`, so its descriptor is valid;
+    // `EVIOCGRAB` takes its argument by value as an `int`, and no
+    // pointer crosses the call.
+    let r = unsafe { libc::ioctl(device.as_raw_fd(), abi::EVIOCGRAB as _, 1 as libc::c_int) };
+    if r < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
 /// `VIDIOC_QUERYCAP`.
 fn query_cap(fd: RawFd) -> io::Result<abi::Capability> {
     let mut cap = abi::Capability::default();
@@ -817,6 +839,13 @@ mod tests {
 
     /// `find` must not panic or hang on a box with no camera at all;
     /// whether it returns one depends on the box.
+    #[test]
+    fn grab_of_a_file_that_is_not_an_input_device_is_refused() {
+        let file = File::open("/dev/null").unwrap();
+        let e = grab_input(&file).unwrap_err();
+        assert_eq!(e.raw_os_error(), Some(libc::ENOTTY));
+    }
+
     #[test]
     fn find_answers_without_a_camera() {
         let _ = find();

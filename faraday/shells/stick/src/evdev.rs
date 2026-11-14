@@ -11,7 +11,8 @@
 //! `/sys/class/input/eventN/device/capabilities/{ev,key,rel,abs}` and
 //! `…/device/properties`, which the kernel prints as hexadecimal bitmaps.
 //! That is text: no `EVIOCGBIT` ioctl, no `libc` and no `unsafe`, which
-//! is the rule this crate is built under. The four rules are:
+//! is the rule this crate is built under (the one ioctl, `EVIOCGRAB`
+//! when a node is read, is made in `faraday-v4l2`). The four rules are:
 //!
 //! - a **keyboard** reports `EV_KEY` with the letter keys;
 //! - a **mouse** reports `EV_REL` with `REL_X` and `REL_Y`;
@@ -53,6 +54,9 @@ use crate::Wake;
 use crate::keyboard::{Keyboard, Stroke};
 use crate::pointer::Pointer;
 use crate::touch;
+
+/// `ENOTTY`: what the grab of a file that is not an input device says.
+const ENOTTY: i32 = 25;
 
 // linux/input-event-codes.h
 /// Synchronisation events; `SYN_REPORT` ends a packet.
@@ -628,6 +632,17 @@ pub fn read_loop(
     direct: &Direct,
 ) -> std::io::Result<()> {
     let mut file = fs::File::open(&device.node)?;
+    // Taken exclusively, a held-back device too: the kernel's own key
+    // handling (the virtual terminal) is given none of what is typed, and
+    // a passphrase is not queued there. A file that is not an input device
+    // (`--input` on a build box) cannot be grabbed and is read as it is;
+    // an input device that cannot be grabbed is not read, since what it
+    // types would reach the kernel's buffer.
+    if let Err(e) = faraday_v4l2::grab_input(&file)
+        && e.raw_os_error() != Some(ENOTTY)
+    {
+        return Err(e);
+    }
     // Room for a whole packet's worth of events and then some.
     let mut buf = [0u8; EVENT_SIZE * 64];
     let mut held = Vec::new();

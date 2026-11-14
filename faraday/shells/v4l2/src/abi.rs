@@ -292,6 +292,13 @@ const fn ioc(dir: u32, nr: u32, size: usize) -> u32 {
     (dir << DIR_SHIFT) | ((size as u32) << SIZE_SHIFT) | (TYPE_V << TYPE_SHIFT) | nr
 }
 
+/// `EVIOCGRAB`: `_IOW('E', 0x90, int)`, an exclusive grab of an input
+/// device.
+pub(crate) const EVIOCGRAB: u32 = (IOC_WRITE << DIR_SHIFT)
+    | ((size_of::<i32>() as u32) << SIZE_SHIFT)
+    | ((b'E' as u32) << TYPE_SHIFT)
+    | 0x90;
+
 /// `FBIO_WAITFORVSYNC`: `_IOW('F', 0x20, __u32)`, the framebuffer's wait
 /// for the next vertical blank.
 pub(crate) const FBIO_WAITFORVSYNC: u32 = (IOC_WRITE << DIR_SHIFT)

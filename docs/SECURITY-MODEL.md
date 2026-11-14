@@ -168,7 +168,8 @@ internal error rather than carrying on.
   when Faraday started, is ignored until it types a random code shown on the screen, and until it is unplugged if
   it types three codes' worth of letters without it; after three such
   keyboards, new ones are ignored until Faraday starts again. A held device asks only once it is used, and one that never acts is
-  never believed. What is plugged in while Faraday starts is trusted, as
+  never believed. Every keyboard and pointer is read exclusively by Faraday while it runs, a held one too, so
+  the kernel's own terminal is given none of what is typed. What is plugged in while Faraday starts is trusted, as
   the person chose it, and one notice lists the external USB devices for
   10 s, which only its × or Escape from a trusted keyboard dismisses, never a held device (F202). A held device used while the lock notice
   after an idle lock shows takes the screen with its sheet, the notice
