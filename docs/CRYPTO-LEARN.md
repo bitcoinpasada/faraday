@@ -658,35 +658,7 @@ and every value wraps.
 Field labels and the action's name, for `faraday/faraday-strings/src/en.rs`
 (each a key of its own, as the bar's ? and its ⋮ row are, `tip_guide`
 and `bar_menu_guide`). They are added with the code that draws them:
-the strings lint fails a key no code names.
-
-| Key | Value | Where |
-|---|---|---|
-| `tip_how` | Cryptography | The bar's button's tooltip, Faraday and the Starter |
-| `bar_menu_how` | Cryptography | The ⋮ row on a compact bar, Faraday and the Starter |
-| `guide_tab_how` | Cryptography | The Learn sheet's and pane's first tab |
-| `starter_how_title` | Cryptography | The Starter's sheet's head |
-| `starter_how_close` | Close | The Starter's sheet's foot |
-| `how_field_action` | Action | §1 |
-| `how_field_standards` | Specification | §1 |
-| `how_field_implementation` | Code | §1 |
-| `how_field_checked` | Checked against | §1 |
-| `how_field_crosscheck` | Cross-check | §1 |
-| `how_field_code` | Source | §1 |
-| `how_field_secret` | Secret handling | §1 |
-| `how_field_limits` | Limits | §1 |
-| `how_field_own_calls` | Faraday's own calls | §1 |
-| `how_cc_area` | Area | Cross-check's parts (§8.5) |
-| `how_cc_code` | Faraday's code | Cross-check |
-| `how_cc_second` | Compared with | Cross-check |
-| `how_cc_vectors` | Vectors | Cross-check |
-| `how_cc_random` | Random cases | Cross-check |
-| `how_cc_differences` | Differences | Cross-check |
-| `how_cc_when` | When it runs | Cross-check |
-| `how_cc_last_run` | Last passing run | Cross-check |
-| `how_cc_seed_cases` | Seed {} · {} cases | Last passing run's value; `{}`: the seed, then the area's case count |
-| `how_code_entry` | {} · {} · {} | One Code entry; `{}`: the release, the file, the function |
-| `how_repository` | github.com/bitcoinpasada/faraday | The Source field's last entry |
+the strings lint fails a key no code names. The keys are in `en.rs`, prefixes `how_`, `starter_how_`, `tip_how`, `bar_menu_how` and `guide_tab_how`.
 
 The values are the manifest's and the cross-check's, carried by
 `faraday-guide` (§1), not strings of this file.

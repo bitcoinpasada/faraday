@@ -156,7 +156,7 @@ fn path_text(path: &faraday_psbt::bitcoin::bip32::DerivationPath) -> String {
         .join("/")
 }
 
-/// The register sheet (`docs/FLOWS.md`, Spend): DESIGN §4.13's dialog
+/// The register sheet (`docs/SPEND-FROM-BACKUP.md` §8): DESIGN §4.13's dialog
 /// with the wallet's shape (left out over the small panel's keyboard, so
 /// the field shows above it), the name field, the refusal when the last hold found one, a
 /// line per cosigner (fingerprint and path in the mono face, "Yours"

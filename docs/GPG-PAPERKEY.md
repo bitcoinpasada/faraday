@@ -483,50 +483,7 @@ certificate. Restore does not ask for the time first (decision 58).
 
 ### 7.3 Strings
 
-In `faraday/faraday-strings/src/en.rs`, prefix `gpg_restore_`:
-
-| Name | Text |
-|---|---|
-| `gpg_restore_action` | Restore from a paperkey |
-| `gpg_restore_files_action` | Restore from its paperkey |
-| `gpg_restore_title` | Restore a GPG key |
-| `gpg_restore_none` | Copy its public key in on a stick visit first. |
-| `gpg_restore_scan` | Scan the public key |
-| `gpg_restore_public_key` | The public key |
-| `gpg_restore_line_one` | Line 1 of its paperkey |
-| `gpg_restore_card` | Type the paperkey |
-| `gpg_restore_line` | Line {n} |
-| `gpg_restore_line_of` | Line {n} of {total} |
-| `gpg_restore_checked` | Line {n} · checked |
-| `gpg_restore_next` | Next line |
-| `gpg_restore_again` | Type line {n} again |
-| `gpg_restore_button` | Restore the key |
-| `gpg_restore_into` | Restored into {vault} |
-| `gpg_restore_set_aside` | {n} signatures by other keys are not kept |
-| `gpg_restore_chars` | Only 0–9, A–F, spaces and the line's number |
-| `gpg_restore_number` | This is line {n}, not line {m} |
-| `gpg_restore_crc` | CRC on line {n} does not match |
-| `gpg_restore_crc_all` | CRC of secret does not match |
-| `gpg_restore_other_key` | This paperkey is for key {fpr} |
-| `gpg_restore_other_subkey` | This paperkey's subkey is {fpr} |
-| `gpg_restore_count` | The paperkey holds {n} keys; the public key has 2 |
-| `gpg_restore_protected` | Protected by a passphrase: Faraday restores keys with none |
-| `gpg_restore_unreadable` | The paperkey's secret does not read |
-| `gpg_restore_mismatch` | The secret does not match the public key |
-| `gpg_restore_not_ours` | Not a certificate Faraday made for this key |
-| `gpg_restore_algorithm` | {algorithm} keys are not restored here: Faraday's are Ed25519 |
-| `gpg_restore_version` | Version {v} keys are not restored here |
-| `gpg_restore_shape` | Not a key of Faraday's shape: an Ed25519 key with one Ed25519 signing subkey |
-| `gpg_restore_no_user_id` | The public key has no user ID |
-| `gpg_restore_in_vault` | This key is in {vault} |
-| `gpg_restore_format` | This paperkey is in format {v}; paperkey writes format 0 |
-| `gpg_restore_not_public` | Not a public key Faraday reads |
-| `gpg_restore_scan_paperkey` | Scan the paperkey |
-| `gpg_restore_not_paperkey` | Not a paperkey |
-| `gpg_restore_crc_missing` | CRC of secret is missing |
-| `gpg_restore_after` | Line {n} comes after the CRC of secret |
-| `gpg_restore_too_fine` | Too fine for this camera: bring it closer, or type the paperkey |
-| `code_view_paperkey` | {name} · Paperkey |
+In `faraday/faraday-strings/src/en.rs`, prefix `gpg_restore_`.
 
 The revoked line reuses the key page's. The Learn page carries the why
 (§9).

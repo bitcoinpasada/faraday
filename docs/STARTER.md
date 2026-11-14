@@ -192,8 +192,8 @@ samples compiled in (F126, §5.3).
   desktop shell; both run on Windows), the image finder and the built-in image list, and one module per
   operating system for what differs: listing disks, writing them,
   installing, reading this computer's facts, restarting into firmware.
-- **Transfer and Learn are the desktop app's own screens.** The
-  Starter holds a `Faraday` in online mode, limited to Transfer and Learn,
+- **Transfer and Guide are the desktop app's own screens.** The
+  Starter holds a `Faraday` in online mode, limited to Transfer and Guide,
   and draws it under its own top app bar when one of them is open
   (§3.1d); Back returns to the Starter's page it was opened from. The desktop app's `--transfer` already opens it this way. The Starter
   checks that `faraday-core` can be held this way and adds what is
@@ -210,7 +210,7 @@ samples compiled in (F126, §5.3).
   descriptor udisks2 hands back is what the Starter writes, flushes,
   reads back from and `Block.Rescan`s. polkit decides whether a
   password is asked for (`org.freedesktop.udisks2.open-device`); what each distribution tried
-  asks is recorded, and the Learn page
+  asks is recorded, and the Guide page
   says a password may be asked. A distribution without udisks2 gets
   one line, "This computer cannot write a stick from here", and the
   README's plain-image route. The v0.1 path (`pkexec <its own path>
@@ -423,7 +423,7 @@ copy of the Starter; the destinations (§3.1d) hold the rest:
   a secondary button.
 
 Nothing else is on Home: Make a Pi card, Transfer, Blank templates and
-Learn are destinations (§3.1d), About and Uninstall are in the top app
+Guide are destinations (§3.1d), About and Uninstall are in the top app
 bar's ⋮ menu.
 
 ### 3.1a Screens that can keep what they show (owner, 2026-10-12)
@@ -467,7 +467,7 @@ inert while Faraday runs; and USB video capture cards, which the stick
 does bind as a camera (UVC, for the QR scanner) but which carry what
 is plugged into them, not what Faraday shows, to a computer with no
 network. Naming them would confuse. Not
-detectable, and said once on the Learn page: a passive HDMI splitter,
+detectable, and said once on the Guide page: a passive HDMI splitter,
 a keylogger inside a cable or keyboard, a camera pointed at the
 screen.
 
@@ -480,7 +480,7 @@ shows: use another screen or computer."). A screen read as a TV that
 is not one can be let through once per session with **Continue
 anyway**, which asks once and names the item, and lets it through only
 with **Hold to continue** under the case it is for, "Only for a screen
-or switch that is your own, in front of you." (F136). The Learn page
+or switch that is your own, in front of you." (F136). The Guide page
 "Screens and devices that can record" says why.
 
 On the stick, Faraday has no graphics driver (DRM is forbidden; the
@@ -520,7 +520,7 @@ receiver plugged in later) comes at the next secret.
 
 Wherever the Starter shows Secure Boot (Home's Turn Secure Boot back
 on, the Start page) a small link, **What Secure Boot and BitLocker
-are**, opens the Learn page of that name (id `secure-boot-bitlocker`):
+are**, opens the Guide page of that name (id `secure-boot-bitlocker`):
 what each is and what it guards against; why starting Faraday from a
 stick puts neither the computer nor its data at risk (the stick's
 kernel has no driver for the computer's own drives, SATA, NVMe or
@@ -537,7 +537,7 @@ backup.
 
 The Faraday stick entry that Restart from the stick makes (§3.1) is
 explained by a link on its confirmation, **About the boot entry**
-(Learn: what an entry in the firmware's boot list is, that this one
+(Guide: what an entry in the firmware's boot list is, that this one
 is never in the boot order and starts only when asked, and that it
 names Faraday to anyone who lists the firmware's entries). Once the
 computer is back from a Faraday session, Home offers **Remove the
@@ -677,7 +677,7 @@ as Faraday's own pages do (`Motion`, `docs/MOTION.md` §3.3,
 `faraday-starter` `scroll.rs`); a touch while it coasts only stops it.
 It asks for frames only while it moves (`docs/SPEED.md` §12). A sheet
 scrolls by its own offset, from its top each time it opens, so the
-page under it keeps its place and its frosted copy. Transfer and Learn
+page under it keeps its place and its frosted copy. Transfer and Guide
 are Faraday's own screens and scroll as they do. The window
 (`faraday-window` `input.rs`, Faraday Demo's too) gives a
 touchscreen's first finger as the press on Wayland, X11 and Windows,
@@ -708,11 +708,11 @@ under the pointer, and a page grown shorter while at its end shows its
 end.
 
 **Pages inside a task** (§3.2's steps, §3.4, §3.5, §3.7, §3.8's pages,
-and Transfer and Learn's own screens) are not destinations: they keep
+and Transfer and Guide's own screens) are not destinations: they keep
 the top app bar with a back arrow and the page's name in place of the
 wordmark, and the rail or the bar is not drawn, so a write in progress
 cannot be left by a press beside it. Back lands on the destination and
-the scroll it was opened from (F77). Transfer and Learn are the
+the scroll it was opened from (F77). Transfer and Guide are the
 desktop app's screens (§2), drawn in the space under the top app bar.
 
 **Nothing stretches to fill the window** (Material 3, owner
@@ -763,7 +763,7 @@ space under the Starter's top app bar (`Starter::compose`, which copies
 the held app's pixels in with `Canvas::place`): the held `Faraday` is
 told the size of that space, and a press, a finger's drag, a hover or a
 turn of the wheel over it reaches it at its own corner. Held, it draws no way back of its
-own and its Learn sheet is the page, with no box and no Done
+own and its Guide sheet is the page, with no box and no Done
 (`Faraday::held`); Back and Escape still take its way back. Transfer,
 and a start guide opened from a page's link or from the Guide, are task
 pages with the way back in the top app bar and neither the rail nor the
@@ -839,7 +839,7 @@ Downloads.
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
      settings, is not read and not written. One line under it states
-     the fact the Learn page explains (§4.4). F2 and F5's rules
+     the fact the Guide page explains (§4.4). F2 and F5's rules
      apply (owner, D15): the same build as the
      stick already holds (the same build string and a boot partition
      that is exactly the release's, F244) is refused with the reason; an older Faraday
@@ -1066,9 +1066,9 @@ the settings file among them once it holds a text size (§5.2), with
 **Uninstall**, which asks once ("Removes the files listed. Received
 files and Faraday Demo's sticks stay."). §5 says what each does.
 
-### 3.6 Transfer and Learn
+### 3.6 Transfer and Guide
 
-Transfer is the desktop app's screen, and the start guides are its Learn
+Transfer is the desktop app's screen, and the start guides are its Guide
 pages (§2); the Guide destination that lists them is the Starter's own
 (§3.1d). On Windows, Transfer offers Send,
 Send text and Receive; Receive reads the camera through Media Foundation (§8).
@@ -1077,7 +1077,7 @@ Send text and Receive; Receive reads the camera through Media Foundation (§8).
 
 Text size: Standard, Large, Larger, as Faraday's (`docs/TEXT-SIZE.md`
 §6, F85), a row at the top, its label beside the sizes or over them on
-a compact window: the Starter's pages, its held Transfer and Learn and
+a compact window: the Starter's pages, its held Transfer and Guide and
 Faraday Demo inside it drawn at once at the size chosen, the layout
 stepping down a class for it (§3.1d). Version; each image of the built-in list with its build ID and SHA-256; the release
 key's fingerprint as the README prints it; how to check the Starter
@@ -1273,7 +1273,7 @@ unchanged.
   card's boot files about 16 MB of its 64 MiB; the rest is
   room for later versions to grow. The 128 MiB data partition is
   storage for files (vaults, PSBTs). That explanation is in the README
-  and the Learn pages, not on a working screen.
+  and the Guide pages, not on a working screen.
 - A disk is dimmed, not hidden, when refused, with the reason in one
   line, so the person sees why their disk is not offered.
 
@@ -1299,7 +1299,7 @@ the release's, its serial included (`docs/STICK-IDENTITY.md` §4.4). The fact th
 stick into this computer is what exposes it: the computer can read and
 write the data partition whatever the Starter does, and Windows mounts
 it with a drive letter. The vaults there are encrypted; the settings
-file is not. The Learn page "Replacing Faraday on a stick" says this.
+file is not. The Guide page "Replacing Faraday on a stick" says this.
 Keep data is how a Faraday stick is upgraded: Faraday itself writes no
 boot partition, and the Starter checks every image against the
 release's image list before it writes it (F128).
@@ -1539,7 +1539,7 @@ against that list, and staging refuses a release folder that holds a `faraday-de
 **Size.** Faraday Demo's own code and the samples are compiled into the
 Starter (the Demo's 5.6 MB `.xz` was measured on
 2026-10-23, when a payload still carried images); most of what the Demo runs, `faraday-core`, was in the
-Starter already for Transfer and Learn. The Starter's release size is
+Starter already for Transfer and Guide. The Starter's release size is
 measured at the next release build.
 
 **Tests** (§11): Open Faraday Demo shows the Demo under the Starter's
@@ -1727,7 +1727,7 @@ Moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.7 The guides' new text
 
-Applied in the Learn pages, since removed (the guides are compiled into
+Applied in the Guide pages, since removed (the guides are compiled into
 every app, so the pages change with the code that reads them).
 
 - **The last step, everywhere.** In the Windows, Linux and maker pages
@@ -1828,10 +1828,10 @@ kind of Mac it is (T2, 32-bit firmware, the Apple chip) comes from the
 Starter's table of model identifiers (MAC §7), on any system running on a
 Mac.
 
-### 7.2 The guides are Learn pages
+### 7.2 The guides are Guide pages
 
-Each guide is a Learn page in `docs/guide/start/`, round-tripped
-into `faraday-guide` as every Learn page is. The Starter
+Each guide is a Guide page in `docs/guide/start/`, round-tripped
+into `faraday-guide` as every Guide page is. The Starter
 carries them (`faraday-starter`'s `start_pages`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:
@@ -1877,7 +1877,7 @@ Each button asks once ("This restarts the computer now. Save your work first."),
 The website publishes each guide at
 `https://faradayoffline.app/start/<page>`; the Starter shows that
 address as a QR code beside the guide. The website's build is the
-website repository's work, from these Learn pages.
+website repository's work, from these Guide pages.
 The address is the only one the Starter contains.
 
 ### 7.5 The stick reminds
@@ -1910,7 +1910,7 @@ on before starting Windows." until F33).
 - **The rule on working screens.** A working screen carries labels,
   values and actions. This line is the action the person takes next,
   said at the moment of the press, in one sentence with no reason, as
-  F1's line of fact on the boot import sheet is. The reason is in Learn
+  F1's line of fact on the boot import sheet is. The reason is in Guide
   (§3.1b) and in the guide behind the code.
 
 **How it is read.** The stick reads the Secure Boot state from

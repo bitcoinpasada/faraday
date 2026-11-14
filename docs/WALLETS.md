@@ -732,3 +732,507 @@ Moved to `docs/history/WALLETS-LOG.md`.
 ## 10. Decided 2026-10-04
 
 Moved to `docs/history/WALLETS-LOG.md`.
+
+## 11. Rules the flows file held
+
+The rules below were kept in `docs/FLOWS.md` and are held here; each is the
+rule of its flow.
+
+- **Every way in reaches a wallet card** (`docs/WALLETS.md` §2) that says what
+  the wallet is, which keys can sign here, how many signatures the
+  transaction has and needs, and the one thing still to do.
+- **A `tr()` wallet states who can spend by the key path** (F132,
+  `docs/WALLETS.md` §3.4) on its card, on Make a new wallet's Check and,
+  for a key not of the wallet, on a sheet that takes a hold before the
+  wallet is added and as a caution on every spend from it.
+- **A transaction never stops at "can't sign"**: a missing key opens **Scan
+  a key**, which takes any of the wallet's missing keys (below); a
+  missing signature opens **Collect**; a missing wallet opens **Load the
+  wallet**.
+- **Signing ends on two results**, the signed PSBT for the wallet that wrote
+  the transaction and the finished transaction with its txid, each shown as
+  a code and put For the stick the moment the transaction is finished and
+  its Review gone through, also when it arrived signed elsewhere
+  (decision 24): Finish's primary is **Insert a stick to write it**
+  (opening Files), or **Open Files** with a stick in, and each result's
+  card carries **Remove** while it waits.
+- **Anything added in a session offers Save to vault**, and locking lists
+  what was not saved.
+- **Creating a wallet ends in Backup and Save**, never on the descriptor
+  alone.
+- **Wallets with something loaded is the list and the card alone**
+  (decision 12): every job (Sign a transaction, Back up, Show wallet QR,
+  Sign a message) is reached from the wallet card, opened from a
+  wallet's row, and from Tools. Wallets' ways in are Make a new wallet,
+  Restore an existing wallet, **Spend from a backup, step by step**
+  (offered with wallets loaded as well; the Spend tab lights **Wallets**
+  in the sidebar) and last **Add a key**, "Keys first, wallets later"
+  (decision 50).
+- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98, F240; `docs/CODEX32.md` §6.9, §14 D5).
+  A single key's cards are Kind · Backup · Use vaults · Keys · Check; a
+  multisig's Kind · Quorum · Use vaults · Keys · Check, **Back up
+  wallet** at Check's foot for both. The flow opens on Kind, open, no row
+  ticked (owner, 2026-11-09). Kind asks only who signs: **Single key**
+  ("One key signs") and **Multisig** ("3 keys, any 2 sign", the
+  quorum's counts), both native SegWit; the address types (Single key
+  Taproot, nested, legacy; Multisig nested, legacy, Taproot) and MuSig2
+  are behind **More kinds**. A kind pressed closes Kind and opens the
+  next card, the one pressed again too. Next waits until a row is
+  chosen; a Tools tile that opens Create with a kind chosen ticks it.
+  Use vaults' **Yes** opens How many, **No** opens Keys; closed before
+  it is answered it reads "Not answered".
+- **A single key's Backup card** (F240; `docs/CODEX32.md` §6.9, §14 D5).
+  A single key of any address type has a **Backup** card after Kind with
+  **Words (BIP-39)** ("12 to 24 words on paper") and **Shares
+  (codex32)** ("The key in shares on paper, a few of them rebuild it"),
+  nothing ticked; a row pressed closes it and opens the next card (F103),
+  Next waits until one is chosen, and closed it reads the form's name or
+  "Not answered". An info button follows "(codex32)" in the Shares
+  row; it and the word carry a tooltip (DESIGN §4.12, Tooltip; F112):
+  "codex32 is the only method that makes a seed and its shares fully by
+  hand, the checksum included." Keys stays closed until Backup is
+  answered. A wallet made from another (New wallet from this one) has no
+  Backup card. There is no shares Quorum: the codex32 scheme is asked on
+  Make codex32 shares' own Scheme card. On chain the wallet is what the
+  address type makes, one descriptor, one xpub. Check has a **Backup**
+  row, "codex32 w0za · 2 of 3", for a key made here as codex32 shares,
+  whatever its address type. Back up opens on codex32's standard way,
+  one string per place on paper (`docs/CODEX32.md` §9.5; that way is
+  planned). Restore does not offer the choice. Every kind whose path has an
+  account has an **Account** row, at the foot of Quorum under the
+  quorum's line, or at the head of Keys for a kind with no Quorum card:
+  "Account" and its number, starting at 0, with **Change**, which opens
+  the − n + stepper in its place. The card that carries it says the
+  account on its closed line ("2 of 3 · account 1") when it is not 0.
+  Keys' **Make the wallet** makes it; Check shows the descriptor as a
+  summary row that opens its code with the whole text under it, a
+  **Path** row under it with **Change** (which takes the made wallet
+  back and opens the Account row's card on its stepper), and the
+  section label **The wallet's first addresses**
+  above the address rows, so that a multisig's three rows do not read as
+  one address per key; its press reads **It matches**, which leaves
+  Check open with **Back up wallet** at its foot. There is no Back up
+  card (owner, 2026-10-26): **Back up wallet** opens the backup on the
+  new wallet (its chip "Then: Wallets", its way back the wallet's card)
+  on The standard way. A single key made here is checked as it is made:
+  Lock in opens Check with **Back up wallet** at its foot.
+- **The Keys card** (decisions 35, 36 and 39). Where it would offer
+  one way on only (a single key's empty slot with no key in the
+  session, no key or wallet file in the Inbox, offered or refused, and no vault's key; F115, F240), the Continue on the
+  card before it opens that key flow for slot 1 in its place; Keys
+  stays in the list of steps, not done, and is done with the key once
+  it is locked in (owner, 2026-10-24). A multisig, or a slot with more
+  than one choice, shows the card. A key loaded here that
+  fills one slot, or a cosigner's file whose key fills one slot, is not
+  offered for any other slot; clearing the slot offers it again. A code
+  scanned while a multisig's slot waits for a cosigner (one marked for
+  later, else the first empty) fills it with an account key (an xpub
+  file, a BIP 129 key record, a SLIP-132 key, a single-key JSON) or a
+  descriptor that names one key, with its fingerprint and path, at the
+  kind's derivation (any account) and, for a descriptor, under its
+  script type, the path's coin type its xpub's network and that network
+  the session's. A key with no origin or at another path is never taken
+  for a slot, from a scan or from Files, since its path would be a
+  guess; a descriptor of several keys is not split. What cannot be the
+  slot's key (no origin, another kind or network, no key for the kind, a
+  checksum that does not hold) stays in Files, the toast naming why;
+  a key or wallet file in the Inbox that cannot be a slot's key is still
+  listed on the card, disabled, with its reason under its name (a key
+  with no origin: it needs its fingerprint and derivation path, which
+  most wallets export), and a single key's card with such a file is
+  shown, not passed over. While a
+  slot is empty there is no button at the foot: the first empty slot's
+  own **New key** leads; once no slot is empty the foot reads **Make the
+  wallet**. A slot
+  filled by a key loaded here from BIP-39 words with no passphrase has
+  **Add a passphrase** (beside Show xpub QR on a multisig, on the slot's
+  own row on a single key): **Passphrase**, **Passphrase again** and
+  **Lock in** under the slot; Lock in adds the key the words and that
+  passphrase make, labelled as the first with " · passphrase", puts it
+  in the slot with a **Locked in** tag, and leaves the first key loaded.
+  A key with a passphrase already, a cosigner's xpub, a share, and a key
+  from SLIP-39, codex32 or a bare seed have no such button.
+- **Sign a transaction reviews the transaction before Check** (decision
+  19): the Transaction card comes before Check, carries the txid as one
+  of its rows, and Check stays closed once a wallet has been checked this
+  power-on.
+- **Sign a transaction's review shows a fee bump** (F233): on the
+  Transaction card, after the fee and before the warnings, the section
+  "Fee bump" appears when Files holds another transaction spending the
+  same inputs. It gives the result line, its lines, its facts and
+  **Compare**, and does not stop signing (`docs/COMPARE.md` §4.2).
+- **The wallet card's first button** (decisions 43 and 45), primary, is
+  **Spend from this wallet**; **Sign the PSBT from the stick** with a
+  PSBT for this wallet in Files, which opens its review at once; **Carry
+  on the spend · Signatures 1 of 2** while this wallet's spend is under
+  way, as Home's lead says too; **Finish the backup first** while a key
+  made here waits for its backup. Spend from this wallet opens the Spend
+  tab on the wallet, past What do you have? (`docs/history/SCAN-TO-SIGN.md` §4):
+  **Load the wallet in Sparrow** (the wallet QR, receive address 0, **It
+  is loaded**; done already for a wallet checked this power-on) with **I
+  have the PSBT from Sparrow ready: Scan it** over it, then **Write the
+  payment in Sparrow** (**Scan the PSBT**, **On a stick**, this wallet's
+  PSBTs in Files), then the spend's steps. Who signs, with fewer keys
+  here than sign, offers **Scan a key**, its Unlock buttons and **Collect
+  a signature**, which opens The other signatures. On a small panel the
+  card's spend button sits under the signatures box, and the shortcut is
+  its line and **Scan it**.
+- **Scan a key; Can spend** (decision 57, `docs/history/SCAN-TO-SIGN.md` §2–§3).
+  Where a wallet is short of keys, one **Scan a key** opens the camera at
+  once, titled "Scan a key for {wallet}", a line per missing key ("Key 2
+  · 5d388376", and " · {place}" where the backup's plan keeps that
+  seed), with **Type the words instead** and Cancel. A seed whose key
+  with no passphrase is a missing key loads at once, with no passphrase
+  question: the camera stays on with "Key 2 added · 1 more" while more
+  are needed, else closes with the toast "Key 2 added · Can spend". A key
+  already here says "Key 1 · already here"; a seed of no key of the
+  wallet closes the camera and opens the passphrase sheet (SeedQR read)
+  with "{fp} is not one of {wallet}'s keys", which takes only a
+  passphrase giving a missing key and refuses another with the same
+  line; anything else shows on the read card, as at Scan a SeedQR ("A wallet
+  description", **Load the wallet**). A codex32 string or a SLIP-39
+  share opens its form in "Add a key for {wallet}" with the part in,
+  which takes the key once whole only as one of the wallet's keys. **Type the
+  words instead** opens "Add a key for {wallet}", which refuses words of
+  no missing key with "These words give {fp}, not a key of {wallet}". A
+  key loads under its holder's name where the plan keeps one, else none;
+  a name that is the fingerprint is never drawn beside it. Scan a key is
+  on the wallet card's signatures bar in place of "Add 1 more key or
+  collect 1 more signature" (full width under the line on a small
+  panel), on the Wallets column as **Scan a key for {wallet}** in place
+  of **Add a key** while the wallet shown is short, and on Who signs (the
+  Spend tab's and Wallets' Sign step). A wallet with enough keys here to
+  sign shows a green **Can spend** on the card's bar (in place of
+  "Nothing missing"), on Who signs beside "{here} of {needed} signatures
+  here", and at the right of its Wallets row, whose sub-line is then its
+  shape alone; the small panel's list and Home's say "Can spend · 2 of
+  2". Short, Who signs says "1 of 2 signatures here · 1 more needed" and
+  a key not here **Not here**; its Scan a key, Unlock and Collect a
+  signature show only while short, or, for a miniscript or tree wallet,
+  until the spend is signed.
+- **The backup comes before spending** (decision 45, F6). Back up's
+  checklist: an item's foot button is its next action (a vault item's
+  **Make a vault** or the way to one, then one **Save into {vault}**
+  that saves every seed, passphrase and the description the plan puts
+  there, then **Continue**; a copy's **Check my copy**, which types the
+  words back for a words copy and scans a SeedQR copy; files' **Make
+  it**), and the items after one not done do not open. A plan waits
+  while a vault's stick has no place ("Vault 1's stick needs a place");
+  a plan that keeps no copy of a key made here is not made into a
+  checklist ("Seed {fp} is kept nowhere"); **Change the plan** stays
+  under every item, and done work the new plan drops stays on the map. A
+  key made here signs once its checklist is complete: the wallet card's
+  first button is **Finish the backup first**, Who signs lists it
+  **Waiting for its backup** with **Finish the backup**, and the card's
+  address, Create's Check, the Key card's address and the chart's wallet
+  node say "Back up before you receive". The done card, the wallet card
+  and the open vault lead with the plan's three checks as a strip above
+  the chart.
+- **Shares and vaults in a plan** (decisions 40 and 41). A multisig's
+  shares take **Keys left off each share**, a slider from 0 to m − 1,
+  then the shares' fingerprints and the split audit, with **What is a
+  share?** opening Learn on *Shares of a wallet description* (closing
+  Learn leaves the plan where it was); the checklist's Shares card has
+  the same slider. Each vault of a plan holds the seeds ticked into it,
+  vault *v* the *v*th seed by default, a seed in more than one where
+  ticked; each vault's stick has a place, by default one that adds no
+  second key. The map names each vault ("Vault 1 · 9a6a2580"). The
+  checklist has one item per vault, **Vault 1: 9a6a2580**, which makes a
+  vault and saves its seeds and the wallet; an open vault holding
+  another vault's seed is not offered there (**Lock it and make a new
+  vault**). A stick visit with several vault files waiting ticks one.
+- **Create's Keys card offers the open vaults' keys** (owner,
+  2026-10-19; F45; `docs/history/NEW-WALLET.md` §16.1). Under each slot's
+  session keys, each open vault's keys not loaded, under the vault's
+  name (a key in another slot is not offered); a press loads that one key as Load into session does
+  and fills the slot, the vault staying open. A locked vault whose file
+  is read is one **Unlock {vault}** button, coming back to the Keys card
+  with the vault open and nothing loaded.
+- **New wallet from this one** (owner, 2026-10-19; F45;
+  `docs/history/NEW-WALLET.md` §16.2). A wallet's card offers it beside
+  Rename (on a small panel, in its list of buttons) for every kind
+  Create makes. It
+  opens Create filled from the wallet: Kind and Quorum closed with their
+  values, the **Account** row (on Quorum, or at the head of Keys, as for
+  any new wallet) starting at the lowest account no loaded wallet of the
+  same keys and kind uses; each
+  slot its key, loaded from an open vault where it is kept there; a
+  cosigner's key held only as an xpub stays at the wallet's own account
+  and script type, and otherwise its slot is Someone else reading
+  "Needs Key n's xpub at account n". Use vaults is asked as for any new
+  wallet; the name proposed is "{wallet} · account n" ("{kind} · account
+  n" once the kind changed). The wallet it came from is not changed.
+- **The backup starts with a plan, then a checklist of only what it
+  needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). The
+  plan opens on The standard way, on the board, with **Add watch-only
+  software** and **Customize backup** (F53, `docs/BACKUP-FLOW.md`
+  §17.21; the three presets Paper only, Paper and vault, and Paper,
+  vault and watch-only software are withdrawn). Before F53 the presets
+  filled the plan's questions, each a multi-choice
+  list (DESIGN §4.2): where the seeds go, the places (how many, share or
+  whole sheet, which keep the vault's stick, their names with a vault
+  open), where the wallet description goes, the software and form, each
+  passphrase's places. Beside them the map (one box per place, the
+  vault, a stick of files, the software, the seeds on their own
+  devices, each tagged secret, sealed or public) and the check: "Any one
+  place lost: the rest rebuild the wallet", "One place found: can
+  spend", "One place found: sees the balance", qualified "with the
+  vault's passphrase" where the vault is what decides it. **Make the
+  checklist** replaces the questions with only the items the plan needs,
+  each done by what it does (a file For the stick or written, a seed or the wallet
+  in the vault, a copy matched, the descriptor shown); the envelopes
+  alone by **Done**. A place's name lives only in the vault (record
+  type 11, `docs/VAULT.md` §7), which the next backup of the wallet
+  starts from; no file, sheet, PDF or PNG holds one, and
+  the blank template carries empty "Place ____ holds ____" lines
+  instead. On a small panel: one question per page, the map as the
+  plan's last page and in the envelopes item.
+- **A seed's backup: by hand, into a vault, a file only past the secret
+  sheet** (owner, 2026-10-09; `docs/WALLETS.md` §5 step 3). Paper stays
+  first: a copy item per seed; the vault item has **Save into {vault}**
+  (and "with its passphrase" when loaded with one) under each seed; the
+  files item **Save as a file…**, which opens the secret sheet for the
+  seed. The same on a small panel.
+- **The backup says where each seed is kept** (owner, 2026-10-09;
+  `docs/WALLETS.md` §5). The map on the side panel marks each line
+  with its item's state; the copy page on a small panel lists the wallet (in which open vault, or
+  not in one) and every key of the wallet by fingerprint: in which open
+  vault, whether its copy by hand was checked, whether its file is in
+  For the stick unprotected, or not here (backed up on its own device). With
+  vault files and none open, it says the vaults were not checked.
+- **Any loaded wallet backs up again, with every file on offer**
+  (owner, 2026-10-09; `docs/WALLETS.md` §5). Entries: the wallet's card
+  (**Back up**, also on the small panel), Start's **Back up a wallet**,
+  the Tools tile, Create's **Back up** card and Restore's **Back up
+  this wallet**. With more than one wallet loaded the head is "Back up a
+  wallet" with the wallet's name as a chip, which lists the loaded
+  wallets; a press on one starts the backup on it. A watch-only wallet
+  (no seeds here) is asked nothing about seeds. The checklist's public
+  files item is drawn from the
+  wallet (descriptor, wallet file, multisig config, BSMS record, Bitcoin
+  Core import, each key held here and its BSMS key record), the item
+  showing the rows the plan's software picks. Each vault made has its
+  own item (or the way to make or unlock one, back to the item), with
+  its seeds and the wallet where planned (decision 41).
+- **The descriptor and its shares as pictures** (2026-10-09). The
+  backup's public files item (**PNG** on the descriptor's row) write `{name}-descriptor.png`: the
+  checksummed descriptor as one static code, with the wallet's name, its
+  shape (and the network when not mainnet), the keys' fingerprints, the
+  descriptor's checksum and "Public: watch only, spends nothing" under
+  it. Past one code (version 25 at ECL M) it goes as the BBQr parts the
+  QR view makes, `{name}-descriptor-1-of-3.png` and on, each labelled
+  with its part. The shares item makes each split share's
+  `{name}-share-k-of-n.png` beside its PDF and text: the share's text as
+  one code, labelled with the share's number and quorum, the keys it
+  holds and leaves off, and "Not a wallet on its own". A scan of a share
+  picture comes back as the share, and Restore takes any quorum of them.
+- **Sign a message's Message step takes the text from a scan.** **Scan**
+  sits beside **Type**: a plain text read, or Paste on a shell with a
+  clipboard, becomes the message as read, in place of what was typed.
+  Every other kind of code, a seed, a private key or any other secret
+  among them, is named on the scanner ("{kind} · not used here") and
+  refused, and no text is kept. Home's Scan of a text offers **Sign this
+  message** while a single-key wallet is loaded, and it opens this flow
+  with the text in (`docs/SCANNING.md` §4.3).
+- **Every public file a flow makes as a code and a picture**
+  (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's row, For the
+  stick with **Remove** (decision 24), sit **Show as QR** and **PNG** where a wallet or a person
+  reads it from a code: the backup's public files item (descriptor,
+  multisig config, BSMS descriptor record, each key held here and its
+  BSMS key record), Create's Keys card (**Show xpub QR**, **Xpub PNG for
+  the stick**, **Xpub file for the stick** under each key held here),
+  Sign a message
+  (the message file For the stick as it is signed, **Show as QR**, **PNG
+  for the stick**) and
+  Silent payments (**Record for the stick**, **Record as QR**, **Record
+  as PNG**). The QR sheet carries **PNG for the stick** (**PNG** beside
+  the format on a small panel) whenever it shows one code of public
+  content; a row's **PNG** is that button without the sheet, and says
+  "{name} waits for the stick". Labels under the code: `Key {fp} · {kind}
+  · {path}` for a key, `Silent payment address · {fp}` for the silent
+  payments address and record (with "Not checked: load key {fp} to check
+  this address" while a wallet's key is not loaded; no code where a loaded
+  key with its fingerprint gives another scan key or spend key), `Signed by {address}` for a message, the
+  wallet's shape and keys for its files. A file past one code says so
+  instead of writing parts; a PSBT, a transaction, a file shown from
+  Files and a secret offer no picture.
+- **Receive addresses as codes** (F28; `docs/QR.md` §7). A receive
+  address row opens its code when pressed, a chevron at its end, as
+  Create's descriptor row opens the wallet's: the wallet card's first
+  receive address (and the small panel's), the first addresses of
+  Create's Check, Restore's Check and the chart sheet's wallet, the
+  Spend tab's **Receive address 0** and **Check the money**'s receive
+  rows, and Vanity address's found address. The code is the address as printed,
+  shown whole under it; no PNG. A change address, the signing steps'
+  **Addresses · Compare** and a wallet whose backup is not done ("Back
+  up before you receive") open none.
+- **A key in no wallet has a way on**: the card's buttons above with no
+  wallet loaded; with wallets loaded, the key's row in the left column
+  carries **Make a wallet from this key**. The left column runs top
+  down, wallets, keys in no wallet, then its buttons, and scrolls when
+  taller than the screen.
+- **The wallet's card shows it at a glance** (owner, 2026-10-10;
+  `docs/history/NEW-WALLET.md` §6). Its Keys list becomes **At a glance**, a
+  structure chart (DESIGN §4.16): the wallet (name, shape, checksum);
+  its keys, numbered as before, each with its fingerprint, label and
+  where it is ("Can sign here", "Can sign · passphrase", "Cosigner ·
+  xpub only", "On its own device"); its backup, a node per spot of the
+  plan's map, each listing what it holds ("Key 1 words", "Vault 2
+  stick", "Key 2 seed + passphrase", "Description"), its tag, what
+  Backups saw of it, and what it gives whoever finds it alone
+  ("Cannot see balance", "Sees the balance", "Can spend", "Can spend with the
+  vault's passphrase"; a vault "Sealed", with where its stick is). A
+  line runs from the wallet to each key and from each key held here to
+  every node holding its seed, a colour and dash pattern per key; a
+  cosigner's key has none, and its seed is in no node. Above it the
+  plan's three checks as a strip (decision 45). The plan is the backup's once its checklist
+  is made, else the one recorded this power-on (kept across a lock),
+  else an open vault's. No plan: "No backup plan" with **Back up**; a
+  plan in a locked vault not remembered: "Plan in {vault}, locked" with
+  **Unlock**. Every node, and every line of what a backup node holds,
+  opens its sheet (below); while the wallet is short of keys a
+  key not here reads **Not here**, and one an open vault holds keeps
+  **Load from vault** as a line of its own; the one way to scan any
+  missing key is the signatures bar's **Scan a key**. The card's
+  body scrolls between its head and its buttons. On a small panel an
+  **At a glance** row opens the chart as its own page, one column, no
+  lines, each backup node naming the keys it holds ("Key 1 words · Key
+  2 in the vault"); Back returns to the card. A wallet with a relative
+  wait (`older`) has a **Spend paths** group under the signatures: a row
+  per path with its keys and when it can spend ("Any time", "52 560
+  blocks after each coin arrives · about 365 days") and **Move each coin
+  within**, 90 % of the shortest wait in whole days (`docs/BACKUP-FLOW.md`
+  §18.4); on a small panel a **Spend paths** row opens it as its own
+  page, and the chart's wallet sheet shows the same rows. The card and
+  that sheet offer **I moved every coin**, which dates a vault note
+  ("Coins moved today"; "Open a vault to keep this" with none open, and
+  **Set the time** in its place with the clock not checked), and a
+  **Coins last moved** row reads "300 days ago · the wait ends at about
+  365 days" (without "about" for a wait in 512-second units), in the
+  warning tone once the age reaches the margin.
+- **The chart's sheets** (decision 44). A press on a node of the chart,
+  on the card or in an open vault, or on a line of what a backup node
+  holds, opens a sheet (DESIGN §4.16): its title, what it is and where
+  (Shape and Checksum; Where, Its seed is at; Stick, Found alone, Seen
+  here; Kept at), then its actions as menu rows, each leading into the
+  flow that does it, and Close (Back on a small panel, where the sheet is
+  the page). Opening a sheet changes nothing and puts nothing For the
+  stick; nor does opening the backup's checklist from the chart, whose
+  items each offer what they make. The wallet: **Open in Wallets** (in a
+  vault), **Show wallet QR**, **Public files** (the checklist's item),
+  **Print the wallet sheet again** (or the shares), **Rename the wallet**
+  (its card's name field), **Change the plan**, **Check addresses** (the
+  descriptor row and the first addresses, as Create's Check). A key held
+  here, or kept in the open vault: **Show xpub QR**, **Xpub file**,
+  **Explore this key**, **Where it is** (its lines bold, the rest dimmed,
+  until the next screen or sheet); **Make another backup of this seed**:
+  **By hand** (the checklist's copy, with Seed XOR and codex32), **Into
+  Vault n**, **As a file**, each where the plan has that item; **Check a
+  copy of this seed**: **Type my copy** for a words copy, which opens the
+  typed check at the checklist's copy item, and **Scan my copy** for a
+  SeedQR copy with a camera, which leaves the chart under the camera. A
+  key not here: **Load this key** with its way in, where the quorum needs
+  it; **Show its xpub**, from the wallet's descriptor. A place: its
+  lines, each opening its own sheet; **Rename**; **What goes in its
+  envelope**; **The envelope list** (a PDF For the stick, places by
+  number, never by the names the vault keeps). A vault: the vault way or
+  **Open the vault**, **Save its seeds into it**, **Copy to another
+  stick** (the stick visit), **Write it out again** while it has changed
+  since it was written. Files: **Write the seed files again**, **Write
+  the public files again**. Software: **Show the descriptor QR again**,
+  **Public files for this software**. Lines: words, **Type my copy**;
+  SeedQR, **Scan my copy** (**Type my copy** with no camera); **Make
+  another copy**; the wallet sheet, **Print it again**, **As a QR
+  picture**, **As text**; a share, **Print the shares again**, **Keys
+  left off each share**; a vault's stick, the vault way and **Copy the
+  vault to another stick**; a seed file, **Write it again**; the
+  description, **Show wallet QR**. A flow on Back up comes back to the
+  card, or to the vault opened from.
+- **The chart changes the plan** (decision 49). A change to where
+  something is kept is asked on a sheet first: its title says the change
+  ("Move Vault 1 stick to Place 1"), the plan's three check lines read
+  before → after, a line made worse in `WARN`, and **Confirm** makes it;
+  Close leaves the plan as it was. The changes: **Move** (a line at a
+  place, to another place or **A new place**); **Another copy** (words
+  or SeedQR by hand, a passphrase, the wallet sheet, a vault's stick, at
+  a place not holding it, a passphrase never with its own words); **Add
+  here** (a place: what is held here and is not there yet); **Into Vault
+  n** and the vault's **Save more into it** (a seed held here, with its
+  passphrase where it was loaded with one, the description); **As a
+  file**; **I destroyed this copy**, and **Remove from the plan** for a
+  marked line or the stick of files ("Destroy what goes off the plan by
+  hand"); **Remove the place**, which first asks where each thing in it
+  goes (another place, or **Nowhere**) and is pressable once each has
+  one. Once confirmed, the flow that makes what was added follows: the
+  copy by hand with its check, the vault's item, the seed files, the
+  sheet For the stick, the stick visit for a vault's stick ("Vault 1 ·
+  copy", its own line, counted by the check), a passphrase shown to copy
+  (**Show it**) and then **Check my copy**. From the first change the
+  map is the plan: the backup's record and the vault's plan record keep
+  it, the chart and the checklist read it, and it loads back the same on
+  another power-on. **Change the plan** (the wallet's sheet, the
+  checklist's foot) then asks first, "Your changes on the chart are
+  replaced". In the vault alone, never in the kept state or on disk
+  outside the vault: the date each
+  thing of a place was checked (a place's **Mark checked**; a passphrase
+  checked), **Lost** and **Exposed** (a line, or **Mark lost**, **Mark
+  exposed** on a place: struck through on the chart until taken off the
+  plan), a key not held here's **Name its holder** and **Mark checked**
+  (the date its holder confirmed it), a place's names and a vault's
+  **Rename**; with no vault open these rows read "Open a vault to keep
+  this" and lead to one. A check of a copy matched in the checklist with no
+  vault open is to be held in RAM only until the next unlock, then
+  written into the plan's notes (`docs/BACKUP-FLOW.md` §18.3, planned). A mark says what follows, in order: "Someone can
+  now spend" (or "could … with a vault's passphrase") with **Move the
+  money** (Make a new wallet, opened on Kind with no kind ticked, the
+  person choosing one, owner 2026-10-24; its last card then offers
+  **Move the money from {wallet}**, the spend from the old wallet with "Every coin
+  to {new wallet}" and its first address on Write the payment); "The
+  wallet can no longer be rebuilt from what is left" with **Back up again
+  now**; "Someone can see the balance"; "Nothing lost that is not
+  elsewhere" with **Make a replacement copy**. **Check it** on a
+  passphrase line (or the key's **Its passphrase**): typed into a masked
+  field, the key it makes with the seed here compared by fingerprint, the
+  typed text wiped at once; "Matches: it makes key {fp}" or "Does not
+  match", and a match dates the line in the vault.
+- **Backups age** (`docs/BACKUP-FLOW.md` §18, F87). Every check of a
+  copy (Check my copy typed or scanned, a codex32 string's check, a
+  passphrase's Check it, a place's Mark checked, a vault's stick read and
+  unlocked) dates that copy in the plan's notes in the vault, asking
+  **Which copy was this?** where the seed has that form at more than one
+  place; a date is written only from a checked clock (`docs/TOTP.md`
+  §1.3). The chart's place nodes, their sheets, the card's strip ("To
+  check: Bank box", or "Every place checked in the last 12 months") and
+  Backups show each copy's age ("Last checked 14 months ago") and mark it
+  **To check** after 12 months, or sooner by a recovery wallet's margin
+  (90 % of its shortest relative wait); with the clock not checked they
+  show dates only, and the strip offers **Set the time**. A stick read
+  from an older copy of its vault reads **Older copy** on the chart and
+  Backups. A wallet with a relative timelock shows its **Spend paths** on
+  the card, the chart's wallet sheet and the wallet sheet PDF, each wait
+  in blocks and days with **Move each coin within**, **I moved every
+  coin** and **Coins last moved** (the Wallets tab above), and the PDF a
+  table to fill by hand per deposit.
+- **Restore** (decision 48): **Kind** (Single key · native SegWit
+  ticked, Multisig · native SegWit, More kinds), with **I have the wallet
+  description: Scan it** and **From Files** above it; **Quorum** for a
+  multisig (M of N on two sliders, 2 of 3 to start); **Description**
+  (Scan it, From a file in Files, the shares, the stick or a vault; for a
+  single key **I have the seed** first, for a multisig **I do not have
+  it**); **Keys**, a slot per key, whose ways in (Type the words, Scan a
+  SeedQR, a vault's seed or a key already loaded, **Its xpub** with no
+  description or **Not here** with one) stand over the slot they fill,
+  the passphrase asked after the seed (SeedQR read; typed words take it
+  on Add a key); **Check** (the descriptor row and the first addresses);
+  and **Done**. A description read on Kind or Description fills Kind and
+  Quorum and opens Keys. With the description known each seed is matched
+  to its keys as it is entered: a match reads "Key 2 of the wallet"; any
+  other reads "Not a key of this wallet: check the words or the
+  passphrase" and is not loaded. **Make the wallet** once every slot is
+  filled. Done, whatever the vault question's answer, offers, all
+  secondary, **Spend from this wallet**, **Back up this wallet**,
+  **Another wallet from these seeds** (New wallet from this one) and
+  **Wallets**. A restored key is not held for its backup. Vaults set up
+  before the seeds wait in the wallet's flow: Back up resumes it at the
+  plan with them, and until a plan is made the wallet's card and Backups
+  read **Continue the backup**.

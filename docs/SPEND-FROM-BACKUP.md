@@ -500,3 +500,79 @@ way to this one, its PSBT staying in Files. **It is loaded** does not mark the w
 Sparrow has the wallet, not that the addresses were compared. On a
 small panel the shortcut is its line and **Scan it**. What the tab
 keeps across a lock includes that it was entered from the card.
+
+## 8. Wallets that are not registered, and MuSig2
+
+**Registering a wallet from a spend** (F135). A spend from a wallet of
+several keys that is not registered here is blocked: the Transaction
+card's warnings say "input 0 spends from a wallet of several keys that
+is not registered here; register the wallet to sign". Where the PSBT
+carries the cosigners' extended keys, **Register this wallet** under it
+opens a dialog: the shape ("2 of 3, P2WSH, sorted"), a line per
+cosigner (fingerprint · path, "· Yours" for a key loaded here), **Name**
+(the PSBT's file name, "Savings Unsigned" for `savings-unsigned.psbt`),
+**Hold to register** and **Cancel**. The hold adds the wallet and the
+spend goes on from the same card, now signable; a wallet whose keys do
+not give the spend's addresses, or none of whose keys is a loaded key's
+own, stays unregistered and the dialog says which ("These keys do not
+give input 0's address", "None of these keys is yours"). Where the spend
+cannot tell sorted keys from keys in the order listed, the dialog adds
+"Most coordinators sort the keys" over **Sorted** (chosen) and **In
+this order**. Where the PSBT does
+not carry the keys, the card says "Load this wallet's descriptor to
+sign": Files, a code or Restore load it, and the spend goes on. An
+input of the person's key in a miniscript or a taproot tree of one key
+whose wallet is not registered stops nothing (F141): the warnings say
+"Input 1 is left unsigned: no registered wallet covers this taproot
+tree. Register its wallet to sign it.", and signing signs the rest.
+
+**A MuSig2 wallet two of whose keys come from one seed** (the same master
+fingerprint, two accounts) is refused wherever a wallet is added (a
+descriptor or file, a code, a vault's kept wallet): "Two keys of this
+wallet come from one seed. This device cannot sign for both." The MuSig2
+check matches one participant to each master fingerprint, so a second
+account of one seed would never sign. The line shows where one wallet is
+added and in the toast that ends a vault load: the Unlock Load sheet's
+Load ticked (after "Summer loaded from cellar.kdbx"), Files' Load chosen,
+opening the wallet from Vault contents or its chart, and the wallet's own
+backup flow landing on its vault. The Inbox's batch load and Load with
+keys leave such a wallet out without it. A vault holding such a wallet
+still opens, with that wallet left out: it has no card on the Load sheet
+and no row in the Files vault panel, though Vault contents still lists it.
+
+**The signed count of a MuSig2 wallet's spend** (F220) counts a participant
+only on proof. A partial signature in the file is the file's word: the
+online side writes every nonce, so one that passes BIP-327's
+`PartialSigVerify` can be built without the key. The aggregate signature
+verifying under the output key counts every participant; a partial this
+device wrote in this session and that verifies counts its own (the very
+entry, by input, key and bytes: one a file brings in its place is the file's
+word); a secret
+nonce this session holds for a participant proves any entry in the file for
+it false, and it signs with that nonce. Any other partial that verifies
+reads "In file, unconfirmed": not counted, not in the "still to sign", and
+never "Verified", so a transaction opened again after a lock or power-off
+shows this device's earlier partial the same way and does not offer **Sign**
+(it would discard the cosigners' partials). One that does not verify, or
+whose nonces are not all on the input, reads "Does not verify" and its
+master is offered **Sign** again with a new nonce. The count reads "{k} of {n}
+in the file · {m} more needed" until the aggregate verifies, and the line and
+button that ask for signatures ask only for those not in the file; Collect,
+opening a spend and registering its wallet add every participant's partial,
+with no key held, and keep the signature only if it verifies (a key-path
+signature there that does not verify is replaced). Collect never draws a
+nonce or signs: only a press of **Sign** does, so a device that shared its
+nonce and then collects the cosigners' nonces is offered **Sign** and
+finishes after the press. Where the file carries another public nonce for
+this device's key than the one the session holds (an older copy won a
+merge) and nothing fails under the held one, the file's nonce is replaced
+and **Sign** signs. Where a partial signature fails under the held nonce,
+**Sign** does not sign and does not refuse: it writes the held nonce,
+removes the partials that cannot verify under it and the public nonces of
+the participants who made them (those nonces are spent), and the part file
+goes out; the round then lacks those nonces, those devices are offered a
+new share, and the cosigners share and sign again; their rows read
+"Waiting". A master counts per participant key: one
+master holding two accounts is still to sign until both are in. Over several
+inputs a master is as far along as its worst open input, and a final input
+is skipped; with every input final nobody is still to sign.

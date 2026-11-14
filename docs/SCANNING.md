@@ -370,92 +370,19 @@ no explanation.
 
 ### 7.1 Scanner titles
 
-| Name | Text | For |
-|---|---|---|
-| `scan_title_description` | Scan the description | Restore's Scan it, Scan descriptor; the intake's Scan the description |
-| `scan_title_xpub` | Scan Key {}'s xpub | Create's slot |
-| `scan_title_cosigner` | Scan a cosigner's key | Restore's seeds card |
-| `scan_title_psbt` | Scan the PSBT | Spend's Scan a copy, the Spend tab's Scan it, Scan the PSBT, Tools' Sign a transaction |
-| `scan_title_transaction` | Scan a transaction | Tools' Decode a transaction |
-| `scan_title_address` | Scan an address | Tools' Check an address |
-| `scan_title_invoice` | Scan an invoice | Decode a Lightning invoice's Scan |
-| `scan_title_part` | Scan a share | a form's Scan |
-| `scan_title_totp` | Scan a setup code | the TOTP scanner |
+In `en.rs`, prefix `scan_title_`.
 
 ### 7.2 The read card
 
-| Name | Text |
-|---|---|
-| `read_label` | Read |
-| `read_seed_words` | A seed's words |
-| `read_seedqr` | A SeedQR |
-| `read_compact_seedqr` | A CompactSeedQR |
-| `read_codex32_secret` | A codex32 secret |
-| `read_codex32_share` | A codex32 share |
-| `read_slip39_share` | A SLIP-39 share |
-| `read_bad_checksum` | Words that fail their checksum |
-| `read_aezeed` | An LND aezeed |
-| `read_private_key` | A private key |
-| `read_xprv` | An extended private key |
-| `read_nostr_secret` | A Nostr secret key |
-| `read_spend_key` | A silent payments spend key |
-| `read_ur_seed` | A seed (ur:crypto-seed) |
-| `read_totp` | A TOTP setup code |
-| `read_entries` | Vault entries |
-| `read_psbt` | A transaction to sign |
-| `read_transaction` | A finished transaction |
-| `read_wallet` | A wallet description |
-| `read_split_sheets` | Split sheets of a wallet |
-| `read_account_key` | An account key |
-| `read_address` | An address |
-| `read_payment_request` | A payment request |
-| `read_silent_address` | A silent payment address |
-| `read_message` | A signed message |
-| `read_gpg` | A GPG public key |
-| `read_file` | A file: {} |
-| `read_labels` | Labels (BIP-329) |
-| `read_invoice` | A Lightning invoice or offer |
-| `read_web` | A web address |
-| `read_kef` | An encrypted code |
-| `read_text` | Text |
-| `read_unreadable` | Nothing Faraday reads |
-| `read_not_here` | {} · not used here |
-| `read_key_fact` | Key {} |
-| `read_share_fact` | Share {} of {} · {} needed |
-| `read_psbt_fact` | {} inputs · {} |
-| `read_another_seed` | This is another seed's SeedQR |
+In `en.rs`, prefix `read_`.
 
 ### 7.3 The ways over
 
-| Name | Text |
-|---|---|
-| `read_go_key` | Add this key |
-| `read_go_share` | Add this share |
-| `read_go_xor` | It is a Seed XOR part |
-| `read_go_lightning` | Use in Lightning |
-| `read_go_vault` | Add to {} |
-| `read_go_unlock` | Unlock {} |
-| `read_go_sign` | Sign it |
-| `read_go_collect` | Add to the signatures |
-| `read_go_decode` | Decode it |
-| `read_go_wallet` | Load the wallet |
-| `read_go_restore` | Restore the wallet |
-| `read_go_check` | Check the signature |
-| `read_go_note` | Save as a note |
-| `read_keep` | Keep in Files |
-| `read_again` | Scan again |
-| `read_need_no_stick` | Remove the stick first |
-| `read_go_make_vault` | Make a vault |
-| `read_not_kept` | Not kept · scan it again once the vault is open |
-| `read_totp_fact` | {} · {} |
+In `en.rs`, prefix `read_go_`.
 
 ### 7.4 The seed sheet
 
-| Name | Text |
-|---|---|
-| `seed_read_words_read` | Words read |
-| `seed_read_compact_read` | CompactSeedQR read |
-| `seed_read_key_of` | Key {} of {} |
+In `en.rs`, prefix `seed_read_`.
 
 
 ## 8. Tests

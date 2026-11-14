@@ -27,7 +27,7 @@ Both directions are covered, and neither assumes Faraday is honest
 The checks of a returned PSBT that need no new protocol (the PSBT sent
 against the one returned, the sighash a signature uses, fields a signer
 added, the Nonce check failing closed) are `docs/SIGNER-CHECK.md`, built
-as Tools' **Check a signer** (`docs/FLOWS.md`, Check a signer), and come
+as Tools' **Check a signer** (`docs/SIGNER-CHECK.md` §3), and come
 first.
 
 ## 1. The protocol

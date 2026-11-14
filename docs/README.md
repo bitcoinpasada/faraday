@@ -45,7 +45,7 @@ need. Each document's header says what kind it is:
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
 | What does the Check place list, and where is it in the navigation? | `docs/DESIGN.md` §5 (`Check`), `docs/decisions/F255.md` |
 | What does Check an address show for a found address and for a miss? | `docs/DESIGN.md` §5 (Check an address, The result), §4.5 (Whole string); the search, `docs/QR.md` §2 |
-| What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/signer-check.md` |
+| What does Check a signer show, and how does it open? | `docs/SIGNER-CHECK.md` (§3, the flow), `docs/guide/signer-check.md` |
 | How does a person check that a seed makes their wallet (My seed makes my wallet)? | `docs/FLOWS.md` (My seed makes my wallet), `docs/DESIGN.md` §5 |
 | How does a person make a wallet at a path they found in Explore, or from an address the address check found in a key's account? | `docs/FLOWS.md` (Explore, Make a wallet at the path), `docs/DESIGN.md` §5 (Make a wallet) |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
@@ -189,7 +189,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/guide/core-wallet.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/guide/invoice.md` |
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
-| What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/signer-check.md` |
+| What does Check a signer show, and how does it open? | `docs/SIGNER-CHECK.md` (§3, the flow), `docs/guide/signer-check.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |

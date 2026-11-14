@@ -849,82 +849,10 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 
 | Name | Text |
 |---|---|
-| `backup_flow_card_where` | Where it will be kept |
-| `medium_bring_in_sticks` | Bring in the sticks |
-| `backup_flow_card_vaults` | Vaults |
-| `backup_flow_card_make` | Make the key |
-| `backup_flow_card_lock` | Lock |
-| `medium_write_the_sticks` | Write the sticks |
-| `backup_flow_card_done` | Done |
-| `backup_flow_add_place` | Add a place |
-| `backup_flow_place_keeps` | A {m} with |
-| `backup_flow_new_vault` | A new vault |
-| `backup_flow_existing_vault` | An existing vault |
-| `backup_flow_vault_new` | {} · new |
-| `backup_flow_vault_stick` | the {m} for {} ({}) (vault, place) |
-| `backup_flow_files_stick` | the {m} of files |
-| `backup_flow_public_stick` | the {m} of public files |
-| `backup_flow_lock_bring` | Lock and bring in the {m}s |
-| `backup_flow_insert` | Insert {} |
-| `backup_flow_use_read` | Use {}, read at {} |
-| `backup_flow_one_at_a_time` | One {m} at a time |
-| `backup_flow_not_fat` | Not a FAT32 {m}. Format it as FAT32, or use another {m} |
-| `backup_flow_boot_part` | This is a boot partition. Use another {m} |
-| `backup_flow_read_only` | Cannot be written. Use another {m} |
-| `backup_flow_no_room` | Not enough room: {} needed, {} free |
-| `backup_flow_which_vault` | Which vault is {}? |
-| `backup_flow_beside` | A new vault beside them |
-| `backup_flow_two_copies` | {} has two copies of {}: {} and {} |
-| `backup_flow_copies_differ` | {}'s copy of {} differs from {}'s |
-| `backup_flow_confirm_place` | This is {} |
-| `backup_flow_hold_confirm_place` | Hold: this is {} |
-| `backup_flow_bound_place` | This is {} |
-| `backup_flow_both` | One {m} for both |
-| `backup_flow_pull` | Pull the {m} |
-| `backup_flow_no_passphrase` | I do not have its passphrase |
-| `backup_flow_new_vault_beside` | A new vault beside it |
-| `backup_flow_not_this_vault` | {} is not {} |
-| `backup_flow_goes_beside` | {} goes beside these |
-| `backup_flow_use_file` | Use {} for {} |
-| `backup_flow_use_another` | Use another {m} |
-| `vault_taken_title` | {} is already {} |
-| `vault_taken_unknown` | Faraday cannot tell which vault this file is. Overwriting destroys it, even if it is another vault. |
-| `vault_taken_other` | This file is {}, another vault. Overwriting destroys it. |
-| `vault_taken_unreadable` | This file could not be read. It stays as it is. |
-| `vault_taken_overwrite` | Hold: overwrite {} |
-| `vault_taken_beside` | Save as {} |
-| `visit_taken_name_taken` | its name is taken |
-| `visit_taken_pulled` | the {} was pulled |
-| `backup_flow_name_taken` | {} was not written. Its name is taken |
-| `files_taken_changed` | {} changed since it was shown: not overwritten |
-| `backup_flow_in_vault` | In {} |
-| `backup_flow_lock_and_write` | Lock and write |
 | `backup_flow_add_vault` | Add {} |
 | `backup_flow_finish_paper` | Finish its paper copy first |
 | `backup_flow_vault_for_round` | Keep it in a vault for the round |
-| `backup_flow_not_read` | Not the {m} read for {} |
-| `backup_flow_has_first` | This {m} has the first copy |
-| `backup_flow_hold_second` | Hold: this is a second {m} |
-| `backup_flow_hold_another` | Hold: this is another {m} |
-| `backup_flow_other_files` | This {m} has {}'s files |
-| `backup_flow_writing` | Writing {} |
-| `backup_flow_written` | Written and checked on {} |
-| `backup_flow_written_place` | Written to {} |
-| `backup_flow_pulled` | Pulled before the copy was checked. Nothing counted |
-| `backup_flow_not_checked` | The copy did not check on {}. Nothing counted |
 | `backup_flow_first_gone` | {} no longer has the vault |
-| `backup_flow_done` | Written |
-| `backup_flow_row` | Backup |
-| `backup_flow_row_none` | Not written |
-| `backup_flow_row_some` | Written to {} of {} places |
-| `backup_flow_row_all` | Written to every place |
-| `backup_flow_continue` | Continue the backup |
-| `backup_flow_continue_make` | Continue |
-| `backup_flow_first` | Back up first |
-| `backup_flow_home_lead` | Continue the backup of {} |
-| `backup_flow_power` | Backup of {}: written to {} of {} places |
-| `backup_flow_in_the_backup` | In the backup |
-| `medium_write_to_sticks` | Write to sticks |
 
 The plan's lines of §10.3 are the plan's own strings: `plan_all_at_one_place`
 "Every secret of this wallet is at {}. Separate places are strongly
@@ -2607,8 +2535,8 @@ on top of what the plan already holds, all built: each copy's last check
 as an age and a due mark (the Wallet chart, a place's sheet, the chart's
 fourth line, Backups), a stick read from an older copy of its vault, a
 recovery wallet's spend paths and margin, and the **I moved every coin**
-action with its **Coins last moved** row. `docs/FLOWS.md` (Wallets tab,
-the chart's sheets) points here.
+action with its **Coins last moved** row. `docs/WALLETS.md` §11 (the
+chart's sheets) points here.
 
 ### 18.1 What is built
 
@@ -2724,7 +2652,7 @@ none, and a vault whose plan has no place of that number with that line
 that keeps the thing takes none (a plan whose places moved dates
 nothing; a change elsewhere in the plan does not stop a place being
 dated). A lock or a power-off before then loses it. It is never in the kept state and never on disk outside the
-vault (`docs/FLOWS.md`, the chart's rule). The chart's
+vault (`docs/WALLETS.md` §11, the chart's rule). The chart's
 **Mark checked** with no vault open reads "Open a vault to keep this",
 as today.
 
