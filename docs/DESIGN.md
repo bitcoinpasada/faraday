@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed; Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
+**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed; Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, and its result card (a find's wallet or key account, place, full path or each cosigner's, and the whole address in groups of four; a miss's address and how far it looked), still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -437,7 +437,7 @@ it.
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Short form | The first eight characters in two groups of four, an ellipsis and the last four, "bc1q 8f3x … k2pz" (`faraday_ui::short`); a string of sixteen characters or fewer is shown whole, in groups of four. | Inside a line that names a string rather than shows it to be read: the Spend review's outputs ("to bc1q 8f3x … k2pz"), its txid and its inputs, the first address on Restore's card and on the Silent payments screen. It opens nothing. |
-| Whole string | Whole, mono, in groups of four (`faraday_ui::grouped`), wrapped where it does not fit, never cut. | Where the string is what a person reads or checks: a wallet card's first receive address, a vanity find, a decoded output, a signed message's address, an image's SHA-256. The Key explorer's addresses are whole and wrapped too (F76). A receive address (a wallet's card, Create's and Restore's Check, the chart's wallet sheet, the Spend tab's pages), a vanity find and Explore's address, public key and extended key open their QR sheet when pressed: a chevron at the row's end, the row a touch target tall with its text in its middle (`address_press`, `row_press`; `docs/QR.md` §7). A change address, and an address held back for a backup, open nothing. |
+| Whole string | Whole, mono, in groups of four (`faraday_ui::grouped`), wrapped where it does not fit, never cut. It wraps only at the space between two groups, never inside one, so every full line holds the same number of groups and the last holds the rest: a group is read as one unit, as the other device's screen shows it. As a fact (§4.11, `kv`) its label stands above it in the label's type ("Address"), the string under it in body medium mono. On the 240x320 panel, the narrowest, a line inside a card holds at least four groups at Standard text size, so a native SegWit address is three lines and a Taproot one four; where the width holds fewer, the type does not shrink and the lines grow. | Where the string is what a person reads or checks: a wallet card's first receive address, a vanity find, a decoded output, a signed message's address, an image's SHA-256, the address on Check an address's result (§5). The Key explorer's addresses are whole and wrapped too (F76). A receive address (a wallet's card, Create's and Restore's Check, the chart's wallet sheet, the Spend tab's pages), a vanity find and Explore's address, public key and extended key open their QR sheet when pressed: a chevron at the row's end, the row a touch target tall with its text in its middle (`address_press`, `row_press`; `docs/QR.md` §7). A change address, and an address held back for a backup, open nothing. |
 | Descriptor | A summary row, not the descriptor's text: "Descriptor" above; below, mono and wrapped, the wallet's shape ("2 of 3 · native SegWit multisig"), its keys' fingerprints, and " · #" and the checksum where the wallet did not come from a record; chevron (`descriptor_row`). | On Create, Restore, the key-making flow and a wallet's sheet on the chart. The row opens the wallet's QR sheet, which carries the descriptor's whole text under the code. |
 
 Faraday has no screen that shows one string alone (F68): a string is
@@ -836,14 +836,15 @@ file. A typed address is checked when Enter or the keyboard's Done is
 pressed, and a pasted or file address at once; Scan reads at once as it
 does. Whichever way in, the text goes through the pasted-text classifier
 (`docs/SCANNING.md` §4.6), then to the same check the scanned code
-reaches: `address_note`, one answer line in a card under the row (the
-loaded wallet and the place the address is, or that it is in none),
-the first 100 receive and change addresses of each loaded wallet, and on
-a miss **Look further** to each depth and **Stop** (`docs/QR.md` §2). A
+reaches: `address_note`'s search of the first 100 receive and change
+addresses of each loaded wallet and of each loaded key's standard
+accounts that no loaded wallet is, and on a miss **Look further** to each
+depth and **Stop** (`docs/QR.md` §2); what it finds is the result card
+under the row (The result, below). A
 `bitcoin:` link typed, pasted or in a file is read to BIP 21 first, as a
 scanned one is (`core/faraday-codec/src/bip21.rs`), and its address is the
-one checked. With no wallet loaded the page reads **Load a wallet first**
-in place of the answer and the ways in stay drawn.
+one checked. With no wallet or key loaded the page reads **Load a key or
+a wallet first** in place of the answer and the ways in stay drawn.
 
 What each refuses, in the card's place under the field, in the error
 colour and as the field's supporting text (Material 3 Text fields, error
@@ -864,14 +865,118 @@ file"), nothing read.
 A file holding several addresses (one a line, or a list after other
 text) is read for its addresses: with one, it is checked as typed; with
 more than one, the page lists them in a Material list (two-line items:
-the address, then its place or "Not in a loaded wallet"), each checked
-against the first 100 on reading (a compute, `c: &Compute`, as a scan's
-search is), and a press on a miss's row runs **Look further** for that
-address alone. At most 100 addresses are read from a file; one past that
+the address in short form, §4.5, then "Savings · receive 12" or **Not
+found**), each checked against the first 100 on reading (a compute, `c:
+&Compute`, as a scan's search is), and a press on a row shows that
+address's result card in the list's place, Back returning to the list;
+a miss's **Look further** is on its card, for that address alone. At most 100 addresses are read from a file; one past that
 is "100 of {n} addresses read". A file that is a descriptor or holds a
 secret is not read as addresses: a descriptor is named "A wallet
 description, not an address" with Restore's way over (it is not opened
 here), and a secret is refused as a paste is. There is no NFC.
+
+**The result** (Material 3 Cards and Lists, checked against those pages:
+an outlined card holding a list of facts). One card under the ways in
+(§4.11, Card, `Ui::card`), in the reading column; on the small panel the
+panel's width less its margin, the page scrolling under the bar. The card
+holds a Result line (§4.11) and then Facts (§4.11, `kv`), one fact a row
+with a rule between, nothing else: no explainer, in Guided too. The
+address is always the second row: §4.5's Whole string with its label,
+the one form a whole address takes wherever a person compares it with
+another device's screen. It opens nothing here: it came from elsewhere to
+be checked, not to be given out. A `bitcoin:` link shows the address it
+carries. Indices count from 0, as the path's last step does.
+
+A find in a single-key wallet, in order:
+
+- the Result line in `OK` with its icon, **Found in Savings** (the
+  wallet's name);
+- **Address**: the address, whole, mono, in groups of four;
+- **Place**: **Receive · index 12** or **Change · index 3**;
+- **Wallet**: the wallet's shape, "Single key · native SegWit" (§4.6,
+  Script type);
+- **Path**: the key's fingerprint and the address's full path, mono,
+  "73c5da0a · m/84h/0h/0h/0/12" (§4.6, Path), wrapping after the
+  fingerprint where the line does not hold both.
+
+A find in a multisig or miniscript wallet is the same card with the
+wallet's shape ("2 of 3 · native SegWit multisig") and, in place of
+**Path**, **Keys**: one line for each key of the descriptor, in its order,
+each the key's fingerprint and its full path to this address, mono,
+"73c5da0a · m/48h/0h/0h/2h/0/12", each wrapping after its fingerprint on
+its own where it does not fit. A key with no origin is not in a loaded
+wallet (a bare xpub is refused), so every line has both.
+
+A find in a loaded key's standard account, where no wallet is made from
+it: the Result line **Found in key Alice** (the key's name); **Address**;
+**Place**; **Account** in place of **Wallet**, the account's script and
+number, "Native SegWit · account 0"; and **Path** as a single-key find
+has it. The card ends with **Make a wallet**, filled tonal, which makes
+the wallet of that key, path and script (Make a wallet, below; **Open
+the wallet** where one is loaded).
+
+A miss, in order:
+
+- the Result line in `WARN` with the warning glyph, **Not found**: the
+  address is not shown to be the person's, which is what the check is for;
+- **Address**, as a find has it;
+- **Searched**: how far it looked and in what, "The first 100 receive and
+  change addresses of Savings" (the wallet's name where it is the only one
+  searched), "… of 3 wallets", "… of 4 key accounts", "… of 2 wallets and
+  4 key accounts";
+- at the card's foot, **Look further: 1,000** and **Look further:
+  10,000**, text buttons, each drawn while that depth is not yet
+  searched (§4.13). While it looks, **Searched** reads "Looking: 340 of
+  1,000" with Material's determinate linear indicator under it (§4.14,
+  Progress), and **Stop** is the one button; a find while looking turns
+  the card into the find's card, and a look that ends without one leaves
+  the miss's card with **Searched** at the new depth.
+
+With nothing loaded, or a refusal, there is no card: the page reads **Load
+a key or a wallet first**, or the refusal under the field, as above.
+
+Every scanner hands an address to this check: Home's Scan opens Check an
+address with the address read checked, as it goes straight on for a seed,
+and any other scanner's read card names it **An address** with **Check the
+address** as its way over, which opens the page the same way; the read
+card's one line for an address and its **Look further** go, so the result
+and the search are on this page alone. When this is built,
+`docs/SCANNING.md` §5.2, §5.4 and §7.3 and `docs/QR.md` §2's address row
+say so, and the address lines of `address_note` that this card replaces
+leave `faraday/faraday-strings/src/en.rs`.
+
+The strings it adds (proposed, for `faraday/faraday-strings/src/en.rs`):
+
+- `address_check_found`: "Found in {}" (a wallet's name)
+- `address_check_found_key`: "Found in key {}" (a key's name)
+- `address_check_missed`: "Not found"
+- `address_check_load_first`: "Load a key or a wallet first" (Back up
+  a wallet's "Load a wallet first" stays its own)
+- `address_check_address`: "Address"
+- `address_check_place`: "Place"
+- `address_check_receive`: "Receive · index {}"
+- `address_check_change`: "Change · index {}"
+- `address_check_wallet`: "Wallet"
+- `address_check_account`: "Account"
+- `address_check_account_value`: "{} · account {}" (the script's name, the
+  account number)
+- `address_check_path`: "Path"
+- `address_check_keys`: "Keys"
+- `address_check_key_path`: "{} · {}" (a fingerprint, a path)
+- `address_check_searched`: "Searched"
+- `address_check_searched_value`: "The first {} receive and change
+  addresses of {}" (the depth; a wallet's name or a count below)
+- `address_check_wallets`: "{} wallets"
+- `address_check_accounts`: "{} key accounts"
+- `address_check_wallets_accounts`: "{} wallets and {} key accounts"
+- `read_go_address`: "Check the address"
+
+- `address_check_list_receive`: "{} · receive {}" and
+  `address_check_list_change`: "{} · change {}" (a wallet's or key's name,
+  the index), the list's second lines
+
+The look's progress and buttons keep their strings (`read_look_progress`,
+`read_look_further`, `read_look_stop`).
 
 A typed address is never kept past leaving the page, a lock or the idle
 lock, and an address is public, so Faraday Demo's paste and the device's
@@ -887,8 +992,8 @@ address, many, a descriptor and noise.
 The guide's line (`docs/guide/catalog.md`, when this is built): "**Check
 an address** takes an address scanned, typed on the address keyboard,
 pasted on Faraday Demo or read from a text file in Files, and a `bitcoin:`
-link the same way, and searches the loaded wallets; it reads **Load a
-wallet first** until one is loaded."
+link the same way, and searches the loaded wallets and keys; it reads **Load a
+key or a wallet first** until one is loaded."
 
 **Make a wallet** (not built; Explore's path page and Find an address,
 at a BIP-44, BIP-49, BIP-84 or BIP-86 path on the network's coin type,
@@ -913,11 +1018,10 @@ the first-address check and what is refused are `docs/FLOWS.md`
   at least one, a row of one button, **Make a wallet**, `Style::Secondary`
   (Search stays the page's filled button); nothing while it looks, and
   nothing on a miss.
-- **The address check.** On the read card (`docs/SCANNING.md` §5) a
-  find in a key's account has **Make a wallet** as its way over, filled,
-  at the end, **Scan again** and **Cancel** at the start as on every
-  read card; on Check an address's page the answer card under the field
-  ends with the same button, filled tonal.
+- **The address check.** On Check an address's page the result card of
+  a find in a key's account ends with **Make a wallet**, filled tonal
+  (Check an address, The result); every scanner's read card hands an
+  address to that page, so the read card has no such button.
 - **Already loaded.** Each of these reads **Open the wallet** where a
   loaded wallet is that account, and opens its card.
 - **Wallet made.** The Dialog (§4.13, `faraday_ui::sheet::dialog`):
