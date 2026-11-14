@@ -12,7 +12,7 @@ publish = false
 # A Faraday stick's layout, the boot partitions' names and the medium's
 # record (docs/STICK-IDENTITY.md §5); std alone.
 faraday-boot = { path = "../faraday-boot" }
-# chown, chmod, prctl, setuid and capset (docs/deps/libc-faraday-grant.md).
+# chown, chmod, prctl, setuid and capset (docs/deps/libc.md).
 libc.workspace = true
 
 # The workspace lints are deliberately not inherited: like

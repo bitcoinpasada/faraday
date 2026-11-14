@@ -1245,7 +1245,7 @@ held_by = ["lint-themes"]
 
 [[rule]]
 id = "guide.places-paged"
-title = "every place the app reaches has a guide page or is in docs/guide/TO-WRITE.txt"
+title = "every place the app reaches has a guide page"
 source = ["tools/README.md"]
 when = ["faraday/faraday-core/src/lib.rs", "faraday/faraday-core/src/guide.rs"]
 kind = "held"

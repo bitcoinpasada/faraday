@@ -4774,7 +4774,6 @@ decision = "F178"
 [action.checked]
 vectors = [
   "bip352",
-  "bip392",
 ]
 tests = [
   "core/faraday-bip/tests/all/silent.rs::the_receiver_finds_the_outputs_the_vectors_publish",
@@ -9918,8 +9917,8 @@ folder = "bip87"
 reason = "BIP 87's text, vendored as the path's source; it has no test vectors of its own, and the key at its path is derived and checked as any BIP 32 path's is."
 
 [[vector_no_action]]
-folder = "wallet"
-reason = "An account's zpub that no test or tool reads."
+folder = "bip392"
+reason = "The text of BIP 392, BIP 321 and BIP 353, vendored as their source; it has no test vectors of its own."
 
 [[vector_no_action]]
 folder = "age"
@@ -10125,10 +10124,6 @@ by = "Trezor (SatoshiLabs), python-mnemonic's vectors; bip32JP's Japanese vector
 [vector.bip390]
 source = "published"
 by = "BIP 390's authors (bitcoin/bips)"
-
-[vector.bip392]
-source = "published"
-by = "the authors of BIP 392, BIP 321 and BIP 353 (bitcoin/bips)"
 
 [vector.bip85]
 source = "published"

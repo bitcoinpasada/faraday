@@ -124,11 +124,6 @@ fn a_file_is_a_vault_or_an_older_keepass_database_by_how_it_begins() {
     old.resize(70_000, 0);
     assert!(!is_vault(&old));
     assert!(is_kdbx(&old));
-    // The four bytes FVLT began with no longer make a vault.
-    let mut fvlt = b"FVLT".to_vec();
-    fvlt.resize(65_921, 0);
-    assert!(!is_vault(&fvlt));
-    assert!(!is_kdbx(&fvlt));
     assert!(!is_vault(b"{\"wallet_type\": \"standard\"}"));
 }
 

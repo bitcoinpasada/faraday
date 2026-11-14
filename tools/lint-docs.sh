@@ -13,7 +13,7 @@
 #
 # 2. Paths. Every backticked repository path in a .md file resolves: a
 #    span that starts with core/, faraday/, tools/, docs/, fuzz/,
-#    third_party/, design/ or supply-chain/, or is a root file
+#    third_party/ or supply-chain/, or is a root file
 #    (README.md, CLAUDE.md, Cargo.toml, justfile and the like).
 #    Before the check a trailing `:123`, `#anchor`, ` §...` and trailing
 #    punctuation are stripped. Not checked:
@@ -97,7 +97,7 @@ ROOT_NAMES = {"README.md", "CLAUDE.md", "Cargo.toml", "Cargo.lock", "justfile",
               "LICENSE", "SECURITY.md", "deny.toml"}
 
 PREFIXES = ("core/", "faraday/", "tools/", "docs/", "fuzz/",
-            "third_party/", "design/", "supply-chain/")
+            "third_party/", "supply-chain/")
 SKIP_CHARS = ("*", "<", "{", "…", "$")
 failures = []
 

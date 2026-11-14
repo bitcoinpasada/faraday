@@ -7,8 +7,8 @@
 //! `ur:<type>/<seq>-<count>/<bytewords>` where the parts are fountain-code
 //! fragments, so a receiver that misses frames still finishes.
 //!
-//! The whole transport is here and nothing is pulled in for it
-//! (`docs/deps/ur.md`): [`bytewords`] is
+//! The whole transport is here and nothing is pulled in for it:
+//! [`bytewords`] is
 //! BCR-2020-012's alphabet with its CRC-32, [`xoshiro`] the generator
 //! that picks a part's fragments, [`fountain`] the parts themselves and
 //! their CBOR, and this file the `ur:` text around them. SHA-256 comes

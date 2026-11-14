@@ -41,7 +41,7 @@ faraday-avfoundation = { path = "../../../faraday/shells/avfoundation", optional
 faraday-mediafoundation = { path = "../mediafoundation", optional = true }
 
 # The clipboard's text on Windows: the API, no tool (clipboard.rs,
-# docs/deps/clipboard.md). The release the Starter pins (winit brings it
+# docs/deps/windows-sys.md). The release the Starter pins (winit brings it
 # too); the features add no crate.
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "=0.52.0"

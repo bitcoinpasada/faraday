@@ -131,7 +131,7 @@ miniscript = { version = "12.0", default-features = false, features = ["no-std",
 
 # QR decoding (§7, §16.20; docs/deps/rqrr.md). `rqrr` needs std, so it
 # lives behind faraday-codec's `decode` feature. BC-UR has no dependency:
-# `faraday_codec::ur` is the whole transport (§16.61, docs/deps/ur.md).
+# `faraday_codec::ur` is the whole transport (§16.61).
 #
 # `rqrr` is the copy in `third_party/rqrr`, not the crates.io release.
 # Security review item M5a: upstream's `Perspective::map` asserts that the

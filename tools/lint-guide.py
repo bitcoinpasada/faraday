@@ -17,7 +17,7 @@ the app fails `just lint` until the guide follows.
    reaches fails where `guide_key` maps the place by step, tab or
    category (it returns a part key of it; the code's keys are read from
    `guide_key` in faraday/faraday-core/src/guide.rs), and a place the code
-   reaches that has no page and is not in docs/guide/TO-WRITE.txt fails. A
+   reaches that has no page fails. A
    section keyed as a reached part with a word more (`<part>-<word>`) is
    read after that part and counts as reached. A
    section of a place that shows its parts at once is found from the
@@ -226,7 +226,6 @@ def check_links(root, files, errors):
 
 
 KEYS_SRC = "faraday/faraday-core/src/guide.rs"
-KEYS_TO_WRITE = "docs/guide/TO-WRITE.txt"
 KEY_LITERAL = re.compile(r'"([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)?)"')
 
 
@@ -271,8 +270,7 @@ def sub_part(key, reached):
 
 def check_keys(root, errors):
     """docs/GUIDE-IN-APP.md §1.3: a key is written once, every key written
-    is one a place reaches, and every place the app reaches has a page or
-    is listed in docs/guide/TO-WRITE.txt."""
+    is one a place reaches, and every place the app reaches has a page."""
     reached = code_keys(root)
     if reached is None:
         return
@@ -283,22 +281,10 @@ def check_keys(root, errors):
             errors.append(f"{places[1]}: key `{key}` is written twice: {', '.join(places)}")
         elif key not in reached and key.split(".")[0] in by_part and not sub_part(key, reached):
             errors.append(f"{places[0]}: key `{key}` is reached by no place (guide_key in {KEYS_SRC})")
-    todo = {}
-    path = os.path.join(root, KEYS_TO_WRITE)
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            for num, line in enumerate(f, 1):
-                if line.strip() and not line.startswith("#"):
-                    todo[line.strip()] = num
     places = {k.split(".")[0] for k in reached}
     for place in sorted(places):
-        if place not in paged and place not in todo:
-            errors.append(f"{KEYS_TO_WRITE}: place `{place}` has no page and is not listed")
-    for place, num in todo.items():
-        if place not in places:
-            errors.append(f"{KEYS_TO_WRITE}:{num}: `{place}` is no place the app reaches")
-        elif place in paged:
-            errors.append(f"{KEYS_TO_WRITE}:{num}: `{place}` has a page; take it off the list")
+        if place not in paged:
+            errors.append(f"{KEYS_SRC}: place `{place}` has no page in docs/guide/")
 
 
 def starter_variants(root):

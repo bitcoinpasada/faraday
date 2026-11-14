@@ -1,8 +1,8 @@
 //! The clipboard's text, as the scanner's Paste asks for it: read when
 //! the core sends `RequestClipboard`, never watched and never written
 //! (the desktop does not answer `WriteClipboard`). The system clipboard
-//! is read through the platform's own tool, no clipboard crate
-//! (`docs/deps/clipboard.md`); a [`Source`] stands in for it where there
+//! is read through the platform's own tool, no clipboard crate;
+//! a [`Source`] stands in for it where there
 //! is no display.
 
 use std::io::Read;

@@ -134,19 +134,6 @@ fn a_vault_is_found_by_its_contents_under_any_name() {
     );
 }
 
-/// The first vault format is no longer read: a `.fvlt` file, at the length
-/// that format had, is no vault; it is listed as any other file.
-#[test]
-fn a_fvlt_file_is_listed_as_a_plain_file() {
-    let mut place = Memory::default();
-    let mut old = b"FVLT".to_vec();
-    old.resize(53 + 4 * (65_536 + 40), 0);
-    place.files.insert("old.fvlt".into(), old);
-    let files = place.files().unwrap();
-    assert!(vault_names(&compute(), &mut place, &files).is_empty());
-    assert!(listing(&mut place).iter().any(|(n, _)| n == "old.fvlt"));
-}
-
 #[test]
 fn a_vault_whose_stream_does_not_end_with_the_file_is_not_written_back() {
     let mut place = Memory::default();

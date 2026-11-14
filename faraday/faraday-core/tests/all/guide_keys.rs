@@ -7,9 +7,6 @@ use faraday_core::backup_flow::{Kind as FlowKind, Step as FlowStep};
 use faraday_core::guide::{GuideAim, GuideAt, guide_aim, guide_key};
 use std::collections::BTreeSet;
 
-/// The places with no page yet, one a line.
-const TO_WRITE: &str = include_str!("../../../../docs/guide/TO-WRITE.txt");
-
 /// Lists every value of an enum, failing to build when one is added
 /// and not listed.
 macro_rules! every {
@@ -139,14 +136,6 @@ fn place(key: &str) -> &str {
     key.split('.').next().unwrap_or(key)
 }
 
-fn to_write() -> BTreeSet<&'static str> {
-    TO_WRITE
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .collect()
-}
-
 #[test]
 fn every_step_has_a_part_of_its_own() {
     for (key, step) in walk() {
@@ -169,30 +158,14 @@ fn no_key_is_worked_out_twice() {
 }
 
 #[test]
-fn every_key_opens_a_page_or_names_one_still_to_write() {
-    let todo = to_write();
+fn every_key_opens_a_page() {
     let mut missing = BTreeSet::new();
-    let mut reached = BTreeSet::new();
     for (key, _) in walk() {
-        reached.insert(place(key));
-        if guide_aim(key) == GuideAim::Contents && !todo.contains(place(key)) {
+        if guide_aim(key) == GuideAim::Contents {
             missing.insert(place(key));
         }
     }
-    assert!(
-        missing.is_empty(),
-        "places with no page, not in docs/guide/TO-WRITE.txt: {missing:?}"
-    );
-    for p in &todo {
-        assert!(
-            reached.contains(p),
-            "{p} in TO-WRITE.txt is no place the app reaches"
-        );
-        assert!(
-            faraday_guide::guide_page(p).is_none(),
-            "{p} has a page: take it off TO-WRITE.txt"
-        );
-    }
+    assert!(missing.is_empty(), "places with no page: {missing:?}");
 }
 
 #[test]

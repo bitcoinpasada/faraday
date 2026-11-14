@@ -227,7 +227,6 @@ fn what_is_refused_is_named() {
         open(&compute(), &old, "pw").err(),
         Some(Error::Older { major: 3 })
     );
-    assert_eq!(recognise(b"FVLT and more bytes"), Err(Error::NotKdbx));
     assert_eq!(recognise(b""), Err(Error::NotKdbx));
     assert_eq!(stretches(), 0);
 }

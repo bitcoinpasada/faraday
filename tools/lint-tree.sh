@@ -37,7 +37,6 @@ TOP=(
     SECURITY.md
     core                 # the libraries with no flow and no wording
     deny.toml            # cargo deny's policy
-    design               # the mark's drafts
     docs                 # what is true now or still to be built
     faraday              # Faraday itself
     fuzz                 # the shared crates' fuzz targets

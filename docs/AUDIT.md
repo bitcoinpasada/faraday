@@ -272,9 +272,8 @@ replaces or what it is pinned against): `argon2.md`, `chacha20.md`,
 `ed25519-dalek.md`, `hmac.md`, `pbkdf2.md`,
 `rand_core.md`, `rsa.md`, `sha1.md`, `sha2.md`, `sha3.md`, `keccak.md`, `ripemd.md`, `subtle.md`, `getrandom.md`,
 `zeroize.md`, `rqrr.md`, `miniscript.md`, plus non-cryptographic
-build/platform deps (`cc.md`, `libc.md`, `libc-faraday-grant.md`,
-`windows-sys.md`, `rustbus.md`, `miniz_oxide.md`, `lzma-rust2.md`,
-`clipboard.md`, `ur.md`). `bitcoin`, the most important dependency, has
+build/platform deps (`cc.md`, `libc.md`,
+`windows-sys.md`, `rustbus.md`, `miniz_oxide.md`, `lzma-rust2.md`). `bitcoin`, the most important dependency, has
 no page yet. `deny.toml` (advisories, licences, duplicate and source
 checks) runs in `just lint`. `supply-chain/` holds `cargo vet`'s files,
 but `cargo vet` does not pass today (23 crates are covered by neither an

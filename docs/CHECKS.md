@@ -234,7 +234,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `guide.places-paged`: every place the app reaches has a guide page or is in docs/guide/TO-WRITE.txt | `faraday/faraday-core/src/lib.rs`<br>`faraday/faraday-core/src/guide.rs` | held | - | `lint-guide` | - | `tools/README.md` |
+| `guide.places-paged`: every place the app reaches has a guide page | `faraday/faraday-core/src/lib.rs`<br>`faraday/faraday-core/src/guide.rs` | held | - | `lint-guide` | - | `tools/README.md` |
 
 ### 2.16 deps
 

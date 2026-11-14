@@ -525,7 +525,7 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    clipboard (the stick, the Pi) has no Paste on any scanner, and no
    dimmed tile stands in for it. Paste on the desktop is live: the window shell reads the text
    through the platform's own tool (`wl-paste`, `xclip`, `pbpaste`; the
-   Windows API on Windows; `docs/deps/clipboard.md`), run only on a press,
+   Windows API on Windows), run only on a press,
    and sets `Faraday::clipboard`. Ctrl+V (Command+V on macOS) is
    `Key::Paste` and does what the tile does; with the scanner closed it
    is Paste words where the words form has the keyboard (F75), and
