@@ -69,6 +69,11 @@ impl Camera {
         self.scan.as_ref()
     }
 
+    /// The read card, while it shows.
+    pub(crate) fn card_mut(&mut self) -> Option<&mut scan_read::ReadCard> {
+        self.scan.as_mut().and_then(|s| s.card.as_mut())
+    }
+
     /// The scanner's line says `note`, while the sheet is open.
     pub(crate) fn say(&mut self, note: impl AsRef<str>) {
         if let Some(scan) = self.scan.as_mut() {
@@ -1222,9 +1227,12 @@ impl Faraday {
         // An address is checked against the loaded wallets: that is the
         // card's fact.
         let text = trimmed(&bytes);
-        if let Some(said) = self.address_note(&c, &text) {
+        if let Some((said, look)) = self.address_note(&c, &text) {
             let mut card = self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
             card.facts.push(Text::of(&said));
+            if let Some(look) = look {
+                self.address_miss_card(&mut card, look);
+            }
             return self.read_card_put(card);
         }
         drop(text);
@@ -1408,6 +1416,7 @@ impl Faraday {
             ext,
             filed: None,
             kef,
+            look: None,
         }
     }
 
@@ -1482,6 +1491,10 @@ impl Faraday {
         let Some(way) = scan.card.as_ref().and_then(|k| k.ways.get(i).cloned()) else {
             return;
         };
+        // A look further goes on the card, which stays.
+        if let Way::Look(look) = way {
+            return self.look_go(look);
+        }
         // A way that loads a key waits for the stick to be out.
         if way.loads_a_key() && !self.may_load_keys() {
             return;
@@ -2365,9 +2378,19 @@ impl Faraday {
             None => {
                 // An address is checked against the loaded wallets, not
                 // filed.
-                if let Some(said) = self.address_note(&c, &text) {
-                    self.camera.say(said);
-                    return None;
+                match self.address_note(&c, &text) {
+                    Some((_, Some(look))) => {
+                        let mut card =
+                            self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
+                        self.address_miss_card(&mut card, look);
+                        self.read_card_put(card);
+                        return None;
+                    }
+                    Some((said, None)) => {
+                        self.camera.say(said);
+                        return None;
+                    }
+                    None => {}
                 }
                 // A Krux encrypted code read as raw bytes keeps its bytes:
                 // the text above would change each one that is no UTF-8.

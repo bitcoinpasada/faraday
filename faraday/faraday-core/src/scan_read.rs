@@ -488,6 +488,9 @@ pub enum Way {
     /// A Krux encrypted code that is something else: it goes on as an
     /// unknown code.
     NotEncrypted,
+    /// An address not found among the first hundred: look further, or
+    /// stop looking (`docs/QR.md` §2).
+    Look(crate::address_find::LookWay),
 }
 
 impl Way {
@@ -513,6 +516,16 @@ impl Way {
             Way::OpenQrVault => Text::of(EN.read_go_qr_vault),
             Way::Open => Text::of(EN.kef_open),
             Way::NotEncrypted => Text::of(EN.kef_not_encrypted),
+            Way::Look(crate::address_find::LookWay::To(i)) => Text::fill(
+                EN.read_look_further,
+                &[&Text::num(u64::from(
+                    crate::address_find::DEPTHS
+                        .get(usize::from(*i))
+                        .copied()
+                        .unwrap_or_default(),
+                ))],
+            ),
+            Way::Look(crate::address_find::LookWay::Stop) => Text::of(EN.read_look_stop),
         }
     }
 
@@ -556,6 +569,10 @@ pub struct ReadCard {
     /// A Krux encrypted code's header and the time its count takes here,
     /// worked out once at the read.
     pub(crate) kef: Option<crate::seeds::kef::Header>,
+    /// An address's look through the loaded wallets, past the first
+    /// hundred of each chain, while the card is of an address that was
+    /// not found.
+    pub(crate) look: Option<crate::address_find::Look>,
 }
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":

@@ -74,7 +74,7 @@ open.
 | QR from a photograph or image file, many at once, stopping when a transfer completes | PNG import | PNG only, decoded in the disk process (§4) |
 | Typed or pasted text as a way in | paste | Type everywhere; Paste on the desktop (§8 item 5), a seed's included (F75); no clipboard on the stick or the Pi |
 | Text files from a stick as a way in | yes | yes, from the Inbox |
-| A scanned address or `bitcoin:` URI checked against the first 100 receive and change addresses of each loaded wallet, not filed | no | yes |
+| A scanned address or `bitcoin:` URI checked against the first 100 receive and change addresses of each loaded wallet, not filed; a miss offers **Look further**, to 1,000 and 10,000 | no | yes |
 | A descriptor scanned while Create waits goes into the flow | n/a | yes: a descriptor of one key with its origin, at the wallet's kind and on its network, fills the waiting slot as a cosigner's key does; one of several keys, or one that cannot be that key, stays in Files and the toast says why (`docs/FLOWS.md`, the Keys card) |
 | A code drawn by hand scanned back to check it, never loaded | n/a | yes: a SeedQR on its copy item (`CheckCopy`), a codex32 string's Codex32QR on its item (`CheckCodex32`, `docs/BACKUP-FLOW.md` §17.24); the grid to copy it from is marked block by block or row by row (owner, 2026-10-24). Not built: a Krux code on its item (`docs/KEF.md` §15.1) |
 
@@ -104,7 +104,7 @@ on is held back until it is off (`docs/FLOWS.md` "Rules every flow keeps").
 | GPG paperkey: paperkey's base16 lines, or its raw form | Taken only by a GPG restore's **Scan the paperkey**, at Type the paperkey; any other scanner names it, "That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files", and files nothing (F167) |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
 | Codes read from an image file on a stick | Routed one by one by the rows above, as if scanned |
-| Address, `bitcoin:` URI, silent payment address | **Is this address mine?**: the scanner's line names the loaded wallet and the place it is one of its first hundred, or says it is none of theirs |
+| Address, `bitcoin:` URI, silent payment address | **Is this address mine?**: the scanner's line names the loaded wallet and the place it is one of its first hundred, or says it is none of theirs, how far it looked and in how many wallets. A miss offers **Look further**: 1,000 or 10,000 of each chain across every loaded wallet (single-key, multisig and miniscript), a tick at a time with how far it has got and **Stop**, as Explore's Find an address does for one account (F76); the two share `faraday-core/src/address_find/` (the depths, the pace, the derivation). A multisig wallet derives every key of an index, so its 10,000 is the slowest; the first hundred still answer at once |
 | Signed message | Files; from Home's Scan, the read card with **Check the signature** and **Done** |
 | Any other text | Files, as text; from Home's Scan with a vault open, the read card with **Save as a note** and **Done** |
 

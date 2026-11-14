@@ -126,7 +126,7 @@ is a list of them.
 | **Slots** | One positional row per signer. Removing signer 2 leaves slot 2 empty rather than renumbering. Sources: a key in a vault, a new key (dice or entropy), typed words, a scanned SeedQR, an account key (watch only), or **someone else will add this later**. Each filled slot has **Show key QR**, as a `ur:crypto-account` byte-identical to SeedSigner's, or as the plain key expression. |
 | **Load** | A wallet in any form (§3.2). Builds the wallet card, routing itself to the right kind. |
 | **Signers** | The wallet card's slots, filled for signing (§2). |
-| **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2). An address is checked against every loaded wallet's first 100 receive and change addresses by **Check an address** (Tools, Transactions). |
+| **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2). An address is checked against every loaded wallet's first 100 receive and change addresses by **Check an address** (Tools, Transactions), and a miss can **Look further**, to 1,000 or 10,000 of each chain in every loaded wallet, with **Stop**. |
 | **Transaction** | A PSBT by scan, a file in Files or typing. The review in sentences with the full table one choice away; every warning from one function, never softened for guided mode (§3.3). |
 | **Txid** | The transaction id before anyone signs, for native SegWit and Taproot spends; refused for legacy and P2SH-wrapped inputs, whose id changes on signing. |
 | **Sign** | Signs with every key held, producing one partly signed PSBT per key, the form separate devices would give. |

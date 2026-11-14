@@ -1,6 +1,7 @@
 //! The integration tests of faraday-core, one module per subject.
 
 mod about_link;
+mod address_look;
 mod airgap;
 mod amounts;
 mod appearance;

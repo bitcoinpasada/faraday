@@ -13,13 +13,13 @@
 
 use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use faraday_bip::bitcoin::secp256k1::{Secp256k1, VerifyOnly};
-use faraday_bip::bitcoin::{Address, Network as BtcNetwork};
 use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 
 use super::ExploreArea;
 use super::implied_script;
+use crate::address_find::Pace;
 use crate::strings::EN;
 use crate::wallet::Session;
 use crate::{Faraday, Screen};
@@ -28,12 +28,7 @@ use faraday_text::Text;
 /// Addresses on one page of the list.
 pub const PAGE: u32 = 10;
 
-/// How deep a search goes, in indices of each chain: the first hundred,
-/// the depth "Is this address mine?" looks at for a loaded wallet
-/// (`docs/QR.md` §2); a thousand, a wallet used for years; ten thousand,
-/// a shop's or a service's: 1.9 s on the build machine, about twenty on
-/// a Pi 3 (F76).
-pub const DEPTHS: [u32; 3] = [100, 1_000, 10_000];
+pub use crate::address_find::DEPTHS;
 
 /// The most addresses kept of each chain from index 0: the deepest
 /// search's.
@@ -45,16 +40,6 @@ pub(crate) const MATCHES_KEPT: usize = 50;
 /// The longest text the search field takes: a Taproot address on
 /// regtest is 64 characters, and a pasted one may carry no more.
 pub(crate) const QUERY_MAX: usize = 90;
-
-/// How long one tick of a search aims to take, ms.
-const TICK_MS: u64 = 50;
-
-/// The first tick's indices, small enough to come back at once on the
-/// slowest device, since it is the tick the rate is first measured over.
-const FIRST_BUDGET: u32 = 4;
-
-/// The most indices one tick takes, whatever the rate measured.
-const MAX_BUDGET: u32 = 4_096;
 
 /// Which of Explore's pages is on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -206,10 +191,7 @@ fn derive(
     change: bool,
     index: u32,
 ) -> Text {
-    policy
-        .script_at_with(c, secp, change, index)
-        .ok()
-        .and_then(|s| Address::from_script(&s, BtcNetwork::from(net)).ok())
+    crate::address_find::address(c, secp, policy, net, change, index)
         .map_or_else(Text::default, |a| Text::of(&a.to_string()))
 }
 
@@ -248,10 +230,8 @@ pub struct Search {
     pub found: Vec<Found>,
     /// How many addresses matched in all.
     pub matched: u32,
-    /// Indices the next tick takes.
-    budget: u32,
-    /// When the last tick came, ms.
-    last_ms: u64,
+    /// How many indices the next tick takes.
+    pace: Pace,
 }
 
 impl Search {
@@ -286,15 +266,6 @@ impl Search {
     /// other address can be.
     fn whole(&self, address: &str) -> bool {
         address == self.query || (bech32(address) && address == self.lower)
-    }
-
-    /// The budget for the next tick, from `tested` indices taken since
-    /// the last one.
-    fn ticked(&mut self, tested: u32, now_ms: u64) {
-        let span = now_ms.saturating_sub(self.last_ms).max(1);
-        self.last_ms = now_ms;
-        let next = u64::from(tested.max(1)) * TICK_MS / span;
-        self.budget = (next.min(u64::from(MAX_BUDGET)) as u32).max(FIRST_BUDGET);
     }
 }
 
@@ -467,8 +438,7 @@ impl ExploreArea {
             next: 0,
             found: Vec::new(),
             matched: 0,
-            budget: FIRST_BUDGET,
-            last_ms: now,
+            pace: Pace::new(now),
         });
     }
 
@@ -506,7 +476,7 @@ impl ExploreArea {
         };
         let mut kept = kept.borrow_mut();
         let secp = Secp256k1::verification_only();
-        let end = s.next.saturating_add(s.budget).min(s.depth);
+        let end = s.next.saturating_add(s.pace.budget()).min(s.depth);
         let start = s.next;
         'indices: for i in start..end {
             for change in [false, true] {
@@ -537,7 +507,7 @@ impl ExploreArea {
             s.next = i + 1;
         }
         let tested = s.next.saturating_sub(start);
-        s.ticked(tested, now_ms);
+        s.pace.ticked(tested, now_ms);
         true
     }
 

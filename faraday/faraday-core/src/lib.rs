@@ -127,6 +127,7 @@
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
+mod address_find;
 mod qr_view;
 mod receipt;
 mod state;
@@ -3134,8 +3135,13 @@ impl Faraday {
     /// Costs an address derivation (through `find_address`). What a scanned
     /// address is to the loaded wallets: one of a wallet's first hundred on
     /// either chain, or none of them (`docs/QR.md` §2: "Is this address
-    /// mine?"). `None` when the text is not an address.
-    fn address_note(&self, c: &Compute, text: &str) -> Option<faraday_text::Text> {
+    /// mine?"), and for none of them the look further that is offered.
+    /// `None` when the text is not an address.
+    fn address_note(
+        &self,
+        c: &Compute,
+        text: &str,
+    ) -> Option<(faraday_text::Text, Option<address_find::Look>)> {
         let t = text.trim();
         let mut is_uri = false;
         let t = match faraday_codec::bip21::parse(t) {
@@ -3145,10 +3151,10 @@ impl Faraday {
             }
             Err(faraday_codec::bip21::Error::NotUri) => t,
             Err(faraday_codec::bip21::Error::Required) => {
-                return Some(faraday_text::Text::of(EN.address_note_uri_required));
+                return Some((faraday_text::Text::of(EN.address_note_uri_required), None));
             }
             Err(faraday_codec::bip21::Error::Malformed) => {
-                return Some(faraday_text::Text::of(EN.address_note_uri_malformed));
+                return Some((faraday_text::Text::of(EN.address_note_uri_malformed), None));
             }
         };
         let net = self.session.network();
@@ -3163,17 +3169,20 @@ impl Faraday {
                     .iter()
                     .any(|&n| faraday_bip::address::is_address_prefix(t, n));
             if whole {
-                return Some(faraday_text::Text::of(EN.address_note_that_address_fails));
+                return Some((faraday_text::Text::of(EN.address_note_that_address_fails), None));
             }
             // A link whose address is anything else (not empty: BIP 321
             // links carry none) is not well formed.
             return (is_uri && !t.is_empty())
-                .then(|| faraday_text::Text::of(EN.address_note_uri_malformed));
+                .then(|| (faraday_text::Text::of(EN.address_note_uri_malformed), None));
         };
         let Ok(addr) = addr.require_network(net.into()) else {
-            return Some(faraday_text::Text::fill(
-                EN.address_note_wrong_network,
-                &[wallet::network_name(net)],
+            return Some((
+                faraday_text::Text::fill(
+                    EN.address_note_wrong_network,
+                    &[wallet::network_name(net)],
+                ),
+                None,
             ));
         };
         for w in &self.session.wallets {
@@ -3183,17 +3192,21 @@ impl Faraday {
                 } else {
                     EN.address_note_receive
                 };
-                return Some(faraday_text::Text::fill(
-                    EN.address_note_found,
-                    &[&w.name, chain, &faraday_text::Text::num(u64::from(index))],
+                return Some((
+                    faraday_text::Text::fill(
+                        EN.address_note_found,
+                        &[&w.name, chain, &faraday_text::Text::num(u64::from(index))],
+                    ),
+                    None,
                 ));
             }
         }
-        Some(if self.session.wallets.is_empty() {
-            faraday_text::Text::of(EN.address_note_no_wallet)
-        } else {
-            faraday_text::Text::of(EN.address_note_that_address)
-        })
+        let wallets = self.session.wallets.len();
+        if wallets == 0 {
+            return Some((faraday_text::Text::of(EN.address_note_no_wallet), None));
+        }
+        let look = address_find::Look::new(addr.script_pubkey(), wallets);
+        Some((address_find::missed(&look), Some(look)))
     }
 
     fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {
@@ -4700,6 +4713,7 @@ impl App for Faraday {
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
+                    | self.look_tick(now_ms)
                     | self.chart_side_tick(now_ms)
                     | self.key_path_sheet_open()
                     | self.boot_notice_tick(now_ms)

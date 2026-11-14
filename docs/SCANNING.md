@@ -153,7 +153,7 @@ destination's action.
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
 | Account key | Create's or Restore's slot waiting for one; else filed. **Keep in Files** |
-| Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead |
+| Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault, **Sign this message** while a single-key wallet is loaded (Sign a message opens with the text as the message) and **Keep in Files** |

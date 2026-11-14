@@ -4668,12 +4668,20 @@ strings! {
     address_note_found: "That address is {}'s {} address {}",
     /// Text in `address_note`.
     address_note_no_wallet: "That is an address. Load a wallet to check whether it is yours",
-    /// Text in `address_note`.
-    address_note_that_address: "That address is not among the first 100 of any loaded wallet",
     /// Text in `address_note`: a `bitcoin:` link with a `req-` parameter.
     address_note_uri_required: "That payment link needs something this device does not read",
     /// Text in `address_note`: a `bitcoin:` link that is not well formed.
     address_note_uri_malformed: "That payment link is not well formed",
+    /// Text in `address_note`. `{}`: how many indices of each chain it looked at, and how many wallets.
+    address_note_missed: "That address is not among the first {} receive and change addresses of {} loaded wallets",
+    /// Text in `address_note`. `{}`: how many indices of each chain it looked at.
+    address_note_missed_one: "That address is not among the first {} receive and change addresses of the loaded wallet",
+    /// Button on the read card of an address not found. `{}`: the depth, in indices of each chain.
+    read_look_further: "Look further: {}",
+    /// Button on the read card while it looks further.
+    read_look_stop: "Stop",
+    /// Line on the read card while it looks further. `{}`: the index reached, the depth.
+    read_look_progress: "Looking: {} of {}",
     // ----- open_qr (faraday-core/src/lib.rs) -----
     /// Toast in `open_qr`. `{}`: `e`.
     open_qr_cannot_make: "Cannot make a code: {}",

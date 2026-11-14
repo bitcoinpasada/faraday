@@ -29,7 +29,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Single-key wallet** makes a native SegWit, Taproot, nested or legacy wallet. **Multisig** is k of n keys, **Taproot multisig** is k of n in one script leaf, and **MuSig2** is all keys with one signature on chain; each opens Make a new wallet at that kind. **Miniscript and inheritance** loads one from its descriptor.
 
-**Restore an existing wallet** takes a descriptor, a wallet file, a BIP 129 record or split sheets. **Back up a wallet** writes seeds by hand, on sheets, in envelopes or as codex32 shares, and reads **Load a wallet first** until one is loaded. **Read a Bitcoin Core wallet** reads and checks a wallet.dat, and reads **Copy a wallet.dat in first** until one is in Files.
+**Restore an existing wallet** takes a descriptor, a wallet file, a BIP 129 record or split sheets. **Back up a wallet** writes seeds by hand, on sheets, in envelopes or as codex32 shares, and reads **Load a wallet first** until one is loaded; an address not among the first 100 of each can be looked for further, to 1,000 or 10,000. **Read a Bitcoin Core wallet** reads and checks a wallet.dat, and reads **Copy a wallet.dat in first** until one is in Files.
 
 ## Transactions
 
