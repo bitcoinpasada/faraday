@@ -212,7 +212,7 @@ pub fn split_share(wallet: &Wallet, keep: &[usize]) -> Option<Text> {
 }
 
 fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> Text {
-    let (m, n) = Session::quorum(wallet);
+    let (m, n) = Session::quorum_keys(wallet);
     let mut out = Text::of(head);
     if let Some(keep) = only {
         out.push_str(&text!(
@@ -280,7 +280,7 @@ fn sanitize(name: &str) -> Text {
 /// One split sheet as a sheet file to print: which sheet it is, the
 /// quorum, and the share's lines, which its QR code holds too.
 pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Text {
-    let (m, n) = Session::quorum(wallet);
+    let (m, n) = Session::quorum_keys(wallet);
     let mut out = Text::of("faraday-sheet 1\nkind: share\n");
     out.push_str(&text!("name: {}\n", wallet_name(&wallet.name)));
     out.push_str(&text!("shape: {}\n", &*Session::shape(wallet)));
@@ -2361,7 +2361,7 @@ impl Faraday {
             }
             plan::Item::Sheets => {
                 if b.answers.split && splits(w) {
-                    let (_, n) = Session::quorum(w);
+                    let (_, n) = Session::quorum_keys(w);
                     out(&text!("{stem}-share-1-of-{n}.pdf"))
                 } else {
                     out(&text!("{stem}-backup.pdf"))
@@ -2489,7 +2489,7 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape_now(b.wallet);
-        let (m, n) = Session::quorum(w);
+        let (m, n) = Session::quorum_keys(w);
         let plan = split_plan(n, m, b.answers.omit);
         self.kept
             .plan_mapped(c, &shape, &b.answers)
@@ -2869,7 +2869,7 @@ impl Faraday {
                 passphrase: key.is_some_and(|k| self.session.keys[k].has_passphrase),
             })
             .collect();
-        let (m, n, paths) = Self::spend_ways(wallet);
+        let (m, _, paths) = Self::spend_ways(wallet);
         // The vaults set up before the keys are the plan's first vaults.
         let vaults = self
             .wallet_flow_active(wallet.checksum())
@@ -2878,68 +2878,15 @@ impl Faraday {
         plan::Shape {
             paths,
             m: m.clamp(1, seeds.len().max(1)),
-            keys: n.max(1),
+            keys: wallet.policy().keys().len().max(1),
             seeds,
             splits: crate::wallet_backup::splits(wallet),
             vaults,
         }
     }
 
-    /// What the seeds of `wallet` must do to spend: `(signatures needed,
-    /// keys, ways to spend)`, the ways as masks of seed places (the places
-    /// [`Faraday::backup_seed_fps_of`] lists). Where the script states a
-    /// quorum, that quorum. A MuSig2 wallet needs every seed. A script
-    /// with several ways to spend lists them. A wallet whose ways cannot
-    /// be worked out needs every seed, so the plan never reads it as
-    /// rebuilding from fewer.
     fn spend_ways(wallet: &crate::wallet::Wallet) -> (usize, usize, Vec<u64>) {
-        let keys = wallet.policy().keys();
-        if let Some((m, n)) = Session::stated_quorum(wallet) {
-            return (m, n, Vec::new());
-        }
-        let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
-        for f in keys.iter().filter_map(|k| k.fingerprint()) {
-            if !fps.contains(&f) {
-                fps.push(f);
-            }
-        }
-        let n = keys.len().max(1);
-        let all = fps.len().max(1);
-        if fps.len() <= 1 {
-            return (1, n, Vec::new());
-        }
-        // Each way as the seeds it needs; a way through a key with no
-        // seed of its own, or past 64 seeds, cannot be met by seeds.
-        let paths: Vec<u64> = wallet
-            .waits()
-            .paths
-            .iter()
-            .filter(|p| {
-                // No seed can supply a hash's preimage, nor a way that
-                // needs no key.
-                !p.keys.is_empty() && !p.locks.contains(&faraday_bip::spend::Lock::Preimage)
-            })
-            .filter_map(|p| {
-                p.keys.iter().try_fold(0u64, |mask, &k| {
-                    let fp = keys.get(k)?.fingerprint()?;
-                    let i = fps.iter().position(|&f| f == fp)?;
-                    (i < 64).then_some(mask | 1 << i)
-                })
-            })
-            .collect();
-        let musig = matches!(
-            wallet.policy().template(),
-            faraday_bip::policy::Template::MuSig
-        );
-        if musig || paths.is_empty() {
-            return (all, n, Vec::new());
-        }
-        let fewest = paths
-            .iter()
-            .map(|p| p.count_ones() as usize)
-            .min()
-            .unwrap_or(1);
-        (fewest, n, paths)
+        Session::spend_ways(wallet)
     }
 
     /// [`Faraday::backup_public`] for wallet `w` under answers `a`.

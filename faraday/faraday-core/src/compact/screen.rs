@@ -252,7 +252,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Signatures possible here.
     let (m, _) = Session::quorum(wlt);
     let slots = app.session.slots(wlt);
-    let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
+    let here = app.session.held_toward_quorum(wlt);
     // Short: Scan a key under the line; enough: Can spend
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     let can = app.can_spend(app.wallets.wallet());

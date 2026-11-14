@@ -861,7 +861,7 @@ impl Faraday {
         if !shares.is_empty() {
             let omit = self.backup.state().map_or(0, |b| b.answers.omit);
             let rebuilds = self.session.wallets.get(w).is_some_and(|wl| {
-                let (m, n) = crate::wallet::Session::quorum(wl);
+                let (m, n) = crate::wallet::Session::quorum_keys(wl);
                 let plan = crate::wallet_backup::split_plan(n, m, omit);
                 crate::restore::sheets_rebuild(&c, self.session.network(), wl, &plan)
             });

@@ -256,7 +256,7 @@ fn wallet_row(app: &View, i: usize, ready: u8) -> ListRow {
     // A key not of the wallet spends it alone: no "k of n" (F132).
     let shape = if crate::wallet::another_key_spends(w) {
         EN.sidebar_another_key.to_string()
-    } else if n > 1 {
+    } else if n > 1 || w.policy().keys().len() > 1 {
         fill(EN.sidebar_count, &[&m.to_string(), &n.to_string()])
     } else {
         EN.sidebar_single_key.to_string()

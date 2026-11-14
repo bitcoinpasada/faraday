@@ -80,7 +80,7 @@ pub(crate) fn made(c: &Compute, inp: &Inputs, what: u8) -> Made {
             Some(EN.backup_config_rebuilds_another)
         }
         4 if wallet_backup::splits(&w) => {
-            let (m, n) = Session::quorum(&w);
+            let (m, n) = Session::quorum_keys(&w);
             let plan = wallet_backup::split_plan(n, m, inp.omit.unwrap_or(m.saturating_sub(1)));
             (!restore::sheets_rebuild(c, inp.network, &w, &plan))
                 .then_some(EN.backup_sheets_rebuild_another)
@@ -171,7 +171,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
             codes_of(&format!("{stem}-descriptor"), "-", &text, lines)
         }
         4 => {
-            let (m, n) = Session::quorum(w);
+            let (m, n) = Session::quorum_keys(w);
             // As the shares' sheets and text are split.
             let omit = inp.omit.unwrap_or(m.saturating_sub(1));
             let plan = wallet_backup::split_plan(n, m, omit);
@@ -363,7 +363,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
             }
         }
         4 => {
-            let (m, n) = Session::quorum(w);
+            let (m, n) = Session::quorum_keys(w);
             let plan = wallet_backup::split_plan(n, m, inp.omit.unwrap_or(m.saturating_sub(1)));
             let pics = pictures(c, inp, 4);
             for (i, row) in plan.iter().enumerate() {

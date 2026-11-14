@@ -254,13 +254,7 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
         let can = app.readiness(i) == 2;
         let differs = app.silent_differs(i);
         let (m, _) = Session::quorum(wlt);
-        let here = app
-            .session
-            .slots(wlt)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .count()
-            .min(m);
+        let here = app.session.held_toward_quorum(wlt);
         let shape = Session::shape(wlt);
         let line = if can {
             shape.as_str().into()
@@ -552,7 +546,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     let (m, _) = Session::quorum(wlt);
     let slots = app.session.slots(wlt);
-    let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
+    let here = app.session.held_toward_quorum(wlt);
 
     // Actions: the first along the foot, Remove from session at the
     // end; a row more above when they do not fit the card's width.

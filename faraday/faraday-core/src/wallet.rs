@@ -1041,9 +1041,97 @@ impl Session {
             .collect()
     }
 
-    /// The quorum: (signatures needed, keys).
+    /// The quorum: (seeds a spend needs, seeds or keys). Where the script states
+    /// none, the fewest seeds of any way to spend, and every seed where
+    /// the ways cannot be worked out, never one.
     pub fn quorum(wallet: &Wallet) -> (usize, usize) {
-        Self::stated_quorum(wallet).unwrap_or((1, wallet.policy.keys().len().max(1)))
+        let (m, n, _) = Self::spend_ways(wallet);
+        (m, n)
+    }
+
+    /// How many of the seeds a spend needs are held here, at most `m`:
+    /// where the script states no quorum, distinct seeds, else key slots.
+    pub fn held_toward_quorum(&self, wallet: &Wallet) -> usize {
+        let (m, _) = Self::quorum(wallet);
+        let slots = self.slots(wallet);
+        let held = slots.iter().filter(|s| s.held_by.is_some());
+        let count = if Session::stated_quorum(wallet).is_some() {
+            held.count()
+        } else {
+            let mut fps: Vec<_> = held.filter_map(|s| s.fingerprint).collect();
+            fps.sort_by_key(|f| f.0);
+            fps.dedup();
+            fps.len()
+        };
+        count.min(m)
+    }
+
+    /// [`Session::quorum`] with the key count as n where the script states
+    /// no quorum: for what is split or indexed by key.
+    pub fn quorum_keys(wallet: &Wallet) -> (usize, usize) {
+        let (m, n) = Self::quorum(wallet);
+        match Session::stated_quorum(wallet) {
+            Some(_) => (m, n),
+            None => (m, wallet.policy().keys().len().max(1)),
+        }
+    }
+
+    /// What the seeds of `wallet` must do to spend: `(signatures needed,
+    /// distinct seeds where none is stated, ways to spend)`, the ways as masks of seed places (the places
+    /// `Faraday::backup_seed_fps_of` lists). Where the script states a
+    /// quorum, that quorum. A MuSig2 wallet needs every seed. A script
+    /// with several ways to spend lists them. A wallet whose ways cannot
+    /// be worked out needs every seed, so the plan never reads it as
+    /// rebuilding from fewer.
+    pub(crate) fn spend_ways(wallet: &crate::wallet::Wallet) -> (usize, usize, Vec<u64>) {
+        let keys = wallet.policy().keys();
+        if let Some((m, n)) = Session::stated_quorum(wallet) {
+            return (m, n, Vec::new());
+        }
+        let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
+        for f in keys.iter().filter_map(|k| k.fingerprint()) {
+            if !fps.contains(&f) {
+                fps.push(f);
+            }
+        }
+        // Where no quorum is stated, n counts distinct seeds, the unit of m.
+        let n = fps.len().max(1);
+        let all = n;
+        if fps.len() <= 1 {
+            return (1, n, Vec::new());
+        }
+        // Each way as the seeds it needs; a way through a key with no
+        // seed of its own, or past 64 seeds, cannot be met by seeds.
+        let paths: Vec<u64> = wallet
+            .waits()
+            .paths
+            .iter()
+            .filter(|p| {
+                // No seed can supply a hash's preimage, nor a way that
+                // needs no key.
+                !p.keys.is_empty() && !p.locks.contains(&faraday_bip::spend::Lock::Preimage)
+            })
+            .filter_map(|p| {
+                p.keys.iter().try_fold(0u64, |mask, &k| {
+                    let fp = keys.get(k)?.fingerprint()?;
+                    let i = fps.iter().position(|&f| f == fp)?;
+                    (i < 64).then_some(mask | 1 << i)
+                })
+            })
+            .collect();
+        let musig = matches!(
+            wallet.policy().template(),
+            faraday_bip::policy::Template::MuSig
+        );
+        if musig || paths.is_empty() {
+            return (all, n, Vec::new());
+        }
+        let fewest = paths
+            .iter()
+            .map(|p| p.count_ones() as usize)
+            .min()
+            .unwrap_or(1);
+        (fewest, n, paths)
     }
 
     /// [`Session::quorum`] where the script states one; `None` for a
@@ -1094,7 +1182,10 @@ impl Session {
             ),
             Kind::MuSig => Text::fill(
                 EN.wallet_of_musig2,
-                &[&Text::num(n as u64), &Text::num(n as u64)],
+                &[
+                    &Text::num(wallet.policy.keys().len() as u64),
+                    &Text::num(wallet.policy.keys().len() as u64),
+                ],
             ),
             Kind::Silent => Text::of(EN.wallet_1_key_silent),
             Kind::Other => Text::of(EN.wallet_wallet),

@@ -294,7 +294,7 @@ pub(crate) fn wallet_share_record(
             .is_some_and(|p| p.checksum() == cs)
     };
     let text = |wl: &crate::wallet::Wallet| -> Option<Made> {
-        let (m, n) = crate::wallet::Session::quorum(wl);
+        let (m, n) = crate::wallet::Session::quorum_keys(wl);
         let plan = crate::wallet_backup::split_plan(n, m, wf.answers.omit);
         let share = crate::wallet_backup::split_share(wl, plan.get(j)?)?;
         if !crate::restore::sheets_rebuild(c, app.session.network(), wl, &plan) {

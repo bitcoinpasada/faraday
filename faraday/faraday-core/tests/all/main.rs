@@ -150,6 +150,7 @@ mod qr_save_item;
 mod qr_tool;
 mod qr_vault_entry;
 mod quit;
+mod quorum_all_keys;
 mod register_wallet;
 mod restart;
 mod restore;

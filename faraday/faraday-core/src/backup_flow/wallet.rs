@@ -551,7 +551,7 @@ impl Faraday {
                 &wl.policy().to_descriptor_checksummed(),
             )),
             P::ShareFile(j, f) => {
-                let (m, n) = crate::wallet::Session::quorum(wl);
+                let (m, n) = crate::wallet::Session::quorum_keys(wl);
                 let head = text!("{stem}-share-{}-of-{n}", j + 1);
                 if f == plan::form::TEXT {
                     return vec![text!("{}.txt", &*head)];
@@ -637,7 +637,7 @@ impl Faraday {
                     if f == plan::form::QR
                         && let Some(wl) = self.session.wallets.get(w)
                     {
-                        let (m, n) = crate::wallet::Session::quorum(wl);
+                        let (m, n) = crate::wallet::Session::quorum_keys(wl);
                         let split = crate::wallet_backup::split_plan(n, m, answers.omit);
                         if let Some(text) = split
                             .get(j)
@@ -2335,7 +2335,7 @@ impl Faraday {
         let Some(fp) = wl.policy().keys().first().and_then(|k| k.fingerprint()) else {
             return;
         };
-        let (m, n) = crate::wallet::Session::quorum(wl);
+        let (m, n) = crate::wallet::Session::quorum_keys(wl);
         let owner = self.fresh_owner();
         self.create.set(crate::CreateState {
             owner,

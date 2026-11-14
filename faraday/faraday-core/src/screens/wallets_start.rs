@@ -325,13 +325,7 @@ pub(crate) fn wallet_rows(
             let w = &app.session.wallets[i];
             let ready = app.readiness(i);
             let (m, _) = Session::quorum(w);
-            let here = app
-                .session
-                .slots(w)
-                .iter()
-                .filter(|s| s.held_by.is_some())
-                .count()
-                .min(m);
+            let here = app.session.held_toward_quorum(w);
             let (state, tone) = match ready {
                 _ if app.silent_differs(i) => {
                     (EN.wallets_does_not_match.to_string(), Role::Error.paint())
@@ -398,13 +392,7 @@ pub(crate) fn wallet_rows(
             action,
         );
         let (m, _) = Session::quorum(w);
-        let here = app
-            .session
-            .slots(w)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .count()
-            .min(m);
+        let here = app.session.held_toward_quorum(w);
         // The marker on the right: ready, how many here, or none.
         let differs = app.silent_differs(i);
         let marker = match ready {

@@ -52,7 +52,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     };
     let shape = reads.plan_shape(b.wallet);
     let a = &b.answers;
-    let (_, keys_n) = Session::quorum(wallet);
+    let (_, keys_n) = Session::quorum_keys(wallet);
     let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
     let done = reads.backup_item_done(item);
     match item {
@@ -708,7 +708,7 @@ pub(crate) fn shares_card(
     let Some(wallet) = app.session.wallets.get(i) else {
         return 0.0;
     };
-    let (m, keys_n) = Session::quorum(wallet);
+    let (m, keys_n) = Session::quorum_keys(wallet);
     let slots = app.session.slots(wallet);
     let fp = |j: usize| -> faraday_text::Text {
         slots.get(j).and_then(|s| s.fingerprint).map_or_else(
@@ -1149,7 +1149,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // with the checklist; Remove takes them all.
             let stem = crate::file_stem(&wallet.name);
             let stem = stem.as_str();
-            let file = format!("{stem}-share-1-of-{}.pdf", Session::quorum(wallet).1);
+            let file = format!("{stem}-share-1-of-{}.pdf", Session::quorum_keys(wallet).1);
             let (state, button) = made_state(
                 app,
                 &file,
