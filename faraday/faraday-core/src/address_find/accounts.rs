@@ -4,12 +4,12 @@
 //! on the network in use.
 
 use faraday_bip::keys::Fingerprint;
-use faraday_bip::policy::WalletPolicy;
+use faraday_bip::policy::{Template, WalletPolicy};
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
 
 use crate::create::NewKind;
-use crate::wallet::{Session, same_wallet};
+use crate::wallet::Session;
 
 /// The single-key kinds searched, in BIP number order of preference:
 /// native SegWit first, as most wallets are.
@@ -34,17 +34,40 @@ pub(crate) struct Account {
     pub(crate) policy: WalletPolicy,
 }
 
+/// Whether two single-key wallets are of one account: the same master
+/// fingerprint, the same account path, the same extended key and the same
+/// script, read from the parsed descriptors, so one written with `h` for
+/// `'` or with another checksum is the same one. A wallet whose key has
+/// no origin, and a wallet of more than one key, is of no account; a
+/// wallet naming the key's origin over another extended key is not the
+/// key's account, so that account is still searched.
+pub(crate) fn same_account(a: &WalletPolicy, b: &WalletPolicy) -> bool {
+    let shape = |p: &WalletPolicy| {
+        let [key] = p.keys() else {
+            return None;
+        };
+        if !matches!(p.template(), Template::Single { .. }) {
+            return None;
+        }
+        Some((
+            key.fingerprint()?,
+            key.path()?.clone(),
+            *key.xpub(),
+            p.script_type(),
+        ))
+    };
+    match (shape(a), shape(b)) {
+        (Some(x), Some(y)) => x == y,
+        _ => false,
+    }
+}
+
 /// Costs a key derivation the first time for each account of each loaded
 /// key (kept on the key after), and a descriptor parse for each. The
 /// standard accounts of the session's keys that no loaded wallet is the
 /// same as: worked out once for a check, never while drawing.
 pub(crate) fn unmade(c: &Compute, session: &Session) -> Vec<Account> {
     let net = session.network();
-    let made: Vec<Text> = session
-        .wallets
-        .iter()
-        .map(|w| same_wallet(w.policy()))
-        .collect();
     let mut out = Vec::new();
     for (i, info) in session.keys.all().enumerate() {
         for kind in KINDS {
@@ -58,7 +81,11 @@ pub(crate) fn unmade(c: &Compute, session: &Session) -> Vec<Account> {
             let Ok(policy) = WalletPolicy::parse_any(c, descriptor.as_str()) else {
                 continue;
             };
-            if made.contains(&same_wallet(&policy)) {
+            if session
+                .wallets
+                .iter()
+                .any(|w| same_account(w.policy(), &policy))
+            {
                 continue;
             }
             out.push(Account {

@@ -302,3 +302,38 @@ fn an_account_with_a_wallet_is_not_searched_twice() {
         said(&app)
     );
 }
+
+/// Loads `descriptor` as a wallet from a file.
+fn load_from_file(app: &mut Faraday, descriptor: &str) {
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("wallet.txt"),
+            descriptor.as_bytes().to_vec(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
+#[test]
+fn a_wallet_written_with_h_is_the_wallet_a_find_names() {
+    let mut app = with_key();
+    let d = account_of_other(&app, NewKind::NativeSegwit).replace('\'', "h");
+    assert!(d.contains('h') && !d.contains('\''), "{d}");
+    load_from_file(&mut app, &d);
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    assert!(!said(&app).contains("is key "), "{}", said(&app));
+    assert!(said(&app).contains("receive address 0"), "{}", said(&app));
+}
+
+#[test]
+fn a_wallet_of_another_script_leaves_the_key_searched_on_its_own() {
+    let mut app = with_key();
+    let d = account_of_other(&app, NewKind::Taproot).replace('\'', "h");
+    load_from_file(&mut app, &d);
+    // BIP-84 m/84'/0'/0'/0/0: the key's own account, no wallet for it.
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    assert!(said(&app).contains("is key "), "{}", said(&app));
+}
