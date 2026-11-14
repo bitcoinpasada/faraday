@@ -63,6 +63,8 @@ in a vault, the wallet's description on a backup sheet, the other keys on a
 SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 **wallet in progress**, which is valid at every stage of being put together.
 
+Loading a key makes no wallet; the address check (`docs/QR.md` §2) still searches the key's standard single-key accounts (BIP-84, BIP-86, BIP-49 and BIP-44, account 0) that no loaded wallet is, so an address of a key with no wallet made is still found.
+
 **A wallet card** shows, at every point:
 - the wallet's shape in a sentence ("2 of 3, native SegWit multisig");
 - one row per key slot, in the descriptor's order, each marked **can sign

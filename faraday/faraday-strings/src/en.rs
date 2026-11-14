@@ -4676,6 +4676,10 @@ strings! {
     address_note_missed: "That address is not among the first {} receive and change addresses of {} loaded wallets",
     /// Text in `address_note`. `{}`: how many indices of each chain it looked at.
     address_note_missed_one: "That address is not among the first {} receive and change addresses of the loaded wallet",
+    /// Text in `address_note`. `{}`: how many indices of each chain it looked at, and how many wallets and key accounts together.
+    address_note_missed_accounts: "That address is not among the first {} receive and change addresses of the {} loaded wallets and key accounts",
+    /// Text in `address_note`, for an address of a loaded key's standard account with no wallet. `{}`: the key's name, its fingerprint, the account's path, the script, `chain`, `index`.
+    address_note_found_account: "That address is key {} {} at {}, {}: {} address {}",
     /// Button on the read card of an address not found. `{}`: the depth, in indices of each chain.
     read_look_further: "Look further: {}",
     /// Button on the read card while it looks further.

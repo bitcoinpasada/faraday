@@ -5,10 +5,12 @@
 //! derives a budget of indices and comes back, as a vanity grind runs
 //! (`crate::grind`).
 
+mod accounts;
 mod card;
 mod look;
 
-pub(crate) use card::{missed, refresh};
+pub(crate) use accounts::{Account, unmade};
+pub(crate) use card::{found_in_account, missed, refresh};
 pub(crate) use look::Look;
 pub use look::LookWay;
 

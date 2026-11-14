@@ -3149,8 +3149,10 @@ impl Faraday {
         }
     }
 
-    /// Costs an address derivation (through `find_address`). What a scanned
-    /// address is to the loaded wallets: one of a wallet's first hundred on
+    /// Costs an address derivation (through `find_address`), and a key
+    /// derivation for each standard account of a loaded key that has no
+    /// wallet. What a scanned address is to the loaded wallets and those
+    /// accounts: one of a wallet's first hundred on
     /// either chain, or none of them (`docs/QR.md` §2: "Is this address
     /// mine?"), and for none of them the look further that is offered.
     /// `None` when the text is not an address.
@@ -3218,11 +3220,22 @@ impl Faraday {
                 ));
             }
         }
+        let accounts = address_find::unmade(c, &self.session);
+        for a in &accounts {
+            if let Some((change, index)) = a.policy.find_address(c, net, &addr, 100) {
+                let chain = if change {
+                    EN.address_note_change
+                } else {
+                    EN.address_note_receive
+                };
+                return Some((address_find::found_in_account(a, chain, index), None));
+            }
+        }
         let wallets = self.session.wallets.len();
-        if wallets == 0 {
+        if wallets + accounts.len() == 0 {
             return Some((faraday_text::Text::of(EN.address_note_no_wallet), None));
         }
-        let look = address_find::Look::new(addr.script_pubkey(), wallets);
+        let look = address_find::Look::new(addr.script_pubkey(), wallets, accounts);
         Some((address_find::missed(&look), Some(look)))
     }
 

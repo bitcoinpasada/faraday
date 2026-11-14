@@ -733,6 +733,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       script names, a found address's head, fingerprints and refusals
 #   faraday/faraday-core/src/explore/addresses.rs
 #       addresses and the address searched for
+#   faraday/faraday-core/src/address_find/accounts.rs
+#       a loaded key's name, fingerprint and standard account paths, public text
 #   faraday/faraday-core/src/address_find/card.rs
 #       how far a search looked, in how many wallets, and a found wallet's name, chain and index
 #   faraday/faraday-core/src/codes/screen.rs
@@ -798,6 +800,7 @@ faraday/faraday-core/src/drawing/memo.rs
 faraday/faraday-core/src/samples/put.rs
 faraday/faraday-core/src/vanity/mod.rs
 faraday/faraday-core/src/explore/addresses.rs
+faraday/faraday-core/src/address_find/accounts.rs
 faraday/faraday-core/src/address_find/card.rs
 faraday/faraday-core/src/codes/screen.rs
 faraday/faraday-core/src/work/kept.rs

@@ -9,7 +9,7 @@ use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 
-use super::{DEPTHS, Pace};
+use super::{Account, DEPTHS, Pace};
 
 /// A press on the check's foot while it looks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +27,9 @@ pub(crate) struct Look {
     target: ScriptBuf,
     /// How many wallets are looked in.
     pub(crate) wallets: usize,
+    /// The standard accounts of loaded keys with no wallet, looked in
+    /// beside the wallets: a find's place counts on from the wallets'.
+    accounts: Vec<Account>,
     /// Indices of each chain every wallet is known not to hold it in.
     pub(crate) looked: u32,
     /// The look under way: its depth, the next index and its pace.
@@ -37,15 +40,27 @@ pub(crate) struct Look {
 }
 
 impl Look {
-    /// A miss at the first [`DEPTHS`]' depth in `wallets` wallets.
-    pub(crate) fn new(target: ScriptBuf, wallets: usize) -> Self {
+    /// A miss at the first [`DEPTHS`]' depth in `wallets` wallets and the
+    /// `accounts`.
+    pub(crate) fn new(target: ScriptBuf, wallets: usize, accounts: Vec<Account>) -> Self {
         Look {
             target,
             wallets,
+            accounts,
             looked: DEPTHS[0],
             under_way: None,
             found: None,
         }
+    }
+
+    /// How many accounts are looked in beside the wallets.
+    pub(crate) fn account_count(&self) -> usize {
+        self.accounts.len()
+    }
+
+    /// The account a find's place is, when it is past the wallets.
+    pub(crate) fn account(&self, place: usize) -> Option<&Account> {
+        self.accounts.get(place.checked_sub(self.wallets)?)
     }
 
     /// Whether a look is under way.
@@ -88,17 +103,24 @@ impl Look {
     }
 
     /// Costs an address derivation for each index of the tick, on both
-    /// chains of every wallet in `policies`. One tick of the look under
+    /// chains of every wallet in `policies` and every account. One tick of the look under
     /// way. Returns whether anything changed to draw.
     pub(crate) fn tick(&mut self, c: &Compute, policies: &[&WalletPolicy], now_ms: u64) -> bool {
         let Some((depth, start, mut pace)) = self.under_way else {
             return false;
         };
         let secp = Secp256k1::verification_only();
+        // The wallets as they were when the look began, by place: one
+        // loaded or taken away since does not move an account's place.
+        let policies: Vec<Option<&WalletPolicy>> = (0..self.wallets)
+            .map(|w| policies.get(w).copied())
+            .chain(self.accounts.iter().map(|a| Some(&a.policy)))
+            .collect();
         let end = start.saturating_add(pace.budget()).min(depth);
         let mut next = start;
         'indices: for i in start..end {
             for (w, policy) in policies.iter().enumerate() {
+                let Some(policy) = policy else { continue };
                 for change in [false, true] {
                     if super::script(c, &secp, policy, change, i).as_ref() == Some(&self.target) {
                         self.found = Some((w, change, i));
