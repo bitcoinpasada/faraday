@@ -185,15 +185,21 @@ would silence clippy; only the costs lint rejects it, as it rejects
 `hold()` works out `fingerprint` once from the blinded context;
 `for_network` copies it; `fingerprint()` returns it; `derive()` takes
 `master_fingerprint` from the field (one EC multiplication saved per
-derivation, in both apps). Faraday drops `wallet::Key.fp`. No output
-changes; the BIP-32 vectors pass unchanged.
+derivation, in both apps; every constructor of a `MasterKey` takes the
+token and says it costs the multiplication). Faraday drops `wallet::Key.fp`:
+`Key` keeps `master` private (`Key::master`, `Key::fingerprint` a lookup
+through it, `Key::set_network` the only way to change it; a `Key` is made
+through `Key::new`). No output changes; the BIP-32 vectors pass unchanged.
 
 ### 5.2 `WalletPolicy` keeps its checksum (`core/faraday-bip/src/policy.rs`)
 
 Eager: every constructor sets `checksum: [u8; 8]`; `checksum(&self) ->
 &str`. The derived `PartialEq` stays (the checksum is a function of the
 other fields). Faraday drops `Wallet.checksum` and `set_policy`'s
-recompute (it still drops kept addresses and scripts).
+recompute (it still drops kept addresses and scripts). A wallet is made
+through `Wallet::new(name, policy, source, origin)`; `policy` is private
+(`Wallet::policy`), `Wallet::checksum` a lookup, and `Wallet::set_policy`
+the one change, used by `silent.rs` for a silent payment wallet's labels.
 
 ### 5.3 Hardened steps written `h` (owner-approved; DECISIONS F66)
 

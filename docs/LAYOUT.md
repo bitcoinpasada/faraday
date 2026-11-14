@@ -1,7 +1,7 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Learn in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests. Components keep their size (§8): the size set and the type roles are in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls (`tools/lint-tokens.sh`): enforcement, not open work.
+**Status:** Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Guide in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests. Components keep their size (§8): the size set and the type roles are in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls (`tools/lint-tokens.sh`): enforcement, not open work.
 **Open:** Check as a destination on the rails and the Pi's Home menu, and Home's Check tile in place of Vaults (§3, §4; F255)
 
 Faraday lays its screens out by Material 3's layout and navigation
@@ -50,15 +50,15 @@ scaled to fill a window.
 
 Faraday's places: **Home, Check, Wallets, Files, Vaults, Tools** (the
 destinations a person moves between; Check on the rails and the Pi's
-Home menu only, F255), **Learn** and **Settings** (opened,
+Home menu only, F255), **Guide** and **Settings** (opened,
 then closed), **Lock**, and **Transfer**, which appears in the desktop
 app. A stick is no destination: it is a pane of Files (F235).
 
-| Class | Navigation | Learn, Settings, Lock |
+| Class | Navigation | Guide, Settings, Lock |
 |---|---|---|
 | Compact, short (the Pi) | Home is the menu, a button for each place, Check first; every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
-| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Learn at the page's section), the ⋮ menu (Settings), Lock |
-| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Learn and Settings under a divider, Lock at its foot | on the rail |
+| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Guide at the page's section), the ⋮ menu (Settings), Lock |
+| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Guide and Settings under a divider, Lock at its foot | on the rail |
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
 | Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings | on the expanded rail |
 
@@ -84,7 +84,7 @@ waits, so it is never more than one press away.
 page: the back arrow where the page has a way back (F77), the page's
 title with where the arrow goes under it, "Back to Tools" (F146), and
 at the right end its actions: the mode pill off mainnet, the
-keyboard button where typing goes, the ? where the page has a Learn
+keyboard button where typing goes, the ? where the page has a Guide
 page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays
 while the page scrolls under it.
@@ -162,7 +162,7 @@ Material's canonical layouts, by what a screen shows:
 | Wallets, Files, Vaults, Backups (a list, and the one chosen) | the list; choosing one opens its page | **list and detail**: the list in a pane `LIST_PANE` (360 dp) wide, the chosen one's page beside it; nothing chosen shows the first |
 | Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, two columns where they fit (§17) |
 | Home | §4 | §4 |
-| A flow's step, a form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, the step's Guided text and Learn in the supporting pane (§6) |
+| A flow's step, a form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, the step's Guided text and Guide in the supporting pane (§6) |
 | The backup board, the structure chart, Explore | the whole space beside the navigation | the same |
 | A sheet | the window's width less a margin (compact), centred at most `SHEET_MAX` (560 dp) wide otherwise | the same |
 
@@ -170,11 +170,11 @@ Panes are separated by a 24 dp spacer and each has its own scroll.
 
 ## 6. The supporting pane
 
-On extra-large, Learn opens as a pane at the right, `SUPPORT_PANE`
-(400 dp) wide, beside the page it explains, instead of the Learn
+On extra-large, Guide opens as a pane at the right, `SUPPORT_PANE`
+(400 dp) wide, beside the page it explains, instead of the Guide
 sheet over it; it follows the page's steps as the person moves on,
 closes when the person moves to another screen unless it is pinned,
-and its close button puts it away. Below extra-large, Learn stays the
+and its close button puts it away. Below extra-large, Guide stays the
 sheet it is today.
 
 A supporting pane holds its place (owner, 2026-10-24): it does not
@@ -186,17 +186,17 @@ window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
 pane over the page and never scrolls away. Built for Make codex32
 shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`)
-and for Learn (`screens/guide_pane.rs`). The "Demo only" card that stood here is
+and for Guide (`screens/guide_pane.rs`). The "Demo only" card that stood here is
 Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
-Learn's pane, from 1600 dp: the ? and Learn in the sidebar, and the
+Guide's pane, from 1600 dp: the ? and Guide in the sidebar, and the
 bar's Cryptography, open it beside the page, which is laid out in the
 room left of it, so nothing of the page is under it and the page takes
 presses as before; nothing else opens it, on any screen or size (owner,
 2026-10-29). The pane
 is a card in the surface-container role, Material's large shape. Its
-header row, as Material's side sheet has, holds the headline **Learn**
+header row, as Material's side sheet has, holds the headline **Guide**
 in Title L and, at its end, the pin and the close button, each
 Material's standard icon button in a 48 dp target
 (`GUIDE_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
@@ -219,9 +219,9 @@ the step changes, or a pinned pane's screen, the pane shows that
 screen's page of the guide, at the section of the step.
 One pane stands at a time: the codex32 entry (its dice sheet's
 column), Back up and a wallet's backup flow (the board's lists) keep
-the place for their own, and Learn is the sheet there; a pane open on
+the place for their own, and Guide is the sheet there; a pane open on
 arriving there is put away. A window resized across 1600 dp moves
-Learn between the pane and the sheet, on the page it shows; the sheet
+Guide between the pane and the sheet, on the page it shows; the sheet
 has no pin, so a pane that comes back from it is unpinned.
 
 ## 7. Density
@@ -327,7 +327,7 @@ each at the text size the person's system asks for.
   pane's item is `Ui::list_item`.
 
   Built (L5, part 2): Files and the stick visit, Spend, the sheets (the
-  scanner, the dialogs, Learn), Decode, the entry forms, the tool
+  scanner, the dialogs, Guide), Decode, the entry forms, the tool
   catalogue, Check a message, Sign a message, Set the time, Add
   randomness, Transfer and Tools: every line of text is a
   `TypeRole` (`text_as`, `wrap_as` and the rest), every button
@@ -414,12 +414,12 @@ Moved to `docs/history/LAYOUT-LOG.md`.
 User-facing, each at the sizes that show it: a 268 × 358 panel shows
 Home's menu and no bar; a 400 × 800 window shows the bar's five
 destinations and each opens its screen; 760 × 1000 and 960 × 580 show
-the rail with Learn, Settings and Lock; 1280 × 800 and 1920 × 1080 show
+the rail with Guide, Settings and Lock; 1280 × 800 and 1920 × 1080 show
 the expanded rail with a flow in progress listed; Home's tiles never
 grow past their column and a row of two at 1920 leaves columns empty;
 Wallets at 1280 shows the list and the chosen wallet together, and at
 760 the list alone; a flow in progress shows its chip on every
-destination; at 1920 × 1080 Learn opens beside the page; a scale-2
+destination; at 1920 × 1080 Guide opens beside the page; a scale-2
 window of 1440 × 900 pixels lays out as medium at 720 dp; Larger text
 at 1280 lays out a class down, at 914 × 571 dp, with the rail. On the Pi's 480 × 640 panel at 286 dpi,
 every screen (empty, with a wallet and its keys, online and in Practice),
@@ -742,9 +742,9 @@ Moved out with the step-through (F260): nothing of it is left to place.
 | Transfer, Files with a stick open | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Files with a stick open, its lists and the stick pane, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
-| Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
+| Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Guide in the supporting pane (§6, L6) |
 | Settings | (owner, 2026-10-25) On a compact window, the Pi panel and narrow windows, Material's list and detail one pane at a time: the Steps only · Guided choice, then the sections as list items, Mode first with the mode it is on, opening the mode sheet; any other opens that section's card as its own page, the top app bar naming it, and Back (the bar's and the app's) returns to the list where it was scrolled. From medium windows up, no list: every section's card on one page under the Steps only · Guided choice, centred in the page area, in two columns where each is at least `SETTINGS_CARD_MIN` (360 dp) wide, else one; each column at most `COLUMN_MAX` (§14). The first column holds Mode, Session, Time and Randomness, the second Appearance on, so the order reads down the first and then the second and a card never moves between them. Medium keeps one page: measured at 160 dpi with no keys loaded, the page is 2,235 dp tall at 600 × 900 (2.7 screens; 2,787 dp, 3.3 screens, with Guided), 2,039 dp at 768 × 1024 (2.1; 2.6 with Guided) and 1,981 dp at 800 × 1280 (1.6; 2.0), at or under about three screens but with Guided on the smallest, which a list would only split into a press and a Back per section |
-| Learn | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it |
+| Guide | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it |
 | The Starter | the same rules (`docs/STARTER.md` §3.1d): its page area is the window less the rail, its top bar's actions at the window's edge, a destination's cards in a column of at most `CONTENT_MAX` and a task page's text in `COL_W`, centred in the room beside the rail; nothing is capped by the window |
 | Sheets and dialogs | as §5: `SHEET_MAX`, centred |
 | The Pi panel and compact windows | unchanged by §13 to §17, but for the input panel on compact windows that are not short (§16.3) |

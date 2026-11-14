@@ -231,32 +231,10 @@ corpus of random inputs drawn from a fixed seed, so that a failure is
 reproduced by running again. Secrets in the cross-check are test data
 only.
 
-Every corpus case draws from a random stream of its own, seeded with the
-run's seed, its area, its loop and its number (owner, 2026-10-27: until
-then each area drew all its cases from one stream, and seeds from before
-reproduce on their own release tags). Each area is cut into batches, its
-published vectors and its corpus loops by case number, and a pool of
-workers, one a core unless told otherwise, takes them from one queue,
-the heaviest areas' first, so every core is busy until the end. The
-answers are put back in case order: an area's result is its first
-batch in case order that did not pass, as one worker running every case
-in turn would give it, so the report, the counts and the verdict are the
-same for any number of workers and under CPython or PyPy, and a run
-anyone makes with a release's seed and scale gives that release's
-report. The run writes its progress as it goes (`out/crosscheck/`,
-`just crosscheck-status`); the README says how to watch it, how much
-memory a worker takes and how to run it under PyPy.
-
-An area whose cases spend on Bitcoin Core's node (§10.4) has its coins
-before the self-test. The node's coinbases pay P2WSH(OP_TRUE) and are
-fanned out into coins of one value, the same in every run, as a regtest
-coinbase's txid depends only on its height and what it pays. The
-workers build each case's funding transactions from the case's own
-random stream and the run sends and buries them all (for `sign`, 1,100
-blocks, past every timelock its corpus spends with). A case then builds
-the same funding again, so the transaction Faraday finalizes spends real
-outputs, and Core's `testmempoolaccept` judges it with its own script
-interpreter and mempool policy.
+How it runs (a random stream for each case, the batches and the pool of
+workers, the report the same for any number of workers, PyPy, watching a
+run, the funding of the cases that spend on Bitcoin Core's node) is in
+`tools/crosscheck/README.md`.
 
 ### 10.2 When it runs
 
@@ -267,15 +245,9 @@ interpreter and mempool policy.
   area's code runs that area (`just crosscheck --area NAME`) and its
   tests and reviewers as before. What is cross-checked is a release, and
   `crosscheck-<version>.txt` beside its `SHA256SUMS` is the record.
-- **The stamp.** A passing run writes a stamp file beside the
-  cross-check: one hash over the crypto sources and the crypto crates'
-  entries in `Cargo.lock`, and the versions of the references and the
-  Python interpreter it ran with. `just lint-release` hashes the same
-  inputs and fails when they do not match the stamp, with "crypto changed
-  since the last cross-check: run `just crosscheck`". The stamp is
-  committed with the release. It is a record, not a
-  security control. It also holds each area's corpus case count for
-  that run, one `cases <area> <count>` line each.
+- **The stamp.** A passing run writes a stamp, a record and not a security
+  control; what it hashes and what `just lint-release` checks are in
+  `tools/crosscheck/README.md`. The stamp is committed with the release.
 - **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
   `core/faraday-psbt`, `core/faraday-entropy`,
   `faraday/faraday-vault`, the signing and derivation code in
@@ -288,18 +260,9 @@ interpreter and mempool policy.
   keeps its seed and inputs as a new vector. Then `just lint-release` must
   pass.
 - **A release's run made of two (F239).** The release's cross-check may
-  be a combination of runs at one fresh seed and scale: `just crosscheck
-  --combine RECORD` runs again only the areas whose own inputs (their
-  `area_<name>.py` and the reference folders only they use) changed since
-  the run of RECORD and those that did not pass there, and takes every
-  other area's result from it. It refuses when anything the areas share
-  changed (the harness, the Rust command, the crypto crates and their
-  `Cargo.lock` entries, the vectors, a shared reference, a tool's
-  version), when the record names no per-area inputs, or when an area it
-  would take did not pass; a file two areas use, or whose user cannot be
-  told, is shared. The stamp and record it writes are a full run's, and
-  name each run: date, tree and areas (`tools/crosscheck/README.md`, "A
-  release's run made of two").
+  be a combination of runs at one fresh seed and scale; how
+  (`just crosscheck --combine RECORD`) and what it refuses are in
+  `tools/crosscheck/README.md`, "A release's run made of two".
 
 ### 10.3 How long
 

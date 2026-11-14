@@ -1,4 +1,4 @@
-//! The FAT32 formatter against dosfstools (`docs/ESTABLISHED.md` §3.2):
+//! The FAT32 formatter against dosfstools (`docs/STANDARDS.md` §10):
 //! a volume it makes passes `fsck.fat -n` and has the boot sector,
 //! FSInfo, FAT starts and root label `mkfs.fat -F 32` gives for the same
 //! size, label and serial; files go in and out between this crate and

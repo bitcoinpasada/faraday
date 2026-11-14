@@ -694,35 +694,16 @@ with different boards:
 Nothing here is shared with any other project.
 
 
-The Pi is `pi3` and the panel `any`, one image for every screen (`panels/any`,
-whose README gives the format of a screen's directory); the stick is
-`x86_64-uefi` and `efi-framebuffer`:
-
-```
-just faraday-pi-image                                       # a test release
-just dev=1 faraday-pi-image                                 # the same, with a login
-just board=pi3 dev=0 faraday-pi-image                       # written out in full
-just faraday-stick-image                                    # the USB stick
-just dev=1 faraday-stick-image                              # the same, with a login
-```
-
-The stick's built-in command line has `efi=disable_early_pci_dma`
-(`docs/IMAGES.md` §1): the board's `cmdline.txt` carries it and its
-`kernel.cmdline` checks it against the built kernel's `CONFIG_CMDLINE`.
-
-The Pi's command line is a file, so its `boot.cmdline` checks the words
+The recipes and their outputs are in `docs/DEVELOPING.md` §4. The Pi is
+`pi3` and the panel `any` (`panels/any`, whose README gives the format of
+a screen's directory); the stick is `x86_64-uefi` and `efi-framebuffer`.
+The Pi's kernel, its patches and its options are in §2 and §3.5 and
+`docs/KERNEL-PATCHES.md`; the board's `kernel.required` and
+`kernel.forbidden` hold them to the PC's rules. The stick's built-in
+command line has `efi=disable_early_pci_dma` (§1), which the board's
+`cmdline.txt` carries and its `kernel.cmdline` checks against the built
+kernel's `CONFIG_CMDLINE`; the Pi's `boot.cmdline` checks the words its
 `cmdline.txt` ends up with (`rng_core.default_quality=0` among them).
-
-The Pi's kernel carries, in the board's own `linux.fragment`, vc4's display
-side through DRM with its framebuffer emulation, the sound core vc4 cannot
-build without (and no sound driver), the generic USB HID drivers, and USB
-storage and SCSI; the board's `kernel.required` and `kernel.forbidden`
-hold each of those to the PC's rules. It compiles the board's kernel
-source with the patches `docs/KERNEL-PATCHES.md` lists (F153, F205, F221): vc4 binds the
-Pi 3's V3D and creates a render node, which
-`common/rootfs-overlay/etc/mdev.conf` gives to root alone with
-`/dev/dri/card0`, and DRM selects `KCMP`, which the Pi allows while the
-PC's list forbids it.
 
 Each combination has its own build tree at
 `out/pi/<board>-<panel>[-dev]/output` and its own image. The Buildroot
@@ -738,11 +719,8 @@ architecture.
 | Raspberry Pi 3B / 3B+ / Zero 2 W | `boards/pi3` | 3B+ tested — the owner's device; the 3B's and Zero 2 W's device trees are on the card, built, not booted |
 | x86_64 PC with UEFI firmware | `boards/x86_64-uefi` | untested on hardware — booted in QEMU with OVMF by `faraday/tools/qemu-check.py` |
 
-The 3B, 3B+ and Zero 2 W have the same BCM2710, so they take the same Rust
-target, the same kernel and the same drivers; only the device trees differ.
-One card carries all of them (`DTBS` in `board.conf`) and the Pi's firmware
-loads the one for the board it starts on, so there is no separate Zero 2 W
-image (F147). Nobody has booted a Zero 2 W or a 3B on it.
+The 3B, 3B+ and Zero 2 W share one card and one build (F147); nobody has
+booted a Zero 2 W or a 3B on it.
 
 An ARMv6 Zero — the Zero W and the original Zero — is **not** here. It
 needs a second Rust target (`arm-unknown-linux-gnueabihf`) and C flags for
@@ -874,17 +852,10 @@ and only then build the release image.
 
 ### 10.6 The dev variant
 
-`just dev=1 faraday-pi-image` is for bringing up a new board or a new panel
-without a serial
-adapter: the kernel console goes to `tty1` as well as the serial port and
-`quiet` is dropped, so the probe lines scroll on the panel until the app
-starts, when the console level drops to 1 (the dev inittab; not under QEMU,
-whose serial console the checks read) so the kernel log stays off the screen
-and the serial port, and comes back if the app ends with anything but a
-lock; a getty runs on
-the serial port and the root password is empty; and the app is started with
-`--verbose --timings --boot-report`, so it says what it found and records
-what its loop and its costly work cost and what the board reports.
+The dev variant (`just dev=1 faraday-pi-image`, and the stick's) is
+described in `docs/DEVELOPING.md` §6.2: what it adds, the boot report, how
+to collect a run and that it never goes on a card that signs anything. The
+file formats it writes are here.
 
 `--timings` writes `faraday-timings.txt` onto the data partition,
 through the disk process since the image mounts nothing: the whole file
@@ -956,29 +927,11 @@ frame, `file written` a file the app wrote to a stick or the card, and
 and a cost, never a name or anything a person typed. The shell's
 README describes the format.
 
-`--boot-report` writes `faraday-boot-report.txt` beside it, whole at
-the same rate (`docs/DEVELOPING.md` §6.2): the kernel log, the panel and
-devices found, a system block (the seconds to the first frame, when the
-random generator was ready, the temperature, the first CPU's clock, the
-undervoltage alarm where the kernel has the `rpi_volt` sensor (the Pi's
-dev kernel builds both it and the temperature sensor:
-`boards/pi3/dev/linux.fragment`), the
-memory free and the app's peak, each now and at its worst), a radios
-block (`/sys/class/bluetooth` and `/sys/class/net`, the device tree's
-Bluetooth and Wi-Fi nodes with their status and their parent's, the
-serial ports and what is bound to them) and a device nodes block (each
-entry of `/dev/dri` with its mode, owner, group and major:minor, which
-show that the screen's nodes are root's alone).
-
-To collect a run: boot the card, scroll the Settings list for ten seconds,
-open the scanner and point the camera at anything that is not a QR code for ten seconds (a code is decoded at once and the scanner stops),
-open Learn and scroll a page, then go to Settings → Wipe and exit. The
-device powers itself off after the last block is written. Put the card in
-a computer and read `faraday-timings.txt` from the data
-partition; it is plain text, one number per column, so it reads on a
-phone. **It never goes on a card that signs
-anything.** It exists because the release image has no way in at all, which
-is the point of it and useless when the question is why the panel is blank.
+`--boot-report` writes `faraday-boot-report.txt` beside it (its contents
+are in `docs/DEVELOPING.md` §6.2); its system block reads the first CPU's
+clock, the undervoltage alarm where the kernel has the `rpi_volt` sensor
+(the Pi's dev kernel builds it and the temperature sensor:
+`boards/pi3/dev/linux.fragment`), and the memory free and the app's peak.
 
 ### 10.7 What is in it
 
@@ -1342,25 +1295,11 @@ process.
 
 #### When it does not work
 
-Build the dev variant (`just dev=1 faraday-stick-image`) and boot that. It puts
-the kernel console on the screen as well as on `ttyS0`, so the boot is
-visible on a machine with no serial port, and the app keeps
-`faraday-boot-report.txt` on the stick's data partition: written
-as soon as the stick is listed at boot, written again whole every 30
-seconds while the app runs, and once more when it ends. The file is the
-kernel log (`dmesg`, which includes the app's own error output), then the
-panel the shell chose and every input and capture device it found with what
-it made of each, headed with how many seconds after the shell started it
-was written. Each write goes to a new file that is read back and renamed
-over the old one, so a stick pulled mid-write holds the last whole report.
-Pull the stick, plug it into any computer and read that file. It is what to
-send with a report of a machine that does not work. The file holds the
-kernel log, that inventory and the system, radios and device nodes blocks (above, "The
-dev variant") and nothing else: the core prints nothing, the shell prints
-sizes, names, counts and reasons, and the blocks read only the kernel's
-files (`tools/lint-secrets.sh`, rules 1 and 5). The release image writes nothing: its app is started without
-`--boot-report`, its kernel log stays closed to the app, and `build.sh`
-refuses a release image whose arguments or inittab say otherwise.
+Build the dev variant (`just dev=1 faraday-stick-image`) and boot that: the
+kernel console is on the screen as well as on `ttyS0`, and the app keeps
+`faraday-boot-report.txt` on the stick's data partition, the file to send
+with a report of a machine that does not work (`docs/DEVELOPING.md` §6.2,
+§6.4).
 
 ### 10.19 Try it in QEMU first
 
@@ -1425,18 +1364,11 @@ daemon the build works but leaves root-owned files behind.
 `just faraday-pi-image` runs `just faraday-pi-bin` first, then
 `run-build.sh`, which clones Buildroot at the pinned tag into
 `out/pi/buildroot`, builds the container image from the `Dockerfile`,
-and runs `build.sh` inside it with the shared checkout and caches and this
-combination's own output directory bind-mounted.
-
-Inside, `build.sh` merges the Buildroot fragments, configures the kernel
-(`make linux-configure`), runs `check-kernel-config.sh` against the
-generated `.config` — which fails the build, naming the line, if a
-forbidden option is on or a required one is off — and only then builds.
-
-The first run takes 30 to 60 minutes and downloads a few hundred megabytes
-of sources. Later runs reuse the checkout, the download cache, the compiler
-cache and the build tree, and only redo what changed. To start a
-combination over, delete its directory under `out/pi/`.
+and runs `build.sh` inside it, which merges the Buildroot fragments,
+configures the kernel, runs `check-kernel-config.sh` on the generated
+`.config` (§10.9) and only then builds. The first run and later runs:
+`docs/DEVELOPING.md` §4. To start a combination over, delete its directory
+under `out/pi/`.
 
 ### 10.21 Write it to a card or a stick
 

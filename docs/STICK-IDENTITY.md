@@ -270,7 +270,7 @@ image to a stick: it makes the stick from it.
    there is one.
 3. **The data partition**: a FAT32 volume at the partition's size,
    made by Faraday's own formatter in `faraday/faraday-fat` (F180,
-   `docs/ESTABLISHED.md` §3.2), with Microsoft's FAT
+   `docs/STANDARDS.md` §10), with Microsoft's FAT
    specification's table of cluster sizes as `mkfs.fat -F 32` follows
    it (4 KiB to 8 GB, 8 KiB to 16 GB, 16 KiB to 32 GB, 32 KiB above),
    the stick's own data serial and the person's name (§6), no files.
@@ -569,7 +569,7 @@ With F182:
   Clear the whole stick first, the check's lines and Writing's clearing
   pass in `faraday/faraday-strings/src/en.rs`.
 - Docs: F80's data partition size, `docs/STARTER.md` §1.3, §3.2, §4.1,
-  `docs/IMAGES.md`, `docs/ESTABLISHED.md` §3.2,
+  `docs/IMAGES.md`, `docs/STANDARDS.md` §10,
   the Learn page Checking what is written (since removed), the guide's Written picture
   (`docs/guide/starter-make.md`) and Get Faraday on a stick
   (`docs/guide/starter-install.md`).

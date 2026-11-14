@@ -862,7 +862,7 @@ pub const WINDOW_DEFAULT_H: f32 = 800.0;
 pub const WINDOW_HELD_WIDE: f32 = 1280.0;
 
 /// The screens the desktop app can show its screens at
-/// (`docs/PREVIEW-SIZE.md`), width and height in dp, in Settings'
+/// (`docs/DESKTOP-HOST.md` §10), width and height in dp, in Settings'
 /// order: the Pi panel, a narrow window, a half-screen window, a 7-inch
 /// panel (1024 × 600 at 170 dpi) and the same in portrait, a 10-inch
 /// panel (1280 × 800 at 150 dpi) and the same in portrait

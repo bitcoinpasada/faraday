@@ -502,45 +502,13 @@ extent; a motion left from another screen or sheet is stopped.
 
 ### 3.6 Light mode
 
-- Mode is one of the three parts of a `Theme` (THEMES §3): **Light** or
-  **Dark**, chosen on Settings › Appearance (Mode, a segmented button;
-  `docs/THEMES.md` §12) with the theme and the contrast. A first start is
-  in Cobalt, Light, Standard. Kept across a lock with the other settings
-  (`mode=` in the kept `settings`, `memory.rs`, THEMES §13), until
-  power-off on the stick.
-- Changing the mode cross-fades from the old colours to the new (§3.5),
-  as a change of theme does, and is at once under Reduce motion.
-- Every colour a screen draws is a Material colour role by name, taken
-  from the active scheme (`faraday_ui::pal::Role`, THEMES §4 and §6);
-  there is no second palette to map. Colours outside the roles (a QR's
-  black and white, the camera image, the codex32 checksum colour, the
-  dice) pass unchanged. A light scheme casts the lighter shadow
-  (`Theme::is_light`).
-- The colours of each of the sixty schemes are in
-  `faraday/faraday-ui/src/pal/schemes.rs`, made by `just themes` (THEMES
-  §10); the table of the old fourteen-name palette is gone.
+Moved to `docs/THEMES.md` (§3, §12) and `docs/DESIGN.md`. Changing the
+mode cross-fades from the old colours to the new (§3.5), as a change of
+theme does, and is at once under Reduce motion.
 
 ### 3.7 Named themes
 
-Ten themes, each a seed colour and a Material scheme style, each in
-Light and Dark at Standard, Medium and High contrast (THEMES §2):
-Cobalt, Bitcoin Orange, Lamplight, Mars, Forest, Frost, Dusk, Lavender,
-Rose and Monochrome. Settings › Appearance shows them as ten filter
-chips, each with a swatch drawn from its own scheme in the mode and
-contrast on screen (`Ui::theme_chips`); the chosen chip is selected and
-the default, Cobalt, carries a Default mark. The theme is kept as
-`theme=<id>`; a settings file of before opens each old theme (Nord,
-Catppuccin, Tokyo Night, Gruvbox, Rosé Pine, the two high contrast
-themes and the rest) in the theme, mode and contrast THEMES §13 maps it
-to. The old tiles, their groups and `ThemeGroup` are gone.
-
-Every scheme meets Material's contrast rule and Faraday's floors
-(THEMES §11): text, labels, status words and edges read at 4.5:1 or
-more against what is drawn under them (7:1 at High contrast).
-`faraday-snapshot WxH themes` renders Home, Wallets, the backup board, a
-codex32 worksheet and Settings › Appearance in each theme in Light and
-Dark at Standard contrast, and in Cobalt at Medium and High, with the
-Appearance screen in the default scheme and in three others.
+Moved to `docs/THEMES.md` (§2, §12, §13) and `docs/DESIGN.md`.
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 

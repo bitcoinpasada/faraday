@@ -172,62 +172,19 @@ public values work; only the actions in the table are disabled.
 
 ### 5.1 New key in Practice
 
-Every length and every source is open: the dice, coins, cards, hex,
-the generator and a mix (camera noise among its sources) make words as on the device, and
-they are shown. At Lock in Practice adds the next sample of the length
-chosen that is not loaded, in place of the key made (F81,
-`docs/MODES.md` §7): four samples of 12 words, two each of 15, 18 and
-21, eleven of 24 (`faraday-samples`). The Key card says which ("Lock in
-adds sample {} ({}) in place of these words", with the sample named as
-"ocean ×12"). A sample loaded with the passphrase `faraday` counts as
-loaded. The key made is never added or kept, unless its words are a
-sample's own, word for word, as the guide's dice rolls make the sample
-Guide key · 3dca6805 (F143): then Lock in keeps them, and the Key card
-says "These words are sample Guide key · 3dca6805". SLIP-39 shares are not New
-key: they stay disabled (§4), since no sample stands in for a dealt set
-of shares. With every sample of the length loaded, Lock in is disabled
-for that length only.
+See `docs/MODES.md` §7.
 
 ### 5.2 Generate with dice in Practice
 
-**Generate with dice** on Create a vault is open: the person rolls and
-types the numbers, and the words appear as on the device. When the last
-word is in, both passphrase fields hold `faraday` in place of the rolled
-words, and the card says so in one line, "Practice puts faraday in place of
-these words", as New key's Key card does. No strength line is drawn for
-it. On Faraday Demo the dice roller (F96), in the "Demo only" card
-(§14), rolls into the same entries for New key's dice and Generate with
-dice; the outcome is unchanged: the sample, or `faraday`. The line
-"Practice puts faraday in place of these words" stands in the card too. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
-one constant every Practice passphrase field and the samples
-(`faraday-samples`, the sample vault and backup) use.
+See `docs/MODES.md` §7.1.
 
 ### 5.4 Every passphrase field offers `faraday`
 
-In Practice every passphrase and password field is typed, masked and edited
-as outside Practice (F81, `docs/MODES.md` §6.2): empty, with the eye and the
-caution line "Never type a seed that holds real bitcoin here." under it.
-An empty field also hands the "Demo only" card (§14) **Use faraday**; a
-press on it puts `faraday` in the field, drawn unmasked in a code box
-(DESIGN §4.10), and in its repeat where that is empty. It goes once the
-field holds something; a press in a field holding `faraday` lets the
-person clear or replace it, and what is typed is theirs and masked. An
-unlock offers it too. A field that is
-optional keeps **No passphrase** in it while empty (Add a key's BIP-39
-passphrase, New key's pair, the potential wallet's, an aezeed's). A key
-added with a passphrase of `faraday` is the public set's second
-fingerprint of the sample, which Practice takes. The KeePass export's
-passphrase has no chip: `faraday` is under its minimum of 8 characters,
-so the person types one. `Faraday::demo_passphrase()` is the one test.
+See `docs/MODES.md` §6.2.
 
 ### 5.3 The backup plan in Practice
 
-The plan's form choices that need a split (Seed XOR parts, SLIP-39
-shares) are dimmed in its multi-choice lists, so a plan
-made in Practice is one whose checklist can be finished there. A plan
-read from a vault made elsewhere that names such a form keeps its item,
-with its Make action disabled; the item can be marked done by hand as
-any copy made away from the device is.
+See `docs/MODES.md` §7.2.
 
 ## 6. Borderline calls (decided, §13)
 
@@ -325,39 +282,8 @@ Practice's alone (`Faraday::roller_offered`).
 
 ### 14.1 What the strip holds
 
-| Screen | Element | Why it is practice-only |
-|---|---|---|
-| Add a key (and the Spend tab's Type the words) | **Use a sample** | Puts a public sample in place of the person's own key |
-| Add a key | **Use faraday** for the BIP-39 passphrase | Practice's public passphrase (§5.4) |
-| Add a key's words, a Restore slot's, New key's typed key | **Paste words**, in Practice and on the test networks (Ctrl+V too) | A whole key's words from the clipboard, checked as typed (F75) |
-| New key, a typed key | **Use a sample** | As Add a key |
-| New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words", or "These words are sample …" for words that are a sample's own | The public passphrase; the line says Practice replaces the key made, or keeps a sample's words (§5.1) |
-| New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |
-| Make codex32 shares, the entry | Its own card: **Use a sample** | `docs/CODEX32.md` §12 |
-| Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |
-| Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
-| QR vault, the first card | **Use a sample** | A public QR vault code (the seed of the bacon sample under `faraday`) in place of the person's own |
-| QR vault, Make's passphrase pair and the Open card's passphrase | **Use faraday** | §5.4 |
-| Create a vault | **Use faraday** for each passphrase and its repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | §5.2 |
-| Unlock; the boot import's passphrase; a passphrase prompt; the Spend tab's vault passphrase; the backup flow's unlock | **Use faraday** | §5.4 |
-| Vault contents, an entry's password | **Use faraday** | §5.4 |
-| Make a new wallet, a slot's passphrase | **Use faraday** | §5.4 |
-| A seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | §5.4 |
-| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **Krux code**, **address** | A public sample in place of a scan |
-| The Spend tab: What do you have?, the first step's shortcut, Write the payment | **Load sample PSBT** | A public transaction in place of the person's own |
-| Restore, seeds first, a cosigner's box | **Use a sample**, for the first empty box | A public account key in place of a cosigner's |
-| Lightning node key, the LND cipher seed | **Use a sample**; **Use faraday** for its passphrase | LND's published seed (§6) |
-| Explore, Find an address | **Use a sample** | The sample address |
-| Back up, Check my copy | **Fill words**; **Use faraday** for the passphrase typed back | The sample's own words |
+See `docs/MODES.md` §6.3.
 
 ### 14.2 What stays where it is
 
-| Element | Where | Why |
-|---|---|---|
-| **Samples** and its sheet | The host strip, after the sticks (F118) | Faraday Demo's own action in Practice, outside the app; its sheet opens over the app as the mode's |
-| Check a signed message's Tools tile taking the sample message | Tools | Not an element: the tile opens the check, and in Practice with no message in the Inbox the sample stands in |
-| The dimmed actions of §4 | Their screens | Real actions of the app, dimmed in Practice (§7) |
-| "Never type a seed that holds real bitcoin here." | Under every field that takes a seed | Drawn in every mode on an online shell |
-| The toast "Added sample … in place of the key made" | The notice area | A notice after Lock in, in no column |
-| The Practice · Testnet pill and the mode sheet | The app's top bar | They name the mode, as the device's do; Testnet, Signet and Regtest have theirs |
-
+See `docs/MODES.md` §6.3.

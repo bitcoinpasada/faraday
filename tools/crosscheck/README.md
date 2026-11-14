@@ -1,14 +1,11 @@
 # The crypto cross-check
 
-F79, `docs/CROSSCHECK.md` §10. Faraday's own Rust answers requests, and
+F79, `docs/CROSSCHECK.md` §10, which says what is checked and why. This
+file says how it runs. Faraday's own Rust answers requests, and
 pure-Python references recompute every answer, over every published
 vector and a corpus of random inputs drawn from a fixed seed. The first
 disagreement stops the area and is printed with its inputs and both
-answers. Some references are others' code, code Faraday did not write;
-others are Faraday's second version, a second implementation
-Faraday's authors wrote, over others' code or alone, and those are not
-checked against an outside source (F160, F177, F179): "Others' code and
-Faraday's second version" below says which, per action.
+answers.
 
 ## Running it
 
@@ -53,6 +50,17 @@ starts one `bitcoind` before the self-test and stops it at the end
 datadir, and RPC on loopback only, with a cookie. The run first brings up
 `lo`, the namespace's one interface. The node is stopped and its
 folders deleted on every way out, and killed if the run dies.
+
+An area whose cases spend on the node has its coins before the self-test.
+The node's coinbases pay P2WSH(OP_TRUE) and are fanned out into coins of
+one value, the same in every run, as a regtest coinbase's txid depends
+only on its height and what it pays. The workers build each case's funding
+transactions from the case's own random stream and the run sends and
+buries them all (for `sign`, 1,100 blocks, past every timelock its corpus
+spends with). A case then builds the same funding again, so the
+transaction Faraday finalizes spends real outputs, and Core's
+`testmempoolaccept` judges it with its own script interpreter and mempool
+policy.
 
 Core is not vendored. `tools/reference/core/release.pin` pins the
 release tarball's SHA-256 for x86_64 and aarch64 Linux. Fetch it once,
@@ -1262,13 +1270,8 @@ Path naming the outside tool that generated it where one did.
 ## Others' code and Faraday's second version
 
 What each action's cross-check compares Faraday with, by its class
-(F160, F177, F179): `outside`, others' code, an implementation others
-wrote; `outside-and-own`, others' code and, for the part named,
-Faraday's second version, a second implementation Faraday's authors
-wrote; or `own`, only Faraday's second version, from the specification. A part compared only
-with an implementation Faraday's authors wrote is not checked against an
-outside source: it catches a slip between the two implementations, not a
-misreading of the specification both share. The table is written by `docs/crypto/gen.py`
+(`outside`, `outside-and-own` or `own`; `docs/CROSSCHECK.md` §10 says what
+each class means). The table is written by `docs/crypto/gen.py`
 from the `independence` table of each action in
 `docs/crypto/actions.toml`, which the app's and the website's
 Cryptography blocks read too: edit the manifest, then run

@@ -124,7 +124,7 @@ pub struct Demo {
     /// The system clipboard, read for Paste.
     clipboard: Clipboard,
     /// The screen size the app is shown at, in dp, or `None` for the
-    /// window's own (`docs/PREVIEW-SIZE.md`): kept across a lock.
+    /// window's own (`docs/DESKTOP-HOST.md` §10): kept across a lock.
     preview: Option<(u16, u16)>,
 }
 

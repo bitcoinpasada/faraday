@@ -40,7 +40,7 @@ steps the layout down. Navigation by class is LAYOUT §3.
 | A 10-inch panel, landscape | 1280 × 800 | 150 dpi | 1365 × 853 | large: the expanded rail |
 | A PC monitor or laptop screen on the stick | its firmware mode | `faraday.dpi=160`, doubled at 2800 pixels wide or more (F101) | its pixels, or half | expanded to extra-large: the rail or the expanded rail |
 | An HDMI screen on the Pi (`faraday/image/panels/any/screens/hdmi`) | the mode the kernel chose from its EDID | its EDID's on a screen of 11 inches or less, `faraday.dpi=160` otherwise | by its mode | by its width, as on the stick |
-| Faraday Demo's window | 1280 × 800 at first, any size | the system's scale | its size | any class, laid out again at every size; the Size menu shows the panels above (`docs/PREVIEW-SIZE.md`) |
+| Faraday Demo's window | 1280 × 800 at first, any size | the system's scale | its size | any class, laid out again at every size; the Size menu shows the panels above (`docs/DESKTOP-HOST.md` §10) |
 
 A 7-inch or 10-inch panel starts in landscape, and Settings › Display ›
 Rotation turns it and its touch (`docs/ORIENTATION.md`). A screen of

@@ -5,7 +5,7 @@
 SignedData with one signer, the `.auth` file's detached form, Authenticode's
 SpcIndirectDataContent and the signed attributes, as `der` types. Faraday
 wrote the DER by hand before (a 164-line `der.rs`); only these structures
-stay Faraday's own (`docs/ESTABLISHED.md` §3.2). Faraday-only.
+stay Faraday's own (`docs/STANDARDS.md` §10). Faraday-only.
 
 **Why this crate.** It is RustCrypto's ASN.1 DER, already in the graph
 (through `rsa`, `spki`, `pkcs8` and `x509-cert`), and the one place that

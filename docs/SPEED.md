@@ -50,44 +50,11 @@ Moved to `docs/history/SPEED-LOG.md`.
 
 ### 3.1 The fingerprint is kept on the key (issue 120)
 
-Built first in Faraday (a `fp` field on `wallet::Key`), then moved into
-core (`docs/COMPUTE.md` §5.1). `MasterKey`
-(`core/faraday-bip/src/keys.rs`) works out its fingerprint once, when the
-key is made, from the blinded context; `for_network` copies it,
-`fingerprint()` returns it, and `derive()` takes the master fingerprint
-from it. Every constructor of a `MasterKey` takes the token and says it
-costs the multiplication. Both apps save one elliptic-curve
-multiplication per derivation; no output changes, and the BIP-32
-vectors pass unchanged.
-
-Faraday dropped its own field. `wallet::Key`
-(`faraday/faraday-core/src/wallet.rs`) keeps `master` private:
-`Key::master(&self) -> &MasterKey` reads it, `Key::fingerprint(&self)`
-is a lookup through it, and `Key::set_network(&mut self, network)` is
-the only way to change it (the fingerprint is the same on every
-network). A `Key` is made through `Key::new`.
-
-This also means fewer uses of the private key: each fingerprint call
-had been a multiplication with the master private key (constant time
-and blinded), thousands of times a second on the checklist.
+Moved to `docs/COMPUTE.md` §5.1.
 
 ### 3.2 The descriptor checksum is kept on the wallet (issue 121)
 
-Built first in Faraday (a `checksum` field on `wallet::Wallet`), then
-moved into core (`docs/COMPUTE.md` §5.2).
-`WalletPolicy` (`core/faraday-bip/src/policy.rs`) sets its checksum in every
-constructor, and `checksum(&self) -> &str` is a lookup. A policy has one
-text: hardened steps are kept and written `h` whichever way they were
-read (`docs/COMPUTE.md` §5.3, F66), so a wallet read with `'`, `h` or
-both has one checksum.
-
-A wallet is made through `Wallet::new(name, policy, source, origin)`.
-`wallet::Wallet` keeps `policy` private, with `Wallet::policy(&self) ->
-&WalletPolicy`; `Wallet::checksum(&self)` is a lookup through it. The
-one place that changes a loaded wallet's policy, `silent.rs` (a silent
-payment wallet's labels handed out), calls `Wallet::set_policy(policy)`,
-which drops the addresses and scripts kept from the policy before.
-`name`, `source` and `origin` stay public.
+Moved to `docs/COMPUTE.md` §5.2.
 
 ### 3.3 The drawing memo (issue 122)
 

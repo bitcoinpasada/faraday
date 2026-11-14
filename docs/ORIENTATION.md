@@ -378,7 +378,7 @@ shell offers Rotation as the stick does, chosen the way the render
 stands, so Settings › Display shows its row; the `panes` tour shows the
 Display section.
 
-Faraday Demo's Size menu (`docs/PREVIEW-SIZE.md` §1) has **7-inch
+Faraday Demo's Size menu (`docs/DESKTOP-HOST.md` §10.1) has **7-inch
 panel, portrait** (565 × 964 dp) and **10-inch panel, portrait**
 (853 × 1365 dp), and its 7-inch and 10-inch rows take the densities
 above (964 × 565 and 1365 × 853), in `PREVIEW_SIZES`

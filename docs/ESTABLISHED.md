@@ -285,104 +285,23 @@ Moved to `docs/history/ESTABLISHED-LOG.md`.
 
 ## 3. What Faraday writes itself
 
-The content of STANDARDS §10 and AUDIT §3 once §4, §5 and §7 are built,
-before §6. The decision is F178 for the pieces in the tree on
-2026-10-30 and F180 for the rest (the column says which). The action is
-the manifest entry that carries it; where a piece's action is not given
-below, the action is the one whose functions reach it, from the inventory.
+Moved to `docs/STANDARDS.md` §10 and `docs/AUDIT.md` §3, which the manifest generates.
 
 ### 3.1 Faraday's own specification
 
-| Piece | Where | Action | Decision | Note |
-|---|---|---|---|---|
-| The session's random generator: its seed and pool, and the mixing of a person's own randomness | `faraday/faraday-core/src/fresh.rs` | `fresh` | F178 | Faraday's own procedure over SHA-256, labelled as not yet reviewed outside Faraday. |
-| Dice, coin, card, hex and camera entropy accumulation and packing, and the mix of sources | `core/faraday-entropy` | `dice` | F178 | Faraday's own procedures over SHA-256; the card, camera and mix procedures are labelled as not yet reviewed outside Faraday. |
-| PSBT inspection, signing orchestration and verification logic | `core/faraday-psbt` | `psbt-read` | F178 | What Faraday checks before it signs is Faraday's own rule; the PSBT format itself is rust-bitcoin's. |
-| The choice among a script's satisfactions by real signature size | `core/faraday-psbt/src/finalize.rs` | `finalize` | F178 | For a miniscript Faraday picks the smallest witness as Bitcoin Core's `finalizepsbt` does; a plain multisig carries the first m signers' signatures, as Core writes them; miniscript builds and checks each witness. |
-| BIP-39 entry and display: words typed by pinyin, zhuyin, kana or hangul, the last word's candidates, the explorer's view of the checksum | `core/faraday-bip/src/bip39.rs` | `words-read` | F178 | How a person types and sees the words is Faraday's own. |
+Moved to the same two places.
 
 ### 3.2 No established implementation
 
-| Piece | Where | Action | Decision | Note |
-|---|---|---|---|---|
-| AEZ v5 and aezeed, with aezeed's CRC-32C | `core/faraday-bip/src/aez.rs`, `core/faraday-bip/src/aezeed.rs` | `aezeed` | F178 | No maintained Rust implementation of AEZ exists; Faraday's follows the Go code LND uses and is tested against LND's vectors. Its AES round is the aes crate's and its BLAKE2b the blake2 crate's. |
-| BIP-327 MuSig2, with BIP-328 and BIP-390 | `core/faraday-bip/src/musig.rs` | `musig-key` | F178 | libsecp256k1's MuSig2 is in rust-secp256k1 0.32 and later; bitcoin 0.32, which Faraday uses, is on 0.29, and no miniscript release builds on bitcoin 0.33 yet. |
-| BIP-352 silent payments | `core/faraday-bip/src/silent.rs` | `silent-receive` | F178 | libsecp256k1's silent payments module is not yet in its Rust bindings. |
-| The PSBT version 2 reader | `core/faraday-psbt/src/v2.rs` | `psbt-v2` | F178 | rust-bitcoin reads only version 0 PSBTs; its version 2 crate is pre-release. |
-| BIP-322 "simple" message signatures | `core/faraday-psbt/src/message.rs` | `message-sign` | F178 | The bip322 crate is pre-release. |
-| SLIP-39 Shamir backup | `core/faraday-bip/src/slip39.rs` | `slip39` | F178 | No maintained Rust implementation of SLIP-39 exists. |
-| CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files | `faraday/faraday-sb` | `sb-keys` | F178 | No library writes Authenticode signatures or EFI signature lists; the CMS crate for the DER version Faraday uses is a release candidate. |
-| BC-UR, with its CBOR (carries) | `core/faraday-codec/src/ur/`, `core/faraday-codec/src/cbor.rs` | `ur` | F178 | No library for this format comes from a publisher Faraday's dependency review trusts. |
-| BBQr (carries) | `faraday/faraday-qr/src/bbqr.rs` | `bbqr` | F178 | No library for this format comes from a publisher Faraday's dependency review trusts. |
-| SeedQR (carries) | `core/faraday-codec/src/seedqr.rs` | `seedqr-make` | F178 | No Rust library implements SeedQR. |
-| The QR encoder, a port of Nayuki's `qrcodegen`, with its GF(256) and Reed-Solomon (carries) | `core/faraday-codec/src/qr.rs` | `qr` | F178 | No QR encoder comes from a publisher Faraday's dependency review trusts; Faraday's port of Nayuki's code wipes a SeedQR's buffers. |
-| CRC-32 | `core/faraday-crypto/src/crc32.rs` | `ur` | F180 | The CRC-32 crate in the tree, crc32fast 1.5.1, is not covered by an outside review at that version; Faraday's is a branch-free loop checked against the published check values. |
-| FAT16 and FAT32, read and written (carries) | `faraday/faraday-fat` | `stick-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts. |
-| The FAT32 formatter for the Starter's data partition (carries) | `faraday/faraday-fat` | `starter-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts; the partition it makes is checked by dosfstools' `fsck.fat`, against what `mkfs.fat` makes. |
-| GPT and MBR tables, read and rewritten (carries) | `faraday/shells/starter/src/gpt.rs`, `faraday/shells/starter/src/ids.rs` | `starter-write` | F180 | No partition-table library comes from a publisher Faraday's dependency review trusts. |
-| The PDF writer (carries) | `faraday/faraday-paper/src/pdf.rs`, `faraday/faraday-starter/src/sheets.rs` | `starter-recovery-key` | F180 | No PDF library comes from a publisher Faraday's dependency review trusts. |
-| The plist reader for the disk tool's output (carries) | `faraday/shells/starter/src/macos/plist.rs` | `starter-write` | F180 | No plist library comes from a publisher Faraday's dependency review trusts. |
-| WipeOnFree, the allocator that wipes what it frees | `core/faraday-crypto/src/wipe.rs` | `hold` | F180 | No wiping allocator comes from a publisher Faraday's dependency review trusts; this one is installed in no shipped program (F181). |
-
-**The FAT32 formatter** (owner, 2026-10-31; F180). The Starter makes the
-stick's data partition itself, as `mkfs.fat -F 32` makes one
-(`docs/STICK-IDENTITY.md`): a new piece written here, `none-established`
-(fatfs 0.3.6, which has a formatter, has no trust entry and no imported
-audit). It is written in `faraday/faraday-fat`, beside the reader, not in
-the Starter's shell, and it is tested against dosfstools: each
-partition it makes passes `fsck.fat -n`, and its boot sector, FSInfo
-and FATs have the fields `mkfs.fat -F 32` gives for the same size and
-label, apart from the serial (skipped with a note where dosfstools is
-missing). faraday-fat's module doc says "The Starter formats the data
-partition; nothing else formats one". It is built (`format32`, with its
-tests in `faraday/faraday-fat/tests/formatted.rs`, which also hold the
-volume it makes against `mkfs.fat` at the size either side of every
-cluster-size step); its manifest entry is written with the others of the
-`carries` tier with the form (§2.1), and the count
-below includes it.
+Moved to the same two places.
 
 ### 3.3 One exists but does not fit the key rules
 
-| Piece | Where | Action | Decision | Fails | Note |
-|---|---|---|---|---|---|
-| scrypt | `core/faraday-crypto/src/scrypt.rs` | `scrypt` | F178 | scrypt 0.12.0 frees its passphrase-derived working buffers (`b`, `v`, `t`) without wiping them | The Rust scrypt library leaves its passphrase-derived working memory unwiped; Faraday's wipes it. |
-| HKDF-SHA256, one copy | `core/faraday-crypto/src/hash.rs` | `vault-qr-pgp` | F180 | hkdf 0.13.0 returns the pseudorandom key and leaves each output block T(i) in plain arrays it does not wipe | The Rust HKDF library leaves the pseudorandom key and its output blocks unwiped; Faraday's holds both in buffers it wipes. |
-| BIP 93 codex32 | `core/faraday-bip/src/codex32/` | `codex32` | F178 | codex32 0.1.0 holds the seed in a `String` that is `Clone` and `Debug` and never wiped, which `tools/lint-secrets.sh` refuses, and needs `std`, which `faraday-bip` does not have | The reference library keeps the seed in text that is never wiped and needs a full operating system. |
-| BIP-39 mnemonics: entropy to words and back, the checksum, a word's place in its list | `core/faraday-bip/src/bip39.rs` | `words-read` | F180 | bip39 2.2.2 finds a word by a binary search or a scan that stops at it (`find_word`) and packs entropy with a branch on each bit (`from_entropy_in`), so the time it takes follows the secret words | The Rust BIP-39 library's word lookup takes a time that follows the secret words; Faraday's looks each word up in constant time and is tested against that library and the reference. |
-| The BIP-39 seed, PBKDF2-HMAC-SHA512 over the sentence through `faraday-crypto` | `core/faraday-bip/src/bip39.rs` | `seed` | F178 | bip39's `to_seed` returns the seed as a plain `[u8; 64]`, and its own PBKDF2 leaves its HMAC state unwiped (bip39 2.2.2's `src/pbkdf2.rs`) | The seed is derived with the RustCrypto PBKDF2 Faraday uses everywhere, into a buffer that is wiped. |
-| The PNG writer, with zlib's stored blocks (carries) | `core/faraday-codec/src/png.rs` | `seedqr-make` | F180 | png 0.18.1 needs `std`, which `faraday-codec` does not have, and does not wipe a picture's rows | Faraday writes a SeedQR's picture in buffers it wipes; its Adler-32 is the adler2 crate's. |
+Moved to the same two places.
 
 ### 3.4 Only the part used is written
 
-| Piece | Where | Action | Decision | Note |
-|---|---|---|---|---|
-| OpenPGP v4 packets for one key shape, the armour's CRC-24, and the paperkey format | `faraday/faraday-pgp` | `gpg-create` | F178 | Faraday writes only the packets of its one key shape, over Ed25519 from dalek and SHA-1/SHA-2 from RustCrypto, each judged by GnuPG and paperkey; the armour's base64 is the base64ct crate's. |
-| TOTP code derivation | `faraday/faraday-vault/src/totp.rs` | `totp` | F178 | Faraday writes only the few lines RFC 6238 needs, over standard HMAC. |
-| Seed XOR | `core/faraday-entropy/src/xor.rs` | `xor` | F178 | Faraday writes only the few lines the standard needs, over standard XOR. |
-| A 32-byte hash reduced modulo the curve order, without a branch | `core/faraday-bip/src/musig.rs` | `musig-key` | F178 | libsecp256k1's Rust bindings take a scalar only below the order and offer no reduction; Faraday's is a single conditional subtraction. |
-| The JSON visitor that refuses a key named twice and counts depth | `core/faraday-bip/src/json.rs` | `wallet-files` | F180 | serde_json reads the text; Faraday refuses a key named twice and a nesting deeper than 32. |
-| The form of a version 4 UUID (carries) | `faraday/shells/starter/src/ids.rs` | `starter-write` | F180 | Four lines setting RFC 9562's version and variant bits over bytes from getrandom. |
-| The KDBX 4 container a file vault is: header, VariantDictionary, HMAC block stream, inner header and gzip framing | `faraday/faraday-vault/src/kdbx/` | `vault-kdbx` | F190 | Faraday writes only the part of KeePass's format the vault uses, over argon2, chacha20, aes and cbc, hmac, sha2 and miniz_oxide; keepass-rs, which no review Faraday trusts covers, drops the XML elements it does not read and draws a save's randomness itself. |
-| The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet | `faraday/faraday-pgp/src/message.rs` | `vault-qr-pgp` | F190 | Faraday writes only the three packets a QR vault uses, over argon2, aes and ocb3 and Faraday's HKDF; rPGP, which no review Faraday trusts covers, brings every OpenPGP algorithm. |
-| The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` §2.1 and §7 | `faraday/faraday-vault/src/contents.rs`, `faraday/faraday-vault/src/contents/` | `vault-contents` | F189, F190 | toml_parser reads the tokens; Faraday builds the tree and refuses what VAULT.md does not name, as the JSON visitor does over serde_json. |
-
-The KDBX 4 export, which stood in none of these tables because the
-vault was to take it in, is folded into the vault (F190 point 10): an
-export is a vault of one entry, written by the vault's own container
-(`vault-kdbx`), and its separate writer is gone. The four-equal-slot FVLT
-container that stood beside it is gone.
-
-Thirty-nine pieces in all, the formatter included (five of Faraday's own
-specification, nineteen with no established implementation, six that do not
-fit and nine of which only the part used is written), the manifest's
-`written_here` count. The switches
-remove BLAKE2b, the AES round, the scalar arithmetic on secrets, the
-RSA RNG adapter, X.509 and the DER writer, the single-key and multisig
-finalizer, the sealing's counter nonce, four copies of base64, about
-twenty of hex, the descriptor checksum, the JSON parser, Adler-32, the
-hand-written wipes, and the second copy of HKDF's extract and of the
-Argon2 call; the encodings, BIP-322 and the formats written here and
-never listed are listed. Each kept piece is in one copy (§5.17).
+Moved to the same two places.
 
 ## 4. The timing fixes, and what wiping reaches
 

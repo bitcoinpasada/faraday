@@ -325,7 +325,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 
 In Practice, with `samples` set, each step below hands **Use a sample** to
 the page's "Demo only" card while its field is empty, and the scanner
-its sample (owner, 2026-10-24; `docs/DEMO.md` §14). A
+its sample (owner, 2026-10-24; §6.3). A
 press puts the sample into the step through the function the step's
 own input already calls, as if typed or scanned, and the flow goes on
 as it would. Which sample, decided: **the next one not used**, by a
@@ -334,7 +334,7 @@ again replaces it with the next, wrapping. "Not used" means not
 loaded, and for a set, not yet begun.
 
 **Placement.** In Faraday Demo's host strip (DESIGN §4.19,
-`docs/DEMO.md` §14), never inside the field or the scanner's band: the field keeps its
+§6.3), never inside the field or the scanner's band: the field keeps its
 caret and placeholder as in every mode. Never drawn on Mainnet,
 Testnet, Signet or Regtest. The scanner's button
 says what it hands over (Load sample PSBT, wallet, seed, share, key,
@@ -355,7 +355,7 @@ to remember, as for real.
 ### 6.1 The field's inner action (faraday-ui)
 
 Since 2026-10-24 (owner) the button stands outside the field, and
-since 2026-10-25 in Faraday Demo's host strip (`docs/DEMO.md` §14); it shows while the
+since 2026-10-25 in Faraday Demo's host strip (§6.3); it shows while the
 field is empty and the person has not typed in it, and a press in the
 field no longer hides it. The rest of this section, the table of steps
 and what a press puts in, stands.
@@ -421,7 +421,7 @@ In Practice every passphrase and password field works as it does outside
 Practice: empty, typed by the person, masked, with the eye and with the
 caution line "Never type a seed that holds real bitcoin here." under it
 where the shell is online. In addition an empty field hands the "Demo
-only" card **Use faraday** (owner, 2026-10-24; `docs/DEMO.md` §14); a
+only" card **Use faraday** (owner, 2026-10-24; §6.3); a
 passphrase and its repeat hand one, which fills both where they are
 empty. Nothing is drawn inside the field, which keeps its caret and,
 where it is optional, its **No passphrase** pill. It is gone once the
@@ -463,7 +463,7 @@ no typing is swallowed.
 | `Aezeed`: an aezeed's passphrase | `faraday/faraday-core/src/lightning/mod.rs` |
 | A KeePass export's password: no chip | the vault's KeePass export (`vault/out.rs`) |
 
-**Generate with dice** (DEMO §5.2) still takes the rolls and shows the
+**Generate with dice** (§7.1) still takes the rolls and shows the
 words; when the last word is in, both fields take `faraday` in place
 of them, and the card's one line says so (`vault_demo_uses_public`).
 "or type your own below" stays beside it.
@@ -480,6 +480,50 @@ passphrase is `faraday`; `PASSPHRASE_WORDS` goes. Outside
 Practice nothing changes: a test types a short passphrase on Testnet and on
 the stick and sees it taken as typed, masked and editable, with the
 dice's strength line where the dice made it.
+
+### 6.3 What the strip holds
+
+Everything that exists only for Practice stands in Faraday Demo's host
+strip at the window's foot, under "Practice", in the host's own look
+(F118, `docs/DESKTOP-HOST.md` §3); it shows only the aids of the screen
+or sheet on show. A page hands each item to the frame where it would
+have drawn it (`faraday_ui::demo`); nothing practice-only is drawn in a
+page. Practice is the one condition (owner, 2026-10-24): in Testnet,
+Signet, Regtest and Mainnet, on Faraday Demo too, the aids are gone, and
+the computer's dice rollers are Practice's alone (`Faraday::roller_offered`).
+
+| Screen | Element | Why it is practice-only |
+|---|---|---|
+| Add a key (and the Spend tab's Type the words) | **Use a sample** | Puts a public sample in place of the person's own key |
+| Add a key | **Use faraday** for the BIP-39 passphrase | Practice's public passphrase (§6.2) |
+| Add a key's words, a Restore slot's, New key's typed key | **Paste words**, in Practice and on the test networks (Ctrl+V too) | A whole key's words from the clipboard, checked as typed (F75) |
+| New key, a typed key | **Use a sample** | As Add a key |
+| New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample ... in place of these words", or "These words are sample ..." for words that are a sample's own | The public passphrase; the line says Practice replaces the key made, or keeps a sample's words (§7) |
+| New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |
+| Make codex32 shares, the entry | Its own card: **Use a sample** | `docs/CODEX32.md` §12 |
+| Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |
+| Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
+| QR vault, the first card | **Use a sample** | A public QR vault code (the seed of the bacon sample under `faraday`) in place of the person's own |
+| QR vault, Make's passphrase pair and the Open card's passphrase | **Use faraday** | §6.2 |
+| Create a vault | **Use faraday** for each passphrase and its repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | §7.1 |
+| Unlock; the boot import's passphrase; a passphrase prompt; the Spend tab's vault passphrase; the backup flow's unlock | **Use faraday** | §6.2 |
+| Vault contents, an entry's password; Make a new wallet, a slot's passphrase; a seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | §6.2 |
+| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **Krux code**, **address** | A public sample in place of a scan |
+| The Spend tab: What do you have?, the first step's shortcut, Write the payment | **Load sample PSBT** | A public transaction in place of the person's own |
+| Restore, seeds first, a cosigner's box | **Use a sample**, for the first empty box | A public account key in place of a cosigner's |
+| Lightning node key, the LND cipher seed | **Use a sample**; **Use faraday** for its passphrase | LND's published seed |
+| Explore, Find an address | **Use a sample** | The sample address |
+| Back up, Check my copy | **Fill words**; **Use faraday** for the passphrase typed back | The sample's own words |
+
+What stays where it is: **Samples** and its sheet stand in the host
+strip after the sticks and open over the app as the mode's. Check a
+signed message's Tools tile takes the sample message (in Practice with no
+message in the Inbox the sample stands in). The dimmed actions of
+§2 stay on their screens, dimmed. "Never type a seed that
+holds real bitcoin here." stands under every field that takes a seed, in
+every mode on an online shell. The toast "Added sample ... in place of the
+key made" is a notice, in no column. The Practice · Testnet pill and the
+mode sheet stay in the app's top bar.
 
 ## 7. New key in Practice
 
@@ -507,52 +551,34 @@ chosen; after Lock in the same line stands under the fingerprint.
 words (a lookup); the store still takes only the public set's
 fingerprints, so nothing else is let through.
 
+### 7.1 Generate with dice in Practice
+
+**Generate with dice** on Create a vault is open: the person rolls and
+types the numbers, and the words appear as on the device. When the last
+word is in, both passphrase fields hold `faraday` in place of the rolled
+words, and the card says so in one line (`vault_demo_uses_public`), as
+New key's Key card does. No strength line is drawn for it. On Faraday
+Demo the dice roller (F96), in the host strip (§6.3), rolls into the same
+entries for New key's dice and Generate with dice; the outcome is
+unchanged: the sample, or `faraday`. `faraday` is `demo::PASSPHRASE` in
+`faraday-core/src/demo.rs`, the one constant every Practice passphrase
+field and the samples (`faraday-samples`, the sample vault and backup)
+use. SLIP-39 shares are not New key: they stay disabled, since no sample
+stands in for a dealt set of shares.
+
+### 7.2 The backup plan in Practice
+
+The plan's form choices that need a split (Seed XOR parts, SLIP-39
+shares) are dimmed in its multi-choice lists, so a plan made in Practice
+is one whose checklist can be finished there. A plan read from a vault
+made elsewhere that names such a form keeps its item, with its Make
+action disabled; the item can be marked done by hand as any copy made
+away from the device is.
+
 ## 8. Strings
 
 All in `faraday/faraday-strings/src/en.rs`, each with its doc line as
 the file has them.
-
-| Name | Text |
-|---|---|
-| `mode_sheet_title` | Mode |
-| `mode_demo` | Practice |
-| `mode_demo_pill` | Practice · Testnet |
-| `never_real_seed` | Never type a seed that holds real bitcoin here. |
-| `mode_not_now` | Not now |
-| `settings_mode` | Mode |
-| `samples_pill_short` | Samples |
-| `samples_title` | Load samples |
-| `samples_wallets` | Wallets |
-| `samples_keys` | Keys |
-| `samples_select_all` / `samples_unselect_all` | Select all / Unselect all |
-| `samples_not_now` | Not now |
-| `samples_load` | Load ticked |
-| `samples_password` | In Practice, the sample passphrase is (the passphrase follows in its code box) |
-| `sample_type` | {} · {} (kind and script, or form and size) |
-| `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
-| `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / LND cipher seed |
-| `sample_size_words` / `_words_japanese` / `_share` / `_shares` / `_threshold` / `_groups` / `_secret` / `_parts` / `_bytes` | {} words / {} words, Japanese / 1 share / {} shares / {} of {} shares / groups, {} shares / secret / {} parts / {} bytes |
-| `samples_loaded` | Loaded {} (`{}`: how many, as the Load sheet's toast counts) |
-| `use_a_sample` | Use a sample |
-| `scan_sample` | Sample |
-| `sample_words` | {} ×{} (a word, a count) |
-| `sample_guide` | Guide key · 3dca6805 |
-| `sample_abandon` | abandon … about |
-| `sample_japanese` | Japanese words |
-| `sample_slip39_one` / `sample_slip39_two_of_three` / `sample_slip39_groups` | SLIP-39, one share / SLIP-39, 2 of 3 / SLIP-39, groups |
-| `sample_codex32_secret` / `sample_codex32_shares` | codex32 secret / codex32, 2 shares |
-| `sample_xor` | Seed XOR, 2 parts |
-| `sample_aezeed` | LND cipher seed |
-| `sample_hsm_plain` / `sample_hsm_encrypted` / `sample_hsm_words` | hsm_secret / hsm_secret-encrypted / hsm_secret-words (files put in Files) |
-| `sample_core_wallet_plain_file` / `sample_core_wallet_encrypted_file` | sample-plain-wallet.dat / sample-encrypted-wallet.dat (files put in Files) |
-| `sample_savings` … `sample_tree` | Savings, Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree |
-| `sample_musig` / `sample_three_of_five` | MuSig2 / 3 of 5 |
-| `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |
-| `keygen_added_public_seed` → `keygen_added_sample` | Added sample {} ({}) in place of the key made |
-| `keygen_words_are_sample` | These words are sample {} (F143) |
-| `wallet_is_not_a_key` (changed) | {} is not a sample: Practice takes only samples |
-| `vault_demo_uses_public` (changed) | Practice puts faraday in place of these words |
-| `wallet_public_seeds_only`, `network_row_note_wallets` | removed |
 
 ## 9. The website, in its repository
 

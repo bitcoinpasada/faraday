@@ -723,7 +723,7 @@ pub enum Event {
     /// while it was gone, before it draws again.
     Lock,
     /// The shell can show the app at another screen's size inside its
-    /// window (the desktop app's preview, `docs/PREVIEW-SIZE.md`), and
+    /// window (the desktop app's preview, `docs/DESKTOP-HOST.md` §10), and
     /// shows it at `chosen` now: a width and height in dp, or `None` for
     /// the window's own size. Sent after [`Event::Display`] and again
     /// after each [`Command::PreviewSize`]; a shell that cannot preview
@@ -941,7 +941,7 @@ pub enum Command {
     ForgetSecret,
     /// Show the app at `size` dp inside the window, laid out as a screen
     /// of that size, or at the window's own size for `None`
-    /// (`docs/PREVIEW-SIZE.md`). Only emitted for a user action, and only
+    /// (`docs/DESKTOP-HOST.md` §10). Only emitted for a user action, and only
     /// to a shell that sent [`Event::PreviewOffered`]; it answers with a
     /// new [`Event::Display`] and [`Event::PreviewOffered`]. Any other
     /// shell does nothing.

@@ -52,7 +52,7 @@ need. Each document's header says what kind it is:
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
-| How does Faraday Demo show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
+| How does Faraday Demo show its screens at another screen's size? | `docs/DESKTOP-HOST.md` §10 |
 | What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
@@ -106,12 +106,11 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/KEF.md`: KEF: Krux's encrypted code, read and written in full. Built (F219).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4); the "as built" sections of §4 are the boundary as it stands.
-- `docs/LAYOUT.md`: Layout at every window size. Built: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Learn in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests.
+- `docs/LAYOUT.md`: Layout at every window size. Built: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Guide in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets and state layers. Built (F152).
 - `docs/MODES.md`: Modes, Practice and samples. Built (F81).
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): native orientation and the panel's density read at start, the known list, the stick shell turning its frame, touch and arrow, Settings › Display › Rotation kept on the stick, the panels' snapshot sizes and the Size menu's portrait rows.
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 and its boot measurement (§3.4) on QEMU's worst case, a PC and the Pi.
-- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, amended by F118).
 - `docs/QR.md`: QR transfer and scanning. Built.
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SCANNING.md`: Scanning: what each scanner takes, and the way over. Built; the owner's choices were taken on 2026-10-29 (F173).
@@ -195,7 +194,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
-| How does Faraday Demo show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
+| How does Faraday Demo show its screens at another screen's size? | `docs/DESKTOP-HOST.md` §10 |
 | What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
@@ -247,7 +246,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): a 7-inch or 10-inch panel starts in landscape, Rotation in Settings › Display turns it and its touch.
-- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, F118).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Built (F86, F157): Add randomness at every press that draws the system's randomness, the late seed and the Pi's generator, and the boot measurement on QEMU, a PC and the Pi.
 - `docs/QR.md`: QR transfer and scanning. Built (§7, F28: codes of public values and the TOTP secret).
 - `docs/README.md`: Faraday's documents. Built.
