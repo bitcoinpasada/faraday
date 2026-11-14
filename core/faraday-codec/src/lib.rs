@@ -54,12 +54,12 @@ pub mod ur;
 pub mod vault_file;
 
 /// The largest file read from a stick other than a vault, which has its own
-/// limit ([`vault_file::MAX_FILE_LEN`]). A file other than a vault is read
-/// whole and travels in one frame to the app (the disk process's frame is
-/// this and a megabyte for a name), where the app holds it with the frame's
-/// own copy; this bounds that memory. A PSBT or a wallet is kilobytes, a
-/// picture of a QR code a few megabytes. It lives here because the app and
-/// the disk process both need it, and the app does not link the disk
+/// limit ([`vault_file::MAX_FILE_LEN`]): a larger one is listed and not read.
+/// Such a file is read whole and held whole in the app's memory, so this
+/// bounds what one file takes there. A PSBT or a wallet is kilobytes, a
+/// picture of a QR code a few megabytes. The disk process's frame is sized
+/// from it (this and a megabyte for a name). It lives here because the app
+/// and the disk process both need it, and the app does not link the disk
 /// process's picture decoder.
 pub const MAX_READ: u64 = 18 * 1024 * 1024;
 

@@ -5,8 +5,8 @@
 **Open:** all of it (§12).
 
 The problem it solves: a stick visit reads at most 18 MiB of a file
-(`faraday-codec` `MAX_READ`, which `faraday-files` re-exports). The figure is what one frame of the disk
-process carries beside a name; it was never a judgement about what a person
+(`faraday-codec` `MAX_READ`, which `faraday-files` re-exports). The figure bounds what one file, held
+whole, takes in the app's memory; it was never a judgement about what a person
 needs to sign. A
 release artifact or a disk image to sign with GPG can be larger,
 and today it is listed and cannot be ticked. Lifting the cap means
