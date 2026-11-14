@@ -456,6 +456,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NameTaken => crate::visit_taken::name_taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::KeyPath => key_path_sheet(app, ui, w, h),
+            Sheet::OutboxDelete => crate::visit_taken::outbox_delete_sheet(app, ui, w, h),
             Sheet::Account => crate::silent::screen::account_dialog(app, ui, w, h),
             Sheet::Register => crate::register::sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),

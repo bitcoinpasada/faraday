@@ -209,6 +209,9 @@ pub enum Action {
     HoldPowerOff,
     /// Restart, held, as [`Action::HoldPowerOff`].
     HoldRestart,
+    /// The sheet's hold that deletes a file For the stick no stick holds
+    /// ([`Action::OutboxRemove`] asks first).
+    OutboxDeleteHold,
     /// The key path sheet's hold: the waiting wallet is added (F132).
     KeyPathHold,
     /// The key path sheet's Cancel: the waiting wallet is not added.
@@ -969,6 +972,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldRestart
             | Action::SecretHold
             | Action::KeyPathHold
+            | Action::OutboxDeleteHold
             | Action::Sweep(seeds::sweep::SweepAction::Hold)
             | Action::RegisterHold
             | Action::ReviewHold

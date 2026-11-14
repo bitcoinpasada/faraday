@@ -155,6 +155,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         2,
         "the GPG key's flow resumed at its end finishes: the vault it changed is sealed and hashed for its record, and hashed once as it comes into the Outbox (Item::sha)",
     ),
+    (
+        "File(Menu(Out(",
+        Work::FileHash,
+        1,
+        "Delete of an Outbox file hashes it once to learn whether a stick's receipt or a vault on a stick holds it, so a file kept nowhere else is held before it goes (outbox_loss)",
+    ),
 ];
 
 /// A press that opens a sheet copies the page twice more than one that

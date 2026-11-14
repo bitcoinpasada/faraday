@@ -7398,6 +7398,22 @@ strings! {
     files_show_as_qr: "Show as QR",
     /// Text in `files_compact`.
     files_remove: "Remove",
+    /// Text in `files_compact`: the ⋮ menu's last choice on a file no stick holds.
+    files_delete: "Delete",
+    /// Title of the sheet that asks first. `{}`: the file's name.
+    outbox_delete_title: "Delete {}?",
+    /// Line in that sheet: a vault no stick holds.
+    outbox_delete_vault_none: "This vault is on no stick. Everything in it is lost.",
+    /// Line in that sheet: a vault a stick holds an older copy of. `{}`: the stick's label.
+    outbox_delete_vault_since: "Its changes since {} are lost.",
+    /// Line in that sheet: an unprotected secret no stick holds.
+    outbox_delete_file_none: "This file is on no stick. Everything in it is lost.",
+    /// The hold in that sheet, for a vault.
+    outbox_delete_hold_vault: "Hold to delete the vault",
+    /// The hold in that sheet, for a file.
+    outbox_delete_hold_file: "Hold to delete the file",
+    /// The cancel in that sheet.
+    outbox_delete_cancel: "Cancel",
     /// Line in `files_compact`.
     files_empty: "Empty",
     /// Text in `files_compact`. `{}`: `app.medium.for_the()`.

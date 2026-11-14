@@ -528,3 +528,46 @@ fn files_says_when_the_stick_it_started_from_is_not_known() {
     app.storage(StorageEvent::BootMedium(BootMedium::Known));
     assert!(!has(&mut app, two) && !has(&mut app, lost));
 }
+
+#[test]
+fn a_vault_no_stick_holds_is_deleted_only_by_a_hold_that_says_what_is_lost() {
+    let v = vault("Savings", "pass one", 7);
+    let mut app = process(Vec::new(), vec![file("vault.kdbx", &v)], Vec::new());
+    app.press(Action::Nav(Screen::Files));
+    let lines = menu_of(&mut app, Row::Out(0));
+    assert_eq!(lines.last().map(String::as_str), Some("Delete"));
+    choose(&mut app, "Delete");
+    assert_eq!(app.sheet, Some(Sheet::OutboxDelete));
+    assert_eq!(app.outbox.len(), 1, "the press alone deletes nothing");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    for want in [
+        "Delete vault.kdbx?",
+        "This vault is on no stick. Everything in it is lost.",
+        "Hold to delete the vault",
+    ] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+    app.press(Action::Cancel);
+    assert_eq!(app.outbox.len(), 1, "Cancel keeps it");
+    menu_of(&mut app, Row::Out(0));
+    choose(&mut app, "Delete");
+    hold(&mut app, Action::OutboxDeleteHold);
+    assert!(app.outbox.is_empty(), "the hold deletes it");
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn a_public_file_for_the_stick_is_removed_by_a_press() {
+    let mut app = process(
+        Vec::new(),
+        vec![file("spend-signed.psbt", b"p")],
+        Vec::new(),
+    );
+    app.press(Action::Nav(Screen::Files));
+    let lines = menu_of(&mut app, Row::Out(0));
+    assert_eq!(lines.last().map(String::as_str), Some("Remove"));
+    choose(&mut app, "Remove");
+    assert_eq!(app.sheet, None);
+    assert!(app.outbox.is_empty(), "a press removes it");
+}

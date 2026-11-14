@@ -245,7 +245,7 @@ impl Faraday {
     /// not the row's button, Check a signer on a PSBT, Compare on a PSBT or a finished transaction, Details and Remove;
     /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT, Compare on a PSBT or a finished transaction, Rename, Details and Remove; on the stick, Rename,
     /// Delete from the stick and Details.
-    pub(crate) fn file_menu_lines(&self, row: Row) -> Vec<(String, Action)> {
+    pub(crate) fn file_menu_lines(&mut self, row: Row) -> Vec<(String, Action)> {
         let mut out: Vec<(String, Action)> = Vec::new();
         let details = (
             EN.file_menu_details.to_string(),
@@ -290,6 +290,7 @@ impl Faraday {
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }
             Row::Out(k) => {
+                let c = self.compute();
                 let Some(item) = self.outbox.get(k) else {
                     return out;
                 };
@@ -318,7 +319,15 @@ impl Faraday {
                     Action::File(FilePress::Rename(row)),
                 ));
                 out.push(details);
-                out.push((EN.files_remove.to_string(), Action::OutboxRemove(k)));
+                // A file no stick holds is destroyed by it, and says so.
+                let word = if crate::vault::more::outbox_may_remove(self, &item.name)
+                    && crate::vault::more::outbox_loss(self, &c, k).is_some()
+                {
+                    EN.files_delete
+                } else {
+                    EN.files_remove
+                };
+                out.push((word.to_string(), Action::OutboxRemove(k)));
             }
             Row::Stick(k) => {
                 if !self

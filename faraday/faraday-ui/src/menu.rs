@@ -142,7 +142,7 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
                 item(
                     ui,
                     (x, cy, w, ih),
-                    (label, a, chosen),
+                    (label, a, chosen, Role::OnSurface),
                     under,
                     m.at == Some(k),
                 );
@@ -171,14 +171,14 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
 fn item<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w, h): (f32, f32, f32, f32),
-    (label, a, chosen): (&str, A, bool),
+    (label, a, chosen, tone): (&str, A, bool, Role),
     under: f32,
     keys: bool,
 ) {
     if chosen {
         ui.fill(x, y, w, h, 0.0, Role::SecondaryContainer);
     }
-    let fg = on_selected(chosen, Role::OnSurface);
+    let fg = on_selected(chosen, tone);
     ui.press_custom((x, y, w, h), a, |ui| {
         ui.state_layer((x, y, w, h, 0.0), fg, a);
         if keys || ui.focused == Some(a) {

@@ -546,6 +546,7 @@ impl Faraday {
             Action::ReviewHold => self.wallet_act(held),
             Action::DevicesHold => self.devices_act(held),
             Action::NameTakenOverwrite => self.visit_act(held),
+            Action::OutboxDeleteHold => self.inbox_act(held, c),
             _ => self.power_act(held, c),
         }
     }

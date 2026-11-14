@@ -519,6 +519,8 @@ pub enum Sheet {
     Devices,
     /// A wallet a key not of its own can spend alone by the key path, waiting to be added: the danger line, Cancel, and a hold (F132).
     KeyPath,
+    /// A file For the stick no stick holds, asked about before it is deleted: what is lost, a hold and Cancel (`visit_taken`).
+    OutboxDelete,
     /// **Which account to load?**: a Coldcard export of a single-sig and a silent payments account.
     Account,
     /// The wallet a spend's PSBT defines, to register with a hold (F135).
@@ -2655,6 +2657,7 @@ impl Faraday {
             | Action::Rename) => self.wallet_act(a),
             a @ (Action::InboxRemove(..)
             | Action::OutboxRemove(..)
+            | Action::OutboxDeleteHold
             | Action::InboxLoad
             | Action::InboxChoose(..)
             | Action::PotentialOpen(..)

@@ -271,6 +271,12 @@ case = "Hold to add this wallet: a tr() wallet whose key path another key spends
 
 [[hold]]
 where = "app"
+hold = "Action::OutboxDeleteHold"
+decision = "F136"
+case = "Delete a vault or an unprotected secret no stick holds: the person's own destructive act"
+
+[[hold]]
+where = "app"
 hold = "Action::RegisterHold"
 decision = "F135"
 case = "Hold to register: a wallet the coordinator's PSBT defines, its keys checked to be the person's"

@@ -167,6 +167,9 @@ pub(crate) struct VisitArea {
     name_taken: std::collections::VecDeque<NameTaken>,
     /// The names this write wrote, for the free name the sheet offers.
     wrote: Vec<Text>,
+    /// The file For the stick that [`Sheet::OutboxDelete`] asks about, and
+    /// what deleting it loses.
+    outbox_delete: Option<(Text, crate::vault::more::Loss)>,
 }
 
 impl std::ops::Deref for VisitArea {
@@ -264,6 +267,16 @@ impl VisitArea {
     ) {
         self.vault_from
             .push((Text::of(name.as_ref()), sha, Text::of(label.as_ref())));
+    }
+
+    /// The file the delete sheet asks about, and what is lost with it.
+    pub(crate) fn outbox_delete(&self) -> Option<&(Text, crate::vault::more::Loss)> {
+        self.outbox_delete.as_ref()
+    }
+
+    /// The delete sheet asks about `ask`, or about nothing.
+    pub(crate) fn outbox_delete_set(&mut self, ask: Option<(Text, crate::vault::more::Loss)>) {
+        self.outbox_delete = ask;
     }
 
     /// The vault writes waiting for an answer to the name-taken sheet.
@@ -1067,6 +1080,58 @@ pub(crate) fn name_taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (EN.visit_taken_cancel, Style::Ghost, Action::Cancel),
             (&beside, Style::Primary, Action::NameTakenBeside),
         ],
+    );
+}
+
+/// **Delete {name}?**: a file For the stick no stick holds, asked about
+/// before it goes. What is lost is said once; the hold deletes it, Cancel
+/// keeps it (Material's basic dialog with a destructive confirmation).
+pub(crate) fn outbox_delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use crate::vault::more::Loss;
+    let Some((name, loss)) = app.visit.outbox_delete() else {
+        return;
+    };
+    let is_vault = app
+        .outbox
+        .iter()
+        .any(|i| i.name == **name && i.kind == crate::FileKind::Vault);
+    let line = match loss {
+        Loss::Since(label) => Text::fill(EN.outbox_delete_vault_since, &[label]),
+        Loss::All if is_vault => Text::of(EN.outbox_delete_vault_none),
+        Loss::All => Text::of(EN.outbox_delete_file_none),
+    };
+    let hold = if is_vault {
+        EN.outbox_delete_hold_vault
+    } else {
+        EN.outbox_delete_hold_file
+    };
+    let title = Text::fill(EN.outbox_delete_title, &[name]);
+    let head = (Icon::Error.into(), Role::Error.paint(), title.as_str());
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy +=
+                ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, &line) + faraday_draw::tokens::GAP;
+            crate::vault::screen::hold_button_in(
+                app,
+                ui,
+                x,
+                cy,
+                iw,
+                hold,
+                Action::OutboxDeleteHold,
+                faraday_ui::hold::HoldTone::Error,
+            );
+            cy += ui
+                .hold_button_height(iw, hold)
+                .max(ui.button_height(faraday_draw::tokens::BUTTON_H))
+                + faraday_draw::tokens::GAP;
+            cy - y
+        },
+        &[(EN.outbox_delete_cancel, Style::Ghost, Action::Cancel)],
     );
 }
 

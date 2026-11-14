@@ -12,6 +12,7 @@
 //! and its copy leaves Files once the seal that writes it succeeds.
 
 use super::unlock_keys::{self, Bad};
+use crate::FileKind;
 use crate::drawing::View;
 use crate::menu::{self, Line};
 use crate::strings::{EN, fill};
@@ -19,6 +20,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Sheet};
+use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{BODY_M, BODY_S, DIALOG_MAX, GAP, GAP_SMALL, LIST_1, PAD, RADIUS_SMALL};
 use faraday_draw::widgets::Icon;
 use faraday_keys::vault::VaultId;
@@ -160,6 +162,48 @@ pub(crate) fn outbox_may_remove(app: &Faraday, name: &str) -> bool {
             && app.vaults.store().key_file_made(k.0)
             && app.vaults.store().is_locked(k.0)
     })
+}
+
+/// What deleting an Outbox file loses that no stick holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Loss {
+    /// Every byte: no stick has been written it.
+    All,
+    /// What was changed since the stick of this label was written it.
+    Since(Text),
+}
+
+/// Costs a hash of a whole file. What Outbox item `i` loses when it is
+/// removed, `None` when a stick holds it as it is, when it is public, or
+/// when it was read unchanged from a stick: a vault, or a secret kept as a
+/// plain file (a share or part), that no receipt holds.
+pub(crate) fn outbox_loss(app: &Faraday, c: &Compute, i: usize) -> Option<Loss> {
+    let item = app.outbox.get(i)?;
+    let hash = item.hash(c);
+    let receipt = app.visit.receipt().as_ref();
+    let named = receipt.filter(|r| r.wrote(&item.name));
+    let alone = match item.kind {
+        FileKind::Vault => true,
+        _ => item.exposure() == crate::secrets::Exposure::Secret,
+    };
+    // A pending made key file is taken back by its removal, which loses
+    // nothing.
+    let pending = app.vaults.key_outbox.iter().any(|k| k.1 == item.name);
+    if !alone || pending || receipt.is_some_and(|r| r.holds(&item.name, &hash)) {
+        return None;
+    }
+    if let Some(r) = named {
+        return Some(Loss::Since(Text::of(&r.label)));
+    }
+    if item.kind == FileKind::Vault
+        && app
+            .visit
+            .vault_from_find(|(n, h, _)| *n == *item.name && *h == hash)
+            .is_some()
+    {
+        return None;
+    }
+    Some(Loss::All)
 }
 
 /// `name` left the Outbox ([`outbox_may_remove`] said it may): if it is

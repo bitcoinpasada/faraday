@@ -1657,6 +1657,14 @@ impl Faraday {
 }
 
 impl Faraday {
+    /// Outbox item `i` leaves, with what hangs on its name.
+    fn outbox_remove_at(&mut self, i: usize) {
+        let gone = self.outbox.remove(i);
+        self.visit.renamed_remove(&gone.name);
+        crate::vault::more::outbox_removed(self, &gone.name);
+        self.save_boxes();
+    }
+
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Inbox's actions (`InboxLoad`, `InboxChoose`, `InboxRemove`, `OutboxRemove`, `Potential*`, `XpubOpen`).
     pub(crate) fn inbox_act(&mut self, action: Action, c: &Compute) {
@@ -1671,10 +1679,26 @@ impl Faraday {
                 if i < self.outbox.len()
                     && crate::vault::more::outbox_may_remove(self, &self.outbox[i].name)
                 {
-                    let gone = self.outbox.remove(i);
-                    self.visit.renamed_remove(&gone.name);
-                    crate::vault::more::outbox_removed(self, &gone.name);
-                    self.save_boxes();
+                    // A file no stick holds is asked about first.
+                    if let Some(loss) = crate::vault::more::outbox_loss(self, c, i) {
+                        let name = Text::of(&self.outbox[i].name);
+                        self.visit.outbox_delete_set(Some((name, loss)));
+                        self.sheet = Some(Sheet::OutboxDelete);
+                        return;
+                    }
+                    self.outbox_remove_at(i);
+                }
+            }
+            Action::OutboxDeleteHold => {
+                let Some((name, _)) = self.visit.outbox_delete().cloned() else {
+                    return;
+                };
+                self.visit.outbox_delete_set(None);
+                if self.sheet == Some(Sheet::OutboxDelete) {
+                    self.sheet = None;
+                }
+                if let Some(i) = self.outbox.iter().position(|f| f.name == *name) {
+                    self.outbox_remove_at(i);
                 }
             }
             Action::InboxLoad => {
