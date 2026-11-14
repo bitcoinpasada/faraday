@@ -43,7 +43,6 @@ members = [
     "faraday/faraday-payload",
     "faraday/faraday-strings",
     "faraday/faraday-guide",
-    "faraday/faraday-start",
     "faraday/faraday-intake",
     "faraday/shells/window",
     "faraday/shells/mediafoundation",

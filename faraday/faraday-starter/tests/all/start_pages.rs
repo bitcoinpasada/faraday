@@ -10,7 +10,7 @@ fn every_maker_and_general_guide_has_a_page() {
         .map(|m| m.id)
         .chain(["windows", "linux", "mac-intel"])
     {
-        assert!(faraday_start::page(id).is_some(), "{id}");
+        assert!(faraday_starter::start_pages::page(id).is_some(), "{id}");
     }
 }
 
@@ -28,18 +28,18 @@ fn steps_of(page: &faraday_guide::Page) -> Vec<u32> {
 }
 
 fn guide(id: &str) -> &'static faraday_guide::Page {
-    faraday_start::page(id).unwrap_or_else(|| panic!("no page {id}"))
+    faraday_starter::start_pages::page(id).unwrap_or_else(|| panic!("no page {id}"))
 }
 
 #[test]
 fn every_guide_the_starter_links_to_is_there() {
-    for id in faraday_start::BOOT {
+    for id in faraday_starter::start_pages::BOOT {
         assert!(!guide(id).sections.is_empty(), "{id}");
     }
     // The pages the Starter and the boot menu name beside them.
     guide("what-else-runs");
     guide("boot-entry");
-    assert!(faraday_start::page("no-such-page").is_none());
+    assert!(faraday_starter::start_pages::page("no-such-page").is_none());
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn every_guide_ends_with_the_step_that_turns_secure_boot_back_on() {
 
 #[test]
 fn no_guide_has_a_resume_step_or_a_key_backup_page() {
-    for id in faraday_start::ids() {
+    for id in faraday_starter::start_pages::ids() {
         let all = guide(id)
             .sections
             .iter()
@@ -157,7 +157,7 @@ fn no_guide_has_a_resume_step_or_a_key_backup_page() {
             assert!(!all.contains(word), "{id}: {word}");
         }
     }
-    assert!(faraday_start::page("bitlocker").is_none());
+    assert!(faraday_starter::start_pages::page("bitlocker").is_none());
 }
 
 #[test]

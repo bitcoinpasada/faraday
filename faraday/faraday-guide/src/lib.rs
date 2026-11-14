@@ -4,7 +4,7 @@
 //! own screens to pages.
 //!
 //! The website's guides to starting a computer from the stick
-//! (`docs/STARTER.md` §7) are not here: they are `faraday-start`' (read by
+//! (`docs/STARTER.md` §7) are not here: they are the Starter's `start_pages` (read by
 //! the Starter, and published by the website). The
 //! desktop app and the stick carry only the address of the guide for
 //! this computer ([`guide_address`]), not its text.
@@ -42,7 +42,7 @@ pub struct Section {
 /// computers it is for, by what the firmware reports (§7.1).
 #[derive(Debug)]
 pub struct Maker {
-    /// The page's id in `faraday-start`' table, `maker-<family>`.
+    /// The page's id in the Starter's `start_pages` table, `maker-<family>`.
     pub id: &'static str,
     /// The maker (`sys_vendor`, `SystemManufacturer`) begins with one of
     /// these, ignoring case.
@@ -185,7 +185,7 @@ pub fn guide_address(id: &str) -> String {
 
 /// A page from its Markdown: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines. Public
-/// so `faraday-start` reads its own pages the same way.
+/// so `faraday-starter`'s `start_pages` reads its own pages the same way.
 pub fn page_of(md: &'static str) -> Page {
     let mut title = "";
     let mut sections: Vec<(&'static str, Vec<&'static str>)> = Vec::new();

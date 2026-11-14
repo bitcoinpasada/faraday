@@ -27,6 +27,7 @@ mod guide;
 mod how;
 mod name;
 mod start_guide;
+pub mod start_pages;
 pub use guide::{PLACES as GUIDE_PLACES, guide_key};
 pub use start_guide::StartGuide;
 pub mod macs;

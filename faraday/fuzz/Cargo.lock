@@ -1154,13 +1154,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-start"
-version = "0.2.0"
-dependencies = [
- "faraday-guide",
-]
-
-[[package]]
 name = "faraday-starter"
 version = "0.2.0"
 dependencies = [
@@ -1176,7 +1169,6 @@ dependencies = [
  "faraday-host",
  "faraday-paper",
  "faraday-shell-api",
- "faraday-start",
  "faraday-strings",
  "faraday-ui",
  "zeroize",

@@ -282,7 +282,7 @@ Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
   Cryptography tab after the blocks of the actions they belong to, and
   on `/cryptography`. A construction names its actions, not a page.
 - **`MAKERS`, `guide_id`, `guide_address`, `GUIDES`** are the start
-  guides' table and addresses, in **`faraday/faraday-start`**.
+  guides' table and addresses, in **`faraday/faraday-starter/src/start_pages.rs`**.
 - **`faraday/faraday-core/src/guide.rs`** is the guide's state: it
   works out the key of §1.2 (`guide_key`); it holds the sheet, the pane,
   the pin and the How tab. A page has no ticked steps and the Spend tab

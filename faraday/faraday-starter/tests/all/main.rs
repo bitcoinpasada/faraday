@@ -17,6 +17,7 @@ mod navigation;
 mod notes;
 mod scroll_kept;
 mod secure_boot;
+mod start_pages;
 mod starter;
 mod steps;
 mod targets;

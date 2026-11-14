@@ -31,7 +31,7 @@ pub enum StartGuide {
 }
 
 impl StartGuide {
-    /// The page's id among the guides (`faraday_start::BOOT`), which
+    /// The page's id among the guides (`crate::start_pages::BOOT`), which
     /// is also its name on the website.
     pub fn id(self) -> &'static str {
         match self {
@@ -50,7 +50,7 @@ impl StartGuide {
 
     /// The page.
     pub fn page(self) -> Option<&'static faraday_guide::Page> {
-        faraday_start::page(self.id())
+        crate::start_pages::page(self.id())
     }
 
     /// Its address on the website (§7.4).
