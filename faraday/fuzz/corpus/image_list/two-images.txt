@@ -1,0 +1,3 @@
+# Faraday 0.3.0 images, commit 0123456789abcdef0123456789abcdef01234567
+faraday-stick-0.3.0-x86_64-uefi.img.xz	c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c	d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f	x86_64-uefi	efi-framebuffer	PC	8192	0.3.0	5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+faraday-pi-0.3.0.img.xz	d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f	c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c	pi3	any	Pi 3B, Pi 3B+, Pi Zero 2 W	4096	0.3.0	-
