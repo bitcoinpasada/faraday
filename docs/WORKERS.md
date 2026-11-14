@@ -1,7 +1,7 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** The worker, the shells' wake, the busy screen, the vault stretches, the aezeed read, the KeePass export, signing a PSBT, a PSBT's read and inspection, Collect on a PSBT, and a wallet's public files, the backup's checklist and its Make the files as jobs are built; files written as storage requests and the list of §2.1 confirmed on a Pi are specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
+**Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work drawn first is F184.
 **Open:** the rest of the jobs (§9): files written as storage requests (§7.3), held until a Pi shows it is needed; the list of §2.1 confirmed on a Pi 3B+
 
 Touch and drawing run on each shell's own thread, the main thread. Work

@@ -63,10 +63,16 @@
 #    no heading of batches or order of work unless its whole body is the
 #    stub of rule 4.
 #
+# 9. Index. The "Every document" list of docs/README.md is what
+#    tools/docs-index.py makes from the documents' headers.
+#
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
 set -u
 cd "$(dirname "$0")/.."
+
+python3 -I -B tools/docs-index.py --self-test >/dev/null || exit 1
+python3 -I -B tools/docs-index.py check || exit 1
 
 exec python3 - <<'PY'
 import os
