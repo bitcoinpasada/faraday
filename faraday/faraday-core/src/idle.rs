@@ -1,7 +1,7 @@
 //! What the idle lock keeps: when input last came, the idle time carried
 //! over a lock, and what the warning has shown.
 
-/// The idle lock's state (`docs/STRUCTURE-PASS.md` §7.4.4, step 48). One
+/// The idle lock's state. One
 /// field on `Faraday`; the fields are read and written through these
 /// methods. The timers themselves are `Faraday::idle_tick`.
 pub(crate) struct Idle {

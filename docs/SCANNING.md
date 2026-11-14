@@ -1,7 +1,7 @@
 # Scanning: what each scanner takes, and the way over
 
 **Kind:** Reference
-**Status:** Built; the owner's choices (2026-10-29) are in `docs/history/SCANNING-LOG.md` §10
+**Status:** Built; the owner's choices were taken on 2026-10-29 (F173).
 
 Every scanner in Faraday reads every kind of code, and each scanner
 takes only some kinds itself. This document says what each scanner

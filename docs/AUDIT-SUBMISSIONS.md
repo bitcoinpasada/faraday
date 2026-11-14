@@ -251,9 +251,6 @@ the website's repository adds. Where each part lives:
 - the Audits page and the bar's **Audits** link: the website's
   repository.
 
-The checklist it was built from: moved to
-`docs/history/AUDIT-SUBMISSIONS-LOG.md`.
-
 ## 9. Bug reports (owner, 2026-10-19)
 
 Ordinary bug reports go to the repository's issues, through the

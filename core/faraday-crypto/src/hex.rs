@@ -1,9 +1,8 @@
-//! Hexadecimal text, in one place (`docs/ESTABLISHED.md` §5.11).
+//! Hexadecimal text, in one place.
 //!
 //! The hex that carried secrets in the copies this replaced (private keys,
-//! entropy, BIP-85's hex, vault fingerprints) and the wallet data named in
-//! `docs/ESTABLISHED.md` §5.11 go through here, over `base16ct`, which
-//! works "without data-dependent branches or lookup tables".
+//! entropy, BIP-85's hex, vault fingerprints) and the wallet data go through here, over
+//! `base16ct`, which works "without data-dependent branches or lookup tables".
 //!
 //! What stays outside: `faraday-psbt`'s transaction reader (bitcoin's
 //! `FromHex`, no secret), `faraday-payload`'s direct `base16ct` calls,

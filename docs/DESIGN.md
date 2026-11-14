@@ -38,13 +38,27 @@ the theme (§3), the content kinds (§4) and the screens (§5).
    statement.
 2. **One kind of content, one rendering.** Each content kind in §4 is
    drawn the way its row says, by what the row names.
-3. **One screen per kind of data.** Moved to `docs/history/DESIGN-LOG.md`.
-4. **One item per row on touch screens.** Moved to `docs/history/DESIGN-LOG.md`.
+3. **One screen per kind of data.** Seed words, a PIN, a QR code, an
+   address, a secret string, a derivation path each have one screen that
+   every flow reuses. The flow changes the title and the action, not the
+   layout.
+4. **One item per row on touch screens.** Options are a list, one per
+   row. The one exception is a pair of short options (Receive | Change),
+   which sit side by side as two equal buttons.
 5. **Fixed geometry for the keyboards.** An on-screen keyboard is the
    same size in the same place every time it is up: the docked keyboard
    at the foot of the panel or of the page beside the sidebar, word
    entry's keys under the word grid (§4.3).
-6. **One placement law.** Moved to `docs/history/DESIGN-LOG.md`.
+6. **One placement law.** Every screen has one intent, and one law
+   places it. A screen navigates, chooses, enters, helps understand,
+   transcribes, shows to a camera or reads (§5). Actions and the controls
+   the thumb works (buttons, keyboards, pads, toggles, pairs) are
+   bottom-anchored; lists and documents start at the top and scroll;
+   everything else is one block, vertically centred in the space between
+   the app bar and the actions. Nothing else is top-anchored, and no
+   block is placed by how tall it happens to be. A block that does not
+   fit pages or scrolls. The same law holds on `wide` inside the width
+   caps, with the primary action bottom-right at its natural width.
 7. **Direct manipulation, few confirms.** A choice is made by pressing
    or ticking it. A single choice that decides a step moves the flow on
    by itself, and pressing the option already chosen moves on too; no

@@ -840,7 +840,7 @@ fn checks_receive_rows_open_their_codes() {
 }
 
 /// A seed read at Restore's own Scan, past the seed sheet, goes into its
-/// slot, and Restore stays on screen (`docs/SCANNING.md` §10 item 7).
+/// slot, and Restore stays on screen.
 #[test]
 fn a_seed_read_at_restores_scan_goes_into_its_slot_and_restore_stays() {
     let c = testkit::compute();

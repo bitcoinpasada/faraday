@@ -6,8 +6,7 @@
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
 the theme is kept. The Starter has the same setting. The owner's
-choices are F85 (2026-10-23); the plan they were built from, and the
-owner's answers, are in `docs/history/TEXT-SIZE-LOG.md`.
+choices are F85 (2026-10-23).
 
 ## 1. How type size works now
 
@@ -213,7 +212,7 @@ A screen that today works out a list's total height for its scroll
   before the passphrase as the theme is). `apply_setting` takes only
   those three values; anything else on the line is ignored and the
   setting stays as it was. The field lives on the `Settings` area
-  struct (`docs/STRUCTURE-PASS.md` §7.4), not on `Faraday`, so the
+  struct (`docs/STRUCTURE-PASS.md` §7.3), not on `Faraday`, so the
   ratchet on Faraday's fields does not rise.
 - **Faraday Demo** keeps it as it keeps the theme: in memory, across
   a lock, not across quitting (F85).

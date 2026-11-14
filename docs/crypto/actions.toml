@@ -3921,7 +3921,7 @@ reveal = [
   "Reveal::Bip85Child",
 ]
 constant_time = "The password's base64 is the base64ct crate's, which documents its encoding as constant time with respect to the data; its base85 is shown (§4.10)."
-wiped = "The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop. The copies bitcoin makes inside derivation are freed unwiped, until the next lock (ESTABLISHED §4.8)."
+wiped = "The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop. The copies bitcoin makes inside derivation are freed unwiped, until the next lock (docs/KEYS.md, what wiping does not reach)."
 
 [action.limits]
 lines = [
@@ -4736,7 +4736,7 @@ reveal = [
   "Reveal::OutboxFile",
 ]
 constant_time = "A label tweak times G is libsecp256k1's ecmult_gen through a secret key, in a randomized context; the output tweak is treated as public and multiplied by ecmult, as libsecp256k1's own silent payments module does."
-wiped = "The scan key and the texts that carry it are written in fixed buffers that zeroize on drop. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (ESTABLISHED §4.1)."
+wiped = "The scan key and the texts that carry it are written in fixed buffers that zeroize on drop. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (docs/SECURITY-MODEL.md)."
 
 [action.limits]
 lines = [
@@ -5305,7 +5305,7 @@ fuzz = ["xkey"]
 [action.secrets]
 reveal = "none"
 constant_time = "libsecp256k1 documents its key multiplication as constant time; the base58 decode is not stated to be."
-wiped = "The decoded buffer is zeroized before the reader returns, but base58ck's own scratch and result vectors are freed unwiped, until the next lock (ESTABLISHED §4.8); the key is held on a pinned page and erased when it is dropped, at Done, a lock or leaving the Sweep sheet."
+wiped = "The decoded buffer is zeroized before the reader returns, but base58ck's own scratch and result vectors are freed unwiped, until the next lock (docs/KEYS.md, what wiping does not reach); the key is held on a pinned page and erased when it is dropped, at Done, a lock or leaving the Sweep sheet."
 
 [action.limits]
 lines = [
@@ -5626,7 +5626,7 @@ other = [
 [action.secrets]
 reveal = "none"
 constant_time = "Every operation on a secret scalar is libsecp256k1's (SecretKey add, multiply and negate, and a nonce's public key). libsecp256k1's header says its code is written and tested to be constant time whatever the secret values; it states nothing of these functions by name. A hash is reduced to a scalar without a branch; the code documents no other timing."
-wiped = "A SecNonce is wiped on drop and consumed by the signature it makes; the session wipes its nonces when another transaction opens a session, and holds none once each has signed. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (ESTABLISHED §4.1)."
+wiped = "A SecNonce is wiped on drop and consumed by the signature it makes; the session wipes its nonces when another transaction opens a session, and holds none once each has signed. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (docs/SECURITY-MODEL.md)."
 
 [action.limits]
 lines = [
@@ -8454,7 +8454,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-places = ["docs/history/VAULT-LOG.md#7. Slot contents"]
+places = ["docs/VAULT.md#7. Contents"]
 
 [[action]]
 id = "kdbx"
@@ -8605,7 +8605,7 @@ other = [
 [action.secrets]
 reveal = ["Reveal::VaultEntry"]
 constant_time = "Not stated by the hmac or sha1 crates."
-wiped = "The decoded secret is held in a zeroizing buffer; the HMAC output is a plain buffer dropped at the end of the call, and hmac's key block is freed unwiped, until the next lock (ESTABLISHED §4.8, §6.7)."
+wiped = "The decoded secret is held in a zeroizing buffer; the HMAC output is a plain buffer dropped at the end of the call, and hmac's key block is freed unwiped, until the next lock (docs/KEYS.md, what wiping does not reach; ESTABLISHED §6.7)."
 
 [action.limits]
 lines = [
@@ -8908,7 +8908,7 @@ other = [
 [action.secrets]
 reveal = ["Reveal::GpgPaperkey"]
 constant_time = "The armour's and paperkey's CRC-24 runs without a branch on the data; the code states no other timing."
-wiped = "The paperkey text, the secret key packets and the seeds are Zeroizing values wiped on drop; the paperkey is computed only while it is held to show. Copies other crates make while encoding are freed unwiped, until the next lock (ESTABLISHED §4.8)."
+wiped = "The paperkey text, the secret key packets and the seeds are Zeroizing values wiped on drop; the paperkey is computed only while it is held to show. Copies other crates make while encoding are freed unwiped, until the next lock (docs/KEYS.md, what wiping does not reach)."
 
 [action.limits]
 lines = [

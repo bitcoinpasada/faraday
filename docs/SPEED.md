@@ -170,8 +170,8 @@ worked out the first time (`kept.rs`), and the owner's exceptions
 exists only on `View`. What the types cannot hold, the costs lint
 (`tools/costs-lint`) and `faraday/clippy.toml` hold, both in `just
 lint` (§8.3). The debug guard that panicked on costly work while a
-frame was drawn was removed once the token held everything it checked
-(COMPUTE §10); the counters (`work::count`, `Counts`, `snapshot`,
+frame was drawn was removed once the token held everything it
+checked; the counters (`work::count`, `Counts`, `snapshot`,
 `since`) and the budget tests in `work/budget/` stay, and count what
 each frame, press and key does.
 
@@ -636,9 +636,6 @@ Nothing a person waits on blocks a frame. What holds:
    the same pixels (`Canvas::fill_rounded_rect`). What a card says that does not
    change (Settings' idle and scale choices) is made once and kept.
    The backup board's overdraw is its look and stays.
-
-The account, with its measurements: moved to
-`docs/history/SPEED-LOG.md`.
 
 ## 10. What the Inbox gives is kept with the Inbox (2026-10-21)
 

@@ -560,6 +560,3 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    again. The scanner reports all of this.
 9. **macOS camera choice.** The window shell lists the AVFoundation
    cameras, and choosing one reopens the camera on it.
-
-The owner's answers to the list once open here: moved to
-`docs/history/QR-LOG.md`.

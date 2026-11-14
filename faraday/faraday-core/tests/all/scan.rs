@@ -1017,7 +1017,7 @@ fn an_xpub_file_with_its_origin_is_still_offered_on_the_keys_card() {
 }
 
 /// A seed read at Create's Scan its xpub, past the seed sheet, is the
-/// slot's key, and Create stays on screen (`docs/SCANNING.md` §10 item 7).
+/// slot's key, and Create stays on screen.
 #[test]
 fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     let c = testkit::compute();
@@ -1048,7 +1048,7 @@ fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
 }
 
 /// A codex32 secret read at Create's Scan its xpub is the slot's key, as
-/// a seed is, and Create stays on screen (`docs/SCANNING.md` §10 item 7).
+/// a seed is, and Create stays on screen.
 /// BIP 93's vector 1.
 #[test]
 fn a_codex32_secret_read_at_creates_scan_its_xpub_becomes_the_slots_key() {

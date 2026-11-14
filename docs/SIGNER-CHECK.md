@@ -42,7 +42,7 @@ The verdict fails closed.
 5. A nonce that cannot be recomputed here, because the key's seed is
    not loaded, is not a finding; the screen states how many were
    recomputed (§4, the "Nonces recomputed" fact). A clean verdict does
-   not require the seeds loaded (`docs/history/SIGNER-CHECK-LOG.md` §10.4 item 2).
+   not require the seeds loaded.
 
 ## 2. What is built today
 
@@ -166,7 +166,7 @@ secondary, which opens Add a key and comes back to the result.
 
 `Screen::SignerCheck`, a step flow (DESIGN §5), built from DESIGN §4's
 components only. Labels, values and actions; no explanation on the
-working screen. The ? opens the Learn section (`docs/history/SIGNER-CHECK-LOG.md` §10.3).
+working screen. The ? opens the Learn section.
 
 | Card | Open | Closed |
 |---|---|---|

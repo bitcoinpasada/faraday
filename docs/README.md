@@ -114,7 +114,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, amended by F118).
 - `docs/QR.md`: QR transfer and scanning. Built.
 - `docs/README.md`: Faraday's documents. Built.
-- `docs/SCANNING.md`: Scanning: what each scanner takes, and the way over. Built; the owner's choices (2026-10-29) are in `docs/history/SCANNING-LOG.md` §10.
+- `docs/SCANNING.md`: Scanning: what each scanner takes, and the way over. Built; the owner's choices were taken on 2026-10-29 (F173).
 - `docs/SECRET-LEAKS.md`: Secret leaks: tests that fail on a secret left in memory or on screen. Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built.
@@ -148,7 +148,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1).
-- `docs/VAULT.md`: The Faraday vault. Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one; the first format's account is in `docs/history/VAULT-LOG.md`.
+- `docs/VAULT.md`: The Faraday vault. Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
 
 **Record**

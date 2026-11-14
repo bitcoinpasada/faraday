@@ -7,8 +7,6 @@
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
 the backup board F37).
 
-The build log is `docs/history/BACKUP-FLOW-LOG.md`.
-
 One guided flow makes and backs up every kind of secret Faraday keeps
 in a vault: a GPG key, a set
 of Secure Boot keys, a Nostr key (`docs/NOSTR.md`), and the keys of a
@@ -672,7 +670,7 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
      they were set up; the plan offers at least that many vaults, however
      many seeds there are, and shows each by its name. The checklist's
      vault item saves into the vault set up for it.
-  6. **The checklist and Write to sticks**, as built (`docs/history/BACKUP-FLOW-LOG.md`): one
+  6. **The checklist and Write to sticks**, as built: one
      lock, each stick by place. A plan that keeps a vault at more places
      than the one stick it was set up on writes the extra copies at the
      write step, to new sticks checked when they are inserted, as an
@@ -1055,8 +1053,7 @@ The owner's answers (2026-10-14).
 7. **A key kept only on paper** when a vault is filled again after the
    lock (§15.8): it is typed back in from its copy, **Add the key from
    its copy**. (The choice that stood here belonged to the extra round
-   for an existing vault, which is not built:
-   `docs/history/BACKUP-FLOW-LOG.md`.)
+   for an existing vault, which is not built.)
 8. **A stick holding vaults, at a place the plan gives a new vault**:
    **A new vault beside them** first and chosen.
 
@@ -1079,15 +1076,12 @@ In this order, as step cards on `wide` and a page each on `small`
 
 1. *(Replaced by §17.21 item 1: no Start from; the presets only build
    plans.)* **Start from**: moved to `docs/history/BACKUP-FLOW-LOG.md`.
-2. *(Replaced by §17: the board.)* **Places**: moved to `docs/history/BACKUP-FLOW-LOG.md`.
-3. *(Replaced by §17: the board.)* **Place 1**, **Place 2** …: moved to
-   `docs/history/BACKUP-FLOW-LOG.md`. The place's line of fact is `plan::alone`, as §17.1 draws it.
+2. *(Replaced by §17: the board.)* **Places**: removed.
+3. *(Replaced by §17: the board.)* **Place 1**, **Place 2** …: removed. The place's line of fact is `plan::alone`, as §17.1 draws it.
 4. *(Replaced by §17.19: shares are added by one button and Faraday
-   picks the keys left off.)* **The wallet description**: moved to
-   `docs/history/BACKUP-FLOW-LOG.md`. The shares table, with its slider,
+   picks the keys left off.)* **The wallet description**: removed. The shares table, with its slider,
    is drawn on the checklist's Shares card (`shares_card`).
-5. *(Replaced by §17: the board.)* **Where the description goes**: moved
-   to `docs/history/BACKUP-FLOW-LOG.md`. In {vault} with shares keeps the shares there (§15.6);
+5. *(Replaced by §17: the board.)* **Where the description goes**: removed. In {vault} with shares keeps the shares there (§15.6);
    the old `At::Files` stick stays read-only (§17.3).
 6. **Software**: as today (the software and the form), asked when the
    description goes into watch-only software or as a file at any place.
@@ -2304,7 +2298,7 @@ the board in Customize backup.
    to reach a plan build the same plan as a person now would: Customize
    backup, + new vault, and the ⋮ menu's Add to… (§17.20), through a
    shared helper; none is deleted.
-10. **Docs:** applied; the list moved to `docs/history/BACKUP-FLOW-LOG.md`.
+10. **Docs:** applied.
 11. **Change the plan opens the board** (owner, 2026-10-20). From the
     checklist, from its done state, and from a wallet flow's cards,
     **Change the plan** goes back to the plan with the board card open
@@ -2334,7 +2328,7 @@ the board in Customize backup.
     §15.1 (the chip, `What::KefCode` and `What::KefCodePaper`, its checklist
     item, what checked means).
 
-**As built** (2026-10-20; the block as written is in `docs/history/BACKUP-FLOW-LOG.md`):
+**As built** (2026-10-20):
 
 - `plan::Preset`'s four variants are plan builders only
   (`Answers::preset`): nothing in the UI offers them. Since item 12

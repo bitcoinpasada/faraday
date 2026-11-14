@@ -525,7 +525,7 @@ impl Restore {
     }
 
     /// Costs a CRC-24 over each line and over the whole. A paperkey read
-    /// from a code (`docs/GPG-PAPERKEY.md` §11.2, P5): paperkey's base16
+    /// from a code: paperkey's base16
     /// lines, comment lines and all, or its raw form. Every line is checked
     /// as a line typed is, and the whole by its CRC and the headers; taken
     /// whole in place of the lines typed so far, or refused with nothing of

@@ -186,7 +186,7 @@ Moved to `docs/history/KEYS-LOG.md`.
   meanwhile is paid as the answer is applied or dropped, as for a signing
   job.
 - **What wiping does not reach.** Faraday's types wipe what they hold;
-  five things are outside them (`docs/ESTABLISHED.md` §4.9): a secret
+  five things are outside them: a secret
   held in a plain type while it is live; a copy in freed heap until its
   block is reused or the process ends (on the device the next lock, or
   power-off for faraday-disk; in Faraday Demo and the Starter, until the
@@ -377,7 +377,7 @@ impl Keys {
 
 ## 4. The steps
 
-The plan of steps 0 to 4: moved to `docs/history/KEYS-LOG.md`. What each step built:
+What each step built:
 
 ### Step 2 as built
 
@@ -579,8 +579,7 @@ material take their `Reveal` reason and return `Held<T>`, which is not
 where the secret goes into a vault record.
 
 What was open after step 3:
-- Public types holding a secret, and `wallet_seed_bases`: closed by step 4a;
-  moved to `docs/history/KEYS-LOG.md`.
+- Public types holding a secret, and `wallet_seed_bases`: closed by step 4a.
 - **`Keys::master_for_tests`**, behind the `master-for-tests` feature,
   stays for tests. `tools/lint-keys-tests.sh` keeps that feature out of
   every binary Faraday ships.

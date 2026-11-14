@@ -1213,9 +1213,8 @@ what:
    check (§9.2), one tour rendered per size.
 6. The website comes later, in its own repository (§11).
 
-The change that builds the last of this spec's open work moves its plan
-(§12's seed table, §14, §15, §16) to docs/history/CRYPTO-LEARN-LOG.md and
-makes it a Reference.
+The change that builds the last of this spec's open work removes its plan
+(§12's seed table, §14, §15, §16) and makes it a Reference.
 
 ## 16. Questions for the owner
 

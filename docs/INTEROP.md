@@ -95,8 +95,7 @@ object's `xfp` is the account key's own fingerprint and the master's is
 the file's top-level `xfp` (Coldcard's docs/generic-wallet-export.md), so
 the wallet is rooted at the top-level one, BIP-84 first, and refused if
 its first address is not the one the file states. `wallet::coldcard_export`
-only words its refusals. The bug this fixed: moved to
-`docs/history/INTEROP-LOG.md`.
+only words its refusals.
 
 ## 4. Not read or not written yet
 

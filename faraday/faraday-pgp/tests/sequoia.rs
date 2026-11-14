@@ -1,8 +1,7 @@
-//! What Faraday writes, judged by Sequoia's `sq` (ESTABLISHED §9.7, batch
-//! X24): `sq` inspects the certificate with both keys, the user ID and
-//! the expiry, also once renewed, takes the revocation certificate,
-//! verifies detached signatures over SHA-256 and SHA-512 and refuses one
-//! over other data.
+//! What Faraday writes, judged by Sequoia's `sq` (built over Nettle): `sq`
+//! inspects the certificate with both keys, the user ID and the expiry, also
+//! once renewed, takes the revocation certificate, verifies detached
+//! signatures over SHA-256 and SHA-512 and refuses one over other data.
 //!
 //! `sq` is found on PATH and must be built over Nettle (`sq version` says
 //! "cryptographic backend Nettle"), so that the judge is not Faraday's

@@ -12,7 +12,7 @@ use crate::Action;
 /// Where a control the last frame drew takes a press (`faraday_ui::Reach`).
 pub(crate) type Reach = faraday_ui::Reach<Action>;
 
-/// The pointer's state (`docs/STRUCTURE-PASS.md` §7.4.4, step 47). One
+/// The pointer's state. One
 /// field on `Faraday`; the fields are read and written through these
 /// methods.
 pub(crate) struct Pointer {

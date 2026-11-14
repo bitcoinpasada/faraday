@@ -7,7 +7,7 @@ use faraday_shell_api::Command;
 
 use crate::storage_api::StorageCommand;
 
-/// What the core hands the shell (`docs/STRUCTURE-PASS.md` §7.4.4, step 1):
+/// What the core hands the shell:
 /// the commands, the storage commands, whether the screen needs drawing,
 /// and the toast on show. Areas are given `&mut Out` in place of these.
 pub(crate) struct Out {

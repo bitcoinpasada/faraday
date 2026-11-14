@@ -8,8 +8,8 @@ Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
 Only the rules are Material's: the look stays Faraday's own
 (`faraday-ui`, DESIGN's tokens, components and themes). The owner asked
-for Material 3 and left the design calls to this spec (2026-10-23);
-`docs/history/LAYOUT-LOG.md` §10 records each call and why. The Starter follows the same rules
+for Material 3 and left the design calls to this spec (2026-10-23).
+The Starter follows the same rules
 (`docs/STARTER.md` §3.1d, F91). DESIGN §3 states these rules in
 short.
 

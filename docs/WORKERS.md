@@ -89,7 +89,7 @@ that grows with what it is given is judged at a large ordinary case: a
 **Until a Pi measures it.** No Pi has timed these presses yet, so a
 release build on a desktop PC stands in, at a tenth of the line (10 ms):
 SPEED's history found that "a Pi 3 is about ten times
-slower" (`docs/history/SPEED-LOG.md` §9). The list below was
+slower". The list below was
 made that way.
 
 **How an item moves.** The dev card's `work` rows (`costly::label`),

@@ -8,8 +8,6 @@ Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
 on the sheet, never required, §6). §12 records each decision.
 
-The build log is `docs/history/STARTER-LOG.md`.
-
 The problem it solves: getting Faraday onto a stick or a Pi card, and a
 laptop to start from it, takes a terminal, `dd`, a firmware menu and a
 Secure Boot setting, and on Windows a wrong step can leave the computer
@@ -1050,7 +1048,7 @@ PDF to open; the not-found line on the page, on the sheet and in every
 guide's firmware step; the maker table's boot menu key, BIOS key and
 setting agreeing with each maker's guide (`faraday-starter`'s `start_pages`); the lines
 to circle the keys, the maker's first, for Dell, HP and a maker without
-a page, and none on a Mac. F49's: `docs/history/STARTER-LOG.md` §6.5. Built: `faraday-starter`'s
+a page, and none on a Mac. F49's. Built: `faraday-starter`'s
 `notes.rs`, `tests/all/notes.rs`; `faraday-core`'s `pdf::notes`; the
 shell's `pdf.rs` as for §3.8.
 
@@ -2212,8 +2210,7 @@ exactly them, the settings file included; Text size chosen on About
 drawing Home and the held Transfer larger, kept by an installed
 Starter and opened at again, and written by no run without an install
 (`faraday/faraday-starter/tests/all/text_size.rs`); the firmware steps closed by another encryption product
-until its rescue is confirmed; F33's and F49's tests
-(`docs/history/STARTER-LOG.md` §6.5); the
+until its rescue is confirmed; F33's and F49's tests; the
 guide chosen for a maker string; an image that does not match
 its line in the list refused; the stick's power-off line for each Secure Boot
 byte.
@@ -2221,8 +2218,7 @@ byte.
 ## 12. Decisions
 
 All taken by the owner on 2026-10-12 in discussion, except D11, taken
-on 2026-10-19 (#30). Where a decision changed v0.1, `docs/history/STARTER-LOG.md` §13 says
-what moved.
+on 2026-10-19 (#30).
 
 - **D1 Pi screens:** the Waveshare 2.8 inch DPI panel only, for now.
   Others as they are tried on a Pi.

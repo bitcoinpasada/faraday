@@ -101,7 +101,7 @@ def sq_backend():
     """The line of `sq version` that names Sequoia's cryptographic backend
     ("with cryptographic backend Nettle 3.10 ..."), or None when `sq` is
     absent or says no such line. The GPG tests judge Faraday with `sq`
-    built over Nettle (ESTABLISHED §9.7, batch X24), not over Sequoia's
+    built over Nettle, not over Sequoia's
     own pure-Rust backend."""
     path = find("sq")
     if not path:

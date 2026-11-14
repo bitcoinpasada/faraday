@@ -146,7 +146,7 @@ on) are the page's, not the source's.
 ### 2.3 Mixing
 
 A new `Own` in `fresh.rs` (on the `Fresh` area struct,
-`docs/STRUCTURE-PASS.md` §7.4, not a new `Faraday` field): `acc`, 32
+`docs/STRUCTURE-PASS.md` §7.3, not a new `Faraday` field): `acc`, 32
 bytes in a `Zeroizing`, and the counts for the status line.
 
 - **Adding** a commitment `c`:

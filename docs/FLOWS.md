@@ -17,7 +17,7 @@ to get it.
 
 ## Decisions this pass made
 
-Moved to `docs/history/FLOWS-LOG.md`. Each decision still in force is
+Each decision still in force is
 stated below where it applies, tagged with its number ("decision 61").
 
 ## Words

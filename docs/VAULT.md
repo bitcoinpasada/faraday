@@ -1,7 +1,7 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one; the first format's account is in `docs/history/VAULT-LOG.md`
+**Status:** Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
 **Open:** not built: part of key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`, and the YubiKey's response against kdbxweb, KeeWeb's library; `faraday-keys` holds a vault's key file and secret for its seals, the Unlock screen takes a key file from Files and a YubiKey's secret, Create a vault adds a key file, made at Create or chosen from Files, and the open vault's ⋮ holds Key file and Remove YubiKey secret; not built: the YubiKey checks F208 names: KeePassXC's own test file and `keepassxc-cli` through a stand-in for the key, which judge KeePassXC's padding of the challenge)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
@@ -1275,7 +1275,7 @@ Create a vault does, the export reads its container back under the keys
 it was made with, as a seal does, but not its document. Exporting a
 key's words, a master seed, a note or a recovery sheet this way is not
 built: the entry is the one item with an export. The export has no writer
-of its own: the one that wrote it before (`docs/history/KDBX-LOG.md`) is
+of its own: the one that wrote it before is
 gone, and its one vector (`tools/vectors/backup/`) is opened and sealed
 again byte for byte by the vault's tests. To read an export without
 Faraday, `python3 tools/vault/open.py FILE` prints its entry.

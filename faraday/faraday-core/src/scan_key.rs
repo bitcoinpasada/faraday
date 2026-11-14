@@ -1467,7 +1467,7 @@ impl Faraday {
             _ => Vec::new(),
         };
         // Unrecognised text is shown masked behind its eye, kept here as
-        // read so drawing makes nothing (`docs/SCANNING.md` §10 item 8).
+        // read so drawing makes nothing.
         let masked = (kind == Kind::Text).then(|| text.duplicate());
         drop(text);
         scan_read::ReadCard {
@@ -2117,7 +2117,7 @@ impl Faraday {
             }
         }
         // A seed read at Restore's or Create's scanner goes into the
-        // flow's slot, after the seed sheet (`docs/SCANNING.md` §10 item 7).
+        // flow's slot, after the seed sheet.
         if self.read_into_slot(&c, &bytes) {
             return;
         }

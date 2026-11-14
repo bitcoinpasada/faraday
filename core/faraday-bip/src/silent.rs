@@ -597,8 +597,7 @@ fn checked_secret(mut value: [u8; 32]) -> Result<SecretKey, Error> {
 /// `Scalar` only through `Scalar::from`. The multiplication is
 /// `ec_pubkey_tweak_add`'s, libsecp256k1's variable-time ecmult: the
 /// output tweak is treated as public, as libsecp256k1's own silent
-/// payments module does (ESTABLISHED §4.7). A label's tweak does not
-/// come here.
+/// payments module does. A label's tweak does not come here.
 fn add_secret_tweak(
     secp: &Secp256k1<All>,
     point: &PublicKey,

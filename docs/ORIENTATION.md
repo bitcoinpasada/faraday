@@ -8,9 +8,7 @@ A 7-inch or 10-inch panel starts in landscape. Settings › Display has
 turned to landscape by the app, and its touch input with it. The choice
 is kept on the stick. Changing it lays the screen out again at the
 class its new width gives (`docs/LAYOUT.md` §2), with no restart. The
-owner's choices are F100, which amends F92; the plan this was built
-from, the display path as it was before, and the owner's answers are in
-`docs/history/ORIENTATION-LOG.md`.
+owner's choices are F100, which amends F92.
 
 ## 1. The display path
 

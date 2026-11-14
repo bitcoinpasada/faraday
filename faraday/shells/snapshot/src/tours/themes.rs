@@ -1,4 +1,4 @@
-//! The themes tour (`docs/THEMES.md` §15, C4): each theme in Light and
+//! The themes tour: each theme in Light and
 //! Dark at Standard contrast, and Cobalt at Medium and High, not all
 //! sixty schemes. On each: Home, Wallets, the backup board, a codex32
 //! worksheet and Settings' Appearance.

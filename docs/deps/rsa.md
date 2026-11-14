@@ -18,7 +18,7 @@ the Marvin timing side channel (the advisory lists 0.10.0-rc.18 as still
 affected, with no patched version); `deny.toml` ignores it because the
 advisory is not reachable in Faraday, which never decrypts with RSA and
 signs with blinding. Key generation's prime search is not constant time
-(`docs/ESTABLISHED.md` §4.10). 0.10 is still a release candidate, so the
+(`docs/KEYS.md`, what wiping does not reach). 0.10 is still a release candidate, so the
 version is pinned exactly
 (`=0.10.0-rc.18`). It moves to 0.10.0 when that is released, or to a
 later release candidate when an advisory names this one, with the Secure

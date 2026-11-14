@@ -16,7 +16,7 @@ Signing Nostr events is not part of this spec; it is a later item.
 
 ## 0. Rules for the implementing agent
 
-Moved to `docs/history/NOSTR-LOG.md`. The design rules it repeated are
+The design rules this section once repeated are
 §1, §2.5, §4.4 and §12 items 12 and 14; `CLAUDE.md` holds the rest.
 
 ## 1. What is decided

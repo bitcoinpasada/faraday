@@ -17,7 +17,7 @@ needs.
 This applies to every file read on a stick or SD card visit. The need
 is GPG over a large file: a release artifact or a disk image. APK
 signing, once planned as the first user, is removed (F99); its parts of
-this spec are in `docs/history/LARGE-FILES-LOG.md`.
+this spec are removed.
 
 ## 0. Rules for the implementing agent
 
@@ -252,7 +252,7 @@ the panic key lose them.
 
 ## 7. Writing a signed APK on a later visit
 
-Removed with APK signing (F99): `docs/history/LARGE-FILES-LOG.md`.
+Removed with APK signing (F99).
 
 ## 8. The disk process
 

@@ -4,8 +4,6 @@
 **Status:** Built; not yet checked by the owner on hardware
 **Open:** the owner's check on real hardware (the stick's panels and the desktop app's compositor-paced frames)
 
-The build log is `docs/history/MOTION-LOG.md`.
-
 The owner's ask: scrolling should feel like any modern native app, the
 interface should gain the shadows, fades and transparency a modern app
 has, and Settings gains a light mode. Faraday draws every pixel in
@@ -341,7 +339,7 @@ extent; a motion left from another screen or sheet is stopped.
   the HDMI default is F222.
 - **Motion** (all time-based, all off under Reduce motion):
   - a sheet and its scrim appear at once (cross-fades removed
-    2026-10-07, `docs/history/MOTION-LOG.md` §5 item 3.9);
+    2026-10-07);
   - a toast rises in over 200 ms on Material's standard decelerate
     curve and fades on its standard accelerate (`motion::TOAST_MS`,
     `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);

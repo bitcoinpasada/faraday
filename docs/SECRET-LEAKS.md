@@ -15,8 +15,8 @@ it. It does for secrets what the budget tests of `docs/SPEED.md` §7 do
 for work.
 
 What wiping does and does not reach is in `docs/KEYS.md` ("What wiping
-does not reach"), `docs/SECURITY-MODEL.md` ("What locking wipes, and
-how") and `docs/ESTABLISHED.md` §4.9; it is not repeated here.
+does not reach") and `docs/SECURITY-MODEL.md` ("What locking wipes, and
+how"); it is not repeated here.
 
 Everything here is test-only. No shipped program installs the allocator
 (F181 holds: §8). The decision is F250.
