@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use faraday_fat::{
-    BadName, BootSector, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label,
-    boot_sector_serial, label_bytes,
+    BadName, BootSector, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, Wiped,
+    boot_sector_label, boot_sector_serial, label_bytes,
 };
 
 fn tool(name: &str) -> PathBuf {
@@ -1204,5 +1204,190 @@ fn a_serial_written_here_is_the_one_fatlabel_reads() {
         assert_eq!(fatlabel(&img, &["-i"]).to_lowercase(), "1a2b3c4d", "{name}");
         assert_eq!(open(&img).serial(), Some(0x1A2B_3C4D));
         fsck_clean(&img);
+    }
+}
+
+/// A stick prepared elsewhere with a file whose first cluster its FAT
+/// marks free: a vault saved there afterwards takes that cluster, and
+/// zeroing the free space, which keeps the files, leaves the vault's
+/// bytes as they were (or refuses and zeroes nothing).
+#[test]
+fn a_vault_saved_over_a_free_marked_cluster_survives_zeroing_the_free_space() {
+    vault_over_a_free_marked_cluster(false);
+}
+
+/// The same stick with the file's entry given a long name "." whose
+/// checksum matches: the vault is kept all the same.
+#[test]
+fn a_vault_over_a_free_marked_cluster_survives_when_its_file_is_named_dot() {
+    vault_over_a_free_marked_cluster(true);
+}
+
+fn vault_over_a_free_marked_cluster(dotted: bool) {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-shared-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "NOTES.TXT", b"n");
+        let mut bytes = std::fs::read(&img).unwrap();
+        // The entry pointed at the next cluster, which nothing holds.
+        let at = bytes.windows(11).position(|w| w == b"NOTES   TXT").unwrap();
+        let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+        let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+        let next = ((u32::from(hi) << 16) | u32::from(lo)) + 1;
+        bytes[at + 26..at + 28].copy_from_slice(&(next as u16).to_le_bytes());
+        bytes[at + 20..at + 22].copy_from_slice(&((next >> 16) as u16).to_le_bytes());
+        if dotted {
+            dot_named(&mut bytes, at);
+        }
+        let mut v = Volume::open(bytes).unwrap();
+        if !dotted {
+            assert_eq!(v.read("NOTES.TXT", 1 << 20).unwrap().len(), 1, "{name}");
+        }
+
+        let vault = pattern(6_000, 7);
+        v.create("vault.kdbx", &vault).unwrap();
+        assert_eq!(v.read("vault.kdbx", 1 << 20).unwrap(), vault, "{name}");
+
+        let mut from = 2;
+        let refused = loop {
+            match v.zero_free(from, 1 << 30) {
+                Ok(z) if z.done => break false,
+                Ok(z) => from = z.next,
+                Err(_) => break true,
+            }
+        };
+        assert_eq!(
+            v.read("vault.kdbx", 1 << 20).unwrap(),
+            vault,
+            "{name}: the vault's bytes changed (zeroing refused: {refused})"
+        );
+    }
+}
+
+/// The directory slot at `at` made a long-name slot for ".", its checksum
+/// that of the 11-byte short name in the entry, which moves to the next
+/// slot (free): a crafted entry that reads as named ".".
+fn dot_named(bytes: &mut [u8], at: usize) {
+    let entry: Vec<u8> = bytes[at..at + 32].to_vec();
+    let mut sum = 0u8;
+    for &b in &entry[..11] {
+        sum = ((sum & 1) << 7) | (sum >> 1);
+        sum = sum.wrapping_add(b);
+    }
+    bytes[at + 32..at + 64].copy_from_slice(&entry);
+    let mut lfn = [0xFFu8; 32];
+    lfn[0] = 0x41;
+    lfn[1..3].copy_from_slice(&u16::from(b'.').to_le_bytes());
+    lfn[3..5].copy_from_slice(&0u16.to_le_bytes());
+    lfn[11] = 0x0F;
+    lfn[12] = 0;
+    lfn[13] = sum;
+    lfn[26..28].copy_from_slice(&0u16.to_le_bytes());
+    bytes[at..at + 32].copy_from_slice(&lfn);
+}
+
+/// A file that a crafted entry named "." (a long name whose checksum
+/// matches) shares its clusters with: wiping it by name leaves the bytes,
+/// as for any other file two entries claim.
+#[test]
+fn a_file_shared_with_an_entry_named_dot_is_wiped_by_name_only() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("wipe-dot-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "NOTES.TXT", &marked(b"shared notes ", 300));
+        let mut bytes = std::fs::read(&img).unwrap();
+        let at = bytes.windows(11).position(|w| w == b"NOTES   TXT").unwrap();
+        // A second entry for the same bytes, as "." (its short name differs).
+        let mut twin = bytes[at..at + 32].to_vec();
+        twin[..11].copy_from_slice(b"OTHER   TXT");
+        bytes[at + 32..at + 64].copy_from_slice(&twin);
+        dot_named(&mut bytes, at + 32);
+        let mut v = Volume::open(bytes).unwrap();
+        assert_eq!(v.wipe("NOTES.TXT"), Ok(Wiped::NameOnly), "{name}");
+        assert!(holds(&v.into_disk(), b"shared notes"), "{name}: zeroed");
+    }
+}
+
+/// A root file whose chain runs past its size into the first cluster of
+/// a file inside a folder: zeroing the free space leaves that file as it
+/// was (or refuses and zeroes nothing).
+#[test]
+fn a_folders_file_in_a_root_files_chain_past_its_size_survives_zeroing() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, kind) in volumes() {
+        let dir = scratch(&format!("zero-folder-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        assert!(mtools("mmd", &["-i", i, "::SUB"]).0);
+        let inner = marked(b"folder file ", 600);
+        mput(&dir, &img, "SUB/INNER.TXT", &inner);
+        mput(&dir, &img, "ROOT.TXT", b"r");
+        let mut bytes = std::fs::read(&img).unwrap();
+        let u16at = |b: &[u8], o: usize| usize::from(u16::from_le_bytes([b[o], b[o + 1]]));
+        let bps = u16at(&bytes, 11);
+        let cb = bps * usize::from(bytes[13]);
+        let fats = usize::from(bytes[16]);
+        let fat_sectors = match kind {
+            Kind::Fat16 => u16at(&bytes, 22),
+            Kind::Fat32 => u32::from_le_bytes(bytes[36..40].try_into().unwrap()) as usize,
+        };
+        let fat0 = u16at(&bytes, 14) * bps;
+        let root = match kind {
+            Kind::Fat16 => u16at(&bytes, 17) * 32,
+            Kind::Fat32 => 0,
+        };
+        let data = fat0 + fats * fat_sectors * bps + root;
+        let inner_at = bytes
+            .windows(12)
+            .position(|w| w == b"folder file ")
+            .unwrap();
+        let f1 = (inner_at - data) / cb + 2;
+        let at = bytes.windows(11).position(|w| w == b"ROOT    TXT").unwrap();
+        let r1 = (u16at(&bytes, at + 20) << 16) | u16at(&bytes, at + 26);
+        // The FAT entry of the root file's cluster now leads to the folder
+        // file's first cluster.
+        for k in 0..fats {
+            let base = fat0 + k * fat_sectors * bps;
+            match kind {
+                Kind::Fat16 => {
+                    bytes[base + r1 * 2..base + r1 * 2 + 2]
+                        .copy_from_slice(&(f1 as u16).to_le_bytes());
+                }
+                Kind::Fat32 => {
+                    let o = base + r1 * 4;
+                    let keep = bytes[o + 3] & 0xF0;
+                    let mut w = (f1 as u32).to_le_bytes();
+                    w[3] = (w[3] & 0x0F) | keep;
+                    bytes[o..o + 4].copy_from_slice(&w);
+                }
+            }
+        }
+        let mut v = Volume::open(bytes).unwrap();
+        assert_eq!(
+            v.read_in(&["SUB", "INNER.TXT"], 1 << 20).unwrap(),
+            inner,
+            "{name}"
+        );
+        let mut from = 2;
+        loop {
+            match v.zero_free(from, 1 << 30) {
+                Ok(z) if z.done => break,
+                Ok(z) => from = z.next,
+                Err(_) => break,
+            }
+        }
+        assert_eq!(
+            v.read_in(&["SUB", "INNER.TXT"], 1 << 20).unwrap(),
+            inner,
+            "{name}: the folder's file changed"
+        );
     }
 }

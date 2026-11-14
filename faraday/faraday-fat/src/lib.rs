@@ -196,6 +196,8 @@ pub enum Fault {
     EmptyRoot,
     /// A block read back with its old bytes after a write.
     Unwritten,
+    /// Two files, or a file and a folder, that share a cluster.
+    SharedCluster,
 }
 
 /// Why FAT cannot hold a name.
@@ -1241,7 +1243,7 @@ impl<D: Disk> Volume<D> {
             .filter(|o| o.slots != slots)
             .collect();
         while let Some(o) = todo.pop() {
-            if o.cluster == 0 || o.name == "." || o.name == ".." {
+            if o.cluster == 0 {
                 continue;
             }
             // A folder read already is not read again.
@@ -1433,10 +1435,67 @@ impl<D: Disk> Volume<D> {
         Ok(())
     }
 
+    /// Costs a read of the root and of each folder below it once and each
+    /// FAT entry of a chain once (one bit per cluster of the volume): the
+    /// refusal of a volume where two entries claim one cluster, the
+    /// clusters a file's size needs and a folder's whole chain, the FAT32
+    /// root's included; a chain that cannot be followed, a folder longer
+    /// than a root may be, and folders read past [`MAX_WALK_BYTES`] are
+    /// refused too. A torn rename's two entries for one file (same first
+    /// cluster, same size) are one claim. Zeroing past a file's end would
+    /// otherwise reach the bytes of another file's cluster.
+    fn refuse_shared_clusters(&mut self) -> Result<Bits, Error> {
+        let shared = Error::Corrupt(Fault::SharedCluster);
+        let mut claimed = Bits::new(self.clusters + 2);
+        let root = self.root_chain()?;
+        for &c in &root {
+            claimed.insert(c);
+        }
+        let mut files: BTreeSet<(u32, u32)> = BTreeSet::new();
+        let mut folders: BTreeSet<u32> = BTreeSet::new();
+        let mut read = 0usize;
+        let mut todo = parse_dir(&self.root_bytes(&root)?);
+        while let Some(o) = todo.pop() {
+            if o.cluster == 0 || (!o.dir && o.size == 0) {
+                continue;
+            }
+            if o.dir {
+                if !folders.insert(o.cluster) {
+                    return Err(shared);
+                }
+                let max = self.max_root_clusters();
+                let theirs = self.chain_within(o.cluster, max, Fault::FolderLong)?;
+                for &c in &theirs {
+                    if !claimed.insert(c) {
+                        return Err(shared);
+                    }
+                }
+                read += theirs.len() * self.cluster_bytes as usize;
+                if read > MAX_WALK_BYTES {
+                    return Err(Error::Corrupt(Fault::FolderLong));
+                }
+                let bytes = self.chain_bytes(&theirs)?;
+                todo.extend(parse_dir(&bytes));
+            } else {
+                if !files.insert((o.cluster, o.size)) {
+                    continue;
+                }
+                let needed = u64::from(o.size).div_ceil(u64::from(self.cluster_bytes)) as usize;
+                for c in self.chain_start(o.cluster, needed)? {
+                    if !claimed.insert(c) {
+                        return Err(shared);
+                    }
+                }
+            }
+        }
+        Ok(claimed)
+    }
+
     /// The root directory's slots of deleted files and the slots past
     /// its end, cleared to zeros past their first byte; and each file's
     /// last cluster past its end.
     fn zero_leftovers(&mut self) -> Result<(), Error> {
+        let claimed = self.refuse_shared_clusters()?;
         let chain = self.root_chain()?;
         let bytes = self.root_bytes(&chain)?;
         let mut ended = false;
@@ -1461,21 +1520,13 @@ impl<D: Disk> Volume<D> {
         // Each file's chain, and the clusters its size says it holds; a
         // folder's whole chain is held by the folder.
         let entries = parse_dir(&bytes);
-        let mut held: Vec<u32> = Vec::new();
         let mut chains = Vec::new();
         for e in &entries {
             if e.cluster == 0 || (!e.dir && e.size == 0) {
                 continue;
             }
-            if e.dir {
-                if let Ok(chain) = self.chain(e.cluster) {
-                    held.extend_from_slice(&chain);
-                }
-            } else {
-                let chain = self.chain(e.cluster)?;
-                let needed = u64::from(e.size).div_ceil(cb) as usize;
-                held.extend(chain.iter().take(needed));
-                chains.push((e.size, chain));
+            if !e.dir {
+                chains.push((e.size, self.chain(e.cluster)?));
             }
         }
         for (size, chain) in chains {
@@ -1491,7 +1542,7 @@ impl<D: Disk> Volume<D> {
                 runs.push((self.cluster_at(c) + tail, cb - tail));
             }
             for &c in chain.iter().skip(needed) {
-                if !held.contains(&c) {
+                if !claimed.has(c) {
                     runs.push((self.cluster_at(c), cb));
                 }
             }

@@ -318,6 +318,7 @@ pub fn fat_text(e: faraday_fat::Error) -> Text {
             Fault::FileLonger => EN.fat_fault_file_longer,
             Fault::EmptyRoot => EN.fat_fault_empty_root,
             Fault::Unwritten => EN.fat_fault_unwritten,
+            Fault::SharedCluster => EN.fat_fault_shared_cluster,
         },
         Error::Name(n) => match n {
             BadName::Empty => EN.fat_name_empty,

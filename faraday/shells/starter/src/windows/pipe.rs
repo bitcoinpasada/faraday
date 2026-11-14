@@ -232,7 +232,7 @@ fn fault(f: &mut Fields<'_>) -> Result<StickFault, String> {
 
 /// Every kind of [`ReleaseFault`], by the name the pipe carries: the
 /// kind goes over the pipe and the window words it, so no words cross.
-pub const RELEASE_FAULTS: [(&str, ReleaseFault); 33] = [
+pub const RELEASE_FAULTS: [(&str, ReleaseFault); 34] = [
     ("Image", ReleaseFault::Image),
     ("Io", ReleaseFault::Fat(Fat::Io)),
     ("Fat12", ReleaseFault::Fat(Fat::Fat12)),
@@ -306,6 +306,10 @@ pub const RELEASE_FAULTS: [(&str, ReleaseFault); 33] = [
     (
         "Unwritten",
         ReleaseFault::Fat(Fat::Corrupt(Fault::Unwritten)),
+    ),
+    (
+        "SharedCluster",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::SharedCluster)),
     ),
     ("NameEmpty", ReleaseFault::Fat(Fat::Name(BadName::Empty))),
     ("NameLong", ReleaseFault::Fat(Fat::Name(BadName::Long))),
