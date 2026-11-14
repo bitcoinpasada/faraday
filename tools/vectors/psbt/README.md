@@ -18,7 +18,7 @@
 | `wallet-tapmulti.policy` | BIP 387's taproot multisig: 2 of 3, `tr(H,sortedmulti_a(2,…))` over the same three keys as `wallet-2of3.policy`, at BIP 48's `3'` account, on regtest |
 | `wallet-tapmulti-first.psbt` | That wallet's funded spend, as Bitcoin Core 31.1 built it: 0.5 BTC out, the rest back to its own change address, with the leaf script, its control block and four taproot key origins |
 | `wallet-tapmulti-signed.psbt` | What this tree wrote from it, signed by the "abandon" key and the "zoo" key: two `tap_script_sigs` under the leaf's hash, and the input not final, because `sign` finalizes nothing |
-| `wallet-musig.policy` | A BIP-390 MuSig2 wallet on mainnet: `tr(musig(@0,@1)/**)` over two BIP-86 accounts, which §16.70's address and export tests read |
+| `wallet-musig.policy` | A BIP-390 MuSig2 wallet on mainnet: `tr(musig(@0,@1)/**)` over two BIP-86 accounts, which the address and export tests read |
 | `wallet-musig-regtest.policy` | The regtest MuSig2 wallet of the Bitcoin Core round trip below: the "abandon … about" key as `@0` and a key Core generated as `@1` |
 | `wallet-musig-device-first.psbt` | That wallet's funded spend, before any nonce: 0.5 BTC out, the rest back to its own change address |
 | `wallet-musig-core-first.psbt` | The same spend after Core's first `walletprocesspsbt`: Core's public nonce is on it, this device's is not |

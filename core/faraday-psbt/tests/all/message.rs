@@ -115,7 +115,7 @@ fn bip137_vectors() {
         }
         // Trezor stops at the first RFC 6979 nonce; Electrum grinds for
         // a low R. Each vector is reproduced under the setting the
-        // wallet that published it uses (§16.38).
+        // wallet that published it uses.
         let nonce = if rec.get("source") == "trezor" {
             Nonce::First
         } else {

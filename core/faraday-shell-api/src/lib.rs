@@ -93,7 +93,7 @@
 //! [`Event::Scanned`], which the core routes exactly as it routes a
 //! code from a file or a paste.
 //!
-//! Entropy channel (§5.2, §16.21): the core has no random number
+//! Entropy channel: the core has no random number
 //! generator. It asks with [`Command::RequestEntropy`] and the shell
 //! answers with exactly one [`Event::Entropy`] carrying 32 bytes from its
 //! best source (the OS RNG on desktop and phones, the hardware RNG on a

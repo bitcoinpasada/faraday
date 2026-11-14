@@ -31,8 +31,7 @@ machines do not have, so the cross-check keeps its own transcription of
 ## 1. Hashed — `DiceProcedure::Hashed`
 
 The rolls written as the ASCII digits `1`–`6`, hashed with SHA-256 and
-truncated to the strength. This is what this device has always done
-(§16.17); the three sources below are byte-identical to it and to each
+truncated to the strength. This is what this device has always done; the three sources below are byte-identical to it and to each
 other.
 
 Coldcard, docs/rolls.py, which its documentation publishes at
@@ -148,7 +147,7 @@ and the loop that feeds it, which is where the reroll and the coin live:
     words.push(hodlBitBoxLookupWord(diceInWord, coin));
 ```
 
-The rolls name every word, the last included (§16.139). The last word
+The rolls name every word, the last included. The last word
 also carries the checksum, so only its high `11 − checksum bits` bits
 come from the dice — 7 at twelve words, 3 at twenty-four — and the
 checksum replaces the rest. That is how SeedSigner completes a final

@@ -102,7 +102,7 @@ skip = [
 # --- Sources ----------------------------------------------------------------
 #
 # crates.io and nothing else: no git dependencies, no private registry.
-# A vendored tree (§16.8) is checked in and is not a source.
+# A vendored tree is checked in and is not a source.
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"

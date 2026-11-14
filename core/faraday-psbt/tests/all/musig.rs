@@ -180,7 +180,7 @@ fn signing_twice_gives_the_same_partial_signature() {
 
 /// The funded PSBT, before anyone's nonce: the device goes first. It
 /// writes its own public nonce, signs nothing, and keeps the secret
-/// nonce in a session for the transaction (§16.100 round 1).
+/// nonce in a session for the transaction.
 #[test]
 fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
     let c = Compute::unchecked();

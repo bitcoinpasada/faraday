@@ -448,7 +448,7 @@ pub fn write_partial_sig(
 ///
 /// A partial signature is made against one aggregate nonce, so a round
 /// that puts a different nonce of this device's on the input leaves
-/// every signature already there unverifiable (§16.100).
+/// every signature already there unverifiable.
 pub fn clear_partial_sigs(input: &mut Input) {
     input.unknown.retain(|k, _| k.type_value != IN_PARTIAL_SIG);
 }
@@ -479,7 +479,7 @@ const RAND_LABEL: &[u8] = b"Faraday/musig-rand";
 /// One open MuSig2 signing session: the transaction it is for, and the
 /// secret nonce this device drew for every input and participant of it.
 ///
-/// The session is memory and nothing else (§16.47): it is not `Clone`,
+/// The session is memory and nothing else: it is not `Clone`,
 /// nothing serialises it, signing takes each secret nonce out by value
 /// so none can sign twice, and dropping it wipes the seed and every
 /// nonce still in it.

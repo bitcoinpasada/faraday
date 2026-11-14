@@ -28,7 +28,7 @@
 //! address it was made for.
 //!
 //! Both message formats sign with ECDSA, so both take the RFC 6979
-//! nonce choice [`crate::Nonce`] carries (§16.38). BIP-137's compact
+//! nonce choice [`crate::Nonce`] carries. BIP-137's compact
 //! signature has no low-R signer in libsecp256k1, so the grind is done
 //! here, in [`sign_recoverable_low_r`]. A BIP-322 signature for a
 //! taproot address is Schnorr, and takes the auxiliary randomness
@@ -263,7 +263,7 @@ fn sign_bip137(
 /// into the first four bytes of 32 bytes of RFC 6979 "additional data".
 /// This is the scheme Bitcoin Core's `CKey::Sign` uses and the one
 /// libsecp256k1's `sign_ecdsa_low_r` implements for the plain form,
-/// which has no recoverable counterpart to call (§16.38).
+/// which has no recoverable counterpart to call.
 fn sign_recoverable_low_r(
     secp: &Secp256k1<bitcoin::secp256k1::All>,
     msg: &Message,

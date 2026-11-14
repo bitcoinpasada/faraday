@@ -6,7 +6,7 @@
 //! Conventions:
 //!
 //! - **Dice** ([`DiceRolls`], [`DiceProcedure`]): three published
-//!   procedures read the same rolls (§16.115). The default is the
+//!   procedures read the same rolls. The default is the
 //!   entropy as SHA-256 of the rolls written
 //!   as the ASCII digits `'1'..='6'`, truncated to the strength's bytes.
 //!   This is what Coldcard and SeedSigner do, so a user can reproduce the
@@ -17,7 +17,7 @@
 //!   writes every 6 as a 0 first (Keystone). The third names every word
 //!   outright from five rolls of 1-4 and a sixth read as a coin
 //!   (BitBox), 72 rolls at 128 bits and 144 at 256, and the checksum
-//!   replaces the last word's low bits (§16.139).
+//!   replaces the last word's low bits.
 //! - **Coins** ([`CoinFlips`]): each flip is one bit, packed MSB-first
 //!   (the first flip is the top bit of the first byte), no hashing. A fair
 //!   coin already gives uniform bits, and packing is what every other tool

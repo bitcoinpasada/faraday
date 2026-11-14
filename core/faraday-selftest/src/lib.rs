@@ -258,7 +258,7 @@ fn ecdsa_vector(_c: &Compute) -> bool {
 // the BIP's vectors (secp256k1/src/modules/schnorrsig/tests_impl.h) -----
 //
 // The vector fixes the auxiliary randomness, so the signature is a fixed
-// 64 bytes. Taproot signing in this product uses none (§16.14), which is
+// 64 bytes. Taproot signing in this product uses none, which is
 // the same code path with the aux hashed as zeros; what this check
 // covers is that the curve library signs and verifies BIP-340 as
 // published.

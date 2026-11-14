@@ -115,7 +115,7 @@ fn streams_ten_frames_from_vivid() {
     }
 }
 
-/// The rate cap of §16.33 item 4, measured against a real driver:
+/// The rate cap, measured against a real driver:
 /// `spawn` sends at most ten frames a second however fast the device
 /// runs, because the core's scanner ticks on its own clock and a Pi 3B+
 /// has better things to do than decode thirty frames a second.

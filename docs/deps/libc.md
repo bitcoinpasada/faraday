@@ -48,7 +48,7 @@ safe — no raw pointer, file descriptor or mapped buffer crosses it.
 
 **Reopened by:** a Linux target with no V4L2 device (a Wayland-only
 desktop behind a portal-only camera stack), which would need a different
-interface and a fresh decision under §16.33.
+interface and a fresh decision.
 
 ## `faraday-grant`: the grant helper
 

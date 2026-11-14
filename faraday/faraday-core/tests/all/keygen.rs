@@ -330,7 +330,7 @@ fn a_run_of_one_face_is_cautioned_and_does_not_stop_the_key() {
 /// EntropyLab's BitBox transcript for twelve words, the last included,
 /// and the entropy embit's `mnemonic_to_bytes(..., ignore_checksum=True)`
 /// makes of the words it names, as SeedSigner's `calculate_checksum`
-/// completes a last word (`tools/reference/dice/README.md`, §16.139).
+/// completes a last word (`tools/reference/dice/README.md`).
 const BITBOX_12: &str = "123411234122341233412344123415234126341231412342123413234124341235432141";
 const BITBOX_12_ENTROPY: [u8; 16] = [
     0x1b, 0x0d, 0x8a, 0xc6, 0x63, 0x71, 0xb2, 0xd8, 0xec, 0x66, 0x36, 0x1b, 0x0d, 0x8e, 0xc6, 0xf2,

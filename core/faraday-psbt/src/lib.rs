@@ -22,7 +22,7 @@
 //! - [`verify`]: checks the signatures a transaction already carries
 //!   against their keys, looks for a nonce used twice, says which nonce
 //!   rule made a signature under a key this device holds, diffs two
-//!   PSBTs and states an inscription envelope (§16.111). Nothing there
+//!   PSBTs and states an inscription envelope. Nothing there
 //!   signs.
 //! - [`signer`]: states whether a signing device did only what it was
 //!   asked, from the PSBT sent and the one that came back: signatures
