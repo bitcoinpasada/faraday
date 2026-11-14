@@ -162,6 +162,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += eye_row(ui, cols, y, EN.explore_wif, Eye::Wif, wif.is_some());
     if let Some(w) = wif {
         y += value_row(ui, cols, y, "", w);
+        if path
+            .as_ref()
+            .is_some_and(super::shown::last_step_unhardened)
+        {
+            y += warn_row(ui, cols, y);
+        }
     }
     y += code_row(
         ui,
@@ -240,6 +246,17 @@ pub(super) fn value_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str)
         .max(20.0)
         + 12.0;
     cy - y
+}
+
+/// The line under a private key at an unhardened path: what it gives with
+/// the account's extended public key. Returns the height used.
+pub(super) fn warn_row(ui: &mut Ui, at: Cols, y: f32) -> f32 {
+    ui.wrap_as(
+        (at.px, y, at.pw),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.explore_wif_gives_account,
+    ) + T::EXPLORE_NOTE_GAP
 }
 
 /// A public value under its name, as `value_row` draws it, that opens

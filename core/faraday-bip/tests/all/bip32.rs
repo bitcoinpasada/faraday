@@ -327,3 +327,30 @@ fn a_key_text_longer_than_any_key_is_refused_as_a_bad_key() {
     let long = format!("{xpub}{}", "1".repeat(1 << 20));
     assert_eq!(xkey::decode_xpub(&long).err(), Some(Error::Base58));
 }
+
+/// A child's private key with its parent's extended public key gives the
+/// parent's private key (why a key at an unhardened path is not shown
+/// alone): BIP-32 vector 2's published xpub of `m` and xprv of `m/0`,
+/// decoded and combined with rust-bitcoin's HMAC and secp256k1, give
+/// vector 2's xprv of `m`.
+#[test]
+fn a_child_key_and_the_parents_xpub_give_the_parents_private_key() {
+    use bitcoin::hashes::{Hash, HashEngine, Hmac, HmacEngine, sha512};
+    use bitcoin::secp256k1::Scalar;
+
+    let parent_xpub = Xpub::from_str("xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB").unwrap();
+    let child = Xpriv::from_str("xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt").unwrap();
+    let parent_xprv = Xpriv::from_str("xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U").unwrap();
+
+    // I = HMAC-SHA512(chain code, public key || index 0); the child key is
+    // the parent's plus I's left half.
+    let mut engine = HmacEngine::<sha512::Hash>::new(parent_xpub.chain_code.as_bytes());
+    engine.input(&parent_xpub.public_key.serialize());
+    engine.input(&0u32.to_be_bytes());
+    let i = Hmac::from_engine(engine).to_byte_array();
+    let tweak = bitcoin::secp256k1::SecretKey::from_slice(&i[..32])
+        .unwrap()
+        .negate();
+    let recovered = child.private_key.add_tweak(&Scalar::from(tweak)).unwrap();
+    assert_eq!(recovered, parent_xprv.private_key);
+}

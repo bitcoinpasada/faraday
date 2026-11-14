@@ -99,6 +99,14 @@ pub fn xprv_path(path: &DerivationPath) -> DerivationPath {
     account_of(path).unwrap_or_else(|| path.clone())
 }
 
+/// Whether the last step of `path` is unhardened: the private key there,
+/// with the account's extended public key, gives every key of the account.
+pub fn last_step_unhardened(path: &DerivationPath) -> bool {
+    path.into_iter()
+        .last()
+        .is_some_and(|c| matches!(c, ChildNumber::Normal { .. }))
+}
+
 /// The whole path of the address at `change`/`index` of `account`.
 pub fn address_path(account: &DerivationPath, change: bool, index: u32) -> DerivationPath {
     let level = |i: u32| ChildNumber::Normal { index: i };

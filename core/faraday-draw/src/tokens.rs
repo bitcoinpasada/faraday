@@ -1000,6 +1000,8 @@ pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
 pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
 /// Explore's inset from its area's edges on a wide window.
 pub const EXPLORE_INSET: f32 = 56.0;
+/// The space under the line beneath a private key Explore shows.
+pub const EXPLORE_NOTE_GAP: f32 = 12.0;
 /// Explore's reading area: its `COLUMN_MAX` column between two
 /// `EXPLORE_INSET`s (`docs/LAYOUT.md` §17).
 pub const READING_EXPLORE_W: f32 = COLUMN_MAX + 2.0 * EXPLORE_INSET;

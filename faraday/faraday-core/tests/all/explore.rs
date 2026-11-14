@@ -179,3 +179,38 @@ fn the_address_public_key_and_extended_key_open_their_codes() {
         crate::common::opens_its_code(&mut app, code, want);
     }
 }
+
+const GIVES_ACCOUNT: &str = "Withtheaccount'sextendedpublickey,thiskeygivesevery";
+
+#[test]
+fn a_private_key_at_an_unhardened_path_says_it_gives_the_account() {
+    let mut app = exploring();
+    assert!(!drawn(&mut app).contains(GIVES_ACCOUNT));
+    eye(&mut app, Eye::Wif);
+    assert!(drawn(&mut app).contains(FIRST_WIF));
+    assert!(drawn(&mut app).contains(GIVES_ACCOUNT));
+}
+
+#[test]
+fn a_private_key_on_the_addresses_page_says_it_gives_the_account() {
+    let mut app = exploring();
+    app.press(Action::X(XAction::Page(Page::Addresses)));
+    assert!(!drawn(&mut app).contains(GIVES_ACCOUNT));
+    eye(&mut app, Eye::Row(false, 0));
+    assert!(drawn(&mut app).contains(FIRST_WIF));
+    assert!(drawn(&mut app).contains(GIVES_ACCOUNT));
+}
+
+#[test]
+fn a_private_key_at_an_all_hardened_path_says_nothing_of_the_account() {
+    let mut app = exploring();
+    for _ in 0..20 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    for c in "84h/0h/0h/0h/0h".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    eye(&mut app, Eye::Wif);
+    assert!(app.explore_shown().is_some_and(|s| s.any()));
+    assert!(!drawn(&mut app).contains(GIVES_ACCOUNT));
+}

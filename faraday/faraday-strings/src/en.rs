@@ -11884,6 +11884,8 @@ strings! {
     explore_codex32_share: "codex32 share {}",
     /// Label beside the eye on an address's private key, and over the key shown.
     explore_wif: "Private key (WIF)",
+    /// Line under an address's private key at an unhardened path.
+    explore_wif_gives_account: "With the account's extended public key, this key gives every key of the account",
     /// Label beside the eye on the root's and the account's extended private keys.
     explore_xprvs: "Extended private keys",
     /// Label: the root's extended private key.

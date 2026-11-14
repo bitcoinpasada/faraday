@@ -92,6 +92,7 @@ fn row(
             width,
         };
         h += value_row(ui, cols, y + h, "", w);
+        h += super::screen::warn_row(ui, cols, y + h);
     }
     h
 }
