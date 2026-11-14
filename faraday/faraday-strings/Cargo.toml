@@ -13,9 +13,5 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-text = { path = "../../core/faraday-text" }
 
-# The Argon QR Vault's wording (AQRV specification, https://github.com/bitcoinpasada/aqrv, F245); only aqrv-app turns it on.
-[features]
-aqrv = []
-
 [lints]
 workspace = true

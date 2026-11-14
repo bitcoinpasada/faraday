@@ -621,21 +621,6 @@ held_by = ["lint-standards"]
 misses = "work kept out that no [[out_of_app]] of tools/lint-standards.toml names; a method call the inventory cannot resolve"
 
 [[rule]]
-id = "standards.aqrv-out"
-title = "the Argon QR Vault is a test tool in aqrv/: no app of Faraday's depends on its crates, reaches its seal or open, names it, or turns on faraday-strings' `aqrv` feature"
-source = ["docs/decisions/F245.md", "docs/STANDARDS.md §0"]
-when = ["aqrv/**"]
-kind = "held"
-held_by = ["lint-standards", "lint-keys-tests", "lint-layout", "lint-strings", "costs-lint", "lint-secrets"]
-
-[[rule]]
-id = "standards.aqrv-vectors-pinned"
-title = "the pinned copy of the Argon QR Vault's vectors in tools/vectors/aqrv/ is changed only by copying files from a named commit of the specification's repository, with that commit and the files' SHA-256 digests in the folder's README; the vectors are regenerated in that repository, never here"
-source = ["docs/decisions/F249.md"]
-when = ["tools/vectors/aqrv/aqrv.json", "tools/vectors/aqrv/check.py", "tools/vectors/aqrv/qr-*.png"]
-kind = "review"
-
-[[rule]]
 id = "standards.experimental-dev-only"
 title = "work behind the experimental feature reaches only a dev build: no release or test-release binary carries it"
 source = ["docs/decisions/F162.md", "docs/ANTI-EXFIL.md §3"]

@@ -10,7 +10,8 @@ publish = false
 
 [features]
 # Faraday's own side: the camera with its scanner (`camera`, `lens`) and
-# `wake_on_work`. The Argon QR Vault's window turns it off (F245).
+# `wake_on_work`. A program that turns it off (`default-features = false`)
+# uses the window without the Faraday app.
 default = ["faraday"]
 faraday = ["dep:faraday-core", "dep:faraday-camera", "dep:faraday-scanner",
     "dep:faraday-v4l2", "dep:faraday-avfoundation", "dep:faraday-mediafoundation"]

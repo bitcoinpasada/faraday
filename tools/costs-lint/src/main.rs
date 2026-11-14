@@ -12,9 +12,8 @@
 //!    function that counts work (`c.count(…)`, `work::count(Work::…)`)
 //!    and takes no `&Compute`;
 //! 2. a mint (`Compute::new`) outside [`MINTS`], anywhere under
-//!    `faraday/` and `aqrv/` (the Argon QR Vault, F245), tests and tools
-//!    included; `Compute::unchecked` anywhere under `faraday/` but its fuzz
-//!    targets, and under `aqrv/` but the library's tests; either constructor in core's
+//!    `faraday/`, tests and tools included; `Compute::unchecked` anywhere
+//!    under `faraday/` but its fuzz targets; either constructor in core's
 //!    sources outside its tests; the `unchecked` feature named in a
 //!    `faraday/**/Cargo.toml` but the fuzz crate's;
 //! 3. a field, `static` or `thread_local!` holding a `Compute` (not a
@@ -84,31 +83,6 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday/shells/snapshot/src/main.rs",
         "main",
         "the snapshot tool, which makes no drawing claim",
-    ),
-    (
-        "aqrv/aqrv-cli/src/main.rs",
-        "run",
-        "the command line's thread, which draws nothing (a token cannot cross threads)",
-    ),
-    (
-        "aqrv/aqrv-cli/examples/diff_batch.rs",
-        "main",
-        "the differential run's batch reader, a test tool that draws nothing",
-    ),
-    (
-        "aqrv/aqrv-app/src/worker.rs",
-        "run",
-        "the app's worker thread, which draws nothing (a token cannot cross threads)",
-    ),
-    (
-        "aqrv/aqrv-app/tests/make.rs",
-        "a_sample_and_a_passphrase_make_a_code_the_library_opens",
-        "the app's test that opens what it made with the library, outside the app",
-    ),
-    (
-        "aqrv/aqrv-cli/tests/cli.rs",
-        "a_qr_picture_of_32_binary_bytes_is_not_recognised",
-        "the command line's test that draws a QR picture to read back",
     ),
     (
         "faraday/faraday-vault/examples/argon2_bench.rs",
@@ -370,11 +344,11 @@ const CORE_MINTS: &[(&str, &str)] = &[("core/faraday-crypto/src/work.rs", "Compu
 /// its accessors (`docs/COMPUTE.md` §4).
 const FIELDS: &[(&str, &str)] = &[("faraday/faraday-core/src/drawing.rs", "View.fill")];
 
-/// Directories under `faraday/` and `aqrv/` whose code may use the token that counts
+/// Directories under `faraday/` whose code may use the token that counts
 /// nothing, and whose manifest may turn its feature on: the fuzz
 /// targets, a workspace of their own with no app guarantee
 /// (`docs/COMPUTE.md` §3).
-const UNCHECKED_OK: &[&str] = &["faraday/fuzz/", "aqrv/aqrv/"];
+const UNCHECKED_OK: &[&str] = &["faraday/fuzz/"];
 
 fn main() -> ExitCode {
     let root = PathBuf::from(".");
@@ -392,10 +366,6 @@ fn main() -> ExitCode {
     }
     // Rule 2 under faraday/: every Rust file, tests and tools included.
     for file in rust_files(&root.join("faraday")) {
-        check_mints_faraday(&root, &file, &mut out);
-    }
-    // Rule 2 under aqrv/: the same, for the Argon QR Vault's crates.
-    for file in rust_files(&root.join("aqrv")) {
         check_mints_faraday(&root, &file, &mut out);
     }
     // Rule 2: the feature in Faraday's manifests.

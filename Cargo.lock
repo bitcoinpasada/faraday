@@ -83,69 +83,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7eb209b1518d6bb87b283c20095f5228ecda460da70b44f0802523dea6da04"
 
 [[package]]
-name = "aqrv"
-version = "0.2.0"
-dependencies = [
- "argon2",
- "chacha20",
- "faraday-bip",
- "faraday-codec",
- "faraday-crypto",
- "faraday-files",
- "faraday-text",
- "serde_json",
- "subtle",
- "unicode-normalization",
- "zeroize",
-]
-
-[[package]]
-name = "aqrv-app"
-version = "0.2.0"
-dependencies = [
- "aqrv",
- "faraday-bip",
- "faraday-codec",
- "faraday-crypto",
- "faraday-draw",
- "faraday-files",
- "faraday-shell-api",
- "faraday-strings",
- "faraday-text",
- "faraday-ui",
- "png",
- "zeroize",
-]
-
-[[package]]
-name = "aqrv-cli"
-version = "0.2.0"
-dependencies = [
- "aqrv",
- "faraday-bip",
- "faraday-codec",
- "faraday-crypto",
- "faraday-files",
- "faraday-text",
- "getrandom 0.4.3",
- "zeroize",
-]
-
-[[package]]
-name = "aqrv-desktop"
-version = "0.2.0"
-dependencies = [
- "aqrv-app",
- "faraday-files",
- "faraday-shell-api",
- "faraday-strings",
- "faraday-window",
- "getrandom 0.4.3",
- "png",
- "winit",
-]
-
-[[package]]
 name = "argon2"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

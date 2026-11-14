@@ -365,18 +365,7 @@ fn read_manifest(path: &Path) -> (String, BTreeSet<String>) {
 
 fn read_crates(root: &Path) -> Vec<Crate> {
     let mut crates = Vec::new();
-    // The Argon QR Vault's crates (aqrv/, F245) are read too, so that the
-    // reach check can resolve its `seal` and `open` and see that no shipped
-    // function of the app reaches them.
     let mut sources = walk::crate_sources(root);
-    if let Ok(rd) = fs::read_dir(root.join("aqrv")) {
-        for e in rd.flatten() {
-            let src = e.path().join("src");
-            if e.path().join("Cargo.toml").is_file() && src.is_dir() {
-                sources.push(src);
-            }
-        }
-    }
     sources.sort();
     for src in sources {
         let Some(dir) = src.parent() else { continue };

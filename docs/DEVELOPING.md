@@ -191,19 +191,7 @@ across frames (a sheet's frosted page, a fade's frames) still holds a test
 secret; a hit fails the tour naming the step and the form. `just` runs it in
 the snapshot crate's `every_tour_runs_to_its_end` test.
 
-The Argon QR Vault (its specification and vectors are in `https://github.com/bitcoinpasada/aqrv`, F249; `aqrv/` is the reference implementation) is its own pair of programs, a
-window and a command line, built with the same recipes (the container
-leaves each file in `out/linux` or `out/windows`), and its screens are
-drawn to PNG with no window:
-
-```
-cargo run -p aqrv-desktop --release                                          the window
-just faraday-linux-bin out/linux out/build/run aqrv-desktop argon-qr-vault   out/linux/argon-qr-vault
-just faraday-linux-bin out/linux out/build/run aqrv-cli aqrv                 out/linux/aqrv
-just faraday-windows-bin build out/windows out/build/run aqrv-desktop argon-qr-vault   out/windows/argon-qr-vault.exe
-just faraday-windows-bin build out/windows out/build/run aqrv-cli aqrv                  out/windows/aqrv.exe
-cargo run -p aqrv-app --example snap -- 1280x800 out/snapshots/aqrv/1280x800  the Make and Open tabs, one picture a step
-```
+The Argon QR Vault's test tool is built in its own repository, `https://github.com/bitcoinpasada/aqrv` (F264), against Faraday's crates at a pinned commit.
 
 The desktop app, Faraday Demo, has none of the stick's protections and
 is never for a seed that holds funds. Its virtual sticks are folders in

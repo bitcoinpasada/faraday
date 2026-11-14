@@ -31,7 +31,7 @@ need. Each document's header says what kind it is:
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count are in it (§3, §11) |
-| What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F249) |
+| What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F264) |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry; the earlier writer, `docs/history/KDBX-LOG.md` |
 | How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |

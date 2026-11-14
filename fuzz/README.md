@@ -212,11 +212,6 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public` |
 | `pgp_qr_vault` | `faraday_pgp::message::parse` on the whole input (the QR vault's OpenPGP message: packets in any length form, the cost limits, each refusal), then `open` where the stated cost is the least one (8 MiB), which must not return plaintext for anything but the seeded vault's own bytes |
-| `aqrv_recognise` | `aqrv::recognise`, `recognise_code` and `recognise_file` on the input as a QR payload and as a file (the Argon QR Vault, §9): a recognised header is the length's and the first byte's, a text payload reads back to its 47 characters |
-| `aqrv_text` | `aqrv::from_text` on the input as text, and `to_text` on its first 32 bytes: what reads is 47 characters and writes the same text |
-| `aqrv_item` | the Argon QR Vault's item layouts (`read` of a kind and a room of bytes): an item read is laid out again by the writer as the bytes it came from |
-| `aqrv_envelope` | `aqrv::open` after the key derivation (the first 32 bytes are Argon2id's output): the envelope split, the tags and the item's layout |
-| `aqrv_open` | `aqrv::open` whole, Argon2id included, on envelopes at the smallest memory step (64 MiB) under the vectors' passphrase |
 | `pgp_verify` | `faraday_pgp::verify_detached` with the input as the signature, the signed data and the certificate, against the GnuPG-made release-sums fixture (F134): what it takes is the fixture's own signature over the fixture's sums |
 | `pgp_paperkey` | `faraday_pgp::paperkey::read_text`, `read_raw`, `line` and `check` on what reads, then `entries` |
 | `pgp_restore` | `faraday_pgp::Certificate::read` on the whole input, then `restore` with the input as a paperkey's data against what read and against a Faraday key's certificate, and that key's own data with the input laid over it |
@@ -351,22 +346,3 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 
 `keep_open` covers less than it did, because `header` now rejects a cost
 the device would not have written before anything else looks at the blob.
-
-## 2026-11-11: the Argon QR Vault's targets
-
-The five `aqrv_*` targets, 600 seconds each on one core, seeded from the
-vectors' cases (`tools/vectors/aqrv/aqrv.json`). Coverage is libFuzzer's
-edge count at the end of the run.
-
-| Target | Time | Execs | Coverage | Result |
-|---|---|---|---|---|
-| `aqrv_recognise` | 600 s | 458 M | 122 | clean |
-| `aqrv_text` | 600 s | 148 M | 91 | clean |
-| `aqrv_item` | 600 s | 193 M | 393 | clean |
-| `aqrv_envelope` | 600 s | 99.7 M | 779 | clean |
-| `aqrv_open` | 600 s | 5.77 k | 1243 | clean |
-
-`aqrv_envelope` takes Argon2id's output from the input, so random
-envelopes rarely carry a matching tag: the item path behind a matching tag
-is reached by the seeds, and `aqrv_item` covers the layouts directly.
-`aqrv_open` runs Argon2id at 64 MiB on every input, hence its few runs.

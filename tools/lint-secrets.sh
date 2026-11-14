@@ -6,11 +6,9 @@
 # file under faraday/faraday-core/src/, faraday/faraday-plan/src/,
 # faraday/faraday-paper/src/ and faraday/faraday-host/src/, to the Bitcoin Core wallet reader's
 # (faraday/faraday-core-wallet/src/, whose records carry a wallet's keys on
-# their way to faraday-keys) and to the Argon QR Vault library's
-# (aqrv/aqrv/src/, whose items and keys are as secret as Faraday's; its
-# text is zeroized strings, so rule 3 does not apply to it); rule 2's
-# derives also to every other non-test source file under core/, faraday/ and
-# aqrv/ except the Starter's, the shells' and tools' (docs/SECRET-LEAKS.md
+# their way to faraday-keys); rule 2's
+# derives also to every other non-test source file under core/ and
+# faraday/ except the Starter's, the shells' and tools' (docs/SECRET-LEAKS.md
 # §6); rule 3 to the secret files listed below, which a file's use of a secret
 # type also selects:
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
@@ -80,7 +78,7 @@
 #      public data and may use String freely. A file is a secret file when
 #      it is in SECRET_FILES below (paths are relative to the repository
 #      root and need not be under core/). A non-test source file under
-#      core/, faraday/ or aqrv/ that uses a secret type (the names of rule 2,
+#      core/ or faraday/ that uses a secret type (the names of rule 2,
 #      4a's key types, `zeroize`), and is not in SECRET_FILES, is reported, so
 #      a new module is found without anyone adding it; so is a listed file
 #      that uses none (unless it is in NAMELESS, with its reason), and a
@@ -111,14 +109,14 @@ report() {
 }
 
 src_files() {
-    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-paper/src -name '*.rs'; find faraday/faraday-host/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
+    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-paper/src -name '*.rs'; find faraday/faraday-host/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; } | sort
 }
 
-# Every non-test source file that can name a secret type: core/, faraday/ and
-# aqrv/, but not tests/, examples/, benches/ and fuzz/, the Starter (which runs
+# Every non-test source file that can name a secret type: core/ and faraday/,
+# but not tests/, examples/, benches/ and fuzz/, the Starter (which runs
 # on an online computer and holds test data), the shells and tools.
 type_files() {
-    find core faraday aqrv -path '*/src/*' -name '*.rs' \
+    find core faraday -path '*/src/*' -name '*.rs' \
         -not -path '*/tests/*' -not -path '*/examples/*' -not -path '*/benches/*' \
         -not -path 'faraday/faraday-starter*' -not -path 'faraday/shells/*' \
         -not -path 'faraday/tools/*' -not -path 'faraday/fuzz/*' | sort
@@ -502,16 +500,6 @@ core/faraday-text/src/lib.rs
 core/faraday-text/src/text.rs
 core/faraday-text/src/num.rs
 faraday/faraday-intake/src/secret_buf.rs
-aqrv/aqrv/src/codex32.rs
-aqrv/aqrv/src/envelope.rs
-aqrv/aqrv/src/item.rs
-aqrv/aqrv-app/src/draw.rs
-aqrv/aqrv-app/src/lib.rs
-aqrv/aqrv-app/src/samples.rs
-aqrv/aqrv-app/src/state.rs
-aqrv/aqrv-app/src/worker.rs
-aqrv/aqrv-cli/src/main.rs
-aqrv/aqrv-cli/src/tty.rs
 faraday/faraday-disk/src/lib.rs
 faraday/faraday-disk/src/main.rs
 faraday/faraday-fat/src/lib.rs
@@ -635,7 +623,6 @@ faraday/faraday-core/src/testkit/public.rs
 core/faraday-bip/src/policy.rs
 core/faraday-bip/src/tapmulti.rs
 faraday/faraday-ui/src/roles.rs
-aqrv/aqrv/src/text.rs
 faraday/faraday-core/src/backup_flow/seed_names.rs
 faraday/faraday-core/src/keygen/entries.rs
 faraday/faraday-core/src/vault/related.rs
@@ -758,10 +745,6 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       the enrolment files' names and certificate common names
 #   core/faraday-psbt/src/psbt.rs
 #       a PSBT's parse refusals and its base64
-#   aqrv/aqrv-cli/src/cli.rs
-#       arguments, usage and failures; the passphrase and the item are never arguments, and a key item's hex is decoded in main.rs straight into its wiping array
-#   aqrv/aqrv-cli/src/vectors.rs
-#       the published vectors' names and the runner's outcomes
 UNHELD="faraday/faraday-core/src/testkit/plain.rs
 faraday/faraday-core/src/screens/backup.rs
 faraday/faraday-core/src/compact/screen.rs
@@ -810,9 +793,7 @@ faraday/faraday-ui/src/nav/app_bar.rs
 faraday/faraday-ui/src/sheet.rs
 faraday/faraday-host/src/labels.rs
 faraday/faraday-sb/src/lib.rs
-core/faraday-psbt/src/psbt.rs
-aqrv/aqrv-cli/src/cli.rs
-aqrv/aqrv-cli/src/vectors.rs"
+core/faraday-psbt/src/psbt.rs"
 UNHELD=$(echo $UNHELD)
 unheld=$(for f in $UNHELD; do
     [ -f "$f" ] || { echo "$f: missing"; continue; }

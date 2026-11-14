@@ -53,10 +53,6 @@ members = [
     "faraday/tools/testkit",
     "faraday/tools/alloc-count",
     "faraday/tools/leak-scan",
-    "aqrv/aqrv",
-    "aqrv/aqrv-cli",
-    "aqrv/aqrv-app",
-    "aqrv/aqrv-desktop",
 ]
 # The fuzz targets are their own workspace: `cargo fuzz` builds them on
 # nightly with sanitizer flags, and nothing about that build belongs in

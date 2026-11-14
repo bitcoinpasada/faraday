@@ -26,12 +26,7 @@
 # A fourth: no shipped binary turns on faraday-sb's `sign-any` feature,
 # which signs a boot program with no checked release behind it (F134).
 #
-# A fifth: the Argon QR Vault (`aqrv`, AQRV specification, https://github.com/bitcoinpasada/aqrv, F245) is Faraday's own
-# construction, not reviewed outside it, and a test tool: no shipped binary
-# depends on any of its crates, and none turns on faraday-strings' `aqrv`
-# feature, which holds the wording of its app.
-#
-# A sixth: faraday-vault's `fuzzing` feature, which adds the entry the
+# A fifth: faraday-vault's `fuzzing` feature, which adds the entry the
 # kdbx_body fuzz target feeds, is on in no shipped binary.
 #
 # Every `cargo tree` here runs with --locked and fails the lint with its own
@@ -49,7 +44,7 @@ shipped=(-p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant
 # tree WHAT CARGO-TREE-ARGS...: runs cargo tree into $out. A failure of
 # cargo (an unknown package, a lockfile out of date) ends the lint with
 # cargo's own error; so does an empty tree. With ABSENT_OK=1, for a package
-# that must not be in the binaries' trees (faraday-samples, aqrv), a tree
+# that must not be in the binaries' trees (faraday-samples), a tree
 # that is empty, or that cargo refuses with "did not match any packages"
 # (the package is not in their graph, which is the pass), is accepted; the
 # package must still exist in the workspace's lockfile (cargo pkgid), so a
@@ -132,22 +127,6 @@ fi
 tree "faraday-starter-shell" -e normal --depth 1 -p faraday-starter-shell
 if grep -qE '^[├└]── faraday-samples v' <<< "$out"; then
     echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-desktop"
-    echo "$out"
-    exit 1
-fi
-# The Argon QR Vault: the tree of dependents of aqrv over every shipped
-# binary names none of them, and faraday-strings' `aqrv` feature is on in
-# none. A binary that does not reach the crate prints nothing of itself,
-# but a name that is no package fails.
-ABSENT_OK=1 tree "aqrv" -e normal "${shipped[@]}" -i aqrv
-if grep -qE '(faraday-desktop|faraday-stick|faraday-disk|faraday-grant|faraday-boot|faraday-starter-shell) v' <<< "$out"; then
-    echo "lint-keys-tests: a shipped binary depends on the Argon QR Vault (aqrv)"
-    echo "$out"
-    exit 1
-fi
-tree "faraday-strings" -e features,normal "${shipped[@]}" -i faraday-strings
-if grep -q 'faraday-strings feature "aqrv"' <<< "$out"; then
-    echo "lint-keys-tests: a shipped binary enables faraday-strings' aqrv feature"
     echo "$out"
     exit 1
 fi

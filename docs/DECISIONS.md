@@ -259,12 +259,12 @@ Read this table, then only the decision you need.
 | [F242](decisions/F242.md) | Change at an address index of 10,000 or more is shown as change with a Caution, not as verified change; signing stays possible | 2026-11-11 | Active | signing |
 | [F243](decisions/F243.md) | One targeted check may run on GitHub Actions, started by hand: one crate's tests or one lint recipe, under F183's limits | 2026-11-11 | Active | repository |
 | [F244](decisions/F244.md) | Keep data refuses the same build only when the stick's boot partition is already exactly the release's | 2026-11-11 | Active | starter |
-| [F245](decisions/F245.md) | The Argon QR Vault is built as a test tool outside Faraday's apps: a library, a command line and a desktop app in `aqrv/`, test data only, into the app only after an outside review | 2026-11-11 | Active | standards |
+| [F245](history/decisions/F245.md) | The Argon QR Vault is built as a test tool outside Faraday's apps: a library, a command line and a desktop app in `aqrv/`, test data only, into the app only after an outside review | 2026-11-11 | Replaced by F264 | standards |
 | [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |
 | [F247](decisions/F247.md) | The in-app guide replaces Learn | 2026-11-11 | Active | design |
 | [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Amended by F253 | repository |
 | [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
-| [F249](decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Active | standards |
+| [F249](history/decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Replaced by F264 | standards |
 | [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; `just lint-macos` stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |
@@ -276,3 +276,4 @@ Read this table, then only the decision you need.
 | [F261](decisions/F261.md) | KEF writes versions 20 and 5 and reads all twelve | 2026-11-14 | Active | crypto |
 | [F263](decisions/F263.md) | A multisig setup file with no Format line is P2SH, as Coldcard reads it | 2026-11-14 | Active | wallets |
 | [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
+| [F264](decisions/F264.md) | The Argon QR Vault and its test tool live in their own repository; Faraday keeps nothing for them but `faraday-window`'s default feature | 2026-11-14 | Active | standards |
