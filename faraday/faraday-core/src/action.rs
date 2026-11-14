@@ -961,6 +961,7 @@ pub fn is_hold(a: Action) -> bool {
             crate::vault::VaultAction::HoldDelete
                 | crate::vault::VaultAction::HoldWipe
                 | crate::vault::VaultAction::SbHoldSign
+                | crate::vault::VaultAction::SbEnrol
                 | crate::vault::VaultAction::GpgHoldSign
                 | crate::vault::VaultAction::GpgHoldRevoke
         ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)

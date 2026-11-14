@@ -935,7 +935,7 @@ item's page stacks the same nodes in that order, with no lines.
   and the signature time and holds to sign (F63); **Renew** with a term
   chosen; **Hold to mark the key revoked** (F32).
 - Secure Boot keys → their page in the vault: **Owner keys**, the
-  policy, **Enrolment files** and **Sign or check an image** (below).
+  policy, **Hold for enrolment files** and **Sign or check an image** (below).
 - A recovery sheet → its descriptor, with **Show as QR** and **PNG** in
   its actions (F28, `docs/QR.md` §7): `{name}-descriptor.png` For the
   stick, labelled with the wallet's shape and checksum.
@@ -1106,7 +1106,8 @@ and picking an image to sign or holding **Hold to sign** opens the flow;
 **Check** does not wait. Keys in a vault unlocked from a stick sign at
 once.
 
-**Enrolment files** → policy (Windows-compatible or own keys only) → the
+**Hold for enrolment files** → policy (Windows-compatible or own keys only; the
+warning line says what may not start and that Restore Factory Keys in the BIOS undoes it) → hold → the
 files For the stick. Enrolling them is done in the firmware's setup
 screen; Learn has no page on it yet (per-maker guides are planned,
 `docs/STARTER.md` §7.7).

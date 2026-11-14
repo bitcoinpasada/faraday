@@ -265,3 +265,78 @@ fn the_enrolment_files_are_counted_in_a_sentence() {
         Some(format!("{n} enrolment files wait for the stick").as_str())
     );
 }
+
+/// The db signature list written for a choice: the SHA-256 of each
+/// certificate other than the owner's, by Microsoft's published files.
+fn db_microsoft_certs(app: &Faraday) -> Vec<String> {
+    let db = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "db.auth")
+        .expect("db.auth written")
+        .bytes
+        .to_vec();
+    faraday_sb::MICROSOFT
+        .iter()
+        .filter(|m| m.store == faraday_sb::Store::Db)
+        .filter(|m| db.windows(m.der.len()).any(|w| w == m.der))
+        .map(|m| m.sha256.to_string())
+        .collect()
+}
+
+#[test]
+fn enrolment_files_are_written_by_a_hold_not_a_tap() {
+    let mut app = with_keys(&release());
+    app.outbox.clear();
+    // Back from the images to the keys' detail, where the hold is.
+    app.press(Action::Vault(V::SbImages));
+    let _ = app.frame();
+    // The hold sits below the long warning line: scroll to it.
+    for _ in 0..12 {
+        if app.where_offered(Action::Vault(V::SbEnrol)).is_some() {
+            break;
+        }
+        // Over the detail, which is the right-hand pane at this size.
+        let (x, y) = app
+            .where_offered(Action::Vault(V::SbOwnOnly(true)))
+            .expect("the choice is on screen");
+        app.event(faraday_shell_api::Event::Scroll { x, y, dy: 120 });
+        let _ = app.frame();
+    }
+    // A tap on the button writes nothing.
+    let (x, y) = app
+        .where_offered(Action::Vault(V::SbEnrol))
+        .expect("the hold is on screen");
+    app.event(faraday_shell_api::Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Down,
+    });
+    app.event(faraday_shell_api::Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Up,
+    });
+    assert!(app.outbox.is_empty(), "a tap wrote files");
+    crate::common::hold(&mut app, Action::Vault(V::SbEnrol));
+    assert!(app.outbox.iter().any(|i| i.name == "db.auth"));
+}
+
+#[test]
+fn the_db_list_holds_what_each_choice_names() {
+    let mut app = with_keys(&release());
+    app.outbox.clear();
+    app.press(Action::Vault(V::SbOwnOnly(false)));
+    app.press(Action::Vault(V::SbEnrol));
+    let windows = db_microsoft_certs(&app);
+    let want: Vec<String> = faraday_sb::MICROSOFT
+        .iter()
+        .filter(|m| m.store == faraday_sb::Store::Db)
+        .map(|m| m.sha256.to_string())
+        .collect();
+    assert_eq!(windows, want, "Windows only: the two Windows CAs");
+    app.outbox.clear();
+    app.press(Action::Vault(V::SbOwnOnly(true)));
+    app.press(Action::Vault(V::SbEnrol));
+    assert!(db_microsoft_certs(&app).is_empty(), "own keys only");
+}

@@ -313,6 +313,12 @@ case = "Sign the boot program looked at, a release's own"
 
 [[hold]]
 where = "app"
+hold = "VaultAction::SbEnrol"
+decision = "F136"
+case = "Write Secure Boot enrolment files that leave out Microsoft's third-party certificates, so some computers may not start: the person's own destructive act"
+
+[[hold]]
+where = "app"
 hold = "VaultAction::GpgHoldSign"
 decision = "F63"
 case = "Sign the ticked files with a GPG key, from the sheet that shows the time"

@@ -689,8 +689,8 @@ fn secure_boot_keys_wait_too() {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(5)));
     app.press(Action::Vault(V::Item(0)));
-    expect(&mut app, "Back up first");
-    assert!(!has(&mut app, "Enrolment files"));
+    expect_part(&mut app, "Continue the backup");
+    assert!(!has(&mut app, "Hold for enrolment files"));
     let files = app.outbox.len();
     app.press(Action::Vault(V::SbEnrol));
     assert_eq!(app.outbox.len(), files, "nothing signed");

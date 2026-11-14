@@ -7,7 +7,7 @@ use crate::strings::fill;
 use crate::ui::{Moves, Region};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
+    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, GAP, LABEL_L, LABEL_M, TITLE_M,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
@@ -3258,7 +3258,7 @@ fn detail(
             } else {
                 EN.vault_yours_with_microsoft
             };
-            dy += ui.wrap_as((dx, dy, dw), BODY_S, muted, line) + 14.0;
+            dy += ui.wrap_as((dx, dy, dw), BODY_S, Role::Warning, line) + 14.0;
             dy += backup_row(app, ui, crate::backup_flow::Kind::SecureBoot, r, dx, dy, dw);
             if app.selected_waits().is_some() {
                 actions.push((
@@ -3268,10 +3268,21 @@ fn detail(
             } else {
                 // The enrolment files' blinding is drawn (row 9).
                 dy += own_row(app, ui, (dx, dy, dw));
-                actions.push((
-                    app.wait_label(va(V::SbEnrol), EN.vault_enrolment_files),
+                // Neither list holds Microsoft's third-party certificates,
+                // so writing the files is a hold.
+                let label = app.wait_label(va(V::SbEnrol), EN.vault_hold_for_enrolment_files);
+                let bh = ui.hold_button_height(dw, label);
+                hold_button_in(
+                    app,
+                    ui,
+                    dx,
+                    dy,
+                    dw,
+                    label,
                     va(V::SbEnrol),
-                ));
+                    HoldTone::Warning,
+                );
+                dy += bh + GAP;
             }
             actions.push((EN.vault_sign_or_check, va(V::SbImages)));
         }

@@ -9609,11 +9609,11 @@ strings! {
     /// Text in `detail`.
     vault_own_keys_only: "Own keys only",
     /// Text in `detail`.
-    vault_own_keys_only_warning: "Your PK, KEK and db only. Windows will not start, nor any card or controller whose firmware Microsoft signed",
+    vault_own_keys_only_warning: "Your PK, KEK and db only. Windows will not start, nor a computer whose graphics card, disk controller or network card firmware Microsoft signed. Restore Factory Keys in the BIOS undoes it",
     /// Text in `detail`.
-    vault_yours_with_microsoft: "Yours, with Microsoft's KEK CAs and Windows CAs. Not Microsoft's third-party CA: a card or controller whose firmware it signed may not start",
-    /// Text in `detail`.
-    vault_enrolment_files: "Enrolment files",
+    vault_yours_with_microsoft: "Yours, with Microsoft's KEK CAs and Windows CAs, not its third-party CA: a computer whose graphics card, disk controller or network card firmware Microsoft signed under it may not start. Restore Factory Keys in the BIOS undoes it",
+    /// Button in `detail`.
+    vault_hold_for_enrolment_files: "Hold for enrolment files",
     /// Text in `save_panel`.
     vault_save_a_key: "Save a key",
     /// Text in `save_panel`.

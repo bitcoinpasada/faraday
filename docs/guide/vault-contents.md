@@ -69,7 +69,7 @@ The **Paperkey** is the key's secret numbers in text, shown behind its eye. With
 
 A set of Secure Boot keys, its **Owner GUID** and the names of its PK, KEK and db. **Make Secure Boot keys** makes the set.
 
-**Enrolment adds** is **Windows-compatible**, which adds Microsoft's KEK and Windows CAs to the owner's keys, or **Own keys only**, which does not: Windows then does not start, nor any card or controller whose firmware Microsoft signed. **Enrolment files** writes the files to enrol. **Sign or check an image** signs or checks an EFI image.
+**Enrolment adds** is **Windows-compatible**, which adds Microsoft's KEK and Windows CAs to the owner's keys, or **Own keys only**, which does not: Windows does not start, nor a computer whose graphics card, disk controller or network card firmware Microsoft signed. Neither adds Microsoft's third-party CA, so a computer whose card or controller firmware Microsoft signed under it may not start either; the line under the choice says so, and Restore Factory Keys in the BIOS undoes it. **Hold for enrolment files** writes the files to enrol. **Sign or check an image** signs or checks an EFI image.
 
 ## Secure Boot keys made
 
@@ -77,13 +77,13 @@ A set of Secure Boot keys, its **Owner GUID** and the names of its PK, KEK and d
 
 The set is three RSA-2048 keys, PK, KEK and db, each with a self-signed certificate valid for 30 years, named by the **Owner name** typed followed by PK, KEK or db, or "Faraday" when none was typed. The db key signs boot programs; the PK and the KEK sign only the enrolment files. The certificates carry the time they were made, so the time is asked first.
 
-The private keys are one vault record and cannot be made again, so the set is made in the backup flow and kept at two places or more; until every place is written, **Enrolment files** reads **Back up first**.
+The private keys are one vault record and cannot be made again, so the set is made in the backup flow and kept at two places or more; until every place is written, the item offers **Back up first** in place of the enrolment files.
 
 ## Secure Boot enrolment files
 
 **Key:** vault-contents.secure-boot-files
 
-**Enrolment files** writes nine files for the stick: PK.auth, KEK.auth and db.auth, the signed updates; PK.esl, KEK.esl and db.esl, the signature lists; and PK.cer, KEK.cer and db.cer, the certificates. Firmware setup screens take different ones. Faraday writes no setting of the computer.
+**Hold for enrolment files** writes nine files for the stick: PK.auth, KEK.auth and db.auth, the signed updates; PK.esl, KEK.esl and db.esl, the signature lists; and PK.cer, KEK.cer and db.cer, the certificates. Firmware setup screens take different ones. Faraday writes no setting of the computer.
 
 **Windows-compatible** adds four of Microsoft's certificates: two KEK CAs to the KEK list and Windows Production PCA 2011 and Windows UEFI CA 2023 to db. Microsoft's third-party CA is not added.
 
