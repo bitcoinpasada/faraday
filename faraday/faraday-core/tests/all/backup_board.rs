@@ -43,6 +43,7 @@ fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     app.session.keys.last().unwrap().fingerprint.0
 }
 
@@ -2898,6 +2899,7 @@ fn a_fifteen_word_seeds_krux_code_row_is_dimmed() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));

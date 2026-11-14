@@ -404,6 +404,9 @@ pub struct Keys {
     /// The item a QR vault was opened to, while the tool holds it
     /// ([`Keys::qr_hold`]): never one of the keys, wiped at a clear.
     pub(crate) qr_item: Option<crate::qr_vault::HeldItem>,
+    /// Published keys the person chose to keep for testing
+    /// ([`Keys::keep_published`]): public fingerprints.
+    kept_published: Vec<Fingerprint>,
 }
 
 impl Default for Keys {
@@ -426,6 +429,7 @@ impl Keys {
             aezeed: None,
             slip39_set: None,
             qr_item: None,
+            kept_published: Vec::new(),
         }
     }
 
@@ -708,6 +712,35 @@ impl Keys {
         self.demo.as_ref().is_none_or(|d| d.nodes.contains(id))
     }
 
+    /// The first key held whose words are published (`crate::published`)
+    /// that the person has not chosen to keep, on Mainnet with no demo:
+    /// the key a caution waits on, and `None` otherwise. The session still
+    /// takes any key; this only says which one to warn about.
+    pub fn published_pending(&self) -> Option<Fingerprint> {
+        if self.demo() || self.network != Network::Mainnet {
+            return None;
+        }
+        self.entries
+            .iter()
+            .map(|e| e.info.fingerprint)
+            .find(|fp| crate::published::is_published(fp.0) && !self.kept_published.contains(fp))
+    }
+
+    /// Keeps the published key `fp` for testing: it is not warned about
+    /// again this session.
+    pub fn keep_published(&mut self, fp: Fingerprint) {
+        if !self.kept_published.contains(&fp) {
+            self.kept_published.push(fp);
+        }
+    }
+
+    /// Drops the published key `fp`, as the caution's Remove does.
+    pub fn remove_published(&mut self, fp: Fingerprint) {
+        if let Some(i) = self.position(fp) {
+            self.remove(i);
+        }
+    }
+
     // ---- adding and forgetting ----
 
     /// Sets the demo up (F81). A lookup: the fingerprints are
@@ -963,6 +996,7 @@ impl Keys {
         self.aezeed = None;
         self.slip39_set = None;
         self.qr_item = None;
+        self.kept_published.clear();
     }
 
     /// Sets key `i`'s label.

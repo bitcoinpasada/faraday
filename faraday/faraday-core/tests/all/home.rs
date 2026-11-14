@@ -175,6 +175,7 @@ fn without_passphrase(app: &mut Faraday) {
         "the seed asks how it loads"
     );
     app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    faraday_core::testkit::keep_published(app);
     let _ = app.frame();
 }
 
@@ -242,6 +243,7 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
         Some(Some(faraday_core::keygen::kstep::KEY))
     );
     tap(&mut from_add, Action::KLock);
+    faraday_core::testkit::keep_published(&mut from_add);
 
     let mut app = shown();
     tap(&mut app, Action::Scan);
@@ -726,6 +728,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     }
     assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
     app.press(Action::Nav(Screen::Home));

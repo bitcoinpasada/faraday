@@ -361,6 +361,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let w = app
         .inbox()
         .iter()

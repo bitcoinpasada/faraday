@@ -25,6 +25,7 @@ fn words_in(app: &mut Faraday, words: &str) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 fn multi_index() -> u8 {

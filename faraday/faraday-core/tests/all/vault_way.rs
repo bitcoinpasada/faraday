@@ -88,6 +88,7 @@ fn add_key(app: &mut Faraday, n: usize) {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 /// On Create a vault: the default size, one passphrase, Create. Lands on

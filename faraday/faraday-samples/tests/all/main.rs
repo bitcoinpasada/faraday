@@ -17,6 +17,7 @@ mod ots_sample;
 mod passphrase;
 mod pi_panel;
 mod psbt;
+mod published;
 mod pull;
 mod qr_vault_sample;
 mod signer_check;

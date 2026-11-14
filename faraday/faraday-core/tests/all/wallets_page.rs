@@ -32,6 +32,7 @@ fn with_single_key_wallet() -> Faraday {
     let c = faraday_core::testkit::compute();
     let mut app = shown();
     app.session.keys.add_words(&c, WORDS, "Seed", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();

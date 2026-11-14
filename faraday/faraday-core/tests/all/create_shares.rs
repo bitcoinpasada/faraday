@@ -310,6 +310,7 @@ fn the_set_made_makes_the_wallet(kind: NewKind, script: faraday_bip::keys::Scrip
     }
     let _ = app.frame();
     app.press(Action::Codex32(C32::Lock));
+    faraday_core::testkit::keep_published(&mut app);
     let c = app.create().expect("create");
     let i = c.built.expect("Lock in made the wallet");
     let fp = app.session.keys[0].fingerprint.0;

@@ -254,6 +254,9 @@ pub struct SpendBackupState {
     pub from: Option<Screen>,
     /// What came in on What do you have?, newest last.
     pub came: Vec<Came>,
+    /// Each key made with a passphrase here, with the plain seed it
+    /// replaced on What do you have?.
+    pub plain_of: Vec<([u8; 4], [u8; 4])>,
     /// That's everything was pressed on one seed.
     pub everything: bool,
     /// I can't find one was pressed: no description to be had.
@@ -974,6 +977,40 @@ impl Faraday {
         }
     }
 
+    /// A key removed from the session: the seed is no longer one this
+    /// flow holds or came with.
+    /// The plain seed a passphrase key replaced, still held, takes its
+    /// place again.
+    pub(crate) fn spend_backup_key_gone(&mut self, fp: Fingerprint) {
+        let plain = self
+            .spend_backup
+            .state
+            .plain_of
+            .iter()
+            .find(|(k, _)| *k == fp.0)
+            .map(|(_, p)| *p)
+            .filter(|p| self.session.keys.key_label(Fingerprint(*p)).is_some());
+        self.spend_backup.state.plain_of.retain(|(k, _)| *k != fp.0);
+        if let Some(p) = plain {
+            for k in self.spend_backup.state.seeds.keys.iter_mut() {
+                if *k == fp.0 {
+                    *k = p;
+                }
+            }
+            for c in self.spend_backup.state.came.iter_mut() {
+                if *c == Came::Seed(fp.0) {
+                    *c = Came::Seed(p);
+                }
+            }
+        }
+        self.spend_backup.state.seeds.drop_key(fp.0);
+        self.spend_backup
+            .state
+            .came
+            .retain(|c| *c != Came::Seed(fp.0));
+        self.spend_backup_settle();
+    }
+
     /// The wallet chosen, when it came from a description (a file, the
     /// split sheets, a vault) rather than from seeds alone.
     pub(crate) fn spend_backup_described(&self) -> Option<usize> {
@@ -1430,6 +1467,7 @@ impl Faraday {
                 return None;
             }
         };
+        self.spend_backup.state.plain_of.push((fp.0, plain.0));
         for k in self.spend_backup.state.seeds.keys.iter_mut() {
             if *k == plain.0 {
                 *k = fp.0;

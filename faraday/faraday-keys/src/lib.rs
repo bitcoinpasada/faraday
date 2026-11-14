@@ -46,6 +46,7 @@ pub mod message;
 pub mod operations;
 pub mod parts;
 pub mod psbt;
+pub mod published;
 pub mod qr_vault;
 pub mod secure_boot;
 pub mod seed_check;

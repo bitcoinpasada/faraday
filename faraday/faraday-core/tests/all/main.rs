@@ -145,6 +145,7 @@ mod pictures;
 mod proprietary_records;
 mod psbt_v2;
 mod public_files_worker;
+mod published_words;
 mod qr_save_item;
 mod qr_tool;
 mod qr_vault_entry;

@@ -65,6 +65,7 @@ fn key_in(app: &mut Faraday) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     app.press(Action::Nav(Screen::Home));
     assert!(app.holds_secret(), "the key did not load");
 }

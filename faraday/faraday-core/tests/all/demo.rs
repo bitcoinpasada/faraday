@@ -81,6 +81,7 @@ fn add_public(app: &mut Faraday, word: &str) -> [u8; 4] {
     app.press(Action::Entry(None));
     crate::common::type_text(app, &faraday_core::testkit::test_words(word));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     public_fp(word)
 }
 

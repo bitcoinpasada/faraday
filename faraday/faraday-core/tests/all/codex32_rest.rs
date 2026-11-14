@@ -320,6 +320,7 @@ fn a_corrected_keys_line_is_on_wallets() {
     app.event(Event::Key(Key::Char(char::from(SHARE_A.as_bytes()[19]))));
     add(&mut app, SHARE_C);
     app.event(Event::Key(Key::Enter));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.key_marks.of(NAME_FP), Some(Mark::Corrected));
     app.press(Action::Nav(Screen::Wallets));

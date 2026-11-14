@@ -219,6 +219,10 @@ pub enum Action {
     KeyPathHold,
     /// The key path sheet's Cancel: the waiting wallet is not added.
     KeyPathCancel,
+    /// The published-words sheet's **Remove**: the key is dropped.
+    PublishedRemove,
+    /// The published-words sheet's **Keep for testing**: the key stays.
+    PublishedKeep,
     /// The account dialog's choice for a Coldcard export of two accounts,
     /// or its Cancel (`None`): the waiting export is not added.
     LoadAccount(Option<crate::wallet::Account>),

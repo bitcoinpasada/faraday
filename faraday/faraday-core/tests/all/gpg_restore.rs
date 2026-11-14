@@ -455,6 +455,7 @@ fn with_test_vault() -> Faraday {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.vaults().open.len(), 1);
     app
 }

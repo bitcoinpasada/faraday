@@ -74,8 +74,8 @@ pub(crate) use settings::open_head as settings_open;
 pub(crate) use settings::part_guide_key as settings_guide_key;
 use sheets::{
     devices_sheet, guide_sheet, idle_warn_sheet, key_path_sheet, lock_ask_sheet, lock_sheet,
-    locked_sheet, new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
-    secret_out_sheet, write_out_sheet,
+    locked_sheet, new_input_sheet, potential_sheet, power_sheet, published_sheet, pull_sheet,
+    qr_sheet, scan_sheet, secret_out_sheet, write_out_sheet,
 };
 use sidebar::sidebar;
 pub(crate) use sidebar::{lock_held_pill, name_suffix};
@@ -418,6 +418,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             Sheet::KeyPath => Some(Action::KeyPathCancel),
+            // A caution to answer: only its two actions close it.
+            Sheet::Published => None,
             Sheet::Account => Some(Action::LoadAccount(None)),
             Sheet::Register => Some(Action::RegisterCancel),
             _ => Some(Action::Cancel),
@@ -458,6 +460,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::KeyPath => key_path_sheet(app, ui, w, h),
             Sheet::OutboxDelete => crate::visit_taken::outbox_delete_sheet(app, ui, w, h),
+            Sheet::Published => published_sheet(app, ui, w, h),
             Sheet::Account => crate::silent::screen::account_dialog(app, ui, w, h),
             Sheet::Register => crate::register::sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),

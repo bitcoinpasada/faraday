@@ -205,6 +205,7 @@ fn a_turn_keeps_the_session_and_settings() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert!(app.holds_secret(), "the key loaded");
     app.press(Action::Nav(Screen::Settings));
     for o in [Orientation::Portrait, Orientation::Landscape] {

@@ -802,6 +802,7 @@ fn a_kvm_arriving_takes_back_ups_words_off_the_screen_until_checked_again() {
     app.press(Action::Entry(None));
     crate::common::type_text(&mut app, &words);
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));

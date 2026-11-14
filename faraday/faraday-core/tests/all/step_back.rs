@@ -179,6 +179,7 @@ fn restore_once_the_wallet_is_made_back_leaves_from_check() {
     app.press(Action::RSlotWords);
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Seeds(S::Make));
     assert_eq!(restore_open(&app), Some(CHECK), "the wallet is made");
     back(&mut app);

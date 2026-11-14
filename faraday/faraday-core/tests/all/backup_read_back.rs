@@ -43,6 +43,7 @@ fn key_in(app: &mut Faraday, n: usize, pass: &str) -> [u8; 4] {
         type_text(app, pass);
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     app.session.keys.last().unwrap().fingerprint.0
 }
 

@@ -1442,6 +1442,7 @@ fn made_unclean(app: &mut Faraday) {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     assert!(!app.clean());
     app.storage(StorageEvent::Sticks(vec![stick]));
     if app.sheet.is_some() {
@@ -1580,6 +1581,7 @@ fn with_something_held_files_says_lock_to_use_the_stick_and_has_no_pane() {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert!(app.holds_secret(), "the key did not load");
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),

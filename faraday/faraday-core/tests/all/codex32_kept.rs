@@ -47,6 +47,7 @@ pub(crate) fn key_from_strings(app: &mut Faraday) {
         app.event(Event::Key(Key::Enter));
     }
     app.event(Event::Key(Key::Enter));
+    faraday_core::testkit::keep_published(app);
     let k = app
         .session
         .keys

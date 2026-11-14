@@ -78,6 +78,10 @@ fn add_key(app: &mut Faraday, n: usize) -> faraday_bip::keys::Fingerprint {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
     app.press(Action::EntryAdd);
+    // The test seeds are published: the caution is answered, the key kept.
+    if app.sheet == Some(faraday_core::Sheet::Published) {
+        app.press(Action::PublishedKeep);
+    }
     app.session
         .keys
         .last()

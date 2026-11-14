@@ -164,6 +164,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys

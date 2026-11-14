@@ -40,6 +40,7 @@ fn add_parent(app: &mut Faraday) -> String {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     faraday_core::wallet::fp_text(app.session.keys[0].fingerprint).to_string()
 }
 

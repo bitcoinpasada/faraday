@@ -1749,6 +1749,23 @@ pub fn started() -> crate::Faraday {
     app
 }
 
+/// Answers the caution a published test seed brings up on Mainnet as a
+/// person testing does, with **Keep for testing**: pressed while its
+/// sheet is open, and for a key added to the session with no press yet,
+/// kept the way the sheet keeps it. The caution itself has no way past it.
+pub fn keep_published(app: &mut crate::Faraday) {
+    while let Some(fp) = app.session.keys.published_pending() {
+        if app.sheet == Some(crate::Sheet::Published) {
+            app.press(crate::Action::PublishedKeep);
+        } else {
+            app.session.keys.keep_published(fp);
+        }
+    }
+    if app.sheet == Some(crate::Sheet::Published) {
+        app.press(crate::Action::PublishedKeep);
+    }
+}
+
 /// Typing pauses: one tick of the clock past the pause after which the
 /// key a passphrase or words typed make is worked out and shown
 /// ([`crate::motion::TYPED_PAUSE_MS`]).

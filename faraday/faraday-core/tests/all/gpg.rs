@@ -148,6 +148,7 @@ pub(crate) fn unlocked() -> Faraday {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(
         app.vaults().open.len(),
         1,
@@ -1022,6 +1023,7 @@ fn with_one_file_it_starts_ticked() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     keep_the_time(&mut app);
@@ -1502,6 +1504,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(
         app.vaults().open.len(),
         1,
@@ -1592,6 +1595,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         app.vaults().unlock_error
     );
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     keep_the_time(&mut app);

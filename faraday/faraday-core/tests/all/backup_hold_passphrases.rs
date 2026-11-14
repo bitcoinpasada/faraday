@@ -159,6 +159,7 @@ fn a_passphrase_typed_again_on_words_saved_without_it_stays_held_after_a_reload(
     type_text(&mut app, &words);
     crate::common::bip39_passphrase(&mut app, "x");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let with = app
         .session
         .keys
@@ -348,6 +349,7 @@ fn another_passphrase_typed_on_words_waiting_in_a_vault_with_one_is_held_until_i
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     crate::common::bip39_passphrase(&mut app, "two");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let two = app.session.keys.last().unwrap().fingerprint;
     assert_ne!(one, two);
     assert!(
@@ -449,6 +451,7 @@ fn another_passphrase_made_on_words_kept_in_a_vault_with_one_is_held_after_a_res
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     crate::common::bip39_passphrase(&mut app, "two");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let again = app.session.keys.last().unwrap().fingerprint;
     assert_eq!(again, two);
     assert!(app.key_held(&c, two), "its passphrase is written nowhere");
@@ -498,6 +501,7 @@ fn a_vault_marked_in_an_earlier_session_keeps_its_hold_when_another_passphrase_i
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     crate::common::bip39_passphrase(&mut app, "one");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.last().unwrap().fingerprint, one);
     assert!(app.key_held(&c, one));
 }
@@ -565,6 +569,7 @@ fn an_older_copy_marked_in_an_earlier_session_keeps_its_hold_when_the_newer_copy
     }
     if app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
         app.press(Action::Vault(V::LoadTicked));
+        faraday_core::testkit::keep_published(&mut app);
     }
     assert_eq!(app.vaults().open.len(), 1);
     assert!(
@@ -576,6 +581,7 @@ fn an_older_copy_marked_in_an_earlier_session_keeps_its_hold_when_the_newer_copy
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     crate::common::bip39_passphrase(&mut app, "z");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.last().unwrap().fingerprint, z);
     assert!(app.key_held(&c, z));
 }

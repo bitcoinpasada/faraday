@@ -142,6 +142,7 @@ fn convert_takes_no_copy_of_a_secret_while_a_stick_is_attached() {
     let mut app = started();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     tile(&mut app, "Convert a seed");
     let row = ROWS
         .iter()
@@ -168,6 +169,7 @@ fn convert_closes_and_wipes_a_copy_typed_before_a_stick_came() {
     let mut app = started();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     tile(&mut app, "Convert a seed");
     let row = ROWS
         .iter()

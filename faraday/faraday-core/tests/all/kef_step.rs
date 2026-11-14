@@ -30,6 +30,7 @@ fn at_the_checklist_on(sticks: usize) -> Faraday {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));

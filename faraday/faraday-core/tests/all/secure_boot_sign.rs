@@ -112,6 +112,7 @@ fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(
         app.vaults().open.len(),
         1,

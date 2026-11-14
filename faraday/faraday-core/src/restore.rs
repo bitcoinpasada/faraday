@@ -998,6 +998,14 @@ impl Faraday {
         r.error = None;
     }
 
+    /// A key removed from the session: the seed is no longer one Restore
+    /// holds.
+    pub(crate) fn restore_key_gone(&mut self, fp: faraday_bip::keys::Fingerprint) {
+        if let Some(s) = self.restore.state.as_mut().and_then(|r| r.seeds.as_mut()) {
+            s.drop_key(fp.0);
+        }
+    }
+
     /// A description or a share read by the camera while Restore waits
     /// for one: the wallet loads, or the share is taken. Returns whether
     /// it was.

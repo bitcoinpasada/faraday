@@ -428,6 +428,7 @@ fn key_in(app: &mut Faraday, n: usize) {
     app.press(Action::Entry(None));
     type_in(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 fn type_in(app: &mut Faraday, text: &str) {
@@ -595,6 +596,7 @@ fn the_row_goes_when_the_flow_is_finished() {
     app.press(Action::RSlotWords);
     type_in(&mut app, &testkit::test_words("bacon"));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.screen, Screen::Restore);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     app.press(Action::RNext(rstep::CHECK));
@@ -916,6 +918,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     }
     assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
+    faraday_core::testkit::keep_published(&mut app);
     // The randomness and the clock a shell gives.
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(

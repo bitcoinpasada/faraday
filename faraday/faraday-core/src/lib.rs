@@ -586,6 +586,8 @@ pub enum Sheet {
     NavMenu(Option<nav::Overflow>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
+    /// **Published words**: a key on Mainnet whose words are published, **Remove** or **Keep for testing**.
+    Published,
     /// **Restore a GPG key**: the public keys in Files.
     GpgRestore,
 }
@@ -2285,6 +2287,7 @@ impl Faraday {
         self.read_carried_tidy();
         self.seed_carried_tidy();
         self.key_path_after(asked, action);
+        self.published_sheet_open();
         self.account_after(account_asked, action);
         self.osk_after(action);
     }
@@ -2760,6 +2763,7 @@ impl Faraday {
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
+            a @ (Action::PublishedRemove | Action::PublishedKeep) => self.published_act(a),
             Action::LoadAccount(a) => self.account_act(a),
             a @ (Action::RegisterOpen
             | Action::RegisterField
@@ -4813,6 +4817,7 @@ impl App for Faraday {
                     | self.look_tick(now_ms)
                     | self.chart_side_tick(now_ms)
                     | self.key_path_sheet_open()
+                    | self.published_sheet_open()
                     | self.boot_notice_tick(now_ms)
                 {
                     self.out.redraw();

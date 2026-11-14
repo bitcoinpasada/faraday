@@ -195,12 +195,14 @@ fn words_kept_without_a_passphrase_by_a_flow_hold_only_the_passphrase_still_writ
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     bip39_passphrase(&mut app, "kept");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.last().unwrap().fingerprint, kept);
     assert!(!app.key_held(&c, kept), "the flow wrote its copy");
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     bip39_passphrase(&mut app, "two");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.last().unwrap().fingerprint, two);
     assert!(app.key_held(&c, two), "its passphrase is written nowhere");
     app.press(Action::CreateWallet);

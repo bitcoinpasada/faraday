@@ -62,6 +62,7 @@ fn type_seed_with(app: &mut Faraday, words: &str, pass: &str) {
     app.press(Action::EntryPassphrase);
     type_text(app, pass);
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     assert_eq!(app.screen, Screen::Restore, "Add a key did not return");
 }
 
@@ -102,6 +103,7 @@ fn type_seed(app: &mut Faraday, words: &str) {
     assert_eq!(app.screen, Screen::Entry);
     type_text(app, words);
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     assert_eq!(app.screen, Screen::Restore, "Add a key did not return");
 }
 
@@ -243,6 +245,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words("summer"));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let summer = app.session.keys[0].fingerprint;
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(MULTI));

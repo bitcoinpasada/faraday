@@ -155,6 +155,7 @@ fn a_wide_flow_in_progress_has_cancel_on_its_top_app_bar() {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     tick(&mut app);

@@ -174,6 +174,16 @@ impl SeedsState {
         self.set_n(self.n);
     }
 
+    /// Lets a seed go, as when its key is removed: the slot it held is
+    /// open again.
+    pub fn drop_key(&mut self, fp: [u8; 4]) {
+        let before = self.keys.len();
+        self.keys.retain(|k| *k != fp);
+        if self.keys.len() != before {
+            self.fit();
+        }
+    }
+
     /// The first slot with neither a seed nor anything typed for a
     /// cosigner, by its place among the cosigners' boxes.
     pub(crate) fn first_empty(&self) -> Option<usize> {

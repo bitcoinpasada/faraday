@@ -1590,6 +1590,10 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(i) = app.spend_backup_wallet() else {
         return 0.0;
     };
+    // Nothing of a wallet whose key waits on the published-words caution.
+    if app.session.awaits_caution(&app.session.wallets[i]) {
+        return 0.0;
+    }
     let guess = app.spend_backup_guess();
     if let Some(g) = guess {
         // The ways tried, struck.

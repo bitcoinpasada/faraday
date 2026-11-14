@@ -598,6 +598,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     }
     bip39_passphrase(&mut app, "kept apart");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -1218,6 +1219,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     }
     bip39_passphrase(&mut app, "hidden");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let k = app.session.keys.len() - 1;
     let text = NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(k))
@@ -1678,6 +1680,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     }
     bip39_passphrase(&mut app, "kept here");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -1944,6 +1947,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     }
     bip39_passphrase(&mut app, "kept here");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -2174,6 +2178,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     type_text(&mut app, &testkit::test_words("summer"));
     bip39_passphrase(&mut app, "TREZOR");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp.0));

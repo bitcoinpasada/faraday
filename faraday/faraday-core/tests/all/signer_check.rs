@@ -312,6 +312,7 @@ fn loading_the_key_after_a_check_turns_the_result_to_a_finding_and_dropping_it_t
 
     let c = faraday_core::testkit::compute();
     app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     touch(&mut app);
     let found = holding(&mut app, "could not be reproduced");
     assert_eq!(found.len(), 1, "{:?}", texts(&mut app));
@@ -333,6 +334,7 @@ fn the_nonce_fact_says_none_for_a_key_not_loaded_and_how_many_for_one_that_is() 
     assert!(none[0].starts_with("None: "), "{none:?}");
     let c = faraday_core::testkit::compute();
     app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     touch(&mut app);
     assert!(holding(&mut app, "not loaded").is_empty());
     // The signature is told from a recomputed nonce: none of one.
@@ -362,6 +364,7 @@ fn finish_key(app: &mut Faraday) {
         app.press(Action::KQuiz(slot));
     }
     app.press(Action::KAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 #[test]
@@ -394,6 +397,7 @@ fn a_key_loaded_by_an_input_that_is_no_press_makes_the_kept_report_again() {
     assert!(shows(&mut app, EN.signer_only_signatures));
     let c = faraday_core::testkit::compute();
     app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     // A code read where no scanner is open: no press, and no change of
     // screen, but the report follows the keys.
     read(&mut app, b"x");

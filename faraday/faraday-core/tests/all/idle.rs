@@ -215,6 +215,7 @@ fn creating() -> Faraday {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app

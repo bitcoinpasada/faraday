@@ -575,6 +575,7 @@ fn a_codex32_key_saved_by_bitcoin_key_reads_back_from_the_vault_as_itself() {
     if app.session.keys.is_empty() {
         app.event(Event::Key(Key::Enter));
     }
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(
         app.session.keys.len(),
         1,

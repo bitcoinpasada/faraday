@@ -1331,6 +1331,17 @@ impl CreateArea {
         self.state = Some(state);
     }
 
+    /// A key removed from the session: the slots it filled are empty again.
+    pub(crate) fn drop_key(&mut self, fp: [u8; 4]) {
+        if let Some(c) = self.state.as_mut() {
+            for s in &mut c.slots {
+                if *s == Source::Here(fp) {
+                    *s = Source::Empty;
+                }
+            }
+        }
+    }
+
     /// Forgets the flow.
     pub(crate) fn clear(&mut self) {
         self.state = None;

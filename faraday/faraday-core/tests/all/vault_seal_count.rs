@@ -163,6 +163,7 @@ fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Vault(V::SaveKey(0)));
     crate::common::top_up(&mut app);
     app.press(Action::Lock);
@@ -197,6 +198,7 @@ fn a_lock_with_too_few_answers_seals_nothing() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Vault(V::SaveKey(0)));
     app.press(Action::Lock);
     testkit::settle(&mut app);
@@ -220,6 +222,7 @@ fn older_unlocked() -> Faraday {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Vault(V::SaveKey(0)));
     crate::common::top_up(&mut app);
     app.press(Action::Lock);
@@ -241,6 +244,7 @@ fn a_seal_from_an_older_copy_goes_beside_the_newer_copy_waiting() {
         app.press(Action::Entry(None));
         type_text(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(app);
         app.press(Action::Vault(V::SaveKey(0)));
         crate::common::top_up(app);
     };
@@ -309,6 +313,7 @@ fn a_seal_from_an_older_copy_never_replaces_the_newer_copy_on_a_stick() {
         app.press(Action::Entry(None));
         type_text(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(app);
         app.press(Action::Vault(V::SaveKey(0)));
         crate::common::top_up(app);
     };

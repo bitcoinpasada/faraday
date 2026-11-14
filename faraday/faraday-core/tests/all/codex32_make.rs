@@ -1324,6 +1324,7 @@ fn an_identifier_the_set_of_a_loaded_key_carries_is_refused_naming_the_key() {
     }
     let _ = app.frame();
     c32(&mut app, C32::Lock);
+    faraday_core::testkit::keep_published(&mut app);
     c32(&mut app, C32::Next);
     assert_eq!(app.session.keys.len(), 1);
     let line = format!("Used by the set of key {}", app.session.keys[0].fingerprint);

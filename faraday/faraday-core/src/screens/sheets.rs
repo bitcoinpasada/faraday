@@ -2553,3 +2553,30 @@ pub(super) fn key_path_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         )],
     );
 }
+
+/// **Published words**: a key held on Mainnet whose words are published,
+/// so anyone can spend from a wallet made of it. A Material basic dialog
+/// (Dialogs): the line over **Keep for testing** and **Remove**, the primary
+/// action, last. Reads the keys.
+pub(super) fn published_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(fp) = app.session.keys.published_pending() else {
+        return;
+    };
+    let key = fp_text(fp);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        (Icon::Error.into(), Role::Error.paint(), EN.published_head),
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy +=
+                ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, EN.published_line) + T::GAP_SMALL;
+            cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurfaceVariant, &key) + T::GAP;
+            cy - y
+        },
+        &[
+            (EN.published_keep, Style::Secondary, Action::PublishedKeep),
+            (EN.published_remove, Style::Primary, Action::PublishedRemove),
+        ],
+    );
+}

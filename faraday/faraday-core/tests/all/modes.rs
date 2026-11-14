@@ -31,6 +31,7 @@ fn choosing_a_mode_with_keys_and_wallets_loaded_leaves_a_fresh_session_in_it() {
     let c = testkit::compute();
     let mut app = testkit::started();
     app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let kit = testkit::kits().into_iter().next().unwrap();
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.session
@@ -125,6 +126,7 @@ fn with_unsealed_change() -> Faraday {
     app.press(Action::Entry(None));
     crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let k = app.session.keys.len() - 1;
     app.press(Action::Vault(V::SaveKey(k)));
     assert!(
@@ -161,6 +163,7 @@ fn demo_addresses_are_testnet_addresses_a_testnet_wallet_sits_beside() {
     app.press(Action::Entry(None));
     crate::common::type_text(&mut app, &faraday_core::testkit::test_words("bacon"));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app.session.keys.first().unwrap().fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
@@ -229,6 +232,7 @@ fn a_testnet_wallet_moves_an_empty_stick_session_to_testnet_and_a_loaded_key_sto
     let mut keyed = testkit::started();
     testkit::move_to(&mut keyed.session, Network::Mainnet).unwrap();
     keyed.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut keyed);
     let refused = keyed.session.add_wallet(
         &c,
         "t",

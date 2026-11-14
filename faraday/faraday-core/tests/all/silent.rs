@@ -33,6 +33,7 @@ fn add_key(app: &mut Faraday) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 /// Everything the current frame draws, one line after another.

@@ -133,6 +133,7 @@ fn saving_a_wallet_into_a_vault_that_cannot_be_written_says_so() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();

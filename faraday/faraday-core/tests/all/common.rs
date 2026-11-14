@@ -281,6 +281,7 @@ impl Shell {
             app.storage(StorageEvent::Sticks(self.infos()));
         }
         self.pump(&mut app);
+        faraday_core::testkit::keep_published(&mut app);
         app
     }
 
@@ -1010,6 +1011,7 @@ pub fn unlock(app: &mut Faraday, phrase: &str) {
     if app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
         app.press(Action::Vault(V::LoadTicked));
     }
+    faraday_core::testkit::keep_published(app);
 }
 
 /// Open {vault} on the flow's Vaults step, then its passphrase: the step
@@ -1672,6 +1674,7 @@ pub fn add_key(app: &mut Faraday, seed: &str) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
 }
 
 /// The GPG key a type-7 record holds, read as the vault format writes it:

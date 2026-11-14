@@ -65,6 +65,7 @@ pub(crate) fn open_and_change(app: &mut Faraday) -> usize {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     let k = app.session.keys.len() - 1;
     app.press(Action::Vault(V::SaveKey(k)));
     assert!(
@@ -847,6 +848,7 @@ fn a_lock_with_a_vault_open_lists_kept_wiped_and_then() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::LockAsk);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     let texts = app.drawn_texts();
@@ -871,6 +873,7 @@ fn a_lock_with_no_vault_open_is_cancelled_not_back_to_a_vault() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
     app.press(Action::LockAsk);
@@ -893,6 +896,7 @@ fn the_lock_sheet_saves_a_key_in_no_vault_into_the_open_vault() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::LockAsk);
     let k = app.session.keys.all().count() - 1;
     let save = Action::Vault(V::SaveKey(k));

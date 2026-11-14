@@ -266,6 +266,7 @@ fn a_bad_dns_domain_s_error_line_stands_above_the_keyboard_with_its_field() {
             app.event(Event::Key(faraday_shell_api::Key::Char(c)));
         }
         press(&mut app, Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
         press(&mut app, Action::Silent);
         press(&mut app, Action::TypeHere(Here::SilentDomain));
         for c in "example.com x".chars() {

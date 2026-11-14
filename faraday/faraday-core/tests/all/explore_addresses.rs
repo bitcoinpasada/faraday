@@ -28,6 +28,7 @@ fn on_page(network: Option<Network>, preset: u8, page: Page) -> Faraday {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Explore);
     assert_eq!(app.screen, Screen::Explore);
     app.press(Action::XPreset(preset));

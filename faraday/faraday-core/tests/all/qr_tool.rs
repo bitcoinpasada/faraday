@@ -163,6 +163,7 @@ fn a_loaded_key_is_sealed_and_opens_back_as_a_seed() {
         .keys
         .add_words(&c, WORDS12, "Twelve", None)
         .unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::QrTool(Q::Key(0)));
     passphrase(&mut app, "a phrase", "");
@@ -667,6 +668,7 @@ fn add_twelve(app: &mut Faraday) {
         .keys
         .add_words(&c, WORDS12, "Twelve", None)
         .unwrap();
+    faraday_core::testkit::keep_published(app);
 }
 
 #[test]
@@ -679,6 +681,7 @@ fn an_opened_passphrase_is_added_to_the_key_its_words_make() {
     assert!(has(&mut app, &add));
     app.press(Action::QrTool(Q::AddToKey));
     testkit::settle(&mut app);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.session.keys.len(), 2);
     assert!(has_part(&mut app, TREZOR_KEY));
     assert!(has(&mut app, &format!("Key {TREZOR_KEY} · already here")));
@@ -694,6 +697,7 @@ fn an_opened_passphrase_whose_key_is_loaded_says_so() {
         .keys
         .add_with_passphrase(&c, 0, "TREZOR", "Twelve with")
         .unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open_from_files(&mut app, PASS);
     unseal(&mut app, VECTOR_PASS);
     assert!(has(&mut app, &format!("Key {TREZOR_KEY} · already here")));

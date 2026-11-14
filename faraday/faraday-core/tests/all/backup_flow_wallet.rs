@@ -187,6 +187,7 @@ pub(crate) fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     app.session.keys.last().unwrap().fingerprint.0
 }
 
@@ -1181,6 +1182,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     app.press(Action::RSlotWords);
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(app.screen, Screen::Restore);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     let w = app.restore().unwrap().wallet.expect("wallet made");
@@ -1886,6 +1888,7 @@ fn lone_passphrase_round(
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     bip39_passphrase(&mut app, "kept apart");
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Backup(w));
     let press = Press::Loaded(w);
     app.press(Action::Chart(C::Edit(
@@ -2064,6 +2067,7 @@ pub(crate) fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Fa
             bip39_passphrase(&mut app, "kept apart");
         }
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
         fps.push(app.session.keys.last().unwrap().fingerprint.0);
     }
     app.press(Action::Nav(Screen::Create));
@@ -2403,6 +2407,7 @@ pub(crate) fn load_first_vault(app: &mut Faraday, phrase: &str) {
     app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
         0,
     )));
+    faraday_core::testkit::keep_published(app);
 }
 
 #[test]
@@ -3197,6 +3202,7 @@ fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
     app.press(Action::RSlotWords);
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     let w = app.restore().unwrap().wallet.expect("wallet made");
     app.press(Action::Backup(w));

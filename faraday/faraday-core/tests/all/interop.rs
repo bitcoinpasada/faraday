@@ -228,6 +228,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(faraday_core::Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     let multi = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)

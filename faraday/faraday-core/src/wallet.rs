@@ -998,6 +998,30 @@ impl Session {
         self.key_xpubs.borrow_mut().clear();
     }
 
+    /// Takes out the wallets made from typed words or seeds that hold the
+    /// key under `fp`. Whether any was taken out. A lookup over the wallets.
+    pub(crate) fn drop_typed_with(&mut self, fp: Fingerprint) -> bool {
+        let before = self.wallets.len();
+        let mut keep = Vec::new();
+        for w in std::mem::take(&mut self.wallets) {
+            let typed = matches!(w.origin, Origin::TypedWords | Origin::TypedSeeds);
+            if !(typed && self.slots(&w).iter().any(|s| s.fingerprint == Some(fp))) {
+                keep.push(w);
+            }
+        }
+        self.wallets = keep;
+        self.wallets.len() != before
+    }
+
+    /// Whether wallet `w` holds the key the published-words caution
+    /// waits on: its addresses are not drawn before the person answers.
+    /// A lookup over the wallet's slots.
+    pub(crate) fn awaits_caution(&self, w: &Wallet) -> bool {
+        self.keys
+            .published_pending()
+            .is_some_and(|fp| self.slots(w).iter().any(|s| s.fingerprint == Some(fp)))
+    }
+
     /// The keys loaded that no wallet loaded uses, in the order they
     /// were added.
     pub(crate) fn loose_keys(&self) -> Vec<Fingerprint> {
@@ -3426,6 +3450,42 @@ impl Faraday {
             item.bytes.len().hash(&mut h);
         }
         h.finish()
+    }
+
+    /// Opens **Published words** when a key held on Mainnet has published
+    /// words and no sheet is open. Whether it opened. A lookup over the keys.
+    pub(crate) fn published_sheet_open(&mut self) -> bool {
+        if self.sheet.is_none() && self.session.keys.published_pending().is_some() {
+            self.sheet = Some(Sheet::Published);
+            return true;
+        }
+        false
+    }
+
+    /// The published-words sheet's actions: **Remove** drops the key and
+    /// what a spend was reading, **Keep for testing** stops the caution.
+    pub(crate) fn published_act(&mut self, action: Action) {
+        if let Some(fp) = self.session.keys.published_pending() {
+            match action {
+                Action::PublishedRemove => {
+                    self.session.keys.remove_published(fp);
+                    self.wallets.clear_spend();
+                    if self.session.drop_typed_with(fp) {
+                        // Wallets after the one taken out moved up.
+                        let last = self.session.wallets.len().saturating_sub(1);
+                        self.wallets.set_wallet(self.wallets.wallet().min(last));
+                    }
+                    self.restore_key_gone(fp);
+                    self.spend_backup_key_gone(fp);
+                    self.create.drop_key(fp.0);
+                    // "Key … added" said of the key just removed.
+                    self.out.toast = None;
+                }
+                _ => self.session.keys.keep_published(fp),
+            }
+        }
+        self.sheet = None;
+        self.refresh_spend();
     }
 
     /// Opens the key path sheet over what is on screen while a wallet

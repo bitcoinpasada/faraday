@@ -58,6 +58,7 @@ fn a_loaded_key_gives_ldk_nodes_node_id() {
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     );
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Lightning);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
@@ -276,6 +277,7 @@ fn a_loaded_key_gives_core_lightnings_node_beside_ldk_nodes() {
     app.press(Action::Entry(None));
     typed(&mut app, ABANDON);
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Lightning);
     let fp = app.session.keys[0].fingerprint.0;
     let _ = app.frame();
@@ -339,6 +341,7 @@ fn the_aezeed_and_a_loaded_key_leave_a_chosen_file() {
         app.press(Action::Entry(None));
         typed(&mut app, ABANDON);
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
         faraday_core::testkit::inbox_file(&mut app, "hsm_secret", unhex(ONES_SEALED));
         app.press(Action::Lightning);
         app.press(Action::LCln(None));
@@ -410,6 +413,7 @@ fn a_nodes_code_names_core_lightning_for_its_sources_and_lnd_only_for_the_aezeed
     app.press(Action::Entry(None));
     typed(&mut app, ABANDON);
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Lightning);
     let fp = app.session.keys[0].fingerprint.0;
     let _ = app.frame();

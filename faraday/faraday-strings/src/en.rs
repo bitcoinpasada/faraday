@@ -10737,6 +10737,14 @@ strings! {
     wallet_key_path_cancel: "Cancel",
     /// Toast once the wallet is added from the key path sheet. `{}`: its name.
     wallet_key_path_added: "{} added",
+    /// The published-words sheet's title: a key whose words are published, on Mainnet.
+    published_head: "Published words",
+    /// The published-words sheet's line.
+    published_line: "These words are published. Anyone can spend from a wallet made of them.",
+    /// The published-words sheet's primary action: the key is dropped.
+    published_remove: "Remove",
+    /// The published-words sheet's other action: the key stays, for testing.
+    published_keep: "Keep for testing",
     // ----- Which account of a Coldcard export loads (docs/INTEROP.md §5, BIP-392 sp()), faraday-core -----
     /// Text in `text`: a Coldcard export holding a single-sig account and
     /// a silent payments account, not added until one is chosen.

@@ -42,11 +42,13 @@ fn test_net() -> Faraday {
 fn opened(mut app: Faraday, words: &str) -> Faraday {
     let c = testkit::compute();
     app.session.keys.add_words(&c, words, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     app
 }
 
 fn open(app: &mut Faraday) {
+    faraday_core::testkit::keep_published(app);
     app.press(Action::Nav(Screen::Catalog));
     let tile = faraday_core::catalog::TILES
         .iter()
@@ -106,6 +108,7 @@ fn a_passphrase_is_folded_into_the_result() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app
         .session
         .keys
@@ -155,6 +158,7 @@ fn a_key_of_words_and_a_key_of_seed_bytes_list_their_own_rows() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let seed: Vec<u8> = (0..16).collect();
     app.session.keys.add_seed(&c, &seed, "Test 2").unwrap();
     let listed = |i: usize| -> Vec<&str> {
@@ -675,6 +679,7 @@ fn a_passphrase_is_said_to_stay_apart_from_the_words() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app
         .session
         .keys
@@ -717,11 +722,13 @@ fn explore_opens_the_flow_on_its_key_and_done_returns_there() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app
         .session
         .keys
         .add_words(&c, LEGAL, "Test 2", None)
         .unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Explore);
     app.press(Action::XKey(fp.0));
     let _ = app.frame();
@@ -910,6 +917,7 @@ fn the_flow_through_add_a_key_returns_to_an_explore_that_draws() {
     let mut app = mainnet();
     let c = testkit::compute();
     let fp = app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Explore);
     app.press(Action::XKey(fp.0));
     app.press(Action::Convert(C::OpenOn(fp.0)));
@@ -933,6 +941,7 @@ fn the_secret_sheet_says_a_form_without_the_passphrase_opens_another_wallet() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let fp = app
         .session
         .keys
@@ -1096,6 +1105,7 @@ fn the_rows_for_seed_bytes_follow_the_seeds_length() {
     assert_eq!(line.target, None);
     let mut app = mainnet();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     let rows = rows_listed(&app.session.keys[0]);
     assert!(rows.contains(&"Seed XOR parts"));
     assert!(!rows.contains(&"SLIP-39, 1 of 1") && !rows.contains(&"codex32"));
@@ -2001,6 +2011,7 @@ fn leaving_convert_or_choosing_another_source_leaves_no_aezeed_held() {
     // Another key chosen replaces it.
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     read_aezeed(&mut app, AEZEED, "");
     assert!(held(&app));
@@ -2089,6 +2100,7 @@ fn an_aezeed_read_from_explores_flow_returns_to_an_explore_that_draws() {
     let mut app = mainnet();
     let c = testkit::compute();
     let fp = app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Explore);
     app.press(Action::XKey(fp.0));
     app.press(Action::Convert(C::OpenOn(fp.0)));
@@ -2445,6 +2457,7 @@ fn leaving_choosing_a_key_and_locking_drop_the_set() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     type_set(&mut app, &[SET_A, SET_B]);
     assert!(!nothing_held(&app));
@@ -2586,6 +2599,7 @@ fn choosing_another_source_wipes_the_typed_share() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::Convert(C::SetSource));
     type_in(&mut app, SET_A);
@@ -2695,6 +2709,7 @@ fn a_share_typed_before_a_stick_is_wiped_when_the_stick_refuses_it() {
     let mut app = mainnet();
     let c = testkit::compute();
     app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::Convert(C::SetSource));
     type_in(&mut app, SET_A);

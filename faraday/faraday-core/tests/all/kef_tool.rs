@@ -88,6 +88,7 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
     let mut app = started();
     let c = testkit::compute();
     app.session.keys.add_words(&c, WORDS, "Test", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
     use faraday_core::testkit::KindText;
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))

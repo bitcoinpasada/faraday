@@ -48,6 +48,7 @@ fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     let _ = app.frame();
     app.session
         .keys

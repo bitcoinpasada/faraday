@@ -46,6 +46,7 @@ fn contents() -> Faraday {
     crate::common::settle(&mut app, 100);
     if app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
         app.press(Action::Vault(V::LoadTicked));
+        faraday_core::testkit::keep_published(&mut app);
     }
     assert_eq!(app.vaults().open.len(), 1, "the test vault is open");
     app.press(Action::Nav(Screen::VaultContents));

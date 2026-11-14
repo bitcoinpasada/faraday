@@ -400,6 +400,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
             app.event(Event::Key(Key::Char(c)));
         }
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
     }
     let multi = NewKind::ALL
         .iter()
@@ -1008,6 +1009,7 @@ fn three_here() -> Faraday {
             app.event(Event::Key(Key::Char(c)));
         }
         app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
     }
     let multi = NewKind::ALL
         .iter()

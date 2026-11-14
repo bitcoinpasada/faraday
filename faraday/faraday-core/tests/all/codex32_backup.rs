@@ -107,6 +107,7 @@ pub(crate) fn with_set_on(mut app: Faraday) -> Faraday {
         app.event(Event::Key(Key::Enter));
     }
     app.event(Event::Key(Key::Enter));
+    faraday_core::testkit::keep_published(&mut app);
     assert_eq!(
         app.session.keys.len(),
         1,
@@ -285,6 +286,7 @@ fn words_key() -> Faraday {
     app.press(Action::Entry(None));
     typed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Backup(0));
     app
 }

@@ -253,6 +253,7 @@ fn typed_key(app: &mut Faraday, n: usize) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
     app.session.keys.last().unwrap().fingerprint.0
 }
 

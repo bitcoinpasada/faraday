@@ -183,7 +183,7 @@ fn sheets() -> Vec<Sheet> {
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,
-        Sweep, KeyFile, OutboxDelete);
+        Sweep, KeyFile, OutboxDelete, Published);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
         own: true,
@@ -2094,6 +2094,7 @@ fn on_the_pi_change_passphrase_is_inside_its_button() {
     if rig.sheet == Some(Sheet::UnlockLoad) {
         rig.settle();
         rig.press(Action::Vault(V::LoadTicked));
+        faraday_core::testkit::keep_published(&mut rig);
     }
     rig.press(Action::Nav(Screen::VaultContents));
     rig.settle();
