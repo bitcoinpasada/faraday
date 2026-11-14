@@ -89,9 +89,9 @@ fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small
     let mut found = Vec::new();
     let mut failed = Vec::new();
     let tours = std::iter::once(None).chain(
-        crate::TOURS
+        crate::tours::TOURS
             .iter()
-            .copied()
+            .map(|(n, _)| *n)
             // The website's pictures are made for 1280 × 800 on Mainnet;
             // their frames are the named tours'.
             .filter(|t| *t != "tour")
