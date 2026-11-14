@@ -2423,11 +2423,13 @@ impl Faraday {
                 }
                 let said = match self.selftest {
                     Some(Ok(n)) => {
-                        EN.settings_selftest_toast_passed
-                            .replacen("{}", &n.to_string(), 1)
+                        let n = faraday_text::Text::num(n as u64);
+                        faraday_text::Text::fill(EN.settings_selftest_toast_passed, &[&n])
                     }
-                    Some(Err(check)) => EN.settings_selftest_toast_failed.replacen("{}", check, 1),
-                    None => String::new(),
+                    Some(Err(check)) => {
+                        faraday_text::Text::fill(EN.settings_selftest_toast_failed, &[check])
+                    }
+                    None => return,
                 };
                 self.toast(&said);
             }

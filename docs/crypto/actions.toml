@@ -6,6 +6,12 @@
 
 schema = 5                      # 2: constructions (docs/CRYPTO-LEARN.md §18); 3: independence (F160); 4: classes outside, outside-and-own and own, the label, [library.*] and [vector.*] (F177); 5: written_here as pieces with a reason, [[not_established]] (ESTABLISHED §2)
 
+[standard."BIP 21"]
+name = "URI Scheme"
+status = "Deployed"
+checked = "2026-11-14"
+source = "bips master"
+
 [standard."BIP 32"]
 name = "Hierarchical Deterministic Wallets"
 status = "Deployed"
@@ -503,6 +509,12 @@ id = "bolt11"
 section = 5
 what = "Lightning invoices, BOLT #11 (`core/faraday-codec/src/bolt11.rs`)"
 completeness = "Read only: the fields of an invoice and its signature, nothing paid or made. BOLT #11 makes a bad checksum, a `p`, `h`, `s` or `n` field of another length, a repeated `p` or `s`, no payment hash or payment secret, both or neither of a description and its hash, mixed case, an amount finer than a millisatoshi, a `c`, `x` or `9` field that begins with a zero value and an unknown required feature (anything outside bits 0, 8, 12, 14, 16, 24, 44 and 48) a refusal, and so does Faraday. Faraday is stricter where BOLT #11 leaves a case open: an invoice over 1023 characters, an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, and a non-zero padding bit in a `p`, `s`, `h`, `n`, `d`, `m`, `r` or `f` field"
+
+[[row]]
+id = "bip21"
+section = 5
+what = "Payment links, BIP 21 (`core/faraday-codec/src/bip21.rs`)"
+completeness = "Read only: the scheme in any case, the address as written, then the parameters, each key and value percent-decoded. `amount` (decimal bitcoin, at most eight decimals), `label` and `message` are understood and each may stand once; a key that begins `req-` (also when percent-encoded) is one that is not understood, so the link is refused, as BIP 21 says; any other parameter is ignored, Coldcard's `wallet=` included. Faraday is stricter where BIP 21 is silent: a bad percent escape, a value that is not UTF-8, a parameter with no `=` or an empty one, a repeated `amount`, `label` or `message`, one of those three keys written percent-encoded (the `bip21` crate does not decode a key and reads none), an amount with no digit, more than eight decimals, a sign or an exponent, or more than 21 million bitcoin is a refusal. The address check reads it (`address_note`); the amount and label are read and not shown"
 
 [[row]]
 id = "bolt12"
@@ -2153,6 +2165,7 @@ functions = [
   "faraday/faraday-core/src/explore/addresses.rs::Kept::at",
   "faraday/faraday-core/src/explore/addresses.rs::Kept::page",
   "faraday/faraday-core/src/explore/addresses.rs::ExploreArea::tick",
+  "faraday/faraday-core/src/address_find/look.rs::Look::tick",
   "faraday/faraday-core/src/wallet.rs::Wallet::script_at",
   "faraday/faraday-core/src/drawing/kept.rs::View::script_at",
 ]
@@ -4080,6 +4093,57 @@ places = [
   "tools/vectors/lightning-bolt11/README.md",
   "tools/reference/bolt11/README.md",
 ]
+
+[[action]]
+id = "bip21"
+name = "Read a payment link"
+action = "Reads a BIP 21 `bitcoin:` link: the address, and the amount, label and message parameters percent-decoded, refusing a `req-` parameter it does not understand."
+row = "bip21"
+standards = [
+  "BIP 21",
+]
+screens = ["Explore"]
+functions = [
+  "core/faraday-codec/src/bip21.rs::parse",
+]
+code = [
+  "core/faraday-codec/src/bip21.rs::parse",
+]
+
+[action.implementation]
+crate = "core/faraday-codec"
+libraries = []
+adds = "The link is read here, with no library; reading only, nothing is paid or stored, and every refusal is a named reason."
+
+[action.checked]
+vectors = []
+tests = [
+  "core/faraday-codec/src/bip21.rs::the_bips_own_examples",
+  "core/faraday-codec/src/bip21.rs::what_is_refused_says_why",
+  "core/faraday-codec/src/bip21.rs::the_same_inputs_as_the_bip21_crate",
+  "core/faraday-codec/src/bip21.rs::a_text_that_is_no_uri",
+]
+not_crosschecked = "no area compares it; the same 41 inputs were read by the `bip21` crate 0.5.0 (rust-bitcoin's, an implementation Faraday did not write) run in a scratch crate, which takes the last of a repeated parameter and does not decode a key, and the tests say where Faraday refuses what it takes."
+fuzz = [
+  "bip21",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; a payment link holds no secret."
+wiped = "Nothing secret is held."
+
+[action.limits]
+lines = [
+  "Reading only: no link is written, paid or stored.",
+  "The amount and label are read and not shown.",
+  "A parameter BIP 21 does not define is ignored.",
+]
+
+[[action.own]]
+text = "BIP 21 says a URI with a `req-` parameter the reader does not understand is invalid, and Faraday refuses it. Where BIP 21 is silent Faraday refuses the link rather than guess."
+kind = "Conservative"
+decision = "no decision"
 
 [[action]]
 id = "bolt12"
