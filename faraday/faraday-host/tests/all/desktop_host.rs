@@ -686,7 +686,7 @@ fn host_reads(host: &mut Host) -> Vec<(String, f64)> {
             InkKind::Text { text, color, .. } if color.a == 255 => {
                 let r = (i.rect.x, i.rect.y, i.rect.w, i.rect.h);
                 let bg = under(&rgba, width, height, r);
-                Some((text.clone(), ratio(over(*color, bg), bg)))
+                Some((text.to_string(), ratio(over(*color, bg), bg)))
             }
             _ => None,
         })

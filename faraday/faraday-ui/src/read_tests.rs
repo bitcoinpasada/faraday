@@ -119,7 +119,7 @@ fn read(theme: Theme, scene: Scene, pressed: Option<u8>) -> Vec<(String, f64)> {
                     height,
                     (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
                 );
-                Some((text, ratio(over(color, bg), bg)))
+                Some((text.to_string(), ratio(over(color, bg), bg)))
             }
             _ => None,
         })
@@ -636,7 +636,8 @@ fn a_closable_snackbar_keeps_its_text_beside_its_close_button() {
             {
                 assert!(
                     i.rect.right() <= close.x,
-                    "{text}: {:?} over {close:?}",
+                    "{}: {:?} over {close:?}",
+                    text.as_str(),
                     i.rect
                 );
             }
@@ -765,7 +766,7 @@ fn a_long_toast_wraps_inside_a_narrow_panel() {
         .ink()
         .iter()
         .filter_map(|i| match &i.kind {
-            InkKind::Text { text, color, .. } => Some((text.clone(), *color, i.rect)),
+            InkKind::Text { text, color, .. } => Some((text.to_string(), *color, i.rect)),
             _ => None,
         })
         .collect();
@@ -795,7 +796,7 @@ fn texts(scene: Scene) -> Vec<(String, faraday_draw::Rect)> {
         .ink()
         .iter()
         .filter_map(|i| match &i.kind {
-            InkKind::Text { text, .. } => Some((text.clone(), i.rect)),
+            InkKind::Text { text, .. } => Some((text.to_string(), i.rect)),
             _ => None,
         })
         .collect()
@@ -907,7 +908,7 @@ fn at_larger_a_list_items_long_headline_takes_two_lines_inside_its_item() {
             .ink()
             .iter()
             .filter_map(|i| match &i.kind {
-                InkKind::Text { text, .. } => Some((text.clone(), i.rect)),
+                InkKind::Text { text, .. } => Some((text.to_string(), i.rect)),
                 _ => None,
             })
             .collect();

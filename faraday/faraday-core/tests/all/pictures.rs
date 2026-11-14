@@ -99,7 +99,7 @@ fn label(p: &faraday_core::picture::Labelled) -> Vec<String> {
         .ink()
         .iter()
         .filter_map(|i| match &i.kind {
-            InkKind::Text { text, .. } => Some(text.clone()),
+            InkKind::Text { text, .. } => Some(text.to_string()),
             _ => None,
         })
         .collect()

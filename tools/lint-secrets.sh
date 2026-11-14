@@ -611,6 +611,7 @@ faraday/faraday-core/src/edit.rs
 faraday/faraday-core/src/dice_entry/mod.rs
 faraday/faraday-core/src/kef_tool/mod.rs
 core/faraday-draw/src/canvas/list.rs
+core/faraday-draw/src/canvas.rs
 faraday/faraday-core/src/qr_tool/screen.rs
 faraday/faraday-qr/src/specter.rs
 faraday/faraday-core/src/backup_flow/wallet_files.rs

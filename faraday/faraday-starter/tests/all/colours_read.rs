@@ -80,7 +80,7 @@ fn all_text(starter: &mut Starter) -> Vec<(String, f64, Color, Color)> {
                     height,
                     (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
                 );
-                Some((text, ratio(color, bg), color, bg))
+                Some((text.to_string(), ratio(color, bg), color, bg))
             }
             _ => None,
         })

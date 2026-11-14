@@ -49,7 +49,7 @@ fn said(app: &mut Faraday) -> Vec<String> {
     app.drawn_ink()
         .iter()
         .filter_map(|i| match &i.kind {
-            InkKind::Text { text, .. } => Some(text.clone()),
+            InkKind::Text { text, .. } => Some(text.to_string()),
             _ => None,
         })
         .collect()

@@ -241,9 +241,9 @@ impl Snap<'_> {
         for i in starter.drawn_ink() {
             if let InkKind::Text { text, cut: c, .. } = i.kind {
                 if c {
-                    cut.push(format!("text {text:?} cut at a side"));
+                    cut.push(format!("text {:?} cut at a side", text.as_str()));
                 }
-                texts.push((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)));
+                texts.push((text.to_string(), (i.rect.x, i.rect.y, i.rect.w, i.rect.h)));
             }
         }
         for (i, (a, ra)) in texts.iter().enumerate() {

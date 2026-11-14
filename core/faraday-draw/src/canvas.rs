@@ -6,7 +6,6 @@
 //! caches and blends by hand. A rectangular clip stack serves scroll
 //! regions.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_crypto::work::Work;
@@ -54,7 +53,7 @@ pub struct Canvas {
     /// The strings drawn since the last [`Canvas::clear`] that ran past
     /// the side of their clip, so that some of their ink is not on the
     /// panel.
-    cut: Vec<String>,
+    cut: Vec<faraday_text::Text>,
     /// Where each string and icon drawn since the last [`Canvas::clear`]
     /// left its ink, while [`Canvas::record_ink`] has it on: what the
     /// snapshot tool's audit reads. Off on a device.
@@ -99,7 +98,7 @@ pub enum InkKind {
     /// A line of text, and the face it was drawn in.
     Text {
         /// The characters.
-        text: String,
+        text: faraday_text::Text,
         /// The face.
         family: crate::fonts::Family,
         /// The colour it was drawn in: what a test of its contrast
@@ -386,7 +385,7 @@ impl Canvas {
     /// The strings drawn since the last [`Canvas::clear`] whose ink ran
     /// past the left or right side of their clip: text a person sees cut
     /// off.
-    pub fn cut(&self) -> &[String] {
+    pub fn cut(&self) -> &[faraday_text::Text] {
         &self.cut
     }
 
@@ -1273,13 +1272,13 @@ impl Canvas {
         }
         // Once per string: a scroll draws the same strip again and
         // again without a clear in between.
-        if !self.replaying() && cut && !self.cut.iter().any(|t| t == s) {
-            self.cut.push(String::from(s));
+        if !self.replaying() && cut && !self.cut.iter().any(|t| t.as_str() == s) {
+            self.cut.push(faraday_text::Text::of(s));
         }
         let family = face.family;
         self.note_ink(
             || InkKind::Text {
-                text: String::from(s),
+                text: faraday_text::Text::of(s),
                 family,
                 color,
                 cut,

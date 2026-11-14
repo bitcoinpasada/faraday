@@ -1423,7 +1423,7 @@ impl Starter {
         self.render();
         if let Some(c) = self.canvas.as_ref() {
             texts.extend(c.ink().iter().filter_map(|i| match &i.kind {
-                faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.to_string()),
                 _ => None,
             }));
         }

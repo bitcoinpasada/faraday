@@ -32,7 +32,7 @@ fn on_fill(app: &mut Faraday, fill: Color) -> Vec<(String, f64)> {
                     height,
                     (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
                 );
-                (bg == fill).then(|| (text, ratio(over(color, bg), bg)))
+                (bg == fill).then(|| (text.to_string(), ratio(over(color, bg), bg)))
             }
             _ => None,
         })
@@ -107,7 +107,7 @@ fn all_text(app: &mut Faraday) -> Vec<(String, f64, Color, Color)> {
                     height,
                     (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
                 );
-                Some((text, ratio(color, bg), color, bg))
+                Some((text.to_string(), ratio(color, bg), color, bg))
             }
             _ => None,
         })

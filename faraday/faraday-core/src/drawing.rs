@@ -578,10 +578,9 @@ impl Faraday {
         self.drawn_ink()
             .into_iter()
             .filter_map(|i| match i.kind {
-                faraday_draw::canvas::InkKind::Text { text, .. } => Some((
-                    faraday_text::Text::of(&text),
-                    (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
-                )),
+                faraday_draw::canvas::InkKind::Text { text, .. } => {
+                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
+                }
                 _ => None,
             })
             .collect()
@@ -607,10 +606,9 @@ impl Faraday {
             .drawn_ink()
             .into_iter()
             .filter_map(|i| match i.kind {
-                faraday_draw::canvas::InkKind::Text { text, .. } => Some((
-                    faraday_text::Text::of(&text),
-                    (i.rect.x, i.rect.y, i.rect.w, i.rect.h),
-                )),
+                faraday_draw::canvas::InkKind::Text { text, .. } => {
+                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
+                }
                 _ => None,
             })
             .collect();
@@ -665,7 +663,7 @@ impl Faraday {
         let mut past: Vec<faraday_text::Text> = c
             .cut()
             .iter()
-            .map(|s| faraday_text::text!("text {s:?}")) // not shown: a test line
+            .map(|s| faraday_text::text!("text {:?}", s.as_str())) // not shown: a test line
             .collect();
         past.extend(
             self.pointer

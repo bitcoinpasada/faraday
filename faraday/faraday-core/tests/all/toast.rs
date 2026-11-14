@@ -46,7 +46,7 @@ fn a_toasts_text_reads_on_its_container_in_every_theme() {
         let toast = app.toast_text().expect("the toast is up").to_string();
         let ink = app.drawn_ink();
         let Some((rect, color)) = ink.iter().find_map(|i| match &i.kind {
-            InkKind::Text { text, color, .. } if *text == toast => Some((i.rect, *color)),
+            InkKind::Text { text, color, .. } if text.as_str() == toast => Some((i.rect, *color)),
             _ => None,
         }) else {
             short.push(format!("{theme:?}: no toast drawn"));
