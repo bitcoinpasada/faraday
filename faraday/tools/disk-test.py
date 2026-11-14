@@ -29,13 +29,16 @@ while it plugs sticks in and pulls them out through QMP:
 5. The grant helper is still alive.
 6. USB: the kernel authorises only hard-wired devices, and the grant
    helper authorises storage, HID and hub interfaces of the rest.
+7. A word typed on the keyboard reaches the app alone: the kernel's
+   terminal (/dev/tty1) keeps none of it (docs/SECURITY-MODEL.md
+   "What locking wipes").
 
 Then, in two more starts (docs/STICK-IDENTITY.md §10), with a stick in
 the state Windows leaves one (§2: the primary table's entries pointed at
 sectors of zeros, the backup table whole):
 
-7. Plugged in at run time, it has no partitions and nothing is handed out.
-8. As the stick the device starts from, OVMF repairs it and the device
+8. Plugged in at run time, it has no partitions and nothing is handed out.
+9. As the stick the device starts from, OVMF repairs it and the device
    finds its data partition.
 
 Screenshots go to OUT_DIR. Exits non-zero at the first check that fails.
@@ -228,7 +231,7 @@ def start(boot, work, tag, kvm):
 
 
 def windows_state_checks(image_stick, work, out, kvm):
-    """7 and 8: a stick in Windows' state plugged in, and started from."""
+    """8 and 9: a stick in Windows' state plugged in, and started from."""
     rewritten = windows_state(image_stick, os.path.join(work, "windows-state.img"))
 
     boot = shutil.copyfile(image_stick, os.path.join(work, "boot-plug.img"))
@@ -445,6 +448,22 @@ def main():
 
         # 5. The helper survived all of it.
         expect("faraday-grant" in console.run("ps"), "the grant helper is still alive")
+
+        # 7. A word typed on the keyboard goes to the app alone. Nothing
+        # has the kernel's terminal open, so anything its keyboard handler
+        # queued there is still waiting; opening it and pressing one more
+        # key delivers what was kept.
+        for ch in "zebracanoe":
+            monitor.key(ch)
+            time.sleep(0.1)
+        time.sleep(1)
+        console.run("(stty raw -echo; cat > /tmp/tty1-kept) < /dev/tty1 & sleep 1")
+        monitor.key("x")
+        time.sleep(2)
+        kept = console.run("kill %1; sleep 0.5; cat /tmp/tty1-kept")
+        print("the kernel's terminal kept:", repr(kept))
+        expect("zebracanoe" not in kept,
+               "a word typed on the keyboard is not kept in the kernel's terminal")
     finally:
         proc.terminate()
         proc.wait(timeout=10)
