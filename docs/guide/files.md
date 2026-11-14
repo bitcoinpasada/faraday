@@ -19,9 +19,9 @@ With none attached the line reads that it is waiting for a stick. With a stick a
 
 **Key:** files.format-stick
 
-Any other USB stick can carry files to and from Faraday, on an ordinary stick visit and only while no vault is open. It needs a partition table, MBR or GPT, with the files in a partition: a filesystem written to the whole device (what `mkfs.fat /dev/sdX` makes) is not seen. The partition is FAT32 or FAT16; exFAT, NTFS, ext4, APFS and FAT12 are not read, and sticks larger than 32 GB usually come as exFAT and need reformatting. The label is anything except `EFI`, `bootfs` or `FARADAYBOOT`, and no partition is named `EFI system partition`: those mark a boot partition and are never opened. Files are read at the top level only, up to 18 MiB each.
+A plain USB stick carries files on a stick visit while no vault is open. It needs a partition table (MBR or GPT) with a FAT32 or FAT16 partition: a filesystem on the whole device is not seen, and exFAT, NTFS, ext4, APFS and FAT12 are not read. Sticks over 32 GB usually come as exFAT and need reformatting. A boot partition (labelled `EFI`, `bootfs` or `FARADAYBOOT`, or named `EFI system partition`) is never opened. Files are read at the top level only, up to 18 MiB each.
 
-On Linux, with the stick at `/dev/sdX` (check with `lsblk` first; this erases the stick):
+On Linux, with the stick at `/dev/sdX` (see `lsblk`; this erases it):
 
 ```
 sudo parted --script /dev/sdX mklabel msdos mkpart primary fat32 1MiB 100%
@@ -34,9 +34,9 @@ On macOS, with the stick at `/dev/diskN` (check with `diskutil list`):
 diskutil eraseDisk FAT32 FARADAY MBRFormat /dev/diskN
 ```
 
-On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a larger stick, use Disk Management to make a partition of 32 GB or less and format it FAT32.
+On Windows, Explorer formats FAT32 only up to 32 GB; for a larger stick, make a FAT32 partition of 32 GB or less in Disk Management.
 
-The Raspberry Pi reads USB sticks the same way, and its screens say "SD card" where the PC's say "stick".
+The Raspberry Pi reads sticks alike; its screens say "SD card" for "stick".
 
 ## Delete files
 
