@@ -19,7 +19,7 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{Slot, Ui, W};
+use crate::ui::{Slot, Ui};
 
 /// Draws the guide's supporting pane for the page area at `x0`, `cw` wide,
 /// in a window `h` tall, at the one place every supporting pane stands
@@ -90,33 +90,7 @@ fn pin_button(ui: &mut Ui, x: f32, y: f32, on: bool) {
 }
 
 /// The pane's close button in a `TOUCH` square at (x, y): Material's
-/// standard icon button, `ICON_BUTTON` across in the middle of its
-/// target, its state layer on hover and press. The close mark is the
-/// multiplication sign, as the vault search's clear is: the icon face
-/// has no close glyph.
+/// standard icon button ([`faraday_ui::nav::close_button`]).
 fn close_button(ui: &mut Ui, x: f32, y: f32) {
-    let a = Action::GuideClose;
-    let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
-    let (bx, by) = (x + edge, y + edge);
-    let r = T::shape_full(T::ICON_BUTTON);
-    let button = Shape::new(bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
-    ui.press_to(
-        button,
-        (x, y, T::TOUCH, T::TOUCH),
-        Role::OnSurfaceVariant.paint(),
-        a,
-    );
-    let mark = "×";
-    let mw = ui.measure(T::ICON_GLYPH, W::R, mark);
-    let (mx, size) = (bx + (T::ICON_BUTTON - mw) / 2.0, T::ICON_GLYPH);
-    ui.text_mid(
-        mx,
-        by,
-        T::ICON_BUTTON,
-        size,
-        W::R,
-        Role::OnSurfaceVariant,
-        mark,
-    );
-    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, EN.guide_close);
+    faraday_ui::nav::close_button(ui, x, y, Action::GuideClose, EN.guide_close);
 }

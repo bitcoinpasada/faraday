@@ -304,6 +304,9 @@ pub enum StarterAction {
     Menu,
     /// The ⋮ menu closed by a press outside it.
     CloseMenu,
+    /// The Linux Starter's own close button at the top app bar's end
+    /// (F266, §3.1d): what the window's close does.
+    Close,
     /// The ⋮ menu's Appearance: its page.
     Appearance,
     /// Draw in this scheme, from the Appearance page.
@@ -537,6 +540,7 @@ impl StarterAction {
             StarterAction::Guide => (73, 0),
             StarterAction::GuidePage(n) => (74, u32::from(n)),
             StarterAction::KeepDataGuide => (75, 0),
+            StarterAction::Close => (76, 0),
         };
         (kind << 16) | arg
     }
@@ -637,6 +641,7 @@ impl StarterAction {
             73 => StarterAction::Guide,
             74 => StarterAction::GuidePage(u8::try_from(arg).ok()?),
             75 => StarterAction::KeepDataGuide,
+            76 => StarterAction::Close,
             _ => return None,
         })
     }
@@ -1809,6 +1814,12 @@ impl Starter {
         if action != StarterAction::Menu {
             self.menu = false;
         }
+        // The close button's press is its own, over a menu, a sheet or the
+        // held app: the window's close (F266).
+        if action == StarterAction::Close {
+            self.close_requested();
+            return;
+        }
         if self.demo_act(action) || (self.showing && !self.act_over_held(action)) {
             return;
         }
@@ -1844,7 +1855,7 @@ impl Starter {
                     self.menu = !self.menu;
                 }
             }
-            StarterAction::CloseMenu => {}
+            StarterAction::CloseMenu | StarterAction::Close => {}
             StarterAction::Appearance => self.go(Page::Appearance),
             StarterAction::Theme(theme) => self.choose_theme(theme),
             StarterAction::TextSize(text) => self.choose_text_size(text),
@@ -2244,6 +2255,24 @@ impl Starter {
             (Some(r), Some(i)) => r > i,
             (Some(_), None) => true,
             _ => false,
+        }
+    }
+
+    /// Whether the top app bar carries its own close button: on Linux
+    /// always, never elsewhere, since whether the desktop draws one
+    /// cannot be found out (F266, §3.1d).
+    pub fn close_offered(&self) -> bool {
+        self.computer.os == Os::Linux
+    }
+
+    /// The Starter's close button, as the window's close: Faraday Demo
+    /// returns to Home (F126), otherwise the shell closes the Starter
+    /// or holds the close until a write ends.
+    fn close_requested(&mut self) {
+        if self.demo.is_some() {
+            self.close_demo();
+        } else {
+            self.out.push_back(StarterCommand::Close);
         }
     }
 

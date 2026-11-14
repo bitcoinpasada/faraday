@@ -136,6 +136,8 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
     }
     if starter.menu {
         nav::menu(starter, ui, w, h);
+        // The menu's scrim does not cover the window's close (F266).
+        nav::close_button(starter, ui, w);
     }
     if let Some(sheet) = starter.sheet {
         sheet_over(starter, ui, w, h, sheet);
@@ -151,6 +153,8 @@ fn held_chrome(starter: &Starter, ui: &mut Ui) {
     nav::top_bar(starter, ui, 0.0, w);
     if starter.menu {
         nav::menu(starter, ui, w, h);
+        // The menu's scrim does not cover the window's close (F266).
+        nav::close_button(starter, ui, w);
     }
 }
 
@@ -170,6 +174,10 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
         Sheet::Guide => guide::sheet(starter, ui, w, h),
         Sheet::StartGuide => guide::start_sheet(starter, ui, w, h),
     }
+    // The window's close stays pressable over the sheet, as a title
+    // bar's does (F266).
+    ui.offset = 0.0;
+    nav::close_button(starter, ui, w);
     ui.in_sheet = false;
 }
 

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the Linux close button in the top app bar (§3.1d), not built; the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -606,7 +606,7 @@ running copy is newer (§3.5), a secondary button, and the ⋮ menu
 
 The page scrolls under the top app bar, which stays.
 
-**The close button on Linux** (not built; F266). The Linux Starter draws a
+**The close button on Linux** (F266). The Linux Starter draws a
 close button of its own at the top app bar's right end, so the window
 can be closed where the desktop draws no title bar, as on a tiling
 Wayland compositor (Hyprland, Sway) or an X11 tiling window manager

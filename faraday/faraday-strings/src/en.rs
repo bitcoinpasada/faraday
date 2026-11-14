@@ -531,6 +531,8 @@ strings! {
     starter_restart_now: "Restart",
     /// Button.
     starter_cancel: "Cancel",
+    /// Tooltip on the Linux Starter's close button at the top app bar's end.
+    starter_tip_close: "Close",
     /// Step.
     starter_secure_boot_turn_off: "Turn Secure Boot off",
     /// Step, when it is.

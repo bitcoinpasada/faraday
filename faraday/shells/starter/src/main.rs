@@ -191,7 +191,7 @@ impl Shell {
         }
         draw |= self.answer_demo(events);
         while let Some(c) = self.starter.next_command() {
-            self.command(c);
+            self.command(event_loop, c);
         }
         draw
     }
@@ -320,9 +320,23 @@ impl Shell {
         self.redraw();
     }
 
+    /// The window's close, and the Starter's own close button's (F266):
+    /// a write under way is not cut short, the window closes when it
+    /// ends (`reported`); otherwise the Starter closes.
+    fn close_window(&mut self, event_loop: &ActiveEventLoop) {
+        if self.writing.is_some() {
+            self.starter.hold_close();
+            self.close_held = true;
+            self.redraw();
+        } else {
+            event_loop.exit();
+        }
+    }
+
     /// What the Starter asks of the system.
-    fn command(&mut self, c: StarterCommand) {
+    fn command(&mut self, event_loop: &ActiveEventLoop, c: StarterCommand) {
         match c {
+            StarterCommand::Close => self.close_window(event_loop),
             StarterCommand::Write(order) => self.write(order),
             StarterCommand::RestartIntoFirmware => {
                 let system = Arc::clone(&self.system);
@@ -688,14 +702,7 @@ impl ApplicationHandler for Shell {
                 self.answer(event_loop, &mut events);
                 self.redraw();
             }
-            // A write under way is not cut short: the window closes when
-            // it ends (`reported`).
-            WindowEvent::CloseRequested if self.writing.is_some() => {
-                self.starter.hold_close();
-                self.close_held = true;
-                self.redraw();
-            }
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => self.close_window(event_loop),
             WindowEvent::DroppedFile(path) => {
                 self.dropped(event_loop, &path);
             }

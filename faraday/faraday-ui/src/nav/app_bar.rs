@@ -282,3 +282,55 @@ pub fn more<A: Copy + PartialEq>(
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
+
+/// A close button in a `TOUCH` square at (x, y): Material's standard
+/// icon button, `ICON_BUTTON` across in the middle of its target, its
+/// state layer on hover and press, the mark at `ICON_GLYPH` in
+/// on-surface-variant, and `tip` its plain tooltip. The mark is the
+/// multiplication sign, as the vault search's clear is: the icon face
+/// has no close glyph. Learn's pane and the Starter's top app bar close
+/// with it.
+pub fn close_button<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    action: A,
+    tip: &'static str,
+) {
+    close_button_in(ui, x, y, action, tip, Role::OnSurfaceVariant);
+}
+
+/// [`close_button`] with the mark and state layer in `role`: over a
+/// sheet's scrim, which darkens the bar, the mark reads in on-surface.
+pub fn close_button_in<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    action: A,
+    tip: &'static str,
+    role: Role,
+) {
+    use faraday_draw::tokens as T;
+    let edge = (TOUCH - T::ICON_BUTTON) / 2.0;
+    let (bx, by) = (x + edge, y + edge);
+    let button = Shape::new(
+        bx,
+        by,
+        T::ICON_BUTTON,
+        T::ICON_BUTTON,
+        T::shape_full(T::ICON_BUTTON),
+    );
+    ui.press_to(button, (x, y, TOUCH, TOUCH), role.paint(), action);
+    let mark = "\u{d7}";
+    let mw = ui.measure(T::ICON_GLYPH, crate::W::R, mark);
+    ui.text_mid(
+        bx + (T::ICON_BUTTON - mw) / 2.0,
+        by,
+        T::ICON_BUTTON,
+        T::ICON_GLYPH,
+        crate::W::R,
+        role,
+        mark,
+    );
+    ui.tip_plain((x, y, TOUCH, TOUCH), action, tip);
+}

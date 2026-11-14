@@ -946,6 +946,9 @@ pub enum StarterCommand {
     OpenDemo,
     /// Faraday Demo was left: the shell lets go of what it kept for it.
     DemoClosed,
+    /// The Starter's own close button was pressed (F266, §3.1d): the
+    /// shell does what the window's close does.
+    Close,
     /// Keep this text size in the installed Starter's settings file
     /// (`docs/TEXT-SIZE.md` §6), replacing what it held: asked only
     /// while a Starter is installed, when the size chosen is not what

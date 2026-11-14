@@ -101,7 +101,13 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     ui.ox = rail_w;
     let install = dest.and(install_action(starter));
     let button_w = install.map(|(label, _)| ui.measure_as(LABEL_L, label) + 2.0 * PAD);
+    let close = starter.close_offered();
     let mut right = aw - GAP_SMALL;
+    if close {
+        // The window's own close, last at the bar's end, a gap from the
+        // bar's actions (F266).
+        right -= TOUCH + GAP;
+    }
     let mut ends = right;
     if dest.is_some() {
         ends -= TOUCH;
@@ -187,7 +193,34 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
             S.starter_row_guide,
         );
     }
+    if close {
+        close_button(starter, ui, aw);
+    }
     ui.ox = 0.0;
+}
+
+/// The window's own close button at the end of the top app bar `aw`
+/// wide, drawn in the offset the bar is (F266, §3.1d). Where a sheet
+/// covers the bar it is drawn again over the sheet, so it stays
+/// pressable.
+pub(super) fn close_button(starter: &Starter, ui: &mut Ui, aw: f32) {
+    if !starter.close_offered() {
+        return;
+    }
+    // Over a sheet's scrim the mark reads in on-surface.
+    let role = if ui.in_sheet {
+        Role::OnSurface
+    } else {
+        Role::OnSurfaceVariant
+    };
+    fnav::close_button_in(
+        ui,
+        aw - GAP_SMALL - TOUCH,
+        (APP_BAR_H - TOUCH) / 2.0,
+        StarterAction::Close.host(),
+        S.starter_tip_close,
+        role,
+    );
 }
 
 /// Costs measuring its rows. The ⋮ menu: Material's menu
@@ -202,7 +235,12 @@ pub(super) fn menu(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
         .map(|&(label, action)| MenuLine::Item(label, action.host(), false))
         .collect();
     // The ⋮ as the top bar draws it ([`top_bar`]'s first `right`).
-    let (mx, my) = (w - GAP_SMALL - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
+    let end = if starter.close_offered() {
+        TOUCH + GAP
+    } else {
+        0.0
+    };
+    let (mx, my) = (w - GAP_SMALL - end - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     let anchor = ui.rect(mx, my, TOUCH, TOUCH);
     let m = Menu {
         title: None,

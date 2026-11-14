@@ -5,6 +5,7 @@ mod bitlocker;
 mod boot_file;
 mod budget;
 mod clear_first;
+mod close;
 mod colours_read;
 mod concern_holds;
 mod concern_rules;
