@@ -9,7 +9,7 @@
 #
 # `just` is spread over twenty-two jobs: one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests
-# and the six parts of `just lint` run beside them. The last job, check,
+# and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
 name: check
 

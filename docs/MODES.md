@@ -4,7 +4,7 @@
 **Status:** Built (F81)
 
 The owner's decisions are F81. This says how they are built. Where it
-and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
+and `docs/DEMO.md` differ, this holds.
 
 ## 1. Words
 

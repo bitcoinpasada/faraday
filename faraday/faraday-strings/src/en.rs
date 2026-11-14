@@ -497,7 +497,7 @@ strings! {
     /// The Guide destination's heading over the guides for starting a
     /// computer from the stick.
     starter_guide_head_start: "Starting a computer from the stick",
-    /// A guide whose Learn page is not there: `{}` its title.
+    /// A guide whose guide page is not there: `{}` its title.
     /// Guide title.
     starter_start_windows: "Starting a Windows computer from the stick",
     /// Guide title.
@@ -959,11 +959,11 @@ strings! {
     starter_let_through_case: "Only for a screen or switch that is your own, in front of you.",
     /// Continue anyway's hold (F136).
     starter_let_through_hold: "Hold to continue",
-    /// The link to the Learn page of that name (STARTER §3.1b).
+    /// The link to the guide page of that name (STARTER §3.1b).
     starter_start_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
-    /// The link to the Learn page on screens that record (STARTER §3.1a).
+    /// The link to the guide page on screens that record (STARTER §3.1a).
     starter_start_screens: "Screens and devices that can record",
-    /// The Learn page on the management processors under the OS.
+    /// The guide page on the management processors under the OS.
     starter_start_what_else_runs: "What else runs on this computer",
     /// The link on Restart from the stick's sheet (STARTER §3.1c).
     starter_start_boot_entry: "About the boot entry",
@@ -8259,7 +8259,7 @@ strings! {
     starter_how_title: "Cryptography",
     /// The foot of the Starter's sheet of blocks.
     starter_how_close: "Close",
-    /// Guide title in the Starter's Learn list.
+    /// Guide title in the Starter's guide list.
     /// A block's field (`docs/CRYPTO-LEARN.md` §1).
     how_field_action: "Action",
     /// A block's field: the specifications the action follows (F179).

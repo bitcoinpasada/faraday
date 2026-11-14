@@ -7,7 +7,8 @@ How to build Faraday from a fresh clone, check it, reproduce a release,
 and try it on your own hardware. Each section names the document that
 says more. Everything here runs on your own machine; GitHub Actions runs
 the check (§2) on every push to main and every pull request and, started
-by hand, the fuzz run before a release (§8), and nothing else.
+by hand, the fuzz run before a release (§8) and one crate's tests or one lint
+recipe (F243), nothing else.
 
 ## 1. What you need
 
@@ -145,7 +146,7 @@ request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
 the tools above at the versions it names, spread over twenty-two jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`), fourteen each run a fourteenth of them (`--partition
-hash:k/14`), and the doc tests and the six parts of `just lint` run
+hash:k/14`), and the doc tests and the five parts of `just lint` run
 beside them. Its result is shown on the commit and the
 pull request.
 

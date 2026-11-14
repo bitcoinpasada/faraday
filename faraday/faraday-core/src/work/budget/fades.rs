@@ -25,10 +25,10 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
     let mut now = 1_000;
     for (name, change) in [
         ("Settings", Action::Nav(Screen::Settings)),
-        ("the Learn sheet", Action::Guide),
-        ("the Learn sheet's contents", Action::GuideContents),
-        ("the Learn sheet's page", Action::Cancel),
-        ("Learn closed", Action::Cancel),
+        ("the Guide sheet", Action::Guide),
+        ("the Guide sheet's contents", Action::GuideContents),
+        ("the Guide sheet's page", Action::Cancel),
+        ("Guide closed", Action::Cancel),
         (
             "a new theme",
             Action::Theme(crate::ui::Theme {
@@ -50,7 +50,7 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
             // applied one frame later: the sheet is drawn once more as
             // it opens, and the steps after that blend again.
             let settling =
-                (name == "the Learn sheet" || name == "the Learn sheet's page") && i == 2;
+                (name == "the Guide sheet" || name == "the Guide sheet's page") && i == 2;
             if !settling {
                 assert_eq!(drawn, 0, "{name}: step {i} draws no text");
             }

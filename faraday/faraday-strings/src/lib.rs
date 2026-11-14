@@ -3,7 +3,7 @@
 //! [`Strings`] holds them, one static per language ([`EN`]), so that a
 //! second language is one more static and a change of wording is a change
 //! to one file. Templates carry `{}` placeholders and are filled by
-//! [`fill`], in order. The Learn pages and the self-test's check names are
+//! [`fill`], in order. The guide's pages and the self-test's check names are
 //! the two exceptions (CLAUDE.md).
 
 pub mod bip;

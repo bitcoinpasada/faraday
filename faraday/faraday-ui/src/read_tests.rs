@@ -225,7 +225,7 @@ fn navigation(ui: &mut Ui<u8>) {
             400.0,
         );
         nav::icon_action(ui, 560.0, Icon::Done, 4, true, "Done");
-        nav::help(ui, 500.0, 5, "Learn");
+        nav::help(ui, 500.0, 5, "Guide");
         nav::more(ui, 440.0, 6, "More");
         nav::status_chip(
             ui,
@@ -246,7 +246,7 @@ fn navigation(ui: &mut Ui<u8>) {
         nav::destination_row(
             ui,
             (16.0, 200.0, 240.0),
-            &dest("Learn", false, 9, Badge::Dot),
+            &dest("Guide", false, 9, Badge::Dot),
             None,
         );
         let bar = [
