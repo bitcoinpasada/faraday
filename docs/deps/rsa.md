@@ -35,6 +35,20 @@ certificates around them are `x509-cert`'s (`docs/deps/x509-cert.md`),
 the CMS and Authenticode structures `der` types (`docs/deps/der.md`),
 checked by `openssl` and `sbverify`.
 
+**What stays unwiped.** `RsaPrivateKey` wipes its private exponent, primes and
+precomputed values when dropped, always (the crate has no feature for it,
+and `pkcs8`'s `alloc` feature turns on `der/zeroize`, so the document
+`to_pkcs8_der` returns is a `SecretDocument` that wipes its buffer when
+dropped; `faraday-sb` copies it once into a `Zeroizing` vector and the
+document is dropped at once). What is left is library-internal: while a key
+is read from its PKCS #8 bytes, `rsa` turns each private integer into a
+`crypto-bigint` value in local variables and moves it into the key, and
+those stack temporaries and moves are not wiped, and the crate's API gives
+no handle on them. They are not reachable from Faraday's code, which only
+passes the key bytes in (held in a `Zeroizing` vector) and gets signature
+bytes out. The blinding and the prime search are covered by
+`docs/KEYS.md`, what wiping does not reach.
+
 **Reopen when** 0.10.0 is released (drop the pin), or when Secure Boot
 moves to keys firmware verifies some other way.
 
