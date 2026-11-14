@@ -5,7 +5,7 @@
 //! for each step.
 //!
 //! ```text
-//! cargo run --release -p faraday-argon2-bench -- "Recent x86-64 laptop"
+//! cargo run --release -p faraday-vault --example argon2_bench -- "Recent x86-64 laptop"
 //! ```
 //!
 //! Run it in release: the vault is unlocked by a release build. Each

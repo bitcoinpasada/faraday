@@ -5,10 +5,10 @@ something the device did not write: a camera frame, a scanned payload, a
 PSBT from a coordinator, a key share, a file on storage. The parsers in
 Faraday's own crates have theirs in `faraday/fuzz/`
 (`faraday/fuzz/README.md`); `just fuzz-list` lists both. Every parser in
-`core/` that takes bytes or text is listed in `tools/fuzz-parsers.toml`
-with the target that runs it, or the reason it has none, and `just lint`
-fails on one that is not (`tools/lint-fuzz-parsers.py`), so a new parser
-gets its target in the change that adds it.
+`core/` that takes bytes or text has its target in the change that adds
+it (a review rule, `fuzz.parser-target`), and `just lint` fails on a
+target missing from the table below or a row with no target
+(`tools/lint-fuzz-parsers.py`).
 
 The 2026-09-11 security review item M5 is why they exist. The Pi
 shell is the only process on the board and is built with

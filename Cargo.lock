@@ -816,14 +816,6 @@ name = "faraday-alloc-count"
 version = "0.2.0"
 
 [[package]]
-name = "faraday-argon2-bench"
-version = "0.2.0"
-dependencies = [
- "faraday-crypto",
- "faraday-vault",
-]
-
-[[package]]
 name = "faraday-avfoundation"
 version = "0.1.0"
 dependencies = [

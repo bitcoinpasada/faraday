@@ -217,7 +217,7 @@ stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
 guides), every shell but the desktop app's window (`faraday-desktop`, `faraday-stick`,
 `faraday-snapshot`, `faraday-mediafoundation`, the
 Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev
-tools (`faraday-testkit`, `faraday-argon2-bench`, `faraday-fontbake`,
+tools (`faraday-testkit`, `faraday-fontbake`,
 `costs-lint`). The snapshot shell and the testkit tool build the test
 keys and wallets they render and write, and ship in nothing. The Starter
 reads a BitLocker recovery password through Windows' own API (§4).

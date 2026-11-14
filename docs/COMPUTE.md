@@ -110,7 +110,7 @@ and checks no signature; events only today; a
 | `faraday-disk/src/main.rs`: `pictures` and `main` | `new(\|_\| {})` | The disk process's pictures thread and its serving loop, which draw nothing |
 | `faraday/shells/desktop/src/lib.rs`: `Demo::sticks`, `faraday/shells/stick/src/main.rs`: `Shell::mounted_sticks` | `new(\|_\| {})` | The shells' look at the stick folders, which draws nothing; the listing reads twelve bytes of a file of a vault's length (`FileRead`) |
 | `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
-| `faraday/tools/argon2-bench/src/main.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
+| `faraday/faraday-vault/examples/argon2_bench.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
 | `aqrv/aqrv-cli/src/main.rs`: `run` | `new(\|_\| {})` | The Argon QR Vault's command line, a test tool outside the app, which draws nothing; the costs lint reads `aqrv/` too, so no other mint can be added there |
 | `aqrv/aqrv-cli/examples/diff_batch.rs`: `main` | `new(\|_\| {})` | The differential run's batch reader (`tools/vectors/aqrv/diff.py`), a test tool that draws nothing |
 | `faraday-core/src/worker.rs`: `worker_loop` | `new(work::core_count)` | The core's worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own and the counts it makes come home with each answer (`docs/WORKERS.md` §5) |

@@ -111,7 +111,7 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the command line's test that draws a QR picture to read back",
     ),
     (
-        "faraday/tools/argon2-bench/src/main.rs",
+        "faraday/faraday-vault/examples/argon2_bench.rs",
         "main",
         "a benchmark tool that draws nothing",
     ),

@@ -232,13 +232,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "pgp_message"
-path = "fuzz_targets/pgp_message.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "release_sums"
 path = "fuzz_targets/release_sums.rs"
 test = false

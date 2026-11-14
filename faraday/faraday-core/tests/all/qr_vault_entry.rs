@@ -119,7 +119,8 @@ fn a_refused_code_is_no_qr_vault() {
     assert_ne!(card_kind(&app), Some(Kind::QrVault));
 }
 
-const GNUPG: &[u8] = include_bytes!("../../../fuzz/corpus/pgp_message/refused-skesk4-seipd1.pgp");
+const GNUPG: &[u8] =
+    include_bytes!("../../../../fuzz/corpus/pgp_qr_vault/refused-skesk4-seipd1.pgp");
 
 #[test]
 fn a_qr_vault_file_in_the_outbox_reads_as_sealed() {

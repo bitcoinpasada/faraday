@@ -8232,7 +8232,7 @@ tests = [
 ]
 crosscheck = "qrvault"
 independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
-fuzz = ["pgp_message"]
+fuzz = ["pgp_qr_vault"]
 
 [action.secrets]
 reveal = ["Reveal::QrVault"]

@@ -265,7 +265,7 @@ tests left out (`#[cfg(test)]`, and a `cfg` naming one of the features
 no shipped binary turns on, `testkit` and `master-for-tests`:
 `tools/lint-keys-tests.sh` fails when one is on in a shipped binary),
 and the crates that are in no shipped binary (`faraday-testkit`,
-`faraday-snapshot`, `faraday-alloc-count`, `faraday-argon2-bench`; the
+`faraday-snapshot`, `faraday-alloc-count`; the
 inventory's `NOT_SHIPPED_CRATES`). The costs lint and the inventory must
 agree on what is shipped code; one walker makes that true by
 construction. Code that is not shipped is left out, never listed under

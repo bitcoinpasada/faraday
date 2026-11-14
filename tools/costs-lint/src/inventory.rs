@@ -82,12 +82,7 @@ const PRIMITIVE_CRATES: &[&str] = &[
 /// screen renderer for review, the allocation counter for the frame
 /// budgets and the Argon2 timer. The inventory leaves them out as it
 /// leaves out `cfg(test)`, whatever they compute (§4.1).
-const NOT_SHIPPED_CRATES: &[&str] = &[
-    "faraday-testkit",
-    "faraday-snapshot",
-    "faraday-alloc-count",
-    "faraday-argon2-bench",
-];
+const NOT_SHIPPED_CRATES: &[&str] = &["faraday-testkit", "faraday-snapshot", "faraday-alloc-count"];
 
 /// What `faraday-crypto` exports that computes nothing: the compute token,
 /// the secret wrappers, the Argon2id `Cost` a file carries, `hex`, which
