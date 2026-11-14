@@ -1833,6 +1833,7 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::wif_at",
   "faraday/faraday-core/src/explore/shown.rs::Shown::wif",
   "faraday/faraday-core/src/explore/shown.rs::address_path",
+  "faraday/faraday-core/src/explore/shown.rs::last_step_unhardened",
 ]
 code = [
   "faraday/faraday-keys/src/session.rs::Keys::wif_at",
