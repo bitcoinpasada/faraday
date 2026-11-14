@@ -80,9 +80,10 @@ impl Camera {
             return;
         };
         if let Some(look) = card.look.as_mut() {
+            look.sync(&session.wallets);
             look.press(way, now);
         }
-        crate::address_find::refresh(card, session);
+        crate::address_find::refresh(card);
     }
 
     /// Costs an address derivation for each index of the tick. One tick of
@@ -94,9 +95,15 @@ impl Camera {
         let Some(look) = card.look.as_mut().filter(|l| l.running()) else {
             return false;
         };
+        look.sync(&session.wallets);
+        if !look.running() {
+            crate::address_find::refresh(card);
+            return true;
+        }
         let policies: Vec<_> = session.wallets.iter().map(|w| w.policy()).collect();
         look.tick(c, &policies, now);
-        crate::address_find::refresh(card, session);
+        look.name_found(&session.wallets);
+        crate::address_find::refresh(card);
         true
     }
 
@@ -334,7 +341,7 @@ impl Faraday {
         look: crate::address_find::Look,
     ) {
         card.look = Some(look);
-        crate::address_find::refresh(card, &self.session);
+        crate::address_find::refresh(card);
     }
 
     /// A press on **Look further** or **Stop**.

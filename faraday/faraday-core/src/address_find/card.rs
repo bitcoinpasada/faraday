@@ -4,7 +4,6 @@
 use super::{Account, Look, LookWay};
 use crate::scan_read::{ReadCard, Way};
 use crate::strings::EN;
-use crate::wallet::Session;
 use faraday_text::Text;
 
 /// What a miss says: how far it looked, in how many wallets.
@@ -45,7 +44,7 @@ pub(crate) fn found_in_account(a: &Account, chain: &str, index: u32) -> Text {
 }
 
 /// The card's line and ways made again from the look it holds.
-pub(crate) fn refresh(card: &mut ReadCard, session: &Session) {
+pub(crate) fn refresh(card: &mut ReadCard) {
     let Some(look) = card.look.as_ref() else {
         return;
     };
@@ -58,10 +57,7 @@ pub(crate) fn refresh(card: &mut ReadCard, session: &Session) {
         let line = if let Some(a) = look.account(w) {
             found_in_account(a, chain, index)
         } else {
-            let name = session
-                .wallets
-                .get(w)
-                .map_or_else(Text::default, |w| w.name.clone());
+            let name = look.found_name.clone().unwrap_or_default();
             Text::fill(
                 EN.address_note_found,
                 &[&name, chain, &Text::num(u64::from(index))],
@@ -79,9 +75,13 @@ pub(crate) fn refresh(card: &mut ReadCard, session: &Session) {
     } else {
         (
             missed(look),
-            look.offered()
-                .map(|(i, _)| Way::Look(LookWay::To(i)))
-                .collect(),
+            if look.ended() {
+                Vec::new()
+            } else {
+                look.offered()
+                    .map(|(i, _)| Way::Look(LookWay::To(i)))
+                    .collect()
+            },
         )
     };
     card.facts = vec![line];

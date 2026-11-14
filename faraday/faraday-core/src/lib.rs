@@ -3229,8 +3229,8 @@ impl Faraday {
                 return Some((address_find::found_in_account(a, chain, index), None));
             }
         }
-        let wallets = self.session.wallets.len();
-        if wallets + accounts.len() == 0 {
+        let wallets = &self.session.wallets;
+        if wallets.len() + accounts.len() == 0 {
             return Some((faraday_text::Text::of(EN.address_note_no_wallet), None));
         }
         let look = address_find::Look::new(addr.script_pubkey(), wallets, accounts);

@@ -143,6 +143,40 @@ fn stop_ends_the_look() {
     assert_eq!(said(&app), stopped);
 }
 
+#[test]
+fn a_look_ends_when_the_loaded_wallets_change_and_does_not_claim_the_new_one() {
+    let mut app = checking(&[single(0), single(1)]);
+    read(&mut app, &address(&single(1), false, 5_000));
+    app.press(Action::ReadGo(1));
+    app.event(Event::Tick { now_ms: 1 });
+    assert!(said(&app).starts_with("Looking"), "{}", said(&app));
+    // The first wallet goes and the second takes its place.
+    app.session.wallets.remove(0);
+    app.event(Event::Tick { now_ms: 2 });
+    let line = said(&app);
+    assert!(!line.starts_with("Looking"), "{line}");
+    for t in 3..50 {
+        app.event(Event::Tick { now_ms: t });
+    }
+    assert_eq!(said(&app), line);
+    let card = app.scan().unwrap().card.as_ref().unwrap();
+    assert!(card.ways.is_empty());
+}
+
+#[test]
+fn a_find_keeps_the_name_of_its_wallet_when_the_wallets_change() {
+    let mut app = checking(&[single(0), single(1)]);
+    read(&mut app, &address(&single(1), false, 150));
+    app.press(Action::ReadGo(0));
+    look_through(&mut app);
+    let found = said(&app);
+    let name = app.session.wallets[1].name.clone();
+    assert!(found.contains(name.as_str()), "{found}");
+    app.session.wallets.remove(0);
+    app.press(Action::ReadGo(0));
+    assert_eq!(said(&app), found);
+}
+
 /// The best-known public test mnemonic, whose addresses every BIP's
 /// vectors give.
 const OTHER: &str = "abandon abandon abandon abandon abandon abandon \

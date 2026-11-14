@@ -8,6 +8,9 @@ use faraday_bip::bitcoin::ScriptBuf;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
+
+use crate::wallet::Wallet;
 
 use super::{Account, DEPTHS, Pace};
 
@@ -27,6 +30,12 @@ pub(crate) struct Look {
     target: ScriptBuf,
     /// How many wallets are looked in.
     pub(crate) wallets: usize,
+    /// The checksums of those wallets' policies, by place: what tells
+    /// that the loaded wallets are still the ones looked in.
+    loaded: Vec<String>,
+    /// Whether the loaded wallets changed since the look began: it looks
+    /// no further, since a place may hold another wallet.
+    ended: bool,
     /// The standard accounts of loaded keys with no wallet, looked in
     /// beside the wallets: a find's place counts on from the wallets'.
     accounts: Vec<Account>,
@@ -37,19 +46,54 @@ pub(crate) struct Look {
     /// Where it was found, once it was: the wallet's place, the chain
     /// and the index.
     pub(crate) found: Option<(usize, bool, u32)>,
+    /// The name of the wallet it was found in, as it was at the find.
+    pub(crate) found_name: Option<Text>,
 }
 
 impl Look {
-    /// A miss at the first [`DEPTHS`]' depth in `wallets` wallets and the
+    /// A miss at the first [`DEPTHS`]' depth in the `wallets` and the
     /// `accounts`.
-    pub(crate) fn new(target: ScriptBuf, wallets: usize, accounts: Vec<Account>) -> Self {
+    pub(crate) fn new(target: ScriptBuf, wallets: &[Wallet], accounts: Vec<Account>) -> Self {
         Look {
             target,
-            wallets,
+            wallets: wallets.len(),
+            loaded: wallets.iter().map(|w| w.checksum().to_owned()).collect(),
+            ended: false,
             accounts,
             looked: DEPTHS[0],
             under_way: None,
             found: None,
+            found_name: None,
+        }
+    }
+
+    /// Ends the look when `wallets` are no longer the ones it began in,
+    /// the indices it did look at kept as looked of those. A find stays.
+    pub(crate) fn sync(&mut self, wallets: &[Wallet]) {
+        if !self.ended
+            && (wallets.len() != self.loaded.len()
+                || wallets
+                    .iter()
+                    .zip(&self.loaded)
+                    .any(|(w, c)| w.checksum() != c))
+        {
+            self.ended = true;
+            if let Some((_, next, _)) = self.under_way.take() {
+                self.looked = self.looked.max(next);
+            }
+        }
+    }
+
+    /// Whether the wallets changed and the look ended with them.
+    pub(crate) fn ended(&self) -> bool {
+        self.ended && self.found.is_none()
+    }
+
+    /// Keeps the name of the wallet a find is in, from `wallets` as they
+    /// are at the find.
+    pub(crate) fn name_found(&mut self, wallets: &[Wallet]) {
+        if let (Some((w, _, _)), None) = (self.found, &self.found_name) {
+            self.found_name = wallets.get(w).map(|w| w.name.clone());
         }
     }
 
@@ -90,7 +134,11 @@ impl Look {
                 let Some(&depth) = DEPTHS.get(usize::from(i)) else {
                     return;
                 };
-                if self.under_way.is_none() && depth > self.looked && self.found.is_none() {
+                if self.under_way.is_none()
+                    && depth > self.looked
+                    && self.found.is_none()
+                    && !self.ended
+                {
                     self.under_way = Some((depth, self.looked, Pace::new(now_ms)));
                 }
             }
