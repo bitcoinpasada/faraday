@@ -487,6 +487,16 @@ if [ -n "$linux_dir" ] && [ -d "$linux_dir/drivers/video/logo" ] \
     make -C /output linux-clean-for-rebuild
 fi
 
+# The same for the keymap: external.mk empties the tree's keymap when it is
+# unpacked, so a tree unpacked before that keeps the kernel's own. Empty it
+# and have the kernel compiled again.
+if [ -n "$linux_dir" ] && [ -f "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" ] \
+        && ! python3 "$image/common/empty-keymap.py" check "$linux_dir/drivers/tty/vt/defkeymap.c_shipped" 2>/dev/null; then
+    echo "==> the kernel's keymap is not empty"
+    python3 "$image/common/empty-keymap.py" write "$linux_dir/drivers/tty/vt/defkeymap.c_shipped"
+    make -C /output linux-clean-for-rebuild
+fi
+
 # ---- the kernel tarball is the one the board pinned.
 #
 # The board's buildroot.fragment carries the sha256 of the tarball it

@@ -23,6 +23,19 @@ endef
 
 LINUX_POST_PATCH_HOOKS += FARADAY_IMAGE_INSTALL_BOOT_LOGO
 
+# The kernel's keymap with every key K_HOLE. The virtual terminal (kept for
+# the boot logo) turns typed keys into characters and queues them for a
+# reader of /dev/tty1, a passphrase among them; with no key mapped it
+# queues nothing. The app reads keys from evdev and does not need the
+# keymap. check-kernel-config.sh fails the build if the tree's keymap is
+# not this one.
+define FARADAY_IMAGE_EMPTY_KEYMAP
+	$(Q)python3 $(BR2_EXTERNAL_FARADAY_PATH)/../common/empty-keymap.py write \
+		$(@D)/drivers/tty/vt/defkeymap.c_shipped
+endef
+
+LINUX_POST_PATCH_HOOKS += FARADAY_IMAGE_EMPTY_KEYMAP
+
 # The board's defconfig, with every module dropped.
 #
 # Kconfig turns a `=m` into `=y` when CONFIG_MODULES is off. The bcm2709

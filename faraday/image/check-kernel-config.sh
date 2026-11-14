@@ -209,6 +209,25 @@ if [ "${#boot_words[@]}" -gt 0 ]; then
     done
 fi
 
+# The keymap of the kernel tree the config is in: every key K_HOLE
+# (common/empty-keymap.py), so the virtual terminal queues nothing typed.
+# A config with no tree beside it (a test's) has none to look at.
+tree="$(dirname "$config")"
+if [ -f "$tree/Makefile" ]; then
+    keymap_tool="$(dirname "${BASH_SOURCE[0]}")/common/empty-keymap.py"
+    for keymap in "$tree/drivers/tty/vt/defkeymap.c_shipped" "$tree/drivers/tty/vt/defkeymap.c"; do
+        [ -f "$keymap" ] || continue
+        if ! python3 "$keymap_tool" check "$keymap"; then
+            echo "kernel config: $keymap maps keys: a typed word would be queued for /dev/tty1" >&2
+            fail=1
+        fi
+    done
+    [ -f "$tree/drivers/tty/vt/defkeymap.c_shipped" ] || {
+        echo "kernel config: $tree has no drivers/tty/vt/defkeymap.c_shipped to check" >&2
+        fail=1
+    }
+fi
+
 if [ "$fail" != 0 ]; then
     echo "kernel config: $config does not describe this device" >&2
     exit 1
