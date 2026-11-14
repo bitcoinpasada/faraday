@@ -715,3 +715,90 @@ fn a_device_that_came_due_under_the_new_device_sheet_gets_its_sheet_after() {
     app.press(Action::InputUse(3));
     assert_eq!(app.sheet, Some(Sheet::Devices));
 }
+
+/// How many of `words` are drawn on the page, looked for at the top and
+/// down its column.
+fn words_drawn(app: &mut Faraday, words: &[String]) -> usize {
+    use faraday_core::testkit::Plain as _;
+    let mut most = 0;
+    app.event(Event::Scroll {
+        x: 400,
+        y: 384,
+        dy: -5000,
+    });
+    for _ in 0..8 {
+        let _ = app.frame();
+        let drawn = app.drawn_texts().plain();
+        most = most.max(words.iter().filter(|w| drawn.contains(w)).count());
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    most
+}
+
+#[test]
+fn a_kvm_arriving_takes_new_keys_words_off_the_screen_until_checked_again() {
+    use faraday_core::keygen::Start;
+    use faraday_core::testkit;
+    let words = testkit::test_words("bacon");
+    let mut app = shown(laptop());
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(Start::Words.index()));
+    let _ = app.frame();
+    crate::common::type_text(&mut app, &words);
+    app.press(Action::KNext);
+    app.press(Action::KShow);
+    let list: Vec<String> = words.split(' ').map(str::to_owned).collect();
+    assert!(words_drawn(&mut app, &list) > 0, "the words are not shown");
+    app.usb_devices(&[kvm()]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert_eq!(words_drawn(&mut app, &list), 0, "words stay drawn");
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    assert_eq!(app.sheet, None);
+    app.press(Action::KShow);
+    assert!(words_drawn(&mut app, &list) > 0, "Show words shows again");
+}
+
+#[test]
+fn a_kvm_arriving_takes_back_ups_words_off_the_screen_until_checked_again() {
+    use faraday_core::{bstep, testkit};
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let list: Vec<String> = words.split(' ').map(str::to_owned).collect();
+    let mut app = shown(laptop());
+    app.press(Action::Entry(None));
+    crate::common::type_text(&mut app, &words);
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    app.press(Action::Backup(0));
+    let w = app.backup().unwrap().wallet;
+    let shape = app.plan_shape_now(w);
+    let preset = faraday_core::plan::Preset::ALL[2];
+    faraday_core::testkit::set_backup_answers(
+        &mut app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, 2),
+    );
+    app.press(Action::BChecklist);
+    let c = faraday_core::testkit::compute();
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::COPY));
+    app.press(Action::BReveal);
+    assert!(words_drawn(&mut app, &list) > 0, "the words are not shown");
+    app.usb_devices(&[kvm()]);
+    assert_eq!(words_drawn(&mut app, &list), 0, "words stay drawn");
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    app.press(Action::BReveal);
+    assert!(
+        words_drawn(&mut app, &list) > 0,
+        "Show the seed shows again"
+    );
+}

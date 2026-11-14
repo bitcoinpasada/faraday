@@ -186,7 +186,10 @@ internal error rather than carrying on.
   hides what its item page shows at once: the eye's words, paperkey and
   other masked fields, a seed's code, and a TOTP secret's or a
   paperkey's code on the QR sheet. They show again with no press once the device is gone and
-  checked again, or let through; a Lock in between drops them.
+  checked again, or let through; a Lock in between drops them. Every other
+  secret on show goes off the screen too, the words, SeedQR and passphrase
+  of New key and Back up among them, and stays off until its Show is
+  pressed again; the Seed XOR parts, which cannot be shown again, stay.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one

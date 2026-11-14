@@ -497,6 +497,12 @@ impl Faraday {
                 self.device_hold(Action::Vault(press));
             }
         }
+        if arrived && read {
+            // Seed words, a SeedQR, a passphrase and the tools' secrets on
+            // show anywhere else go off the screen too; the item page
+            // hides and returns by itself, and the Seed XOR parts stay.
+            crate::vault::seal::secrets_off_screen_but_vaults(self);
+        }
         self.device_sheet();
         self.out.redraw();
         self.out

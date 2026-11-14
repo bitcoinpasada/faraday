@@ -122,6 +122,14 @@ pub(crate) fn lock_pending(app: &Faraday) -> bool {
 /// here, and a new one is added here.
 pub(crate) fn secrets_off_screen(app: &mut Faraday) {
     app.qr.close();
+    app.vaults.hide_secrets();
+    secrets_off_screen_but_vaults(app);
+}
+
+/// [`secrets_off_screen`] but for the vaults' own and the code sheet: a
+/// capture device arriving hides the item page's secrets and gives them
+/// back itself ([`Faraday::vault_secrets_on_page`]).
+pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
     app.explore_hide();
     crate::convert::hide(app);
     crate::kef_tool::hide(app);
@@ -131,7 +139,6 @@ pub(crate) fn secrets_off_screen(app: &mut Faraday) {
     app.vanity.hide_secrets();
     app.inbox.hide_secrets();
     app.scan_card_hide();
-    app.vaults.hide_secrets();
     app.backup.hide_secrets();
     app.keygen.hide_secrets();
     app.bip85.hide_secrets();
