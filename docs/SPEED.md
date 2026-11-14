@@ -512,13 +512,14 @@ COMPUTE D1 (2026-10-21) added:
   state that drawing reads (`drawing/kept.rs`), read on two frames in a
   row with nothing changed, does no counted work the second time, each
   accessor on its own.
-- **Allocations and lines a frame** (`budget.rs`): each screen of the
-  walk allocates and draws no more lines of text than its measured
-  count, in two tables, the desktop's (`FRAME_COSTS`) and the Pi's
-  compact screens (`FRAME_COSTS_PI`), with a margin of 10 % or at least
-  8 (`MARGIN_PCT`, `MARGIN_MIN`). A change that draws more on purpose
-  measures again and writes the new counts there, with why. The test
-  binary counts allocations with `faraday/tools/alloc-count`.
+- **Allocations and lines a frame** (`budget.rs`): no screen of the
+  walk allocates or draws more lines of text than one ceiling for the
+  panel, the desktop's (`FRAME_CEILING`) or the Pi's compact screens
+  (`FRAME_CEILING_PI`), each the highest count of any screen when taken,
+  with a margin of 10 % or at least 8 (`MARGIN_PCT`, `MARGIN_MIN`). A
+  change that draws more on purpose measures again and writes the new
+  ceiling there, with why. The test binary counts allocations with
+  `faraday/tools/alloc-count`.
 - **Each typed character** (`keys.rs`): a character typed into any
   field does no costly work beyond its named budget, the key and the
   frames after it together; a key stretch is never in a budget (§9

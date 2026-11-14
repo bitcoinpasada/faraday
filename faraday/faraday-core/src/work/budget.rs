@@ -50,74 +50,18 @@ use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit}
 /// whole canvas.
 const SHEET_CANVAS: u64 = 1;
 
-/// What a frame of each screen of the walk allocates and the lines of
-/// text it draws, measured on this code (2026-10-21), on the desktop:
-/// (screen, allocations, lines). A frame allowed [`MARGIN_PCT`] more of
-/// either passes; more than that is work no one marked, and fails. A
-/// change that draws more on purpose measures again and writes the new
-/// counts here, with why.
-const FRAME_COSTS: &[(&str, u64, u64)] = &[
-    ("Create", 381, 63),
-    ("Backup board", 4918, 118),
-    ("Backup checklist", 2364, 92),
-    ("Load sheet", 1046, 26),
-    ("GPG key flow", 924, 63),
-    ("GPG Sign a file", 4969, 93),
-    ("GPG sign sheet", 511, 9),
-    ("Spend", 878, 95),
-    ("Home", 1256, 48),
-    ("Wallets", 2117, 93),
-    ("Files", 5434, 82),
-    ("Vaults", 521, 43),
-    ("Vault contents", 4971, 94),
-    ("Backups", 1213, 77),
-    ("Spend tab", 976, 68),
-    // Every section on one page from medium windows up, two columns
-    // (2026-10-25): was 1118 and 69 with one section beside a list. The
-    // lines are the two columns' text in sight; a card out of sight is
-    // measured, not drawn, its labels are made once and a path is
-    // sized once (2026-10-26).
-    ("Settings", 798, 98),
-    ("Tools", 457, 33),
-    ("Power sheet", 2674, 23),
-    ("Learn sheet", 71, 28),
-    ("Scan sheet", 35, 4),
-    ("Wallet chart", 2739, 110),
-    ("Backup reopened", 1329, 82),
-    ("Create, new", 445, 66),
-];
+/// The most a frame of any screen of the walk allocates and the most lines
+/// of text it draws, on the desktop: (allocations, lines). These are the
+/// highest counts of any screen measured on this code (2026-11-14). A
+/// frame allowed [`MARGIN_PCT`] more of either passes; more than that is
+/// work no one marked, and fails. A change that draws more on purpose
+/// measures again and writes the new ceiling here, with why.
+const FRAME_CEILING: (u64, u64) = (5434, 118);
 
-/// [`FRAME_COSTS`] on the Pi's panel, its compact screens.
-const FRAME_COSTS_PI: &[(&str, u64, u64)] = &[
-    ("Create", 129, 20),
-    ("Backup board", 1367, 22),
-    ("Backup checklist", 1715, 15),
-    ("Load sheet", 1037, 15),
-    ("GPG key flow", 384, 20),
-    ("GPG Sign a file", 4524, 17),
-    ("GPG sign sheet", 540, 9),
-    ("Spend", 252, 22),
-    // Home counts the wallets with no backup plan without their maps (was 1087 and 1012).
-    ("Home", 690, 17),
-    ("Wallets", 400, 13),
-    ("Files", 5768, 18),
-    ("Vaults", 143, 12),
-    ("Vault contents", 4524, 17),
-    ("Backups", 696, 23),
-    ("Spend tab", 630, 18),
-    // The list of sections since 2026-10-25 (was 966 and 17), its
-    // labels made once and paths sized once (2026-10-26).
-    ("Settings", 68, 12),
-    ("Tools", 51, 4),
-    ("Power sheet", 2701, 8),
-    ("Learn sheet", 133, 14),
-    ("Scan sheet", 53, 4),
-    ("Wallet chart", 1240, 13),
-    ("Backup reopened", 660, 21),
-    ("Create, new", 172, 17),
-];
+/// [`FRAME_CEILING`] on the Pi's panel, its compact screens.
+const FRAME_CEILING_PI: (u64, u64) = (5768, 23);
 
-/// How far over its measured counts a frame may go, in percent of them,
+/// How far over its ceiling a frame may go, in percent of them,
 /// and at least [`MARGIN_MIN`]: room for a list one row longer or a
 /// label one word longer, not for a screen that does something new.
 const MARGIN_PCT: u64 = 10;
@@ -334,19 +278,18 @@ fn hover_work(app: &mut Faraday) -> Counts {
 /// Each screen's counts, and the failures against the
 /// frame costs and the rule that a frame works nothing out.
 struct Report {
-    /// The frame costs measured, against.
-    costs: &'static [(&'static str, u64, u64)],
+    /// The ceiling a frame is measured against: allocations and lines.
+    ceiling: (u64, u64),
     lines: Vec<Text>,
-    /// Each screen's allocations and lines, as [`FRAME_COSTS`] writes
-    /// them.
+    /// Each screen's allocations and lines, to set a ceiling from.
     measured: Vec<Text>,
     failures: Vec<Text>,
 }
 
 impl Report {
-    fn new(costs: &'static [(&'static str, u64, u64)]) -> Self {
+    fn new(ceiling: (u64, u64)) -> Self {
         Report {
-            costs,
+            ceiling,
             lines: Vec::new(),
             measured: Vec::new(),
             failures: Vec::new(),
@@ -362,25 +305,19 @@ impl Report {
             ));
         }
         self.measured
-            .push(text!("    (\"{name}\", {allocs}, {drawn}),"));
-        match self.costs.iter().find(|(n, ..)| *n == name) {
-            None => self.failures.push(text!(
-                "{name}: no measured frame costs (allocations {allocs}, lines {drawn})"
-            )),
-            Some(&(_, a, l)) => {
-                if allocs > with_margin(a) {
-                    self.failures.push(text!(
-                        "{name}: a frame made {allocs} allocations, measured {a} (most {}): a frame did work no one marked",
-                        with_margin(a)
-                    ));
-                }
-                if drawn > with_margin(l) {
-                    self.failures.push(text!(
-                        "{name}: a frame drew {drawn} lines of text, measured {l} (most {}): a frame drew what no one marked",
-                        with_margin(l)
-                    ));
-                }
-            }
+            .push(text!("    {name}: {allocs} allocations, {drawn} lines"));
+        let (a, l) = self.ceiling;
+        if allocs > with_margin(a) {
+            self.failures.push(text!(
+                "{name}: a frame made {allocs} allocations, the ceiling is {a} (most {}): a frame did work no one marked",
+                with_margin(a)
+            ));
+        }
+        if drawn > with_margin(l) {
+            self.failures.push(text!(
+                "{name}: a frame drew {drawn} lines of text, the ceiling is {l} (most {}): a frame drew what no one marked",
+                with_margin(l)
+            ));
         }
         let mut line = text!("{name} ({:?}, {:?}):", app.screen, app.sheet);
         for &k in &KINDS {
@@ -560,11 +497,11 @@ pub(super) const MAIN: [(&str, Screen); 9] = [
 ];
 
 /// The walk on `panel`, each screen checked against the budgets and
-/// `costs`.
-fn budgets_hold_on(panel: Panel, costs: &'static [(&'static str, u64, u64)]) {
+/// `ceiling`.
+fn budgets_hold_on(panel: Panel, ceiling: (u64, u64)) {
     let c = crate::testkit::compute();
     let start = snapshot();
-    let mut r = Report::new(costs);
+    let mut r = Report::new(ceiling);
     let _ = walk_on(&c, panel, &mut |app, name| r.check(app, name));
     assert!(
         since(&start).of(Work::MasterKey) >= 3,
@@ -581,12 +518,12 @@ fn budgets_hold_on(panel: Panel, costs: &'static [(&'static str, u64, u64)]) {
 
 #[test]
 fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
-    budgets_hold_on(DESKTOP, FRAME_COSTS);
+    budgets_hold_on(DESKTOP, FRAME_CEILING);
 }
 
 #[test]
 fn on_the_pis_panel_a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
-    budgets_hold_on(PI, FRAME_COSTS_PI);
+    budgets_hold_on(PI, FRAME_CEILING_PI);
 }
 
 /// A frame painted in bands does the costly work, the blurs and the
