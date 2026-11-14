@@ -1582,6 +1582,8 @@ impl crate::Faraday {
             return;
         }
         let slot = k.slot;
+        // Added without the quiz, no share was ever read back.
+        let unchecked = !passed;
         let label = Text::fill(
             EN.keygen_new_key_n,
             &[&Text::num((self.keygen.new_keys + 1) as u64)],
@@ -1608,6 +1610,12 @@ impl crate::Faraday {
         };
         match added {
             Ok(fp) => {
+                // Made here, its shares not read back: it signs once they are
+                // typed back in Add a key (`Faraday::form_key`). A sample
+                // handed out in place of it keeps no hold.
+                if unchecked && handed.is_none() {
+                    self.mark_made_here(fp);
+                }
                 self.keygen.new_keys += 1;
                 if let Some(slot) = slot {
                     self.create.fill_slot(slot, fp.0, true);

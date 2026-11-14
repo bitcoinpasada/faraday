@@ -192,3 +192,54 @@ fn the_split_takes_its_randomness_from_the_fresh_bytes() {
             .collect::<Vec<_>>()
     );
 }
+
+/// A key skipped past the quiz was never read back: it waits, held, until
+/// a quorum of its shares is typed back into Add a key, which releases it.
+#[test]
+fn a_slip39_key_added_by_skip_waits_until_its_shares_are_typed_back() {
+    use faraday_shell_api::Key;
+    let c = faraday_core::testkit::compute();
+    let mut app = dealt();
+    app.press(Action::KNext); // check -> shares
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    app.press(Action::KNext); // shares -> quiz
+    let fp = app.keygen().unwrap().fingerprint.unwrap();
+    let shares: Vec<String> = app
+        .keygen()
+        .unwrap()
+        .shares
+        .iter()
+        .take(2)
+        .map(|s| {
+            (0..s.word_count())
+                .map(|i| s.word(i))
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect();
+    app.press(Action::KSkip);
+    app.press(Action::KSkip);
+    app.press(Action::KAdd);
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(
+        app.held_keys_now(&c).iter().any(|f| f.0 == fp),
+        "the key is held until its shares are typed back"
+    );
+
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(1));
+    for share in &shares {
+        for ch in share.chars() {
+            app.event(Event::Key(Key::Char(ch)));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+    app.press(Action::EntryRecover);
+    assert_eq!(app.session.keys.len(), 1, "the same key, not a second");
+    assert!(
+        !app.held_keys_now(&c).iter().any(|f| f.0 == fp),
+        "its shares typed back release it"
+    );
+}

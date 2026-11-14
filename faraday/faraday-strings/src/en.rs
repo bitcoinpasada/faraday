@@ -3936,7 +3936,7 @@ strings! {
     /// Line in `quiz`.
     keygen_quiz_skip_warning: "Without the quiz, a word copied wrongly is found only when the backup is needed",
     /// Text in `quiz`.
-    keygen_skip_and_add: "Skip and add the key",
+    keygen_skip_and_add: "Skip: the key waits until its shares are typed back",
     /// Button in `quiz`.
     keygen_skip_the_quiz: "Skip the quiz",
     /// Text in `quiz`.

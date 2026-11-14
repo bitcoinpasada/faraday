@@ -1630,10 +1630,22 @@ impl Faraday {
                 )
             })
             .and_then(|seed| {
-                self.session
-                    .keys
-                    .add_seed(&c, &seed, label)
-                    .map_err(|e| e.text())
+                // The seed these shares make is dropped (wiped) here.
+                match self.session.keys.add_seed(&c, &seed, label) {
+                    // A key made here and added without its shares quizzed:
+                    // a quorum typed back with the same fingerprint is its
+                    // copy checked, and it is released.
+                    Err(crate::wallet::Refusal::Duplicate(fp))
+                        if self.flows.made_here().contains(&fp) =>
+                    {
+                        self.flows.release_made(fp, &[]);
+                        if let Some(k) = self.session.keys.position(fp) {
+                            self.held_clear_marks(fp, k);
+                        }
+                        Ok(fp)
+                    }
+                    other => other.map_err(|e| e.text()),
+                }
             }),
             Form::Codex32 => self.form_key_codex32(&c, label),
             Form::Xor => self
