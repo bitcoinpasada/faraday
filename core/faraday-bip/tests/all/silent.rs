@@ -754,6 +754,11 @@ fn an_sp_descriptor_faraday_writes_reads_back_as_the_wallet_it_came_from() {
         // Its record reads back as itself.
         let record = faraday_bip::silent_wallet::SilentWallet::parse(&w.to_text()).unwrap();
         assert_eq!(record, w);
+        // The scan private key the descriptor carried is not in what the
+        // wallet writes.
+        let key = alone.rsplit(']').next().unwrap();
+        assert!(key.contains("spscan1q"));
+        assert!(!w.to_text().contains(key));
     }
 }
 
