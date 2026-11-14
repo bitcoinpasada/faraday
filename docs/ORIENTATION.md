@@ -100,7 +100,7 @@ and mounting in `panel.conf`, as it states its size and density:
 `NATIVE=portrait|landscape` and `MOUNT=90|270`, the quarter turn for the
 other orientation. The image writes them into the shell's arguments
 (`--native`, `--mount`) as it writes `--touch-grid`
-(`faraday/image/README.md`, "Adding a panel"). A panel that states a
+(`docs/IMAGES.md` §10.5). A panel that states a
 `MOUNT` is offered Rotation; one that does not is not.
 
 ### 2.1 The density of a panel

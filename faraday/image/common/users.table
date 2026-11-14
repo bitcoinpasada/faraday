@@ -4,7 +4,7 @@
 #   username uid group gid password home shell groups comment
 #
 # uid and gid are written out rather than left to Buildroot, because
-# /etc/mdev.conf and the vfat mount in /etc/init.d/rcS name the same
+# /etc/mdev.conf names the same
 # numbers and two builders must get the same bytes.
 #
 # The password is "*", which no password matches, so the account cannot

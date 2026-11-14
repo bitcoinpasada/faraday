@@ -348,7 +348,7 @@ pressed or a file's name. A release prints nothing.
 It is seen when the app is started from a terminal. The stick prints
 no such line; its dev image records what its loop costs in
 `faraday-timings.txt`, which the shell keeps in RAM and writes onto the
-boot stick through the disk process (`faraday/image/README.md`).
+boot stick through the disk process (`docs/IMAGES.md` §10.6).
 
 ### 3.12 The vault 2 card and the sticks card; the late flow again (2026-10-19)
 

@@ -176,7 +176,7 @@ refusals are tested without a disk.
 **The Pi image's build ID.** The Pi's kernel is a compressed zImage,
 so its release string is not in the image's bytes. The Pi image build
 writes `faraday-build.txt` to the boot partition, holding the kernel's
-release string and a newline (`6.6.84-faraday-0.2.0`), so
+release string and a newline (`6.18.59-faraday-0.2.0`), so
 `faraday-boot`'s `find_release` reads a Pi card's boot partition as it
 reads a stick's, and the staging script and the Starter read the Pi's
 build ID the same way.

@@ -216,7 +216,7 @@ The first image build clones Buildroot at its pinned tag and takes 30
 to 60 minutes; later builds redo only what changed. A build is a test
 release unless built with `release=1`, which refuses a dev image, a
 version override and a tree that differs from its commit
-(`docs/decisions/F5.md`). `faraday/image/README.md` describes the
+(`docs/decisions/F5.md`). `docs/IMAGES.md` §10 describes the
 image, its partitions, the boards and panels, and the build.
 
 `faraday/builds.toml` lists every build the repository makes, each
@@ -270,8 +270,7 @@ just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
 whole stick** erases it; **keep data** writes the boot partition alone
 and leaves the data partition (vaults, settings, files) as it is.
 `docs/STARTER.md` §4.1 says what the writer checks. `dd` works too and
-overwrites the whole device (`faraday/image/README.md`, "Write it to a
-card or a stick").
+overwrites the whole device (`docs/IMAGES.md` §10.21).
 
 While working on the stick image, rewrite only its boot partition:
 
@@ -347,7 +346,7 @@ Never use it for keys that matter.
   tried: too little memory free" where it did not fit), a key made, a
   transaction signed, a camera frame read for a QR code, a file written
   to a stick or the card, and the rest of what the core counts
-  (`faraday/image/README.md`, "The dev variant"). The file holds every
+  (`docs/IMAGES.md` §10.6). The file holds every
   run since boot, in order, each under a `run N` line: a lock ends the
   app and the next one carries on in the same file. With the boot medium
   out (a key is loaded with it out) the timings stay in memory: plug it
@@ -386,15 +385,14 @@ just faraday-disk-test                    the stick's disk handling, end to end,
 
 The machine's screen is on VNC at `127.0.0.1:5909`, loopback only; with
 the dev image the kernel console and `--verbose` are on the terminal.
-`faraday/image/README.md`, "Try it in QEMU first", has the webcam
+`docs/IMAGES.md` §10.19 has the webcam
 passthrough and `faraday/tools/qemu-check.py`.
 
 ### 6.4. What to report
 
 An issue with the machine's make and model, the image's build ID (the
 kernel's release string: `uname -r` on the dev image's console), what
-happened, and the dev image's `faraday-boot-report.txt`. `faraday/image/README.md`, "The USB
-stick on a laptop", lists what is known to work and what is not.
+happened, and the dev image's `faraday-boot-report.txt`. `docs/IMAGES.md` §10.18 lists what is known to work and what is not.
 
 ## 7. The crypto cross-check
 

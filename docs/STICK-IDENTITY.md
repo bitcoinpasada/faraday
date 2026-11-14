@@ -534,7 +534,7 @@ with the Starter for it to have its own IDs.
 - The image: both `genimage.cfg`, `faraday/image/fat-serial.sh` (or a
   sibling for the GUIDs and the signature), both `board.conf`,
   `faraday/image/boards/x86_64-uefi/busybox.fragment` (no lookup by
-  label), `faraday/image/stick-boot.sh`, `faraday/image/README.md`.
+  label), `faraday/image/stick-boot.sh`, `docs/IMAGES.md` §10.17.
 - The device: `faraday/faraday-grant/src/lib.rs`,
   `faraday/faraday-disk/src/lib.rs`, `faraday/faraday-fat/src/lib.rs`
   (labels), `faraday/shells/stick/src/files.rs` and `main.rs`,
@@ -556,7 +556,7 @@ With F182:
 
 - The image: `faraday/image/build.sh` and the stick board's
   `post-image.sh` (the first usable sector, the boot FAT, the checks
-  with `sgdisk`, `sfdisk` and `fsck.fat`), `faraday/image/README.md`,
+  with `sgdisk`, `sfdisk` and `fsck.fat`), `docs/IMAGES.md` §10.17,
   `faraday/tools/stage-release.sh` (the boot partition's sum in
   `IMAGES`).
 - The device and the layout: `faraday/faraday-boot/src/layout.rs`,

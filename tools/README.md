@@ -79,8 +79,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/leak-entries.toml` | test | the leak tests | the copies of a test secret a flow is let to leave in a freed block: its flow, form, place, reason and fix; an entry no run hits fails |
 | `faraday/tools/argon2-bench/` | dev aid | `docs/VAULT.md` §3.1 | times the vault's Argon2id presets on a machine |
 | `faraday/tools/stage-release.sh` | release | `just faraday-release-stage`, `faraday-release-stage-starter` | stages a release's files, every image `faraday/builds.toml` releases, `IMAGES` and `SHA256SUMS` under `out/release/VERSION/` |
-| `faraday/tools/stick-qemu.py` | test | `disk-test.py`, `qemu-check.py`; `faraday/image/README.md` | boots the stick image in QEMU with OVMF the way a laptop does |
-| `faraday/tools/qemu-check.py` | test | by hand (`faraday/image/README.md`) | boots the stick image headless and photographs it |
+| `faraday/tools/stick-qemu.py` | test | `disk-test.py`, `qemu-check.py`; `docs/IMAGES.md` | boots the stick image in QEMU with OVMF the way a laptop does |
+| `faraday/tools/qemu-check.py` | test | by hand (`docs/IMAGES.md`) | boots the stick image headless and photographs it |
 | `faraday/tools/disk-test.py` | test | by hand | boots the dev stick image and checks the stick rule |
 | `faraday/tools/sb-ovmf-check.py` | test | `just faraday-sb-ovmf` | Secure Boot end to end in OVMF with `faraday-sb`'s keys |
 | `faraday/tools/core-check.py` | test | by hand (`docs/INTEROP.md`) | Faraday against Bitcoin Core on regtest |

@@ -80,7 +80,6 @@ export FORCE_UNSAFE_CONFIGURE=1
 # shellcheck source=/dev/null
 . "$board_dir/board.conf"
 board_name="$NAME"
-board_status="${STATUS:-untested}"
 board_dtbs="${DTBS:-}"
 board_dts_dir="${DTS_DIR:-}"
 board_firmware="${FIRMWARE:-none}"
@@ -135,9 +134,6 @@ if [ "$DEV" = 1 ]; then
     what="$what, dev variant"
 fi
 echo "==> $variant: $what"
-if [ "$board_status" != tested ]; then
-    echo "    $BOARD is $board_status: no one has booted this combination"
-fi
 
 mkdir -p "$gen"
 

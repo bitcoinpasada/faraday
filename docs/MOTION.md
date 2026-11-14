@@ -226,7 +226,7 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   drawn at once for slow steps or for reduce motion, the steps blended,
   the recent step gaps' median and how many are known, and whether the
   next change fades (2026-10-29).
-- The dev stick's `--timings` (`faraday/image/README.md`) writes a
+- The dev stick's `--timings` (`docs/IMAGES.md` §10.6) writes a
   block every five seconds to `faraday-timings.txt` on the boot stick:
   a frame drawn in full against a fade's blended step (`frame`,
   `blend`), how many frames went out at each step of the frame grid
