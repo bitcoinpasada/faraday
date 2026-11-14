@@ -23,7 +23,7 @@ pub(crate) fn keys_load(m: Medium) -> String {
 /// alone. Returns whether it refused; typing then goes nowhere and, with a
 /// stick attached, the screen says why.
 pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
-    let attached = !app.stick.is_empty();
+    let attached = app.stick.in_the_way();
     if !(attached || !entry && !app.may_load_keys()) {
         return false;
     }
@@ -45,7 +45,7 @@ pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
 /// Returns whether it refused, with the vault's toast; what the tools hold
 /// typed is wiped and their focus cleared.
 pub(crate) fn refuses_secret(app: &mut Faraday) -> bool {
-    if app.stick.is_empty() {
+    if !app.stick.in_the_way() {
         return false;
     }
     tools_lose_secrets(app, true);
@@ -79,7 +79,7 @@ pub(crate) fn tools_lose_secrets(app: &mut Faraday, wipe: bool) {
 /// needs its own check. Convert's fields are opened by their card and are
 /// closed on arrival ([`tools_lose_secrets`]) instead.
 pub(crate) fn keep_focus_off(app: &mut Faraday) {
-    if app.stick.is_empty() {
+    if !app.stick.in_the_way() {
         return;
     }
     crate::core_wallet::tool::stick_attached(app, false);
@@ -136,6 +136,9 @@ pub(crate) struct StickArea {
     waits: bool,
     /// What the shell found of the medium the machine started from.
     boot_medium: crate::BootMedium,
+    /// The kernel shows storage attached, listed or not
+    /// ([`crate::StorageEvent::Attached`]).
+    attached: bool,
 }
 
 impl std::ops::Deref for StickArea {
@@ -146,6 +149,23 @@ impl std::ops::Deref for StickArea {
 }
 
 impl StickArea {
+    /// A stick is in the way of keys and secrets: one is listed, or the
+    /// kernel shows storage attached that the disk process has not listed.
+    pub(crate) fn in_the_way(&self) -> bool {
+        !self.sticks.is_empty() || self.attached
+    }
+
+    /// The kernel shows storage attached and no stick is listed.
+    pub(crate) fn attached_unlisted(&self) -> bool {
+        self.attached && self.sticks.is_empty()
+    }
+
+    /// What the shell sees of attached storage, as it says; whether it
+    /// changed.
+    pub(crate) fn set_attached(&mut self, attached: bool) -> bool {
+        std::mem::replace(&mut self.attached, attached) != attached
+    }
+
     /// What the shell found of the medium the machine started from.
     pub(crate) fn boot_medium(&self) -> crate::BootMedium {
         self.boot_medium

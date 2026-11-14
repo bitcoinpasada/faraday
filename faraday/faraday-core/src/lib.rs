@@ -1297,6 +1297,7 @@ impl Faraday {
             e @ StorageEvent::Renamed { .. } => self.file_renamed(e),
             e @ StorageEvent::StickNamed { .. } => self.stick_named(e),
             StorageEvent::BootMedium(m) => self.stick.set_boot_medium(m),
+            StorageEvent::Attached(a) => self.storage_attached(a),
             StorageEvent::Hashed { stick, name, sha } => self.file_hashed(&stick, &name, sha),
             StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
             StorageEvent::Zeroing {
@@ -1579,12 +1580,36 @@ impl Faraday {
         false
     }
 
+    /// The kernel shows storage attached or not: with none listed, it
+    /// stops what a stick stops, as a listed stick does.
+    fn storage_attached(&mut self, attached: bool) {
+        if !self.stick.set_attached(attached) || !self.stick.is_empty() {
+            return;
+        }
+        let noun = attached.then(|| self.medium.noun());
+        self.session.keys.set_stick_attached(noun);
+        if attached {
+            if matches!(
+                self.vaults.focus,
+                Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
+            ) {
+                self.vaults.set_focus(None);
+            }
+            stick::tools_lose_secrets(self, false);
+        } else if self.sheet == Some(Sheet::Pull) {
+            self.sheet = None;
+            if let Some(a) = self.visit.take_pull() {
+                self.act(a);
+            }
+        }
+    }
+
     fn sticks_changed(&mut self, sticks: Vec<StickInfo>) {
         let had = !self.stick.is_empty();
         let ids_before: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         self.stick.set_sticks(sticks);
         // The keys follow: no way of adding one adds it with a stick in.
-        let noun = (!self.stick.is_empty()).then(|| self.medium.noun());
+        let noun = self.stick.in_the_way().then(|| self.medium.noun());
         self.session.keys.set_stick_attached(noun);
         let present: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
         // What the shell found unusable comes with each listing: a stick
@@ -1774,7 +1799,7 @@ impl Faraday {
     /// Whether loading a key is allowed now: only once the self-test has
     /// passed, and never with a stick attached.
     pub fn may_load_keys(&self) -> bool {
-        self.selftest_passed() && self.stick.is_empty()
+        self.selftest_passed() && !self.stick.in_the_way()
     }
 
     /// What `action` does, named for the sheet that asks for the stick to
@@ -2366,7 +2391,7 @@ impl Faraday {
             // Reminders alone ride on the sheet that asks for the stick
             // to be pulled: one sheet, and pulling it is going on.
             let pull = self.selftest_passed()
-                && !self.stick.is_empty()
+                && self.stick.in_the_way()
                 && self.pull_what(action).is_some();
             if pull && self.devices.held.is_empty() {
                 self.visit.set_pull(action);
@@ -2378,7 +2403,7 @@ impl Faraday {
         }
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
-        if self.selftest_passed() && !self.stick.is_empty() && self.pull_what(action).is_some() {
+        if self.selftest_passed() && self.stick.in_the_way() && self.pull_what(action).is_some() {
             self.visit.set_pull(action);
             self.sheet = Some(Sheet::Pull);
             return;

@@ -233,3 +233,32 @@ fn a_key_s_bip_39_passphrase_is_typed_twice_and_loads_when_they_are_alike() {
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::PromptGo)), "Load is on");
 }
+
+#[test]
+fn storage_the_kernel_shows_but_the_disk_process_never_listed_still_stops_typing_and_loading() {
+    let mut app = on_key_with_stick();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Attached(true));
+    assert!(app.sticks().is_empty());
+    let before = app.session.keys.len();
+    app.press(Action::Vault(V::LoadWithPassphrase));
+    assert!(said_stick(&app), "{:?}", app.toast_text());
+    type_text(&mut app, "typed with a stick in");
+    assert_eq!(prompt_text(&app), "", "the passphrase field took typing");
+    app.press(Action::Vault(V::Load));
+    assert_eq!(
+        app.session.keys.len(),
+        before,
+        "a key loaded with a stick in"
+    );
+    // What loads a key waits under the sheet that asks for the pull.
+    app.press(Action::SelfTestRun);
+    app.press(Action::ScanSeed);
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    // Pulled, typing works again.
+    app.storage(StorageEvent::Attached(false));
+    assert_ne!(app.sheet, Some(Sheet::Pull));
+    app.press(Action::Vault(V::LoadWithPassphrase));
+    type_text(&mut app, "typed");
+    assert_eq!(prompt_text(&app), "typed");
+}

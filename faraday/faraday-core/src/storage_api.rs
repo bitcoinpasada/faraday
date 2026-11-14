@@ -192,6 +192,11 @@ pub enum StorageEvent {
     /// What was found of the medium the machine started from; sent once it
     /// is known, and again if it changes.
     BootMedium(BootMedium),
+    /// Whether the kernel shows storage attached (a USB or card disk or
+    /// partition of size above 0, or a mass-storage interface), whether or
+    /// not the disk process listed it; sent when it changes. A shell with
+    /// no kernel view never sends it.
+    Attached(bool),
     /// Every stick present now. Sent at start and whenever the set or a
     /// stick's files change.
     Sticks(Vec<StickInfo>),

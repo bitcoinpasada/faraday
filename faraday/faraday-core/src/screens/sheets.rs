@@ -386,6 +386,9 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .unwrap_or(EN.pull_default_reason);
     let title = Text::fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
     let line = match app.stick.len() {
+        0 if app.stick.attached_unlisted() => {
+            Text::fill(EN.files_attached_unreadable, &[app.medium.noun()])
+        }
         0 | 1 => Text::fill(
             EN.pull_medium_attached,
             &[(app.stick.first().map_or("", |s| s.label.as_str()))],

@@ -7319,6 +7319,8 @@ strings! {
     files_read_core_wallet: "Read the wallet",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
     files_waiting_medium: "Waiting for {}",
+    /// Text in `stick_status` and `pull_sheet`: the kernel shows storage attached that the disk process has not listed. `{}`: `app.medium.noun()`.
+    files_attached_unreadable: "A {} is attached and cannot be read",
     /// Text in `files_compact`. `{}`: `app.medium.cap()`.
     files_attached_lock: "{} attached · lock to use it",
     /// Button in `files_compact`.

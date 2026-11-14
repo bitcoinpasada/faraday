@@ -863,7 +863,12 @@ pub(super) fn boot_medium_line(app: &View) -> Option<&'static str> {
 /// The stick, or what waits for one: the line Files shows, and what a
 /// press on it does.
 fn stick_status(app: &View) -> (Text, Option<Action>) {
-    if app.stick.is_empty() {
+    if app.stick.attached_unlisted() {
+        (
+            Text::fill(EN.files_attached_unreadable, &[app.medium.noun()]),
+            None,
+        )
+    } else if app.stick.is_empty() {
         (Text::fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (

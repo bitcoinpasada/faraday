@@ -106,6 +106,7 @@
 //! in after start is not seen), and the console is never put into
 //! graphics mode; all three are named in `README.md`.
 
+mod attached;
 mod bootreport;
 mod camera;
 mod clock;
@@ -413,6 +414,12 @@ const CPUINFO: &str = "/proc/cpuinfo";
 /// Every USB device and interface, as `faraday-grant` reads them.
 const USB_DEVICES: &str = "/sys/bus/usb/devices";
 
+/// Where the kernel lists block devices ([`attached`]).
+const SYS_BLOCK: &str = "/sys/class/block";
+/// How long a stick the disk process has not been given yet is kept from
+/// a clean app after storage newly shows in the kernel: the grant hands it
+/// over within half a second; after this it is shown as it is.
+const HIDE_WAITING: Duration = Duration::from_secs(2);
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
 
@@ -794,6 +801,13 @@ struct Shell {
     boot_medium: BootMedium,
     /// When the mounts are looked at next.
     next_scan: Instant,
+    /// The storage the kernel showed at the last scan, and so whether the
+    /// app was told it is attached ([`StorageEvent::Attached`]).
+    attached: Option<Vec<String>>,
+    /// What the app was last told of it.
+    attached_told: Option<bool>,
+    /// Until when a stick not handed out yet is kept from a clean app.
+    hide_until: Instant,
     /// When the line a dev run puts over the top of the screen after a
     /// file is written goes away again (`notice.rs`).
     notice_until: Option<Instant>,
@@ -1956,7 +1970,8 @@ impl Shell {
     /// `/mnt/usb`, as `/proc/mounts` lists them now.
     fn mounted_sticks(&mut self) -> (Vec<StickInfo>, Vec<(String, bool)>) {
         if let Some(disk) = self.disk.clone() {
-            let found = diskwork::list(&mut lock(&disk), self.clean != Some(false));
+            let hide = self.clean != Some(false) && Instant::now() < self.hide_until;
+            let found = diskwork::list(&mut lock(&disk), hide);
             return self.listed(found);
         }
         let mounts = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
@@ -2030,7 +2045,9 @@ impl Shell {
             }
         }
         // Two sticks of this build, or none found: Files says so.
-        let found = match Record::parse(&std::fs::read_to_string(EXCHANGE).unwrap_or_default()) {
+        let record = Record::parse(&std::fs::read_to_string(EXCHANGE).unwrap_or_default());
+        self.tell_attached(&record);
+        let found = match record {
             Record::Two => BootMedium::Two,
             Record::NotFound => BootMedium::NotFound,
             _ => BootMedium::Known,
@@ -2040,12 +2057,36 @@ impl Shell {
             app.storage(StorageEvent::BootMedium(found));
         }
         if !force && let Some(work) = self.work.as_mut() {
-            let hide_waiting = self.clean != Some(false);
+            let hide_waiting = self.clean != Some(false) && Instant::now() < self.hide_until;
             work.ask_list(hide_waiting);
             return;
         }
         let (now, problems) = self.mounted_sticks();
         self.sticks_found(now, problems, force);
+    }
+
+    /// Tells the app whether the kernel shows storage attached, from
+    /// `/sys` and not from the disk process, when that changes. Storage
+    /// that newly shows keeps a stick not yet handed out from a clean app
+    /// for [`HIDE_WAITING`] and no longer.
+    fn tell_attached(&mut self, record: &Record) {
+        let boot = match record {
+            Record::Found { partition, .. } => Some(partition.as_str()),
+            _ => None,
+        };
+        let now = attached::attached(Path::new(SYS_BLOCK), Path::new(USB_DEVICES), boot);
+        let before = self.attached.take().unwrap_or_default();
+        if now.iter().any(|n| !before.contains(n)) {
+            self.hide_until = Instant::now() + HIDE_WAITING;
+        }
+        if (before.is_empty() != now.is_empty() || self.attached_told.is_none())
+            && let Some(app) = self.app.as_mut()
+        {
+            app.storage(StorageEvent::Attached(!now.is_empty()));
+            self.attached_told = Some(!now.is_empty());
+            self.dirty = true;
+        }
+        self.attached = Some(now);
     }
 
     /// Tells the app the sticks a look found, when they are not the ones
@@ -2293,6 +2334,9 @@ fn run(args: Args) -> Result<Exit, String> {
         sticks: Vec::new(),
         boot_medium: BootMedium::Known,
         next_scan: Instant::now(),
+        attached: None,
+        attached_told: None,
+        hide_until: Instant::now() + HIDE_WAITING,
         notice_until: None,
         disk,
         work,

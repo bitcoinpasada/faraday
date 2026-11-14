@@ -120,6 +120,12 @@ internal error rather than carrying on.
   - Partitions are handed out one at a time. A whole-disk device is never
     handed out, and neither is the boot partition, so the running system
     cannot modify its own kernel.
+  - Whether storage is attached is read from the kernel (`/sys/class/block`
+    and the USB interface classes) at every scan, not from the disk
+    process: a disk process that is slow, never answers or leaves a disk
+    out of its list (no partitions, a boot-named partition) does not let a
+    passphrase be typed or a key be loaded with a stick in. Files and the
+    Pull sheet say a stick is attached and cannot be read.
   - No removable storage is accessible while any secret is in memory.
     The boot stick comes out before a vault is unlocked. To write a vault
     back, Faraday seals it and restarts the application, and the stick
