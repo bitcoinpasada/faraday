@@ -662,3 +662,55 @@ fn a_key_made_here_opens_no_receive_code_until_its_backup_is_done() {
     app.press(Action::ShowCode(Code::Receive(w, 0)));
     assert!(app.qr().is_none(), "a held address showed a code");
 }
+
+/// A wallet made from a new key with no backup yet hands its descriptor
+/// (and so its addresses) to the watch-only software with a warning, and
+/// Explore of that key opens no address code; after the backup both show as
+/// they do for any key.
+#[test]
+fn a_key_made_here_warns_on_its_descriptor_and_explore_opens_no_code_until_its_backup_is_done() {
+    use faraday_core::Code;
+    let c = testkit::compute();
+    let mut app = device(Vec::new(), 2400);
+    let (w, fp) = made_here(&mut app);
+    let warned = |app: &Faraday| {
+        let v = app
+            .code_view(&c, Code::Descriptor(w))
+            .expect("a descriptor");
+        v.label.iter().any(|l| l == WARNING)
+    };
+    assert!(warned(&app), "the descriptor's code carries no warning");
+    app.press(Action::Explore);
+    for code in [
+        Code::ExploreAddress,
+        Code::ExplorePublicKey,
+        Code::ExploreXpub,
+    ] {
+        assert!(app.code_view(&c, code).is_err(), "{code:?} opened");
+    }
+    app.press(Action::Back);
+    app.press(Action::Backup(w));
+    backup_as(&mut app, Preset::Paper);
+    app.press(Action::BChecklist);
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    check_the_copy(&mut app, fp);
+    the_envelopes(&mut app);
+    assert!(!warned(&app), "the warning stays after the backup");
+    app.press(Action::Explore);
+    assert!(app.code_view(&c, Code::ExploreAddress).is_ok());
+}
+
+/// A key kept nowhere else makes Power off a hold.
+#[test]
+fn power_off_holds_for_a_key_kept_nowhere() {
+    let mut app = device(Vec::new(), 2400);
+    let _ = made_here(&mut app);
+    app.press(Action::PowerAsk);
+    let _ = app.frame();
+    assert!(app.offers(Action::HoldPowerOff) && !app.offers(Action::PowerOff));
+}

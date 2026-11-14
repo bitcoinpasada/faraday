@@ -1724,6 +1724,19 @@ fn clock_text(ms: u64) -> Text {
     text!("{}:{:02}", s / 60, s % 60)
 }
 
+/// What a lock loses for good, one line: each key or wallet in no vault
+/// and no copy, as the lock sheet lists it.
+fn kept_nowhere_line(app: &View) -> Text {
+    let mut lost = Text::new();
+    for (line, _, _) in app.kept_wiped(false).wiped.iter().filter(|l| l.1) {
+        if !lost.is_empty() {
+            lost.push_str(", ");
+        }
+        lost.push_str(line);
+    }
+    lost
+}
+
 /// The idle lock coming: how long without input, when it locks, what it
 /// wipes, seals and keeps, and when the machine powers off after it.
 pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -1774,6 +1787,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // No seed to seal with: the idle lock loses the changes.
         rows.push((EN.vault_not_sealed, sealed));
     }
+    let lost = kept_nowhere_line(app);
     rows.push((
         EN.idle_warn_kept,
         text!(
@@ -1809,10 +1823,13 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             &minutes(u64::from(app.idle_lock_min())),
         ],
     );
-    let rows: Vec<(&str, Text, crate::ui::Paint)> = rows
+    let mut rows: Vec<(&str, Text, crate::ui::Paint)> = rows
         .into_iter()
         .map(|(k, v)| (k, v, Role::OnSurface.paint()))
         .collect();
+    if !lost.is_empty() {
+        rows.insert(0, (EN.idle_warn_nowhere, lost, Role::Error.paint()));
+    }
     crate::compact::kv_sheet(
         ui,
         w,
@@ -1894,7 +1911,10 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     // With files waiting for the stick or a vault's changes unsaved,
     // leaving takes a hold (decision 5); with nothing to lose, a press.
-    let hold = !app.outbox.is_empty() || app.vaults.open.iter().any(|v| v.changes > 0);
+    // A key or wallet kept nowhere else takes a hold too.
+    let hold = !app.outbox.is_empty()
+        || app.vaults.open.iter().any(|v| v.changes > 0)
+        || app.kept_wiped(true).wiped.iter().any(|l| l.1);
     let mut buttons = vec![(EN.power_cancel, Style::Secondary, Action::Cancel)];
     if restart && hold {
         buttons.push((EN.power_hold_restart, Style::Secondary, Action::HoldRestart));

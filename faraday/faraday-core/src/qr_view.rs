@@ -1065,6 +1065,34 @@ impl Faraday {
         self.code_view_inner(c, code).map_err(|why| why.0)
     }
 
+    /// Costs a key derivation the first time. What Explore's path gives,
+    /// unless its key is made here and waits for its backup: then no
+    /// address, public key or xpub reaches a code (F31).
+    fn explore_unheld(
+        &self,
+        c: &Compute,
+    ) -> Result<std::rc::Rc<crate::explore::Reading>, &'static str> {
+        let held = self
+            .explore
+            .state()
+            .and_then(|e| e.key)
+            .is_some_and(|k| self.key_held(c, Fingerprint(k)));
+        if held {
+            return Err(EN.code_view_no_address);
+        }
+        self.explore_reading(c).ok_or(EN.code_view_no_address)
+    }
+
+    /// Costs what `receive_held` costs. `view` of a file or code of wallet `w`,
+    /// with the warning first among its lines while a key of `w` made here
+    /// waits for its backup: warned, not refused, as cosigners need it.
+    fn warn_held(&self, c: &Compute, w: &wallet::Wallet, mut view: QrView) -> QrView {
+        if self.receive_held(c, w) {
+            view.label.insert(0, Text::of(EN.glance_back_up_before));
+        }
+        view
+    }
+
     /// Costs what [`Faraday::code_view`] costs. It is that, its refusals as any text.
     fn code_view_inner(&self, c: &Compute, code: Code) -> Result<QrView, Why> {
         let wallet = |i: usize| {
@@ -1088,7 +1116,7 @@ impl Faraday {
                 lines.push(Text::of(EN.code_view_public_watch));
                 let mut view = QrView::text(c, &title, &text)?.public(&name, lines);
                 view.whole = Some(Text::of(&text));
-                Ok(view)
+                Ok(self.warn_held(c, w, view))
             }
             Code::MultisigConfig(i) | Code::Bsms(i) => {
                 let w = wallet(i)?;
@@ -1101,9 +1129,13 @@ impl Faraday {
                     .wallet_file_text(c, i, what)
                     .ok_or(EN.code_view_this_wallet_has)?;
                 let (title, name, lines) = crate::public_files::wallet_code_head(self, w, what);
-                Ok(QrView::text(c, &title, &text)?.public(&name, lines))
+                Ok(self.warn_held(c, w, QrView::text(c, &title, &text)?.public(&name, lines)))
             }
-            Code::SpecterDiy(i) => self.specter_diy_view(c, wallet(i)?),
+            Code::SpecterDiy(i) => {
+                let w = wallet(i)?;
+                let view = self.specter_diy_view(c, w)?;
+                Ok(self.warn_held(c, w, view))
+            }
             Code::Key(k) => {
                 let (fp, text) = self.create_key_text(c, k)?;
                 let kind = self.create.state().map_or("", |c| c.kind.name());
@@ -1263,7 +1295,7 @@ impl Faraday {
                 })
                 .unwrap_or_default()
         };
-        let explore = || self.explore_reading(c).ok_or(EN.code_view_no_address);
+        let explore_open = || self.explore_unheld(c);
         match code {
             Code::Receive(i, at) => {
                 let w = self
@@ -1297,21 +1329,21 @@ impl Faraday {
                 plain(EN.vanity_vanity_address, f.address.as_str())
             }
             Code::ExploreAddress => {
-                let r = explore()?;
+                let r = explore_open()?;
                 plain(
                     &Text::fill(EN.code_view_explore_address, &[&path()]),
                     &r.address,
                 )
             }
             Code::ExplorePublicKey => {
-                let r = explore()?;
+                let r = explore_open()?;
                 plain(
                     &Text::fill(EN.code_view_explore_public_key, &[&path()]),
                     &r.public_key,
                 )
             }
             Code::ExploreXpub => {
-                let r = explore()?;
+                let r = explore_open()?;
                 plain(&Text::fill(EN.code_view_explore_xpub, &[&path()]), &r.xpub)
             }
             Code::NodeId => {

@@ -8126,6 +8126,8 @@ strings! {
     /// Text in `idle_warn_sheet`.
     idle_warn_kept: "Kept",
     /// Text in `idle_warn_sheet`.
+    idle_warn_nowhere: "Kept nowhere",
+    /// Text in `idle_warn_sheet`.
     idle_warn_no_power: "No power-off",
     /// Text in `idle_warn_sheet`. `{}`: `m`, `app.medium.for_the()`.
     idle_warn_power_off: "Power off at {} minutes without input, unless files wait {}",
