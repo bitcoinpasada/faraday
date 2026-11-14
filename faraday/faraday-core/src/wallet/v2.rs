@@ -4,11 +4,10 @@
 
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
-use faraday_psbt::silent::{
+use faraday_psbt::v2::{
     GLOBAL_SP_DLEQ, GLOBAL_SP_ECDH_SHARE, IN_SP_DLEQ, IN_SP_ECDH_SHARE, OUT_SP_V0_INFO,
-    OUT_SP_V0_LABEL,
+    OUT_SP_V0_LABEL, PsbtV2,
 };
-use faraday_psbt::v2::PsbtV2;
 
 use super::Spend;
 

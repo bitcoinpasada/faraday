@@ -244,13 +244,7 @@ completeness = "Key path only; script-path spends refused; no WIF participant or
 id = "silent-receive"
 section = 2
 what = "Silent payments, receive (`core/faraday-bip/src/silent.rs`, `core/faraday-bip/src/silent_wallet.rs`)"
-completeness = "Receive, labels, scan-key export, `sp()` read and written (INTEROP §5, BIP-392 sp()); `sp(KEY,KEY)` and `spspend` refused; scanning stops at K_max; sender arithmetic is test-only"
-
-[[row]]
-id = "silent-send"
-section = 2
-what = "Silent payments, send and PSBT (`core/faraday-psbt/src/silent.rs`, `core/faraday-bip/src/dleq.rs`)"
-completeness = "Built in core, not reachable from the app: the device does not send, and the app refuses a PSBT of version 0 or 2 carrying any BIP-375 field (global 0x07 and 0x08, input 0x1d and 0x1e, output 0x09 and 0x0a) rather than sign it unchecked"
+completeness = "Receive, labels, scan-key export, `sp()` read and written (INTEROP §5, BIP-392 sp()); `sp(KEY,KEY)` and `spspend` refused; scanning stops at K_max; sender arithmetic is test-only; sending is not built, and a PSBT carrying any BIP-375 field (global 0x07 and 0x08, input 0x1d and 0x1e, output 0x09 and 0x0a) is refused rather than signed"
 
 [[row]]
 id = "watch-only"
@@ -775,18 +769,6 @@ name = "Silent Payment Scanning Descriptors"
 status = "Draft"
 checked = "2026-10-23"
 source = "vendored: tools/vectors/bip392"
-
-[standard."BIP 374"]
-name = "Discrete Log Equality Proofs"
-status = "Draft"
-checked = "2026-10-23"
-source = "bips master"
-
-[standard."BIP 375"]
-name = "Sending Silent Payments with PSBTs"
-status = "Draft"
-checked = "2026-10-23"
-source = "bips master"
 
 [standard."BIP 321"]
 name = "URI Scheme for Bitcoin Payments"
@@ -4632,6 +4614,7 @@ functions = [
   "core/faraday-bip/src/silent.rs::input_sum_and_hash",
   "core/faraday-bip/src/silent.rs::scan",
   "core/faraday-bip/src/silent.rs::find_payments",
+  "core/faraday-bip/src/silent.rs::sender_outputs",
   "core/faraday-bip/src/silent_wallet.rs::SilentWallet::address",
   "core/faraday-bip/src/silent_wallet.rs::SilentWallet::to_text",
   "core/faraday-bip/src/silent_wallet.rs::SilentWallet::parse",
@@ -4681,6 +4664,7 @@ vectors = [
 ]
 tests = [
   "core/faraday-bip/tests/all/silent.rs::the_receiver_finds_the_outputs_the_vectors_publish",
+  "core/faraday-bip/tests/all/silent.rs::the_sender_makes_the_outputs_the_vectors_publish",
   "core/faraday-bip/tests/all/silent.rs::a_labelled_payment_is_found_under_its_label",
   "core/faraday-bip/tests/all/silent.rs::a_transaction_that_does_not_pay_this_wallet_finds_nothing",
   "core/faraday-bip/tests/all/silent.rs::an_address_reads_back_to_the_keys_it_carries",
@@ -7341,91 +7325,6 @@ decision = "no decision"
 [action.review]
 places = ["docs/KEYS.md"]
 
-[[action]]
-id = "silent-send"
-name = "Add silent payment shares"
-action = "Adds this signer's ECDH shares and BIP 374 proofs to a silent payments PSBT, and sets the output scripts the shares give."
-row = "silent-send"
-standards = [
-  "BIP 374",
-  "BIP 375",
-  "BIP 352",
-]
-screens = []
-functions = [
-  "core/faraday-psbt/src/silent.rs::add_shares",
-  "core/faraday-psbt/src/silent.rs::add_shares_for_keys",
-  "core/faraday-psbt/src/silent.rs::compute_scripts",
-  "core/faraday-psbt/src/silent.rs::fill_scripts",
-  "core/faraday-psbt/src/silent.rs::scan_keys",
-  "core/faraday-psbt/src/silent.rs::signable",
-  "core/faraday-psbt/src/silent.rs::tap_origin",
-  "core/faraday-psbt/src/silent.rs::add_input",
-  "core/faraday-psbt/src/silent.rs::check_inputs",
-  "core/faraday-bip/src/dleq.rs::secret_mul",
-  "core/faraday-bip/src/dleq.rs::generate_proof",
-  "core/faraday-bip/src/dleq.rs::generate_proof_with",
-  "core/faraday-bip/src/dleq.rs::verify_proof",
-  "core/faraday-bip/src/dleq.rs::verify_proof_with",
-  "core/faraday-bip/src/silent.rs::sender_outputs",
-]
-code = ["core/faraday-psbt/src/silent.rs::add_shares", "core/faraday-bip/src/dleq.rs::generate_proof"]
-
-[action.implementation]
-crate = "core/faraday-psbt"
-libraries = ["secp256k1", "bitcoin"]
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
-adds = "BIP 374's proofs are written here (faraday-bip); each share a·B_scan carries a proof that it came from the input's key, every private multiplication going through secp256k1's ecdh; the scripts are set once every eligible input has a share, and signable gives the version 0 PSBT that sign signs."
-
-[[action.implementation.written_here]]
-what = "BIP-374 DLEQ proofs and BIP-375's sending fields (`faraday-bip::dleq`, `faraday-psbt::silent`)"
-why = "none-established"
-note = "No Rust library implements BIP-374 proofs or BIP-375's PSBT fields."
-decision = "F178"
-
-[action.checked]
-vectors = [
-  "bip374",
-  "bip375",
-  "bip352",
-]
-tests = [
-  "core/faraday-bip/tests/all/dleq.rs::generation_vectors",
-  "core/faraday-bip/tests/all/dleq.rs::verification_vectors",
-  "core/faraday-bip/tests/all/silent.rs::the_sender_makes_the_outputs_the_vectors_publish",
-  "core/faraday-psbt/tests/all/silent.rs::the_signer_adds_the_shares_and_sets_the_scripts_of_every_finished_vector",
-  "core/faraday-psbt/tests/all/silent.rs::a_key_that_is_not_the_inputs_is_refused",
-  "core/faraday-psbt/tests/all/silent.rs::a_master_key_adds_the_share_its_derived_key_gives",
-]
-crosscheck = "silent_send"
-independence = { class = "outside", author = "BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone" }
-fuzz_none = "Not reachable from the app: no outside input reaches it."
-
-[action.secrets]
-reveal = "none"
-constant_time = "The output tweak is treated as public and multiplied by ecmult, as libsecp256k1's own silent payments module does."
-wiped = "The secret's bytes and the hashes they pass through are zeroized before return; each private key used is erased before its input is done. The nonce is a SecretScalar, erased when it is dropped, but musig.rs's `match (self.0, other.0)`, `self.0.map` and `self.0.and_then` leave copies of it. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (ESTABLISHED §4.1)."
-
-[action.limits]
-lines = [
-  "Built in core and not reachable from the app: the device does not send.",
-  "An eligible input whose public key the PSBT does not state, a P2SH input with no redeem script and a previous transaction that is not the one spent stop the check.",
-  "A SegWit version above 1 and a sighash other than ALL are refused.",
-]
-
-[[action.own]]
-text = "A key a PSBT states for an input counts only where the input's script commits to it, which is stricter than BIP 375's reference validator."
-kind = "Conservative"
-decision = "F89"
-
-[[action.own]]
-text = "Spends of SegWit above v1 and sighashes other than ALL are refused."
-kind = "Conservative"
-decision = "no decision"
-
-[action.review]
-places = ["core/faraday-psbt/src/silent.rs", "core/faraday-bip/src/dleq.rs"]
-
 [[not_crypto]]
 function = "faraday/faraday-core/src/transfer/mod.rs::TransferArea::scanned"
 reason = "Receive's glue for one scanned code: it takes the SHA-256 of the file's name, extension and bytes (faraday_crypto::sha256_whole, the file-hash action) only to tell the same file scanned twice, and the digest is kept in memory and shown to no one; the envelope's own hash check is faraday_qr::envelope. Rooted in an action its name-resolved closure would be all of faraday-core."
@@ -9701,6 +9600,10 @@ folder = "bip392"
 reason = "The text of BIP 392, BIP 321 and BIP 353, vendored as their source; it has no test vectors of its own."
 
 [[vector_no_action]]
+folder = "bip375"
+reason = "BIP 375's published PSBTs, read by the tests that a PSBT carrying a silent payment field is refused; Faraday does not sign silent payments."
+
+[[vector_no_action]]
 folder = "age"
 reason = "The age passphrase codec is not yet read by an action; the change that swaps the vault file to age names these vectors in the vault actions."
 
@@ -9884,14 +9787,6 @@ by = "BIP 328's authors (bitcoin/bips)"
 [vector.bip352]
 source = "published"
 by = "BIP 352's authors (bitcoin/bips)"
-
-[vector.bip374]
-source = "published"
-by = "BIP 374's authors (bitcoin/bips)"
-
-[vector.bip375]
-source = "published"
-by = "BIP 375's authors (bitcoin/bips)"
 
 [vector.bip387]
 source = "published"

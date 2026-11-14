@@ -18,7 +18,6 @@ mod core_import;
 mod crosscheck;
 mod descriptor;
 mod diceware;
-mod dleq;
 mod json;
 mod key_reads;
 mod long_keys;

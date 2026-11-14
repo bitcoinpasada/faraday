@@ -308,7 +308,6 @@ below, the action is the one whose functions reach it, from the inventory.
 | AEZ v5 and aezeed, with aezeed's CRC-32C | `core/faraday-bip/src/aez.rs`, `core/faraday-bip/src/aezeed.rs` | `aezeed` | F178 | No maintained Rust implementation of AEZ exists; Faraday's follows the Go code LND uses and is tested against LND's vectors. Its AES round is the aes crate's and its BLAKE2b the blake2 crate's. |
 | BIP-327 MuSig2, with BIP-328 and BIP-390 | `core/faraday-bip/src/musig.rs` | `musig-key` | F178 | libsecp256k1's MuSig2 is in rust-secp256k1 0.32 and later; bitcoin 0.32, which Faraday uses, is on 0.29, and no miniscript release builds on bitcoin 0.33 yet. |
 | BIP-352 silent payments | `core/faraday-bip/src/silent.rs` | `silent-receive` | F178 | libsecp256k1's silent payments module is not yet in its Rust bindings. |
-| BIP-374 DLEQ proofs and BIP-375's sending fields | `core/faraday-bip/src/dleq.rs`, `core/faraday-psbt/src/silent.rs` | `silent-send` | F178 | No Rust library implements BIP-374 proofs or BIP-375's PSBT fields. |
 | The PSBT version 2 reader | `core/faraday-psbt/src/v2.rs` | `psbt-v2` | F178 | rust-bitcoin reads only version 0 PSBTs; its version 2 crate is pre-release. |
 | BIP-322 "simple" message signatures | `core/faraday-psbt/src/message.rs` | `message-sign` | F178 | The bip322 crate is pre-release. |
 | SLIP-39 Shamir backup | `core/faraday-bip/src/slip39.rs` | `slip39` | F178 | No maintained Rust implementation of SLIP-39 exists. |
@@ -534,7 +533,7 @@ receive, full-node scanning). rust-secp256k1 0.33.1 does not wrap it.
 
 **What would change it.** A rust-secp256k1 release, on the version the
 tree uses, that wraps it. Then the scanning and the sender arithmetic
-move; BIP-374, BIP-375, BIP-392's text and BIP-321 and BIP-353 stay. About
+move; BIP-392's text and BIP-321 and BIP-353 stay. About
 two days.
 
 ### 6.3 CMS out of its release candidate
@@ -555,8 +554,8 @@ BIP-375 fields; bitcoin 0.33.0-beta has no version 2. `bip322` 0.0.12
 
 **What would change it.** A 1.0 of either, from a publisher F71 trusts
 or given a trust entry, on the RustCrypto majors the tree uses. The
-version 2 reader keeps Faraday's refusals in front; BIP-375's fields
-stay until the crate carries them.
+version 2 reader keeps Faraday's refusals in front; BIP-375's field
+types stay in it, refused, as the crate has none.
 
 ### 6.5 scrypt's upstream fix
 
@@ -682,9 +681,8 @@ wipes a SeedQR's buffers."
 
 ### 7.5 "No library implements"
 
-The manifest's notes for BIP-374 and BIP-375 and for SeedQR said "No
-library implements"; btclib implements BIP-374 and BIP-375 in Python,
-and SeedSigner (Python) and Sparrow's drongo (Java) implement SeedQR.
+The manifest's notes for SeedQR said "No library implements";
+SeedSigner (Python) and Sparrow's drongo (Java) implement it.
 §3.2 says "No Rust library implements"; the manifest's `written_here`
 notes and the website's reason lines say so.
 
@@ -893,7 +891,6 @@ not at all).
 | vanity | bitcoin and libsecp256k1 | python-mnemonic, btclib, Core | each candidate's child keys by btclib; Core for the script and address text only, and a silent payment code by the BIP-352 reference's bech32m (built) | kept: the counter, the prefix rules, the expected work, the search loop | outside-and-own |
 | aezeed | Own; aes (built), blake2 | LND's `aezeed` | a pass with the software AES round on both sides: the aes crate's `aes_backend="soft"` against Yawning Angel's AEZ built with the tags `noasm` and `purego` (built) | none | outside |
 | silent-receive | Own; secret scalars through libsecp256k1, the label tweak through `ecmult_gen` | BIP-352's reference over secp256k1lab | btclib-wallet's `silent_payments.py` | none | outside |
-| silent-send | Own; secret scalars through libsecp256k1, the label tweak through `ecmult_gen` | BIP-374's and BIP-375's references | btclib's `dleq.py`, BIP-375 roles and BIP-352 | none | outside |
 | musig-key | Own until bitcoin 0.33 (§6.1); point operations libsecp256k1's | BIP-327's reference; btclib verifies the aggregate | btclib's key aggregation and tweaks as a full reference; Core's `musig()` descriptors through `deriveaddresses` | none | outside |
 | sign-musig | Own; secret scalars through libsecp256k1 | BIP-327's reference; btclib verifies; Core's round trip (`other`) | btclib's MuSig2 signing and BIP-373's PSBT roles | none | outside |
 | codex32, seed-shown | Own; GF(32), checksum and alphabet without a branch | python-codex32 | rust-codex32 at a pinned commit, a program outside the workspace | the threshold rule (0 or 2 to 9) and threshold 0's share index `s` retired to rust-codex32; the seed's lengths and the share order kept | outside-and-own |
@@ -977,7 +974,6 @@ Faraday's second version stays.
 | Caravan's packages, Coinkite's BBQr JavaScript, kdbxweb | wallet files, BBQr, KDBX | Node, not now |
 | Sparrow and drongo; Hummingbird | wallet files, BSMS, CompactSeedQR reading, PSBT change; UR | a JVM, not taken (owner) |
 | URKit (Swift); KeePass 2 (.NET) | UR's original; KDBX's author's program | Swift and .NET, not taken (owner) |
-| libsecp256k1's silent payments module | silent-send's sender | the project of the app's curve library; btclib instead (owner) |
 | EntropyLab's `vanity-wasm` | the vanity search | collides: `secp256k1-sys` (libsecp256k1) and RustCrypto's sha2, the app's |
 | the `lightning` crate, ldk-node | ldk-node's key | collides: it derives through rust-bitcoin's `bip32` and rust-secp256k1, the app's; the five ldk vectors in `tools/vectors/aezeed/` came from the same code |
 | rust-silentpayments; coincurve, python-secp256k1, python-bip32, bip_utils, bitcoinjs's `bip32`, Electrum's `electrum_ecc` | silent payments; key derivation | collide: libsecp256k1 or a binding to it |

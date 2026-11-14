@@ -68,7 +68,7 @@ FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/ro
          "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs",
          "faraday/faraday-core/src/keygen/mod.rs", "faraday/faraday-core/src/decode/mod.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip374", "bip375", "bip39", "bip85", "bip93",
+VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip39", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
            "kdf", "message", "miniscript", "opentimestamps", "psbt", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
            "vault-primitives", "wallet-files", "xor"]

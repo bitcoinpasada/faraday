@@ -949,7 +949,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 110 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 109 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), and the `Screen` variants that offer it. The inventory finds 861 cryptographic functions under
 `core/` and `faraday/`, and every one is covered by an action or by one
@@ -973,7 +973,7 @@ an action with no screen is built and offered nowhere in the app.
 | slip39-set-converted | Holds the SLIP-39 shares a person types, and from them writes a share at a member index (adding a share or replacing a lost one) or a new set of the same encrypted master secret, each read back before it is returned. | `faraday_keys::slip39_set`: `Keys::slip39_set_hold`, `Keys::slip39_set_share`, `Keys::slip39_set_rotated`, `rotate_count` | none |
 | wif-read | Reads a single private key written as WIF, typed or scanned for a sweep, and works out the addresses it pays. | `faraday_bip::wif`: `SingleKey::decode`, `SingleKey::from_payload`, `SingleKey::scripts`, `blinded`; `faraday_keys::sweep`: `SweepKey::read`; `faraday_keys::session`: `Keys::sweep_read` | Tools |
 | words-shown | Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand. | `faraday_keys::session`: `Keys::reveal`, `Revealed::empty`, `Revealed::made`, `Held::of` | Explore, Backup, BackupFlow, VaultContents |
-| words-identity | Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions. | `faraday_keys::session`: `Keys::words_id`, `Keys::same_words`, `words_id`, `Keys::words_match`, `Keys::words_alone`, `Keys::words_identity`, `Keys::words_record_id`; `faraday_psbt::silent`: `check`, `check_inputs`; `faraday_core::quiz`: `Quiz::seed`; `faraday_keys::identity`: `secret_id` | Files, BackupFlow, VaultContents, Create |
+| words-identity | Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions. | `faraday_keys::session`: `Keys::words_id`, `Keys::same_words`, `words_id`, `Keys::words_match`, `Keys::words_alone`, `Keys::words_identity`, `Keys::words_record_id`; `faraday_core::quiz`: `Quiz::seed`; `faraday_keys::identity`: `secret_id` | Files, BackupFlow, VaultContents, Create |
 
 ### Wallets
 
@@ -1044,7 +1044,6 @@ an action with no screen is built and offered nowhere in the app.
 | ots | Reads an OpenTimestamps proof and follows every path of its operations from the file's hash to its attestations, and says for each Bitcoin one whether it reaches the merkle root of a block header the person gives, whose hash meets its own target. | `faraday_ots`: `HashOp::digest`, `Op::apply`, `Proof::verify`, `Header::parse`, `Header::block_hash` | none |
 | bolt12 | Reads a BOLT #12 offer: Bech32 without a checksum, its `+` joins, and the TLV fields (chains, amount and currency, description, issuer, expiry, quantity, features, blinded paths, issuer id and the odd fields it does not know). | `faraday_codec::bolt12`: `decode`, `Chain::from_hash`, `Chain::hash` | none |
 | silent-receive | Derives a silent payments address, labels and scan key (BIP 352, 392) and finds the payments a transaction makes to them. | `faraday_bip::silent`: `Receiver::derive`, `Receiver::new`, `Receiver::scan_public_key`, `Receiver::spend_public_key`, `Receiver::address`, `Receiver::label_tweak`, `Receiver::label_point`, `Receiver::labelled_spend_key`, `Receiver::labelled_address`, `Receiver::scan_key_text`, `Receiver::descriptor`, `address_of`, `decode_address`, `encode_address`, `scan_path`, `spend_path`, `input_public_key`, `input_sum_and_hash`, `scan`, `find_payments`; `faraday_bip::silent_wallet`: `SilentWallet::address`, `SilentWallet::to_text`, `SilentWallet::parse`; `faraday_keys::silent`: `receiver`, `Receiver::scan_key`, `Receiver::address`, `Receiver::payments_in`, `Receiver::scan_public_key`, `Receiver::spend_public_key`; `faraday_keys::operations`: `Keys::silent_receiver`; `faraday_core::silent::check`: `Check::prevouts`, `Check::tx`, `Check::waiting_for` | Silent, Wallets |
-| silent-send | Adds this signer's ECDH shares and BIP 374 proofs to a silent payments PSBT, and sets the output scripts the shares give. | `faraday_psbt::silent`: `add_shares`, `add_shares_for_keys`, `compute_scripts`, `fill_scripts`, `scan_keys`, `signable`, `tap_origin`, `add_input`; `faraday_bip::dleq`: `secret_mul`, `generate_proof`, `generate_proof_with`, `verify_proof`, `verify_proof_with`; `faraday_bip::silent`: `sender_outputs` | none |
 
 ### Signing
 

@@ -44,7 +44,6 @@ PyPy 3.11.13 for the areas it speeds
 seconds 0.0
 cases musig 320
 cases sp 1000
-cases sps 800
 cases bip85 30000
 cases slip39 21000
 cases codex32 10000

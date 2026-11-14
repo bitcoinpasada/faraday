@@ -37,10 +37,8 @@
 //! - [`transaction`]: reads a raw transaction, or a PSBT as the
 //!   transaction it carries, with the previous outputs its inputs spend,
 //!   for a check that is not a signature.
-//! - [`v2`] and [`silent`]: a BIP-370 (version 2) PSBT held as its maps,
-//!   and BIP-375's silent payment outputs in one: the ECDH shares and
-//!   BIP-374 proofs a signer adds, the scripts they give, and the check
-//!   that refuses a script the shares do not give. A version 2 PSBT is
+//! - [`v2`]: a BIP-370 (version 2) PSBT held as its maps, with the
+//!   BIP-375 silent payment fields it refuses. A version 2 PSBT is
 //!   signed through its version 0 form ([`v2::PsbtV2::to_v0`]).
 //!
 //! Supported spends: BIP-44 p2pkh, BIP-49 p2sh-p2wpkh, BIP-84 p2wpkh,
@@ -109,7 +107,6 @@ mod reason;
 mod register;
 mod sign;
 pub mod signer;
-pub mod silent;
 pub mod sweep;
 pub mod transaction;
 pub mod v2;

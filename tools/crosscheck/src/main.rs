@@ -41,7 +41,6 @@ mod seedqr;
 mod sign;
 mod sign_check;
 mod silent;
-mod silent_send;
 mod slip39;
 mod sqlite;
 mod taproot;
@@ -83,7 +82,6 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "xor" => xor::handle(name, req),
         "hash" => hash::handle(name, req),
         "sp" => silent::handle(name, req),
-        "sps" => silent_send::handle(name, req),
         "vault" => vault::handle(name, req),
         "own" => own::handle(name, req),
         "entropy" => entropy::handle(name, req),

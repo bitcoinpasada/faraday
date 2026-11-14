@@ -23,7 +23,6 @@ mod satisfaction;
 mod sign;
 mod signature_origins;
 mod signer;
-mod silent;
 mod sweep;
 mod tapmulti;
 mod transaction;

@@ -212,11 +212,6 @@ reason = "Glue over rust-bitcoin's types: parses addresses, paths and sighash ty
 # tested, and no shipped code of the app reaches it. Its roots are the
 # manifest action's `functions`, or the ids given.
 
-[[out_of_app]]
-what = "Sending to silent payments (STANDARDS §0.1: BIP 374 and BIP 375 are drafts)"
-decision = "F234"
-action = "silent-send"
-
 # The app's crates never name the secret nonce's type, so none of them can
 # keep one (the vault, a file); faraday-psbt's session holds it in memory
 # for one transaction. Reading one back from bytes is reached by no app

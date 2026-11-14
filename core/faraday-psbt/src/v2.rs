@@ -21,8 +21,8 @@
 //! their sizes, a required time locktime from 500 000 000 and a
 //! required height locktime from 1 to 499 999 999, no taproot signature
 //! with a sighash byte of 0 (BIP-341), no key twice in a map, nothing
-//! after the last map. What a silent payment needs on top is
-//! [`crate::silent`]'s.
+//! after the last map. A silent payment (BIP-375) is refused when read
+//! for signing.
 
 use alloc::vec::Vec;
 use core::fmt;
@@ -113,6 +113,24 @@ pub(crate) fn is_zero_sighash_schnorr(sig: &[u8]) -> bool {
     sig.len() == 65 && sig[64] == 0
 }
 
+/// `PSBT_GLOBAL_SP_ECDH_SHARE`: BIP-375's silent payment field, which
+/// Faraday refuses.
+pub const GLOBAL_SP_ECDH_SHARE: u8 = 0x07;
+/// `PSBT_GLOBAL_SP_DLEQ`: BIP-375's silent payment field, which Faraday
+/// refuses.
+pub const GLOBAL_SP_DLEQ: u8 = 0x08;
+/// `PSBT_IN_SP_ECDH_SHARE`: BIP-375's silent payment field, which Faraday
+/// refuses.
+pub const IN_SP_ECDH_SHARE: u8 = 0x1d;
+/// `PSBT_IN_SP_DLEQ`: BIP-375's silent payment field, which Faraday
+/// refuses.
+pub const IN_SP_DLEQ: u8 = 0x1e;
+/// `PSBT_OUT_SP_V0_INFO`: BIP-375's silent payment output, whose script
+/// may be left out.
+pub const OUT_SP_V0_INFO: u8 = 0x09;
+/// `PSBT_OUT_SP_V0_LABEL`: BIP-375's silent payment output's label.
+pub const OUT_SP_V0_LABEL: u8 = 0x0a;
+
 /// The global fields version 0 does not have, which [`PsbtV2::to_v0`]
 /// leaves out: BIP-370's and BIP-375's.
 pub(crate) const GLOBAL_V2_ONLY: &[u8] = &[
@@ -122,8 +140,8 @@ pub(crate) const GLOBAL_V2_ONLY: &[u8] = &[
     GLOBAL_OUTPUT_COUNT,
     GLOBAL_TX_MODIFIABLE,
     GLOBAL_VERSION,
-    crate::silent::GLOBAL_SP_ECDH_SHARE,
-    crate::silent::GLOBAL_SP_DLEQ,
+    GLOBAL_SP_ECDH_SHARE,
+    GLOBAL_SP_DLEQ,
 ];
 /// The input fields version 0 does not have: BIP-370's and BIP-375's.
 pub(crate) const INPUT_V2_ONLY: &[u8] = &[
@@ -132,16 +150,11 @@ pub(crate) const INPUT_V2_ONLY: &[u8] = &[
     IN_SEQUENCE,
     IN_REQUIRED_TIME_LOCKTIME,
     IN_REQUIRED_HEIGHT_LOCKTIME,
-    crate::silent::IN_SP_ECDH_SHARE,
-    crate::silent::IN_SP_DLEQ,
+    IN_SP_ECDH_SHARE,
+    IN_SP_DLEQ,
 ];
 /// The output fields version 0 does not have: BIP-370's and BIP-375's.
-pub(crate) const OUTPUT_V2_ONLY: &[u8] = &[
-    OUT_AMOUNT,
-    OUT_SCRIPT,
-    crate::silent::OUT_SP_V0_INFO,
-    crate::silent::OUT_SP_V0_LABEL,
-];
+pub(crate) const OUTPUT_V2_ONLY: &[u8] = &[OUT_AMOUNT, OUT_SCRIPT, OUT_SP_V0_INFO, OUT_SP_V0_LABEL];
 
 /// The input fields a signing pass adds, which [`PsbtV2::merge_signed`]
 /// takes back: partial signatures, the final scriptSig and witness,
@@ -493,7 +506,7 @@ pub struct PsbtV2 {
 /// reads it.
 fn script_given(map: &Map) -> Option<&[u8]> {
     let script = map.get_type(OUT_SCRIPT)?;
-    let pending = script.is_empty() && map.get_type(crate::silent::OUT_SP_V0_INFO).is_some();
+    let pending = script.is_empty() && map.get_type(OUT_SP_V0_INFO).is_some();
     (!pending).then_some(script)
 }
 
@@ -606,9 +619,7 @@ impl PsbtV2 {
             }
             // BIP-375: a silent payment output (PSBT_OUT_SP_V0_INFO)
             // has no script until the shares give it.
-            if map.get_type(OUT_SCRIPT).is_none()
-                && map.get_type(crate::silent::OUT_SP_V0_INFO).is_none()
-            {
+            if map.get_type(OUT_SCRIPT).is_none() && map.get_type(OUT_SP_V0_INFO).is_none() {
                 return Err(Error::Field("PSBT_OUT_SCRIPT"));
             }
             outputs.push(map);
@@ -760,10 +771,6 @@ impl PsbtV2 {
     /// 0x07 or 0x08, input 0x1d or 0x1e, output 0x09 or 0x0a.
     pub fn has_silent_fields(&self) -> bool {
         let any = |m: &Map, types: &[u8]| types.iter().any(|t| m.all_of(*t).next().is_some());
-        use crate::silent::{
-            GLOBAL_SP_DLEQ, GLOBAL_SP_ECDH_SHARE, IN_SP_DLEQ, IN_SP_ECDH_SHARE, OUT_SP_V0_INFO,
-            OUT_SP_V0_LABEL,
-        };
         any(&self.global, &[GLOBAL_SP_ECDH_SHARE, GLOBAL_SP_DLEQ])
             || self
                 .inputs

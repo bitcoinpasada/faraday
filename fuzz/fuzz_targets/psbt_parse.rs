@@ -78,7 +78,7 @@ fn to_v2(psbt: &Psbt) {
     let silent = read
         .outputs
         .iter()
-        .any(|m| m.get_type(faraday_psbt::silent::OUT_SP_V0_INFO).is_some());
+        .any(|m| m.get_type(faraday_psbt::v2::OUT_SP_V0_INFO).is_some());
     if !psbt.unsigned_tx().input.is_empty() && !silent {
         assert_eq!(&read.unsigned_tx().expect("every output has its script"), psbt.unsigned_tx());
     }

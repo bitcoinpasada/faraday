@@ -244,7 +244,6 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 |---|---|---|---|---|
 | `musig` | `faraday_bip::musig` | BIP-327's `reference.py` (`bip327/`); btclib's MuSig2 (`btclib/`, its own curve) in full, answering every operation beside it and verifying the aggregate signature as BIP-340; btclib-wallet's BIP-373 roles over the Core round trip's PSBTs; Bitcoin Core v31.1 (`deriveaddresses`) for `musig()` descriptors | all eight files of `tools/vectors/bip327/`; the valid and invalid descriptors of `tools/vectors/bip390/` (Core) | sessions of 1 to 3 signers: key sort and aggregation, tweaks, nonces, partial signatures, their verification (and a tampered one), aggregation checked as BIP-340, deterministic signing; `tr(musig(…))` wallets of 2 to 4 keys, as xpubs on both chains or as plain keys, whose scripts Core pays too |
 | `sp` | `faraday_bip::silent` | BIP-352's `reference.py` (`bip352/`); btclib-wallet's `silent_payments.py` (`btclib/`, its own curve) answering every operation beside it | every case of `tools/vectors/bip352/`, both sides, each answered by btclib-wallet too | inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs and what each receiver finds among them and decoys |
-| `sps` | `faraday_psbt::silent`, `faraday_bip::dleq` | BIP-374's `reference.py` (`bip374/`) and BIP-375's validator and `test_runner.py` (`bip375/`), over `secp256k1lab`; btclib's `dleq.py` and btclib-wallet's BIP-375 roles (`btclib/`, its own curve) answering beside them | both CSV files of `tools/vectors/bip374/` and `tools/vectors/bip375/bip375_test_vectors.json`, each judged by btclib too | proofs made and verified, damaged or not, under two generators; version 2 PSBTs of one to four inputs of every kind BIP-375 reads and some it does not, one to three silent payment outputs, shares added by one signer or two, a global share, and each finished PSBT damaged in one of eighteen ways, judged by the BIP's validator |
 | `bip85` | `faraday_bip::bip85` | btclib-wallet's `bip85` (`btclib/`, on btclib's own curve) run as written over bip39_slip39 (`bip39-slip39/`); and `ethankosakovsky/bip85` over python-mnemonic and a pycoin shim whose every call is btclib's (`bip85/`, `bip39/`) | every application vector of `tools/vectors/bip85/` | random master keys, indices, languages, word counts and lengths, with refusals |
 | `slip39` | `faraday_bip::slip39` | python-shamir-mnemonic (`slip39/`), its `recover_ems`, `split_ems` and `_interpolate` for a set's EMS, a new split of it and a member at an index; bip39_slip39 (`bip39-slip39/`) answering each SLIP-39 operation beside it (not the two codex32 operations); python-codex32 (`codex32/`) for the codex32 side of the conversions and btclib (`bip32_ref.py`) for the fingerprint; the refusals of a member at an index before the arithmetic are ours (`derive_refused`), and so are the lengths the fixed 1 of 1 refuses, which no second judge covers | all 45 of `tools/vectors/slip39/`, each again through its EMS and its decryption | splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher; a set's EMS from a quorum, refused from a short or changed set, split again on the same random bytes (some under a new identifier where extendable) and a member added or a lost one made again at an index, each recovering the first set's secret, and a member refused at an index given, past 15, from a short quorum and across two groups; random seeds of 16 and 32 bytes through the fixed 1 of 1 against both libraries under the fingerprint's first 15 bits, recovered through both, and the lengths it refuses, against Faraday's own rule; the seed written as codex32 by Faraday and read by python-codex32, and a SLIP-39 set with a passphrase recovered by Faraday and by python-shamir-mnemonic, written as codex32 by Faraday and by python-codex32, the second read by Faraday, the same bytes both ways, the identifier's 20 bits written and the fingerprint (btclib's) compared on both sides |
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); rust-codex32 at a pinned commit (`rust-codex32/`), a program outside the workspace: parsing, checksums, the threshold and a threshold of 0's share index, `interpolate_at` for a fresh set's shares; volvelle-website's checksum worksheet run as a program over every worksheet of 48 and 74 characters; the worksheet of 127 characters written in the area from python-codex32's polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
@@ -291,10 +290,6 @@ leaves uncompared.
 - `sp`: its vendored files are hashed against `references.sha256` before
   any run, and a published vector's answer is required of the reference
   as well as of Faraday.
-- `sps`: its vendored files are hashed against `references.sha256`
-  before any run, the validator is required to give each of BIP-375's 43
-  vectors its published verdict and the reference to give each of
-  BIP-374's rows its published answer.
 - `bip85`: their vendored files and wheels are hashed against
   `references.sha256` before any run, and a published vector's answer is
   required of each reference as well as of Faraday. Not compared: the
@@ -622,29 +617,6 @@ difference"), and says why.
     is read in the area from the BIP's text. Faraday's own, expected
     from its rule: an `sp()` with no key origin, which BIP-392 allows,
     is refused, as is an origin other than BIP-352's path.
-- `sps`
-  - BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH
-    or P2WPKH input only where the input's script commits to it (F89);
-    the validator takes the first key stated, so a PSBT it accepts with
-    an unbound key is refused by Faraday.
-  - BIP-375: Faraday accepts the scripts of a scan key's outputs
-    numbered in sorted order of their spend keys, as the BIP's text
-    says, and in output order, as its vectors do; the validator accepts
-    output order only.
-  - BIP-375: Faraday refuses an input whose redeem script is not the one
-    its P2SH script hashes, and one whose previous transaction is not
-    the one spent; the validator reads both fields without checking
-    them.
-  - BIP-375: btclib-wallet takes a taproot input's NUMS internal key as
-    a reason to skip the input only against a proof (a merkle root or a
-    control block that tweaks the NUMS point to the output key), and
-    counts the input otherwise; Faraday and the validator skip on the
-    claim. A PSBT with an unproved claim is not asked of btclib-wallet;
-    the run prints how many PSBTs it judged and how many it was not
-    asked. A proved claim only in a control block, with no internal key
-    set, is not detected: btclib-wallet would skip the input, Faraday
-    would count it, and the run would stop on it. The corpus also makes
-    inputs whose claim is proved, which all three skip.
 - `slip39`
   - SLIP-39: Faraday refuses a group threshold of 1 over several groups;
     python-shamir-mnemonic makes the shares. The area checks that this
@@ -1257,8 +1229,6 @@ Path naming the outside tool that generated it where one did.
 |---|---|---|---|---|
 | `bip327/` | <https://github.com/bitcoin/bips> | `bip-0327/reference.py` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
 | `bip352/` | <https://github.com/bitcoin/bips> | `bip-0352/` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
-| `bip374/` | <https://github.com/bitcoin/bips> | `bip-0374/reference.py` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
-| `bip375/` | <https://github.com/bitcoin/bips> | `bip-0375/` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
 | `bip380/` | <https://github.com/bitcoin/bips> | `bip-0380.mediawiki` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
 | `bip39/` | <https://github.com/trezor/python-mnemonic> | `src/mnemonic/` | `v0.21` | `d4b106cdec196202d44628026fcb8fedc8ea50c1` |
 | `bip85/` | <https://github.com/ethankosakovsky/bip85> | `bip85/` | none | `435a0589746c1036735d0a5081167e08abfa7413` |
@@ -1390,7 +1360,6 @@ with an area and no class (`docs/crypto/check.py`).
 | `xor` | others' code and, for a part, Faraday's second version | Coldcard's `xor` and `xor_split`, by Coinkite, over python-mnemonic, by Trezor (SatoshiLabs) | the count of parts (2 to 4) and the five BIP-39 lengths, Faraday's rule written in `area_xor.py` in front of Coldcard's `xor`, which asserts only equal lengths | xor |
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode each picture this writes and whose payload is compared with the key's words | none | stick-write |
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode the picture this writes and whose payload is compared with the key's words | none | outbox |
-| `sps` | others' code | BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone | none | silent-send |
 | `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form | the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each) | vault-unlock, vault-seal, vault-edit |
 | `qrvault` | others' code and, for a part, Faraday's second version | Sequoia's sq, by the Sequoia PGP developers (judges the primitives except Argon2, which it shares with the app's lineage, and opens Faraday's messages), rPGP, by the rPGP developers (judges the format only, on the app's lineage: opens Faraday's messages and seals the ones Faraday opens), and PyCA cryptography over OpenSSL (judges Argon2id, HKDF-SHA-256 and AES-256-OCB) | the OpenPGP framing around PyCA's primitives, read and written strictly in `area_qrvault.py` from RFC 9580 and `docs/VAULT.md` §1.2, and the QR TOML (`qr_toml`) from §2.1, read beside by CPython's `tomllib`; Faraday's second version of the framing, not another program's | vault-qr-pgp |
 | `qrvault` | others' code and, for a part, Faraday's second version | Sequoia's sq and rPGP, as for the OpenPGP message the code is | none beyond the message's own | qr-vault-seal, qr-vault-open |

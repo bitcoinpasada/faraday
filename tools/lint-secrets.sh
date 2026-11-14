@@ -43,9 +43,6 @@
 #   core/faraday-bip/src/silent.rs (a silent payments wallet's scan private
 #     key, the label tweaks and the shared secrets it derives, and the
 #     BIP-392 key expression that carries the scan key as text),
-#   core/faraday-bip/src/dleq.rs (the secret and the nonce of a BIP-374
-#     proof) and core/faraday-psbt/src/silent.rs (the input keys a BIP-375
-#     signer multiplies its ECDH shares out of),
 # core/faraday-bip/src/keys.rs,
 # core/faraday-bip/src/bip85.rs (the WIF, extended private key, raw bytes and
 #   passwords BIP-85 derives, which are as secret as the key they came
@@ -386,8 +383,6 @@ core/faraday-bip/src/codex32/worksheet.rs
 core/faraday-bip/src/codex32/fresh.rs
 core/faraday-bip/src/codex32/correct.rs
 core/faraday-bip/src/silent.rs
-core/faraday-bip/src/dleq.rs
-core/faraday-psbt/src/silent.rs
 core/faraday-bip/src/aez.rs
 core/faraday-bip/src/aezeed.rs
 core/faraday-bip/src/vanity.rs

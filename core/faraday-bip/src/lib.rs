@@ -1,7 +1,7 @@
 //! Bitcoin's key standards: BIP-39 mnemonics, BIP-32 keys,
 //! BIP-44/49/84/86 accounts and addresses, SLIP-132 and BIP-380
 //! descriptor checksums, BIP-85 child mnemonics, SLIP-39, codex32 (BIP-93),
-//! MuSig2 (BIP-327), silent payments (BIP-352) with BIP-374 proofs, aezeed,
+//! MuSig2 (BIP-327), silent payments (BIP-352), aezeed,
 //! BSMS (BIP-129), Coldcard files and policy compiling.
 //!
 //! Design:
@@ -63,7 +63,6 @@ pub mod compile;
 pub mod core_import;
 pub mod descriptor;
 pub mod diceware;
-pub mod dleq;
 pub mod hangul;
 pub mod hashes;
 pub mod json;
