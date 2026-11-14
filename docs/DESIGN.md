@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed
+**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed; Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -817,6 +817,78 @@ away from this computer pass them over at a glance. A row whose tool is
 not built is not drawn. A tool opened from Check has **Check** as its way
 back ("Back to Check", F146). There is no row for a firmware file, a
 timestamp or a Lightning invoice.
+
+**Check an address** (the row 2 tool, also in Tools; Material 3 Text
+fields, Buttons, Menus and Cards, checked against those pages). Today it
+opens the scanner; it is to be a page of its own, under the top app bar
+titled **Check an address**, in the reading column. At its top an outlined
+text field labelled **Address** (the address keyboard of Explore's Find an
+address, `faraday/faraday-core/src/explore/addresses.rs`, `KeyboardKind`,
+under it on the small panel; a physical keyboard types into it as well),
+and under the field a row of the other ways in, each its own button with
+an icon and a label: **Scan** (Material's filled tonal button, the first
+way, as today's scanner), **Paste** (a text button, Faraday Demo only, as
+the scanner's Paste), and **From a file** (a text button, drawn only when
+Files holds a text file). **From a file** opens a menu (Material 3 Menus,
+a dropdown under its button, as New key's Other menu is drawn) of the
+files in Files that are text, by name, newest first; a press reads that
+file. A typed address is checked when Enter or the keyboard's Done is
+pressed, and a pasted or file address at once; Scan reads at once as it
+does. Whichever way in, the text goes through the pasted-text classifier
+(`docs/SCANNING.md` §4.6), then to the same check the scanned code
+reaches: `address_note`, one answer line in a card under the row (the
+loaded wallet and the place the address is, or that it is in none),
+the first 100 receive and change addresses of each loaded wallet, and on
+a miss **Look further** to each depth and **Stop** (`docs/QR.md` §2). A
+`bitcoin:` link typed, pasted or in a file is read to BIP 21 first, as a
+scanned one is (`core/faraday-codec/src/bip21.rs`), and its address is the
+one checked. With no wallet loaded the page reads **Load a wallet first**
+in place of the answer and the ways in stay drawn.
+
+What each refuses, in the card's place under the field, in the error
+colour and as the field's supporting text (Material 3 Text fields, error
+state), never a toast: text that is not an address or a `bitcoin:` link
+("Not a Bitcoin address"), an address of another network than the loaded
+wallets' ("A testnet address; this wallet is mainnet", by the loaded
+wallet's network), a `bitcoin:` link with a `req-` parameter or not well
+formed (the line `address_note` gives a scanned one), a secret (a seed, a
+key, a descriptor holding one, as the scanner's Paste refuses it:
+`explore_pasted` and `pasted_secret`, so nothing of it is kept or drawn,
+and the field is cleared), and a Lightning invoice or any other kind of
+code ("Not an address"). A pasted or file text that is a PSBT, a wallet
+description or another kind that has a destination is named by the
+classifier's line as a scan names it, not opened here. A file that is not
+text, empty, or over 64 KiB is named in the menu's place ("Not a text
+file"), nothing read.
+
+A file holding several addresses (one a line, or a list after other
+text) is read for its addresses: with one, it is checked as typed; with
+more than one, the page lists them in a Material list (two-line items:
+the address, then its place or "Not in a loaded wallet"), each checked
+against the first 100 on reading (a compute, `c: &Compute`, as a scan's
+search is), and a press on a miss's row runs **Look further** for that
+address alone. At most 100 addresses are read from a file; one past that
+is "100 of {n} addresses read". A file that is a descriptor or holds a
+secret is not read as addresses: a descriptor is named "A wallet
+description, not an address" with Restore's way over (it is not opened
+here), and a secret is refused as a paste is. There is no NFC.
+
+A typed address is never kept past leaving the page, a lock or the idle
+lock, and an address is public, so Faraday Demo's paste and the device's
+typing keep it in no log. A new way in for untrusted text has its parser
+fuzzed (`faraday/fuzz/README.md`): the typed, pasted and file text reach
+`faraday_codec::bip21::parse` and `faraday_bip::address::parse`, which the
+`bip21` and `address` targets of `fuzz/` already cover, and the pasted-text
+classifier, which `classify` covers; the file's finding of addresses in
+text (several to a file, the limit) is new parsing and gets a target of
+its own in `faraday/fuzz/`, with a seed corpus of files holding one
+address, many, a descriptor and noise.
+
+The guide's line (`docs/guide/catalog.md`, when this is built): "**Check
+an address** takes an address scanned, typed on the address keyboard,
+pasted on Faraday Demo or read from a text file in Files, and a `bitcoin:`
+link the same way, and searches the loaded wallets; it reads **Load a
+wallet first** until one is loaded."
 
 Tools (`faraday/faraday-core/src/catalog.rs`) stays the list of every
 feature: each tool Check opens is in Tools as well, Check is a second

@@ -183,6 +183,17 @@ destination's action.
 | Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |
 | A GPG restore's Scan the paperkey | a paperkey's base16 lines or raw form, into the restore's lines, all at once | none: a paperkey is a secret read only here | a paperkey with a line that does not hold: the line's refusal ("CRC on line {n} does not match"); every other kind: "Not a paperkey"; with a stick in, the line asking for it to be removed; nothing filed or kept |
 
+Tools' Check an address will take the same three further ways in beside
+Scan, none a scanner: an address typed on the address keyboard, pasted on
+Faraday Demo, and read from a text file in Files, a `bitcoin:` link in
+any of them read as a scanned one is. Typed, pasted and file text go
+through the pasted-text classifier (§4.6), then to the same
+`address_note` check, first-100 search and **Look further** as a scanned
+address; a secret is refused as Paste refuses it, a kind that is not an
+address is named, and a file of several addresses lists each with its
+place. The screen, the refusals and the fuzz targets are DESIGN §5's
+Check, "Check an address"; this is not built yet (DESIGN's Open line).
+
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and
 a secret it may not file is named in the visit's log.
