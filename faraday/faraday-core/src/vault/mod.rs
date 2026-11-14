@@ -358,7 +358,6 @@ impl Faraday {
     }
 
     /// Runs a vault action.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         let c = self.compute();
         use VaultAction as V;
@@ -2317,7 +2316,6 @@ impl Faraday {
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.

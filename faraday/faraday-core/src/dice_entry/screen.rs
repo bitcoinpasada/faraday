@@ -169,7 +169,6 @@ fn strength(cost: (u32, u32), rolls: &str, list: faraday_bip::diceware::List) ->
 
 /// [`dice_panel`]'s card: the rolls and the strength line left out where
 /// the input panel at the foot holds them (`at_foot`).
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn dice_card(
     app: &View,
     ui: &mut Ui,

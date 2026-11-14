@@ -743,7 +743,6 @@ fn blank_paths_page() -> Page {
 }
 
 /// Costs a picture drawn (through `document`).
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
     if words != 12 && words != 24 {

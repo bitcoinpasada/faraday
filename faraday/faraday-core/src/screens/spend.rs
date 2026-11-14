@@ -601,7 +601,10 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
     clippy::too_many_arguments,
     reason = "each spend step takes the view, step number, position, width, wallet and keys needed"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "draws every step of the spend flow, the reading of the transaction included"
+)]
 pub(crate) fn step_body(
     app: &View,
     ui: &mut Ui,
@@ -1865,7 +1868,6 @@ type ReviewRow = (Text, Text, Text, Option<(&'static str, crate::ui::Paint)>);
     clippy::too_many_arguments,
     reason = "the spend panel's view, position, width, height, wallet and keys needed"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn spend_panel(
     app: &View,
     ui: &mut Ui,

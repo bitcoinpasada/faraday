@@ -501,7 +501,6 @@ pub fn spend() -> Result<(Psbt, Psbt), KitError> {
 }
 
 /// The files of the test stick, by name.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
     let c = compute();
     let mut out = Vec::new();
@@ -902,7 +901,6 @@ fn musig_rounds_t() -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text, Psbt)>), Text
 
 /// [`musig_rounds`] for the wallet's output at `0/index`.
 #[allow(clippy::type_complexity)]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn musig_rounds_at(
     index: u32,
 ) -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text, Psbt)>), KitError> {
@@ -1046,7 +1044,6 @@ pub fn musig_rounds_at(
 /// nonce that makes the nonces add up to the aggregate, and no partial
 /// signature. The others' nonces are made up. At most all but one
 /// participant can be forged: all would be a BIP-340 signature.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn musig_forged(forged: &[usize]) -> Result<Psbt, KitError> {
     use faraday_bip::bitcoin::secp256k1::{Parity, PublicKey as Pk, Scalar, SecretKey};
     let tagged = |tag: &str, parts: &[&[u8]]| -> Scalar {
@@ -1222,7 +1219,6 @@ pub fn seed_fingerprint(n: usize) -> faraday_bip::keys::Fingerprint {
 /// both, and test key 2's partial signature on the first input only in the
 /// first file and on both in the second. The nonces are fixed, so the
 /// files are the same each time.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn musig_two_inputs() -> Result<(Psbt, Psbt), KitError> {
     use faraday_bip::bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
     let c = compute();
@@ -1771,7 +1767,6 @@ pub fn pause(app: &mut crate::Faraday) {
 /// and the ⋮ menu's **Add to…** for each vault's stick and for what each
 /// vault holds. Works out the plan's map after each press. Panics where a
 /// press is not offered, or where the plan reached is not the preset's.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     let c = compute();
     use crate::board::{BoardPress as P, Chip, MenuRow, Thing, Zone, things_of};

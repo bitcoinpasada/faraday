@@ -12,13 +12,14 @@
 #
 # 2. A file has no size limit (F248): code is split by function, not length.
 #
-# 3. Function size. Clippy's `too_many_lines` is on for every crate
-#    (Cargo.toml's workspace lints, `clippy -D warnings`), so a function
-#    over 100 lines fails unless it carries
-#    `#[expect(clippy::too_many_lines, …)]`. The number of those markers
-#    and of `#[allow(clippy::too_many_arguments)]` is not counted, but
-#    each marker (over one line or several) carries `reason = "…"`; one
-#    without fails, naming file:line.
+# 3. Function shape (F253). A function has no length limit. Clippy's
+#    `cognitive_complexity` (branching and nesting, not lines) is on for every
+#    crate (Cargo.toml's workspace lints, `clippy -D warnings`), so a function
+#    over the threshold in core/clippy.toml and faraday/clippy.toml fails
+#    unless it carries `#[expect(clippy::cognitive_complexity, …)]`. The
+#    number of those markers and of `#[allow(clippy::too_many_arguments)]`
+#    is not counted, but each marker (over one line or several) carries
+#    `reason = "…"`; one without fails, naming file:line.
 #
 # 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.4.5). The number of
 #    top-level fields of `pub struct Faraday` in lib.rs (`fields Faraday
@@ -159,18 +160,18 @@ for manifest in sorted(m for m in members if m and m != "Cargo.toml"):
     if "[package]" not in text:
         continue
     inherits = re.search(r"^\[lints\]\s*\nworkspace = true", text, re.M)
-    own = re.search(r"^\[lints\.clippy\][^\[]*^too_many_lines = \"warn\"", text, re.M | re.S)
+    own = re.search(r"^\[lints\.clippy\][^\[]*^cognitive_complexity = \"warn\"", text, re.M | re.S)
     if not (inherits or own):
-        fail(f"{manifest}: clippy's too_many_lines is not on (workspace lints, or [lints.clippy])")
+        fail(f"{manifest}: clippy's cognitive_complexity is not on (workspace lints, or [lints.clippy])")
 
 marker = re.compile(
-    r"#\[(?:expect|allow)\(\s*clippy::too_many_(?:lines|arguments)\b.*?\)\]", re.S)
+    r"#\[(?:expect|allow)\(\s*clippy::(?:cognitive_complexity|too_many_arguments)\b.*?\)\]", re.S)
 for path in tracked_rs():
     text = open(path, encoding="utf-8").read()
     for m in marker.finditer(text):
         if not re.search(r'\breason\s*=\s*"', m.group(0)):
             fail(f"{path}:{text.count(chr(10), 0, m.start()) + 1}: a "
-                 "too_many_lines / too_many_arguments marker without `reason = \"…\"`")
+                 "cognitive_complexity / too_many_arguments marker without `reason = \"…\"`")
 
 
 # ---- 4. Faraday's shape ----

@@ -1,0 +1,9 @@
+# Clippy's settings for the crates under core/. Clippy reads the nearest
+# clippy.toml above each crate's manifest; faraday/clippy.toml governs the
+# crates under faraday/.
+#
+# A function's cognitive complexity (clippy's measure of branching and
+# nesting, not of length) over this carries
+# `#[expect(clippy::cognitive_complexity, reason = "...")]`
+# (docs/STRUCTURE-PASS.md §7.3). The same number is in faraday/clippy.toml.
+cognitive-complexity-threshold = 40

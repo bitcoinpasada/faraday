@@ -12,7 +12,6 @@ use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     let (x, width) = if compact {
@@ -297,7 +296,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The loaded wallets, two to a row, at most `rows` rows: each with its
 /// shape and whether the seeds here sign for it. Returns its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_rows(
     app: &View,
     ui: &mut Ui,

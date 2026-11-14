@@ -700,7 +700,6 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     clippy::too_many_arguments,
     reason = "the backup glance's reads, wallet, shape, vault names, answers, notes and press state"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn build(
     r: &impl Reads,
     wallet: &crate::wallet::Wallet,
@@ -901,7 +900,6 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
     clippy::too_many_arguments,
     reason = "the backup glance's nodes from its reads, summary, shape, answers, names, notes, slots and keys"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn backup_nodes(
     r: &impl Reads,
     sum: &str,
@@ -1429,7 +1427,6 @@ pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
 /// pressed opens its sheet (`docs/history/NEW-WALLET.md` §9); on the wide chart
 /// each line of what a backup node holds opens that line's, and a key's
 /// way in is its own line's press.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
     use crate::glance::sheet::{ChartAction as C, Target};
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
@@ -1688,7 +1685,6 @@ fn arrange(n: usize, x: f32, w: f32) -> Vec<(f32, f32, usize)> {
     clippy::too_many_arguments,
     reason = "the glance's layout from its direction, position, widths, counts and height"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn layout(
     direction: Direction,
     x: f32,

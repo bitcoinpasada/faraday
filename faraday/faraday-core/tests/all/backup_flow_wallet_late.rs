@@ -176,7 +176,6 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
 /// the sealed vault holds it after the lock, and Restore with that vault
 /// open and another share in the Inbox rebuilds the wallet.
 #[test]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let c = testkit::compute();
     use faraday_vault::records::field;

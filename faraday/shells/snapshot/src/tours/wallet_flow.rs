@@ -29,7 +29,6 @@ pub(crate) fn words_off(c: &Compute, t: &mut Tour) {
 /// one lock, each stick by place, done. Then another wallet's two vaults,
 /// one found on a stick and one on the boot stick, to the step's Open and
 /// Create, and Create a vault.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::cstep;

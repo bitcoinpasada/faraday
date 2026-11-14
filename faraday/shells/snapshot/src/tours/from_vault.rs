@@ -15,7 +15,6 @@ use faraday_shell_api::{App, Event};
 /// here, its PSBT in Files, reaches Signers with Scan a key and Collect
 /// a signature; the card's Scan a key opens the key scanner, and a
 /// missing key's SeedQR makes the wallet able to spend.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::boot_import::ImportAction as I;
     use faraday_core::spend_backup::{SpendBackupAction as F, page};

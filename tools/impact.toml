@@ -1059,11 +1059,19 @@ held_by = ["lint-layout"]
 
 [[rule]]
 id = "structure.size"
-title = "no function over 100 lines without an expectation that gives its reason"
-source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md", "docs/decisions/F248.md"]
+title = "no function over the cognitive-complexity threshold without an expectation that gives its reason"
+source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md", "docs/decisions/F248.md", "docs/decisions/F253.md"]
 when = ["**/*.rs"]
 kind = "held"
 held_by = ["lint-layout", "clippy"]
+
+[[rule]]
+id = "structure.one-job"
+title = "a function does one thing and is as long as that takes; one that grew a second job is split, and one that stays over the complexity threshold says why in its expectation"
+source = ["docs/STRUCTURE-PASS.md", "docs/decisions/F253.md"]
+when = ["**/*.rs"]
+lines = '^\+.*clippy::cognitive_complexity'
+kind = "review"
 
 [[rule]]
 id = "structure.impl-faraday"

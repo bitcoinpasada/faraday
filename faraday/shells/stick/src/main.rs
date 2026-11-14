@@ -1543,7 +1543,6 @@ impl Shell {
     /// A request the shell answers becomes another event at the back of
     /// the queue, so its own commands are handled too — the same shape as
     /// the desktop and snapshot shells.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn send(&mut self, event: Event) {
         let mut pending = std::collections::VecDeque::from([event]);
         while let Some(e) = pending.pop_front() {
@@ -2132,7 +2131,6 @@ impl Shell {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(args: Args) -> Result<Exit, String> {
     let screen = geometry(&args, probe(&args))?;
     let cmdline = std::fs::read_to_string(CMDLINE).unwrap_or_default();
@@ -2626,7 +2624,10 @@ fn screen_label(app: &Faraday) -> String {
 /// from the camera's channel, one per pass and the newest one, so a
 /// board that decodes slower than it captures still ticks and still
 /// feels a finger.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "waits for the next wake, paces frames on the grid, takes in the controller's reports and draws"
+)]
 fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // Set once nothing can wake the loop again: there is nothing to wait
     // on, so the pass sleeps out the tick interval instead of spinning on

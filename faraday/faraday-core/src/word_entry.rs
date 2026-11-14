@@ -1024,7 +1024,6 @@ impl Faraday {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn entry_add(&mut self) {
         let c = self.compute();
         if !self.may_load_keys() || self.entry.state().differs() {

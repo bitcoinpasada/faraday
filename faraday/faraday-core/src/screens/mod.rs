@@ -247,7 +247,6 @@ pub(crate) fn support_pane_room() -> f32 {
 }
 
 /// Draws the whole frame.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
     ui.dice_shown = app.keygen_dice_shown();

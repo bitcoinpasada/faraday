@@ -25,3 +25,8 @@ disallowed-methods = [
     { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
     { path = "slice::to_vec", reason = "a secret copied into a second buffer nothing wipes (`[T]::to_vec`; Zeroizing or a borrow)" },
 ]
+
+# A function over this cognitive complexity carries an expect with its reason
+# (docs/STRUCTURE-PASS.md §7.2); the same number is in core/clippy.toml and
+# faraday/clippy.toml, which this file shadows for its crate.
+cognitive-complexity-threshold = 40

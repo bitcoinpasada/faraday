@@ -442,7 +442,6 @@ pub(super) fn walk(c: &Compute, stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Fa
 }
 
 /// [`walk`] on `panel`.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn walk_on(
     c: &Compute,
     panel: Panel,

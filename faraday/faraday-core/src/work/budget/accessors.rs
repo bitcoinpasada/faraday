@@ -44,7 +44,6 @@ fn session() -> Faraday {
 }
 
 /// What each accessor is read with, from the session as it stands.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn reads(app: &Faraday) -> Vec<Read> {
     let net = app.session.network();
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);

@@ -22,7 +22,6 @@ use faraday_ui::parts::wrap_buttons;
 /// [`visit`] on a small panel: one scrolled column. The sticks, what is
 /// left to do, then what to write and what to import, each a list with
 /// its buttons under it.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::finish;
@@ -252,7 +251,6 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// [`visit_compact`]'s In Faraday tab: what is written to the stick, the
 /// Outbox and copies from the Inbox, from (x, y) `w` wide.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h): (f32, f32)) {
     use crate::compact::screen::{about, finish};
     let mut y = y;
@@ -459,7 +457,6 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
     finish(app, ui, h, y - top + 16.0);
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return visit_compact(app, ui, x0, cw, h);

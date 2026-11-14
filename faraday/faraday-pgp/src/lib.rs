@@ -800,7 +800,6 @@ pub(crate) struct Block {
 /// any other packet refuses the block, and so does a secret packet whose
 /// tag was changed to a public one: its body does not end where a public
 /// key's does.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
     if !bytes.is_ascii() {
         return None;

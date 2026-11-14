@@ -1462,7 +1462,6 @@ fn guide_title(id: StartGuide) -> &'static str {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let c = &starter.computer;

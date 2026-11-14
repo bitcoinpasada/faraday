@@ -88,10 +88,6 @@ fn real_entries(bytes: usize) -> Document {
     doc
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm for each phase of a measuring tool"
-)]
 fn phases(args: &[String], dir: &str, phase: &str) {
     #[expect(
         clippy::disallowed_methods,

@@ -961,7 +961,6 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
 }
 
 /// Answers the storage requests the app has queued now.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn serve_queued(
     app: &mut Faraday,
     boxes: &mut Boxes,

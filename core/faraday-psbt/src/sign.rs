@@ -257,7 +257,6 @@ pub struct SignResult {
     clippy::too_many_arguments,
     reason = "the signing request: PSBT, keys, selection, context, accepted warnings, nonce, aux and MuSig session"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn sign(
     c: &Compute,
     psbt: &mut Psbt,
@@ -935,7 +934,6 @@ struct MusigPass {
     clippy::too_many_arguments,
     reason = "one MuSig2 input's PSBT, sighash cache, index, classification, participants and session state"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn sign_musig(
     c: &Compute,
     psbt: &mut Psbt,

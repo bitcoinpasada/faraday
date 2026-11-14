@@ -699,7 +699,6 @@ impl Disks {
     }
 
     /// Costs what `read_qr_png` costs. Answers one request.
-    #[expect(clippy::too_many_lines, reason = "one arm for each request")]
     pub fn handle(&mut self, c: &Compute, req: Request) -> Response {
         let answer = match req {
             Request::List => return Response::Sticks(self.list(c)),

@@ -17,7 +17,7 @@ pgp = "0.21"
 rand = "0.8"
 
 [lints.clippy]
-too_many_lines = "warn"
+cognitive_complexity = "warn"
 
 # Argon2 at 64 MiB is too slow unoptimised for a run of seals.
 [profile.dev]

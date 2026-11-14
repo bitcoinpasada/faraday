@@ -1066,7 +1066,6 @@ impl Faraday {
     }
 
     /// Costs what [`Faraday::code_view`] costs. It is that, its refusals as any text.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn code_view_inner(&self, c: &Compute, code: Code) -> Result<QrView, Why> {
         let wallet = |i: usize| {
             self.session

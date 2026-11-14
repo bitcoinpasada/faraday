@@ -309,7 +309,6 @@ pub(crate) fn wallet_code_head(
 /// A wallet's public files `what`, their pictures and PDFs made only when
 /// `bytes`, else named with no bytes. A PDF that cannot be made is
 /// named in the toast.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
     let mut out = Made::default();
     if inp.blank {

@@ -593,7 +593,6 @@ impl Request {
     }
 
     /// The frame's bytes.
-    #[expect(clippy::too_many_lines, reason = "one arm for each variant")]
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
             Request::List => Out::tag(1),
@@ -839,7 +838,6 @@ impl Response {
     }
 
     /// The frame's bytes.
-    #[expect(clippy::too_many_lines, reason = "one arm for each variant")]
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
             Response::Sticks(sticks) => {

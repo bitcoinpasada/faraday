@@ -244,7 +244,6 @@ impl super::Vaults {
     /// Costs what `key_fingerprint` and `described` cost. Works out the
     /// sheet for open vault `v` with `ticked`, from the wallet records as
     /// the vault keeps them read ([`crate::vault::Vaults::described`]).
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn load_view(
         &self,
         c: &Compute,

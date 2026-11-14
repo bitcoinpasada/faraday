@@ -13,7 +13,6 @@ use faraday_ui::parts::section_label;
 
 /// Tools: every flow by group, as many tiles to a row as fit and at
 /// least three, each with its standards; Find a tool narrows them as it is typed.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::catalog::{GROUPS, TILES, matches};
     // A small panel has the name in its bar, Find across the panel, and a

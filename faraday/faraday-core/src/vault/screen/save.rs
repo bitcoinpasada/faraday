@@ -168,7 +168,6 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The session's keys or wallets that are not yet in this vault, each
 /// with Save.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn save_panel(
     app: &View,
     ui: &mut Ui,
@@ -374,7 +373,6 @@ pub(super) fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 /// or, once one is chosen to sign, its SHA-256 and whether it is a
 /// release's boot program (F134) before the hold that signs it, which a
 /// refusal leaves out (`docs/FLOWS.md`).
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     if let Some((k, checked)) = &app.vaults.sb_sign

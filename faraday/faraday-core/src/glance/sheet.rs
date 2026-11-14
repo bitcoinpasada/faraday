@@ -287,7 +287,10 @@ fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, Te
 /// The sheet for `target` on the chart of `press`; `None` when it is no
 /// longer there. Drawing's form: the chart through the memo and the kept
 /// values. Only drawing asks for it.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "builds the chart sheet's rows and actions for every kind of target, from the vault or loaded key and the backup plan it opens"
+)]
 pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> Option<View> {
     let g = chart(app, press)?;
     let chart_do = |a: ChartAction| Some(Action::Chart(a));
@@ -1801,7 +1804,6 @@ impl Faraday {
     }
 
     /// What a press on the chart or its sheets does.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn chart_act(&mut self, a: ChartAction) {
         let c = self.compute();
         match a {

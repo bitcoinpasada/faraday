@@ -66,7 +66,6 @@ fn largest_plan(item: &[u8]) -> Record {
 
 /// One record of every kind the writer takes, each as large as its
 /// rules let it be.
-#[expect(clippy::too_many_lines, reason = "one record of each kind, listed")]
 fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record> {
     let text = |k: u8, fields: &[u8]| {
         let mut r = Record::new(k);

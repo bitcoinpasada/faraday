@@ -16,7 +16,6 @@ use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD};
 use faraday_keys::Reveal;
 use faraday_text::{Text, text};
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(e) = app.explore.state() else {
         return;

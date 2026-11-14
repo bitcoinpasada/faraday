@@ -373,7 +373,6 @@ fn panes_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     crate::compact::screen::wallet_card(app, ui, dx - M, p.reading() + 2.0 * M, h);
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::MARGIN_WIDE;
     if ui.compact && crate::panes::screen::shown(app, Screen::Wallets) {

@@ -518,7 +518,6 @@ pub(crate) fn scrambled_digits(seed: u32) -> [char; 10] {
 ///
 /// `enabled` is the BIP-39 letter mask (ignored by other kinds);
 /// `scramble` is the PIN scramble seed (`None` = natural order).
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn keys(
     kind: KeyboardKind,
     area: Rect,

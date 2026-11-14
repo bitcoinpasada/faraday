@@ -1181,7 +1181,6 @@ impl Faraday {
         self.drop_forged_wallets();
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn storage_event(&mut self, event: StorageEvent) {
         let c = self.compute();
         let event = match self
@@ -2362,7 +2361,6 @@ impl Faraday {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn act_inner(&mut self, action: Action) {
         let c = self.compute();
         // A build whose vectors do not reproduce does nothing but exit.
@@ -3561,7 +3559,6 @@ impl Faraday {
         self.inbox.typed_at().is_some()
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
         if self.input_key(key) {
             return;
@@ -3791,7 +3788,6 @@ impl Faraday {
         self.pointer.find_hovered()
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
         let (x, y) = (i32::from(x), i32::from(y));
         let found = self.pointer.hit_at(x, y);
@@ -4043,7 +4039,6 @@ impl Faraday {
         self.guide_place();
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn render_frame(&mut self, only_moved: bool) {
         let Some(mut canvas) = self.canvas.take() else {
             return;
@@ -4493,7 +4488,6 @@ pub use inbox::file_stem;
 pub(crate) use inbox::{result_stem, stem};
 
 impl App for Faraday {
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn event(&mut self, event: Event) {
         self.drain_jobs();
         self.vault_shown_tidy();

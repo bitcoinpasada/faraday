@@ -9,7 +9,6 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has the way back and the name in its bar, and one
     // column that scrolls: each value under its name.

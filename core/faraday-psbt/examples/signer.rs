@@ -260,7 +260,6 @@ fn base64(bytes: &[u8]) -> String {
 }
 
 /// Every fixture the example writes, in the order of SIGNER-CHECK.md §9.1.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn fixtures() -> Vec<Fixture> {
     let mut out = Vec::new();
     let mut add = |name: &'static str, note: &'static str, psbt: &Psbt| {

@@ -2117,7 +2117,6 @@ fn collect_does_not_name_an_honest_file_for_the_spends_own_false_witness_utxo() 
 /// script path. A taproot signature is made over `taproot_sees` for input
 /// `.0` where given. Every output is 50,000 sat.
 #[expect(
-    clippy::too_many_lines,
     clippy::disallowed_methods,
     reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
 )]
@@ -2704,7 +2703,6 @@ fn a_disagreement_beside_a_failing_witness_is_named_not_called_a_wrong_signature
 /// offered as they are: more signatures are wanted.
 #[test]
 #[expect(
-    clippy::too_many_lines,
     clippy::disallowed_methods,
     reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
 )]
@@ -2897,7 +2895,6 @@ fn set_spk(input: &mut faraday_bip::bitcoin::psbt::Input, spk: faraday_bip::bitc
 /// commit to or into a shape no node relays (the finalized input is
 /// never run as a script: hashes and shapes only).
 #[test]
-#[expect(clippy::too_many_lines, reason = "a table of cases")]
 fn a_finalized_non_taproot_input_that_does_not_match_its_output_is_refused() {
     use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
     use faraday_bip::bitcoin::{

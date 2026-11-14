@@ -276,7 +276,10 @@ fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyF
     tokens::REFUSED_FILE_REASON_Y + h + tokens::REFUSED_FILE_GAP
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "draws every step of Create: the kind, the quorum, the keys, where, how many, the sticks and the check"
+)]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::create::Source;
     use crate::cstep;

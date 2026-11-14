@@ -185,10 +185,15 @@ cannot quietly undo it:
     code map, every `Screen` variant appears in the map's table, and the
     file named there exists and draws it;
   - a file has no size limit (F248);
-  - function size: clippy's `too_many_lines` is on and each long
-    function carries an `#[expect]`; the number of those and of
-    `#[allow(clippy::too_many_arguments)]` is not counted, and each
-    marker carries a `reason`, which the lint checks (F196);
+  - function shape: a function has no length limit (F253). Clippy's
+    `cognitive_complexity` is on, with the threshold in
+    `core/clippy.toml` and `faraday/clippy.toml` (and in each crate's own
+    `clippy.toml`, which shadows them); a function over it carries an
+    `#[expect(clippy::cognitive_complexity, reason = "…")]`. The number of
+    those and of `#[allow(clippy::too_many_arguments)]` is not counted, and
+    each marker carries a `reason`, which the lint checks. A function does
+    one thing and is as long as that takes; a reviewer reads a function
+    that grew a second job (`structure.one-job`);
   - `Faraday`'s top-level field count, which only falls;
   - the files allowed an inherent `impl Faraday`: the list only shrinks;
   - mutable accessors: in faraday-core a `pub` or `pub(crate)` `fn

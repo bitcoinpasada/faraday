@@ -1431,7 +1431,6 @@ impl Starter {
 
     /// Reports what the shell read (§2): this computer, the disks, the
     /// images wanted, a write's progress.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn starter_event(&mut self, event: StarterEvent) {
         self.frost = None;
         match event {
@@ -1799,7 +1798,10 @@ impl Starter {
         ids
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+    #[expect(
+        clippy::cognitive_complexity,
+        reason = "one match over every action the Starter takes"
+    )]
     fn act(&mut self, action: StarterAction) {
         self.frost = None;
         self.name_pressed(action, None);

@@ -2176,7 +2176,6 @@ type Row = (String, ScriptBuf, ScriptBuf, Vec<Vec<u8>>, bool);
 /// hashes and shapes: each true shape reads no mismatch, each of the
 /// others is one, and the review says so once.
 #[test]
-#[expect(clippy::too_many_lines, reason = "a table of cases")]
 fn a_finalized_non_taproot_input_is_compared_with_its_output() {
     use bitcoin::hashes::{hash160, sha256};
     use bitcoin::script::{Builder, PushBytesBuf};
@@ -2879,7 +2878,6 @@ fn an_uncompressed_key_in_a_p2sh_multisig_checks_its_signature() {
 /// so a signature made over another script reads Invalid, and the true
 /// input reads Valid with the right field, a stale one or none.
 #[test]
-#[expect(clippy::too_many_lines, reason = "a table of cases")]
 fn a_stale_script_field_beside_a_final_input_is_not_read() {
     let (a, b) = (key_bytes(5, true), key_bytes(6, true));
     let real = multisig_script(1, std::slice::from_ref(&a));

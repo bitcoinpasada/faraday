@@ -206,10 +206,13 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc", "
 unsafe_code = "forbid"
 missing_docs = "warn"
 
-# A function over 100 lines carries `#[expect(clippy::too_many_lines)]`,
-# and tools/lint-layout.sh holds their number so it only falls (F74).
+# A function has no length limit: it is split by what it does. What keeps one
+# from becoming several jobs is its cognitive complexity (branching and
+# nesting, not lines), over the threshold in core/clippy.toml and
+# faraday/clippy.toml a function carries `#[expect(clippy::cognitive_complexity,
+# reason = "...")]` (docs/STRUCTURE-PASS.md §7.2).
 [workspace.lints.clippy]
-too_many_lines = "warn"
+cognitive_complexity = "warn"
 
 # Build hardening for release binaries.
 # The dev profile keeps its defaults on purpose: `cargo test` needs

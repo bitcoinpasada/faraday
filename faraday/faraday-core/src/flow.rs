@@ -134,7 +134,6 @@ pub fn column_foot(
 /// to `wide_end` (`docs/LAYOUT.md` §14): the rules above and under that
 /// card run to `wide_end`; its head and summary stay in the column.
 /// `None` draws every rule at the column's width.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn column_wide(
     ui: &mut Ui,
     col: &Column,
@@ -389,7 +388,6 @@ pub(crate) fn past_end(y: f32, max: f32) -> bool {
 /// back, the flow's name, a strip of the steps to go between them, then
 /// the step's controls; with no step open, the steps as a list, and the
 /// foot under them.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn paged(
     ui: &mut Ui,
     col: &Column,

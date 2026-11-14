@@ -70,7 +70,6 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32) -> f32 {
 
 /// The calculators, the field and what it works out. Returns where it
 /// ends.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     let Some(t) = app.tools.state() else {
         return y;

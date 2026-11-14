@@ -744,10 +744,6 @@ pub fn read_file(
 /// header's) and `records` (every `(key, value)` of table `main`), on a
 /// mode whose network is `mode`. `passphrase` opens an encrypted wallet's
 /// keys; without it they are counted, not checked.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one pass over the records, one arm for each record type Bitcoin Core writes"
-)]
 pub fn read<V: AsRef<[u8]>>(
     c: &Compute,
     application_id: u32,

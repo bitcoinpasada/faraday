@@ -605,7 +605,6 @@ impl Faraday {
     }
 
     /// Runs one of the tab's actions.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn spend_backup_act(&mut self, a: SpendBackupAction) {
         let c = self.compute();
         use SpendBackupAction as F;

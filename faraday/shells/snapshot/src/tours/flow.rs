@@ -106,7 +106,6 @@ pub(crate) fn flow_beside_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
     use faraday_core::backup_flow::steps::FlowAction as F;

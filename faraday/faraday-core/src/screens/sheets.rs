@@ -25,7 +25,6 @@ use faraday_ui::parts::{button_rows, qr_code, sheet_box, wrap_buttons};
     clippy::too_many_arguments,
     reason = "the potential sheet's view, kind, position, width and the seed, xpub and match facts"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn potential_body(
     app: &View,
     p: &crate::inbox::Potential,
@@ -724,7 +723,6 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(sc) = app.scan() else { return };
     let pad = if ui.compact { 16.0 } else { 32.0 };
@@ -1276,7 +1274,6 @@ fn viewfinder_over(
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(q) = app.qr() else { return };
     if ui.compact {
@@ -1407,7 +1404,6 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// for one code of public content. The format line gives way to the code
 /// (DESIGN §4.9): with it, a PSBT's frame is one pixel a module at
 /// 240x320, or its buttons go under Done.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) {
     let text = matches!(
         q.source,

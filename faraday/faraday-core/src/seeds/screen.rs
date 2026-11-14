@@ -218,7 +218,6 @@ pub(crate) fn cosigner(
     clippy::too_many_arguments,
     reason = "the shape card's view, seeds state, back flag, position and width"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn shape(
     app: &View,
     ui: &mut Ui,

@@ -15,7 +15,6 @@ use faraday_crypto::work::Compute;
 /// from it: Quorum with its Account row (F98), then Keys with key 3
 /// waiting for its xpub at account 1; a fresh single key's Check, and its
 /// Path Change back to the Account row at the head of Keys.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;

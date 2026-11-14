@@ -22,7 +22,6 @@ use faraday_ui::parts::wrap_buttons;
 /// seeds here that are their keys; seeds no wallet names, each a potential
 /// wallet; and backups short of parts or sealed. Nothing when it gives
 /// nothing to load. Returns its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if ui.compact {
         return inbox_panel_compact(app, ui, x, y, w);
@@ -377,7 +376,6 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
     // A stick open: Files' lists with their ticks and the stick's own
@@ -949,7 +947,6 @@ pub(super) fn receipt_rows(
 /// An open vault's seeds and wallets, each ticked to load or not, with
 /// Select all and a Load button that counts what it loads. What loaded
 /// stays listed, marked Loaded.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
     if ui.compact {
         return vault_panel_compact(app, ui, v, x, y, w);
@@ -1247,7 +1244,6 @@ fn wallet_row_h(ui: &Ui, ready: bool) -> f32 {
 
 /// [`inbox_panel`] on a small panel: one column, each row's line under
 /// its name and its button under that, measured before its card is drawn.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::compact::screen::measured;
     let found = app.inbox_found();
@@ -1486,7 +1482,6 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// [`vault_panel`] on a small panel: one column of the vault's wallets
 /// and seeds, each name over what it is, measured before its card.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
     use crate::compact::screen::measured;
     use crate::vault::VaultAction as V;
@@ -1731,7 +1726,6 @@ type Note = Option<(Text, crate::ui::Paint)>;
 /// What an Inbox file offers on its card: the way it is used; the rest
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
 /// many keys are in hand instead of offering a button.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(Text, Style, Action)> = Vec::new();
     let mut note = None;

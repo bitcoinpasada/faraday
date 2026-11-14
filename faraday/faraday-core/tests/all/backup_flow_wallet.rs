@@ -891,7 +891,6 @@ fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_its_copy_is_checked()
  {
     let c = testkit::compute();

@@ -21,4 +21,4 @@ name = "keepass-rs"
 path = "src/main.rs"
 
 [lints.clippy]
-too_many_lines = "warn"
+cognitive_complexity = "warn"

@@ -394,7 +394,6 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Unlock
 // ---------------------------------------------------------------------
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (rule, bad) = (Role::OutlineVariant, Role::Error);
     let ink = Role::OnSurface;
@@ -680,7 +679,6 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each the panel's width.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (rule, bad) = (Role::OutlineVariant, Role::Error);
     let ink = Role::OnSurface;
@@ -1050,7 +1048,6 @@ pub(super) fn machine_rows(
     cy
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: bool) -> f32 {
     let good = Role::Ok;
     let (muted, ink, primary, warn, inset) = (
@@ -1561,7 +1558,6 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     (title, line, mono)
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn item_heading_of(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     match r.kind() {
         kind::KEY => {
@@ -1879,7 +1875,6 @@ fn seals_head(
     used
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (good, warn) = (Role::Ok, Role::Warning);
     let rule = Role::OutlineVariant;
@@ -2299,7 +2294,6 @@ pub(crate) fn writing(app: &Faraday) -> bool {
 /// [`contents`] on a small panel: the vault, its kinds and the items of
 /// the kind chosen, as a list; a chosen item, or what is being added or
 /// made, as a page of its own that the bar goes back from.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (good, warn) = (Role::Ok, Role::Warning);
     let ink = Role::OnSurface;
@@ -2545,7 +2539,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     clippy::too_many_arguments,
     reason = "the vault detail pane's view, vault, records, selection and position"
 )]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "draws the detail pane for the form being filled, the prompt, the keys or wallets to save, a GPG key's files to sign, Secure Boot's images, and the selected item with its rows and actions"
+)]
 fn detail(
     app: &View,
     ui: &mut Ui,
