@@ -4,8 +4,9 @@
 // (keychain/derivation.go: m/1017'/coin'/6'/0/0). One process answers every
 // request of a run, a JSON object a line in, a JSON object a line out.
 //
-// Written for Faraday's cross-check; the vendored packages are LND's and
-// its dependencies', unchanged (tools/reference/lnd/README.md).
+// Written for Faraday's cross-check; the packages are LND's and its
+// dependencies', unchanged, fetched by the Go toolchain and checked
+// against go.sum (tools/reference/lnd/README.md).
 package main
 
 import (
@@ -22,8 +23,8 @@ import (
 )
 
 // LND's scrypt cost is a package variable it does not export; its own tests
-// lower it the same way (aezeed/cipherseed_test.go, init). The vendored file
-// is not changed: this names the variable from here.
+// lower it the same way (aezeed/cipherseed_test.go, init). LND's file is
+// not changed: this names the variable from here.
 //
 //go:linkname scryptN github.com/lightningnetwork/lnd/aezeed.scryptN
 var scryptN int

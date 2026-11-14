@@ -483,7 +483,7 @@ class Lightning(Area):
         "encrypted or the mnemonic form, and from BIP-39 words)"
     )
     reference = (
-        "LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package "
+        "LND's own code, a Go program built against its `go.sum` (`tools/reference/lnd/`: its `aezeed` package "
         "over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one "
         "process answering the run's requests (the aezeed also asked of a second build "
         "of each side, Faraday's with the aes crate's software round and LND's without "

@@ -2105,7 +2105,7 @@ tests = [
   "core/faraday-crypto/src/scrypt.rs::rfc_7914_vectors",
 ]
 crosscheck = "hash"
-independence = { class = "outside", author = "Python's `hashlib.scrypt` (OpenSSL) in area `hash`, and LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, vendored in `tools/reference/lnd/`, in area `lightning`" }
+independence = { class = "outside", author = "Python's `hashlib.scrypt` (OpenSSL) in area `hash`, and LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, built from `tools/reference/lnd/` against its `go.sum`, in area `lightning`" }
 selftest = [
   "scrypt_vector",
 ]
@@ -4432,7 +4432,7 @@ tests = [
   "core/faraday-bip/src/aezeed.rs::the_ldk_node_key_matches_what_ldk_node_derives",
 ]
 crosscheck = "lightning"
-independence = { class = "outside-and-own", author = "LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; btclib-wallet's `bip32`, by the btclib developers, and python-mnemonic, by Trezor (SatoshiLabs), for each step of ldk-node's key", ours = "ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go`" }
+independence = { class = "outside-and-own", author = "LND's node key by btcd's `hdkeychain` in LND's Go program (`tools/reference/lnd/`, its modules checked against `go.sum`), by Lightning Labs and the btcd developers, for LND; btclib-wallet's `bip32`, by the btclib developers, and python-mnemonic, by Trezor (SatoshiLabs), for each step of ldk-node's key", ours = "ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go`" }
 fuzz = [
   "aezeed",
 ]
