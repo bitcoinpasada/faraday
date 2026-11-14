@@ -116,17 +116,19 @@ fn a_copy_is_due_after_twelve_months_or_with_no_date_once_the_clock_is_checked()
 }
 
 #[test]
-fn a_date_later_than_today_shows_no_age_and_is_not_due() {
+fn a_date_later_than_today_shows_no_age_and_is_due() {
     assert_eq!(age_text("2026-11-01", "2026-10-23"), None);
-    assert!(!is_due("2026-11-01", "2026-10-23", Interval::default()));
+    assert!(is_due("2026-11-01", "2026-10-23", Interval::default()));
+    assert!(is_due("2027-10-23", "2026-10-23", Interval::default()));
+    assert!(is_due("2036-01-01", "2026-10-23", Interval::of(Some(30))));
     let (mut app, w) = checked_place();
     set_clock(&mut app, "2026-09-01");
     card(&mut app, w);
     let (_, node) = node_of(&app, w, "Place 1");
     let age = node.age.expect("the place has an age");
-    assert_eq!((age.text, age.due), (None, false));
+    assert_eq!((age.text, age.due), (None, true));
     assert!(shown(&mut app, "Last checked 2026-10-03"));
-    assert!(!shown(&mut app, "To check"));
+    assert!(shown(&mut app, "To check"));
 }
 
 #[test]

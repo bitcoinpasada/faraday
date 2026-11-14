@@ -2717,7 +2717,8 @@ power-on, or the desktop app with its clock known).
    strip's fourth line reads "Set the time to see what is due" with
    **Set the time**.
 3. A date later than today (a clock set wrong before, or now) shows as
-   the date, with no age, and is not due.
+   the date, with no age, and is due: the date cannot be trusted, and a
+   clock once set forward must not hide the reminder.
 4. A copy whose last check has an empty date is due once the clock is
    checked: Faraday cannot say how old it is. With the clock not
    checked, rule 2 holds: nothing is marked due.

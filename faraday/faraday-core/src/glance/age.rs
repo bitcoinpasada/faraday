@@ -102,15 +102,15 @@ pub(crate) fn age_days(date: &str, today: &str) -> Option<i64> {
 }
 
 /// Whether a copy last checked on `date` is due on `today`: its age is
-/// the interval or more, or it has no date. Never with the clock not
-/// checked, and not for a date later than today.
+/// the interval or more, it has no date, or its date is later than today
+/// (a clock once set wrong forward). Never with the clock not checked.
 pub fn is_due(date: &str, today: &str, iv: Interval) -> bool {
     if Day::parse(today).is_none() {
         return false;
     }
     match Day::parse(date) {
         None => true,
-        Some(_) => span(date, today).is_some_and(|(days, m)| {
+        Some(_) => span(date, today).is_none_or(|(days, m)| {
             m >= INTERVAL_MONTHS || iv.days.is_some_and(|n| days >= i64::from(n))
         }),
     }
