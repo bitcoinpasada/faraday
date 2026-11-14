@@ -41,9 +41,10 @@ pub(super) fn form_label(w: What, software: &str) -> Option<String> {
 
 /// The line on the sheet over a drop that let a place see the balance
 /// (`docs/BACKUP-FLOW.md` §17.5): what kept there, `held`, makes the
-/// description. The whole description; else its shares there, with the
-/// seeds there whose keys those shares left off.
-pub(super) fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
+/// description. The whole description, else the shares there; a seed kept
+/// beside a share is not part of it, since Restore does not put the two
+/// together.
+pub(super) fn sees_line(held: &[What]) -> String {
     let whole = held.iter().any(|w| {
         matches!(
             w,
@@ -62,59 +63,22 @@ pub(super) fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
         .collect();
     shares.sort_unstable();
     shares.dedup();
-    let split = crate::wallet_backup::split_plan(shape.keys, shape.m, a.omit);
-    let carried = |k: usize| {
-        shares
-            .iter()
-            .any(|&j| split.get(j).is_some_and(|row| row.contains(&k)))
+    let what = match shares.as_slice() {
+        [] => return EN.board_sees_whole.to_string(),
+        [j] => fill(EN.board_sees_share, &[&(j + 1).to_string()]),
+        [rest @ .., last] => fill(
+            EN.board_sees_shares,
+            &[
+                &rest
+                    .iter()
+                    .map(|j| (j + 1).to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                &(last + 1).to_string(),
+            ],
+        ),
     };
-    let mut seeds: Vec<usize> = held
-        .iter()
-        .filter_map(|w| match w {
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Seed(i)
-            | What::SeedPassphrase(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i) => Some(*i),
-            _ => None,
-        })
-        .filter(|&i| !carried(i))
-        .collect();
-    seeds.sort_unstable();
-    seeds.dedup();
-    let listed = |one: &str, many: &str, names: Vec<String>| -> Option<String> {
-        match names.as_slice() {
-            [] => None,
-            [n] => Some(fill(one, &[n])),
-            [rest @ .., last] => Some(fill(many, &[&rest.join(", "), last])),
-        }
-    };
-    let share_part = listed(
-        EN.board_sees_share,
-        EN.board_sees_shares,
-        shares.iter().map(|j| (j + 1).to_string()).collect(),
-    );
-    let seed_part = listed(
-        EN.board_sees_seed,
-        EN.board_sees_seeds,
-        seeds
-            .iter()
-            .map(|&i| {
-                shape
-                    .seeds
-                    .get(i)
-                    .map_or_else(String::new, |s| String::from(&*s.name))
-            })
-            .collect(),
-    );
-    let count = shares.len() + seeds.len();
-    let what = match (share_part, seed_part) {
-        (Some(a), Some(b)) => fill(EN.board_sees_both, &[&a, &b]),
-        (Some(a), None) | (None, Some(a)) => a,
-        (None, None) => return EN.board_sees_whole.to_string(),
-    };
-    if count == 1 {
+    if shares.len() == 1 {
         fill(EN.board_sees_alone, &[&what])
     } else {
         fill(EN.board_sees_together, &[&what])

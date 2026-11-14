@@ -2291,34 +2291,38 @@ fn a_seed_chips_toggles_keep_the_last_form_on() {
 }
 
 /// A 2-of-3 customised with the whole description off Place 3: Share 1
-/// leaves off key 3, whose seed Place 3 holds, so dropping it there lets
-/// Place 3 see the balance and the sheet says so (§19.5).
+/// leaves off key 3, so Place 3 sees nothing from it, even beside the seed
+/// of key 3 (Restore does not join the two); Share 2 dropped there too
+/// lets Place 3 see the balance and the sheet says so (§19.5).
 fn share_sheet_board() -> Faraday {
     let mut app = fresh_three();
     app.press(Action::Board(BP::Customize));
     app.press(Action::Board(BP::Off(Zone::Paper(2), Thing::Whole)));
     app.press(Action::Board(list(Thing::Share(0))));
     app.press(Action::Board(BP::Zone(Zone::Paper(2))));
+    assert_eq!(
+        app.sheet, None,
+        "a share and a seed are not the description"
+    );
+    app.press(Action::Board(list(Thing::Share(1))));
+    app.press(Action::Board(BP::Zone(Zone::Paper(2))));
     app
 }
 
 #[test]
-fn dropping_a_share_beside_the_seed_of_its_missing_key_asks_and_take_it_off_undoes_it() {
+fn dropping_shares_that_hold_every_key_asks_and_take_it_off_undoes_it() {
     let mut app = share_sheet_board();
     assert_eq!(app.sheet, Some(Sheet::BoardSees));
-    assert!(paper(&app, 2).contains(&What::Share(0)));
-    let fp = String::from(&*backup_shape(&app).seeds[2].name);
+    assert!(paper(&app, 2).contains(&What::Share(1)));
     let t = app.drawn_texts().join(" ");
     assert!(t.contains("Place 3 can see the wallet's balance"), "{t}");
     assert!(
-        t.contains(&format!(
-            "Share 1 and seed {fp} together make the whole description."
-        )),
+        t.contains("Shares 1 and 2 together make the whole description."),
         "{t}"
     );
     app.press(Action::Board(BP::SeesUndo));
     assert_eq!(app.sheet, None);
-    assert!(!paper(&app, 2).contains(&What::Share(0)), "taken off");
+    assert!(!paper(&app, 2).contains(&What::Share(1)), "taken off");
 }
 
 #[test]
@@ -2327,7 +2331,7 @@ fn keep_it_keeps_the_drop() {
     assert_eq!(app.sheet, Some(Sheet::BoardSees));
     app.press(Action::Board(BP::SeesKeep));
     assert_eq!(app.sheet, None);
-    assert!(paper(&app, 2).contains(&What::Share(0)), "kept");
+    assert!(paper(&app, 2).contains(&What::Share(1)), "kept");
 }
 
 /// A share dropped where the place still cannot see the balance asks

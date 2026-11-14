@@ -346,3 +346,67 @@ fn the_board_line_for_a_wallet_with_several_ways_never_says_more_seeds_than_a_wa
     let r = faraday_core::plan::reach(&c, &shape, &a, 0).expect("keeps a seed");
     assert_eq!((r.seeds, r.of), (1, 2));
 }
+
+/// Whatever the plan says one place sees the balance from, in shares and
+/// the seeds beside them, Restore rebuilds from the shares there: the
+/// first receive and change addresses match. A share and the seed of the
+/// key it left off are not the description.
+#[test]
+fn a_place_the_plan_says_sees_the_balance_is_one_restore_rebuilds() {
+    use faraday_core::plan::{Answers, At, Found, Spot, Tag, What, alone};
+    let c = testkit::compute();
+    for id in ["savings", "vault-nested", "taproot-multisig"] {
+        let (s, i) = load(&kit(id));
+        let w: &Wallet = &s.wallets[i];
+        let want = firsts(&s, w.policy());
+        let (m, n) = Session::quorum(w);
+        let mut app = crate::common::device(Vec::new());
+        let wi = app
+            .session
+            .add_wallet(&c, "Test", &kit(id), "Test wallet", Origin::Named)
+            .expect("reads");
+        let mut shape = app.plan_shape_now(wi);
+        shape.seeds.iter_mut().for_each(|s| s.here = true);
+        for omit in 0..m {
+            let sheets: Vec<String> = split_plan(n, m, omit)
+                .iter()
+                .map(|row| String::from(&*split_share(w, row).expect("a sheet")))
+                .collect();
+            for mask in 0u32..1 << (2 * n) {
+                let shares: Vec<usize> = (0..n).filter(|j| mask & (1 << j) != 0).collect();
+                let seeds: Vec<usize> = (0..n).filter(|j| mask & (1 << (n + j)) != 0).collect();
+                let mut holds: Vec<(What, Tag)> = shares
+                    .iter()
+                    .map(|&j| (What::Share(j), Tag::Secret))
+                    .collect();
+                holds.extend(seeds.iter().map(|&k| (What::Words(k), Tag::Secret)));
+                if holds.is_empty() {
+                    continue;
+                }
+                let mut a = Answers::defaults(&shape);
+                a.split = true;
+                a.omit = omit;
+                a.set_map(vec![Spot {
+                    at: At::Place(0),
+                    holds,
+                }]);
+                let said = alone(&c, &shape, &a, At::Place(0));
+                if said.balance != Found::Yes {
+                    continue;
+                }
+                let got: Vec<String> = shares.iter().map(|&j| sheets[j].clone()).collect();
+                let whole = faraday_core::restore::merge(&got)
+                    .ok()
+                    .and_then(|r| r.whole)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{id}, {omit} off, shares {shares:?} with seeds {seeds:?}: \
+                             the plan says it sees the balance, Restore has no description"
+                        )
+                    });
+                let back = read_wallet(&c, &whole).expect("reads");
+                assert_eq!(firsts(&s, &back), want, "{id}, {omit} off, {shares:?}");
+            }
+        }
+    }
+}

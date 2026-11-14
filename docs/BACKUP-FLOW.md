@@ -1493,16 +1493,16 @@ drop, or a tap-place, makes a place able to see the balance that could
 not before (the place header's tag turns from "Cannot see balance" to
 "Sees the balance"), a sheet asks: its title "<Place> can see the
 wallet's balance", one line naming what completes the description
-there ("Share 1 and seed 9a6a2580 together make the whole description.",
+there ("Share 1 makes the whole description.",
 "Shares 1 and 2 together make the whole description.", or "The whole
 description is kept there."), and **Keep it** (the drop stands) and
 **Take it off** (the drop undone). It is shown only on the drop that
 changes the place from cannot-see to can-see, and only where the place
 cannot spend (which has its own warning); never on a preset's own
 placement. It is decided from the plan as it is after the drop; drawing
-reads what the drop worked out. A seed kept beside a share gives its
-own key, the one the share left off, when the plan works out whether a
-place rebuilds the description.
+reads what the drop worked out. A seed kept beside a share is not
+counted: Restore does not put the two together, so only whole shares
+(or the whole description) make a place see the balance.
 
 A seed kept as codex32 strings adds its own checks (§17.23).
 

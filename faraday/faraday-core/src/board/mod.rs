@@ -1142,7 +1142,7 @@ impl Faraday {
                 warn(
                     faraday_text::Text::fill(
                         EN.board_sees_warn,
-                        &[&place_name(p), &sees_line(&shape, &a, &held)],
+                        &[&place_name(p), &sees_line(&held)],
                     ),
                     &mut warnings,
                 );
@@ -2509,7 +2509,7 @@ impl Faraday {
             return;
         };
         let held = plan::holds_at(&now_m.places, At::Place(p));
-        let line = sees_line(&shape, &now, &held);
+        let line = sees_line(&held);
         let title = fill(EN.board_sees_title, &[&self.board_place_name(p)]);
         self.board_edit(|st| {
             st.sees = Some(Sees {

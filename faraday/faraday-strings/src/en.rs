@@ -11590,11 +11590,7 @@ strings! {
     board_sees_share: "Share {}",
     /// Shares in its line. `{}`: "1, 2", the last.
     board_sees_shares: "Shares {} and {}",
-    /// One seed in its line. `{}`: its fingerprint.
-    board_sees_seed: "seed {}",
-    /// Seeds in its line. `{}`: the fingerprints but the last, the last.
-    board_sees_seeds: "seeds {} and {}",
-    /// The shares and the seeds in its line. `{}`: the shares, the seeds.
+    /// Two lists joined. `{}`: the first, the last.
     board_sees_both: "{} and {}",
     /// Keeps the drop.
     board_keep_button: "Keep it",

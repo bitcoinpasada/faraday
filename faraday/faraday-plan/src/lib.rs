@@ -1850,9 +1850,9 @@ impl Have {
             .count()
     }
 
-    /// The description, whole or from shares that together hold every key;
-    /// a seed kept beside a share gives its own key, the one a share left
-    /// off (`docs/BACKUP-FLOW.md` §17.5).
+    /// The description, whole or from shares that together hold every key:
+    /// what Restore puts back. A seed kept beside a share is not counted;
+    /// no route joins it to the share (`docs/BACKUP-FLOW.md` §17.5).
     fn wallet_ok(&self, shape: &Shape, a: &Answers) -> bool {
         if self.wallet {
             return true;
@@ -1862,19 +1862,9 @@ impl Have {
         }
         let plan = split_plan(shape.keys, shape.m, a.omit);
         (0..shape.keys).all(|k| {
-            self.key_from_seed(shape, k)
-                || plan
-                    .iter()
-                    .enumerate()
-                    .any(|(j, row)| self.shares[j] && row.contains(&k))
-        })
-    }
-
-    /// Key `k` of the description is given by its own seed kept here,
-    /// with its passphrase where it has one.
-    fn key_from_seed(&self, shape: &Shape, k: usize) -> bool {
-        shape.seeds.get(k).is_some_and(|s| {
-            self.seeds.get(k) == Some(&true) && (!s.passphrase || self.pass.get(k) == Some(&true))
+            plan.iter()
+                .enumerate()
+                .any(|(j, row)| self.shares[j] && row.contains(&k))
         })
     }
 
