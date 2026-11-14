@@ -278,3 +278,4 @@ Read this table, then only the decision you need.
 | [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
 | [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
 | [F264](decisions/F264.md) | The Argon QR Vault and its test tool live in their own repository; Faraday keeps nothing for them but `faraday-window`'s default feature | 2026-11-14 | Active | standards |
+| [F266](decisions/F266.md) | The Linux Starter always draws its own close button | 2026-11-14 | Active | starter |

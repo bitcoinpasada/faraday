@@ -20,6 +20,13 @@ in a window of its own too (`cargo run -p faraday-desktop`), which is
 the whole window; both hold the same host and the same Demo side
 (`faraday_desktop::Demo`).
 
+Faraday Demo's own window has the same gap on a Linux desktop that
+draws no title bar (the same winit build, `docs/STARTER.md` §3.1d), and
+gets no close button of its own: it is a developer's window, never
+published (F126), and the app's own Power off, on its rail and in its
+⋮ menu, already closes it (`Command::Exit`). In the Starter's window the
+Starter's close button covers it.
+
 | Size shown | The app area | The strip |
 |---|---|---|
 | This window (the default) | the window less the strip, laid out as a device of that size would be | `HOST_STRIP_H` (64 dp) along the window's foot |

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the Linux close button in the top app bar (§3.1d), not built; the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -605,6 +605,68 @@ running copy is newer (§3.5), a secondary button, and the ⋮ menu
   its card on Home.
 
 The page scrolls under the top app bar, which stays.
+
+**The close button on Linux** (not built; F266). The Linux Starter draws a
+close button of its own at the top app bar's right end, so the window
+can be closed where the desktop draws no title bar, as on a tiling
+Wayland compositor (Hyprland, Sway) or an X11 tiling window manager
+(i3), where today only the compositor's key closes it. Checked against
+Material 3's Top app bar page (trailing action icon buttons at the
+bar's end) and its Icon buttons page (a 40 dp container, a 24 dp icon,
+a 48 dp target), with Material Symbols' `close` as the icon.
+
+*When it shows:* on Linux always, on Wayland and X11 alike; never on
+Windows, whose title bar is always drawn. Whether a close button is on
+screen cannot be found out, so the Starter does not guess:
+
+- winit (0.30) is built with `wayland-csd-adwaita-notitle` (the root
+  `Cargo.toml`), so it draws its own frame only when the compositor
+  answers the xdg-decoration protocol with client-side mode, or offers
+  no xdg-decoration at all (GNOME). It keeps that mode private:
+  `Window::is_decorated()` is true for server-side mode and for its own
+  frame shown alike (`window/state.rs` in winit's Wayland back end), so
+  it says what was asked for, not what is drawn.
+- In the protocol itself (`xdg-decoration-unstable-v1`), server-side
+  mode only says the compositor takes the decorations on: KDE then draws
+  a title bar with a close button, Sway a title with no buttons,
+  Hyprland nothing. xdg-shell's `wm_capabilities` (version 5) lists
+  window menu, maximise, fullscreen and minimise, never close, and
+  winit does not pass it on either.
+- On X11, `_NET_FRAME_EXTENTS` gives the frame's borders, not what is in
+  them, and Motif's hints are again what the window asked for.
+
+So on a desktop that draws a frame (GNOME, KDE, Xfce) the window has
+two close buttons, the frame's and the Starter's, which do the same.
+Turning the system's frame off on Linux to leave one would also take
+its minimise, maximise and resize edges away, so the frame stays.
+
+*Where it sits:* the last item at the bar's right end, at every window
+size, with `GAP` between it and the rest of the bar's actions so it
+reads as the window's: on a destination right of the ⋮ (Install or
+Update, the ⋮, then the close button), on a page inside a task right of
+**Guide** and Cryptography where they show, and alone at the end where
+neither does, Faraday Demo's and Transfer's bars included. The title or
+the wordmark gives up that room, as it does for the install action
+(`wordmark_fitted`'s steps). It is Material's standard icon button, the
+one Learn's pane closes with (`faraday-core` `screens/guide_pane.rs`):
+`ICON_BUTTON` round in the middle of a `TOUCH` target, its state layer
+on hover and press, the mark at `ICON_GLYPH` in `OnSurfaceVariant`; the
+icon face has no `close` glyph, so the mark is the multiplication sign,
+as the pane's is, until the face carries Material Symbols' `close` for
+both. Its plain tooltip names it. It stays pressable while the ⋮ menu or
+a sheet is open, as a title bar's close does (the press is its own, not
+the one outside the menu that closes the menu).
+
+*What it does:* exactly what the window's own close does
+(`WindowEvent::CloseRequested`), one path for both: the Starter closes;
+on Faraday Demo it returns to Home (F126); during a write it holds, the
+Writing page says "Closes when the write ends." and the window closes by
+itself when the write ends, done or failed (§3.2). It is not refused
+or dimmed during a write, since the window's own close is not either,
+and the two would then answer differently.
+
+*String* (`faraday-strings` `en.rs`): `starter_tip_close`, "Close", the
+button's plain tooltip.
 
 **Input** (owner, 2026-10-25: the Starter and Faraday Demo fully touch
 compatible). The page, and a sheet taller than the window, scroll under
