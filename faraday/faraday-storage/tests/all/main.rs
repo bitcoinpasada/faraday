@@ -1,6 +1,7 @@
 //! The integration tests of faraday-storage, one module per subject.
 
 mod boxes;
+mod exit_forgets;
 mod foreign_files;
 mod pictures;
 mod settings_write;

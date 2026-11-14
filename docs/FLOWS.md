@@ -2055,6 +2055,10 @@ down (Dell's: "Shut down can skip the key").
    memory wiped as the app ends; then the computer restarts instead of
    powering off. The sheet's title is "Power"; its line on the computer
    reads "The computer powers off, or restarts".
+   A restart keeps the memory powered, so before either ends, every file
+   waiting in the RAM directory is removed (a seed file copied in from a
+   stick, a secret put for the stick), the screen is blanked after the
+   goodbye, and init ends the disk process and drops the block cache.
 2. **Where.** The PC stick and the Pi. Not Faraday Demo, an app on
    someone's own system, whose sheet stays as it is. The idle power-off
    is unchanged: it never restarts.

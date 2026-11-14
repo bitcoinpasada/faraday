@@ -14,6 +14,8 @@ CONFIG_MDEV=y
 CONFIG_FEATURE_MDEV_CONF=y
 CONFIG_HALT=y
 CONFIG_POWEROFF=y
+# Init ends the disk process with it before a restart or power-off.
+CONFIG_KILLALL=y
 
 # What /etc/init.d/screen needs of its applets: a fractional `sleep 0.1`
 # and `readlink -f`. Buildroot's default has them on; they are named here

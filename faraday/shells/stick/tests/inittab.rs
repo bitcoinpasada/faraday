@@ -1,7 +1,8 @@
 //! The image's inittab restarts the computer when the app ends with
 //! Restart's status and powers it off otherwise (`docs/FLOWS.md`,
 //! Restart; F42): the app's line, run with a stub app, `reboot` and
-//! `poweroff`.
+//! `poweroff`; the disk process is ended and the block cache dropped
+//! before either, and not after a lock.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,16 +79,33 @@ fn run(inittab: &str, codes: &[u8]) -> String {
             q = queue.display()
         ),
     );
-    let reboot = stub("reboot", &format!("echo reboot $* >> {}", log.display()));
+    // What the disk process's end and the cache drop have done by the
+    // time the computer goes is written in front of its own line.
+    let drop_file = dir.join("drop_caches");
+    let stop_file = dir.join("disk-stop");
+    let seen = format!(
+        "[ -e {s} ] && echo stop-file >> {l}; [ \"$(cat {d} 2>/dev/null)\" = 3 ] && echo caches-dropped >> {l}",
+        s = stop_file.display(),
+        d = drop_file.display(),
+        l = log.display()
+    );
+    let reboot = stub(
+        "reboot",
+        &format!("{seen}; echo reboot $* >> {}", log.display()),
+    );
     let poweroff = stub(
         "poweroff",
-        &format!("echo poweroff $* >> {}", log.display()),
+        &format!("{seen}; echo poweroff $* >> {}", log.display()),
     );
+    let killall = stub("killall", &format!("echo killall $* >> {}", log.display()));
     let command = app_line(inittab)
         .replace(APP, &app.display().to_string())
         .replace("2>/dev/kmsg", "2>/dev/null")
         .replace("> /dev/kmsg", "> /dev/null")
         .replace("sleep $w", ":")
+        .replace("/usr/bin/killall", &killall.display().to_string())
+        .replace("/run/faraday-disk-stop", &stop_file.display().to_string())
+        .replace("/proc/sys/vm/drop_caches", &drop_file.display().to_string())
         .replace("/sbin/reboot", &reboot.display().to_string())
         .replace("/sbin/poweroff", &poweroff.display().to_string());
     assert!(command.contains(&app.display().to_string()), "{command}");
@@ -102,19 +120,32 @@ fn run(inittab: &str, codes: &[u8]) -> String {
 }
 
 fn check(inittab: &str) {
+    let ended = "killall faraday-disk\nstop-file\ncaches-dropped\n";
     let lock = RESTART_CODE;
     let restart = RESTART_COMPUTER_CODE;
-    assert_eq!(run(inittab, &[restart]), "reboot -f\n", "Restart's status");
-    assert_eq!(run(inittab, &[0]), "poweroff -f\n", "a power-off");
-    assert_eq!(run(inittab, &[1]), "poweroff -f\n", "a failure");
+    assert_eq!(
+        run(inittab, &[restart]),
+        format!("{ended}reboot -f\n"),
+        "Restart's status"
+    );
+    assert_eq!(
+        run(inittab, &[0]),
+        format!("{ended}poweroff -f\n"),
+        "a power-off"
+    );
+    assert_eq!(
+        run(inittab, &[1]),
+        format!("{ended}poweroff -f\n"),
+        "a failure"
+    );
     assert_eq!(
         run(inittab, &[lock, lock, restart]),
-        "reboot -f\n",
+        format!("{ended}reboot -f\n"),
         "after two locks, the last status counts"
     );
     assert_eq!(
         run(inittab, &[lock, 0]),
-        "poweroff -f\n",
+        format!("{ended}poweroff -f\n"),
         "a lock, then off"
     );
 }

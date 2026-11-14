@@ -2428,6 +2428,13 @@ fn run(args: Args) -> Result<Exit, String> {
         // root, could not do it anyway.
         std::thread::sleep(GOODBYE);
     }
+    if !restart {
+        // Not a lock: nothing waits for a next process. What the app's own
+        // command did not remove goes, and no picture is left in the
+        // framebuffer for the firmware or a warm start.
+        shell.boxes.forget();
+        shell.blank();
+    }
     Ok(if restart {
         Exit::Lock
     } else if restart_computer {

@@ -84,9 +84,10 @@ chmod 0750 /run/faraday-disk
 #
 # The disk process, unprivileged, started again if it ends. init cannot
 # do this itself: its `respawn` entries start only after the app loop, a
-# `wait` entry, has ended.
+# `wait` entry, has ended. The file /run/faraday-disk-stop, made by init
+# when the app has ended for good, ends the loop with the process.
 (
-    while :; do
+    while [ ! -e /run/faraday-disk-stop ]; do
         /bin/setpriv --nnp /usr/bin/setuidgid ofdisk /usr/bin/faraday-disk \
             /run/faraday-disk/requests /run/faraday-disk/responses 2>/dev/kmsg
         sleep 1

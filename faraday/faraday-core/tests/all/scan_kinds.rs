@@ -717,6 +717,28 @@ fn text_read_is_masked_behind_its_eye_on_the_card() {
     assert!(app.inbox().is_empty());
 }
 
+/// Restart with the eye open on a read text: the last frame drawn holds
+/// none of it, since the screen stays up until the power goes.
+#[test]
+fn restart_with_the_eye_open_leaves_the_text_out_of_the_last_frame() {
+    const NOTE: &str = "meet at the north gate";
+    for action in [Action::Restart, Action::PowerOff] {
+        let mut app = testkit::started();
+        open(&mut app, Opened::AddAKey);
+        read(&mut app, NOTE.as_bytes());
+        app.press(Action::ReadShow);
+        let shown = app.drawn_texts().join("\n");
+        assert!(shown.contains(NOTE), "the eye did not show it: {shown}");
+        app.press(action);
+        let _ = app.frame();
+        let drawn = app.drawn_texts().join("\n");
+        assert!(
+            !drawn.contains(NOTE),
+            "{action:?}: the last frame holds it: {drawn}"
+        );
+    }
+}
+
 #[test]
 fn every_scanner_refuses_seed_words_of_every_list_in_any_form_pasted() {
     let mut forms = crate::common::seed_forms();

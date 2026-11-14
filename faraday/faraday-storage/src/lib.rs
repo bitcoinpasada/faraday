@@ -607,6 +607,45 @@ impl Boxes {
         }
     }
 
+    /// Removes everything kept: every file under `inbox`, `outbox` and
+    /// `kept` (unlinking a RAM file frees its pages, which the images'
+    /// `init_on_free=1` zeroes), the files' bytes zeroed first. For an app
+    /// that ends for good (a power-off or a restart), where a lock keeps
+    /// them. The top-level mode, start-window and timings files stay: they
+    /// hold nothing secret.
+    pub fn forget(&mut self) {
+        match self {
+            Boxes::Memory {
+                inbox,
+                outbox,
+                kept,
+            } => {
+                inbox.clear();
+                outbox.clear();
+                kept.clear();
+            }
+            Boxes::Dir(dir) => {
+                for sub in ["inbox", "outbox", "kept"] {
+                    let Ok(entries) = fs::read_dir(dir.join(sub)) else {
+                        continue;
+                    };
+                    for e in entries.flatten() {
+                        let path = e.path();
+                        if let Ok(meta) = fs::symlink_metadata(&path)
+                            && meta.is_file()
+                            && let Ok(mut f) = fs::OpenOptions::new().write(true).open(&path)
+                        {
+                            use std::io::Write;
+                            let zeros = vec![0u8; usize::try_from(meta.len()).unwrap_or(0)];
+                            let _ = f.write_all(&zeros).and_then(|()| f.sync_all());
+                        }
+                        let _ = fs::remove_file(&path);
+                    }
+                }
+            }
+        }
+    }
+
     /// What the previous process left.
     pub fn restore(&self) -> StorageEvent {
         match self {
@@ -1189,6 +1228,7 @@ fn serve_queued(
                     said.push(text!("cannot open {}: {}", h.downloads.display(), &*e)); // not shown: a line for a verbose shell's console
                 }
             }
+            StorageCommand::ForgetBoxes => boxes.forget(),
             StorageCommand::SaveBoxes {
                 inbox,
                 outbox,

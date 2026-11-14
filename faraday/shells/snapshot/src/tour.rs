@@ -303,6 +303,7 @@ impl Tour {
                 }
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
+                | StorageCommand::ForgetBoxes
                 | StorageCommand::Wipe { .. }
                 | StorageCommand::Rename { .. }
                 | StorageCommand::NameStick { .. }

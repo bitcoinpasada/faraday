@@ -1557,7 +1557,7 @@ impl Faraday {
             && !self.flow_screen()
         {
             if self.outbox.is_empty() {
-                self.out.commands.push_back(Command::Exit);
+                self.exit_forgetting();
             } else if self.sheet.is_none() {
                 // Powering off would lose what waits: the lock screen
                 // stays, saying what it is.
@@ -2214,7 +2214,7 @@ impl Faraday {
                     && !self.offers_restart()
                     && !self.lock_held(c)
                 {
-                    self.out.commands.push_back(Command::Exit);
+                    self.exit_forgetting();
                 } else {
                     self.sheet = Some(Sheet::Power);
                 }
@@ -2222,12 +2222,12 @@ impl Faraday {
             Action::KeyPathHold => self.key_path_act(action),
             Action::PowerOff | Action::HoldPowerOff => {
                 self.sheet = None;
-                self.out.commands.push_back(Command::Exit);
+                self.exit_forgetting();
             }
             Action::Restart | Action::HoldRestart => {
                 self.sheet = None;
                 self.restart_computer = self.offers_restart();
-                self.out.commands.push_back(Command::Exit);
+                self.exit_forgetting();
             }
             Action::IdleLock(m) => {
                 self.settings.set_idle_lock_min(m);
@@ -2240,6 +2240,20 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+
+    /// Ends the app for a power-off or a restart: what a lock drops without
+    /// a seal goes, what is on show is hidden, and the shell is told to
+    /// remove every file it keeps for the next process (a restart keeps
+    /// the memory powered, so nothing secret may wait in it).
+    fn exit_forgetting(&mut self) {
+        self.import.clear_all();
+        self.inbox.retain(|i| !i.dropped_at_lock());
+        self.session.wipe();
+        self.own_wipe();
+        self.lock_secrets_off_screen();
+        self.out.storage_out.push_back(StorageCommand::ForgetBoxes);
+        self.out.commands.push_back(Command::Exit);
     }
 
     /// Handles `Action::Cancel`, Back and Escape on a sheet: the sheet closes,
@@ -2311,7 +2325,7 @@ impl Faraday {
         // A build whose vectors do not reproduce does nothing but exit.
         if self.selftest_failed() {
             if action == Action::PowerOff {
-                self.out.commands.push_back(Command::Exit);
+                self.exit_forgetting();
             }
             return;
         }

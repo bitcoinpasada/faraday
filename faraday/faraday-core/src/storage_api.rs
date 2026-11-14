@@ -527,6 +527,9 @@ pub enum OnTaken {
 
 /// What the app asks the shell to do with storage.
 pub enum StorageCommand {
+    /// Remove every file kept for the next process (under the Inbox,
+    /// Outbox and kept directories): the app is ending for good.
+    ForgetBoxes,
     /// Read a file from a stick.
     Read {
         /// The stick's id.
@@ -755,7 +758,9 @@ impl PartialEq for StorageCommand {
                 },
             ) => stick == s2 && label == l2,
             (C::ReadHost { path }, C::ReadHost { path: p2 }) => path == p2,
-            (C::OpenDownloads, C::OpenDownloads) | (C::OpenInstitute, C::OpenInstitute) => true,
+            (C::OpenDownloads, C::OpenDownloads)
+            | (C::OpenInstitute, C::OpenInstitute)
+            | (C::ForgetBoxes, C::ForgetBoxes) => true,
             _ => self.same_carrying(other),
         }
     }
@@ -888,6 +893,7 @@ impl std::fmt::Debug for StorageCommand {
                 .finish(),
             C::OpenDownloads => f.write_str(stringify!(OpenDownloads)),
             C::OpenInstitute => f.write_str(stringify!(OpenInstitute)),
+            C::ForgetBoxes => f.write_str(stringify!(ForgetBoxes)),
             _ => self.fmt_carrying(f),
         }
     }
