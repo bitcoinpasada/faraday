@@ -322,8 +322,13 @@ pub fn signer(pe: &[u8]) -> Result<Signer, Error> {
         return Ok(Signer::Unsigned);
     };
     let carried = carried_certs(pe, at, size).unwrap_or_default();
+    // The signature is decoded and the image hashed once, however many
+    // certificates it carries.
+    let Some(Ok(signature)) = read_signature(pe, at, size) else {
+        return Ok(Signer::Broken);
+    };
     for cert in carried {
-        if read_signature(pe, at, size, &cert) == Some(Check::Valid) {
+        if signature.verify(&cert) == Some(true) {
             return Ok(Signer::By(cert));
         }
     }
@@ -356,20 +361,49 @@ pub fn check(pe: &[u8], cert: &[u8]) -> Result<Check, Error> {
     let Some((at, size)) = l.certs else {
         return Ok(Check::Unsigned);
     };
-    Ok(read_signature(pe, at, size, cert).unwrap_or(Check::Unreadable))
+    Ok(match read_signature(pe, at, size) {
+        None => Check::Unreadable,
+        Some(Err(answer)) => answer,
+        Some(Ok(signature)) => match signature.verify(cert) {
+            None => Check::Unreadable,
+            Some(true) => Check::Valid,
+            Some(false) => Check::OtherSigner,
+        },
+    })
 }
 
-fn read_signature(pe: &[u8], at: usize, size: usize, cert: &[u8]) -> Option<Check> {
+/// The first signature of an image, read and found to name the image:
+/// what is left is to check it against a certificate.
+struct Signature {
+    info: SignerInfo,
+    info_der: Vec<u8>,
+}
+
+impl Signature {
+    /// Whether `cert`'s key made the signature; `None` when the signed
+    /// attributes cannot be read.
+    fn verify(&self, cert: &[u8]) -> Option<bool> {
+        Some(x509::verify(
+            cert,
+            &cms::signed_attrs_bytes(&self.info_der)?,
+            self.info.signature.as_bytes(),
+        ))
+    }
+}
+
+/// Reads the first signature: `Err` is the check's answer when it is known
+/// without a certificate.
+fn read_signature(pe: &[u8], at: usize, size: usize) -> Option<Result<Signature, Check>> {
     let sd = signed_data(pe, at, size)?;
     // The content is Authenticode's SpcIndirectDataContent.
     let spc = sd.content.as_ref()?;
     let content: cms::SpcIndirectData = Decode::from_der(&spc.to_der().ok()?).ok()?;
     if content.message_digest.digest.as_bytes() != image_hash(pe).ok()? {
-        return Some(Check::Altered);
+        return Some(Err(Check::Altered));
     }
     let info_der = sd.signer_infos.first()?.to_der().ok()?;
     let info = SignerInfo::from_der(&info_der).ok()?;
-    let attrs = info.signed_attrs?;
+    let attrs = info.signed_attrs.as_ref()?;
     // RFC 5652 11.2: exactly one message digest attribute, with one value,
     // and it must name the content.
     let content_digest: [u8; 32] = Sha256::digest(spc.value()).into();
@@ -386,12 +420,7 @@ fn read_signature(pe: &[u8], at: usize, size: usize, cert: &[u8]) -> Option<Chec
         _ => false,
     };
     if !named_digest {
-        return Some(Check::Altered);
+        return Some(Err(Check::Altered));
     }
-    let ok = x509::verify(
-        cert,
-        &cms::signed_attrs_bytes(&info_der)?,
-        info.signature.as_bytes(),
-    );
-    Some(if ok { Check::Valid } else { Check::OtherSigner })
+    Some(Ok(Signature { info, info_der }))
 }

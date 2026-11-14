@@ -889,3 +889,91 @@ fn check_on_an_image_whose_sections_each_list_the_whole_file_comes_back_at_once(
         .expect("Check did not come back within 30 s");
     assert!(checked.is_err(), "{checked:?}");
 }
+
+/// A DER length field for `n` bytes of content.
+fn der_len(n: usize) -> Vec<u8> {
+    if n < 0x80 {
+        return vec![n as u8];
+    }
+    let bytes: Vec<u8> = n
+        .to_be_bytes()
+        .into_iter()
+        .skip_while(|b| *b == 0)
+        .collect();
+    [vec![0x80 | bytes.len() as u8], bytes].concat()
+}
+
+/// The tag, the header's length and the content's length of the DER
+/// element at the start of `b`.
+fn der_head(b: &[u8]) -> (u8, usize, usize) {
+    if b[1] < 0x80 {
+        return (b[0], 2, b[1] as usize);
+    }
+    let n = (b[1] & 0x7f) as usize;
+    let len = b[2..2 + n]
+        .iter()
+        .fold(0usize, |a, x| (a << 8) | *x as usize);
+    (b[0], 2 + n, len)
+}
+
+/// A signed image carrying a million two-byte certificates before its own
+/// has its signer read at once, and still named: the Starter reads every
+/// file picked on the online computer, and decoding the signature again
+/// and hashing the image again for each certificate made the screen stand
+/// still.
+#[test]
+fn a_signed_image_carrying_a_million_tiny_certificates_names_its_signer_at_once() {
+    let k = keys();
+    let signed = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    let (at, size) = dir(&signed);
+    let ci = &signed[at + 8..at + size];
+    // ContentInfo { OID, [0] { SignedData { version, digests, content,
+    // [0] certificates, signer infos } } }.
+    let (_, h0, _) = der_head(ci);
+    let explicit = &ci[h0 + SIGNED_DATA_OID.len()..];
+    let (_, h1, _) = der_head(explicit);
+    let sd = &explicit[h1..];
+    let (_, h2, sd_len) = der_head(sd);
+    let body = &sd[h2..h2 + sd_len];
+    let mut pos = 0;
+    let (before, certs, after) = loop {
+        let (tag, h, n) = der_head(&body[pos..]);
+        if tag == 0xa0 {
+            break (
+                &body[..pos],
+                &body[pos + h..pos + h + n],
+                &body[pos + h + n..],
+            );
+        }
+        pos += h + n;
+    };
+    let tiny = [0x05, 0x00].repeat(1_000_000);
+    let new_certs = [tiny, certs.to_vec()].concat();
+    let new_body = [
+        before.to_vec(),
+        [vec![0xa0], der_len(new_certs.len()), new_certs].concat(),
+        after.to_vec(),
+    ]
+    .concat();
+    let new_sd = [vec![0x30], der_len(new_body.len()), new_body].concat();
+    let new_explicit = [vec![0xa0], der_len(new_sd.len()), new_sd].concat();
+    let inner = [SIGNED_DATA_OID.to_vec(), new_explicit].concat();
+    let new_ci = [vec![0x30], der_len(inner.len()), inner].concat();
+    let mut table = [vec![0u8; 8], new_ci].concat();
+    table.resize(table.len().next_multiple_of(8), 0);
+    let total = table.len() as u32;
+    table[0..4].copy_from_slice(&total.to_le_bytes());
+    table[4..8].copy_from_slice(&[0, 2, 2, 0]);
+    let mut image = signed[..at].to_vec();
+    set_dir(&mut image, at, table.len());
+    image.extend_from_slice(&table);
+    assert!(image.len() < 18 << 20, "a file the Inbox takes");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(pe::signer(&image));
+    });
+    let signer = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("the signer was not read within 10 s");
+    assert_eq!(signer.unwrap(), pe::Signer::By(k.db.cert.clone()));
+}
