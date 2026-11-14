@@ -22,7 +22,6 @@
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use bitcoin::NetworkKind;
-use bitcoin::base58;
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};
 use bitcoin::{CompressedPublicKey, ScriptBuf};
 use faraday_crypto::work::{Compute, Work};
@@ -88,10 +87,8 @@ impl SingleKey {
         if text.len() > crate::xkey::MAX_TEXT {
             return Err(Error::Base58);
         }
-        let mut bytes = base58::decode_check(text).map_err(|_| Error::Base58)?;
-        let held = Self::from_payload(&bytes);
-        bytes.zeroize();
-        held
+        let bytes = crate::xkey::decode_check(text).ok_or(Error::Base58)?;
+        Self::from_payload(&bytes)
     }
 
     /// The key a decoded payload holds, by rules 2 to 4.

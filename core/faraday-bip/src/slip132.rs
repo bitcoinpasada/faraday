@@ -318,7 +318,7 @@ pub struct Key {
 /// The payload and the row of [`NAMED`] its version is, before the key
 /// itself is checked.
 fn named_payload(s: &str) -> Result<(Zeroizing<Vec<u8>>, usize), Error> {
-    let bytes = Zeroizing::new(xkey::payload(s)?);
+    let bytes = xkey::payload(s)?;
     let version = xkey::version(&bytes);
     let at = NAMED
         .iter()
@@ -360,7 +360,7 @@ pub fn decode(text: &str) -> Result<Key, Error> {
 /// a key that is neither `xpub` nor `tpub`. Costs a base58 decode and
 /// encode.
 pub fn encode(plain: &str, script: Script) -> Option<Text> {
-    let mut bytes = Zeroizing::new(xkey::payload(plain.trim()).ok()?);
+    let mut bytes = xkey::payload(plain.trim()).ok()?;
     let kind = match xkey::version(&bytes) {
         XPUB => NetworkKind::Main,
         TPUB => NetworkKind::Test,

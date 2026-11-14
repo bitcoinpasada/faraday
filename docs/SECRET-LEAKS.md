@@ -111,6 +111,8 @@ the planting of the secret to the end of the flow:
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.
 - **The vault readers:** a vault's entries listed, opened and copied.
+- **Extended keys read:** an `xprv` in a Caravan file's xpub field and in a
+  wallet policy, refused.
 
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in

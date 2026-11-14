@@ -25,12 +25,13 @@
 //! before this module returns.
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
+use alloc::vec;
 use alloc::vec::Vec;
 
-use bitcoin::base58;
 use bitcoin::bip32::{Xpriv, Xpub};
+use bitcoin::hashes::{Hash, sha256d as hash256};
 use bitcoin::secp256k1::{PublicKey, SecretKey};
-use faraday_crypto::Zeroize;
+use faraday_crypto::Zeroizing;
 
 /// Serialized length of an extended key, without the checksum.
 pub(crate) const LEN: usize = 78;
@@ -76,15 +77,57 @@ pub enum Error {
     Key(bitcoin::bip32::Error),
 }
 
-/// The 78 bytes of `s`, base58check-decoded and length-checked.
-///
-/// The caller owns the buffer and must erase it when it may hold private
-/// material.
-pub(crate) fn payload(s: &str) -> Result<Vec<u8>, Error> {
+/// The bytes of `s` written in base58check, without the four checksum
+/// bytes, or `None` where the text has a character outside base58's
+/// alphabet, decodes to fewer than four bytes or fails its checksum. The
+/// same as `base58::decode_check`, but every buffer is sized once from the
+/// text's length and wiped when it goes: that decoder frees its own
+/// unwiped, and the text may be a private key.
+pub(crate) fn decode_check(s: &str) -> Option<Zeroizing<Vec<u8>>> {
+    const ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    // log256(58) is under 0.733, so this many bytes hold any value of the
+    // digits after the leading ones.
+    let room = s.len() * 733 / 1000 + 1;
+    // The number so far, least significant byte first.
+    let mut number = Zeroizing::new(vec![0u8; room]);
+    let mut used = 0usize;
+    for ch in s.bytes() {
+        let mut carry = ALPHABET.iter().position(|&b| b == ch)?;
+        for byte in &mut number[..used] {
+            carry += usize::from(*byte) * 58;
+            *byte = (carry & 0xFF) as u8;
+            carry >>= 8;
+        }
+        while carry > 0 {
+            *number.get_mut(used)? = (carry & 0xFF) as u8;
+            used += 1;
+            carry >>= 8;
+        }
+    }
+    let zeros = s.bytes().take_while(|&b| b == b'1').count();
+    let total = zeros + used;
+    if total < 4 {
+        return None;
+    }
+    let mut bytes = Zeroizing::new(vec![0u8; total]);
+    for (to, from) in bytes[zeros..].iter_mut().zip(number[..used].iter().rev()) {
+        *to = *from;
+    }
+    let (body, check) = bytes.split_at(total - 4);
+    if hash256::Hash::hash(body).to_byte_array()[..4] != *check {
+        return None;
+    }
+    bytes.truncate(total - 4);
+    Some(bytes)
+}
+
+/// The 78 bytes of `s`, base58check-decoded and length-checked, in a
+/// buffer that wipes itself.
+pub(crate) fn payload(s: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     if s.len() > MAX_TEXT {
         return Err(Error::Base58);
     }
-    let bytes = base58::decode_check(s).map_err(|_| Error::Base58)?;
+    let bytes = decode_check(s).ok_or(Error::Base58)?;
     if bytes.len() != LEN {
         return Err(Error::Length(bytes.len()));
     }
@@ -107,10 +150,8 @@ pub(crate) fn check_depth(bytes: &[u8]) -> Result<(), Error> {
 
 /// Decodes an `xprv` or `tprv`.
 pub fn decode_xpriv(s: &str) -> Result<Xpriv, Error> {
-    let mut bytes = payload(s)?;
-    let result = xpriv_from_bytes(&bytes);
-    bytes.as_mut_slice().zeroize();
-    result
+    let bytes = payload(s)?;
+    xpriv_from_bytes(&bytes)
 }
 
 /// Decodes an `xpub` or `tpub`. SLIP-132 prefixes are
@@ -147,4 +188,97 @@ pub(crate) fn xpub_from_bytes(bytes: &[u8]) -> Result<Xpub, Error> {
     PublicKey::from_slice(&bytes[45..])
         .map_err(|e| Error::Key(bitcoin::bip32::Error::Secp256k1(e)))?;
     Xpub::decode(bytes).map_err(Error::Key)
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::string::String;
+    use alloc::vec::Vec;
+
+    use bitcoin::base58;
+
+    use super::{Error, decode_check, payload};
+
+    // BIP-32 test vector 1, chain m.
+    const XPUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+    const XPRV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+    fn same_as_bitcoin(text: &str) {
+        let ours = decode_check(text);
+        let theirs = base58::decode_check(text).ok();
+        assert_eq!(
+            ours.as_deref().map(Vec::as_slice),
+            theirs.as_deref(),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn the_published_keys_decode_as_the_bitcoin_crate_does() {
+        for text in [XPUB, XPRV] {
+            assert_eq!(
+                payload(text).unwrap().as_slice(),
+                base58::decode_check(text).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn a_bad_checksum_a_bad_character_and_a_wrong_length_are_refused() {
+        let mut bad = String::from(XPRV);
+        bad.pop();
+        bad.push('j');
+        assert_eq!(payload(&bad).err(), Some(Error::Base58));
+        let mut sum = String::from(XPUB);
+        sum.pop();
+        sum.push('s');
+        assert_eq!(payload(&sum).err(), Some(Error::Base58));
+        for text in ["", "1", "111", "0OIl", "xpub 661", "é"] {
+            assert_eq!(decode_check(text), None, "{text}");
+            same_as_bitcoin(text);
+        }
+        let short = base58::encode_check(&[7u8; 20]);
+        assert_eq!(payload(&short).err(), Some(Error::Length(20)));
+    }
+
+    #[test]
+    fn random_texts_decode_or_fail_as_the_bitcoin_crate_does() {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for round in 0..3000usize {
+            let len = round % 90;
+            let mut data: Vec<u8> = (0..len).map(|_| next() as u8).collect();
+            // Leading zero bytes are leading ones in the text.
+            let zeros = (next() % 4) as usize;
+            for b in data.iter_mut().take(zeros) {
+                *b = 0;
+            }
+            let text = base58::encode_check(&data);
+            same_as_bitcoin(&text);
+            assert_eq!(
+                decode_check(&text).as_deref().map(Vec::as_slice),
+                Some(&data[..])
+            );
+            // The same text with one character changed.
+            let mut chars: Vec<char> = text.chars().collect();
+            let at = (next() as usize) % chars.len();
+            let alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0Ol";
+            let pick = alphabet
+                .chars()
+                .nth((next() as usize) % alphabet.len())
+                .unwrap();
+            chars[at] = pick;
+            same_as_bitcoin(&chars.iter().collect::<String>());
+            // Arbitrary text from the alphabet.
+            let free: String = (0..(next() % 120) as usize)
+                .map(|_| alphabet.chars().nth((next() as usize) % 58).unwrap())
+                .collect();
+            same_as_bitcoin(&free);
+        }
+    }
 }

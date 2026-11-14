@@ -296,3 +296,49 @@ fn a_words_file_read_leaves_no_freed_copy_of_its_words_or_their_numbers() {
     assert!(faraday_core::forms::typed_mnemonic(Language::English, &wrong).is_err());
     finish("words file read", armed, false);
 }
+
+/// BIP-32 test vector 1's master key, the private key a file or a
+/// descriptor should never hold.
+const PLANTED_XPRV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+/// Every form of the planted extended private key.
+fn planted_xprv_forms() -> Vec<Form> {
+    use faraday_bip::bitcoin::bip32::Xpriv;
+    use std::str::FromStr;
+    let key = Xpriv::from_str(PLANTED_XPRV).expect("the vector's xprv");
+    vec![
+        Form::new("planted xprv text", PLANTED_XPRV.as_bytes().to_vec()),
+        Form::new("planted xprv", key.encode().to_vec()),
+        Form::new(
+            "planted private key",
+            key.private_key.secret_bytes().to_vec(),
+        ),
+        Form::new("planted chain code", key.chain_code.as_bytes().to_vec()),
+    ]
+}
+
+#[test]
+fn an_xprv_in_a_caravan_files_xpub_field_refused_leaves_no_copy() {
+    let file = format!(
+        r#"{{"name":"Planted","addressType":"P2WSH","network":"mainnet","client":{{"type":"public"}},"quorum":{{"requiredSigners":1,"totalSigners":1}},"extendedPublicKeys":[{{"name":"A","bip32Path":"m/48'/0'/0'/2'","xpub":"{PLANTED_XPRV}","xfp":"00000000"}}],"startingAddressIndex":0}}"#
+    );
+    let c = testkit::compute();
+    let forms = planted_xprv_forms();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::read_wallet(&c, &file);
+    assert!(read.is_err(), "a private key is refused");
+    drop(read);
+    finish("xprv in a caravan file refused", armed, false);
+}
+
+#[test]
+fn an_xprv_in_a_wallet_policy_refused_leaves_no_copy() {
+    let policy = format!("wsh(sortedmulti(1,[00000000/48h/0h/0h/2h]{PLANTED_XPRV}/<0;1>/*))");
+    let c = testkit::compute();
+    let forms = planted_xprv_forms();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::read_wallet(&c, &policy);
+    assert!(read.is_err(), "a private key is refused");
+    drop(read);
+    finish("xprv in a wallet policy refused", armed, false);
+}
