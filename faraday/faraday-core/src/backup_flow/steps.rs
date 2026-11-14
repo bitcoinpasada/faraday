@@ -1904,7 +1904,7 @@ impl Faraday {
     }
 
     fn flow_create_start(&mut self, i: usize, v: usize) {
-        let mut form = crate::vault::CreateForm::default();
+        let mut form = crate::vault::CreateForm::starting(self.vaults.memory_free_mib);
         form.name.set(&BackupFlow::vault_name(v));
         let focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
         self.vaults.begin_create(form, Screen::BackupFlow, focus);

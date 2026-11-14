@@ -9225,7 +9225,7 @@ strings! {
     /// Text in `create_body`. `{}`: `weakest`, `mib_text(limit)`.
     vault_memory_limit: "{}: up to {}",
     /// Text in `create_body`. `{}`: `vault::cost_bits(mem, passes)`.
-    vault_cost_bits: "Adds ≈{} bits to the passphrase",
+    vault_cost_bits: "Each guess costs about as much as 2^{} plain hashes",
     /// Text in `create_body`. `{}`: `mib_text(mem)`, `passes`.
     vault_passes: "{} · {} passes",
     /// Text in `create_body`. `{}`: `app.vaults.time_text(mem, passes)`.
@@ -9260,7 +9260,7 @@ strings! {
     /// Text in `create_body`. `{}`: `own`, `cost`, `own + cost`.
     vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     /// Text in `create_body`. `{}`: `cost`.
-    vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",
+    vault_typed_its_own: "Typed: its own bits are not measured · each guess costs about as much as 2^{} plain hashes",
     /// Text in `dice_panel`. `{}`: `list.dice_per_word()`.
     vault_dice_per_word: "Roll {} dice for each word and type the numbers",
     /// Line in `dice_panel`.

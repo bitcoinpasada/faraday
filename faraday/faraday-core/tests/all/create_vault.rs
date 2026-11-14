@@ -267,7 +267,7 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
 }
 
 #[test]
-fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
+fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_256_mib_chosen() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     let c = app.vaults().create.as_ref().unwrap();
@@ -280,7 +280,7 @@ fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
         !app.offers(Action::Vault(V::CStep(vstep::COST))),
         "the unlock cost is not a card until Customise"
     );
-    assert_eq!(create_and_read_cost(&mut app), (64, 3));
+    assert_eq!(create_and_read_cost(&mut app), (256, 3));
 }
 
 /// A new vault goes by the name typed for it.
@@ -351,7 +351,7 @@ fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
 }
 
 /// The vault's memory is one figure: the machines choice, the cost and
-/// the summary all say 64 MiB for PCs and a Raspberry Pi, never the app's
+/// the summary all say 256 MiB for PCs and a Raspberry Pi, never the app's
 /// share on top of it.
 #[test]
 fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
@@ -360,7 +360,7 @@ fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "Unlock memory"), "{text:?}");
-    assert!(text.iter().any(|t| t == "64 MiB"), "{text:?}");
+    assert!(text.iter().any(|t| t == "256 MiB"), "{text:?}");
     assert!(!text.iter().any(|t| t.contains("164 MiB")), "{text:?}");
 }
 

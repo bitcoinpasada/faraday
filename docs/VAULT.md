@@ -331,7 +331,7 @@ physical memory, and on macOS the free, inactive and speculative pages
 **A machine that does not say what it has free** (where that cannot be
 read) unlocks and makes only vaults of 64 MiB, which opens anywhere:
 Unlock says so for a vault of more and does not start, and Create
-suggests 64 MiB and refuses a larger step, naming it. Going ahead on a
+suggests 64 MiB, starts the form on it and refuses a larger step, naming it. Going ahead on a
 guess could take more memory than the machine has.
 
 **The passphrase matters more than the cost.** Doubling the memory
@@ -342,8 +342,8 @@ bits) is out of reach at any step here; a short or reused passphrase is
 not protected by any step here. The Create form says this beside the
 step.
 
-**The bits shown.** The Create form states what each step adds as
-log2(memory in KiB × passes), the number of Argon2id's 1 KiB block
+**The bits shown.** The Create form states what each step costs as
+"each guess costs about as much as 2^N plain hashes", N being log2(memory in KiB × passes), the number of Argon2id's 1 KiB block
 steps in one guess: ≈17.6 at 64 MiB to ≈21.6 at 1 GiB. That is an estimate:
 it counts work only, not how much harder memory is than time for an
 attacker's hardware. A passphrase the dice made has its own bits exactly

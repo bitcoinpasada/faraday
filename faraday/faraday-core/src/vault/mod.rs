@@ -421,7 +421,8 @@ impl Faraday {
                 };
                 self.vaults.state.from_home = self.screen == Screen::Home;
                 self.secret_sheet_waits();
-                self.vaults.state.create = Some(CreateForm::default());
+                self.vaults.state.create =
+                    Some(CreateForm::starting(self.vaults.state.memory_free_mib));
                 self.vaults.state.just_made = None;
                 // It opens on Name and passphrase: the first passphrase
                 // takes the typing, as Continue into that card does.

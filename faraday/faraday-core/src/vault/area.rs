@@ -2024,6 +2024,17 @@ impl Default for CreateForm {
 }
 
 impl CreateForm {
+    /// A new form: on the default size, or on Light where the computer does
+    /// not say what memory it has free and makes only that
+    /// (`docs/VAULT.md` §3.1).
+    pub fn starting(memory_free_mib: Option<u32>) -> Self {
+        let mut form = Self::default();
+        if memory_free_mib.is_none() {
+            form.preset = Some(0);
+        }
+        form
+    }
+
     /// The steps shown, in order: the preset and the passphrases, or, once
     /// Customise is pressed, the two cards the preset stands for in its
     /// place.
@@ -3309,7 +3320,7 @@ pub const SIZES: [(&str, usize, [bool; 5]); 2] = [
     (EN.vaults_pcs_only, 2, [true, false, false, false, false]),
     (
         EN.vaults_pcs_and_a_raspberry,
-        0,
+        1,
         [true, false, false, true, false],
     ),
 ];
