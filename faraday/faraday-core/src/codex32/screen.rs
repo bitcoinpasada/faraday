@@ -1347,7 +1347,15 @@ fn dice_review(
                     Some(b) => Text::of(&num(b)),
                     None => Text::of("×"),
                 };
-                text!("{}:{}{} {}", r.die + 1, r.first, r.second, &*mark)
+                // The roll's digits are written by `Num`, not by core::fmt's own buffers.
+                let mut row = Text::with_room(16);
+                row.push_str(&num(r.die + 1));
+                row.push(':');
+                row.push_str(&num(r.first));
+                row.push_str(&num(r.second));
+                row.push(' ');
+                row.push_str(&mark);
+                row
             })
             .collect();
         let bits = digits(&made.bits());
