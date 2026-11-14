@@ -4,6 +4,7 @@
 //! held by `faraday-keys` ([`faraday_keys::Keys::check_read`]), the typed
 //! words here only until the passphrase card has read them.
 
+use super::compare::Compare;
 use super::{Account, Made, Source};
 use crate::secret_text::SecretText;
 use crate::{Screen, flow};
@@ -71,6 +72,8 @@ pub(crate) struct SeedState {
     pub(super) made: Option<Made>,
     /// The Result shows the plain xpub rather than SLIP-132's spelling.
     pub(super) plain: bool,
+    /// Compare with the wallet app's, once opened.
+    pub(super) compare: Option<Compare>,
 }
 
 impl SeedState {
@@ -96,6 +99,7 @@ impl SeedState {
             account: None,
             made: None,
             plain: false,
+            compare: None,
         }
     }
 
@@ -119,9 +123,27 @@ impl SeedState {
         self.made.as_ref()
     }
 
+    pub(super) fn compare(&self) -> Option<&Compare> {
+        self.compare.as_ref()
+    }
+
+    pub(super) fn compare_mut(&mut self) -> Option<&mut Compare> {
+        self.compare.as_mut()
+    }
+
+    /// What Compare with the wallet app's answered, once it has.
+    pub(crate) fn answer(&self) -> Option<&super::compare::Answer> {
+        self.compare.as_ref()?.answer.as_ref()
+    }
+
     /// The field typing goes to, with what is typed in it.
     pub(crate) fn field(&self) -> Option<(super::SeedAction, &str)> {
         use super::SeedAction as A;
+        if let Some(c) = self.compare.as_ref().filter(|c| c.focus)
+            && self.open == Some(step::RESULT)
+        {
+            return Some((A::CompareField, c.text.as_str()));
+        }
         if self.path_focus && self.open == Some(step::ACCOUNT) {
             return Some((A::PathField, self.path.as_str()));
         }

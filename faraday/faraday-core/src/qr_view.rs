@@ -94,6 +94,9 @@ pub enum ScanPurpose {
     /// Sign a message's **Scan**: plain text for the message, never
     /// filed; any other kind is named and refused.
     MessageText,
+    /// My seed makes my wallet's **Compare with the wallet app's**: a key,
+    /// an address or a wallet, compared and never filed.
+    SeedCompare,
 }
 
 /// What the camera sheet holds.

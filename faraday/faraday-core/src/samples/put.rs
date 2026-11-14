@@ -334,6 +334,7 @@ impl Faraday {
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText
+            | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => false,
             ScanPurpose::CheckSent
             | ScanPurpose::CheckReturned
@@ -513,6 +514,7 @@ impl Faraday {
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText
+            | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => None,
             ScanPurpose::CheckSent => Some(set.inputs.signer_sent.to_vec()),
             // Core's fee bump pair: the original, then its replacement.

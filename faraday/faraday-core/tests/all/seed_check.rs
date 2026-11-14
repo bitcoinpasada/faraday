@@ -628,3 +628,236 @@ fn the_master_key_is_origin_and_path_with_nothing_after_the_fingerprint() {
     assert_eq!(&*made.origin, "[73c5da0a]");
     assert_eq!(&*made.path, "m");
 }
+
+// ---------------------------------------------------------------------
+// Compare with the wallet app's
+// ---------------------------------------------------------------------
+
+const COMPARE: &str = include_str!("../../../../tools/vectors/seed-check/compare.json");
+
+/// Whether the screen shows `want`, the page scrolled down to it.
+fn shows_down(app: &mut Faraday, want: &str) -> bool {
+    for _ in 0..20 {
+        if shows(app, want) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
+/// The Result of `ABOUT` at the native segwit account, Compare opened.
+fn at_compare(pass: bool) -> Faraday {
+    let mut app = with_words(ABOUT);
+    if pass {
+        app.press(Action::SeedCheck(S::AddPass));
+        app.press(Action::SeedCheck(S::PassField(0)));
+        type_chars(&mut app, "TREZOR");
+        app.press(Action::SeedCheck(S::PassField(1)));
+        type_chars(&mut app, "TREZOR");
+        app.press(Action::SeedCheck(S::UsePass));
+    } else {
+        app.press(Action::SeedCheck(S::NoPass));
+    }
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    app.press(Action::SeedCheck(S::Compare));
+    app
+}
+
+/// The value typed into the comparison's field and compared.
+fn compare_typed(app: &mut Faraday, value: &str) {
+    app.press(Action::SeedCheck(S::CompareField));
+    type_chars(app, value);
+    app.press(Action::SeedCheck(S::CompareGo));
+    testkit::settle(app);
+}
+
+/// The published extended public key of the BIP-86 account of `ABOUT`.
+fn bip86_xpub() -> String {
+    let v: Value = serde_json::from_str(ADDRESSES).unwrap();
+    let a = v["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["purpose"] == 86 && a["network"] != "testnet")
+        .unwrap();
+    a["xpub"].as_str().unwrap().to_string()
+}
+
+#[test]
+fn the_wallet_apps_extended_key_of_this_account_matches() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    assert!(shows_down(&mut app, "Matches"));
+    assert!(!shows(&mut app, "Doesnotmatch"));
+}
+
+#[test]
+fn an_address_of_the_second_chain_is_found_with_its_index() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, v["bip84_change_7"].as_str().unwrap());
+    assert!(shows_down(&mut app, "Matches"));
+    assert!(
+        shows_down(&mut app, "Changeaddress7"),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
+#[test]
+fn a_two_of_three_wallet_file_names_which_key_this_seed_is() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let mut app = at_compare(false);
+    testkit::inbox_file_at(
+        &mut app,
+        0,
+        "wallet.txt",
+        v["wallet"].as_str().unwrap().as_bytes().to_vec(),
+    );
+    assert!(shows_down(&mut app, "FromFiles·wallet.txt"), "its button");
+    app.press(Action::SeedCheck(S::CompareFile(0)));
+    testkit::settle(&mut app);
+    assert!(shows_down(&mut app, "Matches"));
+    assert!(
+        shows_down(&mut app, "Thisseediskey2ofthiswallet·2of3·m/48h/0h/0h/2h"),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
+#[test]
+fn a_wallet_key_at_the_account_picked_names_no_path() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::Multisig)));
+    app.press(Action::SeedCheck(S::Compare));
+    testkit::inbox_file_at(
+        &mut app,
+        0,
+        "wallet.txt",
+        v["wallet"].as_str().unwrap().as_bytes().to_vec(),
+    );
+    app.press(Action::SeedCheck(S::CompareFile(0)));
+    testkit::settle(&mut app);
+    assert!(shows_down(&mut app, "Thisseediskey2ofthiswallet·2of3"));
+    assert!(!shows(&mut app, "·2of3·m/"), "{:?}", texts(&mut app));
+}
+
+#[test]
+fn another_accounts_key_does_not_match() {
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &format!("[73c5da0a/86h/0h/0h]{}", bip86_xpub()));
+    assert!(
+        shows_down(&mut app, "Doesnotmatch"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(
+        shows_down(&mut app, "Thekeyisatm/86h/0h/0h"),
+        "its own path is named"
+    );
+    assert!(!shows(&mut app, "Matches"));
+    assert!(!shows(&mut app, "Itmatcheswithoutthepassphrase"));
+}
+
+#[test]
+fn the_comparison_is_a_job_with_a_busy_line_and_its_answer_comes_after() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    app.press(Action::SeedCheck(S::CompareField));
+    type_chars(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    testkit::press_on_worker(&mut app, Action::SeedCheck(S::CompareGo));
+    assert!(app.busy().is_some());
+    assert!(!shows(&mut app, "Matches"));
+    testkit::settle(&mut app);
+    assert!(app.busy().is_none());
+    assert!(shows_down(&mut app, "Matches"));
+}
+
+#[test]
+fn a_key_with_no_origin_is_refused() {
+    let (_, zpub) = bip84();
+    for bare in [zpub, bip86_xpub()] {
+        let mut app = at_compare(false);
+        compare_typed(&mut app, &bare);
+        assert!(
+            shows_down(&mut app, "itskeyhasnofingerprintandderivationpath"),
+            "{:?}",
+            texts(&mut app)
+        );
+        assert!(!shows(&mut app, "Matches"));
+        assert!(!shows(&mut app, "Doesnotmatch"));
+    }
+}
+
+#[test]
+fn a_private_key_or_a_seed_typed_is_refused_and_gone() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    for secret in [
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+        v["phrase"].as_str().unwrap(),
+    ] {
+        let mut app = at_compare(false);
+        app.press(Action::SeedCheck(S::CompareField));
+        type_chars(&mut app, secret);
+        app.press(Action::SeedCheck(S::CompareGo));
+        testkit::settle(&mut app);
+        assert!(
+            shows_down(&mut app, "Aprivatekey:nottakenhere"),
+            "{:?}",
+            texts(&mut app)
+        );
+        let first: String = secret.split_whitespace().next().unwrap().chars().collect();
+        let all: String = texts(&mut app).concat().split_whitespace().collect();
+        assert!(!all.contains(&first[..first.len().min(12)]), "{all}");
+        assert!(!shows(&mut app, "Matches"));
+    }
+}
+
+#[test]
+fn a_key_made_without_the_passphrase_says_so() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(true);
+    compare_typed(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    assert!(
+        shows_down(&mut app, "Doesnotmatch"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(
+        shows_down(&mut app, "Itmatcheswithoutthepassphrase"),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
+#[test]
+fn an_answer_for_one_account_is_not_shown_after_taking_another() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    assert!(shows_down(&mut app, "Matches"));
+    app.press(Action::SeedCheck(S::Another));
+    app.press(Action::SeedCheck(S::Pick(Account::Legacy)));
+    assert!(!shows_down(&mut app, "Matches"), "{:?}", texts(&mut app));
+    assert!(!shows(&mut app, "Doesnotmatch"));
+}
+
+#[test]
+fn an_answer_for_one_passphrase_is_not_shown_after_retaking_it() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    assert!(shows_down(&mut app, "Matches"));
+    app.press(Action::SeedCheck(S::Step(1)));
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    assert!(!shows_down(&mut app, "Matches"), "{:?}", texts(&mut app));
+}

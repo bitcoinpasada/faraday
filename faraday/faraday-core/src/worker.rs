@@ -55,6 +55,9 @@ pub enum Kind {
     OtsHash,
     /// A Bitcoin Core wallet read in Tools: its passphrase stretch runs.
     CoreWalletRead,
+    /// A key, an address or a wallet compared with a seed's in My seed
+    /// makes my wallet: a PBKDF2 and up to 200 key derivations.
+    SeedCompare,
 }
 
 impl Kind {
@@ -79,7 +82,8 @@ impl Kind {
             | Kind::KefOpen
             | Kind::KefTime
             | Kind::OtsHash
-            | Kind::CoreWalletRead => false,
+            | Kind::CoreWalletRead
+            | Kind::SeedCompare => false,
         }
     }
 }
@@ -121,6 +125,7 @@ pub(crate) enum Job {
     KefTime(Box<kef::TimeWork>),
     OtsHash(Box<crate::ots_check::HashWork>),
     CoreWalletRead(Box<crate::core_wallet::tool::ReadWork>),
+    SeedCompare(Box<crate::seed_check::CompareWork>),
 }
 
 /// What a job gives back.
@@ -143,6 +148,7 @@ pub(crate) enum Done {
     KefTime(Box<kef::TimeDone>),
     OtsHash(Box<crate::ots_check::HashDone>),
     CoreWalletRead(Box<crate::core_wallet::tool::ReadDone>),
+    SeedCompare(Box<crate::seed_check::CompareDone>),
 }
 
 impl Job {
@@ -166,6 +172,7 @@ impl Job {
             Job::KefTime(_) => Kind::KefTime,
             Job::OtsHash(_) => Kind::OtsHash,
             Job::CoreWalletRead(_) => Kind::CoreWalletRead,
+            Job::SeedCompare(_) => Kind::SeedCompare,
         }
     }
 
@@ -190,6 +197,7 @@ impl Job {
             Job::KefTime(j) => Done::KefTime(Box::new(j.run(c))),
             Job::OtsHash(j) => Done::OtsHash(Box::new(j.run(c))),
             Job::CoreWalletRead(j) => Done::CoreWalletRead(Box::new(j.run(c))),
+            Job::SeedCompare(j) => Done::SeedCompare(Box::new(j.run(c))),
         }
     }
 }

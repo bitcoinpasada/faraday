@@ -1181,6 +1181,31 @@ impl Keys {
         )
     }
 
+    /// Costs a parse of the words, a PBKDF2, a key derivation of at most
+    /// [`faraday_bip::keys::MAX_PATH_STEPS`] steps and an elliptic-curve
+    /// multiplication. The extended public key at `path` below what key
+    /// `i`'s words make with no passphrase; `None` for a key with no
+    /// words and for a longer path.
+    pub fn xpub_without_passphrase_at(
+        &self,
+        c: &Compute,
+        i: usize,
+        path: &DerivationPath,
+    ) -> Option<faraday_bip::bitcoin::bip32::Xpub> {
+        if path.len() > faraday_bip::keys::MAX_PATH_STEPS {
+            return None;
+        }
+        let e = self.entries.get(i)?;
+        let m = Mnemonic::parse(c, e.info.language, e.key.words.as_deref()?).ok()?;
+        crate::identity::xpub_at(
+            c,
+            crate::identity::Material::Words(&m),
+            "",
+            self.network,
+            path,
+        )
+    }
+
     /// Costs a parse of the words. Key `i`'s vault key record: its words,
     /// or the master seed of a key loaded from one, its label, `flags`
     /// when given, its BIP-39 passphrase when `with_passphrase`, and its
@@ -1827,6 +1852,43 @@ impl Keys {
             })
             .collect();
         view
+    }
+}
+
+impl Keys {
+    /// A store holding, for a job that compares public keys with a seed's
+    /// (Compare in My seed makes my wallet), only that seed: the check's
+    /// (`None`) or key `loaded`'s, as key 0 of the store. Its master is
+    /// behind the same `Arc`, never a copy; its words are copied for the
+    /// job's time, wiped as the copy drops, so that the key the same words
+    /// make with no passphrase can be worked out there. `None` for a key
+    /// that is not there.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "an Arc count, and the words for the job's time only"
+    )]
+    pub fn compare_view(&self, loaded: Option<usize>) -> Option<Keys> {
+        let mut view = Keys::on(self.network);
+        match loaded {
+            None => view.check = Some(self.check.as_ref()?.job_copy()),
+            Some(i) => {
+                let e = self.entries.get(i)?;
+                view.entries = vec![Entry {
+                    key: Key {
+                        master: std::sync::Arc::clone(&e.key.master),
+                        words: e.key.words.clone(),
+                        passphrase: None,
+                        seed: None,
+                        public: std::cell::RefCell::new(Vec::new()),
+                        words_id: std::cell::OnceCell::new(),
+                        codex32: Vec::new(),
+                    },
+                    info: e.info.clone(),
+                    owes_blind: false,
+                }];
+            }
+        }
+        Some(view)
     }
 }
 

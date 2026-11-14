@@ -13,6 +13,7 @@
 pub(crate) mod screen;
 mod text;
 
+pub(crate) use text::check;
 pub use text::{MAX_TEXT, SendText, TextCheck, TextPress};
 
 use crate::qr_view::qr_source;

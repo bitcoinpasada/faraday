@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Compare with the wallet app's, its Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1833,8 +1833,7 @@ change addresses, each whole. The person holds them against what the
 wallet app and the hardware wallet show. Nothing has to be typed or
 scanned from the wallet app to get a result. At the end the person drops
 the seed or keeps it loaded. Built but for the Check row (it opens from
-Tools now) and **Compare with the wallet app's**, below, which are not
-built. Its screen
+Tools now). Its screen
 is `docs/DESIGN.md` §5, My seed makes my wallet.
 
 | From | What opens it |
@@ -1926,15 +1925,17 @@ Every string is shown whole (DESIGN.md §4.5), since a check by eye of
 the first and last characters is the check an attacker's address is made
 to pass.
 
-**Compare with the wallet app's** (decided here: kept, small; not built,
-so the Result has no such button yet). A text
+**Compare with the wallet app's** (decided here: kept, small). A text
 button on the Result, for a person who has a file or a QR code at hand.
 It opens one outlined text field (typing and a paste) with **Scan** and
 **From Files** beside it, and checks what is given against the account
 picked:
 
-- an extended public key in any spelling, with its origin or bare: its
-  public key and chain code against the Xpub row's;
+- an extended public key in any spelling, with its origin: its public key
+  and chain code against the Xpub row's, at the Xpub row's path. A key
+  whose origin is at another path is not this account's: "Does not match",
+  with the key's path named. A bare key, with no origin, is refused
+  ("its key has no fingerprint and derivation path"), as everywhere;
 - an address of the network in use: among the first 100 addresses of
   the account's receive and change chains, found where it is ("Receive
   address 7 · m/84h/0h/0h/0/7"); deeper is Explore's Find an address;
@@ -1942,8 +1943,8 @@ picked:
   (`faraday/faraday-intake/src/wallet.rs`, `read_wallet`): matched at
   its own origin paths, as Restore matches a seed to a described wallet
   (`faraday/faraday-core/src/restore.rs`, `restore_refusal`), public key
-  and chain code compared, and its path named where it is not the one
-  picked. For a multisig this is the whole wallet's answer, which the
+  and chain code compared, and the key's path named where it is not the one
+  picked ("This seed's key is at m/84h/0h/1h"). For a multisig this is the whole wallet's answer, which the
   Result alone cannot give.
 
 It answers with one result line: "Matches" in `OK` ("This seed is key 2
@@ -1953,8 +1954,9 @@ the passphrase" (the same seed with no passphrase makes it; a passphrase
 not given is never searched for), or "The fingerprint is this seed's;
 the xpub at {path} is not" with the warning glyph (an origin naming this
 seed whose key is not, so the file is wrong or was changed). An
-extended private key, or a file holding a seed or a private key, is
-refused ("A private key: not taken here") and not kept; a value of
+extended private key, a seed, or a file holding a seed or a private key, is
+refused ("A private key: not taken here") as it is typed, pasted or
+scanned, and the field is emptied; a value of
 another network, or one none of the readers takes, is refused with the
 reader's own line. Why kept: a person with the wallet app's file or QR
 code gets a match without reading 111 characters, and a multisig's

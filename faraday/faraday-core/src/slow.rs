@@ -25,6 +25,13 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
             | Action::OtsCheck(crate::ots_check::OtsAction::File(_))
+            // Compare's search of 100 addresses on each chain is 200 key
+            // derivations and curve multiplications: over the line by
+            // count, not yet timed on a Pi 3B+ (`Kind::SeedCompare`).
+            | Action::SeedCheck(
+                crate::seed_check::SeedAction::CompareGo
+                    | crate::seed_check::SeedAction::CompareFile(_),
+            )
             | Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::Read)
             | Action::QrTool(
                 crate::qr_tool::QrToolAction::Make | crate::qr_tool::QrToolAction::OpenCode,

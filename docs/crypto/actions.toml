@@ -1339,6 +1339,13 @@ functions = [
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_took",
   "faraday/faraday-keys/src/seed_check.rs::Keys::check_xpub_at",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_xpub_without_passphrase_at",
+  "faraday/faraday-keys/src/session.rs::Keys::xpub_without_passphrase_at",
+  "faraday/faraday-core/src/seed_check/compare.rs::as_key",
+  "faraday/faraday-core/src/seed_check/compare.rs::compare",
+  "faraday/faraday-core/src/seed_check/compare.rs::run",
+  "faraday/faraday-core/src/seed_check/compare.rs::CompareWork::run",
+  "faraday/faraday-keys/src/session.rs::Keys::compare_view",
   "faraday/faraday-core/src/seed_check/mod.rs::read_path",
   "faraday/faraday-core/src/seed_check/mod.rs::script_of",
 ]
@@ -1354,7 +1361,7 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
-adds = "The account path is purpose'/coin'/account' with the purpose of the script type; an account or index of 2^31 or more is refused; the key text is [fingerprint/path]xpub with h for hardened. Explore reads a path typed with h or ' for hardened, of at most 10 levels, each index under 2^31, and takes the script type from a hardened purpose of 44, 49, 84 or 86; the account of an address path is the path without its chain and index, and none for the multisig purposes 45 and 48."
+adds = "The account path is purpose'/coin'/account' with the purpose of the script type; an account or index of 2^31 or more is refused; the key text is [fingerprint/path]xpub with h for hardened. Explore reads a path typed with h or ' for hardened, of at most 10 levels, each index under 2^31, and takes the script type from a hardened purpose of 44, 49, 84 or 86; the account of an address path is the path without its chain and index, and none for the multisig purposes 45 and 48. My seed makes my wallet's Compare reads an origin path from outside input of at most 16 steps (`MAX_PATH_STEPS`; a longer one derives nothing) and compares a given key's public key and chain code with the account's, the fingerprint of its origin deciding which key of the seed it is held against."
 
 [action.checked]
 vectors = [
@@ -1373,6 +1380,11 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::bip84_and_bip86s_first_addresses",
   "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
   "faraday/faraday-core/tests/all/seed_check.rs::bip44_and_bip48_give_what_bitcoin_core_makes_of_the_same_phrase",
+  "faraday/faraday-core/tests/all/seed_check.rs::the_wallet_apps_extended_key_of_this_account_matches",
+  "faraday/faraday-core/tests/all/seed_check.rs::another_accounts_key_does_not_match",
+  "faraday/faraday-core/tests/all/seed_check.rs::a_key_made_without_the_passphrase_says_so",
+  "faraday/faraday-core/tests/all/seed_check.rs::a_key_with_no_origin_is_refused",
+  "faraday/faraday-core/tests/all/seed_check.rs::a_private_key_or_a_seed_typed_is_refused_and_gone",
 ]
 crosscheck = "bip32"
 independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve; and `hdkeychain` from btcd v0.27.0, by the btcd developers, on decred's secp256k1" }
@@ -1384,12 +1396,13 @@ fuzz_none = "Takes a parsed path and a held key; the extended key texts are fuzz
 [action.secrets]
 reveal = "none"
 constant_time = "not stated by the library"
-wiped = "A derived private key is overwritten when it is dropped and where its stack copy stood; only the extended public key leaves."
+wiped = "A derived private key is overwritten when it is dropped and where its stack copy stood; only the extended public key leaves. Compare's no-passphrase seed (the PBKDF2 of the same words with an empty passphrase) is a master key wiped as it drops, and the copy of the words its job holds for its time is a wiping text."
 
 [action.limits]
 lines = [
   "Account and address indexes of 2^31 or more are refused.",
   "An Explore path of more than 10 levels, or with an empty level or an index of 2^31 or more, is refused.",
+  "Compare takes a key only with its origin, at the path of the account picked; an origin of more than 16 steps (`MAX_PATH_STEPS`) derives nothing.",
 ]
 
 [[action.own]]
@@ -2181,6 +2194,7 @@ functions = [
   "faraday/faraday-core/src/address_find/look.rs::Look::tick",
   "faraday/faraday-core/src/wallet.rs::Wallet::script_at",
   "faraday/faraday-core/src/drawing/kept.rs::View::script_at",
+  "faraday/faraday-core/src/seed_check/compare.rs::as_address",
 ]
 code = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
@@ -2212,6 +2226,7 @@ tests = [
   "core/faraday-bip/src/policy.rs::a_wallet_over_a_bare_key_derives_the_published_addresses",
   "faraday/faraday-core/tests/all/explore_addresses.rs::the_list_gives_the_published_addresses_of_each_account",
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
+  "faraday/faraday-core/tests/all/seed_check.rs::an_address_of_the_second_chain_is_found_with_its_index",
 ]
 crosscheck = "addr"
 independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys, and its descriptors (`parse`, `script_pub_key`, `checksum`) for each account descriptor's kind, text, script at an index and checksum; BIP 380's own checksum code, as the BIP prints it; python-mnemonic, by Trezor (SatoshiLabs), for the seeds" }
@@ -2562,6 +2577,7 @@ functions = [
   "faraday/faraday-intake/src/specter_diy.rs::split",
   "faraday/faraday-intake/src/specter_diy.rs::name",
   "faraday/faraday-intake/src/specter_diy.rs::command",
+  "faraday/faraday-core/src/seed_check/compare.rs::as_wallet",
 ]
 code = [
   "core/faraday-bip/src/coldcard.rs::read",
@@ -2605,6 +2621,8 @@ tests = [
   "faraday/faraday-intake/tests/all/wallet_files.rs::faradays_addwallet_for_sparrows_wallet_is_sparrows_own_text",
   "faraday/faraday-intake/tests/all/wallet_files.rs::an_addwallet_command_faraday_cannot_verify_is_refused",
   "faraday/faraday-core/tests/all/interop.rs::faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name",
+  "faraday/faraday-core/tests/all/seed_check.rs::a_two_of_three_wallet_file_names_which_key_this_seed_is",
+  "faraday/faraday-core/tests/all/seed_check.rs::a_wallet_key_at_the_account_picked_names_no_path",
 ]
 crosscheck = "import"
 independence = { class = "outside-and-own", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; and 93 real files from the wallets' own test suites (Sparrow, BlueWallet, Coldcard, Caravan, Liana), read in the same area", ours = "the files the area writes and what each format's fields mean, and the formats no test suite publishes a file for (Nunchuk's, Specter DIY's and Keystone's beyond Sparrow's copies) (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Specter DIY's `addwallet`, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }

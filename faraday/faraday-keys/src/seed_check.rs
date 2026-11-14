@@ -30,10 +30,29 @@ pub struct CheckFacts {
 /// The key held: its master key, and the words and passphrase it was made
 /// of, so that Keep this key can load it.
 pub(crate) struct HeldCheck {
-    master: MasterKey,
+    master: std::sync::Arc<MasterKey>,
     words: Text,
     passphrase: Text,
     facts: CheckFacts,
+}
+
+impl HeldCheck {
+    /// What a job that compares reads, for the time it runs: the master
+    /// behind the same `Arc`, and a copy of the words, wiped as it drops,
+    /// for the key the same words make with no passphrase. No passphrase
+    /// comes with it.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "an Arc count, and the words for the job's time only"
+    )]
+    pub(crate) fn job_copy(&self) -> HeldCheck {
+        HeldCheck {
+            master: std::sync::Arc::clone(&self.master),
+            words: self.words.clone(),
+            passphrase: Text::default(),
+            facts: self.facts,
+        }
+    }
 }
 
 impl Keys {
@@ -53,6 +72,7 @@ impl Keys {
         let m = crate::session::parse_words(c, words)?;
         let master = crate::session::mnemonic_master(c, &m, passphrase, self.network())?;
         let fingerprint = master.fingerprint();
+        let master = std::sync::Arc::new(master);
         self.allowed(fingerprint)?;
         let without = if passphrase.is_empty() {
             None
@@ -88,6 +108,30 @@ impl Keys {
             return None;
         }
         Some(self.check.as_ref()?.master.derive(c, path).to_xpub(c))
+    }
+
+    /// Costs a parse of the words, a PBKDF2, a key derivation of at most
+    /// [`faraday_bip::keys::MAX_PATH_STEPS`] steps and an elliptic-curve
+    /// multiplication. The extended public key at `path` below what the
+    /// words the check holds make with no passphrase; `None` when it holds
+    /// none and for a longer path.
+    pub fn check_xpub_without_passphrase_at(
+        &self,
+        c: &Compute,
+        path: &DerivationPath,
+    ) -> Option<Xpub> {
+        if path.len() > faraday_bip::keys::MAX_PATH_STEPS {
+            return None;
+        }
+        let h = self.check.as_ref()?;
+        let m = crate::session::parse_words(c, &h.words).ok()?;
+        crate::identity::xpub_at(
+            c,
+            crate::identity::Material::Words(&m),
+            "",
+            self.network(),
+            path,
+        )
     }
 
     /// Costs what `add_words_with` costs. The key the check holds becomes

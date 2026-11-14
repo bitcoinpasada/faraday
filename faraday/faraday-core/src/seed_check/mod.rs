@@ -8,7 +8,7 @@
 
 use crate::explore::{implied_script, parse_path};
 use crate::strings::EN;
-use faraday_bip::bitcoin::bip32::DerivationPath;
+use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_bip::slip132;
@@ -112,6 +112,7 @@ pub enum Source {
 
 /// What the seed makes at one account: the Result card's rows, worked
 /// out once. Public values.
+#[derive(Clone)]
 pub struct Made {
     /// The key's fingerprint, the passphrase applied.
     pub fingerprint: Fingerprint,
@@ -133,6 +134,14 @@ pub struct Made {
     pub receive: Option<Text>,
     /// Address 0 of the change chain; none for a multisig account.
     pub change: Option<Text>,
+    /// The extended public key itself.
+    pub xpub: Xpub,
+    /// The account's path.
+    pub derivation: DerivationPath,
+    /// The script the account's addresses are of, where it has any.
+    pub kind: ScriptType,
+    /// Whether the account is a multisig cosigner's (BIP-48).
+    pub cosigner: bool,
 }
 
 /// Why no result: the path is not one, or the key gave nothing.
@@ -248,11 +257,16 @@ pub fn make(
         spelled,
         receive,
         change,
+        xpub,
+        derivation: path,
+        kind: script,
+        cosigner: multi.is_some(),
     })
 }
 
 mod act;
 mod area;
+mod compare;
 pub(crate) mod screen;
 
 pub(crate) use act::{
@@ -261,6 +275,7 @@ pub(crate) use act::{
 };
 pub(crate) use area::SeedState;
 pub use area::{SeedArea, step};
+pub(crate) use compare::{Answer, CompareDone, CompareWork, compare_scanned, done as compare_done};
 
 /// A press in the flow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -305,6 +320,16 @@ pub enum SeedAction {
     Another,
     /// Another seed.
     AnotherSeed,
+    /// Compare with the wallet app's: its field opens.
+    Compare,
+    /// Typing goes to the comparison's field.
+    CompareField,
+    /// Scan a value for the comparison.
+    CompareScan,
+    /// The comparison's value is the file at this place in Files.
+    CompareFile(usize),
+    /// Compare the value typed with the account picked.
+    CompareGo,
     /// Keep this key.
     Keep,
     /// Done: the key is dropped.

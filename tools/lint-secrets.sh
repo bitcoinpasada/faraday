@@ -562,6 +562,7 @@ faraday/faraday-core/src/keygen/mod.rs
 faraday/faraday-core/src/keygen/screen.rs
 faraday/faraday-core/src/seed_check/act.rs
 faraday/faraday-core/src/seed_check/area.rs
+faraday/faraday-core/src/seed_check/compare.rs
 faraday/faraday-core/src/seed_check/mod.rs
 faraday/faraday-core/src/seed_check/screen.rs
 faraday/faraday-core/src/seeds/kef.rs

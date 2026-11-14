@@ -2,7 +2,7 @@
 //! [`crate::seed_check`], Seed, Passphrase, Account and Result.
 
 use super::area::SeedState;
-use super::{ACCOUNTS, Account, SeedAction as S, coin, step};
+use super::{ACCOUNTS, Account, Answer, SeedAction as S, coin, step};
 use crate::Action;
 use crate::demo::PassField;
 use crate::drawing::{Scrolled, View};
@@ -12,6 +12,7 @@ use crate::screens::pass_pair::{differ, pass_pair};
 use crate::strings::EN;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui, W};
+use crate::wallet::FileKind;
 use faraday_bip::keys::ScriptType;
 use faraday_draw::tokens::{
     self, BODY_M, BODY_S, BUTTON_H, CARD_ENTRY_ROOM, FIELD_H, FIELD_PAD, GAP, GAP_SMALL, LABEL_L,
@@ -406,7 +407,96 @@ fn result(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) ->
             qr,
         ) + GAP;
     }
+    cy += compare_block(app, s, ui, (x, y + cy, w));
     cy + result_actions(app, s, ui, (x, y + cy, w))
+}
+
+/// Compare with the wallet app's, once opened: its field, Scan and From
+/// Files, Compare, and the answer. Returns the height, a gap after it.
+fn compare_block(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some(cmp) = s.compare() else {
+        return 0.0;
+    };
+    let mut cy = ui.wrap_as(
+        (x, y, w),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.seed_check_compare_field,
+    ) + GAP_SMALL;
+    let focus = act(S::CompareField);
+    ui.field_box((x, y + cy, w), cmp.focus, None);
+    ui.typed(
+        x + FIELD_PAD,
+        y + cy,
+        FIELD_H,
+        BODY_M.mono().size,
+        W::from(BODY_M.mono().face),
+        Role::OnSurface,
+        cmp.text.as_str(),
+        w - 2.0 * FIELD_PAD,
+        cmp.focus,
+        focus,
+    );
+    ui.press_box(x, y + cy, w, FIELD_H, focus);
+    cy += FIELD_H + GAP;
+    let mut rows: Vec<(Text, Style, Action)> = vec![(
+        Text::of(EN.seed_check_compare_scan),
+        Style::Secondary,
+        act(S::CompareScan),
+    )];
+    let files: Vec<(usize, &str)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| matches!(i.kind, FileKind::Wallet | FileKind::Key))
+        .map(|(k, i)| (k, i.name.as_str()))
+        .collect();
+    if files.is_empty() {
+        rows.push((
+            Text::of(EN.seed_check_compare_files),
+            Style::Disabled,
+            act(S::Compare),
+        ));
+    }
+    for (k, name) in files {
+        rows.push((
+            Text::fill(EN.seed_check_compare_file, &[name]),
+            Style::Secondary,
+            act(S::CompareFile(k)),
+        ));
+    }
+    let go = if cmp.text.is_empty() {
+        Style::PrimaryOff
+    } else {
+        Style::Primary
+    };
+    rows.push((Text::of(EN.seed_check_compare_go), go, act(S::CompareGo)));
+    cy += button_rows(ui, x, y + cy, w, &rows) + GAP;
+    let line = |ui: &mut Ui, cy: &mut f32, role: Role, text: &str| {
+        *cy += ui.wrap_as((x, y + *cy, w), BODY_M, role, text) + GAP_SMALL;
+    };
+    match s.answer() {
+        Some(Answer::Matches(more)) => {
+            line(ui, &mut cy, Role::Ok, EN.seed_check_matches);
+            if let Some(m) = more {
+                line(ui, &mut cy, Role::OnSurfaceVariant, m.as_str());
+            }
+        }
+        Some(Answer::Differs(more, warn)) => {
+            line(ui, &mut cy, Role::Error, EN.seed_check_differs);
+            if let Some(m) = more {
+                let role = if *warn {
+                    Role::Warning
+                } else {
+                    Role::OnSurfaceVariant
+                };
+                line(ui, &mut cy, role, m.as_str());
+            }
+        }
+        Some(Answer::Refused(why)) => line(ui, &mut cy, Role::Error, why.as_str()),
+        None => {}
+    }
+    cy + GAP
 }
 
 /// Result's actions: Another account, Another seed, Keep this key and Done,
@@ -429,6 +519,9 @@ fn result_actions(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, 
             act(S::AnotherSeed),
         ),
     ];
+    if s.compare().is_none() {
+        rows.push((EN.seed_check_compare, Style::Secondary, act(S::Compare)));
+    }
     if !s.is_loaded() {
         rows.push((EN.seed_check_keep, keep, act(S::Keep)));
     }

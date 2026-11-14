@@ -171,6 +171,10 @@ file = "faraday/faraday-core/src/seed_check/mod.rs"
 reason = "My seed makes my wallet's accounts: reads a path typed by hand with Explore's path parser in faraday-core and asks faraday-keys for the account key and faraday-bip for its SLIP-132 spelling and addresses, which the stamp covers; it derives nothing itself."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/seed_check/compare.rs"
+reason = "My seed makes my wallet's Compare with the wallet app's: reads a typed or scanned key, address or wallet file with faraday-bip's and Files' readers and asks faraday-keys for the seed's public keys at the paths given, and faraday-bip for the addresses; it derives nothing itself."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/inbox.rs"
 reason = "Reads a derivation path's steps to tell a wallet's kind; computes nothing."
 

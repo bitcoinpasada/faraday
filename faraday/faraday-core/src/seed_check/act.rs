@@ -3,6 +3,7 @@
 //! flow, each of which drops the key but Keep this key.
 
 use super::area::{Facts, SeedState, step};
+use super::compare::{self, Compare};
 use super::{Account, Refused, SeedAction as A, Source, coin, make};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
@@ -83,6 +84,7 @@ fn reset_from(app: &mut Faraday, from: u8) {
         s.path_open = false;
         s.path_focus = false;
         s.made = None;
+        s.compare = None;
     }
     s.error = None;
 }
@@ -161,6 +163,24 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
             reset_from(app, step::SEED);
             open_card(app, step::SEED);
         }
+        A::Compare => {
+            if let Some(s) = st(app)
+                && s.made.is_some()
+            {
+                s.compare = Some(Compare {
+                    focus: true,
+                    ..Compare::default()
+                });
+            }
+        }
+        A::CompareField => {
+            if let Some(c) = st(app).and_then(|s| s.compare_mut()) {
+                c.focus = true;
+            }
+        }
+        A::CompareScan => compare::scan(app),
+        A::CompareFile(i) => compare_file(app, i),
+        A::CompareGo => compare::run(app),
         A::Keep => keep(app),
         A::Done | A::Cancel => leave(app),
     }
@@ -379,6 +399,7 @@ fn work(app: &mut Faraday, path: &str, asked: ScriptType) {
             };
             s.picked = Some((Text::of(name), m.path.clone()));
             s.made = Some(m);
+            s.compare = None;
             s.path_open = false;
             s.path_focus = false;
             s.error = None;
@@ -392,6 +413,18 @@ fn work(app: &mut Faraday, path: &str, asked: ScriptType) {
             app.tools.seed_check.begin(back);
         }
     }
+}
+
+/// The file at `i` in Files, a wallet description or a key, is the value
+/// compared, and is compared.
+fn compare_file(app: &mut Faraday, i: usize) {
+    use crate::wallet::FileKind;
+    let Some(item) = app.inbox.get(i) else { return };
+    if !matches!(item.kind, FileKind::Wallet | FileKind::Key) {
+        return;
+    }
+    let text = Text::of(Text::from_utf8_lossy(&item.bytes).trim());
+    compare::put(app, text);
 }
 
 /// The xpub's or the receive address's code, as the Result shows it.
@@ -475,7 +508,8 @@ pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
     let Some(s) = app.tools.seed_check.state() else {
         return false;
     };
-    s.field().is_some_and(|(target, _)| target != A::PathField)
+    s.field()
+        .is_some_and(|(target, _)| target != A::PathField && target != A::CompareField)
         && crate::screens::pass_pair::ready(s.pass.as_str(), s.pass2.as_str())
 }
 
@@ -489,6 +523,10 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
         return false;
     };
     let on_path = target == A::PathField;
+    // Compare reads no secret: its field is typed into with a stick in.
+    if target == A::CompareField {
+        return compare_key(app, key);
+    }
     if !on_path && crate::stick::refuses_secret_key(app, key) {
         return true;
     }
@@ -537,6 +575,36 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
         }
         Key::Char(ch) if !ch.is_control() => {
             s.error = Some(Text::of(crate::state::ascii_refused()));
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Typing into the comparison's field.
+fn compare_key(app: &mut Faraday, key: Key) -> bool {
+    let Some(c) = st(app).and_then(|s| s.compare_mut()) else {
+        return false;
+    };
+    match key {
+        Key::Enter => {
+            act(app, A::CompareGo);
+            true
+        }
+        Key::Escape => {
+            c.focus = false;
+            true
+        }
+        Key::Backspace => {
+            c.text.pop();
+            c.answer = None;
+            true
+        }
+        Key::Char(ch) if !ch.is_control() => {
+            if c.text.len() < compare::FIELD_CHARS {
+                c.text.push(ch);
+            }
+            c.answer = None;
             true
         }
         _ => false,

@@ -2203,6 +2203,48 @@ strings! {
     seed_check_receive_code: "Receive address",
     /// The Seed card, words a scanner read that are no BIP-39 seed.
     seed_check_not_seed: "Not a BIP-39 seed",
+    /// The text button on My seed makes my wallet's Result that opens the comparison.
+    seed_check_compare: "Compare with the wallet app's",
+    /// The comparison's field, its label.
+    seed_check_compare_field: "Key, address or wallet file",
+    /// The comparison's Scan button.
+    seed_check_compare_scan: "Scan",
+    /// The comparison's From Files button, with no file in Files to take.
+    seed_check_compare_files: "From Files",
+    /// The comparison's From Files button, one file of Files.
+    seed_check_compare_file: "From Files · {}",
+    /// The comparison's action.
+    seed_check_compare_go: "Compare",
+    /// The comparison's answer, the value is this account's or this seed's.
+    seed_check_matches: "Matches",
+    /// The comparison's answer, the value is not.
+    seed_check_differs: "Does not match",
+    /// The comparison's line under "Does not match": the same seed with no passphrase makes it.
+    seed_check_without_pass: "It matches without the passphrase",
+    /// The comparison's line: an origin names this seed and its key at {path} is not the one given.
+    seed_check_finger_only: "The fingerprint is this seed's; the xpub at {} is not",
+    /// The comparison's line under "Does not match": the key given is at {path}, not at the account picked.
+    seed_check_other_path: "The key is at {}",
+    /// The comparison's line: a wallet's key this seed is, at {path}, not the account picked.
+    seed_check_matches_at: "This seed's key is at {}",
+    /// The comparison's line: a wallet's key this seed is, of a multisig.
+    seed_check_key_of: "This seed is key {} of this wallet · {} of {}",
+    /// The comparison's line: a wallet's key this seed is, of a wallet with no quorum.
+    seed_check_key_of_wallet: "This seed is key {} of this wallet",
+    /// The comparison's line: an address found, its chain, index and path.
+    seed_check_found_receive: "Receive address {} · {}",
+    /// The comparison's line: a change address found, its index and path.
+    seed_check_found_change: "Change address {} · {}",
+    /// The comparison's line: an address not found in the first indices of both chains.
+    seed_check_not_found: "Not among the first {} addresses of each chain",
+    /// The comparison's refusal: an extended private key, a seed or a private key.
+    seed_check_compare_private: "A private key: not taken here",
+    /// The comparison's refusal: a key or a wallet of another network.
+    seed_check_compare_network: "That is of another network",
+    /// The comparison's refusal: an address while the account is a multisig cosigner's.
+    seed_check_compare_cosigner: "A cosigner's account has no addresses of its own",
+    /// The comparison's refusal: a value no reader takes.
+    seed_check_compare_unread: "Not a key, an address or a wallet",
     /// Line in `draw`.
     explore_script: "Script",
     /// Text in `draw`.
@@ -7801,6 +7843,8 @@ strings! {
     working_collecting: "Adding the signatures",
     /// The line of the job that hashes a large file in Check a timestamp.
     working_hashing: "Hashing the file",
+    /// The line of the job that compares a key, an address or a wallet with a seed's.
+    working_seed_compare: "Comparing",
     /// The line of the job that reads a Bitcoin Core wallet.
     working_core_wallet: "Reading the wallet",
     /// The line of the job that reads a PSBT and checks it.

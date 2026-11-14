@@ -24,3 +24,19 @@ Core's.
 To remake it: fetch Core once (`python3 -I -B tools/crosscheck/fetch_core.py`)
 and run `python3 -I -B tools/vectors/seed-check/gen.py`. The file is the same
 on every run, since nothing in it is random.
+
+## Compare with the wallet app's
+
+`compare.json` holds what the Compare button of the same flow is tested
+against (`faraday/faraday-core/tests/all/seed_check.rs`): `bip84_change_7`,
+the address at chain 1, index 7 of the BIP-84 account of the test phrase;
+three BIP-48 cosigner keys (`cosigners`: their phrases, master fingerprints
+and extended public keys at m/48'/0'/0'/2'), the test phrase being the
+second; and `wallet`, a 2-of-3 `wsh(sortedmulti())` descriptor of the three.
+
+**Tested against** implementations Faraday did not write: `compare_gen.py`
+makes the seeds with the standard library's PBKDF2 (BIP-39), the keys with
+btclib's BIP-32 and the address with Bitcoin Core's reference
+`segwit_addr`. To remake it, run `python3 -I -B
+tools/vectors/seed-check/compare_gen.py` (btclib installed); the file is the
+same on every run.
