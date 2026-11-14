@@ -908,6 +908,10 @@ class RunScript(unittest.TestCase):
         stubs = self.root / "stubs"
         stubs.mkdir()
         self.stub(stubs / "go", "#!/bin/sh\nexit 0\n")
+        # Core Lightning's answer program (cc over libsodium) and its offer decoder.
+        self.stub(stubs / "cc", "#!/bin/sh\nexit 0\n")
+        self.stub(stubs / "pkg-config", "#!/bin/sh\nexit 0\n")
+        self.stub(self.script.parent / "build_bolt12_cli.sh", "#!/bin/sh\nexit 0\n")
         self.stub(stubs / "unshare", "#!/bin/sh\n"
                   'while case "$1" in --*) true ;; *) false ;; esac; do shift; done\nexec "$@"\n')
         self.stub(stubs / "cargo", "#!/bin/sh\n"
