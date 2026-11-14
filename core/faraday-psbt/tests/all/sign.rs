@@ -625,3 +625,381 @@ fn a_signed_file_with_many_uncompressed_derivations_is_written_out_quickly() {
     let (_, _, took) = signed_with_uncompressed_derivations(200_000);
     assert!(took < std::time::Duration::from_secs(10), "{took:?}");
 }
+
+/// BIP-322's `to_spend` and `to_sign` for `script_pubkey` and a message,
+/// written from the BIP's text: `to_spend` (version 0) spends the
+/// outpoint of all zeros at index `0xFFFFFFFF` with `OP_0 <message hash>`
+/// and pays 0 to the script; `to_sign` (version 0) spends `to_spend`'s
+/// output 0 at sequence 0 and pays 0 to `OP_RETURN`.
+fn bip322_transactions(script_pubkey: &ScriptBuf, message: &str) -> (Transaction, Transaction) {
+    use bitcoin::hashes::Hash;
+    let hash = faraday_psbt::message::message_hash(message);
+    let push: &bitcoin::script::PushBytes = (&hash).into();
+    let to_spend = Transaction {
+        version: bitcoin::transaction::Version(0),
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![bitcoin::TxIn {
+            previous_output: bitcoin::OutPoint {
+                txid: bitcoin::Txid::from_byte_array([0; 32]),
+                vout: 0xFFFF_FFFF,
+            },
+            script_sig: bitcoin::script::Builder::new()
+                .push_opcode(bitcoin::opcodes::OP_0)
+                .push_slice(push)
+                .into_script(),
+            sequence: bitcoin::Sequence(0),
+            witness: bitcoin::Witness::new(),
+        }],
+        output: vec![bitcoin::TxOut {
+            value: Amount::ZERO,
+            script_pubkey: script_pubkey.clone(),
+        }],
+    };
+    let to_sign = Transaction {
+        version: bitcoin::transaction::Version(0),
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![bitcoin::TxIn {
+            previous_output: bitcoin::OutPoint::new(to_spend.compute_txid(), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: bitcoin::Sequence(0),
+            witness: bitcoin::Witness::new(),
+        }],
+        output: vec![bitcoin::TxOut {
+            value: Amount::ZERO,
+            script_pubkey: bitcoin::script::Builder::new()
+                .push_opcode(bitcoin::opcodes::all::OP_RETURN)
+                .into_script(),
+        }],
+    };
+    (to_spend, to_sign)
+}
+
+fn base64(bytes: &[u8]) -> String {
+    const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in bytes.chunks(3) {
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |n, (i, b)| n | u32::from(*b) << (16 - 8 * i));
+        for i in 0..4 {
+            out.push(if i <= chunk.len() {
+                ABC[(n >> (18 - 6 * i) & 63) as usize] as char
+            } else {
+                '='
+            });
+        }
+    }
+    out
+}
+
+/// A coordinator hands over BIP-322's `to_sign` for "Hello World" and
+/// the person's first receive address, as a PSBT: a version 0
+/// transaction spending 0 from that address to an `OP_RETURN`. Signing
+/// it would be signing that message, whose text the Review never shows,
+/// so the signer refuses it, even with every hold it allows held; it
+/// does not sign it as a spend.
+#[test]
+fn a_bip322_message_dressed_as_a_spend_is_not_signed() {
+    let c = Compute::unchecked();
+    let vectors: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tools/vectors/message/bip322-basic.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let hello = vectors["tx_hashes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["message"] == "Hello World")
+        .expect("BIP-322's Hello World vector");
+    let address: bitcoin::Address = hello["address"]
+        .as_str()
+        .unwrap()
+        .parse::<bitcoin::Address<bitcoin::address::NetworkUnchecked>>()
+        .unwrap()
+        .assume_checked();
+    let (to_spend, to_sign) = bip322_transactions(&address.script_pubkey(), "Hello World");
+    assert_eq!(
+        to_spend.compute_txid().to_string(),
+        hello["to_spend_tx_hash"].as_str().unwrap()
+    );
+    assert_eq!(
+        to_sign.compute_txid().to_string(),
+        hello["to_sign_tx_hash"].as_str().unwrap(),
+        "the transactions are BIP-322's own"
+    );
+
+    // The same two for the person's first receive address.
+    let abandon = master(ABANDON, NET);
+    let account = abandon
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap();
+    let mine = account.address(false, 0).unwrap();
+    let (to_spend, to_sign) = bip322_transactions(&mine.script_pubkey(), "Hello World");
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(to_sign).unwrap();
+    inner.inputs[0].witness_utxo = Some(to_spend.output[0].clone());
+    inner.inputs[0].non_witness_utxo = Some(to_spend.clone());
+    let h = |i| bitcoin::bip32::ChildNumber::from_hardened_idx(i).unwrap();
+    let n = |i| bitcoin::bip32::ChildNumber::from_normal_idx(i).unwrap();
+    let path =
+        bitcoin::bip32::DerivationPath::from(vec![h(84), h(NET.coin_type()), h(0), n(0), n(0)]);
+    let key = abandon.derive(&c, &path).to_xpub(&c).public_key;
+    inner.inputs[0]
+        .bip32_derivation
+        .insert(key, (abandon.fingerprint().into(), path));
+    let mut psbt = Psbt::from(inner);
+
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    let held: Vec<WarningKind> = insp
+        .warnings
+        .iter()
+        .filter(|w| w.kind.is_holdable())
+        .map(|w| w.kind.clone())
+        .collect();
+    let result = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &held,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
+    );
+    let witness = psbt.inner().inputs[0]
+        .partial_sigs
+        .iter()
+        .next()
+        .map(|(pk, sig)| {
+            let mut w = bitcoin::Witness::new();
+            w.push(sig.to_vec());
+            w.push(pk.to_bytes());
+            base64(&serialize(&w))
+        });
+    let as_message = witness.as_ref().map(|w| {
+        faraday_psbt::message::verify(
+            &bitcoin::Address::from_script(&mine.script_pubkey(), bitcoin::Network::Regtest)
+                .unwrap(),
+            "Hello World",
+            w,
+        )
+    });
+    assert!(
+        matches!(&result, Err(Error::Blocked(k)) if k.contains(&WarningKind::MessageRequest))
+            && witness.is_none(),
+        "signed: {result:?}; warnings {:?}; the signature read as BIP-322's for \"Hello World\": {as_message:?}",
+        insp.warnings
+    );
+}
+
+fn op_return() -> ScriptBuf {
+    bitcoin::script::Builder::new()
+        .push_opcode(bitcoin::opcodes::all::OP_RETURN)
+        .into_script()
+}
+
+/// What signing `psbt` with the abandon key does with every hold held:
+/// the result and whether any input holds a signature afterwards.
+fn sign_held(psbt: &Psbt) -> (Result<(), Error>, bool, Vec<WarningKind>) {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, psbt, &ctx);
+    let held: Vec<WarningKind> = insp
+        .warnings
+        .iter()
+        .filter(|w| w.kind.is_holdable())
+        .map(|w| w.kind.clone())
+        .collect();
+    let mut psbt = psbt.clone();
+    let result = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &held,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
+    )
+    .map(|_| ());
+    let signed = psbt.inner().inputs.iter().any(|i| {
+        !i.partial_sigs.is_empty() || i.tap_key_sig.is_some() || !i.tap_script_sigs.is_empty()
+    });
+    let kinds = insp.warnings.iter().map(|w| w.kind.clone()).collect();
+    (result, signed, kinds)
+}
+
+fn assert_message_request_blocked(psbt: &Psbt) {
+    let (result, signed, _) = sign_held(psbt);
+    assert!(
+        matches!(&result, Err(Error::Blocked(k)) if k.contains(&WarningKind::MessageRequest)),
+        "{result:?}"
+    );
+    assert!(!signed);
+}
+
+/// A message request in a version 2 transaction, with the transaction
+/// it spends attached, is refused as one.
+#[test]
+fn a_version_2_bip322_request_with_its_to_spend_is_not_signed() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let account = abandon
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap();
+    let mine = account.address(false, 0).unwrap();
+    let (to_spend, mut to_sign) = bip322_transactions(&mine.script_pubkey(), "Hello World");
+    to_sign.version = bitcoin::transaction::Version::TWO;
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(to_sign).unwrap();
+    inner.inputs[0].witness_utxo = Some(to_spend.output[0].clone());
+    inner.inputs[0].non_witness_utxo = Some(to_spend);
+    assert_message_request_blocked(&Psbt::from(inner));
+}
+
+/// A message request in a version 2 transaction that states only the
+/// amount spent (0, which the signature commits to) is refused too, for
+/// a native SegWit key and for a taproot key.
+#[test]
+fn a_version_2_bip322_request_with_only_the_amount_spent_is_not_signed() {
+    for script_type in [ScriptType::NativeSegwit, ScriptType::Taproot] {
+        let mut b = Build::new(script_type, NET);
+        b.input_value = 0;
+        b.recipients.push((op_return(), 0));
+        let built = single_sig(&master(ABANDON, NET), &b);
+        let mut inner = built.inner().clone();
+        inner.inputs[0].non_witness_utxo = None;
+        assert!(inner.inputs[0].witness_utxo.is_some());
+        assert_message_request_blocked(&Psbt::from(inner));
+    }
+}
+
+/// A message request in a version 2 transaction whose input 0 carries
+/// only the transaction it spends (no `witness_utxo`) is refused.
+#[test]
+fn a_version_2_bip322_request_with_only_the_transaction_spent_is_not_signed() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let account = abandon
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap();
+    let mine = account.address(false, 0).unwrap();
+    let (to_spend, mut to_sign) = bip322_transactions(&mine.script_pubkey(), "Hello World");
+    to_sign.version = bitcoin::transaction::Version::TWO;
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(to_sign).unwrap();
+    inner.inputs[0].witness_utxo = None;
+    inner.inputs[0].non_witness_utxo = Some(to_spend);
+    assert_message_request_blocked(&Psbt::from(inner));
+}
+
+/// BIP-322's proof of funds: input 0 is the `to_spend` and states only
+/// 1 sat, which is not checked (SegWit v0 and legacy signatures do not
+/// commit to it), and input 1 is the person's own coin. It is refused as a message request, whatever
+/// the script type of the person's coin, and nothing is signed.
+#[test]
+fn a_bip322_proof_of_funds_stating_an_amount_on_its_first_input_is_not_signed() {
+    for script_type in [ScriptType::NativeSegwit, ScriptType::Taproot] {
+        let mut b = Build::new(script_type, NET);
+        b.recipients.push((op_return(), 0));
+        let built = single_sig(&master(ABANDON, NET), &b);
+        let mut inner = built.inner().clone();
+        let to_spend_id = {
+            use bitcoin::hashes::Hash;
+            bitcoin::Txid::from_byte_array([7; 32])
+        };
+        inner.unsigned_tx.input.insert(
+            0,
+            bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint::new(to_spend_id, 0),
+                script_sig: ScriptBuf::new(),
+                sequence: bitcoin::Sequence(0),
+                witness: bitcoin::Witness::new(),
+            },
+        );
+        let mut taproot = vec![0x51, 0x20];
+        taproot.extend([9u8; 32]);
+        inner.inputs.insert(
+            0,
+            bitcoin::psbt::Input {
+                witness_utxo: Some(bitcoin::TxOut {
+                    value: Amount::from_sat(1),
+                    script_pubkey: ScriptBuf::from_bytes(taproot),
+                }),
+                ..Default::default()
+            },
+        );
+        assert_message_request_blocked(&Psbt::from(inner));
+    }
+}
+
+/// A payment with an OP_RETURN note beside it is not taken for a message
+/// request. A coin burned to a 0 OP_RETURN as the only output is one,
+/// whichever output of its transaction it is and whatever the sighash:
+/// BIP-322 asks for exactly that output, and an ANYONECANPAY signature
+/// does not commit to the other inputs, so a to_spend can be put first
+/// afterwards. Nothing is signed. The amount of input 0 is not checked,
+/// since SegWit v0 and legacy signatures do not commit to it.
+#[test]
+fn an_op_return_beside_a_payment_is_not_a_message_request_but_a_burn_is() {
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((foreign_script(), 60_000));
+    b.recipients.push((op_return(), 0));
+    b.change = Some(39_000);
+    let (_, _, kinds) = sign_held(&single_sig(&master(ABANDON, NET), &b));
+    assert!(!kinds.contains(&WarningKind::MessageRequest), "{kinds:?}");
+
+    for script_type in [ScriptType::NativeSegwit, ScriptType::Taproot] {
+        let mut b = Build::new(script_type, NET);
+        b.recipients.push((op_return(), 0));
+        let built = single_sig(&master(ABANDON, NET), &b);
+        assert_message_request_blocked(&built);
+
+        // The same coin as output 1 of the transaction that funds it.
+        let mut inner = built.inner().clone();
+        let mut funding = inner.inputs[0].non_witness_utxo.clone().unwrap_or_else(|| {
+            crate::common::builder::funding_tx(
+                inner.inputs[0]
+                    .witness_utxo
+                    .as_ref()
+                    .unwrap()
+                    .script_pubkey
+                    .clone(),
+                b.input_value,
+            )
+        });
+        funding.output.insert(0, funding.output[0].clone());
+        inner.unsigned_tx.input[0].previous_output =
+            bitcoin::OutPoint::new(funding.compute_txid(), 1);
+        if inner.inputs[0].non_witness_utxo.is_some() {
+            inner.inputs[0].non_witness_utxo = Some(funding.clone());
+        }
+        assert_message_request_blocked(&Psbt::from(inner.clone()));
+
+        // And with ALL|ANYONECANPAY asked.
+        inner.inputs[0].sighash_type = Some(bitcoin::psbt::PsbtSighashType::from(
+            bitcoin::sighash::EcdsaSighashType::AllPlusAnyoneCanPay,
+        ));
+        assert_message_request_blocked(&Psbt::from(inner));
+    }
+}

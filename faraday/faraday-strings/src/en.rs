@@ -6358,6 +6358,9 @@ strings! {
     /// A warning on Review: an amount an input spends, or their total, is
     /// over Bitcoin's money limit.
     psbt_warn_inputs_over_max_money: "an input's amount, or the inputs' total, is over 21,000,000 BTC",
+    /// A warning on Review: the transaction is a BIP-322 signed-message
+    /// request, which Sign a message handles.
+    psbt_warn_message_request: "this looks like a signed-message request, not a payment; use Sign a message",
     /// A warning on Review. `{}`: the kinds, joined by commas.
     psbt_warn_mixed_scripts: "inputs mix script types: {}",
     /// A warning on Review. A taproot script-path input.

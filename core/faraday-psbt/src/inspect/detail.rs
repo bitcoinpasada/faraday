@@ -144,6 +144,8 @@ pub enum Detail {
     OutputsExceedInputs,
     /// An output, or the outputs' total, is over 21,000,000 BTC.
     OutputsOverMaxMoney,
+    /// The transaction is a signed-message request: use Sign a message.
+    MessageRequest,
     /// An amount an input spends, or their total, is over 21,000,000 BTC.
     InputsOverMaxMoney,
     /// The fee is a large share of what is sent.

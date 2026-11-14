@@ -142,6 +142,7 @@ fn output_words(d: &Detail) -> Option<Words<'static>> {
         }
         D::OutputsExceedInputs => Words::Fixed(EN.psbt_warn_outputs_exceed),
         D::OutputsOverMaxMoney => Words::Fixed(EN.psbt_warn_outputs_over_max_money),
+        D::MessageRequest => Words::Fixed(EN.psbt_warn_message_request),
         D::InputsOverMaxMoney => Words::Fixed(EN.psbt_warn_inputs_over_max_money),
         D::FeeShare { fee, pct } => t(
             EN.step_review_fee_share,

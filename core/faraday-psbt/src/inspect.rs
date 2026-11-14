@@ -142,6 +142,9 @@ pub enum WarningKind {
     /// `bad-txns-txouttotal-toolarge`, `bad-txns-inputvalues-outofrange`).
     /// The totals and the fee shown are not what the PSBT states.
     AmountOutOfRange,
+    /// The transaction is a BIP-322 signed-message request (version 0, or
+    /// one OP_RETURN output spending a message's `to_spend`), not a spend.
+    MessageRequest,
     /// An input spends a script this crate cannot sign.
     UnsupportedInput,
     /// A MuSig2 input's participants are not those of any registered
@@ -649,6 +652,21 @@ impl Inspection {
             .map(|w| w.kind.clone())
             .collect()
     }
+}
+
+/// A transaction whose only output is an `OP_RETURN` of 0: the shape of
+/// BIP-322's `to_sign`, simple or in the proof-of-funds form. BIP-322
+/// requires exactly one 0-value `OP_RETURN` output, and with
+/// `ANYONECANPAY` a signature commits to neither the other inputs nor its
+/// own index, so a `to_spend` can be put at input 0 afterwards; the inputs
+/// are therefore not looked at. The amount input 0 states is not checked:
+/// SegWit v0 and legacy signatures do not commit to it. A burn of a coin
+/// to a 0 `OP_RETURN` is refused with it.
+fn looks_like_message_request(psbt: &Psbt) -> bool {
+    let tx = &psbt.inner().unsigned_tx;
+    tx.output.len() == 1
+        && tx.output[0].script_pubkey.is_op_return()
+        && tx.output[0].value == Amount::ZERO
 }
 
 fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, detail: Detail) {
@@ -1213,6 +1231,18 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 },
             );
         }
+    }
+
+    // BIP-322's `to_sign` (version 0, or an OP_RETURN of 0 as the only
+    // output of a spend of output 0 on input 0) is no spend: signing it signs a message whose text is not
+    // shown here.
+    if tx.version.0 == 0 || looks_like_message_request(psbt) {
+        warn(
+            &mut warnings,
+            Level::Blocked,
+            WarningKind::MessageRequest,
+            Detail::MessageRequest,
+        );
     }
 
     // The money range, as Core checks it: the outputs as CheckTransaction
