@@ -72,7 +72,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/scripts/{musig,tapmulti}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2 and taproot-multisig PSBT fixtures |
 | `tools/scripts/signer-core.py` | generator | `python3 -I -B tools/scripts/signer-core.py <directory>`, by hand; its two files are inputs of `core/faraday-psbt/examples/signer.rs` | Bitcoin Core 31.1 on regtest signing `wallet-2of3.psbt` and `demo-regtest.psbt`: the signer check's two Core fixtures |
 | `tools/vault/open.py` | test, dev aid | `faraday-vault` `tests/open_py.rs` | opens a Faraday vault with published libraries |
-| `tools/winvm/` | dev aid | `docs/history/BITLOCKER-ACCEPTANCE.md`, `docs/STARTER.md` | Windows 11 test machine in QEMU for the Starter's BitLocker checks |
+| `tools/winvm/` | dev aid | `docs/STARTER.md` | Windows 11 test machine in QEMU, used to record the Starter's BitLocker answers (`tests/windows/vm-*.wmi`) and to check them by hand |
 | `faraday/tools/testkit/` | test | `just faraday-testkit`, `just faraday-snap`, `just faraday-snapshots` | writes the test stick's files after checking every spend signs |
 | `faraday/tools/alloc-count/` | test | `faraday-core`'s frame budgets (`docs/SPEED.md`) | allocator that counts allocations per thread; tests only |
 | `faraday/tools/leak-scan/` | test | `faraday-core`'s leak tests (`faraday/faraday-core/tests/leaks`, `docs/SECRET-LEAKS.md`) | allocator that searches the blocks an armed test thread frees, and the live ones on demand, for a test secret's forms; tests only |

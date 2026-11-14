@@ -1786,6 +1786,6 @@ placeholders, the two constructions in docs/crypto/actions.toml with
 §18.3's and §18.4's text, `CONSTRUCTIONS` in
 `faraday/faraday-guide/src/how.rs`, the Learn page's drawing of them, and
 `docs/history/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
-They may come before or after the rename of `docs/history/VAULT-HARDENING.md`
+They may come before or after the rename of the vault hardening document
 (§2), its sentences marked. Each later change of that document rewrites
 its planned paragraphs (§18.6).

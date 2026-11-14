@@ -270,7 +270,7 @@ samples compiled in (F126, §5.3).
   one, `tools/check-macos.sh` (run by hand; macOS is paused and no
   automatic check runs it) type-checks the module for both Mac
   targets on the build machine and its parsers are tested on Linux
-  against hand-written answers (HANDOFF item 73).
+  against hand-written answers.
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
   GitHub Actions builds nothing for release (F183, F210). The Windows
@@ -1817,7 +1817,7 @@ Each button asks once ("This restarts the computer now. Save your work first."),
 The website publishes each guide at
 `https://faradayoffline.app/start/<page>`; the Starter shows that
 address as a QR code beside the guide. The website's build is the
-website repository's work, from these Learn pages (its own HANDOFF).
+website repository's work, from these Learn pages.
 The address is the only one the Starter contains.
 
 ### 7.5 The stick reminds
@@ -2212,7 +2212,7 @@ what moved.
   attached. Superseded by F33.
 - **D19 Acceptance for Windows Home:** on a Home computer of the
   owner's, with the owner, after Pro passes in a virtual machine.
-  Superseded by F33 (`docs/history/BITLOCKER-ACCEPTANCE.md`'s header).
+  Superseded by F33.
 - **D20 The desktop app on Windows:** yes, carried by
   the Windows Starter and offered by its Install (§2, §3.5). Built: the payload has a folder per system, each Starter offers only its
   own system's desktop app, and Windows install, Try and uninstall

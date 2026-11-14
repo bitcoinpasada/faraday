@@ -87,7 +87,7 @@ session's secrets.
 **Keep this time** (§3) in this power-on, and kept across a lock with
 the offset. The desktop app (`app.online`) counts as checked whenever
 its clock is known. §5 uses this, and so does everything else that
-keeps the time it reads (HANDOFF item 68, 2026-10-11): GPG's Make a
+keeps the time it reads (2026-10-11): GPG's Make a
 key, Renew, Make a revocation, a signature's QR and PNG, and Secure Boot's Make keys and enrolment files. With the clock
 not checked (the stick and the Pi), pressing one opens Set the time
 (§3) over the same page, which it returns to, and does nothing else;
@@ -127,8 +127,7 @@ the minutes are 00, 15, 30 or 45, and the value is in range; anything
 else is skipped as an unknown value is now. The file is untrusted
 (`stick/settings.rs` header): a wrong zone gives wrong local times and
 wrong codes, never a less protected session, so it may be read from the
-file. The stick-settings comment and `docs/history/HANDOFF.md` item 62's key list
-name it.
+file. The stick-settings comment names it.
 
 A stick file written before this change has no `tz` line. The zone stays
 at its default, and the next stick visit offers Settings ticked because

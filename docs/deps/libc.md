@@ -55,8 +55,7 @@ interface and a fresh decision under §16.33.
 **Where it is used:** `faraday/shells/starter` (`faraday-starter-shell`), under
 `[target.'cfg(target_os = "macos")'.dependencies]`, at the lockfile's
 `=0.2.189` with `default-features = false`, in one function:
-`src/macos/mac.rs`'s `receive` (HANDOFF item 73, batch A3a;
-`docs/MAC.md` §6).
+`src/macos/mac.rs`'s `receive` (`docs/MAC.md` §6).
 
 **Why it is needed.** On a Mac the Starter writes a stick through the
 descriptor `/usr/libexec/authopen -stdoutpipe` opens after the system's

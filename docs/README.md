@@ -30,7 +30,7 @@ need. Each document's header says what kind it is:
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
-| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count are in it (§3, §11); the hardening spec that first set them out, `docs/history/VAULT-HARDENING.md` |
+| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count are in it (§3, §11) |
 | What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F249) |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry; the earlier writer, `docs/history/KDBX-LOG.md` |
 | How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
@@ -147,6 +147,6 @@ need. Each document's header says what kind it is:
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `CRYPTO-LEARN-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `FRAMES-LOG.md`, `GPG-PAPERKEY-LOG.md`, `GUIDE-STICK-VISIT-LOG.md`, `HANDOFF.md`, `IMAGES-LOG.md`, `IMPACT-LOG.md`, `INTEROP-LOG.md`, `KDBX-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `LAYOUT-LOG.md`, `MAC-LOG.md`, `MODES-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `ORIENTATION-LOG.md`, `OWN-RANDOMNESS-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SCANNING-LOG.md`, `SEED-CONVERSION-LOG.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STICK-IDENTITY-LOG.md`, `STICK-SETUP-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TEXT-CURSOR-LOG.md`, `TEXT-SIZE-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-HARDENING.md`, `VAULT-HARDENING-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn, `WORKERS-LOG.md`.
+**History** (`docs/history/`): every finished Spec's log and every replaced decision, read by listing the folder.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/history/learn/` the old Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.

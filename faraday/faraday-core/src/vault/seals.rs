@@ -477,7 +477,7 @@ impl VaultArea {
 
     /// Holds open vault `v` at the **Open this copy?** dialog when its
     /// unlock found a seal count warning
-    /// (`docs/VAULT.md` §11; `docs/history/VAULT-HARDENING.md` §5.3 item 2); true when it holds.
+    /// (`docs/VAULT.md` §11); true when it holds.
     pub(crate) fn older_hold(
         &mut self,
         v: usize,

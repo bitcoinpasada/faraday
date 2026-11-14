@@ -1813,7 +1813,7 @@ vault's db certificate.
 
 ## APK signing key
 
-Removed (F99): `docs/history/APK-SIGNING.md`.
+Removed (F99).
 
 ## Nostr key
 
