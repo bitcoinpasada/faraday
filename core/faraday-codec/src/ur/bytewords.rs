@@ -91,7 +91,7 @@ pub fn encode(data: &[u8]) -> String {
 
 /// The payload behind a minimal-style bytewords string, checksum
 /// stripped and verified. `encoded` must already be lower case.
-pub fn decode(encoded: &str) -> Result<Vec<u8>, Fault> {
+pub fn decode(encoded: &str) -> Result<zeroize::Zeroizing<Vec<u8>>, Fault> {
     if !encoded.is_ascii() {
         return Err(Fault::NonAscii);
     }
@@ -99,7 +99,7 @@ pub fn decode(encoded: &str) -> Result<Vec<u8>, Fault> {
         return Err(Fault::InvalidLength);
     }
     let bytes = encoded.as_bytes();
-    let mut data = Vec::with_capacity(bytes.len() / 2);
+    let mut data = zeroize::Zeroizing::new(Vec::with_capacity(bytes.len() / 2));
     for pair in bytes.chunks_exact(2) {
         let byte = BYTE_BY_HASH[word_hash(pair[0], pair[1])].ok_or(Fault::InvalidWord)?;
         let word = WORDS[byte as usize].as_bytes();
@@ -117,7 +117,8 @@ pub fn decode(encoded: &str) -> Result<Vec<u8>, Fault> {
     if crc32(payload).to_be_bytes() != checksum {
         return Err(Fault::InvalidChecksum);
     }
-    data.truncate(data.len() - 4);
+    let payload_len = data.len() - 4;
+    data.truncate(payload_len);
     Ok(data)
 }
 
@@ -129,8 +130,8 @@ mod tests {
     fn bytewords_round_trip() {
         let input = alloc::vec![0, 1, 2, 128, 255];
         assert_eq!(encode(&input), "aeadaolazmjendeoti");
-        assert_eq!(decode("aeadaolazmjendeoti").unwrap(), input);
-        assert_eq!(decode(&encode(&[0])).unwrap(), alloc::vec![0]);
+        assert_eq!(*decode("aeadaolazmjendeoti").unwrap(), input);
+        assert_eq!(*decode(&encode(&[0])).unwrap(), alloc::vec![0]);
         assert_eq!(encode(&[0]), "aetdaowslg");
     }
 
@@ -151,7 +152,7 @@ mod tests {
                        fhecwzonnbmhcybtgwwelpflgmfezeonledtgocs\
                        fzhycypf";
         assert_eq!(encode(&input), encoded);
-        assert_eq!(decode(encoded).unwrap(), input.to_vec());
+        assert_eq!(*decode(encoded).unwrap(), input.to_vec());
     }
 
     #[test]

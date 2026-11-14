@@ -342,3 +342,47 @@ fn an_xprv_in_a_wallet_policy_refused_leaves_no_copy() {
     drop(read);
     finish("xprv in a wallet policy refused", armed, false);
 }
+
+#[test]
+fn a_seed_in_a_multi_part_ur_leaves_no_copy() {
+    use faraday_codec::ur::{Decoder, Encoder, Message};
+    // 64 bytes in parts of at most 16: the encoder wraps them in CBOR (a
+    // two-byte header, 66 bytes in all) and cuts that into five fragments
+    // of 14. The decoder resolves some fragments from mixed parts, joins
+    // them and checks the whole. Each fragment and the whole are searched
+    // for.
+    let seed: Vec<u8> = (0..64u8)
+        .map(|i| i.wrapping_mul(37).wrapping_add(11))
+        .collect();
+    let parts: Vec<faraday_text::Text> = {
+        let mut encoder = Encoder::bytes(&seed, 16).expect("an encoder");
+        (0..9).map(|_| encoder.next_part()).collect()
+    };
+    let mut forms = vec![Form::new("UR seed", seed.clone())];
+    let wrapped: Vec<u8> = [0x58, 0x40].iter().chain(&seed).copied().collect();
+    for (i, fragment) in wrapped.chunks(14).enumerate() {
+        forms.push(Form::new(
+            format!("UR seed fragment {i}"),
+            fragment.to_vec(),
+        ));
+    }
+    let armed = arm(&forms);
+    let mut decoder = Decoder::new();
+    // The first part is skipped and the others come out of order, so
+    // mixed parts are held and reduced.
+    for text in parts.iter().skip(1).rev() {
+        if decoder.receive(text).expect("a part") {
+            break;
+        }
+    }
+    assert!(
+        decoder.is_complete(),
+        "the parts did not complete the message"
+    );
+    match decoder.message() {
+        Some(Message::Bytes(bytes)) => assert!(bytes[..] == seed[..], "another message"),
+        _ => panic!("not a byte message"),
+    }
+    drop(decoder);
+    finish("multi-part ur seed", armed, false);
+}

@@ -14,6 +14,9 @@ use super::Fault;
 use super::xoshiro::Xoshiro256;
 use faraday_crypto::crc32;
 
+/// Bytes of a message or of a part of one: wiped when dropped.
+pub type Wiped = zeroize::Zeroizing<Vec<u8>>;
+
 /// One part of a fountain-encoded message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Part {
@@ -26,7 +29,7 @@ pub struct Part {
     /// CRC-32 of the message.
     pub checksum: u32,
     /// The fragment, or the XOR of several.
-    pub data: Vec<u8>,
+    pub data: Wiped,
 }
 
 impl Part {
@@ -55,7 +58,7 @@ impl Part {
             sequence_count: cursor.uint32().map_err(|_| Fault::Cbor)? as usize,
             message_length: cursor.uint32().map_err(|_| Fault::Cbor)? as usize,
             checksum: cursor.uint32().map_err(|_| Fault::Cbor)?,
-            data: cursor.byte_string().map_err(|_| Fault::Cbor)?,
+            data: Wiped::new(cursor.byte_string().map_err(|_| Fault::Cbor)?),
         };
         if !cursor.is_done() {
             return Err(Fault::Cbor);
@@ -117,7 +120,7 @@ impl Encoder {
     pub fn next_part(&mut self) -> Part {
         self.current_sequence += 1;
         let indexes = choose_fragments(self.current_sequence, self.fragment_count, self.checksum);
-        let mut mixed = alloc::vec![0; self.fragments[0].len()];
+        let mut mixed = Wiped::new(alloc::vec![0; self.fragments[0].len()]);
         for index in indexes {
             xor(&mut mixed, &self.fragments[index]);
         }
@@ -158,29 +161,14 @@ const PARTS_SLACK: usize = 64;
 /// is wiped when it is dropped: a code read by the camera may be a seed.
 #[derive(Default)]
 pub struct Decoder {
-    decoded: BTreeMap<usize, Vec<u8>>,
+    decoded: BTreeMap<usize, Wiped>,
     received: BTreeSet<Vec<usize>>,
-    buffer: BTreeMap<Vec<usize>, Vec<u8>>,
-    queue: Vec<(usize, Vec<u8>)>,
+    buffer: BTreeMap<Vec<usize>, Wiped>,
+    queue: Vec<(usize, Wiped)>,
     sequence_count: usize,
     message_length: usize,
     checksum: u32,
     fragment_length: usize,
-}
-
-impl Drop for Decoder {
-    fn drop(&mut self) {
-        use zeroize::Zeroize;
-        for v in self.decoded.values_mut() {
-            v.zeroize();
-        }
-        for v in self.buffer.values_mut() {
-            v.zeroize();
-        }
-        for (_, v) in &mut self.queue {
-            v.zeroize();
-        }
-    }
 }
 
 impl Decoder {
@@ -253,7 +241,7 @@ impl Decoder {
 
     /// Reduces a mix against everything already resolved, then either
     /// resolves a fragment or buffers what is left.
-    fn process_complex(&mut self, mut data: Vec<u8>, mut indexes: Vec<usize>) {
+    fn process_complex(&mut self, mut data: Wiped, mut indexes: Vec<usize>) {
         let known: Vec<usize> = indexes
             .iter()
             .copied()
@@ -265,8 +253,7 @@ impl Decoder {
         for index in known {
             indexes.retain(|&x| x != index);
             if let Some(fragment) = self.decoded.get(&index) {
-                let fragment = fragment.clone();
-                xor(&mut data, &fragment);
+                xor(&mut data, fragment);
             }
         }
         self.settle(data, indexes);
@@ -277,7 +264,7 @@ impl Decoder {
     /// strict subset of its own, and once buffered it reduces every mix
     /// whose fragments are a strict superset of its own. One fragment
     /// left resolves it.
-    fn settle(&mut self, mut data: Vec<u8>, mut indexes: Vec<usize>) {
+    fn settle(&mut self, mut data: Wiped, mut indexes: Vec<usize>) {
         indexes.sort_unstable();
         if indexes.len() > 1 {
             for index in indexes.clone() {
@@ -291,10 +278,9 @@ impl Decoder {
             let subset = self
                 .buffer
                 .iter()
-                .find(|(k, _)| k.len() < indexes.len() && k.iter().all(|x| indexes.contains(x)))
-                .map(|(k, v)| (k.clone(), v.clone()));
+                .find(|(k, _)| k.len() < indexes.len() && k.iter().all(|x| indexes.contains(x)));
             let Some((k, v)) = subset else { break };
-            xor(&mut data, &v);
+            xor(&mut data, v);
             indexes.retain(|x| !k.contains(x));
         }
         match indexes[..] {
@@ -361,11 +347,13 @@ impl Decoder {
 
     /// The message, once complete: the fragments joined, the padding
     /// checked to be zero and the checksum checked.
-    pub fn message(&self) -> Result<Option<Vec<u8>>, Fault> {
+    pub fn message(&self) -> Result<Option<Wiped>, Fault> {
         if !self.complete() {
             return Ok(None);
         }
-        let mut combined = Vec::with_capacity(self.sequence_count * self.fragment_length);
+        let mut combined = Wiped::new(Vec::with_capacity(
+            self.sequence_count * self.fragment_length,
+        ));
         for index in 0..self.sequence_count {
             combined.extend_from_slice(self.decoded.get(&index).ok_or(Fault::Cbor)?);
         }
@@ -398,8 +386,10 @@ pub const fn fragment_length(data_length: usize, max_fragment_length: usize) -> 
 
 /// `data` in fragments of `fragment_length`, the last zero-padded.
 fn partition(data: &[u8], fragment_length: usize) -> Vec<Vec<u8>> {
-    let mut padded = Vec::from(data);
-    padded.resize(div_ceil(data.len(), fragment_length) * fragment_length, 0);
+    let total = div_ceil(data.len(), fragment_length) * fragment_length;
+    let mut padded = Wiped::new(Vec::with_capacity(total));
+    padded.extend_from_slice(data);
+    padded.resize(total, 0);
     padded.chunks(fragment_length).map(Vec::from).collect()
 }
 
@@ -594,7 +584,7 @@ mod tests {
             sequence_count: 8,
             message_length: 100,
             checksum: 0x1234_5678,
-            data: alloc::vec![1, 5, 3, 3, 5],
+            data: alloc::vec![1, 5, 3, 3, 5].into(),
         };
         let cbor = part.cbor();
         assert_eq!(Part::from_cbor(&cbor).unwrap(), part);
@@ -635,7 +625,7 @@ mod tests {
         let mut decoder = Decoder::default();
         let part = encoder.next_part();
         assert_eq!(
-            part.data,
+            *part.data,
             alloc::vec![0x91, 0x6e, 0xc6, 0x5c, 0xf7, 0x7c, 0xad, 0xf5, 0x5c, 0xd7]
         );
         assert!(decoder.receive(part.clone()).unwrap());
@@ -650,7 +640,7 @@ mod tests {
             decoder.receive(part).unwrap();
         }
         assert!(!decoder.receive(encoder.next_part()).unwrap());
-        assert_eq!(decoder.message().unwrap(), Some(message));
+        assert_eq!(decoder.message().unwrap().as_deref(), Some(&message));
     }
 
     #[test]
@@ -668,7 +658,7 @@ mod tests {
                 sequence_count: 200,
                 message_length: 1000,
                 checksum: 0x1234_5678,
-                data: alloc::vec![7; 5],
+                data: alloc::vec![7; 5].into(),
             };
             if part.indexes().len() != 2 {
                 continue;
@@ -692,7 +682,7 @@ mod tests {
         while !decoder.complete() {
             decoder.receive(encoder.next_part()).unwrap();
         }
-        assert_eq!(decoder.message().unwrap(), Some(message));
+        assert_eq!(decoder.message().unwrap().as_deref(), Some(&message));
     }
 
     #[test]
@@ -703,7 +693,7 @@ mod tests {
             sequence_count: 8,
             message_length: 100,
             checksum: 0x1234_5678,
-            data: alloc::vec![1, 5, 3, 3, 5],
+            data: alloc::vec![1, 5, 3, 3, 5].into(),
         };
         let mut part = full.clone();
         part.sequence_count = 0;
@@ -715,7 +705,7 @@ mod tests {
         part.message_length = 0;
         assert_eq!(decoder.receive(part), Err(Fault::EmptyPart));
         let mut part = full;
-        part.data = Vec::new();
+        part.data = Wiped::default();
         assert_eq!(decoder.receive(part), Err(Fault::EmptyPart));
     }
 
@@ -738,7 +728,7 @@ mod tests {
                 sequence_count: 1,
                 message_length: 3,
                 checksum: 0,
-                data: b"bad".to_vec(),
+                data: b"bad".to_vec().into(),
             })
             .unwrap();
         assert_eq!(decoder.message(), Err(Fault::MessageChecksum));

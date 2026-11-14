@@ -184,7 +184,7 @@ pub enum Message {
 }
 
 impl Message {
-    fn new(ur_type: &str, cbor: Vec<u8>) -> Result<Self, Error> {
+    fn new(ur_type: &str, mut cbor: fountain::Wiped) -> Result<Self, Error> {
         Ok(match ur_type {
             PSBT_TYPE => Message::Psbt(
                 crate::cbor::byte_string(&cbor)
@@ -198,7 +198,7 @@ impl Message {
             ),
             other => Message::Other {
                 ur_type: Text::of(other),
-                cbor,
+                cbor: core::mem::take(&mut *cbor),
             },
         })
     }
@@ -242,7 +242,7 @@ pub fn encode_single(ur_type: &str, cbor: &[u8]) -> Text {
 }
 
 /// The kind, type, payload and `<seq>-<count>` of one UR string.
-type Decoded = (Kind, Text, Vec<u8>, Option<(usize, usize)>);
+type Decoded = (Kind, Text, fountain::Wiped, Option<(usize, usize)>);
 
 fn decode_ur(text: &str) -> Result<Decoded, Fault> {
     let normalized: Text = text.chars().map(|c| c.to_ascii_lowercase()).collect();
@@ -529,7 +529,7 @@ mod tests {
             sequence_count: 1,
             message_length: 3,
             checksum: 0,
-            data: b"bad".to_vec(),
+            data: b"bad".to_vec().into(),
         };
         let text = text!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()));
         let mut decoder = Decoder::new();
@@ -549,7 +549,7 @@ mod tests {
             sequence_count: 1,
             message_length: data.len(),
             checksum: faraday_crypto::crc32(&data),
-            data,
+            data: data.into(),
         };
         let text = text!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()));
         let mut decoder = Decoder::new();
