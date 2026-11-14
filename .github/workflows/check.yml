@@ -7,7 +7,11 @@
 # dependencies, never Faraday's own crates, written only by a push to main
 # (docs/decisions/F212.md).
 #
-# `just` is spread over twenty-two jobs: one compiles the tests once and
+# A push to main whose head commit already has a passed run of this workflow (the
+# push train's, started by hand on a branch) runs nothing again: the first job,
+# gate, finds that run and the later jobs are skipped (docs/decisions/F265.md).
+#
+# `just` is spread over twenty-three jobs: gate, then one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests
 # and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
@@ -37,8 +41,59 @@ env:
   SHARDS: 14
 
 jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    # The one place the token reads more than the code (F265): the list of runs and caches.
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      pass: ${{ steps.look.outputs.pass }}
+      skip: ${{ steps.look.outputs.skip }}
+    steps:
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: look
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          DEPS_HASH: ${{ github.event_name == 'push' && hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock', '.github/actions/save-deps/*') || '' }}
+          TOOLS_HASH: ${{ github.event_name == 'push' && hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') || '' }}
+        run: |
+          set -euo pipefail
+          echo "pass=false" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          [ "$EVENT" = push ] || { echo "Not a push to main: the whole check runs."; exit 0; }
+          run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=30" \
+            --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | first | .id // empty")
+          if [ -z "$run" ]; then echo "No passed run of this check on ${GITHUB_SHA}: the whole check runs."; exit 0; fi
+          echo "pass=true" >> "$GITHUB_OUTPUT"
+          echo "Run ${run} already passed the check on ${GITHUB_SHA}." | tee -a "$GITHUB_STEP_SUMMARY"
+          # Main's caches (F212: only a push to main writes them) for this commit's manifests: a missing one
+          # means the jobs that save it run again, with only the test shards skipped.
+          tools=$(grep -o 'TOOLS=[^"]*' .github/actions/setup/action.yml | head -1 | cut -d= -f2)
+          missing=
+          for k in "deps-Linux-build-tests-${DEPS_HASH}" "deps-Linux-doc-tests-${DEPS_HASH}" \
+                   "deps-Linux-lint-clippy-${DEPS_HASH}" "deps-Linux-lint-deps-${DEPS_HASH}" "deps-Linux-lint-repo-${DEPS_HASH}" \
+                   "deps-Linux-lint-touch-targets-${DEPS_HASH}" "deps-Linux-lint-op-cost-${DEPS_HASH}" "cargo-Linux-${tools}-${TOOLS_HASH}"; do
+            n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/caches?ref=refs/heads/main&key=${k}" \
+              --jq "[.actions_caches[] | select(.key == \"${k}\")] | length")
+            [ "$n" != 0 ] || missing="${missing} ${k}"
+          done
+          if [ -n "$missing" ]; then
+            echo "Main's cache lacks:${missing}: the jobs that save it run, the test shards do not." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "Main's caches are there: nothing else runs." | tee -a "$GITHUB_STEP_SUMMARY"
+
   build-tests:
     name: build tests
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     steps:
@@ -61,7 +116,8 @@ jobs:
 
   tests:
     name: tests ${{ matrix.shard }}/14
-    needs: build-tests
+    needs: [gate, build-tests]
+    if: needs.gate.outputs.pass != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     strategy:
@@ -90,6 +146,8 @@ jobs:
 
   doc-tests:
     name: doc tests
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     steps:
@@ -106,6 +164,8 @@ jobs:
 
   lint:
     name: ${{ matrix.part }}
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     strategy:
@@ -133,13 +193,16 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [build-tests, tests, doc-tests, lint]
+    needs: [gate, build-tests, tests, doc-tests, lint]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Every part passed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+          GATE: ${{ needs.gate.result }}
         run: |
-          echo "$RESULTS"
-          for r in $RESULTS; do [ "$r" = success ] || exit 1; done
+          echo "gate $GATE; $RESULTS"
+          # A job skipped because gate found a pass (F265) is not a failure; gate itself must have passed.
+          [ "$GATE" = success ] || exit 1
+          for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || exit 1; done
