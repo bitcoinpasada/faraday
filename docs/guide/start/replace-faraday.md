@@ -25,6 +25,10 @@ Put the signed file in this computer's Downloads folder. On What to write, under
 
 Faraday Starter takes the file only when it is this release's own program with a signature that holds: the program is compared with the release's while the signature is left out, so a file of another release, or with one byte changed, is refused, whoever signed it. It does not judge whose key signed it; the computer does that when it starts. What to write and Confirm show the name on the signing certificate and its SHA-256: the name is whatever the file's maker chose, so compare the SHA-256 with your db key's. Only the signature is taken from the file; what is written is the release's own program with that signature, in place of the release's file, and everything else on the boot partition is the release's.
 
+## Without the Starter
+
+Once the stick holds the new release, copy the signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, the first one, labelled `EFI`. On Linux and macOS it mounts as any FAT partition. On Windows it is an EFI system partition, which gets no drive letter: in `diskpart`, run as administrator, `select disk` the stick, `select partition 1` and `assign letter=S`, copy the file to `S:\EFI\BOOT\BOOTX64.EFI`, then `remove letter=S`.
+
 ## What the computer can see
 
 A Faraday stick has the names an ordinary stick has: its boot partition is an EFI system partition labelled EFI, and its data partition has no label, so a file manager, AutoPlay and the computer's record of the drives it has seen show it as any other stick. You may give the data partition a name when the stick is made, or on the device with Rename stick.

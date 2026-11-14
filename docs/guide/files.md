@@ -15,6 +15,29 @@ The top line is the state of the stick. **Scan a QR code** reads a code in place
 
 With none attached the line reads that it is waiting for a stick. With a stick attached while a secret is held, it reads that the stick is attached and to lock to use it, and a press on it locks. Otherwise the line is the stick's label.
 
+## Formatting a stick
+
+**Key:** files.format-stick
+
+Any other USB stick can carry files to and from Faraday, on an ordinary stick visit and only while no vault is open. It needs a partition table, MBR or GPT, with the files in a partition: a filesystem written to the whole device (what `mkfs.fat /dev/sdX` makes) is not seen. The partition is FAT32 or FAT16; exFAT, NTFS, ext4, APFS and FAT12 are not read, and sticks larger than 32 GB usually come as exFAT and need reformatting. The label is anything except `EFI`, `bootfs` or `FARADAYBOOT`, and no partition is named `EFI system partition`: those mark a boot partition and are never opened. Files are read at the top level only, up to 18 MiB each.
+
+On Linux, with the stick at `/dev/sdX` (check with `lsblk` first; this erases the stick):
+
+```
+sudo parted --script /dev/sdX mklabel msdos mkpart primary fat32 1MiB 100%
+sudo mkfs.fat -F 32 -n FARADAY /dev/sdX1
+```
+
+On macOS, with the stick at `/dev/diskN` (check with `diskutil list`):
+
+```
+diskutil eraseDisk FAT32 FARADAY MBRFormat /dev/diskN
+```
+
+On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a larger stick, use Disk Management to make a partition of 32 GB or less and format it FAT32.
+
+The Raspberry Pi reads USB sticks the same way, and its screens say "SD card" where the PC's say "stick".
+
 ## Delete files
 
 **Key:** files.delete-files

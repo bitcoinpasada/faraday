@@ -233,8 +233,13 @@ hardware it is offered under (`docs/IMAGES.md` §1, §2).
 
 The images are built in a container with every compiler pinned, the
 commit date as `SOURCE_DATE_EPOCH`, host paths remapped out of the
-output, and the FAT serials derived from that date (README.md,
-"Reproducible builds"). To check a release:
+output, and the FAT serials derived from that date
+(`faraday/image/fat-serial.sh`, `docs/STICK-IDENTITY.md`). The kernel's
+release string carries the build ID, never a date (`docs/decisions/F5.md`),
+and the Pi image carries it in `faraday-build.txt` on its boot partition.
+The host's dosfstools 4.2 does not read `SOURCE_DATE_EPOCH`, so `mkfs.vfat`
+is given `--invariant`, which fixes the time it would stamp on the root
+directory's volume-label entry. To check a release:
 
 ```
 gpg --verify SHA256SUMS.asc SHA256SUMS   the sums are signed by the release key

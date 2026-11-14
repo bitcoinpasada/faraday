@@ -93,168 +93,24 @@ seed's words; Restore's Quorum card, 2 of 3.
 
 ## Starting a session: the boot import
 
-The boot stick's data partition can carry what a session needs: vaults,
-wallet descriptors, PSBTs, seed words, pictures of QR codes. Faraday
-lists it when it first sees the stick after power-on, reads only what
-the person chooses to import, and does not leave it attached while
-anything secret is open.
-
-1. **Listed, not read.** When the stick first appears, Faraday reads
-   only its list of files, each one's name and size (F130). None of
-   the files is opened.
-2. **Choose what to import.** A sheet reads "Read from {label}", one
-   line counting the files by their names ("1 vault · 2 PSBTs · 4 other
-   files, by their names"), and lists every vault and file by name and
-   size, each ticked, a seed's file too, with **Unselect all**,
-   **Later** and **Import** (F60). **Import** reads the ticked files and
-   no other, then brings in what they hold: the files into Files, the
-   wallets and keys they hold, and the vaults into Files, locked. A PNG
-   is not kept as a picture: its QR codes are read, and what they hold
-   is kept, a SeedQR as its seed words. A file Faraday reads as nothing
-   it knows, up to 18 MiB, is kept as a File, which can be signed with a
-   GPG key or sent as QR codes. A seed imported with the stick still in
-   loads as the stick is pulled.
-3. **Pull the stick, then unlock.** Keys never load and passphrases are
-   never typed while a stick is attached. Each vault imported offers its
-   passphrase field in turn, with **Unlock** and **Cancel**; Cancel
-   leaves it locked in Files. A wrong passphrase stays on the sheet and
-   says so.
-4. **Choose what to load.** After an unlock, **Load from {vault}** lists
-   a card for each wallet in the vault, with its seeds, and the keys of
-   no wallet, ticked from each item's Load at unlock setting (F62).
-   **Load ticked** loads them; **Not now** loads nothing and leaves the
-   vault open.
-
-**Later**, or a tap beside the sheet, reads and brings in nothing:
-Home leads with the import, which opens the sheet again; the Sticks row
-in the sidebar does too. Locking drops the import. Import needs the
-stick in: pulled before Import, the sheet asks for it back, and putting
-it back brings the sheet up again. Any other later insertion of the
-boot stick in the same power-on is an ordinary stick visit; the desktop
-app's Boot stick pill stands for the boot stick, so its first plugging
-in a session runs the import.
+When the boot stick first appears, Faraday lists its files without
+reading them, and imports only what the person ticks, before any key
+loads. `docs/FLOWS.md` ("Home" and "Session") has the sheets and their
+buttons, and `docs/guide/vaults.md` the unlock.
 
 ## A second stick for storage
 
-On a PC, any other USB stick can carry files to and from Faraday. It is
-read and written on an ordinary stick visit, never at the boot import,
-and only while no vault is open ([Security model](#security-model)).
-Format it like this:
-
-- **A partition table**, MBR or GPT, with the files in a partition. A
-  filesystem written to the whole device with no partition table (what
-  `mkfs.fat /dev/sdX` makes) is not seen: Faraday only ever opens
-  partitions.
-- **FAT32 or FAT16.** exFAT, NTFS, ext4 and APFS are not read, and
-  neither is FAT12. Sticks larger than 32 GB usually come formatted
-  exFAT and need reformatting; most smaller ones come as MBR and FAT32
-  and work as they are.
-- **Any label except a boot partition's** (`EFI`, `bootfs` or
-  `FARADAYBOOT`), and no partition named `EFI system partition`: those
-  mark a boot partition and are never opened.
-- **Files at the top level.** Files inside folders are not read. The
-  largest file read is 18 MiB. Files of any size are specified in
-  `docs/LARGE-FILES.md` and not built yet.
-
-Files are deleted from a stick on the stick visit, with no online
-computer: **Delete files** is the one way in. Its sheet, marked as a
-danger zone, chooses what: **Chosen files**, ticked on a list, each
-overwritten with zeros, read back, and removed with its name; **The free
-space**; or **The whole partition**. What zeros do not reach is said on the same
-sheet: a USB stick or an SD card moves data around inside the chip and
-can keep old copies of a block where no write reaches, so zeros stop
-recovery tools but not a lab that reads the chip itself. If a seed or
-other secret was ever saved to a stick unencrypted, the only sure way to
-remove it is to destroy the stick.
-
-The other two work on the whole files partition:
-
-- **The free space** writes zeros over every part of the files
-  partition no file uses, and reads them back. It clears what earlier
-  deletes left, by Faraday or by any other computer, including deleted
-  files' names and the bytes past each kept file's end. The files on the
-  stick stay as they are.
-- **The whole partition** deletes every file, makes the partition
-  an empty FAT volume with the same layout and name, then writes zeros
-  over all of it, once or twice. Two passes make a stick replace more of
-  its old blocks.
-
-Both run in steps with a progress bar and **Stop**; a stick pulled part
-way is left whole, only part way zeroed. Only the files partition is
-written: the stick's other partitions, its partition table and any space
-outside a partition are never touched. That is the security boundary:
-the process that reads sticks takes in whatever a stick brings, so it is
-given the files partition and nothing else, and can never write a boot
-partition or a partition table, where a bad stick could leave code for
-the next computer to boot. Faraday itself only ever writes into that
-partition, so zeroing it reaches everything Faraday ever wrote to the
-stick. No zeroing is a certain erase, though: the stick's controller can
-keep old copies of blocks where no write reaches, and only destroying
-the stick is certain.
-
-On Linux, with the stick at `/dev/sdX` (check with `lsblk` first; this
-erases the stick):
-
-```
-sudo parted --script /dev/sdX mklabel msdos mkpart primary fat32 1MiB 100%
-sudo mkfs.fat -F 32 -n FARADAY /dev/sdX1
-```
-
-On macOS, with the stick at `/dev/diskN` (check with `diskutil list`):
-
-```
-diskutil eraseDisk FAT32 FARADAY MBRFormat /dev/diskN
-```
-
-On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a
-larger stick, use Disk Management to make a partition of 32 GB or less
-and format it FAT32.
-
-The Raspberry Pi's images read USB sticks as the PC does (`docs/IMAGES.md`).
-Its screens say
-"SD card" wherever the PC's say "stick": "SD card visit", "Lock and use
-SD card", "Remove the SD card".
+Any other USB stick, MBR or GPT with a FAT32 or FAT16 partition, carries
+files on a stick visit, and Faraday can zero what it wrote to one
+(`docs/guide/files.md`, "Formatting a stick" and "Delete files"; the
+flow is `docs/FLOWS.md`, "The stick in Files").
 
 ## Upgrading a stick
 
-A Faraday stick is upgraded from a computer with Faraday Starter: Make
-a Faraday stick → **Replace Faraday, keep data**. It checks the new
-release's image against the release's image list, writes the stick's boot
-partition, reads it back and compares; the data partition, with its
-vaults and settings file, is not read and not written. Faraday itself
-writes no boot partition (`docs/DECISIONS.md` F128). Plugging the stick
-into the computer is what exposes its data partition: the vaults there
-are encrypted, the settings file is not.
-
-A stick that already holds the same build is not written; an older
-Faraday over a newer one is marked on Confirm. A stick whose boot
-partition is smaller than 64 MiB (one made with a 48 MB one) has to be
-written whole, which empties its data partition: copy its files to
-another stick first. A Pi card is written whole.
-
-**With Secure Boot.** The release's own `BOOTX64.EFI` does not carry
-your db signature. Sign the new release's on Faraday: download the
-release's `faraday-X.Y.Z-BOOTX64.EFI`, `SHA256SUMS` and `SHA256SUMS.asc`
-onto a stick's data partition, copy the three in, sign
-`faraday-X.Y.Z-BOOTX64.EFI` (Vaults → the vault holding the keys → **Secure Boot** → **Owner keys** → **Sign or check an image**) and write
-the signed file back. Faraday signs a boot program only when it is a
-release's own, at least as new as the Faraday signing it: the signature
-must verify with the release key built into Faraday, and `SHA256SUMS`
-must list the file (`docs/DECISIONS.md` F134). Put the signed file in
-the computer's Downloads folder; then, on What to write, choose Boot
-file → **One I signed** and the file. The Starter takes it only when it
-is this release's own program with one signature that holds, shows the
-signing certificate's name and SHA-256 (compare the SHA-256 with your db
-key's), and writes the release's own bytes with that signature in place
-of the release's file (`docs/DECISIONS.md` F133).
-
-Without the Starter, once the stick holds the new release, copy the
-signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, its
-first, labelled `EFI`. On Linux and macOS it mounts as any FAT
-partition. On Windows it is an EFI system partition, which gets no drive
-letter: in `diskpart`, run as administrator, `select disk` the stick,
-`select partition 1` and `assign letter=S`, copy the file to
-`S:\EFI\BOOT\BOOTX64.EFI`, then `remove letter=S`.
+Faraday Starter → Make a Faraday stick → **Replace Faraday, keep data**
+writes the boot partition and leaves the vaults alone
+(`docs/guide/start/replace-faraday.md`, with Secure Boot on and without
+the Starter too; `docs/STARTER.md`).
 
 ## Choosing a computer
 
@@ -461,97 +317,11 @@ just crosscheck-status --follow              a running cross-check, from another
 ```
 
 `docs/DEVELOPING.md` is the whole guide: what to install, the check,
-the images, reproducing a release byte for byte, the dev image's boot
-report (written to the stick every 30 seconds, for a machine that does
-not work), QEMU, the cross-check and fuzzing.
-
-## USB stick image
-
-The image is built with Buildroot in a container (`DOCKER=podman` or
-`docker`).
-
-```
-just faraday-stick-bin                    # the stick binary, static musl
-just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
-just dev=1 faraday-stick-image            # + a serial console and root login, for development
-just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
-```
-
-A build this way is a test release unless built with `release=1`, which
-refuses a dev image, a version override and a tree that differs from its
-commit (`docs/DECISIONS.md` F5):
-
-```
-just release=1 faraday-stick-image        # a published release
-```
-
-`faraday-stick-boot` writes the image's boot partition
-(`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
-stick's first partition and leaves its data partition as it is. It
-refuses a disk that does not have a Faraday stick's layout
-(`docs/STICK-IDENTITY.md` §5.1), is not on USB or has anything
-mounted, and asks for the device to be typed back; `--dry-run` only
-checks. It is for development only.
-
-Flash the image to a stick and boot a PC from it; the stick image starts
-on mainnet. `docs/IMAGES.md` §10 describes the image layout and
-`faraday/image/run-build.sh` the build.
-
-### Writing a developer's image
-
-Faraday Starter writes an image built here in place of its own:
-
-```
-just dev=1 faraday-stick-image
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
-```
-
-`--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only
-*keep data* can write (the boot partition, with the vaults and settings
-on the data partition left alone). The screens and the writer are the
-release's: Confirm says the image is not Faraday Starter's own and shows its
-SHA-256. A Faraday Starter built without a release's image list offers only `--image`. On
-Linux the write goes through udisks2 and the desktop may ask for a
-password; the Starter never runs as root. `docs/STARTER.md` §4.1 says what
-the writer checks and in what order.
-
-## Reproducible builds
-
-The stick image is built in a container with the base image and every
-compiler pinned by version, the commit date as `SOURCE_DATE_EPOCH`, and
-host paths remapped out of the output, so that a second builder can
-check that it gets the same bytes. Faraday's own binaries, built outside
-that container, have their source paths rewritten the same way
-(`faraday/image/path-remap.sh`). The kernel's release string carries
-the Faraday build ID: a release's version alone, otherwise the version,
-the commit's first twelve hex digits and the kind of build, test or dev
-(and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
-date (`docs/DECISIONS.md` F5). The Pi image carries the same string in
-`faraday-build.txt` on its boot partition, since its kernel is
-compressed; the Starter reads a Pi card's version from that
-file, and a card made before it existed reads as it always did. Each
-FAT filesystem in an image (the boot and the data partition, on the
-stick and on the Pi) is stamped with a volume serial that is a function
-of `SOURCE_DATE_EPOCH` and the partition's role
-(`faraday/image/fat-serial.sh`, given to `mkfs.vfat -i` through the
-board's `genimage.cfg`), and so are the stick's disk and partition GUIDs
-and the Pi card's disk signature (`faraday/image/image-id.sh`), so two
-builds of one commit have the same bytes. Two sticks written from one
-image by another tool have the same IDs too; the Starter gives each stick
-it writes its own (`docs/STICK-IDENTITY.md` §4). The same
-`extraargs` carry `--invariant`: Buildroot builds dosfstools 4.2 for the
-host, which does not read `SOURCE_DATE_EPOCH` (that came in a later
-release), so `BR2_REPRODUCIBLE` and the exported variable did not reach
-`mkfs.vfat`, and it stamped the root directory's volume-label entry with
-the clock (creation and write time, 8 bytes per image). `--invariant`
-makes it use a fixed time; it also fixes the volume ID, which the
-following `-i` replaces. No second
-builder has checked a Faraday image yet. The
-Starter for Linux is built by `just faraday-linux-bin` in a pinned
-Debian 11 container (`faraday/build/linux`), against glibc 2.31, with
-the same path rewriting, so one file runs on Ubuntu 20.04 and later,
-Debian 11 and later, Fedora 32 and later and Arch.
+the images (a stick image is built with Buildroot in a container, and is
+a test release unless built with `release=1`), writing a developer's
+image, reproducing a release byte for byte, the dev image's boot
+report, QEMU, the cross-check and fuzzing. `docs/IMAGES.md` §10
+describes the image layout.
 
 ## Verifying a release
 
@@ -647,22 +417,7 @@ formats.
 ## Repository rules
 
 `CLAUDE.md` holds the rules every change follows, for people and agents
-alike, and `just` enforces most of them: a change that breaks one fails
-the check.
-
-- GitHub Actions runs `just` on every push to main and every pull
-  request and, started by hand, the fuzz run before a release and one crate's tests or one lint
-  recipe, nothing else; everything builds and tests locally too.
-- Nothing private is committed.
-- Every decision is numbered and kept (`docs/DECISIONS.md`); every
-  document says whether it describes what is built or what is planned
-  (`docs/README.md`).
-- Every dependency is vetted (`cargo vet`, `docs/deps/`), and every
-  cryptographic change is checked against published vectors or another
-  implementation.
-- The screens follow Material 3 (`docs/DESIGN.md`); every user-facing
-  string is in one file; files and functions over their size limits
-  only become fewer (`tools/README.md`, "The lints `just lint` runs").
+alike, and `just` enforces most of them.
 
 ## License
 
