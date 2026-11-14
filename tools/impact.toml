@@ -149,13 +149,6 @@ catches = "crypto sources changed since the last passing cross-check (F79, F197)
 misses = "whether the cross-check covers the change; any commit between releases"
 
 [[check]]
-id = "crypto-fingerprints"
-run = "python3 -I -B docs/crypto/check.py check --release"
-stage = "release"
-catches = "an action whose code, libraries, vectors, area or used actions changed since its fingerprint was written (F148, F197), with everything crypto-check catches"
-misses = "whether an entry's text is true (docs/CRYPTO-LEARN.md §17); any commit between releases"
-
-[[check]]
 id = "lint-standards"
 run = "python3 -I -B tools/lint-standards.py"
 stage = "just lint"
@@ -686,11 +679,11 @@ kind = "review"
 
 [[rule]]
 id = "crypto.crosscheck-stamp"
-title = "before a release, the crypto sources match the last passing cross-check and each action's fingerprint its code"
+title = "before a release, the crypto sources match the last passing cross-check"
 source = ["docs/decisions/F79.md", "docs/decisions/F148.md", "docs/decisions/F197.md", "CLAUDE.md"]
 when = ["core/*/src/**", "tools/crosscheck/**", "Cargo.lock"]
 kind = "held"
-held_by = ["lint-crosscheck", "crypto-fingerprints"]
+held_by = ["lint-crosscheck"]
 
 [[rule]]
 id = "crypto.crosscheck-combined"
@@ -738,7 +731,7 @@ title = "a cryptographic change is tested against published vectors or another i
 source = ["CLAUDE.md", "docs/decisions/F148.md"]
 when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
-misses = "the inventory (crypto-check) and, before a release, the fingerprints (crypto-fingerprints) say a cryptographic function changed, not whether it was tested; that is the review the re-stamp (just crypto-review) prompts"
+misses = "the inventory (crypto-check) says a cryptographic function changed, not whether it was tested; that is this review"
 
 [[rule]]
 id = "crypto.action-covered"

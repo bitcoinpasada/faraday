@@ -438,8 +438,8 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `standards.no-way-past` | `core/faraday-psbt/src/**`, a hold added (`lines`) | R | a hold names its decision (planned check: holds listed) | F136 |
 | `standards.out-of-app` | `core/*/src/**` | R | unpublished or unreviewed work compiled out of the app | F234, `docs/STANDARDS.md` §0 |
 | `standards.scope` | a new kind of key or signature | R | a decision | F116 |
-| `crypto.crosscheck-stamp` | the stamp's files, before a release | H | `lint-crosscheck`, `crypto-fingerprints` | F79, F197 |
-| `crypto.tested` | `core/*/src/**` | R | tested against published vectors or another implementation (planned: F148's inventory and re-stamp) | `CLAUDE.md`, F148 |
+| `crypto.crosscheck-stamp` | the stamp's files, before a release | H | `lint-crosscheck` | F79, F197 |
+| `crypto.tested` | `core/*/src/**` | R | tested against published vectors or another implementation (planned: F148's inventory) | `CLAUDE.md`, F148 |
 | `crypto.action-covered` | `core/*/src/**`, `faraday/faraday-keys/src/**` | H, planned | F148's inventory | F148 |
 | `crypto.generated` | `docs/STANDARDS.md` §1 to §7 and §10, `docs/AUDIT.md` §3 | H, planned | F148's `gen.py check` | F148 |
 | `crypto.at-source` | `core/**` | R | fixed at its source, not wrapped | `CLAUDE.md` |

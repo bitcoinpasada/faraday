@@ -169,8 +169,8 @@ and no answer.
 
 A full `--fresh` run also writes `out/crosscheck-record.txt`
 (`record.py`), the release's record: the git tree it checked without
-`docs/crypto/actions.toml` and `actions.lock`, whose fingerprints are stamped
-from the run's result (`python3 -I -B tools/crosscheck/record.py tree <tag>`
+`docs/crypto/actions.toml`, which the run does not read
+(`python3 -I -B tools/crosscheck/record.py tree <tag>`
 gives it for the release), seed, scale and UTC date;
 each area with its cases, answers, known differences and result; each
 reference folder with its commit and the SHA-256 of its files; Bitcoin

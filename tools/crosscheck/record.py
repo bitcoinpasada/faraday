@@ -35,10 +35,10 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REFERENCES = ROOT / "tools" / "reference"
 NAME = "crosscheck-record.txt"
-# The fingerprints are stamped from a run's result, after it (`just
-# crypto-review-stale`), so the tree a record names leaves them out: the run
-# cannot have seen the ones its release commit holds, and reads neither file.
-FINGERPRINTS = ("docs/crypto/actions.toml", "docs/crypto/actions.lock")
+# The tree a record names leaves the manifest out: it is documentation of the
+# cryptography, not something the run reads, and the release commit may
+# correct it after the run.
+FINGERPRINTS = ("docs/crypto/actions.toml",)
 TREE_LINE = "tree without fingerprints"
 
 

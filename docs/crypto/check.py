@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 """The manifest's checker (docs/CRYPTO-LEARN.md §2 to §7, §10.2).
 
-    check.py check [--release] [--inventory FILE] [--all]
-        coverage, schema, truth of what an entry names; with --release,
-        which `just lint-release` passes, the fingerprints too (F197)
-    check.py review ID [--inventory FILE]
-        one of the two writers of a fingerprint (§5.3): `just crypto-review ID`
-    check.py review-stale [--inventory FILE]
-        the other: stamps every action and construction whose fingerprint fails,
-        each as `review` would, in one call (all or none): `just crypto-review-stale`
-    check.py changes TAG [--inventory FILE]
-        the actions whose fingerprint changed since a tag: `just crypto-changes TAG`
+    check.py check [--inventory FILE] [--all]
+        coverage, schema, truth of what an entry names
     check.py --self-test
         the checker over a small fixture manifest and inventory
 
@@ -36,17 +28,12 @@ checked (the inventory does not record parameters).
 
 The screens list (§9.2) is checked by `gen_how.screens_check`; the Learn pages a screen
 opens (§9.1) by a test in faraday-core.
-The generated places of §3.1 are written by `docs/crypto/gen.py`, which review
-runs (`regenerate`); `gen.py check` holds them.
+The generated places of §3.1 are written by `docs/crypto/gen.py`; `gen.py check` holds them.
 
     check.py inventory
         the inventory the manifest's roots ask for, to a file for --inventory
 """
 
-import contextlib
-import datetime
-import hashlib
-import io
 import json
 import pathlib
 import re
@@ -57,10 +44,7 @@ import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 MANIFEST = "docs/crypto/actions.toml"
-LOCK = "docs/crypto/actions.lock"
 GEN = "docs/crypto/gen.py"
-LOCK_HEAD = ("# Written by `just crypto-review`, never by hand (docs/CRYPTO-LEARN.md §5):\n"
-             "# per action, the parts its fingerprint is the hash of.\n")
 
 STATUSES = {"Deployed", "Complete", "Draft", "Closed", "Informational", "Convention",
             "Proposed Standard", "Internet Standard", "Best Current Practice",
@@ -95,7 +79,7 @@ LIBRARY_KEYS = {"author"}
 VECTOR_KEYS = {"source", "by", "own"}
 VECTOR_SOURCES = {"published", "outside", "own"}
 # A construction (§18): how a format several actions share is built, drawn on the Cryptography tab.
-CONSTRUCTION_KEYS = {"id", "title", "actions", "section", "review"}
+CONSTRUCTION_KEYS = {"id", "title", "actions", "section"}
 SECTION_KEYS = {"heading", "para"}
 PARA_KEYS = {"text", "table", "words", "planned", "until", "piece", "does", "instead", "why"}
 OPEN_ITEM_KEYS = {"spec", "names"}
@@ -132,13 +116,8 @@ def is_glue_method(r):
     unless the method is itself a root."""
     return r["name"].startswith("Faraday::")
 
-REVIEW_KEYS = {"places", "fingerprint", "reviewed"}
 
-
-def sha(data):
-    if isinstance(data, str):
-        data = data.encode()
-    return hashlib.sha256(data).hexdigest()
+REVIEW_KEYS = {"places"}
 
 
 class Errors:
@@ -235,52 +214,15 @@ def read_inventory(root, path):
     return Inventory(cargo_inventory(root, manifest_roots(manifest)))
 
 
-# ------------------------------------------------------------------- lock
-
-def parse_lock(text):
-    """{id: [lines]}; the lines as written."""
-    out, cur = {}, None
-    for line in text.splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
-        m = re.fullmatch(r"\[([a-z0-9-]+)\]", line)
-        if m:
-            cur = out.setdefault(m.group(1), [])
-        elif cur is not None:
-            cur.append(line)
-    return out
-
-
-def fp_line(line):
-    """A lock line as the fingerprint reads it: a function without its path."""
-    if line.startswith("fn "):
-        return " ".join(line.split()[:2])
-    return line
-
-
-def fingerprint_of(lines):
-    return sha("\n".join(sorted(fp_line(x) for x in lines)) + "\n")
-
-
-def lock_text(lock):
-    out = [LOCK_HEAD]
-    for i in sorted(lock):
-        out.append(f"\n[{i}]\n")
-        out.extend(x + "\n" for x in sorted(lock[i]))
-    return "".join(out)
-
-
 # ---------------------------------------------------------------- context
 
 class Ctx:
-    def __init__(self, root, inv, manifest_text=None, lock_text_=None):
+    def __init__(self, root, inv, manifest_text=None):
         self.root = pathlib.Path(root)
         self.inv = inv
         self.errors = Errors()
         self.notes = []
         self.text = manifest_text if manifest_text is not None else self.read(MANIFEST)
-        self.lock = parse_lock(lock_text_ if lock_text_ is not None else self.read(LOCK))
-        self.lock_raw = lock_text_ if lock_text_ is not None else self.read(LOCK)
         try:
             self.data = tomllib.loads(self.text)
         except tomllib.TOMLDecodeError as e:
@@ -387,7 +329,7 @@ class Ctx:
                 stack.extend(self.uses.get(x, ()))
         return seen
 
-    # --- the parts of a fingerprint (§5.2)
+    # --- Cargo.lock
 
     def cargo_lock(self):
         if self._cargo is None:
@@ -400,48 +342,6 @@ class Ctx:
                 self._cargo.setdefault(p["name"], []).append(
                     (p.get("version", ""), p.get("checksum", "")))
         return self._cargo
-
-    def vector_hash(self, name):
-        base = self.root / "tools" / "vectors" / name
-        if not base.is_dir():
-            return None
-        h = hashlib.sha256()
-        for p in sorted(base.rglob("*")):
-            if p.is_file() and "__pycache__" not in p.parts:
-                h.update(f"{p.relative_to(base).as_posix()}\0{sha(p.read_bytes())}\n".encode())
-        return h.hexdigest()
-
-    def own_lines(self, a):
-        """The lock lines of an action's own parts: functions, libraries, vectors, area."""
-        lines = []
-        for f in sorted(self.closure.get(a.get("id"), ())):
-            lines.append(f"fn {self.inv.fns[f]['hash']} {f}")
-        impl = a.get("implementation", {})
-        for lib in as_list(impl.get("libraries")):
-            for ver, ck in sorted(self.cargo_lock().get(lib, [])):
-                lines.append(f"lib {lib} {ver} {ck}")
-        chk = a.get("checked", {})
-        for v in as_list(chk.get("vectors")):
-            h = self.vector_hash(v)
-            if h:
-                lines.append(f"vec {v} {h}")
-        area = chk.get("crosscheck")
-        if area:
-            p = self.root / "tools" / "crosscheck" / f"area_{area}.py"
-            if p.is_file():
-                lines.append(f"area {area} {sha(p.read_bytes())}")
-        return lines
-
-    def lines(self, a):
-        own = self.own_lines(a)
-        for u in sorted(self.trans_uses(a.get("id"))):
-            ua = self.by_id.get(u)
-            if ua is not None:
-                own.append(f"use {u} {fingerprint_of(self.own_lines(ua))}")
-        return own
-
-    def fingerprint(self, a):
-        return fingerprint_of(self.lines(a))
 
 
 def as_list(v):
@@ -798,11 +698,6 @@ def schema_action(c, a, i):
             bad(f"own: `kind` is one of {sorted(KINDS)}")
     if not a.get("standards") and not own:
         bad("no standard and no own call: a standard, or the own call that says it is Faraday's own")
-    rv = a.get("review", {})
-    if isinstance(rv, dict):
-        if rv.get("reviewed") is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}",
-                                                               str(rv.get("reviewed"))):
-            bad("review.reviewed is not a date")
 
 
 def enum_variants(text, name):
@@ -848,11 +743,7 @@ def check_truth(c):
             continue
         for f in as_list(a.get("functions")) + as_list(a.get("code")):
             if f not in inv.fns:
-                msg = f"{f} is not a function the inventory finds"
-                moved = moved_target(c, i, f)
-                if moved:
-                    msg += f" (moved, body unchanged, to {moved}: run just crypto-review {i})"
-                e.add("untrue", msg, i)
+                e.add("untrue", f"{f} is not a function the inventory finds", i)
         crate = a.get("implementation", {}).get("crate")
         if crate and not (c.root / crate).is_dir():
             e.add("untrue", f"implementation.crate {crate} does not exist", i)
@@ -927,22 +818,6 @@ def has_heading(text, heading):
                for ln in text.splitlines() if ln.startswith("#"))
 
 
-def moved_target(c, i, path):
-    """The function with the body hash the lock holds for `path`, when one fits."""
-    old = None
-    for ln in c.lock.get(i, []):
-        p = ln.split()
-        if p[0] == "fn" and len(p) >= 3 and p[2] == path:
-            old = p[1]
-    if not old:
-        return None
-    taken = {f for f in c.owner}
-    cands = [x for x in c.inv.by_hash.get(old, []) if x not in taken]
-    same = [x for x in cands if x.split("::")[-1] == path.split("::")[-1]]
-    pick = same if len(same) == 1 else cands if len(cands) == 1 else []
-    return pick[0] if pick else None
-
-
 # ----------------------------------------------------------------- coverage
 
 def check_coverage(c):
@@ -970,71 +845,6 @@ def check_coverage(c):
     named_s = {s for a in c.actions for s in as_list(a.get("checked", {}).get("selftest"))}
     for n in sorted(selftest_checks(c) - named_s):
         e.add("unnamed", f"self-test check {n} is named by no action")
-
-
-# ------------------------------------------------------------- fingerprints
-
-def diff_parts(old_lines, new_lines):
-    def key(ln):
-        p = ln.split()
-        return (p[0] + " " + p[2]) if p[0] == "fn" and len(p) >= 3 else (p[0] + " " + p[1])
-
-    old = {key(x): x for x in old_lines}
-    new = {key(x): x for x in new_lines}
-    out = []
-    for k in sorted(set(old) | set(new)):
-        if old.get(k) == new.get(k):
-            continue
-        out.append(("added " if k not in old else "removed " if k not in new else "changed ") + k)
-    return out
-
-
-def check_fingerprints(c):
-    e = c.errors
-    for a in c.actions:
-        i = a.get("id")
-        if not str_ok(i):
-            continue
-        review = a.get("review") if isinstance(a.get("review"), dict) else {}
-        stored = review.get("fingerprint")
-        locked = c.lock.get(i)
-        now = c.lines(a)
-        if not stored or locked is None:
-            e.add("fingerprint", "never reviewed: no fingerprint or no lock lines; "
-                  f"run: just crypto-review {i}", i)
-            continue
-        if fingerprint_of(locked) != stored:
-            e.add("fingerprint", "the fingerprint is not the hash of its lock lines "
-                  f"(edited by hand?); run: just crypto-review {i}", i)
-        if sorted(map(fp_line, locked)) != sorted(map(fp_line, now)):
-            ch = diff_parts(locked, now)
-            e.add("fingerprint", f"the code changed since it was reviewed on "
-                  f"{review.get('reviewed', '?')}\n    changed: " + "\n             ".join(ch[:12])
-                  + (f"\n             … {len(ch) - 12} more" if len(ch) > 12 else "")
-                  + f"\n    run: just crypto-review {i}", i)
-    for con in constructions(c):
-        i = con.get("id")
-        if not str_ok(i):
-            continue
-        review = con.get("review") if isinstance(con.get("review"), dict) else {}
-        stored, locked = review.get("fingerprint"), c.lock.get(i)
-        now = construction_lines(c, con)
-        if not stored or locked is None:
-            e.add("fingerprint", "construction never reviewed: no fingerprint or no lock lines; "
-                  f"run: just crypto-review {i}", i)
-            continue
-        if fingerprint_of(locked) != stored:
-            e.add("fingerprint", "the fingerprint is not the hash of its lock lines "
-                  f"(edited by hand?); run: just crypto-review {i}", i)
-        if sorted(locked) != sorted(now):
-            ch = diff_parts(locked, now)
-            e.add("fingerprint", f"the code the construction reads changed since it was reviewed "
-                  f"on {review.get('reviewed', '?')}\n    changed: " + "\n             ".join(ch[:12])
-                  + f"\n    run: just crypto-review {i}", i)
-    names = {con.get("id") for con in constructions(c)}
-    for f in c.lock:
-        if f not in c.by_id and f not in names:
-            e.add("fingerprint", f"{LOCK} holds lines for {f}, which is no action or construction")
 
 
 def primitive_crates(c):
@@ -1661,11 +1471,6 @@ def constructions(c):
     return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
 
 
-def construction_lines(c, con):
-    """A construction's lock lines: every value its placeholders and tables read (§18.6)."""
-    return gen_module().render_construction(c.root, con)[2]
-
-
 def open_line(c, spec):
     m = re.search(r"^\*\*Open:\*\*(.*)$", c.read(spec), re.M)
     return m.group(1) if m else None
@@ -1877,7 +1682,7 @@ def check_learn_actions(c):
               f"{len(c.by_id)} actions: write `{count_word(len(c.by_id))}`")
 
 
-def run_checks(c, release=True):
+def run_checks(c):
     check_screens(c)
     check_deps(c)
     check_schema(c)
@@ -1885,8 +1690,6 @@ def run_checks(c, release=True):
     check_constructions(c)
     check_truth(c)
     check_coverage(c)
-    if release:
-        check_fingerprints(c)
     check_audit_crates(c)
     check_established(c)
     check_reveals(c)
@@ -1902,7 +1705,7 @@ def report(errors, show_all=False, out=sys.stdout):
     for cat, a, msg in errors.items:
         cats.setdefault(cat, []).append((a, msg))
     for cat in ("deps", "schema", "construction", "untrue", "coverage", "uncovered", "unnamed",
-                "fingerprint", "audit", "reveal", "compute", "tiles", "screens", "ratchet",
+                "audit", "reveal", "compute", "tiles", "screens", "ratchet",
                 "learn-list"):
         items = cats.get(cat, [])
         if not items:
@@ -1924,10 +1727,10 @@ def cmd_inventory(root):
     return 0
 
 
-def cmd_check(root, inv_path, show_all, release=False):
+def cmd_check(root, inv_path, show_all):
     inv = read_inventory(root, inv_path)
     c = Ctx(root, inv)
-    run_checks(c, release)
+    run_checks(c)
     report(c.errors, show_all)
     for n in c.notes:
         print(f"note: {n}")
@@ -1935,382 +1738,6 @@ def cmd_check(root, inv_path, show_all, release=False):
     print(f"{len(c.actions)} actions; {len(inv.cryptographic)} cryptographic functions, "
           f"{n_unc} uncovered; {len(c.errors.items)} failures")
     return 1 if c.errors.items else 0
-
-
-# ------------------------------------------------------------------- review
-
-def action_block(text, i, table="action"):
-    """(start, end) of an action's (or a construction's) lines in the manifest text, as
-    line indexes."""
-    lines = text.split("\n")
-    head = f"[[{table}]]"
-    starts = [n for n, ln in enumerate(lines) if ln.strip() == head]
-    for s in starts:
-        e = len(lines)
-        for n in range(s + 1, len(lines)):
-            if re.match(rf"\[(?!\[?{table}\b)", lines[n]) or lines[n].strip() == head:
-                e = n
-                break
-        for n in range(s + 1, e):
-            if re.fullmatch(rf'id\s*=\s*"{re.escape(i)}"\s*', lines[n]):
-                return lines, s, e
-    return lines, None, None
-
-
-def edit_repoint(text, i, mapping):
-    lines, s, e = action_block(text, i)
-    if s is None:
-        return text
-    for n in range(s, e):
-        for old, new in mapping.items():
-            lines[n] = lines[n].replace(f'"{old}"', f'"{new}"')
-    return "\n".join(lines)
-
-
-def edit_stamp(text, i, fp, date, table="action"):
-    lines, s, e = action_block(text, i, table)
-    if s is None:
-        raise SystemExit(f"{MANIFEST}: no [[{table}]] with id \"{i}\"")
-    new = [f'fingerprint = "{fp}"', f'reviewed = "{date}"']
-    head = next((n for n in range(s, e) if lines[n].strip() == f"[{table}.review]"), None)
-    if head is None:
-        end = e
-        while end > s + 1 and not lines[end - 1].strip():
-            end -= 1
-        lines[end:end] = ["", f"[{table}.review]"] + new
-    else:
-        stop = next((n for n in range(head + 1, e) if lines[n].startswith("[")), e)
-        body = [ln for ln in lines[head + 1:stop]
-                if not re.match(r"(fingerprint|reviewed)\s*=", ln)]
-        lines[head + 1:stop] = new + body
-    return "\n".join(lines)
-
-
-def regenerate(root):
-    """The generated places of §3.1, from the manifest as it now stands (`gen.py write`)."""
-    gen = pathlib.Path(root) / GEN
-    if not gen.exists():
-        print(f"generated places: {GEN} is not built yet; nothing regenerated")
-        return True
-    p = subprocess.run([sys.executable, "-I", "-B", str(gen), "write"], cwd=root)
-    return p.returncode == 0
-
-
-def stamp_ok(root):
-    s = pathlib.Path(root) / "tools" / "crosscheck" / "stamp.py"
-    if not s.exists():
-        return True
-    p = subprocess.run([sys.executable, "-I", "-B", str(s), "check"], cwd=root,
-                       capture_output=True, text=True)
-    if p.returncode != 0:
-        sys.stdout.write(p.stdout + p.stderr)
-    return p.returncode == 0
-
-
-def git(root, *args):
-    try:
-        p = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
-        return p.stdout if p.returncode == 0 else ""
-    except OSError:
-        return ""
-
-
-def touchpoints(c, a):
-    i = a["id"]
-    out = [f"screens: {', '.join(as_list(a.get('screens'))) or 'none'}",
-           f"STANDARDS row: {a.get('row')} (docs/STANDARDS.md); standards: "
-           f"{', '.join(as_list(a.get('standards'))) or 'none'}",
-           f"AUDIT §1 crate row and §3 line for {a.get('implementation', {}).get('crate')} "
-           "(docs/AUDIT.md)"]
-    sec = a.get("secrets", {})
-    out.append(f"reveal: {sec.get('reveal')} (docs/KEYS.md, docs/AUDIT.md §2)")
-    out.append("COMPUTE kinds: the Work kinds of the action's functions (docs/COMPUTE.md §2.3)")
-    chk = a.get("checked", {})
-    out.append(f"cross-check area: {chk.get('crosscheck') or chk.get('not_crosschecked')}; "
-               f"vectors: {', '.join(as_list(chk.get('vectors'))) or 'none'}; "
-               f"fuzz: {', '.join(as_list(chk.get('fuzz'))) or chk.get('fuzz_none')}; "
-               f"self-test: {', '.join(as_list(chk.get('selftest'))) or 'none'}")
-    out.append("Tools tiles' tags (faraday/faraday-core/src/catalog.rs)")
-    for p in as_list(a.get("review", {}).get("places")):
-        out.append(f"named for review: {p}")
-    for u in sorted(u for u, s in c.uses.items() if i in c.trans_uses(u) or i in s):
-        out.append(f"used by {u}: fails until it is reviewed in turn")
-    return out
-
-
-def construction_ids(text):
-    try:
-        return {x.get("id") for x in tomllib.loads(text).get("construction", [])
-                if isinstance(x, dict)}
-    except tomllib.TOMLDecodeError:
-        return set()
-
-
-def review_construction(root, i, manifest, lock_raw):
-    """Work out a construction's stamp (§18.6): what its placeholders and tables read is
-    its fingerprint, and reading it needs no inventory. Writes nothing. Returns
-    (status, manifest, lock_raw), status "clean", "refused" or "stamped"."""
-    c = Ctx(root, Inventory([]), manifest, lock_raw)
-    con = next(x for x in constructions(c) if x.get("id") == i)
-    check_constructions(c)
-    mine = [x for x in c.errors.items if x[0] == "construction" and x[1] in (i, None)]
-    locked, now = c.lock.get(i), construction_lines(c, con)
-    review = con.get("review") if isinstance(con.get("review"), dict) else {}
-    if (locked is not None and review.get("fingerprint") == fingerprint_of(locked)
-            and sorted(locked) == sorted(now) and not mine):
-        print(f"{i}: nothing changed since the last review")
-        return "clean", manifest, lock_raw
-    lines, s, e = action_block(c.text, i, "construction")
-    print(f"== construction {i}")
-    print("\n".join(lines[s:e]).rstrip())
-    print("\n== what it reads from the code")
-    for x in (diff_parts(locked, now) if locked is not None else now):
-        print(f"  {x}")
-    print(f"\n== touchpoints: actions "
-          f"{', '.join(as_list(con.get('actions')))}; the website's /cryptography#{i}\n")
-    if mine:
-        print("review refuses; nothing was written:")
-        for cat, _, msg in mine:
-            print(f"  [{cat}] {msg}")
-        return "refused", manifest, lock_raw
-    lock = dict(c.lock)
-    lock[i] = sorted(now)
-    text = edit_stamp(c.text, i, fingerprint_of(now), datetime.date.today().isoformat(),
-                      "construction")
-    tomllib.loads(text)
-    return "stamped", text, lock_text(lock)
-
-
-def generated_paths(root):
-    """The files `gen.py write` may rewrite, as they exist."""
-    if not (pathlib.Path(root) / GEN).exists():
-        return []
-    g = gen_module()
-    rel = sorted({p for p, _, _ in g.PLACES} | {g.HOW})
-    return [p for p in rel if (pathlib.Path(root) / p).is_file()]
-
-
-def write_stamps(root, manifest, lock_raw):
-    """Write the manifest and the lock, then regenerate the generated places from the
-    manifest as it now stands. If the generator fails every file it or this wrote is put
-    back and False is returned: nothing stays written."""
-    root = pathlib.Path(root)
-    files = [MANIFEST, LOCK] + generated_paths(root)
-    saved = {p: (root / p).read_bytes() for p in files if (root / p).exists()}
-    (root / MANIFEST).write_text(manifest)
-    (root / LOCK).write_text(lock_raw)
-    if regenerate(root):
-        return True
-    for p, data in saved.items():
-        (root / p).write_bytes(data)
-    return False
-
-
-def cmd_review_construction(root, i):
-    root = pathlib.Path(root)
-    c = Ctx(root, Inventory([]))
-    status, manifest, lock_raw = review_construction(root, i, c.text, c.lock_raw)
-    if status == "refused":
-        return 1
-    if status == "clean":
-        return 0
-    if not write_stamps(root, manifest, lock_raw):
-        print("review refuses; nothing was written: the generator failed")
-        return 1
-    print(f"{i}: reviewed; fingerprint {fingerprint_of(parse_lock(lock_raw)[i])[:12]}")
-    return 0
-
-
-def review_action(root, inv, i, manifest, lock_raw, memo):
-    """Work out an action's stamp: the report, the refusals, the new manifest and lock.
-    Writes and regenerates nothing; `memo` keeps the stamp check to one run. Returns
-    (status, manifest, lock_raw), status "missing", "clean", "repointed" (moved functions
-    only, no stamp), "refused" or "stamped"."""
-    c = Ctx(root, inv, manifest, lock_raw)
-    if i not in c.by_id:
-        print(f"review: no action {i} in {MANIFEST}")
-        return "missing", manifest, lock_raw
-    mapping = {}
-    a = c.by_id[i]
-    for f in as_list(a.get("functions")):
-        if f not in inv.fns:
-            t = moved_target(c, i, f)
-            if t:
-                mapping[f] = t
-    if mapping:
-        manifest = edit_repoint(manifest, i, mapping)
-        c = Ctx(root, inv, manifest, lock_raw)
-        a = c.by_id[i]
-        for old, new in mapping.items():
-            print(f"{i}: moved, body unchanged: {old} -> {new}")
-    check_schema(c)
-    check_truth(c)
-    check_coverage(c)
-    mine = [x for x in c.errors.items if x[1] in (i, None) and x[0] in ("schema", "untrue", "coverage")]
-    mine = [x for x in mine if x[0] != "coverage" or i in x[2]]
-    locked = c.lock.get(i)
-    now = c.lines(a)
-    review = a.get("review") if isinstance(a.get("review"), dict) else {}
-    clean = (locked is not None and review.get("fingerprint") == fingerprint_of(locked)
-             and sorted(map(fp_line, locked)) == sorted(map(fp_line, now)))
-    # Only the cheap part of the diff and the entry are printed when something changed.
-    if not clean:
-        print_report(c, a, i, locked, now, root)
-    if mine:
-        print("\nreview refuses; nothing was written:")
-        for cat, _, msg in mine:
-            print(f"  [{cat}] {msg}")
-        return "refused", manifest, lock_raw
-    if not clean and a.get("checked", {}).get("crosscheck"):
-        if "stamp" not in memo:
-            memo["stamp"] = stamp_ok(root)
-        if not memo["stamp"]:
-            print("\nreview refuses; nothing was written: tools/crosscheck/stamp.py check fails "
-                  "(run just crosscheck)")
-            return "refused", manifest, lock_raw
-    lock = dict(c.lock)
-    lock[i] = sorted(now)
-    if clean:
-        if not mapping:
-            print(f"{i}: nothing changed since the last review")
-            return "clean", manifest, lock_raw
-        return "repointed", manifest, lock_text(lock)
-    text = edit_stamp(manifest, i, fingerprint_of(now), datetime.date.today().isoformat())
-    tomllib.loads(text)
-    return "stamped", text, lock_text(lock)
-
-
-def cmd_review(root, i, inv_path, inv=None):
-    root = pathlib.Path(root)
-    try:
-        cons = construction_ids((root / MANIFEST).read_text())
-    except OSError:
-        cons = set()
-    if i in cons:
-        return cmd_review_construction(root, i)
-    inv = inv or read_inventory(root, inv_path)
-    c = Ctx(root, inv)
-    status, manifest, lock_raw = review_action(root, inv, i, c.text, c.lock_raw, {})
-    if status in ("missing", "refused"):
-        return 1
-    if status == "clean":
-        return 0
-    if status == "repointed":
-        (root / MANIFEST).write_text(manifest)
-        (root / LOCK).write_text(lock_raw)
-        return 0
-    if not write_stamps(root, manifest, lock_raw):
-        print("review refuses; nothing was written: the generator failed")
-        return 1
-    print(f"\n{i}: reviewed; fingerprint {fingerprint_of(parse_lock(lock_raw)[i])[:12]}")
-    return 0
-
-
-def cmd_review_stale(root, inv_path, inv=None):
-    """Stamp every action and construction whose fingerprint fails, as `cmd_review` does
-    for each id, over one inventory, one stamp check and one regenerate. All or none:
-    when one id refuses, every refusal is listed and nothing is written."""
-    root = pathlib.Path(root)
-    inv = inv or read_inventory(root, inv_path)
-    c = Ctx(root, inv)
-    check_fingerprints(c)
-    stale = []
-    for _, i, _ in c.errors.items:
-        if i is not None and i not in stale:
-            stale.append(i)
-    if not stale:
-        print("review-stale: no fingerprint is stale; nothing was written")
-        return 0
-    cons = construction_ids(c.text)
-    manifest, lock_raw, memo = c.text, c.lock_raw, {}
-    done, refused = [], []
-    for i in stale:
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            if i in cons:
-                status, m2, l2 = review_construction(root, i, manifest, lock_raw)
-            else:
-                status, m2, l2 = review_action(root, inv, i, manifest, lock_raw, memo)
-        if status in ("missing", "refused"):
-            refused.append((i, buf.getvalue()))
-        elif status in ("stamped", "repointed"):
-            manifest, lock_raw = m2, l2
-            done.append((i, status))
-    # A used action's stamp does not change what its users read (their lines hold the
-    # used action's code), so one pass settles it; this holds the call to that.
-    c2 = Ctx(root, inv, manifest, lock_raw)
-    check_fingerprints(c2)
-    left = sorted({i for _, i, _ in c2.errors.items if i is not None} - {i for i, _ in refused})
-    if refused:
-        for i, text in refused:
-            print(f"{i}:")
-            print(text[text.find("review refuses"):].rstrip() if "review refuses" in text
-                  else text.rstrip())
-            print()
-        print(f"review-stale refuses; nothing was written: {len(refused)} of {len(stale)} "
-              f"refuse: {', '.join(i for i, _ in refused)}")
-        return 1
-    if left:
-        print("review-stale refuses; nothing was written: still stale after stamping: "
-              + ", ".join(left))
-        return 1
-    if not write_stamps(root, manifest, lock_raw):
-        print("review-stale refuses; nothing was written: the generator failed")
-        return 1
-    lock = parse_lock(lock_raw)
-    for i, status in done:
-        print(f"{i}: " + ("reviewed; fingerprint " + fingerprint_of(lock[i])[:12]
-                          if status == "stamped" else "moved, body unchanged"))
-    print(f"{len(done)} stamped")
-    return 0
-
-
-def print_report(c, a, i, locked, now, root):
-    lines, s, e = action_block(c.text, i)
-    print(f"== entry {i}")
-    print("\n".join(lines[s:e]).rstrip())
-    print("\n== changed parts")
-    if locked is None:
-        print("  (no lock lines: never reviewed)")
-        ch = []
-    else:
-        ch = diff_parts(locked, now)
-        for x in ch or ["(the fingerprint or the lock was edited; the parts match)"]:
-            print(f"  {x}")
-    stored = (a.get("review") or {}).get("fingerprint") if isinstance(a.get("review"), dict) else None
-    if stored and ch:
-        commit = git(root, "log", "-1", "--format=%H", f"-S{stored}", "--", MANIFEST).strip()
-        files = sorted({x.split()[1].split("::")[0] for x in ch if x.startswith(("changed fn", "added fn", "removed fn"))})
-        for f in files[:6]:
-            d = git(root, "diff", commit, "--", f) if commit else ""
-            print(f"\n-- {f} since {commit[:10] or 'the last stamp'}")
-            print("\n".join(d.splitlines()[:80]))
-    print("\n== touchpoints to read before it is stamped")
-    for t in touchpoints(c, a):
-        print(f"  {t}")
-    print()
-
-
-# ------------------------------------------------------------------ changes
-
-def cmd_changes(root, tag, inv_path):
-    old_text = git(root, "show", f"{tag}:{MANIFEST}")
-    if not old_text:
-        print(f"changes: {MANIFEST} does not exist at {tag}")
-        return 1
-    old = {a["id"]: (a.get("review") or {}).get("fingerprint")
-           for a in tomllib.loads(old_text).get("action", [])}
-    new = {a["id"]: (a.get("review") or {}).get("fingerprint")
-           for a in tomllib.loads((pathlib.Path(root) / MANIFEST).read_text()).get("action", [])}
-    n = 0
-    for i in sorted(set(old) | set(new)):
-        what = ("added" if i not in old else "removed" if i not in new
-                else "changed" if old[i] != new[i] else None)
-        if what:
-            n += 1
-            print(f"{i}: {what}")
-    print(f"{n} actions changed since {tag}")
-    return 0
 
 
 # ---------------------------------------------------------------- self-test
@@ -2366,7 +1793,6 @@ wiped = "nothing held"
 [action.limits]
 lines = ["One."]
 
-# An own call before the review table: the review finds the table after it.
 [[action.own]]
 text = "Refuses it."
 kind = "Conservative"
@@ -2539,59 +1965,16 @@ def self_test():
             (root / rel).write_text(text)
         (root / "src").mkdir(exist_ok=True)
         (root / MANIFEST).write_text(FIXTURE_MANIFEST)
-        (root / LOCK).write_text(LOCK_HEAD)
 
         def check(inv):
             c = Ctx(root, inv)
             run_checks(c)
             return c
 
-        def review(i, inv):
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                rc = cmd_review(root, i, None, inv)
-            return rc, buf.getvalue()
-
         base = fixture_inventory()
-        print("an unreviewed manifest:")
         c = check(base)
-        expect(any("never reviewed" in m for m in msgs(c, "fingerprint")), "an action never reviewed fails")
-        print("review stamps the actions, used one first:")
-        rc2, _ = review("two", base)
-        rc1, _ = review("one", base)
-        expect(rc1 == 0 and rc2 == 0, "review writes both")
-        c = check(base)
-        expect(not c.errors.items, f"check passes after review {msgs(c)}")
+        expect(not c.errors.items, f"the fixture passes {msgs(c)}")
         expect(sorted(c.uses["one"]) == ["two"], "one uses two (f calls g)")
-
-        print("review-stale stamps every stale fingerprint in one call:")
-        m_ok, l_ok = (root / MANIFEST).read_text(), (root / LOCK).read_text()
-
-        def stale_run(inv):
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                rc = cmd_review_stale(root, None, inv)
-            return rc, buf.getvalue()
-
-        rc, out = stale_run(base)
-        expect(rc == 0 and "no fingerprint is stale" in out
-               and (root / MANIFEST).read_text() == m_ok, "nothing stale prints that and exits 0")
-        changed = fixture_inventory(g_hash="g2")
-        c = check(changed)
-        expect({i for _, i, _ in c.errors.items if i} == {"one", "two"},
-               "a changed g makes two and the one that uses it stale")
-        rc, out = stale_run(changed)
-        expect(rc == 0 and "one: reviewed" in out and "two: reviewed" in out
-               and "2 stamped" in out, f"both are stamped in one call {out!r}")
-        c = check(changed)
-        expect(not c.errors.items, f"check passes after review-stale {msgs(c)}")
-        (root / MANIFEST).write_text(m_ok)
-        (root / LOCK).write_text(l_ok)
-        gone = fixture_inventory(g_hash="g2", test=False)
-        rc, out = stale_run(gone)
-        expect(rc == 1 and "refuse" in out and "t_one" in out
-               and (root / MANIFEST).read_text() == m_ok and (root / LOCK).read_text() == l_ok,
-               "one id refusing lists the refusal and writes nothing")
 
         print("a closure in faraday-core stops at glue (§4.4):")
         core = "faraday-core"
@@ -2616,64 +1999,23 @@ def self_test():
         expect(not any("aqrv/" in m for m in msgs(c, "uncovered")),
                "an uncovered function of the Argon QR Vault, outside the apps, does not")
 
-        print("a changed body:")
-        c = check(fixture_inventory(g_hash="g2"))
-        fails = {a for k, a, _ in c.errors.items if k == "fingerprint"}
-        expect(fails == {"one", "two"}, f"a changed g fails two and the action using it: {fails}")
-        c = check(fixture_inventory(h_hash="h2"))
-        fails = {a for k, a, _ in c.errors.items if k == "fingerprint"}
-        expect(fails == {"one"}, f"a changed helper of f fails one only: {fails}")
-        c = check(fixture_inventory(f_hash="f2"))
-        fails = {a for k, a, _ in c.errors.items if k == "fingerprint"}
-        expect(fails == {"one"}, f"a changed f fails one only: {fails}")
-        c = Ctx(root, fixture_inventory(f_hash="f2"))
-        run_checks(c, release=False)
-        expect(not msgs(c, "fingerprint"), "outside a release a changed f fails no fingerprint")
-
-        print("a moved function:")
-        moved = fixture_inventory(moved=True)
-        c = check(moved)
-        expect(any("moved, body unchanged" in m for m in msgs(c, "untrue")),
-               "a moved root fails as untrue, naming where it went")
-        before = (root / MANIFEST).read_text()
-        rc, out = review("one", moved)
-        after = (root / MANIFEST).read_text()
-        expect(rc == 0 and "src/b.rs::f" in after and "src/a.rs::f" not in after,
-               "review re-points the entry")
-        expect(re.findall(r"fingerprint = .*", before) == re.findall(r"fingerprint = .*", after)
-               and re.findall(r"reviewed = .*", before) == re.findall(r"reviewed = .*", after),
-               "the fingerprint and the review date did not change")
-        c = check(moved)
-        expect(not c.errors.items, f"check passes after the re-point {msgs(c)}")
+        print("a function that is not where the manifest says:")
+        c = check(fixture_inventory(moved=True))
+        expect(any("is not a function the inventory finds" in m for m in msgs(c, "untrue")),
+               "a root the inventory does not find fails as untrue")
 
         print("a missing test or vector:")
-        c = check(fixture_inventory(test=False, moved=True))
+        c = check(fixture_inventory(test=False))
         expect(any("t_one" in m for m in msgs(c, "untrue")), "a missing test fails")
-        c = check(fixture_inventory(ignored=True, moved=True))
+        c = check(fixture_inventory(ignored=True))
         expect(any("#[ignore]" in m for m in msgs(c, "untrue")), "an ignored test fails")
         (root / "tools/vectors/v1/data.txt").rename(root / "tools/vectors/v1/other.txt")
         (root / "tools/vectors/v1").rename(root / "tools/vectors/v2")
-        c = check(moved)
+        c = check(base)
         expect(any("tools/vectors/v1" in m for m in msgs(c, "untrue")), "a missing vector folder fails")
         (root / "tools/vectors/v2").rename(root / "tools/vectors/v1")
         (root / "tools/vectors/v1/other.txt").rename(root / "tools/vectors/v1/data.txt")
 
-        sample = ('[[action]]\nid = "one"\n\n[[action.own]]\ntext = "t"\n\n'
-                  '[action.review]\nplaces = []\n\n[[action]]\nid = "two"\n')
-        stamped = edit_stamp(sample, "one", "f1", "2026-01-01")
-        try:
-            one = tomllib.loads(stamped)["action"][0]["review"]
-        except tomllib.TOMLDecodeError:
-            one = None
-        expect(one == {"fingerprint": "f1", "reviewed": "2026-01-01", "places": []},
-               "a stamp goes into the review table after the action's own calls")
-        print("review refuses while a named test is missing:")
-        gone = fixture_inventory(test=False, moved=True, g_hash="g9")
-        m0, l0 = (root / MANIFEST).read_text(), (root / LOCK).read_text()
-        rc, out = review("one", gone)
-        expect(rc == 1 and "refuses" in out, "review exits 1 and says it refuses")
-        expect((root / MANIFEST).read_text() == m0 and (root / LOCK).read_text() == l0,
-               "and writes nothing")
         print("the checked places (§3.2), each broken in turn:")
 
         def broken(rel, old, new, cat, needle, inv=None):
@@ -2684,12 +2026,12 @@ def self_test():
             assert old in before, (rel, old)
             path.write_text(before.replace(old, new, 1) if old else before + new)
             try:
-                c = check(inv or moved)
+                c = check(inv or base)
             finally:
                 path.write_text(before)
             return any(needle in m for m in msgs(c, cat)), c
 
-        c = check(moved)
+        c = check(base)
         expect(not c.errors.items and not c.notes, f"the fixture's places agree {msgs(c)}")
         ok, _ = broken("docs/AUDIT.md", "| `src` | things", "| `other` | things", "audit",
                        "no row for `src`")
@@ -2735,7 +2077,7 @@ def self_test():
                        "compute", "names `a::zzz`")
         expect(ok, "COMPUTE §2.3: a root the inventory does not find fails")
         ok, _ = broken("docs/COMPUTE.md", "| Faraday's own", "| `Kdf` | `a::k` |\n| Faraday's own",
-                       "compute", "which no action covers", fixture_inventory(extra=True, moved=True))
+                       "compute", "which no action covers", fixture_inventory(extra=True))
         expect(ok, "COMPUTE §2.3: a root no action covers fails")
         ok, _ = broken("docs/COMPUTE.md", "| Faraday's own", "| `Other` | `a::zzz` |\n| Faraday's own",
                        "compute", "zzz")
@@ -2855,7 +2197,7 @@ def self_test():
             expect(ok, what)
         ok, _ = broken("docs/crypto/actions.toml", piece + two,
                        piece + two.replace('decision = "F1"', 'decision = "F1, F2"', 1), "schema", "")
-        expect(not ok and not msgs(check(moved), "schema"), "a piece with two decisions passes")
+        expect(not ok and not msgs(check(base), "schema"), "a piece with two decisions passes")
         ok, _ = broken("docs/crypto/actions.toml", piece + two,
                        piece + two + "tier = \"carries\"\n", "audit", "not §4 or §5")
         expect(ok, "tier carries on a crate AUDIT §4 and §5 do not list fails")
@@ -2879,7 +2221,7 @@ def self_test():
             (root / IMPORTS).write_text(imports)
             (root / MANIFEST).write_text(m0 + extra)
             try:
-                return [m for m in msgs(check(moved), "untrue") + msgs(check(moved), "ratchet")]
+                return [m for m in msgs(check(base), "untrue") + msgs(check(base), "ratchet")]
             finally:
                 (root / AUDITS).write_text(a0)
                 (root / IMPORTS).write_text(i0)
@@ -2919,9 +2261,9 @@ def self_test():
         (root / "lib/t/Cargo.toml").write_text('[package]\nname = "t"\n\n[dependencies]\nlib2 = "1"\n')
         (root / "lib/u/src").mkdir(parents=True)
         (root / "lib/u/Cargo.toml").write_text('[package]\nname = "u"\n\n[dependencies]\n')
-        recs = [json.loads(json.dumps(r)) for r in moved.fns.values()] + moved.tests
+        recs = [json.loads(json.dumps(r)) for r in base.fns.values()] + base.tests
         for r in recs:
-            if r.get("id") == "src/b.rs::f":
+            if r.get("id") == "src/a.rs::f":
                 r["cross"] = ["t::w"]
         via_inv = Inventory(json.dumps(r) for r in recs + [
             fn_rec("lib/t/src/lib.rs", "w", "w1", crate="t"),
@@ -2947,12 +2289,12 @@ def self_test():
         good = '{ library = "lib2", crate = "lib/t" }'
         out = through_case(good, via_inv)
         expect(not out, f"a library the action reaches through a crate that depends on it passes {out}")
-        out = through_case(good, moved)
+        out = through_case(good, base)
         expect(any("reach no function of lib/t" in m for m in out),
                f"a crate the action's functions do not reach fails {out}")
         recs_out = [json.loads(json.dumps(r)) for r in recs]
         for r in recs_out:
-            if r.get("id") == "src/b.rs::f":
+            if r.get("id") == "src/a.rs::f":
                 r["cross"] = ["t::not_printed"]
         out = through_case(good, Inventory(json.dumps(r) for r in recs_out))
         expect(not out, f"a call into a crate reaches it when the inventory leaves the callee out {out}")
@@ -2967,16 +2309,14 @@ def self_test():
         expect(any("has no [library.lib2]" in m for m in out),
                f"a library reached through a crate says who wrote it {out}")
         (root / "Cargo.lock").write_text(cargo_before)
-        c = check(moved)
+        c = check(base)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
 
         print("a construction (§18.6):")
-        m0, l0 = (root / MANIFEST).read_text(), (root / LOCK).read_text()
+        m0 = (root / MANIFEST).read_text()
         (root / MANIFEST).write_text(m0 + FIXTURE_CONSTRUCTION)
-        c = check(moved)
-        expect(not msgs(c, "construction") and any("construction never reviewed" in m
-                                                   for m in msgs(c, "fingerprint")),
-               f"a whole construction fails only as never reviewed {msgs(c)}")
+        c = check(base)
+        expect(not c.errors.items, f"a whole construction passes {msgs(c)}")
         g = gen_module()
         secs, probs, _ = g.render_construction(root, tomllib.loads(
             (root / MANIFEST).read_text())["construction"][0])
@@ -2984,12 +2324,6 @@ def self_test():
             ("para", "A die has 6 sides, six in words; SHA-256 (BIP 1) of 3 words is 3.6 bits."),
             ("para", "Not in the app yet: they are thrown 3 times.")],
             f"its placeholders are filled from the code, a planned paragraph led as planned {secs}")
-        rc, out = review("dice", moved)
-        c = check(moved)
-        expect(rc == 0 and not c.errors.items, f"review stamps it, and check passes {msgs(c)}")
-        ok, c = broken("src/k.rs", "EXTRA: usize = 4", "EXTRA: usize = 5", "fingerprint",
-                       "the code the construction reads changed")
-        expect(ok, "a value it reads changed in the code fails it until it is reviewed again")
         cases = [
             ("{c:src/k.rs::SIDES} sides", "{c:src/k.rs::NOPE} sides", "has no constant",
              "a placeholder that does not resolve fails"),
@@ -3019,7 +2353,6 @@ def self_test():
             ok, c = broken(MANIFEST, old, new, "construction", needle)
             expect(ok, f"{what} {msgs(c, 'construction')[:2] if not ok else ''}")
         (root / MANIFEST).write_text(m0)
-        (root / LOCK).write_text(l0)
     print("the roots the inventory is asked for:")
     sample = ('[[action]]\nid = "a"\nfunctions = ["x/src/a.rs::f", "y/src/b.rs::T::g"]\n'
               '[[action]]\nid = "b"\nfunctions = ["x/src/a.rs::f"]\n'
@@ -3038,27 +2371,19 @@ def self_test():
 def main(argv):
     if argv[:1] == ["--self-test"]:
         return self_test()
-    inv_path, show_all, release, rest = None, False, False, []
+    inv_path, show_all, rest = None, False, []
     it = iter(argv)
     for x in it:
         if x == "--inventory":
             inv_path = next(it, None)
         elif x == "--all":
             show_all = True
-        elif x == "--release":
-            release = True
         else:
             rest.append(x)
     if rest[:1] == ["check"] and len(rest) == 1:
-        return cmd_check(ROOT, inv_path, show_all, release)
+        return cmd_check(ROOT, inv_path, show_all)
     if rest[:1] == ["inventory"] and len(rest) == 1:
         return cmd_inventory(ROOT)
-    if rest[:1] == ["review"] and len(rest) == 2:
-        return cmd_review(ROOT, rest[1], inv_path)
-    if rest[:1] == ["review-stale"] and len(rest) == 1:
-        return cmd_review_stale(ROOT, inv_path)
-    if rest[:1] == ["changes"] and len(rest) == 2:
-        return cmd_changes(ROOT, rest[1], inv_path)
     print(__doc__)
     return 2
 

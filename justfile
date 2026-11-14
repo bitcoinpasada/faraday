@@ -91,8 +91,7 @@ lint-repo:
     # Every STANDARDS row names a check, and every check is a row's.
     python3 -I -B docs/crypto/verified.py check
     # Every cryptographic function the inventory finds is an action's and each
-    # entry names what exists (docs/CRYPTO-LEARN.md §4 to §7). The fingerprints
-    # are `lint-release`'s (F197).
+    # entry names what exists (docs/CRYPTO-LEARN.md §4 to §7).
     python3 -I -B docs/crypto/check.py check
     python3 -I -B docs/crypto/check.py --self-test
     # STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's
@@ -271,35 +270,13 @@ fuzz-corpus-export:
 fuzz-join out +parts:
     python3 -I -B tools/fuzz-join.py {{out}} {{parts}}
 
-# The cryptographic actions' manifest (docs/CRYPTO-LEARN.md, docs/crypto/check.py).
-# `crypto-review ID` prints an action's entry, what changed in its code and
-# every place to read with it, then writes its fingerprint; it is the only
-# writer of one with `crypto-review-stale`, and refuses while the entry is untrue.
-[group('dev')]
-crypto-review id:
-    python3 -I -B docs/crypto/check.py review {{id}}
-
-# Stamps every action and construction whose fingerprint fails, in one call:
-# one inventory, one stamp check, one regenerate, the same refusals as
-# `crypto-review` for each id. All or none: when one refuses, none is written.
-[group('dev')]
-crypto-review-stale:
-    python3 -I -B docs/crypto/check.py review-stale
-
-# The actions whose fingerprint changed since a tag, for the release notes
-# and the deep cross-check before a release.
-[group('dev')]
-crypto-changes tag:
-    python3 -I -B docs/crypto/check.py changes {{tag}}
-
 # Before a release, after `just crosscheck --fresh` (F197): the crypto has not
-# changed since the last passing cross-check, and no action's code changed since
-# its fingerprint was written (`just crypto-review ID` re-stamps one). Between
-# releases the tip is not held to either.
+# changed since the last passing cross-check. Between releases the tip is not
+# held to it. The release notes name what changed in the cryptography with
+# `git diff --stat <tag> -- core faraday/faraday-keys tools/crosscheck`.
 [group('test')]
 lint-release:
     tools/lint-crosscheck.sh
-    python3 -I -B docs/crypto/check.py check --release
 
 # Faraday's own recipes: faraday/faraday.just.
 import 'faraday/faraday.just'

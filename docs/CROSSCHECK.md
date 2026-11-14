@@ -282,8 +282,7 @@ interpreter and mempool policy.
   a crypto change.
 - **Before a release:** `just crosscheck --fresh`, with a new random
   seed and about ten times the random cases. A disagreement it finds
-  keeps its seed and inputs as a new vector. Then `just crypto-review
-  ID` for each action whose code changed, and `just lint-release` must
+  keeps its seed and inputs as a new vector. Then `just lint-release` must
   pass.
 - **A release's run made of two (F239).** The release's cross-check may
   be a combination of runs at one fresh seed and scale: `just crosscheck

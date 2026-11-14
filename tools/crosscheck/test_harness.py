@@ -639,13 +639,13 @@ class Pool(unittest.TestCase):
         quiet = self.run_crosscheck("--jobs", "2", "--python", "cpython")
         self.assertEqual(untimed(quiet.stdout), untimed(r.stdout))
 
-    def test_the_record_names_a_release_tree_stamped_after_the_run_and_no_other(self):
+    def test_the_record_names_a_release_tree_with_the_manifest_left_out_and_no_other(self):
         repo = self.tmp / "repo"
         (repo / "tools/crosscheck").mkdir(parents=True)
         (repo / "docs/crypto").mkdir(parents=True)
         script = repo / "tools/crosscheck/record.py"
         shutil.copy(HERE / "record.py", script)
-        lock, code = repo / "docs/crypto/actions.lock", repo / "code.rs"
+        lock, code = repo / "docs/crypto/actions.toml", repo / "code.rs"
         lock.write_text("before\n")
         code.write_text("code\n")
 

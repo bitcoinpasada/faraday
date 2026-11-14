@@ -1,7 +1,7 @@
 # How Faraday does it: one manifest for every cryptographic action
 
 **Kind:** Spec
-**Status:** Specified (F148); the manifest, its inventory lint, fingerprints, the re-stamp recipe and the generator built and held by `just lint`
+**Status:** Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`
 **Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
 
 Every screen that does something cryptographic opens a block that says
@@ -47,9 +47,7 @@ pages' text is.
 
 ### 2.1 Form and place
 
-One TOML file, docs/crypto/actions.toml (new), with a lock file beside
-it, docs/crypto/actions.lock (new), that only the re-stamp recipe writes
-(§5). TOML because three readers need it and none should parse Rust:
+One TOML file, docs/crypto/actions.toml (new). TOML because three readers need it and none should parse Rust:
 the tools' neighbours in Python (`tomllib`, in the standard
 library since 3.11, as `tools/crosscheck/stamp.py` already uses), the
 website's tools in Python, and people reading a diff. No crate is added:
@@ -165,8 +163,6 @@ decision = "F90"
 
 [action.review]              # touchpoints named for review (§3.3)
 places = ["core/faraday-psbt/README.md#What is refused", "docs/learn/13-nonces.md"]
-fingerprint = "…"            # in [action.review]; written by the re-stamp recipe only (§5)
-reviewed = "2026-11-02"
 
 # One table per library an action names (schema 4, F177): who wrote it, from its crate's metadata.
 [library.secp256k1]
@@ -188,7 +184,7 @@ that computes nothing of its own (the backup plan); such a row gives its
 Standard, Verified by and Faraday's own call as text, which a row with
 its own actions never does. An action with no screen (`screens = []`) is
 built but offered nowhere in the app (silent payments sending, the
-recovery-wallet builder, F234): it has a row, a fingerprint and every
+recovery-wallet builder, F234): it has a row and every
 check, and no Learn block (`learn = "none"`).
 
 ## 3. The touchpoints
@@ -237,7 +233,7 @@ code.
 Places whose prose depends on an action but cannot be checked
 mechanically. An action names them in `review.places` as a path and,
 where it is a section, its heading; the lint checks the path and the
-heading exist. A changed fingerprint lists them with the rest (§5.3).
+heading exist.
 
 Found in the tree (§13 lists every one): `docs/SECURITY-MODEL.md`
 ("Where keys live in the program", "Vault cryptography", "Why this
@@ -250,9 +246,9 @@ and the others), the guide's screen pages (`docs/guide/`),
 Settings explainers on how added randomness is mixed).
 
 Release notes are written at release from what changed:
-just crypto-changes (new) lists the actions whose fingerprint changed
-since a tag, for the notes and for the deep cross-check before a
-release (F79).
+`git diff --stat <tag> -- core faraday/faraday-keys tools/crosscheck`
+shows it since the last release's tag, for the notes and for the deep
+cross-check before a release (F79, F259).
 
 ## 4. Finding the cryptographic functions
 
@@ -336,7 +332,7 @@ body, is not a function of its own to the inventory (§17).
 
 One JSON line per function: its file and qualified name
 (the file, two colons and the function, as the manifest's `functions`
-write them; a method as `Type::name`), the rules it meets, its body hash (§5.1), the functions
+write them; a method as `Type::name`), the rules it meets, its body hash, the functions
 of its crate it calls, and the crate it is in. One more line per `#[test]`
 function: its file, name, whether it is `#[ignore]`d, and the cfg it
 sits under. The Python checker, docs/crypto/check.py (new), reads these
@@ -345,13 +341,13 @@ and the manifest.
 A function that meets no rule is printed too, with `"rules":[]`, when a
 cryptographic function of its crate calls it, directly or through others:
 the closure of §4.4 passes through such helpers, and their body hashes
-and callees are needed to fingerprint it. `--all` prints every function
+and callees are needed to follow the closure. `--all` prints every function
 of every crate. `--roots FILE` prints, besides, the functions whose ids
 FILE lists (one `file::Type::name` per line) and what they reach in their
 crate: `check.py` writes the manifest's roots and `not_crypto` functions
 to such a file and runs the inventory with it, so a root in a crate the
 rules do not flag (`faraday-core`'s `inbox.rs`, the Starter's
-`api.rs`, `faraday-files`) resolves and is fingerprinted with its closure.
+`api.rs`, `faraday-files`) resolves and is read with its closure.
 (Chosen over printing every crate with `"rules":[]`, which would put
 some 15,000 lines through the checker on every run.) A root the walker
 does not find is not printed and fails as "not a function the inventory
@@ -408,7 +404,7 @@ enters it only if
   Outbox, a screen's state. A `Faraday` method is in a closure only as a
   root.
 
-So an action rooted in faraday-core is fingerprinted over its cryptographic
+So an action rooted in faraday-core covers its cryptographic
 work and the helpers on the way to it, not over the screens its glue
 reaches. What a `Faraday` method calls belongs to the actions rooted there
 or below; a use reached only through one is not recorded. The coverage
@@ -417,7 +413,7 @@ check below still holds every cryptographic function to an action.
 and its self-test checks it.
 
 That still over-approximates: a helper may fall into a closure it is not
-in, which only makes the fingerprint change more often. It must not miss
+in. It must not miss
 a call to a cryptographic function, which is why a method call on a
 receiver of unknown type keeps the edge to a cryptographic callee.
 
@@ -435,83 +431,17 @@ An action's root in another crate (`faraday-keys` over `faraday-psbt`)
 is listed in the same action. A call across crates to another action's
 root, in the same crate or another, is that action's `uses`, worked out
 by the inventory and printed; it is not hand-written. A change to an
-action fails every action that uses it, directly or through others, as
-well as its own (owner, 2026-10-28): each is reviewed, since what it
-computes may have changed (§5.2).
+action is a change to every action that uses it, directly or through
+others (owner, 2026-10-28).
 
-## 5. Fingerprints and the re-stamp
+## 5. No fingerprints
 
-### 5.1 What is hashed
-
-A function's **body hash** is SHA-256 over its tokens as `syn` reads
-them, printed back with one space between tokens: its signature without
-its name, its generic bounds, its body, and the attributes other than
-`#[doc]`. A `,` that ends a group is left out. So:
-
-| Change | Body hash |
-|---|---|
-| `cargo fmt`, a line wrapped, blank lines | Same: tokens only. |
-| A trailing comma added or dropped (rustfmt does either) | Same: a `,` directly before a closing `)`, `]` or `}` is left out before hashing. |
-| A `//` comment, a doc comment | Same: comments are not tokens; `#[doc]` is left out. |
-| The function moved within its file, or to another file | Same; the entry's path no longer resolves, so the lint fails as untrue (§6), and the recipe re-points it with no review: "moved, body unchanged". |
-| The function renamed | Same, with the same failure and the same re-pointing. |
-| A local variable renamed | Changes. Reviewed (owner, 2026-10-28): a false positive the design accepts, since telling a rename from a change needs name resolution `syn` does not do. |
-| A callee in the same crate changed | The action's fingerprint changes (§5.2). |
-| Another action it uses changed, in any crate | That action's fingerprint changes, and so does this one's, through its `uses` line (§5.2). |
-| A library's version | The action's fingerprint changes (§5.2). |
-| A vector file | The action's fingerprint changes (§5.2). |
-
-### 5.2 An action's fingerprint
-
-The lock file holds, per action, one line per part: each function of
-its coverage with its body hash, each library with its `Cargo.lock`
-version and checksum, each vector folder with the SHA-256 of its files,
-its cross-check area's file with its SHA-256 (a change to what the
-cross-check does is reviewed against the block as a change to the code
-is), and each action of its `uses` with that action's fingerprint. A change
-therefore reaches every action above it: all of them fail together, and
-each is re-stamped after its own review, the used action first.
-A function's line carries its path (`fn <hash> <path>`) so the recipe
-can re-point a move; the action's `fingerprint` in the manifest is
-SHA-256 over those lines without the paths, sorted, so a move or a
-rename keeps it (§5.1). `just lint-release`, before a release and not between
-them (F197), recomputes it from the inventory and the tree; a difference fails,
-naming the parts that changed:
-
-```
-sign-ecdsa: the code changed since it was reviewed on 2026-11-02
-  changed: core/faraday-psbt/src/sign.rs::grind_low_r
-  run: just crypto-review sign-ecdsa
-```
-
-### 5.3 The re-stamp recipe
-
-just crypto-review (new) `<id>` and `just crypto-review-stale` are the only writers of a
-fingerprint; the second does what the first does for every action and construction whose
-fingerprint fails, in one call, over one inventory, one stamp check and one regenerate, and
-refuses as a whole (nothing written, every refusal listed) when any one of them refuses:
-
-1. It prints the action's entry, the parts that changed with their diff
-   since the commit that last wrote the fingerprint, and every
-   touchpoint of the action together: its Learn block and page, its
-   STANDARDS row, its AUDIT §1 crate row and §3 line, its reveal, its
-   COMPUTE kind, its cross-check area, vectors, fuzz target, self-test
-   check, Tools tags, the places named for review, and the actions that
-   use it, each of which fails until it is reviewed in turn.
-2. It regenerates the generated places (§3.1) from the manifest as it
-   now stands.
-3. It refuses, and writes nothing, while a checked place disagrees,
-   while a named test, area, vector folder or fuzz target is missing,
-   and, for an action with a cross-check area, while
-   `tools/crosscheck/stamp.py check` fails: an entry is never re-stamped
-   on code the cross-check has not seen.
-4. Only then it writes the action's lock lines, its `fingerprint` and
-   `reviewed`.
-
-The diff of a re-stamp shows the fingerprint and the review date
-changing beside whatever text the review changed. Re-stamping is a
-command, never an edit: the lint fails a fingerprint that is not the
-hash of the action's lock lines, and lock lines that are not the tree's.
+An action carries no fingerprint of its code, its libraries or its
+vectors, and there is no lock file or re-stamp recipe (F259, which
+withdrew F148's fingerprints): the stamp said that someone ran a recipe,
+not what they read. A release is held by the cross-check's stamp alone
+(§10.2), and its notes name what changed in the cryptography with
+`git diff --stat <tag> -- core faraday/faraday-keys tools/crosscheck`.
 
 ## 6. Entries are true
 
@@ -840,26 +770,20 @@ word, and differences settled against the area's code. A passing run
 writes, per area, its case count beside the seed in the stamp; the
 block's last line reads it.
 
-### 10.2 The stamp and the fingerprints
+### 10.2 The stamp
 
 `tools/crosscheck/stamp.py` records that the cross-check passed on this
 code, for all of it at once: any change to a crypto crate since the stamp
 fails `just lint-release` until `just crosscheck` runs again, before a
-release (F197); the tip between releases is not kept cross-checked. A
-fingerprint records that one action's text
-was reviewed against its code. They fit together:
+release (F197, F259); the tip between releases is not kept cross-checked.
+It is the only check `just lint-release` runs.
 
-- The re-stamp of an action with an area requires the stamp current
-  (§5.3), so text is reviewed only over code the cross-check passed.
 - The stamp's `FILES` and `VECTORS` come from the manifest: the files
   holding any covered function outside the stamp's whole crates (today
   `fresh.rs`, the rollers and `picture.rs`, written by hand), and every
   vector folder an action with an area names. Its `CRATES`, hashed
   whole, stay as they are: coarser than the manifest, so a change
   outside every closure in a crypto crate still forces a rerun.
-- When the stamp fails, `stamp.py check` prints the actions whose
-  fingerprints changed, so the rerun's reviewer knows which areas and
-  which texts to look at.
 
 ### 10.3 Others' code and Faraday's second version
 
@@ -1223,7 +1147,7 @@ checked, or named for review.
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
 | `docs/deps/` | A primitive crate's page: `**Cryptography:** computes` | Checked (§4.1) |
 | `SECURITY.md`, `docs/AUDIT-SUBMISSIONS.md` | The scope an audit is asked to cover | Named for review |
-| Release notes | What changed in the cryptography since the last release | `just crypto-changes` (§3.3) |
+| Release notes | What changed in the cryptography since the last release | `git diff --stat <tag>` over `core`, `faraday/faraday-keys`, `tools/crosscheck` (§3.3) |
 | The website | Learn blocks, the standards page | Rendered from the pin (§11) |
 
 ## 14. Rule lines for CLAUDE.md
@@ -1235,11 +1159,8 @@ exception and the structure rules:
   docs/crypto/actions.toml (F148): what the inventory finds by its rules
   (the compute token in the crates that hold keys, a reveal, a primitive
   crate named, a public function that reaches one) and no action covers
-  fails `just lint`; an action whose code, libraries or vectors changed
-  since its fingerprint fails `just lint-release` (F197). `just crypto-review <id>` (or `just crypto-review-stale`, for all that fail) is the only
-  way to re-stamp: it lists every place the action touches, regenerates
-  what is generated, and refuses while a named test, area or vector is
-  missing. A function the rules find that computes nothing on a secret
+  fails `just lint`; a change to a crypto crate since the last passing
+  cross-check fails `just lint-release` (F197, F259). A function the rules find that computes nothing on a secret
   or signed data is a `[[not_crypto]]` entry with its reason; their count
   only falls.
 - The "How Faraday does it" blocks, `docs/STANDARDS.md` §1 to §7 and §10 and
@@ -1307,10 +1228,10 @@ makes it a Reference.
 1. **The bar's action.** Settled (owner, 2026-10-28): the bar carries
    **Cryptography** beside the ?, in the ⋮ first on the Pi (§8).
 2. **An action another action uses.** Settled (owner, 2026-10-28): a
-   change fails every action that uses it as well as its own (§4.4,
-   §5.2).
+   change is a change to every action that uses it (§4.4); no
+   fingerprint records it now (§5).
 3. **A local variable renamed** counts as a change. Settled (owner,
-   2026-10-28; §5.1).
+   2026-10-28); with no fingerprints (§5) it changes the diff only.
 4. **The Starter's BitLocker sheet.** Settled (owner, 2026-10-28): the
    recovery key carries a block, starter-recovery-key (§8.4).
 5. **Two new Learn pages.** Settled (owner, 2026-10-28): Secure Boot
@@ -1350,7 +1271,7 @@ makes it a Reference.
   and a call to a method named like a standard-library one (`collect`,
   `push`, `get`, `update`, …) on a type the file only names is not one
   either, unless the callee is cryptographic; the function it would have
-  reached is then not in that action's fingerprint through that call.
+  reached is then not in that action's closure through that call.
   Where it matters, the called function is a root of the action, or the
   caller is changed to name the type.
 - A `pub use` glob of a primitive crate (`pub use bitcoin::*`) and a
@@ -1362,15 +1283,13 @@ makes it a Reference.
   written in a file of the tree.
 - A call resolved as §4.4 says may cover a function in the wrong action's
   closure (a free function of a module the path does not pin down, a glob
-  import); its code is still fingerprinted, under that action.
+  import); its code is still covered, under that action.
 - Constant-time claims are copied from the library or the code's own
   documentation; nothing here measures timing.
 - The places named for review (§3.3) are listed, not read: a stale
-  sentence in SECURITY-MODEL is caught by the reviewer the recipe
-  prompts, not by the lint.
+  sentence in SECURITY-MODEL is caught by a reviewer, not by the lint.
 - A library's behaviour changing without its version changing (a
-  vendored patch) is caught by `cargo vet` and the cross-check stamp,
-  not by a fingerprint.
+  vendored patch) is caught by `cargo vet` and the cross-check stamp.
 
 ## 18. Constructions: how a format is built
 
@@ -1743,13 +1662,8 @@ manifest's.
 - `diceware-bits`: each list's `WORDS` length, so a list changed in
   `tools/diceware/gen.py`'s output changes the table.
 
-A construction is fingerprinted as an action is (§5), over the code its
-placeholders name: its lock lines in `docs/crypto/actions.lock` are
-each value it reads (`val c:<file>::<CONST> 53`) and a digest of each
-table, and `just crypto-review <id>` stamps it in `[construction.review]`
-with no inventory. A change to a value the account states fails check
-until the account is reviewed and re-stamped with the vault actions.
-check.py is not yet among `just lint`'s checks; `gen.py check` holds
+A construction's placeholders are filled from the code they name, so
+the account cannot state a value the code no longer holds. check.py is not yet among `just lint`'s checks; `gen.py check` holds
 `how.rs`'s `CONSTRUCTIONS` to the manifest.
 
 ### 18.7 The website's /cryptography page

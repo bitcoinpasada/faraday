@@ -489,20 +489,14 @@ time left), `progress.json` and `report.txt`. A disagreement under
 
 **The cryptographic actions' manifest.** `docs/crypto/actions.toml` lists
 every cryptographic action with the functions it covers
-(`docs/CRYPTO-LEARN.md`). Both recipes need `cargo` and Python 3.11 or
-later:
+(`docs/CRYPTO-LEARN.md`). These need Python 3.11 or later, and `cargo`
+for the inventory:
 
 ```
-just crypto-review ID           print the action's entry, what changed in its code and the
-                                places to read with it; then write its fingerprint
-just crypto-review-stale        the same for every action and construction whose fingerprint
-                                fails, in one call; none is written if one refuses
-just crypto-changes TAG         the actions whose fingerprint changed since a tag
 python3 -I -B docs/crypto/check.py check        coverage, truth and the places it checks
                                                 (AUDIT §1, the Reveal count, COMPUTE §2.3,
                                                 the Tools tags, the not_crypto count)
-just lint-release               before a release: the stamp, and the same check with the
-                                fingerprints (`check.py check --release`)
+just lint-release               before a release: the cross-check's stamp
 python3 -I -B docs/crypto/check.py --self-test  the checker over a small fixture
 python3 -I -B docs/crypto/gen.py write          rewrite the generated places of STANDARDS and AUDIT
 python3 -I -B docs/crypto/gen.py check          fail if one differs from the manifest
@@ -511,10 +505,10 @@ python3 -I -B docs/crypto/gen.py --self-test    the generator over a small fixtu
 
 `docs/STANDARDS.md` §1 to §7 and §10 and `docs/AUDIT.md` §3 are generated from the manifest
 between `<!-- crypto-manifest: begin … -->` and `end` lines: change the manifest and
-run `gen.py write`, never the text between the lines. `just crypto-review ID` runs
-`gen.py write` itself. `just lint` runs `check.py check` and `gen.py check`, so an
-uncovered function or a generated place out of date fails the build; an action whose
-code changed since its review fails `just lint-release`, before a release (F197).
+run `gen.py write`, never the text between the lines. `just lint` runs `check.py check` and `gen.py check`, so an
+uncovered function or a generated place out of date fails the build. A release's notes
+name what changed in the cryptography with `git diff --stat <tag> -- core
+faraday/faraday-keys tools/crosscheck` (F259).
 
 ## 8. Fuzzing
 
