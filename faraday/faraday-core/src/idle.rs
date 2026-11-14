@@ -24,6 +24,9 @@ pub(crate) struct Idle {
     /// Whole minutes without input when the idle warning opened: what
     /// its text says, fixed while it is up.
     warn_min: u64,
+    /// While Make a new wallet holds the lock: the words on show were put
+    /// away at the warning time, once; input clears it.
+    masked_held: bool,
 }
 
 impl Idle {
@@ -35,6 +38,7 @@ impl Idle {
             lock_for_flow: false,
             shown: None,
             warn_min: 0,
+            masked_held: false,
         }
     }
 
@@ -42,6 +46,13 @@ impl Idle {
     pub(crate) fn input(&mut self, now_ms: u64) {
         self.last_input = Some(now_ms);
         self.carry = 0;
+        self.masked_held = false;
+    }
+
+    /// Notes that the held flow's words were put away; false when they
+    /// already were since the last input.
+    pub(crate) fn mask_held_once(&mut self) -> bool {
+        !std::mem::replace(&mut self.masked_held, true)
     }
 
     /// This process follows a lock for idleness after `ms` without

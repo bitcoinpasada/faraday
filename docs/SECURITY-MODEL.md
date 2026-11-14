@@ -240,6 +240,9 @@ internal error rather than carrying on.
   certificates, and `faraday-settings.txt`, the display and idle
   settings, read from the boot stick at the next boot. Nothing read from
   that file can turn off the idle lock or change the network.
+- While Make a new wallet holds the idle lock, the seed words, SeedQR and
+  passphrase on show are put away at the time the warning would come; the
+  flow and its keys stay.
 
 ## Why not a stripped-down amnesiac Linux
 

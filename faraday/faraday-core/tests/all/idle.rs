@@ -237,6 +237,53 @@ fn make_a_new_wallet_holds_the_idle_lock_and_says_so() {
     );
 }
 
+/// Every text drawn now.
+fn texts(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    app.drawn_texts().plain()
+}
+
+#[test]
+fn words_on_show_while_make_a_new_wallet_holds_the_lock_are_masked_at_the_warning_time() {
+    let c = testkit::compute();
+    let mut app = creating();
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
+    let _ = app.frame();
+    for ch in testkit::test_words("bacon").chars() {
+        app.event(Event::Key(Key::Char(ch)));
+    }
+    app.press(Action::KNext);
+    let before = texts(&mut app);
+    app.press(Action::KShow);
+    let after = texts(&mut app);
+    let words: Vec<String> = after.into_iter().filter(|t| !before.contains(t)).collect();
+    assert!(!words.is_empty(), "Show words shows the words");
+    assert!(app.lock_held(&c));
+    tick(&mut app, 0);
+    tick(&mut app, 24 * MIN);
+    let now = texts(&mut app);
+    assert!(words.iter().all(|w| now.contains(w)), "not before the time");
+    tick(&mut app, 25 * MIN);
+    let now = texts(&mut app);
+    assert!(
+        !words.iter().any(|w| now.contains(w)),
+        "the words are masked"
+    );
+    assert_eq!(app.sheet, None, "no warning sheet");
+    assert!(app.lock_held(&c), "the flow is still held");
+    assert!(app.keygen().is_some(), "and the key is still there");
+    assert!(!tick(&mut app, 120 * MIN).contains(&Command::Exit));
+    assert!(!app.restart_requested());
+    app.press(Action::KShow);
+    let now = texts(&mut app);
+    assert!(
+        words.iter().all(|w| now.contains(w)),
+        "Show words shows them again"
+    );
+}
+
 #[test]
 fn once_make_a_new_wallet_ends_the_idle_lock_comes_back() {
     let c = testkit::compute();

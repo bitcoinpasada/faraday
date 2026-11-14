@@ -1505,6 +1505,17 @@ impl Faraday {
         // Make a new wallet before its keys are kept anywhere: no idle
         // lock at all (`docs/history/NEW-WALLET.md` §18).
         let held = self.lock_held(&c);
+        // Held: no warning and no lock, but words on show are put away
+        // once at the warning time; the flow, its key and the Seed XOR
+        // parts stay.
+        if held
+            && let Some((warn, _)) = idle::lock_at(self.idle_lock_min())
+            && idle >= warn
+            && self.idle.mask_held_once()
+        {
+            self.secrets_off_screen();
+            return true;
+        }
         if let Some((warn, lock)) = idle::lock_at(self.idle_lock_min())
             && idle >= warn
             && idle < lock

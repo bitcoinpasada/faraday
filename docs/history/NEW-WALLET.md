@@ -1767,7 +1767,10 @@ idle lock.
    flow's own **Lock and write** step (BACKUP-FLOW §4.5), reached once
    every key is sealed into its vaults (the flow's `made`), or, for a
    plan that writes no stick, Back up's checklist done. Nothing changes
-   for any other screen or flow.
+   for any other screen or flow. At the time the warning would come, the
+   words, SeedQR and passphrase on show are put away once (no sheet, no
+   lock, the flow and its keys stay, the Seed XOR parts stay); input starts
+   it again.
 2. **The pill.** While held, the sidebar shows "Auto-lock off until
    backup complete" under Lock and the power button, as an outlined
    pill in the accent; the small panel's Home shows it under its Lock
