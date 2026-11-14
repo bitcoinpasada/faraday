@@ -391,7 +391,7 @@ each at the text size the person's system asks for.
 In `core/faraday-draw/src/tokens.rs`: the class widths
 (`WINDOW_MEDIUM` 600, `WINDOW_EXPANDED` 840, `WINDOW_LARGE` 1200,
 `WINDOW_EXTRA_LARGE` 1600) and heights (`WINDOW_SHORT` 480,
-`WINDOW_LOW` 600); `RAIL_W` 80, `RAIL_EXPANDED_W` 240 (today's sidebar
+`WINDOW_LOW` 600); `RAIL_W` 80, the expanded rail 240 (today's sidebar
 width), `NAV_BAR_H` 80, `APP_BAR_H` 64, `NAV_PILL_W` 56, `NAV_PILL_H`
 32; `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, `SPACER` 24; `TILE_MIN`
 200, `LEAD_MAX` 560, `LIST_PANE` 360, `COLUMN_MAX` 720, `SHEET_MAX`

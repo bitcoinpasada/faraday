@@ -189,11 +189,6 @@ impl Strings {
         })
     }
 
-    /// Whether any string was made here.
-    pub fn any_made(&self) -> bool {
-        !self.made.is_empty()
-    }
-
     /// Keeps the strings made, each with its index; a string already kept
     /// at an index is replaced.
     pub fn keep(&mut self, strings: Vec<(usize, Text)>) {
@@ -583,13 +578,6 @@ pub fn next_index(form: &C32) -> Option<usize> {
         .iter()
         .filter_map(|&c| crate::plan::codex32::index_of(c))
         .find(|j| !form.indices.contains(j))
-}
-
-/// A share index typed as its character, read: lower case bech32, not the
-/// secret's.
-pub fn index_typed(c: char) -> Option<usize> {
-    crate::plan::codex32::index_of(u8::try_from(c).ok()?)
-        .filter(|&j| j != crate::plan::codex32::SECRET)
 }
 
 /// The name codex32 string `j` of the seed with fingerprint `fp` is

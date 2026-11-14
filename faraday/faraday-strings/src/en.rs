@@ -5623,8 +5623,6 @@ strings! {
     /// Line in `inbox_panel`.
     inbox_panel_not_complete: "Not complete or sealed",
     // ----- potential (faraday-core/src/screens/sheets.rs) -----
-    /// Text in `potential_sheet`. `{}`: `item.name`.
-    potential_open: "Open {}",
     /// Text in `potential_sheet`. `{}`: `fp_text(fp)`.
     potential_a_watch_only_wallet: "A watch-only wallet from {}",
     /// Text in `potential_sheet`.

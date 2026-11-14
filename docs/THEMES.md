@@ -237,9 +237,6 @@ several uses, C2 picks the role by the use, as the row says.
 | `FILES_EDGE` | its edge | secondary |
 | `FILES_TEXT` | its name and glyph | on-secondary-container |
 | `CHIP_EDGE` | a chip's edge on the board | outline |
-| `CODEX32_CHECKSUM_FILL` | a worksheet's checksum squares and a string's checksum boxes | checksum-container (§5), the booklet's pink |
-| `CODEX32_ON_CHECKSUM` | the characters, box numbers and letters on them | on-checksum-container |
-| `CODEX32_LOOKUP_FILL` | a worksheet's table rows | surface-container-highest, its characters on-surface |
 
 Not in the tables today and unchanged: `SCRIM` becomes the scrim role
 (black in every scheme, as now); a camera's overlay (`VIEWFINDER`,

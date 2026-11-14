@@ -43,19 +43,6 @@ pub struct Tab<'s, A> {
 }
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
-    /// Costs measuring each label. Whether `items` all fit a row `w`
-    /// wide at once, so that it does not scroll.
-    pub fn tabs_fit(&self, w: f32, items: &[Tab<'_, A>]) -> bool {
-        let icon = CODEX32_TAB_ICON + GAP_SMALL;
-        let total: f32 = items
-            .iter()
-            .map(|t| {
-                self.measure_as(TITLE_S, t.label) + if t.done { icon } else { 0.0 } + 2.0 * TAB_PAD
-            })
-            .sum();
-        total <= w
-    }
-
     /// Costs measuring each label. `items` as a row of tabs of `kind`
     /// from (x, y), `w` wide and `h` tall, or taller where the text size
     /// needs it. Returns the row's height.

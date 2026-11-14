@@ -65,8 +65,7 @@ pair one Material makes to read:
 | Hovered, pressed | Material's state layers in the control's ink |
 
 Controls are Material's 48 dp (`HOST_CONTROL_H`, the touch target, the
-press their whole box) with labels in title medium (`HOST_LABEL`,
-16 sp), the stick pills fully rounded and the rest at the medium shape;
+press their whole box) with labels in title medium (16 sp), the stick pills fully rounded and the rest at the medium shape;
 the strip is `HOST_STRIP_H`, the controls with 8 dp above and below.
 What the host writes reads on its fill in every theme and scheme, as
 the app's text does (4.5:1, 7:1 at High contrast).

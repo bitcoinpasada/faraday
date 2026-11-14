@@ -117,34 +117,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         cy + FILTER_CHIP_H - y
     }
 
-    /// How tall [`Ui::appearance`] draws its rows `w` wide, worked out
-    /// from the labels' widths with nothing drawn: what a card is sized
-    /// by before its surface goes down.
-    pub fn appearance_h(&self, w: f32, label_w: Option<f32>) -> f32 {
-        let (cw, head) = match label_w {
-            Some(lw) => (w - lw, 0.0),
-            None => (w, self.line_as(BODY_M) + APPEARANCE_LABEL_GAP),
-        };
-        let mut chips = FILTER_CHIP_H;
-        let mut cx = 0.0;
-        for name in ThemeName::ALL {
-            let width = self.theme_chip_width(name);
-            if cx > 0.0 && cx + width > cw {
-                cx = 0.0;
-                chips += FILTER_CHIP_H + FILTER_CHIP_GAP;
-            }
-            cx += width + FILTER_CHIP_GAP;
-        }
-        let modes = Mode::ALL.map(Mode::name);
-        let levels = Contrast::ALL.map(Contrast::name);
-        let rows = [
-            chips,
-            self.choices_h(cw, SEGMENTED_H, LABEL_L.size, &modes),
-            self.choices_h(cw, SEGMENTED_H, LABEL_L.size, &levels),
-        ];
-        rows.iter().map(|r| r + head).sum::<f32>() + 2.0 * APPEARANCE_ROW_GAP
-    }
-
     /// Theme, Mode and Contrast (`docs/THEMES.md` §12) from (x, y), `w`
     /// wide: each row's label in a column `label_w` wide with its control
     /// beside it, or, with `label_w` `None`, over it. `action` names the

@@ -465,8 +465,6 @@ pub const VIEWFINDER_BAND_PAD: f32 = GAP;
 /// picture: dark enough that white words read over a white QR, light
 /// enough that the picture shows through.
 pub const VIEWFINDER_BAND_ALPHA: u8 = 180;
-/// Size in dp of the state line's words on the band inside the picture.
-pub const VIEWFINDER_STATE_SIZE: f32 = CAPTION;
 
 // ---------------------------------------------------------------------
 // Chips and badges
@@ -612,9 +610,6 @@ pub const BOARD_MENU_DOT: f32 = 3.0;
 /// Opacity (of 255) of the thin rule between a chip and its ⋮, drawn in
 /// the ⋮'s colour.
 pub const BOARD_MENU_RULE: u8 = 120;
-/// Height in dp of a row of a chip's ⋮ menu: a box it can go to, or a
-/// place's name over them.
-pub const BOARD_MENU_ROW: f32 = 32.0;
 /// Height in dp of a stick box's head on a place card ("Stick 1" and the
 /// × that takes the stick off): the second of the board's three nested
 /// boxes, place, stick, vault.
@@ -894,8 +889,6 @@ pub const HOST_STRIP_H: f32 = HOST_CONTROL_H + 2.0 * GAP;
 /// A control's height in the host strip, drawn as tall as its press:
 /// Material's 48 dp touch target, at every window size.
 pub const HOST_CONTROL_H: f32 = TOUCH;
-/// A host control's label: Material's title medium, 16 sp.
-pub const HOST_LABEL: f32 = BODY;
 /// A line of text in a host menu or Samples' sheet: a heading, a note.
 pub const HOST_LINE: f32 = 32.0;
 /// The strip's scroll indicator's thickness, where its controls are
@@ -937,9 +930,6 @@ pub const HOST_MARK_LAYER: f32 = STATE_DRAG;
 /// The navigation rail's width, at the window's left (medium, expanded
 /// and low windows).
 pub const RAIL_W: f32 = 80.0;
-
-/// The expanded rail's width (large and extra-large): the sidebar's.
-pub const RAIL_EXPANDED_W: f32 = 240.0;
 
 /// The navigation bar's height, across a compact window's foot.
 pub const NAV_BAR_H: f32 = 80.0;
@@ -1667,9 +1657,6 @@ pub const CODEX32_STRING_NUMBER: f32 = 9.0;
 
 // ----- The five-dice roller (docs/CODEX32.md §5.5) -----
 
-/// The five-dice roller: the side of each of its five dice.
-pub const ROLLER_FIVE_DIE: f32 = 44.0;
-
 /// The five-dice roller: the gap between two dice.
 pub const ROLLER_FIVE_GAP: f32 = 8.0;
 
@@ -2026,8 +2013,6 @@ pub const PROGRESS_SPAN: f32 = 0.3;
 
 /// Material's durations, ms: short 1 to 4.
 pub const MOTION_SHORT1: u64 = 50;
-/// Short 2.
-pub const MOTION_SHORT2: u64 = 100;
 /// Short 3: a switch's slide.
 pub const MOTION_SHORT3: u64 = 150;
 /// Short 4: a fade between screens, the toast coming in.
@@ -2040,20 +2025,6 @@ pub const MOTION_MEDIUM2: u64 = 300;
 pub const MOTION_MEDIUM3: u64 = 350;
 /// Medium 4.
 pub const MOTION_MEDIUM4: u64 = 400;
-/// Long 1.
-pub const MOTION_LONG1: u64 = 450;
-/// Long 2.
-pub const MOTION_LONG2: u64 = 500;
-/// Long 3.
-pub const MOTION_LONG3: u64 = 550;
-/// Long 4.
-pub const MOTION_LONG4: u64 = 600;
-/// Extra-long 1.
-pub const MOTION_EXTRA_LONG1: u64 = 700;
-/// Extra-long 2.
-pub const MOTION_EXTRA_LONG2: u64 = 800;
-/// Extra-long 3.
-pub const MOTION_EXTRA_LONG3: u64 = 900;
 /// Extra-long 4.
 pub(crate) const MOTION_EXTRA_LONG4: u64 = 1000;
 

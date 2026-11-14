@@ -200,11 +200,12 @@ for file in "$FARADAY_STRINGS"; do
     fi
 done
 
-# Every string is used: a key no Rust file outside en.rs names as `.key`
+# Every string is used: a key no Rust file outside en.rs names after a strings
+# receiver (`EN.key`, `S.key`, `s.key`, also across a line break)
 # is dead wording, and goes (STRUCTURE-PASS §7, A11).
 keys=$(grep -oE '^    [a-z0-9_]+: "' "$FARADAY_STRINGS" | sed -E 's/^    ([a-z0-9_]+): "/\1/' | sort -u)
 used=$(find faraday core tools aqrv -name '*.rs' -not -path '*/target/*' -not -path "$FARADAY_STRINGS" -print0 \
-    | xargs -0 grep -hoE '\.[a-z0-9_]+\b' | sed 's/^\.//' | sort -u)
+    | xargs -0 perl -0ne 'print "$1\n" while /\b(?:EN|FEN|S|en|s)\s*\.\s*([a-z0-9_]+)\b/g' | sort -u)
 unused=$(comm -23 <(printf '%s\n' "$keys") <(printf '%s\n' "$used"))
 if [ -n "$unused" ]; then
     echo "lint-strings: strings no code uses; remove them from $FARADAY_STRINGS"

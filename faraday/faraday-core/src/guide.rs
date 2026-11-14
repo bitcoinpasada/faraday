@@ -284,7 +284,6 @@ fn create_key(step: Option<u8>) -> &'static str {
         Some(cstep::QUORUM) => "create.quorum",
         Some(cstep::KEYS) => "create.keys",
         Some(cstep::CHECK) => "create.check",
-        Some(cstep::BACKUP) => "create.backup",
         Some(cstep::WHERE) => "create.where",
         Some(cstep::STICKS) => "create.sticks",
         Some(cstep::VAULTS) => "create.vaults",

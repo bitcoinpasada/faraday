@@ -8,8 +8,6 @@ pub const QUORUM: u8 = 1;
 pub const KEYS: u8 = 2;
 /// The descriptor and the first addresses.
 pub const CHECK: u8 = 3;
-/// No card now: Check's **Back up wallet** opens Back up.
-pub const BACKUP: u8 = 4;
 /// Whether vaults are part of the backup, before Keys.
 pub const WHERE: u8 = 5;
 /// Bring in the sticks of the vaults, before Keys.

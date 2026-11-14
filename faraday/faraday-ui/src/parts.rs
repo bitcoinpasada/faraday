@@ -3,7 +3,7 @@
 //! rows, a sheet's box, a QR code, and the height of what is not drawn.
 
 use crate::pal::*;
-use crate::{Plain, Shape, Style, Ui, W};
+use crate::{Plain, Shape, Style, Ui};
 use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD, GAP, HEADLINE_M, LABEL_L, LABEL_M, TITLE_S};
 
 /// A page's title, in Material's headline medium. Returns its height:
@@ -170,20 +170,6 @@ pub fn measured<A: Copy + PartialEq>(ui: &mut Ui<A>, draw: impl FnOnce(&mut Ui<A
     ui.c.pop_clip();
     ui.hits.truncate(mark.0);
     ui.reach.truncate(mark.1);
-    h
-}
-
-/// The height `s` takes wrapped to `width`, drawn nowhere.
-pub fn measure_wrap<A: Copy + PartialEq>(
-    ui: &mut Ui<A>,
-    width: f32,
-    size: f32,
-    w: W,
-    s: &str,
-) -> f32 {
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let h = ui.wrap(0.0, 0.0, width, size, w, Role::OnSurface, s);
-    ui.c.pop_clip();
     h
 }
 

@@ -676,22 +676,6 @@ fn a_toast_leaves_the_floating_button_in_sight() {
     assert!(press.0.y > toast.bottom(), "{:?} under the toast", press.0);
 }
 
-/// Settings' Appearance card is sized from its rows' widths before they
-/// are drawn: the height worked out is the height drawn, wide and on a
-/// small panel, at every width the rows wrap at.
-#[test]
-fn the_appearance_rows_are_as_tall_as_worked_out() {
-    let mut canvas = canvas();
-    let mut hits = Vec::new();
-    let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
-    for w in [180.0, 240.0, 320.0, 412.0, 520.0, 600.0] {
-        for label in [None, Some(128.0)] {
-            let drawn = ui.appearance((0.0, 0.0, w), label, Theme::default(), |_| 1);
-            assert_eq!(ui.appearance_h(w, label), drawn, "{w} {label:?}");
-        }
-    }
-}
-
 /// The pixel at (x, y) of `canvas`, as a colour.
 fn pixel(canvas: &Canvas, x: f32, y: f32) -> Color {
     let f = canvas.frame();

@@ -150,15 +150,6 @@ pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
 /// `tokens::VIEWFINDER_BAND_ALPHA`.
 pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
 
-// The codex32 worksheets (`docs/CODEX32.md` §7.5).
-/// The checksum squares, worked from the bottom up: the booklet's pink,
-/// Faraday's checksum custom colour (`docs/THEMES.md` §5).
-pub const CODEX32_CHECKSUM_FILL: Paint = Paint::role(Role::ChecksumContainer);
-/// The characters, box numbers and letters on a checksum square.
-pub const CODEX32_ON_CHECKSUM: Paint = Paint::role(Role::OnChecksumContainer);
-/// The rows read from a table (sums and lookups).
-pub const CODEX32_LOOKUP_FILL: Paint = Paint::role(Role::SurfaceContainerHighest);
-
 /// The boot stick's pill and render: Bitcoin's orange, on a dark page.
 pub(crate) const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
 /// The backup sticks' pills and renders on a dark page, Stick 1, 2,

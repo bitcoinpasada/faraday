@@ -38,15 +38,14 @@ owner's answers, are in `docs/history/TEXT-SIZE-LOG.md`.
   cut on Small stays.
 - **The ramp.** `core/faraday-draw/src/tokens.rs` names TITLE 20, BODY
   16, LABEL 14, CAPTION 12 and a few sizes of their own
-  (`FIELD_ACTION_TEXT`, `SCAN_TILE_TEXT`, `PASS_CODE_TEXT`,
-  `VIEWFINDER_STATE_SIZE`). Many screens still write a size in place
+  (`FIELD_ACTION_TEXT`, `SCAN_TILE_TEXT`, `PASS_CODE_TEXT`). Many screens still write a size in place
   (`ui.text(x, y, 13.0, …)`) and a line's advance in place (`y += 24.0`);
   `tools/lint-tokens.counts` counts them.
 - **Heights.** Rows, buttons and fields have heights named in tokens
   (`ROW` 56, `MENU_ROW` 72, `MENU_ROW_SMALL` 52, `FIELD` 52,
   `TEXT_FIELD` 40) or written in place (`wrap_buttons(…, 38.0, …)`).
   Text is placed in them by `text_mid`. Paragraphs wrap (`Ui::wrap`,
-  `wrap_lines`, `parts::measure_wrap`) and their cards grow with them.
+  `wrap_lines`) and their cards grow with them.
 - **The layout.** `self.compact` (one column) is decided from the
   window in dp at its density times the Display scale (F101), divided
   by the text factor (`Faraday::layout_window`, §4).
@@ -183,7 +182,7 @@ text needs:
   segmented choices, buttons (`Ui::button`, a sheet's and a dialog's),
   text fields (`Ui::field_box`), the small panel's menu row
   (`compact::row`, its icon by `Ui::row_icon`) and the board's menu rows
-  (`BOARD_MENU_ROW`) take it; their touch target is the grown row.
+  take it; their touch target is the grown row.
   A list item's headline that does not fit its line at a larger size
   takes a second line, and the item grows by it.
   `CHART_SHEET_ROW` and `MODE_ROW` hold Larger's line as they are. The
@@ -204,7 +203,7 @@ text needs:
 Drawing reads: the row heights come from `measure` and `line`, which
 are lookups in the glyph cache, so no new costly work enters drawing.
 A screen that today works out a list's total height for its scroll
-(`measured`, `measure_wrap`) does so with the grown heights.
+(`measured`) does so with the grown heights.
 
 ## 6. Kept
 

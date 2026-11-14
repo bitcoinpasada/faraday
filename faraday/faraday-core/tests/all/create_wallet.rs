@@ -189,7 +189,6 @@ fn it_matches_leaves_check_open_on_back_up_wallet_with_no_back_up_card() {
         Some(cstep::CHECK),
         "Check stays open"
     );
-    assert!(!app.create_cards().contains(&cstep::BACKUP));
     let _ = app.frame();
     assert!(app.offers(Action::CBackup), "Back up wallet is offered");
     let texts = app.drawn_texts();
