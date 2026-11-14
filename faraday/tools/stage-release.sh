@@ -354,14 +354,20 @@ scan() {
 }
 # A Starter the second pass adds must sit on a first pass's output and
 # carry its image list: IMAGES' first line names the release and the commit,
-# and is in the binary as a string. Prints that line.
+# and is in the binary as a string. Every line of the list, each image's hash
+# included, must be in it (the build includes the whole file), so a Starter
+# built against another list of the same release is refused. Prints the first line.
 starter_images() { # the Starter's file, the name it is published as
     [ -f "$out/SHA256SUMS" ] && [ -f "$out/IMAGES" ] \
         || die "$out is not a first pass's output: stage the plain files first"
     [ ! -e "$out/$2" ] || die "$out/$2 exists; move it aside first"
     local first
     first="$(head -1 "$out/IMAGES")"
-    grep -aqF -- "$first" "$1" || die "$1 does not carry the image list in $out/IMAGES (its first line is not in it); build it with FARADAY_STARTER_IMAGES=$out/IMAGES"
+    local line
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        grep -aqF -- "$line" "$1" || die "$1 does not carry the image list in $out/IMAGES (its line \"$line\" is not in it); build it with FARADAY_STARTER_IMAGES=$out/IMAGES"
+    done < "$out/IMAGES"
     printf '%s' "$first"
 }
 # The second pass: the Linux Starter (STARTER §1.1, §1.2).
@@ -446,4 +452,10 @@ echo
 cat "$out/SHA256SUMS"
 echo
 ls -l "$out"
-echo "Staged in $out. Sign SHA256SUMS in Faraday (GPG -> Sign a file)."
+# A second pass appends its lines to SHA256SUMS, so a signature made before
+# the last pass no longer matches the file: say to sign only once it is whole.
+if [ -n "$second" ]; then
+    echo "Staged in $out. If another pass is still to add a Starter, run it first; once SHA256SUMS holds every line, sign it in Faraday (GPG -> Sign a file)."
+else
+    echo "Staged in $out. Do not sign SHA256SUMS yet if a Starter is still to be added (the second pass appends its lines); once the last pass is done, sign it in Faraday (GPG -> Sign a file)."
+fi
