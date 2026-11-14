@@ -62,6 +62,7 @@ fn starter() -> Starter {
         serial: "AAA111".into(),
         size: 16 * GB,
         bus: Bus::Usb,
+        fixed: false,
         volumes: Vec::new(),
         in_use: None,
         faraday: Some(FaradayStick {

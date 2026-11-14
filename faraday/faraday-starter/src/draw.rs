@@ -855,12 +855,27 @@ fn on_it(d: &crate::api::Disk) -> String {
         names.join(", ")
     };
     let files = d.volumes.iter().any(|v| v.files);
+    let encrypted = d.volumes.iter().any(|v| v.encrypted);
     let tail = match (files, n == 1) {
+        _ if encrypted && !files => S.starter_on_encrypted,
         (true, true) => S.starter_volume_has_files,
         (true, false) => S.starter_on_files_them,
         (false, _) => S.starter_on_no_files,
     };
     format!("{what}, {tail}")
+}
+
+/// Why a disk looks unlike a stick, in one line.
+fn unlike_text(why: crate::decide::Unlike) -> String {
+    use crate::decide::Unlike;
+    match why {
+        Unlike::Fixed => S.starter_unlike_fixed.to_string(),
+        Unlike::Large => fill(
+            S.starter_unlike_large,
+            &[&size_text(crate::decide::STICK_MAX_BYTES)],
+        ),
+        Unlike::Foreign => S.starter_unlike_foreign.to_string(),
+    }
 }
 
 /// Why a disk cannot be chosen, in one line.
@@ -1040,7 +1055,10 @@ fn disk_row_text(starter: &Starter, o: &crate::decide::Offer<'_>) -> (String, St
     let plain = |o: &crate::decide::Offer<'_>| {
         let sub = match &o.refused {
             Some(r) => refusal_text(r),
-            None => on_it(o.disk),
+            None => match crate::decide::unlike_a_stick(o.disk) {
+                Some(why) => format!("{} · {}", unlike_text(why), on_it(o.disk)),
+                None => on_it(o.disk),
+            },
         };
         (disk_name(o.disk), sub, o.disk.size)
     };
@@ -1214,6 +1232,9 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             _ => {}
         }
     }
+    if let Some(why) = disk.and_then(crate::decide::unlike_a_stick) {
+        y += warning(ui, x, y, w, &unlike_text(why));
+    }
     let matches = starter.confirmed_matches();
     if !matches {
         y += line(ui, x, y, w, &not_confirmed(target), Role::Error);
@@ -1255,13 +1276,13 @@ fn write_buttons(
         );
     }
     if style == Style::Primary && starter.is_hold(StarterAction::Write) {
-        return hold(
-            starter,
-            ui,
-            (x, y, w),
-            S.starter_keep_older_hold,
-            StarterAction::Write,
-        );
+        let label = match starter.chosen_disk() {
+            Some(d) if !starter.writes_older() => {
+                fill(S.starter_unlike_hold, &[&size_text(d.size)])
+            }
+            _ => S.starter_keep_older_hold.to_string(),
+        };
+        return hold(starter, ui, (x, y, w), &label, StarterAction::Write);
     }
     buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
 }

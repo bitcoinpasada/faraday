@@ -155,11 +155,11 @@ impl Starter {
 
     /// Whether `action` acts only when held to the end (F136): Continue
     /// anyway's answer, and Write on Confirm when keep data writes an
-    /// older release over a newer stick. A lookup.
+    /// older release over a newer stick, or the disk looks unlike a stick. A lookup.
     pub(crate) fn is_hold(&self, action: StarterAction) -> bool {
         match action {
             StarterAction::LetThrough => true,
-            StarterAction::Write => self.writes_older(),
+            StarterAction::Write => self.writes_older() || self.writes_unlike(),
             _ => false,
         }
     }

@@ -61,9 +61,12 @@ fn blank(id: &str) -> Disk {
         serial: format!("SN-{id}"),
         size: 16 * GB,
         bus: Bus::Usb,
+        fixed: false,
         volumes: vec![Volume {
             label: None,
             files: false,
+            fs: String::new(),
+            encrypted: false,
         }],
         in_use: None,
         faraday: None,

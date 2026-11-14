@@ -192,6 +192,12 @@ pub struct Volume {
     pub label: Option<String>,
     /// It holds files.
     pub files: bool,
+    /// Its file system's name as the system says it (`vfat`, `ntfs`,
+    /// `ext4`), lower case; empty when none is mounted or known.
+    pub fs: String,
+    /// It is an encrypted volume (a LUKS partition), which no file system
+    /// is read from.
+    pub encrypted: bool,
 }
 
 /// What a Faraday stick's boot partition says (§4.1): the disk has a Faraday
@@ -237,6 +243,9 @@ pub struct Disk {
     pub size: u64,
     /// How it is attached.
     pub bus: Bus,
+    /// The system reports it as a fixed disk, not removable media (a hard
+    /// drive or SSD in an enclosure; some sticks report themselves so too).
+    pub fixed: bool,
     /// Its volumes.
     pub volumes: Vec<Volume>,
     /// Why the computer uses it, when it does.

@@ -821,7 +821,9 @@ Downloads.
    what is on it. A Faraday stick says "Faraday stick" and the Faraday
    version it holds (§4.1); any other disk says the names of its
    volumes and that it holds files ("2 volumes, files on them"), or
-   "Empty". The device path and serial are not on this screen, except on rows
+   "Empty"; one that looks unlike a stick (§4.2) says why first ("Over
+   128 GB, larger than a stick · …"), and a locked encrypted volume says
+   "encrypted". The device path and serial are not on this screen, except on rows
    that would read the same; Confirm has them. Faraday sticks come first, then the others by size, the
    smallest first. Two or more rows that would read the same (maker and
    model, what is on them, size) each add what tells them apart to the
@@ -1249,10 +1251,22 @@ unchanged.
 
 ### 4.2 Which disks are offered
 
-- A whole disk on USB, removable or hot-pluggable (Linux: udisks2's
-  `Drive.ConnectionBus` = `usb`, `Removable` or `Ejectable`); or, for
-  a Pi card, an SD card in the computer's own reader (Linux `mmcblk*`;
-  Windows bus types SD and MMC).
+- A whole disk on USB; or, for a Pi card, an SD card in the computer's
+  own reader: on Linux an `mmcblk*` disk whose sysfs `device/type` is
+  `SD` (or, without it, udisks2's `MediaRemovable`), never a built-in
+  eMMC disk (`MMC`); on Windows bus types SD and MMC only when the
+  descriptor says `RemovableMedia`.
+- A disk that looks unlike a stick is still listed, with a line saying
+  why, and Confirm's Write is a hold that names it ("Hold to erase this
+  2000 GB disk", F136), never a tap: the system says it is fixed (Linux:
+  none of udisks2's `Removable`, `Ejectable`, `MediaRemovable` and sysfs
+  `removable` = 1; Windows: no `RemovableMedia`; macOS: no
+  `RemovableMedia`), it is larger than 128 GB (`STICK_MAX_BYTES`, the
+  owner's call, 2026-11-14), or it holds an encrypted volume or a file
+  system a stick does not use (anything but FAT, exFAT, NTFS and UDF; a
+  Faraday stick is never refused by this). A locked encrypted volume
+  reads "encrypted", not "Empty". Sticks that report themselves fixed
+  stay writable, through the hold.
 - Never a disk with a partition the computer uses: on Linux mounted
   anywhere but `/run/media` or `/media`, where the desktop mounts
   removable disks (udisks2's `Filesystem.MountPoints`; a disk mounted

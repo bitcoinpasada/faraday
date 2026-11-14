@@ -1,0 +1,110 @@
+# udisks2's GetManagedObjects, recorded by hand in the form
+# faraday_starter_shell::linux::udisks::Objects::parse reads. The makers,
+# models and serials are made up. The Sysfs interface is what the transport
+# reads from /sys/class/block/<name>: device/type and removable.
+#
+# A USB hard drive in an enclosure: not removable, an ext4 volume.
+/org/freedesktop/UDisks2/drives/Acme_Backup_DDD444
+  Drive
+    Vendor s Acme
+    Model s Backup
+    Serial s DDD444
+    Size t 2000398934016
+    ConnectionBus s usb
+    Removable b false
+    Ejectable b false
+/org/freedesktop/UDisks2/block_devices/sdg
+  Block
+    Device ay /dev/sdg
+    Size t 2000398934016
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Backup_DDD444
+  PartitionTable
+    Type s gpt
+  Sysfs
+    Removable s 0
+  Holders
+    Names aay
+/org/freedesktop/UDisks2/block_devices/sdg1
+  Block
+    Device ay /dev/sdg1
+    Size t 2000397885440
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Backup_DDD444
+    IdUsage s filesystem
+    IdType s ext4
+    IdLabel s BACKUP
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdg
+    Name s
+  Holders
+    Names aay
+#
+# A computer's built-in eMMC disk: not removable, not a card.
+/org/freedesktop/UDisks2/drives/Internal_EMMC_EEE555
+  Drive
+    Model s EMMC64
+    Serial s EEE555
+    Size t 62537072640
+    Removable b false
+    MediaRemovable b false
+/org/freedesktop/UDisks2/block_devices/mmcblk1
+  Block
+    Device ay /dev/mmcblk1
+    Size t 62537072640
+    Drive o /org/freedesktop/UDisks2/drives/Internal_EMMC_EEE555
+  Sysfs
+    DeviceType s MMC
+    Removable s 0
+  Holders
+    Names aay
+#
+# An SD card in the computer's own reader.
+/org/freedesktop/UDisks2/drives/SD_Card_FFF666
+  Drive
+    Model s SD32G
+    Serial s FFF666
+    Size t 31914983424
+    Removable b true
+    MediaRemovable b true
+/org/freedesktop/UDisks2/block_devices/mmcblk0
+  Block
+    Device ay /dev/mmcblk0
+    Size t 31914983424
+    Drive o /org/freedesktop/UDisks2/drives/SD_Card_FFF666
+  Sysfs
+    DeviceType s SD
+    Removable s 1
+  Holders
+    Names aay
+#
+# A locked LUKS volume on a USB disk.
+/org/freedesktop/UDisks2/drives/Acme_Vault_GGG777
+  Drive
+    Vendor s Acme
+    Model s Vault
+    Serial s GGG777
+    Size t 16008609792
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdh
+  Block
+    Device ay /dev/sdh
+    Size t 16008609792
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Vault_GGG777
+  PartitionTable
+    Type s gpt
+  Holders
+    Names aay
+/org/freedesktop/UDisks2/block_devices/sdh1
+  Block
+    Device ay /dev/sdh1
+    Size t 16007561216
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Vault_GGG777
+    IdUsage s crypto
+    IdType s crypto_LUKS
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdh
+    Name s
+  Holders
+    Names aay

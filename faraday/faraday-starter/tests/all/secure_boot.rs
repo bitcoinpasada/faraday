@@ -50,6 +50,7 @@ fn stick() -> Disk {
         serial: "SN-1".into(),
         size: 32_000_000_000,
         bus: Bus::Usb,
+        fixed: false,
         volumes: Vec::new(),
         in_use: None,
         faraday: Some(FaradayStick {

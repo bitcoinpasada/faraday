@@ -20,7 +20,10 @@ use rustbus::wire::unmarshal::traits::Variant;
 use rustbus::wire::{ObjectPath, UnixFd};
 use rustbus::{MessageBuilder, MessageType, RpcConn};
 
-use super::udisks::{HOLDERS, HOLDERS_NAMES, Objects, Props, Value, kernel_name, short};
+use super::udisks::{
+    HOLDERS, HOLDERS_NAMES, Objects, Props, SYSFS, SYSFS_REMOVABLE, SYSFS_TYPE, Value, kernel_name,
+    short,
+};
 use super::{Open, Udisks};
 
 const SERVICE: &str = "org.freedesktop.UDisks2";
@@ -147,7 +150,7 @@ fn value(v: &Variant<'_, '_>) -> Value {
 const SYS_BLOCK: &str = "/sys/class/block";
 
 /// Costs a directory read per block: records on every block the kernel
-/// names of the devices built on it, read from
+/// names of the devices built on it, and `device/type` and `removable`, read from
 /// `<sys_block>/<name>/holders`. A block whose holders cannot be read
 /// (no device name, no directory, a read error) gets nothing recorded,
 /// and the disk it belongs to is not offered.
@@ -171,6 +174,21 @@ pub fn record_holders(objects: &mut Objects, sys_block: &Path) {
         let Some(name) = kernel_name(resolved.as_deref().unwrap_or(&device)) else {
             continue;
         };
+        let read = |file: &str| {
+            std::fs::read_to_string(sys_block.join(name).join(file))
+                .map(|t| t.trim().to_string())
+                .ok()
+        };
+        let mut sys = Props::new();
+        if let Some(t) = read("device/type") {
+            sys.insert(SYSFS_TYPE.to_string(), Value::Str(t));
+        }
+        if let Some(r) = read("removable") {
+            sys.insert(SYSFS_REMOVABLE.to_string(), Value::Str(r));
+        }
+        if !sys.is_empty() {
+            ifaces.insert(SYSFS.to_string(), sys);
+        }
         let Ok(dir) = std::fs::read_dir(sys_block.join(name).join("holders")) else {
             continue;
         };

@@ -271,6 +271,9 @@ impl Answers {
             "Secure Digital" => Bus::SdReader,
             _ => return None,
         };
+        // `RemovableMedia` is diskutil's word for a stick or card; a disk
+        // that does not say it is taken as fixed.
+        let fixed = info.get("RemovableMedia").and_then(Value::as_bool) != Some(true);
         let size = info
             .get("TotalSize")
             .or_else(|| info.get("Size"))?
@@ -305,6 +308,8 @@ impl Answers {
             Volume {
                 label: (!label.is_empty()).then(|| label.to_string()),
                 files: !fs.is_empty() || stores.contains(&id),
+                fs: fs.to_ascii_lowercase(),
+                encrypted: false,
             }
         };
         let volumes: Vec<Volume> = if parts.is_empty() {
@@ -357,6 +362,7 @@ impl Answers {
                 serial: String::new(),
                 size,
                 bus,
+                fixed,
                 volumes,
                 in_use: self.in_use(id),
                 faraday: boot.as_ref().map(|_| FaradayStick {

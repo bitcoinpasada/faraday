@@ -40,6 +40,7 @@ fn disk(id: &str, faraday: bool) -> Disk {
         serial: format!("SN-{id}"),
         size: 32 * GB,
         bus: Bus::Usb,
+        fixed: false,
         volumes: Vec::new(),
         in_use: None,
         faraday: faraday.then(|| FaradayStick {

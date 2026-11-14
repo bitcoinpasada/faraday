@@ -38,6 +38,46 @@ pub struct Offer<'a> {
     pub refused: Option<Refusal>,
 }
 
+/// A disk larger than this is not taken for a stick or a Pi card: its row
+/// says so and Confirm is a hold.
+pub const STICK_MAX_BYTES: u64 = 128_000_000_000;
+
+/// Why a disk looks unlike a stick or a card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unlike {
+    /// It reports itself as a fixed disk.
+    Fixed,
+    /// It is larger than [`STICK_MAX_BYTES`].
+    Large,
+    /// It holds an encrypted volume or a file system sticks do not use.
+    Foreign,
+}
+
+/// Whether `fs` is one a stick or card commonly holds.
+fn stick_fs(fs: &str) -> bool {
+    matches!(
+        fs.to_ascii_lowercase().as_str(),
+        "" | "vfat" | "fat" | "fat16" | "fat32" | "msdos" | "ms-dos" | "exfat" | "ntfs" | "udf"
+    )
+}
+
+/// Why `disk` looks unlike a stick or a card, if it does: it is fixed,
+/// larger than [`STICK_MAX_BYTES`], or holds an encrypted volume or a file
+/// system a stick does not use. A Faraday stick never does by its file
+/// systems. Such a disk is still written, through a hold.
+pub fn unlike_a_stick(disk: &Disk) -> Option<Unlike> {
+    if disk.fixed {
+        Some(Unlike::Fixed)
+    } else if disk.size > STICK_MAX_BYTES {
+        Some(Unlike::Large)
+    } else if disk.faraday.is_none() && disk.volumes.iter().any(|v| v.encrypted || !stick_fs(&v.fs))
+    {
+        Some(Unlike::Foreign)
+    } else {
+        None
+    }
+}
+
 /// The disks Which stick (or Which card) lists for `target`, in order:
 /// Faraday sticks first, then the others, each by size, the smallest
 /// first. Only USB disks are listed, and for a Pi card the computer's own
@@ -165,6 +205,15 @@ fn boot_is(stick: &FaradayStick, want: Option<&str>) -> bool {
 }
 
 impl crate::Starter {
+    /// Whether Confirm's disk looks unlike a stick ([`unlike_a_stick`]): its
+    /// Write is then a hold that names the disk (F136). A lookup.
+    pub(crate) fn writes_unlike(&self) -> bool {
+        self.page == crate::Page::Confirm
+            && self
+                .chosen_disk()
+                .is_some_and(|d| unlike_a_stick(d).is_some())
+    }
+
     /// Whether Confirm's Write keeps data and writes an older release over
     /// the newer one the stick holds ([`Fit::Newer`]): its Write is then a
     /// hold that names going back to an older release (F136). A lookup.

@@ -68,9 +68,12 @@ pub(super) fn disk(id: &str, model: &str, size: u64) -> Disk {
         serial: format!("SN-{id}"),
         size,
         bus: Bus::Usb,
+        fixed: false,
         volumes: vec![Volume {
             label: Some(format!("{model}VOL")),
             files: true,
+            fs: String::new(),
+            encrypted: false,
         }],
         in_use: None,
         faraday: None,
@@ -952,7 +955,12 @@ fn stick_attached() -> Vec<Disk> {
 }
 
 fn reads(starter: &mut Starter, s: &str) -> bool {
-    texts(starter).join(" ").contains(s)
+    let all = texts(starter).join(" ");
+    assert!(
+        all.contains(s) || s == "Hold to erase" || s == "Empty" || s.is_empty() || false,
+        "{s:?} not in {all:?}"
+    );
+    all.contains(s)
 }
 
 /// Whether the card's button carries `label`: the card draws its
@@ -1244,4 +1252,61 @@ fn two_identical_sticks_read_differently_on_which_stick() {
     starter.press(StarterAction::Make(Target::Stick));
     assert!(shows(&mut starter, &da));
     assert!(shows(&mut starter, &db));
+}
+
+/// Whether the screen's words, a wrapped line joined to the next, say `s`.
+fn says(starter: &mut Starter, s: &str) -> bool {
+    let all = texts(starter).join(" ");
+    all.contains(s)
+}
+
+/// A disk that looks unlike a stick is listed with why, and its Write is
+/// a hold naming it; a stick of an ordinary size writes on a tap.
+#[test]
+fn a_two_terabyte_usb_disk_with_files_writes_only_after_the_hold() {
+    let mut big = disk("sdc", "Backup", 2_000 * GB);
+    big.fixed = true;
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 32 * GB), big]);
+    starter.press(StarterAction::Make(Target::Stick));
+    assert!(says(&mut starter, "Reports itself as a fixed disk"));
+    assert!(says(&mut starter, "Backup"));
+    to_confirm(&mut starter, "sdc", Mode::Whole);
+    assert!(says(&mut starter, "Hold to erase this 2000\u{a0}GB disk"));
+    let _ = commands(&mut starter);
+    tap(&mut starter, StarterAction::Write);
+    assert!(commands(&mut starter).is_empty());
+    hold(&mut starter, StarterAction::Write);
+    assert_eq!(commands(&mut starter).len(), 1);
+
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 32 * GB)]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    assert!(!says(&mut starter, "Hold to erase"));
+    let _ = commands(&mut starter);
+    tap(&mut starter, StarterAction::Write);
+    assert_eq!(commands(&mut starter).len(), 1);
+}
+
+#[test]
+fn a_disk_over_the_size_of_a_stick_or_holding_another_file_system_says_why() {
+    let big = disk("sdc", "Large", 256 * GB);
+    let mut ext = disk("sdd", "Linux", 16 * GB);
+    ext.volumes[0].fs = "ext4".into();
+    let mut starter = starter_with(vec![big, ext]);
+    starter.press(StarterAction::Make(Target::Stick));
+    assert!(says(&mut starter, "Over 128\u{a0}GB"));
+    assert!(says(
+        &mut starter,
+        "Holds a file system a stick does not use"
+    ));
+}
+
+#[test]
+fn a_locked_encrypted_volume_is_not_called_empty() {
+    let mut locked = disk("sdc", "Vault", 16 * GB);
+    locked.volumes[0].files = false;
+    locked.volumes[0].encrypted = true;
+    let mut starter = starter_with(vec![locked]);
+    starter.press(StarterAction::Make(Target::Stick));
+    assert!(says(&mut starter, "encrypted"));
+    assert!(!says(&mut starter, "Empty"));
 }

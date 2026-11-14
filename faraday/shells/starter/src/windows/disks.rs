@@ -399,7 +399,7 @@ impl Snapshot {
             let n = raw.number;
             let bus = match desc.bus {
                 BUS_USB => Bus::Usb,
-                BUS_SD | BUS_MMC => Bus::SdReader,
+                BUS_SD | BUS_MMC if desc.removable => Bus::SdReader,
                 _ => Bus::Other,
             };
             let on_disk = self.volumes_on(n);
@@ -413,6 +413,8 @@ impl Snapshot {
             let volume = |v: Option<&RawVolume>| Volume {
                 label: v.map(|v| v.label.clone()).filter(|l| !l.is_empty()),
                 files: v.is_some_and(|v| !v.filesystem.is_empty()),
+                fs: v.map_or_else(String::new, |v| v.filesystem.to_ascii_lowercase()),
+                encrypted: false,
             };
             let table = layout(&raw.layout).filter(|l| l.style != Style::Raw);
             let parts = table
@@ -456,6 +458,7 @@ impl Snapshot {
                     serial: desc.serial,
                     size: geo.size,
                     bus,
+                    fixed: !desc.removable,
                     volumes,
                     in_use,
                     faraday: faraday.then_some(FaradayStick {

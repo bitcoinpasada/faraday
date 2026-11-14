@@ -10,7 +10,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use faraday_starter::api::{Bus, Disk, InUse, StarterEvent};
-use faraday_starter::decide::{Refusal, Target, offers};
+use faraday_starter::decide::{Refusal, Target, offers, unlike_a_stick};
 use faraday_starter_shell::linux::udisks::Objects;
 use faraday_starter_shell::linux::{self, Open, Udisks, Versions};
 
@@ -392,4 +392,29 @@ fn holders_are_read_from_the_kernel_and_a_block_it_does_not_list_is_not_checked(
         .expect("there")
         .remove("Filesystem");
     assert_eq!(recording.in_use(&block("sdh")), Some(InUse::Held));
+}
+
+#[test]
+fn a_usb_hard_drive_is_listed_as_fixed_and_a_locked_volume_as_encrypted() {
+    let disks = listed(&recorded("hard-drive-and-emmc.txt"));
+    let find = |dev: &str| disks.iter().find(|d| d.device == dev).expect("listed");
+    let drive = find("/dev/sdg");
+    assert_eq!(drive.bus, Bus::Usb);
+    assert!(drive.fixed);
+    assert!(unlike_a_stick(drive).is_some());
+    assert_eq!(drive.volumes[0].fs, "ext4");
+    let vault = find("/dev/sdh");
+    assert!(!vault.fixed);
+    assert!(vault.volumes[0].encrypted);
+    assert!(!vault.volumes[0].files);
+    assert!(unlike_a_stick(vault).is_some());
+}
+
+#[test]
+fn a_built_in_emmc_disk_is_not_offered_for_a_pi_card_but_an_sd_card_is() {
+    let disks = listed(&recorded("hard-drive-and-emmc.txt"));
+    let list = offers(&disks, Target::Pi, Some(IMAGE));
+    let shown = names(&list);
+    assert!(!shown.contains(&"/dev/mmcblk1".to_string()));
+    assert!(shown.contains(&"/dev/mmcblk0".to_string()));
 }

@@ -97,11 +97,14 @@ fn disk(id: &str, vendor: &str, model: &str, size: u64, volumes: &[(&str, bool)]
         serial: format!("4C530001{}", id.to_uppercase()),
         size,
         bus: Bus::Usb,
+        fixed: false,
         volumes: volumes
             .iter()
             .map(|(l, f)| Volume {
                 label: (!l.is_empty()).then(|| l.to_string()),
                 files: *f,
+                fs: String::new(),
+                encrypted: false,
             })
             .collect(),
         in_use: None,

@@ -315,6 +315,16 @@ strings! {
     starter_on_files_them: "files on them",
     /// After the volumes' names.
     starter_on_no_files: "no files",
+    /// After the volumes' names: an encrypted volume is there.
+    starter_on_encrypted: "encrypted",
+    /// A disk that reports itself fixed, on its row, before what is on it.
+    starter_unlike_fixed: "Reports itself as a fixed disk",
+    /// A disk larger than a stick: `{}` the largest size of a stick.
+    starter_unlike_large: "Over {}, larger than a stick",
+    /// A disk holding an encrypted volume or another system's file system.
+    starter_unlike_foreign: "Holds a file system a stick does not use",
+    /// Confirm's hold for a disk unlike a stick: `{}` its size.
+    starter_unlike_hold: "Hold to erase this {} disk",
     /// A disk the computer uses: `{}` the mount point.
     starter_refused_mounted: "Used by this computer: mounted at {}",
     /// A disk the computer uses.

@@ -82,6 +82,15 @@ pub const HOLDERS: &str = "Holders";
 /// Its property: the kernel names of the devices built on the block.
 pub const HOLDERS_NAMES: &str = "Names";
 
+/// The interface the transport records what sysfs says of a block's device
+/// on.
+pub const SYSFS: &str = "Sysfs";
+/// Its property: `<name>/device/type`, `SD` for a card and `MMC` for a
+/// built-in eMMC disk.
+pub const SYSFS_TYPE: &str = "DeviceType";
+/// Its property: `<name>/removable`, `1` or `0`.
+pub const SYSFS_REMOVABLE: &str = "Removable";
+
 /// A block's kernel name (`sdb1`, from `Block.Device` = `/dev/sdb1`),
 /// which names its directory in `/sys/class/block`.
 pub fn kernel_name(device: &str) -> Option<&str> {
@@ -299,19 +308,28 @@ impl Objects {
             let hotplug = self.bool(drive, "Drive", "Removable")
                 || self.bool(drive, "Drive", "Ejectable")
                 || self.bool(drive, "Drive", "MediaRemovable");
-            let bus = if usb && hotplug {
+            // sysfs's own word: a card reads `SD`, a built-in eMMC disk
+            // `MMC`. Without it, only udisks2's `MediaRemovable` says a card.
+            let kind = self.str(whole, SYSFS, SYSFS_TYPE);
+            let card =
+                kind == "SD" || (kind.is_empty() && self.bool(drive, "Drive", "MediaRemovable"));
+            let bus = if usb {
                 Bus::Usb
-            } else if device.starts_with("/dev/mmcblk") {
+            } else if device.starts_with("/dev/mmcblk") && card {
                 Bus::SdReader
             } else {
                 Bus::Other
             };
+            let fixed = !hotplug && self.str(whole, SYSFS, SYSFS_REMOVABLE) != "1";
             let parts = self.partitions(whole);
             let volume = |b: &str| {
                 let label = self.str(b, "Block", "IdLabel");
+                let usage = self.str(b, "Block", "IdUsage");
                 Volume {
                     label: (!label.is_empty()).then_some(label),
-                    files: !self.str(b, "Block", "IdUsage").is_empty(),
+                    files: !usage.is_empty() && usage != "crypto",
+                    fs: self.str(b, "Block", "IdType").to_ascii_lowercase(),
+                    encrypted: usage == "crypto",
                 }
             };
             let volumes: Vec<Volume> = if parts.is_empty() {
@@ -356,6 +374,7 @@ impl Objects {
                     serial: self.str(drive, "Drive", "Serial"),
                     size,
                     bus,
+                    fixed,
                     volumes,
                     in_use: self.in_use(whole),
                     faraday: boot.as_ref().map(|_| FaradayStick {
