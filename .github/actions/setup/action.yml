@@ -1,7 +1,7 @@
 # What every job of the check needs before it runs its part
 # (.github/workflows/check.yml): build output on the runner's larger disk,
 # the toolchain rust-toolchain.toml names, the tools DEVELOPING.md §1
-# names at the versions the workflow gives, and, where asked, the system
+# names at the versions this file gives, and, where asked, the system
 # packages the tests run against. A job that
 # compiles names its compiled dependencies, restored here (docs/decisions/F212.md).
 name: setup
@@ -19,6 +19,19 @@ inputs:
 runs:
   using: composite
   steps:
+    # The one place the tools' versions are written (check.yml and targeted.yml
+    # take them from here); TOOLS names them in the tools cache's key.
+    - name: The tools' versions
+      shell: bash
+      run: |
+        {
+          echo "JUST_VERSION=1.58.0"
+          echo "NEXTEST_VERSION=0.9.146"
+          echo "DENY_VERSION=0.20.2"
+          echo "VET_VERSION=0.10.2"
+          echo "TOOLS=just-1.58.0-nextest-0.9.146-deny-0.20.2-vet-0.10.2"
+        } >> "$GITHUB_ENV"
+
     # Mounted, not linked: target/ stays a folder, so the test jobs can
     # unpack the archive into it (tar refuses to write through a link that
     # leads outside the folder it unpacks into).

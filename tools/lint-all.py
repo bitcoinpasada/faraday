@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Every command of the justfile's `lint` recipe, run to the end.
+"""Every command of the justfile's `lint` recipe, run to the end. The commands that do not call cargo run four at a time beside the
+cargo ones.
 
 `just lint` stops at the first command that fails, so a second failure shows
 only on the next run. This runs each command of the recipe (and of the recipes
@@ -12,6 +13,7 @@ import importlib.util
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,15 +28,27 @@ def recipe():
     return impact.recipe_commands((ROOT / "justfile").read_text(), "lint")
 
 
+def run(cmd):
+    t0 = time.monotonic()
+    r = subprocess.run(["sh", "-cu", cmd], cwd=ROOT, capture_output=True, text=True)
+    secs = time.monotonic() - t0
+    print(f"{'ok  ' if r.returncode == 0 else 'FAIL'} {secs:6.1f}s  {cmd}", flush=True)
+    return cmd, r.returncode, (r.stdout + r.stderr).splitlines()
+
+
 def main():
-    failed = []
-    for cmd in recipe():
-        t0 = time.monotonic()
-        r = subprocess.run(["sh", "-cu", cmd], cwd=ROOT, capture_output=True, text=True)
-        secs = time.monotonic() - t0
-        print(f"{'ok  ' if r.returncode == 0 else 'FAIL'} {secs:6.1f}s  {cmd}", flush=True)
-        if r.returncode != 0:
-            failed.append((cmd, (r.stdout + r.stderr).splitlines()))
+    # A command that does not call cargo (the scripts, single-threaded) runs in a small pool beside
+    # the cargo ones, which run one after another as they always did (cargo locks its target folder).
+    cmds = recipe()
+    results = {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        side = {c: pool.submit(run, c) for c in cmds if "cargo" not in c}
+        for c in cmds:
+            if c not in side:
+                results[c] = run(c)
+        for c, f in side.items():
+            results[c] = f.result()
+    failed = [(c, results[c][2]) for c in cmds if results[c][1] != 0]
     for cmd, out in failed:
         print(f"\n--- FAIL: {cmd} (last {min(TAIL, len(out))} lines)")
         print("\n".join(out[-TAIL:]))
