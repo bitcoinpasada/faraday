@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 # The one dependency: wiping `EntropyBytes` on drop (docs/deps/zeroize.md).
-zeroize.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
 # A file's name is text that wipes itself.
 faraday-text = { path = "../faraday-text" }
 

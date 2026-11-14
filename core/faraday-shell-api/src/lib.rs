@@ -148,7 +148,7 @@ use alloc::vec::Vec;
 use core::fmt;
 use faraday_text::Text;
 
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 /// What backs a shell's secure-element operations
 /// ([`Command::SecureMac`] and the blob [`Command::StoreSecret`] keeps).
@@ -541,8 +541,9 @@ pub enum Event {
     File {
         /// The kind that was requested.
         kind: FileKind,
-        /// The file's bytes, unmodified.
-        bytes: Vec<u8>,
+        /// The file's bytes, unmodified, in a buffer that wipes when it
+        /// is dropped: the file may be a seed, a vault or a key.
+        bytes: Zeroizing<Vec<u8>>,
     },
     /// The answer to a [`Command::RequestFile`] when this shell has no
     /// file channel at all: no picker, no card, nothing to read from.

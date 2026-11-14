@@ -28,11 +28,12 @@
 //! contents ever reach a diagnostic.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use faraday_shell_api::{FileEntry, FileKind};
+use zeroize::Zeroizing;
 
 /// The most that will be handed to the core from one file. A PSBT is
 /// kilobytes; anything of this size on the card is not what was asked
@@ -166,7 +167,7 @@ impl Files {
     /// A name that is not on the list — one with a path in it, one the
     /// rule does not allow, one that is gone — is no file at all. The
     /// reason is for `--verbose`; it never carries contents.
-    pub fn read(&self, kind: FileKind, name: &str) -> Result<Vec<u8>, String> {
+    pub fn read(&self, kind: FileKind, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
         let found = self
             .found(kind)?
             .into_iter()
@@ -181,7 +182,23 @@ impl Files {
                 path.display()
             ));
         }
-        fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))
+        let unread = |e: std::io::Error| format!("cannot read {}: {e}", path.display());
+        let file = File::open(&path).map_err(unread)?;
+        // The buffer is made for the size the listing gave, and one byte
+        // more to tell a file that has grown since: it never grows, so no
+        // freed block is left holding the file. It is at least 32 bytes, so
+        // read_to_end, which reads into a stack array it does not wipe when
+        // it has less room than that, always reads straight into it.
+        let room =
+            usize::try_from(entry.size).map_err(|_| format!("{} is too large", path.display()))?;
+        let mut bytes = Zeroizing::new(Vec::with_capacity((room + 1).max(32)));
+        file.take(entry.size + 1)
+            .read_to_end(&mut bytes)
+            .map_err(unread)?;
+        if bytes.len() as u64 > entry.size {
+            return Err(format!("{} changed while it was read", path.display()));
+        }
+        Ok(bytes)
     }
 
     /// Writes `bytes` under a name derived from `name_hint`, never over a
@@ -488,6 +505,42 @@ fn sanitise(hint: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[global_allocator]
+    static ALLOC: faraday_leak_scan::LeakScan = faraday_leak_scan::LeakScan;
+
+    /// A seed file read from a stick, handed over and dropped as Lock
+    /// does, leaves no copy of the seed in freed or live memory.
+    #[test]
+    fn a_seed_file_read_from_a_stick_leaves_no_copy() {
+        let seed = b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let root = std::env::temp_dir().join("faraday-files-leak");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("seed.txt"), seed).unwrap();
+        let files = Files::new(root.clone(), false);
+        let listed = files.list(FileKind::Any).unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let forms = [faraday_leak_scan::Form::new("seed", seed.to_vec())];
+        let armed = faraday_leak_scan::arm(&forms);
+        let bytes = files.read(FileKind::Any, "seed.txt").unwrap();
+        assert_eq!(bytes.as_slice(), seed);
+        drop(bytes);
+        let live = armed.scan_live();
+        let report = armed.finish();
+        let _ = fs::remove_dir_all(&root);
+        assert!(live.is_empty(), "the seed is still in a live block");
+        assert!(
+            report.freed.is_empty(),
+            "a freed block held the seed: {:?}",
+            report
+                .freed
+                .iter()
+                .map(|h| h.backtrace())
+                .collect::<Vec<_>>()
+        );
+    }
 
     /// The empty Files screen names where the shell looked, so a person
     /// knows which partition to put a `.psbt` on. With a stick plugged in
