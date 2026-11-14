@@ -163,9 +163,9 @@ Read this table, then only the decision you need.
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
 | [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Amended by F150, F185, F186, F198 | release |
 | [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247 | security |
-| [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151 | repository |
+| [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151, F258 | repository |
 | [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
-| [F151](decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Active | repository |
+| [F151](history/decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Replaced by F258 | repository |
 | [F152](decisions/F152.md) | Touch targets are tested over the snapshot tours, and a press cannot be made without its state layer | 2026-10-28 | Amended by F188 | design |
 | [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185, F202, F205, F221 | security |
 | [F154](decisions/F154.md) | Random bytes are taken from the source, an answer for every 32, or expanded by HKDF-Expand | 2026-10-28 | Active | security |
@@ -268,3 +268,4 @@ Read this table, then only the decision you need.
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; `just lint-macos` stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
+| [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
