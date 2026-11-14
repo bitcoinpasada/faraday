@@ -313,6 +313,7 @@ notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md
 [[exemptions.crypto-primes]]
 version = "0.7.2"
 criteria = "safe-to-deploy"
+notes = "F71: not reviewed by a person; read by an AI model (docs/deps/crypto-primes.md); its publisher is not one F71 trusts"
 
 [[exemptions.ctor]]
 version = "0.10.1"

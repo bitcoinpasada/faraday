@@ -49,6 +49,10 @@ passes the key bytes in (held in a `Zeroizing` vector) and gets signature
 bytes out. The blinding and the prime search are covered by
 `docs/KEYS.md`, what wiping does not reach.
 
+**Advisory status.** RUSTSEC-2023-0071 (Marvin) is open for the locked version
+(0.10.0-rc.18, `Cargo.lock`): it has no patched version, and `deny.toml`'s ignore
+stands for the reason above. It is rechecked when `rsa` moves.
+
 **Reopen when** 0.10.0 is released (drop the pin), or when Secure Boot
 moves to keys firmware verifies some other way.
 
