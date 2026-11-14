@@ -2593,10 +2593,9 @@ impl Faraday {
 
 /// Glue of the vault files this session wrote.
 impl Faraday {
-    /// Costs a hash of a whole file (a SHA-256 pass). The SHA-256 of
-    /// every copy the session has seen of the vault `bytes` is: the
-    /// copies its summary keeps, when `bytes` is one of them, and `bytes`
-    /// themselves. None for what is not a vault (`docs/VAULT.md` §6).
+    /// Costs a hash of a whole file (a SHA-256 pass). The SHA-256s of
+    /// the copies the vault `bytes` was sealed from by this power-on's
+    /// seals, when its summary keeps `bytes`, and of `bytes` themselves. None for what is not a vault (`docs/VAULT.md` §6).
     pub(crate) fn vault_copies(&self, c: &Compute, bytes: &[u8]) -> Vec<[u8; 32]> {
         if fv::file::inspect(bytes).is_err() {
             return Vec::new();
@@ -2607,7 +2606,7 @@ impl Faraday {
             .summaries
             .iter()
             .filter(|s| s.copies.contains(&digest))
-            .flat_map(|s| s.copies.iter().copied())
+            .flat_map(|s| self.vaults.copy_lineage(&s.id, digest))
             .collect();
         out.push(digest);
         out.sort_unstable();

@@ -388,6 +388,26 @@ impl Vaults {
         }
     }
 
+    /// The digests of the files the file with digest `digest` of the vault
+    /// with identifier `id` descends from by seals this device made,
+    /// itself first. A copy of the same vault from another line is not in
+    /// it.
+    pub(crate) fn copy_lineage(&self, id: &[u8; 32], digest: [u8; 32]) -> Vec<[u8; 32]> {
+        let mut out = vec![digest];
+        let Some(s) = self.summaries.iter().find(|s| &s.id == id) else {
+            return out;
+        };
+        let mut at = digest;
+        while let Some((_, parent)) = s.parents.iter().find(|(child, _)| *child == at) {
+            if out.contains(parent) {
+                break;
+            }
+            out.push(*parent);
+            at = *parent;
+        }
+        out
+    }
+
     /// Whether open vault `v` is the copy with digest `copy` of the vault
     /// with identifier `id`, or one this device sealed from it this
     /// power-on (by one lock or a chain of them). A newer copy from
@@ -429,6 +449,11 @@ impl Vaults {
         self.copy_seen(&vault_id, digest);
         if parent != digest {
             self.sealed_from.push((vault_id, parent, digest));
+            if let Some(s) = self.summaries.iter_mut().find(|s| s.id == vault_id)
+                && !s.parents.iter().any(|(c, _)| *c == digest)
+            {
+                s.parents.push((digest, parent));
+            }
         }
         // The file opened carries the count it was opened at; the seal
         // wrote one higher.

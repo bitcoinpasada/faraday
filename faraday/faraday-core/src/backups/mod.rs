@@ -3775,6 +3775,7 @@ impl Faraday {
                 file: v.name.clone(),
                 id: v.vault_id(),
                 copies: Vec::new(),
+                parents: Vec::new(),
                 name: v.label(self.vaults.store()),
                 wallets,
                 sums,

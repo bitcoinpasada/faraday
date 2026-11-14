@@ -28,6 +28,13 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
         for d in &s.copies {
             out.push_str(&format!("copy\t{}\n", &*crate::backups::hex32(d)));
         }
+        for (child, parent) in &s.parents {
+            out.push_str(&format!(
+                "from\t{}\t{}\n",
+                &*crate::backups::hex32(child),
+                &*crate::backups::hex32(parent)
+            ));
+        }
         for (name, shape) in &s.wallets {
             out.push_str(&format!(
                 "wallet\t{}\t{}\n",
@@ -99,6 +106,15 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
             ["copy", digest] => {
                 if let (Some(s), Some(d)) = (out.last_mut(), crate::backups::read_hex32(digest)) {
                     s.copies.push(d);
+                }
+            }
+            ["from", child, parent] => {
+                if let (Some(s), Some(c), Some(p)) = (
+                    out.last_mut(),
+                    crate::backups::read_hex32(child),
+                    crate::backups::read_hex32(parent),
+                ) {
+                    s.parents.push((c, p));
                 }
             }
             ["wallet", name, shape] => {

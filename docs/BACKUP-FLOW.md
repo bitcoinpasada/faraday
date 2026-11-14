@@ -250,7 +250,7 @@ no vault the key goes into.
     vault from a stick today; the others stay on the stick untouched;
     one file at an existing place is taken with no question (the unlock
     proves it, and the write replaces only a file whose SHA-256 is a copy
-    the session has seen);
+    the vault was sealed from);
   - a place the plan gives a **new vault**, on a stick holding vaults:
     **A new vault beside them** first and chosen, then a row per file
     (choosing one makes the plan's vault that existing one); the new
@@ -271,7 +271,8 @@ no vault the key goes into.
     already read this session (other bytes): "{label}'s copy of {vault}
     differs from {label}'s"; the person picks the copy to unlock, and the
     other is written over at step 6 only after a hold, and only where its
-    SHA-256 is a copy the session has seen (decided, §14 item 3);
+    SHA-256 is a copy the vault was sealed from (decided, §14 item 3);
+    any other copy is asked about;
   - a vault found, and files on the stick nobody has opened: no question
     and no extra unlock. The card says "{vault} goes beside these", lists
     the files, and the vault is written beside them, every file byte for
@@ -397,7 +398,7 @@ stick of public files:
 
 The bytes are For the stick's sealed copy. Each file is
 `StorageCommand::Write`, read back and compared, as a visit writes it;
-a vault replaces a file whose SHA-256 is a copy the session has seen
+a vault replaces a file whose SHA-256 is a copy the vault was sealed from
 (VAULT §6) or, where no file has its name, is written under it. A file
 nothing proves under its name stops the write for the question
 **Overwrite** (a hold) or **Save beside** (a tap), one file in turn (F203);

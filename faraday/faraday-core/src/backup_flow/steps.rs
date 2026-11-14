@@ -1273,7 +1273,8 @@ impl Faraday {
 
     /// Which copy of a vault that differs from the one in Files to unlock:
     /// this stick's, which replaces the one in Files, or the one in Files,
-    /// in which case this stick's copy is written over only after a hold.
+    /// in which case this stick's copy is written over after a hold only
+    /// where the vault was sealed from it, and asked about otherwise.
     fn flow_use_copy(&mut self, i: usize, this: bool) {
         let c = self.compute();
         // The copy to unlock is chosen at step 2 and step 3 only.
@@ -1298,7 +1299,8 @@ impl Faraday {
             });
             if let Some((bytes, label)) = found {
                 // The sticks already bound with another copy of this vault
-                // are declined: each is written over only after a hold.
+                // are declined: after a hold, each is written over only where
+                // the vault was sealed from it, and asked about otherwise.
                 let sha = sha256_of(&c, &bytes);
                 if let Some(id) = self.vaults.vault_id_of_file(Some(sha)) {
                     for s in &mut self.flows.all[i].slots {
@@ -1445,7 +1447,8 @@ impl Faraday {
         } else {
             let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
             // The other sticks' copies of this vault are not this one:
-            // each is written over only after a hold.
+            // after a hold, each is written over only where the vault was
+            // sealed from it, and asked about otherwise.
             let sha = vr.sha;
             for (n, s) in self.flows.all[i].slots.iter_mut().enumerate() {
                 if n != slot

@@ -280,6 +280,98 @@ fn a_seal_from_an_older_copy_goes_beside_the_newer_copy_waiting() {
     assert_eq!(waiting.1, newer[0].1, "the newer copy was replaced");
 }
 
+/// The stick visit with every file For the stick chosen and written to
+/// a stick holding `on_stick`: the shell, holding the stick as it is after.
+fn written_to_stick(app: &mut Faraday, on_stick: Files) -> crate::common::Shell {
+    let mut shell = crate::common::Shell::new();
+    let mut d = crate::common::Disk::empty("A", "STICKA");
+    d.files = on_stick;
+    shell.add(d);
+    shell.plug(app, "A");
+    shell.press(app, Action::Nav(Screen::Files));
+    let names: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
+    for (i, n) in names.iter().enumerate() {
+        if !app.visit().out.contains(n.as_str()) {
+            shell.press(app, Action::VisitOut(i));
+        }
+    }
+    shell.press(app, Action::VisitWrite);
+    shell
+}
+
+/// A copy sealed from an older copy, opened on **Open** at the
+/// older-copy dialog, never takes the place of the newer copy on a stick:
+/// the stick keeps the newer file byte for byte. The ordinary write-back
+/// of the copy opened still goes over it.
+#[test]
+fn a_seal_from_an_older_copy_never_replaces_the_newer_copy_on_a_stick() {
+    let add_key = |app: &mut Faraday, seed: usize| {
+        app.press(Action::Entry(None));
+        type_text(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
+        app.press(Action::EntryAdd);
+        app.press(Action::Vault(V::SaveKey(0)));
+        crate::common::top_up(app);
+    };
+    // Stick A holds the first copy; it is opened, a key added, locked, and
+    // the newer copy written back over it on stick A.
+    let original = made("Main", B, 1);
+    let mut app = process(
+        vec![("main.kdbx".into(), original.clone())],
+        Vec::new(),
+        Vec::new(),
+    );
+    unlock(&mut app, 0, B);
+    add_key(&mut app, 1);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, newer, kept) = saved(&mut app);
+    assert_eq!(newer.len(), 1);
+    let mut app = process(Vec::new(), newer.clone(), kept.clone());
+    let shell = written_to_stick(&mut app, vec![("main.kdbx".into(), original.clone())]);
+    assert_eq!(
+        shell.disk("A").file("main.kdbx"),
+        Some(&newer[0].1),
+        "the write-back of the copy opened goes over it"
+    );
+
+    // The older copy, from another stick, opened on Open, changed and
+    // locked: sealed from the older line.
+    let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), kept);
+    unlock(&mut app, 0, B);
+    open_anyway(&mut app, OLDER);
+    add_key(&mut app, 2);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, outbox, kept) = saved(&mut app);
+    let from_older = outbox
+        .iter()
+        .find(|f| f.1 != newer[0].1)
+        .expect("the copy sealed from the older one")
+        .clone();
+
+    // Stick A goes in again, the newer copy on it, and the copy sealed
+    // from the older one is written.
+    let mut app = process(Vec::new(), vec![from_older.clone()], kept);
+    let shell = written_to_stick(&mut app, vec![("main.kdbx".into(), newer[0].1.clone())]);
+    assert!(
+        app.sheet.is_some() || shell.disk("A").files.iter().any(|f| f.1 == from_older.1),
+        "the person is asked about the newer copy, or the copy goes beside it"
+    );
+    assert_eq!(
+        shell.disk("A").file("main.kdbx"),
+        Some(&newer[0].1),
+        "the newer copy on the stick was replaced by one sealed from an older copy \
+         (stick holds {:?}, sheet {:?})",
+        shell
+            .disk("A")
+            .files
+            .iter()
+            .map(|f| &f.0)
+            .collect::<Vec<_>>(),
+        app.sheet
+    );
+}
+
 #[test]
 fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     let mut app = older_unlocked();

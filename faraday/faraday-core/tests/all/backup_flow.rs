@@ -2423,7 +2423,8 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_be
 }
 
 #[test]
-fn a_stick_named_at_step_six_with_a_copy_the_session_saw_is_written_over_after_a_hold() {
+fn a_stick_named_at_step_six_with_a_copy_the_session_saw_from_another_line_gets_the_vault_beside_it()
+ {
     let mut shell = Shell::new();
     let mut app = existing_locked(&mut shell);
     let edited = vault("Main edited", PHRASE, 0x55);
@@ -2437,18 +2438,17 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_saw_is_written_over_after_a
     shell.pull(&mut app, "U");
     shell.plug_known(&mut app, "U");
     expect(&mut app, "This is the stick for Vault 1 (Place 1)");
-    // Tapped: nothing is written over the other copy yet.
+    // A copy seen, but not one this vault was sealed from: after the hold
+    // the stick asks, and Save beside leaves the file byte for byte.
     shell.flow(&mut app, F::Tap);
     assert_eq!(shell.vault_writes(), 0);
-    assert_eq!(shell.disk("U").file("main.kdbx"), Some(&edited));
-    assert!(offered(&mut app, Action::Flow(F::Hold)));
-    // The copy is not asked about either: the key is made, none is unlocked.
-    assert!(!offered(&mut app, Action::Flow(F::UseCopy(true))));
     shell.flow(&mut app, F::Hold);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    assert_eq!(shell.vault_writes(), 0);
+    shell.press(&mut app, Action::NameTakenBeside);
     assert_eq!(shell.vault_writes(), 1);
-    // A copy the session has seen: the hold writes the vault over it.
-    assert_ne!(shell.disk("U").file("main.kdbx"), Some(&edited));
-    assert!(shell.disk("U").file("main-2.kdbx").is_none());
+    assert_eq!(shell.disk("U").file("main.kdbx"), Some(&edited));
+    assert!(shell.disk("U").file("main-2.kdbx").is_some());
 }
 
 #[test]

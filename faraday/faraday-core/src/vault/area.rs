@@ -196,6 +196,7 @@ impl VaultArea {
                 Some(o) => {
                     s.seal = o.seal.take();
                     s.copies = std::mem::take(&mut o.copies);
+                    s.parents = std::mem::take(&mut o.parents);
                     *o = s;
                 }
                 None => self.state.summaries.push(s),
@@ -3145,6 +3146,10 @@ pub struct VaultSummary {
     /// file opened and each seal (`docs/VAULT.md` §6). A file on a stick
     /// is a copy of the vault when its SHA-256 is among them.
     pub copies: Vec<[u8; 32]>,
+    /// For a copy sealed by this device, the SHA-256 of the file it was
+    /// sealed from: (copy, parent). A copy is a newer copy of a file only
+    /// along these links.
+    pub parents: Vec<([u8; 32], [u8; 32])>,
     /// The open slot's name.
     pub name: Text,
     /// Its wallets: name and shape.

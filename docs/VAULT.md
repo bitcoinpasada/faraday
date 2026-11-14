@@ -743,9 +743,12 @@ The name is not the vault's identity, and neither are its bytes' header:
 every seal has a new salt, so a copy cannot be told from another vault
 without opening it (F190 point 8). The session keeps, for each vault it
 opened or sealed since power-on, the SHA-256 of every copy of it it
-read or wrote: the copy opened, and each seal. A file on a stick is a
-copy of that vault when its SHA-256 is among them. Writing back
-replaces that copy; no older copy is kept. On a stick visit:
+read or wrote: the copy opened, and each seal, with the SHA-256 of the
+file each seal was made from. A file on a stick is a copy a sealed vault
+goes over only when its SHA-256 is the vault's own or one it was sealed
+from, by one lock or a chain of them; a copy of the same vault from
+another line, a newer one included, is asked about like any other file
+of that name. Writing back replaces that copy; no older copy is kept. On a stick visit:
 
 1. Find the file on the visited stick whose SHA-256 is one of the sealed
    vault's copies. None: write it as a new file. More than one: refuse
