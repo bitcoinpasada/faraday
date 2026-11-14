@@ -1,6 +1,6 @@
 # One targeted check on GitHub's Linux runners (docs/decisions/F243.md),
-# started by hand on any branch: one crate's tests, or one of the justfile's
-# lint recipes. It does not replace `just`, the check. It reads only: no
+# started by hand on any branch: one crate's tests, one of the justfile's
+# lint recipes, or the format check or clippy of some crates. It does not replace `just`, the check. It reads only: no
 # secrets, the checkout's token not kept, GitHub's own actions pinned by
 # commit. It reads the check's cache and saves nothing to it
 # (docs/decisions/F212.md). Its inputs reach the shell only through env:.
@@ -20,6 +20,14 @@ on:
         type: choice
         options: [none, lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
         default: none
+      tool:
+        description: The format check or clippy (warnings as errors, every target) of the crates named in crates
+        type: choice
+        options: [none, fmt, clippy]
+        default: none
+      crates:
+        description: The workspace crates the tool checks, separated by spaces
+        default: ""
 
 permissions:
   contents: read
@@ -43,11 +51,21 @@ jobs:
           CRATE: ${{ inputs.crate }}
           FILTER: ${{ inputs.filter }}
           LINT: ${{ inputs.lint }}
+          TOOL: ${{ inputs.tool }}
+          CRATES: ${{ inputs.crates }}
         run: |
-          if [ -z "$CRATE" ] && [ "$LINT" = none ]; then
-            echo "Nothing to run: give a crate or a lint recipe." >&2
+          if [ -z "$CRATE" ] && [ "$LINT" = none ] && [ "$TOOL" = none ]; then
+            echo "Nothing to run: give a crate, a lint recipe or a tool." >&2
             exit 1
           fi
+          if [ "$TOOL" != none ] && [ -z "$CRATES" ]; then
+            echo "The tool needs crates." >&2
+            exit 1
+          fi
+          for c in $CRATES; do
+            printf '%s' "$c" | grep -Eq '^[a-z0-9_-]{1,64}$' \
+              || { echo "A crate name is not a crate name." >&2; exit 1; }
+          done
           if [ -n "$CRATE" ]; then
             printf '%s' "$CRATE" | grep -Eq '^[a-z0-9_-]{1,64}$' \
               || { echo "The crate name is not a crate name." >&2; exit 1; }
@@ -73,15 +91,16 @@ jobs:
         with:
           packages: ${{ inputs.crate != '' }}
           valgrind: ${{ inputs.lint == 'lint-op-cost' }}
-          deps: ${{ inputs.crate != '' && 'build-tests' || inputs.lint }}
-      - name: The crate is a member of the workspace
-        if: inputs.crate != ''
+          deps: ${{ inputs.tool == 'clippy' && 'lint-clippy' || (inputs.crate != '' && 'build-tests' || inputs.lint) }}
+      - name: The crates are members of the workspace
+        if: inputs.crate != '' || inputs.crates != ''
         env:
           CRATE: ${{ inputs.crate }}
+          CRATES: ${{ inputs.crates }}
         run: |
           cargo metadata --no-deps --format-version 1 --locked \
-            | python3 -c 'import json,sys; sys.exit(0 if sys.argv[1] in [p["name"] for p in json.load(sys.stdin)["packages"]] else 1)' "$CRATE" \
-            || { echo "$CRATE is not a member of the workspace." >&2; exit 1; }
+            | python3 -c 'import json,sys; names = {p["name"] for p in json.load(sys.stdin)["packages"]}; sys.exit(0 if all(c in names for c in sys.argv[1:]) else 1)' $CRATE $CRATES \
+            || { echo "A crate is not a member of the workspace." >&2; exit 1; }
       - name: The crate's tests
         if: inputs.crate != ''
         env:
@@ -93,3 +112,19 @@ jobs:
         env:
           LINT: ${{ inputs.lint }}
         run: just "$LINT"
+      - name: The format check
+        if: inputs.tool == 'fmt'
+        env:
+          CRATES: ${{ inputs.crates }}
+        run: |
+          args=()
+          for c in $CRATES; do args+=(-p "$c"); done
+          cargo fmt "${args[@]}" --check
+      - name: Clippy
+        if: inputs.tool == 'clippy'
+        env:
+          CRATES: ${{ inputs.crates }}
+        run: |
+          args=()
+          for c in $CRATES; do args+=(-p "$c"); done
+          python3 tools/clippy.py --locked "${args[@]}" --all-targets

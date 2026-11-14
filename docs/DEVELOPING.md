@@ -157,6 +157,14 @@ tests only, and `filter` is optional:
 gh workflow run targeted.yml --ref <branch> -f crate=faraday-core -f filter='test(/^keygen::/)' -f lint=none
 ```
 
+The format check or clippy of some crates runs there too (`tool` is `fmt` or
+`clippy`, `crates` the names separated by spaces; clippy with warnings as
+errors over every target, as `just lint-clippy` runs it):
+
+```
+gh workflow run targeted.yml --ref <branch> -f tool=clippy -f crates='faraday-core faraday-draw'
+```
+
 `just` stays the check; this is for a change that touches one crate.
 
 ## 3. The desktop app
