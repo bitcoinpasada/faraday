@@ -1,7 +1,7 @@
-# KEF: Krux's encrypted code, read and written in full
+# KEF: Krux's encrypted code, read in full and written in two versions
 
 **Kind:** Reference
-**Status:** Built (F219). Reading and writing KEF in full: all twelve versions, scanning a code, making one from a seed or in Tools, the backup checklist item, the stick files and the code on Paper, checked against Krux's own code and not on a Krux device.
+**Status:** Built (F219, amended by F261). Reading KEF in full, all twelve versions, and writing versions 20 and 5: scanning a code, making one from a seed or in Tools, the backup checklist item, the stick files and the code on Paper, checked against Krux's own code and not on a Krux device.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
@@ -39,8 +39,8 @@ convention other wallets use, since one project uses it. It enters by the decisi
 The specification asks that a claim of support be clear and precise.
 Faraday's:
 
-> Reads and writes KEF versions 0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20 and
-> 21, as in Krux v26.09.0; 0 and 1 are labelled legacy. Reads an envelope as
+> Reads KEF versions 0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20 and 21, as in
+> Krux v26.09.0, and writes versions 20 and 5. Reads an envelope as
 > raw bytes or as hex, base32, base43 or base64 text. Decompressed contents
 > up to 100 KiB; PBKDF2 counts up to 100,000,000. Checked against Krux's
 > code, and not on a Krux device. Left out: Krux's `seeds.json` store, and a
@@ -58,12 +58,14 @@ Left out, and what a person does instead:
   itself be KEF. A person holding one can read it off and type it, unless it is
   not text; **Enter as hex** (§9) covers that.
 
-Versions 0 and 1 are written one level further down, labelled legacy. The
-specification marks them legacy, "consider using" 5 and 10, but **Krux still
-can write them.** Its automatic choice (`suggest_versions`) never picks them, but the Datum
-tool's version menu (`input_version_ui`) lists every entry of `VERSIONS`,
-0 and 1 included, and `Cipher.encrypt` accepts them. The documentation's
-"Legacy (<= v25.03.0)" describes the default, not what the firmware can do.
+Faraday writes two of the twelve versions (F261). Ten exist for older Krux
+codes, and a person making a new code needs the strongest (20, GCM, with a
+check Krux reads) and the smallest (5, ECB, for a 12 or 24 word code that
+fits a smaller QR). The specification marks 0 and 1 legacy, "consider using"
+5 and 10, and **Krux still can write them**: its Datum tool's version menu
+(`input_version_ui`) lists every entry of `VERSIONS`, and `Cipher.encrypt`
+accepts them. Faraday reads all of them, and a seal of any version but 20 and
+5 is refused (it does not write another in its place).
 
 ## 3. The envelope
 
@@ -102,27 +104,29 @@ big-endian counter from 0 (the firmware's `initial_value` default, and
 what the CTR vector in §11 decrypts under). GCM is the standard
 construction with a 96-bit IV.
 
-The unused byte values refuse: a code with another `v` is not KEF.
+Faraday reads every row and writes versions 5 and 20 only. The unused byte
+values refuse: a code with another `v` is not KEF.
 
 ### 4.1 Writing: strict
 
-The ECB and NUL refusals are Krux's, with `fail_unsafe` on. A refusal says
-which other version would work.
+Only versions 20 and 5 are written; a seal of another version is refused
+(`Refusal::Version`). The ECB and NUL refusals are Krux's, with `fail_unsafe`
+on, for those two. A refusal says which other version would work, which is
+20.
 
 - **ECB:** the padded bytes (the check and padding included where they are
   encrypted) must have no two equal 16-byte blocks.
-- **NUL padding, exposed check (5, 10):** the bytes before padding must not
+- **NUL padding, exposed check (5):** the bytes before padding must not
   end in 0x00.
-- **NUL padding, hidden check (0, 1):** the check's last byte must not be
-  0x00, which refuses about 1 plaintext in 256. The plaintext itself may end in
-  0x00, since the check follows it.
 - **An IV is 12 or 16 fresh bytes of the session's** (`fresh_bytes`, F154,
   with Add randomness offered before the code is made), never reused, never
   supplied. ECB takes none.
 - **Empty plaintext** is refused (Krux raises on it in versions 5 and 10
   and has no use for it elsewhere).
-- **Compression:** a compressed version is written only for a plaintext of
-  at most 1,024 bytes (§10).
+- **No compression:** no compressed version is written (§10). Krux's own
+  refusals for the other ten versions (a hidden check ending in 0x00) are
+  Krux's and are not Faraday's, which does not write them. A compressed text
+  over 1,024 bytes is one Krux writes and Faraday opens (§7.1).
 
 ### 4.2 Reading: tolerant, and vague
 
@@ -190,12 +194,6 @@ tables, with an 8-byte id:
 | 24 words | 5 | 48 | 70 | 33 × 33 |
 | 12 words | 5, at low | 32 | 47 | 25 × 25 (version 2's whole capacity) |
 | 24 words | 5, at low | 48 | 70 | 29 × 29 |
-| 24 words | 10 | 65 | 95 | 37 × 37 |
-| 12 words, 16-byte id | 11 | 69 | 102 | 37 × 37 |
-| 12 words | 0, legacy | 45 | 66 | 33 × 33 |
-| 24 words | 0, legacy | 61 | 90 | 33 × 33 |
-| 12 words | 1, legacy | 61 | 90 | 33 × 33 |
-| 24 words | 1, legacy | 77 | 113 | 37 × 37 |
 
 Binary at the same sizes gives the same codes: 61 bytes also fits version 4.
 The base43 form is what Krux's mnemonic path writes, and what a person can
@@ -385,10 +383,12 @@ The passphrase is not stored; it is given to the job by move, as Unlock's is.
   fingerprint the change on top. The form says what §12 says: the passphrase matters far more.
   How long 500,000 takes on Krux's slowest board is not known here (§13).
 
-Compression is not automatic: Krux's choice of 21 at 120 bytes and above is
-offered, not taken, since `miniz_oxide`'s dictionary is 32 KiB, and the
-specification is strict about a 1,024-byte window on writing. Below 1,024 bytes
-of input no match can reach further, which is why §4.1 stops there.
+Faraday writes no compressed version: Krux's choice of 21 at 120 bytes and above
+is not made, since the specification is strict about a 1,024-byte window on
+writing and `miniz_oxide`'s dictionary is 32 KiB. The two versions written are
+20, the default, and 5, which Options offers and the size choice picks for the
+smaller code of 12 or 24 words (§15.3). 1,024 bytes stays the most the KEF tool
+takes as typed text.
 
 ## 11. Implementation
 
@@ -398,12 +398,12 @@ of input no match can reach further, which is why §4.1 stops there.
 |---|---|---|
 | AES-256 block | `aes` 0.9 | in the tree, trusted |
 | ECB | a loop over `aes`'s block calls | a few lines; the `ecb` crate adds nothing |
-| CBC | `cbc` 0.2 | in the tree, reading and encrypting |
+| CBC | `cbc` 0.2 | in the tree, reading only |
 | CTR | `ctr` 0.10 (`Ctr32BE`) | RustCrypto/block-modes |
 | GCM | `aes-gcm` 0.11, `AesGcm<Aes256, U12, U4>` | RustCrypto/AEADs, with `ghash` 0.6 and `polyval` 0.7 |
 | PBKDF2 | §11.1 | |
 | SHA-256 | `sha2` through `faraday-crypto` | in the tree |
-| Deflate | `miniz_oxide` | in the tree; KEF is the one place Faraday compresses with it (BBQr and KDBX only inflate) |
+| Deflate | `miniz_oxide` | in the tree; Faraday only inflates with it (KEF, BBQr and KDBX read compressed data, none is written) |
 
 **A 4-byte GCM tag does not need a piece of our own.** `aes-gcm` 0.11.1's
 `TagSize` is implemented for U12 to U16 always and for **U4 and U8 under its
@@ -454,13 +454,17 @@ memory to attack and is a public standard, at 77 × 77.
 
 **Each version.**
 
+Faraday writes 20 and 5 and reads all twelve.
+
 | Versions | For | Against |
 |---|---|---|
-| 20, 21 (GCM) | Everything; Krux's default | 4-byte tag |
-| 15, 16 (CTR) | Devices without GCM | The check is an unkeyed hash inside the ciphertext. Someone who knows the plaintext can change the code to say anything else and fix the check, without the passphrase |
-| 10, 11, 12 (CBC) | The same | Larger: a 16-byte IV |
-| 5, 6, 7 (ECB) | The smallest code | No IV: below |
-| 0, 1 | Legacy, one level further down: what Krux's first releases wrote, for a Krux that may open nothing newer (§13) | Replaced by 5 and 10, and larger than them: a 16-byte check. About 1 plaintext in 256 is refused (§4.1). 0 also has ECB's leak |
+| 20 (GCM), written | Everything; Krux's default | 4-byte tag |
+| 5 (ECB), written | The smallest code | No IV: below |
+| 21 (GCM compressed) | Read only | |
+| 15, 16 (CTR) | Read only: devices without GCM | The check is an unkeyed hash inside the ciphertext. Someone who knows the plaintext can change the code to say anything else and fix the check, without the passphrase |
+| 10, 11, 12 (CBC) | Read only | Larger: a 16-byte IV |
+| 6, 7 (ECB) | Read only | ECB's leak |
+| 0, 1 | Read only: what Krux's first releases wrote (§13) | Replaced by 5 and 10, and larger than them: a 16-byte check. 0 also has ECB's leak |
 
 **ECB's leak.** Under one key, equal 16-byte blocks of plaintext give equal blocks
 of ciphertext, and the same plaintext gives the same code each time. A refusal of
@@ -474,7 +478,7 @@ gives a code its own key, and two codes can draw the same one. Its use is
 a smaller code: 29 × 29 for 12 words, and at low error correction 25 × 25, or 29 × 29
 for 24 words (§5).
 
-**Truncated checks.** 3 or 4 bytes, against 16 in the QR vault and in versions 0 and 1. They say the
+**Truncated checks.** 3 or 4 bytes, against 16 in the QR vault and in versions 0 and 1 (read only). They say the
 passphrase was probably right; they do not prove the bytes are what was written.
 A wrong passphrase passes 1 time in 16,777,216 or 4,294,967,296 (§7.3), and a
 change made to a GCM code passes 1 time in 4,294,967,296 for each time the person enters a passphrase. The specification
@@ -534,8 +538,8 @@ of the engine's 16 tag bytes "have ever been exercised in the field".
   for §7.2's estimate.
 - **What Krux's older releases open.** Whether a release up to v25.03.0, which the
   specification's "Legacy" names, opens anything but versions 0 and 1 was not read.
-- **`miniz_oxide`'s dictionary:** §10's bound assumes it offers no 1,024-byte window; the
-  cross-check confirms each compressed output inflates under `wbits` 10.
+- **`miniz_oxide`'s dictionary:** none is open; Faraday writes no compressed output, and
+  inflates Krux's (§7.1).
 - **Whether Krux's numbered or BBQr parts carry a KEF** from its Datum tool as Faraday's
   reassembly expects. `view_qr` was not read, which is why Faraday writes no such parts (§15.4).
 
@@ -560,11 +564,13 @@ Behaviour a person or Krux would notice, and vectors:
   under such shims, all twelve versions making and opening their own payloads. `test_kef.py`
   does not run this way: it needs Krux's `conftest.py`, its mocks, `pytest`, `embit` and
   PyCryptodome. Its data is taken and not its code.
-  Each of the twelve versions, each way, over: both sizes of entropy, short and long
-  text, NUL-ended text, text whose hidden check ends in 0x00, repeated blocks, ids of 0, 8 and
-  252 bytes, counts at each edge. Refusals agree where Krux's do, and §8's
-  stricter ones are listed as facts.
-- **Written compressed codes** inflate under `zlib` at `wbits` -10.
+  All twelve versions opened, two sealed: what Krux seals in any version is opened by Faraday,
+  and versions 20 and 5 sealed by Faraday are Krux's own bytes, over: both sizes of entropy,
+  short and long text, NUL-ended text, text whose hidden check ends in 0x00, repeated blocks,
+  ids of 0, 8 and 252 bytes, counts at each edge; a seal of any other version is refused.
+  Refusals agree where Krux's do, and §8's stricter ones are listed as facts.
+- **The read tests open codes Krux's own code made** (`tools/vectors/kef/krux_codes.json`, for
+  every version), since Faraday seals only two versions.
 - **A fuzz target**, faraday/fuzz/fuzz_targets/kef.rs, on the parse and on decryption with a
   fixed key and a count of 1 through an internal entry: never panics, never gives more than the
   limit, seeds from the vectors.
@@ -748,18 +754,17 @@ Shared by both. It reads, top to bottom:
   supporting line the Starter sheet ("Sheet: Faraday Starter, Blank templates, Krux code, 33 × 33");
   the one the options give is selected, and pressing another sets the options to the preferred ones
   that give that side (`kef_make::sizes`: the current options where they already do, else the
-  first of version 20, the other non-compressed versions as listed, then 0 and 1, with low error
-  correction for version 5 and a random id of 8, then 16 bytes; the rounds and a typed or
-  fingerprint id stay). A compressed version selects none; contents no sheet takes (a long text)
-  read one line, **By hand**: No, **Largest** 37 × 37. Then **Version**, option buttons under each
-  mode's name, the ECB group with `kef_ecb_line` under it, **Legacy** one level further for 0 and
-  1; **Low error correction**, a switch, with version 5 only; **Rounds**, a number field from
+  first of version 20, then version 5, with low error correction for version 5 and a random id
+  of 8, then 16 bytes; the rounds and a typed or fingerprint id stay). Contents no sheet takes (a
+  long text) read one line, **By hand**: No, **Largest** 37 × 37. Then **Version**, two option
+  buttons, 20 under AES-GCM's name and 5 under AES-ECB's with `kef_ecb_line` under it (the
+  other ten versions are read and not written, §4); **Low error correction**, a switch, with version 5 only; **Rounds**, a number field from
   10,000 to 500,000; **Id**, option buttons (Random 8 bytes, Random 16 bytes, A label with its
   field, The fingerprint), the last two with `kef_public_id_line`; and the **Size** and **By hand**
   lines as in §15.1. Nothing else. The line ends in the code's side and the Size and By hand lines
   show always, on a seed or in the tool, whether or not a copy is on Paper. They are worked out
   when an option is pressed, by a lookup from the length §5's table comes from (`kef_make::side`),
-  with no seal; a compressed version's length is known only once sealed, and its **Size** reads so.
+  with no seal.
 - The Randomness row, since the press draws the IV and the id (DESIGN §4.1, F157), then **Make the
   code**. A refusal of §4.1 stands as a line above it and names the version that works.
 - While it works, Material 3's determinate progress indicator from the rounds done, with **Cancel**.
@@ -794,7 +799,7 @@ card then has no picture: `kef_code_too_big`, the file's name, **Check my code**
 **Too large to copy by hand** is a different thing, and not a refusal: 37 × 37 is the largest blank
 template (§15.5), and a larger code that fits one QR is made as any, its picture and file saved. A
 seed's code passes 37 × 37 only through Options: a label of 30 bytes or more on 24 words at
-version 20, or version 1 with a 16-byte id. On a seed with a copy on Paper, the labels of §15.1 say
+version 20. On a seed with a copy on Paper, the labels of §15.1 say
 so, before it is made and on the Code card, and the item stays **Not checked** until **Make
 another** gives a code that fits or **Not on Paper** takes the copy off.
 
@@ -809,11 +814,12 @@ and may go to any printer. **Blank templates** (`docs/STARTER.md` §3.8) gets a 
 |---|---|---|---|
 | 25 × 25 | 2 | 12 words, version 5 at low | `faraday-blank-template-krux-code-25x25.pdf` |
 | 29 × 29 | 3 | 24 words, version 5 at low; 12 words, version 5 | `faraday-blank-template-krux-code-29x29.pdf` |
-| 33 × 33, chosen | 4 | 12 or 24 words at the default, version 20; 24 words, version 5; 12 or 24 words, version 0; 12 words, version 1 | `faraday-blank-template-krux-code-33x33.pdf` |
-| 37 × 37 | 5 | 24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1; 12 words, version 11 with a 16-byte id | `faraday-blank-template-krux-code-37x37.pdf` |
+| 33 × 33, chosen | 4 | 12 or 24 words at the default, version 20; 24 words, version 5 | `faraday-blank-template-krux-code-33x33.pdf` |
+| 37 × 37 | 5 | 24 words, version 20 with a 16-byte id | `faraday-blank-template-krux-code-37x37.pdf` |
 
-Each option says on its line what the table says. The sizes stop at 37 × 37, which holds every row
-of §5; a seed's code passes it only through the Options §15.4 names.
+Each option says on its line what the table says. Each size is still used with only versions 5 and
+20 written (the templates are made per size, not per version). The sizes stop at 37 × 37, which holds
+every row of §5 for the versions written; a seed's code passes it only through the Options §15.4 names.
 
 **One sheet per side, whatever the error correction.** A sheet prints only what every code of that
 side shares, by the SeedQR sheet's rule (`structural_fixed`, which holds through QR version 6, one

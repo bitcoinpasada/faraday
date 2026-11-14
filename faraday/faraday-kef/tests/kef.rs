@@ -1,7 +1,8 @@
 //! KEF as a person or a Krux device would notice it (`docs/KEF.md` §14):
-//! Krux's own codes open, every version makes a code it opens again, what
-//! Krux refuses to write is refused, what is not a code is not taken for
-//! one, and a count of 100,000,000 stops when told.
+//! Krux's own codes open, in all twelve versions; versions 20 and 5 make
+//! codes that open again and match Krux's byte for byte, and no other
+//! version is written; what Krux refuses to write is refused, what is not a
+//! code is not taken for one, and a count of 100,000,000 stops when told.
 #![allow(clippy::disallowed_methods)]
 
 use faraday_crypto::work::Compute;
@@ -24,6 +25,11 @@ fn unhex(s: &str) -> Vec<u8> {
 
 fn vectors() -> serde_json::Value {
     serde_json::from_str(include_str!("../../../tools/vectors/kef/vectors.json")).unwrap()
+}
+
+/// Codes made by Krux's own code for every version (`krux_codes.json`).
+fn krux_codes() -> serde_json::Value {
+    serde_json::from_str(include_str!("../../../tools/vectors/kef/krux_codes.json")).unwrap()
 }
 
 fn open_vector(v: &serde_json::Value, passphrase: &str) -> Result<Opened, OpenError> {
@@ -103,36 +109,61 @@ fn open_k(bytes: &[u8]) -> Result<Opened, OpenError> {
 }
 
 #[test]
-fn every_version_opens_what_it_seals() {
-    let entropy16: Vec<u8> = (1..=16).collect();
-    let entropy32: Vec<u8> = (100..132).collect();
-    let text = b"a longer note, with words in it, that goes past one block of sixteen bytes and a bit more";
-    let wallet: Vec<u8> =
-        b"wsh(sortedmulti(2,[aabbccdd/48h/0h/0h/2h]xpub1,[11223344/48h/0h/0h/2h]xpub2))"
-            .iter()
-            .cycle()
-            .take(700)
-            .copied()
-            .collect();
+fn every_version_opens_a_code_krux_made_and_the_two_written_match_it() {
+    let all = krux_codes();
+    let mut opened = 0;
     for v in VERSIONS {
-        for plain in [&entropy16[..], &entropy32[..], &text[..], &wallet[..]] {
-            let code = match seal_k(plain, v) {
-                Ok(c) => c,
-                Err(SealError::Duplicate { instead }) => {
-                    assert!(spec_of(instead).is_some());
-                    continue;
+        for (name, entry) in all["codes"][v.to_string()].as_object().unwrap() {
+            let plain = unhex(entry["plain"].as_str().unwrap());
+            let Some(code) = entry["code"].as_str() else {
+                // Krux refused to write this one: Faraday refuses it too.
+                if WRITTEN_VERSIONS.contains(&v) {
+                    assert!(seal_k(&plain, v).is_err(), "version {v}, {name}");
                 }
-                Err(SealError::TooLong) => {
-                    assert!(plain.len() > COMPRESS_MAX);
-                    continue;
-                }
-                Err(e) => panic!("version {v}: {e:?}"),
+                continue;
             };
+            let code = unhex(code);
             let got = open_k(&code).unwrap();
-            assert_eq!(*got.plaintext, plain, "version {v}, {} bytes", plain.len());
+            assert_eq!(*got.plaintext, plain, "version {v}, {name}");
             assert!(!got.retried);
+            opened += 1;
+            // Faraday writes 20 and 5 and makes Krux's very code.
+            if WRITTEN_VERSIONS.contains(&v) {
+                assert_eq!(seal_k(&plain, v).unwrap(), code, "version {v}, {name}");
+            }
         }
     }
+    assert!(opened > 40, "{opened}");
+}
+
+#[test]
+fn only_versions_20_and_5_are_written() {
+    for v in VERSIONS {
+        let made = seal_with_key(
+            &KEY,
+            &[1, 2, 3, 4, 5, 6, 7, 8],
+            v,
+            b"id",
+            10_000,
+            &iv_for(v),
+        );
+        if WRITTEN_VERSIONS.contains(&v) {
+            assert!(made.is_ok(), "{v}");
+        } else {
+            assert_eq!(made, Err(SealError::Refused(Refusal::Version)), "{v}");
+        }
+    }
+    let c = compute();
+    assert_eq!(
+        seal(
+            &c,
+            b"fine",
+            &[1; 16],
+            &sealing(15, 10_000, &[0; 12]),
+            &mut |_| true
+        ),
+        Err(SealError::Refused(Refusal::Version))
+    );
 }
 
 #[test]
@@ -159,26 +190,14 @@ fn what_krux_refuses_to_write_is_refused_and_names_a_version_that_works() {
     // Two equal blocks in ECB.
     assert!(matches!(
         seal_k(&[5; 32], 5),
-        Err(SealError::Duplicate { instead: 10 })
-    ));
-    assert!(matches!(
-        seal_k(&[5; 48], 6),
-        Err(SealError::Duplicate { instead: 11 })
+        Err(SealError::Duplicate { instead: 20 })
     ));
     // NUL padding and a plaintext ending in NUL, with an exposed check.
     assert!(matches!(
         seal_k(&[1, 2, 3, 0], 5),
-        Err(SealError::NulEnd { instead: 6 })
-    ));
-    assert!(matches!(
-        seal_k(&[1, 2, 3, 0], 10),
-        Err(SealError::NulEnd { instead: 11 })
+        Err(SealError::NulEnd { instead: 20 })
     ));
     assert_eq!(seal_k(&[], 20), Err(SealError::Empty));
-    assert_eq!(
-        seal_k(&vec![1; COMPRESS_MAX + 1], 21),
-        Err(SealError::TooLong)
-    );
     assert_eq!(
         seal_with_key(&KEY, &[1; 16], 20, b"id", 10_000, &[0; 16]),
         Err(SealError::Iv)
@@ -190,16 +209,20 @@ fn what_krux_refuses_to_write_is_refused_and_names_a_version_that_works() {
 }
 
 #[test]
-fn version_0_refuses_the_one_in_256_whose_check_ends_in_nul() {
-    let mut refused = 0;
-    for n in 0u16..1024 {
-        let plain = [n as u8, (n >> 8) as u8, 7, 7];
-        match seal_k(&plain, 0) {
-            Ok(code) => assert_eq!(*open_k(&code).unwrap().plaintext, plain),
-            Err(SealError::NulEnd { .. }) => refused += 1,
-            Err(e) => panic!("{e:?}"),
+fn version_0_codes_krux_made_open_including_the_ones_near_its_nul_rule() {
+    let all = krux_codes();
+    let (mut opened, mut refused) = (0, 0);
+    for pair in all["version_0_small"].as_array().unwrap() {
+        let plain = unhex(pair[0].as_str().unwrap());
+        match pair[1].as_str() {
+            Some(code) => {
+                assert_eq!(*open_k(&unhex(code)).unwrap().plaintext, plain);
+                opened += 1;
+            }
+            None => refused += 1,
         }
     }
+    assert!(opened > 1000, "{opened} opened");
     assert!((1..=10).contains(&refused), "{refused} of 1024");
 }
 
@@ -285,7 +308,8 @@ fn a_plaintext_that_ends_in_nul_opens_from_a_writer_that_skipped_the_rule() {
 }
 
 #[test]
-fn a_repetitive_text_is_sealed_compressed_and_opens_again_in_every_compressed_version() {
+fn a_repetitive_text_krux_made_compressed_opens_in_every_compressed_version() {
+    let all = krux_codes();
     let wallet: Vec<u8> = b"0123456789abcdef"
         .iter()
         .cycle()
@@ -293,7 +317,9 @@ fn a_repetitive_text_is_sealed_compressed_and_opens_again_in_every_compressed_ve
         .copied()
         .collect();
     for v in [7, 12, 16, 21] {
-        let code = seal_k(&wallet, v).unwrap();
+        let entry = &all["repetitive"][v.to_string()];
+        assert_eq!(unhex(entry["plain"].as_str().unwrap()), wallet);
+        let code = unhex(entry["code"].as_str().unwrap());
         assert!(code.len() < 200, "{v}: {} bytes", code.len());
         assert_eq!(*open_k(&code).unwrap().plaintext, wallet);
     }
@@ -333,19 +359,15 @@ fn a_hidden_check_ending_in_nul_opens_from_a_writer_that_skipped_the_rule() {
 
 #[test]
 fn a_code_that_inflates_past_100_kib_does_not_open() {
-    // Seal the deflated bytes as an uncompressed version's plaintext and
-    // read them as the compressed one: same key, same layout.
-    let big = vec![0u8; INFLATE_LIMIT + 1];
-    let z = miniz_oxide::deflate::compress_to_vec(&big, 9);
-    let code = seal_k(&z, 15).unwrap();
-    let mut b = code.clone();
+    // Krux sealed the deflated bytes as version 15's plaintext; read as
+    // version 16 (compressed) they are the stream: same key, same layout.
+    let all = krux_codes();
+    let mut b = unhex(all["inflate_over"]["code"].as_str().unwrap());
     let at = 1 + b[0] as usize;
     b[at] = 16;
     // Version 16 hashes the compressed bytes the same way as 15.
     assert_eq!(open_k(&b).err(), Some(OpenError::Failed));
-    let ok = vec![0u8; INFLATE_LIMIT];
-    let z = miniz_oxide::deflate::compress_to_vec(&ok, 9);
-    let mut b = seal_k(&z, 15).unwrap();
+    let mut b = unhex(all["inflate_at"]["code"].as_str().unwrap());
     b[at] = 16;
     assert_eq!(open_k(&b).unwrap().plaintext.len(), INFLATE_LIMIT);
 }
@@ -381,7 +403,7 @@ fn a_count_of_100_million_stops_when_told() {
 #[test]
 fn a_code_made_with_a_passphrase_opens_with_it_only() {
     let c = compute();
-    for v in VERSIONS {
+    for v in WRITTEN_VERSIONS {
         let plain: Vec<u8> = (200..232).collect();
         let code = seal(
             &c,
@@ -424,18 +446,14 @@ fn passphrases_are_printable_ascii_to_write_and_three_forms_to_read() {
 }
 
 #[test]
-fn versions_are_suggested_as_krux_suggests_them() {
+fn only_the_versions_written_are_suggested() {
     let seed: Vec<u8> = (1..=16).collect();
-    assert_eq!(suggest_versions(&seed, Mode::Gcm), [20]);
-    assert_eq!(suggest_versions(&seed, Mode::Ecb), [5]);
-    assert_eq!(suggest_versions(&seed, Mode::Cbc), [10]);
+    assert_eq!(suggest_versions(&seed), [20, 5]);
     let long: Vec<u8> = (0..200u32).map(|i| (i * 7 % 251) as u8).collect();
-    assert_eq!(suggest_versions(&long, Mode::Gcm), [21]);
-    assert!(suggest_versions(&long, Mode::Ecb).contains(&7));
-    assert!(suggest_versions(&[], Mode::Gcm).is_empty());
-    for mode in [Mode::Ecb, Mode::Cbc] {
-        assert!(!suggest_versions(&seed, mode).iter().any(|&v| v <= 1));
-    }
+    assert_eq!(suggest_versions(&long), [20]);
+    assert_eq!(suggest_versions(&[5; 32]), [20]);
+    assert_eq!(suggest_versions(&[1, 2, 0]), [20]);
+    assert!(suggest_versions(&[]).is_empty());
 }
 
 #[test]
@@ -519,12 +537,11 @@ fn a_passphrase_or_count_krux_would_not_write_is_refused_before_any_work() {
             "{out:?}"
         );
     }
-    // What needs no key is refused before the key: a compressed text too
-    // long, an id too long, a plaintext whose ECB blocks repeat.
-    let long = vec![7u8; COMPRESS_MAX + 1];
+    // What needs no key is refused before the key: a version not written,
+    // an id too long, a plaintext whose ECB blocks repeat.
     assert_eq!(
-        seal(&c, b"fine", &long, &sealing(21, 10_000, &iv), &mut work),
-        Err(SealError::TooLong)
+        seal(&c, b"fine", &[1; 16], &sealing(21, 10_000, &iv), &mut work),
+        Err(SealError::Refused(Refusal::Version))
     );
     let mut how = sealing(20, 10_000, &iv);
     let id = [1u8; 253];
@@ -555,15 +572,9 @@ fn a_passphrase_or_count_krux_would_not_write_is_refused_before_any_work() {
 }
 
 #[test]
-fn a_text_over_the_compression_limit_is_offered_a_version_that_seals() {
+fn a_long_text_is_offered_a_version_that_seals() {
     let text: Vec<u8> = (0..1100u32).map(|i| (i * 7 % 251) as u8).collect();
-    for mode in [Mode::Ecb, Mode::Cbc, Mode::Ctr, Mode::Gcm] {
-        let versions = suggest_versions(&text, mode);
-        assert!(!versions.is_empty(), "{mode:?}");
-        assert!(
-            seal_k(&text, versions[0]).is_ok(),
-            "{mode:?}: {:?}",
-            seal_k(&text, versions[0])
-        );
-    }
+    let versions = suggest_versions(&text);
+    assert!(!versions.is_empty());
+    assert!(seal_k(&text, versions[0]).is_ok());
 }

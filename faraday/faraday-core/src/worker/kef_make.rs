@@ -5,12 +5,12 @@
 //! on the backup board and the tool in Tools both call these; neither has
 //! a copy.
 
-use faraday_codec::kef::{Mode, Padding, VERSIONS, id_text, spec_of};
+use faraday_codec::kef::{Mode, Padding, id_text, spec_of};
 use faraday_codec::qr::{Ecc, alphanumeric_capacity};
 use faraday_crypto::work::Compute;
 use faraday_keys::kef::{
     COUNT_MIN, COUNT_SETTING_MAX, DEFAULT_COUNT, DEFAULT_ID_LEN, DEFAULT_VERSION, ID_MAX,
-    LONG_ID_LEN, Refusal, SealError, unwrap,
+    LONG_ID_LEN, Refusal, SealError, WRITTEN_VERSIONS, unwrap,
 };
 
 use crate::qr_view::QrView;
@@ -69,7 +69,7 @@ impl Options {
         if bad_id {
             return Some(EN.kef_refuse_id);
         }
-        if spec_of(self.version).is_none() {
+        if !WRITTEN_VERSIONS.contains(&self.version) {
             return Some(EN.kef_refuse_version);
         }
         None
@@ -92,13 +92,12 @@ impl Options {
 /// The side, in modules, of the code a seed's entropy or a text of
 /// `plaintext_len` bytes will make with `options` (`docs/KEF.md` §5): the
 /// smallest version that holds the envelope as base43 text. `None` for a
-/// compressed version, whose size is not known before the work, and for
-/// contents too large for one code.
+/// version Faraday does not write and for contents too large for one code.
 pub fn side(options: &Options, plaintext_len: usize) -> Option<usize> {
-    let spec = spec_of(options.version)?;
-    if spec.compressed {
+    if !WRITTEN_VERSIONS.contains(&options.version) {
         return None;
     }
+    let spec = spec_of(options.version)?;
     let id_len = match &options.id {
         IdChoice::Random(n) => *n,
         IdChoice::Label(l) => l.len(),
@@ -136,19 +135,10 @@ pub const SHEET_SIDES: [usize; 4] = [25, 29, 33, 37];
 /// version, low error correction (version 5) and a random id's length
 /// (8, then 16) vary; the count and a typed or fingerprint id of `base`
 /// stay. `base` itself where it already gives the side, else the first
-/// candidate that does: version 20 first, the other versions as Options
-/// lists them, the legacy 0 and 1 last. Cheap: a lookup through [`side`],
+/// candidate that does: version 20 first, then 5. Cheap: a lookup through [`side`],
 /// no seal.
 pub fn sizes(base: &Options, plaintext_len: usize) -> Vec<(usize, Options)> {
-    let mut versions = vec![DEFAULT_VERSION];
-    for mode in MODES {
-        versions.extend(
-            versions_in(mode)
-                .into_iter()
-                .filter(|&v| v != DEFAULT_VERSION && spec_of(v).is_some_and(|s| !s.compressed)),
-        );
-    }
-    versions.extend(legacy_versions());
+    let versions = WRITTEN_VERSIONS;
     let ids: Vec<IdChoice> = match &base.id {
         IdChoice::Random(_) => vec![
             IdChoice::Random(DEFAULT_ID_LEN),
@@ -157,7 +147,7 @@ pub fn sizes(base: &Options, plaintext_len: usize) -> Vec<(usize, Options)> {
         other => vec![other.clone()],
     };
     let mut candidates = Vec::new();
-    for &version in &versions {
+    for version in versions {
         for low in [false, true] {
             if low && version != 5 {
                 continue;
@@ -188,33 +178,23 @@ pub fn sizes(base: &Options, plaintext_len: usize) -> Vec<(usize, Options)> {
         .collect()
 }
 
-/// The versions Options lists in one mode, not the legacy ones.
+/// The versions Options lists in one mode: the ones Faraday writes.
 pub fn versions_in(mode: Mode) -> Vec<u8> {
-    VERSIONS
+    WRITTEN_VERSIONS
         .iter()
         .copied()
-        .filter(|&v| spec_of(v).is_some_and(|s| s.mode == mode && !s.legacy()))
-        .collect()
-}
-
-/// The legacy versions (0 and 1), listed one level further down.
-pub(crate) fn legacy_versions() -> Vec<u8> {
-    VERSIONS
-        .iter()
-        .copied()
-        .filter(|&v| spec_of(v).is_some_and(|s| s.legacy()))
+        .filter(|&v| spec_of(v).is_some_and(|s| s.mode == mode))
         .collect()
 }
 
 /// The modes in the order Options groups the versions.
-pub const MODES: [Mode; 4] = [Mode::Gcm, Mode::Ctr, Mode::Cbc, Mode::Ecb];
+pub const MODES: [Mode; 2] = [Mode::Gcm, Mode::Ecb];
 
 /// What a refusal says, naming a version that works where there is one.
 pub fn refusal_line(e: SealError) -> &'static str {
     match e {
         SealError::Empty => EN.kef_refuse_empty,
         SealError::Passphrase => EN.kef_refuse_passphrase,
-        SealError::TooLong => EN.kef_refuse_too_long,
         SealError::Refused(Refusal::Count) => EN.kef_refuse_count,
         SealError::Refused(Refusal::IdLength) => EN.kef_refuse_id,
         SealError::Refused(_) | SealError::Iv | SealError::Cancelled => EN.kef_refuse_version,

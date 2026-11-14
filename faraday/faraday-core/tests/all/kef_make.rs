@@ -99,11 +99,8 @@ fn each_option_changes_the_code_as_it_says() {
         let e = unwrap(&m.bytes).unwrap();
         (m, e)
     };
-    let (_, e) = make(Options {
-        version: 15,
-        ..quick()
-    });
-    assert_eq!(e.version, 15);
+    let (_, e) = make(quick());
+    assert_eq!(e.version, 20);
     let (_, e) = make(Options {
         id: IdChoice::Random(16),
         ..quick()
@@ -144,6 +141,17 @@ fn each_option_changes_the_code_as_it_says() {
     let size_medium = size(medium);
     let size_low = size(low);
     assert!(size_low < size_medium, "{size_low} {size_medium}");
+    // Version 5 is made when it is chosen.
+    let five = Options {
+        version: 5,
+        ..quick()
+    };
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    app.kef_make_text(pass(), Text::of(note), &five).unwrap();
+    let m = made(&mut app, &five);
+    assert_eq!(unwrap(&m.bytes).unwrap().version, 5);
 }
 
 #[test]
@@ -278,7 +286,8 @@ fn the_size_a_code_will_be_is_known_before_it_is_made() {
 fn the_size_predicted_is_the_size_of_the_code_made() {
     use faraday_core::worker::kef_make::{MODES, side, versions_in};
     let mut app = app_with(TWENTY_FOUR);
-    let mut cases = vec![(10u8, false, 16usize, 49usize)];
+    let mut cases = Vec::new();
+    let mut made_in = std::collections::BTreeSet::new();
     for mode in MODES {
         for v in versions_in(mode) {
             for id in [8, 16] {
@@ -306,10 +315,10 @@ fn the_size_predicted_is_the_size_of_the_code_made() {
             app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
         }
         // A text some version refuses (ECB takes whole blocks) makes no code.
-        if let Err(e) = app.kef_make_text(pass(), text, &options) {
-            assert_ne!((version, low, id, len), (10, false, 16, 49), "{e:?}");
+        if app.kef_make_text(pass(), text, &options).is_err() {
             continue;
         }
+        made_in.insert(version);
         let code = made(&mut app, &options);
         let view = code.view.as_ref().expect("one code");
         assert_eq!(
@@ -318,4 +327,7 @@ fn the_size_predicted_is_the_size_of_the_code_made() {
             "version {version}, low {low}, id {id}, text {len}"
         );
     }
+    // Every version offered made a code, so none was only skipped.
+    let offered: std::collections::BTreeSet<u8> = MODES.into_iter().flat_map(versions_in).collect();
+    assert_eq!(made_in, offered);
 }

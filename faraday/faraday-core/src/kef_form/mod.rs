@@ -102,10 +102,8 @@ pub enum KefAct {
     Back,
     /// Chooses a code of this side, in modules (`kef_make::sizes`).
     Size(usize),
-    /// Chooses a version.
+    /// Chooses a version: 20 or 5.
     Version(u8),
-    /// Shows or hides the legacy versions.
-    Legacy,
     /// Low error correction.
     Low,
     /// Typing goes to the rounds.
@@ -162,7 +160,6 @@ pub struct KefForm {
     from_scan: bool,
     focus: Option<Focus>,
     sheet: bool,
-    legacy: bool,
     stage: Stage,
     error: Option<Text>,
     made: Option<Made>,
@@ -256,7 +253,6 @@ impl KefForm {
             from_scan: false,
             focus: Some(Focus::Pass),
             sheet: false,
-            legacy: false,
             stage: Stage::Entry,
             error: None,
             made: None,
@@ -422,7 +418,8 @@ impl KefForm {
     }
 
     /// The side of the code in modules, worked out from the options with
-    /// no seal; `None` for a compressed version.
+    /// no seal; `None` for a version not written or contents too large for
+    /// one code.
     pub fn side(&self) -> Option<usize> {
         kef_make::side(&self.options, self.contents_len())
     }
@@ -553,7 +550,7 @@ impl KefForm {
                 }
             }
             KefAct::Version(v) => {
-                if faraday_codec::kef::spec_of(v).is_some() {
+                if faraday_keys::kef::WRITTEN_VERSIONS.contains(&v) {
                     self.options.version = v;
                     if !self.options.low_offered() {
                         self.options.low = false;
@@ -561,7 +558,6 @@ impl KefForm {
                     self.error = None;
                 }
             }
-            KefAct::Legacy => self.legacy = !self.legacy,
             KefAct::Low => {
                 if self.options.low_offered() {
                     self.options.low = !self.options.low;

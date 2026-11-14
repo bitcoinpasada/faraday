@@ -233,7 +233,7 @@ Read this table, then only the decision you need.
 | [F216](decisions/F216.md) | On the Pi, "card or stick" where the app says "stick" | 2026-11-05 | Amended by F235 | stick |
 | [F217](history/decisions/F217.md) | A QR vault is a third form of a seed in the backup, with Open to test before the lock | 2026-11-05 | Withdrawn | backup |
 | [F218](decisions/F218.md) | The list of what was plugged in at start can be dismissed, by its × or Escape, never by a held device | 2026-11-05 | Active | security |
-| [F219](decisions/F219.md) | KEF, Krux's encrypted code, enters Faraday, all twelve versions read and written, checked against Krux's code and not on a device | 2026-11-05 | Active, the crate and the screens built | crypto |
+| [F219](decisions/F219.md) | KEF, Krux's encrypted code, enters Faraday, all twelve versions read and written, checked against Krux's code and not on a device | 2026-11-05 | Amended by F261 | crypto |
 | [F220](decisions/F220.md) | What a cosigner's partial MuSig2 signature proves on the device | 2026-11-05 | Active | security |
 | [F221](decisions/F221.md) | Two more kernel patches of Faraday's own on the Pi: a 32-bit framebuffer with red first, and vc4's output polling stopped on unbind | 2026-11-06 | Active | security |
 | [F222](decisions/F222.md) | On a Pi's HDMI screen, fades start off | 2026-11-07 | Active | design |
@@ -271,4 +271,5 @@ Read this table, then only the decision you need.
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
 | [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |
 | [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Active | design |
+| [F261](decisions/F261.md) | KEF writes versions 20 and 5 and reads all twelve | 2026-11-14 | Active | crypto |
 | [F263](decisions/F263.md) | A multisig setup file with no Format line is P2SH, as Coldcard reads it | 2026-11-14 | Active | wallets |

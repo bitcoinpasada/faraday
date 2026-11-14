@@ -22,6 +22,16 @@ by a script of Faraday's over `hashlib` and pyca/cryptography, before
 The ECB and CBC envelopes of the same test files do not authenticate under
 the passphrases tried and are not kept.
 
+`krux_codes.json` holds codes of every version made by Krux's own `Cipher.encrypt`
+and `wrap` (`src/krux/kef.py` of tag `v26.09.0`, commit
+`2b20e3370169731a0d89839a4113ad9a1b732078`, the cross-check's Krux source in
+`tools/reference/krux/`, unchanged), by `make_krux_codes.py`
+(`python3 -B tools/vectors/kef/make_krux_codes.py > tools/vectors/kef/krux_codes.json`,
+from the repository root). The key, id, count and IV are fixed and named in
+the file's `made_by`; a code is `null` where Krux refuses the plaintext. Faraday
+writes only versions 20 and 5, so these are the codes its tests open for the
+other versions.
+
 | File | SHA-256 |
 |---|---|
 | `vectors.json` | `3a394fa98b0c046c9205de12f9ea3477f74eb31c6b2b834139a85e91142960ba` |

@@ -13,7 +13,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::screen::{secret_box, text_box};
 use crate::worker::kef_make::{self, IdChoice};
-use faraday_codec::kef::{Mode, spec_of};
+use faraday_codec::kef::Mode;
 use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, LABEL_L};
 use faraday_draw::widgets::Icon;
 
@@ -401,9 +401,8 @@ fn options_body(
     for mode in kef_make::MODES {
         let name = match mode {
             Mode::Gcm => EN.kef_mode_gcm,
-            Mode::Ctr => EN.kef_mode_ctr,
-            Mode::Cbc => EN.kef_mode_cbc,
             Mode::Ecb => EN.kef_mode_ecb,
+            Mode::Ctr | Mode::Cbc => continue,
         };
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, name);
         cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
@@ -416,17 +415,6 @@ fn options_body(
                 kef_make::ecb_line(),
             ) + GAP;
         }
-    }
-    let legacy = kef_make::legacy_versions();
-    let open = f.legacy || legacy.contains(&o.version);
-    let items = [(
-        EN.kef_opt_legacy.to_string(),
-        choice(open),
-        (ask.wrap)(KefAct::Legacy),
-    )];
-    cy += faraday_ui::parts::button_rows(ui, x, cy, w, &items);
-    if open {
-        cy += version_buttons(ui, (x, cy, w), &legacy, f, ask);
     }
     if o.low_offered() {
         cy += ui.switch_row((x, cy, w), EN.kef_opt_low, o.low, (ask.wrap)(KefAct::Low)) + GAP;
@@ -461,13 +449,8 @@ fn version_buttons(
     let items: Vec<_> = versions
         .iter()
         .map(|&v| {
-            let label = if spec_of(v).is_some_and(|s| s.compressed) {
-                fill(EN.kef_opt_compressed, &[&v.to_string()])
-            } else {
-                v.to_string()
-            };
             (
-                label,
+                v.to_string(),
                 choice(f.options.version == v),
                 (ask.wrap)(KefAct::Version(v)),
             )
@@ -580,10 +563,9 @@ fn paper_part(ui: &mut Ui, (x, y): (f32, f32), f: &KefForm) -> f32 {
                 EN.kef_opt_by_hand_no
             },
         ),
-        None if spec_of(f.options.version).is_some_and(|s| s.compressed) => {
-            (EN.kef_opt_size_after.to_string(), EN.kef_opt_size_after)
-        }
-        None => (EN.kef_opt_size_after.to_string(), EN.kef_opt_by_hand_no),
+        // No size: the contents are too large for one code (the form offers no
+        // version that is not written).
+        None => return 0.0,
     };
     for line in [
         format!("{}: {size}", EN.kef_opt_size),

@@ -1,9 +1,11 @@
 //! Krux's encrypted code: `recognize` on any scanned or read bytes,
 //! `unwrap` on any envelope, and decryption of what unwraps under a fixed
 //! key with a count of 1 (`open_with_key`, so no PBKDF2 runs). The same
-//! bytes are also sealed under that key as version 15 and 20 and read as
-//! the compressed version 16 and 21 (same layout, same checks), so a hostile
-//! deflate stream reaches inflate. Nothing panics, and nothing a compressed
+//! bytes are also sealed under that key as version 20 and read as the
+//! compressed version 21 (same layout, same checks), so a hostile deflate
+//! stream reaches inflate. Faraday seals only versions 20 and 5, so the other
+//! compressed versions (7, 12, 16) reach the same inflate only through the
+//! envelopes the fuzzer finds itself. Nothing panics, and nothing a compressed
 //! version opens is longer than the inflate limit.
 
 #![no_main]
@@ -25,7 +27,7 @@ fuzz_target!(|data: &[u8]| {
         }
     }
     // The data as a deflate stream: sealed uncompressed, read compressed.
-    for (plain, compressed, iv) in [(15u8, 16u8, 12usize), (20, 21, 12)] {
+    for (plain, compressed, iv) in [(20u8, 21u8, 12usize)] {
         if let Ok(mut code) = seal_with_key(&KEY, data, plain, b"id", 1, &vec![0; iv]) {
             let at = 1 + code[0] as usize;
             code[at] = compressed;

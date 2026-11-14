@@ -414,7 +414,7 @@ standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8
 id = "kef"
 section = 3
 what = "KEF, Krux's encrypted code (`faraday/faraday-kef`, `core/faraday-codec/src/kef.rs`, `docs/KEF.md`)"
-completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target; in the app, scanning one and making one from a seed or a text (the seed's backup item, its stick files and the code on Paper, and the Krux code tool in Tools)"
+completeness = "Built: all twelve versions read and versions 20 and 5 written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target; in the app, scanning one and making one from a seed or a text (the seed's backup item, its stick files and the code on Paper, and the Krux code tool in Tools)"
 
 [[row]]
 id = "sqlite"
@@ -6367,7 +6367,7 @@ places = ["docs/QR.md"]
 [[action]]
 id = "kef"
 name = "Seal and open Krux codes"
-action = "Writes and reads a Krux encrypted code (KEF): a passphrase and a count of PBKDF2-HMAC-SHA-256 rounds over an id give an AES-256 key, and one of twelve versions (ECB, CBC, CTR or GCM, with or without compression) seals the bytes with the format's own check."
+action = "Writes and reads a Krux encrypted code (KEF): a passphrase and a count of PBKDF2-HMAC-SHA-256 rounds over an id give an AES-256 key, and version 20 (GCM) or version 5 (ECB) seals the bytes with the format's own check; all twelve versions are opened."
 row = "kef"
 standards = ["KEF"]
 screens = ["KefTool"]
@@ -6405,7 +6405,7 @@ libraries = [
   "sha2",
 ]
 through = [{ library = "hmac", crate = "core/faraday-crypto" }]
-adds = "Only the part used is written: the twelve versions of Krux's table, their padding and their checks, the tolerant reading of Krux's own inconsistencies, and the refusal of what Krux refuses to write (a hidden check ending in 0x00). A compressed code inflates under a limit. The PBKDF2 loop can stop and counts; it is one 32-byte block, checked against the library's PBKDF2 and RFC 7914's vectors."
+adds = "Only the part used is written: the twelve versions of Krux's table read, with their padding and their checks, versions 20 and 5 written, the tolerant reading of Krux's own inconsistencies, and the refusal of what Krux refuses to write (a repeated ECB block, a NUL end). A compressed code inflates under a limit. The PBKDF2 loop can stop and counts; it is one 32-byte block, checked against the library's PBKDF2 and RFC 7914's vectors."
 
 [[action.implementation.written_here]]
 what = "KEF: the envelope, the version table, padding, the two SHA-256 checks and base43 (`faraday-codec::kef`, `faraday-kef`), and PBKDF2's loop over HMAC-SHA-256 for one block, with a cancel check (`faraday-crypto::hash`)"
@@ -6420,7 +6420,8 @@ tests = [
   "faraday/faraday-kef/tests/kef.rs::krux_gcm_code_opens_to_its_entropy",
   "faraday/faraday-kef/tests/kef.rs::krux_gcm_code_with_a_wrong_passphrase_or_a_changed_byte_does_not_open",
   "faraday/faraday-kef/tests/kef.rs::krux_version_5_code_opens_and_a_wrong_passphrase_that_passes_gives_other_bytes",
-  "faraday/faraday-kef/tests/kef.rs::every_version_opens_what_it_seals",
+  "faraday/faraday-kef/tests/kef.rs::every_version_opens_a_code_krux_made_and_the_two_written_match_it",
+  "faraday/faraday-kef/tests/kef.rs::only_versions_20_and_5_are_written",
   "faraday/faraday-kef/tests/kef.rs::what_krux_refuses_to_write_is_refused_and_names_a_version_that_works",
   "faraday/faraday-kef/tests/kef.rs::a_count_of_100_million_stops_when_told",
   "faraday/faraday-keys/tests/operations.rs::kef_entropy::a_12_and_a_24_word_seed_give_16_and_32_bytes_of_entropy",
@@ -6428,10 +6429,10 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::kef_entropy::another_reason_gets_nothing_and_this_one_lends_no_text",
 ]
 crosscheck = "kef"
-independence = { class = "outside-and-own", author = "Krux's `kef.py`, by the Krux developers, vendored unchanged and run under CPython, for all twelve versions, written and read", ours = "Faraday's refusals listed as known differences in `area_kef.py` (an empty plaintext, an id of 253 bytes, a text that inflates past the limit, a passphrase or count Krux's field does not offer, suggestions over 1,024 bytes), and krux's three shims (`ucryptolib`, `uhashlib_hw` and deflate at wbits -10, over hashlib, PyCA and zlib)" }
+independence = { class = "outside-and-own", author = "Krux's `kef.py`, by the Krux developers, vendored unchanged and run under CPython, for all twelve versions read and versions 20 and 5 written", ours = "Faraday's refusals listed as known differences in `area_kef.py` (an empty plaintext, an id of 253 bytes, a text that inflates past the limit, a passphrase or count Krux's field does not offer, suggestions over 1,024 bytes), and krux's three shims (`ucryptolib`, `uhashlib_hw` and deflate at wbits -10, over hashlib, PyCA and zlib)" }
 fuzz = ["kef"]
 other = [
-  "Krux's own code is the judge of the format (`tools/reference/krux/` holds it): the format is Krux's, an implementation by another project's authors; all twelve versions are run against it, and nothing is run on a device",
+  "Krux's own code is the judge of the format (`tools/reference/krux/` holds it): the format is Krux's, an implementation by another project's authors; all twelve versions are run against it (two sealed, twelve opened), and nothing is run on a device",
 ]
 
 [action.secrets]

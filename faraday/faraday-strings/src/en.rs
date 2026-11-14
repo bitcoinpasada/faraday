@@ -13291,8 +13291,6 @@ strings! {
     kef_refuse_duplicate: "Two blocks are equal and this version would show it. Version {} works.",
     /// A refusal: the end of the contents cannot be told from padding. `{}`: a version that works.
     kef_refuse_nul_end: "The contents end in a zero byte, which this version's padding cannot keep. Version {} works.",
-    /// A refusal: the contents are too long for a compressed version.
-    kef_refuse_too_long: "Compressed versions take at most 1,024 bytes. Choose a version without compression.",
     /// A refusal: the passphrase has a character the code's keypads do not.
     kef_refuse_passphrase: "The passphrase is 1 to 200 printable ASCII characters.",
     /// A refusal: nothing to seal.
@@ -13331,16 +13329,8 @@ strings! {
     kef_id_fingerprint_fact: "fingerprint id",
     /// Options: the versions.
     kef_opt_version: "Version",
-    /// Options: the legacy versions' group.
-    kef_opt_legacy: "Legacy",
-    /// Options: a compressed version's button. `{}`: the version.
-    kef_opt_compressed: "{} compressed",
     /// Options: the GCM versions' name.
     kef_mode_gcm: "AES-GCM",
-    /// Options: the CTR versions' name.
-    kef_mode_ctr: "AES-CTR",
-    /// Options: the CBC versions' name.
-    kef_mode_cbc: "AES-CBC",
     /// Options: the ECB versions' name.
     kef_mode_ecb: "AES-ECB",
     /// Options: low error correction, for version 5.
@@ -13363,8 +13353,6 @@ strings! {
     kef_opt_size: "Size",
     /// Options, on Paper: whether the code can be copied by hand.
     kef_opt_by_hand: "By hand",
-    /// Options, on Paper: a compressed version's size is known after it is made.
-    kef_opt_size_after: "Known once made",
     /// Options, on Paper: a code that fits a blank template.
     kef_opt_by_hand_yes: "Sheet",
     /// Options, on Paper: a code too large for a blank template.

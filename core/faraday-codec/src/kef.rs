@@ -75,11 +75,6 @@ impl Spec {
             Mode::Ctr | Mode::Gcm => 12,
         }
     }
-
-    /// Versions 0 and 1, which the specification marks legacy.
-    pub fn legacy(&self) -> bool {
-        self.version <= 1
-    }
 }
 
 const fn spec(

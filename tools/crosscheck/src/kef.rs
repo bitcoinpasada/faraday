@@ -2,7 +2,7 @@
 //! (`docs/KEF.md`): sealed and opened under a key the area works out, or
 //! under a passphrase at a small count, and its envelope taken apart.
 
-use faraday_codec::kef::{self, Mode};
+use faraday_codec::kef;
 use faraday_crypto::work::Compute;
 use faraday_kef::{Sealing, open, open_with_key, seal, seal_with_key, suggest_versions};
 use serde_json::{Value, json};
@@ -20,16 +20,6 @@ fn count(req: &Value) -> Result<u32, String> {
 
 fn version(req: &Value) -> Result<u8, String> {
     u8::try_from(num(req, "version")).map_err(err)
-}
-
-fn mode(req: &Value) -> Mode {
-    match text(req, "mode") {
-        "ecb" => Mode::Ecb,
-        "cbc" => Mode::Cbc,
-        "ctr" => Mode::Ctr,
-        "gcm" => Mode::Gcm,
-        other => panic!("unknown mode {other}"),
-    }
 }
 
 /// The passphrase as typed: text, or the bytes of `passphrase_hex` when the
@@ -98,8 +88,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "payload": hex(&e.payload),
             }))
         }
-        // The versions suggested for a plaintext in a mode.
-        "suggest" => Ok(json!({"versions": suggest_versions(&bytes(req, "plaintext"), mode(req))})),
+        // The versions suggested for a plaintext.
+        "suggest" => Ok(json!({"versions": suggest_versions(&bytes(req, "plaintext"))})),
         _ => Err(format!("unknown kef op {name}")),
     }
 }

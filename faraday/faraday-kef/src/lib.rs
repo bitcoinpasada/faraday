@@ -1,7 +1,7 @@
-//! KEF, Krux's encrypted code, read and written in full (`docs/KEF.md`):
-//! the twelve versions both ways, tolerant in what it reads (§4.2) and
-//! strict in what it writes (§4.1), with compression that stops at 100 KiB
-//! (§7.1), the defaults of §10 and the choice of a version.
+//! KEF, Krux's encrypted code (`docs/KEF.md`): all twelve versions read,
+//! tolerant in what it reads (§4.2), and versions 20 and 5 written, strict
+//! in what it writes (§4.1), with inflating that stops at 100 KiB (§7.1),
+//! the defaults of §10 and the choice of a version.
 //!
 //! The envelope and the text forms are `faraday-codec`'s `kef` module
 //! (nothing there is cryptographic). What is here derives the key, which
@@ -22,6 +22,7 @@
 
 extern crate alloc;
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 use aes::Aes256;
@@ -29,8 +30,7 @@ use aes::cipher::array::Array;
 use aes::cipher::consts::{U4, U12};
 use aes::cipher::inout::InOutBuf;
 use aes::cipher::{
-    BlockCipherDecrypt, BlockCipherEncrypt, BlockModeDecrypt, BlockModeEncrypt, KeyInit, KeyIvInit,
-    StreamCipher,
+    BlockCipherDecrypt, BlockCipherEncrypt, BlockModeDecrypt, KeyInit, KeyIvInit, StreamCipher,
 };
 use aes_gcm::{AeadInOut, AesGcm};
 use faraday_crypto::work::Compute;
@@ -48,13 +48,16 @@ pub use faraday_codec::kef::{
 /// limit (`DEFLATEIO_MAX_DECOMPRESSED_SIZE`), 100 KiB.
 pub const INFLATE_LIMIT: usize = 102_400;
 
-/// The most bytes a compressed version is written for, since below it a
-/// match cannot reach beyond the 1,024-byte window Krux reads
+/// The most bytes of typed text the KEF tool takes: what a compressed
+/// version was written for, kept as the limit now that none is written
 /// (`docs/KEF.md` §4.1, §10).
 pub const COMPRESS_MAX: usize = 1_024;
 
 /// The default version: AES-GCM (`docs/KEF.md` §10).
 pub const DEFAULT_VERSION: u8 = 20;
+/// The versions Faraday writes: 20 (AES-GCM) and 5 (AES-ECB, the smaller
+/// code of 12 or 24 words). It reads all twelve (`docs/KEF.md` §4).
+pub const WRITTEN_VERSIONS: [u8; 2] = [20, 5];
 /// The default id: 8 random bytes.
 pub const DEFAULT_ID_LEN: usize = 8;
 /// The id one level down, which gives NIST SP 800-132's 128 bits.
@@ -150,8 +153,6 @@ pub enum SealError {
         /// The version that would work.
         instead: u8,
     },
-    /// A compressed version is written only up to [`COMPRESS_MAX`] bytes.
-    TooLong,
     /// The passphrase is not one Faraday writes under
     /// ([`writable_passphrase`]).
     Passphrase,
@@ -227,19 +228,13 @@ fn ecb(key: &[u8; 32], data: &mut [u8], encrypt: bool) {
     }
 }
 
-/// CBC in place over whole blocks.
-fn cbc(key: &[u8; 32], iv: &[u8], data: &mut [u8], encrypt: bool) {
+/// CBC decryption in place over whole blocks (read only).
+fn cbc(key: &[u8; 32], iv: &[u8], data: &mut [u8]) {
     let (blocks, tail) = InOutBuf::from(data).into_chunks();
     debug_assert!(tail.is_empty());
-    if encrypt {
-        cbc::Encryptor::<Aes256>::new_from_slices(key, iv)
-            .expect("a 32-byte key and a 16-byte IV")
-            .encrypt_blocks_inout(blocks);
-    } else {
-        cbc::Decryptor::<Aes256>::new_from_slices(key, iv)
-            .expect("a 32-byte key and a 16-byte IV")
-            .decrypt_blocks_inout(blocks);
-    }
+    cbc::Decryptor::<Aes256>::new_from_slices(key, iv)
+        .expect("a 32-byte key and a 16-byte IV")
+        .decrypt_blocks_inout(blocks);
 }
 
 /// CTR in place: the 12-byte IV and a 4-byte big-endian counter from 0.
@@ -251,11 +246,6 @@ fn ctr(key: &[u8; 32], iv: &[u8], data: &mut [u8]) {
         .apply_keystream(data);
 }
 
-/// Raw deflate of `data`.
-fn deflate(data: &[u8]) -> Vec<u8> {
-    miniz_oxide::deflate::compress_to_vec(data, 9)
-}
-
 /// Raw inflate of `data` to at most [`INFLATE_LIMIT`] bytes; any window up
 /// to 32 KiB (`docs/KEF.md` §7.1).
 fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
@@ -264,91 +254,46 @@ fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
         .map(Zeroizing::new)
 }
 
-/// The version to try instead when a refusal of §4.1 names one.
-fn pkcs_counterpart(v: u8) -> u8 {
-    match v {
-        5 => 6,
-        10 => 11,
-        0 => 6,
-        _ => 11,
+/// The spec of `version` if Faraday writes it; any other version, one of
+/// the ten it only reads included, is refused (`docs/KEF.md` §4).
+fn written(version: u8) -> Result<&'static Spec, SealError> {
+    if !WRITTEN_VERSIONS.contains(&version) {
+        return Err(SealError::Refused(Refusal::Version));
     }
+    spec_of(version).ok_or(SealError::Refused(Refusal::Version))
 }
 
-fn cbc_counterpart(v: u8) -> u8 {
-    match v {
-        0 => 1,
-        5 => 10,
-        6 => 11,
-        _ => 12,
-    }
-}
-
-/// What `plaintext` becomes before it is encrypted under `s`: compressed
-/// if the version is, its hidden check on the end, padded; and how many of
-/// its bytes come before the padding (what an exposed check hashes). Every
-/// refusal of §4.1 that needs no key is here.
+/// What `plaintext` becomes before it is encrypted under `s` (version 5 or
+/// 20): padded, for version 5; and how many of its bytes come before the
+/// padding (what the exposed check hashes). Every refusal of §4.1 that
+/// needs no key is here; the version that works instead is always 20.
 fn prepare(s: &Spec, plaintext: &[u8]) -> Result<(Zeroizing<Vec<u8>>, usize), SealError> {
-    let version = s.version;
     let nul = s.padding == Padding::Nul;
-    let mut plain: Zeroizing<Vec<u8>> = if s.compressed {
-        if plaintext.len() > COMPRESS_MAX {
-            return Err(SealError::TooLong);
-        }
-        Zeroizing::new(deflate(plaintext))
-    } else {
-        wiped(plaintext)
-    };
-    if s.auth > 0 && s.mode != Mode::Gcm {
-        if nul && plain.last() == Some(&0) {
-            return Err(SealError::NulEnd {
-                instead: pkcs_counterpart(version),
-            });
-        }
-    } else if s.auth < 0 {
-        // The hidden check is encrypted after the plaintext.
-        let n = (-s.auth) as usize;
-        let h = sha256_of(&[&plain]);
-        if nul && h[n - 1] == 0 {
-            return Err(SealError::NulEnd {
-                instead: pkcs_counterpart(version),
-            });
-        }
-        plain.reserve(n + 16);
-        plain.extend_from_slice(&h[..n]);
+    let mut plain = wiped(plaintext);
+    if nul && plain.last() == Some(&0) {
+        return Err(SealError::NulEnd {
+            instead: DEFAULT_VERSION,
+        });
     }
     let unpadded = plain.len();
-    match s.padding {
-        Padding::None => {}
-        Padding::Nul | Padding::Pkcs7 => {
-            let short = (16 - plain.len() % 16) % 16;
-            let pad = if s.padding == Padding::Pkcs7 {
-                if short == 0 { 16 } else { short }
-            } else {
-                short
-            };
-            let byte = if s.padding == Padding::Pkcs7 {
-                pad as u8
-            } else {
-                0
-            };
-            plain.reserve(pad);
-            plain.extend(core::iter::repeat_n(byte, pad));
-        }
+    if nul {
+        let pad = (16 - plain.len() % 16) % 16;
+        plain.reserve(pad);
+        plain.extend(core::iter::repeat_n(0, pad));
     }
     if s.mode == Mode::Ecb {
         let mut blocks: Vec<&[u8]> = plain.chunks(16).collect();
         blocks.sort_unstable();
         if blocks.windows(2).any(|w| w[0] == w[1]) {
             return Err(SealError::Duplicate {
-                instead: cbc_counterpart(version),
+                instead: DEFAULT_VERSION,
             });
         }
     }
     Ok((plain, unpadded))
 }
 
-/// Costs a hash of the plaintext, a compression of up to 1,024 bytes and
-/// the cipher over it: `plaintext` sealed under a key already worked out,
+/// Costs a hash of the plaintext and the cipher over it: `plaintext` sealed under a key already worked out,
 /// as `Cipher.encrypt` does with `fail_unsafe` on, wrapped in its envelope
 /// (`docs/KEF.md` §4, §4.1). `iv` is fresh bytes of the session's, 12 or
 /// 16 as the version needs, none for ECB. This is the entry the fuzz
@@ -362,7 +307,7 @@ pub fn seal_with_key(
     count: u32,
     iv: &[u8],
 ) -> Result<Vec<u8>, SealError> {
-    let s = spec_of(version).ok_or(SealError::Refused(Refusal::Version))?;
+    let s = written(version)?;
     if id.len() > faraday_codec::kef::ID_MAX {
         return Err(SealError::Refused(Refusal::IdLength));
     }
@@ -376,7 +321,7 @@ pub fn seal_with_key(
         return Err(SealError::Iv);
     }
     let (mut plain, unpadded) = prepare(s, plaintext)?;
-    // The exposed check of 5 and 10 hashes the plaintext with the key.
+    // The exposed check of version 5 hashes the plaintext with the key.
     let mut exposed: Option<[u8; 4]> = None;
     if s.auth > 0 && s.mode != Mode::Gcm {
         let h = sha256_of(&[&[version], iv, &plain[..unpadded], key]);
@@ -387,8 +332,7 @@ pub fn seal_with_key(
     let mut tag = [0u8; 4];
     match s.mode {
         Mode::Ecb => ecb(key, &mut plain, true),
-        Mode::Cbc => cbc(key, iv, &mut plain, true),
-        Mode::Ctr => ctr(key, iv, &mut plain),
+        Mode::Cbc | Mode::Ctr => return Err(SealError::Refused(Refusal::Version)),
         Mode::Gcm => {
             let nonce = Array::try_from(iv).expect("a 12-byte IV");
             let t = Gcm4::new_from_slice(key)
@@ -449,7 +393,7 @@ pub fn seal(
     if !writable_passphrase_bytes(passphrase) {
         return Err(SealError::Passphrase);
     }
-    let s = spec_of(version).ok_or(SealError::Refused(Refusal::Version))?;
+    let s = written(version)?;
     if id.len() > faraday_codec::kef::ID_MAX {
         return Err(SealError::Refused(Refusal::IdLength));
     }
@@ -554,7 +498,7 @@ pub fn open_with_key(key: &[u8; 32], envelope: &Envelope) -> Result<Opened, Open
             authenticate(s, key, iv, &buf, exposed).ok_or(OpenError::Failed)?
         }
         Mode::Cbc => {
-            cbc(key, iv, &mut buf, false);
+            cbc(key, iv, &mut buf);
             authenticate(s, key, iv, &buf, exposed).ok_or(OpenError::Failed)?
         }
         Mode::Ctr => {
@@ -604,63 +548,23 @@ pub fn open(
     open_with_key(key.expose(), envelope)
 }
 
-/// The versions of one mode that suit `plaintext`, as Krux's
-/// `suggest_versions` chooses (`docs/KEF.md` §10): the first is the
-/// choice. Versions 0 and 1 are never among them. Empty for an empty
-/// plaintext.
-pub fn suggest_versions(plaintext: &[u8], mode: Mode) -> Vec<u8> {
+/// The versions Faraday writes that suit `plaintext`: the first is the
+/// choice. Version 20 (AES-GCM) suits any plaintext. Version 5 (AES-ECB)
+/// is offered where Krux's `suggest_versions` offers it for ECB: a
+/// plaintext of at most 32 bytes with no two equal blocks that does not end
+/// in a NUL (`docs/KEF.md` §10). Empty for an empty plaintext.
+pub fn suggest_versions(plaintext: &[u8]) -> Vec<u8> {
     const SMALL: usize = 32;
-    const BIG: usize = 120;
-    let len = plaintext.len();
     let Some(&last) = plaintext.last() else {
         return Vec::new();
     };
     let mut blocks: Vec<&[u8]> = plaintext.chunks(16).collect();
     blocks.sort_unstable();
     blocks.dedup();
-    let duplicates = blocks.len() * 16 < len;
-    let nul_end = last == 0;
-    let mut out = Vec::new();
-    for s in VERSIONS.iter().filter_map(|&v| spec_of(v)) {
-        let pkcs = s.padding == Padding::Pkcs7;
-        let nul = s.padding == Padding::Nul;
-        if s.mode != mode || (s.compressed && len > COMPRESS_MAX) {
-            continue;
-        }
-        if duplicates && mode == Mode::Ecb && !s.compressed {
-            continue;
-        }
-        if s.auth == -16 {
-            continue;
-        }
-        if len <= SMALL {
-            if !(mode == Mode::Ecb && duplicates) {
-                if pkcs && !nul_end {
-                    continue;
-                }
-                if s.compressed {
-                    continue;
-                }
-            }
-        } else {
-            if nul {
-                continue;
-            }
-            if mode == Mode::Ecb && duplicates {
-            } else if !(BIG..=COMPRESS_MAX).contains(&len) {
-                // Over COMPRESS_MAX a compressed version is refused, so
-                // the uncompressed one stays.
-                if s.compressed {
-                    continue;
-                }
-            } else if !s.compressed {
-                continue;
-            }
-        }
-        if nul_end && nul {
-            continue;
-        }
-        out.push(s.version);
+    let duplicates = blocks.len() * 16 < plaintext.len();
+    let mut out = vec![DEFAULT_VERSION];
+    if plaintext.len() <= SMALL && !duplicates && last != 0 {
+        out.push(5);
     }
     out
 }

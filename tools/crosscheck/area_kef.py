@@ -5,14 +5,13 @@ modules: `ucryptolib` (AES-256 in ECB, CBC, CTR and GCM, over PyCA
 cryptography), `uhashlib_hw` (SHA-256 and PBKDF2 over `hashlib`) and `deflate`
 (raw deflate at `wbits` -10).
 
-- Each of the twelve versions, both ways: what Faraday seals under a key the
-  area chose (`seal_with_key`) is Krux's `Cipher.encrypt` and `wrap` of the
-  same plaintext, id, count and IV, byte for byte; what Krux seals is opened
-  by Faraday (`open_with_key`) and what Faraday seals is opened by Krux's
-  `Cipher.decrypt`. The versions that compress are not equal byte for byte
-  (two compressors), so each opens the other's, and the plaintext is the
-  one that went in; Krux's decryption inflates under zlib at `wbits` -10, so
-  that is also where Faraday's written streams are read.
+- All twelve versions are opened, two are sealed (Faraday writes versions 20
+  and 5 only, `docs/KEF.md` §4): what Krux seals, in any of the twelve, is
+  opened by Faraday (`open_with_key`) to the plaintext that went in; what
+  Faraday seals under a key the area chose (`seal_with_key`) in version 20 or
+  5 is Krux's `Cipher.encrypt` and `wrap` of the same plaintext, id, count
+  and IV, byte for byte, and is opened by Krux's `Cipher.decrypt`; any
+  other version is refused by Faraday's seal, whatever else is asked.
 - The plaintexts are both sizes of entropy, short and long text, text of up
   to 1,024 bytes (the longest a compressed version is written for), text that
   ends in NUL, text whose hidden check ends in 0x00, repeated blocks and a
@@ -27,21 +26,21 @@ cryptography), `uhashlib_hw` (SHA-256 and PBKDF2 over `hashlib`) and `deflate`
   `fail_unsafe=False`), a plaintext ending in NUL or a hidden check ending
   in 0x00, opened by both; envelopes cut, a byte changed, a count or a
   version changed, opened by both.
-- `suggest_versions`: every mode at every length from 1 to 1,024 (one text of
-  each), and drawn texts of the lengths where the rules change.
+- `suggest_versions`: every length from 1 to 1,024 (one text of each), and
+  drawn texts of the lengths where the rules change: Faraday suggests 20, and
+  5 where Krux's suggestion for AES-ECB holds 5.
 
 Known differences, each checked to still hold and counted:
 
 - Faraday refuses what Krux writes or reads and the specification allows:
-  an empty plaintext, a compressed version over 1,024 bytes, an id of 253
+  every version but 20 and 5 when sealing, an empty plaintext, an id of 253
   bytes or more when reading, a count over 550,000 and a passphrase that is
   not printable ASCII when sealing under a passphrase; it reads a stream of
   exactly 102,400 bytes (Krux's firmware raises there: its read stops at the
   limit before it sees the end of the stream) and a stream whose matches reach
   back more than 1,024 bytes (Krux's window), which Krux refuses; and it
   refuses at once an envelope whose payload holds nothing but the IV and the
-  checks, and a version 7 code is refused by one side for a repeated block when
-  the other compressor's stream has none.
+  checks.
 """
 
 import hashlib
@@ -55,6 +54,7 @@ use_reference("krux", "src")
 from krux import kef as krux_kef  # noqa: E402
 
 VERSIONS = [0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20, 21]
+WRITTEN = [20, 5]
 COMPRESSED = [7, 12, 16, 21]
 NUL_PADDED = [0, 1, 5, 10]
 MODE_NAMES = {"ecb": "AES-ECB", "cbc": "AES-CBC", "ctr": "AES-CTR", "gcm": "AES-GCM"}
@@ -117,8 +117,11 @@ def krux_seal_pass(passphrase, plaintext, version, id_, count, iv):
     return krux_kef.wrap(id_, version, count, payload)
 
 
-def krux_suggest(plaintext, mode):
-    return {"versions": krux_kef.suggest_versions(plaintext, MODE_NAMES[mode])}
+def krux_suggest(plaintext):
+    """What Faraday suggests, from Krux's suggestions: 20 for any plaintext
+    and 5 where Krux's suggestion for AES-ECB holds it."""
+    ecb = krux_kef.suggest_versions(plaintext, MODE_NAMES["ecb"])
+    return {"versions": [20] + ([5] if 5 in ecb else [])}
 
 
 class Kef(Area):
@@ -144,8 +147,9 @@ class Kef(Area):
         "code opened by `abc` and by a wrong passphrase that passes its 3-byte check"
     )
     corpus = (
-        "each of the twelve versions sealed by Faraday and by krux, byte for byte for "
-        "the ten that do not compress and opened by the other for all twelve, over "
+        "each of the twelve versions sealed by krux and opened by Faraday, and "
+        "versions 20 and 5 sealed by Faraday as well, byte for byte with krux's, the "
+        "other ten refused by Faraday's seal, over "
         "entropy of 16 and 32 bytes, short and long text, text up to 1,024 bytes, "
         "text ending in NUL, text whose hidden check ends in 0x00, repeated blocks, "
         "ids of 0, 8, 252 and random lengths, every edge of the count, and wrong IV "
@@ -153,16 +157,16 @@ class Kef(Area):
         "characters with an id of 252 bytes, and keys of raw bytes (to 200 bytes) "
         "krux seals and Faraday opens; codes from a writer that skipped the NUL "
         "rules, with 1 to 8 NULs at the end; envelopes cut or changed; the suggested "
-        "versions for each mode at every length to 1,024"
+        "versions at every length to 1,024"
     )
     differences = [
         (
-            "KEF: Faraday refuses an empty plaintext, a compressed version over 1,024 "
-            "bytes, an id of 253 bytes or more when reading (krux's `unwrap` does not "
-            "check it), a count over 550,000 and a passphrase that is not printable ASCII "
-            "when it works out the key, and a stream that inflates to over 102,400 bytes; "
-            "krux does none of these. Each is asked of krux and counted. Faraday does "
-            "not suggest a compressed version over 1,024 bytes."
+            "KEF: Faraday seals versions 20 and 5 only (the decision that it writes two "
+            "and reads twelve) and refuses an empty plaintext, an id of 253 bytes or more "
+            "when reading (krux's `unwrap` does not check it), a count over 550,000 and a "
+            "passphrase that is not printable ASCII when it works out the key, and a "
+            "stream that inflates to over 102,400 bytes; krux does none of these. Each is "
+            "asked of krux and counted. Faraday suggests only 20 and 5."
         ),
         (
             "KEF: a stream that inflates to exactly 102,400 bytes is read by Faraday "
@@ -176,16 +180,6 @@ class Kef(Area):
             "KEF: Faraday's `unwrap` refuses at once a payload that holds nothing but "
             "the IV, the exposed check and the hidden check; krux's `unwrap` takes it "
             "apart and its decryption then fails. Both end in a code that does not open."
-        ),
-        (
-            "KEF: version 7 (ECB with deflate) is refused for a repeated block by the "
-            "side whose compressor makes a stream with one; the stream of the other "
-            "has none, and that side's code is opened by both."
-        ),
-        (
-            "KEF: the compressed versions are not equal byte for byte, as Faraday's "
-            "deflate and zlib's write different streams. Each opens the other's; krux's "
-            "decryption inflates under zlib at `wbits` -10."
         ),
     ]
     not_compared = (
@@ -210,13 +204,14 @@ class Kef(Area):
         return got
 
     def cross(self, key, args, plaintext):
-        """Both sides seal `plaintext`. A version that does not compress is
-        equal byte for byte; one that does is opened by the other side.
-        Returns Faraday's envelope, or None when both refused."""
+        """Krux seals `plaintext`; for version 20 or 5 Faraday seals it too,
+        byte for byte, and for any other version Faraday's seal refuses. The
+        envelope is opened by both. Returns the envelope, or None when
+        Krux refused."""
         version = args["version"]
         id_, count, iv = bytes.fromhex(args["ident"]), args["count"], bytes.fromhex(args["iv"])
         inputs = dict(args, key=key.hex())
-        if version not in COMPRESSED:
+        if version in WRITTEN:
             got = self.compare("kef.seal", inputs, lambda: {
                 "envelope": krux_seal(key, plaintext, version, id_, count, iv).hex()})
             if got[0] != "ok":
@@ -225,29 +220,15 @@ class Kef(Area):
             self.open_both(key, envelope, plaintext)
             return envelope
         rust = self.rust.call("kef.seal", **inputs)
-        ref = reference(lambda: krux_seal(key, plaintext, version, id_, count, iv))
         self.compared += 1
-        if rust[0] == "err" and ref[0] == "err":
+        if rust[0] != "err" or "Version" not in str(rust[1]):
+            raise Mismatch(self.name, "kef.seal", inputs, rust, ("err", "Refused(Version)"),
+                           "Faraday's seal wrote a version it does not write")
+        ref = reference(lambda: krux_seal(key, plaintext, version, id_, count, iv))
+        if ref[0] != "ok":
             return None
-        if rust[0] == "err" or ref[0] == "err":
-            # Two compressors can make a duplicate block in one and not in the
-            # other (version 7 only), and the one that refused says so; a
-            # plaintext of up to 1,024 bytes is otherwise sealed by both.
-            said = rust[1] if rust[0] == "err" else ref[1]
-            sealed = ref[1] if rust[0] == "err" else bytes.fromhex(rust[1]["envelope"])
-            if version == 7 and "Duplicate" in str(said):
-                if len(set(_blocks(_payload(sealed)))) != len(_blocks(_payload(sealed))):
-                    raise AssertionError("a version 7 code that was sealed repeats a block")
-                self.known += 1
-                self.open_both(key, sealed, plaintext)
-                return None
-            raise Mismatch(self.name, "kef.seal", inputs, rust, ref)
-        envelope = bytes.fromhex(rust[1]["envelope"])
-        if version == 7 and len(set(_blocks(_payload(envelope)))) != len(_blocks(_payload(envelope))):
-            raise AssertionError("a version 7 code that was sealed repeats a block")
-        self.open_both(key, envelope, plaintext)
         self.open_both(key, ref[1], plaintext)
-        return envelope
+        return ref[1]
 
     # ----- the corpus --------------------------------------------------------
 
@@ -354,20 +335,17 @@ class Kef(Area):
         count = 10_000 if long else rng.choice(PASS_COUNTS)
         args = {"passphrase": passphrase, "plaintext": plaintext.hex(), "version": version,
                 "ident": id_.hex(), "count": count, "iv": iv.hex()}
-        if version in COMPRESSED:
+        if version not in WRITTEN:
+            # Krux seals, Faraday opens; Faraday's seal refuses the version.
             rust = self.rust.call("kef.seal_pass", **args)
-            ref = reference(lambda: krux_seal_pass(passphrase, plaintext, version, id_, count, iv))
             self.compared += 1
-            if rust[0] != "ok" or ref[0] != "ok":
-                if rust[0] == ref[0]:
-                    return
-                said = rust[1] if rust[0] == "err" else ref[1]
-                if version != 7 or "Duplicate" not in str(said):
-                    raise Mismatch(self.name, "kef.seal_pass", args, rust, ref)
-                self.known += 1  # (a repeated block in one compressor's stream)
-                envelopes = [ref[1] if rust[0] == "err" else bytes.fromhex(rust[1]["envelope"])]
-            else:
-                envelopes = [bytes.fromhex(rust[1]["envelope"]), ref[1]]
+            if rust[0] != "err" or "Version" not in str(rust[1]):
+                raise Mismatch(self.name, "kef.seal_pass", args, rust, ("err", "Refused(Version)"),
+                               "Faraday's seal wrote a version it does not write")
+            ref = reference(lambda: krux_seal_pass(passphrase, plaintext, version, id_, count, iv))
+            if ref[0] != "ok":
+                return
+            envelopes = [ref[1]]
         else:
             rust = self.compare("kef.seal_pass", args, lambda: {
                 "envelope": krux_seal_pass(passphrase, plaintext, version, id_, count, iv).hex()})
@@ -422,26 +400,20 @@ class Kef(Area):
                            "a code from a writer that skipped §4.1 opens to another plaintext")
 
     def krux_long_case(self, key, version):
-        """A plaintext over 1,024 bytes that Krux seals and Faraday opens;
-        Faraday refuses to write it."""
+        """A plaintext over 1,024 bytes that Krux seals in a compressed
+        version and Faraday opens."""
         if version not in COMPRESSED:
             return
         rng = self.rng
         plain = self.text(rng.randint(COMPRESS_MAX + 1, 4000))
-        args = {"plaintext": plain.hex(), "version": version, "ident": "00",
-                "count": 10_000, "iv": self.randbytes(iv_len(version)).hex()}
-        got = self.rust.call("kef.seal", key=key.hex(), **args)
-        env = reference(lambda: krux_seal(key, plain, version, b"\x00", 10_000,
-                                          bytes.fromhex(args["iv"])))
-        self.compared += 1
-        if got[0] != "err" or env[0] != "ok":
-            raise Mismatch(self.name, "kef.seal", args, got, env, "a known difference no longer holds")
-        self.known += 1
+        iv = self.randbytes(iv_len(version))
+        env = reference(lambda: krux_seal(key, plain, version, b"\x00", 10_000, iv))
+        if env[0] != "ok":
+            return
         self.open_both(key, env[1], plain)
 
     def case_suggest(self):
         rng = self.rng
-        mode = rng.choice(list(MODE_NAMES))
         n = rng.choice([1, 2, 16, 17, 31, 32, 33, 119, 120, 121, rng.randint(1, COMPRESS_MAX),
                         COMPRESS_MAX])
         p = self.text(n)
@@ -454,8 +426,7 @@ class Kef(Area):
             p = (block * (n // 16 + 1))[:n]
         elif r < 0.65:
             p = p[:-1] + b"\x00"
-        self.compare("kef.suggest", {"plaintext": p.hex(), "mode": mode},
-                     lambda: krux_suggest(p, mode))
+        self.compare("kef.suggest", {"plaintext": p.hex()}, lambda: krux_suggest(p))
 
     # ----- the prelude -------------------------------------------------------
 
@@ -518,9 +489,9 @@ class Kef(Area):
     def known_differences(self):
         key = self.randbytes(32)
         # Empty: Krux seals it (versions that need no last byte); Faraday refuses.
-        args = {"plaintext": "", "version": 6, "ident": "00", "count": 10_000, "iv": ""}
+        args = {"plaintext": "", "version": 20, "ident": "00", "count": 10_000, "iv": "00" * 12}
         got = self.rust.call("kef.seal", key=key.hex(), **args)
-        ref = reference(lambda: krux_seal(key, b"", 6, b"\x00", 10_000, b""))
+        ref = reference(lambda: krux_seal(key, b"", 20, b"\x00", 10_000, bytes(12)))
         self._known(got[0] == "err" and ref[0] == "ok", "an empty plaintext", args, got, ref)
         # An id of 253 bytes is read by Krux's `unwrap`; Faraday refuses.
         env = bytes([253]) + b"i" * 253 + bytes([15]) + (1).to_bytes(3, "big") + self.randbytes(40)
@@ -572,13 +543,14 @@ class Kef(Area):
                                                    bytes(12)))
             self._known(got[0] == "err" and ref[0] == "ok",
                         f"the passphrase {passphrase[:6]!r} at {count}", args, got, ref)
-        # No compressed version is suggested over 1,024 bytes; krux suggests one.
-        for mode, versions in (("ecb", [6]), ("cbc", [11]), ("ctr", [15]), ("gcm", [20])):
+        # Faraday suggests no compressed version, whatever the length; krux
+        # suggests one over 1,024 bytes.
+        for mode in MODE_NAMES:
             p = bytes(self.rng.choice(b"abcdefghijklmnopqrstuvwxyz ") for _ in range(COMPRESS_MAX + 1))
-            got = self.rust.call("kef.suggest", plaintext=p.hex(), mode=mode)
-            ref = reference(lambda p=p, mode=mode: krux_suggest(p, mode))
-            self._known(got == ("ok", {"versions": versions}) and ref[0] == "ok"
-                        and any(v in COMPRESSED for v in ref[1]["versions"]),
+            got = self.rust.call("kef.suggest", plaintext=p.hex())
+            ref = reference(lambda p=p, mode=mode: krux_kef.suggest_versions(p, MODE_NAMES[mode]))
+            self._known(got == ("ok", {"versions": [20]}) and ref[0] == "ok"
+                        and any(v in COMPRESSED for v in ref[1]),
                         f"suggestions for {mode} over 1,024", {"mode": mode}, got, ref)
 
     def _known(self, holds, what, inputs, rust, ref):
@@ -589,12 +561,10 @@ class Kef(Area):
         self.known += 1
 
     def every_length(self):
-        """Each mode's suggestion at every length from 1 to 1,024."""
-        for mode in MODE_NAMES:
-            for n in range(1, COMPRESS_MAX + 1):
-                p = self.text(n)
-                self.compare("kef.suggest", {"plaintext": p.hex(), "mode": mode},
-                             lambda p=p, mode=mode: krux_suggest(p, mode))
+        """The suggestion at every length from 1 to 1,024."""
+        for n in range(1, COMPRESS_MAX + 1):
+            p = self.text(n)
+            self.compare("kef.suggest", {"plaintext": p.hex()}, lambda p=p: krux_suggest(p))
 
     def retries(self):
         """Versions 0 and 1 with a hidden check ending in one and in two

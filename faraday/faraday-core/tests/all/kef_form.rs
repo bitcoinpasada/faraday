@@ -101,7 +101,7 @@ fn each_option_changes_the_code_as_it_says() {
         make(&mut form, app)
     };
     let e = go(&mut app, &|f, a| f.act(a, KefAct::Version(15)));
-    assert_eq!((e.version, e.count), (15, 10_000));
+    assert_eq!((e.version, e.count), (20, 10_000));
     let e = go(&mut app, &|f, a| f.act(a, KefAct::Id(IdKind::Random16)));
     assert_eq!(e.id.len(), 16);
     let e = go(&mut app, &|f, a| {
@@ -132,8 +132,10 @@ fn the_options_line_reads_the_choices_and_the_side_on_paper() {
     );
     form.act(&mut app, KefAct::Id(IdKind::Random16));
     assert!(form.summary().contains("16-byte random id"));
+    let (side, summary) = (form.side(), form.summary());
     form.act(&mut app, KefAct::Version(21));
-    assert_eq!(form.side(), None);
+    assert_eq!(form.side(), side);
+    assert_eq!(form.summary(), summary);
 }
 
 #[test]
@@ -314,9 +316,9 @@ fn sides(form: &KefForm) -> Vec<usize> {
 
 #[test]
 fn options_offers_the_sizes_the_contents_can_take() {
-    // `docs/KEF.md` §5's table: 12 words fill 25, 29 and 33 (a 16-byte id
-    // under version 11 also reaches 37); 24 words 29, 33 and 37.
-    assert_eq!(sides(&seed_form_of(16)), [25, 29, 33, 37]);
+    // `docs/KEF.md` §5's table: 12 words fill 25, 29 and 33; 24 words 29, 33
+    // and 37.
+    assert_eq!(sides(&seed_form_of(16)), [25, 29, 33]);
     assert_eq!(sides(&seed_form_of(32)), [29, 33, 37]);
     let long = KefForm::new(Source::Text(Text::of(&"x".repeat(300))), false);
     assert!(sides(&long).is_empty());
@@ -330,8 +332,10 @@ fn the_options_line_and_size_follow_the_choice_off_paper_too() {
     form.act(&mut app, KefAct::Size(25));
     assert_eq!(form.side(), Some(25));
     assert!(form.summary().ends_with("· 25 × 25"));
+    let (side, summary) = (form.side(), form.summary());
     form.act(&mut app, KefAct::Version(21));
-    assert_eq!(form.side(), None);
+    assert_eq!(form.side(), side);
+    assert_eq!(form.summary(), summary);
 }
 
 #[test]

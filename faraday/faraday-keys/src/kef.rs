@@ -19,7 +19,8 @@ pub use faraday_codec::kef::ID_MAX;
 pub use faraday_kef::{
     COMPRESS_MAX, COUNT_MIN, COUNT_SETTING_MAX, DEFAULT_COUNT, DEFAULT_ID_LEN, DEFAULT_VERSION,
     Envelope, LONG_ID_LEN, OpenError, Opened, PASSPHRASE_MAX, Refusal, SealError, Sealing,
-    count_with_change, reading_passphrases, suggest_versions, unwrap, writable_passphrase,
+    WRITTEN_VERSIONS, count_with_change, reading_passphrases, suggest_versions, unwrap,
+    writable_passphrase,
 };
 
 /// How far a running job is, and whether it is told to stop: shared by

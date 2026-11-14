@@ -1,7 +1,7 @@
 [package]
 name = "faraday-kef"
 version = "0.2.0"
-description = "Krux's encrypted code (KEF): all twelve versions read and written, over AES and PBKDF2 (docs/KEF.md)"
+description = "Krux's encrypted code (KEF): all twelve versions read and versions 20 and 5 written, over AES and PBKDF2 (docs/KEF.md)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
