@@ -75,14 +75,14 @@ catches = "a layout number in widgets; numbers written in screens beyond each fi
 
 [[check]]
 id = "lint-docs"
-run = "tools/lint-docs.sh"
+run = "python3 -I -B tools/lint-docs.py"
 stage = "just lint"
 catches = "a document without Kind and Status, a Spec without Open, a plan in a Reference, a cited path or `just` recipe that does not exist, the decisions' index"
 misses = "whether a document says what is true"
 
 [[check]]
 id = "lint-layout"
-run = "tools/lint-layout.sh"
+run = "python3 -I -B tools/lint-layout.py"
 stage = "just lint"
 catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts, a mutable accessor not listed there, a dependency pointing up a layer"
 misses = "structure that is legal but poor"
@@ -136,12 +136,6 @@ catches = "a named costly operation (a mnemonic parsed, a seed worked out, Seed 
 misses = "an operation not yet named in tools/op-cost, and a cost that depends on the input's size beyond the fixed vector"
 
 [[check]]
-id = "lint-unchecked"
-run = "tools/lint-unchecked.sh"
-stage = "just lint"
-catches = "the unchecked feature of faraday-crypto on in a shipped binary"
-
-[[check]]
 id = "lint-crosscheck"
 run = "tools/lint-crosscheck.sh"
 stage = "release"
@@ -187,7 +181,7 @@ misses = "the website's copy of the roles"
 id = "lint-keys-tests"
 run = "tools/lint-keys-tests.sh"
 stage = "just lint"
-catches = "a shipped binary with faraday-keys' master-for-tests or faraday-core's testkit feature"
+catches = "a shipped binary with faraday-keys' master-for-tests, faraday-core's testkit or faraday-crypto's unchecked feature"
 
 [[check]]
 id = "lint-guide-self-test"
@@ -237,7 +231,7 @@ misses = "Faraday's answers: the stand-in command answers in their place"
 
 [[check]]
 id = "lint-docs-held-by"
-run = "tools/lint-docs.sh"
+run = "python3 -I -B tools/lint-docs.py"
 stage = "just lint"
 catches = "a decision without a Held by line, naming a rule the registry lacks, or held by tests that no Rust file names (docs/IMPACT.md §8)"
 misses = "whether the ids named are the right ones, and whether the test that names a decision tests all of it; review is the author's judgement"

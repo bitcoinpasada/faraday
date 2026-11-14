@@ -78,7 +78,7 @@ owner can answer.
   come out. faraday-core's key use is stated, with the files that do it.
   faraday-apk gets a row. The full rewrite comes in Wave C (§5.6).
 - Broken doc paths are left for phase 2, where the moves and
-  `lint-docs.sh` fix them in one commit. Fixing them now and then moving
+  `lint-docs.py` fix them in one commit. Fixing them now and then moving
   every file would do the work twice.
 
 ## §3 Phase 0b: the hard fork (F72): the order within the phase (from docs/STRUCTURE-PASS.md)
@@ -200,7 +200,7 @@ The plan's phases 1 and 2 stand, with these changes:
       `add_key` moved into `common`; copies that differ stay where they
       are.
     - faraday-intake's vector tests are still to do (phase 6).
-- **`lint-docs.sh`:**
+- **`lint-docs.py`:**
   - It skips `docs/history/` for path resolution.
   - It checks the status header everywhere.
   - Its first run lands in the same commit as the moves.
@@ -219,7 +219,7 @@ Phases 1 and 2 were done 2026-10-21:
   - `BACKUP-FORMAT.md` and rqrr's `PATCHES.md`;
   - the justfile's groups and fuzz recipe;
   - the stale worktrees pruned.
-- **Lint:** a status header on every doc, and `tools/lint-docs.sh` in `just lint`.
+- **Lint:** a status header on every doc, and `tools/lint-docs.py` in `just lint`.
 
 F73 then removed the upstream planning documents and the provenance
 file (§3.3) and every mention of the upstream project outside
@@ -901,7 +901,7 @@ it can.
 
 #### 7.4.5 The ratchet
 
-Step 0 extends `tools/lint-layout.sh` with a fourth check, and
+Step 0 extends `tools/lint-layout.py` with a fourth check, and
 `tools/lint-layout.counts` with two kinds of line:
 
 ```
@@ -1040,7 +1040,7 @@ same commit.
     spine methods or forwarders. faraday-storage takes `&mut Faraday`
     as it does now.
   - **`tools/`.** Nothing reaches `Faraday`'s fields; only
-    `tools/lint-layout.sh` and its counts change.
+    `tools/lint-layout.py` and its counts change.
 - **Not grouped in this phase.** The fields the shells set (`online`
   and the twelve beside it) stay as separate fields: grouping them is a
   shell API change, and the owner's decision.

@@ -29,6 +29,11 @@
 # A fifth: faraday-vault's `fuzzing` feature, which adds the entry the
 # kdbx_body fuzz target feeds, is on in no shipped binary.
 #
+# A sixth: the token that counts nothing stays out of what Faraday ships
+# (docs/COMPUTE.md §3). `faraday_crypto::work::Compute::unchecked` exists only
+# under faraday-crypto's `unchecked` feature, which core's tests and the fuzz
+# targets turn on as dev-dependencies; it is on in no shipped binary.
+#
 # Every `cargo tree` here runs with --locked and fails the lint with its own
 # error when it fails; a tree that prints nothing fails too, since each one
 # asked for holds at least the package named. A renamed package therefore
@@ -127,6 +132,15 @@ fi
 tree "faraday-starter-shell" -e normal --depth 1 -p faraday-starter-shell
 if grep -qE '^[├└]── faraday-samples v' <<< "$out"; then
     echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-desktop"
+    echo "$out"
+    exit 1
+fi
+
+# faraday-crypto's `unchecked` feature, which gives Compute::unchecked, is
+# on in no shipped binary.
+tree "faraday-crypto" -e features,normal "${shipped[@]}" -i faraday-crypto
+if grep -q 'faraday-crypto feature "unchecked"' <<< "$out"; then
+    echo "lint-keys-tests: a shipped binary enables faraday-crypto's unchecked feature"
     echo "$out"
     exit 1
 fi

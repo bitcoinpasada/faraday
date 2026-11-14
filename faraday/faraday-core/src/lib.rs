@@ -22,7 +22,7 @@
 //! # Code map
 //!
 //! The `mod` lines below are grouped by area, and every module is named
-//! here (`tools/lint-layout.sh` fails when one is not):
+//! here (`tools/lint-layout.py` fails when one is not):
 //!
 //! - The shell's protocol and the app's types: `storage_api` (sticks and
 //!   storage events), `version`, `action` (the `Action` enum), `qr_view`

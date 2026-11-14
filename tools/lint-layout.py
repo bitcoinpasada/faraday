@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # Layout lint (F74, F196, F248, docs/STRUCTURE-PASS.md §7.1 and §7.2): the code map
 # says where everything is, and code stays mapped and shaped by function.
 #
@@ -38,15 +38,14 @@
 #
 # Raising a count is the owner's decision, recorded in DECISIONS (F74, F196).
 # Prints each failure and exits non-zero if there is one. Run from the
-# repository root; `just lint` does.
-set -u
-cd "$(dirname "$0")/.."
+# repository root; `just lint` does (`python3 -I -B tools/lint-layout.py`).
 
-exec python3 - <<'PY'
 import os
 import re
 import subprocess
 import sys
+
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 COUNTS = "tools/lint-layout.counts"
 CORE = "faraday/faraday-core/src"
@@ -262,4 +261,3 @@ for f in failures:
 if failures:
     sys.exit(1)
 print("lint-layout: ok")
-PY

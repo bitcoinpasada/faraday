@@ -122,7 +122,7 @@ document keeps its name: it is the manifest's, not Learn's.
   pages: bold names are strings (as now), links resolve (as now), every `Screen` and Starter page is named by one page or listed
   as still to write (as now, over the new pages), and §1.3's keys and
   §2's length bound.
-- `tools/lint-docs.sh` exempted Learn's pages from the header rule; the
+- `tools/lint-docs.py` exempted Learn's pages from the header rule; the
   exemption goes with it, and the guide's pages carry the header.
 
 ## 6. The Starter
@@ -185,7 +185,7 @@ its folder of start guides moved), `faraday/faraday-guide` (renamed; `pages/` ou
 `faraday/faraday-starter` (its Learn destination and pages),
 `docs/crypto/actions.toml` and `docs/crypto/gen.py` (no `learn` key),
 `tools/lint-guide.py`, Learn's sync script (out), the pictures' script (out),
-`justfile` and `faraday/faraday.just` (the recipes), `tools/lint-docs.sh`,
+`justfile` and `faraday/faraday.just` (the recipes), `tools/lint-docs.py`,
 `docs/DESIGN.md` §2 and §4.12, `docs/LAYOUT.md` §3 and §6,
 `docs/CRYPTO-LEARN.md` §3.1, §8 and §18, `docs/STARTER.md` §3.1d, §3.6
 and §7.2, `docs/README.md`, `docs/DEVELOPING.md` where it names the

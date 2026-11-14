@@ -136,7 +136,7 @@ drawing.
 normal dependency graph of a binary Faraday ships enables
 `faraday-crypto/unchecked`: core's crates turn it on as dev-dependencies
 only.
-`tools/lint-unchecked.sh`, in `just lint`, fails if `cargo tree -e
+`tools/lint-keys-tests.sh`, in `just lint`, fails if `cargo tree -e
 features,normal -i faraday-crypto` over the shipped binaries, on any target,
 shows it. Beside that, `faraday/clippy.toml` disallows
 `Compute::unchecked` outright and `Compute::new` except under
@@ -310,7 +310,7 @@ Item 1: moved to `docs/history/COMPUTE-LOG.md`.
 3. Checksums of `'`-written wallets change (§5.4);
    formats needing `'` convert at their writer.
 4. `unchecked` was compiled into Faraday until U5 (F68);
-   `tools/lint-unchecked.sh` keeps it out.
+   `tools/lint-keys-tests.sh` keeps it out.
 5. Residual: a new whole-file hash written with `bitcoin::hashes` in a
    screen is not caught (the guard did not catch it either).
 

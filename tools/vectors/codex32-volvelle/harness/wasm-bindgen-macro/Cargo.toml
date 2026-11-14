@@ -8,6 +8,6 @@ description = "Stands in for wasm-bindgen's attribute: passes the item through u
 [lib]
 proc-macro = true
 
-# As every crate in the repository (tools/lint-layout.sh).
+# As every crate in the repository (tools/lint-layout.py).
 [lints.clippy]
 cognitive_complexity = "warn"

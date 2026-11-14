@@ -283,7 +283,7 @@ Owner, 2026-10-22, after M6.
   and `faraday` are drawn unmasked); DEMO's header and every remaining
   "mainnet" meaning Practice. DEMO is then Reference again with Practice as
   built; this file goes to `docs/history/` once W1 is done.
-- **Done**: `just` passes; `bash tools/lint-docs.sh` passes.
+- **Done**: `just` passes; `bash tools/lint-docs.py` passes.
 - **Amended** (owner, 2026-10-22): fields are not fixed; each empty one
   offers a `faraday` chip (§6.2), and the KeePass export is typed.
 

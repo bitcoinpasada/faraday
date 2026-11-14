@@ -1,4 +1,4 @@
-# Counts held by tools/lint-layout.sh (F74, F196). Each only falls; raising one
+# Counts held by tools/lint-layout.py (F74, F196). Each only falls; raising one
 # is the owner's decision, recorded in DECISIONS.
 #
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.

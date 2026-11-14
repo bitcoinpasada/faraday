@@ -12,6 +12,6 @@ publish = false
 [dependencies]
 wasm-bindgen = { path = "wasm-bindgen" }
 
-# As every crate in the repository (tools/lint-layout.sh).
+# As every crate in the repository (tools/lint-layout.py).
 [lints.clippy]
 cognitive_complexity = "warn"

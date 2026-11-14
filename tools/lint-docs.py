@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # Documentation lint (docs/README.md, docs/STRUCTURE-PASS.md phase 2).
 #
 # Six rules, so that a document says what kind it is, cites only what
@@ -67,18 +67,21 @@
 #    tools/docs-index.py makes from the documents' headers.
 #
 # Prints `file:line: message` for each failure and exits non-zero if
-# there is one. Run from the repository root; `just lint` does.
-set -u
-cd "$(dirname "$0")/.."
+# there is one. Run from the repository root; `just lint` does (`python3 -I -B tools/lint-docs.py`).
 
-python3 -I -B tools/docs-index.py --self-test >/dev/null || exit 1
-python3 -I -B tools/docs-index.py check || exit 1
-
-exec python3 - <<'PY'
 import os
 import re
 import subprocess
 import sys
+
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+for args in (["--self-test"], ["check"]):
+    if subprocess.run(
+        [sys.executable, "-I", "-B", "tools/docs-index.py", *args],
+        stdout=subprocess.DEVNULL if args == ["--self-test"] else None,
+    ).returncode:
+        sys.exit(1)
 
 def ls(*args):
     return subprocess.run(["git", "ls-files", *args, "-z"], check=True,
@@ -420,4 +423,3 @@ for m in failures:
 if failures:
     print(f"lint-docs: {len(failures)} failure(s)", file=sys.stderr)
     sys.exit(1)
-PY

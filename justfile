@@ -24,8 +24,8 @@ test-doc:
 # §8), the check that no shipped binary compiles the token that counts
 # nothing (docs/COMPUTE.md §3), the docs lint
 # (a Kind and Status header on every document, every cited path real,
-# tools/lint-docs.sh), and the layout lint (the code map, file sizes and
-# long functions, counts that only fall, tools/lint-layout.sh), the touch-target
+# tools/lint-docs.py), and the layout lint (the code map, file sizes and
+# long functions, counts that only fall, tools/lint-layout.py), the touch-target
 # ratchet (lint-touch-targets), the instruction counts of named costly
 # operations (lint-op-cost, F238), the tree
 # lint (the top level's entries, no leftovers, no file over 2 MiB,
@@ -75,14 +75,13 @@ lint-repo:
     tools/lint-secrets.sh
     tools/lint-strings.sh
     tools/lint-tokens.sh
-    tools/lint-docs.sh
-    tools/lint-layout.sh
+    python3 -I -B tools/lint-docs.py
+    python3 -I -B tools/lint-layout.py
     tools/lint-tree.sh
     # Each fuzz crate's README table lists exactly its targets.
     python3 -I -B tools/lint-fuzz-parsers.py
     python3 -I -B tools/lint-builds.py
     cargo run -q -p costs-lint
-    tools/lint-unchecked.sh
     # STANDARDS §0 held: crypto the cross-check's stamp misses is listed with
     # its reason, the work kept out of the app is reached by no app code,
     # every hold names its decision (F136), and §8's disagreements are

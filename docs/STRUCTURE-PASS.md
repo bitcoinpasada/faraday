@@ -49,7 +49,7 @@ Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ## 4. Phases 1 and 2: maps and the docs layout
 
-`tools/lint-docs.sh`, in `just lint`, checks the status header on every
+`tools/lint-docs.py`, in `just lint`, checks the status header on every
 doc (Kind is Reference, Spec or History) and that every path a doc names
 resolves; it skips `docs/history/` for path resolution. Each crate's
 tests are one binary, `tests/all/main.rs`, one module per former test
@@ -179,7 +179,7 @@ cannot quietly undo it:
   (`docs/KEYS.md`).
 - **`lint-docs`:** status headers, and every path a doc names resolves.
 - **`lint-tokens`:** the count of numbers written in place only falls.
-- **`lint-layout`** (`tools/lint-layout.sh`, counts in
+- **`lint-layout`** (`tools/lint-layout.py`, counts in
   `tools/lint-layout.counts`):
   - the code map: every module faraday-core's `lib.rs` declares appears in its `//!`
     code map, every `Screen` variant appears in the map's table, and the

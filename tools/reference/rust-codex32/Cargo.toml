@@ -13,6 +13,6 @@ publish = false
 [dependencies]
 codex32 = { path = "codex32" }
 
-# As every crate in the repository (tools/lint-layout.sh).
+# As every crate in the repository (tools/lint-layout.py).
 [lints.clippy]
 cognitive_complexity = "warn"

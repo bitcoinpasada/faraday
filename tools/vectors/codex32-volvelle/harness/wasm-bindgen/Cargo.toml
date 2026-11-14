@@ -10,6 +10,6 @@ description = "Stands in for wasm-bindgen's prelude, so volvelle's worksheet bui
 [dependencies]
 wasm-bindgen-macro = { path = "../wasm-bindgen-macro" }
 
-# As every crate in the repository (tools/lint-layout.sh).
+# As every crate in the repository (tools/lint-layout.py).
 [lints.clippy]
 cognitive_complexity = "warn"

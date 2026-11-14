@@ -42,7 +42,7 @@ faraday-pgp = { path = "../../faraday/faraday-pgp" }
 # shipped binary, as this command is not one.
 faraday-core = { path = "../../faraday/faraday-core", features = ["testkit"] }
 # The token that counts nothing (docs/COMPUTE.md §3): this command is a
-# test, and `tools/lint-unchecked.sh` keeps the feature out of every
+# test, and `tools/lint-keys-tests.sh` keeps the feature out of every
 # shipped binary.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
 bitcoin.workspace = true

@@ -17,7 +17,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
 # The token that counts nothing (docs/COMPUTE.md §3): this command is a
-# measurement, and `tools/lint-unchecked.sh` keeps the feature out of
+# measurement, and `tools/lint-keys-tests.sh` keeps the feature out of
 # every shipped binary.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
 
