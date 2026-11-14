@@ -154,7 +154,7 @@ refusal's sentence staying in `faraday_intake::wallet::mismatch_text`),
 called from `read_wallet_as_written` before `parse_any`,
 `create::read_keys`, Coldcard's files and `faraday_bip::multisig_config`, which
 since 2026-10-20 refuses a key whose version disagrees with its `Format:`
-itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/all/interop.rs`): Casa's descriptor loads as
+itself (so a rebuilt backup config is checked too, `restore::readable`). A setup file with no `Format:` line is P2SH, as Coldcard reads it (F263), so a `Zpub`-style key in one is refused. Tests (`tests/all/interop.rs`): Casa's descriptor loads as
 `sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
 slot; Keystone's singlesig keystore (upper-case fingerprint, `/1/*` only)
 reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the

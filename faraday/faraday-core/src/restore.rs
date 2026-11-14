@@ -27,7 +27,7 @@ pub struct ConfigParts {
     pub m: usize,
     /// The N of the policy.
     pub n: usize,
-    /// `Format:`.
+    /// `Format:`, P2SH when the file has none (F263).
     pub format: Text,
     /// Each key line: fingerprint, the derivation in force, the xpub.
     pub keys: Vec<(Text, Text, Text)>,
@@ -85,7 +85,7 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
         name,
         m,
         n,
-        format: format.unwrap_or_else(|| Text::of("P2WSH")),
+        format: format.unwrap_or_else(|| Text::of("P2SH")),
         keys,
     })
 }

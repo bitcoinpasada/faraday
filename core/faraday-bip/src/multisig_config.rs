@@ -13,7 +13,8 @@
 //! b8688df1: tpub…
 //! ```
 //!
-//! The file states the quorum, the script form and one
+//! The file states the quorum, the script form (a file with no `Format:`
+//! line is P2SH, as Coldcard reads it) and one
 //! `fingerprint: xpub` line per cosigner. A `Derivation:` line applies
 //! to every key after it, so a wallet whose cosigners sit at different
 //! paths writes one before each key. `#` comments and blank lines are
@@ -127,7 +128,8 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Text
         }
     }
 
-    let wrapper = wrapper.ok_or(Error::Template)?;
+    // No `Format:` line is P2SH, as Coldcard reads it.
+    let wrapper = wrapper.unwrap_or("sh");
     if keys.is_empty() {
         return Err(Error::Placeholder);
     }
@@ -170,10 +172,11 @@ fn script_of(wrapper: &str) -> Script {
 
 /// The first key of a config whose SLIP-132 version names another
 /// script than its `Format:` line, which [`parse`] refuses as
-/// [`Error::Key`]; `None` when there is none, or no format to compare
-/// with. Costs a base58 decode per key, of the first [`MAX_KEYS`].
+/// [`Error::Key`]; `None` when there is none, or the `Format:` is one
+/// no script here is (a file with no `Format:` line is P2SH). Costs a
+/// base58 decode per key, of the first [`MAX_KEYS`].
 pub fn slip132_mismatch(text: &str) -> Option<Mismatch> {
-    let mut around = None;
+    let mut around = Some(Script::LegacyMultisig);
     let mut keys = Vec::new();
     for line in text.lines() {
         let line = match line.split_once('#') {
@@ -298,9 +301,22 @@ Derivation: m/48'/1'/0'/2'
     }
 
     #[test]
-    fn a_config_without_a_format_or_with_a_quorum_it_cannot_meet_is_refused() {
+    fn a_config_without_a_format_reads_as_p2sh() {
+        // F263.
         let c = Compute::unchecked();
-        assert_eq!(parse(&c, CONFIG), Err(Error::Template));
+        let policy = parse(&c, CONFIG).expect("no Format line");
+        assert_eq!(policy, parse(&c, &with_format("P2SH")).unwrap());
+        assert!(
+            policy.to_descriptor().starts_with("sh(sortedmulti(2,"),
+            "{}",
+            &*policy.to_descriptor()
+        );
+        assert_eq!(policy.quorum(), Some((2, 2)));
+    }
+
+    #[test]
+    fn a_config_with_a_quorum_it_cannot_meet_or_a_format_no_script_matches_is_refused() {
+        let c = Compute::unchecked();
         assert_eq!(
             parse(
                 &c,
@@ -401,6 +417,15 @@ Derivation: m/48'/1'/0'/2'
         )
         .unwrap();
         assert_eq!(nested, parse(&c, &with_format("P2SH-P2WSH")).unwrap());
+        // With no `Format:` line the file is P2SH, so a P2WSH `Vpub` disagrees.
+        let bare = Text::replaced(CONFIG, tpub, &vpub_multi);
+        assert_eq!(parse(&c, &bare), Err(Error::Key));
+        let m = slip132_mismatch(&bare).expect("the key that disagrees");
+        assert_eq!(m.around, Script::LegacyMultisig);
+        // A `Format:` no script here is has nothing to compare a key with.
+        let unknown = Text::replaced(&with_format("P2TR"), tpub, &vpub_multi);
+        assert_eq!(slip132_mismatch(&unknown), None);
+        assert_eq!(parse(&c, &unknown), Err(Error::Template));
         assert_eq!(slip132_mismatch(&with_format("P2WSH")), None);
         assert_eq!(
             parse(

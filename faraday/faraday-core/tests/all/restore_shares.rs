@@ -63,6 +63,36 @@ fn sheets_of_different_names_do_not_merge() {
     assert!(merge(&[a[0].clone(), renamed]).is_err());
 }
 
+/// Sheets with no `Format:` line are P2SH, as a whole setup file without
+/// one is (F263): merged, they rebuild the bare `sh(sortedmulti(...))`.
+#[test]
+fn sheets_without_a_format_line_merge_into_a_p2sh_wallet() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let bare: Vec<String> = a[..2]
+        .iter()
+        .map(|s| {
+            let t: String = s
+                .lines()
+                .filter(|l| !l.starts_with("Format:"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_ne!(&t, s);
+            t
+        })
+        .collect();
+    let whole = merge(&bare)
+        .expect("merges")
+        .whole
+        .expect("every key in hand");
+    let c = testkit::compute();
+    let policy = faraday_bip::multisig_config::parse(&c, &whole).expect("reads");
+    assert!(
+        policy.to_descriptor().starts_with("sh(sortedmulti(2,"),
+        "{}",
+        &*policy.to_descriptor()
+    );
+}
+
 /// A vault file opened by `phrase`, holding `records`.
 fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> {
     testkit::kdbx_vault("Vault", phrase, seed, records).unwrap()

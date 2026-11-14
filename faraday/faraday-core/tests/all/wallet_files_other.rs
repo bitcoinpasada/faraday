@@ -70,12 +70,8 @@ fn caravans_wallet_and_its_coldcard_setup_file_read_as_one_two_of_two_wallet() {
 fn coldcards_two_of_four_wallet_reads_the_same_from_its_three_files() {
     let dir = "coldcard/testing/data/multisig";
     for (_, format, start) in FORMATS {
-        // The P2SH setup file has no `Format:` line, which Files refuses.
-        let setup = if format == "p2sh" {
-            wallet(&format!("{dir}/desc-{format}-myself.txt"))
-        } else {
-            wallet(&format!("{dir}/export-{format}-myself.txt"))
-        };
+        // The P2SH setup file has no `Format:` line and reads as P2SH.
+        let setup = wallet(&format!("{dir}/export-{format}-myself.txt"));
         assert!(setup.to_descriptor().starts_with(start), "{format}");
         assert_eq!(setup.keys().len(), 4, "{format}");
         let descriptor = wallet(&format!("{dir}/desc-{format}-myself.txt"));
