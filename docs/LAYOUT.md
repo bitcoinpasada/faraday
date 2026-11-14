@@ -1,7 +1,8 @@
 # Layout at every window size
 
-**Kind:** Reference
-**Status:** Built: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Learn in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests. Components keep their size (§8): the size set and the type roles are in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls (`tools/lint-tokens.sh`): enforcement, not open work.
+**Kind:** Spec
+**Status:** Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Learn in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests. Components keep their size (§8): the size set and the type roles are in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls (`tools/lint-tokens.sh`): enforcement, not open work.
+**Open:** Check as a destination on the rails and the Pi's Home menu, and Home's Check tile in place of Vaults (§3, §4; F255)
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -47,18 +48,19 @@ scaled to fill a window.
 
 ## 3. Navigation
 
-Faraday's places: **Home, Wallets, Files, Vaults, Tools** (the
-destinations a person moves between), **Learn** and **Settings** (opened,
+Faraday's places: **Home, Check, Wallets, Files, Vaults, Tools** (the
+destinations a person moves between; Check on the rails and the Pi's
+Home menu only, F255), **Learn** and **Settings** (opened,
 then closed), **Lock**, and **Transfer**, which appears in the desktop
 app. A stick is no destination: it is a pane of Files (F235).
 
 | Class | Navigation | Learn, Settings, Lock |
 |---|---|---|
-| Compact, short (the Pi) | Home is the menu, a button for each place, as today; every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
-| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools | the top app bar: the ? (Learn at the page's section), the ⋮ menu (Settings), Lock |
-| Medium; Expanded | the navigation rail at the left, 80 dp: the five destinations, then Learn and Settings under a divider, Lock at its foot | on the rail |
+| Compact, short (the Pi) | Home is the menu, a button for each place, Check first; every other page has the 44-unit bar with its back chevron | on Home's menu; Lock and the power button at its foot |
+| Compact | the navigation bar at the foot, 80 dp: Home, Wallets, Files, Vaults, Tools; Check is reached from Home's Check tile, as Material 3 gives the bar three to five destinations (F255) | the top app bar: the ? (Learn at the page's section), the ⋮ menu (Settings), Lock |
+| Medium; Expanded | the navigation rail at the left, 80 dp: the six destinations, Check under Home, then Learn and Settings under a divider, Lock at its foot | on the rail |
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
-| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), its sections under caption headings | on the expanded rail |
+| Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), Check under Home, its sections under caption headings | on the expanded rail |
 
 **Transfer** joins the destinations in the desktop app: on the rail and
 the expanded rail after Tools, on the bar in place of Tools (Tools stays
@@ -147,7 +149,8 @@ way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 - **The tiles**: each its icon beside its name and one line under the
   name, at least `TILE_MIN` (200 dp) wide. The grid takes as many
   columns as fit; a row with fewer tiles than columns leaves the rest
-  empty. Today's tiles keep their order (`docs/FLOWS.md`, Home).
+  empty. The tiles keep their order, the fourth Check's, always, and none
+  for Vaults (`docs/FLOWS.md`, Home; F255).
 - **Scan** stays the floating button at the bottom-right.
 
 ## 5. Panes

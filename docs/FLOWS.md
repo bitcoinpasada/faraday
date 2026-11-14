@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -209,7 +209,8 @@ for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
 
 ## Sidebar
 
-**Learn** follows Tools (decision 13); the small panel's Home grid
+**Check** stands right under Home, on the rails and first on the small
+panel's Home menu (F255; `docs/DESIGN.md` §5, Check). **Learn** follows Tools (decision 13); the small panel's Home grid
 carries it. The sidebar's status block carries the session, Files and
 the sticks, which open Files on the stick; its **Files** entry opens Files. **The session strip**
 (decision 15) is one line, **Bring in · Open · Work · Write out**, the
@@ -510,11 +511,13 @@ after a lock cycle too, decision 3), an import waiting ("Import from
 was written ("Write {name} to a stick"). Then half-width tiles, two to a
 row: **Make a new wallet** (Create), **Restore an existing wallet**
 (Restore), **Spend from a backup, step by step** (the Spend tab) and
-**Vaults**, which with no vault in Files or open reads **Create a
-vault** and opens it; then **Backups** once a wallet is known. A stick
+**Check a hardware wallet**, "Its seed, addresses and signatures"
+(Check, `docs/DESIGN.md` §5; F255), always; then **Backups** once a
+wallet is known. Vaults has no tile: it is in the sidebar, the rail, the
+bar and the Pi's Home menu, and Create a vault is on Vaults. A stick
 attached and not yet visited leads Home as "Files on {stick}", opening
 Files; Home has no Stick visit tile. Create,
-Restore, the Spend tab and Create a vault opened from Home have **Home**
+Restore and the Spend tab opened from Home have **Home**
 as their way back, and from Wallets, **Wallets**.
 
 **Add a key** (make, type or scan a seed) is on Wallets and in Tools →
@@ -687,7 +690,7 @@ nothing held, is a pane of Files: the stick's files beside Files' own
 lists from expanded windows up, and primary tabs **In Faraday · On
 {stick}** below that, the arrival opening the On tab. Files' rows take a
 checkbox for writing while it is open, and the buttons below stand under
-the lists. Rail, bar and status strip keep their five destinations; the
+the lists. Rail, bar and status strip keep their destinations (the rails six with Check, the bar five; F255); the
 stick has no page of its own, and "a stick visit" is the act of having a
 stick open. With something held the stick is not open: Files shows "Lock
 to use {stick}" and no pane.
