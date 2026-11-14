@@ -2520,10 +2520,6 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     clippy::too_many_arguments,
     reason = "the vault detail pane's view, vault, records, selection and position"
 )]
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "draws the detail pane for the form being filled, the prompt, the keys or wallets to save, a GPG key's files to sign, Secure Boot's images, and the selected item with its rows and actions"
-)]
 fn detail(
     app: &View,
     ui: &mut Ui,
@@ -2531,78 +2527,211 @@ fn detail(
     items: &[RecordView<'_>],
     sel: usize,
     dx: f32,
-    mut dy: f32,
+    dy: f32,
     dw: f32,
+) -> f32 {
+    if let Some(form) = &app.vaults.form {
+        return form_pane(app, ui, form, (dx, dy, dw));
+    }
+    if let Some(p) = &app.vaults.prompt {
+        return prompt_pane(app, ui, p, (dx, dy, dw));
+    }
+    if app.vaults.saving {
+        return save_panel(app, ui, v, dx, dy, dw);
+    }
+    if app.vaults.sb_images {
+        return images_panel(app, ui, dx, dy, dw);
+    }
+    if app.vaults.signing {
+        return sign_pane(app, ui, items, sel, (dx, dy, dw));
+    }
+    match items.get(sel) {
+        Some(&r) => item_pane(app, ui, v, r, (dx, dy, dw)),
+        None => dy,
+    }
+}
+
+/// The form being filled: its title, fields and Save. Returns where it ends.
+fn form_pane(
+    app: &View,
+    ui: &mut Ui,
+    form: &vault::Form,
+    (dx, mut dy, dw): (f32, f32, f32),
+) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
+    let revoking = form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3);
+    let heading = match (form.kind, form.record) {
+        (kind::GPG, _) if revoking => EN.vault_make_a_revocation,
+        (kind::SLOT_LABEL, _) => EN.vault_rename_the_vault,
+        (kind::NOTE, None) => EN.vault_add_a_note,
+        (kind::NOTE, Some(_)) => EN.vault_edit_the_note,
+        (kind::GPG, _) => EN.vault_make_a_key,
+        (kind::SECURE_BOOT, _) => EN.vault_make_secure_boot,
+        (_, None) => EN.vault_add_an_entry,
+        _ => EN.vault_edit_the_entry,
+    };
+    ui.text_as(dx, dy, TITLE_M, ink, heading);
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
+    for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
+        ui.text_as(dx, dy, BODY_S, muted, label);
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+        let focused = app.vaults.focus == Some(Focus::Field(k));
+        if vault::multiline(form.kind, form.fields[k].0) {
+            dy += text_area(ui, dx, dy, dw, b, focused, va(V::FocusField(k))) + 12.0;
+        } else {
+            if *masked {
+                secret_box(
+                    ui,
+                    dx,
+                    dy,
+                    dw,
+                    b,
+                    app.field_shows(form, k),
+                    focused,
+                    va(V::FocusField(k)),
+                    va(V::ShowTyped),
+                );
+                app.password_chip(ui, form, k, b);
+            } else {
+                text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
+            }
+            dy += FIELD_H + 12.0;
+        }
+    }
+    if revoking {
+        ui.text_as(dx, dy, BODY_S, muted, EN.vault_reason);
+        dy += ui.advance_as(BODY_S, 22.0);
+        dy += reasons_row(app, ui, dx, dy, dw) + 16.0;
+    } else if form.kind == kind::GPG {
+        ui.text_as(dx, dy, BODY_S, muted, EN.vault_expires);
+        dy += ui.advance_as(BODY_S, 22.0);
+        dy += years_row(ui, dx, dy, dw, Some(app.vaults.gpg_years), V::GpgYears) + 16.0;
+    }
+    let save = match form.kind {
+        kind::GPG if revoking => EN.vault_make_the_revocation,
+        kind::GPG => EN.vault_make_the_key,
+        kind::SECURE_BOOT => EN.vault_make_the_keys,
+        _ => EN.vault_save,
+    };
+    // On a small panel Save is pinned at the foot and Cancel stays.
+    let sw = if crate::screens::pin_button(
+        ui,
+        dx,
+        dy,
+        None,
+        40.0,
+        save,
+        Style::Primary,
+        va(V::FormSave),
+    ) {
+        ui.measure_as(LABEL_L, save) + 42.0
+    } else {
+        0.0
+    };
+    ui.button(
+        dx + sw,
+        dy,
+        None,
+        BUTTON_H,
+        EN.vault_cancel,
+        Style::Ghost,
+        va(V::FormCancel),
+    );
+    dy
+}
+
+/// The passphrase prompt: its fields, buttons and error. Returns where it ends.
+fn prompt_pane(
+    app: &View,
+    ui: &mut Ui,
+    p: &vault::Prompt,
+    (dx, mut dy, dw): (f32, f32, f32),
 ) -> f32 {
     let bad = Role::Error;
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
-    if let Some(form) = &app.vaults.form {
-        let revoking = form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3);
-        let heading = match (form.kind, form.record) {
-            (kind::GPG, _) if revoking => EN.vault_make_a_revocation,
-            (kind::SLOT_LABEL, _) => EN.vault_rename_the_vault,
-            (kind::NOTE, None) => EN.vault_add_a_note,
-            (kind::NOTE, Some(_)) => EN.vault_edit_the_note,
-            (kind::GPG, _) => EN.vault_make_a_key,
-            (kind::SECURE_BOOT, _) => EN.vault_make_secure_boot,
-            (_, None) => EN.vault_add_an_entry,
-            _ => EN.vault_edit_the_entry,
+    let heading = match p.purpose {
+        vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => {
+            Text::of(EN.vault_load_with_a_bip)
+        }
+        vault::Purpose::Kdbx => Text::of(EN.vault_export_for_keepass),
+    };
+    let heading = ui.fit_as(TITLE_M, &heading, dw);
+    ui.text_as(dx, dy, TITLE_M, ink, &heading);
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
+    let pair = p.pair();
+    let fields = if pair { 2 } else { 1 };
+    for n in 0..fields {
+        let second = n == 1;
+        let label = if second {
+            EN.vault_passphrase_again
+        } else {
+            EN.vault_passphrase
         };
-        ui.text_as(dx, dy, TITLE_M, ink, heading);
-        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
-        for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
-            ui.text_as(dx, dy, BODY_S, muted, label);
-            dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-            let focused = app.vaults.focus == Some(Focus::Field(k));
-            if vault::multiline(form.kind, form.fields[k].0) {
-                dy += text_area(ui, dx, dy, dw, b, focused, va(V::FocusField(k))) + 12.0;
-            } else {
-                if *masked {
-                    secret_box(
-                        ui,
-                        dx,
-                        dy,
-                        dw,
-                        b,
-                        app.field_shows(form, k),
-                        focused,
-                        va(V::FocusField(k)),
-                        va(V::ShowTyped),
-                    );
-                    app.password_chip(ui, form, k, b);
-                } else {
-                    text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
-                }
-                dy += FIELD_H + 12.0;
+        ui.text_as(dx, dy, BODY_S, muted, label);
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+        let (focus, press, chip) = if second {
+            (
+                Focus::PromptAgain,
+                V::FocusPromptAgain,
+                crate::demo::PassField::PromptAgain,
+            )
+        } else {
+            (
+                Focus::Prompt,
+                V::FocusPrompt,
+                crate::demo::PassField::Prompt,
+            )
+        };
+        crate::demo::pass_box(
+            app,
+            ui,
+            (dx, dy, dw),
+            if second { &p.again } else { &p.text },
+            (app.vaults.typed_shown, app.vaults.focus == Some(focus)),
+            (va(press), va(V::ShowTyped)),
+            chip,
+        );
+        dy += FIELD_H + if second { 8.0 } else { 16.0 };
+        if second {
+            if !p.again.text.is_empty()
+                && crate::screens::pass_pair::differ(p.text.text.as_str(), p.again.text.as_str())
+            {
+                dy += ui
+                    .field_supporting((dx, dy, dw), Role::Error, EN.pass_pair_differ, false)
+                    .max(22.0);
             }
+            dy += 8.0;
         }
-        if revoking {
-            ui.text_as(dx, dy, BODY_S, muted, EN.vault_reason);
-            dy += ui.advance_as(BODY_S, 22.0);
-            dy += reasons_row(app, ui, dx, dy, dw) + 16.0;
-        } else if form.kind == kind::GPG {
-            ui.text_as(dx, dy, BODY_S, muted, EN.vault_expires);
-            dy += ui.advance_as(BODY_S, 22.0);
-            dy += years_row(ui, dx, dy, dw, Some(app.vaults.gpg_years), V::GpgYears) + 16.0;
+    }
+    dy += never_under(app, ui, dx, dy, dw);
+    if app.vaults.working == Some(vault::Work::Kdbx) {
+        crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
+    } else {
+        // Sealing the export draws the system's randomness (row 6).
+        if p.purpose == vault::Purpose::Kdbx {
+            dy += own_row(app, ui, (dx, dy, dw));
         }
-        let save = match form.kind {
-            kind::GPG if revoking => EN.vault_make_the_revocation,
-            kind::GPG => EN.vault_make_the_key,
-            kind::SECURE_BOOT => EN.vault_make_the_keys,
-            _ => EN.vault_save,
+        let label = match p.purpose {
+            vault::Purpose::Kdbx => app.wait_label(va(V::PromptGo), EN.vault_seal_and_export),
+            vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
         };
-        // On a small panel Save is pinned at the foot and Cancel stays.
         let sw = if crate::screens::pin_button(
             ui,
             dx,
             dy,
             None,
             40.0,
-            save,
-            Style::Primary,
-            va(V::FormSave),
+            label,
+            Style::Primary.when(
+                !p.pair()
+                    || !crate::screens::pass_pair::differ(
+                        p.text.text.as_str(),
+                        p.again.text.as_str(),
+                    ),
+            ),
+            va(V::PromptGo),
         ) {
-            ui.measure_as(LABEL_L, save) + 42.0
+            ui.measure_as(LABEL_L, label) + 42.0
         } else {
             0.0
         };
@@ -2613,662 +2742,262 @@ fn detail(
             BUTTON_H,
             EN.vault_cancel,
             Style::Ghost,
-            va(V::FormCancel),
+            va(V::PromptCancel),
         );
-        return dy;
     }
-    if let Some(p) = &app.vaults.prompt {
-        let heading = match p.purpose {
-            vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => {
-                Text::of(EN.vault_load_with_a_bip)
-            }
-            vault::Purpose::Kdbx => Text::of(EN.vault_export_for_keepass),
-        };
-        let heading = ui.fit_as(TITLE_M, &heading, dw);
-        ui.text_as(dx, dy, TITLE_M, ink, &heading);
-        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
-        let pair = p.pair();
-        let fields = if pair { 2 } else { 1 };
-        for n in 0..fields {
-            let second = n == 1;
-            let label = if second {
-                EN.vault_passphrase_again
-            } else {
-                EN.vault_passphrase
-            };
-            ui.text_as(dx, dy, BODY_S, muted, label);
-            dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-            let (focus, press, chip) = if second {
-                (
-                    Focus::PromptAgain,
-                    V::FocusPromptAgain,
-                    crate::demo::PassField::PromptAgain,
-                )
-            } else {
-                (
-                    Focus::Prompt,
-                    V::FocusPrompt,
-                    crate::demo::PassField::Prompt,
-                )
-            };
-            crate::demo::pass_box(
-                app,
-                ui,
-                (dx, dy, dw),
-                if second { &p.again } else { &p.text },
-                (app.vaults.typed_shown, app.vaults.focus == Some(focus)),
-                (va(press), va(V::ShowTyped)),
-                chip,
-            );
-            dy += FIELD_H + if second { 8.0 } else { 16.0 };
-            if second {
-                if !p.again.text.is_empty()
-                    && crate::screens::pass_pair::differ(
-                        p.text.text.as_str(),
-                        p.again.text.as_str(),
-                    )
-                {
-                    dy += ui
-                        .field_supporting((dx, dy, dw), Role::Error, EN.pass_pair_differ, false)
-                        .max(22.0);
-                }
-                dy += 8.0;
-            }
-        }
-        dy += never_under(app, ui, dx, dy, dw);
-        if app.vaults.working == Some(vault::Work::Kdbx) {
-            crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
-        } else {
-            // Sealing the export draws the system's randomness (row 6).
-            if p.purpose == vault::Purpose::Kdbx {
-                dy += own_row(app, ui, (dx, dy, dw));
-            }
-            let label = match p.purpose {
-                vault::Purpose::Kdbx => app.wait_label(va(V::PromptGo), EN.vault_seal_and_export),
-                vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
-            };
-            let sw = if crate::screens::pin_button(
-                ui,
-                dx,
-                dy,
-                None,
-                40.0,
-                label,
-                Style::Primary.when(
-                    !p.pair()
-                        || !crate::screens::pass_pair::differ(
-                            p.text.text.as_str(),
-                            p.again.text.as_str(),
-                        ),
-                ),
-                va(V::PromptGo),
-            ) {
-                ui.measure_as(LABEL_L, label) + 42.0
-            } else {
-                0.0
-            };
-            ui.button(
-                dx + sw,
-                dy,
-                None,
-                BUTTON_H,
-                EN.vault_cancel,
-                Style::Ghost,
-                va(V::PromptCancel),
-            );
-        }
-        dy += 54.0;
-        if let Some(e) = &p.error {
-            ui.wrap_as((dx, dy, dw), BODY_S, bad, e);
-        }
-        return dy;
+    dy += 54.0;
+    if let Some(e) = &p.error {
+        ui.wrap_as((dx, dy, dw), BODY_S, bad, e);
     }
-    if app.vaults.saving {
-        return save_panel(app, ui, v, dx, dy, dw);
+    dy
+}
+
+/// A GPG key's files to sign: the key, each file with its code and text,
+/// and Sign. Returns where it ends.
+fn sign_pane(
+    app: &View,
+    ui: &mut Ui,
+    items: &[RecordView<'_>],
+    sel: usize,
+    (dx, mut dy, dw): (f32, f32, f32),
+) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
+    ui.text_as(dx, dy, TITLE_M, ink, EN.vault_sign_a_file);
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
+    // The key that signs, named as GnuPG's pinentry names it: user
+    // ID, key IDs and creation date, and which subkey signs.
+    if let Some(g) = items
+        .get(sel)
+        .and_then(|r| crate::gpg::shown(*r, app.tz_min()))
+    {
+        if let Some(uid) = g.user_ids.first() {
+            dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &text!("\"{}\"", uid.as_str())) + 4.0;
+        }
+        dy += ui.wrap_as((dx, dy, dw), BODY_S.mono(), muted, &g.subkey) + 4.0;
+        dy += ui.wrap_as(
+            (dx, dy, dw),
+            BODY_S,
+            muted,
+            &Text::fill(
+                EN.vault_signing_key_ids,
+                &[&g.subkey_id, &g.key_id, &g.created],
+            ),
+        ) + 16.0;
     }
-    if app.vaults.sb_images {
-        return images_panel(app, ui, dx, dy, dw);
-    }
-    if app.vaults.signing {
-        ui.text_as(dx, dy, TITLE_M, ink, EN.vault_sign_a_file);
-        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
-        // The key that signs, named as GnuPG's pinentry names it: user
-        // ID, key IDs and creation date, and which subkey signs.
-        if let Some(g) = items
-            .get(sel)
-            .and_then(|r| crate::gpg::shown(*r, app.tz_min()))
-        {
-            if let Some(uid) = g.user_ids.first() {
-                dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &text!("\"{}\"", uid.as_str())) + 4.0;
-            }
-            dy += ui.wrap_as((dx, dy, dw), BODY_S.mono(), muted, &g.subkey) + 4.0;
-            dy += ui.wrap_as(
-                (dx, dy, dw),
-                BODY_S,
-                muted,
-                &Text::fill(
-                    EN.vault_signing_key_ids,
-                    &[&g.subkey_id, &g.key_id, &g.created],
-                ),
-            ) + 16.0;
-        }
-        let files = app.gpg_files();
-        if files.is_empty() {
-            ui.text_as(
-                dx,
-                dy,
-                BODY_S,
-                muted,
-                &Text::fill(EN.vault_no_file, &[app.medium.from_the()]),
-            );
-            dy += ui.advance_as(BODY_S, 30.0);
-        } else {
-            let all_ticked = files.iter().all(|f| app.gpg_ticked(f));
-            // A row a touch target tall, so its press and the next
-            // row's do not share the overlap.
-            let rh = ui.touch.max(40.0);
-            ui.checkbox(dx, dy + (rh - 18.0) / 2.0, all_ticked, true);
-            ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, EN.vault_select_all);
-            ui.press_box(dx, dy, dw, rh, va(V::GpgTickAll));
-            ui.rule(dx, dy + rh, dw, Role::OutlineVariant);
-            dy += rh + 2.0;
-        }
-        for (fi, f) in files.iter().enumerate() {
-            let ticked = app.gpg_ticked(f);
-            let signed = app
-                .outbox
-                .iter()
-                .any(|o| o.name.as_str() == &*text!("{}.asc", f.name.as_str()));
-            // Show as QR and PNG hold one signature over this file each;
-            // ticking, Sign and its sheet's hold is the way to make it. They follow
-            // the file by its hash, not its place in the Inbox.
-            let prefix: [u8; 8] = f.hash[..8].try_into().unwrap_or([0; 8]);
-            let buttons = [
-                (
-                    EN.vault_show_as_qr,
-                    Action::ShowCode(Code::GpgSignature(prefix)),
-                ),
-                ("PNG", Action::CodePng(Code::GpgSignature(prefix))),
-            ];
-            let signed_w = if signed {
-                ui.measure_as(LABEL_M, EN.vault_signed) + 18.0
-            } else {
-                0.0
-            };
-            let widths: Vec<f32> = buttons
-                .iter()
-                .map(|(l, _)| ui.measure_as(LABEL_L, l) + 30.0)
-                .collect();
-            let all = widths.iter().sum::<f32>() + 6.0;
-            // The buttons' row is a touch target tall on a wide panel, so
-            // their presses and the file's own do not share the overlap.
-            let rh = if ui.compact {
-                ui.touch.max(44.0)
-            } else {
-                ui.touch.max(40.0)
-            };
-            let lift = (ui.touch - BUTTON_H).max(0.0) / 2.0;
-            let (name_w, by) = if ui.compact {
-                (dw - 40.0 - signed_w - 8.0, dy + rh + lift)
-            } else {
-                (
-                    dw - 40.0 - all - signed_w - 24.0,
-                    dy + (rh - BUTTON_H) / 2.0,
-                )
-            };
-            ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
-            let line = text!(
-                "{} · {}",
-                f.name.as_str(),
-                crate::screens::size_text(f.size as u64).as_str()
-            );
-            let name = ui.fit_as(BODY_M.mono(), &line, name_w);
-            ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, &name);
-            if signed {
-                ui.tag(
-                    dx + 30.0 + name_w + 8.0,
-                    dy + (rh - 20.0) / 2.0,
-                    EN.vault_signed,
-                    Status::Ok,
-                );
-            }
-            // On a small panel the buttons are on the line below: the
-            // whole first line ticks.
-            let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
-            ui.press_box(dx, dy, hit_w, rh, va(V::GpgTick(fi)));
-            let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
-            for ((label, action), bw) in buttons.iter().zip(&widths) {
-                ui.button(
-                    bx,
-                    by,
-                    Some(*bw),
-                    BUTTON_H,
-                    label,
-                    Style::Secondary,
-                    *action,
-                );
-                bx += bw + 6.0;
-            }
-            // What is signed: the file's SHA-256, and a small text file's
-            // text, so that the bytes can be checked before the hold.
-            let mut ey = dy
-                + if ui.compact {
-                    rh + ui.touch.max(44.0)
-                } else {
-                    rh + 6.0
-                };
-            let hex = faraday_crypto::hex::encode_string(&f.hash);
-            ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
-            if let Some(t) = &f.text {
-                let eye = (va(V::SignText(fi)), app.vaults.sign_text_shown(&f.hash));
-                ey += sign_text(app, ui, (dx + 30.0, ey, dw - 30.0), t, eye) + 6.0;
-            }
-            ui.rule(dx, ey, dw, Role::OutlineVariant);
-            dy = ey + 8.0;
-        }
-        dy += 8.0;
-        // Sign opens Sign with {key} over the page; only its hold signs
-        // (F63).
-        let any = files.iter().any(|f| app.gpg_ticked(f));
-        let w = ui.button(
+    let files = app.gpg_files();
+    if files.is_empty() {
+        ui.text_as(
             dx,
             dy,
-            None,
-            BUTTON_H,
-            EN.vault_sign,
-            Style::Primary.when(any),
-            va(V::GpgSign),
+            BODY_S,
+            muted,
+            &Text::fill(EN.vault_no_file, &[app.medium.from_the()]),
         );
-        ui.button(
-            dx + w + 10.0,
-            dy,
-            None,
-            BUTTON_H,
-            EN.vault_back_to_the_key,
-            Style::Ghost,
-            va(V::GpgSignPick),
-        );
-        return dy + 48.0;
+        dy += ui.advance_as(BODY_S, 30.0);
+    } else {
+        let all_ticked = files.iter().all(|f| app.gpg_ticked(f));
+        // A row a touch target tall, so its press and the next
+        // row's do not share the overlap.
+        let rh = ui.touch.max(40.0);
+        ui.checkbox(dx, dy + (rh - 18.0) / 2.0, all_ticked, true);
+        ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, EN.vault_select_all);
+        ui.press_box(dx, dy, dw, rh, va(V::GpgTickAll));
+        ui.rule(dx, dy + rh, dw, Role::OutlineVariant);
+        dy += rh + 2.0;
     }
-    let Some(&r) = items.get(sel) else {
-        return dy;
-    };
+    for (fi, f) in files.iter().enumerate() {
+        let ticked = app.gpg_ticked(f);
+        let signed = app
+            .outbox
+            .iter()
+            .any(|o| o.name.as_str() == &*text!("{}.asc", f.name.as_str()));
+        // Show as QR and PNG hold one signature over this file each;
+        // ticking, Sign and its sheet's hold is the way to make it. They follow
+        // the file by its hash, not its place in the Inbox.
+        let prefix: [u8; 8] = f.hash[..8].try_into().unwrap_or([0; 8]);
+        let buttons = [
+            (
+                EN.vault_show_as_qr,
+                Action::ShowCode(Code::GpgSignature(prefix)),
+            ),
+            ("PNG", Action::CodePng(Code::GpgSignature(prefix))),
+        ];
+        let signed_w = if signed {
+            ui.measure_as(LABEL_M, EN.vault_signed) + 18.0
+        } else {
+            0.0
+        };
+        let widths: Vec<f32> = buttons
+            .iter()
+            .map(|(l, _)| ui.measure_as(LABEL_L, l) + 30.0)
+            .collect();
+        let all = widths.iter().sum::<f32>() + 6.0;
+        // The buttons' row is a touch target tall on a wide panel, so
+        // their presses and the file's own do not share the overlap.
+        let rh = if ui.compact {
+            ui.touch.max(44.0)
+        } else {
+            ui.touch.max(40.0)
+        };
+        let lift = (ui.touch - BUTTON_H).max(0.0) / 2.0;
+        let (name_w, by) = if ui.compact {
+            (dw - 40.0 - signed_w - 8.0, dy + rh + lift)
+        } else {
+            (
+                dw - 40.0 - all - signed_w - 24.0,
+                dy + (rh - BUTTON_H) / 2.0,
+            )
+        };
+        ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
+        let line = text!(
+            "{} · {}",
+            f.name.as_str(),
+            crate::screens::size_text(f.size as u64).as_str()
+        );
+        let name = ui.fit_as(BODY_M.mono(), &line, name_w);
+        ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, &name);
+        if signed {
+            ui.tag(
+                dx + 30.0 + name_w + 8.0,
+                dy + (rh - 20.0) / 2.0,
+                EN.vault_signed,
+                Status::Ok,
+            );
+        }
+        // On a small panel the buttons are on the line below: the
+        // whole first line ticks.
+        let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
+        ui.press_box(dx, dy, hit_w, rh, va(V::GpgTick(fi)));
+        let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
+        for ((label, action), bw) in buttons.iter().zip(&widths) {
+            ui.button(
+                bx,
+                by,
+                Some(*bw),
+                BUTTON_H,
+                label,
+                Style::Secondary,
+                *action,
+            );
+            bx += bw + 6.0;
+        }
+        // What is signed: the file's SHA-256, and a small text file's
+        // text, so that the bytes can be checked before the hold.
+        let mut ey = dy
+            + if ui.compact {
+                rh + ui.touch.max(44.0)
+            } else {
+                rh + 6.0
+            };
+        let hex = faraday_crypto::hex::encode_string(&f.hash);
+        ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
+        if let Some(t) = &f.text {
+            let eye = (va(V::SignText(fi)), app.vaults.sign_text_shown(&f.hash));
+            ey += sign_text(app, ui, (dx + 30.0, ey, dw - 30.0), t, eye) + 6.0;
+        }
+        ui.rule(dx, ey, dw, Role::OutlineVariant);
+        dy = ey + 8.0;
+    }
+    dy += 8.0;
+    // Sign opens Sign with {key} over the page; only its hold signs
+    // (F63).
+    let any = files.iter().any(|f| app.gpg_ticked(f));
+    let w = ui.button(
+        dx,
+        dy,
+        None,
+        BUTTON_H,
+        EN.vault_sign,
+        Style::Primary.when(any),
+        va(V::GpgSign),
+    );
+    ui.button(
+        dx + w + 10.0,
+        dy,
+        None,
+        BUTTON_H,
+        EN.vault_back_to_the_key,
+        Style::Ghost,
+        va(V::GpgSignPick),
+    );
+    dy + 48.0
+}
+
+/// The rows and actions of the selected item, drawn down from `dy`.
+struct Rows {
+    dx: f32,
+    dy: f32,
+    dw: f32,
+    /// The secrets shown by their eyes here, read once for the page.
+    shown: u64,
+    secret_id: usize,
+    actions: Vec<(&'static str, Action)>,
+    /// Where a new row of them starts, whether or not the last is full.
+    breaks: Vec<usize>,
+}
+
+impl Rows {
+    /// A label and its value.
+    fn field(&mut self, ui: &mut Ui, label: &str, value: &str, mono: bool) {
+        ui.text_as(self.dx, self.dy, BODY_S, Role::OnSurfaceVariant, label);
+        self.dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+        self.dy += ui.wrap_as(
+            (self.dx, self.dy, self.dw),
+            if mono { BODY_M.mono() } else { BODY_M },
+            Role::OnSurface,
+            value,
+        ) + 14.0;
+    }
+
+    /// A label and a secret value behind its eye.
+    fn secret(&mut self, ui: &mut Ui, label: &str, value: &str, mono: bool) {
+        ui.text_as(self.dx, self.dy, BODY_S, Role::OnSurfaceVariant, label);
+        self.dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+        let shown = self.shown & (1u64 << self.secret_id.min(63)) != 0;
+        let eye = (va(V::Reveal(self.secret_id)), shown);
+        self.dy += secret(ui, (self.dx, self.dy, self.dw), value, mono, eye) + 14.0;
+        self.secret_id += 1;
+    }
+}
+
+/// The selected item: its heading, the rows of its kind, its actions and
+/// Delete. Returns where it ends.
+fn item_pane(
+    app: &View,
+    ui: &mut Ui,
+    v: &vault::OpenVault,
+    r: RecordView<'_>,
+    (dx, mut dy, dw): (f32, f32, f32),
+) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let (t, line, mono) = item_heading(app, r);
     ui.text_as(dx, dy, if mono { BODY_L.mono() } else { TITLE_M }, ink, &t);
     dy += ui.advance_as(if mono { BODY_L.mono() } else { TITLE_M }, 30.0);
     // The line wraps: a seed's label and its BIP-85 origin are long.
     let wrapped = ui.wrap_as((dx, dy, dw), BODY_S, muted, &line);
     dy += wrapped + ui.advance_as(BODY_S, 34.0) - ui.line_as(BODY_S);
-    let mut secret_id = 0usize;
-    // The secrets shown by their eyes here, read once for the page.
-    let shown_fields = app.vaults.fields_shown(app.vault_secrets_on_page());
-    let field_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
-        ui.text_as(dx, *dy, BODY_S, muted, label);
-        *dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-        *dy += ui.wrap_as(
-            (dx, *dy, dw),
-            if mono { BODY_M.mono() } else { BODY_M },
-            ink,
-            value,
-        ) + 14.0;
+    let mut rows = Rows {
+        dx,
+        dy,
+        dw,
+        shown: app.vaults.fields_shown(app.vault_secrets_on_page()),
+        secret_id: 0,
+        actions: Vec::new(),
+        breaks: Vec::new(),
     };
-    let mut secret_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
-        ui.text_as(dx, *dy, BODY_S, muted, label);
-        *dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-        let shown = shown_fields & (1u64 << secret_id.min(63)) != 0;
-        let eye = (va(V::Reveal(secret_id)), shown);
-        *dy += secret(ui, (dx, *dy, dw), value, mono, eye) + 14.0;
-        secret_id += 1;
-    };
-    let mut actions: Vec<(&str, Action)> = Vec::new();
-    // Where a new row of them starts, whether or not the last is full.
-    let mut breaks: Vec<usize> = Vec::new();
     match r.kind() {
-        kind::KEY => {
-            let fp = app.vault_key_fingerprint(r).unwrap_or_default();
-            field_row(ui, &mut dy, EN.vault_fingerprint, &fp, true);
-            // Whether the record holds words, and their list, as the vault
-            // kept them read with the records: nothing is parsed here. The
-            // words themselves are held while their eye shows them.
-            let reads = app.record_word_count(r).is_some();
-            if reads {
-                let held = app.record_words_held();
-                let text = held.map(words_text).unwrap_or_default();
-                secret_row(ui, &mut dy, EN.vault_words, &text, true);
-                if app.record_language(r) == Some(faraday_bip::bip39::Language::English) {
-                    ui.text_as(dx, dy, BODY_S, muted, EN.board_seedqr);
-                    dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                    dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
-                }
-            }
-            let loads = r.loads_at_unlock();
-            // A seed of a wallet in this vault loads with it (F62).
-            let with = app
-                .vault_selected_index()
-                .and_then(|i| app.vault_key_wallet(app.vaults.current, i));
-            field_row(
-                ui,
-                &mut dy,
-                EN.vault_bip_39_passphrase,
-                if r.has(field::KEY_PASSPHRASE) {
-                    EN.vault_stored
-                } else {
-                    EN.vault_not_stored
-                },
-                false,
-            );
-            match &with {
-                Some(w) => field_row(
-                    ui,
-                    &mut dy,
-                    EN.vault_load_at_unlock,
-                    &Text::fill(EN.vault_loads_with_wallet, &[w]),
-                    false,
-                ),
-                None => field_row(
-                    ui,
-                    &mut dy,
-                    EN.vault_load_at_unlock,
-                    if loads { EN.vault_yes } else { EN.vault_no },
-                    false,
-                ),
-            }
-            let here = app
-                .session
-                .keys
-                .all()
-                .any(|k| *fp_text(k.fingerprint) == *fp);
-            field_row(
-                ui,
-                &mut dy,
-                EN.vault_in_this_session,
-                if here {
-                    EN.vault_loaded
-                } else {
-                    EN.vault_not_loaded
-                },
-                false,
-            );
-            if !here {
-                actions.push((EN.vault_load_into_session, va(V::Load)));
-                if reads && !r.has(field::KEY_PASSPHRASE) {
-                    actions.push((EN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
-                }
-            }
-            if with.is_none() {
-                actions.push((
-                    if loads {
-                        EN.vault_dont_load_at_unlock
-                    } else {
-                        EN.vault_load_at_unlock
-                    },
-                    va(V::ToggleLoad),
-                ));
-            }
-            if reads {
-                actions.push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
-            }
-        }
-        kind::WALLET => {
-            // The wallet's chart the other way up (`docs/history/NEW-WALLET.md`
-            // §7.2): where each seed is kept, its keys, the wallet.
-            let up = crate::glance::Direction::BackupFirst;
-            if let Some(g) = app
-                .vault_selected_index()
-                .and_then(|i| app.glance_of_vault(app.vaults.current, i))
-            {
-                dy += if ui.compact {
-                    crate::glance::draw_column(ui, &g, up, dx, dy, dw)
-                } else {
-                    crate::glance::draw(ui, &g, up, dx, dy, dw)
-                } + faraday_draw::tokens::PAD;
-            }
-            let text = r.public_text(field::WALLET).unwrap_or("");
-            field_row(ui, &mut dy, EN.vault_descriptor, text, true);
-            let loads = r.loads_at_unlock();
-            field_row(
-                ui,
-                &mut dy,
-                EN.vault_load_at_unlock,
-                if loads { EN.vault_yes } else { EN.vault_no },
-                false,
-            );
-            actions.push((EN.vault_open_in_wallets, va(V::Load)));
-            actions.push((
-                if loads {
-                    EN.vault_dont_load_at_unlock
-                } else {
-                    EN.vault_load_at_unlock
-                },
-                va(V::ToggleLoad),
-            ));
-            actions.push((EN.vault_show_as_qr, va(V::WalletQr)));
-            actions.push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
-        }
-        kind::ENTRY => {
-            if let Some(u) = r.public_text(field::USERNAME) {
-                field_row(ui, &mut dy, EN.vault_username, u, false);
-            }
-            if r.has(field::PASSWORD) {
-                let p = app.reveal_record(r, field::PASSWORD, Reveal::VaultEntry(Part::Password));
-                secret_row(ui, &mut dy, EN.vault_password, &p, true);
-            }
-            if let Some(u) = r.public_text(field::URL) {
-                field_row(ui, &mut dy, EN.vault_url, u, true);
-            }
-            if r.has(field::TOTP) {
-                let (h, reads) = codes::entry_code_row(app, ui, dx, dy);
-                dy += h;
-                let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
-                secret_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
-                if reads {
-                    dy += codes::totp_qr_button(ui, dx, dy);
-                }
-            }
-            if r.has(field::NOTES) {
-                let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
-                secret_row(ui, &mut dy, EN.vault_notes, &n, false);
-            }
-            if v.read_only().is_none() {
-                actions.push((EN.vault_edit, va(V::Edit)));
-            }
-            actions.push((EN.vault_export_for_keepass, va(V::ExportKdbx)));
-        }
-        kind::NOTE => {
-            secret_row(
-                ui,
-                &mut dy,
-                EN.vault_text,
-                &app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note)),
-                false,
-            );
-            if v.read_only().is_none() {
-                actions.push((EN.vault_edit, va(V::Edit)));
-            }
-        }
-        kind::SHEET => {
-            let (d, _, note) = faraday_keys::vault::sheet_parts(r);
-            field_row(ui, &mut dy, EN.vault_descriptor, &d, true);
-            if !note.is_empty() {
-                field_row(ui, &mut dy, EN.vault_note, &note, false);
-            }
-            // Its descriptor as a code and as a picture (`docs/QR.md` §7.1).
-            actions.push((EN.vault_show_as_qr, Action::ShowCode(Code::VaultSheet)));
-            actions.push(("PNG", Action::CodePng(Code::VaultSheet)));
-        }
-        kind::GPG => {
-            if let Some(g) = crate::gpg::shown(r, app.tz_min()) {
-                field_row(ui, &mut dy, EN.vault_fingerprint, &g.fingerprint, true);
-                field_row(ui, &mut dy, EN.vault_signing_subkey, &g.subkey, true);
-                for uid in &g.user_ids {
-                    field_row(ui, &mut dy, EN.vault_user_id, uid, false);
-                }
-                let valid = if g.expires == EN.vault_never {
-                    Text::fill(EN.vault_gpg_no_expiry, &[&g.created])
-                } else {
-                    Text::fill(EN.vault_gpg_validity, &[&g.created, &g.expires])
-                };
-                field_row(ui, &mut dy, EN.vault_valid, &valid, false);
-                if let Some(t) = &g.revoked {
-                    field_row(
-                        ui,
-                        &mut dy,
-                        EN.vault_status,
-                        &Text::fill(EN.vault_revoked_date, &[t]),
-                        false,
-                    );
-                }
-                // Where the revocation certificate is kept, as GnuPG says
-                // where it stored it.
-                let kept = match &g.revocation_kept {
-                    Some(d) => Text::fill(EN.vault_kept_with_the_key, &[d]),
-                    None => Text::of(EN.vault_none_kept),
-                };
-                field_row(ui, &mut dy, EN.vault_revocation_certificate, &kept, false);
-                // The paperkey is made only while its eye shows it.
-                ui.text_as(dx, dy, BODY_S, muted, EN.vault_paperkey);
-                dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                dy += secret_with(
-                    ui,
-                    (dx, dy, dw),
-                    || app.paperkey_held().unwrap_or_default(),
-                    true,
-                    (va(V::Reveal(0)), shown_fields & 1 != 0),
-                ) + 14.0;
-                dy += codes::paperkey_qr_button(ui, dx, dy);
-                // The term now, then the new term to choose: nothing is
-                // renewed until one is chosen.
-                let now_line = if g.expires == EN.vault_never {
-                    Text::of(EN.vault_term_never)
-                } else {
-                    Text::fill(EN.vault_term_until, &[&g.expires])
-                };
-                ui.text_as(dx, dy, BODY_S, muted, &now_line);
-                dy += ui.advance_as(BODY_S, 22.0);
-                ui.text_as(dx, dy, BODY_S, muted, EN.vault_renew_label);
-                dy += ui.advance_as(BODY_S, 22.0);
-                // Renew at the row's end; on a small panel under it.
-                let rw = ui.measure_as(LABEL_L, EN.vault_renew) + 30.0;
-                let yh = years_row(
-                    ui,
-                    dx,
-                    dy,
-                    if ui.compact { dw } else { dw - rw - 8.0 },
-                    app.vaults.renew_years,
-                    V::GpgRenewTerm,
-                );
-                let ry = if ui.compact { dy + yh + 8.0 } else { dy };
-                if app.selected_waits().is_some() {
-                    let bw = ui.measure_as(LABEL_L, EN.backup_flow_first) + 30.0;
-                    ui.button(
-                        dx + dw - bw,
-                        ry,
-                        Some(bw),
-                        BUTTON_H,
-                        EN.backup_flow_first,
-                        Style::Secondary,
-                        back_up_first(crate::backup_flow::Kind::Gpg),
-                    );
-                } else {
-                    ui.button(
-                        dx + dw - rw,
-                        ry,
-                        Some(rw),
-                        BUTTON_H,
-                        EN.vault_renew,
-                        if app.vaults.renew_years.is_some() {
-                            Style::Secondary
-                        } else {
-                            Style::Disabled
-                        },
-                        va(V::GpgRenew),
-                    );
-                }
-                dy = (ry + 46.0).max(dy + yh + faraday_draw::tokens::GAP * 2.0);
-            }
-            dy += backup_row(app, ui, crate::backup_flow::Kind::Gpg, r, dx, dy, dw);
-            // Each file on a row of its own: to the Outbox, as a code,
-            // as a picture. The revocation certificate is a secret: it
-            // goes through the secret sheet, and has no code or picture.
-            // On a small panel the code and the picture go under the
-            // file's own button.
-            breaks.push(actions.len());
-            actions.push((EN.vault_export_public, va(V::GpgExport)));
-            if ui.compact {
-                breaks.push(actions.len());
-            }
-            actions.push((EN.vault_show_as_qr, Action::ShowCode(Code::GpgKey)));
-            actions.push(("PNG", Action::CodePng(Code::GpgKey)));
-            breaks.push(actions.len());
-            actions.push((EN.vault_export_revocation, va(V::GpgExportRevocation)));
-            if v.read_only().is_none() {
-                actions.push((EN.vault_make_a_revocation, va(V::GpgRevocationPage)));
-            }
-            breaks.push(actions.len());
-            if app.selected_waits().is_some() {
-                actions.push((
-                    EN.backup_flow_first,
-                    back_up_first(crate::backup_flow::Kind::Gpg),
-                ));
-            } else {
-                actions.push((EN.vault_sign_a_file, va(V::GpgSignPick)));
-            }
-        }
-        kind::SECURE_BOOT => {
-            if let Some(sb) = crate::secure_boot::shown(r) {
-                field_row(ui, &mut dy, EN.vault_owner_guid, &sb.owner, true);
-                for (label, name) in ["PK", "KEK", "db"].iter().zip(&sb.names) {
-                    field_row(ui, &mut dy, label, name, false);
-                }
-            }
-            ui.text_as(dx, dy, BODY_S, muted, EN.vault_enrolment_adds);
-            dy += ui.advance_as(BODY_S, 22.0);
-            let own_items: Vec<(&str, Style, Action)> = [
-                (EN.vault_windows_compatible, false),
-                (EN.vault_own_keys_only, true),
-            ]
-            .into_iter()
-            .map(|(label, own)| {
-                let style = Style::chosen(app.vaults.sb_own_only == own);
-                (label, style, va(V::SbOwnOnly(own)))
-            })
-            .collect();
-            dy += crate::screens::wrap_buttons(ui, dx, dy, dw, 32.0, &own_items);
-            let line = if app.vaults.sb_own_only {
-                EN.vault_own_keys_only_warning
-            } else {
-                EN.vault_yours_with_microsoft
-            };
-            dy += ui.wrap_as((dx, dy, dw), BODY_S, Role::Warning, line) + 14.0;
-            dy += backup_row(app, ui, crate::backup_flow::Kind::SecureBoot, r, dx, dy, dw);
-            if app.selected_waits().is_some() {
-                actions.push((
-                    EN.backup_flow_first,
-                    back_up_first(crate::backup_flow::Kind::SecureBoot),
-                ));
-            } else {
-                // The enrolment files' blinding is drawn (row 9).
-                dy += own_row(app, ui, (dx, dy, dw));
-                // Neither list holds Microsoft's third-party certificates,
-                // so writing the files is a hold.
-                let label = app.wait_label(va(V::SbEnrol), EN.vault_hold_for_enrolment_files);
-                let bh = ui.hold_button_height(dw, label);
-                hold_button_in(
-                    app,
-                    ui,
-                    dx,
-                    dy,
-                    dw,
-                    label,
-                    va(V::SbEnrol),
-                    HoldTone::Warning,
-                );
-                dy += bh + GAP;
-            }
-            actions.push((EN.vault_sign_or_check, va(V::SbImages)));
-        }
+        kind::KEY => key_rows(app, ui, r, &mut rows),
+        kind::WALLET => wallet_rows(app, ui, r, &mut rows),
+        kind::ENTRY => entry_rows(app, ui, v, r, &mut rows),
+        kind::NOTE => note_rows(app, ui, v, r, &mut rows),
+        kind::SHEET => sheet_rows(ui, r, &mut rows),
+        kind::GPG => gpg_rows(app, ui, v, r, &mut rows),
+        kind::SECURE_BOOT => secure_boot_rows(app, ui, r, &mut rows),
         _ => {}
     }
+    dy = rows.dy;
+    let mut actions = rows.actions;
+    let breaks = rows.breaks;
     if r.kind() == kind::KEY && v.read_only().is_none() {
         use faraday_vault::records::field;
         if r.has(field::KEY_CODEX32) {
@@ -3314,6 +3043,394 @@ fn detail(
             .max(dy - top + ui.hold_button_height(room - hx, label));
     }
     top + below
+}
+
+/// A key's fingerprint, words, load settings and actions.
+fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
+    let muted = Role::OnSurfaceVariant;
+    let fp = app.vault_key_fingerprint(r).unwrap_or_default();
+    rows.field(ui, EN.vault_fingerprint, &fp, true);
+    // Whether the record holds words, and their list, as the vault
+    // kept them read with the records: nothing is parsed here. The
+    // words themselves are held while their eye shows them.
+    let reads = app.record_word_count(r).is_some();
+    if reads {
+        let held = app.record_words_held();
+        let text = held.map(words_text).unwrap_or_default();
+        rows.secret(ui, EN.vault_words, &text, true);
+        if app.record_language(r) == Some(faraday_bip::bip39::Language::English) {
+            ui.text_as(rows.dx, rows.dy, BODY_S, muted, EN.board_seedqr);
+            rows.dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+            rows.dy += seedqr_box(app, ui, rows.dx, rows.dy, rows.dw) + 14.0;
+        }
+    }
+    let loads = r.loads_at_unlock();
+    // A seed of a wallet in this vault loads with it (F62).
+    let with = app
+        .vault_selected_index()
+        .and_then(|i| app.vault_key_wallet(app.vaults.current, i));
+    rows.field(
+        ui,
+        EN.vault_bip_39_passphrase,
+        if r.has(field::KEY_PASSPHRASE) {
+            EN.vault_stored
+        } else {
+            EN.vault_not_stored
+        },
+        false,
+    );
+    match &with {
+        Some(w) => rows.field(
+            ui,
+            EN.vault_load_at_unlock,
+            &Text::fill(EN.vault_loads_with_wallet, &[w]),
+            false,
+        ),
+        None => rows.field(
+            ui,
+            EN.vault_load_at_unlock,
+            if loads { EN.vault_yes } else { EN.vault_no },
+            false,
+        ),
+    }
+    let here = app
+        .session
+        .keys
+        .all()
+        .any(|k| *fp_text(k.fingerprint) == *fp);
+    rows.field(
+        ui,
+        EN.vault_in_this_session,
+        if here {
+            EN.vault_loaded
+        } else {
+            EN.vault_not_loaded
+        },
+        false,
+    );
+    if !here {
+        rows.actions.push((EN.vault_load_into_session, va(V::Load)));
+        if reads && !r.has(field::KEY_PASSPHRASE) {
+            rows.actions
+                .push((EN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
+        }
+    }
+    if with.is_none() {
+        rows.actions.push((
+            if loads {
+                EN.vault_dont_load_at_unlock
+            } else {
+                EN.vault_load_at_unlock
+            },
+            va(V::ToggleLoad),
+        ));
+    }
+    if reads {
+        rows.actions
+            .push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
+    }
+}
+
+/// A wallet's chart, descriptor, load setting and actions.
+fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
+    // The wallet's chart the other way up (`docs/history/NEW-WALLET.md`
+    // §7.2): where each seed is kept, its keys, the wallet.
+    let up = crate::glance::Direction::BackupFirst;
+    if let Some(g) = app
+        .vault_selected_index()
+        .and_then(|i| app.glance_of_vault(app.vaults.current, i))
+    {
+        rows.dy += if ui.compact {
+            crate::glance::draw_column(ui, &g, up, rows.dx, rows.dy, rows.dw)
+        } else {
+            crate::glance::draw(ui, &g, up, rows.dx, rows.dy, rows.dw)
+        } + faraday_draw::tokens::PAD;
+    }
+    let text = r.public_text(field::WALLET).unwrap_or("");
+    rows.field(ui, EN.vault_descriptor, text, true);
+    let loads = r.loads_at_unlock();
+    rows.field(
+        ui,
+        EN.vault_load_at_unlock,
+        if loads { EN.vault_yes } else { EN.vault_no },
+        false,
+    );
+    rows.actions.push((EN.vault_open_in_wallets, va(V::Load)));
+    rows.actions.push((
+        if loads {
+            EN.vault_dont_load_at_unlock
+        } else {
+            EN.vault_load_at_unlock
+        },
+        va(V::ToggleLoad),
+    ));
+    rows.actions.push((EN.vault_show_as_qr, va(V::WalletQr)));
+    rows.actions
+        .push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
+}
+
+/// An entry's username, password, address, code and notes, and its actions.
+fn entry_rows(app: &View, ui: &mut Ui, v: &vault::OpenVault, r: RecordView<'_>, rows: &mut Rows) {
+    if let Some(u) = r.public_text(field::USERNAME) {
+        rows.field(ui, EN.vault_username, u, false);
+    }
+    if r.has(field::PASSWORD) {
+        let p = app.reveal_record(r, field::PASSWORD, Reveal::VaultEntry(Part::Password));
+        rows.secret(ui, EN.vault_password, &p, true);
+    }
+    if let Some(u) = r.public_text(field::URL) {
+        rows.field(ui, EN.vault_url, u, true);
+    }
+    if r.has(field::TOTP) {
+        let (h, reads) = codes::entry_code_row(app, ui, rows.dx, rows.dy);
+        rows.dy += h;
+        let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
+        rows.secret(ui, EN.vault_totp_secret, &t, true);
+        if reads {
+            rows.dy += codes::totp_qr_button(ui, rows.dx, rows.dy);
+        }
+    }
+    if r.has(field::NOTES) {
+        let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
+        rows.secret(ui, EN.vault_notes, &n, false);
+    }
+    if v.read_only().is_none() {
+        rows.actions.push((EN.vault_edit, va(V::Edit)));
+    }
+    rows.actions
+        .push((EN.vault_export_for_keepass, va(V::ExportKdbx)));
+}
+
+/// A note's text and its actions.
+fn note_rows(app: &View, ui: &mut Ui, v: &vault::OpenVault, r: RecordView<'_>, rows: &mut Rows) {
+    rows.secret(
+        ui,
+        EN.vault_text,
+        &app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note)),
+        false,
+    );
+    if v.read_only().is_none() {
+        rows.actions.push((EN.vault_edit, va(V::Edit)));
+    }
+}
+
+/// A sheet's descriptor and note, and its actions.
+fn sheet_rows(ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
+    let (d, _, note) = faraday_keys::vault::sheet_parts(r);
+    rows.field(ui, EN.vault_descriptor, &d, true);
+    if !note.is_empty() {
+        rows.field(ui, EN.vault_note, &note, false);
+    }
+    // Its descriptor as a code and as a picture (`docs/QR.md` §7.1).
+    rows.actions
+        .push((EN.vault_show_as_qr, Action::ShowCode(Code::VaultSheet)));
+    rows.actions
+        .push(("PNG", Action::CodePng(Code::VaultSheet)));
+}
+
+/// A GPG key's rows, paperkey, renewal and actions.
+fn gpg_rows(app: &View, ui: &mut Ui, v: &vault::OpenVault, r: RecordView<'_>, rows: &mut Rows) {
+    let muted = Role::OnSurfaceVariant;
+    if let Some(g) = crate::gpg::shown(r, app.tz_min()) {
+        rows.field(ui, EN.vault_fingerprint, &g.fingerprint, true);
+        rows.field(ui, EN.vault_signing_subkey, &g.subkey, true);
+        for uid in &g.user_ids {
+            rows.field(ui, EN.vault_user_id, uid, false);
+        }
+        let valid = if g.expires == EN.vault_never {
+            Text::fill(EN.vault_gpg_no_expiry, &[&g.created])
+        } else {
+            Text::fill(EN.vault_gpg_validity, &[&g.created, &g.expires])
+        };
+        rows.field(ui, EN.vault_valid, &valid, false);
+        if let Some(t) = &g.revoked {
+            rows.field(
+                ui,
+                EN.vault_status,
+                &Text::fill(EN.vault_revoked_date, &[t]),
+                false,
+            );
+        }
+        // Where the revocation certificate is kept, as GnuPG says
+        // where it stored it.
+        let kept = match &g.revocation_kept {
+            Some(d) => Text::fill(EN.vault_kept_with_the_key, &[d]),
+            None => Text::of(EN.vault_none_kept),
+        };
+        rows.field(ui, EN.vault_revocation_certificate, &kept, false);
+        // The paperkey is made only while its eye shows it.
+        ui.text_as(rows.dx, rows.dy, BODY_S, muted, EN.vault_paperkey);
+        rows.dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+        rows.dy += secret_with(
+            ui,
+            (rows.dx, rows.dy, rows.dw),
+            || app.paperkey_held().unwrap_or_default(),
+            true,
+            (va(V::Reveal(0)), rows.shown & 1 != 0),
+        ) + 14.0;
+        rows.dy += codes::paperkey_qr_button(ui, rows.dx, rows.dy);
+        // The term now, then the new term to choose: nothing is
+        // renewed until one is chosen.
+        let now_line = if g.expires == EN.vault_never {
+            Text::of(EN.vault_term_never)
+        } else {
+            Text::fill(EN.vault_term_until, &[&g.expires])
+        };
+        ui.text_as(rows.dx, rows.dy, BODY_S, muted, &now_line);
+        rows.dy += ui.advance_as(BODY_S, 22.0);
+        ui.text_as(rows.dx, rows.dy, BODY_S, muted, EN.vault_renew_label);
+        rows.dy += ui.advance_as(BODY_S, 22.0);
+        // Renew at the row's end; on a small panel under it.
+        let rw = ui.measure_as(LABEL_L, EN.vault_renew) + 30.0;
+        let yh = years_row(
+            ui,
+            rows.dx,
+            rows.dy,
+            if ui.compact {
+                rows.dw
+            } else {
+                rows.dw - rw - 8.0
+            },
+            app.vaults.renew_years,
+            V::GpgRenewTerm,
+        );
+        let ry = if ui.compact {
+            rows.dy + yh + 8.0
+        } else {
+            rows.dy
+        };
+        if app.selected_waits().is_some() {
+            let bw = ui.measure_as(LABEL_L, EN.backup_flow_first) + 30.0;
+            ui.button(
+                rows.dx + rows.dw - bw,
+                ry,
+                Some(bw),
+                BUTTON_H,
+                EN.backup_flow_first,
+                Style::Secondary,
+                back_up_first(crate::backup_flow::Kind::Gpg),
+            );
+        } else {
+            ui.button(
+                rows.dx + rows.dw - rw,
+                ry,
+                Some(rw),
+                BUTTON_H,
+                EN.vault_renew,
+                if app.vaults.renew_years.is_some() {
+                    Style::Secondary
+                } else {
+                    Style::Disabled
+                },
+                va(V::GpgRenew),
+            );
+        }
+        rows.dy = (ry + 46.0).max(rows.dy + yh + faraday_draw::tokens::GAP * 2.0);
+    }
+    rows.dy += backup_row(
+        app,
+        ui,
+        crate::backup_flow::Kind::Gpg,
+        r,
+        rows.dx,
+        rows.dy,
+        rows.dw,
+    );
+    // Each file on a row of its own: to the Outbox, as a code,
+    // as a picture. The revocation certificate is a secret: it
+    // goes through the secret sheet, and has no code or picture.
+    // On a small panel the code and the picture go under the
+    // file's own button.
+    rows.breaks.push(rows.actions.len());
+    rows.actions
+        .push((EN.vault_export_public, va(V::GpgExport)));
+    if ui.compact {
+        rows.breaks.push(rows.actions.len());
+    }
+    rows.actions
+        .push((EN.vault_show_as_qr, Action::ShowCode(Code::GpgKey)));
+    rows.actions.push(("PNG", Action::CodePng(Code::GpgKey)));
+    rows.breaks.push(rows.actions.len());
+    rows.actions
+        .push((EN.vault_export_revocation, va(V::GpgExportRevocation)));
+    if v.read_only().is_none() {
+        rows.actions
+            .push((EN.vault_make_a_revocation, va(V::GpgRevocationPage)));
+    }
+    rows.breaks.push(rows.actions.len());
+    if app.selected_waits().is_some() {
+        rows.actions.push((
+            EN.backup_flow_first,
+            back_up_first(crate::backup_flow::Kind::Gpg),
+        ));
+    } else {
+        rows.actions
+            .push((EN.vault_sign_a_file, va(V::GpgSignPick)));
+    }
+}
+
+/// Secure Boot's keys, enrolment choice and actions.
+fn secure_boot_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
+    let muted = Role::OnSurfaceVariant;
+    if let Some(sb) = crate::secure_boot::shown(r) {
+        rows.field(ui, EN.vault_owner_guid, &sb.owner, true);
+        for (label, name) in ["PK", "KEK", "db"].iter().zip(&sb.names) {
+            rows.field(ui, label, name, false);
+        }
+    }
+    ui.text_as(rows.dx, rows.dy, BODY_S, muted, EN.vault_enrolment_adds);
+    rows.dy += ui.advance_as(BODY_S, 22.0);
+    let own_items: Vec<(&str, Style, Action)> = [
+        (EN.vault_windows_compatible, false),
+        (EN.vault_own_keys_only, true),
+    ]
+    .into_iter()
+    .map(|(label, own)| {
+        let style = Style::chosen(app.vaults.sb_own_only == own);
+        (label, style, va(V::SbOwnOnly(own)))
+    })
+    .collect();
+    rows.dy += crate::screens::wrap_buttons(ui, rows.dx, rows.dy, rows.dw, 32.0, &own_items);
+    let line = if app.vaults.sb_own_only {
+        EN.vault_own_keys_only_warning
+    } else {
+        EN.vault_yours_with_microsoft
+    };
+    rows.dy += ui.wrap_as((rows.dx, rows.dy, rows.dw), BODY_S, Role::Warning, line) + 14.0;
+    rows.dy += backup_row(
+        app,
+        ui,
+        crate::backup_flow::Kind::SecureBoot,
+        r,
+        rows.dx,
+        rows.dy,
+        rows.dw,
+    );
+    if app.selected_waits().is_some() {
+        rows.actions.push((
+            EN.backup_flow_first,
+            back_up_first(crate::backup_flow::Kind::SecureBoot),
+        ));
+    } else {
+        // The enrolment files' blinding is drawn (row 9).
+        rows.dy += own_row(app, ui, (rows.dx, rows.dy, rows.dw));
+        // Neither list holds Microsoft's third-party certificates, so
+        // writing the files is a hold.
+        let label = app.wait_label(va(V::SbEnrol), EN.vault_hold_for_enrolment_files);
+        let bh = ui.hold_button_height(rows.dw, label);
+        hold_button_in(
+            app,
+            ui,
+            rows.dx,
+            rows.dy,
+            rows.dw,
+            label,
+            va(V::SbEnrol),
+            HoldTone::Warning,
+        );
+        rows.dy += bh + GAP;
+    }
+    rows.actions.push((EN.vault_sign_or_check, va(V::SbImages)));
 }
 
 /// The Backup row of a key made in the backup flow (`docs/BACKUP-FLOW.md`
