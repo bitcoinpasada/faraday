@@ -113,6 +113,10 @@ the planting of the secret to the end of the flow:
 - **The vault readers:** a vault's entries listed, opened and copied.
 - **Extended keys read:** an `xprv` in a Caravan file's xpub field and in a
   wallet policy, refused.
+- **The Starter's recovery-key sheet:** a BitLocker recovery key put on
+  the sheet and the sheet dropped (`faraday-starter/tests/leak.rs`); no
+  block freed holds the whole key. The sheet's writer frees line-sized
+  halves of the key unwiped.
 
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in

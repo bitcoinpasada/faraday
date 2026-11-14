@@ -49,6 +49,8 @@ faraday-core = { path = "../faraday-core", features = ["testkit"] }
 # `examples/snap.rs` that open it inside the Starter (F126); the Starter
 # itself takes it from the shell.
 faraday-desktop = { path = "../shells/desktop" }
+# The leak test of the recovery key's sheet (`tests/leak.rs`).
+faraday-leak-scan = { path = "../tools/leak-scan" }
 
 [lints]
 workspace = true

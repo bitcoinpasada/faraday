@@ -96,7 +96,7 @@ fn printed(s: &mut Starter) -> (String, Vec<u8>) {
     s.press(StarterAction::PrintNotes);
     let c: Vec<StarterCommand> = std::iter::from_fn(|| s.next_command()).collect();
     match c.as_slice() {
-        [StarterCommand::PrintNotes { name, pdf, .. }] => (name.clone(), pdf.clone()),
+        [StarterCommand::PrintNotes { name, pdf, .. }] => (name.clone(), pdf.to_vec()),
         other => panic!("one PrintNotes expected: {other:?}"),
     }
 }
@@ -175,7 +175,7 @@ fn a_dell_s_sheet_has_the_three_things_and_the_steps_in_order() {
     let (name, pdf) = printed(&mut s);
     assert_eq!(name, "faraday-start-from-the-stick.pdf");
     assert!(pdf.starts_with(b"%PDF-"));
-    assert_eq!(pdf, notes.pdf(&c));
+    assert_eq!(pdf, notes.pdf(&c).to_vec());
     for t in [
         "Start this computer from the stick",
         "Boot menu key",

@@ -1279,6 +1279,7 @@ dependencies = [
  "faraday-files",
  "faraday-guide",
  "faraday-host",
+ "faraday-leak-scan",
  "faraday-paper",
  "faraday-shell-api",
  "faraday-strings",

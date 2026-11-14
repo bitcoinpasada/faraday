@@ -1001,8 +1001,8 @@ pub enum StarterCommand {
     PrintNotes {
         /// The file's name.
         name: String,
-        /// The PDF.
-        pdf: Vec<u8>,
+        /// The PDF, wiped when dropped: with the key it carries it.
+        pdf: zeroize::Zeroizing<Vec<u8>>,
         /// It carries the BitLocker recovery key (F49): the shell wipes
         /// its copy once written, and removes the file when the Starter
         /// exits.

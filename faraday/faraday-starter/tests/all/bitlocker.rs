@@ -126,7 +126,7 @@ fn printed(s: &mut Starter) -> (Vec<u8>, bool) {
     let _ = commands(s);
     s.press(StarterAction::PrintNotes);
     match commands(s).as_slice() {
-        [StarterCommand::PrintNotes { pdf, with_key, .. }] => (pdf.clone(), *with_key),
+        [StarterCommand::PrintNotes { pdf, with_key, .. }] => (pdf.to_vec(), *with_key),
         other => panic!("one PrintNotes expected: {other:?}"),
     }
 }
