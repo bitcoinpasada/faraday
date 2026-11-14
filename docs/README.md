@@ -45,6 +45,7 @@ need. Each document's header says what kind it is:
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
 | What does the Check place list, and where is it in the navigation? | `docs/DESIGN.md` §5 (`Check`), `docs/decisions/F255.md` |
 | What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/signer-check.md` |
+| How does a person check that a seed makes their wallet (My seed makes my wallet)? | `docs/FLOWS.md` (My seed makes my wallet), `docs/DESIGN.md` §5 |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
@@ -120,7 +121,7 @@ need. Each document's header says what kind it is:
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built: the Nostr key's part is open.
-- `docs/DESIGN.md`: Design system. Built but for the Check place (§5, F255).
+- `docs/DESIGN.md`: Design system. Built but for the Check place (§5, F255), My seed makes my wallet's screen among it.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.

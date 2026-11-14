@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, and the two checks it lists that are still to be designed, My seed makes my wallet and A multisig setup
+**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -779,8 +779,8 @@ scrolls. Rows, in order (label, then its line, then what a press opens):
 - **The wallet**
   1. **My seed makes my wallet**, "Its words, its passphrase and the
      wallet app": the flow that turns the words and passphrase into the
-     fingerprint, the xpub and the first addresses and matches them
-     against what the wallet app holds (its own design).
+     fingerprint, the xpub and the first addresses, shown to be held
+     against what the wallet app shows (`SeedCheck` below).
   2. **An address on its screen**, "The address and the wallet loaded
      here": Check an address.
 - **Signing**
@@ -880,6 +880,34 @@ a thin rule in `LINE`, with no fill and no box. The right-hand column
 (Back up's list or Map, the side panel, `side_panel_w`) is the same
 colour, divided from the page by the same rule. A card or tile on the
 page is set apart by its edge alone, `BORDER` (`docs/DECISIONS.md` F39).
+
+### My seed makes my wallet (`SeedCheck`)
+
+Not built. A seed typed or scanned, and its passphrase, shown as what it
+makes at the account picked, for the person to hold against the wallet
+app and the hardware wallet; opened from the Check screen's first row
+and from its Tools tile. Its steps, what it reads and what it decides
+are `docs/FLOWS.md`, My seed makes my wallet.
+
+| `Screen` | What it holds | Drawn as |
+|---|---|---|
+| `SeedCheck` | My seed makes my wallet: the cards **Seed**, **Passphrase**, **Account** and **Result**, under a top app bar titled "My seed makes my wallet" with its way back and **Cancel**. | Step flow |
+
+| Card | Open | Closed |
+|---|---|---|
+| Seed | Three ways in, a list row each (§4.1): **Type the words**, which opens Add a key's BIP-39 form in the card (the count, the boxes, §4.3), **Scan a SeedQR**, and **A key loaded here** where any is, its keys as rows by fingerprint (§4.4) with their "passphrase" mark. | "{n} words", or the key's fingerprint, and **Change**. |
+| Passphrase | **No passphrase** and **Add a passphrase**; then **Passphrase** and **Passphrase again**, outlined text fields each with its eye (§4.10), and **Use this passphrase** once they match. | "Fingerprint 73c5da0a", " · with a passphrase" where one was given; **Change**. |
+| Account | A two-line list row each (§4.1): **Native SegWit**, **Taproot**, **Nested SegWit**, **Legacy** and **Multisig**, each with its path in §4.6's style and, as its supporting line, the BIP and "Addresses start bc1q" (bc1p, 3, 1; "A cosigner's key" for Multisig), at account 0 on the network in use; then **Another account or path**, which opens Explore's path field and script buttons (§4.6) in the card with **Use this path**. | "Native SegWit · m/84h/0h/0h" and **Change**. |
+| Result | Fact rows (§4.11): **Fingerprint** (" · with a passphrase" where one was given), **Without the passphrase** where one was given, **Path** (§4.6), **Script** (§4.6's words), **Xpub** with its origin, a segmented button (§4.2) over it of the SLIP-132 spelling and **xpub** where the script has one, **First receive address** and **First change address** (none for Multisig), each string whole in groups of four (§4.5); the xpub and the receive address open their QR sheet with a chevron, the change address nothing. **Compare with the wallet app's**, a text button, opens under the rows one outlined text field with **Scan** and **From Files** beside it, and its answer as a result line (§4.11): "Matches" in `OK` (or "This seed is key 2 of this wallet · 2 of 3"), "Does not match" in `ERR` with its one line where one says more, the warning glyph where a file's origin names this seed and its key is not; a value refused shows its line under the field in `ERR`; an address search shows Explore's determinate progress (§4.14). The actions: **Another account** and **Another seed** (text buttons), **Keep this key** (outlined; not shown for a key loaded here; dimmed with "Remove the stick first" while a stick is in) and **Done** (filled). | — |
+
+**Done** drops the key and **Keep this key** loads it as Add a key does,
+each going back where the flow was opened. In Practice the Seed card and
+the compare field hand their sample to the host strip (§4.19). Checked
+against Material 3's Lists (the ways in, the key rows, the account rows
+as two-line items and the fact rows), Text fields (outlined, the
+passphrase and the compared value), Segmented buttons (the xpub's
+spelling), Buttons (filled, outlined and text, one filled action per
+card) and Progress indicators (linear, determinate) pages.
 
 ## 6. What changes from today
 

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -2456,3 +2456,243 @@ A file that does not parse as a PSBT is refused on the card as Files
 refuses it; a finished transaction as Returned is refused the same way.
 The flow keeps public data only, until a lock or power-off; a lock
 forgets it. Its ? opens Learn at Verifying and Tools.
+
+## My seed makes my wallet
+
+**Faraday shows what a seed makes, and the person checks it.** A person
+who set up a hardware wallet types its words (or scans its SeedQR) and
+its passphrase, picks the account their wallet app uses, and Faraday
+shows the fingerprints, the account's xpub and its first receive and
+change addresses, each whole. The person holds them against what the
+wallet app and the hardware wallet show. Nothing has to be typed or
+scanned from the wallet app to get a result. At the end the person drops
+the seed or keeps it loaded. Not built: the whole flow below. Its screen
+is `docs/DESIGN.md` §5, My seed makes my wallet.
+
+| From | What opens it |
+|---|---|
+| Check | its first row, **My seed makes my wallet**: the Seed card open |
+| Tools | the tile **My seed makes my wallet** in Keys and seeds, after **Explore a key**, its line "Seed words to its xpub and addresses", tags BIP-32, BIP-39, BIP-84: the same. Tools stays the list of every flow; Check is a second way in |
+
+It opens with nothing needed first, no key and no wallet. The screen is a
+step flow (`Screen::SeedCheck`) of four cards: **Seed**, **Passphrase**,
+**Account** and **Result**.
+
+1. **Seed.** **Type the words** (Add a key's BIP-39 form: the count
+   **12 · 15 · 18 · 21 · 24** over its boxes, every word list it reads),
+   **Scan a SeedQR** (Standard and Compact; the scanner titled "Scan the
+   SeedQR") and, where keys are loaded, **A key loaded here**, a row per
+   key by its fingerprint with its "passphrase" mark. Decisions 8 and 9
+   hold: with a stick in, Type the words and Scan a SeedQR open the sheet
+   that asks for it to be pulled. A SLIP-39 set, codex32 or Seed XOR parts
+   are loaded with Add a key first and taken here as a key loaded here.
+   The words are whole once their checksum holds, and the card closes on
+   "{n} words". A key loaded here skips Passphrase: it is the key as
+   loaded.
+2. **Passphrase.** **No passphrase**, or **Passphrase** and **Passphrase
+   again**, each behind its eye, as New key's Key card asks them, with
+   **Use this passphrase** once they match. A SeedQR read asks it on
+   decision 52's sheet (**Use without a passphrase**, **Add a
+   passphrase**), and this card is closed on the answer. The card closes
+   on "Fingerprint 73c5da0a", with " · with a passphrase" where one was
+   given. **Change** on Seed or Passphrase takes the key again, and
+   works out the Result again if an account is picked.
+3. **Account.** The accounts a wallet app makes from one seed, a list
+   row each, at account 0 and the network in use (coin type 0 on
+   mainnet, 1 on the test networks), each with its path and the start
+   its addresses have:
+   - **Native SegWit**, BIP-84, `m/84h/0h/0h`, "Addresses start bc1q";
+   - **Taproot**, BIP-86, `m/86h/0h/0h`, "Addresses start bc1p";
+   - **Nested SegWit**, BIP-49, `m/49h/0h/0h`, "Addresses start 3";
+   - **Legacy**, BIP-44, `m/44h/0h/0h`, "Addresses start 1";
+   - **Multisig**, BIP-48, `m/48h/0h/0h/2h`, "A cosigner's key";
+   - **Another account or path**: Explore's path field and script
+     buttons (an account path such as `m/84h/0h/3h`, or `m/48h/0h/0h/1h`
+     for a Nested SegWit multisig), with **Use this path**.
+
+   (On the test networks the paths read `1h` for coin type and the
+   starts tb1q, tb1p, 2, m or n.) A press on a row picks it and opens
+   the Result; the card closes on the row, "Native SegWit ·
+   m/84h/0h/0h", and **Change**.
+4. **Result.** What the seed makes at that account, worked out on the
+   press that picked it (and again on a seed or passphrase taken again).
+
+**How the account is picked** (decided here). Nothing is assumed: the
+person picks the account their wallet app uses, and every result names
+its path and script. A list rather than all four at once: the result is
+then one account's few strings, each whole, to be read against the
+wallet app's one screen; four accounts side by side would be four xpubs
+and eight addresses to tell apart. Each row's address start lets a person
+who does not know the BIP number find the account from the addresses
+their wallet app shows. A wrong pick is seen at once (the addresses do
+not match), and **Change** on Account, or **Another account** on the
+Result, picks again with the key kept.
+
+**The Result** shows, as fact rows:
+
+- **Fingerprint**: the key's, with " · with a passphrase" where one was
+  given; and **Without the passphrase**, the same words' fingerprint with
+  no passphrase, where one was given. Both are there to be held against
+  what the hardware wallet shows with its passphrase and without it, so
+  that a passphrase typed wrong (or a wallet set up without one) shows
+  as a fingerprint that differs. A key loaded here with a passphrase
+  has the row where its words are kept (a BIP-39 key).
+- **Path**: the account's, `m/84h/0h/0h` (DESIGN.md §4.6).
+- **Script**: in DESIGN.md §4.6's words (Native SegWit, Taproot, Nested
+  SegWit, Legacy), "Multisig · Native SegWit" for BIP-48's `2h` and
+  "Multisig · Nested SegWit" for its `1h`.
+- **Xpub**: the seed's at that path, whole, its origin
+  `[73c5da0a/84h/0h/0h]` before it. Where SLIP-132 names a spelling for
+  the script (a zpub for BIP-84, a ypub for BIP-49, a Zpub and a Ypub for
+  BIP-48), a segmented button over the row shows it or the plain xpub,
+  SLIP-132's first, since wallet apps show one or the other; BIP-86 and
+  BIP-44 have the xpub alone. It opens its QR sheet.
+- **First receive address** and **First change address**: address 0 of
+  the account's receive chain and of its change chain; whole, in groups
+  of four; the receive address opens its QR sheet, the change address
+  nothing. A multisig account has none: its addresses are the whole
+  wallet's, made from every cosigner's key, and are checked on the
+  wallet's own page once it is loaded.
+
+Every string is shown whole (DESIGN.md §4.5), since a check by eye of
+the first and last characters is the check an attacker's address is made
+to pass.
+
+**Compare with the wallet app's** (decided here: kept, small). A text
+button on the Result, for a person who has a file or a QR code at hand.
+It opens one outlined text field (typing and a paste) with **Scan** and
+**From Files** beside it, and checks what is given against the account
+picked:
+
+- an extended public key in any spelling, with its origin or bare: its
+  public key and chain code against the Xpub row's;
+- an address of the network in use: among the first 100 addresses of
+  the account's receive and change chains, found where it is ("Receive
+  address 7 · m/84h/0h/0h/0/7"); deeper is Explore's Find an address;
+- a descriptor, a BIP-388 policy or a wallet file, read by Files' reader
+  (`faraday/faraday-intake/src/wallet.rs`, `read_wallet`): matched at
+  its own origin paths, as Restore matches a seed to a described wallet
+  (`faraday/faraday-core/src/restore.rs`, `restore_refusal`), public key
+  and chain code compared, and its path named where it is not the one
+  picked. For a multisig this is the whole wallet's answer, which the
+  Result alone cannot give.
+
+It answers with one result line: "Matches" in `OK` ("This seed is key 2
+of this wallet · 2 of 3" for a multisig's), or "Does not match" in
+`ERR`, with one line under it where one says more: "It matches without
+the passphrase" (the same seed with no passphrase makes it; a passphrase
+not given is never searched for), or "The fingerprint is this seed's;
+the xpub at {path} is not" with the warning glyph (an origin naming this
+seed whose key is not, so the file is wrong or was changed). An
+extended private key, or a file holding a seed or a private key, is
+refused ("A private key: not taken here") and not kept; a value of
+another network, or one none of the readers takes, is refused with the
+reader's own line. Why kept: a person with the wallet app's file or QR
+code gets a match without reading 111 characters, and a multisig's
+wallet is checked whole; why small: it is never needed for a result, so
+it is one text button, one field and one line, with no search across
+accounts.
+
+The Result's actions: **Another account** and **Another seed** (text
+buttons; Another seed drops the key and opens Seed), **Compare with the
+wallet app's** (a text button), **Keep this key** (outlined) and
+**Done** (filled).
+
+**Drop the seed or keep it** (decided here; the owner's call,
+2026-11-14). A seed typed or scanned here is held in `faraday-keys` for
+the check alone, as the Sweep sheet holds its private key: not among the
+session's keys, not in the sidebar, used only for the derivations above
+through public reads. At the end the person chooses:
+
+- **Done** drops it, wiped as any key is (`docs/KEYS.md`), and goes back
+  where the flow was opened (Check or Tools). So do Another seed,
+  Cancel, leaving the screen, the idle lock and a lock: only Keep this
+  key keeps it.
+- **Keep this key** loads it into the session's keys as Add a key loads
+  a typed key (`Keys::add_words_with`, its words and passphrase, the
+  label Add a key gives it): it is then the same as a key loaded by Add a
+  key (`docs/KEYS.md`), in the sidebar by its fingerprint with its
+  "passphrase" mark, a signer for the session's wallets, its words
+  behind their reveals, and dropped at a lock or power-off as every
+  loaded key is. It leaves with Add a key's toast "Key {fingerprint}
+  added" and goes back where the flow was opened. Add a key's refusals
+  hold: dimmed, with "Remove the stick first", while a stick is in; a key
+  already loaded is not loaded twice; Practice keeps only a sample key.
+
+Why the choice is the person's: the seed is often the hardware wallet's
+own, which the person came to check and not to keep, and a key kept
+without being asked for is a secret left on the device and a signer in
+the session; yet a person setting up a wallet on Faraday often wants the
+key next, and typing the words a second time in Add a key is a second
+chance to get one wrong. Done is the filled action, so the default ends
+with nothing kept. A key picked under **A key loaded here** was loaded
+before: the Result has no Keep this key, and Done leaves it as it was.
+Practice takes only a sample key here, as Add a key does
+(`Keys::is_public`), and refuses any other with Add a key's line.
+
+What the flow keeps is public (the fingerprints, the xpub and addresses
+worked out, a value given to compare) until it is left or a lock. It
+keeps nothing once its screen is left, so it has no row in Flows in
+progress. The derivations take `c: &Compute` and run on the press that
+picks the account (or completes a card), and a compared address's search
+ticks as Explore's Find an address does
+(`faraday/faraday-core/src/explore/addresses.rs`), so drawing only reads.
+
+**What it is built from**, so that nothing is written twice:
+
+- the Seed card's words: Add a key's BIP-39 form
+  (`faraday/faraday-core/src/screens/entry.rs`,
+  `faraday/faraday-core/src/forms.rs`,
+  `faraday/faraday-core/src/word_entry.rs`), and its Scan a SeedQR with
+  decision 52's sheet (`faraday/faraday-core/src/qr_view.rs`,
+  `ScanPurpose::Seed`);
+- the passphrase: New key's Key card's two fields;
+- the holding of the key for the check alone: the Sweep sheet's way in
+  `faraday-keys` (its own slot beside the session's keys, wiped on Done
+  and on a lock); Keep this key: Add a key's load
+  (`Keys::add_words_with`, `Faraday::typed_load`);
+- the account's xpub and addresses: `faraday-keys`' extended public key
+  at a path (`faraday/faraday-keys/src/operations.rs`, `xpub_at`) and
+  Explore's addresses at a path;
+- the account rows, the path field and the script buttons: Explore's
+  (`faraday/faraday-core/src/explore/mod.rs`, `PRESETS`);
+- an xpub's spellings: Convert an xpub's (`core/faraday-bip/src/slip132.rs`:
+  `decode_xpub`, `key_facts`, `encode_xpub`);
+- Compare with the wallet app's: Files' reader (`read_wallet`) and the
+  wallet's addresses (`faraday_bip::policy::WalletPolicy`, `address_at`),
+  Restore's origin match (`restore_refusal`), Explore's address search
+  (`explore/addresses.rs`), and the reader Check an address's scan goes
+  through (`faraday/faraday-core/src/scan_read.rs`, `Kind::Address`).
+
+**Tested against** published vectors and an implementation Faraday did
+not write (`docs/STANDARDS.md` §0): BIP-84's, BIP-86's and BIP-49's test
+accounts (`tools/vectors/addresses/`), whose published account xpub
+(and SLIP-132 spelling) and first receive and change addresses are the
+Result's rows; BIP-44, which publishes no vectors, against Bitcoin
+Core's xpub and addresses for the same account; BIP-48's cosigner xpub
+against btclib and btcd; BIP-39's English vectors under `TREZOR` and the
+Japanese case (`tools/vectors/bip39/`) for the fingerprint with a
+passphrase and without it; BIP-32's test vectors 1 to 5
+(`tools/vectors/bip32/`) for a path named by hand; and every derivation
+against btclib and btcd, as the cross-check's `bip32` and `addr` areas
+run them (`tools/crosscheck/area_bip32.py`,
+`tools/crosscheck/area_addr.py`), and a SeedQR against its area
+(`tools/crosscheck/area_seedqr.py`). A test for each account row, for
+Keep this key (the key loaded as Add a key loads it, refused with a
+stick in) and for Done, Cancel and a lock (the key gone), and for each
+compare line: a match from an xpub, an address and a descriptor, a
+multisig's "key 2 of 3", "It matches without the passphrase", and an
+origin whose key is not the seed's.
+
+**Practice** (`docs/MODES.md` §6). The Seed card hands Use a sample the
+next word sample, as Add a key does, and its scanner that sample's
+SeedQR; the passphrase fields offer `faraday` (MODES §6.2). With test
+key 1 and **Native SegWit** picked, the Result shows sample Spending's
+account xpub (a vpub, or the tpub) and its first receive and change
+addresses (MODES §5.3), the same strings sample Spending's wallet shows
+in Practice, so the check can be tried as it is meant, by holding two
+screens side by side; Taproot shows sample Taproot's. Compare with the
+wallet app's hands, in turn, Spending's descriptor, its xpub with its
+origin, the same xpub bare, Spending's receive address 0, and a value of
+another sample, so that a miss is seen too. Keep this key keeps the
+sample key as Add a key does. Its ? opens Learn at Verifying and Tools.
