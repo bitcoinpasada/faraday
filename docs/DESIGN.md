@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed; Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, still to be built
+**Open:** the Check place (§5, `Check`; F255): its screen, its rows on the rails and the Pi's Home menu, Home's Check tile, My seed makes my wallet's screen (§5, `SeedCheck`), and A multisig setup, still to be designed; Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -740,7 +740,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `NonceCheck` | A signed PSBT no key here is left to sign, or a finished transaction, brought in by the camera, Files or Tools: the file's name, Send it's nonce check of it, whether it is finished, and **Save to a stick**, **Decode it**, **Show the raw hex** and **Show as QR** (`docs/FLOWS.md`, Nonce check). | Page |
 | `SignerCheck` | Check a signer, from Tools: the PSBT sent and the one returned, chosen from Files or scanned, and the verdict of what the signer changed: the Sent, Returned and Result cards, each PSBT's name and its line "{n} signatures · {txid short form}", **Scan** and **Change** (`docs/SIGNER-CHECK.md` §3, §4). | Step flow |
 | `Compare` | Compare two PSBTs, from Tools: two PSBTs or finished transactions, chosen from Files or scanned, and what differs between them: the First, Second and Result cards, each file's name and its line "{n} signatures · {txid short form}", **Scan**, **Change** and **Swap**; the Result's facts, the fee bump result where it applies and a line per difference (`docs/COMPARE.md` §2). | Step flow |
-| `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
+| `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76), and in the account's row **Make a wallet** (not built; below, Make a wallet). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
 | `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
 | `Convert` | Convert a seed: From a loaded key, an open vault's key, an LND aezeed or a typed SLIP-39 set, To a form that restores the same wallet (the words another way, SeedQR, hex entropy, master seed in hex, xprv, Seed XOR parts, codex32, SLIP-39) or, for a SLIP-39 set, Add a share, Replace a lost share and Rotate the set, with what is not offered dimmed and its line saying why; a Settings card for a split or a set action; Result with a masked value, its Facts, **Check my copy** and **Save as a file…** (`docs/SEED-CONVERSION.md` §6). | Step flow |
 | `KefTool` | The Krux code tool in Tools: Contents (typed, or a loaded wallet's descriptor), the passphrase and Options, Make the code, and the Code card with Check my code, Copy by hand and Make another. | Step flow |
@@ -889,6 +889,62 @@ an address** takes an address scanned, typed on the address keyboard,
 pasted on Faraday Demo or read from a text file in Files, and a `bitcoin:`
 link the same way, and searches the loaded wallets; it reads **Load a
 wallet first** until one is loaded."
+
+**Make a wallet** (not built; Explore's path page and Find an address,
+at a BIP-44, BIP-49, BIP-84 or BIP-86 path on the network's coin type,
+and the address check's find in a loaded key's account; Material 3
+Buttons, "Common buttons", and Dialogs, the basic dialog, checked
+against those pages). The steps, the default name, the duplicate case,
+the first-address check and what is refused are `docs/FLOWS.md`
+(Explore, Make a wallet at the path); this is how it is drawn.
+
+- **Explore's path page.** **Make a wallet** is the third button of the
+  account's row, after **Addresses** and **Find an address**, alike in
+  style (`Style::Secondary`, `faraday_ui::parts::button_rows`, wrapping
+  at the width on the small panel), drawn wherever that row is. The row
+  stays where it is, at the page's foot: under the address, its private
+  key's eye, the private key and the line under it at an unhardened last
+  step ("With the account's extended public key, this key gives every key
+  of the account"), the public key, the extended key and the extended
+  private keys' eye. The new button moves none of them, hides none and
+  opens no eye; that line shows whenever the private key does, as
+  before.
+- **Find an address.** Under a search's matches, once it has ended with
+  at least one, a row of one button, **Make a wallet**, `Style::Secondary`
+  (Search stays the page's filled button); nothing while it looks, and
+  nothing on a miss.
+- **The address check.** On the read card (`docs/SCANNING.md` §5) a
+  find in a key's account has **Make a wallet** as its way over, filled,
+  at the end, **Scan again** and **Cancel** at the start as on every
+  read card; on Check an address's page the answer card under the field
+  ends with the same button, filled tonal.
+- **Already loaded.** Each of these reads **Open the wallet** where a
+  loaded wallet is that account, and opens its card.
+- **Wallet made.** The Dialog (§4.13, `faraday_ui::sheet::dialog`):
+  its head the wallet's name; its body the descriptor row
+  (`descriptor_row`, opening the wallet's code) and the first addresses
+  under "{name} · first addresses" (`first_addresses`, each whole in
+  groups of four, §4.5, the first receive address opening its QR sheet);
+  its actions **Done** (a text button) then **Open the wallet**
+  (filled), dismissive first. A press beside it is Done.
+- **Refused at the first-address check.** One line in the error colour
+  under the button that was pressed, the way a step card's error line
+  is drawn, and no dialog.
+
+Strings (`faraday/faraday-strings/src/en.rs`, when built):
+
+- `explore_make_wallet`: "Make a wallet"
+- `explore_open_wallet`: "Open the wallet"
+- `read_go_make_wallet`: "Make a wallet"
+- `read_go_open_wallet`: "Open the wallet"
+- `made_wallet_name`: "{} · {}" (the key's name, the account's path)
+- `made_wallet_differs`: "Its first address is not the one this key
+  gives at {}: not added" (the account's path)
+- `made_wallet_done`: "Done"
+- `made_wallet_open`: "Open the wallet"
+
+The dialog's head is the wallet's name and its addresses' label is
+Create's `create_first_addresses`, so they need no string of their own.
 
 Tools (`faraday/faraday-core/src/catalog.rs`) stays the list of every
 feature: each tool Check opens is in Tools as well, Check is a second

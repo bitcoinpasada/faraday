@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow), Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1858,6 +1858,105 @@ this key** or the Tools tile → the path and the script type → the
 **Address**, **Public key** and **Extended key** at that path, each a
 row that opens its code when pressed (the value as printed, whole under
 the code, no PNG) → **Wallets**.
+
+### Make a wallet at the path
+
+Not built. Finding a person's address at a path of their key means a
+wallet is there, so Faraday makes that wallet from where the person
+found it, without Create's or Restore's cards. Two ways in, one
+action:
+
+- **Explore**, at a loaded key's path in a single-key account: wherever
+  Explore offers **Addresses** and **Find an address** (the path ends
+  `…/0/i` or `…/1/i`, or every level of it is hardened, and the key is
+  loaded) and the path is of BIP-44, BIP-49, BIP-84 or BIP-86 on the
+  network's coin type, the same row carries **Make a wallet**; on Find
+  an address it stands under a search's matches as well, once the search
+  has ended with one. The account is the one the Addresses page names
+  (the path without its chain and index), at any account number, and
+  its script always the one the purpose names (BIP-44 legacy, BIP-49
+  wrapped segwit, BIP-84 native segwit, BIP-86 Taproot), whatever the
+  path page's script shows.
+- **Check an address**, when its answer is a find in a loaded key's
+  standard account that no loaded wallet is (`docs/QR.md` §2: BIP-84,
+  BIP-86, BIP-49 or BIP-44, account 0): the read card's way over, and
+  the answer card on Check an address's page, is **Make a wallet**,
+  whether the first hundred found it or **Look further** did. A file of
+  several addresses lists its finds and offers it on none of them; the
+  address checked alone offers it.
+
+The steps:
+
+1. **Make a wallet** pressed. Faraday writes the descriptor Create's
+   Make the wallet writes for that key, account path and script, the
+   single key with its origin `[fingerprint/path]` and `/<0;1>/*`
+   (`create::NewKind::descriptor`; from the address check, the account
+   the search held, which is that descriptor already), and adds it as
+   Create adds its wallet, its source "Made here".
+2. **The first address is checked** before the wallet is kept: the
+   wallet's receive address 0 is worked out from its descriptor, and
+   the key's own address at `<account>/0/0` from the key itself, as
+   Explore's path page works it out; they are the same address or
+   nothing is added and the press's place reads "Its first address is
+   not the one this key gives at m/84h/0h/3h: not added", in the error
+   colour.
+3. **Wallet made**: a dialog over the page it was pressed on, headed
+   with the wallet's name, holding the descriptor row and the wallet's
+   first addresses, the same parts as Create's Check, Restore's Check
+   and the chart's Check addresses (`descriptor_row`, `first_addresses`:
+   the first two receive addresses and the first change address), the
+   first receive address opening its QR sheet; its actions **Done**
+   (back to the page, with the wallet loaded) and **Open the wallet**
+   (the wallet's card in Wallets, its way back the page it came from,
+   F146). A key recorded as a BIP-85 child seed shows **A BIP-85 child
+   seed** after it, once for that wallet, as Create does (F166).
+
+The default name is the key's name as Explore's key row and the sidebar
+give it (`bip85::key_name`) and the account's path: "Main · m/84h/0h/3h",
+"73c5da0a · m/84h/0h/0h". The card's **Rename** changes it as for any
+wallet.
+
+**A wallet already made** for that key, path and script is opened, not
+made twice: a loaded single-key wallet whose one key has the key's
+fingerprint and the account's path as its origin, and whose script is
+the script, whatever its name and wherever it came from (made here, a
+file, a vault). The action then reads **Open the wallet** in place of
+**Make a wallet** and opens that wallet's card, no dialog; which wallet
+it is is looked up when the account, the key or the loaded wallets
+change, never while drawing.
+
+A wallet made here is one more wallet added in the session: its card
+offers **Save to vault** and **Back up**, and a lock lists it if it was
+not saved. It passes no confirmation sheet: it has one key, loaded
+here, with no other key path (a single-key `tr()` has no script tree,
+F132), and every part of it Faraday worked out from that key, so
+nothing in it came in from outside (the planted-wallet sheet's gate is
+a wallet of several keys or a `tr()` key path of a key not its own).
+That holds at any account number (account 3).
+
+What is refused, the action not drawn:
+
+- Any purpose but BIP-44, BIP-49, BIP-84 and BIP-86, the standard
+  single-key purposes: a multisig purpose (BIP-45, BIP-48, BIP-87)
+  needs its cosigners and goes through Create; BIP-352's wallet goes
+  through Silent payments; a path under any other purpose, or none
+  (`m/0h/0h`), is not a standard account.
+- A coin type that is not the network's: `m/84h/1h/…` on mainnet,
+  `m/84h/0h/…` on testnet or signet.
+- A path in no account (it ends neither `…/0/i`, `…/1/i` nor all
+  hardened), and a key not loaded.
+
+Explore's Addresses page is unchanged: it still lists the addresses of
+BIP-87 and the other paths it lists today; only the button is withheld.
+
+Nothing of the key's secret is in the wallet, the dialog or the name:
+the descriptor holds the account's extended public key. The press leaves
+Explore's eyes as they are while the dialog is over it; **Open the
+wallet** leaves Explore, which hides them all as leaving does (F125).
+
+Guide, when this is built (`docs/guide/explore.md`, Addresses): "**Make
+a wallet** makes the wallet of this account and shows its first
+addresses; where it is already loaded it reads **Open the wallet**."
 
 ## Lightning node key
 
