@@ -91,10 +91,7 @@ From the top of the repository, with Python 3's standard library:
 
 The answers were first computed with Python's `hashlib` from §2.3's
 definitions when the tests were written; this file holds them as the
-tests pinned them. The cross-check's `own` area
-(`tools/crosscheck/area_own.py`) compares Faraday's Rust with a second
-implementation of the same text written by Faraday's own authors over
-random cases; it is not checked against an outside source.
+tests pinned them. They are not checked against an outside source.
 
 ## Whole presses
 

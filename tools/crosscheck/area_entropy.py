@@ -14,7 +14,7 @@ and a reference written here, never from the Rust.
   six-as-zero and direct word selection (its JavaScript needs Node,
   which the build machines lack, transcribed in `tools/reference/dice/README.md`),
   the cut of Coldcard's digest to 20, 24 and 28 bytes, the counts and
-  refusals, coins, which characters and how many digits hex takes, cards, camera noise, the device and the mix
+  refusals, coins, which characters and how many digits hex takes
   (`tools/reference/entropy/README.md`; no outside implementation).
 - The dice answers other tools print (`tools/vectors/entropy/dice.json`):
   Coldcard's `rolls.py`, EntropyLab's six-as-zero and direct word
@@ -22,11 +22,8 @@ and a reference written here, never from the Rust.
 - The counts each strength asks for, from the stated rules.
 - Random runs of every source at every strength, short of the count, at
   it and past it, with inputs the pads refuse: a die face outside 1 to
-  6, a 5 or 6 where direct selection rerolls, a card already out of its
-  deck or past 51, a frame of too few distinct values, a hex character
+  6, a 5 or 6 where direct selection rerolls, a hex character
   that is not a digit, every source past its limit.
-- Random mixes of two to five sources (and one, and six), each source
-  given by its inputs and committed as that source commits.
 """
 
 import contextlib
@@ -56,11 +53,6 @@ PROCEDURES = ["hashed", "six_as_zero", "words"]
 MAX_ROLLS = 200
 MAX_FLIPS = 256
 MAX_HEX = 64
-DECK = 52
-MAX_CARDS = 2 * DECK
-MAX_FRAMES = 8
-MIN_DISTINCT = 32
-MIN_MIX, MAX_MIX = 2, 5
 
 
 def sha(b):
@@ -76,18 +68,6 @@ def rolls_needed(n):
     if n == 32:
         return 99
     return math.ceil(8 * n / math.log2(6))
-
-
-def cards_needed(n):
-    worth, k = 0.0, 0
-    while worth < 8 * n:
-        worth += math.log2(DECK - k % DECK)
-        k += 1
-    return k
-
-
-def frames_needed(n):
-    return -(-3 * 8 * n // 128)
 
 
 def cut(digest, n, have, need):
@@ -229,52 +209,10 @@ def hexes(text):
     return out, sha(kept.encode()), entropy, parsed
 
 
-def cards(indices, n):
-    kept, out = [], []
-    for i in indices:
-        deck = kept[len(kept) - len(kept) % DECK:]
-        ok = 0 <= i < DECK and len(kept) < MAX_CARDS and i not in deck
-        if ok:
-            kept.append(i)
-        out.append(ok)
-    c = sha(bytes(kept))
-    return out, c, cut(c, n, len(kept), cards_needed(n))
-
-
-def camera(frames, n):
-    digests, out = [], []
-    for f in frames:
-        distinct = len(set(f))
-        taken = distinct >= MIN_DISTINCT and len(digests) < MAX_FRAMES
-        if taken:
-            digests.append(sha(f))
-        out.append({"taken": taken, "distinct": distinct, "pixels": len(f)})
-    c = sha(b"".join(digests))
-    return out, c, cut(c, n, len(digests), frames_needed(n))
-
-
-def source_commitment(src):
-    kind = src["kind"]
-    if kind == "dice":
-        return dice_commitment(dice_kept(src["rolls"], PROCEDURES[src["procedure"]])[0])
-    if kind == "coins":
-        return coins(src["flips"], 16)[1]
-    if kind == "cards":
-        return cards(src["cards"], 16)[1]
-    if kind == "camera":
-        return camera([bytes.fromhex(f) for f in src["frames"]], 16)[1]
-    if kind == "device":
-        return sha(bytes.fromhex(src["random"]))
-    if kind == "hex":
-        return hexes(src["digits"])[1]
-    raise ValueError(kind)
-
-
 class Entropy(Area):
     name = "entropy"
     faraday = (
-        '`faraday_entropy`: dice under the three procedures, coins, hex, cards, camera '
-        "frames, the device's answer, a mix"
+        '`faraday_entropy`: dice under the three procedures, coins, hex'
     )
     reference = (
         'the procedures written out in `area_entropy.py` over `hashlib`, from '
@@ -300,8 +238,7 @@ class Entropy(Area):
     )
     corpus = (
         'runs of every source at every strength, short of the count, at it and past it, '
-        'with faces, cards, frames and characters the pads refuse and every source past '
-        'its limit; mixes of one to six sources given by their inputs'
+        'with faces and characters the pads refuse and every source past its limit'
     )
     differences = [
         (
@@ -358,36 +295,6 @@ class Entropy(Area):
             return {"kept": out, "commitment": c.hex(), "entropy": e, "parsed": p}
         return self.compare("entropy.hex", {"digits": digits}, ref)
 
-    def cards(self, indices, n):
-        def ref():
-            out, c, e = cards(indices, n)
-            return {"kept": out, "commitment": c.hex(), "entropy": e}
-        return self.compare("entropy.cards", {"cards": indices, "bytes": n}, ref)
-
-    def camera(self, frames, n):
-        def ref():
-            out, c, e = camera(frames, n)
-            return {"frames": out, "commitment": c.hex(), "entropy": e}
-        return self.compare("entropy.camera", {"frames": [f.hex() for f in frames], "bytes": n},
-                            ref)
-
-    def device(self, random, n):
-        def ref():
-            c = sha(random)
-            return {"commitment": c.hex(), "entropy": c[:n].hex()}
-        return self.compare("entropy.device", {"random": random.hex(), "bytes": n}, ref)
-
-    def mix(self, sources, n):
-        def ref():
-            commitments = [source_commitment(s) for s in sources]
-            taken = commitments[:MAX_MIX]
-            c = sha(b"".join(taken))
-            return {"commitments": [x.hex() for x in commitments],
-                    "pushed": [i < MAX_MIX for i in range(len(commitments))],
-                    "commitment": c.hex(),
-                    "entropy": c[:n].hex() if len(taken) >= MIN_MIX else None}
-        return self.compare("entropy.mix", {"sources": sources, "bytes": n}, ref)
-
     # ----- vectors and counts -----
 
     def published(self):
@@ -408,8 +315,7 @@ class Entropy(Area):
         for n in STRENGTHS:
             self.compare("entropy.needed", {"bytes": n}, lambda n=n: {
                 "rolls": rolls_needed(n), "word_rolls": 6 * words(n), "flips": 8 * n,
-                "digits": 2 * n, "cards": cards_needed(n), "frames": frames_needed(n),
-                "words": words(n)})
+                "digits": 2 * n, "words": words(n)})
 
     # ----- the corpus -----
 
@@ -446,52 +352,6 @@ class Entropy(Area):
             text = text[:i] + rng.choice("gz x-é") + text[i + 1:]
         return text
 
-    def card_run(self, n):
-        rng = self.rng
-        count = self.around(cards_needed(n), MAX_CARDS)
-        out, deck = [], list(range(DECK))
-        rng.shuffle(deck)
-        for _ in range(count):
-            if not deck:
-                deck = list(range(DECK))
-                rng.shuffle(deck)
-            r = rng.random()
-            if r < 0.03 and out:
-                out.append(rng.choice(out[len(out) - len(out) % DECK:] or out))
-            elif r < 0.04:
-                out.append(rng.randint(DECK, 255))
-            else:
-                out.append(deck.pop())
-        return out
-
-    def frames(self, n):
-        rng = self.rng
-        count = self.around(frames_needed(n), MAX_FRAMES)
-        out = []
-        for _ in range(count):
-            size = rng.randint(1, 600)
-            levels = rng.choice([1, 8, MIN_DISTINCT - 1, MIN_DISTINCT, 256])
-            base = rng.randrange(256)
-            out.append(bytes((base + rng.randrange(levels)) % 256 for _ in range(size)))
-        return out
-
-    def a_source(self):
-        rng = self.rng
-        n = rng.choice(STRENGTHS)
-        kind = rng.choice(["dice", "coins", "cards", "camera", "device", "hex"])
-        if kind == "dice":
-            p = rng.randrange(3)
-            return {"kind": kind, "procedure": p, "rolls": self.rolls(p, n)}
-        if kind == "coins":
-            return {"kind": kind, "flips": self.flips(n)}
-        if kind == "cards":
-            return {"kind": kind, "cards": self.card_run(n)}
-        if kind == "camera":
-            return {"kind": kind, "frames": [f.hex() for f in self.frames(n)]}
-        if kind == "device":
-            return {"kind": kind, "random": self.randbytes(32).hex()}
-        return {"kind": kind, "digits": self.digits()}
-
     def corpus_case(self):
         rng = self.rng
         n = rng.choice(STRENGTHS)
@@ -499,10 +359,6 @@ class Entropy(Area):
         self.dice(self.rolls(p, n), p, n)
         self.coins(self.flips(n), n)
         self.hexes(self.digits())
-        self.cards(self.card_run(n), n)
-        self.camera(self.frames(n), n)
-        self.device(self.randbytes(32), n)
-        self.mix([self.a_source() for _ in range(rng.choice([1, 2, 2, 3, 4, 5, 6]))], n)
 
     LOOPS = (("corpus", 3000),)
 

@@ -970,8 +970,8 @@ last to its first: a byte below 252 gives the face `byte mod 6 + 1`,
 and a byte of 252 or more is skipped, so that each face has 42 of the
 252 bytes kept. A new answer is asked for when the bytes of the last
 one are used up; the bytes left of an answer are dropped when the
-entries start over. The cross-check's `roller` area checks both
-rollers against this paragraph (`tools/crosscheck/area_roller.py`).
+entries start over. The frozen vectors in `tools/vectors/roller/`
+hold the five dice to this paragraph.
 
 ### 5.7 The Working area: the person's own entry, a step at a time
 

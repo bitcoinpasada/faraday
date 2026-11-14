@@ -936,7 +936,6 @@ dependencies = [
  "faraday-pgp",
  "faraday-psbt",
  "faraday-qr",
- "faraday-shell-api",
  "faraday-sqlite",
  "faraday-text",
  "faraday-vault",

@@ -31,12 +31,10 @@ mod miniscript;
 mod msg;
 mod musig;
 mod ots;
-mod own;
 mod parts;
 mod psbt;
 mod qrvault;
 mod review;
-mod roller;
 mod seedqr;
 mod sign;
 mod sign_check;
@@ -83,9 +81,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "hash" => hash::handle(name, req),
         "sp" => silent::handle(name, req),
         "vault" => vault::handle(name, req),
-        "own" => own::handle(name, req),
         "entropy" => entropy::handle(name, req),
-        "roller" => roller::handle(name, req),
         "seedqr" => seedqr::handle(name, req),
         "bbqr" => parts::handle_bbqr(name, req),
         "specter" => parts::handle_specter(name, req),

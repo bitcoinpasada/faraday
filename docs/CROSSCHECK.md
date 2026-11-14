@@ -204,7 +204,10 @@ As of 2026-10-29:
   descriptor), `sign-check` (the report of a reused nonce; python-ecdsa,
   btclib and Core judge the signatures), and `vault` (the payload
   layouts of `docs/VAULT.md` §7, over argon2-cffi and `unicodedata`).
-- **Own only:** `own-randomness`, `entropy` and `roller`.
+- **Own only:** none. The session's randomness, the pointer and key
+  commitment, cards, the camera's commitment, a mix, the device's draw,
+  the Demo roller and the booklet's dice have no area: they are held by
+  the frozen vectors and the Rust tests that read them.
 
 The vault's container, own randomness, cards, the camera's commitment,
 a mix, the Demo roller, the in-memory seal and the Secure Boot generator
@@ -433,9 +436,14 @@ The cross-check fetches nothing, ever.
 5. Randomness a person adds of their own, mixed into the session's
    (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
    pool's and the seed's draws and the lock, over fixed system answers.
-   Built (area `own-randomness`).
+   Not cross-checked: Faraday's own specification, with no other
+   implementation to check against; held by the frozen vectors
+   (`tools/vectors/own-randomness/`) and the Rust tests that read them.
 6. What `docs/STANDARDS.md` §0 asks of the rest: the entropy procedures
-   (area `entropy`), Faraday Demo's dice rollers (`roller`), SeedQR
+   (area `entropy`, for dice, coins and hex; cards, the camera, the
+   device's draw and a mix are Faraday's own, held by the frozen vectors
+   and the Rust tests that read them, not cross-checked), Faraday Demo's
+   dice rollers and the booklet's dice (the same), SeedQR
    and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
    (`ur`), the vanity search (`vanity`), the Lightning node keys and the aezeed read by
    LND's own Go code (`lightning`, in `tools/reference/lnd/`, its modules pinned by `go.sum`),
@@ -502,7 +510,8 @@ built in, are ESTABLISHED §9 (F192).
    for BIP-137 (the message parts of items 1 and 2), they replaced
    `area_msg.py`'s own BIP-137 and BIP-322.
 8. **Faraday's own specifications** (the vault's container, own
-   randomness, cards, the camera, a mix, the Demo roller): an
+   randomness, cards, the camera, a mix, the Demo roller; the last five
+   are held by frozen vectors and Rust tests, not cross-checked): an
    implementation written by an outside party from the specification
    alone, or a named outside
    party's reproduction of the published vectors (`tools/vectors/vault/`

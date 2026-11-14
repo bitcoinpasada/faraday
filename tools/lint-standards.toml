@@ -92,7 +92,7 @@ reason = "Turns on faraday-crypto's `pin-pages` and reports a pinning failure; c
 
 [[uncovered]]
 crate = "faraday/shells/window"
-reason = "Fills the bytes the app asks for from the operating system (`getrandom`); what the app does with them is faraday-core's fresh.rs, which the stamp covers (area own-randomness)."
+reason = "Fills the bytes the app asks for from the operating system (`getrandom`); what the app does with them is faraday-core's fresh.rs, Faraday's own specification, held by the frozen vectors in `tools/vectors/own-randomness` and the Rust tests that read them."
 
 [[uncovered]]
 crate = "tools/fontbake"
@@ -141,6 +141,14 @@ reason = "Compare's and the fee bump's results in words: amounts, sequences and 
 [[uncovered]]
 file = "faraday/faraday-core/src/seeds/read.rs"
 reason = "The Sweep sheet's hold calls faraday-keys' `Keys::sweep_sign` and faraday-psbt's `finalize`, which the stamp covers (the sign area sweeps against Core); computes nothing itself."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/fresh.rs"
+reason = "The session's randomness: SHA-256 over a domain string, what a person added and the operating system's answer. Faraday's own specification, with no other implementation to check it against; held by the frozen vectors in `tools/vectors/own-randomness` and the Rust tests that read them, and the hash is faraday-crypto's, cross-checked there."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/keygen/mod.rs"
+reason = "The device's own draw mixed with a person's (`device_own`): SHA-256 over a domain string and the two. Faraday's own specification, with no other implementation to check it against; held by the frozen vectors and the Rust tests that read them, and the hash is faraday-crypto's, cross-checked there."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/seeds/sweep.rs"

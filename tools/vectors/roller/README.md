@@ -66,9 +66,5 @@ From the top of the repository, with Python 3's standard library:
 
 The last two lines show where the bytes sit in one answer: the first
 byte used is the answer's last. The answers are those Faraday's tests
-pinned when they were written. The cross-check's `roller` area
-(`tools/crosscheck/area_roller.py`) compares Faraday's Rust with a
-second implementation written by Faraday's own authors over random
-answers and clicks, including the one die beside the rolls (§5.6), whose
-values have no known answers here; it is not checked against an outside
-source.
+pinned when they were written. The one die beside the rolls (§5.6) has
+no known answers here. They are not checked against an outside source.

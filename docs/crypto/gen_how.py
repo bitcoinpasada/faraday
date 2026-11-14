@@ -149,7 +149,7 @@ def read_stamp(root):
 def read_facts(root):
     """({area key: attributes}, {manifest area name: area key}), through
     tools/crosscheck/facts.py, without importing an area. The manifest names an area by
-    its file (`area_own.py` is `own`), the cross-check and its stamp by its key
+    its file (`area_vault.py` is `vault`), the cross-check and its stamp by its key
     (`own-randomness`)."""
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(pathlib.Path(root) / "tools" / "crosscheck"))

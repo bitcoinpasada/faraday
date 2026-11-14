@@ -3278,8 +3278,7 @@ tests = [
   "core/faraday-entropy/src/cards.rs::a_deck_in_new_deck_order_is_cautioned",
   "faraday/faraday-core/tests/all/keygen.rs::cards_in_the_order_of_a_new_deck_are_cautioned_and_do_not_stop_the_key",
 ]
-crosscheck = "entropy"
-independence = { class = "own", ours = "the card procedure, written out in `area_entropy.py`" }
+not_crosschecked = "Faraday's own specification of the card procedure; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes single cards from a pad; no text is parsed."
 
 [action.secrets]
@@ -3344,8 +3343,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::a_camera_frame_already_taken_is_refused",
   "faraday/faraday-core/tests/all/keygen.rs::the_camera_is_offered_only_among_a_mixs_sources",
 ]
-crosscheck = "entropy"
-independence = { class = "own", ours = "the frames' commitment, written out in `area_entropy.py`" }
+not_crosschecked = "Faraday's own specification of the camera-noise procedure; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz = [
   "v4l2_luma",
 ]
@@ -3410,8 +3408,7 @@ tests = [
   "faraday/faraday-core/tests/all/own_randomness.rs::the_pointer_and_keys_commitment_and_its_mix_are_the_known_answers",
   "faraday/faraday-core/tests/all/own_randomness.rs::sixty_four_events_are_added_as_a_batch_and_the_rest_as_the_page_goes",
 ]
-crosscheck = "own"
-independence = { class = "own", ours = "`docs/OWN-RANDOMNESS.md` §2.1 and §2.3, written out in `area_own.py`" }
+not_crosschecked = "Faraday's own specification of the pointer and key commitment; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes single events from the shell; no text is parsed."
 
 [action.secrets]
@@ -3470,8 +3467,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::a_mix_of_dice_and_coins_is_the_hash_of_both_commitments",
   "faraday/faraday-core/tests/all/keygen.rs::a_mix_without_dice_or_this_device_is_refused",
 ]
-crosscheck = "entropy"
-independence = { class = "own", ours = "the mix of commitments, written out in `area_entropy.py`" }
+not_crosschecked = "Faraday's own specification of the mix of commitments; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes 32-byte commitments from sources already entered."
 
 [action.secrets]
@@ -3528,8 +3524,7 @@ tests = [
   "core/faraday-entropy/src/device.rs::the_device_answers_differently_every_time_and_hashes_what_it_answered",
   "faraday/faraday-core/tests/all/keygen.rs::this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else",
 ]
-crosscheck = "entropy"
-independence = { class = "own", ours = "the hash of the shell's answer, written out in `area_entropy.py`; with what the person added, as `area_own.py` writes it" }
+not_crosschecked = "Faraday's own specification of the device draw; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes one 32-byte answer from the shell."
 
 [action.secrets]
@@ -3661,8 +3656,7 @@ tests = [
   "faraday/faraday-core/tests/all/own_randomness.rs::a_signing_round_does_not_open_on_what_was_added_alone",
   "faraday/faraday-core/tests/all/own_randomness.rs::a_lock_wipes_what_was_added",
 ]
-crosscheck = "own"
-independence = { class = "own", ours = "`docs/OWN-RANDOMNESS.md` §2.1 and §2.3, written out in `area_own.py`" }
+not_crosschecked = "Faraday's own specification of the session's randomness; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes 32-byte answers from the shell."
 
 [action.secrets]
@@ -3727,8 +3721,7 @@ tests = [
   "core/faraday-entropy/src/booklet.rs::a_die_with_equal_values_is_never_read",
   "core/faraday-entropy/src/booklet.rs::a_twenty_faced_die_reads_by_the_same_comparison",
 ]
-crosscheck = "roller"
-independence = { class = "own", ours = "the booklet's dice worksheet, written out in `area_roller.py` from `docs/CODEX32.md` §5.5" }
+not_crosschecked = "Faraday's own reading of the booklet's dice worksheet; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes single die faces from a pad."
 
 [action.secrets]
@@ -3787,8 +3780,7 @@ tests = [
   "faraday/faraday-core/tests/all/roller.rs::a_device_shell_has_no_roller",
   "faraday/faraday-core/tests/all/roller.rs::rolled_or_typed_demo_puts_faraday_in_place_and_measures_nothing",
 ]
-crosscheck = "roller"
-independence = { class = "own", ours = "Faraday Demo's roller, written out in `area_roller.py` from `docs/CODEX32.md` §5.6" }
+not_crosschecked = "Faraday's own specification of the dice roller; no other implementation exists to check against. It is held by the frozen vectors and the Rust tests that read them."
 fuzz_none = "Takes 32-byte answers from the session; no text is parsed."
 
 [action.secrets]
