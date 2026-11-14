@@ -16,7 +16,7 @@ use faraday_text::{Text, text};
 use crate::plan::{At, What};
 use crate::qr_view::TOO_FINE_PASSES;
 use crate::scan_read::{self, Kind};
-use crate::wallet::fp_text;
+use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, SEEN_FRAMES, ScanPurpose, ScanState, Sheet, TOO_FINE_TENTHS};
 use faraday_intake::seed_in_code;
 
@@ -69,9 +69,35 @@ impl Camera {
         self.scan.as_ref()
     }
 
-    /// The read card, while it shows.
-    pub(crate) fn card_mut(&mut self) -> Option<&mut scan_read::ReadCard> {
-        self.scan.as_mut().and_then(|s| s.card.as_mut())
+    /// A press on the open read card's **Look further** or **Stop**.
+    pub(crate) fn look_press(
+        &mut self,
+        way: crate::address_find::LookWay,
+        now: u64,
+        session: &Session,
+    ) {
+        let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut()) else {
+            return;
+        };
+        if let Some(look) = card.look.as_mut() {
+            look.press(way, now);
+        }
+        crate::address_find::refresh(card, session);
+    }
+
+    /// Costs an address derivation for each index of the tick. One tick of
+    /// the look under way on the open read card. Returns whether it ran.
+    pub(crate) fn look_step(&mut self, c: &Compute, session: &Session, now: u64) -> bool {
+        let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut()) else {
+            return false;
+        };
+        let Some(look) = card.look.as_mut().filter(|l| l.running()) else {
+            return false;
+        };
+        let policies: Vec<_> = session.wallets.iter().map(|w| w.policy()).collect();
+        look.tick(c, &policies, now);
+        crate::address_find::refresh(card, session);
+        true
     }
 
     /// The scanner's line says `note`, while the sheet is open.
@@ -300,6 +326,39 @@ impl Camera {
 }
 
 impl Faraday {
+    /// The read card of an address that is none of the first hundred of
+    /// any loaded wallet: its line, and **Look further** to each depth.
+    pub(crate) fn address_miss_card(
+        &mut self,
+        card: &mut scan_read::ReadCard,
+        look: crate::address_find::Look,
+    ) {
+        card.look = Some(look);
+        crate::address_find::refresh(card, &self.session);
+    }
+
+    /// A press on **Look further** or **Stop**.
+    pub(crate) fn look_go(&mut self, way: crate::address_find::LookWay) {
+        let now = self.now_ms;
+        self.camera.look_press(way, now, &self.session);
+    }
+
+    /// Costs an address derivation for each index of the tick, on both
+    /// chains of every loaded wallet. Returns whether to draw.
+    pub(crate) fn look_tick(&mut self, now_ms: u64) -> bool {
+        let running = self
+            .camera
+            .scan()
+            .and_then(|s| s.card.as_ref())
+            .and_then(|k| k.look.as_ref())
+            .is_some_and(crate::address_find::Look::running);
+        if !running {
+            return false;
+        }
+        let c = self.compute();
+        self.camera.look_step(&c, &self.session, now_ms)
+    }
+
     /// The scan sheet's state, while the camera sheet is open.
     pub fn scan(&self) -> Option<&ScanState> {
         self.camera.scan()

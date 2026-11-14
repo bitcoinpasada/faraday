@@ -8,7 +8,7 @@
 mod card;
 mod look;
 
-pub(crate) use card::missed;
+pub(crate) use card::{missed, refresh};
 pub(crate) use look::Look;
 pub use look::LookWay;
 

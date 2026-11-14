@@ -48,7 +48,7 @@
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
-//!   glance), `walkthrough` (Guided mode's walk-through), `scan_key`, `scan_read`
+//!   glance), `walkthrough` (Guided mode's walk-through), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
 //!   (what a code read is), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`

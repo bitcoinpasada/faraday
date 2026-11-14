@@ -151,6 +151,14 @@ file = "faraday/faraday-core/src/drawing/kept.rs"
 reason = "Reads a wallet's script kept on the state; the script is computed by faraday-bip."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/address_find/mod.rs"
+reason = "What Find an address and Look further share: an address at one index of a wallet, derived by faraday-bip's wallet policy, which the stamp covers, over rust-bitcoin's types."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/address_find/look.rs"
+reason = "Look further: each loaded wallet's policy parsed by faraday-bip and its addresses derived through address_find's one-index derivation, which the stamp covers; no secret."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/explore/addresses.rs"
 reason = "Explore's address pages: keys and addresses derived by faraday-keys and faraday-bip, which the stamp covers, over rust-bitcoin's types."
 
