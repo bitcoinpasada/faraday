@@ -989,16 +989,23 @@ fn whole_vault(b: &[u8]) -> bool {
     if !vault_file::is_vault_file(b) {
         return false;
     }
+    // Every offset is a checked add: sizes a crafted file sets to the end
+    // of the address space end the walk instead of wrapping on a 32-bit
+    // build.
     let u32_at = |at: usize| {
-        b.get(at..at + 4)
+        let end = at.checked_add(4)?;
+        b.get(at..end)
             .map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize)
     };
     let mut at = vault_file::HEAD_LEN;
     loop {
-        let (Some(&id), Some(size)) = (b.get(at), u32_at(at + 1)) else {
+        let Some(at5) = at.checked_add(5) else {
             return false;
         };
-        let Some(next) = (at + 5).checked_add(size) else {
+        let (Some(&id), Some(size)) = (b.get(at), at.checked_add(1).and_then(u32_at)) else {
+            return false;
+        };
+        let Some(next) = at5.checked_add(size) else {
             return false;
         };
         at = next;
@@ -1007,12 +1014,15 @@ fn whole_vault(b: &[u8]) -> bool {
         }
     }
     // The header's SHA-256 and HMAC.
-    at += 64;
+    let Some(next) = at.checked_add(64) else {
+        return false;
+    };
+    at = next;
     loop {
-        let Some(size) = u32_at(at + 32) else {
+        let Some(size) = at.checked_add(32).and_then(u32_at) else {
             return false;
         };
-        let Some(next) = (at + 36).checked_add(size) else {
+        let Some(next) = at.checked_add(36).and_then(|x| x.checked_add(size)) else {
             return false;
         };
         at = next;

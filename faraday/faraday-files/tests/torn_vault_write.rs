@@ -664,3 +664,77 @@ fn a_visit_beside_a_part_does_not_walk_an_original_chain_far_past_its_size() {
         reads.get() - before
     );
 }
+
+/// A part file planted on a stick whose header fields' sizes reach the
+/// end of the address space: the visit that finishes vault writes comes
+/// back (it neither hangs nor stops the process) and the vault beside it
+/// is left as it was.
+#[test]
+fn a_part_file_with_header_sizes_that_wrap_does_not_hang_the_visit() {
+    let mut part = SIGNATURE.to_vec();
+    part.extend_from_slice(&[0, 0, 4, 0]);
+    part.push(0);
+    part.extend_from_slice(&0xFFFF_FFA0u32.to_le_bytes());
+    part.extend_from_slice(&0xFFFF_FFDCu32.to_le_bytes());
+    part.resize(400, 0);
+    let img = stick(&vault(1), &part);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut place = Fat(Volume::open(img).unwrap());
+        finish_vault_writes(&mut place);
+        let _ = tx.send(place.read("mine.kdbx", u64::MAX).unwrap());
+    });
+    let kept = rx
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("the visit did not come back within 30 s");
+    assert_eq!(kept, vault(1));
+}
+
+/// A KDBX 4 file with a header as KeePass writes one: the cipher,
+/// compression, master seed, IV and KDF parameters, and the end field
+/// with its four bytes, then the header's hash and HMAC and a stream of
+/// two blocks and the empty block.
+fn kdbx4_as_written() -> Vec<u8> {
+    let mut v = SIGNATURE.to_vec();
+    v.extend_from_slice(&[1, 0, 4, 0]);
+    let mut field = |id: u8, data: &[u8]| {
+        v.push(id);
+        v.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        v.extend_from_slice(data);
+    };
+    field(2, &[0x31; 16]);
+    field(3, &1u32.to_le_bytes());
+    field(4, &[0x42; 32]);
+    field(7, &[0x17; 12]);
+    field(11, &[0x5A; 141]);
+    field(0, b"\r\n\r\n");
+    v.extend_from_slice(&[0x66; 64]);
+    for body in [1_048_576usize, 3_000, 0] {
+        v.extend_from_slice(&[0x77; 32]);
+        v.extend_from_slice(&(body as u32).to_le_bytes());
+        v.resize(v.len() + body, 0x88);
+    }
+    v
+}
+
+/// The part file of such a vault whose original is gone takes the
+/// vault's name; the same file cut short is not whole, and goes.
+#[test]
+fn a_part_file_with_a_header_as_keepass_writes_it_takes_the_name_only_when_whole() {
+    let whole = kdbx4_as_written();
+    for (part, kept) in [
+        (whole.clone(), true),
+        (whole[..whole.len() - 1].to_vec(), false),
+    ] {
+        let mut place = Fat(Volume::open(stick(&vault(1), &part)).unwrap());
+        place.remove("mine.kdbx").unwrap();
+        finish_vault_writes(&mut place);
+        let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+        if kept {
+            assert_eq!(names, ["mine.kdbx"]);
+            assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), whole);
+        } else {
+            assert!(names.is_empty(), "{names:?}");
+        }
+    }
+}
