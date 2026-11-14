@@ -268,3 +268,31 @@ fn a_bitcoin_core_wallet_read_leaves_no_copy() {
     drop(wallet);
     finish("core wallet read", armed, false);
 }
+
+#[test]
+fn a_words_file_read_leaves_no_freed_copy_of_its_words_or_their_numbers() {
+    let mut forms = seed_forms("");
+    // The characters of the first words, as a `Vec<char>` holds them.
+    for word in PHRASE.split(' ').take(3) {
+        forms.push(Form::new(
+            "a word's characters (u32, little endian)",
+            word.chars()
+                .flat_map(|c| (c as u32).to_le_bytes())
+                .collect(),
+        ));
+    }
+    // The inputs are built before the arming and left unfreed: what is
+    // looked at is what the reading itself frees.
+    let words = std::mem::ManuallyDrop::new(faraday_core::forms::file_words(PHRASE));
+    let wrong = std::mem::ManuallyDrop::new(format!(
+        "{} zzzz",
+        PHRASE.rsplit_once(' ').map_or("", |p| p.0)
+    ));
+    let armed = arm(&forms);
+    assert!(
+        faraday_core::forms::typed_mnemonic(Language::English, &words).is_ok(),
+        "the words are a mnemonic"
+    );
+    assert!(faraday_core::forms::typed_mnemonic(Language::English, &wrong).is_err());
+    finish("words file read", armed, false);
+}

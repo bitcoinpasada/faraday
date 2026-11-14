@@ -442,7 +442,10 @@ pub fn language_name(lang: Language) -> &'static str {
 
 /// The list's word a typed word is, matched on its ASCII fold.
 pub(crate) fn typed_index(lang: Language, typed: &str) -> Option<u16> {
-    let chars: Vec<char> = typed.chars().collect();
+    // The characters go into a wiping buffer sized once, so no grown-out
+    // block is freed holding them; a word has no more characters than bytes.
+    let mut chars = zeroize::Zeroizing::new(Vec::<char>::with_capacity(typed.len()));
+    chars.extend(typed.chars());
     lang.candidates_typed(&chars).find(|&i| {
         lang.typed(i)
             .is_some_and(|t| t.as_chars() == chars.as_slice())
@@ -490,7 +493,10 @@ pub use faraday_intake::file_words;
 
 /// The typed words as a mnemonic in `lang`, when every one is a word.
 pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, Text> {
-    let mut idx = Vec::new();
+    // The word numbers name the words: a wiping buffer sized once (it is
+    // wiped on every return, the early one included).
+    let mut idx =
+        zeroize::Zeroizing::new(Vec::<u16>::with_capacity(typed.split_whitespace().count()));
     for (k, w) in typed.split_whitespace().enumerate() {
         idx.push(typed_index(lang, w).ok_or_else(|| {
             Text::fill(
@@ -499,10 +505,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, Text> {
             )
         })?);
     }
-    let m = faraday_keys::words::from_indices(lang, &idx)
-        .map_err(|e| faraday_strings::bip::bip39_error(&e));
-    zeroize::Zeroize::zeroize(&mut idx);
-    m
+    faraday_keys::words::from_indices(lang, &idx).map_err(|e| faraday_strings::bip::bip39_error(&e))
 }
 
 /// Whether the keys typed for the word in progress on `w` already type
