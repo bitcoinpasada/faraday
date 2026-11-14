@@ -1451,7 +1451,6 @@ fn a_gpg_key_made_takes_the_seeds_the_python_cross_check_computes() {
 
 #[test]
 fn a_seed_xor_split_is_the_parts_the_python_cross_check_computes() {
-    use faraday_core::paper::PaperForm;
     for case in ["nothing added", "dice"] {
         let mut app = crate::paper::backing_up();
         press_case(case, &mut app);
@@ -1459,7 +1458,7 @@ fn a_seed_xor_split_is_the_parts_the_python_cross_check_computes() {
             answer(&mut app, a);
         }
         app.press(Action::BXor(2));
-        let Some(PaperForm::Xor(parts)) = &app.backup().unwrap().paper else {
+        let Some(parts) = &app.backup().unwrap().paper else {
             panic!("no split");
         };
         let parts: Vec<String> = parts.iter().map(|p| p.to_string()).collect();

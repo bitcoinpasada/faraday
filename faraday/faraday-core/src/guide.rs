@@ -395,6 +395,7 @@ pub enum GuideAim {
 /// Where `key` opens: its section if written, else its place's lead,
 /// else the contents (`docs/GUIDE-IN-APP.md` §1.2). The guide never
 /// opens empty.
+#[cfg(feature = "testkit")]
 pub fn guide_aim(key: &'static str) -> GuideAim {
     let place = key.split('.').next().unwrap_or(key);
     if faraday_guide::guide_section(key).is_some() {

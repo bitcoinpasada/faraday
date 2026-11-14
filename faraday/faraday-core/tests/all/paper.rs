@@ -2,7 +2,6 @@
 //! back into Add a key, gives the same key; codex32 strings are not
 //! offered for a key of words.
 
-use faraday_core::paper::PaperForm;
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
@@ -112,7 +111,7 @@ fn a_seed_xor_split_typed_back_is_the_same_key() {
     let mut app = backing_up();
     let want = app.session.keys[0].fingerprint.0;
     app.press(Action::BXor(3));
-    let Some(PaperForm::Xor(parts)) = &app.backup().unwrap().paper else {
+    let Some(parts) = &app.backup().unwrap().paper else {
         panic!("no split");
     };
     assert_eq!(parts.len(), 3);

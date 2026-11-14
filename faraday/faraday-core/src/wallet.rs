@@ -3802,6 +3802,7 @@ impl Faraday {
     }
 
     /// The wallet chosen on the Wallets tab.
+    #[cfg(feature = "testkit")]
     pub fn wallet_index(&self) -> usize {
         self.wallets.wallet()
     }

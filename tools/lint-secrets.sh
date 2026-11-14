@@ -494,7 +494,6 @@ faraday/faraday-core/src/drawing/allowed.rs
 faraday/faraday-core/src/drawing/kept.rs
 faraday/faraday-core/src/ui.rs
 faraday/faraday-core/src/explore/shown.rs
-faraday/faraday-core/src/paper.rs
 faraday/faraday-keys/src/message.rs
 faraday/faraday-keys/src/vanity.rs
 faraday/faraday-sb/src/rng.rs

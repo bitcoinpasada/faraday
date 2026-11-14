@@ -104,6 +104,7 @@ impl Faraday {
     }
     /// Runs jobs on the calling thread and applies them at once, as the
     /// snapshot tool and the tests do (`docs/WORKERS.md` §3.2).
+    #[cfg(feature = "testkit")]
     pub fn run_jobs_inline(&mut self, on: bool) {
         self.worker.set_inline(on);
     }
@@ -561,11 +562,13 @@ impl Faraday {
 
     /// The last seal's answer, if one has come: the envelope's bytes or
     /// why there are none.
+    #[cfg(feature = "testkit")]
     pub fn kef_sealed(&self) -> Option<&Result<Zeroizing<Vec<u8>>, SealError>> {
         self.worker.kef().sealed()
     }
 
     /// The last open's answer, if one has come.
+    #[cfg(feature = "testkit")]
     pub fn kef_opened(&self) -> Option<&Result<Opened, OpenError>> {
         self.worker.kef().opened()
     }

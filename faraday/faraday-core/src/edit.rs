@@ -143,6 +143,7 @@ impl TypingArea {
     /// The last drawn edge before character `i` of the field pressed
     /// with `action`, in pixels, with its line's middle row on a field of
     /// several lines.
+    #[cfg(feature = "testkit")]
     fn edge(&self, action: Action, i: usize) -> Option<(i32, Option<i32>)> {
         let lines = self.lines(action);
         let f = &lines[Self::line_of(lines, i)?];
@@ -826,6 +827,7 @@ impl Faraday {
     /// Where the last frame drew the edge before character `i` of the
     /// field pressed with `action`, in pixels, at the middle of the
     /// field's height: for tests that press or drag there.
+    #[cfg(feature = "testkit")]
     pub fn where_typed(&self, action: Action, i: usize) -> Option<(u16, u16)> {
         let (x, row) = self.typing.edge(action, i)?;
         let y = match row {
@@ -842,6 +844,7 @@ impl Faraday {
     }
 
     /// Whether all of the field typing goes to is selected.
+    #[cfg(feature = "testkit")]
     pub fn selected_all(&self) -> bool {
         self.typing_text()
             .is_some_and(|t| self.edit_now().all(t.chars().count()))

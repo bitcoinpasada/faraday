@@ -601,6 +601,7 @@ impl Faraday {
     /// [`Self::drawn_past_sides`] and [`Self::drawn_text_boxes`] from one
     /// frame drawn: for a test that walks a page and checks it at each
     /// place it scrolls to.
+    #[cfg(feature = "testkit")]
     pub fn drawn_past_sides_and_text(&mut self) -> (Vec<faraday_text::Text>, Vec<DrawnText>) {
         let texts = self
             .drawn_ink()
@@ -618,6 +619,7 @@ impl Faraday {
 
     /// The actions the last frame drawn offers to a press, once each, in
     /// drawing order: for a test that walks what a page offers. A lookup.
+    #[cfg(feature = "testkit")]
     pub fn drawn_actions(&self) -> Vec<crate::Action> {
         let mut out = Vec::new();
         for (_, a) in self.pointer.hits() {

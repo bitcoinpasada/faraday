@@ -45,36 +45,10 @@ use crate::keygen::Way;
 use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit};
 
-/// What one frame of a screen may work out each time it is drawn, in
-/// this session, with the reason: (screen, kind, budget, why). `*` is
-/// every screen; a screen's own line wins over it. Every kind not listed
-/// has a budget of none. What a frame reads is kept on the state, worked
-/// out once from what it describes and again only when that changes: a
-/// key's fingerprint, a wallet's checksum and addresses, an account
-/// key's text, each Inbox file's wallet, each open vault's wallet
-/// records and word counts, each plan's map and check (`docs/SPEED.md`
-/// §3.3). The frame before the one counted works out what a change left
-/// to work out, so a frame drawn again works out nothing; a line here is
-/// a screen that cannot keep what it draws, and says why. The session:
-/// the test vault keeps 12 wallets and 1 seed, the Inbox holds the test
-/// stick's files.
-const BUDGETS: &[(&str, Work, u64, &str)] = &[];
-
 /// A sheet stands on the page under it, frosted once when it opens and
 /// kept: each frame puts that copy back (`Ui::backdrop`), one copy of the
 /// whole canvas.
 const SHEET_CANVAS: u64 = 1;
-
-/// The budget of `kind` on `screen`.
-fn budget(screen: &str, kind: Work) -> u64 {
-    let of = |s: &str| {
-        BUDGETS
-            .iter()
-            .find(|(name, k, _, _)| *name == s && *k == kind)
-            .map(|b| b.2)
-    };
-    of(screen).or_else(|| of("*")).unwrap_or(0)
-}
 
 /// What a frame of each screen of the walk allocates and the lines of
 /// text it draws, measured on this code (2026-10-21), on the desktop:
@@ -357,8 +331,8 @@ fn hover_work(app: &mut Faraday) -> Counts {
     since(&before)
 }
 
-/// Each screen's counts, and the failures against [`BUDGETS`] and the
-/// frame costs.
+/// Each screen's counts, and the failures against the
+/// frame costs and the rule that a frame works nothing out.
 struct Report {
     /// The frame costs measured, against.
     costs: &'static [(&'static str, u64, u64)],
@@ -414,10 +388,11 @@ impl Report {
             if n > 0 {
                 line.push_str(&text!(" {k:?} {n}"));
             }
-            let mut budget = budget(name, k);
-            if k == Work::FullCanvas && app.sheet.is_some() {
-                budget = budget.max(SHEET_CANVAS);
-            }
+            let budget = if k == Work::FullCanvas && app.sheet.is_some() {
+                SHEET_CANVAS
+            } else {
+                0
+            };
             if n > budget {
                 self.failures.push(text!(
                     "{name}: a frame did {k:?} {n} times (budget {budget}): a frame did work the drawing memo should keep (docs/SPEED.md §3.3)"

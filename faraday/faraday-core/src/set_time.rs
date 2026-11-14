@@ -363,6 +363,7 @@ impl Faraday {
     }
 
     /// The screen Set the time returns to.
+    #[cfg(feature = "testkit")]
     pub fn set_time_returns_to(&self) -> Screen {
         self.set_time.back_to()
     }

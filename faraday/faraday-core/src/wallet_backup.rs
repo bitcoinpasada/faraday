@@ -29,7 +29,7 @@ use crate::public_files;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
 use crate::{
     Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
-    board, bstep, copy_check, file_stem, flow, paper, plan, plan_cards_on, qrow, qstep, ui, vault,
+    board, bstep, copy_check, file_stem, flow, plan, plan_cards_on, qrow, qstep, ui, vault,
 };
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
@@ -582,8 +582,10 @@ pub struct BackupState {
     pub words: usize,
     /// What went to the Outbox, for the summary.
     pub sent: Vec<Text>,
-    /// Another paper form of the key, on screen.
-    pub paper: Option<paper::PaperForm>,
+    /// A Seed XOR split of the key's words on screen: parts that are each
+    /// BIP-39 words, every one needed. Shown to copy by hand and never
+    /// written to a file.
+    pub paper: Option<faraday_keys::Held<Vec<Text>>>,
     /// The list of loaded wallets is open under the wallet chip.
     pub pick: bool,
     /// Open from Create's Back up card: the chip says the way on is
@@ -1428,10 +1430,10 @@ impl WalletBackupArea {
         }
     }
 
-    /// Another paper form of the key, on screen.
-    pub(crate) fn set_paper(&mut self, form: paper::PaperForm) {
+    /// The Seed XOR parts of the key, on screen.
+    pub(crate) fn set_paper(&mut self, parts: faraday_keys::Held<Vec<Text>>) {
         if let Some(b) = self.state.as_mut() {
-            b.paper = Some(form);
+            b.paper = Some(parts);
         }
     }
 
@@ -2104,7 +2106,7 @@ impl Faraday {
         else {
             return;
         };
-        self.backup.set_paper(paper::PaperForm::Xor(lines));
+        self.backup.set_paper(lines);
     }
 }
 

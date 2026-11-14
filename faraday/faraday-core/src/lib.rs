@@ -53,7 +53,7 @@
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
-//!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`) and `core_wallet` (the tool and screen that read a Bitcoin Core wallet through `faraday-core-wallet`, F229). They hold
+//!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`) and `core_wallet` (the tool and screen that read a Bitcoin Core wallet through `faraday-core-wallet`, F229). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
 //! - Wallets and PSBTs: `plan`, `decode`, `spend_backup`, `explore`, `catalog`, `register`, `review`, `signing`, `cstep` (Make a new wallet's cards, numbered).
@@ -198,7 +198,6 @@ pub mod kef_tool;
 pub mod keygen;
 pub mod lightning;
 pub mod ots_check;
-pub mod paper;
 pub mod qr_tool;
 pub mod quiz;
 mod review;
@@ -1923,6 +1922,7 @@ impl Faraday {
     /// [`faraday_selftest::CHECKS`]: for a test that a failed check blocks the
     /// app.
     #[doc(hidden)]
+    #[cfg(feature = "testkit")]
     pub fn run_selftest_with(&mut self, checks: &[faraday_selftest::Check]) {
         let c = self.compute();
         self.selftest = Some(faraday_selftest::run_checks(&c, checks));
@@ -4439,6 +4439,7 @@ impl Faraday {
 
     /// Every control the last frame drawn offers, for the tours' check of
     /// what a press opened (`docs/SECRET-LEAKS.md` §5).
+    #[cfg(feature = "testkit")]
     pub fn offered_actions(&self) -> Vec<Action> {
         self.pointer.hits().iter().map(|(_, a)| *a).collect()
     }

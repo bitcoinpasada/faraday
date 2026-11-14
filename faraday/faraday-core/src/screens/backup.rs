@@ -1945,7 +1945,6 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::paper::PaperForm;
     let Some(b) = app.backup() else {
         return 0.0;
     };
@@ -1988,7 +1987,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ];
             cy += button_rows(ui, x, cy, w, &row);
         }
-        Some(PaperForm::Xor(parts)) => {
+        Some(parts) => {
             let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &line);
             cy += ui.advance_as(LABEL_L, 26.0);

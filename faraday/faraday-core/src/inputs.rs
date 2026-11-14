@@ -503,6 +503,7 @@ impl InputsArea {
 
 impl Faraday {
     /// The devices the shell holds back, waiting for their code.
+    #[cfg(feature = "testkit")]
     pub fn new_inputs(&self) -> &[NewInput] {
         self.inputs.held()
     }

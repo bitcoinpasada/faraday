@@ -177,10 +177,12 @@ impl KefArea {
         self.opened = Some(done.opened);
     }
 
+    #[cfg(feature = "testkit")]
     pub(crate) fn sealed(&self) -> Option<&Result<Zeroizing<Vec<u8>>, SealError>> {
         self.sealed.as_ref()
     }
 
+    #[cfg(feature = "testkit")]
     pub(crate) fn opened(&self) -> Option<&Result<Opened, OpenError>> {
         self.opened.as_ref()
     }

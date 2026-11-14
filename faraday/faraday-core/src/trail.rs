@@ -441,6 +441,7 @@ impl Faraday {
 
     /// Where the last frame drew the way back on the screen on show, in
     /// pixels: the middle of its press, for tests that tap it.
+    #[cfg(feature = "testkit")]
     pub fn back_offered(&self) -> Option<(u16, u16)> {
         let (r, a) = self.pointer.hits().get(self.trail.hit()?)?;
         (Some(*a) == self.back_link()).then(|| ((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))

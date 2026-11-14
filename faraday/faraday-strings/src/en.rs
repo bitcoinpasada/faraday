@@ -5022,7 +5022,7 @@ strings! {
     medium_use_boot_stick: "Use the boot stick",
     /// Text in `use_boot`.
     medium_use_boot_sd_card: "Use the boot SD card",
-    // ----- paper (faraday-core/src/paper.rs) -----
+    // ----- paper -----
     /// Toast in `paper_xor`.
     paper_no_words_to_split: "This key has no words to split",
     /// Toast in `paper_codex32`. `{}`: `e`.
