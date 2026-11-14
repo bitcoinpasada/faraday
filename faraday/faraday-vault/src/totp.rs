@@ -7,6 +7,7 @@
 //! 6238 over a Unix time; [`normalise`] is what the entry form and the
 //! Inbox import (`faraday-vault::entries`) store back into field 6.
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 use faraday_text::{Text, text};
@@ -60,25 +61,41 @@ impl core::fmt::Debug for Totp {
     }
 }
 
-/// The RFC 4648 §6 Base32 alphabet.
-const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+/// 1 when `lo <= c <= hi`, else 0, with no branch on `c`.
+fn in_range(c: i32, lo: i32, hi: i32) -> i32 {
+    (((lo - 1 - c) & (c - hi - 1)) >> 31) & 1
+}
+
+/// The RFC 4648 §6 Base32 value of the symbol `b` (either case) and 1 when
+/// it is one, 0 when not, worked out with no branch and no table indexed
+/// by `b`, so the time does not depend on which symbol it is.
+fn base32_value(b: u8) -> (u32, u32) {
+    let mut c = i32::from(b);
+    c -= in_range(c, 97, 122) * 32;
+    let letter = in_range(c, 65, 90);
+    let digit = in_range(c, 50, 55);
+    let v = letter * (c - 65) + digit * (c - 50 + 26);
+    (v as u32, (letter | digit) as u32)
+}
 
 /// Base32 decodes `s`. Spaces and `=` are always ignored; hyphens are
 /// ignored only when `allow_hyphen` (the bare-key form, §4.1). Any other
-/// character refuses, as does decoding to nothing.
-fn base32_decode(s: &str, allow_hyphen: bool) -> Option<Vec<u8>> {
+/// character refuses, as does decoding to nothing. The bytes are written
+/// into a wiping buffer sized once for the whole of them, so no copy is
+/// left behind by a regrowth.
+fn base32_decode(s: &str, allow_hyphen: bool) -> Option<Zeroizing<Vec<u8>>> {
+    let skipped = |b: u8| b == b' ' || b == b'=' || (allow_hyphen && b == b'-');
+    let symbols = s.bytes().filter(|&b| !skipped(b)).count();
+    let mut out = Zeroizing::new(Vec::with_capacity(symbols * 5 / 8));
     let mut bits: u32 = 0;
     let mut bit_count: u32 = 0;
-    let mut out = Vec::new();
-    for c in s.chars() {
-        if c == ' ' || c == '=' || (allow_hyphen && c == '-') {
+    let mut invalid: u32 = 0;
+    for b in s.bytes() {
+        if skipped(b) {
             continue;
         }
-        if !c.is_ascii() {
-            return None;
-        }
-        let up = c.to_ascii_uppercase();
-        let v = ALPHABET.iter().position(|&b| b == up as u8)? as u32;
+        let (v, valid) = base32_value(b);
+        invalid |= valid ^ 1;
         bits = (bits << 5) | v;
         bit_count += 5;
         if bit_count >= 8 {
@@ -86,7 +103,11 @@ fn base32_decode(s: &str, allow_hyphen: bool) -> Option<Vec<u8>> {
             out.push(((bits >> bit_count) & 0xFF) as u8);
         }
     }
-    if out.is_empty() { None } else { Some(out) }
+    if invalid != 0 || out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
 }
 
 /// The fewest characters a bare key may have: 16 is 80 bits, the
@@ -251,7 +272,7 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
         let secret = secret.ok_or(NotTotp::Unreadable)?;
         let decoded = base32_decode(secret, false).ok_or(NotTotp::Unreadable)?;
         Ok(Totp {
-            secret: Zeroizing::new(decoded),
+            secret: decoded,
             algorithm,
             digits,
             period,
@@ -262,7 +283,7 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
         }
         let decoded = base32_decode(field, true).ok_or(NotTotp::Unreadable)?;
         Ok(Totp {
-            secret: Zeroizing::new(decoded),
+            secret: decoded,
             algorithm: Algorithm::Sha1,
             digits: 6,
             period: 30,
@@ -293,12 +314,14 @@ fn secret_field<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
 
 /// Hex decodes `s` (either case); an odd length, any other character or
 /// nothing at all refuses.
-fn hex_decode(s: &str) -> Option<Vec<u8>> {
+fn hex_decode(s: &str) -> Option<Zeroizing<Vec<u8>>> {
     let s = s.trim();
     if s.is_empty() {
         return None;
     }
-    faraday_crypto::hex::decode_vec(s)
+    let mut out = Zeroizing::new(vec![0u8; s.len() / 2]);
+    let n = faraday_crypto::hex::decode_into(s, &mut out)?;
+    (n == out.len()).then_some(out)
 }
 
 /// Reads KeePass 2's own `TimeOtp-*` fields (`docs/TOTP.md` §4.1). The
@@ -312,16 +335,23 @@ fn keepass_time_otp(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
     {
         Some(crate::wiped_copy(v.as_bytes()))
     } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Hex") {
-        hex_decode(v).map(Zeroizing::new)
+        hex_decode(v)
     } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Base32") {
-        base32_decode(v, false).map(Zeroizing::new)
+        base32_decode(v, false)
     } else {
         let v = secret_field(fields, "TimeOtp-Secret-Base64")?;
         use base64ct::{Base64, Encoding};
-        Base64::decode_vec(v.trim())
+        let v = v.trim();
+        // Room for every byte the text can hold, wiped whole on drop.
+        let mut out = Zeroizing::new(vec![0u8; v.len() / 4 * 3 + 3]);
+        Base64::decode(v, &mut out)
             .ok()
-            .filter(|b| !b.is_empty())
-            .map(Zeroizing::new)
+            .map(<[u8]>::len)
+            .filter(|&n| n > 0)
+            .map(|n| {
+                out.truncate(n);
+                out
+            })
     };
     Some(keepass_time_otp_params(fields, secret))
 }
@@ -382,7 +412,7 @@ fn keepassxc_seed_params(fields: &[(&str, &str)], seed: &str) -> Result<Totp, No
         return Err(NotTotp::Unreadable);
     }
     Ok(Totp {
-        secret: Zeroizing::new(secret),
+        secret,
         algorithm: Algorithm::Sha1,
         digits,
         period,
@@ -534,5 +564,37 @@ mod tests {
         // U+0141 truncates to 'A' as a byte.
         assert!(base32_decode("JBSWY3DPEHPK3PX\u{141}", false).is_none());
         assert!(parse("otpauth://totp/x?secret=JBSWY3DPEHPK3PX\u{141}").is_err());
+    }
+
+    #[test]
+    fn base32_reads_a_secret_with_padding_and_without_either_case() {
+        // RFC 4648 §10: "foobar" is MZXW6YTBOI======.
+        for s in [
+            "MZXW6YTBOI======",
+            "MZXW6YTBOI",
+            "mzxw6ytboi",
+            "MZXW 6YTB OI",
+        ] {
+            assert_eq!(&**base32_decode(s, false).unwrap(), b"foobar", "{s}");
+        }
+        assert!(base32_decode("MZXW6YT1OI", false).is_none());
+        assert!(base32_decode("MZXW6YT[OI", false).is_none());
+        assert!(base32_decode("MZXW6YT-OI", false).is_none());
+        assert_eq!(&**base32_decode("MZXW6YT-BOI", true).unwrap(), b"foobar");
+        assert!(base32_decode("====", false).is_none());
+    }
+
+    #[test]
+    fn hex_and_base64_secrets_read_and_refuse_as_before() {
+        assert_eq!(&**hex_decode(" 666F6f ").unwrap(), b"foo");
+        assert!(hex_decode("666").is_none());
+        assert!(hex_decode("66zz").is_none());
+        assert!(hex_decode("  ").is_none());
+        let fields = |k: &'static str, v: &'static str| keepass_time_otp(&[(k, v)]);
+        let read = |v: &'static str| fields("TimeOtp-Secret-Base64", v).unwrap().unwrap();
+        assert_eq!(&**read("Zm9vYmFy").secret, b"foobar");
+        assert_eq!(&**read("Zm9vYg==").secret, b"foob");
+        assert!(fields("TimeOtp-Secret-Base64", "Zm9vYg").unwrap().is_err());
+        assert!(fields("TimeOtp-Secret-Base64", "====").unwrap().is_err());
     }
 }
