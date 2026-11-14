@@ -2888,3 +2888,68 @@ fn a_fifteen_word_seeds_krux_code_row_is_dimmed() {
         Action::Board(BP::MenuVerb(faraday_core::board::Verb::Kef))
     ));
 }
+
+/// The board of the plan of a wallet in a vault, opened as the chart's
+/// Change the plan does, with the places named marked checked first.
+fn board_after_checks(places_checked: &[&str]) -> (Faraday, usize) {
+    use crate::chart_edit::{clock_kept, node_of, single_key_with_vault};
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::ChartAction;
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    for name in places_checked {
+        let (n, _) = node_of(&app, w, name);
+        app.press(Action::Chart(ChartAction::Checked(Press::Loaded(w), n)));
+    }
+    app.press(Action::Backup(w));
+    app.press(Action::BPlan);
+    open_board(&mut app);
+    app.press(Action::Board(BP::Customize));
+    (app, w)
+}
+
+/// The dates the chart shows on place `name` of wallet `w`.
+fn dates_at(app: &Faraday, w: usize, name: &str) -> Vec<(String, Option<String>)> {
+    let (_, node) = crate::chart_edit::node_of(app, w, name);
+    node.holds
+        .iter()
+        .zip(&node.checked)
+        .map(|(h, d)| (String::from(&**h), d.as_deref().map(String::from)))
+        .collect()
+}
+
+/// Removing Place 1 on the board numbers the places after it down, and
+/// their checked dates stay with them.
+#[test]
+fn a_date_follows_its_place_when_an_earlier_place_is_removed_on_the_board() {
+    let (mut app, w) = board_after_checks(&["Place 2"]);
+    let was = dates_at(&app, w, "Place 2");
+    assert!(was.iter().all(|(_, d)| d.is_some()), "{was:?}");
+    app.press(Action::Board(BP::RemovePlace(0)));
+    app.press(Action::BChecklist);
+    let now = dates_at(&app, w, "Place 1");
+    assert_eq!(now, was, "the old Place 2 keeps its dates as Place 1");
+}
+
+/// A thing moved on the board takes its date with it and leaves none on
+/// the spot it left.
+#[test]
+fn a_date_follows_a_thing_moved_on_the_board_and_none_stays_behind() {
+    let (mut app, w) = board_after_checks(&["Place 1"]);
+    app.press(Action::Board(BP::Off(Zone::Paper(1), Thing::Seed(0))));
+    tap(&mut app, placed(Zone::Paper(0), Thing::Seed(0)));
+    tap(&mut app, BP::Zone(Zone::Paper(1)));
+    app.press(Action::BChecklist);
+    let there = dates_at(&app, w, "Place 2");
+    assert!(
+        there
+            .iter()
+            .any(|(h, d)| h.contains("words") && d.is_some()),
+        "{there:?}"
+    );
+    let left = dates_at(&app, w, "Place 1");
+    assert!(
+        !left.iter().any(|(h, d)| h.contains("words") && d.is_some()),
+        "{left:?}"
+    );
+}

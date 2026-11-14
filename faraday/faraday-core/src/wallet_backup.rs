@@ -612,6 +612,10 @@ pub struct BackupState {
     /// **Lock and write** makes a seed's file only once it is here
     /// (`docs/BACKUP-FLOW.md` §17.12 item 6). Never a secret.
     pub files_warned: Vec<Text>,
+    /// The edits the board made to the map since the plan was last saved,
+    /// in order: the notes on the map follow them when it is saved
+    /// ([`plan::notes_after`]).
+    pub edits: Vec<plan::Edit>,
     /// The plan's vaults, by number, whose record of the wallet is set
     /// not to load at unlock: the vault item's **Load at unlock** turned
     /// off (F62). Every other starts on.
@@ -1277,6 +1281,21 @@ impl WalletBackupArea {
         {
             b.public_more = true;
         }
+    }
+
+    /// An edit the board made to the map, kept for the notes to follow at
+    /// the next save.
+    pub(crate) fn edited(&mut self, edit: plan::Edit) {
+        if let Some(b) = self.state.as_mut() {
+            b.edits.push(edit);
+        }
+    }
+
+    /// The edits kept since the last save, taken.
+    pub(crate) fn edits_take(&mut self) -> Vec<plan::Edit> {
+        self.state
+            .as_mut()
+            .map_or_else(Vec::new, |b| std::mem::take(&mut b.edits))
     }
 
     /// Seed `fp`'s files on a stick let out unprotected past the secret
@@ -3168,7 +3187,24 @@ impl Faraday {
             b.names.clone(),
             b.extras.clone(),
         );
-        self.plan_store(v, wi, &answers, &names, &extras, None);
+        let edits = self.backup.edits_take();
+        // The notes follow the board's edits, in each vault as it keeps
+        // them (`plan::notes_after`); none edited, as the record kept them.
+        let notes_in = |app: &Self, o: usize| -> Option<Vec<plan::Note>> {
+            if edits.is_empty() {
+                return None;
+            }
+            let wallet = app.session.wallets.get(wi)?;
+            Some(
+                edits
+                    .iter()
+                    .fold(app.plan_notes(&c, wallet, Some(o)), |n, &e| {
+                        plan::notes_after(&n, e, &[])
+                    }),
+            )
+        };
+        let notes = notes_in(self, v);
+        self.plan_store(v, wi, &answers, &names, &extras, notes.as_deref());
         // And in each other open vault the wallet's flow keeps, so that
         // every vault holds the plan with its places' names
         // (`docs/BACKUP-FLOW.md` §15.7).
@@ -3178,7 +3214,8 @@ impl Faraday {
                 .filter(|&o| o != v)
                 .collect();
             for o in others {
-                self.plan_store(o, wi, &answers, &names, &extras, None);
+                let notes = notes_in(self, o);
+                self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
             }
         }
     }

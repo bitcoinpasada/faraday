@@ -1627,6 +1627,41 @@ impl Faraday {
         self.backup_change_plain(&shape, f);
     }
 
+    /// The map the board shows now.
+    fn board_map(&self) -> Option<Vec<Spot>> {
+        self.board_plan()
+            .map(|(shape, a)| plan::stored_map(&shape, &a))
+    }
+
+    /// Records, for the notes to follow, what a press took from `from`:
+    /// each thing that left it and is now at `to` moved there, each other
+    /// dropped. `before` is the map before the press.
+    fn board_edits_made(&mut self, before: Option<Vec<Spot>>, from: Zone, to: Option<Zone>) {
+        let (Some(before), Some(after)) = (before, self.board_map()) else {
+            return;
+        };
+        let Some(at_from) = at_of(&before, from) else {
+            return;
+        };
+        let at_to = to.and_then(|z| at_of(&before, z));
+        let now = plan::holds_at(&after, at_from);
+        for w in plan::holds_at(&before, at_from) {
+            if now.contains(&w) {
+                continue;
+            }
+            let edit = match at_to {
+                Some(t)
+                    if plan::holds_at(&after, t).contains(&w)
+                        && !plan::holds_at(&before, t).contains(&w) =>
+                {
+                    Edit::Move(at_from, w, t)
+                }
+                _ => Edit::Drop(at_from, w),
+            };
+            self.backup.edited(edit);
+        }
+    }
+
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
     /// existing vault held before.
     pub(crate) fn board_movable(&self, c: Chip) -> bool {
@@ -1901,7 +1936,9 @@ impl Faraday {
                 if locked && file && !matches!(t, Thing::Vault(_)) {
                     return self.toast(EN.backup_flow_files_after_lock);
                 }
+                let before = self.board_map();
                 self.board_change(&|a, shape| map_edit(a, shape, |m| moved(m, z, t, Zone::List)));
+                self.board_edits_made(before, z, None);
             }
             BoardPress::Form(z, t, k) => {
                 if locked {
@@ -1935,6 +1972,9 @@ impl Faraday {
                 }
                 let names = !locked && self.board_backup_names();
                 self.board_change(&|a, shape| a.remove_place(shape, p));
+                if self.board_plan().is_some_and(|(_, a)| a.places < places) {
+                    self.backup.edited(Edit::RemovePlace(p));
+                }
                 self.board_partials_refresh();
                 // Its empty sticks go with it; the places after move down
                 // with theirs (§19.16 item 1).
@@ -2417,25 +2457,21 @@ impl Faraday {
             return;
         }
         let was = self.board_plan().map(|(_, a)| a);
-        let before = self
-            .board_plan()
-            .map(|(shape, a)| plan::stored_map(&shape, &a));
+        let before = self.board_map();
         match c {
             Chip::List(_) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| added(m, to, t)));
             }
             Chip::Placed(from, _) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| moved(m, from, t, to)));
+                self.board_edits_made(before.clone(), from, Some(to));
             }
         }
         // A drop on an empty stick makes it the place's next stick of the
         // plan: one empty stick fewer there, the rest in their order
         // (§19.16 item 1).
         if let Zone::Empty(p, _) = to
-            && self
-                .board_plan()
-                .map(|(shape, a)| plan::stored_map(&shape, &a))
-                != before
+            && self.board_map() != before
         {
             self.board_edit(|st| st.one_empty_fewer(p));
         }
