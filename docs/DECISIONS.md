@@ -162,7 +162,7 @@ Read this table, then only the decision you need.
 | [F145](decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Amended by F147, F150, F153, F185, F186 | release |
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
 | [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Amended by F150, F185, F186, F198 | release |
-| [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247 | security |
+| [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247, F259 | security |
 | [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151, F258 | repository |
 | [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
 | [F151](history/decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Replaced by F258 | repository |
@@ -211,7 +211,7 @@ Read this table, then only the decision you need.
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Amended by F231 | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Amended by F248 | repository |
-| [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Amended by F239, F247 | repository |
+| [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Amended by F239, F247, F259 | repository |
 | [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
 | [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
@@ -253,7 +253,7 @@ Read this table, then only the decision you need.
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
 | [F237](decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Active | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
-| [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Active | repository |
+| [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Amended by F259 | repository |
 | [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Active | wallets |
 | [F241](decisions/F241.md) | A release's fuzz run may be made of two runs, the later one running only the targets whose corpus reaches what changed | 2026-11-11 | Active | repository |
 | [F242](decisions/F242.md) | Change at an address index of 10,000 or more is shown as change with a Caution, not as verified change; signing stays possible | 2026-11-11 | Active | signing |
@@ -269,3 +269,4 @@ Read this table, then only the decision you need.
 | [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
+| [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |
