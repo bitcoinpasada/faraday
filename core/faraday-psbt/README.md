@@ -76,7 +76,14 @@ path, another account index), is an `UnverifiedChange` caution and is
 counted as a payment to others; the Sign screens draw it as one, never as
 change (F136). Multisig change is verified only by
 re-deriving it from a registered wallet; with none registered it is
-unverified, whatever script the PSBT states for it. Inputs are verified the same way; a
+unverified, whatever script the PSBT states for it. A wallet claim the
+script does not answer still tries the single-key rule, so a wallet of
+several keys over a single-key account leaves that account's change
+its own. A verified output is change only of the one wallet (a loaded
+key's account, or a registered wallet) every input of the person's
+spends; an address of another wallet of theirs is `Transfer`, counted
+in `amount_to_others`, with a `TransferToOwnWallet` caution (F254).
+Inputs are verified the same way; a
 multisig input is "ours" only where a loaded key's account (single-sig or
 BIP-48), or the xpub a registered wallet holds for that fingerprint,
 derives the script's key at the path the input states. Where neither

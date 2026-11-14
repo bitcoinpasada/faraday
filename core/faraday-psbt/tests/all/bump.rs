@@ -361,3 +361,39 @@ fn bitcoin_cores_pair_cannot_be_told_without_the_key() {
         assert!(ids(&b).contains(&"U2"), "{name}: {:?}", ids(&b));
     }
 }
+
+/// A replacement that moves the change from the single-key account into a
+/// registered multisig of the person's takes the change out of the wallet
+/// being spent, so it is not "only the fee is raised".
+#[test]
+fn change_moved_into_your_registered_multisig_is_more_than_a_fee_bump() {
+    use super::common::builder::{multisig_policy, with_multisig_output};
+    use super::common::{ABANDON, ZOO, master};
+    use faraday_bip::keys::Network;
+    use faraday_crypto::work::Compute;
+    use faraday_psbt::diff::Side;
+    use faraday_psbt::{Context, KeyRef, inspect};
+    let net = Network::Regtest;
+    let c = Compute::unchecked();
+    let (abandon, zoo) = (master(ABANDON, net), master(ZOO, net));
+    let wallets = [multisig_policy(&[&abandon, &zoo], 2, net)];
+    let o = original();
+    let mut b = base();
+    b.change = None;
+    let r = with_multisig_output(build(&b), &[&abandon, &zoo], 2, net, 48_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: net,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let (io, ir) = (inspect(&c, &o, &ctx), inspect(&c, &r, &ctx));
+    let side = |psbt, inspection| Side {
+        psbt,
+        inspection,
+        psbt_version: Some(0),
+    };
+    let judged = bump::judge(side(&o, &io), side(&r, &ir), &[fp()]).expect("a replacement");
+    assert_ne!(judged.result, Outcome::OnlyFee, "lines {:?}", judged.lines);
+}

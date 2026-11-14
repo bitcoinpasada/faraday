@@ -149,7 +149,7 @@ Read this table, then only the decision you need.
 | [F132](decisions/F132.md) | A tr() wallet states who can spend by the key path | 2026-10-26 | Active | wallets |
 | [F133](decisions/F133.md) | The Starter writes a boot file the person signed, once it is checked to be the release's own | 2026-10-27 | Active | Starter |
 | [F134](decisions/F134.md) | Faraday signs a boot program only when it is a release's own | 2026-10-27 | Active | security |
-| [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Amended by F141 | wallets |
+| [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Amended by F141, F254 | wallets |
 | [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Amended by F141 | security |
 | [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Amended by F140 | design |
 | [F138](decisions/F138.md) | The floating action takes Material's primary colour style | 2026-10-27 | Active | design |
@@ -268,6 +268,7 @@ Read this table, then only the decision you need.
 | [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; `just lint-macos` stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |
+| [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Active | wallets |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
 | [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |

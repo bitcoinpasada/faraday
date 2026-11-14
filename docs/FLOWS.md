@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow), Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow), Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
 
 Every flow, where it starts, and where it leaves the person.
 

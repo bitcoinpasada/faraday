@@ -8,8 +8,8 @@ use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use faraday_crypto::work::Compute;
 use faraday_psbt::{
-    Aux, Context, Error, KeyRef, Level, Nonce, OutputKind, Psbt, RegisterRefusal, WarningKind,
-    Wrapper, inspect, register, sign,
+    Aux, Context, Error, KeyRef, Level, Nonce, OutputKind, OwnWallet, Psbt, RegisterRefusal,
+    WarningKind, Wrapper, inspect, register, sign,
 };
 
 use crate::common::builder::{
@@ -905,4 +905,839 @@ fn a_taproot_internal_key_counts_unless_it_is_unspendable() {
         )),
         "the unspendable point is no key"
     );
+}
+
+/// The person's BIP-84 single-key account, `m/84'/coin'/account'`: the
+/// extended key every watch-only coordinator of theirs already holds.
+fn bip84_path(account: u32) -> DerivationPath {
+    let h = |i| ChildNumber::from_hardened_idx(i).unwrap();
+    DerivationPath::from(vec![h(84), h(NET.coin_type()), h(account)])
+}
+
+/// A 1-of-2 a coordinator writes over the person's BIP-84 account key
+/// (account 0; [`planted_text_at`] names another) and a BIP-48 key of its
+/// own, each key ending in `tail` (`<0;1>/*`, or one chain and index).
+fn planted_text(abandon: &MasterKey, attacker: &MasterKey, tail: &str) -> String {
+    planted_text_at(abandon, attacker, tail, 0)
+}
+
+fn planted_text_at(abandon: &MasterKey, attacker: &MasterKey, tail: &str, account: u32) -> String {
+    let c = Compute::unchecked();
+    format!(
+        "wsh(sortedmulti(1,[{}/{:#}]{}/{tail},[{}/{:#}]{}/{tail}))",
+        abandon.fingerprint(),
+        bip84_path(account),
+        abandon.derive(&c, &bip84_path(account)).to_xpub(&c),
+        attacker.fingerprint(),
+        bip48_path(NET),
+        attacker.derive(&c, &bip48_path(NET)).to_xpub(&c),
+    )
+}
+
+fn planted(abandon: &MasterKey, attacker: &MasterKey) -> faraday_bip::policy::WalletPolicy {
+    let c = Compute::unchecked();
+    faraday_bip::policy::WalletPolicy::parse_any(&c, &planted_text(abandon, attacker, "<0;1>/*"))
+        .expect("nothing refuses a multisig over a single-key account")
+}
+
+/// The planted wallet at `chain/index`, as rust-miniscript writes it.
+fn planted_at(
+    abandon: &MasterKey,
+    attacker: &MasterKey,
+    chain: u32,
+    index: u32,
+) -> faraday_bip::miniscript::descriptor::Descriptor<
+    faraday_bip::miniscript::descriptor::DefiniteDescriptorKey,
+> {
+    planted_text(abandon, attacker, &format!("{chain}/{index}"))
+        .parse()
+        .unwrap()
+}
+
+/// `psbt` with an output of `value` to the planted wallet's `1/0`, its
+/// key origins filled in by rust-miniscript.
+fn pay_planted(psbt: Psbt, abandon: &MasterKey, attacker: &MasterKey, value: u64) -> Psbt {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let d = planted_at(abandon, attacker, 1, 0);
+    let mut inner = psbt.inner().clone();
+    inner.unsigned_tx.output.push(bitcoin::TxOut {
+        value: bitcoin::Amount::from_sat(value),
+        script_pubkey: d.script_pubkey(),
+    });
+    inner.outputs.push(bitcoin::psbt::Output::default());
+    let last = inner.outputs.len() - 1;
+    inner.update_output_with_descriptor(last, &d).unwrap();
+    Psbt::from(inner)
+}
+
+/// A wallet description a coordinator planted, a 1-of-2 over the
+/// person's own BIP-84 account key and a key of its own, arrives by file
+/// (here, already among the loaded wallets). A spend of the person's
+/// single-key coins that sends the rest to that wallet pays someone
+/// else: the output is not change, and the amount sent counts it.
+#[test]
+fn an_output_to_a_planted_wallet_over_your_single_key_account_is_not_change() {
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let wallets = [planted(&abandon, &attacker)];
+    let recipient = master(ZOO, NET)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 0)
+        .unwrap()
+        .script_pubkey();
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient, 60_000));
+    let psbt = pay_planted(single_sig(&abandon, &b), &abandon, &attacker, 39_000);
+    assert_eq!(
+        psbt.inner().unsigned_tx.output[1].script_pubkey,
+        wallets[0].script_at(&c, true, 0).unwrap(),
+        "Faraday and rust-miniscript write the planted wallet's script alike"
+    );
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        !insp.outputs[1].is_ours(),
+        "the planted wallet's output reads as {:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.change_total.to_sat(), 0);
+    assert_eq!(
+        insp.amount_to_others.to_sat(),
+        99_000,
+        "the amount sent counts the 39,000 to the planted wallet"
+    );
+    // It reads as a payment into another wallet, said with a Caution,
+    // and the spend is not stopped for it.
+    assert!(
+        matches!(
+            insp.outputs[1].kind,
+            OutputKind::Transfer {
+                to: OwnWallet::Registered(0),
+                change: true,
+                index: 0
+            }
+        ),
+        "{:?}",
+        insp.outputs[1].kind
+    );
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::TransferToOwnWallet && w.level == Level::Caution)
+    );
+    assert!(
+        insp.warnings.iter().all(|w| w.level < Level::Danger),
+        "{:?}",
+        insp.warnings
+    );
+}
+
+/// The same wallet brought by the PSBT itself: a dust coin of the
+/// planted wallet is added as a second input and the PSBT carries both
+/// keys as global xpubs, so the wallet is offered for registration. Once
+/// registered, the person's single-key coins sent to it are still not
+/// change: the planted wallet is not what those coins were spent from.
+#[test]
+fn a_planted_wallet_registered_from_the_psbt_does_not_make_your_coins_its_change() {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let recipient = master(ZOO, NET)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 0)
+        .unwrap()
+        .script_pubkey();
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient, 60_000));
+    let psbt = pay_planted(single_sig(&abandon, &b), &abandon, &attacker, 40_000);
+    // The output states the coordinator's own key's origin only: the
+    // person's would be a single-key change claim the device refuses
+    // before any wallet is offered.
+    let mut inner = psbt.inner().clone();
+    let theirs: bitcoin::bip32::Fingerprint = attacker.fingerprint().into();
+    inner.outputs[1]
+        .bip32_derivation
+        .retain(|_, (fp, _)| *fp == theirs);
+    let psbt = Psbt::from(inner);
+
+    // The dust coin at the planted wallet's 0/0.
+    let d = planted_at(&abandon, &attacker, 0, 0);
+    let funding = crate::common::builder::funding_tx(d.script_pubkey(), 1_000);
+    let mut inner = psbt.inner().clone();
+    inner.unsigned_tx.input.push(bitcoin::TxIn {
+        previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+        script_sig: bitcoin::ScriptBuf::new(),
+        sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+        witness: bitcoin::Witness::new(),
+    });
+    inner.inputs.push(bitcoin::psbt::Input {
+        witness_utxo: Some(funding.output[0].clone()),
+        non_witness_utxo: Some(funding.clone()),
+        ..Default::default()
+    });
+    inner.update_input_with_descriptor(1, &d).unwrap();
+    for (m, path) in [(&abandon, bip84_path(0)), (&attacker, bip48_path(NET))] {
+        let xpub = m.derive(&c, &path).to_xpub(&c);
+        inner.xpub.insert(xpub, (m.fingerprint().into(), path));
+    }
+    let psbt = Psbt::from(inner);
+
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    let offer = insp
+        .register
+        .as_ref()
+        .unwrap_or_else(|| panic!("no wallet offered; warnings {:?}", insp.warnings));
+    let wallet = register(&c, &psbt, offer, 0, &yours(&[&abandon]))
+        .expect("the planted wallet gives the spend's scripts");
+    let wallets = [wallet];
+    let ctx = Context {
+        wallets: &wallets,
+        ..ctx
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        !insp.outputs[1].is_ours(),
+        "the planted wallet's output reads as {:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(
+        insp.amount_to_others.to_sat(),
+        100_000,
+        "the 40,000 of the person's coins sent to the planted wallet count as sent"
+    );
+}
+
+/// A replacement that moves the person's change into the planted wallet
+/// and takes 1,000 more fee is not "only the fee is raised": the change
+/// left the person's own wallet.
+#[test]
+fn a_replacement_moving_change_into_a_planted_wallet_is_more_than_a_fee_bump() {
+    use faraday_psbt::bump::{self, Outcome};
+    use faraday_psbt::diff::Side;
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    // Over the person's second BIP-84 account, so that the original's
+    // change, at the first, is theirs on both sides.
+    let at_1 = |tail: &str| planted_text_at(&abandon, &attacker, tail, 1);
+    let wallets = [faraday_bip::policy::WalletPolicy::parse_any(&c, &at_1("<0;1>/*")).unwrap()];
+    let recipient = master(ZOO, NET)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 0)
+        .unwrap()
+        .script_pubkey();
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient, 50_000));
+    b.change = Some(49_000);
+    let original = single_sig(&abandon, &b);
+    b.change = None;
+    let replacement = {
+        use faraday_bip::miniscript::psbt::PsbtExt;
+        let d: faraday_bip::miniscript::descriptor::Descriptor<
+            faraday_bip::miniscript::descriptor::DefiniteDescriptorKey,
+        > = at_1("1/0").parse().unwrap();
+        let mut inner = single_sig(&abandon, &b).inner().clone();
+        inner.unsigned_tx.output.push(bitcoin::TxOut {
+            value: bitcoin::Amount::from_sat(48_000),
+            script_pubkey: d.script_pubkey(),
+        });
+        inner.outputs.push(bitcoin::psbt::Output::default());
+        inner.update_output_with_descriptor(1, &d).unwrap();
+        Psbt::from(inner)
+    };
+
+    let keys = [KeyRef::from_master(&c, &abandon, 0)
+        .unwrap()
+        .with_extra(vec![(
+            bip84_path(1),
+            abandon.derive(&c, &bip84_path(1)).to_xpub(&c),
+        )])];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let (io, ir) = (
+        inspect(&c, &original, &ctx),
+        inspect(&c, &replacement, &ctx),
+    );
+    assert!(io.outputs[1].is_ours(), "{:?}", io.outputs[1].kind);
+    let side = |psbt, inspection| Side {
+        psbt,
+        inspection,
+        psbt_version: Some(0),
+    };
+    let judged = bump::judge(
+        side(&original, &io),
+        side(&replacement, &ir),
+        &[abandon.fingerprint()],
+    )
+    .expect("one input in common: a replacement");
+    assert!(
+        matches!(ir.outputs[1].kind, OutputKind::Transfer { .. }),
+        "{:?}",
+        ir.outputs[1].kind
+    );
+    assert_ne!(
+        judged.result,
+        Outcome::OnlyFee,
+        "the replacement's change went to the planted wallet; lines {:?}",
+        judged.lines
+    );
+}
+
+/// A planted wallet over the person's BIP-84 account does not take away
+/// their own change: a single-key payment with change to the account's
+/// `1/0` still reads that output as the person's change.
+#[test]
+fn your_own_change_stays_change_beside_a_planted_wallet_over_its_account() {
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let wallets = [planted(&abandon, &attacker)];
+    let recipient = master(ZOO, NET)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 0)
+        .unwrap()
+        .script_pubkey();
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient, 60_000));
+    b.change = Some(39_000);
+    let psbt = single_sig(&abandon, &b);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(
+            insp.outputs[1].kind,
+            OutputKind::Change {
+                change: true,
+                index: 0,
+                ..
+            }
+        ),
+        "the person's own change reads as {:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.amount_to_others.to_sat(), 60_000);
+}
+
+fn recipient_zoo() -> bitcoin::ScriptBuf {
+    let c = Compute::unchecked();
+    master(ZOO, NET)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 0)
+        .unwrap()
+        .script_pubkey()
+}
+
+/// Coins of the person's single-key account sent on to a registered
+/// multisig of theirs are a payment into another wallet: it counts as
+/// sent and carries a Caution, and nothing is blocked.
+#[test]
+fn a_consolidation_into_your_registered_multisig_is_a_transfer_with_a_caution() {
+    use crate::common::builder::with_multisig_output;
+    let c = Compute::unchecked();
+    let (abandon, zoo) = (master(ABANDON, NET), master(ZOO, NET));
+    let wallets = [multisig_policy(&[&abandon, &zoo], 2, NET)];
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient_zoo(), 60_000));
+    let psbt = with_multisig_output(single_sig(&abandon, &b), &[&abandon, &zoo], 2, NET, 39_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(
+            insp.outputs[1].kind,
+            OutputKind::Transfer {
+                to: OwnWallet::Registered(0),
+                ..
+            }
+        ),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::TransferToOwnWallet && w.level == Level::Caution)
+    );
+    assert!(
+        insp.warnings.iter().all(|w| w.level < Level::Danger),
+        "{:?}",
+        insp.warnings
+    );
+    assert!(!insp.has_blocked());
+}
+
+/// A multisig spending to itself is still a transfer between the
+/// person's own addresses: every output is theirs and nothing is sent.
+#[test]
+fn a_multisig_spending_to_itself_is_still_a_self_transfer() {
+    let c = Compute::unchecked();
+    let (abandon, zoo, legal) = (master(ABANDON, NET), master(ZOO, NET), master(LEGAL, NET));
+    let masters = [&abandon, &zoo, &legal];
+    let wallets = [multisig_policy(&masters, 2, NET)];
+    let psbt = sorted_multisig_change(&masters, 2, NET, 100_000, &[], 99_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(insp.is_self_transfer, "{:?}", insp.outputs);
+    assert_eq!(insp.amount_to_others.to_sat(), 0);
+}
+
+/// Two registered multisigs sharing one BIP-48 account: spending one
+/// with change written to the other pays another wallet of the person's.
+#[test]
+fn change_to_the_other_of_two_multisigs_on_one_account_is_a_transfer() {
+    use crate::common::builder::with_multisig_output;
+    let c = Compute::unchecked();
+    let (abandon, zoo, legal) = (master(ABANDON, NET), master(ZOO, NET), master(LEGAL, NET));
+    let three = [&abandon, &zoo, &legal];
+    let two = [&abandon, &zoo];
+    let wallets = [
+        multisig_policy(&three, 2, NET),
+        multisig_policy(&two, 2, NET),
+    ];
+    let spent = sorted_multisig(&three, 2, NET, 100_000, &[(recipient_zoo(), 60_000)]);
+    let psbt = with_multisig_output(spent, &two, 2, NET, 39_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(
+            insp.outputs[1].kind,
+            OutputKind::Transfer {
+                to: OwnWallet::Registered(1),
+                ..
+            }
+        ),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+}
+
+/// `psbt` with an output of `value` to the definite descriptor `text`, its
+/// key origins filled in by rust-miniscript.
+fn pay_descriptor(psbt: Psbt, text: &str, value: u64) -> Psbt {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let d: faraday_bip::miniscript::descriptor::Descriptor<
+        faraday_bip::miniscript::descriptor::DefiniteDescriptorKey,
+    > = text.parse().unwrap();
+    let mut inner = psbt.inner().clone();
+    inner.unsigned_tx.output.push(bitcoin::TxOut {
+        value: bitcoin::Amount::from_sat(value),
+        script_pubkey: d.script_pubkey(),
+    });
+    inner.outputs.push(bitcoin::psbt::Output::default());
+    let last = inner.outputs.len() - 1;
+    inner.update_output_with_descriptor(last, &d).unwrap();
+    Psbt::from(inner)
+}
+
+fn account_path(purpose: u32) -> DerivationPath {
+    let h = |i| ChildNumber::from_hardened_idx(i).unwrap();
+    DerivationPath::from(vec![h(purpose), h(NET.coin_type()), h(0)])
+}
+
+/// Spends the person's single-key coin of `script_type` and sends the
+/// rest to the one-key wallet `template` (`KEY` is the person's account
+/// key) at its `1/0`, with that wallet registered; the output's reading
+/// and the amount sent.
+fn rest_to_one_key_wallet(
+    script_type: ScriptType,
+    purpose: u32,
+    template: &str,
+) -> (OutputKind, u64) {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let origin = |tail: &str| {
+        format!(
+            "[{}/{:#}]{}/{tail}",
+            abandon.fingerprint(),
+            account_path(purpose),
+            abandon.derive(&c, &account_path(purpose)).to_xpub(&c)
+        )
+    };
+    let key = |tail: &str| template.replace("KEY", &origin(tail));
+    let wallets =
+        [faraday_bip::policy::WalletPolicy::parse_any(&c, &key("<0;1>/*")).expect("a wallet")];
+    let mut b = Build::new(script_type, NET);
+    b.recipients.push((recipient_zoo(), 60_000));
+    let psbt = pay_descriptor(single_sig(&abandon, &b), &key("1/0"), 39_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    (insp.outputs[1].kind.clone(), insp.amount_to_others.to_sat())
+}
+
+/// A taproot wallet over the person's BIP-86 account key with another
+/// key of the coordinator's as its internal key is not that account:
+/// change to it is a transfer and counts as sent.
+#[test]
+fn change_to_a_taproot_wallet_with_another_internal_key_is_not_change() {
+    let g = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    let (kind, sent) = rest_to_one_key_wallet(ScriptType::Taproot, 86, &format!("tr({g},pk(KEY))"));
+    assert!(matches!(kind, OutputKind::Transfer { .. }), "{kind:?}");
+    assert_eq!(sent, 99_000);
+}
+
+/// A one-key wallet over the person's BIP-84 account whose coins are
+/// locked until a far height is not that account either.
+#[test]
+fn change_to_a_timelocked_one_key_wallet_over_your_account_is_not_change() {
+    let (kind, sent) = rest_to_one_key_wallet(
+        ScriptType::NativeSegwit,
+        84,
+        "wsh(and_v(v:pk(KEY),after(900000)))",
+    );
+    assert!(matches!(kind, OutputKind::Transfer { .. }), "{kind:?}");
+    assert_eq!(sent, 99_000);
+}
+
+/// A one-key wallet whose script is not the one its key's purpose names
+/// is a wallet of its own: the rest of a BIP-84 spend sent to a taproot
+/// wallet over the BIP-84 key is sent, not change.
+#[test]
+fn change_to_a_wallet_of_another_script_type_over_your_account_is_not_change() {
+    for template in ["tr(KEY)", "pkh(KEY)", "sh(wpkh(KEY))"] {
+        let (kind, sent) = rest_to_one_key_wallet(ScriptType::NativeSegwit, 84, template);
+        assert!(
+            matches!(kind, OutputKind::Transfer { .. }),
+            "{template}: {kind:?}"
+        );
+        assert_eq!(sent, 99_000, "{template}");
+    }
+    let (kind, sent) = rest_to_one_key_wallet(ScriptType::Taproot, 86, "wpkh(KEY)");
+    assert!(matches!(kind, OutputKind::Transfer { .. }), "{kind:?}");
+    assert_eq!(sent, 99_000);
+}
+
+/// A one-key miniscript coin the signer leaves unsigned, spent beside the
+/// person's account, does not turn the account's own change into a
+/// payment to another of their wallets.
+#[test]
+fn an_unsigned_one_key_script_input_beside_your_account_leaves_its_change_verified() {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.recipients.push((recipient_zoo(), 60_000));
+    b.change = Some(39_000);
+    let mine = single_sig(&abandon, &b);
+    let d: faraday_bip::miniscript::descriptor::Descriptor<
+        faraday_bip::miniscript::descriptor::DefiniteDescriptorKey,
+    > = format!(
+        "wsh(and_v(v:pk([{}/{:#}]{}/0/7),after(900000)))",
+        abandon.fingerprint(),
+        bip84_path(5),
+        abandon.derive(&c, &bip84_path(5)).to_xpub(&c)
+    )
+    .parse()
+    .unwrap();
+    let funding = crate::common::builder::funding_tx(d.script_pubkey(), 50_000);
+    let mut inner = mine.inner().clone();
+    inner.unsigned_tx.input.push(bitcoin::TxIn {
+        previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+        script_sig: bitcoin::ScriptBuf::new(),
+        sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+        witness: bitcoin::Witness::new(),
+    });
+    inner.inputs.push(bitcoin::psbt::Input {
+        witness_utxo: Some(funding.output[0].clone()),
+        non_witness_utxo: Some(funding),
+        ..Default::default()
+    });
+    inner.update_input_with_descriptor(1, &d).unwrap();
+    let psbt = Psbt::from(inner);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(insp.outputs[1].kind, OutputKind::Change { .. }),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+}
+
+/// A native SegWit wallet registered over the same account is still that
+/// account: its change stays change.
+#[test]
+fn change_to_your_own_registered_single_key_wallet_stays_change() {
+    let (kind, sent) = rest_to_one_key_wallet(ScriptType::NativeSegwit, 84, "wpkh(KEY)");
+    assert!(
+        matches!(
+            kind,
+            OutputKind::Change { .. } | OutputKind::WalletChange { .. }
+        ),
+        "{kind:?}"
+    );
+    assert_eq!(sent, 60_000);
+}
+
+/// An unregistered one-key `multi` coin at a loaded key is signed, so with
+/// the rest sent to a registered wallet over the person's account it is a
+/// payment to another wallet and counts as sent.
+#[test]
+fn a_one_of_one_multi_coin_of_yours_makes_a_planted_wallet_no_change() {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let wallets = [planted(&abandon, &attacker)];
+    let d: faraday_bip::miniscript::descriptor::Descriptor<
+        faraday_bip::miniscript::descriptor::DefiniteDescriptorKey,
+    > = format!(
+        "wsh(multi(1,[{}/{:#}]{}/0/7))",
+        abandon.fingerprint(),
+        bip84_path(5),
+        abandon.derive(&c, &bip84_path(5)).to_xpub(&c)
+    )
+    .parse()
+    .unwrap();
+    let funding = crate::common::builder::funding_tx(d.script_pubkey(), 100_000);
+    let tx = bitcoin::Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![bitcoin::TxIn {
+            previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+            script_sig: bitcoin::ScriptBuf::new(),
+            sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: bitcoin::Witness::new(),
+        }],
+        output: vec![bitcoin::TxOut {
+            value: bitcoin::Amount::from_sat(60_000),
+            script_pubkey: recipient_zoo(),
+        }],
+    };
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    inner.inputs[0].witness_utxo = Some(funding.output[0].clone());
+    inner.inputs[0].non_witness_utxo = Some(funding);
+    inner.update_input_with_descriptor(0, &d).unwrap();
+    let psbt = pay_planted(Psbt::from(inner), &abandon, &attacker, 39_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(insp.outputs[1].kind, OutputKind::Transfer { .. }),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+}
+
+/// Matching one-key wallets at the account's own script type, of each
+/// purpose, still read as change.
+#[test]
+fn change_to_your_own_registered_wallets_of_every_purpose_stays_change() {
+    for (script_type, purpose, template) in [
+        (ScriptType::Legacy, 44, "pkh(KEY)"),
+        (ScriptType::NestedSegwit, 49, "sh(wpkh(KEY))"),
+        (ScriptType::Taproot, 86, "tr(KEY)"),
+    ] {
+        let (kind, sent) = rest_to_one_key_wallet(script_type, purpose, template);
+        assert!(
+            matches!(
+                kind,
+                OutputKind::Change { .. } | OutputKind::WalletChange { .. }
+            ),
+            "{template}: {kind:?}"
+        );
+        assert_eq!(sent, 60_000, "{template}");
+    }
+}
+
+/// A coin of the person's at a path outside the loaded accounts is one
+/// the signer signs. With the rest sent to a planted wallet, nothing
+/// verifies it as the wallet spent, so the output counts as sent.
+#[test]
+fn coins_signed_from_outside_the_loaded_accounts_make_a_planted_wallet_no_change() {
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let wallets = [planted(&abandon, &attacker)];
+    let path = bip84_path(5).extend([
+        ChildNumber::from_normal_idx(0).unwrap(),
+        ChildNumber::from_normal_idx(0).unwrap(),
+    ]);
+    let pk = abandon.derive(&c, &path).to_xpub(&c).public_key;
+    let script = bitcoin::ScriptBuf::new_p2wpkh(
+        &bitcoin::PublicKey::new(pk)
+            .wpubkey_hash()
+            .expect("compressed"),
+    );
+    let funding = crate::common::builder::funding_tx(script, 100_000);
+    let tx = bitcoin::Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![bitcoin::TxIn {
+            previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+            script_sig: bitcoin::ScriptBuf::new(),
+            sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: bitcoin::Witness::new(),
+        }],
+        output: vec![bitcoin::TxOut {
+            value: bitcoin::Amount::from_sat(60_000),
+            script_pubkey: recipient_zoo(),
+        }],
+    };
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    inner.inputs[0].witness_utxo = Some(funding.output[0].clone());
+    inner.inputs[0].non_witness_utxo = Some(funding);
+    inner.inputs[0]
+        .bip32_derivation
+        .insert(pk, (abandon.fingerprint().into(), path));
+    let psbt = pay_planted(Psbt::from(inner), &abandon, &attacker, 39_000);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        matches!(insp.outputs[1].kind, OutputKind::Transfer { .. }),
+        "{:?}; warnings {:?}",
+        insp.outputs[1].kind,
+        insp.warnings
+    );
+    assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+}
+
+/// A replacement that adds a coin of the person's and sends everything to
+/// the planted wallet the original took its change at is not "only the
+/// fee is raised": the output is a payment now, not the original's change.
+#[test]
+fn a_replacement_adding_your_coin_and_paying_it_all_to_the_wallet_is_not_a_fee_bump() {
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    use faraday_psbt::bump::{self, Outcome};
+    use faraday_psbt::diff::Side;
+    let c = Compute::unchecked();
+    let (abandon, attacker) = (master(ABANDON, NET), master(OTHER, NET));
+    let wallets = [planted(&abandon, &attacker)];
+    let w_coin = planted_at(&abandon, &attacker, 0, 0);
+    let w_out = planted_at(&abandon, &attacker, 1, 0);
+    let funding = crate::common::builder::funding_tx(w_coin.script_pubkey(), 100_000);
+    let spend_of_w = |value: u64| {
+        let tx = bitcoin::Transaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+                script_sig: bitcoin::ScriptBuf::new(),
+                sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+                witness: bitcoin::Witness::new(),
+            }],
+            output: vec![bitcoin::TxOut {
+                value: bitcoin::Amount::from_sat(value),
+                script_pubkey: w_out.script_pubkey(),
+            }],
+        };
+        let mut inner = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+        inner.inputs[0].witness_utxo = Some(funding.output[0].clone());
+        inner.inputs[0].non_witness_utxo = Some(funding.clone());
+        inner.update_input_with_descriptor(0, &w_coin).unwrap();
+        inner.update_output_with_descriptor(0, &w_out).unwrap();
+        inner
+    };
+    let original = Psbt::from(spend_of_w(99_000));
+    let replacement = {
+        let mut inner = spend_of_w(198_000);
+        let mine = single_sig(&abandon, &Build::new(ScriptType::NativeSegwit, NET));
+        inner
+            .unsigned_tx
+            .input
+            .push(mine.inner().unsigned_tx.input[0].clone());
+        inner.inputs.push(mine.inner().inputs[0].clone());
+        Psbt::from(inner)
+    };
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let (io, ir) = (
+        inspect(&c, &original, &ctx),
+        inspect(&c, &replacement, &ctx),
+    );
+    assert!(io.outputs[0].is_ours(), "{:?}", io.outputs[0].kind);
+    assert!(
+        matches!(ir.outputs[0].kind, OutputKind::Transfer { .. }),
+        "{:?}",
+        ir.outputs[0].kind
+    );
+    let side = |psbt, inspection| Side {
+        psbt,
+        inspection,
+        psbt_version: Some(0),
+    };
+    let judged = bump::judge(
+        side(&original, &io),
+        side(&replacement, &ir),
+        &[abandon.fingerprint()],
+    )
+    .expect("one input in common: a replacement");
+    assert_ne!(judged.result, Outcome::OnlyFee, "lines {:?}", judged.lines);
 }

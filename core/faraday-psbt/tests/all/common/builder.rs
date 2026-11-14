@@ -350,3 +350,37 @@ pub fn sorted_multisig(
     }
     Psbt::from(psbt)
 }
+
+/// `psbt` with one more output of `value` sat to the `sortedmulti(m, …)`
+/// wallet of `masters` at `…/1/0`, its key origins filled in the way a
+/// coordinator writes change.
+pub fn with_multisig_output(
+    mut psbt: Psbt,
+    masters: &[&MasterKey],
+    m: usize,
+    network: Network,
+    value: u64,
+) -> Psbt {
+    let c = Compute::unchecked();
+    let policy = multisig_policy(masters, m, network);
+    let leaf = [
+        ChildNumber::from_normal_idx(1).unwrap(),
+        ChildNumber::from_normal_idx(0).unwrap(),
+    ];
+    let path = bip48_path(network).extend(leaf);
+    let inner = psbt.inner_mut();
+    inner.unsigned_tx.output.push(TxOut {
+        value: Amount::from_sat(value),
+        script_pubkey: policy.script_at(&c, true, 0).unwrap(),
+    });
+    let mut out = bitcoin::psbt::Output::default();
+    for master in masters {
+        let derived = master.derive(&c, &path);
+        out.bip32_derivation.insert(
+            derived.to_xpub(&c).public_key,
+            (master.fingerprint().into(), path.clone()),
+        );
+    }
+    inner.outputs.push(out);
+    psbt
+}

@@ -43,7 +43,9 @@ Wallets: single-key accounts of each address type (P2PKH, P2SH-P2WPKH,
 P2WPKH, P2TR) and registered wallets of a `sortedmulti` in P2WSH, a
 miniscript in P2WSH, a taproot tree of miniscript leaves and a taproot
 `sortedmulti_a`. Outputs: payments, change on either chain at random
-indices, change of another wallet (a foreign claim), and spoofed change
+indices, change of another wallet (a foreign claim), an output of a second wallet that is
+also loaded (a transfer: sent, never change, where the inputs spend the first),
+and spoofed change
 (the wallet's origin claimed over the wallet's own script at another
 index, over another wallet's script, or over a stranger's). Inputs:
 UTXO data as a witness UTXO or a previous transaction, or none.
@@ -90,7 +92,7 @@ SHAPES = {
 SHAPE_NAMES = list(SHAPES)
 # Throwaway keys for payments: one of each address type.
 PAYEE_TYPES = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"]
-KINDS = ["change", "recipient", "foreign", "spoof"]
+KINDS = ["change", "recipient", "foreign", "spoof", "transfer"]
 SPOOF_OVER = ["own", "foreign", "stranger"]
 
 
@@ -376,7 +378,7 @@ class Review(Area):
     )
     vectors = (
         "none: Core's decoding and btclib's change decision are the references, over each wallet shape "
-        "with change, spoofed change, a foreign claim and missing UTXO data in the prelude"
+        "with change, spoofed change, a foreign claim, a transfer to a second loaded wallet and missing UTXO data in the prelude"
     )
     corpus = (
         "PSBTs of one to three inputs and one to four outputs over single-key accounts "
@@ -440,7 +442,7 @@ class Review(Area):
             weights = [5, 3] if legacy else [5, 3, 1.5]
             modes = rng.choices(pick, weights, k=n_in)
         if kinds is None:
-            kinds = rng.choices(KINDS, [4, 4, 1, 2], k=rng.randrange(1, 5))
+            kinds = rng.choices(KINDS, [4, 4, 1, 2, 1], k=rng.randrange(1, 5))
         if loaded is None:
             loaded = rng.choices(["first", "two", "none"], [6, 2, 1])[0]
         if registered is None:
@@ -449,6 +451,14 @@ class Review(Area):
         seeds = [w1.seeds[i] for i in held_at] or [self.randbytes(32)]
         held_fps = {w1.fps[i] for i in held_at}
         wallets = [w1.policy] if registered and w1.policy else []
+        if "transfer" in kinds and loaded != "none":
+            # A second wallet of the person's: its key is loaded and its
+            # wallet registered. Its outputs are no change of the wallet the
+            # inputs spend: Core's wallet of the first never finds them, and
+            # Faraday counts them as sent.
+            seeds.append(w2.seeds[0])
+            if registered and w2.policy:
+                wallets.append(w2.policy)
 
         # Addresses: both wallets' on both chains, and a payee of each type.
         found = batch(
@@ -476,7 +486,7 @@ class Review(Area):
                 elif kind == "recipient":
                     claim.append(a := payee())
                     real.append(a)
-                elif kind == "foreign":
+                elif kind in ("foreign", "transfer"):
                     claim.append(foreign[c][i])
                     real.append(foreign[c][i])
                 else:

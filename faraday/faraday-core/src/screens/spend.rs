@@ -743,7 +743,10 @@ pub(crate) fn step_body(
                             Some((EN.step_verified, Role::Ok.paint())),
                         ));
                     }
-                    OutputKind::UnverifiedChange { .. } | OutputKind::Recipient => {}
+                    // Drawn under Sends with the others (F254).
+                    OutputKind::Transfer { .. }
+                    | OutputKind::UnverifiedChange { .. }
+                    | OutputKind::Recipient => {}
                 }
             }
             // A fee that cannot be worked out is not known, never zero.

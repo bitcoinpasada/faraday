@@ -119,7 +119,7 @@ pub use inspect::{
     ABSURD_FEE_RATE_SAT_VB, Cosigner, Detail, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
     HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, Locktime, LocktimeKind,
     MultisigSummary, MusigInput, MusigParticipation, MusigRound, MusigSummary, OutputInfo,
-    OutputKind, SighashKind, SpendRoute, Warning, WarningKind, inspect,
+    OutputKind, OwnWallet, SighashKind, SpendRoute, Warning, WarningKind, inspect,
 };
 pub use musig::{MusigSession, MusigSessionView};
 pub use psbt::{Error, Psbt};

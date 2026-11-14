@@ -199,6 +199,10 @@ fn print_inspection(insp: &Inspection, ctx: &Context) {
                 if *change { "1" } else { "0" }
             ),
             OutputKind::UnverifiedChange { key } => format!("claims key {key}, NOT verified"),
+            OutputKind::Transfer { to, change, index } => format!(
+                "TRANSFER to another wallet of yours, {to:?} {}/{index}",
+                if *change { "1" } else { "0" }
+            ),
         };
         println!(
             "#{} {}\n    {}  {kind}{}",

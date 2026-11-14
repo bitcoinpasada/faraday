@@ -19,7 +19,7 @@ use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
 use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 use bitcoin::taproot::TapTweakHash;
 use bitcoin::{Address, Amount, ScriptBuf, Sequence, Transaction, TxOut, Txid, VarInt};
-use faraday_bip::keys::Fingerprint;
+use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_crypto::work::{Compute, Work};
 
 use faraday_bip::spend::{Lock, SpendPath};
@@ -97,6 +97,9 @@ pub enum WarningKind {
     /// An output claims to be change of a loaded key but the derived
     /// script does not match. Treat as an attack.
     ChangeSpoof,
+    /// An output is an address of one of the person's wallets other than
+    /// the one their inputs spend: counted as sent (F254).
+    TransferToOwnWallet,
     /// Fee is a large share of the amount sent, or above 0.01 BTC.
     HighFee {
         /// Fee as a whole percentage of the amount sent to others (or of
@@ -442,6 +445,71 @@ pub enum OutputKind {
         /// The fingerprint the PSBT names.
         key: Fingerprint,
     },
+    /// Verified as an address of one of the person's wallets, but not of
+    /// the wallet every input of theirs spends: a payment from one of
+    /// their wallets into another, counted as sent (F254).
+    Transfer {
+        /// The wallet it pays into.
+        to: OwnWallet,
+        /// Whether it is on the change chain rather than the receive
+        /// chain.
+        change: bool,
+        /// Address index.
+        index: u32,
+    },
+}
+
+/// One of the person's wallets: a loaded key's single-key account, or a
+/// registered wallet that holds a loaded key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OwnWallet {
+    /// A loaded key's single-key account (BIP 44, 49, 84 or 86).
+    Account {
+        /// The loaded key.
+        key: Fingerprint,
+        /// The account's path from the master key.
+        path: DerivationPath,
+    },
+    /// Position in [`Context::wallets`].
+    Registered(usize),
+}
+
+impl OwnWallet {
+    /// One wallet named one way: a registered wallet that is one key's own
+    /// single-key script (`wpkh`, `sh(wpkh)`, `pkh`, `tr(key)`) is that
+    /// key's account when its script type is that account's purpose (`wpkh`
+    /// at 84', `sh(wpkh)` at 49', `pkh` at 44', `tr(key)` at 86'), so an
+    /// input read by the account and its change read through the wallet
+    /// are the same wallet's; any other pairing is a wallet of its own. A
+    /// lookup.
+    fn named(self, ctx: &Context) -> Self {
+        if let OwnWallet::Registered(w) = self
+            && let Some(p) = ctx.wallets.get(w)
+            && let faraday_bip::policy::Template::Single { script } = p.template()
+            && let [k] = p.keys()
+            && let (Some(key), Some(path)) = (k.fingerprint(), k.path())
+            && let Some(ChildNumber::Hardened { index }) = path.as_ref().first().copied()
+            && index
+                == match script {
+                    ScriptType::Legacy => 44,
+                    ScriptType::NestedSegwit => 49,
+                    ScriptType::NativeSegwit => 84,
+                    ScriptType::Taproot => 86,
+                }
+        {
+            return OwnWallet::Account {
+                key,
+                path: path.clone(),
+            };
+        }
+        self
+    }
+}
+
+/// The account a single-key origin `…/chain/index` is under.
+fn account_of(path: &DerivationPath) -> DerivationPath {
+    let steps: &[ChildNumber] = path.as_ref();
+    DerivationPath::from(&steps[..steps.len().saturating_sub(2)])
 }
 
 /// One output.
@@ -701,6 +769,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     // The inputs held for want of a registered wallet, and which keys of
     // each multisig input a loaded key derives, for the register offer.
     let mut unregistered: Vec<usize> = Vec::new();
+    // The person's wallets the inputs spend: an output is their change
+    // only when it is the one wallet all of these are (F254).
+    let mut spent: Vec<OwnWallet> = Vec::new();
     let mut multisig_ours: alloc::collections::BTreeMap<usize, Vec<bool>> =
         alloc::collections::BTreeMap::new();
     let mut total_in = Amount::ZERO;
@@ -785,6 +856,8 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         }
 
         let mut is_ours = false;
+        // The person's wallet this input spends, when it is verified as one.
+        let mut own: Option<OwnWallet> = None;
         let mut origin: Option<KeyOrigin> = None;
         let mut musig_established: Option<MusigInput> = None;
         // The registered wallet whose script this input is, for the kinds
@@ -812,6 +885,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     match key.derive(&secp, path) {
                         Some(d) if d.key == *pk && Some(&d.script_pubkey) == spk.as_ref() => {
                             is_ours = true;
+                            own = Some(OwnWallet::Account {
+                                key: fp,
+                                path: account_of(path),
+                            });
                             push_unique(&mut participating, fp);
                         }
                         Some(d) => mismatch(&mut warnings, i, fp, path, d.key == *pk),
@@ -913,6 +990,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     Ok(None) => {}
                     Ok(Some(mut established)) => {
                         is_ours = !established.ours.is_empty();
+                        if is_ours {
+                            own = Some(OwnWallet::Registered(established.wallet));
+                        }
                         if let Some(first) = established.ours.first() {
                             origin = Some(KeyOrigin {
                                 fingerprint: first.fingerprint,
@@ -977,6 +1057,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                                 && input.tap_internal_key == Some(*xonly) =>
                         {
                             is_ours = true;
+                            own = Some(OwnWallet::Account {
+                                key: fp,
+                                path: account_of(path),
+                            });
                             push_unique(&mut participating, fp);
                         }
                         Some(d) => mismatch(
@@ -1040,6 +1124,55 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                         if ctx.is_ours(fp) {
                             push_unique(&mut participating, fp);
                         }
+                    }
+                }
+            }
+        }
+
+        if let Some(w) = registered
+            .map(OwnWallet::Registered)
+            .or(own)
+            .map(|w| w.named(ctx))
+        {
+            if !spent.contains(&w) {
+                spent.push(w);
+            }
+        } else if !finalized
+            && matches!(
+                cl.kind,
+                ScriptKind::P2pkh
+                    | ScriptKind::P2shP2wpkh
+                    | ScriptKind::P2wpkh
+                    | ScriptKind::P2trKey
+                    | ScriptKind::Multisig { .. }
+            )
+        {
+            // An input verified as no wallet of the person's that still
+            // names a loaded key and is a single-key script (p2pkh,
+            // p2sh-p2wpkh, p2wpkh, p2tr key path) or an unregistered
+            // 1-of-1 multi (signed from a loaded key; one of several keys
+            // is blocked anyway) is one the signer signs
+            // from the loaded key (a key at a path outside the accounts,
+            // another script type): it is a wallet of its own, so nothing
+            // is change of it. An input the signer leaves unsigned (a
+            // tap-script or miniscript no wallet is registered for) is not
+            // recorded.
+            let ecdsa = input
+                .bip32_derivation
+                .values()
+                .map(|(fp, path)| (Fingerprint::from(*fp), path));
+            let taproot = input
+                .tap_key_origins
+                .values()
+                .map(|(_, (fp, path))| (Fingerprint::from(*fp), path));
+            for (fp, path) in ecdsa.chain(taproot) {
+                if ctx.is_ours(fp) {
+                    let w = OwnWallet::Account {
+                        key: fp,
+                        path: account_of(path),
+                    };
+                    if !spent.contains(&w) {
+                        spent.push(w);
                     }
                 }
             }
@@ -1168,7 +1301,8 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             }
         };
 
-        let kind = output_kind(c, &secp, out, txout, ctx, i, &mut warnings);
+        let (kind, own) = output_kind(c, &secp, out, txout, ctx, i, &mut warnings);
+        let kind = change_or_transfer(kind, own, &spent, ctx, i, &mut warnings);
         match kind {
             OutputKind::Change { .. } | OutputKind::WalletChange { .. } => {
                 change_total = change_total
@@ -1873,9 +2007,9 @@ fn output_kind<C: Verification>(
     ctx: &Context,
     i: usize,
     warnings: &mut Vec<Warning>,
-) -> OutputKind {
+) -> (OutputKind, Option<OwnWallet>) {
     let mut claim_warnings = Vec::new();
-    let kind = output_claims(c, secp, out, txout, ctx, i, &mut claim_warnings);
+    let (kind, own) = output_claims(c, secp, out, txout, ctx, i, &mut claim_warnings);
     let verified = matches!(
         kind,
         OutputKind::Change { .. } | OutputKind::WalletChange { .. }
@@ -1890,11 +2024,44 @@ fn output_kind<C: Verification>(
         }
         _ => {}
     }
-    kind
+    (kind, own)
+}
+
+/// Change of `own`, one of the person's wallets, is their change only
+/// when every input of theirs spends that wallet (`spent`, F254); where
+/// they spend another wallet as well or instead, it is a transfer into
+/// `own`, counted as sent, with a Caution. Where no input is the
+/// person's, nothing here is signed and the kind stays as it is.
+fn change_or_transfer(
+    kind: OutputKind,
+    own: Option<OwnWallet>,
+    spent: &[OwnWallet],
+    ctx: &Context,
+    i: usize,
+    warnings: &mut Vec<Warning>,
+) -> OutputKind {
+    let Some(to) = own else { return kind };
+    let named = to.clone().named(ctx);
+    if spent.iter().all(|w| *w == named) {
+        return kind;
+    }
+    let (change, index) = match kind {
+        OutputKind::Change { change, index, .. }
+        | OutputKind::WalletChange { change, index, .. } => (change, index),
+        other => return other,
+    };
+    warn(
+        warnings,
+        Level::Caution,
+        WarningKind::TransferToOwnWallet,
+        Detail::TransferToOwnWallet { output: i },
+    );
+    OutputKind::Transfer { to, change, index }
 }
 
 /// Costs what `musig_output` and `wallet_claim` cost. The body of
-/// [`output_kind`], with every warning its claims raise.
+/// [`output_kind`], with every warning its claims raise, and the
+/// person's wallet the output is verified as an address of.
 fn output_claims<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,
@@ -1903,16 +2070,18 @@ fn output_claims<C: Verification>(
     ctx: &Context,
     i: usize,
     warnings: &mut Vec<Warning>,
-) -> OutputKind {
+) -> (OutputKind, Option<OwnWallet>) {
     let spk = &txout.script_pubkey;
-    let mut kind = OutputKind::Recipient;
     match musig_output(c, secp, out, txout, ctx) {
         Some(Ok((wallet, change, index))) => {
-            return OutputKind::WalletChange {
-                wallet,
-                change,
-                index,
-            };
+            return (
+                OutputKind::WalletChange {
+                    wallet,
+                    change,
+                    index,
+                },
+                Some(OwnWallet::Registered(wallet)),
+            );
         }
         Some(Err(())) => {
             warn(
@@ -1926,10 +2095,11 @@ fn output_claims<C: Verification>(
                 .values()
                 .map(|(_, (fp, _))| Fingerprint::from(*fp))
                 .find(|fp| ctx.is_ours(*fp));
-            return match claimed {
+            let kind = match claimed {
                 Some(key) => OutputKind::UnverifiedChange { key },
                 None => OutputKind::Recipient,
             };
+            return (kind, None);
         }
         None => {}
     }
@@ -1942,24 +2112,54 @@ fn output_claims<C: Verification>(
                 .values()
                 .map(|(_, (fp, path))| (Fingerprint::from(*fp), path)),
         );
-    if let Some(claim) = ctx.wallet_claim(c, origins, spk) {
-        if claim.verified {
-            return OutputKind::WalletChange {
+    let Some(claim) = ctx.wallet_claim(c, origins, spk) else {
+        return single_key_claims(secp, out, spk, ctx, i, warnings);
+    };
+    if claim.verified {
+        return (
+            OutputKind::WalletChange {
                 wallet: claim.wallet,
                 change: claim.change,
                 index: claim.index,
-            };
-        }
-        warn(
-            warnings,
-            Level::Blocked,
-            WarningKind::ChangeSpoof,
-            Detail::WalletChangeSpoof { output: i },
+            },
+            Some(OwnWallet::Registered(claim.wallet)),
         );
-        return OutputKind::UnverifiedChange {
-            key: claim.fingerprint,
-        };
     }
+    // A wallet of several keys over a single-key account names that
+    // account's paths too: the account's own change at one of them is
+    // still the person's change, and only an output neither gives is a
+    // spoof of the wallet's.
+    let mut single = Vec::new();
+    let answer = single_key_claims(secp, out, spk, ctx, i, &mut single);
+    if matches!(answer.0, OutputKind::Change { .. }) {
+        warnings.append(&mut single);
+        return answer;
+    }
+    warn(
+        warnings,
+        Level::Blocked,
+        WarningKind::ChangeSpoof,
+        Detail::WalletChangeSpoof { output: i },
+    );
+    (
+        OutputKind::UnverifiedChange {
+            key: claim.fingerprint,
+        },
+        None,
+    )
+}
+
+/// An output's claims to be a loaded key's single-key change, with
+/// every warning they raise, and the account it is verified under.
+fn single_key_claims<C: Verification>(
+    secp: &Secp256k1<C>,
+    out: &Output,
+    spk: &bitcoin::Script,
+    ctx: &Context,
+    i: usize,
+    warnings: &mut Vec<Warning>,
+) -> (OutputKind, Option<OwnWallet>) {
+    let mut kind = OutputKind::Recipient;
     let claims = out
         .bip32_derivation
         .iter()
@@ -1998,12 +2198,16 @@ fn output_claims<C: Verification>(
                     && d.key.x_only_public_key().0 == pk.x_only_public_key().0
                     && d.script_pubkey == *spk =>
             {
-                kind = OutputKind::Change {
+                let kind = OutputKind::Change {
                     key: fp,
                     change: d.change,
                     index: d.index,
                 };
-                return kind;
+                let own = OwnWallet::Account {
+                    key: fp,
+                    path: account_of(path),
+                };
+                return (kind, Some(own));
             }
             Some(_) => {
                 kind = OutputKind::UnverifiedChange { key: fp };
@@ -2046,7 +2250,7 @@ fn output_claims<C: Verification>(
             }
         }
     }
-    kind
+    (kind, None)
 }
 
 /// Raises F242's Caution for a change output at `index` where it is

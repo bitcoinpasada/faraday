@@ -239,6 +239,9 @@ fn classes(own: &[OutputInfo], other: &[OutputInfo], loaded: &[Fingerprint]) -> 
         .collect();
     own.iter()
         .map(|o| {
+            if matches!(o.kind, OutputKind::Transfer { .. }) {
+                return Class::Payment;
+            }
             if o.is_ours() || theirs.contains(o.script_pubkey.as_bytes()) {
                 return Class::Yours;
             }
@@ -353,10 +356,12 @@ fn output_lines(
                 output: OutputRef::of(a),
                 original: a.amount,
             }),
-            (None, Some((b, Class::Payment))) => lines.push(Line::PaysNew {
-                output: OutputRef::of(b),
-                replacement: b.amount,
-            }),
+            (None | Some((_, Class::Yours)), Some((b, Class::Payment))) => {
+                lines.push(Line::PaysNew {
+                    output: OutputRef::of(b),
+                    replacement: b.amount,
+                })
+            }
             _ => {}
         }
     }

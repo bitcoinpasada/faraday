@@ -6401,6 +6401,8 @@ strings! {
     psbt_warn_musig_change_spoof: "output {} claims to be change of a MuSig2 wallet you are using, but the script is not that address",
     /// A warning on Review. `{}`: the output.
     psbt_warn_wallet_change_spoof: "output {} claims to be change of a wallet you are using, but the script is not that address",
+    /// A warning on Review. `{}`: the output.
+    psbt_warn_transfer: "output {} pays another of your wallets, not the one these coins are spent from; it counts as sent",
     /// A warning on Review. `{}`: the output, the key.
     psbt_warn_change_not_loaded: "output {} claims to belong to key {}, which is not loaded; treat it as a payment to others",
     /// A warning on Review. `{}`: the output, the key, the path.

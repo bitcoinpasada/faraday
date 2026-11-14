@@ -167,6 +167,7 @@ fn output_words(d: &Detail) -> Option<Words<'static>> {
         D::Inscription { input } => t(EN.psbt_warn_inscription, &[&n(*input)]),
         D::MusigChangeSpoof { output } => t(EN.psbt_warn_musig_change_spoof, &[&n(*output)]),
         D::WalletChangeSpoof { output } => t(EN.psbt_warn_wallet_change_spoof, &[&n(*output)]),
+        D::TransferToOwnWallet { output } => t(EN.psbt_warn_transfer, &[&n(*output)]),
         D::ChangeKeyNotLoaded { output, key } => t(
             EN.psbt_warn_change_not_loaded,
             &[&n(*output), &text!("{key}")],

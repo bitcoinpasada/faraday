@@ -196,6 +196,12 @@ pub enum Detail {
         /// The output.
         output: usize,
     },
+    /// An output is an address of one of the person's wallets, not of
+    /// the one wallet their inputs spend.
+    TransferToOwnWallet {
+        /// The output.
+        output: usize,
+    },
     /// An output claims to belong to a key that is not loaded.
     ChangeKeyNotLoaded {
         /// The output.

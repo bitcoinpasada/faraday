@@ -915,6 +915,20 @@ title = "a fee bump is said only when every rule of COMPARE §3.2 holds, a rule 
 source = ["docs/decisions/F233.md", "docs/COMPARE.md §3"]
 when = ["docs/COMPARE.md"]
 kind = "review"
+
+[[rule]]
+id = "keys.change-of-spent-wallet"
+title = "an output is change only of the one wallet every input of the person's spends; an address of another wallet of theirs is a transfer, counted as sent, named, with a Caution, never blocked; a wallet claim that fails still tries the single-key rule"
+source = ["docs/decisions/F254.md"]
+when = ["core/faraday-psbt/src/inspect.rs", "core/faraday-psbt/src/context.rs", "core/faraday-psbt/src/bump.rs", "core/faraday-psbt/src/diff.rs"]
+kind = "review"
+
+[[rule]]
+id = "keys.wallet-confirmed"
+title = "a wallet of more than one key comes into the session only through the one confirmation sheet and its hold (each cosigner's fingerprint, path and whole extended key, the descriptor checksum), however it arrives; only a vault's own wallets at unlock pass without it"
+source = ["docs/decisions/F254.md"]
+when = ["faraday/faraday-core/src/inbox.rs", "faraday/faraday-core/src/boot_import/**", "faraday/faraday-core/src/wallet.rs", "faraday/faraday-core/src/wallet/**", "faraday/faraday-core/src/register.rs", "core/faraday-psbt/src/register.rs"]
+kind = "review"
 [[rule]]
 id = "compute.token"
 title = "costly work takes the compute token and says so"
