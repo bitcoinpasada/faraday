@@ -772,3 +772,120 @@ fn pefile_finds_the_certificate_table_where_faraday_put_it_and_the_moved_checksu
         assert_eq!(moved_sum, worked_out, "{tool}");
     }
 }
+
+/// The signed tiny image with its section table moved to `table` (up to
+/// the optional header's reach) and holding `sections` (file offset,
+/// size), padded to `len` bytes, its headers grown to hold the table,
+/// its signature copied after: a file a stick can hold, whose signature
+/// reads.
+fn with_sections(table: usize, sections: &[(u32, u32)], len: usize) -> Vec<u8> {
+    let signed = pe::sign(&mut blind(), &tiny_pe(), &keys().db).unwrap();
+    let (cat, csize) = dir(&signed);
+    let certs = signed[cat..cat + csize].to_vec();
+    let mut image = signed[..cat].to_vec();
+    let coff = 0x44;
+    let opt = coff + 20;
+    image.resize(
+        (table + sections.len() * 40).max(len).next_multiple_of(8),
+        0,
+    );
+    image[coff + 2..coff + 4].copy_from_slice(&(sections.len() as u16).to_le_bytes());
+    image[coff + 16..coff + 18].copy_from_slice(&((table - opt) as u16).to_le_bytes());
+    let headers = headers_len(&image).max((table + sections.len() * 40).next_multiple_of(0x200));
+    image[opt + 60..opt + 64].copy_from_slice(&(headers as u32).to_le_bytes());
+    for (i, (at, size)) in sections.iter().enumerate() {
+        let s = table + i * 40;
+        image[s + 16..s + 20].copy_from_slice(&size.to_le_bytes());
+        image[s + 20..s + 24].copy_from_slice(&at.to_le_bytes());
+    }
+    let at = image.len();
+    image.extend_from_slice(&certs);
+    set_dir(&mut image, at, csize);
+    image
+}
+
+/// A section said to start near the end of the address space, its end
+/// past the file: the image is refused, by Check and the image hash
+/// alike, and never stops the program, on a 32-bit build too.
+#[test]
+fn a_section_said_to_start_near_the_end_of_the_address_space_is_refused() {
+    let k = keys();
+    let mut image = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    let sec = 0x44 + 20 + 240;
+    image[sec + 16..sec + 20].copy_from_slice(&0x20u32.to_le_bytes());
+    image[sec + 20..sec + 24].copy_from_slice(&0xFFFF_FFF0u32.to_le_bytes());
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// A certificate table said to start near the end of the address space
+/// is refused by the image hash and Check, and never stops the program,
+/// on a 32-bit build too.
+#[test]
+fn a_signature_table_said_to_start_near_the_end_of_the_address_space_is_refused() {
+    let k = keys();
+    let mut image = tiny_pe();
+    set_dir(&mut image, 0xFFFF_FFF8, 0x10);
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// The size of an image's headers, as its optional header says.
+fn headers_len(image: &[u8]) -> usize {
+    let at = 0x44 + 20 + 60;
+    u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
+}
+
+/// An image whose section table lists the same bytes twice, or two
+/// sections that share some bytes, is not an image: Check and the image
+/// hash refuse it.
+#[test]
+fn an_image_whose_sections_list_the_same_bytes_twice_is_refused() {
+    let k = keys();
+    for sections in [
+        [(0x200, 0x200), (0x200, 0x200)],
+        [(0x200, 0x100), (0x280, 0x100)],
+    ] {
+        let image = with_sections(0x148, &sections, 0x2000);
+        assert_eq!(headers_len(&image), 0x200, "the table fits in the headers");
+        assert!(pe::image_hash(&image).is_err(), "{sections:?}");
+        assert!(pe::check(&image, &k.db.cert).is_err(), "{sections:?}");
+    }
+}
+
+/// An image whose section table lies past its headers is not an image.
+#[test]
+fn an_image_whose_section_table_lies_past_its_headers_is_refused() {
+    let k = keys();
+    let mut image = with_sections(0x1000, &[(0x1200, 0x200)], 0x2000);
+    let at = 0x44 + 20 + 60;
+    image[at..at + 4].copy_from_slice(&0x200u32.to_le_bytes());
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// Check on an image whose 65,535 sections each list the whole file
+/// after its headers comes back at once (it is refused), rather than
+/// hashing the file 65,535 times while the screen stands still.
+#[test]
+fn check_on_an_image_whose_sections_each_list_the_whole_file_comes_back_at_once() {
+    let len = 4 << 20;
+    let table: usize = 0x1_0000;
+    let headers = (table + 65_535 * 40).next_multiple_of(0x200);
+    let sections = vec![(headers as u32, (len - headers) as u32); 65_535];
+    let image = with_sections(table, &sections, len);
+    assert_eq!(
+        headers_len(&image),
+        headers,
+        "the table fits in the headers"
+    );
+    assert!(image.len() < 18 << 20, "a file the Inbox takes");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(pe::check(&image, &keys().db.cert));
+    });
+    let checked = rx
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("Check did not come back within 30 s");
+    assert!(checked.is_err(), "{checked:?}");
+}

@@ -2,6 +2,13 @@
 //! "Windows Authenticode Portable Executable Signature Format"): the image
 //! hash, a SHA-256 signature by the db key appended as the certificate
 //! table, and checking an existing signature against a db certificate.
+//!
+//! An image whose section table lies outside its headers, or whose
+//! sections start inside the headers or share bytes, is refused as not an
+//! image. Firmware refuses the first two; it would load sections that
+//! share bytes, but no toolchain makes them, so this fails closed.
+
+#![deny(clippy::arithmetic_side_effects)]
 
 use alloc::vec::Vec;
 
@@ -25,11 +32,11 @@ struct Layout {
 }
 
 fn u16_at(b: &[u8], at: usize) -> Option<usize> {
-    Some(u16::from_le_bytes(b.get(at..at + 2)?.try_into().ok()?) as usize)
+    Some(u16::from_le_bytes(b.get(at..at.checked_add(2)?)?.try_into().ok()?) as usize)
 }
 
 fn u32_at(b: &[u8], at: usize) -> Option<usize> {
-    Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?) as usize)
+    Some(u32::from_le_bytes(b.get(at..at.checked_add(4)?)?.try_into().ok()?) as usize)
 }
 
 fn layout(pe: &[u8]) -> Result<Layout, Error> {
@@ -38,53 +45,73 @@ fn layout(pe: &[u8]) -> Result<Layout, Error> {
         return Err(bad);
     }
     let nt = u32_at(pe, 0x3c).ok_or(bad)?;
-    if pe.get(nt..nt + 4) != Some(b"PE\0\0") {
+    if pe.get(nt..nt.checked_add(4).ok_or(bad)?) != Some(b"PE\0\0") {
         return Err(bad);
     }
-    let coff = nt + 4;
-    let sections = u16_at(pe, coff + 2).ok_or(bad)?;
-    let opt_size = u16_at(pe, coff + 16).ok_or(bad)?;
-    let opt = coff + 20;
+    let coff = nt.checked_add(4).ok_or(bad)?;
+    let sections = u16_at(pe, coff.checked_add(2).ok_or(bad)?).ok_or(bad)?;
+    let opt_size = u16_at(pe, coff.checked_add(16).ok_or(bad)?).ok_or(bad)?;
+    let opt = coff.checked_add(20).ok_or(bad)?;
+    let field = |n: usize| opt.checked_add(n).ok_or(bad);
     let (dirs, count) = match u16_at(pe, opt).ok_or(bad)? {
-        0x20b => (opt + 112, u32_at(pe, opt + 108).ok_or(bad)?),
-        0x10b => (opt + 96, u32_at(pe, opt + 92).ok_or(bad)?),
+        0x20b => (field(112)?, u32_at(pe, field(108)?).ok_or(bad)?),
+        0x10b => (field(96)?, u32_at(pe, field(92)?).ok_or(bad)?),
         _ => return Err(bad),
     };
     if count < 5 {
         return Err(bad);
     }
-    let cert_dir = dirs + 4 * 8;
+    let cert_dir = dirs.checked_add(4 * 8).ok_or(bad)?;
     let cert_at = u32_at(pe, cert_dir).ok_or(bad)?;
-    let cert_size = u32_at(pe, cert_dir + 4).ok_or(bad)?;
-    let table = opt + opt_size;
+    let cert_size = u32_at(pe, cert_dir.checked_add(4).ok_or(bad)?).ok_or(bad)?;
+    let size_of_headers = u32_at(pe, field(60)?).ok_or(bad)?;
+    if size_of_headers > pe.len() || cert_dir.checked_add(8).ok_or(bad)? > size_of_headers {
+        return Err(bad);
+    }
+    // The section table lies inside the headers, and no section starts
+    // inside them or inside another: every byte is hashed once, so the
+    // work is bounded by the file's size.
+    let table = opt.checked_add(opt_size).ok_or(bad)?;
+    let table_end = sections
+        .checked_mul(40)
+        .and_then(|n| table.checked_add(n))
+        .ok_or(bad)?;
+    if table_end > size_of_headers {
+        return Err(bad);
+    }
     let mut secs = Vec::new();
     for i in 0..sections {
-        let s = table + i * 40;
-        let size = u32_at(pe, s + 16).ok_or(bad)?;
-        let at = u32_at(pe, s + 20).ok_or(bad)?;
+        let s = table
+            .checked_add(i.checked_mul(40).ok_or(bad)?)
+            .ok_or(bad)?;
+        let size = u32_at(pe, s.checked_add(16).ok_or(bad)?).ok_or(bad)?;
+        let at = u32_at(pe, s.checked_add(20).ok_or(bad)?).ok_or(bad)?;
         if size > 0 {
-            if at + size > pe.len() {
+            if at.checked_add(size).ok_or(bad)? > pe.len() {
                 return Err(bad);
             }
             secs.push((at, size));
         }
     }
     secs.sort_unstable();
-    let size_of_headers = u32_at(pe, opt + 60).ok_or(bad)?;
-    if size_of_headers > pe.len() || cert_dir + 8 > size_of_headers {
-        return Err(bad);
+    let mut end = size_of_headers;
+    for (at, size) in &secs {
+        if *at < end {
+            return Err(bad);
+        }
+        end = at.checked_add(*size).ok_or(bad)?;
     }
     let certs = (cert_at != 0 && cert_size != 0).then_some((cert_at, cert_size));
     // The certificate table follows the headers (it is appended to the
     // image); one that starts inside them would overlap the very fields
     // signing rewrites.
     if let Some((a, n)) = certs
-        && (a < size_of_headers || a + n > pe.len())
+        && (a < size_of_headers || a.checked_add(n).ok_or(bad)? > pe.len())
     {
         return Err(bad);
     }
     Ok(Layout {
-        checksum: opt + 64,
+        checksum: field(64)?,
         cert_dir,
         size_of_headers,
         sections: secs,
@@ -96,18 +123,24 @@ fn layout(pe: &[u8]) -> Result<Layout, Error> {
 /// certificate-table entry and the certificate table.
 pub fn image_hash(pe: &[u8]) -> Result<[u8; 32], Error> {
     let l = layout(pe)?;
+    let bad = Error::Image;
+    let part = |from: usize, to: usize| pe.get(from..to).ok_or(bad);
     let mut h = Sha256::new();
-    h.update(&pe[..l.checksum]);
-    h.update(&pe[l.checksum + 4..l.cert_dir]);
-    h.update(&pe[l.cert_dir + 8..l.size_of_headers]);
+    h.update(part(0, l.checksum)?);
+    h.update(part(l.checksum.checked_add(4).ok_or(bad)?, l.cert_dir)?);
+    h.update(part(
+        l.cert_dir.checked_add(8).ok_or(bad)?,
+        l.size_of_headers,
+    )?);
     let mut hashed = l.size_of_headers;
     for (at, size) in &l.sections {
-        h.update(&pe[*at..at + size]);
-        hashed += size;
+        let to = at.checked_add(*size).ok_or(bad)?;
+        h.update(part(*at, to)?);
+        hashed = hashed.checked_add(*size).ok_or(bad)?;
     }
     let end = l.certs.map_or(pe.len(), |(a, _)| a);
     if end > hashed {
-        h.update(&pe[hashed..end]);
+        h.update(part(hashed, end)?);
     }
     Ok(h.finalize().into())
 }
@@ -120,7 +153,10 @@ fn unsigned(pe: &[u8]) -> Result<(Layout, Vec<u8>), Error> {
     if let Some((at, _)) = l.certs {
         image.truncate(at);
     }
-    image[l.cert_dir..l.cert_dir + 8].fill(0);
+    image
+        .get_mut(l.cert_dir..l.cert_dir.checked_add(8).ok_or(Error::Image)?)
+        .ok_or(Error::Image)?
+        .fill(0);
     while !image.len().is_multiple_of(8) {
         image.push(0);
     }
@@ -168,7 +204,13 @@ pub(crate) fn sign_image(
     let signed_data = SignedData::new(cms::SPC_INDIRECT_DATA, Some(content), &signer.cert, &info)?;
     let content_info = ContentInfo(signed_data).to_der()?;
     let mut table = Vec::new();
-    let length = (8 + content_info.len()).div_ceil(8) * 8;
+    let length = content_info
+        .len()
+        .checked_add(8)
+        .ok_or(Error::Image)?
+        .div_ceil(8)
+        .checked_mul(8)
+        .ok_or(Error::Image)?;
     table.extend_from_slice(&(length as u32).to_le_bytes());
     table.extend_from_slice(&0x0200u16.to_le_bytes());
     table.extend_from_slice(&0x0002u16.to_le_bytes());
@@ -176,8 +218,11 @@ pub(crate) fn sign_image(
     table.resize(length, 0);
     let at = image.len();
     image.extend_from_slice(&table);
-    image[l.cert_dir..l.cert_dir + 4].copy_from_slice(&(at as u32).to_le_bytes());
-    image[l.cert_dir + 4..l.cert_dir + 8].copy_from_slice(&(length as u32).to_le_bytes());
+    let entry = image
+        .get_mut(l.cert_dir..l.cert_dir.checked_add(8).ok_or(Error::Image)?)
+        .ok_or(Error::Image)?;
+    entry[..4].copy_from_slice(&(at as u32).to_le_bytes());
+    entry[4..].copy_from_slice(&(length as u32).to_le_bytes());
     Ok(image)
 }
 
@@ -235,13 +280,22 @@ pub fn transplant(release: &[u8], signed: &[u8]) -> Result<Vec<u8>, Transplant> 
     // One WIN_CERTIFICATE, its length rounded to eight the whole table,
     // the table where the release's image ends and ending the file.
     let first = u32_at(signed, at).ok_or(Transplant::Layout)?;
-    if at != image.len() || at + size != signed.len() || first < 8 || first.div_ceil(8) * 8 != size
+    if at != image.len()
+        || at.checked_add(size) != Some(signed.len())
+        || first < 8
+        || first.div_ceil(8).checked_mul(8) != Some(size)
     {
         return Err(Transplant::Layout);
     }
-    image[l.checksum..l.checksum + 4].copy_from_slice(&signed[s.checksum..s.checksum + 4]);
-    image[l.cert_dir..l.cert_dir + 8].copy_from_slice(&signed[s.cert_dir..s.cert_dir + 8]);
-    image.extend_from_slice(&signed[at..]);
+    // Both layouts passed `image_hash`, so these ranges lie inside each image.
+    let copy = |image: &mut Vec<u8>, to: usize, from: usize, n: usize| -> Option<()> {
+        let src = signed.get(from..from.checked_add(n)?)?;
+        image.get_mut(to..to.checked_add(n)?)?.copy_from_slice(src);
+        Some(())
+    };
+    copy(&mut image, l.checksum, s.checksum, 4).ok_or(Transplant::Layout)?;
+    copy(&mut image, l.cert_dir, s.cert_dir, 8).ok_or(Transplant::Layout)?;
+    image.extend_from_slice(signed.get(at..).ok_or(Transplant::Layout)?);
     Ok(image)
 }
 
@@ -279,7 +333,7 @@ pub fn signer(pe: &[u8]) -> Result<Signer, Error> {
 /// The SignedData of the first signature, read from the certificate
 /// table: its 8-byte header, then a ContentInfo, then padding.
 fn signed_data(pe: &[u8], at: usize, size: usize) -> Option<SignedData> {
-    let table = pe.get(at..at + size)?;
+    let table = pe.get(at..at.checked_add(size)?)?;
     if u16_at(table, 6)? != 0x0002 {
         return None;
     }
