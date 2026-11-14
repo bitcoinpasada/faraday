@@ -277,7 +277,7 @@ fn a_vault_of_every_kind_reads_back_to_the_same_records() {
         let n = i as u8 + 1;
         assert_eq!(fields(record_of(&read, n)), fields(&r), "item {n}");
         let item = read.items.iter().find(|i| i.uuid == uuid(n)).unwrap();
-        let path: Vec<&str> = item.path.iter().map(|n| &**n).collect();
+        let path: Vec<&str> = item.path.iter().map(|n| n.as_str()).collect();
         let want: Vec<&str> = if group.is_empty() {
             vec![]
         } else {
@@ -1036,7 +1036,7 @@ fn an_item_moved_or_renamed_in_a_keepass_app_keeps_its_kind() {
     assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
     assert_eq!(
         &*read.items[0].path,
-        ["Clés", "Cold"].map(Into::<Arc<str>>::into)
+        ["Clés", "Cold"].map(|n| Arc::new(faraday_text::Text::of(n)))
     );
     assert_eq!(fields(record_of(&read, 1)), fields(&seed_record()));
 }
@@ -1603,7 +1603,7 @@ fn entries_of_one_group_share_its_path_and_groups_below_share_its_names() {
         }
     }
     assert!(Arc::ptr_eq(&outer[0].path[0], &inner[0].path[0]));
-    assert_eq!(&*inner[0].path[1], "Inner");
+    assert_eq!(inner[0].path[1].as_str(), "Inner");
 }
 
 #[test]

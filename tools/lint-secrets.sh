@@ -60,7 +60,7 @@
 # faraday/faraday-vault/src/kdbx/keyfile.rs (a key file's key and a YubiKey's secret),
 # faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/secret.rs (a GPG key's paperkey read back: its
 #   lines, its data and the secret parts in it):
-#   3. No heap text: the tokens `String`, `alloc::string`, `to_string`,
+#   3. No heap text: the tokens `String`, `Arc<str>`, `Box<str>`, `alloc::string`, `to_string`,
 #      `to_owned`, `format!` and `.into_owned()` may not appear, in code or
 #      comments, and neither may the calls that build a String from other
 #      text: `.join(` with an argument (not `.join()`), `<[_]>::join(`,
@@ -825,7 +825,7 @@ report "a file in NAMELESS that now names a secret type (rule 3; remove it from 
 dup=$(tr ' ' '\n' <<< "$SECRET_FILES" | sort | uniq -d | sed 's/$/: listed twice/')
 report "SECRET_FILES lists a file twice (rule 3)" "$dup"
 # The text builders: the type, its macros and the calls that make a String.
-HEAP_TEXT='\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!|\.into_owned\(\)'
+HEAP_TEXT='\bString\b|\b(Arc|Box)<str>|alloc::string|\bto_string\b|\bto_owned\b|\bformat!|\.into_owned\(\)'
 # The calls that build a String (or a Vec) from other text. A line that holds
 # one of them but not text (a char or a byte, a Vec of bytes, an Option, a
 # path) says so with a `// not text: <what>` comment on the line; a file that

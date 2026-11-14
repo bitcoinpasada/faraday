@@ -106,7 +106,7 @@ impl OpenVaults {
     /// A lookup. The names of the groups record `i` of open vault `id`
     /// was read from, under the root; empty for the root, a new record or
     /// one not an entry.
-    pub fn path(&self, id: VaultId, i: usize) -> &[Arc<str>] {
+    pub fn path(&self, id: VaultId, i: usize) -> &[Arc<Text>] {
         match self.slot(id).and_then(|s| s.origin.get(i)) {
             Some(Origin::Entry { path, .. }) => path,
             _ => &[],

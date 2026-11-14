@@ -20,6 +20,7 @@ use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use faraday_intake::wallet::Refusal;
+use faraday_text::Text;
 use faraday_vault as fv;
 use zeroize::Zeroizing;
 
@@ -68,7 +69,7 @@ enum What {
     },
     Make {
         id: [u8; 16],
-        label: Box<str>,
+        label: Text,
         cost: fv::Cost,
         passphrase: SecretText,
         components: fv::kdbx::Components,
@@ -189,7 +190,7 @@ impl StretchJob {
     /// the time of the first seal.
     pub fn make(
         id: [u8; 16],
-        label: Box<str>,
+        label: Text,
         cost: fv::Cost,
         passphrase: SecretText,
         random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
@@ -460,7 +461,7 @@ impl Sealed {
 pub struct KdbxJob {
     record: fv::Record,
     names: Names,
-    vault: ([u8; 16], Box<str>, Option<u64>),
+    vault: ([u8; 16], Text, Option<u64>),
     uuids: ([u8; 16], [u8; 16]),
     passphrase: SecretText,
     cost: fv::Cost,
@@ -471,7 +472,7 @@ impl KdbxJob {
     pub(crate) fn new(
         record: fv::Record,
         names: Names,
-        vault: ([u8; 16], Box<str>, Option<u64>),
+        vault: ([u8; 16], Text, Option<u64>),
         uuids: ([u8; 16], [u8; 16]),
         passphrase: SecretText,
         cost: fv::Cost,

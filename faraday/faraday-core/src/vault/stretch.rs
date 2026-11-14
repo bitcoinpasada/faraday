@@ -319,7 +319,7 @@ fn create_start(app: &mut Faraday) -> bool {
             &typed[..end]
         }
     };
-    let job = StretchJob::make(id16, label.into(), cost, phrase, seal, now);
+    let job = StretchJob::make(id16, Text::of(label), cost, phrase, seal, now);
     let (job, key) = match (drawn, chosen) {
         (Some(random), _) => (job.making_key_file(&random), Made::Drawn),
         (None, Some((name, parts))) => match job.keyed(parts) {

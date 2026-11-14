@@ -9,6 +9,7 @@ use faraday_intake::secret_buf::SecretText;
 use faraday_keys::job::StretchJob;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN};
 use faraday_keys::{Part, Reveal};
+use faraday_text::Text;
 use faraday_vault::Cost;
 use faraday_vault::kdbx::Components;
 use faraday_vault::kdbx::keyfile;
@@ -331,7 +332,7 @@ fn a_make_draws_a_key_file_and_gives_its_document_but_refuses_a_secret() {
     let make = || {
         StretchJob::make(
             [7u8; 16],
-            "Test".into(),
+            Text::of("Test"),
             COST,
             SecretText::of(PASS),
             Zeroizing::new([7u8; SEAL_RANDOM_LEN]),
@@ -515,7 +516,7 @@ fn a_make_gives_a_key_file_document_only_for_the_draw_that_made_the_key() {
     let make = || {
         StretchJob::make(
             [7u8; 16],
-            "Test".into(),
+            Text::of("Test"),
             COST,
             SecretText::of(PASS),
             Zeroizing::new([7u8; SEAL_RANDOM_LEN]),
@@ -537,7 +538,7 @@ fn a_make_gives_a_key_file_document_only_for_the_draw_that_made_the_key() {
     // A make that fails gives no document.
     let failed = StretchJob::make(
         [7u8; 16],
-        "Test".into(),
+        Text::of("Test"),
         COST,
         SecretText::of(""),
         Zeroizing::new([7u8; SEAL_RANDOM_LEN]),

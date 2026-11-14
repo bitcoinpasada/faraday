@@ -756,7 +756,7 @@ pub(crate) enum Origin {
     /// An entry: its UUID, the names of its groups, its kind as read.
     Entry {
         uuid: [u8; 16],
-        path: Arc<[Arc<str>]>,
+        path: Arc<[Arc<Text>]>,
         kind: u8,
         /// Its place in `read().items`.
         item: usize,

@@ -645,7 +645,7 @@ type Walked<'a> = Vec<(Path, Marks, &'a Entry)>;
     clippy::disallowed_methods,
     reason = "a second handle on a group path's name, not a second copy of it"
 )]
-fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<str>>, marked: Marks, out: &mut Walked<'a>) {
+fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<Text>>, marked: Marks, out: &mut Walked<'a>) {
     let marked = Marks {
         same_uuid: marked.same_uuid || g.duplicate_uuid(),
         ambiguous: marked.ambiguous.or(g.ambiguous()),
@@ -656,7 +656,7 @@ fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<str>>, marked: Marks, out: &mut Wa
         out.push((Arc::clone(path), marked, e));
     }
     for sub in g.groups() {
-        names.push(sub.name().into());
+        names.push(Arc::new(Text::of(sub.name())));
         walk(sub, names, marked, out);
         names.pop();
     }

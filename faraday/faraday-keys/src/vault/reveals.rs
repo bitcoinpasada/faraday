@@ -323,7 +323,7 @@ impl OpenVaults {
         Some(crate::job::KdbxJob::new(
             record,
             names,
-            (id, label.into(), now),
+            (id, Text::of(label), now),
             (u, g),
             passphrase,
             cost,

@@ -6,7 +6,7 @@ use alloc::collections::BTreeSet;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use faraday_text::{Text as Wiped, text};
+use faraday_text::{Text, Text as Wiped, text};
 
 use super::{Body, Entry};
 use crate::records::Record;
@@ -18,7 +18,7 @@ pub(super) type Name = Wiped;
 ///
 /// Shared: every entry of a group holds the group's one list, and every
 /// name is stored once, however many groups below it and entries in them.
-pub(super) type Path = Arc<[Arc<str>]>;
+pub(super) type Path = Arc<[Arc<Text>]>;
 /// `faraday.sealed`, when it reads.
 pub(super) type Sealed = Option<Wiped>;
 
@@ -189,7 +189,7 @@ pub struct Item {
     pub uuid: [u8; 16],
     /// The names of the groups it is in, from under the root; empty for the
     /// root group.
-    pub path: Arc<[Arc<str>]>,
+    pub path: Arc<[Arc<Text>]>,
     /// What it holds.
     pub body: Body,
     /// A person's entry's other fields; empty for Faraday's items.
@@ -249,10 +249,11 @@ impl Read {
         let mut pathed = 0usize;
         for it in &self.items {
             if paths.insert(Arc::as_ptr(&it.path).cast()) {
-                pathed += size_of::<Arc<[Arc<str>]>>() + 16 + size_of_val(&*it.path);
+                pathed += size_of::<Arc<[Arc<Text>]>>() + 16 + size_of_val(&*it.path);
                 for n in it.path.iter() {
                     if names.insert(Arc::as_ptr(n).cast()) {
-                        pathed += size_of::<Arc<str>>() + n.len() + 32;
+                        pathed +=
+                            size_of::<Arc<Text>>() + size_of::<Text>() + 16 + n.capacity() + 32;
                     }
                 }
             }
