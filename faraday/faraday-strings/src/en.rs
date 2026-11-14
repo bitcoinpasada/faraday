@@ -6193,12 +6193,16 @@ strings! {
     step_no_wallet_to_show: "No wallet to show addresses from",
     /// Text in `step_body`.
     step_sends: "Sends",
+    /// Text in `step_body`: the first row of the Review on a small panel.
+    step_to_others: "To others",
+    /// Text in `step_body`.
+    step_recipient_inline: "recipient",
+    /// Text in `step_body`.
+    step_recipients: "recipients",
     /// Text in `step_body`. `{}`: `if change { 1 } else { 0 }`, `index`.
     step_to_path: "to {}/{}",
     /// Text in `step_body`.
     step_change: "Change",
-    /// Text in `step_body`. `{}`: `short(&o.address)`.
-    step_to_address: "to {}",
     /// Text in `step_body`.
     step_fee: "Fee",
     /// The fee on Review and in the spend panel when an input's amount is
@@ -6615,6 +6619,8 @@ strings! {
     step_this_transaction: "This transaction's sequence does not allow this path",
     /// Text in `step_body`.
     step_continue: "Continue",
+    /// Button in `step_body`: the foot's button on the Review until the end of the card is in view.
+    step_scroll_to_end: "Scroll to the end",
     // ----- spend_panel (faraday-core/src/screens/spend.rs) -----
     /// Line in `spend_panel`.
     spend_panel_this_transaction: "This transaction",

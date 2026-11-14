@@ -154,6 +154,7 @@ mod register_wallet;
 mod restart;
 mod restore;
 mod restore_shares;
+mod review_address;
 mod review_stops;
 mod roller;
 mod rounds;

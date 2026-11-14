@@ -529,7 +529,9 @@ fn paged(
             // keeps its own press and the page is no taller for it.
             let head_y = y;
             y += th + 10.0;
+            ui.page_view = Some((col.h + next.y, col.h - BAR_H));
             y += body(ui, i, M, y, inner);
+            ui.page_view = None;
             ui.press_box(M, head_y, inner, th.max(ui.touch), card.toggle);
             // The walk-through comes after the controls, behind a tap:
             // on a small panel it would otherwise take the room the

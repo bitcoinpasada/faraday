@@ -346,6 +346,15 @@ impl WalletsArea {
         }
     }
 
+    /// Scrolls the open spend's step column down by `by`; the page keeps
+    /// it inside its end.
+    pub(crate) fn scroll_spend_by(&mut self, by: f32) {
+        if let Some(s) = self.spend.as_mut() {
+            s.scroll += by;
+            s.follow = false;
+        }
+    }
+
     /// Opens step `n` on the open spend, without scrolling to it.
     pub(crate) fn open_step(&mut self, n: u8) {
         if let Some(s) = self.spend.as_mut() {

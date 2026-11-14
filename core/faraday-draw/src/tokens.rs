@@ -179,6 +179,22 @@ pub const CHIP_LINE: f32 = 36.0;
 pub const GAP_SMALL: f32 = 4.0;
 /// How far a marked run of monospace text is drawn again to the right to read heavier (the face has one weight).
 pub const MARK_BOLD: f32 = 0.5;
+/// On the Review, the height of a recipient row's first line (the label
+/// and the amount) on a small panel, then on a large one.
+pub const REVIEW_ADDR_TOP_S: f32 = 28.0;
+/// See [`REVIEW_ADDR_TOP_S`]: on a large panel.
+pub const REVIEW_ADDR_TOP: f32 = 34.0;
+/// The inset of a recipient row's text from its box, on a small panel.
+pub const REVIEW_ADDR_INSET_S: f32 = 12.0;
+/// See [`REVIEW_ADDR_INSET_S`]: on a large panel.
+pub const REVIEW_ADDR_INSET: f32 = 14.0;
+/// What a recipient row keeps under its address.
+pub const REVIEW_ADDR_UNDER: f32 = GRID;
+/// The height of a recipient row's label and amount on a small panel.
+pub const REVIEW_ADDR_LINE_S: f32 = 24.0;
+/// How much of a view stays in sight when the foot scrolls the Review
+/// down by one.
+pub const REVIEW_SCROLL_KEEP: f32 = 48.0;
 /// Screen padding: the margin between the content and the screen edge.
 pub const PAD: f32 = 16.0;
 /// Corner radius of cards, rows and tiles: Material's medium.

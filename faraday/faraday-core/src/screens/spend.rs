@@ -7,12 +7,14 @@ use crate::memory::nonces::History;
 use crate::review::unchecked_text;
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, btc, short, thousands};
+use crate::ui::{Style, Ui, btc, grouped, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, walkthrough};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
-    BUTTON_H, CHIP_LINE, FACT_INDENT, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
+    BUTTON_H, CHIP_LINE, FACT_INDENT, GAP, GAP_SMALL, PAD, REVIEW_ADDR_INSET, REVIEW_ADDR_INSET_S,
+    REVIEW_ADDR_LINE_S, REVIEW_ADDR_TOP, REVIEW_ADDR_TOP_S, REVIEW_ADDR_UNDER, REVIEW_SCROLL_KEEP,
+    TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
@@ -718,13 +720,36 @@ pub(crate) fn step_body(
         2 => {
             let rows_top = cy;
             let mut rows: Vec<ReviewRow> = Vec::new();
+            // Each recipient's whole address, drawn under its Sends row
+            // in groups of four: a person compares all of it, never its
+            // first and last characters.
+            let mut whole: Vec<Option<Text>> = Vec::new();
+            // On a small panel the first row is what goes to others.
+            if ui.compact {
+                let n = recipients(i).len();
+                rows.push((
+                    Text::of(EN.step_to_others),
+                    btc(i.amount_to_others.to_sat()),
+                    text!(
+                        "{n} {}",
+                        if n == 1 {
+                            EN.step_recipient_inline
+                        } else {
+                            EN.step_recipients
+                        }
+                    ),
+                    None,
+                ));
+                whole.push(None);
+            }
             for o in recipients(i) {
                 rows.push((
                     Text::of(EN.step_sends),
                     btc(o.amount.to_sat()),
-                    Text::fill(EN.step_to_address, &[&short(&o.address)]),
+                    Text::new(),
                     None,
                 ));
+                whole.push(Some(grouped(&o.address)));
             }
             for o in &i.outputs {
                 match o.kind {
@@ -816,7 +841,29 @@ pub(crate) fn step_body(
             // then where and its note.
             let compact = ui.compact;
             let row_h = if compact { 52.0 } else { 40.0 };
-            let box_h = rows.len() as f32 * row_h;
+            // A recipient's row holds its address's lines under the amount.
+            let addr_role = BODY_S.mono();
+            let inset = if compact {
+                REVIEW_ADDR_INSET_S
+            } else {
+                REVIEW_ADDR_INSET
+            };
+            let addr_w = w - 2.0 * inset;
+            let top = if compact {
+                REVIEW_ADDR_TOP_S
+            } else {
+                REVIEW_ADDR_TOP
+            };
+            let row_hs: Vec<f32> = (0..rows.len())
+                .map(|k| match whole.get(k).and_then(Option::as_ref) {
+                    Some(a) => {
+                        top + ui.wrap_lines_as(addr_role, a, addr_w) as f32 * ui.line_as(addr_role)
+                            + REVIEW_ADDR_UNDER
+                    }
+                    None => row_h,
+                })
+                .collect();
+            let box_h: f32 = row_hs.iter().sum();
             ui.fill(
                 x,
                 rows_top,
@@ -834,8 +881,25 @@ pub(crate) fn step_body(
                 Role::OutlineVariant,
             );
             for (k, (label, amount, rest, note)) in rows.iter().enumerate() {
-                let ry = rows_top + k as f32 * row_h;
-                if compact {
+                let ry = rows_top + row_hs[..k].iter().sum::<f32>();
+                let row_h = row_hs[k];
+                if let Some(a) = whole.get(k).and_then(Option::as_ref) {
+                    let lh = if compact { REVIEW_ADDR_LINE_S } else { top };
+                    let (lx, ly) = (inset, if compact { GAP_SMALL } else { 0.0 });
+                    ui.text_mid_as((x + lx, ry + ly, lh), BODY_S, Role::OnSurfaceVariant, label);
+                    ui.text_right_as(
+                        (x + w - lx, ry + ly, lh),
+                        BODY_M.mono(),
+                        Role::OnSurface,
+                        amount,
+                    );
+                    ui.wrap_as(
+                        (x + lx, ry + top, addr_w),
+                        addr_role,
+                        Role::OnSurfaceVariant,
+                        a,
+                    );
+                } else if compact {
                     ui.text_mid_as(
                         (x + 12.0, ry + 4.0, 24.0),
                         BODY_S,
@@ -1093,7 +1157,19 @@ pub(crate) fn step_body(
                 Action::ToggleTable,
             );
             if stop.is_none() {
-                next(ui, cy, EN.step_continue);
+                // On a small panel Continue waits for the end of the card
+                // (the fee, every recipient, every warning) to be in view;
+                // until then the foot's button scrolls a view down.
+                match ui.page_view {
+                    Some((foot, view)) if ui.pinning && cy + BUTTON_H > foot => {
+                        ui.pin = Some((
+                            faraday_text::Text::of(EN.step_scroll_to_end),
+                            Style::Primary,
+                            Action::ReviewScroll((view - REVIEW_SCROLL_KEEP).max(1.0) as u16),
+                        ));
+                    }
+                    _ => next(ui, cy, EN.step_continue),
+                }
             }
             cy += 44.0;
         }

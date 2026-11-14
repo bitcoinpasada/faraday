@@ -96,6 +96,9 @@ pub enum Action {
     Step(u8),
     /// Close a step card as done and open the next.
     StepNext(u8),
+    /// Scroll the open step's page down by this many units (a view,
+    /// less a few lines kept for the eye).
+    ReviewScroll(u16),
     /// Review's hold past a holdable danger (F136): the dangers are
     /// accepted for signing and Review closes as done.
     ReviewHold,

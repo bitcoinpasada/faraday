@@ -2638,6 +2638,7 @@ impl Faraday {
             | Action::StartSpend(..)
             | Action::Step(..)
             | Action::StepNext(..)
+            | Action::ReviewScroll(..)
             | Action::ReviewHold
             | Action::ToggleTable
             | Action::SignHere

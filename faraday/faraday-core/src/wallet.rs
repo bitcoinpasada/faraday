@@ -3860,6 +3860,9 @@ impl Faraday {
                     self.spend_backup_step_moved(false);
                 }
             }
+            Action::ReviewScroll(by) => {
+                self.wallets.scroll_spend_by(f32::from(by));
+            }
             Action::ReviewHold => {
                 let inputs = self.session.inspect_inputs();
                 if self.wallets.hold_review(&inputs) {

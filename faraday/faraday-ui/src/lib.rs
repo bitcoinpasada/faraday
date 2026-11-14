@@ -457,6 +457,11 @@ pub struct Ui<'a, A> {
     /// the panel's foot rather than drawn where it is (the frame draws
     /// it, and the page scrolls above it).
     pub pinning: bool,
+    /// On a small panel, the step page's view: where its bottom edge is
+    /// on the page now (the foot of what the person sees) and how tall
+    /// the view is, units. A page that pins a forward action only once
+    /// its end is in view reads it.
+    pub page_view: Option<(f32, f32)>,
     /// The forward action a page pinned this frame.
     pub pin: Option<(Text, Style, A)>,
     /// On a small panel, where a step flow's bar tools begin (the ?, the
@@ -670,6 +675,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             head: None,
             about_open: None,
             pinning: false,
+            page_view: None,
             pin: None,
             bar_tools_x: None,
             bar_pill_w: 0.0,
