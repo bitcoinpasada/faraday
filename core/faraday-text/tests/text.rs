@@ -139,3 +139,17 @@ fn repeat_and_replace_match_str() {
         assert_eq!(Text::replaced(s, from, to), want.as_str());
     }
 }
+
+#[test]
+fn long_padded_text_macro_equals_format() {
+    let word = "Zürich €uro";
+    let long = "wallet ".repeat(12);
+    assert_eq!(
+        text!("{:€>20}|{:<30}|{:^15}|{}", word, long, 42, long),
+        format!("{:€>20}|{:<30}|{:^15}|{}", word, long, 42, long).as_str()
+    );
+    assert!(text!("{:ä^80}", 7).as_str().len() > 32);
+    assert_eq!(text!("{:ä^80}", 7), format!("{:ä^80}", 7).as_str());
+    assert_eq!(text!("{}", ""), "");
+    assert_eq!(text!("{}{}", "", ""), "");
+}
