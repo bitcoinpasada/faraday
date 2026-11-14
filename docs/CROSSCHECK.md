@@ -402,9 +402,10 @@ The cross-check fetches nothing, ever.
   and `just lint` fails when they are not the pinned release's.
   A second, older release (28.2, `tools/reference/core/legacy.pin`) is
   fetched and checked the same way (`fetch_core.py --legacy`); it is run
-  only by `tools/vectors/core-wallet/gen.py`, to make the legacy wallet
-  that the pinned release's `migratewallet` turns into a sample, and no
-  cross-check run starts it.
+  by `tools/vectors/core-wallet/gen.py`, to make the legacy wallet
+  that the pinned release's `migratewallet` turns into a sample, and by
+  the `core_wallet` area, once a run, to import Faraday's before-29
+  `importdescriptors` file.
 - **No network.** Python runs in a network namespace whose only
   interface is loopback, which the run brings up for Core's RPC, and
   refuses to run when any other interface is there. The Rust command is

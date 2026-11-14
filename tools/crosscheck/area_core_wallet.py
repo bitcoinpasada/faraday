@@ -449,6 +449,39 @@ def multisig_descriptors(rpc, source):
     return [t + "#" + rpc.getdescriptorinfo(t)["checksum"] for t in texts]
 
 
+def core28_multipath(receive):
+    """The multipath descriptor (no checksum) of a receive descriptor Core
+    lists: its `/0/*` as `/<0;1>/*`."""
+    return receive.split("#")[0].replace("/0/*", "/<0;1>/*")
+
+
+def core28_import(node, name, requests, kind):
+    """Costs a blank wallet on `node` (Bitcoin Core 28) and the requests'
+    import: the requests that failed, and the first receive and change
+    addresses of `kind`. The wallet is unloaded after."""
+    import sys
+    folder = str(ROOT / "tools" / "reference" / "core")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    from test_framework.authproxy import AuthServiceProxy
+
+    def client(path=""):
+        c = AuthServiceProxy(node.info["url"] + path, timeout=120)
+        c.reuse_http_connections = False
+        return c
+
+    client().createwallet(name, True, True, "", False, True, False)
+    w = client(f"/wallet/{name}")
+    done = w.importdescriptors(requests)
+    failed = [r for r in done if not r.get("success")]
+    out = {"failed": failed, "receive": None, "change": None}
+    if not failed:
+        out["receive"] = w.getnewaddress("", kind)
+        out["change"] = w.getrawchangeaddress(kind)
+    client().unloadwallet(name)
+    return out
+
+
 def core_listing(entries):
     """Core's `listdescriptors` as the view both sides are compared in:
     the text with its checksum, the time, which is active and of which
@@ -481,6 +514,8 @@ class CoreWallet(Area):
     WALLET = True
     LOOPS = (("fresh", 14), ("mutation", 24))
     faraday = (
+        "`faraday_bip::core_import::import_descriptors_pair` (the `importdescriptors` file for "
+        "Bitcoin Core before 29, with the wallet's first receive and change addresses), "
         "`faraday_core_wallet::read_file` (a wallet.dat read whole through "
         "`faraday_sqlite`, the records read and checked, the private keys checked in "
         "`faraday-keys`), and `normal.rs::extended_key_bytes` (an extended key's own "
@@ -494,7 +529,10 @@ class CoreWallet(Area):
         "(`walletpassphrase`) and loads or refuses a changed file (`loadwallet`); and its "
         "test framework's base58check (`tools/reference/core/test_framework/address.py`, "
         "`base58_to_byte`), an implementation Faraday did not write, which decodes the "
-        "extended keys of Core's descriptors and changes of them"
+        "extended keys of Core's descriptors and changes of them; and, for the file "
+        "before 29, Bitcoin Core 28.2's `bitcoind` (`tools/reference/core/legacy.pin`, once a "
+        "run): `createwallet` blank and watch-only, `importdescriptors` of the file's requests, "
+        "`getnewaddress` and `getrawchangeaddress`"
     )
     reference_checked = (
         "the vendored test framework is hashed against `references.sha256` before any run; "
@@ -506,10 +544,12 @@ class CoreWallet(Area):
     vectors = (
         "the three wallet.dat files Core made (`tools/vectors/core-wallet/`), plain, "
         "encrypted and migrated from a legacy wallet by `migratewallet` (made with the older "
-        "release of `tools/reference/core/legacy.pin`), with what Core said of them"
+        "release of `tools/reference/core/legacy.pin`), with what Core said of them; for the file "
+        "before 29, Bitcoin Core 28.2's own `listdescriptors` strings of the plain wallets"
     )
     corpus = (
-        "fresh wallets of eight shapes (plain, encrypted, watch-only, blank, with labels, "
+        "for the file before 29, the four script types of a fresh plain wallet and a 2-of-3 "
+        "`sortedmulti` of three wallets' keys; fresh wallets of eight shapes (plain, encrypted, watch-only, blank, with labels, "
         "with an imported descriptor, with an imported uncompressed key, with imported "
         "multisig and miniscript descriptors of keys with an origin and further hardened "
         "steps, a bare master key with hardened steps, and a hash before a key), with and without "
@@ -852,6 +892,7 @@ class CoreWallet(Area):
 
     def directed(self):
         """Each listed difference, made and asked of Core, still holds."""
+        self.directed_core28()
         self.directed_index()
         self.directed_known()
         self.directed_outside_records()
@@ -882,6 +923,60 @@ class CoreWallet(Area):
                                    "shape": shape}, got[0], core[0],
                                    f"the listed difference no longer holds: {why}")
                 break
+
+    def directed_core28(self):
+        """Faraday's `importdescriptors` file for Bitcoin Core before 29 is
+        imported by Bitcoin Core 28 (the release of `legacy.pin`), once a run:
+        for each descriptor of a plain wallet's public listing (its four
+        script types) and a 2-of-3 `sortedmulti` of three wallets' keys, the
+        file's two requests all succeed on a blank watch-only descriptor wallet, and the
+        first receive and change addresses Core 28 gives are Faraday's. The
+        file's two descriptors are also Core's own `listdescriptors` strings
+        for a single-key wallet."""
+        wallets = [self.make("plain", f"c28-{i}", mine=False)["pub"] for i in range(3)]
+        types = {"pkh(": "legacy", "sh(wpkh(": "p2sh-segwit", "wpkh(": "bech32", "tr(": "bech32m",
+                 "wsh(": "bech32"}
+        cases = []  # (label, multipath descriptor, Core's own pair or None, address type)
+        for desc in wallets[0]:
+            if desc["internal"]:
+                continue
+            other = next(d for d in wallets[0]
+                         if d["internal"] and d["desc"].startswith(desc["desc"].split("[")[0]))
+            cases.append((desc["desc"].split("[")[0], core28_multipath(desc["desc"]),
+                          (desc["desc"], other["desc"]),
+                          next(t for p, t in types.items() if desc["desc"].startswith(p))))
+        keys = []
+        for listing in wallets:
+            text = next(d["desc"] for d in listing
+                        if d["desc"].startswith("wpkh(") and not d["internal"])
+            keys.append(re.search(r"\[[0-9a-f]{8}/[^\]]*\][a-zA-Z0-9]+", text)[0])
+        cases.append(("wsh(sortedmulti(2,3))", f"wsh(sortedmulti(2,{','.join(k + '/<0;1>/*' for k in keys)}))",
+                      None, "bech32"))
+        release = core_node.pin(core_node.LEGACY_PIN)
+        with core_node.Node(rpc_threads=4, wallet=True, release=release) as old:
+            for n, (label, descriptor, core_pair, kind) in enumerate(cases):
+                got = self.rust.call("core_wallet.before29", descriptor=descriptor)
+                inputs = {"core28": label, "descriptor": descriptor}
+                self.compared += 1
+                if got[0] != "ok":
+                    raise Mismatch(self.name, "core_wallet.before29", inputs, got, "a file",
+                                   "Faraday wrote no before-29 file")
+                made = got[1]
+                requests = json.loads(made["file"])
+                if core_pair is not None:
+                    pair = tuple(r["desc"] for r in requests)
+                    if pair != core_pair:
+                        raise Mismatch(self.name, "core_wallet.before29", inputs, pair, core_pair,
+                                       "the file's descriptors are not Core's own listing")
+                reply = core28_import(old, f"c28-w{n}", requests, kind)
+                if reply["failed"] or (reply["receive"], reply["change"]) != (
+                        made["receive"], made["change"]):
+                    raise Mismatch(self.name, "core_wallet.before29", inputs,
+                                   (reply["failed"], reply["receive"], reply["change"]),
+                                   (None, made["receive"], made["change"]),
+                                   "Bitcoin Core 28 does not import the file or derives "
+                                   "other first addresses")
+                self.known += 1
 
     def directed_known(self):
         """Each entry of KNOWN, made in a plain wallet Core made and asked

@@ -1,4 +1,5 @@
-# An older Bitcoin Core release, used only to make a legacy (Berkeley DB)
+# An older Bitcoin Core release, used to import Faraday's before-29
+# `importdescriptors` file once a run (area core_wallet), and to make a legacy (Berkeley DB)
 # wallet, which the release in release.pin can no longer create, so that
 # release's `migratewallet` has one to migrate (tools/vectors/core-wallet,
 # F229). The same checks as release.pin: `tools/crosscheck/fetch_core.py

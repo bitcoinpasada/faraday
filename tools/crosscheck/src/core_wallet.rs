@@ -2,7 +2,9 @@
 //! `faraday_core_wallet::read_file`, as the cross-check compares it
 //! with Bitcoin Core's own answers.
 
+use faraday_bip::core_import::import_descriptors_pair;
 use faraday_bip::keys::Network;
+use faraday_bip::policy::WalletPolicy;
 use faraday_core_wallet::{Passphrase, read_file};
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
@@ -77,6 +79,27 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "xkey" => faraday_core_wallet::extended_key_bytes_for_crosscheck(text(req, "text"))
             .map(|b| json!(hex(&b)))
             .ok_or_else(|| "not an extended key".to_string()),
+        // The `importdescriptors` file Faraday writes for Bitcoin Core before 29
+        // from a multipath descriptor, and the wallet's first receive and
+        // change addresses on regtest; a wallet it writes no file for is an
+        // error.
+        "before29" => {
+            let c = Compute::unchecked();
+            let policy = WalletPolicy::from_descriptor(&c, text(req, "descriptor"))
+                .map_err(|e| format!("{e:?}"))?;
+            let file = import_descriptors_pair(&policy).ok_or("no file for this wallet")?;
+            let address = |change| {
+                policy
+                    .address_at(&c, Network::Regtest, change, 0)
+                    .map(|a| a.to_string())
+                    .map_err(|e| format!("{e:?}"))
+            };
+            Ok(json!({
+                "file": file,
+                "receive": address(false)?,
+                "change": address(true)?,
+            }))
+        }
         _ => Err(format!("unknown core_wallet op {name}")),
     }
 }

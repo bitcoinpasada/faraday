@@ -54,7 +54,7 @@ program is missing (`docs/DEVELOPING.md` §1).
 | From or to | Format | Faraday reads | Faraday writes | Tested |
 |---|---|---|---|---|
 | Bitcoin Core ≥ 29 | `importdescriptors` file, multipath | — | yes | Core, end to end |
-| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5, Bitcoin Core before 29) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
+| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5, Bitcoin Core before 29) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; Core 28.2 imports it in the cross-check (`core_wallet` area: every request succeeds, first receive and change addresses are Faraday's) |
 | Bitcoin Core | PSBT in, finished transaction or signed PSBT out | yes | yes | Core, end to end |
 | Bitcoin Core (`dumpprivkey`), paper wallets | A WIF private key, swept (§5, Sweeping a private key) | yes, never kept | the swept PSBT and transaction | Core's `key_io` vectors; Core signs the same sweep in the cross-check |
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
@@ -231,7 +231,7 @@ or silent payments. Written by `faraday_bip::core_import::import_descriptors_pai
 (moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
 the wallet; each checksum is Core's (shape of `faraday/faraday-core/tests/vectors/interop/core/listdescriptors.json`);
-`core-check.py` (not in `just`) is to gain a run against Core 28.x.
+the cross-check's `core_wallet` area (`tools/crosscheck/area_core_wallet.py`; sources: Bitcoin Core 28.2's own `bitcoind`, `tools/reference/core/legacy.pin`) imports the file into Core 28.2 and compares the first addresses.
 
 The rows read **Core 29 or later** and **Core before 29**, each "Bitcoin
 Core, watch-only" under it. The More options state is
