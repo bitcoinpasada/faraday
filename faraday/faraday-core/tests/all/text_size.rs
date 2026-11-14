@@ -364,8 +364,6 @@ fn codex32_dice_at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> 
         c32(&mut app, C32::Face(f));
     }
     check(&mut app, &mut found, &format!("{on}, the rolls"), true);
-    c32(&mut app, C32::Step(-1));
-    check(&mut app, &mut found, &format!("{on}, a step back"), true);
     found
 }
 

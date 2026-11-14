@@ -339,7 +339,7 @@ each at the text size the person's system asks for.
   the roller's five-dice screen draw by role and `BUTTON_H`.
 
   Built (L5, part 3): the key generator, the codex32 screens (work,
-  dice, tour, tracker, worksheet, backup and correction), Create and
+  dice, worksheet, backup and correction), Create and
   the Board draw by role and `BUTTON_H`. The worksheet's and the string
   boxes' characters, and the cell notes, keep the sizes their cell
   geometry gives. The vault and backup flow screens still write their
@@ -577,7 +577,7 @@ height is measured, `CODEX32_DICE_COLUMN_H` (720 dp) and the card's
 1920 × 1080, in Practice from 2560 × 1440. Below that both sheets stand in
 the page, the sheet of the work in hand first so the page scrolls the
 least to it: the dice sheet while a character is rolled, the worksheet
-while the step-through works the checksum. The
+otherwise. The
 Codex32QR copy grid (`copy_grid`,
 `faraday/faraday-core/src/screens/parts.rs`) already sizes its cells
 from its width up to `C32_GRID_MAX` and stands its zoom beside the grid
@@ -611,8 +611,7 @@ name over its marker, the first roll, beside its die, the second, as
 the tracks draw them, and "lower · 0" or "higher · 1" under them, the
 five dice in one row; the latest equal pair struck under the row; moved
 here from the dice sheet, which keeps the tree and the tracks, so the
-rolls are drawn once), the step tracker's **Working** area
-(`docs/CODEX32.md` §5.7), always beside the pad, and the pad: "Your
+rolls are drawn once) and the pad: "Your
 dice" at the start of its first row (under it the face waiting for its
 units digit, or ten-faced dice's "0 is 10"), then a key per face and
 Backspace, each `PAD_KEY_W` (48 dp) square, `GAP_SMALL` apart, no
@@ -624,41 +623,17 @@ keyboard settle on the next key or Enter. The dice's size is not in the
 panel (owner, 2026-10-25): it is chosen with the dice's colours on the
 Entropy card, Material's segmented button of d4 to d20, d6 the default,
 at every size, and the panel follows it; to change it the person goes
-back to that card. The Demo only card says what the computer rolls.
+back to that card.
 Once every character is in, **Continue** stands in the
 pad's place, the flow's one way on; the page has no Continue of its own
 while the panel stands out of it (owner, 2026-10-24). At the foot the
 panel takes the shortest of the arrangements the width allows (owner,
-2026-10-25: as few rows as the width allows, no empty rows): the rolls,
-the pad and the Working area in one row, where the Working area keeps
-`CODEX32_WORKING_SIDE_MIN` after the pad, the latest struck pair under
-the rolls or under the pad's keys; the rolls beside the Working area,
-the pad under both; the rolls beside the Working area over the pad; the
-Working area under the rolls beside the pad; or the three one under
-another; where the pad's last row has room, the latest struck pair and
-the Working area's Previous and Next stand at its end, so the row above
-holds only the rolls and two lines of working. Two more take the
-Working area as one paragraph, "Working", where the step stands and its
-working run on from one line, wrapping under it only where they do not
-fit, in as many lines as the longest step needs at that width
-(`CODEX32_WORKING_TEXT_MAX` and `CODEX32_WORKING_HEAD_W`): the pad over
-the paragraph beside the rolls, Previous and Next at the end of the
-pad's row; and the rolls and the pad on one row, the struck pair at the
-keys' end or under them, over the paragraph across the panel with
-Previous and Next at its end (owner, 2026-10-25). "Your dice" is left
+2026-10-25: as few rows as the width allows, no empty rows): the rolls
+and the pad in one row, the latest struck pair under the rolls or under
+the pad's keys; or the rolls over the pad. "Your dice" is left
 out where the keys of dice under ten faces fit one row only without it.
-One row of all three takes about 1 220 dp inside the panel's margins
-for six-faced dice (the rolls 372, the pad 440, the Working area 360
-and two spacers), so it stands from 1920 × 1080 up. The panel is, for
-six faces and for twenty: 132 and 216 dp on a 960 × 580 window (144
-and 220 before), 108 and 196 at 1280 × 800 (132 and 196), 108 and 160
-at 1366 × 768 (132 and 176), 88 and 116 at 1920 × 1080 (108 and 144).
-The pad's key of the roll
-the Working area shows stands pressed: Material's pressed state layer in
-the accent and an accent outline, a stronger layer over it as the roll is
-shown easing away over `PRESS_EMPHASIS_MS` (none under Reduce motion),
-whether the person pressed it or the Practice walk's Next or Play rolled it,
-so the walk reads as a person pressing. It stands:
+The pad's key of the roll just entered stands pressed: Material's
+pressed state layer in the accent (`STATE_PRESS`). It stands:
 
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
   `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in
@@ -715,10 +690,9 @@ never while a character is being rolled (owner, 2026-10-25):
 
 - **A roll moves nothing.** While a character's rolls are entered (a
   face on the pad, a digit, Backspace), nothing scrolls or pans: the
-  die tracks, the tree and the Working area change in place, the pad
+  die tracks and the tree change in place, the pad
   stays put, and the dice sheet keeps its layout (the tree's line
-  naming the leaf and, where the computer's dice are offered, the line
-  naming the dice it rolled keep their room while empty).
+  naming the leaf keeps its room while empty).
 - **A character in its box glides once.** When a character goes into
   its box (its last roll, a character typed, Use a sample), the view
   goes to that box with the timed move of `docs/CODEX32.md` §7.5
@@ -727,11 +701,6 @@ never while a character is being rolled (owner, 2026-10-25):
   where the box is on screen already; the page moves first only where
   too little of the worksheet's view stands above the input panel to
   hold it (`Faraday::worksheet_follow_calm`, `codex32::Follow`).
-- **The Working area's steps.** Its Previous and Next move the view only
-  where the cells the step marks would otherwise be off screen.
-- **The Demo walk.** Its Previous, Next, arrow keys and Play send the
-  view to the cell being worked as before
-  (`Faraday::worksheet_follow`).
 
 Only the small panel (`docs/CODEX32.md` §6.4.7), whose pad stands in
 the page, keeps the page at the entry's foot at every press. Besides:
@@ -740,13 +709,6 @@ the page, keeps the page at the entry's foot at every press. Besides:
   whole (§16.1) it has no view to move, so the page's own scroll makes
   the same least move, over the same time on the same curve, to bring
   the cell being worked into the room above the input panel.
-- **The dice follow too.** On the step-through's rolls and its
-  character's step, as its Previous, Next or Play shows them (not as the
-  person's own face shows one), the page brings the marked die's track, or the
-  tree, into its room above the input panel by the least move, over
-  the same time on the same curve, at once under Reduce motion, once
-  the frame after the step has drawn where it is; in the dice sheet's
-  column nothing moves.
 - **Panned across, a scrollbar along the foot.** While the worksheet's
   view pans sideways its overlay scrollbar runs along the view's foot
   as well as down its right edge, as Material's horizontal scrollbar
@@ -765,12 +727,7 @@ the page, keeps the page at the entry's foot at every press. Besides:
 
 ### 16.5 The step-through's buttons stay put
 
-Previous, Next and Play stand in Faraday Demo's host strip (F118,
-`docs/DESKTOP-HOST.md` §3.1), each at one place whatever the step says,
-Play and Pause sharing the wider's width. The step's count and its
-working ("Step 14 of 19 · character 3", then the working) are the
-Working area's, beside the pad (§16.3; owner, 2026-10-25). Nothing
-is measured to place them.
+Moved out with the step-through (F260): nothing of it is left to place.
 
 ## 17. The other screens
 

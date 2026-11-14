@@ -1,9 +1,7 @@
 //! The strip's side of the codex32_dice tests: what Faraday Demo's host offers there.
 
-use faraday_core::codex32::WalkAct;
 use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
-use faraday_core::testkit::five::Reach;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -85,57 +83,17 @@ fn to_entry(app: &mut Faraday, faces: u8) {
 }
 
 #[test]
-fn the_computers_dice_are_offered_in_the_host_strip_on_faraday_desktop_alone() {
-    let mut app = desktop(true, 6);
-    // The person's own entry in the app; the computer's walk outside it.
-    assert!(app.drawn_texts().iter().any(|t| t == "Your dice"));
-    assert!(!app.drawn_texts().iter().any(|t| t == "Demo only"));
-    let s = crate::strips::strip(&mut app);
-    for want in ["Rolls d6", "Previous", "Next", "Play"] {
-        assert!(s.iter().any(|t| t == want), "{want}: {s:?}");
-    }
-    let mut stick = desktop(false, 6);
-    let s = crate::strips::strip(&mut stick);
-    assert!(!s.iter().any(|t| t == "Next" || t == "Rolls d6"), "{s:?}");
-}
-
-#[test]
-fn twenty_faced_dice_are_rolled_and_padded_one_to_twenty() {
+fn twenty_faced_dice_are_padded_one_to_twenty() {
     let mut app = desktop(true, 20);
-    assert!(
-        crate::strips::strip(&mut app)
-            .iter()
-            .any(|t| t == "Rolls d20")
-    );
+    let _ = app.frame();
     // The pad's keys 1 to 20.
     for n in 1..=20u8 {
         assert!(app.offers(Action::Codex32(C32::Face(n))), "key {n}");
     }
     assert!(!app.offers(Action::Codex32(C32::Face(21))));
-    // A whole share rolled: every face 1 to 20, some past six.
-    c32(&mut app, C32::Walk(WalkAct::Reach(Reach::Share)));
-    c32(&mut app, C32::Walk(WalkAct::Speed(3)));
-    c32(&mut app, C32::Walk(WalkAct::Play));
-    let mut t = app.now_ms();
-    for i in 0..4000u32 {
-        let b = (i as u8).wrapping_mul(53).wrapping_add(7);
-        app.event(Event::Entropy(EntropyBytes::new([b; 32])));
-        t += 16;
-        app.event(Event::Tick { now_ms: t });
-        if !make(&app).walk().playing() {
-            break;
-        }
+    // Faces past six, pressed by hand, are rolls of the character.
+    for f in [17, 3, 20, 9] {
+        c32(&mut app, C32::Face(f));
     }
-    let m = make(&app);
-    let mut seen = Vec::new();
-    for n in 0..26 {
-        let made = m.made_of(0, n).expect("the share is rolled");
-        assert_eq!(made.faces(), 20);
-        for r in made.rows() {
-            seen.push(r.first);
-            seen.push(r.second);
-        }
-    }
-    assert!(seen.iter().all(|f| (1..=20).contains(f)));
-    assert!(seen.iter().any(|&f| f > 6), "faces past six come up");
+    assert_eq!(make(&app).seq_len(), 4);
 }

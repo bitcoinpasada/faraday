@@ -18,17 +18,12 @@
 //! what `seq` gives, worked again from it at every press
 //! ([`Codex32Make::replay`]). `strings`, `fingerprint` and `qr` are
 //! taken from the finished set when its last character arrives and
-//! dropped when any character is taken back. On Faraday Demo the
-//! five-dice roller (`docs/CODEX32.md` §5.5) stands beside the pad: its
-//! faces enter through [`Codex32Make::roll`] as the pad's keys do, it is
-//! told of every face taken back ([`FiveRoller::trim`]) and starts over
-//! with the entry; `rolled_dice` is what `seq` and the roller's marks
-//! give, worked again with `dice` at every replay.
+//! dropped when any character is taken back.
 //!
 //! **The dice** (§5.1): the person says how many faces their dice have
 //! (six unless told, up to the booklet's twenty) and each die's colour
-//! ([`DiceChoice`]). The faces are read 1 to N on the pad and the roller
-//! rolls N; a change of dice is taken only between characters, so that
+//! ([`DiceChoice`]). The faces are read 1 to N on the pad; a change of
+//! dice is taken only between characters, so that
 //! `seq` is always of one die, and each character keeps the faces it
 //! was rolled with ([`Made`]) for its rolls to come back on Backspace.
 
@@ -37,27 +32,11 @@ pub(crate) mod input_panel;
 mod pan;
 pub(crate) mod pane_screen;
 pub(crate) mod screen;
-mod tour;
-pub(crate) mod tour_screen;
-#[cfg(test)]
-mod tour_tests;
-mod tracker;
-pub(crate) mod tracker_screen;
-#[cfg(test)]
-mod tracker_tests;
-mod walk;
-/// Used by faraday-host.
-#[doc(hidden)]
-pub mod walk_screen;
-#[cfg(test)]
-mod walk_tests;
 pub(crate) mod worksheet_screen;
 
 pub(crate) use pan::Follow;
 use pan::SheetFit;
 pub use pan::SheetPan;
-pub use tour::{Tour, TourStep};
-pub use walk::{SPEEDS, Speed, Step, Walk, WalkAct, WalkChar};
 
 /// Making codex32 shares, and the wallet kind of §6.9, are offered. False
 /// hides them until the backup plan carries codex32 strings: New key's
@@ -74,7 +53,6 @@ use faraday_text::{Text, text};
 pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::fresh::roller::five::FiveRoller;
 use crate::secret_text::SecretText;
 use crate::strings::EN;
 
@@ -354,7 +332,7 @@ pub enum C32 {
     /// checksum worksheet, `n` the `n`-th translation worksheet.
     View(u8),
     /// The small panel's context: 0 the dice, 1 the checksum, 2 the
-    /// string, 3 the Working area (§6.4.7, §5.7).
+    /// string (§6.4.7).
     Panel(u8),
     /// A cell's working opened (§7.4).
     Cell(Cell),
@@ -373,17 +351,6 @@ pub enum C32 {
     /// The open cell's working moved to the neighbouring cell of its row,
     /// before (-1) or after (1) (§7.4).
     CellStep(i8),
-    /// A press on the computer's walk in Faraday Demo's host strip:
-    /// its five dice, a step at a time (§5.5, `docs/DESKTOP-HOST.md`).
-    Walk(WalkAct),
-    /// The Working area's step before (-1) or after (1) of the person's
-    /// own entry (§5.7): only what is shown moves; past the last checksum
-    /// the tour of the shares made and S, whose last Next goes on.
-    Step(i8),
-    /// **Show the other shares and S as they fill**, beside the Working
-    /// area once every character is in: on, Next goes through the shares
-    /// made and S after the last checksum (§5.7).
-    Tour,
     /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
     /// middle of a character, its rolls so far are cleared. Chosen in
     /// the dice's menu, it closes the menu.
@@ -528,11 +495,6 @@ pub struct Codex32Make {
     /// open) when it began, and the tick it began at, set by the first
     /// tick after.
     dice_move: Option<(f32, Option<u64>)>,
-    /// The roll shown whose pad key was last emphasised: its character,
-    /// step and face.
-    press_seen: Option<(usize, usize, u8)>,
-    /// The tick that emphasis began at; `None` once it has run its time.
-    press_at: Option<u64>,
     /// The height of the dice sheet's body as last drawn whole, the
     /// room its reveal is clipped to while it moves. Written by drawing
     /// as a measurement only; nothing decides from it.
@@ -560,11 +522,6 @@ pub struct Codex32Make {
     /// The sheets are masked (§6.4.6): every character, roll and working
     /// drawn as dots. Set when the flow is left backwards, and by the eye.
     hidden: bool,
-    /// The five-dice roller beside the pad (Faraday Demo, §5.5).
-    roller: FiveRoller,
-    /// Which dice of the character in progress show a value the roller
-    /// made: worked out from `seq` at every replay.
-    rolled_dice: [bool; BOOKLET_DICE],
     /// A set made of strings typed in, and what it makes (§8.1, §8.2).
     given: Option<Given>,
     /// The strings typed in, until the set is made of them.
@@ -599,23 +556,10 @@ pub struct Codex32Make {
     /// at the foot: set as the Enter card opens, done once the view it
     /// stands under has been drawn (`docs/LAYOUT.md` §16.4).
     page_due: bool,
-    /// The step-through of the "Demo only" card (§5.5).
-    walk: Walk,
-    /// The person's own entry's steps (§5.7, `tracker.rs`): worked out
-    /// again at every change of the entry by the person.
-    track: Walk,
-    /// The tour of the shares made and S past the last checksum (§5.7,
-    /// `tour.rs`): worked out as the set is made, forgotten as it is
-    /// unmade.
-    tour: Tour,
     /// How far the dice sheet's column is scrolled within itself, units.
     pane_y: f32,
     /// The input panel's scroll beside the sheets.
     panel_y: f32,
-    /// The computer's dice are offered (Faraday Demo in Practice): the
-    /// person's own faces are steps of the walk's history. Set from the
-    /// shell's state before every press ([`Codex32Make::set_practice`]).
-    practice: bool,
 }
 
 impl Codex32Make {
@@ -644,8 +588,6 @@ impl Codex32Make {
             pending: None,
             dice_open: true,
             dice_move: None,
-            press_seen: None,
-            press_at: None,
             dice_body_h: std::cell::Cell::new(0.0),
             made: Vec::new(),
             rolled: false,
@@ -666,8 +608,6 @@ impl Codex32Make {
             note: None,
             locked: false,
             hidden: false,
-            roller: FiveRoller::default(),
-            rolled_dice: [false; BOOKLET_DICE],
             given: None,
             inputs: Vec::new(),
             add_at: b'a',
@@ -679,12 +619,8 @@ impl Codex32Make {
             fit: SheetFit::default(),
             page: SheetPan::default(),
             page_due: false,
-            walk: Walk::default(),
-            track: Walk::default(),
-            tour: Tour::default(),
             pane_y: 0.0,
             panel_y: 0.0,
-            practice: false,
         }
     }
 
@@ -699,6 +635,13 @@ impl Codex32Make {
     /// Whether the flow runs in Practice.
     pub fn demo(&self) -> bool {
         self.demo.is_some()
+    }
+
+    /// Whether the entry offers Practice's Use a sample: the entry card
+    /// open in Practice with a character left to enter. A lookup. Faraday
+    /// Demo's host strip reads it (`docs/DESKTOP-HOST.md` §3.1).
+    pub fn sample_offered(&self) -> bool {
+        self.open() == Some(Card::Enter) && self.demo() && self.front().is_some()
     }
 
     /// The flow on `strings`, `k` strings of one set typed into Add a
@@ -744,7 +687,6 @@ impl Codex32Make {
         if faraday_entropy::booklet::faces_ok(choice.faces) {
             self.dice_choice = choice;
             self.dice = BookletChar::with_faces(choice.faces).unwrap_or_default();
-            self.roller.set_faces(choice.faces);
         }
         self
     }
@@ -992,22 +934,37 @@ impl Codex32Make {
         (self.rolled, self.typed)
     }
 
-    /// The five-dice roller beside the pad (Faraday Demo, §5.5).
-    pub fn roller(&self) -> &FiveRoller {
-        &self.roller
+    /// Faces entered for the character in progress, struck pairs
+    /// included.
+    pub fn seq_len(&self) -> usize {
+        self.seq.len()
     }
 
-    /// Whether die `die` (from 0) of the character in progress shows a
-    /// value the roller made.
-    pub(crate) fn die_rolled(&self, die: usize) -> bool {
-        self.rolled_dice.get(die).copied().unwrap_or(false)
+    /// Where the entry stands now: the characters entered and the faces
+    /// of the one in progress.
+    pub(crate) fn entry_pos(&self) -> (usize, usize) {
+        (self.entered_all(), self.seq.len())
     }
 
-    /// Whether data character `n` of initial share `share` has a face the
-    /// roller made (a lookup).
-    pub fn char_rolled(&self, share: usize, n: usize) -> bool {
-        let data = self.length.data_len();
-        self.roller.char_rolled(share * data + n)
+    /// The dice sheet drawn: the character in progress, with its path
+    /// through the tree.
+    pub(crate) fn char_dice(&self) -> &BookletChar {
+        &self.dice
+    }
+
+    /// The pairs drawn with [`Self::char_dice`].
+    pub(crate) fn char_rows(&self) -> &[DieRow] {
+        &self.rows
+    }
+
+    /// The initial share whose string and checksum worksheet the entry
+    /// shows, and the box being filled: the share being entered and its
+    /// front, or the last share once every character is in.
+    pub(crate) fn entry_share(&self) -> Option<(usize, Option<usize>)> {
+        match self.front() {
+            Some((s, n)) => Some((s, Some(10 + n))),
+            None => Some((self.work.as_ref()?.inputs().len().checked_sub(1)?, None)),
+        }
     }
 
     /// The review's tab shown, and which have been shown.
@@ -1055,59 +1012,24 @@ impl Codex32Make {
     }
 
     /// Where the entry's work stands on its checksum worksheet as drawn
-    /// on a window of class `cls`: the cells the step-through's step
-    /// touches, or the front cell (left, top, wide, tall, from the sheet's
-    /// corner), and the cell's side. Arithmetic on the cells' boxes.
+    /// on a window of class `cls`: the front cell (left, top, wide, tall,
+    /// from the sheet's corner), and the cell's side. Arithmetic on the cells' boxes.
     fn work_spot(
         &self,
         cls: faraday_draw::geom::WindowClass,
     ) -> Option<((f32, f32, f32, f32), f32)> {
         let g = worksheet_screen::Geom::drawn(self.fit.cell, cls);
-        // The tour on a share made's checksum check: its marked cells, on
-        // the check's own worksheet, which stands where the entry's would.
-        if let Some(t) = self.tour_on_check() {
-            let sh = self.tour_check(t)?.worksheet(Reveal::PaperForm)?;
-            let marks = self.tour_check_cells(t);
-            let spot = worksheet_screen::paper!(sh, |p| {
-                let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
-                let first = spots.next()?;
-                Some(spots.fold(first, worksheet_screen::union))
-            });
-            return spot.map(|s| (s, g.cell));
-        }
-        if self.tour_shown().is_some() {
-            return None;
-        }
         let (share, front) = self.entry_share()?;
         let sh = self
             .work
             .as_ref()
             .and_then(|w| w.worksheet(share, Reveal::PaperForm))?;
-        // At the person's character just put in its box, the view follows
-        // the entry as before, to the box being filled next, on the same
-        // sheet; the steps after it follow their cells.
-        let front = match (self.walk.shown(), self.track.shown(), self.front()) {
-            (None, Some((_, _, walk::Step::Char)), Some((s, n))) if s == share => Some(10 + n),
-            _ => front,
-        };
-        let marks = if front.is_some() {
-            Vec::new()
-        } else {
-            self.walk_cells(share)
-        };
-        let spot = worksheet_screen::paper!(sh, |p| {
-            let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
-            match spots.next() {
-                Some(first) => Some(spots.fold(first, worksheet_screen::union)),
-                None => front.and_then(|b| g.box_spot(p, b)),
-            }
-        });
+        let spot = worksheet_screen::paper!(sh, |p| front.and_then(|b| g.box_spot(p, b)));
         spot.map(|s| (s, g.cell))
     }
 
     /// Sends the checksum worksheet's view, `view` units that pan as far
-    /// as `max`, to where the entry's work is: the cells the step-through's
-    /// step touches, or the front cell, moving the least
+    /// as `max`, to where the entry's work is: the front cell, moving the least
     /// (`docs/CODEX32.md` §6.4.7, §7.5). The place is worked out here,
     /// once, as the front moves; the frames after only interpolate
     /// ([`SheetPan::tick`]); under `reduce` the view is placed at once.
@@ -1194,16 +1116,6 @@ impl Codex32Make {
             .target_for(spot, (f32::MAX, room), (0.0, max), 2.0 * cell);
         self.page.go_to((0.0, to.1), reduce);
         Some(self.page.y)
-    }
-
-    /// Whether the step-through shows a step of the dice, a roll or the
-    /// character read down the tree: the dice sheet is where its work is
-    /// (`docs/LAYOUT.md` §16.4). A lookup.
-    pub(crate) fn walk_rolling(&self) -> bool {
-        self.tour_shown().is_none()
-            && self.walk.shown().is_some_and(|(_, _, s)| {
-                matches!(s, Step::First { .. } | Step::Second { .. } | Step::Char)
-            })
     }
 
     /// Whether the entry shows the dice sheet: with the Checksum tab of
@@ -1296,45 +1208,6 @@ impl Codex32Make {
     /// Whether the dice sheet is open under its head row. A lookup.
     pub(crate) fn dice_sheet_open(&self) -> bool {
         self.dice_open
-    }
-
-    /// Whether the step-through shows a step of the checksum worksheet:
-    /// the worksheet is where its work is. A lookup.
-    pub(crate) fn walk_checksum(&self) -> bool {
-        self.tour_shown().is_none()
-            && self.walk.shown().is_some_and(|(_, _, s)| {
-                matches!(
-                    s,
-                    Step::Sum { .. } | Step::Table { .. } | Step::Below { .. }
-                )
-            })
-    }
-
-    /// The page makes the least move that brings the part of it `top`
-    /// units down its content and `tall` units tall into its room `room`
-    /// units tall, going as far as `max`, from `offset`, in the timed
-    /// move the worksheet's view makes; under `reduce` at once
-    /// (`docs/LAYOUT.md` §16.4). Returns where the page is to stand now.
-    /// Arithmetic.
-    pub(crate) fn follow_page_to(
-        &mut self,
-        (top, tall): (f32, f32),
-        (room, max): (f32, f32),
-        (offset, reduce): (f32, bool),
-    ) -> f32 {
-        if !self.page.moving() {
-            self.page = SheetPan::default();
-            self.page.y = offset;
-        }
-        let spot = (0.0, top, 0.0, tall);
-        let to = self.page.target_for(
-            spot,
-            (f32::MAX, room),
-            (0.0, max),
-            faraday_draw::tokens::GAP,
-        );
-        self.page.go_to((0.0, to.1), reduce);
-        self.page.y
     }
 
     /// Marks the page as still to be brought clear of the input panel.
@@ -1594,31 +1467,9 @@ impl Codex32Make {
     /// device's randomness where the press asks for it (Suggest), drawn
     /// before the flow is borrowed.
     pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
-        let before = self.entry_pos();
         let was = self.rolled_at();
         self.act_press(c, press, fresh);
         self.after_rolls(was);
-        // The entry changed by another way than the step-through's own:
-        // in practice a face of the person's is the walk's next step;
-        // otherwise its steps are forgotten, and the person's own worked
-        // out.
-        if self.entry_pos() != before {
-            if !self.walk_own(before) {
-                self.walk.clear();
-            }
-            self.track(before);
-        }
-    }
-
-    /// Whether the computer's dice are offered, as the shell is now:
-    /// the person's own faces then go into the walk's history. Cheap.
-    pub(crate) fn set_practice(&mut self, on: bool) {
-        self.practice = on;
-    }
-
-    /// Whether the computer's dice are offered, as last set. A lookup.
-    pub fn practice(&self) -> bool {
-        self.practice
     }
 
     /// Costs what [`Self::act`] costs. The press itself.
@@ -1701,8 +1552,6 @@ impl Codex32Make {
                     self.roll(c, f);
                 }
             }
-            C32::Step(d) if self.open == Some(Card::Enter) => self.step_press(c, d),
-            C32::Tour => self.tour_toggle(),
             C32::Qr => self.qr_on = !self.qr_on && self.qr.is_some(),
             C32::Skip => self.skip(c),
             C32::Sample if self.open == Some(Card::Enter) => self.use_sample(c),
@@ -2027,9 +1876,6 @@ impl Codex32Make {
                     .map(|_| Vec::new())
                     .collect();
                 self.work = Some(w);
-                self.tour_drop();
-                // A new entry: nothing on it is the roller's.
-                self.roller.reset();
                 true
             }
             Err(e) => {
@@ -2098,19 +1944,18 @@ impl Codex32Make {
 
     // ----- The entry -----
 
-    /// The dice's faces become `n`, the roller's too; an earlier
+    /// The dice's faces become `n`; an earlier
     /// character keeps the faces it was rolled with. Cheap.
     fn set_faces(&mut self, n: u8) {
         if faraday_entropy::booklet::faces_ok(n) {
             self.dice_choice.faces = n;
-            self.roller.set_faces(n);
             self.replay();
         }
     }
 
     /// Other dice chosen: between characters they are simply taken; in
     /// the middle of one, its rolls so far are cleared (they were of the
-    /// other dice), the roller stops, and the note says so. Cheap.
+    /// other dice), and the note says so. Cheap.
     fn change_faces(&mut self, n: u8) {
         if n == self.dice_choice.faces {
             return;
@@ -2118,9 +1963,6 @@ impl Codex32Make {
         if !self.dice_open() {
             self.seq.clear();
             self.pending = None;
-            self.roller.stop();
-            let done = self.entered_all();
-            self.roller.trim(done, 0);
             self.note = Some(Text::of(EN.codex32_dice_changed));
         }
         self.set_faces(n);
@@ -2176,8 +2018,8 @@ impl Codex32Make {
         if self.front().is_none() {
             return;
         }
-        // A character the step-through holds whole goes into its box
-        // before a face of the next.
+        // A character held whole goes into its box before a face of the
+        // next.
         self.put_whole(c);
         self.push_face(face);
         self.put_whole(c);
@@ -2212,9 +2054,7 @@ impl Codex32Make {
         self.dice = BookletChar::with_faces(self.dice_choice.faces).unwrap_or_default();
         self.rows.clear();
         self.equal = None;
-        self.rolled_dice = [false; BOOKLET_DICE];
-        let done = self.entered_all();
-        for (i, &face) in self.seq.iter().enumerate() {
+        for &face in self.seq.iter() {
             let place = (0..2 * BOOKLET_DICE).find(|&p| {
                 if p < BOOKLET_DICE {
                     self.dice.first(p).is_none()
@@ -2226,13 +2066,6 @@ impl Codex32Make {
                 continue;
             }
             self.equal = None;
-            if let Some(p) = place {
-                let die = p % BOOKLET_DICE;
-                let rolled = self.roller.is_rolled(done, i);
-                // A die's first value starts its mark over; its second
-                // adds to it.
-                self.rolled_dice[die] = rolled || (p >= BOOKLET_DICE && self.rolled_dice[die]);
-            }
             if let Some(p) = place.filter(|&p| p >= BOOKLET_DICE) {
                 let die = p - BOOKLET_DICE;
                 let row = DieRow {
@@ -2244,7 +2077,6 @@ impl Codex32Make {
                 if row.bit().is_none() {
                     self.dice.redo(die);
                     self.equal = Some(die as u8);
-                    self.rolled_dice[die] = false;
                 }
             }
         }
@@ -2293,7 +2125,7 @@ impl Codex32Make {
     /// Costs an HMAC-SHA512 and an elliptic-curve multiplication (the
     /// key's fingerprint), a QR encoding and a checksum worksheet of each
     /// share made. Takes the finished set's strings, as a paper form, its
-    /// key's fingerprint, and the tour of the shares made (`tour.rs`).
+    /// key's fingerprint.
     fn complete(&mut self, c: &Compute) {
         let Some(work) = self.work.as_ref() else {
             return;
@@ -2303,7 +2135,6 @@ impl Codex32Make {
         self.fingerprint = work.fingerprint(c).map(|f| f.0);
         self.at = 0;
         self.encode_qr(c);
-        self.tour_build(c);
     }
 
     /// Takes back the last face of the character in progress, or, with
@@ -2315,9 +2146,6 @@ impl Codex32Make {
             return;
         }
         self.undo_entry();
-        // Faces taken back are not the roller's any more.
-        let done = self.entered_all();
-        self.roller.trim(done, self.seq.len());
         self.replay();
     }
 
@@ -2341,7 +2169,6 @@ impl Codex32Make {
         }
         work.pop(share);
         self.strings = None;
-        self.tour_drop();
         self.fingerprint = None;
         self.qr = None;
         self.qr_on = false;
@@ -2350,7 +2177,6 @@ impl Codex32Make {
         {
             // Its rolls come back on the dice they were rolled with.
             self.dice_choice.faces = m.faces;
-            self.roller.set_faces(m.faces);
             self.seq = Zeroizing::new(m.seq.to_vec());
             self.seq.pop();
             self.replay();

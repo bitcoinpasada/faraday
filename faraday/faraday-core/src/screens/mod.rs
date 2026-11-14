@@ -251,7 +251,6 @@ pub(crate) fn support_pane_room() -> f32 {
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
     ui.dice_shown = app.keygen_dice_shown();
-    ui.press_shown = app.keygen.press_shown(app.now_ms, app.reduce_motion());
     // A small panel's keyboard, when it is up, takes the foot of the
     // panel; everything else is laid out above it. The wide layout's,
     // when brought up from its button, takes the foot of the page area,

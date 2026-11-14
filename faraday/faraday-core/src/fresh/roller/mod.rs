@@ -1,4 +1,4 @@
-//! The dice roller of Faraday Demo (`docs/CODEX32.md` §5.5, §5.6): a
+//! The dice roller of Faraday Demo (`docs/CODEX32.md` §5.6): a
 //! die a click rolls for a person, its values this computer's randomness
 //! from `Faraday::fresh`, landing on the entries of the flow that hosts
 //! it (New key's dice pad, Create a vault's Generate with dice) as a

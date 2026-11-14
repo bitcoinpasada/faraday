@@ -55,8 +55,7 @@ impl StepFlow for KeyGenSteps {
         let mut steps = Steps::new(order, open_step(k));
         steps.first = after_lock(k, &steps.order);
         // Entries being made take no Back: a roller's click under way.
-        steps.running =
-            k.roller.rolling() || k.codex32.as_ref().is_some_and(|m| m.roller().rolling());
+        steps.running = k.roller.rolling();
         Some(steps)
     }
 

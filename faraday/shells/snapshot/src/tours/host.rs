@@ -1,8 +1,8 @@
 //! Faraday Demo's host (`docs/DESKTOP-HOST.md`): the app held by the
 //! host, its strip at the window's foot. Home in Practice at the window's
 //! own size, the Size menu, the Pi panel and the 7-inch panel previewed;
-//! Make codex32 shares in Practice with the computer's walk in the strip and
-//! Play's options open, and in the dark theme, whose host is light; then
+//! Make codex32 shares in Practice with Use a sample in the strip, and in
+//! the dark theme, whose host is light; then
 //! Home on Testnet, whose strip holds only the sticks and Size.
 
 use crate::tour::{Tour, display};
@@ -138,11 +138,10 @@ pub(crate) fn host_tour(t: &mut Tour) -> Result<(), String> {
     shot(t, win, "host-testnet-pi-panel", Some(PI), None)
 }
 
-/// Make codex32 shares in Practice on twenty-faced dice, the computer's walk
-/// a few steps in: its Previous, Next, Play and Play's options in the
-/// strip, then the menu open; the Pi panel's size too.
+/// Make codex32 shares in Practice on twenty-faced dice, Use a sample in
+/// the strip; the dark theme and the Pi panel's size too.
 fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
-    use faraday_core::codex32::{C32, DIE_SIZES, OskPress, Step, WAYS, WalkAct, Way};
+    use faraday_core::codex32::{C32, DIE_SIZES, OskPress, WAYS, Way};
     use faraday_core::keygen::Start;
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
@@ -160,35 +159,14 @@ fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
     c(t, C32::Next);
     crate::tour::scroll(t, -3000);
     shot(t, win, "host-codex32-ready", None, None)?;
-    let step = |t: &Tour| {
-        t.app
-            .keygen()
-            .and_then(|k| k.codex32.as_ref())
-            .and_then(|m| m.walk().shown().map(|(_, _, s)| s))
-    };
-    for _ in 0..80 {
-        c(t, C32::Walk(WalkAct::Next));
-        t.tick();
-        if step(t).is_some_and(|s| matches!(s, Step::Second { .. })) {
-            break;
-        }
-    }
-    shot(t, win, "host-codex32-walk", None, None)?;
     // The host in the app's theme turned inside out: a dark app, a light
     // host.
     let was = t.app.theme();
     let dark = faraday_core::ui::Mode::Dark;
     t.press(Action::Theme(faraday_core::ui::Theme { mode: dark, ..was }));
-    shot(t, win, "host-codex32-walk-dark", None, None)?;
+    shot(t, win, "host-codex32-dark", None, None)?;
     shot(t, win, "host-codex32-pi-panel-dark", Some(PI), None)?;
     t.press(Action::Theme(was));
-    shot(
-        t,
-        win,
-        "host-codex32-play-options",
-        None,
-        Some(HostMenu::Play),
-    )?;
     shot(t, win, "host-codex32-pi-panel", Some(PI), None)
 }
 

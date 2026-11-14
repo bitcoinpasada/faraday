@@ -5,7 +5,7 @@
 //! demo-only or Desktop-only drawn inside the app.
 
 use crate::common::*;
-use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
+use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, testkit};
@@ -140,7 +140,6 @@ fn app_holds_no_host_item(host: &mut Host) {
         "Stick 2 · in",
         "Stick 2 · out",
         "Preview size",
-        "Play options",
     ] {
         assert!(
             !texts.iter().any(|x| x == t),
@@ -337,64 +336,30 @@ fn on_codex32_dice(host: &mut Host) {
 }
 
 #[test]
-fn the_codex32_walk_stands_in_the_strip_and_next_steps_it_from_one_place() {
-    let next = HostPress::App(Action::Codex32(C32::Walk(WalkAct::Next)));
+fn the_codex32_entrys_use_a_sample_stands_in_the_strip_and_the_app_holds_none() {
+    let sample = HostPress::App(Action::Codex32(C32::Sample));
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (960, 580)] {
         let mut shell = Shell::default();
         let mut host = desktop(&mut shell, 0, true, (w, h));
         on_codex32_dice(&mut host);
         let s = strip(&mut host);
-        for t in ["Practice", "Use a sample", "Previous", "Next", "Play"] {
+        for t in ["Practice", "Use a sample"] {
             assert!(
                 s.iter().any(|x| x == t),
                 "{w}x{h}: the strip offers {t:?}: {s:?}"
             );
         }
+        assert!(
+            !s.iter().any(|x| x == "Next" || x == "Play"),
+            "{w}x{h}: no step-through: {s:?}"
+        );
         app_holds_no_host_item(&mut host);
-        let at = host.where_offered(next).expect("Next in the strip");
+        let at = host
+            .where_offered(sample)
+            .expect("Use a sample in the strip");
         let (_, ay, _, ah) = host.app_area().unwrap();
-        assert!(i32::from(at.1) > ay + ah, "{w}x{h}: Next under the app");
-        // Next steps the walk; the step's count and working are the
-        // Working area's, in the app; Next keeps its place.
-        for i in 0..20 {
-            click(&mut host, next);
-            if i == 0 {
-                let texts = app_texts(&mut host);
-                assert!(
-                    texts.iter().any(|t| t.starts_with("Step 1 of ")),
-                    "{w}x{h}: the Working area's count: {texts:?}"
-                );
-            }
-            assert_eq!(
-                host.where_offered(next),
-                Some(at),
-                "{w}x{h}: Next moved at {i}"
-            );
-        }
-        let m = host.app.keygen().unwrap().codex32.as_ref().unwrap();
-        assert!(m.walk().shown().is_some(), "{w}x{h}: the walk stepped");
+        assert!(i32::from(at.1) > ay + ah, "{w}x{h}: under the app");
     }
-}
-
-#[test]
-fn plays_options_open_from_the_strip_and_take_a_choice() {
-    let mut shell = Shell::default();
-    let mut host = desktop(&mut shell, 0, true, (1280, 800));
-    on_codex32_dice(&mut host);
-    click(&mut host, HostPress::Menu(HostMenu::Play));
-    let s = strip(&mut host);
-    for t in ["Play runs", "Speed", "Fastest"] {
-        assert!(s.iter().any(|x| x == t), "the menu lists {t:?}: {s:?}");
-    }
-    let fastest = HostPress::App(Action::Codex32(C32::Walk(WalkAct::Speed(3))));
-    click(&mut host, fastest);
-    assert_eq!(host.menu_open(), None);
-    let m = host.app.keygen().unwrap().codex32.as_ref().unwrap();
-    assert_eq!(
-        m.walk().speed(),
-        faraday_core::codex32::SPEEDS[3],
-        "the speed chosen"
-    );
 }
 
 #[test]

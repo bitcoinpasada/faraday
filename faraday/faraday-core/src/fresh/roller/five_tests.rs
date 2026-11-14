@@ -1,5 +1,5 @@
 //! The five-dice roller against the codex32 flow's own entry
-//! (`docs/CODEX32.md` §5.5): a click fills the booklet's sheet exactly as
+//! (`docs/CODEX32.md` §5.6): a click fills the booklet's sheet exactly as
 //! the same faces typed would, and the faces it made are marked.
 
 use super::Sim;
@@ -212,22 +212,6 @@ fn clean() -> Vec<u8> {
 /// other dice's second values, as the pad takes them.
 fn tied() -> Vec<u8> {
     six("tied")
-}
-
-#[test]
-fn the_step_through_rolls_a_character_as_a_click_of_one_character_does() {
-    // The same answers give the same faces whether a click lands them or
-    // the step-through rolls them ahead (`docs/CODEX32.md` §5.5).
-    for faces in [&clean()[..], &tied()[..]] {
-        let mut h = Host::new();
-        let mut clicked = FiveRoller::default();
-        roll(&h, &mut clicked, 0);
-        let landed = run(&mut h, &mut clicked, true, &mut stream(faces));
-        let mut ahead = FiveRoller::default();
-        let rolled = ahead.roll_character(&[], &mut stream(faces)).unwrap();
-        assert_eq!(rolled.as_slice(), landed.as_slice());
-        assert_eq!(rolled.as_slice(), faces);
-    }
 }
 
 #[test]

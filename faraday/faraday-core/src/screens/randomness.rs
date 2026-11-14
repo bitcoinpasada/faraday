@@ -241,8 +241,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// What was added, once anything was: a check mark and the line
 /// ("Added to the pool 3 times · last: 6 dice rolls"). As a batch is
-/// taken a pressed state layer in the accent, as strong as the codex32
-/// pad's emphasised key at `shown` 1, eases away behind it to nothing;
+/// taken a pressed state layer in the accent, as strong as a pressed
+/// key emphasised at `shown` 1, eases away behind it to nothing;
 /// none under reduce motion, where the line's own count is what changes.
 /// Returns its height.
 fn added(ui: &mut Ui, (x, y, w): (f32, f32, f32), line: &str, shown: f32) -> f32 {

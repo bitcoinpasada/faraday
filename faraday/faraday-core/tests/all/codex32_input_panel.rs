@@ -9,7 +9,7 @@
 //! Continue in the pad's place once every character is in, the one way
 //! on. The step-through's Next brings the die it rolls into view.
 
-use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, Step, WAYS, WalkAct, Way};
+use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
@@ -176,14 +176,14 @@ fn beside_the_sheets_a_panel_taller_than_the_window_scrolls_within_itself() {
     // A window wide enough for the panel beside the sheets but too low
     // for it whole with twenty-faced dice's three rows of keys: it
     // stands beside them still, and scrolls on its own.
-    let (w, h) = (2560u16, 620u16);
+    let (w, h) = (2560u16, 500u16);
     let mut app = on_entry(w, h, 160);
     choose_size(&mut app, 20);
-    // Beside the sidebar at the work area's start, below the top strip,
+    // Beside the rail at the work area's start, below the top strip,
     // not at the foot.
     let die = text_at(&mut app, "Die 1").expect("the rolls");
     assert!(
-        die.0 > 240 && die.1 < i32::from(h) / 2,
+        die.0 > 100 && die.1 < i32::from(h) / 2,
         "the panel beside the sheets: {die:?}"
     );
     assert_eq!(make(&app).panel_offset(), 0.0);
@@ -377,49 +377,6 @@ fn the_dice_sheet_stands_only_with_the_rolling_shares_checksum_and_closes_when_i
 }
 
 #[test]
-fn the_step_throughs_next_brings_the_die_it_rolls_into_view() {
-    let mut app = on_shell(1280, 800, 160, true, Way::Dice);
-    // The page at its top: the tracks are under the panel.
-    scroll_page(&mut app, 1280 / 2, 800 / 3, -4000);
-    for die in 0..5u8 {
-        let step = |app: &Faraday| make(app).walk().shown().map(|(_, _, s)| s);
-        for _ in 0..20 {
-            c32(&mut app, C32::Walk(WalkAct::Next));
-            for _ in 0..3 {
-                let _ = app.frame();
-                let now = app.now_ms() + 16;
-                app.event(Event::Tick { now_ms: now });
-            }
-            if matches!(step(&app), Some(Step::First { die: d, .. }) if d == die) {
-                break;
-            }
-        }
-        assert!(
-            matches!(step(&app), Some(Step::First { die: d, .. }) if d == die),
-            "die {die}'s first roll: {:?}",
-            step(&app)
-        );
-        let _ = app.frame();
-        // Die n's track's name over the panel's own, both in the window.
-        let name = format!("Die {}", die + 1);
-        let mut at: Vec<(i32, i32, i32, i32)> = app
-            .drawn_text_boxes()
-            .plain()
-            .into_iter()
-            .filter(|(t, b)| *t == name && in_window(*b, 1280, 800))
-            .map(|(_, b)| b)
-            .collect();
-        at.sort_by_key(|b| b.1);
-        assert!(at.len() >= 2, "{name}: its track and the panel's: {at:?}");
-        let (track, panel) = (at[0], at[at.len() - 1]);
-        assert!(
-            track.1 + track.3 < panel.1 - 8,
-            "{name}'s track stands clear above the panel: {at:?}"
-        );
-    }
-}
-
-#[test]
 fn the_pi_panels_six_face_pad_has_no_done_and_the_flows_continue_goes_on() {
     let mut pi = on_shell(480, 640, 286, false, Way::Dice);
     let done = Action::Codex32(C32::Key(OskPress::Done));
@@ -531,80 +488,6 @@ fn the_tracks_show_only_the_pads_the_dice_reach() {
     );
 }
 
-/// The colour at (x, y) of the frame on screen, its three channels
-/// summed.
-fn ink_at(app: &mut Faraday, (x, y): (u16, u16)) -> i32 {
-    let f = app.frame();
-    let i = (usize::from(y) * f.width as usize + usize::from(x)) * 4;
-    f.rgba
-        .get(i..i + 3)
-        .map_or(0, |p| i32::from(p[0]) + i32::from(p[1]) + i32::from(p[2]))
-}
-
-/// A point inside face `f`'s key, clear of its label and its edge.
-fn in_key(app: &Faraday, f: u8) -> (u16, u16) {
-    let k = app.hit_box(face(f)).expect("the key");
-    (k.0 + k.2 / 2, k.1 + k.3 / 5)
-}
-
-#[test]
-fn the_key_of_the_roll_shown_is_drawn_pressed_after_a_press_and_after_next() {
-    // The person's press: their 3 drawn pressed, their 5 not.
-    let mut app = on_shell(1280, 800, 160, true, Way::Dice);
-    let (three, five) = (in_key(&app, 3), in_key(&app, 5));
-    let rest = ink_at(&mut app, three);
-    assert_eq!(rest, ink_at(&mut app, five), "two keys alike at rest");
-    c32(&mut app, C32::Face(3));
-    assert_eq!(make(&app).pressed_face(), Some(3));
-    let pressed = ink_at(&mut app, three);
-    assert_ne!(pressed, ink_at(&mut app, five), "3 drawn pressed");
-    // The Practice walk's Next presses its die's face the same way.
-    c32(&mut app, C32::Key(OskPress::Back));
-    c32(&mut app, C32::Walk(WalkAct::Next));
-    let f = make(&app).pressed_face().expect("Next rolled a face");
-    let other = if f == 1 { 2 } else { 1 };
-    let (on, off) = (in_key(&app, f), in_key(&app, other));
-    assert_ne!(
-        ink_at(&mut app, on),
-        ink_at(&mut app, off),
-        "Next's {f} drawn pressed"
-    );
-}
-
-#[test]
-fn the_pressed_key_is_emphasised_briefly_and_at_rest_under_reduce_motion() {
-    for still in [false, true] {
-        let mut app = on_shell(1280, 800, 160, false, Way::Dice);
-        app.press(Action::ReduceMotion(still));
-        let _ = app.frame();
-        let three = in_key(&app, 3);
-        c32(&mut app, C32::Face(3));
-        let shown = |app: &Faraday| make(app).press_shown(app.now_ms(), still);
-        let first = shown(&app);
-        let ink_first = ink_at(&mut app, three);
-        let mut seen = vec![first];
-        for _ in 0..40 {
-            let now = app.now_ms() + 16;
-            app.event(Event::Tick { now_ms: now });
-            seen.push(shown(&app));
-        }
-        let ink_late = ink_at(&mut app, three);
-        if still {
-            assert!(seen.iter().all(|s| *s == 0.0), "no emphasis: {seen:?}");
-            assert_eq!(ink_first, ink_late, "the same highlight throughout");
-        } else {
-            assert!(first > 0.99, "emphasised as pressed: {seen:?}");
-            assert!(
-                seen.windows(2).all(|w| w[1] <= w[0]),
-                "only eases: {seen:?}"
-            );
-            assert!(seen.last().is_some_and(|s| *s < 0.01), "to rest: {seen:?}");
-            assert_ne!(ink_first, ink_late, "the emphasis drawn, then gone");
-        }
-        assert_eq!(make(&app).pressed_face(), Some(3), "still drawn pressed");
-    }
-}
-
 // ---- The view follows the work, calmly (owner, 2026-10-25) ----
 
 /// `n` frames 16 ms apart, a tick before each, as a shell draws them.
@@ -679,25 +562,5 @@ fn a_roll_moves_nothing_and_a_character_in_its_box_comes_into_view() {
             let after = where_things_are(&mut app);
             assert_eq!((after.0, after.1), (rest.0, rest.1), "{w}x{h} {practice}");
         }
-    }
-}
-
-#[test]
-fn the_working_areas_next_moves_nothing_while_its_cells_are_on_screen() {
-    // 1920 x 1080: the worksheet is drawn whole and on screen with the
-    // character just put in its box; stepping through the cells that
-    // character fills keeps the page where it is.
-    let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
-    app.press(Action::ReduceMotion(false));
-    frames(&mut app, 40);
-    for f in THREE {
-        c32(&mut app, C32::Face(f));
-    }
-    frames(&mut app, 40);
-    let at = where_things_are(&mut app);
-    for _ in 0..6 {
-        c32(&mut app, C32::Step(1));
-        frames(&mut app, 30);
-        assert_eq!(where_things_are(&mut app), at);
     }
 }

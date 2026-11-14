@@ -7883,9 +7883,6 @@ strings! {
     /// Faraday Demo's host strip: the practice aids that do not fit, in a
     /// menu.
     host_more: "More",
-    /// Faraday Demo's host strip: Play's options, how far it runs and
-    /// how fast, in a menu.
-    host_play_options: "Play options",
     /// Line in `settings`.
     settings_signed_amounts: "Signed amounts",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_transaction }…`.
@@ -12005,12 +12002,6 @@ strings! {
     // ----- The five-dice roller (docs/CODEX32.md §5.5), faraday-core/src/fresh/roller/ -----
     /// Heading of the codex32 dice step's roller, beside the entry for real dice.
     roller_or_let_faraday_roll: "Or let Faraday roll",
-    /// Choice: the five dice once.
-    roller_reach_pass: "One pass",
-    /// Choice: both passes, one character.
-    roller_reach_character: "One character",
-    /// Choice: every character of the share being entered.
-    roller_reach_share: "One share",
     /// Result's entropy row after the roller made every value.
     roller_entropy_simulated: "Entropy · simulated dice",
     /// Result's entropy row after the roller and real dice made the values.
@@ -12195,13 +12186,6 @@ strings! {
     codex32_your_dice_and_characters: "your dice and your characters",
     /// The entry's pad for real rolls, beside the roller (CODEX32 §5.5).
     codex32_your_dice_head: "Your dice",
-    /// Under the dice sheet: the dice of the character in progress
-    /// whose value the roller made (CODEX32 §5.5).
-    codex32_dice_rolled: "{} rolled by this computer",
-    /// A die in that line.
-    codex32_die_short: "Die {}",
-    /// A rolled character's review line, marked as the roller's.
-    codex32_box_rolled_by: "{} · rolled by this computer",
     /// The Entropy card's row of dice, by their faces (CODEX32 §5.1).
     codex32_dice: "Dice",
     /// A die on that row. `{}`: its faces.
@@ -12236,7 +12220,7 @@ strings! {
     /// Head over a track's pads 7 to 20, for dice of more faces (the
     /// booklet's words).
     codex32_die_pads_large: "Die pads (d7+)",
-    /// Head over each die's first roll, its marker (CODEX32 §5.5).
+    /// Head over each die's first roll, its marker (CODEX32 §6.4.2).
     codex32_first_roll: "First roll",
     /// Head over each die's second roll, the die.
     codex32_second_roll: "Second roll",
@@ -12245,124 +12229,6 @@ strings! {
     /// The note when the dice are changed in the middle of a character
     /// (CODEX32 §5.1).
     codex32_dice_changed: "Dice changed: this character's rolls are cleared",
-    /// The roller's dice, in the "Demo only" box. `{}`: the die, as "d20".
-    codex32_rolls_die: "Rolls {}",
-    // ----- The step-through in the "Demo only" card (CODEX32 §5.5, owner 2026-10-24), faraday-core -----
-    /// Where the step-through stands. `{}`: the step, the character's
-    /// steps, the character's number in its share.
-    codex32_walk_count: "Step {} of {} · character {}",
-    // ----- The Working area of the person's own entry (CODEX32 §5.7, owner 2026-10-24), faraday-core -----
-    /// The Working area's head, in the input panel beside the pad.
-    codex32_track_head: "Working",
-    /// Where the Working area stands before a value of the character is
-    /// entered. `{}`: the character's number in its share.
-    codex32_track_char: "Character {}",
-    /// Where it stands in the character in progress. `{}`: the value's
-    /// number among the character's, the character's number in its share.
-    codex32_track_roll: "Roll {} · character {}",
-    /// The same three on the small panel's Working tile, short so they
-    /// fit its head row (owner, 2026-10-24). `{}`: the step, the
-    /// character's steps, the character's number in its share.
-    codex32_walk_count_short: "{}/{} · ch {}",
-    /// `{}`: the character's number in its share.
-    codex32_track_char_short: "Ch {}",
-    /// `{}`: the value's number, the character's number.
-    codex32_track_roll_short: "Roll {} · ch {}",
-    /// What the person enters next, a die's first roll. `{}`: the die.
-    codex32_track_next_first: "Next: die {}, first roll.",
-    /// What the person enters next, a die's second roll. `{}`: the die.
-    codex32_track_next_second: "Next: die {}, second roll.",
-    /// A character typed, into its box. `{}`: the character, the box.
-    codex32_track_typed: "{} goes in box {}.",
-    /// What the person types next. `{}`: the box.
-    codex32_track_next_box: "Next: the character for box {}.",
-    /// The Working area's Previous, an icon button's tooltip.
-    tip_previous_step: "Previous step",
-    /// The Working area's Next, an icon button's tooltip.
-    tip_next_step: "Next step",
-    /// Play, which runs the steps.
-    codex32_walk_play: "Play",
-    /// Play running: the button that stops it.
-    codex32_walk_pause: "Pause",
-    /// Head over how far Play runs.
-    codex32_walk_play_runs: "Play runs",
-    /// Head over how fast Play runs.
-    codex32_walk_speed: "Speed",
-    /// A step a second.
-    codex32_walk_slow: "Slow",
-    /// The default speed.
-    codex32_walk_normal: "Normal",
-    /// Quick.
-    codex32_walk_fast: "Fast",
-    /// A step every frame.
-    codex32_walk_fastest: "Fastest",
-    /// A die's first roll. `{}`: the die, its value, the pad.
-    codex32_walk_first: "Die {}, first roll: {}. Marker on pad {}.",
-    /// A die's second roll, higher. `{}`: the die, the second value, the
-    /// second value, the first value.
-    codex32_walk_higher: "Die {}, second roll: {}. {} is higher than {}, so bit 1.",
-    /// A die's second roll, lower. `{}`: as `codex32_walk_higher`.
-    codex32_walk_lower: "Die {}, second roll: {}. {} is lower than {}, so bit 0.",
-    /// An equal pair. `{}`: the die, its first value, its second.
-    codex32_walk_equal: "Die {}: {} then {}. Equal, so roll both again.",
-    /// The five bits into the box. `{}`: the bits, their sum as written
-    /// ("8 + 4 + 1 = 13"), the leaf, its character, the character, the box.
-    codex32_walk_bits: "Bits {} = {}. Leaf {} of the tree is {}. {} goes in box {}.",
-    /// A sum cell of the checksum worksheet, as the addition wheel gives it.
-    /// `{}`: the box, the row's letter, the two added, the sum.
-    codex32_walk_sum: "Box {}, row {}: {} + {} = {}",
-    /// A table row selected by two leading cells. `{}`: the first box,
-    /// the second, their characters, the row's name, the row, the box it
-    /// is written from.
-    codex32_walk_table: "Boxes {}–{} read {}. Table row {} is {}, written from box {}.",
-    /// A table row selected by one leading cell. `{}`: the box, its
-    /// character, the row's name, the row, the box it is written from.
-    codex32_walk_table_one: "Box {} reads {}. Table row {} is {}, written from box {}.",
-    /// A checksum box worked from below. `{}`: the box, the cell below,
-    /// the table cell between, the box's character.
-    codex32_walk_below: "Box {}, from below: {} + {} = {}",
-    // ----- The tour of the shares made and S, after the last checksum (CODEX32 §5.7, owner 2026-10-24), faraday-core -----
-    /// The choice beside the Working area: at the end of the last
-    /// initial share's checksum, Next goes through each derived share and
-    /// S, a step at a time (owner's wording).
-    codex32_tour_choice: "Show the other shares and S as they fill",
-    /// Where the tour stands. `{}`: the step, the steps in all, the sheet
-    /// ("Share E", "Secret").
-    codex32_tour_count: "Step {} of {} · {}",
-    /// The same on the small panel's Working tile. `{}`: the step, the
-    /// steps, the sheet's letter.
-    codex32_tour_count_short: "{}/{} · {}",
-    /// What Next does at the end of the last checksum. `{}`: the first
-    /// sheet ("Share E").
-    codex32_tour_next: "Next: {}.",
-    /// What Next does at the tour's last step.
-    codex32_tour_next_card: "Next: the worksheets.",
-    /// A derived share's translation symbol. `{}`: the initial share, the
-    /// share made, the symbol, its value.
-    codex32_tour_symbol: "Share {}'s translation symbol for {}: {}, value {}, from the derivation table.",
-    /// S's symbol at k = 2: one recovery symbol, nothing to fuse. `{}`:
-    /// the share, the symbol, its value.
-    codex32_tour_recovery_one: "Share {}'s recovery symbol: {}, value {}.",
-    /// S's symbol at k of 3 or more: the recovery symbols fused. `{}`:
-    /// the share, its recovery symbols, the fused symbol, its value.
-    codex32_tour_recovery: "Share {}'s recovery symbols {} fused: {}, value {}.",
-    /// A translated cell, and the wheel. `{}`: the share, the box, its
-    /// character, the symbol, the product, the symbol.
-    codex32_tour_translate: "Share {}, box {}: {} × {} = {}. Translation wheel set to {}.",
-    /// A sum of the translated cells. `{}`: the box, the sheet, the
-    /// cells added, the sum.
-    codex32_tour_sum: "Box {}, {}: {} = {}",
-    /// A cell of the final row of a share's checksum check. `{}`: the
-    /// box, the two added, the sum, what it should read.
-    codex32_tour_final: "Final row, box {}: {} + {} = {}. It should read {}.",
-    /// The check done, its final row as it should read. `{}`: the share.
-    codex32_tour_holds: "{}'s final row reads SECRETSHARE32: its checksum holds.",
-    /// The check done, its final row not as it should read. `{}`: the
-    /// share, the first box that differs.
-    codex32_tour_fails: "{}'s final row differs at box {}: its checksum fails.",
-    /// The head over a derived share's checksum worksheet, worked as the
-    /// booklet's verification. `{}`: the share.
-    codex32_tour_check_head: "Checksum of {}, checked",
     /// Over the pad of ten-faced dice: a die numbered 0 to 9 enters its 0
     /// as 10 (CODEX32 §5.1).
     codex32_d10_zero: "0 is 10",

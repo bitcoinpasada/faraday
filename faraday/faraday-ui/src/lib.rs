@@ -497,10 +497,6 @@ pub struct Ui<'a, A> {
     pub guided_shown: f32,
     /// How open the codex32 dice sheet shows: 0 closed, 1 open.
     pub dice_shown: f32,
-    /// How strongly the codex32 pad's key of the roll shown is emphasised
-    /// over its pressed state: 1 as it is pressed, 0 once settled (and
-    /// always under Reduce motion).
-    pub press_shown: f32,
     /// On the wide layout, the page's name and its way back (the name of
     /// where it lands, and the press), handed over by the page for the
     /// top app bar the frame draws over it (`docs/LAYOUT.md` §3).
@@ -671,7 +667,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             frost: None,
             guided_shown: 1.0,
             dice_shown: 1.0,
-            press_shown: 0.0,
             head: None,
             about_open: None,
             pinning: false,

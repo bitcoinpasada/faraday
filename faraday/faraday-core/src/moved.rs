@@ -235,7 +235,7 @@ mod tests {
     /// person would. Returns the moved frames taken, by region.
     fn scrolls(app: &mut Faraday, name: &str) -> Vec<(String, u32)> {
         app.settle();
-        // A toast left from the walk's setup is a timer of its own: a
+        // A toast left from the tour's setup is a timer of its own: a
         // screen is scrolled once it is gone.
         app.out.toast = None;
         // A page left past its end by the last screen is put back by the

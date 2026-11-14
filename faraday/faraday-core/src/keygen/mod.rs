@@ -1204,8 +1204,7 @@ impl crate::Faraday {
         &self,
         m: crate::codex32::Codex32Make,
     ) -> crate::codex32::Codex32Make {
-        let mut m = m.with_dice(self.keygen.dice);
-        m.set_practice(self.roller_offered());
+        let m = m.with_dice(self.keygen.dice);
         if self.makes_secrets() {
             return m;
         }
@@ -1932,17 +1931,6 @@ impl crate::Faraday {
         });
         match press {
             C32::Lock => return self.keygen_codex32_lock(),
-            C32::Walk(w) => return self.keygen_codex32_walk(w),
-            // The Working area's Previous and Next step the Practice walk
-            // while it shows a step (`docs/CODEX32.md` §5.7).
-            C32::Step(d) if self.keygen_walk_shown() => {
-                let w = if d < 0 {
-                    crate::codex32::WalkAct::Previous
-                } else {
-                    crate::codex32::WalkAct::Next
-                };
-                return self.keygen_codex32_walk(w);
-            }
             C32::Next | C32::Key(faraday_ui::keyboard::OskPress::Done) if locked_next => {
                 return self.keygen_done();
             }
@@ -1957,7 +1945,6 @@ impl crate::Faraday {
         let small = self.compact
             && self.window().class() == faraday_draw::geom::WindowClass::Compact
             && self.codex32_panel_foot_now() == 0.0;
-        let practice = self.roller_offered();
         let mut follow = crate::codex32::Follow::Work;
         let Some(k) = self.keygen.state.as_mut() else {
             return;
@@ -1971,7 +1958,6 @@ impl crate::Faraday {
             let before = m.open();
             let was = m.entry_pos();
             let tab_was = m.tab_shown(press);
-            m.set_practice(practice);
             m.act(&c, press, fresh);
             follow = crate::codex32::Follow::of(press, was, m.entry_pos());
             // Each tab keeps where its page stood: a tab shown again shows
@@ -2036,75 +2022,6 @@ impl crate::Faraday {
         self.entry.put(e);
     }
 
-    /// Costs what a step costs: a worksheet column for a character put
-    /// in its box, a fresh answer where Next rolls a character. A press on
-    /// the step-through of the "Demo only" card, on Faraday Demo only
-    /// (`docs/CODEX32.md` §5.5): the view follows the step.
-    fn keygen_codex32_walk(&mut self, w: crate::codex32::WalkAct) {
-        if !self.roller_offered() {
-            return;
-        }
-        let c = self.compute();
-        let now = self.now_ms();
-        let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
-        if let Some(m) = m.as_mut() {
-            let was = m.rolled_at();
-            m.walk_act(&c, w, now, &mut || {
-                self.fresh(b"faraday codex32 dice roller")
-            });
-            m.after_rolls(was);
-        }
-        if let Some(k) = self.keygen.state.as_mut() {
-            k.codex32 = m;
-        }
-        self.walk_follow();
-    }
-
-    /// The step-through moved on: the view follows its work once the
-    /// next frame has drawn where it is, the sheet of the work in hand
-    /// standing first (`docs/LAYOUT.md` §16.1, §16.4): the dice sheet's
-    /// on a roll or the character's step, the worksheet's on the
-    /// checksum's.
-    fn walk_follow(&mut self) {
-        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-            m.page_due_set();
-        }
-    }
-
-    /// Whether the codex32 Practice walk shows a step. A lookup.
-    fn keygen_walk_shown(&self) -> bool {
-        self.keygen
-            .state()
-            .and_then(|k| k.codex32.as_ref())
-            .is_some_and(|m| m.walk().shown().is_some())
-    }
-
-    /// ← and → step the codex32 step-through while its card is on the
-    /// entry (Faraday Demo, `docs/CODEX32.md` §5.5), the worksheet
-    /// under the pointer included; Up and Down still pan it. True when
-    /// taken.
-    pub(crate) fn keygen_walk_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        use crate::codex32::WalkAct;
-        use faraday_shell_api::Key;
-        let act = match key {
-            Key::Left => WalkAct::Previous,
-            Key::Right => WalkAct::Next,
-            _ => return false,
-        };
-        let open = self.screen == Screen::KeyGen
-            && self.sheet.is_none()
-            && self.roller_offered()
-            && self
-                .keygen
-                .state()
-                .and_then(|k| k.codex32.as_ref())
-                .is_some_and(crate::codex32::Codex32Make::walk_open);
-        if open {
-            self.keygen_codex32_walk(act);
-        }
-        open
-    }
-
     /// A press on the one-die roller beside the dice pad, on Faraday
     /// Demo only (`docs/CODEX32.md` §5.6). A click's values are entered
     /// at once, in the frame that shows the press.
@@ -2158,45 +2075,24 @@ impl crate::Faraday {
 
     /// Costs what the faces and values landed cost and a fresh answer for
     /// every 31 of them at most; nothing at rest. The tick of New key's
-    /// moving parts: the codex32 step-through's Play (Faraday Demo,
-    /// `docs/CODEX32.md` §5.5), the codex32 worksheet's view following the
+    /// moving parts: the codex32 worksheet's view following the
     /// work (§7.5), and the one die beside the dice pad (§5.6). Returns
     /// whether the screen needs a frame.
     pub(crate) fn keygen_tick(&mut self, now_ms: u64) -> bool {
         let Some(k) = self.keygen.state.as_ref() else {
             return false;
         };
-        let (walk, pan) = k.codex32.as_ref().map_or((false, false), |m| {
-            (m.walk().active(), m.pan().moving() || m.page_moving())
-        });
+        let pan = k
+            .codex32
+            .as_ref()
+            .is_some_and(|m| m.pan().moving() || m.page_moving());
         let one = k.roller.active();
         let due = self.keygen.page_due();
-        if !walk && !pan && !one && !due {
+        if !pan && !one && !due {
             return false;
         }
         let reduce = self.reduce_motion();
         let mut redraw = false;
-        if walk && self.roller_offered() {
-            let c = self.compute();
-            let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
-            let stepped = m.as_mut().is_some_and(|m| {
-                let (playing, was) = (m.walk().playing(), m.rolled_at());
-                let moved = m.walk_tick(&c, now_ms, &mut || {
-                    self.fresh(b"faraday codex32 dice roller")
-                });
-                m.after_rolls(was);
-                // Play ending changes its button too.
-                moved || playing != m.walk().playing()
-            });
-            if let Some(k) = self.keygen.state.as_mut() {
-                k.codex32 = m;
-            }
-            if stepped {
-                // The step moved the work: the view follows it.
-                self.walk_follow();
-                redraw = true;
-            }
-        }
         // Once the cards have settled: the page is brought clear from
         // where the Enter card will stand, not where it stands while the
         // card before it still closes.
@@ -2219,19 +2115,6 @@ impl crate::Faraday {
             redraw |= self.keygen_roller_tick(now_ms, reduce);
         }
         redraw
-    }
-
-    /// Whether the codex32 entry's dice sheet stands in its column at the
-    /// right now (`docs/LAYOUT.md` §16.1). Arithmetic.
-    pub(crate) fn codex32_column_now(&self) -> bool {
-        let page_w = crate::screens::keygen_page_w(self);
-        let shell = (self.window(), self.compact, self.text_size().factor());
-        let h = self.window().height;
-        self.keygen
-            .state
-            .as_ref()
-            .and_then(|k| k.codex32.as_ref())
-            .is_some_and(|m| crate::codex32::pane_screen::column_now(m, page_w, h, shell))
     }
 
     /// The room the codex32 entry's input panel keeps at the window's

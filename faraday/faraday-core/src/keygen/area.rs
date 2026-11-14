@@ -76,23 +76,13 @@ impl KeyGenArea {
             .map_or(1.0, |m| m.dice_shown(now_ms, still))
     }
 
-    /// One tick of the codex32 dice sheet's glide and of its pad's
-    /// pressed key, if the flow has them; whether either still moves. A
-    /// lookup.
+    /// One tick of the codex32 dice sheet's glide, if the flow has it;
+    /// whether it still moves. A lookup.
     pub(crate) fn dice_tick(&mut self, now_ms: u64) -> bool {
         self.state
             .as_mut()
             .and_then(|k| k.codex32.as_mut())
-            .is_some_and(|m| m.dice_tick(now_ms) | m.press_tick(now_ms))
-    }
-
-    /// How strongly the codex32 pad's pressed key is emphasised now, 0 to
-    /// 1. A lookup.
-    pub(crate) fn press_shown(&self, now_ms: u64, still: bool) -> f32 {
-        self.state
-            .as_ref()
-            .and_then(|k| k.codex32.as_ref())
-            .map_or(0.0, |m| m.press_shown(now_ms, still))
+            .is_some_and(|m| m.dice_tick(now_ms))
     }
 
     /// Ends the codex32 dice sheet's glide at once, if there is one.
@@ -245,22 +235,6 @@ impl KeyGenArea {
             && let Some(y) = m.follow_page(cls, page, (k.scroll.y, reduce))
         {
             k.scroll.y = y;
-        }
-    }
-
-    /// Sends the page to the part of it `spot` (its top down the page's
-    /// content, its height) in the page's room `room` going as far as
-    /// `max` (`Codex32Make::follow_page_to`). Arithmetic.
-    pub(crate) fn page_follow_to(
-        &mut self,
-        spot: (f32, f32),
-        (room, max): (f32, f32),
-        reduce: bool,
-    ) {
-        if let Some(k) = self.state.as_mut()
-            && let Some(m) = k.codex32.as_mut()
-        {
-            k.scroll.y = m.follow_page_to(spot, (room, max), (k.scroll.y, reduce));
         }
     }
 

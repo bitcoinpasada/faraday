@@ -1,7 +1,6 @@
-//! The five-dice roller as it is drawn (`docs/CODEX32.md` §5.5): "Or let
+//! The five-dice roller as it is drawn (`docs/CODEX32.md` §5.6): "Or let
 //! Faraday roll", "Rolled by this computer" over each die's two rolls
-//! side by side; its controls are the step-through's
-//! (`codex32/walk_screen.rs`). Drawing reads the roller and the entry; it
+//! side by side. Drawing reads the roller and the entry; it
 //! works nothing out.
 //!
 //! [`pairs`] is each die's first roll (its marker) and second roll (the

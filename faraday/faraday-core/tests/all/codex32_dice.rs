@@ -4,10 +4,8 @@
 //! set's characters on New key would notice them. Rolled on twenty-faced
 //! dice, a set is BIP 93's vector 2 as on six-faced ones.
 
-use faraday_core::codex32::WalkAct;
 use faraday_core::codex32::{C32, Card, DIE_SIZES, DieColour, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::Start;
-use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -294,118 +292,9 @@ fn a_ten_faced_die_numbered_0_to_9_enters_its_0_as_10() {
     assert_eq!((d.first(0), d.first(1)), (Some(10), Some(7)));
 }
 
-/// Faraday at `width` × `height` pixels and `dpi`.
-fn on_dpi(width: u16, height: u16, dpi: u16) -> Faraday {
-    let mut app = on(width, height);
-    app.event(Event::Display(DisplayInfo {
-        width,
-        height,
-        dpi,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-    app
-}
-
-/// WCAG's relative luminance of an sRGB colour.
-fn luminance([r, g, b]: [u8; 3]) -> f64 {
-    let lin = |c: u8| {
-        let c = f64::from(c) / 255.0;
-        if c <= 0.039_28 {
-            c / 12.92
-        } else {
-            ((c + 0.055) / 1.055).powf(2.4)
-        }
-    };
-    0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-}
-
-/// WCAG's contrast ratio of two colours.
-fn contrast(a: [u8; 3], b: [u8; 3]) -> f64 {
-    let (la, lb) = (luminance(a), luminance(b));
-    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
-}
-
-/// The frame's pixel at (x, y).
-fn px(rgba: &[u8], width: usize, (x, y): (i32, i32)) -> [u8; 3] {
-    let i = (y as usize * width + x as usize) * 4;
-    [rgba[i], rgba[i + 1], rgba[i + 2]]
-}
-
-/// A drawn box: x, y, width, height in pixels.
-type Box4 = (i32, i32, i32, i32);
-
-/// The drawn box of the tree's leaf `s`, on the row of leaves Q, P, Z.
-fn leaf_box(boxes: &[(String, Box4)], s: &str) -> Box4 {
-    // Letters' ink starts at their own heights: a row is within a
-    // letter's height.
-    let near = |a: &Box4, y: i32| (a.1 - y).abs() <= a.3 / 2;
-    let on_row = |t: &str, y: i32| boxes.iter().any(|(u, b)| u == t && near(b, y));
-    let row = boxes
-        .iter()
-        .find(|(t, b)| t == "Q" && on_row("P", b.1) && on_row("Z", b.1))
-        .expect("the tree's leaves")
-        .1
-        .1;
-    boxes
-        .iter()
-        .find(|(t, b)| t == s && near(b, row))
-        .unwrap_or_else(|| panic!("leaf {s}"))
-        .1
-}
-
-/// The leaves standing out of the sheet: each leaf whose letter has a
-/// fill round it, by its letter.
-fn filled_leaves(app: &mut Faraday) -> Vec<String> {
-    const LEAVES: &str = "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L";
-    let boxes = app.drawn_text_boxes().plain();
-    let frame = app.frame();
-    let (w, rgba) = (usize::from(frame.width), frame.rgba.to_vec());
-    let beside = |s: &str| {
-        let b = leaf_box(&boxes, s);
-        px(&rgba, w, (b.0 - 1, b.1 + b.3 / 2))
-    };
-    let leaves: Vec<String> = LEAVES.chars().map(|c| c.to_string()).collect();
-    // The sheet: what stands beside most of the leaves.
-    let sheet = leaves
-        .iter()
-        .map(|s| beside(s))
-        .max_by_key(|c| leaves.iter().filter(|s| beside(s) == *c).count())
-        .expect("leaves");
-    leaves
-        .into_iter()
-        .filter(|s| contrast(beside(s), sheet) >= 3.0)
-        .collect()
-}
-
-#[test]
-fn the_leaf_the_step_through_reaches_is_filled_in_the_paths_colour() {
-    let mut app = on_dpi(2560, 2600, 320);
-    app.set_roller_offered(true);
-    faraday_core::testkit::into_demo(&mut app);
-    to_entry(&mut app, 6);
-    assert!(filled_leaves(&mut app).is_empty(), "no leaf reached yet");
-    // Next to the character's own step: its five bits read down the tree.
-    let shown = |app: &Faraday| make(app).walk().shown().map(|(_, _, s)| s);
-    for _ in 0..40 {
-        c32(&mut app, C32::Walk(WalkAct::Next));
-        if shown(&app) == Some(faraday_core::codex32::Step::Char) {
-            break;
-        }
-    }
-    assert_eq!(shown(&app), Some(faraday_core::codex32::Step::Char));
-    assert_eq!(filled_leaves(&mut app).len(), 1, "the one leaf reached");
-}
-
 /// While a share's characters are rolled, the top app bar's title is the
 /// step, "Share A · character 2 of 26", and it stays in view as the page
-/// scrolls under the bar; the open card reads Characters, so the step is
-/// drawn once (F146). On a phone-sized window, a wide one and the Pi's
+/// scrolls under the bar; the step is drawn once (F146). On a phone-sized window, a wide one and the Pi's
 /// 2.8-inch panel (480 × 640 pixels at 286 dpi), where the bar has room
 /// for its short form, "Share A · 2 of 26", and shows it whole.
 #[test]
@@ -439,14 +328,6 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
                 "{step} in the bar at {w} × {h}: {:?}",
                 at[0]
             );
-            // On the panel the page opens scrolled to the dice, the card's
-            // head under the bar.
-            if dy == 0 && dpi == 160 {
-                assert!(
-                    texts.iter().any(|(t, _)| t == "Characters"),
-                    "the open card reads Characters at {w} × {h}"
-                );
-            }
         }
     }
 }

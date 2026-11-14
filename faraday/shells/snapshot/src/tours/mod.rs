@@ -175,7 +175,6 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("dice5", TourFn::Plain(dice_five::dice_five_tour)),
     ("tour", TourFn::Costly(site_tour::site_tour)),
     ("codex32", TourFn::Plain(codex32::codex32_tour)),
-    ("codex32tour", TourFn::Plain(codex32::codex32_shares_tour)),
     (
         "codex32form",
         TourFn::Plain(codex32_form::codex32_form_tour),

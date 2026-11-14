@@ -1001,8 +1001,6 @@ pub enum HostMenu {
     Sticks,
     /// The preview sizes.
     Size,
-    /// Play's options on Make codex32 shares: how far it runs, how fast.
-    Play,
     /// The demo aids the strip has no room for, and Samples where the
     /// strip is narrowest.
     More,

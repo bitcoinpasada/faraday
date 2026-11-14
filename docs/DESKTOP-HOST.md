@@ -137,7 +137,7 @@ Every row of `docs/DEMO.md` §14.1 leaves the app area for the strip.
 | New key, a typed key | **Use a sample** | button |
 | New key, the Key card | **Use faraday** (passphrase, repeat); "Lock in adds sample … in place of these words" | button; line |
 | New key, the dice entry | the computer's die: the die, **Roll**, Rolls per click | the roller (§3.2) |
-| Make codex32 shares, the entry | **Use a sample**; the walk's **Previous** (back through the computer's steps and the person's own faces alike, `docs/CODEX32.md` §5.5), **Next**, **Play** (Pause); **Play options** (how far Play runs, how fast); "Rolls dN" | buttons, Next filled; a menu; a line |
+| Make codex32 shares, the entry | **Use a sample** | button |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | line |
 | Vaults, no vault in Files | **Use a sample** | button |
 | Create a vault | **Use faraday** for each passphrase and repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | buttons; the roller (§3.2); line |
@@ -161,10 +161,9 @@ Lock in stay where they are, being the app's own.
 How the strip learns them: a page hands each button and line to the
 frame where it would have drawn it (`Ui::demo_offer`, `Ui::demo_line`),
 as for the card; while held, the frame notes them after drawing
-(`SamplesArea::note_aids`) and the strip reads the note. Make codex32
-shares' walk and the rollers are read from the flow's state
-(`codex32/walk_screen.rs` `host_aids`, `host_play_options`;
-`Faraday::demo_hosted_now`).
+(`SamplesArea::note_aids`) and the strip reads the note. The sample
+and the rollers are read from the flow's state
+(`Faraday::demo_hosted_now`).
 
 ### 3.2 The roller in the strip
 
@@ -219,8 +218,7 @@ A row takes a press while the menu fades in, none while it fades out. A press ou
 else, a press on the menu between its rows does nothing; a choice acts and closes it. A menu taller than the room
 above the strip stands as tall as that room, less the 16 dp margin, its
 rows scrolling inside it under the wheel and a finger. Sticks: every stick with its dot.
-Size: the sizes with their dp, the one shown checked. Play options: "Play
-runs" and "Speed" as headings over their choices, the chosen checked.
+Size: the sizes with their dp, the one shown checked.
 More: the aids with no room (and Samples, narrowest). Rolls per click:
 1, 5, 10, To the end, Number, the chosen checked.
 
@@ -266,7 +264,7 @@ control and menu row is 48 dp tall (§2).
 
 ## 6. Design calls taken
 
-- **Material 3's menu** for Size, Sticks, Play options and More: an app
+- **Material 3's menu** for Size, Sticks and More: an app
   bar's or toolbar's overflow is a menu; a single choice closes it.
 - **Samples' sheet is the host's** (owner, 2026-10-25): it is not the
   device's, so it stands outside the device's screen where the window
@@ -324,9 +322,8 @@ it, one beside it nothing, This window laying the app out again; a menu
 closed by a press beside it that goes no further; Add a key's Use a
 sample and Use faraday in the strip alone, Use a sample filling the
 words, gone on Home; Paste words in the strip in Practice and on
-Testnet (`paste_a_seed.rs`); Make codex32 shares' walk in the strip at three
-sizes, Next stepping it from one place, the step's count in the app's
-Working area; Play's options choosing a speed; New key's die and
+Testnet (`paste_a_seed.rs`); Make codex32 shares' Use a sample in the strip at three
+sizes; New key's die and
 Generate with dice's in the strip, Roll rolling; Rolls per click's menu
 choosing five, one Roll then making five; at the narrowest window every
 control inside it and Samples reached from the Practice menu, its sheet

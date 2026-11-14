@@ -107,7 +107,7 @@ Read this table, then only the decision you need.
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Amended by F155 | crypto |
 | [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108, F113, F247 | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
-| [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Amended by F121, F247 | keys |
+| [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Amended by F121, F247, F260 | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
 | [F96](decisions/F96.md) | Faraday Demo's dice rollers | 2026-10-22 | Active | keys |
@@ -271,6 +271,7 @@ Read this table, then only the decision you need.
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
 | [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |
 | [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Active | design |
+| [F260](decisions/F260.md) | The codex32 booklet's step-through and tracker leave the app | 2026-11-14 | Active | keys |
 | [F261](decisions/F261.md) | KEF writes versions 20 and 5 and reads all twelve | 2026-11-14 | Active | crypto |
 | [F263](decisions/F263.md) | A multisig setup file with no Format line is P2SH, as Coldcard reads it | 2026-11-14 | Active | wallets |
 | [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |

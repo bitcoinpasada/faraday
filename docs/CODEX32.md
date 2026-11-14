@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Reference
-**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and a single key's Backup card, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Demo, the codex32 one stepping through the work in a Practice only pane that holds its place, and Practice's sample; decisions F93 to F96 and F240. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
+**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and a single key's Backup card, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, the one-die roller on Faraday Demo and Practice's sample; decisions F93 to F96, F240 and F260. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -105,7 +105,7 @@ Sources read for it, each as data and none vendored:
    d20), picks each die's colour, and sees each die's two rolls side by
    side; the roller on Faraday Demo rolls the chosen die; the sheet
    on screen and the printed one are drawn as the booklet draws them
-   (§5.1, §5.5, §6.4.2, §11).
+   (§5.1, §6.4.2, §11).
 10. **Seed bytes**: `faraday-keys` keeps a master seed's bytes for keys
     loaded from one (§9.1).
 11. **127 characters** are not offered in Make codex32 shares (§4, §6.1).
@@ -182,12 +182,11 @@ Sources read for it, each as data and none vendored:
     randomness. The same actions suit SLIP-39 sets, specified
     elsewhere (§9.7).
 27. **Dice rollers** (Faraday Demo only; the stick and the Pi
-    keep real dice typed on the pad): five dice for codex32, one die for
-    BIP-39 words and Generate with dice, their values this computer's
-    randomness and labelled so (§5.5, §5.6). The entry for real dice
-    stays beside the roller on the desktop, so the person chooses: their
-    own rolls, Faraday's, or both; codex32's entry for real rolls is laid
-    out as the de-biasing worksheet, five dice by two rolls (§5.5).
+    keep real dice typed on the pad): one die for BIP-39 words and
+    Generate with dice, its values this computer's randomness and
+    labelled so (§5.6). The roller for codex32's five dice went (F260,
+    §5.5); codex32's entry for real rolls is laid out as the
+    de-biasing worksheet, five dice by two rolls (§5.1).
 
 Added 2026-10-24 (owner):
 
@@ -204,19 +203,19 @@ Added 2026-10-24 (owner):
     with a pointer or touch; the keyboard scrolls it too (§7.5).
 30. **Every box of the string is numbered**, small and quiet over each
     box, the groups of four kept (§6.4.1).
-31. **"Demo only"** (owner, 2026-10-24): the computer's dice roller and
-    Practice's **Use a sample** are not the person's entry. They stand in
+31. **"Demo only"** (owner, 2026-10-24): Practice's **Use a sample**
+    is not the person's entry. It stands in
     one outlined box headed "Demo only", at the right of the entry where
     the card is wide enough and under it where not, so the person's own
-    dice (the sheet and "Your dice") are the page. Both are offered in
-    Demo only (owner, 2026-10-24 evening; `docs/DEMO.md` §14): the roller
-    on Faraday Demo in Practice, the sample in Practice; in every other mode,
-    Faraday Demo's too, the box and all it holds are gone, and the
-    stick and the Pi have neither. The dice's size is one choice, on
+    dice (the sheet and "Your dice") are the page. It is offered in
+    Practice only (`docs/DEMO.md` §14); in every other mode,
+    Faraday Demo's too, the box is gone, and the
+    stick and the Pi have none. The computer's five-dice roller that
+    shared the box went (F260). The dice's size is one choice, on
     the Entropy card at every size (owner, 2026-10-25), which the pad
-    and the box ("Rolls d20") follow; changed in the middle of a
+    follows; changed in the middle of a
     character, that character's rolls are cleared and the note says so
-    (§5.1, §5.5).
+    (§5.1).
 32. **A Codex32QR drawn by hand from the backup flow.** Faraday follows
     the Codex32QR/v1-48 profile (§10). Where the plan draws a string's
     Codex32QR on paper, the checklist names the sheet it is drawn on
@@ -250,31 +249,15 @@ Added 2026-10-24 (owner):
     shows it, and the worksheets always start on a page of their own
     after the share card and the Codex32QR pages, so nobody reads a
     printed backup as someone else's (§11).
-38. **Practice dice step through the work** (owner, 2026-10-24),
-    replacing the roller's one-click choices: in the Demo only card,
-    Previous and Next (and ← → while the card's entry is open), a step
-    count ("Step 14 of 19 · character 3"), and Play with how far it runs
-    (One pass, One character, One share, To the end) and how fast. A
-    character's values are rolled first, as the roller rolled them, then
-    shown a step at a time: each die's first roll and its pad, each
-    second roll with its comparison and bit, the five bits read down the
-    tree into their box, and the checksum worksheet's cells that box
-    fills, a sum or a table row at a time, each in plain arithmetic in
-    the card with the cells it touches marked. Previous shows the state
-    before and rolls nothing; Play reaches what stepping reaches. The
-    worksheet's view follows the work as smoothly as the fades: a timed,
-    eased move, at once under Reduce motion, for every way the front
-    moves (§5.5, §6.4.7, §7.4, §7.5). Built.
+38. **Practice dice step through the work** (owner, 2026-10-24): taken
+    out (F260, §5.5). The Demo only card's Previous, Next and Play, the
+    step count and the arithmetic in the card went; the live worksheets
+    (§6.4) and every cell's working (§7.4) show the same arithmetic.
 39. **The Demo only card holds its place** (owner, 2026-10-24): a
     supporting pane (`docs/LAYOUT.md` §5, §6) that does not scroll with
-    the page; the page scrolls beside it, and a card taller than the
-    window scrolls within itself. Its top is the page content's, below
-    the top strip of the network pill and the eye, never level with
-    them, against the right edge with Material's 24 dp margin and the
-    24 dp spacer from the page. On windows too narrow for the side pane,
-    the step's line, Previous, Next and Play sit in a strip pinned at the
-    window's foot that opens to the whole card and never scrolls away
-    (§5.5). Built.
+    the page. On windows too narrow for the side pane, the strip pinned
+    at the window's foot held the step's line, Previous, Next and Play;
+    it went with the step-through (F260).
 
 What this spec found that the decision assumed otherwise: the booklet's
 site lists "Checksum Worksheets: Standard 128-bit, Standard 256-bit" and
@@ -296,24 +279,13 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   and `five_screen.rs`: `FiveRoller` rolls the booklet's dice sheet for a
   click, five dice and four reaches (One pass, One character, One share,
   To the end), as faces 1 to N of the dice chosen (six unless told, up to
-  twenty, each face equally likely, §5.5) in the pad's order, an equal pair's die
-  rolled again, so that the faces entered as the pad's keys give
-  exactly what the same faces typed give. It marks each face it made by
-  character and place (`is_rolled`, `char_rolled`, `sim`), tumbles for
-  `ROLLER_TUMBLE_MS` and pauses after each character, and under Reduce
-  motion lands all at once. The dice are drawn as vectors, as the one die
-  is; the website's WebP pictures are not used, as no image decoder
-  is to be added. Tested in `five_tests.rs` against the codex32 flow's own
-  entry; snapshot tour `dice5`. It stands beside the entry's dice pad,
-  "Your dice", on Faraday Demo (`codex32/screen.rs`, `pad`; side by
-  side where the card is wide, under the pad where not); its faces enter
-  as the pad's keys, the dice of the character in progress it made are
-  named under the dice sheet, a character it made is marked in the
-  review and in its cell sheet, and Strings made's entropy row reads
-  "simulated dice" or "simulated dice and your dice"
-  (`tests/all/codex32_roller.rs`). The one die (C12) stands the same way
-  beside New key's dice pad, its rolls marked, and the Enter card's
-  summary reads "Entropy · simulated dice" where it made them.
+  twenty, each face equally likely, §5.6's "The values") in the pad's
+  order, an equal pair's die rolled again. The codex32 entry no longer
+  offers it (F260); its tour is `dice5`, tested in `five_tests.rs`, and
+  `five_screen.rs` still draws the pairs the dice sheet (§6.4.2) shows.
+  The one die (C12) stands beside New key's dice pad, its rolls marked,
+  and the Enter card's summary reads "Entropy · simulated dice" where it
+  made them.
 - **The codec**, `core/faraday-bip/src/codex32/mod.rs`: `Codex32::parse`
   (every rule of BIP 93; one case, mixed case refused), `from_seed`,
   `split(threshold, shares, fresh)` (an existing secret and k − 1
@@ -690,9 +662,7 @@ that a person can work them.
 
 The flow takes the person's entropy in one of three ways, chosen on its
 Entropy card (§6.3). Faraday's own randomness is never used to make a
-fresh seed in this flow, with one exception the owner made: Faraday
-Demo's dice roller (§5.5), whose values are this computer's
-randomness, labelled as such wherever they appear.
+fresh seed in this flow.
 
 ### 5.1 Dice, by the booklet's de-biasing worksheet
 
@@ -735,7 +705,7 @@ this is). One size for all five dice: mixing sizes would keep the method
 correct, as each die compares with itself, but is not offered (the pad,
 the roller and the sheet take one N). The dice can be changed at any
 time, on the Entropy card, over "Your dice" on the entry, or in the
-"Demo only" box (§5.5), one value for all three (a small panel has it on
+the pad, one value for both (a small panel has it on
 the Entropy card only, to keep its room for the sheet and the pad); in
 the middle of a character its rolls so far are cleared, as they were of
 the other dice, and the note reads "Dice changed: this character's
@@ -760,7 +730,7 @@ comparison and the bit; then the five bits, the path through the tree,
 and the character dropping into its numbered box. The entries are taken
 in the booklet's order, die 1 to die 5 for the first roll and then for
 the second, into an entry laid out as the worksheet's five dice and two
-rolls (§5.5, "Your dice"), on every shell. How the sheet is masked is
+rolls (§5.1, "Your dice"), on every shell. How the sheet is masked is
 §6.4.6.
 
 Built: `faraday_entropy::booklet` (`BookletChar::with_faces`, faces 2
@@ -803,150 +773,11 @@ strings, through `Reveal::PaperForm`.
 
 ### 5.5 Faraday Demo's dice roller (codex32)
 
-On Faraday Demo only, the dice step shows the five dice, numbered 1
-to 5, the de-biasing worksheet's five tracks, as each die's two rolls
-side by side (owner, 2026-10-24): under **First roll** the die's marker,
-a disc in the die's colour with its first value; under **Second roll**
-the die, a rounded square in its colour with its pips (dice of six faces
-or fewer) or its number; after them what the pair gives, "lower · 0" or
-"higher · 1"; under the five, each pair struck as equal, "Die 3 · 20
-then 20 · equal · roll both again", struck through. The roller rolls the
-dice chosen (§5.1): a byte of this computer's randomness below the
-largest multiple of N under 256 gives the face `byte mod N + 1`, any
-other byte is skipped (rejection sampling, no modulo bias; for six
-faces, every byte of 252 or more, as before). The website's die
-pictures are not used, so no image decoder comes into the app.
-
-**A step at a time** (owner, 2026-10-24, replacing what one click
-rolled). The computer's dice step through the work: **Previous**,
-**Next** and **Play** (Pause while it runs), and ← → while the entry is
-open on Faraday Demo, the worksheet under the pointer included (Up
-and Down still pan it). Next, where every step of the character so far
-is shown, rolls the next character's values first, all of them, as a
-click of One character rolled them (the same answers give the same
-faces, an equal pair's die rolled twice again), and then shows them one
-step at a time; Previous shows the state before and never rolls again,
-and Next after it shows the same faces. Over the steps the Working area
-beside the pad (§5.7) reads "Step 14 of 19 · character 3" and the step's
-working in plain arithmetic (the card does not repeat it; owner,
-2026-10-25):
-
-| Step | It reads | The sheet marks |
-|---|---|---|
-| A die's first roll | "Die 2, first roll: 3. Marker on pad 3." | the pad on the die's track |
-| Its second roll | "Die 2, second roll: 5. 5 is higher than 3, so bit 1." (or lower, bit 0); an equal pair "Die 4: 2 then 2. Equal, so roll both again." | the pad of the second value |
-| The character | "Bits 0 1 1 0 1 = 8 + 4 + 1 = 13. Leaf 13 of the tree is D. D goes in box 10." | the tree's path and leaf (the character's whole sheet), and the box on the checksum worksheet |
-| A sum of the checksum worksheet | "Box 21, row c: 3 + W = N", the cell above (or the string's character, or the residue of `ms` on the first row) and the table cell added, as the addition wheel gives it | the two cells added and the sum, the sum more heavily |
-| A table row | "Boxes 17–18 read M Z. Table row MZ is …, written from box 19." | the leading cells and the row |
-| A checksum box, at the last data character | "Box 36, from below: 3 + E = 7" | the cell below, the table cell between, the box |
-
-A character's last face is held, whole, out of its box until the
-character's own step puts it there, so the box is filled by the step
-that says so. The steps are §7.4's working, read the same way: a
-character's steps are worked out once, when its values are rolled (the
-dice's places from its faces, the cells its box fills from the
-worksheet's shape), and hold places, not values; drawing reads the
-values from the faces and the kept worksheet. **Play runs** One pass,
-One character (the default), One share or To the end, at **Speed**
-Slow, Normal (the default), Fast or Fastest (a step a frame), and
-reaches what stepping reaches. **The person's own faces are steps
-too** (owner, 2026-10-26): wherever the computer's dice are offered, a
-face of the person's own dice is one step of the same history, as a
-step Next rolled is, so Previous keeps going back through both and
-shows each step as it was, and Next after it shows the same faces;
-Next where the person has begun a character rolls only the rest of it.
-A value entered at an earlier step takes a different path from there:
-the steps after it are dropped. Backspace shows the step it takes the
-entry back to. Any other change of the entry (a change of dice, Use a
-sample) forgets the steps; the faces the walk entered stay marked as
-this computer's, the person's never. Without the computer's dice the
-person's own entry has the same steps in its Working area (§5.7).
-Built in `codex32/walk.rs`, `codex32/tracker.rs` (`walk_own`) and
-`codex32/walk_screen.rs`, tested in `codex32/walk_tests.rs` (each
-step's text for vector 2's first character, an equal pair, Previous
-after Next, Play against stepping, Previous back through the person's
-own faces, a different value after Previous dropping the later steps,
-Next rolling the rest of a character begun by hand) and
-`tests/all/codex32_roller.rs` (the steps on Faraday
-Demo and none on
-the stick, the arrow keys, Play to the end, Backspace back to a step).
-
-**The buttons stay put (owner, 2026-10-24; `docs/LAYOUT.md` §16.5).**
-In the card Previous, Next and Play stand in one row over Play's options,
-in the narrow column one under another, and in the strip at its right
-end under the step's line, so that whatever a step says, the buttons
-keep their places and the press that follows lands where the last one
-did. Play and Pause share the
-wider's width; nothing is measured per frame but the fixed labels. Tested
-in `tests/all/codex32_roller.rs` (Next's rectangle the same at every step
-of a character and across characters, in the pane and in the strip).
-
-**Both ways, side by side (owner, 2026-10-22).** The roller never
-replaces the entry for real dice: on Faraday Demo the dice step
-shows the stick's entry, **Your dice**, and beside it the roller,
-**Or let Faraday roll**, and the person uses either, or both, at any
-point. A value from the entry is a real die's and is not labelled.
-
-**"Demo only" (owner, 2026-10-24; moved out of the app 2026-10-25,
-F118).** The roller must not look like part of the real app: on
-Faraday Demo its controls stand in the host's strip at the window's
-foot, outside the app, under "Practice" (`docs/DESKTOP-HOST.md` §3.1):
-Practice's **Use a sample** while a character is left, then Previous, Next
-and Play (Pause while it runs), Next filled as the step's main press,
-**Play options** opening a menu of how far Play runs and how fast, and
-"Rolls d20", the dice chosen on the Entropy card. The entry's work (the
-string's boxes, the tabs, the worksheet, the tracks and the tree) takes
-the page area's whole width; the dice sheet still stands in its column
-at the right where the window holds it (`docs/LAYOUT.md` §16.1). The
-step's count and working are the Working area's, beside the pad. The
-rolls themselves are drawn once, in the entry's input panel (owner,
-2026-10-24; `docs/LAYOUT.md` §16.3). The marks are unchanged: "Rolled by
-this computer", "simulated dice". The person's own entry is the dice
-sheet in the page and the input panel: each die's two rolls and
-**Your dice**. The strip reads the walk from `codex32/walk_screen.rs`
-(`host_aids`, `host_play_options`); tested in
-`faraday-host/tests/all/desktop_host.rs` (the walk in the strip, Next stepping it
-from one place at every step, nothing practice-only in the app, Play's
-options) and `tests/all/codex32_dice.rs` (none on the stick; a d20
-share played and padded 1 to 20).
-
-**Your dice, both rolls side by side** (every shell, on windows of the
-expanded class and up; owner, 2026-10-24). The input panel
-(`docs/LAYOUT.md` §16.3; on the dice sheet, §6.4.2, where the panel
-stands in the page) shows each die's two rolls as the roller does: **First roll** (the
-marker) and **Second roll** (the die) side by side, in the die's colour,
-"lower · 0" or "higher · 1" once both are in, and the pairs struck as
-equal under them, so a person sees each die's pair and which were
-discarded and why. The values come from the pad, from the keyboard, or
-from the roller, in the booklet's order (die 1 to die 5 for the first
-roll, then for the second), one layout whichever way they came. Narrower
-windows show the same as rows of words, "Die 3 · 4 then 2 · lower · 0"
-(§6.4.7). At the window's foot the panel lays the five dice across, a
-column each, with the latest two struck pairs under them; beside the
-sheets, one under another as above. Backspace takes back the last value
-of the character being entered. Built in `codex32/input_panel.rs`,
-tested in `tests/all/codex32_input_panel.rs`.
-
-**Honesty.** A rolled value is this computer's randomness (from
-`Faraday::fresh`, as any of Faraday's randomness), not a die. The row
-above the dice reads "Rolled by this computer"; each value it made is
-marked so on the sheet and in its cell sheet (§7.4); the Result's
-entropy row reads "Entropy · simulated dice" (or "simulated dice and
-your dice" where both were used). This is the exception to §5's rule,
-recorded as D4 (§14). The stick and the Pi have no roller: real dice
-are typed on the pad there.
-
-The conversion is shown live as the values land, and the checksum
-worksheet's view follows the work as smoothly as the fades (§7.5). Where the screen is
-too crowded for the whole codex32 sheet (§6.4.7), the dice row and the
-de-biasing sheet stay in view and the checksum worksheet opens on a
-press, every cell with its working (§7.4).
+Removed (F260): the computer's five dice stepping through the de-biasing
+worksheet, Previous, Next and Play, and the pad beside it. The dice a
+person rolls are §5.1's; Demo's one die and `fresh`'s roller are §5.6.
 
 ### 5.6 The roller elsewhere on Faraday Demo
-
-Since 2026-10-24 (owner) this roller is Practice's alone and stands in the
-page's "Demo only" card (`docs/DEMO.md` §14), not beside the pad; what
-follows describes the roller itself.
 
 Outside codex32, and on Faraday Demo only: New key's dice for BIP-39
 words (every dice way of `faraday/faraday-core/src/keygen/mod.rs`) and
@@ -964,7 +795,7 @@ under Reduce motion; and the same honesty: "Rolled by this computer" over the di
 dice" where both were used). The flows themselves are
 unchanged; FLOWS and DESIGN take this (§15.3).
 
-**The values** (both rollers). Each value comes from one byte of a
+**The values.** Each value comes from one byte of a
 32-byte answer of `Faraday::fresh`, the answer's bytes taken from its
 last to its first: a byte below 252 gives the face `byte mod 6 + 1`,
 and a byte of 252 or more is skipped, so that each face has 42 of the
@@ -975,118 +806,10 @@ hold the five dice to this paragraph.
 
 ### 5.7 The Working area: the person's own entry, a step at a time
 
-Every shell, every mode (owner, 2026-10-24). What the Practice walk (§5.5)
-shows a step at a time, the person's own entry shows too: one
-**Working** area in the input panel (`docs/LAYOUT.md` §16.3), beside the
-pad, says what the last value entered did and what to do next on paper.
-It is the walk's one step model (the same steps, the same text, the same
-marks on the sheets), with the person's faces as its source:
-
-- each value as entered: "Die 2, first roll: 3. Marker on pad 3.",
-  "Die 2, second roll: 5. 5 is higher than 3, so bit 1.", an equal pair
-  "Die 4: 2 then 2. Equal, so roll both again.", with its pad marked on
-  the die's track;
-- the value that completes a character: "Bits 0 1 1 0 1 = 8 + 4 + 1 = 13.
-  Leaf 13 of the tree is D. D goes in box 10.", the character's whole
-  sheet with its path through the tree and its box marked (a character
-  typed reads "D goes in box 10.");
-- then, a press of **Next** at a time, the worksheet's cells that
-  character fills (the sums, the table rows, at the last data character
-  the checksum boxes from below), each with its inputs and its result
-  outlined on the sheet and the view gliding there; **Previous** goes
-  back, into the character before when the next is begun.
-
-Over the steps it reads "Step 12 of 18 · character 7" (for the character
-in progress, "Roll 6 · character 7"); at the last step, what is entered
-next follows the working: "Next: die 2, first roll." Previous and Next
-are Material's outlined icon buttons (the chevrons, with the tooltips
-"Previous step" and "Next step"). They move only what is shown: nothing
-is entered, taken back or rolled, and outside Practice nothing else offers a
-step (no Play, no roll). Entering the next value is always allowed and
-moves the tracker to it; Backspace moves it back with the entry. While
-the Practice walk shows a step, the same two buttons step the walk.
-
-The area's height is fixed for its width (as many lines as the longest
-step needs there), so the pad beside it never moves as a step's text
-changes. Beside the sheets it stands under the rolls, over the pad; at
-the window's foot, after the pad or over it, right of the rolls, or
-right of the codex32 keyboard for characters typed; in the
-page, over the pad. On the small panel it is the context row's fourth
-tile, **Working** (Dice · Checksum · String · Working, §6.4.7), over the
-pad. Masked sheets (§6.4.6) mask its working.
-
-The steps are worked out once, when a value is entered or taken back:
-the last character in its box (from its record) and the one in progress
-(from its faces), each with its steps, as the walk works a rolled
-character out; drawing reads them and the kept worksheet. At the step
-that puts a character in its box the view goes to that box, once, and
-only where it is not on screen; a value of a character still being
-rolled moves nothing, and Previous and Next move the view only where the
-cells they mark would otherwise be off screen (§7.5; `docs/LAYOUT.md`
-§16.4). Built in `codex32/tracker.rs` and
-`codex32/tracker_screen.rs` on `codex32/walk.rs`'s model, tested in
-`codex32/tracker_tests.rs` (each value's step, an equal pair, a character
-completed with its box marked, Next through the worksheet's steps in
-order with their cells marked and Previous back, a new value moving the
-tracker, a typed character) and `tests/all/codex32_tracker.rs` (the step
-beside the pad at 1280x800, 1920x1080 and 480x640, the small panel's
-tile over the pad, outside Practice no walk and no Play, and Next entering
-nothing).
-
-**Past the last checksum: the shares made and S (owner, 2026-10-24).**
-The derived shares' and S's translation worksheets fill live as before
-(§6.4.4); the steps stay on the rolling and the checksums, share by
-share, to the last initial share's last checksum box. There, Next opens
-the first share made's tab (Share D at 2 of 3, Share E at 3 of 5), its
-boxes already filled, and goes through it a step at a time, as the
-booklet works it with one wheel setting per row: each initial share's
-translation symbol, "Share A's translation symbol for E: μ, value 10,
-from the derivation table."; then each initial share's row, box by box,
-"Share A, box 23: Q × Δ = 7. Translation wheel set to Δ."; then the sum,
-box by box, "Box 23, Share E: 7 + M + Q = 4"; then that share's checksum
-worked as the booklet's verification (§7.1), drawn over its translation
-worksheet on its tab: each sum row's cells and the table row they
-select, read as on the entry's worksheet, the final row's cells "Final
-row, box 36: 3 + E = S. It should read S.", and its end, "Share E's
-final row reads SECRETSHARE32: its checksum holds."; then the next share
-made; then S, its recovery symbols and their fusion first (§7.3), "Share
-A's recovery symbols @ × Λ fused: Φ, value 15.", then its rows and its
-sum (S has no checksum check: it is not written). Each step outlines its
-cells (the one worked out more heavily, the symbol on the symbols' line)
-and the page and the worksheet's view glide there; the Working area
-reads "Step 158 of 1025 · Share E" ("158/1025 · E" on the small panel,
-where the Checksum tile shows the tour's sheet). Before the tour the
-last checksum box's step ends "Next: Share E."; at its last step, "Next:
-the worksheets.", and Next there goes on to the Worksheets card as
-Continue does. Previous goes back through the same steps, and from the
-first to the last checksum box on the Checksum tab. The Practice walk's
-Next and Play reach the same steps (Play stops at the tour's end; its
-reach is a row, a part, a share or the end); a character taken back
-unmakes the set and forgets the tour.
-
-**Show the other shares and S as they fill**, Material's switch in a
-list row under the Working area once every character is in (on by
-default, kept on the flow for the session): off, Next at the last
-checksum box opens nothing and a tour shown closes back to it; the tabs
-still fill live. It stands only in the panel's state after the last
-character, where Continue has replaced the pad, so the panel is never
-taller than while rolling; at the window's foot Continue stands on the
-switch's row.
-
-The steps are worked out once, when the set is made (and dropped when
-it is unmade): places, not values; each share made's checksum check is
-its verification worksheet (`faraday_keys::StringCheck`), worked out
-then and kept. Drawing reads them. Built in `codex32/tour.rs` and
-`codex32/tour_screen.rs`, tested in `codex32/tour_tests.rs` (a share
-made's box filling on its tab as soon as its inputs exist; after the
-last checksum box Share D's tab with its boxes filled, the steps in the
-booklet's order with their cells marked, the check, then S, then on to
-the worksheets; Previous back out of it; the switch off; the Practice walk
-reaching the same steps, and Play stopping at the end),
-`tests/all/codex32_tour.rs` (at 1280x800, the switch offered, Next
-opening Share D's tab with its first step, and a late check row brought
-into view) and `work/budget/codex32.rs` (the set's last character works
-the check once; a step into and through the tour works out nothing).
+Removed (F260): the Working area and the tour of the checksum and
+translation worksheets that were built on the walk. The live worksheets
+(§6.4) and every cell opening to its working (§7.4) show the same
+arithmetic.
 
 ## 6. Make codex32 shares: the main flow
 
@@ -1170,7 +893,7 @@ then all of C, and so on.
 
 Drawn as the booklet's page draws it (SSS32.ps of 2023-03-07, page 18,
 `drawDiceRow`; owner, 2026-10-24), across the card's width: each die's
-two rolls side by side on the left (§5.5) and the tree of 31 nodes over
+two rolls side by side on the left (§5.1) and the tree of 31 nodes over
 32 leaves on the right, at the booklet's proportions (a level 4.57
 times the space between two leaves), the leaves
 `Q P Z R Y 9 X 8 G F 2 T V D W 0 S 3 J N 5 4 K H C E 6 M U A 7 L`;
@@ -1206,12 +929,6 @@ die whose second value is in before an earlier die's is shows its bit,
 and the path is drawn only as far as the bits from die 1 run unbroken.
 With typed characters (§5.2) there is no dice sheet: the character goes
 to its box with "typed" as its working.
-
-On Faraday Demo the Demo only card's step-through (§5.5) fills the
-same sheet a step at a time: each step outlines in the accent the pad
-it puts a marker or a die on, and the character's own step shows the
-whole character, its five bits, the path and the leaf, until the next
-step moves on to the checksum worksheet's cells.
 
 #### 6.4.3 The checksum worksheet, live
 
@@ -1272,8 +989,7 @@ known from the scheme, so they are drawn first. Then:
   when the last initial share's checksum does (§6.4.3), since they are
   sums of the initial shares' checksum characters; the derived strings'
   checksums hold by construction, and each derived string's own
-  checksum worksheet (verification, §7.1) is one press away, and past
-  the last checksum box the tour of §5.7 works it on the share's tab.
+  checksum worksheet (verification, §7.1) is one press away.
 
 The initial shares are entered one after another, as on paper, so no
 sum cell fills before the last share's entry begins. Entering the k
@@ -1325,7 +1041,7 @@ to the mask policy for this flow:
 
 | Class | Over the pad | One press away |
 |---|---|---|
-| `wide` (the pane right of the sidebar) | the share's string with every box numbered; the dice sheet across the card's width as the booklet's page (each die's two rolls and the tree, then the five tracks, §6.4.2); under it the checksum worksheet in its view (§7.5), following the entry's front cell, or the cells the Demo only card's step marks, in a timed move (§7.5) (owner, 2026-10-24: the dice sheet with its d7+ pads does not fit the side panel it had) | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
+| `wide` (the pane right of the sidebar) | the share's string with every box numbered; the dice sheet across the card's width as the booklet's page (each die's two rolls and the tree, then the five tracks, §6.4.2); under it the checksum worksheet in its view (§7.5), following the entry's front cell, in a timed move (§7.5) (owner, 2026-10-24: the dice sheet with its d7+ pads does not fit the side panel it had) | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
 | `mobile` | stacked: the share's string in rows of numbered boxes; the dice sheet as five track rows ("Die 3 · 4 then 2 · lower · 0") with the tree drawn in a strip of 32 leaves and the path over it; the whole checksum worksheet in its view, panning both ways and following the front | translation rows; the cell sheet |
 | `small` (the Pi panel and 240 × 320) | the pad and one context panel at a time: the dice sheet while a character is rolled, as track rows and the path as a line "0 1 1 0 · ·"; after the fifth bit, the character's box for a moment, then back to the tracks | a tile row over the pad, **Dice · Checksum · String**, swaps the context panel; the checksum panel is the whole worksheet in its view, panning both ways and following the front; the cell sheet is the whole panel as a page |
 
@@ -1640,11 +1356,7 @@ cell:
 | A character of a string shown elsewhere (§6.6) | which worksheet and box it came from, opening that worksheet |
 
 The values in these sheets are read from the kept worksheet (§13.2);
-opening one computes nothing. The Demo only card's step-through (§5.5)
-says the same working a cell at a time, a sum as "Box 21, row c: 3 + W =
-N" (a row named by the letter of its first leading cell) and a table
-row by its leading pair, read from the same kept worksheet, with the
-cells it names outlined in the accent.
+opening one computes nothing.
 
 ### 7.5 How the sheets look (owner, 2026-10-22)
 
@@ -1688,15 +1400,12 @@ a region of its own, `Slot::Worksheet`, whose content also pans
 sideways). A click and hold of the mouse, or a touch and hold, drags
 it either way (past the touch slop, so a press on a cell still opens
 its working); the wheel and a trackpad scroll it down, Shift with the
-wheel across; the arrow keys pan it once the pointer is over it (where
-the Demo only card's step-through is open, ← and → step it instead,
-§5.5). At its foot or top a drag up or down, the wheel or a trackpad go
+wheel across; the arrow keys pan it once the pointer is over it. At its foot or top a drag up or down, the wheel or a trackpad go
 on to the page. During the entry the view follows the work (owner,
 2026-10-24; calmer 2026-10-25): when a character goes into its box (the
-last face of its rolls, a character typed), when the Working area or
-the strip's walk steps, or as Play runs, the place that keeps the box,
-or the cells the step marks, in view with the least move is worked out
-once (a character in its box and the Working area's steps move nothing
+last face of its rolls, a character typed), the place that keeps
+the box in view with the least move is worked out
+once (a character in its box moves nothing
 where it is on screen already; a value of a character still being
 rolled moves nothing at all, `docs/LAYOUT.md` §16.4), and the view goes there in a timed move on Material's
 standard curve over `motion::SHEET_FOLLOW_MS` (300 ms), its frames paced
@@ -1710,10 +1419,7 @@ gesture does not pan it: the shells send the core no sideways scroll.
 
 **Readability: every visual element points at the work.**
 - **The cell being filled** has an accent outline, so the eye knows
-  where the next value goes. Only one cell at a time is outlined;
-  while the Demo only card shows a step (§5.5), the cells that step
-  names are outlined instead, the one it works out more heavily, and
-  the front is not.
+  where the next value goes. Only one cell at a time is outlined.
 - **A value that just landed** fades in over the motion time
   (MOTION; at once under Reduce motion), so a change is noticed without
   anything moving across the sheet.
@@ -1733,8 +1439,6 @@ gesture does not pan it: the shells send the core no sideways scroll.
   and in grey.
 - **Contrast**: characters on every fill at least 4.5:1 in every theme
   (7:1 in the high-contrast themes); rules at least 3:1 against the page.
-- **Rolled by this computer** (§5.5) is a small mark in the cell's
-  corner, not a colour, so a mixed sheet stays one sheet.
 
 Tokens: the fills, outlines, the radius and the spacing are named in
 `core/faraday-draw/src/tokens.rs` and `faraday-ui`'s palettes (§13.4),
@@ -2318,7 +2022,7 @@ changes in §3.8: no key, seed or wallet is asked for or shown.
 
 | Flow | In Practice | Why |
 |---|---|---|
-| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls (on the pad, or the roller in the "Demo only" box on Faraday Demo) or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Practice puts sample NAME in place of these strings". **Use a sample**, in the "Demo only" box beside the entry (§5.5), fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Practice is a real seed that Practice would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
+| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls on the pad or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Practice puts sample NAME in place of these strings". **Use a sample**, in the "Demo only" box beside the entry, fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Practice is a real seed that Practice would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
 | Shares made by hand (§8.1), Add a share (§8.2) | Open for the BIP 93 vectors' strings (Practice's public seeds, MODES §7); a string of any other set is refused as a key that is not public is | The same |
 | Check a string (§8.3) | Open for any string | It loads nothing and keeps nothing |
 | Error correction (§8.4) | Open, on the sample strings with boxes changed | A proposal for a public string |
@@ -2415,7 +2119,7 @@ the PDF's in `pdf.rs`'s own constants as the SeedQR grid's are.
 
 Each against published vectors or another implementation; the
 `roller` area compares with a second implementation Faraday's own
-authors wrote from §5.5 and §5.6, not checked against an outside source
+authors wrote from §5.6, not checked against an outside source
 (F160, F177):
 
 | What | Against |

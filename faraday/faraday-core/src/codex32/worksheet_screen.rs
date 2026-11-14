@@ -215,25 +215,6 @@ impl Geom {
         let r = given_row(sh, b)?;
         Some((self.col(b), self.row(r), self.cell, self.cell))
     }
-
-    /// Where `cell` stands on the sheet: its left, top, width and height;
-    /// none for a cell of another kind of worksheet.
-    pub(crate) fn cell_spot(&self, sh: Paper<'_>, cell: Cell) -> Option<(f32, f32, f32, f32)> {
-        let at = |b: usize, r: usize| Some((self.col(b), self.row(r), self.cell, self.cell));
-        match cell {
-            Cell::Given { b, .. } => self.box_spot(sh, usize::from(b)),
-            Cell::Hrp { i, .. } => at(4 + usize::from(i), 1),
-            Cell::Sum { j, i, .. } => {
-                let j = usize::from(j);
-                at(sh.sum_box(j) + usize::from(i), 2 + 2 * j)
-            }
-            Cell::Lookup { j, i, .. } => {
-                let j = usize::from(j);
-                at(sh.lookup_box(j) + usize::from(i), 3 + 2 * j)
-            }
-            _ => None,
-        }
-    }
 }
 
 /// The largest whole cell from `CODEX32_CELL_FIT_MIN` to
@@ -256,14 +237,6 @@ pub(crate) fn fit_cell(sh: Paper<'_>, room: (f32, f32)) -> Option<f32> {
 /// across and down. Arithmetic.
 pub(crate) fn least_size(sh: Paper<'_>) -> (f32, f32) {
     Geom::at(t::CODEX32_CELL_FIT_MIN).size(sh)
-}
-
-/// The smallest rectangle holding both `a` and `b` (left, top, width,
-/// height).
-pub(crate) fn union(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> (f32, f32, f32, f32) {
-    let (x, y) = (a.0.min(b.0), a.1.min(b.1));
-    let (r, bt) = ((a.0 + a.2).max(b.0 + b.2), (a.1 + a.3).max(b.1 + b.3));
-    (x, y, r - x, bt - y)
 }
 
 /// The final row's number: after the first row, the residue's row and a
@@ -332,8 +305,6 @@ struct Drawn {
     differs: bool,
     /// What a press on it opens.
     press: Option<Cell>,
-    /// Which cell it is, for the step-through's marks.
-    id: Option<Cell>,
 }
 
 /// The worksheet to draw and how.
@@ -351,10 +322,6 @@ pub(crate) struct Sheet<'a> {
     pub(crate) press: bool,
     /// Only the final row (Check a string's first look, §8.3).
     pub(crate) only_final: bool,
-    /// The cells the step-through's step touches, outlined in the accent,
-    /// the one worked out (`true`) more heavily; with any, the front is
-    /// not outlined (§7.5: one place at a time).
-    pub(crate) marks: &'a [(Cell, bool)],
 }
 
 /// The cells of a sheet as they are laid out, and the rows' marks.
@@ -405,7 +372,6 @@ impl Lay<'_> {
             letter: None,
             differs: false,
             press,
-            id,
         });
     }
 
@@ -422,7 +388,6 @@ impl Lay<'_> {
             letter: None,
             differs: false,
             press: v.is_some().then_some(press),
-            id: Some(press),
         });
         let n = self.out.len() - 1;
         &mut self.out[n]
@@ -654,7 +619,7 @@ pub(crate) fn draw(
 }
 
 /// The sheet's heavy frames over its cells: the bold ones, the ones that
-/// differ, the marked cells and the front box.
+/// differ, the front box.
 fn frames(ui: &mut Ui, s: &Sheet<'_>, g: &Geom, shown: &[&Drawn], (ox, oy): (f32, f32)) {
     for d in shown.iter().filter(|d| d.bold || d.differs) {
         let c = if d.differs {
@@ -664,16 +629,9 @@ fn frames(ui: &mut Ui, s: &Sheet<'_>, g: &Geom, shown: &[&Drawn], (ox, oy): (f32
         };
         frame(ui, d.x + ox, d.y + oy, g.cell, t::CODEX32_SHEET_BOLD, c);
     }
-    for d in shown {
-        if let Some(&(_, main)) = d.id.and_then(|id| s.marks.iter().find(|(c, _)| *c == id)) {
-            let s = t::CODEX32_FRONT_STROKE;
-            let th = if main { s + s } else { s };
-            frame(ui, d.x + ox, d.y + oy, g.cell, th, Role::Primary.paint());
-        }
-    }
     if let Some((fx, fy, side, _)) = s
         .front
-        .filter(|_| !s.only_final && s.marks.is_empty())
+        .filter(|_| !s.only_final)
         .and_then(|b| g.box_spot(s.sh, b))
     {
         frame(
@@ -777,7 +735,6 @@ pub(crate) fn entry_sheet(
     };
     let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
     let hh = ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
-    let marks = m.walk_cells(share);
     let s = |sh| Sheet {
         sh,
         id: share as u8,
@@ -785,7 +742,6 @@ pub(crate) fn entry_sheet(
         hide,
         press: true,
         only_final: false,
-        marks: &marks,
     };
     let fit = (cls, m.sheet_cell());
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
@@ -826,7 +782,6 @@ pub(crate) fn review_sheet(
         hide,
         press: true,
         only_final: false,
-        marks: &[],
     };
     let fit = (cls, m.sheet_cell());
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
@@ -854,7 +809,6 @@ pub(crate) fn check_sheet(
         hide: false,
         press: false,
         only_final: !whole,
-        marks: &[],
     };
     let cls = app.window().class();
     let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), (cls, None))) + t::GAP;

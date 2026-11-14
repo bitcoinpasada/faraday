@@ -441,8 +441,6 @@ faraday/faraday-core/src/vault/stretch.rs
 faraday/faraday-core/src/vault/unlock_keys.rs
 faraday/faraday-core/src/nav/mod.rs
 faraday/faraday-core/src/fresh/roller/five.rs
-faraday/faraday-core/src/codex32/walk.rs
-faraday/faraday-core/src/codex32/tracker.rs
 faraday/faraday-core/src/scan_key.rs
 faraday/faraday-core/src/decode/check.rs
 faraday/faraday-core/src/decode/mod.rs

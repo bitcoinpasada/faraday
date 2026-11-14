@@ -130,7 +130,7 @@ public values work; only the actions in the table are disabled.
   seed's string is read and shown; **Make the rest** and **Add a share**
   take the published sets only. Make codex32 shares opens and its entry
   runs, the sheets filling from the person's rolls or typing, or from
-  **Use a sample**, in the entry's "Demo only" box (CODEX32 §5.5); at the entry's Continue the strings made are dropped
+  **Use a sample**, in the entry's "Demo only" box (CODEX32 §12); at the entry's Continue the strings made are dropped
   and the sample set, BIP 93's vector 2, stands in their place on every
   later card, with the line "Practice puts sample NAME in place of these
   strings"; its Lock in loads the sample's key. Strings from the
@@ -333,7 +333,7 @@ Practice's alone (`Faraday::roller_offered`).
 | New key, a typed key | **Use a sample** | As Add a key |
 | New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words", or "These words are sample …" for words that are a sample's own | The public passphrase; the line says Practice replaces the key made, or keeps a sample's words (§5.1) |
 | New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |
-| Make codex32 shares, the entry | Its own card: **Use a sample**, the five-dice roller and its step-through | `docs/CODEX32.md` §5.5 |
+| Make codex32 shares, the entry | Its own card: **Use a sample** | `docs/CODEX32.md` §12 |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |
 | Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
 | QR vault, the first card | **Use a sample** | A public QR vault code (the seed of the bacon sample under `faraday`) in place of the person's own |

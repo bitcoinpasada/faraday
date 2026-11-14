@@ -1,12 +1,10 @@
 //! The codex32 entry's input panel (`docs/LAYOUT.md` §16.3, F114): what
 //! the person presses and what it fills, in one view. For dice it holds
 //! the rolls of the character being entered (each die's first and second
-//! roll, what the pair gives, the pair struck as equal), the step
-//! tracker's Working area (`tracker_screen.rs`, `docs/CODEX32.md` §5.7),
-//! always beside the pad, and the pad: "Your dice", a key per face and
-//! Backspace, each `PAD_KEY_W` square (the dice's size is the Entropy
-//! card's, owner 2026-10-25); for characters
-//! typed, the codex32 keyboard with the Working area beside or over it.
+//! roll, what the pair gives, the pair struck as equal) and the pad:
+//! "Your dice", a key per face and Backspace, each `PAD_KEY_W` square
+//! (the dice's size is the Entropy card's, owner 2026-10-25); for
+//! characters typed, the codex32 keyboard.
 //! Once every character is in, **Continue** stands in the pad's place:
 //! the flow's one way on (owner, 2026-10-24). It stands beside the
 //! sheets where the work width holds it and the worksheet at its least
@@ -35,12 +33,10 @@ use faraday_ui::keyboard::Keys as OskKeys;
 
 use super::pane_screen::side_room;
 use super::screen::{MASK, a};
-use super::tour_screen::{choice, choice_h};
-use super::tracker_screen::{working_area_h, working_line_h, working_text_h};
 use super::{C32, Card, Codex32Make, OskPress, Way};
 use crate::drawing::View;
 use crate::fresh::roller::five_screen::{
-    pairs, pairs_across, pairs_across_h, pairs_across_w, pairs_row_h, rolls_line, struck_across,
+    pairs, pairs_across, pairs_across_h, pairs_across_w, rolls_line,
 };
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -78,8 +74,8 @@ impl PanelAt {
     }
 
     /// Whether the panel stands out of the page, beside it or at its
-    /// foot, so the page itself draws neither the pad, the rolls, the
-    /// Working area nor Continue.
+    /// foot, so the page itself draws neither the pad, the rolls nor
+    /// Continue.
     pub(crate) fn out_of_page(self) -> bool {
         self != PanelAt::Page
     }
@@ -229,60 +225,34 @@ fn beside_inner() -> f32 {
 /// The rolls one under another, as the panel beside the sheets draws
 /// them, with the pairs struck so far, at the text factor `k`.
 fn rolls_down_h(m: &Codex32Make, k: f32) -> f32 {
-    let struck = m.shown_rows().iter().filter(|r| r.bit().is_none()).count();
+    let struck = m.char_rows().iter().filter(|r| r.bit().is_none()).count();
     let line = rolls_line(k) + t::ROLLER_GAP / 2.0;
     line + BOOKLET_DICE as f32 * (t::ROLLER_PAIR_DIE + t::ROLLER_FIVE_GAP) + struck as f32 * line
 }
 
 /// The panel's height beside the sheets at the text factor `k`: the
-/// Working area over the pad, the keyboard or Continue.
+/// rolls over the pad, the keyboard or Continue.
 fn beside_h(m: &Codex32Make, k: f32) -> f32 {
     let iw = beside_inner();
-    let work = working_area_h(iw, k) + t::GAP;
     let body = if complete(m) {
-        work + choice_h(m) + t::TOUCH
+        t::TOUCH
     } else if m.way() == Way::Typed {
-        work + keyboard_h()
+        keyboard_h()
     } else {
-        rolls_down_h(m, k) + t::GAP + work + pad_h(m, iw)
+        rolls_down_h(m, k) + t::GAP + pad_h(m, iw)
     };
     t::PAD + body + t::PAD
 }
 
-/// The codex32 keyboard's width at the foot, `inner` wide, and where the
-/// Working area stands beside it (its left edge from the panel's start
-/// and its width), where the room right of a keyboard at least
-/// `CODEX32_KEYS_BESIDE_MIN` wide holds it; else above it.
-fn keys_at_foot(inner: f32) -> (f32, Option<(f32, f32)>) {
-    let kw = (inner - t::SPACER - beside_inner()).min(t::COLUMN_MAX);
-    if kw >= t::CODEX32_KEYS_BESIDE_MIN {
-        (kw, Some((kw + t::SPACER, inner - kw - t::SPACER)))
-    } else {
-        (inner.min(t::COLUMN_MAX), None)
-    }
-}
-
 /// Where the panel's parts stand at the window's foot, from its inner
-/// top-left: the rolls (none once every character is in), the Working
-/// area and the pad, or Continue, each (x, y, width), and the panel's
-/// height. Of the ways the width allows, the shortest (owner, 2026-10-24
-/// and 2026-10-25): all three in one row; the rolls beside the Working
-/// area, the pad's one row under both; the rolls beside the Working area
-/// over the pad; the Working area under the rolls beside the pad; or all
-/// three one under another.
+/// top-left: the rolls (none once every character is in), and the pad,
+/// the keyboard or Continue, each (x, y, width), and the panel's height.
+/// Of the ways the width allows, the shortest: the pad beside the rolls,
+/// or under them.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Foot {
     rolls: Option<(f32, f32, f32)>,
-    work: (f32, f32, f32),
     pad: (f32, f32, f32),
-    /// Where the Working area's Previous and Next stand when not beside
-    /// its text, and the latest struck pair when not under the rolls: on
-    /// the pad's row, after its keys.
-    apart: Option<Apart>,
-    /// The Working area drawn as one paragraph, head and working run on
-    /// ([`super::tracker_screen::draw_line`]), its Previous and Next at
-    /// `apart`'s buttons.
-    paragraph: bool,
     /// The panel's height, its gaps above and below included.
     pub(crate) h: f32,
 }
@@ -291,219 +261,37 @@ impl Foot {
     /// The parts of the panel at the foot, `inner` wide inside its
     /// margins, at the text factor `k`. Arithmetic.
     pub(crate) fn of(m: &Codex32Make, inner: f32, k: f32) -> Foot {
-        let wa = |w| working_area_h(w, k);
         if complete(m) {
-            // The Working area with the tour's choice under it, and
-            // Continue at the row's end.
-            let ww = inner - t::SPACER - t::INPUT_CONTINUE_W;
-            let body = (wa(ww) + choice_h(m)).max(t::TOUCH);
-            // Continue on the last row, level with the choice.
-            let end = (
-                inner - t::INPUT_CONTINUE_W,
-                body - t::TOUCH,
-                t::INPUT_CONTINUE_W,
-            );
-            return Foot::framed(None, (0.0, 0.0, ww), end, body);
+            return Foot::framed(None, (0.0, 0.0, inner), t::TOUCH);
         }
         if m.way() == Way::Typed {
-            let (kw, beside) = keys_at_foot(inner);
-            return match beside {
-                Some((wx, ww)) => {
-                    let body = keyboard_h().max(wa(ww));
-                    Foot::framed(None, (wx, 0.0, ww), (0.0, 0.0, kw), body)
-                }
-                None => {
-                    let top = wa(kw) + t::GAP;
-                    Foot::framed(None, (0.0, 0.0, kw), (0.0, top, kw), top + keyboard_h())
-                }
-            };
+            let kw = inner.min(t::COLUMN_MAX);
+            return Foot::framed(None, (0.0, 0.0, kw), keyboard_h());
         }
         let (rw, rh) = (pairs_across_w(), pairs_across_h(k));
         let rolls = Some((0.0, 0.0, rw));
         let down = {
-            let (wy, py) = (rh + t::GAP, rh + t::GAP + wa(inner) + t::GAP);
-            let body = py + pad_h(m, inner);
-            Foot::framed(rolls, (0.0, wy, inner), (0.0, py, inner), body)
+            let py = rh + t::GAP;
+            Foot::framed(rolls, (0.0, py, inner), py + pad_h(m, inner))
         };
         let room = inner - rw - t::SPACER;
         if room < LABEL + t::PAD_KEYS_BESIDE_MIN * KEY - t::GAP_SMALL {
             return down;
         }
-        let x = rw + t::SPACER;
-        // The Working area over the pad, beside the rolls.
-        let over = {
-            let py = wa(room) + t::GAP;
-            let body = rh.max(py + pad_h(m, room));
-            Foot::framed(rolls, (x, 0.0, room), (x, py, room), body)
-        };
-        // The pad beside the rolls, the Working area under the rolls. A pad
-        // that needs a second row there may take more, narrower, where that
-        // leaves the Working area room enough to be shorter; a pad of one
-        // row keeps it (owner, 2026-10-25).
-        let least = pad_plan(m, room).rows;
-        let most = if least > 1 { least + 2 } else { 1 };
-        let under = (least..=most)
-            .map(|rows| pad_rows(m, rows))
-            .filter(|p| p.w <= room)
-            .map(|p| {
-                let left = inner - t::SPACER - p.w;
-                let body = (rh + t::GAP + wa(left)).max(pad_tall(p));
-                let pad = (left + t::SPACER, 0.0, p.w);
-                Foot::framed(rolls, (0.0, rh + t::GAP, left), pad, body)
-            })
-            .min_by(|a, b| a.h.total_cmp(&b.h))
-            .unwrap_or(down);
-        // The rolls beside the Working area's text, the pad under both,
-        // the latest struck pair and the Working area's Previous and Next
-        // at the end of the pad's last row where it has room for them, so
-        // the first row holds only what it draws (owner, 2026-10-25).
-        let pad = pad_plan(m, inner);
-        let spare = inner - pad.w - 2.0 * t::SPACER - 2.0 * t::TOUCH;
-        let below = if spare >= t::INPUT_STRUCK_MIN_W {
-            let top = pairs_row_h(k).max(working_text_h(room, k)) + t::GAP;
-            let ph = pad_tall(pad);
-            let last = top + ph - t::TOUCH;
-            let apart = Apart {
-                struck: Some((pad.w + t::SPACER, last, spare, t::TOUCH)),
-                buttons: Some((inner - 2.0 * t::TOUCH, last)),
-            };
-            let mut f = Foot::framed(rolls, (x, 0.0, room), (0.0, top, pad.w), top + ph);
-            f.apart = Some(apart);
-            f
-        } else {
-            let top = rh.max(wa(room)) + t::GAP;
-            let body = top + pad_h(m, inner);
-            Foot::framed(rolls, (x, 0.0, room), (0.0, top, inner), body)
-        };
-        let mut ways = vec![over, under, down, below];
-        ways.extend(Foot::one_row(m, (inner, rw), k));
-        ways.extend(Foot::paragraphs(m, (inner, rw), k));
-        ways.into_iter()
-            .min_by(|a, b| a.h.total_cmp(&b.h))
-            .unwrap_or(down)
-    }
-
-    /// All three in one row (owner, 2026-10-25: rolls | pad | working), in
-    /// a panel `inner` wide whose rolls are `rw`: the pad beside the
-    /// rolls, its keys in one row for six faces or fewer and in up to
-    /// three for more, so the Working area keeps its buttons beside its
-    /// text; the latest struck pair under the rolls or under the pad's
-    /// keys; at the text factor `k`. Arithmetic.
-    fn one_row(m: &Codex32Make, (inner, rw): (f32, f32), k: f32) -> Vec<Foot> {
-        let (wa, rh) = (|w| working_area_h(w, k), pairs_across_h(k));
-        let line = rolls_line(k);
-        let rolls = Some((0.0, 0.0, rw));
-        let x = rw + t::SPACER;
-        let room = inner - x;
-        let mut ways = Vec::new();
-        let rows_most = if m.dice_choice().faces > 6 { 3 } else { 1 };
-        for rows in 1..=rows_most {
-            let pad = pad_rows(m, rows);
-            let ww = room - pad.w - t::SPACER;
-            if ww < t::CODEX32_WORKING_SIDE_MIN {
-                continue;
-            }
-            let ph = pad_tall(pad);
-            let work = (x + pad.w + t::SPACER, 0.0, ww);
-            // The struck pair under the rolls, as tall as they draw it.
-            let body = rh.max(ph).max(wa(ww));
-            ways.push(Foot::framed(rolls, work, (x, 0.0, pad.w), body));
-            // Or under the pad's keys, where that is shorter.
-            let struck_y = ph + t::GAP_SMALL;
-            let body = pairs_row_h(k).max(struck_y + line).max(wa(ww));
-            let mut f = Foot::framed(rolls, work, (x, 0.0, pad.w), body);
-            f.apart = Some(Apart {
-                struck: Some((x + pad.lead(), struck_y, pad.w - pad.lead(), line)),
-                buttons: None,
-            });
-            ways.push(f);
-        }
-        ways
-    }
-
-    /// The arrangements with the Working area as one paragraph (owner,
-    /// 2026-10-25), in a panel `inner` wide whose rolls are `rw`: the pad
-    /// over the paragraph beside the rolls, Previous and Next at the
-    /// pad's row's end and the latest struck pair under the rolls; and the
-    /// rolls and the pad on one row, the struck pair at the keys' end or
-    /// under them, over the paragraph across the panel with Previous and
-    /// Next at its end; at the text factor `k`. Arithmetic.
-    fn paragraphs(m: &Codex32Make, (inner, rw): (f32, f32), k: f32) -> Vec<Foot> {
-        let (rh, row, line) = (pairs_across_h(k), pairs_row_h(k), rolls_line(k));
-        let rolls = Some((0.0, 0.0, rw));
-        let x = rw + t::SPACER;
-        let room = inner - x;
-        let bw = 2.0 * t::TOUCH;
-        let mut ways = Vec::new();
-        let keys_room = room - t::GAP - bw;
-        let pad = pad_plan(m, keys_room);
-        if pad.w <= keys_room {
-            let ty = pad_tall(pad) + t::GAP_SMALL;
-            let body = rh.max(ty + working_line_h(room, k));
-            let mut f = Foot::framed(rolls, (x, ty, room), (x, 0.0, pad.w), body);
-            f.apart = Some(Apart {
-                struck: None,
-                buttons: Some((inner - bw, 0.0)),
-            });
-            f.paragraph = true;
-            ways.push(f);
-        }
+        // The pad beside the rolls.
         let pad = pad_plan(m, room);
-        if pad.w <= room {
-            let ph = pad_tall(pad);
-            let spare = room - pad.w - t::SPACER;
-            // Where the struck pair goes, and the first row's height.
-            let (struck, top) = if spare >= t::INPUT_STRUCK_MIN_W {
-                let at = (x + pad.w + t::SPACER, ph - t::TOUCH, spare, t::TOUCH);
-                (Some(at), row.max(ph))
-            } else if row.max(ph + t::GAP_SMALL + line) <= rh.max(ph) {
-                let lead = pad.lead();
-                let at = (x + lead, ph + t::GAP_SMALL, pad.w - lead, line);
-                (Some(at), row.max(ph + t::GAP_SMALL + line))
-            } else {
-                (None, rh.max(ph))
-            };
-            // The paragraph's lines, at least as tall as the buttons'
-            // circles; their 48 dp targets reach into the gaps round it.
-            let tw = inner - t::GAP - bw;
-            let lh = working_line_h(tw, k).max(t::ICON_BUTTON);
-            let ty = top + t::GAP_SMALL;
-            let mut f = Foot::framed(rolls, (0.0, ty, tw), (x, 0.0, pad.w), ty + lh);
-            f.apart = Some(Apart {
-                struck,
-                buttons: Some((inner - bw, ty + (lh - t::TOUCH) / 2.0)),
-            });
-            f.paragraph = true;
-            ways.push(f);
-        }
-        ways
+        let beside = Foot::framed(rolls, (rw + t::SPACER, 0.0, pad.w), rh.max(pad_tall(pad)));
+        if beside.h <= down.h { beside } else { down }
     }
 
     /// The parts, and the panel's height round a body `body` tall.
-    fn framed(
-        rolls: Option<(f32, f32, f32)>,
-        work: (f32, f32, f32),
-        pad: (f32, f32, f32),
-        body: f32,
-    ) -> Foot {
+    fn framed(rolls: Option<(f32, f32, f32)>, pad: (f32, f32, f32), body: f32) -> Foot {
         Foot {
             rolls,
-            work,
             pad,
-            apart: None,
-            paragraph: false,
             h: t::GAP + body + t::GAP,
         }
     }
-}
-
-/// The struck pair's place (x, y, width, height) and the Working area's
-/// Previous and Next (x, y) in a `TOUCH` row where they stand apart from
-/// its text, from the panel's inner top-left.
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Apart {
-    struck: Option<(f32, f32, f32, f32)>,
-    buttons: Option<(f32, f32)>,
 }
 
 /// Draws the panel where it stands out of the page, for the page area at
@@ -519,26 +307,10 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
             let f = Foot::of(m, inner, ui.text_factor());
             let at = |(px, py, pw): (f32, f32, f32)| (ix + px, top + t::GAP + py, pw);
             if let Some(r) = f.rolls {
-                let pairs = super::dice_screen::pairs_of(m);
-                let struck = f.apart.and_then(|a| a.struck);
-                pairs_across(ui, at(r), &pairs, struck.is_none());
-                if let Some((sx, sy, sw, sh)) = struck {
-                    let (sx, sy, sw) = at((sx, sy, sw));
-                    struck_across(ui, (sx, sy, sw, sh), &pairs);
-                }
+                pairs_across(ui, at(r), &super::dice_screen::pairs_of(m), true);
             }
-            let (wx, wy, ww) = at(f.work);
-            let buttons = f.apart.and_then(|a| a.buttons).map(|(bx, by)| {
-                let (bx, by, _) = at((bx, by, 0.0));
-                (bx, by)
-            });
-            let wh = match buttons {
-                Some(b) if f.paragraph => super::tracker_screen::draw_line(m, ui, (wx, wy, ww), b),
-                _ => super::tracker_screen::draw_beside(m, ui, (wx, wy, ww), buttons),
-            };
             let (px, py, pw) = at(f.pad);
             if complete(m) {
-                choice(m, ui, (wx, wy + wh, ww));
                 continue_button(ui, px, py, pw);
                 return;
             }
@@ -573,7 +345,7 @@ fn beside(m: &Codex32Make, ui: &mut Ui, (x0, h): (f32, f32)) {
 }
 
 /// The panel's parts beside the sheets from its top-left (x, y): the
-/// rolls, the Working area and the pad, the keyboard or Continue.
+/// rolls and the pad, the keyboard or Continue.
 fn beside_parts(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32) {
     let (ix, iw) = (x + t::PAD, beside_inner());
     let mut cy = y + t::PAD;
@@ -581,9 +353,7 @@ fn beside_parts(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32) {
     if rolling {
         cy += pairs(ui, (ix, cy, iw), &super::dice_screen::pairs_of(m), None) + t::GAP;
     }
-    cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
     if complete(m) {
-        cy += choice(m, ui, (ix, cy, iw));
         continue_button(ui, ix, cy, iw);
         return;
     }
@@ -675,9 +445,6 @@ fn pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) {
     for f in 1..=faces {
         let face = a(C32::Face(f as u8));
         ui.button_in(shape(key(f - 1)), &f.to_string(), Style::Secondary, face);
-        let (fx, fy) = key(f - 1);
-        let at = (fx, fy, t::PAD_KEY_W, t::TOUCH, t::RADIUS_SMALL);
-        super::dice_screen::pressed_key(m, ui, at, f as u8);
     }
     let back = key(faces);
     let press = a(C32::Key(OskPress::Back));

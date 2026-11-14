@@ -4,7 +4,7 @@
 //! `MARGIN_WIDE` from the window's edge and `SPACER` from the page, and
 //! holds its place while the page scrolls beside it, scrolling within
 //! itself where it is taller than the window. What only Practice offers on
-//! the entry (Use a sample, the computer's walk) stands in Faraday
+//! the entry (Use a sample) stands in Faraday
 //! Desktop's host strip, outside the app (`docs/DESKTOP-HOST.md` §3.1).
 //! Drawing reads the flow's state and works nothing out.
 

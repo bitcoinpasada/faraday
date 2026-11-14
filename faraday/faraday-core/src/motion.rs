@@ -1029,9 +1029,6 @@ impl Faraday {
     /// a timed move, at once under Reduce motion. Arithmetic.
     pub(crate) fn worksheet_follow(&mut self) {
         self.codex32_refit();
-        if self.dice_follow() {
-            return;
-        }
         let key = self.region_key();
         let f = self.unit_px();
         let cls = self.window().class();
@@ -1065,8 +1062,7 @@ impl Faraday {
     }
 
     /// [`Self::worksheet_follow`] after a character of the person's put in
-    /// its box, or the Working area's Previous or Next
-    /// (`docs/LAYOUT.md` §16.4; owner, 2026-10-25): the view and the page
+    /// its box (`docs/LAYOUT.md` §16.4; owner, 2026-10-25): the view and the page
     /// move only where the work is not on screen, the page only where the
     /// view's part above the input panel cannot hold it, and the dice
     /// sheet is not followed. Arithmetic.
@@ -1106,45 +1102,6 @@ impl Faraday {
             self.keygen
                 .page_follow_calm(cls, (top, room, p.max), reduce);
         }
-    }
-
-    /// While the step-through shows a roll or a character read down the
-    /// tree, the page brings where the dice sheet's work is (the marked
-    /// die's track, or the tree) into its room above the input panel, by
-    /// the least move, in the worksheet's timed move; at once under
-    /// Reduce motion (`docs/LAYOUT.md` §16.4). True when it is the dice's
-    /// step. Arithmetic, on the regions the last frame drew.
-    fn dice_follow(&mut self) -> bool {
-        let m = self.keygen.state().and_then(|k| k.codex32.as_ref());
-        let rolling = m.is_some_and(crate::codex32::Codex32Make::walk_rolling);
-        // The tour of the shares made on a translation worksheet: its
-        // marked cells, said where they stand the same way (§5.7).
-        let grid = m.is_some_and(crate::codex32::Codex32Make::tour_on_grid);
-        if !(rolling || grid) || self.sheet.is_some() {
-            return false;
-        }
-        // In its column at the right the dice sheet stands still beside
-        // the page: nothing to follow.
-        if !grid && self.codex32_column_now() {
-            return true;
-        }
-        let key = self.region_key();
-        let f = self.unit_px();
-        let (work, page) = (
-            self.scroll.region_now(key, ui::Slot::DiceWork),
-            self.scroll.region_now(key, ui::Slot::Page),
-        );
-        let (Some(d), Some(p)) = (work, page) else {
-            return true;
-        };
-        let offset = self.keygen.state().map_or(0.0, |k| k.scroll.y);
-        let top = (d.view.y - p.view.y) as f32 / f + offset;
-        let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
-        let reduce = self.reduce_motion();
-        let tall = d.view.h as f32 / f;
-        self.keygen
-            .page_follow_to((top, tall), (room, p.max), reduce);
-        true
     }
 
     /// Where the worksheet's view is panned in a page, the page goes down
@@ -1199,7 +1156,7 @@ impl Faraday {
 
     /// What a scrolled codex32 region moves: the checksum worksheet's
     /// pan down the sheet, the dice sheet's column's own scroll, or the
-    /// input panel's beside the sheets (`docs/CODEX32.md` §5.5, §7.5;
+    /// input panel's beside the sheets (`docs/CODEX32.md` §7.5;
     /// `docs/LAYOUT.md` §16.3).
     fn codex32_place(&self) -> Option<Place> {
         match self.slot() {

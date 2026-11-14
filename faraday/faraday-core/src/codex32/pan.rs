@@ -276,8 +276,7 @@ pub(crate) enum Follow {
     /// To where the work is, as every other press sends it.
     Work,
     /// Only as far as brings the work on screen, and not at all where it
-    /// is on screen: a character put in its box, or the Working area's
-    /// Previous or Next.
+    /// is on screen: a character put in its box.
     Calm,
     /// Nothing moves: a value of a character still being rolled, or one
     /// taken back.
@@ -290,7 +289,6 @@ impl Follow {
     pub(crate) fn of(press: super::C32, was: (usize, usize), now: (usize, usize)) -> Follow {
         use super::{C32, OskPress};
         match press {
-            C32::Step(_) => Follow::Calm,
             _ if now.0 > was.0 => Follow::Calm,
             C32::Face(_) | C32::Key(OskPress::Char(_) | OskPress::Back) => Follow::Still,
             _ => Follow::Work,

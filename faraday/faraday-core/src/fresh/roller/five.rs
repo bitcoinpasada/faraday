@@ -1,4 +1,4 @@
-//! The five-dice roller of Faraday Demo (`docs/CODEX32.md` §5.5): the
+//! The five-dice roller of Faraday Demo (`docs/CODEX32.md` §5.6): the
 //! booklet's dice de-biasing worksheet filled by a click. Its values are
 //! this computer's randomness from `Faraday::fresh`, handed to the host
 //! as faces 1 to N of the dice the person chose (six faces unless told,
@@ -307,33 +307,6 @@ impl FiveRoller {
             Sim::All
         } else {
             Sim::Some
-        }
-    }
-
-    /// The faces that complete the character whose faces so far are
-    /// `seq`, rolled as a click of One character rolls them (each from
-    /// `draw`'s answers as [`Pool::next`] takes them, in the pad's order,
-    /// an equal pair's die rolled twice again), for the step-through of
-    /// `docs/CODEX32.md` §5.5 to enter one at a time. Nothing is marked:
-    /// the host marks each face as it enters it ([`FiveRoller::mark`]).
-    /// `None` while `draw` has no answer; the faces drawn so far are then
-    /// dropped. Costs a fresh answer (a hash) for every 31 faces at most.
-    pub(crate) fn roll_character(
-        &mut self,
-        seq: &[u8],
-        draw: &mut Draw,
-    ) -> Option<Zeroizing<Vec<u8>>> {
-        let mut sim = Zeroizing::new(seq.to_vec());
-        let mut out = Zeroizing::new(Vec::new());
-        loop {
-            let sheet = Sheet::of(&sim, self.faces);
-            if sheet.complete() {
-                return Some(out);
-            }
-            sheet.place()?;
-            let v = self.pool.next(self.faces, draw)?;
-            sim.push(v);
-            out.push(v);
         }
     }
 

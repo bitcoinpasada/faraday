@@ -194,39 +194,25 @@ pub(crate) fn roller_shown(app: &Faraday) -> Option<Roller> {
     app.demo_hosted_now().and_then(|h| h.roller)
 }
 
-/// The screen's demo aids, the lines saying what Practice puts in place of
-/// the person's own, and whether Play's options are offered: Make codex32
-/// shares' entry's from its state, every other page's and sheet's from
-/// what its last frame offered for the "Demo only" card, the computer's
-/// die's controls first. A lookup.
-fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
+/// The screen's demo aids and the lines saying what Practice puts in place
+/// of the person's own: Make codex32 shares' entry's Use a sample from its
+/// state, every other page's and sheet's from what its last frame offered
+/// for the "Demo only" card, the computer's die's controls first. A lookup.
+fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>) {
     let mut ctls: Vec<Ctl> = Vec::new();
     let mut lines: Vec<String> = Vec::new();
-    let mut walks = false;
-    let roller = app.roller_offered();
     if let Some(m) = app
         .keygen()
         .filter(|k| k.open == Some(faraday_core::keygen::kstep::CODEX32))
         .and_then(|k| k.codex32.as_ref())
+        && m.sample_offered()
     {
-        for (label, on, primary, act) in faraday_core::codex32::walk_screen::host_aids(m, roller) {
-            let kind = match (on, primary) {
-                (false, _) => Kind::Off,
-                (true, true) => Kind::Primary,
-                (true, false) => Kind::Button,
-            };
-            ctls.push(Ctl {
-                mark: false,
-                label: label.to_string(),
-                press: HostPress::App(Action::Codex32(act)),
-                kind,
-            });
-        }
-        walks = faraday_core::codex32::walk_screen::host_walks(m, roller);
-        if walks {
-            let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
-            lines.push(fill(EN.codex32_rolls_die, &[&die]));
-        }
+        ctls.push(Ctl {
+            mark: false,
+            label: EN.use_a_sample.to_string(),
+            press: HostPress::App(Action::Codex32(faraday_core::codex32::C32::Sample)),
+            kind: Kind::Button,
+        });
     }
     for item in app.sample_area().aids() {
         match item {
@@ -251,7 +237,7 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
         }
     }
     lines.dedup();
-    (ctls, lines, walks)
+    (ctls, lines)
 }
 
 /// The die, its press for each of the roller's own, whether it may roll.
@@ -406,21 +392,6 @@ fn more_ctl(head: bool, label: &'static str) -> Ctl {
     }
 }
 
-/// The screen's demo aids with Play options after them where the walk
-/// is offered, and the lines. A lookup.
-fn demo_ctls(app: &Faraday) -> (Vec<Ctl>, Vec<String>) {
-    let (mut demo, lines, walks) = aids(app);
-    if walks {
-        demo.push(Ctl {
-            mark: false,
-            label: EN.host_play_options.to_string(),
-            press: HostPress::Menu(Menu::Play),
-            kind: Kind::Opens(Menu::Play),
-        });
-    }
-    (demo, lines)
-}
-
 /// Costs a text measure per control. Fits the strip's controls in `room`,
 /// the die taking `die_w` before the aids: every stick and every aid
 /// where all fit; else the sticks fold into "Sticks · N" after the boot
@@ -438,7 +409,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
         kind: Kind::Button,
     });
     let size = |short: bool| size_ctl(host, short);
-    let (mut demo, lines) = demo_ctls(app);
+    let (mut demo, lines) = aids(app);
     let head_label = app.mode().name();
     let more_ctl = more_ctl(true, head_label);
     let sum = |v: &[Ctl]| -> f32 { v.iter().map(|c| ctl_w(ui, c) + t::GAP).sum() };
@@ -1025,29 +996,6 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
                 ..row(name.to_string(), HostPress::Size(s), host.preview == s)
             })
             .collect(),
-        Menu::Play => {
-            let Some(m) = app.keygen().and_then(|k| k.codex32.as_ref()) else {
-                return Vec::new();
-            };
-            let mut v = Vec::new();
-            for (head, items) in faraday_core::codex32::walk_screen::host_play_options(m) {
-                v.push(MenuRow {
-                    label: head.to_string(),
-                    note: String::new(),
-                    press: None,
-                    chosen: false,
-                    dot: None,
-                });
-                for (name, on, act) in items {
-                    v.push(row(
-                        name.to_string(),
-                        HostPress::App(Action::Codex32(act)),
-                        on,
-                    ));
-                }
-            }
-            v
-        }
         Menu::Rolls => {
             let Some((r, act, _)) = roller_shown(app).and_then(|w| roller_of(app, w)) else {
                 return Vec::new();

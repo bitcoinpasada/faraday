@@ -1235,25 +1235,6 @@ pub const GUIDE_PANE_PARA: f32 = GAP + GAP_SMALL;
 /// The input panel's width where it stands beside the sheets
 /// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.
 pub const CODEX32_ENTRY_W: f32 = 424.0;
-/// One line of the input panel's Working area (`docs/CODEX32.md` §5.7):
-/// Material's body medium, 14 dp on a 20 dp line.
-pub const CODEX32_WORKING_LINE: f32 = 20.0;
-/// The room the longest step's working takes on one line at 14 dp, with
-/// the slack of breaking at spaces: the Working area keeps as many lines
-/// as its width needs for it, so the pad under it never moves.
-pub const CODEX32_WORKING_TEXT_MAX: f32 = 860.0;
-/// The room the Working area's head and where the step stands take
-/// where they run on with its working as one paragraph ("Working  Step
-/// 19 of 19 · character 26", owner 2026-10-25).
-pub const CODEX32_WORKING_HEAD_W: f32 = 300.0;
-/// The fewest lines the Working area keeps for a step's working.
-pub const CODEX32_WORKING_LINES_MIN: f32 = 2.0;
-/// The Working area's width from which Previous and Next stand beside
-/// its text; narrower, they share the first row with its head.
-pub const CODEX32_WORKING_SIDE_MIN: f32 = 360.0;
-/// The narrowest the codex32 keyboard is drawn at the window's foot with
-/// the Working area beside it.
-pub const CODEX32_KEYS_BESIDE_MIN: f32 = 560.0;
 /// A key of the input panel's pad: Material's touch target, square, the
 /// keys `GAP_SMALL` apart and no padding of their own (`docs/LAYOUT.md`
 /// §8, §16.3; owner, 2026-10-24).
@@ -1285,10 +1266,6 @@ pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
 /// with the face waiting or "0 is 10" under it: the room it keeps, the
 /// label cut to it where text is drawn larger.
 pub const INPUT_PAD_LABEL_W: f32 = 72.0;
-/// The least room after the pad's keys at the window's foot for the
-/// latest struck pair beside the Working area's Previous and Next, so
-/// the row of rolls keeps no line for it (owner, 2026-10-25).
-pub const INPUT_STRUCK_MIN_W: f32 = 120.0;
 /// The room Continue keeps at the end of the input panel's row once
 /// every character is in.
 pub const INPUT_CONTINUE_W: f32 = 160.0;
@@ -1505,7 +1482,7 @@ pub const CODEX32_LABEL_W: f32 = 76.0;
 /// The gap between the two panels on `wide`.
 pub const CODEX32_PANEL_GAP: f32 = 24.0;
 /// The narrowest the codex32 entry's own column is drawn beside the
-/// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
+/// "Demo only" box (CODEX32 §12); narrower, the box goes under it.
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
 /// How far New key's column stands in from its page area's left edge,
 /// and as far again is kept on its right.
@@ -1657,12 +1634,12 @@ pub const CODEX32_MARK_GAP: f32 = 4.0;
 /// characters, so every box carries one without crowding them.
 pub const CODEX32_STRING_NUMBER: f32 = 9.0;
 
-// ----- The five-dice roller (docs/CODEX32.md §5.5) -----
+// ----- The five-dice roller (docs/CODEX32.md §5.6) -----
 
 /// The five-dice roller: the gap between two dice.
 pub const ROLLER_FIVE_GAP: f32 = 8.0;
 
-/// Each die's two rolls side by side (CODEX32 §5.5): a marker's or a
+/// Each die's two rolls side by side (CODEX32 §5.6): a marker's or a
 /// die's side.
 pub const ROLLER_PAIR_DIE: f32 = 32.0;
 /// A column of the pairs: the first roll's, the second roll's.
@@ -1679,13 +1656,6 @@ pub const CODEX32_CHIP_H: f32 = 32.0;
 /// frame.
 pub const ROLLER_FIVE_BATCH: usize = 400;
 
-/// The codex32 step-through's Play (CODEX32 §5.5): the time between two
-/// steps at Slow, a step a second.
-pub const CODEX32_WALK_SLOW_MS: u64 = 1000;
-/// At Normal, the default: slow enough to read a step's line.
-pub const CODEX32_WALK_NORMAL_MS: u64 = 400;
-/// At Fast.
-pub const CODEX32_WALK_FAST_MS: u64 = 120;
 /// The furthest along Material's standard curve a following move of the
 /// codex32 worksheet's view enters it when it takes over from a move
 /// under way, so the move left is never cut to nothing (`docs/MOTION.md`
