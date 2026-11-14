@@ -1,5 +1,6 @@
 //! QR payloads:
 //!
+//! - [`bip21`]: a `bitcoin:` payment URI read to BIP-21.
 //! - [`bolt11`]: a BOLT #11 Lightning invoice read, its signature checked.
 //! - [`bolt12`]: a BOLT #12 offer read.
 //! - [`png`]: a QR code as a PNG file, for a public code saved as a
@@ -36,6 +37,7 @@
 
 extern crate alloc;
 
+pub mod bip21;
 pub mod bolt11;
 pub mod bolt12;
 mod bolt12_chars;

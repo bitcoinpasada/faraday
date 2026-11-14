@@ -86,6 +86,31 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
 }
 
 #[test]
+fn a_payment_link_the_device_cannot_read_is_named() {
+    let c = faraday_core::testkit::compute();
+    let mut app = scanning(vec![(
+        "spending-wallet.txt",
+        kit("spending").descriptor.into_bytes(),
+    )]);
+    app.press(Action::LoadWallet(0));
+    let ours = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 3));
+    for (link, want) in [
+        (format!("bitcoin:{ours}?req-x=1"), "needs something"),
+        (
+            format!("bitcoin:{ours}?amount=1&amount=2"),
+            "not well formed",
+        ),
+        (format!("bitcoin:bitcoin:{ours}"), "not well formed"),
+        ("bitcoin:hello".to_owned(), "not well formed"),
+    ] {
+        app.press(Action::Scan);
+        scan(&mut app, &link);
+        let said = note(&app);
+        assert!(said.contains(want), "{link}: {said}");
+    }
+}
+
+#[test]
 fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
     let c = faraday_core::testkit::compute();
     let mut app = scanning(vec![(

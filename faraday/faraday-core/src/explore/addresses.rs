@@ -599,8 +599,7 @@ impl ExploreArea {
     /// found in it is refused, and nothing to paste says so.
     pub(crate) fn paste_in(&mut self, text: &str, secret: Option<&'static str>) {
         let t = text.trim();
-        let t = t.strip_prefix("bitcoin:").unwrap_or(t);
-        let t = t.split('?').next().unwrap_or(t);
+        let t = faraday_codec::bip21::parse(t).map_or(t, |u| u.address);
         let Some(e) = self.state.as_mut() else {
             return;
         };

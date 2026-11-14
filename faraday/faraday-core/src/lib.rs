@@ -3137,8 +3137,20 @@ impl Faraday {
     /// mine?"). `None` when the text is not an address.
     fn address_note(&self, c: &Compute, text: &str) -> Option<faraday_text::Text> {
         let t = text.trim();
-        let t = t.strip_prefix("bitcoin:").unwrap_or(t);
-        let t = t.split('?').next().unwrap_or(t);
+        let mut is_uri = false;
+        let t = match faraday_codec::bip21::parse(t) {
+            Ok(uri) => {
+                is_uri = true;
+                uri.address
+            }
+            Err(faraday_codec::bip21::Error::NotUri) => t,
+            Err(faraday_codec::bip21::Error::Required) => {
+                return Some(faraday_text::Text::of(EN.address_note_uri_required));
+            }
+            Err(faraday_codec::bip21::Error::Malformed) => {
+                return Some(faraday_text::Text::of(EN.address_note_uri_malformed));
+            }
+        };
         let net = self.session.network();
         let Ok(addr) =
             t.parse::<faraday_bip::bitcoin::Address<faraday_bip::bitcoin::address::NetworkUnchecked>>()
@@ -3146,10 +3158,17 @@ impl Faraday {
             // An address's characters, as many as one has, that fail its
             // checksum: one of them is wrong.
             let whole = t.len() >= 26
+                && t.bytes().all(|b| b.is_ascii_alphanumeric())
                 && faraday_bip::keys::Network::ALL
                     .iter()
                     .any(|&n| faraday_bip::address::is_address_prefix(t, n));
-            return whole.then(|| faraday_text::Text::of(EN.address_note_that_address_fails));
+            if whole {
+                return Some(faraday_text::Text::of(EN.address_note_that_address_fails));
+            }
+            // A link whose address is anything else (not empty: BIP 321
+            // links carry none) is not well formed.
+            return (is_uri && !t.is_empty())
+                .then(|| faraday_text::Text::of(EN.address_note_uri_malformed));
         };
         let Ok(addr) = addr.require_network(net.into()) else {
             return Some(faraday_text::Text::fill(

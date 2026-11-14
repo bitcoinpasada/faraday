@@ -4670,6 +4670,10 @@ strings! {
     address_note_no_wallet: "That is an address. Load a wallet to check whether it is yours",
     /// Text in `address_note`.
     address_note_that_address: "That address is not among the first 100 of any loaded wallet",
+    /// Text in `address_note`: a `bitcoin:` link with a `req-` parameter.
+    address_note_uri_required: "That payment link needs something this device does not read",
+    /// Text in `address_note`: a `bitcoin:` link that is not well formed.
+    address_note_uri_malformed: "That payment link is not well formed",
     // ----- open_qr (faraday-core/src/lib.rs) -----
     /// Toast in `open_qr`. `{}`: `e`.
     open_qr_cannot_make: "Cannot make a code: {}",
