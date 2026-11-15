@@ -1168,8 +1168,8 @@ rule of its flow.
   the map is the plan: the backup's record and the vault's plan record
   keep it, the chart and the checklist read it, and it loads back the
   same on another power-on. **Change the plan** (the wallet's sheet, the
-  checklist's foot) asks first, "Your changes on the chart are
-  replaced". In the vault alone, never in the kept state or on disk
+  checklist's foot) opens the plan's cards on that map, nothing
+  replaced. In the vault alone, never in the kept state or on disk
   outside the vault: the date each
   thing of a place was checked (a place's **Mark checked**; a passphrase
   checked), **Lost** and **Exposed** (a line, or **Mark lost**, **Mark
@@ -1233,3 +1233,168 @@ rule of its flow.
   before the seeds wait in the wallet's flow: Back up resumes it at the
   plan with them, and until a plan is made the wallet's card and Backups
   read **Continue the backup**.
+
+## 12. The chart's sheets
+
+The wallet's chart of the plan (the card's glance, an open vault's page,
+the checklist's done card) is also where the backup is looked after. A
+press on a node, or on a line inside a node, opens a sheet; on the small
+panel the sheet is the page and Back returns to the chart. The sheets and
+their rows are listed under "The chart's sheets" in §11; the rules below
+hold for every one.
+
+- **A sheet changes nothing.** It says what the thing is, where it is and
+  when it was last checked here, then offers each action as a row leading
+  into the flow that does it. It moves, copies, adds and removes nothing:
+  every key, place, line and mark sheet has one **Change in the plan**
+  row, which opens the backup board with that thing selected. The board
+  (`docs/BACKUP-FLOW.md` §17) is the one editor of the plan's map.
+- **A secret copy is made only by the flows that exist**: by hand with the
+  copy check, into a vault, or as a file behind its warning. A file goes
+  to For the stick, as everywhere.
+- **A secret action needs the seed loaded here.** A key not loaded
+  offers **Load this key** with its way in, where the quorum needs it;
+  a key not held here (a cosigner's) offers nothing secret: **Show its
+  xpub**, **Name its holder**, **Mark checked**.
+- **What is kept, and only in a vault.** The plan's vault record (type 11,
+  `docs/VAULT.md`) keeps per thing the date it was last checked here, a
+  key not held here's holder name, a place's or vault's name, and a mark
+  (lost, exposed). Never a secret: a passphrase is checked by the
+  fingerprint it makes, typed into a masked field and wiped at once, and
+  only "checked on" is kept. With no vault open those rows read "Open a
+  vault to keep this".
+- **A copy's check follows its form.** A words line opens the typed check
+  (**Type my copy**); a SeedQR line opens the camera (**Scan my copy**,
+  **Type my copy** with no camera). A key node offers one row per form
+  its copies have (§5, the copy item).
+- **Lost and exposed** run the check with that place gone, or found by
+  someone, and say what follows, in this order: someone can now spend (or
+  could with a vault's passphrase) with **Move the money**, which opens
+  Make a new wallet and then the spend of every coin to it, in `ERR`; the
+  wallet can no longer be rebuilt from what is left, with **Back up again
+  now**, in `ERR`; someone can see the balance; nothing lost that is not
+  elsewhere. A marked thing stays on the chart, struck through, until it
+  is taken off the plan on the board.
+- **The map is the plan once edited.** The plan's answers spread things
+  over the places by rule; an edit on the board is not a rule, so from the
+  first the map itself is the plan: the backup record's and the vault's
+  plan record's map lines are read back as the spots and the check runs on
+  them. **Change the plan** opens the answers' cards on that map, and
+  nothing is replaced.
+
+## 13. The backup before the spend
+
+A key made here (its words came from New key, or a passphrase was added
+to it in Create) cannot sign a spend until a checklist that keeps its seed,
+and its passphrase, is complete. Receiving is warned about, not blocked. A
+key restored from words, a SeedQR or a vault with no backup pending is
+already backed up and signs at once. A message is not a spend and is
+never held.
+
+- **What waits.** The wallet card's first button reads **Finish the backup
+  first** and opens the wallet's checklist (its plan when none is made); in
+  a spend, Who signs lists the key "Waiting for its backup" with **Finish
+  the backup**. No receive address or code of the wallet is shown in
+  Create's and Restore's Check, the card, the Key card, the chart's wallet
+  node, the Spend tab's family pages or the message address: "Back up
+  before you receive" stands in its place, in `WARN`, until the hold is
+  released.
+- **Which keys, across a lock.** Which keys are made here is known by
+  fingerprint only (`faraday-core/src/held.rs`): in memory while the key is
+  here, as a flag in the key's vault record beside its seed, and as a
+  `held` line in the plan's record. A key loaded from a vault that says so
+  is held again. A hold stays until every item of the checklist that keeps
+  the seed is done; the checklist's last item writes the sticks inside the
+  flow, so nothing waits For the stick after it.
+- **The plan says so.** The plan's first card says "A key made here signs
+  only once this backup is done." when the wallet has a key made here.
+- **A checklist item's foot is its next action** until it is done, then
+  **Continue**: a vault item, **Make a vault** (or the way to one), then one
+  **Save into {vault}** that saves each seed, passphrase and the wallet
+  description the plan puts there; a copy, **Check my copy**; files,
+  **Make it**. An item not done cannot be passed; the items after it open
+  once it is, each saying "After: {item}".
+- **Every vault's stick has a place.** The plan gives a vault's stick the
+  place holding the fewest keys when nothing else places it; Places'
+  Continue, while a vault made has no stick ticked, is replaced by "Vault
+  {n}'s stick needs a place", and a check reading "Any one place lost: No"
+  says why under it on the map panel.
+- **Changing the plan part way.** **Change the plan** stays under every
+  item, the one way out of a forced one. Items the new plan still has stay
+  done; work done that it drops stays on the map as what it is until the
+  copy is destroyed; a plan that keeps no copy of a key made here is not
+  made into a checklist ("Seed {fp} is kept nowhere"); the hold follows the
+  plan now chosen.
+- **The three checks lead.** The plan's three lines ("Any one place lost",
+  "One place found: can spend", "One place found: sees the balance") are
+  drawn first wherever the backup is shown whole: a strip of three, each
+  value large in its colour, on the done card above the wallet's chart, on
+  the wallet card and in the open vault above the chart, and stacked as
+  rows at the top of the chart's page on the small panel (`glance::check_lines`
+  draws all of them).
+- **A copy by hand is checked by its form.** A words copy by typing the
+  whole seed back, a SeedQR copy by scanning the drawn grid (typed words
+  with no camera); with both forms both are needed. The typed check hides
+  the seed, takes words, four-letter prefixes or four-digit numbers (as
+  Show the seed prints them), masks each word once taken, and compares
+  only when the last word is in; a mismatch names the first word that
+  differs ("Word 5 differs from the seed"), keeps the words before it and
+  resumes there. The scan compares word by word and names the first that
+  differs. A passphrase on paper is its own item after its seed's copy,
+  checked by typing it back whole, hidden, and compared exactly; neither
+  check is kept beyond this backup, and the typed text is wiped on a match,
+  a mismatch, Clear, Show, leaving the item and a lock. After three scans
+  of one seed's SeedQR without a match, **Keep the words only** joins
+  **Check my copy** at the foot: it turns that seed's SeedQR copies into
+  words by hand, and a grid already drawn stays on the map marked "drawn in
+  part", counted as a secret at its place for "One place found" and not as
+  a copy that rebuilds, until **I destroyed this copy** takes it off.
+- **Vaults come before the keys.** Make a new wallet and Restore ask after
+  Kind whether vaults are part of the backup and set each up (stick checked,
+  vault unlocked or made); the plan comes after the keys with those vaults
+  as its vaults, and a plan that wants one not set up takes one guided
+  round inside the flow (`docs/BACKUP-FLOW.md` §4.8). When every secret of
+  the wallet sits at one place the check lines say so in `WARN`; they
+  inform and never block.
+
+## 14. Keys from a vault, a wallet from another, the path on Check
+
+- **An open vault's keys on the Keys card.** Under each slot's session
+  keys, each open vault's keys not loaded, under the vault's name; a
+  threshold kind lists only the vault's shares, and a key already in
+  another slot is not offered. A press loads that key with the passphrase
+  its record stores and fills the slot; the vault stays open and nothing in
+  it changes. A locked vault whose file is read is one **Unlock {vault}**
+  button, returning to the Keys card with the vault open and nothing loaded.
+- **New wallet from this one.** The wallet card's button opens Make a new
+  wallet filled from that wallet, each card closed with its value and
+  **Change**: Kind, Quorum, the **Account** (starting at the lowest no
+  loaded wallet of the same keys and kind uses, so Continue throughout makes
+  a separate wallet) and each Key slot. A key here, or in an open vault,
+  gives its account key at the chosen account (`NewKind::path_at`); a
+  cosigner's key held only as an xpub cannot, so at the wallet's own account
+  and script type it stays and otherwise its slot is Someone else, reading
+  "Needs Key n's xpub at account n". The name proposed is "{wallet} ·
+  account n". The wallet it came from is not changed; there is no Backup
+  card for a wallet made from another.
+- **The account on any new wallet.** Every kind whose path has an account
+  has an **Account** row, 0 to start, with **Change** opening a stepper:
+  on Quorum, or at the head of Keys for a kind with no Quorum card. `m/45'`
+  has none, and FROST's shares are dealt, not derived, so neither has the
+  row or a Path. The closed card says "account n" when n is not 0. Only the
+  account changes; the rest is the kind's standard path (BIP 84, 86, 49,
+  44, 48).
+- **Check's Path row** sits under the descriptor row: **Path** and the path
+  in the mono face (`m/84'/0'/0'`). When the keys' paths differ, each key's
+  fingerprint and path, separated by " · "; a key with no origin reads "no
+  path given". It is worked out once, when the wallet is made
+  (`create::paths_text`).
+- **Change beside the path takes the wallet back**: the card with the
+  Account row opens on its stepper, Check and Keys are no longer done, the
+  keys stay in their slots, and Keys' Continue makes the wallet again at the
+  account then chosen. A wallet Create added is removed from the session;
+  one found already loaded stays. The setup flow of the vaults is put back
+  as it was, and a move of money waiting for the wallet forgets it. Change
+  is offered only while nothing has used the wallet: its backup has not
+  begun, the setup flow is where it was when the wallet was made, and the
+  wallet is the last one added; otherwise the row shows the path alone.
