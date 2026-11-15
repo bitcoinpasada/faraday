@@ -1323,6 +1323,9 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         if b.checked.contains(&(key.fingerprint.0, form)) {
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, line) + 12.0;
+            if !pass && form == crate::plan::CopyForm::Words {
+                cy += write_these(app, ui, (x, cy, w), key.fingerprint, key.has_passphrase);
+            }
         }
         if !pass {
             cy += dating(ui, (x, cy, w), b);
@@ -1348,6 +1351,53 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     cy += lh.max(18.0) + 12.0;
     cy - y
+}
+
+/// After the words match: the fingerprint and first address to write on
+/// the sheet, and for a key with a passphrase, the tick for it (the
+/// fingerprint is the key's with the passphrase; the passphrase itself is
+/// never shown). Returns its height.
+fn write_these(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    fingerprint: faraday_bip::keys::Fingerprint,
+    passphrase: bool,
+) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap_as(
+        (x, cy, w),
+        LABEL_L,
+        Role::OnSurface,
+        EN.copy_check_write_these,
+    ) + T::GAP_SMALL;
+    let mut rows = vec![(
+        EN.copy_check_fingerprint,
+        crate::wallet::fp_text(fingerprint).to_string(),
+    )];
+    if let Some(wl) = app
+        .backup()
+        .and_then(|b| app.session.wallets.get(b.wallet))
+        .filter(|wl| !app.receive_held(wl))
+    {
+        rows.push((
+            EN.copy_check_first_address,
+            app.receive_line(wl, false, 0).0.to_string(),
+        ));
+    }
+    for (label, value) in rows {
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, label);
+        cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &value) + T::COPY_WRITE_GAP;
+    }
+    if passphrase {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
+            Role::OnSurface,
+            EN.copy_check_tick_passphrase,
+        ) + T::COPY_WRITE_GAP;
+    }
+    cy + T::COPY_WRITE_GAP - y
 }
 
 /// What a match asks to be dated: **Which copy was this?** with a button

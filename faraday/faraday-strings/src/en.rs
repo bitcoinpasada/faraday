@@ -3397,7 +3397,7 @@ strings! {
     /// Text in `backup`.
     walkthrough_backup_none_typed: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
     /// Text in `backup`.
-    walkthrough_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
+    walkthrough_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named. Once it matches, write the fingerprint and first address shown on the sheet.",
     /// Text in `backup`, a passphrase on paper.
     walkthrough_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
     /// Text in `backup`, a copy of the SeedQR.
@@ -5108,6 +5108,12 @@ strings! {
     pdf_fingerprint: "Fingerprint",
     /// Text in `blank_sheet`.
     pdf_first_address: "First address",
+    /// Line in `blank_sheet`, under the title.
+    pdf_bip39_english: "BIP-39 words, English. Any BIP-39 wallet restores them.",
+    /// Line in `blank_sheet`: two boxes to tick by hand.
+    pdf_passphrase_tick: "Passphrase: none [ ] kept elsewhere [ ]",
+    /// Line in `blank_sheet`, where the template was made with no name and shape.
+    pdf_wallet_kind_path: "Wallet: ______ (kind, path)",
     /// Line in `blank_sheet`.
     pdf_there_is_no_line: "There is no line for a passphrase. Written beside the words, it would stop being a second factor.",
     /// The blank template's footer, on every page.
@@ -6839,6 +6845,14 @@ strings! {
     copy_check_clear: "Clear",
     /// Label of the typed passphrase in `copy_check`.
     copy_check_your_copys_passphrase: "Your copy's passphrase",
+    /// Text in `copy_check`, once the words match: what to write on the sheet.
+    copy_check_write_these: "Write these on the sheet",
+    /// Text in `copy_check`, once the words match a key with a passphrase.
+    copy_check_tick_passphrase: "Tick: passphrase kept elsewhere",
+    /// Label in `copy_check`.
+    copy_check_fingerprint: "Fingerprint",
+    /// Label in `copy_check`.
+    copy_check_first_address: "First address",
     /// Text in `copy_check`.
     copy_check_passphrase_matches: "Your copy matches the passphrase",
     /// Text in `copy_check`.

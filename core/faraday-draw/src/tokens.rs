@@ -2094,6 +2094,9 @@ pub const COPY_HEAD_TEXT_X: f32 = 42.0;
 /// The Copy to another vault sheet on a wide panel: the title's row with
 /// the gap under it.
 pub const COPY_HEAD_BLOCK: f32 = 46.0;
+/// The gap under each line of the copy check's list of what to write on
+/// the sheet once the words match.
+pub const COPY_WRITE_GAP: f32 = 6.0;
 
 // The Starter's Krux code template, a sheet in PDF points (1 pt is 1/72 inch).
 

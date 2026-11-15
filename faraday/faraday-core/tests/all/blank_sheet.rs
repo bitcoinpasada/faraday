@@ -48,3 +48,10 @@ fn every_page_says_to_print_at_actual_size() {
         assert_eq!(count(&make(copy), "Print at 100%"), 2);
     }
 }
+
+#[test]
+fn the_sheet_says_it_is_bip39_and_has_a_passphrase_tick_line() {
+    let p = make(BlankCopy::Both);
+    assert_eq!(count(&p, "BIP-39 words, English."), 1);
+    assert_eq!(count(&p, "Passphrase: none [ ] kept elsewhere [ ]"), 1);
+}

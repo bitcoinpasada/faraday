@@ -777,7 +777,18 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
             &format!("{name} · {}", get(f, "shape").unwrap_or("")),
         );
         y += 16.0;
+    } else {
+        // No name and shape were given: a line to say which wallet.
+        p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_wallet_kind_path);
+        y += 16.0;
     }
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_bip39_english);
+    y += 14.0;
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_passphrase_tick);
+    y += 14.0;
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_written_on_label);
+    p.line(MARGIN + 70.0, y + 11.0, MARGIN + 220.0, y + 11.0, 0.5, 0.4);
+    y += 18.0;
     p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_written_by_hand);
     y += 26.0;
     // The fields to fill after a test restore.

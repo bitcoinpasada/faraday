@@ -2186,3 +2186,13 @@ fn a_stick_read_from_an_older_copy_reads_older_copy_on_its_node_and_never_clears
     assert!(!texts.contains("Place 1,"), "{texts}");
     assert!(!texts.contains("Every place checked"), "{texts}");
 }
+
+#[test]
+fn a_matched_copy_shows_the_fingerprint_and_first_address_to_write_on_the_sheet() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    type_back(&mut app, w);
+    assert!(shown(&mut app, "Your copy matches the seed"));
+    assert!(shown(&mut app, "Write these on the sheet"));
+    assert!(shown(&mut app, "First address"));
+}
