@@ -61,6 +61,26 @@ pub fn parse_words(
 
 pub(crate) use faraday_intake::wallet::{carried_name, network_of_kind};
 
+/// Costs a text check of a name long enough to be secret text. The name a
+/// wallet is added under: `name`, or the default name when `name` is itself
+/// secret text (seed words, an extended private key), as a file's `Name:`
+/// line or its stem can be. The file stays a secret file as the intake
+/// classifies it. A name under 26 bytes is no key or seed and is not
+/// checked (the shortest is 12 words); 16 or 32 bytes of plain text are
+/// not read as a compact seed QR, as the name of a wallet is text.
+pub(crate) fn safe_name<'a>(c: &Compute, name: &'a str) -> &'a str {
+    use crate::scan_read::Kind;
+    use crate::text_check::{TextCheck, check};
+    if name.trim().len() < 26 {
+        return name;
+    }
+    match check(c, name) {
+        TextCheck::Secret(Kind::CompactSeedQr) => name,
+        TextCheck::Secret(_) | TextCheck::Inside(_) => EN.wallet_default_name,
+        _ => name,
+    }
+}
+
 /// The most scripts a wallet keeps ([`Wallet::script_at`]); the next one
 /// empties the list.
 pub(crate) const WALLET_SCRIPTS_KEPT: usize = 256;
@@ -760,6 +780,7 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
+        let name = safe_name(c, name);
         let read = read_wallet(c, text)?;
         let policy = self.account_of(c, text, read, (name, source, origin))?;
         self.add_policy(c, name, policy, source, origin)
@@ -875,6 +896,7 @@ impl Session {
         origin: Origin,
         derived: &faraday_keys::job::Derived,
     ) -> Result<usize, Refusal> {
+        let name = safe_name(c, name);
         if let Some(w) = policy.silent()
             && crate::silent::check_record(c, &self.keys, w).0
                 == crate::silent::RecordCheck::Differs

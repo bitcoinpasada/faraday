@@ -371,3 +371,45 @@ fn spend_offers_a_wallet_file_with_a_seed_comment_and_opens_its_wallet() {
     app.press(faraday_core::Action::SpendBackup(F::UseWallet(0)));
     assert!(app.spend_backup_wallet().is_some());
 }
+
+fn named_by_words() -> Vec<(String, Vec<u8>)> {
+    let name = MULTISIG.lines().find(|l| l.starts_with("Name:")).unwrap();
+    let with = MULTISIG.replacen(name, &format!("Name: {WORDS}"), 1);
+    vec![(
+        format!("{}.txt", WORDS.replace(' ', "-")),
+        with.into_bytes(),
+    )]
+}
+
+fn only_wallet_name(app: &faraday_core::Faraday) -> String {
+    assert_eq!(app.session.wallets.len(), 1);
+    app.session.wallets[0].name.as_str().to_string()
+}
+
+#[test]
+fn a_multisig_config_named_by_seed_words_is_not_named_so_when_loaded_from_files() {
+    let mut app = crate::common::device(named_by_words());
+    app.press(faraday_core::Action::LoadWallet(0));
+    let name = only_wallet_name(&app);
+    assert!(!name.contains("abandon"), "{name}");
+}
+
+#[test]
+fn a_multisig_config_named_by_seed_words_is_not_named_so_when_restored() {
+    let mut app = crate::common::device(named_by_words());
+    app.press(faraday_core::Action::RestoreWallet);
+    app.press(faraday_core::Action::RUse(0));
+    let name = only_wallet_name(&app);
+    assert!(!name.contains("abandon"), "{name}");
+}
+
+#[test]
+fn a_multisig_config_named_by_seed_words_is_not_named_so_when_spend_opens_it() {
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
+    let mut app = crate::common::device(named_by_words());
+    app.press(faraday_core::Action::Nav(faraday_core::Screen::SpendBackup));
+    app.press(faraday_core::Action::SpendBackup(F::Next(page::MAP)));
+    app.press(faraday_core::Action::SpendBackup(F::UseWallet(0)));
+    let name = only_wallet_name(&app);
+    assert!(!name.contains("abandon"), "{name}");
+}

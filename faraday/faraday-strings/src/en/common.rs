@@ -209,6 +209,8 @@ macro_rules! words_common {
     act_carrying_on_parts: "Carrying on with the parts read before",
     /// Error in `act`. `{}`: `m.have.len()`, `m.n`.
     act_of_keys_in_hand: "{} of {} keys in hand",
+    /// Text in `wallet`: the name of a wallet whose file named it a secret.
+    wallet_default_name: "Wallet",
     /// Text in `act`.
     act_restored_wallet: "Restored wallet",
     /// Text in `act`.
