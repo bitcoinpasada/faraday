@@ -157,6 +157,24 @@ fn an_image_with_a_second_signer_is_not_read() {
 }
 
 #[test]
+fn a_changed_image_with_a_second_signer_is_changed() {
+    // Firmware refuses the changed hash before it reads the signers, so
+    // two signers do not hide a change.
+    let (image, cert) = rewritten(false, |good| {
+        let mut other = good.to_vec();
+        let last = other.len() - 1;
+        other[last] = other[last].wrapping_add(1);
+        vec![good.to_vec(), other]
+    });
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::NotRead);
+    let at = include_bytes!("vectors/tiny.efi").len().div_ceil(8) * 8;
+    let mut changed = image.clone();
+    changed[at - 1] ^= 1;
+    assert_eq!(pe::check(&changed, &cert).unwrap(), Check::Altered);
+    assert_eq!(pe::signer(&changed).unwrap(), pe::Signer::Broken);
+}
+
+#[test]
 fn a_signature_whose_content_type_attribute_is_another_type_is_unreadable() {
     let (image, cert) = rewritten_attrs(
         false,
