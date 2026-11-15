@@ -22,6 +22,7 @@ fn compute() -> faraday_crypto::work::Compute {
     faraday_crypto::work::Compute::new(|_| {})
 }
 
+const ID: &str = "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}";
 const KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";
 const SUSPEND: &str = "Temporarily suspend BitLocker";
 const RESUME: &str = "Resume BitLocker";
@@ -51,7 +52,7 @@ fn drive(protection: Protection, starts_left: Option<u32>) -> Option<BitLocker> 
 }
 
 fn key() -> RecoveryKey {
-    RecoveryKey::parse("C:", KEY).expect("a key")
+    RecoveryKey::parse("C:", ID, KEY).expect("a key")
 }
 
 /// The commands the Starter asked for since the last call.
@@ -318,6 +319,20 @@ fn a_key_that_cannot_be_read_says_why_and_prints_nothing() {
 }
 
 #[test]
+fn the_key_s_sheet_carries_the_key_protector_s_id_as_windows_shows_it() {
+    let c = compute();
+    let pdf = Notes::for_computer(&dell(Os::Windows))
+        .expect("notes")
+        .pdf_with_key(&c, &key());
+    let id = b"6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B";
+    assert!(pdf.windows(id.len()).any(|w| w == id));
+    let without = Notes::for_computer(&dell(Os::Windows))
+        .expect("notes")
+        .pdf(&c);
+    assert!(!without.windows(id.len()).any(|w| w == id));
+}
+
+#[test]
 fn the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code() {
     let c = compute();
     let pdf = Notes::for_computer(&dell(Os::Windows))
@@ -347,11 +362,13 @@ fn the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code()
 
 #[test]
 fn a_recovery_key_is_eight_groups_of_six_digits_and_debug_shows_none_of_it() {
-    assert!(RecoveryKey::parse("C:", KEY).is_some());
-    assert!(RecoveryKey::parse("C", KEY).is_none());
-    assert!(RecoveryKey::parse("C:", "205568-492019").is_none());
-    assert!(RecoveryKey::parse("C:", &KEY.replace('-', " ")).is_none());
-    assert!(RecoveryKey::parse("C:", &KEY.replacen('2', "x", 1)).is_none());
+    assert!(RecoveryKey::parse("C:", ID, KEY).is_some());
+    assert!(RecoveryKey::parse("C", ID, KEY).is_none());
+    assert!(RecoveryKey::parse("C:", ID, "205568-492019").is_none());
+    assert!(RecoveryKey::parse("C:", ID, &KEY.replace('-', " ")).is_none());
+    assert!(RecoveryKey::parse("C:", ID, &KEY.replacen('2', "x", 1)).is_none());
+    assert!(RecoveryKey::parse("C:", "6A0E1F2C-3B4D-4E5F-8A9B", KEY).is_none());
+    assert!(RecoveryKey::parse("C:", "", KEY).is_none());
     let shown = format!("{:?}", key());
     assert!(!shown.contains("205568"), "{shown}");
 }

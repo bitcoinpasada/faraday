@@ -480,7 +480,7 @@ pub fn after_exit_command(folder: &Path) -> Option<String> {
     }
     let app = format!("{f}\\{APP}");
     Some(format!(
-        "/d /q /s /c \"for /l %i in (1,1,30) do (ping -n 2 127.0.0.1 >nul 2>&1 & del /f /q \"{app}\" >nul 2>&1 & rmdir \"{f}\" >nul 2>&1 & if not exist \"{f}\" exit /b 0)\""
+        "/d /v:off /q /s /c \"for /l %i in (1,1,30) do (ping -n 2 127.0.0.1 >nul 2>&1 & del /f /q \"{app}\" >nul 2>&1 & rmdir \"{f}\" >nul 2>&1 & if not exist \"{f}\" exit /b 0)\""
     ))
 }
 

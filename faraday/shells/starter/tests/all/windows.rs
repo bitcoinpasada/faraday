@@ -55,6 +55,20 @@ fn offered(s: &Snapshot, target: Target) -> Vec<(String, Option<Refusal>)> {
 }
 
 #[test]
+fn the_after_exit_command_turns_delayed_expansion_off_and_keeps_a_path_with_a_bang_whole() {
+    let folder = Path::new(r"D:\Apps\A B\Local\Faraday Starter! 1\faraday");
+    let c = install::after_exit_command(folder).expect("a command");
+    assert!(c.starts_with("/d /v:off /q /s /c "), "{c}");
+    let app = format!("\"{}\\Faraday Starter.exe\"", folder.display());
+    assert!(c.contains(&format!("del /f /q {app}")), "{c}");
+    assert!(
+        c.contains(&format!("rmdir \"{}\"", folder.display())),
+        "{c}"
+    );
+    assert!(install::after_exit_command(Path::new(r"C:\a%b")).is_none());
+}
+
+#[test]
 fn usb_sticks_are_offered_and_the_computers_own_disks_are_not() {
     let s = laptop();
     assert_eq!(

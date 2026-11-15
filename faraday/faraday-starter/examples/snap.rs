@@ -508,6 +508,7 @@ fn bitlocker_shots(s: &Snap) -> Result<(), String> {
     // a maker with a page and one without (§3.4, F49).
     let key = RecoveryKey::parse(
         "C:",
+        "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}",
         "111111-222222-333333-444444-555555-666666-777777-888888",
     )
     .ok_or("the made-up key")?;

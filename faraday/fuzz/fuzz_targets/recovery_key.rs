@@ -11,6 +11,9 @@ fuzz_target!(|data: &[u8]| {
     let Ok(text) = std::str::from_utf8(data) else {
         return;
     };
-    let (drive, key) = text.split_once('\n').unwrap_or((text, text));
-    let _ = RecoveryKey::parse(drive, key);
+    let mut parts = text.splitn(3, '\n');
+    let drive = parts.next().unwrap_or(text);
+    let id = parts.next().unwrap_or(text);
+    let key = parts.next().unwrap_or(text);
+    let _ = RecoveryKey::parse(drive, id, key);
 });

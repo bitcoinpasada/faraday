@@ -609,6 +609,9 @@ strings! {
     starter_notes_include_key: "Include the BitLocker recovery key",
     /// The sheet's row for the recovery key: `{}` the drive (`C:`).
     starter_sheet_recovery_key: "BitLocker recovery key, drive {}",
+    /// The sheet's row for the recovery key's ID, as Windows shows it at its
+    /// recovery screen.
+    starter_sheet_recovery_key_id: "Recovery key ID",
     /// The sheet's line to circle the BIOS key that worked (F47).
     starter_sheet_bios_key_used: "BIOS key used (circle one)",
     /// The sheet's line to circle the boot menu key that worked (F47).

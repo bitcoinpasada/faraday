@@ -968,8 +968,10 @@ unticked whenever the Starter starts. Unticked, Print is as above.
 Ticked, Print first reads the key through the elevated copy (§6.2, one
 elevation prompt; "Waiting for administrator permission" meanwhile),
 then the sheet carries, after the rows, **BitLocker recovery key, drive
-C:** and the 48 digits as Windows writes them, four groups to a line.
-Nothing else of BitLocker: no key ID, no computer name, no QR code. A
+C:** and the 48 digits as Windows writes them, four groups to a line,
+and **Recovery key ID** with the key protector's ID as Windows shows it
+at its recovery screen, so a sheet matches the key that screen asks for.
+Nothing else of BitLocker: no computer name, no QR code. A
 key that cannot be read says why under Print and nothing is printed.
 The key is never drawn on the page. On an Intel Mac, the Mac's
 steps as the page has them, and no not-found line: the Startup

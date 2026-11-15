@@ -306,6 +306,10 @@ impl Notes {
                 fill(S.starter_sheet_recovery_key, &[k.drive()]),
                 Some(value),
             ));
+            rows.push((
+                S.starter_sheet_recovery_key_id.to_string(),
+                Some(k.id().to_string()),
+            ));
         }
         let steps: Vec<(String, Vec<String>)> = self
             .steps

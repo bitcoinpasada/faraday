@@ -82,12 +82,14 @@ pub struct BitLocker {
 }
 
 /// A BitLocker recovery key, eight groups of six digits, with the drive
-/// it opens (§3.4, F49): read by the elevated copy for the sheet, and
+/// it opens and the ID of its key protector, which Windows shows at its
+/// recovery screen to say which key it wants (§3.4, F49): read by the elevated copy for the sheet, and
 /// held only until the sheet is made. `Debug` prints none of the key,
 /// and it is wiped when dropped.
 #[derive(Clone, PartialEq, Eq)]
 pub struct RecoveryKey {
     drive: String,
+    id: String,
     key: zeroize::Zeroizing<String>,
 }
 
@@ -102,10 +104,25 @@ pub fn drive_ok(s: &str) -> bool {
     d.len() == 2 && d[0].is_ascii_alphabetic() && d[1] == b':'
 }
 
+/// `s` as a GUID in capitals without braces (`8-4-4-4-12` hex digits), or
+/// `None`.
+fn guid(s: &str) -> Option<String> {
+    let s = s.trim();
+    let s = s
+        .strip_prefix('{')
+        .and_then(|t| t.strip_suffix('}'))
+        .unwrap_or(s);
+    let ok = s.split('-').map(str::len).eq([8, 4, 4, 4, 12])
+        && s.bytes().all(|b| b == b'-' || b.is_ascii_hexdigit());
+    ok.then(|| s.to_ascii_uppercase())
+}
+
 impl RecoveryKey {
     /// The key in `key` (groups separated by `-`, as Windows writes it)
-    /// for `drive` (`C:`), or `None` for anything else.
-    pub fn parse(drive: &str, key: &str) -> Option<RecoveryKey> {
+    /// for `drive` (`C:`) with its protector's ID `id` (a GUID, with or
+    /// without braces), or `None` for anything else.
+    pub fn parse(drive: &str, id: &str, key: &str) -> Option<RecoveryKey> {
+        let id = guid(id)?;
         let key = key.trim();
         let key_ok = key.len() == KEY_GROUPS * KEY_DIGITS + KEY_GROUPS - 1
             && key.split('-').count() == KEY_GROUPS
@@ -119,6 +136,7 @@ impl RecoveryKey {
         k.push_str(key);
         Some(RecoveryKey {
             drive: drive.to_ascii_uppercase(),
+            id,
             key: k,
         })
     }
@@ -126,6 +144,12 @@ impl RecoveryKey {
     /// The drive (`C:`).
     pub fn drive(&self) -> &str {
         &self.drive
+    }
+
+    /// The key protector's ID as Windows shows it: a GUID in capitals,
+    /// without braces.
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     /// The key as Windows writes it.

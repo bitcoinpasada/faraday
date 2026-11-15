@@ -32,7 +32,7 @@ fn recorded(name: &str) -> Recorded {
 }
 
 fn key() -> RecoveryKey {
-    RecoveryKey::parse("C:", KEY).expect("a key")
+    RecoveryKey::parse("C:", ID, KEY).expect("a key")
 }
 
 #[test]
@@ -219,9 +219,10 @@ fn the_pipe_message_carrying_the_key_round_trips_and_is_wiped() {
     assert!(bitlocker::next(&mut r, &mut buf).is_none());
     // A key line that is not a key is refused.
     for bad in [
-        String::from("key\tC:\t205568-492019\n"),
-        format!("key\tC\t{KEY}\n"),
-        format!("key\tC:\t{ID}\t{KEY}\n"),
+        format!("key\tC:\t{ID}\t205568-492019\n"),
+        format!("key\tC\t{ID}\t{KEY}\n"),
+        format!("key\tC:\t{KEY}\n"),
+        format!("key\tC:\tnot-an-id\t{KEY}\n"),
         String::from("key\n"),
     ] {
         let mut r = Cursor::new(bad.into_bytes());

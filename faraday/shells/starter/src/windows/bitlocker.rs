@@ -371,7 +371,7 @@ pub fn read_key(wmi: &mut dyn Wmi, drive: &str) -> Result<RecoveryKey, Reason> {
         return Err(refused(call, o.ret));
     }
     o.text("NumericalPassword")
-        .and_then(|k| RecoveryKey::parse(&v.letter, k))
+        .and_then(|k| RecoveryKey::parse(&v.letter, &id, k))
         .ok_or_else(|| refused(call, 0))
 }
 
@@ -819,6 +819,8 @@ impl Answer {
                 out.extend_from_slice(b"key\t");
                 out.extend_from_slice(k.drive().as_bytes());
                 out.push(b'\t');
+                out.extend_from_slice(k.id().as_bytes());
+                out.push(b'\t');
                 out.extend_from_slice(k.as_str().as_bytes());
             }
             Answer::Done(Ok(())) => out.extend_from_slice(b"ok"),
@@ -854,7 +856,9 @@ impl Answer {
                 protection(t[1])?,
                 Some(t[2].parse().map_err(|_| String::from("not a count"))?),
             ),
-            ("key", 3) => Answer::Key(RecoveryKey::parse(t[1], t[2]).ok_or("not a key line")?),
+            ("key", 4) => {
+                Answer::Key(RecoveryKey::parse(t[1], t[2], t[3]).ok_or("not a key line")?)
+            }
             ("ok", 1) => Answer::Done(Ok(())),
             ("failed", n) if n >= 2 => {
                 let fields = t[2..]
