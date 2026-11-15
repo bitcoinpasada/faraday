@@ -30,9 +30,9 @@ need. Each document's header says what kind it is:
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
-| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count are in it (§3, §11) |
+| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the passphrase in NFC and the seal count are in it (§3, §11) |
 | What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F264) |
-| What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry; the earlier writer, `docs/history/KDBX-LOG.md` |
+| What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry |
 | How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
@@ -80,7 +80,7 @@ need. Each document's header says what kind it is:
 | How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
-| What did an earlier plan or batch say, or how was something built? | `docs/history/`: `<NAME>-LOG.md` beside each document's name, and the retired decisions in `docs/history/decisions/` |
+| What did an earlier plan say? | `docs/history/decisions/` for the retired decisions; deleted documents, build logs included, are at the git tag `history/docs-2026-11` |
 
 ## Every document
 
@@ -174,9 +174,9 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
-| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count are in it (§3, §11) |
+| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the passphrase in NFC and the seal count are in it (§3, §11) |
 | What is the proposed small encrypted QR format (25 × 25, 29 × 29 or 33 × 33), offered for outside review? | the AQRV specification, in its own repository: `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` (F249) |
-| What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry; the earlier writer, `docs/history/KDBX-LOG.md` |
+| What is in the KeePass (KDBX 4) file Faraday writes? | `docs/VAULT.md` §8: an export is a vault of one entry |
 | How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
@@ -219,7 +219,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
-| What did an earlier plan or batch say, or how was something built? | `docs/history/`: `<NAME>-LOG.md` beside each document's name, and the retired decisions in `docs/history/decisions/` |
+| What did an earlier plan say? | `docs/history/decisions/` for the retired decisions; deleted documents, build logs included, are at the git tag `history/docs-2026-11` |
 
 ## Every document
 
@@ -234,7 +234,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F81).
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
-- `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); how it was built is in `docs/history/ESTABLISHED-LOG.md`; §6 is the work kept for later.
+- `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); §6 is the work kept for later.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey, and move a key to a vault on another machine by camera. Built (F169, F215).
 - `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website's guide page saying the guide is in the app. Built (F247): the pages by place and step, the keys and their lookup, the sheet and pane, the Guide button and the Starter's guide destination.
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
@@ -289,6 +289,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History:** `docs/history/` holds each finished Spec's log and every retired decision; list the folder.
+**History:** `docs/history/` holds every retired decision; list the folder.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.

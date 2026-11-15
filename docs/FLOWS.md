@@ -1400,7 +1400,7 @@ the small Home's tiles; `Action::Resume`.
 7. **Speed.** Which flows are in progress is worked out once a frame
    through the drawing memo (`docs/SPEED.md` §3.3) when it costs more
    than lookups; a press decides from the state as it is.
-8. Tests: moved to `docs/history/FLOWS-LOG.md`.
+8. Tests.
 
 Considered and not chosen: a "back to the flow" line at the top of
 every page (it remembers one flow only, and is a line on every working
@@ -1521,7 +1521,7 @@ down (Dell's: "Shut down can skip the key").
 6. **Strings** (`faraday/faraday-strings/src/en.rs`): "Restart",
    "Power", "The computer powers off, or restarts", "Usual BIOS key", and one
    per key in item 4.
-7. Tests: moved to `docs/history/FLOWS-LOG.md`.
+7. Tests.
 
 Ruled out (owner, 2026-10-16): **Restart into the BIOS**, the computer
 restarting straight into its firmware screen by the UEFI variable
@@ -1551,7 +1551,7 @@ sidebar row (a press on the row only returns to the flow).
    plan, its board.
 4. Create's **Start over** stays: it begins the same flow again; Cancel
    leaves it.
-5. Tests: moved to `docs/history/FLOWS-LOG.md`.
+5. Tests.
 6. **A key flow opened from Make a new wallet has Cancel too** (owner,
    2026-10-24; F115): New key or Make codex32 shares opened for a slot
    (`Action::KeyGen(Some(slot))`), until its key is locked in. It has no

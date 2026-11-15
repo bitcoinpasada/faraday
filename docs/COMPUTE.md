@@ -225,8 +225,6 @@ and mixed gives the same text and checksum, equal to the `h` form's
 Wallets made here write `h`. A wallet imported with `'` exports `h`
 and shows the checksum of the `h` form.
 
-The tests whose expectations changed: moved to `docs/history/COMPUTE-LOG.md`.
-
 ## 7. `faraday/clippy.toml`
 
 Third-party paths only. `disallowed-methods`: `Compute::new` (allowed
@@ -292,8 +290,6 @@ one meant; the codes are written for the reader.
 
 ## 12. Risks
 
-Item 1: moved to `docs/history/COMPUTE-LOG.md`.
-
 2. BSMS verification (§5.3), gated by the BIP-129 vectors.
 3. Checksums of `'`-written wallets change (§5.4);
    formats needing `'` convert at their writer.
@@ -301,8 +297,6 @@ Item 1: moved to `docs/history/COMPUTE-LOG.md`.
    `tools/lint-keys-tests.sh` keeps it out.
 5. Residual: a new whole-file hash written with `bitcoin::hashes` in a
    screen is not caught (the guard did not catch it either).
-
-Items 6 to 8: moved to `docs/history/COMPUTE-LOG.md`.
 
 ## 15. Named costs, measured (F238)
 

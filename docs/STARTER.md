@@ -33,8 +33,6 @@ Rules still in force:
   guides on the website, §7.4) is a QR code a phone opens.
 - No writer is run against a disk not given for the purpose.
 
-The agent's working rules: moved to `docs/history/STARTER-LOG.md`.
-
 ## 1. What ships
 
 ### 1.1 Release files
@@ -1692,8 +1690,6 @@ prompt on an administrator's and a standard account, the shell property
 and WMI on Windows Home with Device encryption, a managed computer's
 refusal code, how Windows counts the starts, and whether
 the viewer holds the key sheet open when the Starter exits.
-
-F33's and F49's work lists and their tests: moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.7 The guides' new text
 

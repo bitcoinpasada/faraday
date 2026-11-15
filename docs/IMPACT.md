@@ -202,8 +202,7 @@ waiver are checked together. A waiver is the answer for one change,
 never a standing exception: a rule waived again and again is a rule to
 change in the registry.
 
-The `Material:` and `Reviewed:` trailers are gone (F258); the full text is
-in `docs/history/IMPACT-LOG.md`.
+The `Material:` and `Reviewed:` trailers are gone (F258).
 
 ## 4. At landing
 

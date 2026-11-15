@@ -11,8 +11,6 @@ enforcement (§7.2) and the shape of the areas (§7.3).
 
 ## 3. Phase 0b: the hard fork (F72)
 
-Built (F72). The order within the phase: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ### 3.2 What the rename must not touch
 
 The rename edited crate names, paths and Rust identifiers (`osk_bip::`)
@@ -25,8 +23,6 @@ outlines' magic is `FDOL`; the labels and tags are `faraday-sealed-v1`,
 and `faraday-kdbx-uuid`; the silent payments record's header is
 `faraday-silent`.
 
-What the rename was expected to change, and its check: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ## 4. Phases 1 and 2: maps and the docs layout
 
 `tools/lint-docs.py`, in `just lint`, checks the status header on every
@@ -37,13 +33,9 @@ file, with the shared helpers in `common`.
 
 faraday-intake has its own vector tests (phase 6).
 
-What phases 1 and 2 did: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ## 5. The key boundary (F70)
 
 Built; the boundary is `docs/KEYS.md` (F70).
-
-The plan as written: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ## 6. Dependency policy (F71)
 
@@ -102,11 +94,7 @@ vendored copy as first-party already, but `cargo vet` online (as
 published version. `sha1` and every crate `faraday-pgp` uses are
 trusted by publisher.
 
-The measurements that led to F71: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ## 7. Phases 3, 4, 6 and 7
-
-Phase 3 (built: the unused functions deleted, the token backlog held by `tools/lint-tokens.counts`): moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 Built in phase 6:
 - **The strings** (A11): `en.rs` is one
@@ -125,8 +113,6 @@ folder**. The folder's `mod.rs` holds the area's state and logic, its
 holds the frame and the screens that belong to no area folder. The code
 map in `lib.rs` has a table from every `Screen` variant to its file.
 
-The moves from the old layout: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 **Crates split out of faraday-core by function.** The backup plan's logic is
 `faraday-plan`, the Bitcoin Core wallet reader `faraday-core-wallet`, the PDF
 writer, printed sheets, EDID rules and build ID `faraday-paper`, and Faraday
@@ -144,8 +130,6 @@ The code map and the layout lint cover faraday-core's own modules only.
   uses faraday-paper for the PDF writer, version comparison and EDID, and
   faraday-core for the mark, the blank backup sheet, `Action`, `Screen`, `Host`, `motion` and
   `codex32_backup`.
-
-The steps: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ### 7.2 Enforcement: the structure stays (F74)
 
@@ -235,9 +219,6 @@ this pass came from, is on the board.
 - Two areas keep their types in an `area.rs` beside `mod.rs`
   (`faraday/faraday-core/src/vault/area.rs`,
   `faraday/faraday-core/src/backup_flow/area.rs`).
-- The transitional mutable accessors some areas still hand out: moved to
-  `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ## 10. Checklist for a change
 
 Read by whoever makes or reviews a change in this area; no script holds these.

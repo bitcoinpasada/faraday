@@ -433,7 +433,6 @@ its PNG goes as parts.
 Built (F75 for a seed's paste). Items 1 and 4 to 8 are
 the core's; items 2, 3 and 9 are the camera shells'. DESIGN §4.9
 Scanner is the design they meet. The scanner has no torch.
-The comparison that led here: moved to `docs/history/QR-LOG.md`.
 
 1. **A part of another UR message starts that message again.** The UR
    decoder answers a part of another message (another type, another part

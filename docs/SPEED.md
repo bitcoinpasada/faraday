@@ -344,8 +344,6 @@ build machine, release profile, at 1366×768 scale 1 and 2560×1600 scale
 - one scroll frame on the same checklist;
 - the event handling of a pointer move over it.
 
-The plan of measuring before and after each change: moved to `docs/history/SPEED-LOG.md`.
-
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 
 After a change that adds or changes what a screen works out while it
@@ -387,8 +385,6 @@ session's kept lists.
 Every path a person waits on is held by counts in `just`, no wall
 time: frames, every press, screens as the Inbox and the wallets grow,
 pages at rest, and the key moments (§8.3), in the kinds of §8.2.
-
-The speed audit and what it fixed: moved to `docs/history/SPEED-LOG.md`.
 
 ### 8.2 New counted kinds
 
@@ -587,8 +583,6 @@ Nothing a person waits on blocks a frame. What holds:
 
 ## 10. What the Inbox gives is kept with the Inbox (2026-10-21)
 
-What §9 left: moved to `docs/history/SPEED-LOG.md`.
-
 `Faraday::inbox` is now `InboxFiles`, which reads as the files
 (`Vec<Item>`) and keeps that result (`Found`) beside them. It is worked
 out again only when an input changed, and a frame compares the session's
@@ -615,16 +609,12 @@ that asking again works nothing out; the scaling test (§8.3) also counts
 the times a frame worked the Inbox's result out (`InboxFiles::rebuilds`):
 none, with 1x and 5x the files.
 
-The measurements: moved to `docs/history/SPEED-LOG.md`.
-
 ## 11. The stick's panel and the Starter (2026-10-21)
 
 The counts of §8 covered faraday-core. They are taken to the two places they did not reach: the stick shell's path from the core's
 frame to the framebuffer, and the Starter.
 
 ### 11.1 The stick shell writes only what changed
-
-What was found: moved to `docs/history/SPEED-LOG.md`.
 
 **Fixed.** `present.rs`'s `Presenter` keeps the core's last frame beside
 its converted copy and compares first (`fb::changed_rows`, a `memcmp` a
@@ -654,8 +644,6 @@ that differ. Its cost at 3200 x 1800 is timed by the ignored
 and, with every row changed, `convert_step_cost_at_3200_by_1800_with_every_row_changed`.
 A frame turned a quarter or a half, or given the core's bands, is as it was.
 
-The measurements: moved to `docs/history/SPEED-LOG.md`.
-
 **Tested.** `Panel` writes to a `Sink` (the framebuffer `File`, or a
 `Vec<u8>` in a test) and counts the rows it writes; the `Presenter`
 counts the rows it converts. `present::tests::the_panel_is_written_only_where_the_frame_changed`
@@ -666,8 +654,6 @@ converted and 640 written each, and the panel then holds the frame; a
 blanked panel takes the next frame whole without converting it again.
 
 ### 11.2 The Starter
-
-What was found: moved to `docs/history/SPEED-LOG.md`.
 
 Nothing else on a frame costs more than a lookup: drawing takes
 `&Starter`, the phone's QR codes are made when the computer is reported

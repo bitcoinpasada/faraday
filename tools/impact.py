@@ -1023,7 +1023,7 @@ def self_test():
     ok(m(["**/*.rs", "!**/tests/**"], "a/src/b.rs") == {}, "exclusion keeps")
     ok(m(["**/*.rs", "!**/tests/**"], "a/tests/b.rs") is None, "exclusion drops")
     ok(m(["!docs/**"], "docs/a.md") is None, "only exclusions match nothing")
-    ok(fill("docs/history/{n}-LOG.md", {"n": "SPEC"}) == "docs/history/SPEC-LOG.md", "fill")
+    ok(fill("docs/history/{n}.md", {"n": "SPEC"}) == "docs/history/SPEC.md", "fill")
     ok(fill("a/{z}", {}) == "a/{z}", "unfilled stays")
     ok(m(["a.b"], "aXb") is None, "dot is literal")
 

@@ -699,12 +699,12 @@ and `480x640`. It touches the device app.
 4. NIP-49 export is part of the Nostr key's build.
 5. Find a pair; its rows stay text.
 6. Specified now, built when the owner says.
-7. Superseded: moved to `docs/history/NOSTR-LOG.md`.
+7. Superseded.
 8. No QR or picture of the plain nsec anywhere (§4.4, §5.1, §6.6); the
    ncryptsec's QR moves the key to a phone under a password.
 9. QR codes wherever they help: Show as QR and PNG for the npub and the
    ncryptsec, in the tool and on a saved entry's page (§4.4, §5.1, §6.1).
-10. Superseded: moved to `docs/history/NOSTR-LOG.md`.
+10. Superseded.
 11. A new ncryptsec's password is at least 12 characters.
 
 After the review of v0.1, the same day:

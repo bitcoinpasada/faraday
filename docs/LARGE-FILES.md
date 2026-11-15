@@ -27,8 +27,6 @@ what a file is and hashes what it signs. The disk process still treats
 the app as hostile: no request lets the app rename or remove a file
 other than the one write it has open (§8).
 
-The rest: moved to `docs/history/LARGE-FILES-LOG.md`.
-
 ## 1. What is decided
 
 - No ceiling on reading: FAT32's largest file, 4 GiB less one byte, is

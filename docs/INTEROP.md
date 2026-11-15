@@ -101,8 +101,7 @@ only words its refusals.
 
 In the order they would matter to a person bringing files from those
 wallets. Items 1 to 4, 6 and 7 are built (§2, §5), and of item
-8 Specter DIY's `addwallet` and BIP-392 `sp()` (§5); what this
-list said of them: moved to `docs/history/INTEROP-LOG.md`.
+8 Specter DIY's `addwallet` and BIP-392 `sp()` (§5).
 
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
    load (§5, Electrum seed words).
@@ -239,7 +238,7 @@ stick. A `sortedmulti_a` pair reads back as its wallet, as every other
 pair does: `miniscript` has no `sortedmulti_a`, so each line is first read
 as its `multi_a` twin, its checksum checked over the line as written
 (`faraday_bip::descriptor::reads_as_descriptor`). `core-check.py` against Core
-28.x is not done. The build's notes: moved to `docs/history/INTEROP-LOG.md`.
+28.x is not done.
 
 ### Caravan and Unchained configs
 
@@ -294,8 +293,7 @@ is the same wallet; the bare-zpub PSBT is refused. Optional, not in
 Built in `faraday-intake/src/electrum.rs`. Accepted keystore types are
 `bip32` and `hardware`; `wallet_type` `standard` or `NofM`; anything else
 is refused by name. The whole-file encryption recognised is the base64 of
-Electrum's `BIE1` envelope. Not done: `electrum-check.py`. The build's
-notes: moved to `docs/history/INTEROP-LOG.md`.
+Electrum's `BIE1` envelope. Not done: `electrum-check.py`.
 
 ### Electrum seed words
 
@@ -456,9 +454,7 @@ and `to_v0` were held against HWI and Core already.
 
 ### Sweeping a private key (F171)
 
-Built as F171 has it: a WIF is swept and never kept. The plan of
-2026-10-20 (the key loaded as a key and a wallet, kept in a vault):
-moved to `docs/history/INTEROP-LOG.md`.
+Built as F171 has it: a WIF is swept and never kept.
 
 - **Reading.** `faraday_bip::wif::SingleKey::decode` reads a WIF as
   Bitcoin Core's `DecodeSecret` does: base58check, a version of `0x80`

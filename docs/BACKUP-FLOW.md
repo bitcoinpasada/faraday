@@ -37,8 +37,6 @@ Rules still in force:
 - Every string has the prefix `backup_flow_` (§12), in
   `faraday/faraday-strings/src/en.rs`.
 
-The agent's working rules: moved to `docs/history/BACKUP-FLOW-LOG.md`.
-
 ## 1. What is decided
 
 (owner, 2026-10-14; F31.)
@@ -439,7 +437,7 @@ inserted before step 2.
   offered. An existing vault is brought in only before the keys (§10.2,
   §17.21 item 5; owner, 2026-10-20). The extra round
   **Add {vault}** that was specified here, and its offer for a key kept
-  only on paper, are not built: moved to `docs/history/BACKUP-FLOW-LOG.md`.
+  only on paper, are not built.
 
 **Removing a place:**
 
@@ -1000,7 +998,7 @@ In this order, as step cards on `wide` and a page each on `small`
 (NEW-WALLET §14):
 
 1. *(Replaced by §17.21 item 1: no Start from; the presets only build
-   plans.)* **Start from**: moved to `docs/history/BACKUP-FLOW-LOG.md`.
+   plans.)* **Start from**: removed.
 2. *(Replaced by §17: the board.)* **Places**: removed.
 3. *(Replaced by §17: the board.)* **Place 1**, **Place 2** …: removed. The place's line of fact is `plan::alone`, as §17.1 draws it.
 4. *(Replaced by §17.19: shares are added by one button and Faraday
