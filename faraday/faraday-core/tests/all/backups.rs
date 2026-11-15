@@ -520,3 +520,61 @@ fn a_copy_checked_shows_on_the_backups_screen_after_it_was_scrolled() {
         "{texts:?}"
     );
 }
+
+/// A wallet of a key loaded from SLIP-39 shares or a master seed (no
+/// words), planned Paper and vault, with the vault open.
+fn shares_wallet() -> Faraday {
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut app = shown(Vec::new(), Vec::new(), Vec::new());
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    let fp = app.session.keys.add_seed(&c, &[7u8; 32], "").unwrap();
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let pos = app.session.keys.position(fp).unwrap();
+    let x = app.session.keys.xpub_at(&c, pos, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let d = format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)");
+    app.session
+        .add_wallet(
+            &c,
+            "Test",
+            &d,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+    open_a_vault(&mut app);
+    app.press(Action::Backup(0));
+    preset_saved(&mut app, 2);
+    app
+}
+
+/// A key kept as shares is not saved in the vault until its record is: the
+/// Backups screen says "Not saved yet" first, then the vault's state.
+#[test]
+fn the_vault_line_of_a_key_kept_as_shares_follows_the_key_in_the_vault() {
+    let mut app = shares_wallet();
+    app.press(Action::BChecklist);
+    let before = line(&lines(&mut app), "Vault").clone();
+    assert_eq!(before.state, "Not saved yet", "{before:?}");
+    app.press(Action::BVaultSave(0));
+    let kept: usize = app
+        .vaults()
+        .open
+        .iter()
+        .map(|o| {
+            use crate::common::RecordsOf as _;
+            app.vaults()
+                .store()
+                .contents_for_tests(o.id)
+                .of(faraday_vault::records::kind::KEY)
+                .count()
+        })
+        .sum();
+    assert_eq!(kept, 1, "the vault did not take the key");
+    let held = line(&lines(&mut app), "Vault").clone();
+    assert_eq!(held.tone, Tone::Warn, "{held:?}");
+    assert!(held.state.ends_with("for the stick"), "{held:?}");
+}

@@ -238,11 +238,25 @@ impl Shape {
             .collect()
     }
 
-    /// How many vaults the plan has a section for: one per seed loaded
-    /// here, and one for the description alone when none is; never fewer
-    /// than the vaults set up before the keys.
+    /// The seeds a vault can hold: those loaded here from words or a
+    /// codex32 set, and those kept as shares ([`Seed::shares`]), which a
+    /// vault alone holds, as it does any wordless key.
+    pub fn vaultable(&self) -> Vec<usize> {
+        (0..self.seeds.len())
+            .filter(|&i| self.seeds[i].here || self.seeds[i].shares)
+            .collect()
+    }
+
+    /// No seed of it can go into a vault.
+    pub fn nothing_to_vault(&self) -> bool {
+        self.vaultable().is_empty()
+    }
+
+    /// How many vaults the plan has a section for: one per seed a vault
+    /// can hold, and one for the description alone when none is; never
+    /// fewer than the vaults set up before the keys.
     pub fn vault_rows(&self) -> usize {
-        self.here().len().max(1).max(self.vaults)
+        self.vaultable().len().max(1).max(self.vaults)
     }
 }
 
@@ -339,10 +353,12 @@ impl Answers {
             places,
             split: false,
             vaults: shape
-                .here()
+                .vaultable()
                 .into_iter()
                 .map(|i| (0..shape.seeds.len()).map(|j| j == i).collect())
-                .chain((shape.here().len()..shape.vaults).map(|_| vec![false; shape.seeds.len()]))
+                .chain(
+                    (shape.vaultable().len()..shape.vaults).map(|_| vec![false; shape.seeds.len()]),
+                )
                 .collect(),
             sticks: vec![vec![false; places]; shape.vault_rows()],
             wallet: [true, false, false, false],
@@ -482,7 +498,7 @@ impl Answers {
         // The words on paper and no SeedQR, The standard way too: a SeedQR
         // is added on the board (`docs/BACKUP-FLOW.md` §17.21 item 12).
         if !matches!(preset, Preset::Paper | Preset::Standard) {
-            a.seeds[seeds::VAULT] = !shape.watch_only();
+            a.seeds[seeds::VAULT] = !shape.nothing_to_vault();
             a.wallet[wallet::VAULT] = true;
             a.place_new_sticks(shape, &[]);
         }
@@ -515,7 +531,7 @@ impl Answers {
     /// that what is kept by vault number follows.
     pub fn refit(&mut self, shape: &Shape) -> Vec<usize> {
         let n = shape.seeds.len();
-        let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
+        let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here || s.shares);
         let mut kept_rows: Vec<usize> = (0..self.vaults.len()).collect();
         if self.map.is_none() {
             // A vault set up before the keys stays, whatever it holds.
@@ -552,7 +568,7 @@ impl Answers {
             kept_rows = keep;
             kept_rows.resize(rows, usize::MAX);
         }
-        if shape.watch_only() {
+        if shape.nothing_to_vault() {
             self.seeds[seeds::VAULT] = false;
         }
         let old = std::mem::take(&mut self.pass);
@@ -797,14 +813,16 @@ impl Answers {
                 })
                 .collect();
         }
-        if !self.seeds[seeds::VAULT] || shape.watch_only() {
+        if !self.seeds[seeds::VAULT] || shape.nothing_to_vault() {
             return Vec::new();
         }
         let Some(row) = self.vaults.get(v) else {
             return Vec::new();
         };
         (0..shape.seeds.len())
-            .filter(|&i| shape.seeds[i].here && row.get(i) == Some(&true))
+            .filter(|&i| {
+                (shape.seeds[i].here || shape.seeds[i].shares) && row.get(i) == Some(&true)
+            })
             .collect()
     }
 
@@ -1066,7 +1084,7 @@ impl Answers {
             Question::Split => self.split = row == 1,
             Question::Places => self.set_places(shape, row),
             Question::Vault(v) => {
-                let here = shape.seeds.get(row).is_some_and(|s| s.here);
+                let here = shape.seeds.get(row).is_some_and(|s| s.here || s.shares);
                 if let Some(s) = self.vaults.get_mut(v).and_then(|r| r.get_mut(row))
                     && here
                 {
@@ -2530,9 +2548,14 @@ pub fn lost_why_on(
             _ => None,
         }
     };
-    for i in shape.here() {
+    for i in shape.vaultable() {
         let seed = &shape.seeds[i].name;
         let kept = seed_spots(boxes, i, &m.needs);
+        // A seed kept as shares that no vault of the plan holds is the
+        // plan's board line, not a seed kept nowhere.
+        if kept.is_empty() && shape.seeds[i].shares {
+            continue;
+        }
         if kept.is_empty() {
             return Some(Text::fill(EN.plan_seed_is_kept_nowhere, &[seed]));
         }

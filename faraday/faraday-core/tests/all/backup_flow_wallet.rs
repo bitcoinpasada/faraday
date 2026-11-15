@@ -2045,6 +2045,139 @@ fn lone_passphrase_round(
     (app, v, fp)
 }
 
+/// A key loaded from SLIP-39 shares or a master seed has no words: a vault
+/// added to a wallet's backup after the keys were made takes it from the
+/// key held here, the screen does not say it is kept only on paper, and
+/// the added vault is made and holds it.
+#[test]
+fn a_vault_added_for_a_key_kept_as_shares_is_made_and_holds_it() {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_core::glance::Press;
+    let c = testkit::compute();
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready_with(&mut shell, false);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let (v, fp) = {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        let v = (0..wf.answers.vault_count(&wf.shape))
+            .find(|&v| !wf.answers.vault_seeds(&wf.shape, v).contains(&0))
+            .expect("a vault without Key 1");
+        let name = &wf.shape.seeds[0].name;
+        let fp: Vec<u8> = (0..4)
+            .map(|k| u8::from_str_radix(&name[2 * k..2 * k + 2], 16).unwrap())
+            .collect();
+        (v, <[u8; 4]>::try_from(fp).unwrap())
+    };
+    app.press(Action::Nav(Screen::Vaults));
+    let files = app.vault_files().len();
+    for n in 0..files {
+        for phrase in [PHRASE, PHRASE_2, PHRASE_3] {
+            if app.vault_files().get(n).is_none_or(|f| f.open.is_some()) {
+                break;
+            }
+            app.press(Action::Vault(faraday_core::vault::VaultAction::Open(n)));
+            faraday_core::testkit::vault_speed(&mut app, Some(180));
+            unlock(&mut app, phrase);
+        }
+    }
+    assert_eq!(app.vaults().open.len(), 3, "{:?}", unlock_error(&app));
+    let name = app.flow().unwrap().wallet.as_ref().unwrap().name.clone();
+    for o in 0..app.vaults().open.len() {
+        app.press(Action::Vault(faraday_core::vault::VaultAction::LoadAll(o)));
+    }
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.name.as_str() == name.as_str())
+        .expect("the wallet, from its vaults");
+    // Key 1 is here as a master seed, with no words.
+    let m = Mnemonic::parse(
+        &c,
+        Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    app.session.keys.retain(|k| k.fingerprint.0 != fp);
+    let seed = m.to_seed(&c, b"").unwrap();
+    app.session
+        .keys
+        .add_seed(&c, &seed.expose()[..], "")
+        .unwrap();
+    assert!(
+        !app.session
+            .keys
+            .all()
+            .any(|k| k.fingerprint.0 == fp && k.has_words())
+    );
+    app.press(Action::Backup(w));
+    crate::chart_edit::change_in_plan(&mut app, Press::Loaded(w), Some((At::Vault(v), None)));
+    let zone = crate::common::vault_zone(&app, v);
+    crate::common::put(&mut app, Thing::Seed(0), zone);
+    assert!(
+        app.flow().unwrap().adding,
+        "a key put into a vault is a round"
+    );
+    shell.flow(&mut app, F::Continue);
+    for phrase in [PHRASE, PHRASE_2, PHRASE_3] {
+        if step(&app) == Step::Make {
+            break;
+        }
+        unlock(&mut app, phrase);
+    }
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        !shown.iter().any(|t| t.contains("kept only on paper")),
+        "{shown:?}"
+    );
+    let keys = |app: &Faraday| -> usize {
+        app.vaults()
+            .open
+            .iter()
+            .map(|o| {
+                app.vaults()
+                    .store()
+                    .contents_for_tests(o.id)
+                    .of(kind::KEY)
+                    .count()
+            })
+            .sum()
+    };
+    // No open vault holds any key's record now (the keys were loaded and
+    // their records deleted from the vaults), so the added vault takes
+    // each key as it is loaded here.
+    for o in 0..app.vaults().open.len() {
+        faraday_core::testkit::vault_current(&mut app, o);
+        app.press(Action::Nav(Screen::VaultContents));
+        for _ in 0..8 {
+            let id = app.vaults().open[o].id;
+            if app
+                .vaults()
+                .store()
+                .contents_for_tests(id)
+                .of(kind::KEY)
+                .count()
+                == 0
+            {
+                break;
+            }
+            app.press(Action::Vault(faraday_core::vault::VaultAction::Category(0)));
+            app.press(Action::Vault(faraday_core::vault::VaultAction::Item(0)));
+            app.press(Action::Vault(faraday_core::vault::VaultAction::HoldDelete));
+        }
+    }
+    app.press(Action::Nav(Screen::BackupFlow));
+    assert_eq!(keys(&app), 0, "the vaults' key records are deleted");
+    let takes = {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        wf.answers.vault_seeds(&wf.shape, v).len()
+    };
+    shell.flow(&mut app, F::CopyKey);
+    assert_eq!(keys(&app), takes, "{:?}", app.toast_text());
+}
+
 /// The passphrase records vault `v` of the flow holds: each one's key
 /// fingerprint and passphrase.
 fn passphrase_records(app: &Faraday, v: usize) -> Vec<(Vec<u8>, Vec<u8>)> {

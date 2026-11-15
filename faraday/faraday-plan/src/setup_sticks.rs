@@ -14,7 +14,7 @@ impl Answers {
     /// vault holds a copy, or whose place another stick has, to a place
     /// added after the others; vaults on one stick stay on it.
     pub fn place_setup_sticks(&mut self, c: &Compute, shape: &Shape, sticks: &[Vec<usize>]) {
-        let here = shape.here();
+        let here = shape.vaultable();
         let key_of = |v: usize| here.get(v.min(here.len().saturating_sub(1))).copied();
         let rows = self.vaults.len().max(shape.vault_rows());
         self.vaults = (0..rows)
@@ -27,7 +27,7 @@ impl Answers {
             })
             .collect();
         self.sticks = vec![vec![false; self.places]; rows];
-        self.seeds[super::seeds::VAULT] = !shape.watch_only();
+        self.seeds[super::seeds::VAULT] = !shape.nothing_to_vault();
         self.wallet[super::wallet::VAULT] = true;
         // The place each stick goes to, and the places added.
         let mut taken: Vec<usize> = Vec::new();

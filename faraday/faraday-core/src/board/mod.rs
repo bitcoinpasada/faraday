@@ -496,8 +496,11 @@ pub fn target(z: Zone, t: Thing) -> Zone {
 /// change as §17.8 allows (§19.12 item 8). Costs a lookup.
 pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
+    // A key kept as shares has no words to write: only a vault takes it.
+    let shares = |i: usize| shape.seeds.get(i).is_some_and(|s| s.shares);
     let thing_ok = match t {
-        Thing::Seed(i) | Thing::String(i, _) | Thing::Kef(i) => here(i),
+        Thing::Seed(i) => here(i) || (shares(i) && matches!(z, Zone::Vault(..))),
+        Thing::String(i, _) | Thing::Kef(i) => here(i),
         Thing::Pass(i) => shape.seeds.get(i).is_some_and(|s| s.here && s.passphrase),
         Thing::Share(j) => shape.splits && j < shape.keys,
         Thing::Whole | Thing::Vault(_) | Thing::Software => true,
@@ -1393,7 +1396,7 @@ impl Faraday {
         };
         let seeds = (0..shape.seeds.len())
             .map(|i| {
-                if shape.seeds[i].here {
+                if shape.seeds[i].here || shape.seeds[i].shares {
                     entry(Thing::Seed(i))
                 } else {
                     Entry {
@@ -1756,9 +1759,8 @@ impl Faraday {
             return false;
         }
         match c.thing() {
-            Thing::Seed(i) | Thing::String(i, _) | Thing::Kef(i) => {
-                shape.seeds.get(i).is_some_and(|s| s.here)
-            }
+            Thing::Seed(i) => shape.seeds.get(i).is_some_and(|s| s.here || s.shares),
+            Thing::String(i, _) | Thing::Kef(i) => shape.seeds.get(i).is_some_and(|s| s.here),
             _ => true,
         }
     }

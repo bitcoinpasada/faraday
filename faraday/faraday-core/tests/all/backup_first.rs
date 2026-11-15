@@ -646,3 +646,69 @@ fn power_off_holds_for_a_key_kept_nowhere() {
     let _ = app.frame();
     assert!(app.offers(Action::HoldPowerOff) && !app.offers(Action::PowerOff));
 }
+
+/// A key loaded from SLIP-39 shares or a master seed has no words to
+/// write: a "Paper and vault" plan puts it in the vault alone, the plan
+/// counts it there, the vault saves it, and a later device restores the
+/// same key from that vault.
+#[test]
+fn a_key_loaded_without_words_goes_into_the_plans_vault_and_the_vault_restores_it() {
+    use faraday_core::plan::{At, What, check, map};
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut app = device(vec![kit_file("vault.kdbx")], 2400);
+    let fp = app.session.keys.add_seed(&c, &[7u8; 32], "").unwrap();
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let pos = app.session.keys.position(fp).unwrap();
+    let x = app.session.keys.xpub_at(&c, pos, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let d = format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Test",
+            &d,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+    app.press(Action::Backup(w));
+    backup_as(&mut app, Preset::PaperVault);
+    let (shape, a) = app.board_plan().expect("a board");
+    let m = map(&c, &shape, &a);
+    let vault = m.iter().find(|s| s.at == At::Vault(0)).expect("a vault");
+    assert!(vault.holds.iter().any(|(h, _)| *h == What::Seed(0)));
+    assert!(
+        !m.iter()
+            .flat_map(|s| s.holds.iter())
+            .any(|(h, _)| matches!(h, What::Words(_) | What::SeedFile(_))),
+        "no words to write"
+    );
+    assert!(m.iter().all(|s| s.at != At::Away));
+    assert_ne!(
+        check(&c, &shape, &a).lost,
+        faraday_core::plan::Lost::Yes,
+        "the one place holds the vault with the only copy"
+    );
+    app.press(Action::BChecklist);
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    unlock(&mut app);
+    app.press(Action::Nav(Screen::Backup));
+    app.press(Action::BVaultSave(0));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
+    let vault: Vec<_> = locked(&mut app)
+        .into_iter()
+        .filter(|(n, _)| n == "vault.kdbx")
+        .collect();
+    assert_eq!(vault.len(), 1, "the vault was not sealed");
+    let mut next = device(vault, 768);
+    unlock(&mut next);
+    next.press(Action::Vault(V::LoadChosen(0)));
+    assert!(
+        next.session.keys.all().any(|k| k.fingerprint == fp),
+        "the vault did not restore the key"
+    );
+}

@@ -1261,7 +1261,7 @@ impl Faraday {
         };
         let list = self
             .wallet_flow_wallet(i)
-            .map(|w| self.seed_list_now(w))
+            .map(|w| self.backup_vault_key_list(w))
             .unwrap_or_default();
         let mut out: Vec<usize> = f
             .plan
@@ -1269,7 +1269,7 @@ impl Faraday {
             .into_iter()
             .filter(|v| !f.made_in.contains(v))
             .flat_map(|v| wf.answers.vault_seeds(&wf.shape, v))
-            .filter(|&s| list.get(s).and_then(|(_, k)| *k).is_none())
+            .filter(|&s| list.get(s).copied().flatten().is_none())
             .collect();
         out.sort_unstable();
         out.dedup();
@@ -1446,8 +1446,11 @@ impl Faraday {
                 Some(r) => w.add.push(r),
                 None => {
                     let want = if want_pass { &name } else { &base };
+                    // A key kept as shares has no words; it is saved as it
+                    // is, so long as no passphrase is wanted with it.
                     let k = self.session.keys.all().position(|k| {
-                        k.has_words() && fp_text(k.fingerprint).eq_ignore_ascii_case(want)
+                        (k.has_words() || !wf.shape.seeds.get(s).is_some_and(|x| x.passphrase))
+                            && fp_text(k.fingerprint).eq_ignore_ascii_case(want)
                     });
                     match k {
                         Some(k) => w.typed.push((k, want_pass)),

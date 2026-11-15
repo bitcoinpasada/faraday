@@ -2493,7 +2493,7 @@ impl Faraday {
             })
             .and_then(|i| {
                 let w = self.backup.state()?.wallet;
-                self.backup_seed_list_now(w).get(i)?.1
+                *self.backup_vault_key_list(w).get(i)?
             });
         // More options opens closed, unless a file under it is already
         // For the stick.
@@ -2618,9 +2618,9 @@ impl Faraday {
             return (Vec::new(), Vec::new());
         };
         let shape = self.plan_shape_now(b.wallet);
-        let list = self.backup_seed_list_now(b.wallet);
+        let list = self.backup_vault_key_list(b.wallet);
         let fp = |i: usize| {
-            let k = list.get(i)?.1?;
+            let k = (*list.get(i)?)?;
             Some(self.session.keys.info(k)?.fingerprint)
         };
         let own = b.answers.vault_seeds(&shape, v);
@@ -2648,7 +2648,7 @@ impl Faraday {
             return (Vec::new(), Vec::new());
         };
         let shape = self.plan_shape_now(b.wallet);
-        let list = self.backup_seed_list_now(b.wallet);
+        let list = self.backup_vault_key_list(b.wallet);
         let own = b.answers.vault_seeds(&shape, v);
         let mut others: Vec<usize> = b
             .answers
@@ -2657,14 +2657,14 @@ impl Faraday {
             .filter(|&u| u != v)
             .flat_map(|u| b.answers.vault_seeds(&shape, u))
             .filter(|i| !own.contains(i))
-            .filter_map(|i| list.get(i)?.1)
+            .filter_map(|i| *list.get(i)?)
             .collect();
         others.sort_unstable();
         others.dedup();
         let own = own
             .into_iter()
             .filter_map(|i| {
-                let k = list.get(i)?.1?;
+                let k = (*list.get(i)?)?;
                 let with = shape.seeds[i].passphrase && b.answers.pass_in_vault(i);
                 Some((k, with))
             })
@@ -3095,6 +3095,28 @@ impl Faraday {
             Some(wallet) => self.backup_seed_list_of(wallet),
             None => Vec::new(),
         }
+    }
+
+    /// Wallet `w`'s seeds, in its order, with the session key a vault
+    /// saves for each: the key with words or a codex32 set, else the key
+    /// kept as shares (a SLIP-39 set, a master seed), which has neither
+    /// and which only a vault holds. None for a seed not loaded here.
+    pub(crate) fn backup_vault_key_list(&self, w: usize) -> Vec<Option<usize>> {
+        match self.session.wallets.get(w) {
+            Some(wallet) => self.backup_vault_key_list_of(wallet),
+            None => Vec::new(),
+        }
+    }
+
+    /// [`Faraday::backup_vault_key_list`] for a wallet that need not be loaded.
+    pub(crate) fn backup_vault_key_list_of(
+        &self,
+        wallet: &crate::wallet::Wallet,
+    ) -> Vec<Option<usize>> {
+        self.backup_seed_fps_of(wallet)
+            .into_iter()
+            .map(|(fp, key)| key.or_else(|| self.session.keys.position(fp)))
+            .collect()
     }
 
     /// [`Faraday::backup_seed_list_now`] for a wallet that need not be loaded.

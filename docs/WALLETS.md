@@ -478,11 +478,15 @@ each with its seed and the whole wallet sheet, m − 1 keys left off each
 share should shares be ticked; seeds held elsewhere are listed "On
 its own device" and get no paper here; a key loaded here with neither
 words nor a codex32 set (SLIP-39 shares, a master seed) is on no device
-of the plan's: it is listed nowhere, counts for no check, and one line on
-the board and the map says "Seed {fingerprint} was loaded from shares or
-a master seed: this plan does not count it"; watch only, no seed question.
-"Paper and vault" puts one seed in each vault, vault *v* holding the
-*v*th seed here, and the wallet in every vault; the third preset adds
+of the plan's: it is listed nowhere and no paper or file place offers it
+(it has no words to write), and while no vault of the plan holds it
+it counts for no check and one line on the board and the map says "Seed
+{fingerprint} was loaded from shares or a master seed: this plan does
+not count it"; a vault takes it as it takes any wordless key, and then
+it counts for that vault's checks and the line goes; watch only, no
+seed question. "Paper and vault" puts one seed in each vault, vault *v*
+holding the *v*th seed here (a key kept as shares included), and the
+wallet in every vault; the third preset adds
 watch-only software (these two are plan builders since F53, not
 offered). Each vault's stick goes, in turn, to the first
 place that keeps no seed's words and no other vault's stick; failing

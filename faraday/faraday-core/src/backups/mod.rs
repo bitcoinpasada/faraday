@@ -955,6 +955,12 @@ impl Faraday {
             let k = seeds.get(i)?.1?;
             Some(self.session.keys.info(k)?.fingerprint.0)
         };
+        // A vault saves a key kept as shares too, which has no words.
+        let vault_keys = self.backup_vault_key_list_of(wallet);
+        let vault_fp_of = |i: usize| -> Option<[u8; 4]> {
+            let k = (*vault_keys.get(i)?)?;
+            Some(self.session.keys.info(k)?.fingerprint.0)
+        };
         let stem = file_stem(&wallet.name);
         let stem = stem.as_str();
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
@@ -984,7 +990,9 @@ impl Faraday {
                         | What::SeedPassphrase(i)
                             if !matches!(spot.at, At::Away) =>
                         {
-                            if let Some(fp) = fp_of(i)
+                            let in_vault = matches!(spot.at, At::Vault(_))
+                                && matches!(*what, What::Seed(_) | What::SeedPassphrase(_));
+                            if let Some(fp) = if in_vault { vault_fp_of(i) } else { fp_of(i) }
                                 && !out.copies.contains(&fp)
                             {
                                 out.copies.push(fp);

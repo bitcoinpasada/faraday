@@ -172,14 +172,20 @@ pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<Text> {
     ))
 }
 
-/// One line for each seed loaded here but kept as shares outside the
-/// plan, which counts it for no check.
-pub(crate) fn shares_lines(shape: &crate::plan::Shape) -> Vec<Text> {
+/// One line for each seed loaded here but kept as shares that no vault of
+/// the plan holds: the plan does not count it for any check.
+pub(crate) fn shares_lines(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Vec<Text> {
+    let in_vault: Vec<usize> = a
+        .vaults_made(shape)
+        .into_iter()
+        .flat_map(|v| a.vault_seeds(shape, v))
+        .collect();
     shape
         .seeds
         .iter()
-        .filter(|s| s.shares)
-        .map(|s| Text::fill(EN.plan_seed_kept_as_shares, &[&s.name]))
+        .enumerate()
+        .filter(|(i, s)| s.shares && !in_vault.contains(i))
+        .map(|(_, s)| Text::fill(EN.plan_seed_kept_as_shares, &[&s.name]))
         .collect()
 }
 
@@ -230,7 +236,7 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
                 EN.plan_a_key_made_here,
             ) + 12.0;
         }
-        for line in shares_lines(&ctx.shape) {
+        for line in shares_lines(&ctx.shape, &ctx.answers) {
             cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + 12.0;
         }
         // The board (`docs/BACKUP-FLOW.md` §17), then Continue.
@@ -352,7 +358,7 @@ pub(crate) fn map_rows(
         }
         cy += 8.0;
     }
-    for line in shares_lines(shape) {
+    for line in shares_lines(shape, a) {
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
     }
     // Work an earlier plan did that this one dropped, as it is: the copy
