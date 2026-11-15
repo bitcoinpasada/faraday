@@ -254,7 +254,7 @@ brought up to date on each pass, so the bar is determinate.
 | A scanned code | Taken by the scanner as today; a code that would start a job while one runs is held until the job ends, as a stick plugged in under the camera is held back |
 
 Strings: the working lines exist (`working_files` and the vault's);
-each new job's line is added to `faraday-strings/src/en.rs` with the job,
+each new job's line is added to `faraday-strings/src/en/` with the job,
 a plain statement of what is being done ("Opening the vault").
 
 ## 5. The token on the worker
@@ -468,7 +468,7 @@ What each piece is and changes:
   disabled actions, Back and Cancel stale-making; strings; DESIGN §4.14; a
   tour of a busy screen (`just faraday-snap 480x640 vault`), reviewed
   against Material's Progress indicators. `faraday-core/src/screens/parts.rs`,
-  the sheets that use `working_bar`, `faraday-strings/src/en.rs`,
+  the sheets that use `working_bar`, `faraday-strings/src/en/`,
   `faraday/shells/snapshot/src/tours`.
 - **Vault stretches** (built): Open (an older vault's, the boot import's
   and Spend's unlock included) and Make as `StretchJob` and `Stretched` in

@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 pub struct Program<'a> {
     /// The menu icon's PNG.
     pub icon_png: &'a Path,
-    /// `faraday-strings/src/en.rs`, where the program's name is.
+    /// `faraday-strings/src/en/`, the folder where the program's name is.
     pub strings: &'a Path,
-    /// The field of `en.rs` that holds the name people see.
+    /// The field of `en/` that holds the name people see.
     pub name_field: &'a str,
     /// The crate's own name, for the version block's InternalName.
     pub internal_name: &'a str,
@@ -47,14 +47,24 @@ pub fn windows_resources(program: &Program) {
     ico.extend(&png);
     std::fs::write(out.join("app.ico"), ico).expect("OUT_DIR is writable");
 
-    // The name people see, as the Start menu shortcut's: faraday-strings's en.rs.
-    let strings = std::fs::read_to_string(strings_path).expect("faraday-strings/src/en.rs");
+    // The name people see, as the Start menu shortcut's: faraday-strings's en/.
+    let mut strings = String::new();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(strings_path)
+        .expect("faraday-strings/src/en/")
+        .map(|e| e.expect("faraday-strings/src/en/").path())
+        .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+        .collect();
+    files.sort();
+    for file in files {
+        strings
+            .push_str(&std::fs::read_to_string(&file).expect("a file of faraday-strings/src/en/"));
+    }
     let field = |key: &str| -> String {
         strings
             .split(&format!("{key}: \""))
             .nth(1)
             .and_then(|rest| rest.split('"').next())
-            .unwrap_or_else(|| panic!("{key} in faraday-strings/src/en.rs"))
+            .unwrap_or_else(|| panic!("{key} in faraday-strings/src/en/"))
             .to_string()
     };
     let name = field(program.name_field);

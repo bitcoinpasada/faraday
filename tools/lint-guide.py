@@ -7,7 +7,7 @@ the app fails `just lint` until the guide follows.
 1. Names. Every bold span in docs/guide/**/*.md (outside
    fenced code) is joined onto one line and split on " -> " and " . "
    (the arrow and the middle dot the app writes). Each part must be an
-   en.rs string, a filled-in en.rs template (`{}` and `{name}` read as
+   en/ string, a filled-in en/ template (`{}` and `{name}` read as
    any text), or a line of tools/lint-guide.allow (test values and place
    names, each with its reason).
 2. Links. Every image and every relative link resolves to a file, and a
@@ -38,7 +38,7 @@ import re
 import sys
 import tempfile
 
-STRINGS = "faraday/faraday-strings/src/en.rs"
+STRINGS = "faraday/faraday-strings/src/en"
 ALLOW = "tools/lint-guide.allow"
 SEPARATORS = re.compile(r" → | · ")
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"', re.S)
@@ -65,9 +65,13 @@ def unescape(s):
 
 
 def load_strings(root):
-    """Literals and templates of en.rs, comments left out."""
-    with open(os.path.join(root, STRINGS), encoding="utf-8") as f:
-        text = f.read()
+    """Literals and templates of every file of en/, comments left out."""
+    text = ""
+    folder = os.path.join(root, STRINGS)
+    for name in sorted(os.listdir(folder)):
+        if name.endswith(".rs"):
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                text += f.read() + "\n"
     text = "\n".join(l for l in text.split("\n") if not l.lstrip().startswith("//"))
     exact, templates = set(), []
     for m in LITERAL.finditer(text):
@@ -431,13 +435,13 @@ def self_test():
         put("docs/guide/a.md", "# A\n\n![x](p.png)\n\n[up](g.md#g)\n")
         put("docs/guide/p.png", "")
         en = 'strings! {\n    a: "Wallets",\n    b: "Make a new wallet",\n    c: "Key {}",\n}\n'
-        put(STRINGS, en)
+        put(STRINGS + "/a.rs", en)
         _, errors = run(root)
         assert not errors, errors
-        put(STRINGS, en.replace("Make a new wallet", "Make a wallet"))
+        put(STRINGS + "/a.rs", en.replace("Make a new wallet", "Make a wallet"))
         _, errors = run(root)
         assert len(errors) == 1 and "Make a new wallet" in errors[0] and errors[0].startswith("docs/guide/g.md:3:"), errors
-        put(STRINGS, en)
+        put(STRINGS + "/a.rs", en)
         put("docs/guide/a.md", "# A\n\n![x](gone.png)\n\n[up](g.md#nope)\n")
         _, errors = run(root)
         assert len(errors) == 2, errors

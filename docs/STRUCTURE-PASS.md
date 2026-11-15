@@ -97,8 +97,8 @@ trusted by publisher.
 ## 7. Phases 3, 4, 6 and 7
 
 Built in phase 6:
-- **The strings** (A11): `en.rs` is one
-  `strings!` list that makes both `Strings` and `EN`, each key's doc
+- **The strings** (A11): the strings were one
+  `strings!` list (now `en/`, a file per area) that makes both `Strings` and `EN`, each key's doc
   above its value (13,376 lines became about 9,040); the 598 keys named
   mechanically from their first words (a trailing number or function
   word) are named by meaning; 22 strings no code used are gone; and

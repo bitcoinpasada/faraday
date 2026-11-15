@@ -117,7 +117,7 @@ returned; their wording as Compare first had it is in
 | C2 | "Locktime: {a} sent, {b} returned" | The locktime differs |
 | C3 | "PSBT version: {a} sent, {b} returned" | Both are PSBTs, of versions 0 and 2 |
 | C4 | "Input {op}: in the sent only" / "… in the returned only" | The outpoint is spent on one side only |
-| C5 | "Input {op}: sequence {a} sent, {b} returned" | A shared input's sequence differs; each as Decode words it (`decode_locktime_no_rbf` and its siblings in `faraday/faraday-strings/src/en.rs`) |
+| C5 | "Input {op}: sequence {a} sent, {b} returned" | A shared input's sequence differs; each as Decode words it (`decode_locktime_no_rbf` and its siblings in `faraday/faraday-strings/src/en/`) |
 | C6 | "Input {op}: spends {a} sent, {b} returned" | Both state the amount a shared input spends, and they differ |
 | C7 | "Input {op}: amount stated in the sent only" / "… in the returned only" | One side states the amount, the other none |
 | C8 | "Input {op}: {a} signatures sent, {b} returned" | A shared input's signature count differs |

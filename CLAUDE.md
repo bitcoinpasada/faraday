@@ -51,7 +51,7 @@ plan <paths>` lists the ones a change touches.
   vectors and other implementations. A test never states a design rule, a
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
-- Every user-facing string is in `faraday/faraday-strings/src/en.rs`,
+- Every user-facing string is in `faraday/faraday-strings/src/en/`,
   except the guide (`docs/guide/`) and the self-test's check names
   (`core/faraday-selftest`). Text in the product is plain statement of
   fact, never mannered prose; a working screen carries labels, values and

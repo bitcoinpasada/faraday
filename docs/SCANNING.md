@@ -364,24 +364,24 @@ one:
 
 ## 7. Strings
 
-All in `faraday/faraday-strings/src/en.rs`. Labels, values and actions;
+All in `faraday/faraday-strings/src/en/`. Labels, values and actions;
 no explanation.
 
 ### 7.1 Scanner titles
 
-In `en.rs`, prefix `scan_title_`.
+In `en/`, prefix `scan_title_`.
 
 ### 7.2 The read card
 
-In `en.rs`, prefix `read_`.
+In `en/`, prefix `read_`.
 
 ### 7.3 The ways over
 
-In `en.rs`, prefix `read_go_`.
+In `en/`, prefix `read_go_`.
 
 ### 7.4 The seed sheet
 
-In `en.rs`, prefix `seed_read_`.
+In `en/`, prefix `seed_read_`.
 
 
 ## 8. Tests

@@ -2101,7 +2101,7 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
 
 ### 13.3 Strings
 
-Every new string is in `faraday/faraday-strings/src/en.rs`: the cards'
+Every new string is in `faraday/faraday-strings/src/en/`: the cards'
 titles ("Scheme", "Entropy", "Share A · character 7 of 26"), the Choice
 rows, the worksheets' labels ("Checksum of share A", "Translation
 symbols", "Recovery symbols"), "Strings made" and its rows, "Check on

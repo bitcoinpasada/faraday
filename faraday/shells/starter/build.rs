@@ -26,7 +26,7 @@ fn main() {
             PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets it"));
         resources::windows_resources(&resources::Program {
             icon_png: &manifest_dir.join("assets/icon.png"),
-            strings: &manifest_dir.join("../../faraday-strings/src/en.rs"),
+            strings: &manifest_dir.join("../../faraday-strings/src/en"),
             name_field: "starter_menu_name",
             internal_name: "faraday-starter",
             exe: names::WIN_EXE,

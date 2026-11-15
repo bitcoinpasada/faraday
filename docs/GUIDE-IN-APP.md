@@ -94,7 +94,7 @@ changes, never while drawing.
 ## 2. What a section holds
 
 - **The choices on that place**, each under its name in bold as the app
-  shows it (the lint holds every bold name to an `en.rs` string): what
+  shows it (the lint holds every bold name to an `en/` string): what
   choosing it does, what it makes, what it needs and what it rules out.
 - **Why a step asks for something**, in one sentence, where the person
   must act on it: the Bring in the sticks step says that the vaults are
@@ -120,7 +120,7 @@ lives; a working screen still carries labels, values and actions only
 
 The rule line in CLAUDE.md:
 
-> Every user-facing string is in `faraday/faraday-strings/src/en.rs`,
+> Every user-facing string is in `faraday/faraday-strings/src/en/`,
 > except the guide (`docs/guide/`, read into the app as written) and
 > the self-test's check names (`core/faraday-selftest`). Text in the
 > product is plain statement of fact, never mannered prose; a working

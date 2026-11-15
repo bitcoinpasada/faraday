@@ -1,7 +1,7 @@
 //! The file and path names the Starter's install uses (`docs/STARTER.md`
 //! §5.2, `docs/DECISIONS.md` F16): the one place they are written, so a
 //! rename is a change here and in the docs. The words people read
-//! ("Faraday Starter", "Faraday Demo") are `strings/en.rs`'s, never
+//! ("Faraday Starter", "Faraday Demo") are `strings/en/`'s, never
 //! these (the strings lint leaves this file out for that reason). Plain
 //! constants only: `shells/starter/build.rs` includes this file. The release
 //! files' names are `faraday/tools/stage-release.sh`'s `starter_release_name`.

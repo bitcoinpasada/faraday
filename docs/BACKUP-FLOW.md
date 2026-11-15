@@ -33,7 +33,7 @@ Rules still in force:
   (§2). A change that would make the flow refuse a plan the plan screens
   accept stops and asks the owner.
 - Every string has the prefix `backup_flow_` (§12), in
-  `faraday/faraday-strings/src/en.rs`.
+  `faraday/faraday-strings/src/en/`.
 
 ## 1. What is decided
 
@@ -824,7 +824,7 @@ once (F6); the flow is offered and nothing waits for it.
 
 ## 12. Strings
 
-In `faraday/faraday-strings/src/en.rs`, prefix `backup_flow_`. `{m}` is
+In `faraday/faraday-strings/src/en/`, prefix `backup_flow_`. `{m}` is
 the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 `{stick}`. The strings are the ones in that file under the prefix; none
 is kept here.
@@ -1039,7 +1039,7 @@ drawn on The plan card, where Make the checklist would be.
 
 ### 15.3 Strings
 
-New, in `faraday/faraday-strings/src/en.rs`: the place card's rows
+New, in `faraday/faraday-strings/src/en/`: the place card's rows
 ("Seed words by hand", "SeedQR by hand", "Seed as a file, unprotected",
 "Passphrase"), the sheet's title "{} · {}", "{} with its passphrase",
 "Also at {}", the description card's title "The wallet description" and
@@ -1564,7 +1564,7 @@ Nothing new is stored in the vault.
 
 ### 17.8 Strings
 
-New, in `faraday/faraday-strings/src/en.rs`: "+ stick", "Stick {}",
+New, in `faraday/faraday-strings/src/en/`: "+ stick", "Stick {}",
 "Paper", "Scanned in", "Watch-only software", "Seeds", "Passphrases",
 "Wallet description", "Whole", "Share {}", "Vaults", "+ vault", "Not
 here", "{} places" and "1 place", the form names ("Words", "SeedQR",

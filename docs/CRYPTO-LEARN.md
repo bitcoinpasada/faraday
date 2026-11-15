@@ -39,7 +39,7 @@ block:
 | **Faraday's own calls** | Where Faraday is stricter than the standard or departs from it, each with its kind (Conservative, Neutral, Novel; STANDARDS §1) and the decision that records it, or "no decision". | A call with no decision is written as such; F148 does not make one. |
 
 Facts only: plain statements, as every text in the product (CLAUDE.md).
-The block's field labels are strings in `faraday/faraday-strings/src/en.rs`;
+The block's field labels are strings in `faraday/faraday-strings/src/en/`;
 its values are the manifest's, carried by `faraday-guide` as the Learn
 pages' text is.
 
@@ -241,7 +241,7 @@ construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`,
 the crate READMEs (`core/faraday-bip/README.md`, `core/faraday-psbt/README.md`
 and the others), the guide's screen pages (`docs/guide/`),
 `tools/reference/` and each vector folder's README, and the strings in
-`faraday/faraday-strings/src/en.rs` that state a construction (the
+`faraday/faraday-strings/src/en/` that state a construction (the
 Settings explainers on how added randomness is mixed).
 
 Release notes are written at release from what changed:
@@ -655,10 +655,10 @@ and every value wraps.
 
 ### 8.6 The strings
 
-Field labels and the action's name, for `faraday/faraday-strings/src/en.rs`
+Field labels and the action's name, for `faraday/faraday-strings/src/en/`
 (each a key of its own, as the bar's ? and its ⋮ row are, `tip_guide`
 and `bar_menu_guide`). They are added with the code that draws them:
-the strings lint fails a key no code names. The keys are in `en.rs`, prefixes `how_`, `starter_how_`, `tip_how`, `bar_menu_how` and `guide_tab_how`.
+the strings lint fails a key no code names. The keys are in `en/`, prefixes `how_`, `starter_how_`, `tip_how`, `bar_menu_how` and `guide_tab_how`.
 
 The values are the manifest's and the cross-check's, carried by
 `faraday-guide` (§1), not strings of this file.
@@ -1106,7 +1106,7 @@ checked, or named for review.
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
 | The former Learn pages (since removed) | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
 | `docs/guide/` pages | What a screen's control computes | Named for review |
-| `faraday/faraday-strings/src/en.rs` | Strings that state a construction: the Tools tiles' lines | Named for review |
+| `faraday/faraday-strings/src/en/` | Strings that state a construction: the Tools tiles' lines | Named for review |
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
 | `docs/deps/` | A primitive crate's page: `**Cryptography:** computes` | Checked (§4.1) |
 | `SECURITY.md`, `docs/AUDIT-SUBMISSIONS.md` | The scope an audit is asked to cover | Named for review |

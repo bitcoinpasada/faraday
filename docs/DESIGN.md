@@ -958,9 +958,9 @@ card's one line for an address and its **Look further** go, so the result
 and the search are on this page alone. When this is built,
 `docs/SCANNING.md` §5.2, §5.4 and §7.3 and `docs/QR.md` §2's address row
 say so, and the address lines of `address_note` that this card replaces
-leave `faraday/faraday-strings/src/en.rs`.
+leave `faraday/faraday-strings/src/en/`.
 
-The strings it adds (proposed, for `faraday/faraday-strings/src/en.rs`):
+The strings it adds (proposed, for `faraday/faraday-strings/src/en/`):
 
 - `address_check_found`: "Found in {}" (a wallet's name)
 - `address_check_found_key`: "Found in key {}" (a key's name)
@@ -1050,7 +1050,7 @@ the first-address check and what is refused are `docs/FLOWS.md`
   under the button that was pressed, the way a step card's error line
   is drawn, and no dialog.
 
-Strings (`faraday/faraday-strings/src/en.rs`; the two `read_go_` ones are for the address check, not built):
+Strings (`faraday/faraday-strings/src/en/`; the two `read_go_` ones are for the address check, not built):
 
 - `explore_make_wallet`: "Make a wallet"
 - `explore_open_wallet`: "Open the wallet"
@@ -1069,7 +1069,7 @@ Tools (`faraday/faraday-core/src/catalog.rs`) stays the list of every
 feature: each tool Check opens is in Tools as well, Check is a second
 way in and never the only one, and a check added to Check is added to
 Tools in the same change. Every label and line is in
-`faraday/faraday-strings/src/en.rs`.
+`faraday/faraday-strings/src/en/`.
 
 The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in
 `faraday/faraday-core/src/screens/sheets.rs` and the area that owns

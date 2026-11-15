@@ -294,7 +294,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   `pub static SAMPLES: Samples`. It parses nothing and derives nothing,
   so the key boundary's clippy entries have nothing to refuse there.
 - Names on screen are not in the crate: each sample carries a key into
-  `faraday/faraday-strings/src/en.rs` (§8).
+  `faraday/faraday-strings/src/en/` (§8).
 - `Faraday::samples: Option<&'static Samples>`, set by Faraday Demo (in
   its own window and inside the Starter, F126). With
   `None` (the stick, the Pi, the Faraday the Starter holds for Transfer
@@ -581,7 +581,7 @@ away from the device is.
 
 ## 8. Strings
 
-All in `faraday/faraday-strings/src/en.rs`, each with its doc line as
+All in `faraday/faraday-strings/src/en/`, each with its doc line as
 the file has them.
 
 ## 11. Settled with the owner (2026-10-22)

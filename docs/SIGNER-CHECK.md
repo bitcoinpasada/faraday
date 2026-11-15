@@ -461,7 +461,7 @@ the file has one, is what the file's own length is held to. For a version
 for); bytes past the last map, or a pair written longer than it needs,
 are E1. A file whose maps cannot be read at all is `Kind::Unnamed` at
 Danger, never clean, worded "{where}: {field} differs in a way the check
-does not name" (`signer_unnamed` in `en.rs`).
+does not name" (`signer_unnamed` in `en/`).
 
 Where the parser refuses such a file, it is refused on the card (§3),
 which is no clean verdict either.
@@ -577,7 +577,7 @@ whole PSBT.
   holds the flow (`tools/lint-layout.counts`). `lib.rs`'s code map names
   the files and `Screen::SignerCheck`.
 - **Words**: every finding's and fact's wording in
-  `faraday/faraday-strings/src/en.rs`; faraday-core fills them from the
+  `faraday/faraday-strings/src/en/`; faraday-core fills them from the
   typed findings. The core crate returns no text for the check.
 
 ### 8.2 Costs and drawing
@@ -839,7 +839,7 @@ labels are the cards' "Sent" and "Returned", and their counts "{n} in the
 sent only" and "{n} in the returned only". The fee bump keeps "original"
 and "replacement" (COMPARE §3.4). The Result's line where a card holds a
 finished transaction is "The signer check needs two PSBTs". Every string
-is in `faraday/faraday-strings/src/en.rs`.
+is in `faraday/faraday-strings/src/en/`.
 
 ### 11.7 Where it lives
 
@@ -938,7 +938,7 @@ faraday/faraday-core/src/decode/check_screen.rs; a press for the row and
 the fingerprint match in decode/check.rs and the area's mod.rs, reaching
 the words form, the SeedQR scanner and the vault unlock through their
 own presses with this flow as their way back; the strings in
-`faraday/faraday-strings/src/en.rs`; the sample pair in
+`faraday/faraday-strings/src/en/`; the sample pair in
 faraday/faraday-core/src/samples/ (`docs/MODES.md` §5.3). Tests: the row
 shows only for a key not loaded; typed words of another fingerprint load
 nothing; the right words load the key and turn the random-nonce result

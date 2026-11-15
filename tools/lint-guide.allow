@@ -1,6 +1,6 @@
 # Names the guide shows in bold that tools/lint-guide.py does not find in
-# faraday/faraday-strings/src/en.rs: test values, glyphs, words of the public
-# test keys, and text the app makes outside en.rs. One name per line, then
+# faraday/faraday-strings/src/en/: test values, glyphs, words of the public
+# test keys, and text the app makes outside en/. One name per line, then
 # "  # reason". A line "re:<pattern>" matches a whole name.
 -  # the stepper's minus
 +  # the stepper's plus

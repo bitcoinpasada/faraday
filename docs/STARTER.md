@@ -274,7 +274,7 @@ samples compiled in (F126, §5.3).
   says which file and which string. The repository names none of
   these values; the script reads them on the computer it runs on.
 - Strings are in Faraday's strings file,
-  `faraday/faraday-strings/src/en.rs`, with a `starter_` prefix, as
+  `faraday/faraday-strings/src/en/`, with a `starter_` prefix, as
   `CLAUDE.md` requires. `CLAUDE.md`'s screen rule
   gains: the Starter's screens are this document's §3, built from
   DESIGN §4's components.
@@ -644,7 +644,7 @@ itself when the write ends, done or failed (§3.2). It is not refused
 or dimmed during a write, since the window's own close is not either,
 and the two would then answer differently.
 
-*String* (`faraday-strings` `en.rs`): `starter_tip_close`, "Close", the
+*String* (`faraday-strings` `en/`): `starter_tip_close`, "Close", the
 button's plain tooltip.
 
 **Input** (owner, 2026-10-25: the Starter and Faraday Demo fully touch

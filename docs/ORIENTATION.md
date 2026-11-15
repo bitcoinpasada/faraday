@@ -250,7 +250,7 @@ is not affected; the arrow keys move as the screen shows.
   window, as Appearance's are. On a compact window the Display section opens as
   its own page as every section does (`docs/LAYOUT.md` §17). Each
   segment is a 48 dp touch target.
-- **Strings**, in `faraday/faraday-strings/src/en.rs`:
+- **Strings**, in `faraday/faraday-strings/src/en/`:
   `settings_display` "Display" (which replaced "Display scale"),
   `settings_scale` "Scale",
   `settings_rotation` "Rotation", `settings_landscape` "Landscape",

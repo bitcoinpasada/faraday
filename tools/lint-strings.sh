@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # User-facing-strings lint.
 #
-# Every word a user can read lives in one strings file, so that a second
+# Every word a user can read lives in one strings folder, so that a second
 # language is one more static and a wording change is a change to one
-# file: faraday-strings' `en.rs` (CLAUDE.md). This lint fails when
+# file: faraday-strings' `en/` (CLAUDE.md). This lint fails when
 # Faraday's screen code holds a literal with wording in it (whose kinds of
 # allowed literal are listed below), and when a string in that file is
 # untidy (the last check).
@@ -12,7 +12,7 @@
 set -u
 cd "$(dirname "$0")/.."
 
-FARADAY_STRINGS="faraday/faraday-strings/src/en.rs"
+FARADAY_STRINGS="faraday/faraday-strings/src/en"
 
 status=0
 
@@ -170,12 +170,12 @@ if [ -n "$hits" ]; then
     status=1
 fi
 
-for file in "$FARADAY_STRINGS"; do
+for file in "$FARADAY_STRINGS"/*.rs; do
     if [ ! -f "$file" ]; then
         echo "lint-strings: missing $file"
         status=1
     else
-        # Every string in en.rs is tidy: not empty, no double or edge spaces,
+        # Every string in en/ is tidy: not empty, no double or edge spaces,
         # and none of the filler that Faraday's strings rules forbid. The literals are what sits
         # between the quotes of a `name: "…"` line; a `\"` inside one is
         # notation and left alone.
@@ -198,11 +198,11 @@ for file in "$FARADAY_STRINGS"; do
     fi
 done
 
-# Every string is used: a key no Rust file outside en.rs names after a strings
+# Every string is used: a key no Rust file outside en/ names after a strings
 # receiver (`EN.key`, `S.key`, `s.key`, also across a line break)
 # is dead wording, and goes (STRUCTURE-PASS §7, A11).
-keys=$(grep -oE '^    [a-z0-9_]+: "' "$FARADAY_STRINGS" | sed -E 's/^    ([a-z0-9_]+): "/\1/' | sort -u)
-used=$(find faraday core tools -name '*.rs' -not -path '*/target/*' -not -path "$FARADAY_STRINGS" -print0 \
+keys=$(grep -hoE '^    [a-z0-9_]+: "' "$FARADAY_STRINGS"/*.rs | sed -E 's/^    ([a-z0-9_]+): "/\1/' | sort -u)
+used=$(find faraday core tools -name '*.rs' -not -path '*/target/*' -not -path "$FARADAY_STRINGS/*" -print0 \
     | xargs -0 perl -0ne 'print "$1\n" while /\b(?:EN|FEN|S|en|s)\s*\.\s*([a-z0-9_]+)\b/g' | sort -u)
 unused=$(comm -23 <(printf '%s\n' "$keys") <(printf '%s\n' "$used"))
 if [ -n "$unused" ]; then

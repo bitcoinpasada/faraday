@@ -84,7 +84,7 @@ Text size (§4): that window is 640 × 400 dp and takes one column
   Larger. Pressing one lays the screen out again at once (as
   `Action::Scale` does: `display` again with the last display) and saves
   the kept set.
-- The strings, in `faraday/faraday-strings/src/en.rs`:
+- The strings, in `faraday/faraday-strings/src/en/`:
   `settings_text_size` "Text size", `settings_text_standard`
   "Standard", `settings_text_large` "Large", `settings_text_larger`
   "Larger".

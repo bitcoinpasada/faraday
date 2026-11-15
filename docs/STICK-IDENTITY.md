@@ -538,7 +538,7 @@ with the Starter for it to have its own IDs.
 - The Starter: `faraday/shells/starter/src/gpt.rs`, `writer.rs`,
   `linux/udisks.rs`, `windows/disks.rs`,
   `faraday/faraday-starter/src/api.rs` and `decide.rs`, the Name field.
-- Strings: `faraday/faraday-strings/src/en.rs` (`starter_why_boot_label`,
+- Strings: `faraday/faraday-strings/src/en/` (`starter_why_boot_label`,
   the `starter_fault_*` lines that name FARADAYBOOT and FARADAYDATA, the
   check's line, the Name field, Rename stick, Files' lines of §5.2).
 - Docs: F67 (amended by F174) and F80's partition names, `docs/STARTER.md` §4.1, §4.3,
@@ -563,7 +563,7 @@ With F182:
   `faraday/shells/starter/src/gpt.rs`, `writer.rs`, `finder.rs`,
   `faraday/faraday-starter/src/api.rs` and `decide.rs`, What to write?'s
   Clear the whole stick first, the check's lines and Writing's clearing
-  pass in `faraday/faraday-strings/src/en.rs`.
+  pass in `faraday/faraday-strings/src/en/`.
 - Docs: F80's data partition size, `docs/STARTER.md` §1.3, §3.2, §4.1,
   `docs/IMAGES.md`, `docs/STANDARDS.md` §10,
   the Learn page Checking what is written (since removed), the guide's Written picture

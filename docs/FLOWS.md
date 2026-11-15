@@ -1482,7 +1482,7 @@ down (Dell's: "Shut down can skip the key").
    are wiped as it ends (its zeroizing types run as it drops) and the
    kernel zeroes every page freed (`init_on_free=1`), the same path as
    Power off's. Nothing is written to the computer.
-6. **Strings** (`faraday/faraday-strings/src/en.rs`): "Restart",
+6. **Strings** (`faraday/faraday-strings/src/en/`): "Restart",
    "Power", "The computer powers off, or restarts", "Usual BIOS key", and one
    per key in item 4.
 7. Tests.
@@ -2298,7 +2298,7 @@ and its test checks that each equals what the testkit makes
 reads to Savings, and that the changed one's checksum fails. Its ?
 opens Learn at Verifying and Tools.
 
-**Its strings** (`faraday/faraday-strings/src/en.rs`, when built; the
+**Its strings** (`faraday/faraday-strings/src/en/`, when built; the
 confirmation sheet's own are `wallet_confirm_*`, F254, and the reader's,
 Restore's and My seed makes my wallet's are reused):
 

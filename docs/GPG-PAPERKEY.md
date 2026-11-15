@@ -464,7 +464,7 @@ certificate. Restore does not ask for the time first (decision 58).
 | `faraday/faraday-core/src/qr_view.rs` | The two scanners: the sheet's, which files a public key and opens its flow, and step 4's, which hands a paperkey code to the restore set |
 | `faraday/faraday-core/src/qr_view.rs` (`vault_paperkey_view`, `QrView::secret_one_code`), `faraday/faraday-core/src/screens/sheets.rs` | The paperkey's code (§12): made at the press of `VaultAction::PaperkeyQr`, the sheet without its format, speed and size |
 | `faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/screens/catalog.rs` | **Restore from a paperkey**; **Show as QR** under the masked paperkey; the tile's line |
-| `faraday/faraday-strings/src/en.rs` | §7.3 |
+| `faraday/faraday-strings/src/en/` | §7.3 |
 
 ### 7.2 Costs and drawing
 
@@ -483,7 +483,7 @@ certificate. Restore does not ask for the time first (decision 58).
 
 ### 7.3 Strings
 
-In `faraday/faraday-strings/src/en.rs`, prefix `gpg_restore_`.
+In `faraday/faraday-strings/src/en/`, prefix `gpg_restore_`.
 
 The revoked line reuses the key page's. The Learn page carries the why
 (§9).

@@ -587,7 +587,7 @@ Behaviour a person or Krux would notice, and vectors:
 
 ## 15. Screens, in outline
 
-Strings are not written here. Every string goes to `en.rs`; a screen review names its Material page.
+Strings are not written here. Every string goes to `en/`; a screen review names its Material page.
 
 - **Making one.** A seed: §15.1, a form on the seed on the backup board's Customize page,
   one level down, adding no answer to the question on vaults. Anything else §6 writes: §15.2,

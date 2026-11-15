@@ -114,7 +114,7 @@ wallets. Items 1 to 4, 6 and 7 are built (§2, §5), and of item
 Every reader goes in `faraday-intake`, after the pattern of
 `caravan` and `electrum`, except where `core/`'s crates also read
 the format: such a reader goes in `core/`. New strings go in
-`faraday/faraday-strings/src/en.rs`. New vectors go under
+`faraday/faraday-strings/src/en/`. New vectors go under
 `faraday/faraday-core/tests/vectors/interop/<source>/`, with their source
 and licence in that folder's README. Reading needs no choice: every format
 is recognised by its content wherever a wallet, a key or a PSBT is read

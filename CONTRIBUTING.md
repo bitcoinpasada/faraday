@@ -41,7 +41,7 @@ change is held to the same rules, whoever makes it.
 What `just` holds, among the rest: clippy with warnings as errors and
 formatting; every dependency vetted (`cargo vet`, a page in
 `docs/deps/`); every user-facing string in
-`faraday/faraday-strings/src/en.rs`; the design system's numbers and
+`faraday/faraday-strings/src/en/`; the design system's numbers and
 colours named, not written in place; code split by function, never by
 length; every document's header and every path it cites; nothing at the
 top level that `tools/lint-tree.sh` does not list. `tools/README.md`

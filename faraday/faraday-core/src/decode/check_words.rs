@@ -1,5 +1,5 @@
 //! Check a signer's words: every finding, stated line and field of
-//! `faraday_psbt::signer` as text from `en.rs`, in the wording of
+//! `faraday_psbt::signer` as text from `en/`, in the wording of
 //! `docs/SIGNER-CHECK.md` §6. Each match is exhaustive, with no `_` arm,
 //! so a kind added to the crate fails to compile here until it has words.
 

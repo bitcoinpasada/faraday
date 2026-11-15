@@ -199,7 +199,7 @@ Settings' Randomness row, and New key's This device label:
   pointer moves and keys together, as they are added.
 
 New key's label reads "operating system · {source} · with your own"
-once `acc` exists. The strings go in `faraday/faraday-strings/src/en.rs`.
+once `acc` exists. The strings go in `faraday/faraday-strings/src/en/`.
 
 ## 3. The kernel's randomness at boot
 
