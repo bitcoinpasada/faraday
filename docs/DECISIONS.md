@@ -7,7 +7,9 @@ Faraday's own decisions, numbered F1 onward, newest last. Each is a file
 of its own: `docs/decisions/F<n>.md`. A decision that was replaced,
 superseded or withdrawn moves to `docs/history/decisions/` and keeps its
 row here. A new decision, about `core/` as about anything else, is a new
-file there and a row at the foot of this table. An amendment is a line
+file there; the table is made from the files' headers (title, date,
+Status, Area) by `python3 -I -B tools/decisions-index.py write`, never
+edited by hand. An amendment is a line
 at the top of the decision it amends, naming the decision that amends it,
 and that decision's row here says "Amended by".
 
@@ -263,21 +265,21 @@ Read this table, then only the decision you need.
 | [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |
 | [F247](decisions/F247.md) | The in-app guide replaces Learn | 2026-11-11 | Active | design |
 | [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Amended by F253 | repository |
-| [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
 | [F249](history/decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Replaced by F264 | standards |
 | [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; the `lint-macos` recipe stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](history/decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Superseded by F268 | platforms |
+| [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
 | [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Active | wallets |
+| [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Active | design |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
 | [F259](decisions/F259.md) | Cryptographic actions carry no fingerprint; a release is held by the cross-check's stamp alone, and the crypto counts stay | 2026-11-14 | Active | repository |
-| [F255](decisions/F255.md) | Check takes Create a vault's place on Home and is a place of its own in the sidebar | 2026-11-14 | Active | design |
 | [F260](decisions/F260.md) | The codex32 booklet's step-through and tracker leave the app | 2026-11-14 | Active | keys |
 | [F261](decisions/F261.md) | KEF writes versions 20 and 5 and reads all twelve | 2026-11-14 | Active | crypto |
 | [F263](decisions/F263.md) | A multisig setup file with no Format line is P2SH, as Coldcard reads it | 2026-11-14 | Active | wallets |
-| [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
-| [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
 | [F264](decisions/F264.md) | The Argon QR Vault and its test tool live in their own repository; Faraday keeps nothing for them but `faraday-window`'s default feature | 2026-11-14 | Active | standards |
+| [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
 | [F266](decisions/F266.md) | The Linux Starter always draws its own close button | 2026-11-14 | Active | starter |
 | [F268](decisions/F268.md) | Decisions that no longer bind move to history | 2026-11-14 | Active | repository |
+| [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |

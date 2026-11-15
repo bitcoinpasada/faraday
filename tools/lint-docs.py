@@ -42,7 +42,9 @@
 #    upward with none missing or twice; each row links its file, under
 #    docs/history/decisions/ when its status is Replaced, Superseded or
 #    Withdrawn and under docs/decisions/ otherwise; the file's Status
-#    line is the row's; and every file in either folder has a row.
+#    line is the row's; and every file in either folder has a row. The
+#    rows are what tools/decisions-index.py makes from the decisions'
+#    headers (title, date, Status, Area), in number order.
 #
 # 7. Recipes. Every `just <recipe>` that starts a backticked span or a line
 #    of a fenced block in a .md file (not docs/history/) names a recipe of
@@ -75,12 +77,13 @@ import sys
 
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-for args in (["--self-test"], ["check"]):
-    if subprocess.run(
-        [sys.executable, "-I", "-B", "tools/docs-index.py", *args],
-        stdout=subprocess.DEVNULL if args == ["--self-test"] else None,
-    ).returncode:
-        sys.exit(1)
+for tool in ("docs-index", "decisions-index"):
+    for args in (["--self-test"], ["check"]):
+        if subprocess.run(
+            [sys.executable, "-I", "-B", f"tools/{tool}.py", *args],
+            stdout=subprocess.DEVNULL if args == ["--self-test"] else None,
+        ).returncode:
+            sys.exit(1)
 
 def ls(*args):
     return subprocess.run(["git", "ls-files", *args, "-z"], check=True,
