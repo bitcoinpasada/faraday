@@ -487,13 +487,26 @@ pub fn trusted_by_bus(dir: &Path) -> bool {
     }
 }
 
-/// Whether the USB port the device at `at` (a canonical `/sys` path)
-/// hangs from is hard-wired: the nearest `removable` file up the tree says
-/// `fixed`. A port the firmware does not describe, or none found, is not.
+/// Whether the USB device at `at` (a canonical `/sys` path) is built in:
+/// it and every hub between it and the root hub read `fixed` in their
+/// `removable` file, so a keyboard with its own hub plugged into an
+/// external port is not. The kernel gives `fixed` from the firmware's
+/// description of a port or, for a compound hub only, from the hub's own
+/// descriptor; every other port reads `removable` or `unknown`. A root
+/// hub (`usbN`) ends the walk; none found is not built in.
 pub fn port_fixed(mut at: PathBuf) -> bool {
     loop {
-        if let Ok(r) = fs::read_to_string(at.join("removable")) {
-            return r.trim() == "fixed";
+        let name = at.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name
+            .strip_prefix("usb")
+            .is_some_and(|n| n.parse::<u32>().is_ok())
+        {
+            return true;
+        }
+        if let Ok(r) = fs::read_to_string(at.join("removable"))
+            && r.trim() != "fixed"
+        {
+            return false;
         }
         if !at.pop() {
             return false;
@@ -1398,6 +1411,45 @@ mod tests {
             !watch.trusted_points(),
             "the mouse is held back, not trusted"
         );
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A keyboard whose own port reads fixed but whose hub is plugged into
+    /// an external port is held back; one behind a hard-wired hub, or
+    /// straight on the root hub's hard-wired port, is the machine's own.
+    #[test]
+    fn a_keyboard_behind_a_pluggable_hub_is_not_the_machines_own() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-hub-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let usb = root.join("devices/pci0/usb1");
+        let put = |dir: &Path, removable: &str| {
+            fs::create_dir_all(dir.join("id")).expect("dir");
+            fs::write(dir.join("removable"), format!("{removable}\n")).expect("removable");
+            fs::write(dir.join("id/bustype"), "0003\n").expect("bustype");
+        };
+        let event = |name: &str, at: &Path| {
+            let dir = root.join("class").join(name);
+            fs::create_dir_all(&dir).expect("class");
+            std::os::unix::fs::symlink(at, dir.join("device")).expect("link");
+            dir
+        };
+        fs::create_dir_all(&usb).expect("root hub");
+        fs::write(usb.join("removable"), "unknown\n").expect("removable");
+        // A gadget's hub in an external port, its keyboard on a fixed port.
+        put(&usb.join("1-1"), "removable");
+        put(&usb.join("1-1/1-1.2"), "fixed");
+        // A laptop's internal hub and keyboard, both hard-wired.
+        put(&usb.join("1-2"), "fixed");
+        put(&usb.join("1-2/1-2.1"), "fixed");
+        // A keyboard straight on a hard-wired root port.
+        put(&usb.join("1-3"), "fixed");
+        // One straight on an external root port.
+        put(&usb.join("1-4"), "removable");
+
+        assert!(!trusted_by_bus(&event("e0", &usb.join("1-1/1-1.2"))));
+        assert!(trusted_by_bus(&event("e1", &usb.join("1-2/1-2.1"))));
+        assert!(trusted_by_bus(&event("e2", &usb.join("1-3"))));
+        assert!(!trusted_by_bus(&event("e3", &usb.join("1-4"))));
         fs::remove_dir_all(&root).expect("clean up");
     }
 
