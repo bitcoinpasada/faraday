@@ -290,11 +290,13 @@ fn header_edited(mut disk: Sparse, edit: impl FnOnce(&mut [u8])) -> Sparse {
 
 #[test]
 fn a_header_whose_entries_run_nearly_to_the_disks_end_is_refused_before_they_are_read() {
-    // 1024 entries of 4096 bytes at the last 8200 sectors: the old
-    // reader took this table and read the whole disk but its last sectors.
+    // 1024 entries of 4096 bytes at the last 8200 sectors, with the
+    // checksum of the bytes that are there: the old reader took this
+    // table and then read the whole disk but its last sectors.
     let lba = STICK / SECTOR - 8200;
-    let sums = faraday_crypto::crc32(&vec![0u8; 1024 * 4096]);
-    let disk = header_edited(stick_of(BOOT, &[(DATA_FIRST, DATA_FIRST + 262_143)]), |h| {
+    let base = stick_of(BOOT, &[(DATA_FIRST, DATA_FIRST + 262_143)]);
+    let sums = faraday_crypto::crc32(&base.bytes(lba * SECTOR, 1024 * 4096));
+    let disk = header_edited(base, |h| {
         h[72..80].copy_from_slice(&lba.to_le_bytes());
         h[80..84].copy_from_slice(&1024u32.to_le_bytes());
         h[84..88].copy_from_slice(&4096u32.to_le_bytes());

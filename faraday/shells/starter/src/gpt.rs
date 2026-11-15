@@ -294,9 +294,7 @@ fn read_with(
     }
     let mut regions = vec![(0, primary_end)];
     // The backup: its entries just before its header, at the disk's end.
-    if alternate > entry_sectors && backup_end <= len {
-        regions.push(((alternate - entry_sectors) * sector, backup_end));
-    }
+    regions.push(((alternate - entry_sectors) * sector, backup_end));
     Ok(Table {
         sector,
         disk_guid: guid(&header[56..72]),
