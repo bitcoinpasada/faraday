@@ -2077,6 +2077,9 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             let (Ok(m), Ok(keys), Ok(vaults)) = (m.parse(), keys.parse(), vaults.parse()) else {
                 return false;
             };
+            if vaults > crate::MAX_VAULTS {
+                return false;
+            }
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.shape.m = m;
             w.shape.keys = keys;
@@ -2175,7 +2178,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             let Ok(v) = v.parse::<usize>() else {
                 return false;
             };
-            if v >= MAX_PLACES || v != fl.plan.vaults.len() {
+            if v >= crate::MAX_VAULTS || v != fl.plan.vaults.len() {
                 return false;
             }
             fl.plan.vaults.push(VaultPlan {

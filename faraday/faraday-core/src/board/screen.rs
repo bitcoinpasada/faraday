@@ -1665,7 +1665,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
         chip_h(ui),
         &[(
             EN.board_add_vault,
-            Style::Secondary,
+            Style::Secondary.when(v.vault_room),
             Action::Board(BoardPress::AddVault),
         )],
     ) + gap;

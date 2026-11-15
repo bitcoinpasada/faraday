@@ -654,9 +654,13 @@ impl Default for VaultAsk {
     }
 }
 
-/// The most vaults a backup is set up with at once; a count past it is
+/// The most vaults a backup is set up with at once: what a plan holds,
+/// one checklist item number each.
+const MAX_VAULTS: usize = faraday_plan::MAX_VAULTS;
+
+/// The most sticks a backup is set up with at once; a count past it is
 /// not a count a person means.
-const MAX_VAULTS: usize = 1024;
+const MAX_STICKS: usize = faraday_plan::MAX_STICKS;
 
 /// What [`Action::About`] names for a page's walk-through rather than a step's.
 pub(crate) const ABOUT_PAGE: u8 = u8::MAX;

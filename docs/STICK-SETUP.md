@@ -27,7 +27,7 @@ Two steppers, the one the card uses now (`Ui`'s stepper,
 `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `count_card`),
 side by side where the width allows, else one under the other:
 
-- **Vaults**: 1 to 1024, as now.
+- **Vaults**: 1 to 128, the most a plan holds.
 - **Sticks**: 1 to 1024, the total number of sticks the backup uses,
   the boot stick counted where it is one of them. Its first value is the
   number of vaults.

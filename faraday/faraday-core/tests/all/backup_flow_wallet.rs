@@ -212,6 +212,25 @@ pub(crate) fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
     assert_eq!(step(app), Step::Sticks);
 }
 
+/// A backup is set up with at most 128 vaults: asking for 129 sets up
+/// 128, and each of the 128 has a step number of its own.
+#[test]
+fn the_129th_vault_is_refused_and_each_of_128_has_its_own_step() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    create_with_vaults(&mut app, false, 129);
+    let shown = crate::common::texts(&mut app);
+    // A stick for each vault, after the boot stick that is Stick 1.
+    assert!(shown.iter().any(|t| t == "Stick 129"), "{shown:?}");
+    assert!(!shown.iter().any(|t| t == "Stick 130"), "{shown:?}");
+    assert_eq!(
+        (0..128)
+            .map(|v| bstep::of(Item::Vault(v)))
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        128
+    );
+}
+
 /// The sticks of the setup, in order, each one at a time.
 pub(crate) fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
     for d in disks {
@@ -3115,7 +3134,7 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered() {
 }
 
 #[test]
-fn the_count_of_vaults_is_one_to_1024_and_nothing_starts_before_its_continue() {
+fn the_count_of_vaults_is_one_to_128_and_nothing_starts_before_its_continue() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_single_key(&mut app);
@@ -3132,8 +3151,10 @@ fn the_count_of_vaults_is_one_to_1024_and_nothing_starts_before_its_continue() {
     app.press(Action::CVaultN(25));
     assert_eq!(app.create().unwrap().vaults.count, 25);
     // A count a saved plan could not read back is refused.
+    app.press(Action::CVaultN(129));
+    assert_eq!(app.create().unwrap().vaults.count, 128);
     app.press(Action::CVaultN(5000));
-    assert_eq!(app.create().unwrap().vaults.count, 1024);
+    assert_eq!(app.create().unwrap().vaults.count, 128);
     app.press(Action::CVaultN(25));
     assert!(!app.create_card_done(cstep::HOW_MANY));
     app.press(Action::CNext(cstep::HOW_MANY));

@@ -11,7 +11,7 @@ use crate::Medium;
 use crate::board::lines::stick_word;
 use crate::board::{BoardPress, BoardState, Chip, Menu, MenuRow, Thing, Verb, Zone};
 use crate::strings::{EN, fill};
-use crate::{Action, MAX_VAULTS};
+use crate::{Action, MAX_STICKS, MAX_VAULTS};
 use faraday_crypto::work::Compute;
 
 /// What the checks under the layout say (`docs/STICK-SETUP.md` §2.5).
@@ -173,7 +173,7 @@ impl SetupLayout {
     /// alone going back to the list; a stick more takes the vault of its
     /// number that is on none, or a copy of the last vault.
     pub(crate) fn set_sticks(&mut self, n: usize) {
-        let n = n.clamp(1, MAX_VAULTS);
+        let n = n.clamp(1, MAX_STICKS);
         self.follow = false;
         if n == self.on.len() {
             return;

@@ -462,6 +462,19 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     );
 }
 
+/// Restore asked for 129 vaults sets up 128.
+#[test]
+fn restore_asked_for_129_vaults_gets_128() {
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(WHERE));
+    app.press(Action::RVaultN(129));
+    assert_eq!(app.restore().unwrap().vaults.count, 128);
+}
+
 /// The description read first and one vault set up after it: Back up
 /// this wallet resumes the wallet's backup at the plan, with that vault.
 #[test]

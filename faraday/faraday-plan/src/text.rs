@@ -316,6 +316,9 @@ impl Answers {
     /// seed, with one `sticks` line and no `vault` line, reads as one
     /// vault holding every seed here, its stick at the places ticked.
     pub fn from_text(shape: &Shape, text: &str) -> Option<Answers> {
+        if shape.vaults > crate::MAX_VAULTS {
+            return None;
+        }
         let mut a = Answers::defaults(shape);
         a.bare = Vec::new();
         let mut seen = 0;
@@ -406,8 +409,8 @@ fn answer_line(a: &mut Answers, name: &str, value: &str, got: &mut Lines) -> Opt
         "seeds" => a.seeds = bits(value)?,
         "places" => {
             // More than the places a person could ever add (rows
-            // above are held to the same 1024) is not a plan.
-            a.places = value.parse().ok().filter(|&n| n <= 1024)?;
+            // above are held to the same count) is not a plan.
+            a.places = value.parse().ok().filter(|&n| n <= crate::MAX_PLACES)?;
         }
         "split" => a.split = value == "1",
         "sticks" if value.contains(' ') => got.sticks.push(numbered(value)?),
@@ -544,7 +547,7 @@ fn place_rows(
             .try_fold(0, |most: usize, (v, _)| Some(most.max(v.checked_add(1)?)))
     };
     let (vault_rows, stick_rows) = (seen_rows(&vaults)?, seen_rows(&sticks)?);
-    if vault_rows.max(stick_rows) > 1024 {
+    if vault_rows > crate::MAX_VAULTS || stick_rows > crate::MAX_VAULTS {
         return None;
     }
     if vault_rows > a.vaults.len() {
@@ -635,7 +638,7 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             What::Share(j) => j < shape.keys.max(1),
             What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
             What::WalletFile(f) => f <= form::TEXT,
-            What::VaultStick(v) => v < 1024,
+            What::VaultStick(v) => v < crate::MAX_VAULTS,
             What::Codex32Share(i, _)
             | What::Codex32QrPaper(i, _)
             | What::Codex32ShareFile(i, _)
@@ -646,7 +649,9 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
         };
         let sticks_ok = edited.iter().all(|s| match s.at {
             At::Stick(p, k) => {
-                p < places.len() && k < 1024 && s.holds.iter().all(|(w, _)| on_stick(*w))
+                p < places.len()
+                    && k < crate::MAX_STICKS
+                    && s.holds.iter().all(|(w, _)| on_stick(*w))
             }
             _ => true,
         });
@@ -654,7 +659,7 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
             && sticks_ok
             && edited
                 .iter()
-                .all(|s| !matches!(s.at, At::Vault(v) if v >= 1024))
+                .all(|s| !matches!(s.at, At::Vault(v) if v >= crate::MAX_VAULTS))
             && edited
                 .iter()
                 .all(|s| s.holds.iter().all(|(w, _)| fits_shape(*w)));

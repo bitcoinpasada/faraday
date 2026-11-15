@@ -1086,6 +1086,31 @@ fn a_vault_on_two_places_holds_seed_a_once_and_a_second_vault_takes_a_second_sti
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(1)]);
 }
 
+/// A plan holds 128 vaults: **+ vault** past them adds none, and the plan
+/// still reads back as it was saved.
+#[test]
+fn plus_vault_adds_none_past_128_and_the_plan_still_reads_back() {
+    let mut app = three_on_an_empty_board();
+    // Pressed past the most, **+ vault** adds none.
+    let vault_room = |app: &Faraday| {
+        let (shape, a) = app.board_plan().unwrap();
+        a.vault_room(&shape)
+    };
+    // The first through the screen, which opens the board for changes.
+    tap(&mut app, BP::AddVault);
+    let mut made = 1;
+    while vault_room(&app) && made < 200 {
+        app.press(Action::Board(BP::AddVault));
+        made += 1;
+    }
+    assert_eq!(made, 128);
+    app.press(Action::Board(BP::AddVault));
+    assert!(!vault_room(&app));
+    let shape = backup_shape(&app);
+    let text = String::from(&*app.backup().unwrap().answers.to_text());
+    assert!(Answers::from_text(&shape, &text).is_some());
+}
+
 /// A key with a passphrase, made in Create on its own, its backup open on
 /// the board with its words at both places.
 fn passphrase_key_on_the_board() -> Faraday {

@@ -636,8 +636,9 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
      not done, and shows no check, until the person has pressed an answer,
      which moves on (F103). No goes on to Keys.
   2. **Sticks and vaults** (`docs/STICK-SETUP.md` §2). Two steppers,
-     Vaults and Sticks, each one to 1024 (the most a saved plan reads
-     back), and under them the board's chips: a chip per vault with New
+     Vaults and Sticks: Vaults one to 128 (the most a saved plan holds,
+     one checklist item number each), Sticks one to 1024 (the most a
+     saved plan reads back), and under them the board's chips: a chip per vault with New
      or Already on a stick, and a box per stick (Stick 2, Stick 3, …)
      holding the vaults on it. Moved by drag, tap or the chip's ⋮
      (Put on…, Move to…, Copy to…, Take off). A vault on no stick holds
@@ -1376,7 +1377,9 @@ grouped, each a chip (DESIGN §4.17):
   the checks count the description kept where the whole is, or where
   enough shares are to rebuild it, as `check` does today.
 - **Vaults**: one chip per vault of the plan, and **+ vault**, which
-  adds one (the vault rows of §10.2: a vault the plan makes).
+  adds one (the vault rows of §10.2: a vault the plan makes), drawn
+  disabled, and taking no press, once the plan's last vault is the
+  128th (removing a vault does not renumber the others).
 - **Watch-only software**, while the board has no software place.
 - Under Seeds, **a seed kept as codex32 strings** (a key whose secret is
   a codex32 set) is a group of its own, one chip per string by its share

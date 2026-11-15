@@ -36,6 +36,7 @@ pub const VAULT: u8 = 128;
 /// the copy, codex32 and passphrase ranges. A seed past them has none.
 pub const SEEDS: usize = faraday_plan::CHECKLIST_SEEDS;
 const _: () = assert!(CODEX32 - COPY == SEEDS as u8);
+const _: () = assert!(VAULT as usize + faraday_plan::MAX_VAULTS == 256);
 
 /// Whether `n` is a seed's copy by hand.
 pub fn is_copy(n: u8) -> bool {
@@ -65,7 +66,7 @@ pub fn of(item: Item) -> u8 {
         Item::Codex32(i) => CODEX32 + i.min(usize::from(PASSPHRASE - CODEX32 - 1)) as u8,
         Item::Passphrase(i) => PASSPHRASE + i.min(usize::from(KEF - PASSPHRASE - 1)) as u8,
         Item::KefCode(i) => KEF + i.min(usize::from(VAULT - KEF - 1)) as u8,
-        Item::Vault(v) => VAULT.saturating_add(v.min(127) as u8),
+        Item::Vault(v) => VAULT + v.min(faraday_plan::MAX_VAULTS - 1) as u8,
         Item::SeedFiles => FILES,
         Item::Sheets => SHEETS,
         Item::PublicFiles => PUBLIC,

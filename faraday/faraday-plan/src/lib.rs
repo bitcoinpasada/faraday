@@ -31,6 +31,16 @@ use faraday_text::{Text, text};
 /// seed past them has none.
 pub const CHECKLIST_SEEDS: usize = 28;
 
+/// The most vaults a plan holds: the numbers the checklist gives vault
+/// items (`bstep::VAULT` to 255), one each. A plan past it is refused.
+pub const MAX_VAULTS: usize = 128;
+
+/// The most sticks a plan holds, which have no item numbers of their own.
+pub const MAX_STICKS: usize = 1024;
+
+/// The most places a plan holds.
+pub const MAX_PLACES: usize = 1024;
+
 /// The sha-256 or other 32 bytes as lower-case hex.
 pub fn hex32(b: &[u8; 32]) -> Text {
     faraday_crypto::hex::encode_string(b)
@@ -3508,10 +3518,9 @@ impl Answers {
         }
     }
 
-    /// A vault more, holding nothing and kept at no place yet: the board's
-    /// **+ vault** (`docs/BACKUP-FLOW.md` §17.1). Its number is the one
-    /// after the plan's last vault and the vaults set up before the keys.
-    pub fn add_vault(&mut self, shape: &Shape) -> usize {
+    /// The number a vault added now would have: the one after the plan's
+    /// last vault and the vaults set up before the keys.
+    fn next_vault(&self, shape: &Shape) -> usize {
         let named = stored_map(shape, self)
             .iter()
             .filter_map(|s| match s.at {
@@ -3520,8 +3529,25 @@ impl Answers {
             })
             .max()
             .unwrap_or(0);
-        let v = named.max(shape.vaults);
-        self.edit_map(shape, |m| with_vault(m, v));
+        named.max(shape.vaults)
+    }
+
+    /// Whether another vault can be added: a plan holds [`MAX_VAULTS`].
+    #[must_use]
+    pub fn vault_room(&self, shape: &Shape) -> bool {
+        self.next_vault(shape) < MAX_VAULTS
+    }
+
+    /// A vault more, holding nothing and kept at no place yet: the board's
+    /// **+ vault** (`docs/BACKUP-FLOW.md` §17.1). Its number is the one
+    /// after the plan's last vault and the vaults set up before the keys.
+    /// With [`MAX_VAULTS`] already, no vault is added and nothing changes,
+    /// and the number returned is the limit.
+    pub fn add_vault(&mut self, shape: &Shape) -> usize {
+        let v = self.next_vault(shape);
+        if v < MAX_VAULTS {
+            self.edit_map(shape, |m| with_vault(m, v));
+        }
         v
     }
 

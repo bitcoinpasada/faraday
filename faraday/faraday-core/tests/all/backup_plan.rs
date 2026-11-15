@@ -337,6 +337,39 @@ fn a_plan_naming_what_the_wallet_does_not_have_is_read_as_absent() {
     assert!(Note::from_text("exposed place0 seed99", 3).is_none());
 }
 
+/// A plan holds 128 vaults: a saved plan with a 129th vault row is read as
+/// absent, as one with seeds past the checklist's numbers is kept nowhere.
+#[test]
+fn a_plan_with_a_129th_vault_is_read_as_absent() {
+    let shape = two_of_three();
+    let a = Answers::preset(&shape, Preset::PaperVaultSoftware);
+    let text = String::from(&*a.to_text());
+    let row = "0".repeat(shape.seeds.len());
+    let last = format!("vault 127 {row}\n");
+    assert!(Answers::from_text(&shape, &format!("{text}{last}")).is_some());
+    let past = format!("vault 128 {row}\n");
+    assert_eq!(Answers::from_text(&shape, &format!("{text}{past}")), None);
+    // A vault past 128 named by a spot, by a vault's stick, or by a
+    // stick row is refused too.
+    let mut b = a.clone();
+    let n = b.add_vault(&shape);
+    b.add_vault_stick(&shape, 0, n);
+    let kept = String::from(&*b.to_text());
+    assert_eq!(Answers::from_text(&shape, &kept).as_ref(), Some(&b));
+    for (from, to) in [
+        (format!("vault{n}"), "vault128"),
+        (format!("stick{n}"), "stick128"),
+    ] {
+        assert!(kept.contains(&from), "{kept}");
+        let past = kept.replace(&from, to);
+        assert_eq!(Answers::from_text(&shape, &past), None, "{to}");
+    }
+    let rows = format!("{text}sticks 127 {}\n", "0".repeat(a.places));
+    assert!(Answers::from_text(&shape, &rows).is_some());
+    let rows = format!("{text}sticks 128 {}\n", "0".repeat(a.places));
+    assert_eq!(Answers::from_text(&shape, &rows), None);
+}
+
 /// A plan a test build saved with access layers (`layers` and `route`
 /// lines, a vault's password on paper in a place) opens as the same plan
 /// without them: the layers were withdrawn (F38), the plan is not refused.

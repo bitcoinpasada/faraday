@@ -780,6 +780,8 @@ pub(crate) struct BoardView {
     pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
+    /// Another vault may be added: the plan holds fewer than the most.
+    pub vault_room: bool,
     /// Each seed's codex32 group (`docs/CODEX32.md` §9.5).
     pub c32: Vec<codex32::C32Group>,
     /// The software's entry, while the board has no software place.
@@ -1450,6 +1452,7 @@ impl Faraday {
             room: places < plan::codex32::max_places_of(&shape, &a),
             c32: codex32::groups(&shape, &a, &entry),
             vaults,
+            vault_room: a.vault_room(&shape),
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
             warnings,
             locked,
