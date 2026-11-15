@@ -596,6 +596,11 @@ pub struct BackupState {
     /// BIP-39 words, every one needed. Shown to copy by hand and never
     /// written to a file.
     pub paper: Option<faraday_keys::Held<Vec<Text>>>,
+    /// Which of the Seed XOR parts a typed copy matched, one bit a part.
+    pub paper_ok: u8,
+    /// Put them away was pressed once with a part unchecked: a second
+    /// press puts them away.
+    pub paper_skip: bool,
     /// The list of loaded wallets is open under the wallet chip.
     pub pick: bool,
     /// Open from Create's Back up card: the chip says the way on is
@@ -873,7 +878,19 @@ impl WalletBackupArea {
                 b.check_at = None;
             }
             Action::BPaperHide => {
-                b.paper = None;
+                // Put them away: once every part matched, or at the
+                // second press.
+                let all = b
+                    .paper
+                    .as_ref()
+                    .is_some_and(|p| (0..p.len()).all(|i| b.paper_ok & (1 << i) != 0));
+                if all || b.paper_skip {
+                    b.paper = None;
+                    b.paper_ok = 0;
+                    b.paper_skip = false;
+                } else {
+                    b.paper_skip = true;
+                }
             }
             Action::BCompact(c) => {
                 b.compact = c;
@@ -1548,6 +1565,15 @@ impl WalletBackupArea {
     pub(crate) fn set_paper(&mut self, parts: faraday_keys::Held<Vec<Text>>) {
         if let Some(b) = self.state.as_mut() {
             b.paper = Some(parts);
+            b.paper_ok = 0;
+            b.paper_skip = false;
+        }
+    }
+
+    /// Seed XOR part `i` was typed back right.
+    pub(crate) fn part_matched(&mut self, i: usize) {
+        if let Some(b) = self.state.as_mut() {
+            b.paper_ok |= 1 << i.min(7);
         }
     }
 
@@ -1850,6 +1876,7 @@ impl Faraday {
                 self.backup_item_open(next);
             }
             Action::BXor(n) => self.paper_xor(n),
+            Action::BPartCheck(i) => self.part_check_open(i),
             Action::BC32(p) => self.backup_c32(p, c),
             Action::BCheck => self.copy_check_open(),
             Action::BScan => {
@@ -2034,9 +2061,74 @@ impl Faraday {
         self.backup.check_start(check);
     }
 
+    /// Check my copy of Seed XOR part `i` (from 0): the typed check opens
+    /// for that part, with nothing typed.
+    pub(crate) fn part_check_open(&mut self, i: u8) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        if b.check.is_some() || b.paper.as_ref().is_none_or(|p| usize::from(i) >= p.len()) {
+            return;
+        }
+        let mut check = self.copy_check_new();
+        if let Some(c) = check.as_mut() {
+            c.part = Some(usize::from(i));
+        }
+        self.backup.check_start(check);
+    }
+
+    /// Compares the words typed with Seed XOR part `i` once the last is
+    /// taken. A match marks the part and closes the check; a word that
+    /// differs is named and typing resumes at it.
+    fn part_check_after(&mut self, i: usize) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let (Some(chk), Some(parts)) = (b.check.as_ref(), b.paper.as_ref()) else {
+            return;
+        };
+        let Some(part) = parts.get(i) else {
+            return;
+        };
+        let mut typed = chk.indices();
+        let lang = chk.lang;
+        let differs = part
+            .split_whitespace()
+            .map(|w| forms::typed_index(lang, w).unwrap_or(u16::MAX - 1))
+            .zip(typed.iter().copied())
+            .position(|(a, t)| a != t);
+        let off_list = differs.is_some_and(|k| typed.get(k) == Some(&u16::MAX));
+        typed.zeroize();
+        match differs {
+            None => {
+                self.backup.check_close();
+                self.backup.part_matched(i);
+            }
+            Some(k) => {
+                let k = k + 1;
+                let line = if off_list {
+                    Text::fill(
+                        EN.forms_word_not_in_list,
+                        &[&Text::num(k as u64), forms::language_name(lang)],
+                    )
+                } else {
+                    Text::fill(
+                        EN.paper_section_word_differs,
+                        &[&Text::num(k as u64), &Text::num(i as u64 + 1)],
+                    )
+                };
+                self.backup.check_wrong(k, line);
+            }
+        }
+    }
+
     /// Clear: the check starts again from word 1.
     pub(crate) fn copy_check_clear(&mut self) {
-        let check = self.copy_check_new();
+        let part = self.backup.state().and_then(|b| b.check.as_ref()?.part);
+        let mut check = self.copy_check_new();
+        if let Some(c) = check.as_mut() {
+            c.part = part;
+        }
         self.backup.check_restart(check);
     }
 
@@ -2075,6 +2167,9 @@ impl Faraday {
         };
         if chk.passphrase || chk.taken() < chk.count {
             return;
+        }
+        if let Some(i) = chk.part {
+            return self.part_check_after(i);
         }
         let Some(key) = self.session.keys.info(b.key) else {
             return;

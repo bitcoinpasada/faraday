@@ -810,6 +810,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Another paper form: test key 1 split into two Seed XOR parts.
     t.press(Action::BXor(2));
     t.shot("backup-xor")?;
+    // Put away unchecked: the first press says so, the second puts them away.
+    t.press(Action::BPaperHide);
+    t.shot("backup-xor-unchecked")?;
     t.press(Action::BPaperHide);
     // The copy typed back.
     t.press(Action::BCheck);

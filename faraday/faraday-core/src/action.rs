@@ -658,6 +658,8 @@ pub enum Action {
     POut,
     /// Split the key's words into this many Seed XOR parts.
     BXor(u8),
+    /// Check my copy of this Seed XOR part, by place.
+    BPartCheck(u8),
     /// Put the other paper form away.
     BPaperHide,
     /// Read with this camera, by its place in the shell's list.

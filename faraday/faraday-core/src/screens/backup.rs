@@ -2058,12 +2058,55 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &line);
             cy += ui.advance_as(LABEL_L, 26.0);
+            if let Some(key) = app.session.keys.info(b.key) {
+                let line = fill(
+                    EN.paper_section_part_is,
+                    &[&parts.len().to_string(), &key.fingerprint.to_string()],
+                );
+                cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
+            }
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.paper_section_not_on_plan,
+            ) + T::GAP;
+            let mut all = true;
             for (i, l) in parts.iter().enumerate() {
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &format!("{}", i + 1));
                 cy += ui
-                    .wrap_as((x + 28.0, cy, w - 28.0), BODY_S.mono(), Role::OnSurface, l)
-                    .max(18.0)
-                    + 10.0;
+                    .wrap_as(
+                        (x + T::PART_NUMBER_INDENT, cy, w - T::PART_NUMBER_INDENT),
+                        BODY_S.mono(),
+                        Role::OnSurface,
+                        l,
+                    )
+                    .max(T::PART_MIN_H)
+                    + T::GAP;
+                if b.paper_ok & (1 << i) != 0 {
+                    let line = fill(EN.convert_copy_matches_part, &[&(i + 1).to_string()]);
+                    cy += ui.wrap_as(
+                        (x + T::PART_NUMBER_INDENT, cy, w - T::PART_NUMBER_INDENT),
+                        LABEL_L,
+                        Role::Ok,
+                        &line,
+                    ) + T::GAP;
+                } else {
+                    all = false;
+                    if b.check.is_none() {
+                        let label = fill(EN.paper_section_check_part, &[&(i + 1).to_string()]);
+                        let row = [(
+                            label,
+                            Style::Secondary,
+                            Action::BPartCheck(i.min(255) as u8),
+                        )];
+                        cy += button_rows(ui, x, cy, w, &row);
+                    }
+                }
+            }
+            if b.paper_skip && !all {
+                cy +=
+                    ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, EN.keygen_quiz_skipped) + T::GAP;
             }
             ui.button(
                 x,

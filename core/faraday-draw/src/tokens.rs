@@ -723,6 +723,13 @@ pub const ENTRY_CELL_GAP: f32 = 10.0;
 /// the left, before the word.
 pub const ENTRY_CELL_NUMBER: f32 = 24.0;
 
+/// A Seed XOR part on the seed's copy page: how far the part's words stand
+/// in from the left edge, past its number.
+pub const PART_NUMBER_INDENT: f32 = 28.0;
+
+/// A Seed XOR part on the seed's copy page: the least height of its words.
+pub const PART_MIN_H: f32 = 18.0;
+
 /// A passphrase field that takes no typing (Practice's `faraday`): how far
 /// its code box stands in from the field's left edge.
 pub const PASS_CODE_INSET: f32 = 12.0;

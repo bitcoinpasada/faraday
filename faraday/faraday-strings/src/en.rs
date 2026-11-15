@@ -5288,6 +5288,8 @@ strings! {
     pdf_bip39_english: "BIP-39 words, English. Any BIP-39 wallet restores them.",
     /// Line in `blank_sheet`: two boxes to tick by hand.
     pdf_passphrase_tick: "Passphrase: none [ ] kept elsewhere [ ]",
+    /// Line in `blank_sheet`: for a sheet that holds one Seed XOR part.
+    pdf_seed_xor_part: "Seed XOR part ___ of ___ (leave empty for whole words)",
     /// Line in `blank_sheet`, where the template was made with no name and shape.
     pdf_wallet_kind_path: "Wallet: ______ (kind, path)",
     /// Line in `blank_sheet`.
@@ -7144,6 +7146,14 @@ strings! {
     paper_section_parts: "{} parts · every one is needed",
     /// Button in `paper_section`.
     paper_section_put_them: "Put them away",
+    /// Line in `paper_section`. `{}`: the number of parts, the whole key's fingerprint.
+    paper_section_part_is: "Each part alone is valid words of another, empty wallet. Write 'Seed XOR part 1 of {}' and the key's fingerprint {} on each.",
+    /// Line in `paper_section`.
+    paper_section_not_on_plan: "Not on the plan: its checks do not count these parts",
+    /// Line in `paper_section`. `{}`: the word's place, the part's number.
+    paper_section_word_differs: "Word {} differs from part {}",
+    /// Button in `paper_section`, per part.
+    paper_section_check_part: "Check my copy of part {}",
     // ----- seed_grid (faraday-core/src/screens/backup.rs) -----
     /// Text in `seed_grid`. `{}`: `pin`.
     seed_grid_row: "row {}",

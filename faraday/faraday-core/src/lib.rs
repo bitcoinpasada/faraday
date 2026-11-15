@@ -2877,6 +2877,7 @@ impl Faraday {
             | Action::BKey(..)
             | Action::BReveal
             | Action::BXor(..)
+            | Action::BPartCheck(..)
             | Action::BPaperHide
             | Action::BCompact(..)
             | Action::BPin(..)

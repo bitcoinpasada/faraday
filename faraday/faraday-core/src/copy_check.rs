@@ -36,6 +36,8 @@ pub struct WordCheck {
     pub passphrase: bool,
     /// The person pressed in the grid or typed: **Fill words** is gone.
     pub sample_gone: bool,
+    /// The check is of this Seed XOR part, by place, not of the seed.
+    pub part: Option<usize>,
 }
 
 impl WordCheck {
@@ -51,6 +53,7 @@ impl WordCheck {
             count,
             passphrase: false,
             sample_gone: false,
+            part: None,
         }
     }
 

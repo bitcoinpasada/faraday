@@ -142,3 +142,47 @@ fn a_key_of_words_is_not_offered_codex32_strings_by_hand() {
         "{texts:?}"
     );
 }
+
+fn part_words(app: &Faraday, i: usize) -> String {
+    app.backup().unwrap().paper.as_ref().unwrap()[i].to_string()
+}
+
+#[test]
+fn seed_xor_parts_are_put_away_only_once_checked_or_on_a_second_press() {
+    let mut app = backing_up();
+    app.press(Action::BXor(2));
+    app.press(Action::BPaperHide);
+    assert!(app.backup().unwrap().paper.is_some(), "put away unchecked");
+    app.press(Action::BPaperHide);
+    assert!(app.backup().unwrap().paper.is_none());
+
+    app.press(Action::BXor(2));
+    for i in 0..2u8 {
+        app.press(Action::BPartCheck(i));
+        let words = part_words(&app, i.into());
+        typed(&mut app, &format!("{words} "));
+        assert_eq!(app.backup().unwrap().paper_ok & (1 << i), 1 << i);
+    }
+    app.press(Action::BPaperHide);
+    assert!(app.backup().unwrap().paper.is_none(), "checked parts stay");
+}
+
+#[test]
+fn a_seed_xor_part_typed_back_with_one_word_changed_is_named_as_differing() {
+    let mut app = backing_up();
+    app.press(Action::BXor(3));
+    app.press(Action::BPartCheck(1));
+    let words = part_words(&app, 1);
+    let mut w: Vec<String> = words.split(' ').map(String::from).collect();
+    let other = part_words(&app, 0).split(' ').next().unwrap().to_string();
+    w[2] = if w[2] == other {
+        "abandon".into()
+    } else {
+        other
+    };
+    typed(&mut app, &format!("{} ", w.join(" ")));
+    let b = app.backup().unwrap();
+    assert_eq!(b.paper_ok, 0);
+    let error = b.check.as_ref().and_then(|c| c.error.as_deref());
+    assert_eq!(error, Some("Word 3 differs from part 2"));
+}

@@ -39,7 +39,7 @@ Blank templates are printed from Faraday Starter on the online computer; they ho
 
 One item per seed. The words are copied onto a template in order, then typed back; the first word that differs is named.
 
-**Show the seed** shows the words, each with its number in the word list, and the SeedQR grid, **Standard SeedQR** or **Compact SeedQR**. **Check my copy** compares the typed words with the seed. **Scan your copy** reads a SeedQR copy. **Keep the words only** drops a SeedQR copy and checks the words instead. **Seed XOR, 2 parts** and **Seed XOR, 3 parts** are other paper forms.
+**Show the seed** shows the words, each with its number in the word list, and the SeedQR grid, **Standard SeedQR** or **Compact SeedQR**. **Check my copy** compares the typed words with the seed. **Scan your copy** reads a SeedQR copy. **Keep the words only** drops a SeedQR copy and checks the words instead. **Seed XOR, 2 parts** and **Seed XOR, 3 parts** are other paper forms. Each part alone is valid words of another, empty wallet, and is on no plan. **Check my copy of part 1** compares the typed words with that part; **Put them away** needs every part checked or a second press.
 
 ## Codex32 strings
 

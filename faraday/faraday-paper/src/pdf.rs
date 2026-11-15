@@ -786,6 +786,8 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     y += 14.0;
     p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_passphrase_tick);
     y += 14.0;
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_seed_xor_part);
+    y += 14.0;
     p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_written_on_label);
     p.line(MARGIN + 70.0, y + 11.0, MARGIN + 220.0, y + 11.0, 0.5, 0.4);
     y += 18.0;
