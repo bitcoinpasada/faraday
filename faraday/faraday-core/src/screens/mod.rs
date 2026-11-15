@@ -529,6 +529,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             crate::compact::keyboard(app, ui, x, w, full_h);
         }
     }
+    #[cfg(feature = "demo")]
     drop_edge(app, ui, (full_w, full_h), kb > 0.0);
     ui.fade_disabled();
     // What was plugged in at start, over the page and any sheet.
@@ -553,6 +554,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
 /// navigation edged in the accent as the place it drops, as the board
 /// edges its drop targets (`docs/DESIGN.md` §4.17); over a sheet, the
 /// whole window. Reads the state.
+#[cfg(feature = "demo")]
 fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
     use faraday_draw::tokens::BOARD_EDGE;
     if !app.transfer.hovered() {
