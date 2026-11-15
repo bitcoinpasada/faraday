@@ -336,6 +336,28 @@ fn a_document_not_well_formed_is_hashed_as_pykeepass_and_keepassxc_hash_it() {
 }
 
 #[test]
+fn a_misplaced_element_ahead_of_a_break_in_the_document_is_hashed_with_the_file() {
+    for (name, file) in [
+        (
+            "a misplaced key",
+            "<KeyFile><Key><Data>x</Data></Key><a x=1/></KeyFile>",
+        ),
+        ("a second meta, truncated", "<KeyFile><Meta/><Meta>"),
+        ("an unknown element", "<KeyFile><X/><a x=1/></KeyFile>"),
+        (
+            "a prefixed root",
+            "<k:KeyFile xmlns:k=\"urn:x\"><a x=1/></k:KeyFile>",
+        ),
+    ] {
+        assert_eq!(
+            *keyfile::read(file.as_bytes()).unwrap_or_else(|e| panic!("{name}: {e:?}")),
+            sha256(file.as_bytes()),
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn markup_after_the_root_or_a_declaration_one_reader_reads_differently_is_refused() {
     let decl = |d: &str| key_file(&format!("<?{d}?>"), "KeyFile", "");
     for (name, file) in [
@@ -1055,4 +1077,80 @@ fn open_as(bytes: &[u8], passphrase: &str, components: Components) -> Result<Ope
         &mut |_, _| Ok(None),
         None,
     )
+}
+
+#[test]
+fn a_key_file_with_its_elements_out_of_place_or_order_is_refused() {
+    let part = |data: &str| format!("<Key><Data>{data}</Data></Key>");
+    let meta = "<Meta><Version>1.0</Version></Meta>";
+    for (name, body) in [
+        ("key before meta", format!("{}{meta}", part(KEY_B64))),
+        (
+            "key inside meta",
+            format!("<Meta><Version>1.0</Version>{}</Meta>", part(KEY_B64)),
+        ),
+        (
+            "a second key",
+            format!("{meta}{}{}", part("AAAA"), part(KEY_B64)),
+        ),
+        ("a second meta", format!("{meta}{meta}{}", part(KEY_B64))),
+        (
+            "data inside a wrapper",
+            format!("{meta}<Key><X><Data>{KEY_B64}</Data></X></Key>"),
+        ),
+        ("data beside key", format!("{meta}<Data>{KEY_B64}</Data>")),
+        (
+            "version beside meta",
+            format!("<Version>1.0</Version>{}", part(KEY_B64)),
+        ),
+        (
+            "a key in a wrapper",
+            format!("{meta}<X>{}</X>", part(KEY_B64)),
+        ),
+        (
+            "an unknown element before data",
+            format!("{meta}<Key><X/><Data>{KEY_B64}</Data></Key>"),
+        ),
+        (
+            "an unknown element before key",
+            format!("{meta}<X/>{}", part(KEY_B64)),
+        ),
+        (
+            "an unknown element before meta",
+            format!("<X/>{meta}{}", part(KEY_B64)),
+        ),
+        (
+            "an unknown element in meta",
+            format!("<Meta><Version>1.0</Version><X/></Meta>{}", part(KEY_B64)),
+        ),
+        (
+            "a second key inside an unknown element",
+            format!("{meta}{}<X>{}</X>", part(KEY_B64), part("AAAA")),
+        ),
+        (
+            "a second empty meta",
+            format!("{meta}<Meta/>{}", part(KEY_B64)),
+        ),
+        (
+            "a second version inside an unknown element in meta",
+            format!(
+                "<Meta><Version>1.0</Version><X><Version>2.0</Version></X></Meta>{}",
+                part(KEY_B64)
+            ),
+        ),
+    ] {
+        let file = format!("<KeyFile>{body}</KeyFile>").into_bytes();
+        assert_eq!(keyfile::read(&file), Err(KeyFileError::Damaged), "{name}");
+    }
+    let prefixed = format!(
+        "<k:KeyFile xmlns:k=\"urn:x\">{meta}{}</k:KeyFile>",
+        part(KEY_B64)
+    );
+    assert_eq!(
+        keyfile::read(prefixed.as_bytes()),
+        Err(KeyFileError::Damaged),
+        "a prefixed root"
+    );
+    let good = format!("<KeyFile>{meta}{}</KeyFile>", part(KEY_B64));
+    assert_eq!(keyfile::read(good.as_bytes()).map(|k| *k), Ok(key()));
 }

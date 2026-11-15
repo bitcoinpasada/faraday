@@ -15,7 +15,11 @@
 //!   refuses it, the other two hash the file): refused;
 //! - an empty file (KeePass hashes it, KeePassXC refuses it): refused;
 //! - a second `Version`, `Data` or `Hash`, which the three read differently:
-//!   refused.
+//!   refused;
+//! - inside a `KeyFile`, any element but `Meta`, `Version`, `Key` and `Data`
+//!   each in its one place (`Meta` and `Key` in the root, `Key` after `Meta`,
+//!   `Version` in `Meta`, `Data` in `Key`), which KeePassXC stops reading at:
+//!   refused; so is a `KeyFile` root with a namespace prefix.
 //!
 //! - a `KeyFile` document with a DOCTYPE, anything after its root but white
 //!   space and a well formed comment or processing instruction (an element,
@@ -232,6 +236,12 @@ struct Found {
     hash: Option<Vec<u8>>,
     /// Something was stated twice.
     twice: bool,
+    /// An element other than the four was inside the `KeyFile`: refused once
+    /// the document is known well formed, as a document that is not is hashed.
+    stray: bool,
+    /// A `Meta` element has been opened, and a `Key` element.
+    meta: bool,
+    key: bool,
 }
 
 /// The key of a `KeyFile` XML document: none if `bytes` is not one (not
@@ -272,6 +282,26 @@ fn xml(bytes: &[u8]) -> Result<Option<Zeroizing<[u8; 32]>>, KeyFileError> {
 /// Version, and the text so far.
 type Wanted = (usize, bool, Zeroizing<Vec<u8>>);
 
+/// Marks the element as stray if it is not one of the four a key file is made of
+/// (`Meta`, `Version`, `Key`, `Data`) in its one place, or if it is one of
+/// them twice or a `Key` before the `Meta`: KeePassXC walks into other
+/// elements, and an unknown one ends its reading early, so such a file would
+/// not mean one thing.
+fn place(e: &BytesStart<'_>, path: &[Vec<u8>], found: &mut Found) -> Result<(), KeyFileError> {
+    let at_root = path.len() == 1 && path[0] == b"KeyFile";
+    let ok = match e.name().as_ref() {
+        b"Meta" => at_root && !core::mem::replace(&mut found.meta, true),
+        b"Key" => at_root && found.meta && !core::mem::replace(&mut found.key, true),
+        b"Version" => path.len() == 2 && path[0] == b"KeyFile" && path[1] == b"Meta",
+        b"Data" => path.len() == 2 && path[0] == b"KeyFile" && path[1] == b"Key",
+        _ => false,
+    };
+    // Refused in `key_of`, once the document is known well formed: one that
+    // is not is hashed, wherever the misplaced element sat.
+    found.stray |= !ok;
+    Ok(())
+}
+
 /// The text a started element asks for, if it is the Version or the Data:
 /// the depth it sits at, whether it is the Version, and the text so far.
 fn start_text(
@@ -280,6 +310,7 @@ fn start_text(
     found: &mut Found,
     cap: usize,
 ) -> Result<Option<Wanted>, KeyFileError> {
+    place(e, path, found)?;
     let Some(is_version) = wanted(path, e.name().as_ref()) else {
         return Ok(None);
     };
@@ -303,6 +334,7 @@ fn empty_element(
     path: &[Vec<u8>],
     found: &mut Found,
 ) -> Result<(), KeyFileError> {
+    place(e, path, found)?;
     match wanted(path, e.name().as_ref()) {
         Some(true) => set_version(found, Vec::new()),
         Some(false) => {
@@ -534,9 +566,13 @@ fn open_root(empty: bool) -> (bool, Vec<Vec<u8>>) {
     )
 }
 
-/// Whether `e` is the document element, which comes once and is the `KeyFile`.
-fn is_root(e: &BytesStart<'_>, seen_root: bool, closed: bool) -> bool {
-    !(seen_root || closed) && e.name().as_ref() == b"KeyFile"
+/// Whether `e` is the document element, which comes once and is the `KeyFile`;
+/// a `KeyFile` with a namespace prefix counts, which KeePassXC reads by its
+/// local name and is marked stray.
+fn is_root(e: &BytesStart<'_>, seen_root: bool, closed: bool, found: &mut Found) -> bool {
+    let root = !(seen_root || closed) && e.name().local_name().as_ref() == b"KeyFile";
+    found.stray |= root && e.name().prefix().is_some();
+    root
 }
 
 /// Markup that is not a key file: hashed, but refused if it comes after the
@@ -667,7 +703,7 @@ fn scan_document(
             Event::Eof => break,
             Event::Start(ref e) | Event::Empty(ref e) if path.is_empty() => {
                 // The document element: the only one, and the KeyFile.
-                if !is_root(e, seen_root, closed) || !attributes_ok(e) {
+                if !is_root(e, seen_root, closed, &mut found) || !attributes_ok(e) {
                     return not_a_key(closed);
                 }
                 seen_root = true;
@@ -754,7 +790,7 @@ fn finish(mut found: Found, differ: bool, stray_ref: bool) -> Result<Found, KeyF
 
 /// The key a `KeyFile` document states, as §3.2 requires it.
 fn key_of(found: Found) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
-    if found.twice {
+    if found.twice || found.stray {
         return Err(KeyFileError::Damaged);
     }
     let version = found.version.ok_or(KeyFileError::Damaged)?;

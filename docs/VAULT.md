@@ -475,7 +475,11 @@ key does not change between seals. The response does, since the salt does.
    with another version (` 2.0 ` and `2.00` included, which KeePassXC
    opens with neither key), no key, a key that is not 32 bytes, a value that
    does not decode or a hash that fails is refused, naming the file: "This
-   key file is damaged." So is one the readers read differently: a DOCTYPE,
+   key file is damaged." So is one the readers read differently: an element
+   inside the `KeyFile` other than `Meta`, `Version`, `Key` and `Data` in
+   their one place each (`Meta` and `Key` in the root, `Key` after `Meta`,
+   `Version` in `Meta`, `Data` in `Key`), a `KeyFile` root with a namespace
+   prefix, a DOCTYPE,
    anything after the root's end tag but white space and a well formed
    comment or processing instruction (a comment with `--` in it, a
    declaration, an element, text, a reference, an end tag, markup not
