@@ -204,7 +204,7 @@ fn a_2_kib_text_goes_through_ur_bytes_into_the_devices_reader() {
     }
     assert!(decoder.is_complete());
     match decoder.into_message() {
-        Some(faraday_codec::ur::Message::Bytes(b)) => assert_eq!(b, text.as_bytes()),
+        Some(faraday_codec::ur::Message::Bytes(b)) => assert_eq!(b.as_slice(), text.as_bytes()),
         other => panic!("not the text: {other:?}"),
     }
 }

@@ -144,10 +144,10 @@ fn read_any(
             }
         };
         return Some(match message {
-            faraday_codec::ur::Message::Psbt(p) => (None, "psbt", zeroize::Zeroizing::new(p)),
+            faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
             faraday_codec::ur::Message::Bytes(b) => match std::str::from_utf8(&b) {
                 Ok(t) => received(faraday_qr::classify_text(t)),
-                Err(_) => (None, "bin", zeroize::Zeroizing::new(b)),
+                Err(_) => (None, "bin", b),
             },
             faraday_codec::ur::Message::Other { ur_type, cbor } => {
                 match faraday_qr::registry::read(&ur_type, &cbor) {
@@ -164,12 +164,12 @@ fn read_any(
                         faraday_qr::registry::Error::Private | faraday_qr::registry::Error::Seed,
                     ) => {
                         *secret = true;
-                        (None, "cbor", zeroize::Zeroizing::new(cbor))
+                        (None, "cbor", cbor)
                     }
                     // A kind this build does not read, and a registry UR
                     // it refused as not in the registry's shape, are kept
                     // as the CBOR they carried.
-                    _ => (None, "cbor", zeroize::Zeroizing::new(cbor)),
+                    _ => (None, "cbor", cbor),
                 }
             }
         });

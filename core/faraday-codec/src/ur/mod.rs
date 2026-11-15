@@ -23,6 +23,7 @@ mod xoshiro;
 use alloc::vec::Vec;
 use core::fmt;
 use faraday_text::{Text, text};
+use zeroize::Zeroizing;
 
 /// The UR type of a PSBT.
 pub const PSBT_TYPE: &str = "crypto-psbt";
@@ -168,37 +169,49 @@ impl Error {
 }
 
 /// A decoded UR message.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
     /// `ur:crypto-psbt`: the binary PSBT.
-    Psbt(Vec<u8>),
+    Psbt(Zeroizing<Vec<u8>>),
     /// `ur:bytes`: the bytes.
-    Bytes(Vec<u8>),
+    Bytes(Zeroizing<Vec<u8>>),
     /// Any other type, with its CBOR payload untouched.
     Other {
         /// The type, lower-case.
         ur_type: Text,
         /// The CBOR.
-        cbor: Vec<u8>,
+        cbor: Zeroizing<Vec<u8>>,
     },
+}
+
+impl core::fmt::Debug for Message {
+    /// The variant and the length, never the bytes.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Message::Psbt(b) => write!(f, "Message::Psbt({} bytes)", b.len()),
+            Message::Bytes(b) => write!(f, "Message::Bytes({} bytes)", b.len()),
+            Message::Other { ur_type, cbor } => {
+                write!(f, "Message::Other({}, {} bytes)", &**ur_type, cbor.len())
+            }
+        }
+    }
 }
 
 impl Message {
     fn new(ur_type: &str, mut cbor: fountain::Wiped) -> Result<Self, Error> {
         Ok(match ur_type {
-            PSBT_TYPE => Message::Psbt(
+            PSBT_TYPE => Message::Psbt(Zeroizing::new(
                 crate::cbor::byte_string(&cbor)
                     .map(<[u8]>::to_vec)
                     .map_err(|_| Error::NotByteString)?,
-            ),
-            BYTES_TYPE => Message::Bytes(
+            )),
+            BYTES_TYPE => Message::Bytes(Zeroizing::new(
                 crate::cbor::byte_string(&cbor)
                     .map(<[u8]>::to_vec)
                     .map_err(|_| Error::NotByteString)?,
-            ),
+            )),
             other => Message::Other {
                 ur_type: Text::of(other),
-                cbor: core::mem::take(&mut *cbor),
+                cbor: Zeroizing::new(core::mem::take(&mut *cbor)),
             },
         })
     }
@@ -506,21 +519,23 @@ impl Decoder {
     }
 }
 
-impl Drop for Decoder {
-    fn drop(&mut self) {
-        use zeroize::Zeroize;
-        match self.done.as_mut() {
-            Some(Message::Psbt(b) | Message::Bytes(b)) => b.zeroize(),
-            Some(Message::Other { cbor, .. }) => cbor.zeroize(),
-            None => {}
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ur::xoshiro::test_utils::make_message;
+
+    /// A message as its type and bytes, to compare field by field.
+    fn flat(m: &Message) -> (Text, Zeroizing<Vec<u8>>) {
+        match m {
+            Message::Psbt(b) => (Text::of(PSBT_TYPE), b.clone()),
+            Message::Bytes(b) => (Text::of(BYTES_TYPE), b.clone()),
+            Message::Other { ur_type, cbor } => (ur_type.clone(), cbor.clone()),
+        }
+    }
+
+    fn want(ur_type: &str, bytes: &[u8]) -> (Text, Zeroizing<Vec<u8>>) {
+        (Text::of(ur_type), Zeroizing::new(bytes.to_vec()))
+    }
 
     #[test]
     fn a_message_that_fails_its_checksum_does_not_stop_the_next_one() {
@@ -575,13 +590,7 @@ mod tests {
             "ur:seed/oyadgdstaslplabghydrpfmkbggufgludprfgmamdpwmox"
         );
         let m = decode_single("ur:seed/oyadgdstaslplabghydrpfmkbggufgludprfgmamdpwmox").unwrap();
-        assert_eq!(
-            m,
-            Message::Other {
-                ur_type: Text::of("seed"),
-                cbor: cbor.to_vec()
-            }
-        );
+        assert_eq!(flat(&m), want("seed", &cbor));
         assert_eq!(
             decode_single("ur:bytes/iehsjyhspmwfwfia").unwrap_err(),
             Error::NotByteString,
@@ -695,8 +704,8 @@ mod tests {
             "ur:crypto-psbt/hdksaedagejlmwrhueaydpgmktnssevabeechtlboxsowycsfsidltpsttyncxfeimmyqztaaxdegtjpmsrfvybddygoknnesswlbwethllfossfwncwfzihlepetyytcnfdjnmorluoamdngdkpnyrsvebaeohdkioestwpcmfrhnlppktkwkckfxislgprtsaddsgrjomdrdurasdmguksntsavdbyenhplaonsgwscffmialojyrthdzt"
         );
         assert_eq!(
-            decode_single(&encode_psbt(&payload)).unwrap(),
-            Message::Psbt(payload)
+            flat(&decode_single(&encode_psbt(&payload)).unwrap()),
+            want(PSBT_TYPE, &payload)
         );
     }
 
@@ -725,17 +734,17 @@ mod tests {
         let psbt = b"psbt\xff\x01\x00\x02\x03";
         let text = encode_psbt(psbt);
         assert!(text.starts_with("ur:crypto-psbt/"));
-        assert_eq!(decode_single(&text).unwrap(), Message::Psbt(psbt.to_vec()));
+        assert_eq!(flat(&decode_single(&text).unwrap()), want(PSBT_TYPE, psbt));
         assert_eq!(
-            decode_single(&Text::ascii_uppercase(&text)).unwrap(),
-            Message::Psbt(psbt.to_vec())
+            flat(&decode_single(&Text::ascii_uppercase(&text)).unwrap()),
+            want(PSBT_TYPE, psbt)
         );
         let mut d = Decoder::new();
         assert!(d.receive(&text).unwrap());
         assert_eq!(d.progress(), Some((1, 1)));
-        assert_eq!(d.message(), Some(&Message::Psbt(psbt.to_vec())));
+        assert_eq!(d.message().map(flat), Some(want(PSBT_TYPE, psbt)));
         let b = encode_bytes(b"data");
-        assert_eq!(decode_single(&b).unwrap(), Message::Bytes(b"data".to_vec()));
+        assert_eq!(flat(&decode_single(&b).unwrap()), want(BYTES_TYPE, b"data"));
         assert!(is_ur("UR:BYTES/x") && !is_ur("bytes"));
         assert_eq!(decode_single("bytes/x").unwrap_err(), Error::NotUr);
     }
@@ -757,7 +766,7 @@ mod tests {
             assert_eq!(done, i + 1 == n);
             assert_eq!(d.progress(), Some((i + 1, n)));
         }
-        assert_eq!(d.message(), Some(&Message::Psbt(psbt.clone())));
+        assert_eq!(d.message().map(flat), Some(want(PSBT_TYPE, &psbt)));
         assert_eq!(d.ur_type().as_deref(), Some("crypto-psbt"));
 
         // Every other part, skipping half: fountain mixes fill the gaps.
@@ -770,7 +779,10 @@ mod tests {
             }
         }
         assert!(done, "completed from mixed parts");
-        assert_eq!(d.into_message(), Some(Message::Psbt(psbt.clone())));
+        assert_eq!(
+            d.into_message().as_ref().map(flat),
+            Some(want(PSBT_TYPE, &psbt))
+        );
 
         // A part of another message is a mismatch, not a crash.
         let other: Vec<u8> = (0..1000u32).map(|i| (i * 3 % 251) as u8).collect();
@@ -796,7 +808,10 @@ mod tests {
         for _ in 0..e.fragment_count() {
             d.receive(&Text::ascii_uppercase(&e.next_part())).unwrap();
         }
-        assert_eq!(d.into_message(), Some(Message::Bytes(message.to_vec())));
+        assert_eq!(
+            d.into_message().as_ref().map(flat),
+            Some(want(BYTES_TYPE, message))
+        );
     }
 
     /// The strings a scanner sees that are not a UR it can use.
@@ -855,6 +870,6 @@ mod tests {
         for _ in 1..n {
             d.receive(&e.next_part()).unwrap();
         }
-        assert_eq!(d.message(), Some(&Message::Psbt(psbt)));
+        assert_eq!(d.message().map(flat), Some(want(PSBT_TYPE, &psbt)));
     }
 }

@@ -186,7 +186,7 @@ fn a_key_written_as_crypto_account_reads_back_as_its_key_line() {
         panic!("not read");
     };
     assert_eq!(ur_type, "crypto-account");
-    assert_eq!(got, &cbor);
+    assert_eq!(got.as_slice(), &cbor[..]);
 }
 
 #[test]

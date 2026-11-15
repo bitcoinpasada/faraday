@@ -2511,7 +2511,7 @@ fn ur_item(
     message: faraday_codec::ur::Message,
 ) -> Option<faraday_intake::Kept> {
     Some(match message {
-        faraday_codec::ur::Message::Psbt(p) => (None, "psbt", zeroize::Zeroizing::new(p)),
+        faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
         faraday_codec::ur::Message::Bytes(b) => {
             if scan.purpose == crate::ScanPurpose::MessageText && std::str::from_utf8(&b).is_err() {
                 scan.note = Some(scan_read::Kind::Unreadable.not_here());

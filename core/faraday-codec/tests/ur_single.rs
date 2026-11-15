@@ -21,12 +21,14 @@ fn a_single_part_ur_of_any_type_is_the_published_one_and_reads_back() {
     for (ur_type, cbor) in [("seed", &SEED_CBOR[..]), ("crypto-account", &SEED_CBOR[..])] {
         let mut d = Decoder::new();
         assert_eq!(d.receive(&encode_single(ur_type, cbor)), Ok(true));
-        assert_eq!(
-            d.message(),
-            Some(&Message::Other {
-                ur_type: faraday_text::Text::of(ur_type),
-                cbor: cbor.to_vec(),
-            })
-        );
+        let Some(Message::Other {
+            ur_type: got_type,
+            cbor: got_cbor,
+        }) = d.message()
+        else {
+            panic!("not an other message");
+        };
+        assert_eq!(&**got_type, ur_type);
+        assert_eq!(&got_cbor[..], cbor);
     }
 }
