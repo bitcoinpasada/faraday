@@ -1966,8 +1966,6 @@ pub struct CreateForm {
     pub preset: Option<usize>,
     /// A custom cost's memory, MiB.
     pub memory: u32,
-    /// A custom cost's passes.
-    pub passes: u32,
     /// The vault's name, which its file is named after.
     pub name: TextBox,
     /// Each passphrase, typed twice.
@@ -2013,7 +2011,6 @@ impl Default for CreateForm {
             not_here: false,
             preset: Some(preset),
             memory: 512,
-            passes: 3,
             name: TextBox::default(),
             phrases: vec![(TextBox::default(), TextBox::default())],
             from_dice: vec![None],
@@ -2076,7 +2073,7 @@ impl crate::trail::StepFlow for CreateVaultSteps {
         app.vaults.create.as_ref()?;
         let step = match chosen {
             Action::Vault(VaultAction::CSizeRow(_)) => vstep::PRESET,
-            // Custom opens its two rows, under Continue.
+            // Custom opens its memory row, under Continue.
             Action::Vault(VaultAction::CPreset(k)) if k < CUSTOM => vstep::COST,
             _ => return None,
         };
@@ -2732,7 +2729,7 @@ impl Vaults {
         let c = self.create.as_ref()?;
         let k = c.preset.unwrap_or_else(|| self.suggested());
         Some(match k {
-            CUSTOM => (CUSTOM, c.memory, c.passes),
+            CUSTOM => (CUSTOM, c.memory, CREATE_PASSES),
             k => (k, PRESETS[k].1, PRESETS[k].2),
         })
     }
@@ -2898,7 +2895,7 @@ impl Vaults {
 
     /// The most unlock memory this computer gives a vault, MiB: the
     /// largest custom memory that fits in what it has free beside twice
-    /// the file and the app ([`vault_need_mib`]), at most 4 GiB, which is
+    /// the file and the app ([`vault_need_mib`]), at most 1 GiB, which is
     /// as much as a vault needs; Light's, which opens anywhere, when it
     /// does not say (`docs/VAULT.md` §3.1).
     pub fn here_limit(&self) -> u32 {
@@ -2913,7 +2910,7 @@ impl Vaults {
         CUSTOM_MEMORY
             .iter()
             .copied()
-            .filter(|m| *m <= MAX_UNLOCK_MIB && vault_need_mib(*m, len) <= free)
+            .filter(|m| vault_need_mib(*m, len) <= free)
             .max()
             .unwrap_or(CUSTOM_MEMORY[0])
     }
@@ -3307,12 +3304,11 @@ pub const LIGHT_MIB: u32 = PRESETS[0].1;
 
 /// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes, in
 /// order of memory.
-pub const PRESETS: [(&str, u32, u32); 5] = [
+pub const PRESETS: [(&str, u32, u32); 4] = [
     (EN.vaults_light, 64, 3),
     (EN.vaults_standard, 256, 3),
     (EN.vaults_medium, 512, 3),
-    (EN.vaults_strong, 1024, 4),
-    (EN.vaults_maximum, 2048, 2),
+    (EN.vaults_strong, 1024, CREATE_PASSES),
 ];
 
 /// The place after the presets that stands for a custom cost.
@@ -3354,9 +3350,6 @@ pub const MACHINES: [(&str, &str, &str, u32); 5] = [
     (EN.vaults_pi_zero_2_w, EN.vaults_pi_zero_2_w, "512 MB", 512),
 ];
 
-/// The most unlock memory This computer is suggested for, MiB: more
-/// buys a vault little.
-pub const MAX_UNLOCK_MIB: u32 = 4096;
 /// What the app itself takes beside a vault's unlock memory and file,
 /// MiB: a slot's plaintext and the app.
 pub const APP_MIB: u32 = 100;
@@ -3477,10 +3470,11 @@ pub fn vault_need_mib(memory_mib: u32, len: usize) -> u32 {
     need_mib(Need::Unlock { memory_mib, len })
 }
 
-/// A custom cost's memory choices, MiB.
-pub const CUSTOM_MEMORY: [u32; 8] = [64, 128, 256, 512, 1024, 2048, 3072, 4096];
-/// A custom cost's pass choices.
-pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
+/// A custom cost's memory choices, MiB: the file's steps (`STEPS_KIB`),
+/// each written as stated.
+pub const CUSTOM_MEMORY: [u32; 5] = [64, 128, 256, 512, 1024];
+/// The passes Create writes, whatever the memory (`docs/VAULT.md` §3).
+pub const CREATE_PASSES: u32 = fv::file::PASSES;
 
 /// The kinds a vault's contents are listed by, with the record types each
 /// shows.
@@ -3598,8 +3592,6 @@ pub enum VaultAction {
     CCustomise,
     /// A custom cost's memory.
     CMemory(usize),
-    /// A custom cost's passes.
-    CPasses(usize),
     /// Type into passphrase n, its first or second field.
     CFocus(usize, bool),
     /// Type the vault's name.

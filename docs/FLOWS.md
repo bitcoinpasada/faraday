@@ -878,7 +878,7 @@ computer has free is shown only where it falls short. Customise's Where
 card has **This computer** ticked by default and untickable, for a vault
 that asks less than this computer can give; its row reads the most
 unlock memory it gives a vault (the largest custom memory that fits in
-its free memory beside the app's 100 MiB, at most 4 GiB) with its free
+its free memory beside the app's 100 MiB, at most 1 GiB) with its free
 memory in parentheses: "1 GiB (1.2 GiB free)". Another machine gives
 half its memory. The cost suggested is the largest preset the weakest
 chosen machine gives.

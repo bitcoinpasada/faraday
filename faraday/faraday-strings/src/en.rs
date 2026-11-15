@@ -9284,8 +9284,6 @@ strings! {
     vault_passes_bits: "{} passes · ≈{} bits",
     /// Line in `create_body`.
     vault_memory: "Memory",
-    /// Line in `create_body`.
-    vault_passes_label: "Passes",
     /// Text in `create_body`. `{}`: `mib_text(mem)`.
     vault_unlock_memory_n: "Unlock memory {}",
     /// Text in `create_body`. `{}`: `weakest`, `mib_text(limit)`.
@@ -9736,6 +9734,8 @@ strings! {
     vault_check: "Check",
     /// Button in `images_panel`.
     vault_back_to_the_keys: "Back to the keys",
+    /// Error in Create a vault.
+    vault_cost_not_written: "This cost cannot be written",
     // ----- vaults (faraday-core/src/vault/mod.rs) -----
     /// Text in `PRESETS`.
     vaults_light: "Light",
@@ -9745,8 +9745,6 @@ strings! {
     vaults_medium: "Medium",
     /// Text in `PRESETS`.
     vaults_strong: "Strong",
-    /// Text in `PRESETS`.
-    vaults_maximum: "Maximum",
     /// Text in `SIZES`.
     vaults_pcs_only: "PCs only",
     /// Text in `SIZES`.

@@ -29,7 +29,7 @@ Each machine ticked is one the vault must open on; the cost suggested next fits 
 
 A higher cost makes each guess at the passphrase dearer (each guess costs about as much as 2^N plain hashes, N shown on the form), and takes longer to unlock and needs more memory.
 
-**Light**, **Standard**, **Medium**, **Strong** and **Maximum** are 64 MiB and 3 passes, 256 MiB and 3, 512 MiB and 3, 1 GiB and 4, and 2 GiB and 2. A row's note reads **Suggested**, **Fits**, or too large for the weakest machine ticked. **Custom** sets **Memory**, 64 MiB to 4 GiB, and **Passes**, 2 to 10, then **Continue**.
+**Light**, **Standard**, **Medium** and **Strong** are 64 MiB and 3 passes, 256 MiB and 3, 512 MiB and 3, and 1 GiB and 3. A row's note reads **Suggested**, **Fits**, or too large for the weakest machine ticked. **Custom** sets **Memory**, 64 MiB to 1 GiB, then **Continue**; a vault is always written with 3 passes.
 
 ## Name and passphrase
 

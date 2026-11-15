@@ -364,8 +364,111 @@ fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
     assert!(!text.iter().any(|t| t.contains("164 MiB")), "{text:?}");
 }
 
+/// Every memory Create offers is the memory the file is written with, at
+/// 3 passes, and an outside reader (KeePassXC's `db-info`) reads the same
+/// cost from the file.
+#[test]
+fn every_cost_create_offers_is_written_as_stated() {
+    use faraday_core::vault::{CUSTOM_MEMORY, PRESETS, vstep};
+    let mut offered: Vec<(u32, u32)> = PRESETS.iter().map(|p| (p.1, p.2)).collect();
+    offered.extend(CUSTOM_MEMORY.iter().map(|m| (*m, 3)));
+    offered.sort_unstable();
+    offered.dedup();
+    for (memory, passes) in offered {
+        let mut app = on_create_vault();
+        app.press(Action::Vault(V::CStep(vstep::PRESET)));
+        let _ = app.frame();
+        app.press(Action::Vault(V::CCustomise));
+        let _ = app.frame();
+        app.press(Action::Vault(V::CNext(vstep::WHERE)));
+        let k = CUSTOM_MEMORY.iter().position(|m| *m == memory).unwrap();
+        app.press(Action::Vault(V::CMemory(k)));
+        app.press(Action::Vault(V::CNext(vstep::COST)));
+        let stated = app.vaults().form_cost().map(|c| (c.1, c.2)).unwrap();
+        assert_eq!(stated, (memory, passes));
+        let (written, file) = create_and_read(&mut app);
+        assert_eq!(written, stated, "the file's own cost");
+        outside_reader_agrees(&file, stated);
+    }
+}
+
+/// The vault made, as `create_and_read_cost` reads it, with its bytes.
+fn create_and_read(app: &mut Faraday) -> ((u32, u32), Vec<u8>) {
+    let cost = create_and_read_cost(app);
+    let bytes = app
+        .outbox
+        .iter()
+        .find(|i| i.kind == faraday_core::wallet::FileKind::Vault)
+        .map(|i| i.bytes.to_vec())
+        .expect("the vault is in the Outbox");
+    (cost, bytes)
+}
+
+/// `keepassxc-cli db-info` on the file reads the stated memory and passes
+/// (`KDF: Argon2id (3 rounds, 65536 KB)`); skipped, and said, only where
+/// the program is not installed.
+fn outside_reader_agrees(file: &[u8], (memory, passes): (u32, u32)) {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    // A folder of its own, made fresh and removed after, which is also the
+    // reader's home.
+    let dir = std::env::temp_dir().join(format!(
+        "faraday-cost-{}-{memory}-{passes}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&dir).unwrap();
+    let home = dir.join("home");
+    std::fs::create_dir(&home).unwrap();
+    let path = dir.join("v.kdbx");
+    std::fs::write(&path, file).unwrap();
+    let child = Command::new("keepassxc-cli")
+        .args(["db-info", "-q"])
+        .arg(&path)
+        .env_clear()
+        .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+        .env("HOME", &home)
+        .env("XDG_CONFIG_HOME", &home)
+        .env("XDG_CACHE_HOME", &home)
+        .env("XDG_DATA_HOME", &home)
+        .env("XDG_RUNTIME_DIR", &dir)
+        .env("QT_QPA_PLATFORM", "offscreen")
+        .env("LC_ALL", "C.UTF-8")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+    let mut child = match child {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("keepassxc-cli is not installed: skipped");
+            let _ = std::fs::remove_dir_all(&dir);
+            return;
+        }
+        Err(e) => panic!("keepassxc-cli did not start: {e}"),
+    };
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"test phrase\n")
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{text} {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let kdf = format!(
+        "Argon2id ({passes} rounds, {} KB)",
+        u64::from(memory) * 1024
+    );
+    assert!(text.contains(&kdf), "{text}");
+}
+
 /// Customise's This computer is ticked and can be unticked; its row reads
-/// the most unlock memory it gives a vault, at most 4 GiB, with what it
+/// the most unlock memory it gives a vault, at most 1 GiB, with what it
 /// has free, and the cost suggested follows the machines chosen.
 #[test]
 fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
@@ -402,7 +505,7 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
         "opens on the Pi 3 alone: {text:?}"
     );
 
-    // With plenty free, it gives 4 GiB at most.
+    // With plenty free, it gives 1 GiB at most.
     app.storage(faraday_core::StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -410,7 +513,7 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == "4\u{a0}GiB (14.6\u{a0}GiB\u{a0}free)")
+            .any(|t| t == "1\u{a0}GiB (14.6\u{a0}GiB\u{a0}free)")
     );
 }
 

@@ -374,6 +374,11 @@ The figures are for a new vault's 32 KiB file, and in parentheses for one
 of 4 MiB; each further MiB of the file adds two (§2). A vault meant for a Pi Zero 2 W takes 64 or
 128 MiB.
 
+Create offers only a cost it writes as stated: the five steps, at most
+1 GiB, always at 3 passes (Strong is 1024 MiB and 3); the file's header
+is the cost the form showed. A memory that is not one of the steps is refused,
+never written as another.
+
 **Where the numbers come from.** RFC 9580 recommends Argon2id with 3
 passes, 4 lanes and 64 MiB where 2 GiB cannot be spared, and 1 pass, 4
 lanes and 2 GiB where it can; RFC 9106 gives the same two choices;

@@ -18,7 +18,7 @@ use crate::screens::{guide_text, never_real_seed_if, never_under, section_label}
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
-    self, CATEGORIES, CUSTOM, CUSTOM_MEMORY, CUSTOM_PASSES, Focus, HOLD_MS, MACHINES, PRESETS,
+    self, CATEGORIES, CREATE_PASSES, CUSTOM, CUSTOM_MEMORY, Focus, HOLD_MS, MACHINES, PRESETS,
     SIZES, TextBox, VaultAction as V, cost_text, file_text, mib_text, vstep,
 };
 use crate::wallet::{Session, Wallet, fp_text};
@@ -1085,7 +1085,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             let choices = PRESETS.iter().copied().chain(std::iter::once((
                 EN.vault_custom,
                 c.memory,
-                c.passes,
+                CREATE_PASSES,
             )));
             for (k, (label, m, p)) in choices.enumerate() {
                 let on = k == current;
@@ -1141,22 +1141,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     ) + 6.0;
                 }
                 cy += 44.0;
-                ui.text_as(x, cy, BODY_S, muted, EN.vault_passes_label);
-                cy += ui.advance_as(BODY_S, 22.0);
-                let mut bx = x;
-                for (i, p) in CUSTOM_PASSES.iter().enumerate() {
-                    let style = Style::chosen(*p == c.passes);
-                    bx += ui.button(
-                        bx,
-                        cy,
-                        Some(44.0),
-                        BUTTON_H,
-                        &Text::num(u64::from(*p)),
-                        style,
-                        va(V::CPasses(i)),
-                    ) + 6.0;
-                }
-                cy += 46.0;
             }
             // The unlock memory against the most the weakest machine
             // gives a vault.
@@ -1203,7 +1187,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 ),
             );
             cy += ui.advance_as(BODY_S, 30.0);
-            // A preset pressed moves on (F103); Custom's two rows keep it.
+            // A preset pressed moves on (F103); Custom's memory row keeps it.
             if current == CUSTOM
                 && crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n)))
             {

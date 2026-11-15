@@ -235,6 +235,22 @@ fn say_no_randomness(app: &mut Faraday) {
     }
 }
 
+/// The file's step a form's memory in MiB is exactly, KiB. The form offers
+/// only the file's steps; any other memory is refused, never written as
+/// another.
+fn written_memory_kib(app: &mut Faraday, mem: u32) -> Option<u32> {
+    let step = STEPS_KIB
+        .iter()
+        .copied()
+        .find(|k| u64::from(*k) == u64::from(mem) * 1024);
+    if step.is_none()
+        && let Some(c) = app.vaults.state.create.as_mut()
+    {
+        c.error = Some(Text::of(EN.vault_cost_not_written));
+    }
+    step
+}
+
 /// The front half of Create: the form's passphrase is copied into the
 /// job (the form keeps it for a Back or an error) and wiped with it.
 /// False when nothing started.
@@ -285,17 +301,12 @@ fn create_start(app: &mut Faraday) -> bool {
             return false;
         }
     };
+    let Some(memory_kib) = written_memory_kib(app, mem) else {
+        return false;
+    };
     let Some(form) = app.vaults.create.as_ref() else {
         return false;
     };
-    // The memory is the largest step the file takes at or below what the
-    // form states; its lanes are the format's.
-    let memory_kib = STEPS_KIB
-        .iter()
-        .copied()
-        .filter(|k| *k <= mem.saturating_mul(1024))
-        .max()
-        .unwrap_or(STEPS_KIB[0]);
     let cost = Cost {
         memory_kib,
         passes,

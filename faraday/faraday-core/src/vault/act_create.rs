@@ -1,9 +1,7 @@
 //! The create-vault form's cards: what a press on one changes in the form.
 //! It touches the vault area alone; the glue calls it first.
 
-use super::{
-    CUSTOM, CUSTOM_MEMORY, CUSTOM_PASSES, Focus, MACHINES, SIZES, VaultAction, VaultArea, vstep,
-};
+use super::{CUSTOM, CUSTOM_MEMORY, Focus, MACHINES, SIZES, VaultAction, VaultArea, vstep};
 
 impl VaultArea {
     /// A press on the create form's cards. `may_load` is whether typing
@@ -86,12 +84,6 @@ impl VaultArea {
             V::CMemory(k) => {
                 if let Some(c) = self.state.create.as_mut() {
                     c.memory = CUSTOM_MEMORY[k.min(CUSTOM_MEMORY.len() - 1)];
-                    c.preset = Some(CUSTOM);
-                }
-            }
-            V::CPasses(k) => {
-                if let Some(c) = self.state.create.as_mut() {
-                    c.passes = CUSTOM_PASSES[k.min(CUSTOM_PASSES.len() - 1)];
                     c.preset = Some(CUSTOM);
                 }
             }
