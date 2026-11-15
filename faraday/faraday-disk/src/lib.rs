@@ -63,6 +63,12 @@ struct Aligned {
     len: usize,
 }
 
+impl Drop for Aligned {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.raw);
+    }
+}
+
 impl Aligned {
     fn new(len: usize) -> Self {
         let raw = vec![0u8; len.saturating_add(ALIGN)];
@@ -85,7 +91,10 @@ impl Aligned {
 /// second handle opened with `O_DIRECT`, so a stick that drops or wraps
 /// writes is not hidden by the cache. Where that handle cannot be
 /// opened, a regular file (an image) is read back through the cache; a
-/// block device is not, and its read-back fails.
+/// block device is not, and its read-back fails. No handle is held
+/// between requests: a node is opened for one request and closed at its
+/// end, and the last close of a partition drops the partition's cached
+/// pages.
 pub struct Node {
     file: File,
     direct: Option<File>,
@@ -698,7 +707,13 @@ impl Disks {
             || total > faraday_files::MAX_VAULT_READ
             || piece.len() > faraday_files::proto::PIECE
             || now >= total
-            || held.bytes.try_reserve(piece.len()).is_err()
+            // The whole file's room is taken once, with the first piece, so
+            // a later piece never moves the bytes held to a new block.
+            || (held.bytes.capacity() == 0
+                && held
+                    .bytes
+                    .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
+                    .is_err())
         {
             zeroize::Zeroize::zeroize(&mut held.bytes);
             return Err(Text::of(EN.fat_io));
@@ -760,7 +775,7 @@ impl Disks {
                     Some(mut h) => {
                         let fits = h.total == total
                             && (h.bytes.len() as u64).checked_add(last.len() as u64) == Some(total)
-                            && h.bytes.try_reserve_exact(last.len()).is_ok();
+                            && h.bytes.capacity() as u64 >= total;
                         if !fits {
                             zeroize::Zeroize::zeroize(&mut h.bytes);
                             zeroize::Zeroize::zeroize(&mut last);

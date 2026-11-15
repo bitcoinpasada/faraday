@@ -22,5 +22,10 @@ zeroize = { workspace = true, features = ["alloc"] }
 # O_DIRECT, the flag for the read-back that skips the kernel's cache.
 libc = { workspace = true }
 
+[dev-dependencies]
+# A global allocator that searches each freed block for a planted secret
+# (docs/SECRET-LEAKS.md).
+faraday-leak-scan = { path = "../tools/leak-scan" }
+
 [lints]
 workspace = true

@@ -914,6 +914,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",
+ "faraday-leak-scan",
  "faraday-strings",
  "faraday-text",
  "libc",

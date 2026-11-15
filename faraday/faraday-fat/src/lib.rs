@@ -928,7 +928,8 @@ impl<D: Disk> Volume<D> {
         if back && !self.is_end(next) {
             return Err(Error::Corrupt(Fault::Unwritten));
         }
-        let mut out = vec![0u8; size];
+        // Wiped if a read fails part way.
+        let mut out = zeroize::Zeroizing::new(vec![0u8; size]);
         for (k, part) in out.chunks_mut(cb).enumerate() {
             let at = self.cluster_at(chain[k]);
             if back {
@@ -937,7 +938,7 @@ impl<D: Disk> Volume<D> {
                 self.disk.read_at(at, part)?;
             }
         }
-        Ok(out)
+        Ok(core::mem::take(&mut *out))
     }
 
     /// A file's contents, refused when larger than `max` bytes.
@@ -989,14 +990,17 @@ impl<D: Disk> Volume<D> {
             return Err(Error::Corrupt(Fault::FreeEnd));
         }
         let first = start / cb;
-        let mut whole = vec![0u8; end.div_ceil(cb) * cb - first * cb];
+        // The clusters as read, wiped when this returns, the error path's too.
+        let mut whole = zeroize::Zeroizing::new(vec![0u8; end.div_ceil(cb) * cb - first * cb]);
         for (k, part) in whole.chunks_mut(cb).enumerate() {
             let at = self.cluster_at(chain[first + k]);
             self.disk.read_at(at, part)?;
         }
         let skip = start - first * cb;
-        let mut out = whole.split_off(skip);
-        out.truncate(end - start);
+        let mut out = Vec::new();
+        out.try_reserve_exact(end - start)
+            .map_err(|_| Error::TooLarge)?;
+        out.extend_from_slice(&whole[skip..skip + (end - start)]);
         Ok((e.size, out))
     }
 
@@ -1018,12 +1022,12 @@ impl<D: Disk> Volume<D> {
         }
         let cb = self.cluster_bytes as usize;
         let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
-        let mut out = vec![0u8; size];
+        let mut out = zeroize::Zeroizing::new(vec![0u8; size]);
         for (k, part) in out.chunks_mut(cb).enumerate() {
             let at = self.cluster_at(chain[k]);
             self.disk.read_at(at, part)?;
         }
-        Ok(out)
+        Ok(core::mem::take(&mut *out))
     }
 
     /// The first `n` bytes of each file `pick` takes, from one pass of the
@@ -1386,7 +1390,7 @@ impl<D: Disk> Volume<D> {
                 self.disk.write_at(at, &zeros)?;
             }
             self.disk.flush()?;
-            let mut back = vec![0u8; cb];
+            let mut back = zeroize::Zeroizing::new(vec![0u8; cb]);
             for &c in &mine {
                 let at = self.cluster_at(c);
                 self.disk.read_back(at, &mut back)?;
@@ -1478,7 +1482,7 @@ impl<D: Disk> Volume<D> {
             }
         }
         self.disk.flush()?;
-        let mut back = vec![0u8; CHUNK as usize];
+        let mut back = zeroize::Zeroizing::new(vec![0u8; CHUNK as usize]);
         for &(start, len) in runs {
             let mut at = 0;
             while at < len {

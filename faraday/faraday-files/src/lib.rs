@@ -91,19 +91,18 @@ pub trait Place {
         len: usize,
         max: u64,
     ) -> Result<(u64, Vec<u8>), Text> {
-        let b = self.read(name, max)?;
+        let b = zeroize::Zeroizing::new(self.read(name, max)?);
         let total = b.len() as u64;
         let start = usize::try_from(from).unwrap_or(usize::MAX).min(b.len());
         let end = start.saturating_add(len).min(b.len());
-        Ok((total, b[start..end].to_vec()))
+        Ok((total, b.get(start..end).unwrap_or_default().to_vec()))
     }
     /// A file's first `n` bytes (fewer where it is shorter); refused
     /// over `max` in all. Where a place cannot read a part, it reads the
     /// whole.
     fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, Text> {
-        let mut b = self.read(name, max)?;
-        b.truncate(n);
-        Ok(b)
+        let b = zeroize::Zeroizing::new(self.read(name, max)?);
+        Ok(b.get(..n).unwrap_or(&b).to_vec())
     }
     /// The first `n` bytes of each file `pick` takes (by name and size),
     /// each as [`Place::head`] reads it, in the one pass over the place's
@@ -692,17 +691,21 @@ fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), Te
     if has(place, temp)? {
         // A whole vault left under a temp name is a copy that may be the
         // newer one: it is never written over.
-        if let Ok(old) = place.read(temp, MAX_VAULT_READ)
+        if let Ok(old) = place
+            .read(temp, MAX_VAULT_READ)
+            .map(zeroize::Zeroizing::new)
             && whole_vault(&old)
-            && old != bytes
+            && old.as_slice() != bytes
         {
             return Err(Text::fill(EN.files_newer_waiting, &[temp]));
         }
         place.remove(temp)?;
     }
     place.create(temp, bytes)?;
-    let back = place.read_checked(temp, bytes.len() as u64);
-    if back.as_deref() != Ok(bytes) {
+    let back = place
+        .read_checked(temp, bytes.len() as u64)
+        .map(zeroize::Zeroizing::new);
+    if back.as_deref().map(Vec::as_slice) != Ok(bytes) {
         let _ = place.remove(temp);
         return Err(Text::of(EN.files_read_back));
     }
@@ -801,7 +804,7 @@ fn copies_on(c: &Compute, place: &mut dyn Place, copies: &[[u8; 32]]) -> Result<
         if !has_vault_head(place, &n) {
             continue;
         }
-        if let Ok(b) = place.read(&n, len)
+        if let Ok(b) = place.read(&n, len).map(zeroize::Zeroizing::new)
             && copies.contains(&faraday_crypto::sha256_whole(c, &b))
         {
             found.push(n);
@@ -908,7 +911,10 @@ pub fn write_vault_over(
             // leaves the original and a file of exactly these bytes: the
             // original takes them again and the identical file goes.
             let holds = |place: &mut dyn Place, n: &str| {
-                place.read(n, MAX_VAULT_READ).is_ok_and(|b| b == bytes)
+                place
+                    .read(n, MAX_VAULT_READ)
+                    .map(zeroize::Zeroizing::new)
+                    .is_ok_and(|b| b.as_slice() == bytes)
             };
             let (a, b) = (holds(place, &same[0]), holds(place, &same[1]));
             if a && b {
@@ -1024,7 +1030,7 @@ fn write_vault_new(
             MAX_READ
         };
         (len <= max)
-            .then(|| place.read(&old, max).ok())
+            .then(|| place.read(&old, max).ok().map(zeroize::Zeroizing::new))
             .flatten()
             .map(|b| faraday_crypto::sha256_whole(c, &b))
     };
@@ -1118,8 +1124,14 @@ pub fn rename(
             && has_vault_head(place, from)
             && has_vault_head(place, other);
         let same = both && {
-            let a = place.read(from, MAX_VAULT_READ).ok();
-            let b = place.read(other, MAX_VAULT_READ).ok();
+            let a = place
+                .read(from, MAX_VAULT_READ)
+                .ok()
+                .map(zeroize::Zeroizing::new);
+            let b = place
+                .read(other, MAX_VAULT_READ)
+                .ok()
+                .map(zeroize::Zeroizing::new);
             match (a, b) {
                 (Some(a), Some(b)) => {
                     let (a, b) = (
@@ -1218,6 +1230,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             place
                 .read(n, MAX_VAULT_READ)
                 .ok()
+                .map(zeroize::Zeroizing::new)
                 .filter(|b| whole_vault(b))
         } else {
             None
@@ -1238,6 +1251,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
                 place
                     .read(original, MAX_VAULT_READ)
                     .ok()
+                    .map(zeroize::Zeroizing::new)
                     .filter(|b| whole_vault(b))
             } else {
                 None
@@ -1253,6 +1267,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
                         && *l == *len
                         && place
                             .read(o, MAX_VAULT_READ)
+                            .map(zeroize::Zeroizing::new)
                             .is_ok_and(|b| Some(&b) == part.as_ref())
                 })
             };
@@ -1315,6 +1330,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
                 if *tlen == *len
                     && place
                         .read(t, MAX_VAULT_READ)
+                        .map(zeroize::Zeroizing::new)
                         .is_ok_and(|b| Some(&b) == part.as_ref())
                 {
                     let _ = place.remove(n);

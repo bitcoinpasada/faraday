@@ -122,6 +122,11 @@ the planting of the secret to the end of the flow:
   the sheet and the sheet dropped (`faraday-starter/tests/leak.rs`); no
   block freed holds the whole key. The sheet's writer frees line-sized
   halves of the key unwiped.
+- **The disk process's file reads and writes:** a seed text read, read
+  in part, written plain, written over a same-named file that holds it and
+  written in pieces, over a stand-in stick (`faraday-disk/tests/leak.rs`);
+  no freed block holds the file or a part of it. The picture reader is not
+  run there: the png and rqrr libraries free their own buffers unwiped.
 
 A flow that handles a secret is added to this list (§10). The sessions
 of the `work/budget` tests are the model: the secret is planted once, in
