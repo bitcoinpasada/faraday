@@ -195,6 +195,13 @@ internal error rather than carrying on.
   secret on show goes off the screen too, the words, SeedQR and passphrase
   of New key and Back up among them, and stays off until its Show is
   pressed again; the Seed XOR parts, which cannot be shown again, stay.
+  On a Pi with an HDMI screen the screen is judged by its EDID as on a
+  PC, and again whenever the connector's status or EDID changes: a TV or
+  a KVM swapped in mid-session is held and takes the secrets on show off
+  the screen as a device does. On a PC the firmware's framebuffer gives no
+  such event: Faraday reads the EDID the firmware passed at start, and a
+  swap behind the firmware's framebuffer is not seen unless the kernel's
+  DRM connector reports it.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one

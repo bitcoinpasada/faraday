@@ -324,6 +324,12 @@ The screen is chosen once per boot; a screen changed is a power cycle.
 - **What the shell reads.** The same arguments as today, from that file
   as well; the shell gains no source of its own. It still opens
   `/dev/fb0` and never a DRM node (F153).
+  On HDMI it reads the connected connector's `status` and `edid`
+  under `/sys/class/drm` (world-readable files, not a DRM node): the
+  EDID's first 128 bytes are judged at start for a TV or a KVM as a PC's
+  firmware EDID is, and read again with the USB poll, so a screen swapped
+  in later is judged and held. A 2.8-inch or DSI panel has no EDID and
+  no such check.
 - **What it says.** Each probe's result goes to `/dev/kmsg`, so the dev
   image's boot report says which screen was found and why.
 

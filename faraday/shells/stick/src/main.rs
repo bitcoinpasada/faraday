@@ -401,6 +401,12 @@ fn medium() -> Medium {
 
 /// The kernel's boot parameters, and the firmware's maker string.
 const BOOT_PARAMS: &str = "/sys/kernel/boot_params/data";
+/// The EDID's base block, the first 128 bytes, as the firmware passes it
+/// on a PC; `None` when no screen is connected.
+fn screen_block(edid: &[u8]) -> Option<&[u8]> {
+    (!edid.is_empty()).then(|| &edid[..edid.len().min(128)])
+}
+
 /// The DRM connectors, where a Pi's HDMI screen's EDID is.
 const DRM_CLASS: &str = "/sys/class/drm";
 const SYS_VENDOR: &str = "/sys/class/dmi/id/sys_vendor";
@@ -826,6 +832,9 @@ struct Shell {
     /// The USB devices last reported to the app's device check: `None`
     /// before the first report.
     usb: Option<Vec<faraday_core::devices::UsbDevice>>,
+    /// The EDID of the connected HDMI screen as last read, watched for a
+    /// change on the device; `None` off it.
+    screen: Option<Vec<u8>>,
     /// Devices whose input is held back, and where each stands.
     held: std::collections::BTreeMap<u32, Hold>,
     /// Held-back devices found before the app was there to be told.
@@ -2042,6 +2051,15 @@ impl Shell {
                 app.usb_devices(&usb);
                 self.usb = Some(usb);
             }
+            // A screen swapped in later: the connected connector's EDID
+            // read again, and judged as at start.
+            if let Some(seen) = self.screen.as_mut() {
+                let now = orient::drm_edid(Path::new(DRM_CLASS));
+                if *seen != now {
+                    app.screen_changed(screen_block(&now));
+                    *seen = now;
+                }
+            }
         }
         // Two sticks of this build, or none found: Files says so.
         let record = Record::parse(&std::fs::read_to_string(EXCHANGE).unwrap_or_default());
@@ -2304,6 +2322,13 @@ fn run(args: Args) -> Result<Exit, String> {
             app.medium = medium();
             app.session =
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
+            if app.medium == Medium::SdCard && hdmi {
+                // A Pi with an HDMI screen: its EDID says whether it is a
+                // TV or a KVM. A 2.8-inch or DSI panel has none, and no
+                // reminder.
+                app.devices = faraday_core::devices::DeviceCheck::hdmi_screen()
+                    .with_edid(screen_block(&drm_edid));
+            }
             if app.medium == Medium::Stick {
                 app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
                 let read = |p: &str| {
@@ -2342,6 +2367,7 @@ fn run(args: Args) -> Result<Exit, String> {
         clean: None,
         clean_stuck: false,
         usb: None,
+        screen: (!args.off_device).then(|| drm_edid.clone()),
         held: initial.iter().map(|a| (a.id, Hold::Pending)).collect(),
         announce: initial,
         trust_told: (true, false),

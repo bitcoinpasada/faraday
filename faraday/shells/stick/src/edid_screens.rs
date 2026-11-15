@@ -262,3 +262,28 @@ fn a_small_screen_in_another_mode_keeps_the_image_density() {
     let _ = std::fs::remove_dir_all(&root);
     assert_eq!(seen.0, 160);
 }
+
+/// Whether a Pi's HDMI screen on `edid`, read as the shell reads it,
+/// keeps Show words from showing once the app has the first USB list.
+fn holds_words(name: &str, edid: &[u8]) -> bool {
+    let root = drm_tree(name, edid);
+    let read = drm_edid(&root);
+    let _ = std::fs::remove_dir_all(&root);
+    let mut app = faraday_core::Faraday::new();
+    app.devices =
+        faraday_core::devices::DeviceCheck::hdmi_screen().with_edid(crate::screen_block(&read));
+    app.usb_devices(&[]);
+    app.device_holds(faraday_core::Action::KShow)
+}
+
+/// A TV's recorded EDID on a Pi's HDMI keeps a seed's words from
+/// showing; a monitor's does not.
+#[test]
+fn a_tv_on_a_pis_hdmi_is_held_and_a_monitor_is_not() {
+    let by = |name: &str| SCREENS.iter().find(|s| s.name == name).unwrap();
+    for tv in ["samsung-tv-1920x1080", "sunplus-tv-1920x540"] {
+        assert!(holds_words(tv, by(tv).edid), "{tv}");
+    }
+    let monitor = by("hannstar-7in-800x480");
+    assert!(!holds_words(monitor.name, monitor.edid));
+}

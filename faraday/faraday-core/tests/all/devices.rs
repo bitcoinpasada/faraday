@@ -644,6 +644,35 @@ fn a_tv_makers_screen_or_no_edid_still_gets_the_reminder() {
     assert!(says(&mut app, TV_LINE));
 }
 
+#[test]
+fn a_tv_swapped_in_mid_session_takes_the_words_off_the_screen_until_checked_again() {
+    use faraday_core::keygen::Start;
+    use faraday_core::testkit;
+    let monitor = boot_params(Some(("ABC", Some("EXAMPLE 24"))));
+    let tv = boot_params(Some(("SAM", Some("EXAMPLE TV"))));
+    let words = testkit::test_words("bacon");
+    let mut app = shown(DeviceCheck::hdmi_screen().with_edid(from_boot_params(&monitor)));
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(Start::Words.index()));
+    let _ = app.frame();
+    crate::common::type_text(&mut app, &words);
+    app.press(Action::KNext);
+    app.press(Action::KShow);
+    let list: Vec<String> = words.split(' ').map(str::to_owned).collect();
+    assert!(words_drawn(&mut app, &list) > 0, "the words are not shown");
+    app.screen_changed(from_boot_params(&tv));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, "EXAMPLE TV: a TV can record what it shows"));
+    assert_eq!(words_drawn(&mut app, &list), 0, "words stay drawn");
+    // The monitor back: checked again, the words show again.
+    app.screen_changed(from_boot_params(&monitor));
+    app.press(Action::DevicesCheck);
+    assert_eq!(app.sheet, None);
+    app.press(Action::KShow);
+    assert!(words_drawn(&mut app, &list) > 0, "Show words shows again");
+}
+
 /// A mouse alone on a machine whose screen is held by a KVM: the sheet
 /// naming it waits while the mouse's targets show, and is back after.
 #[test]

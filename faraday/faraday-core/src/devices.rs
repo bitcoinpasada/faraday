@@ -332,8 +332,26 @@ impl DeviceCheck {
     /// one (the base block has none of the CEA-861 extension the Starter
     /// reads), and so may any screen when the firmware passed no EDID.
     pub fn with_edid(mut self, edid: Option<&[u8]>) -> Self {
+        self.set_screen(edid);
+        self
+    }
+
+    /// A Pi with an HDMI screen: the shell found a connected connector.
+    /// The screen is a separate one, and its EDID ([`Self::with_edid`])
+    /// says what it is. Not a virtual machine.
+    pub fn hdmi_screen() -> Self {
+        DeviceCheck {
+            read: true,
+            external_screen: true,
+            due: true,
+            ..DeviceCheck::default()
+        }
+    }
+
+    /// Takes the screen from `edid`; none given leaves what was.
+    fn set_screen(&mut self, edid: Option<&[u8]>) {
         let Some(e) = edid else {
-            return self;
+            return;
         };
         let kind = faraday_paper::edid::display(e).map(|d| match d {
             faraday_paper::edid::Display::Tv => Kind::Tv,
@@ -349,7 +367,6 @@ impl DeviceCheck {
         }
         self.screen_settled =
             kind.is_some() || !faraday_paper::edid::tv_maker(e) || !self.external_screen;
-        self
     }
 
     /// Everything of concern now: the machine, the screen as its EDID
@@ -476,8 +493,38 @@ impl Faraday {
                 })
             })
             .collect();
+        self.concerns_changed(false);
+    }
+
+    /// The screen's EDID as the shell reads it now (a Pi's HDMI screen at
+    /// start and whenever the connector's status or EDID changes; `None`
+    /// when no screen is connected). A screen that is a TV or a KVM is held
+    /// by its name and one that may be a TV is a reminder, as at start; it
+    /// is judged again for each screen, so one swapped in mid-session
+    /// that was let through before is held again. Whatever shows a secret
+    /// goes off the screen at once.
+    pub fn screen_changed(&mut self, edid: Option<&[u8]>) {
+        let d = &mut self.devices;
+        if !d.read {
+            return;
+        }
+        let before = !d.reminders_due().is_empty();
+        d.let_through.retain(|k| k != "screen");
+        d.held.retain(|c| c.key != "screen");
+        d.understood.retain(|r| *r != EN.devices_tv_line);
+        d.screen = None;
+        d.set_screen(edid);
+        let reminded = !before && !d.reminders_due().is_empty();
+        self.concerns_changed(reminded);
+    }
+
+    /// What is of concern changed: new items are held and bring the sheet
+    /// up, and the secrets on show go off the screen. `reminded`: a
+    /// reminder is newly due, which masks them too.
+    fn concerns_changed(&mut self, reminded: bool) {
+        let d = &mut self.devices;
         // Gone ones stay named until Check again; new ones join.
-        let mut arrived = false;
+        let mut arrived = reminded;
         for c in d.now() {
             if !d.held.iter().any(|h| h.key == c.key) {
                 d.held.push(c);
