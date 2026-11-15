@@ -185,7 +185,7 @@ See `docs/MODES.md` §6.2.
 
 See `docs/MODES.md` §7.2.
 
-## 6. Borderline calls (decided, §13)
+## 6. Borderline calls (decided)
 
 | Case | Decision | Why |
 |---|---|---|
@@ -232,10 +232,6 @@ leads to one of these screens is not dimmed: "Make a vault first" and
 and the screen reached shows its Make action dimmed. FLOWS decision
 10's paragraph carries this exception.
 
-## 8. Changes to F20
-
-Moved to `docs/history/DEMO-LOG.md`.
-
 ## 9. Releases
 
 The Starter carries no image: Faraday Demo is compiled into it
@@ -243,24 +239,6 @@ The Starter carries no image: Faraday Demo is compiled into it
 Faraday Demo build and refuses a release folder holding any file named
 `faraday-demo-…`. The desktop app is not published beside the
 Starters.
-
-Moved to `docs/history/DEMO-LOG.md`.
-
-## 10. Faraday Starter
-
-Moved to `docs/history/DEMO-LOG.md`.
-
-## 11. Decisions that offer things "in Faraday Demo"
-
-Moved to `docs/history/DEMO-LOG.md`.
-
-## 12. Batches
-
-Moved to `docs/history/DEMO-LOG.md`.
-
-## 13. Decided
-
-Moved to `docs/history/DEMO-LOG.md`.
 
 ## 14. The "Demo only" card
 

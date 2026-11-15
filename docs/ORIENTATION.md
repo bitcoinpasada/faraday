@@ -397,15 +397,3 @@ The guide says it where a person meets it: Settings' page
 **Rotation** and what each suits, and the guide's first-start page
 (`docs/guide/start/`) names Rotation for a 7-inch or
 10-inch panel. Their pictures are drawn with the guide's other pictures.
-
-## 12. Batches
-
-Moved to `docs/history/ORIENTATION-LOG.md`.
-
-## 13. Docs that follow
-
-Moved to `docs/history/ORIENTATION-LOG.md`.
-
-## 14. Questions for the owner
-
-Moved to `docs/history/ORIENTATION-LOG.md`.

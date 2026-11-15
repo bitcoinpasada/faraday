@@ -10,7 +10,7 @@ built on, `no_std`, over `crypto-bigint`, drawing candidates only from the
 caller's `CryptoRng`; its tests (Miller-Rabin base 2 and a strong Lucas
 test, BPSW) are the standard ones. Writing a prime search by hand over a
 big-integer library was the alternative and is not one. Its primality
-testing runs in variable time (`docs/ESTABLISHED.md` §4.10).
+testing runs in variable time.
 
 **Cost.** One crate with `default-features = false`; the optional `rayon`
 feature is off. It adds nothing to the graph beyond `crypto-bigint`,

@@ -53,7 +53,7 @@ Sources read for it, each as data and none vendored:
    codex32 shares, the fingerprint where a seed exists (§6.2, §6.4.5).
 9. **Check a string by hand** without loading it (§8.3).
 10. **Error correction as a tick**, off by default, after SeedSigner's
-    design (§8.4). A new decision (§14).
+    design (§8.4). A new decision.
 11. **Codex32QR/v1-48**: read, tested against its published vectors and
     pictures, and shown wherever one 48-character string is shown; no
     profile is made up for longer strings (§10).
@@ -793,7 +793,7 @@ entries as presses would, all at once in the frame that shows the click
 under Reduce motion; and the same honesty: "Rolled by this computer" over the die, and
 "simulated dice" on the result's entropy line ("simulated dice and your
 dice" where both were used). The flows themselves are
-unchanged; FLOWS and DESIGN take this (§15.3).
+unchanged; FLOWS and DESIGN take this.
 
 **The values.** Each value comes from one byte of a
 32-byte answer of `Faraday::fresh`, the answer's bytes taken from its
@@ -828,7 +828,7 @@ BIP-39 words stays the default while few wallets other than Faraday
 restore a codex32 seed; the default is to be looked at again when more
 do. Also reached from the codex32 tile
 of Tools. The flow is its own area (§13.1). Its cards, each a card of
-New key's column (`docs/history/NEW-WALLET.md` §15), are below. Back
+New key's column, are below. Back
 returns a card at a time; Cancel is F51's.
 
 ### 6.1 Scheme
@@ -1134,7 +1134,7 @@ A Record, opened from Strings made and from the key's backup checks:
   names a string to look at again.
 - For k = 0, "The secret · ms10…" and the fingerprint only.
 
-The record names no product. Learn (§15.3) names the implementations
+The record names no product. Learn names the implementations
 that read codex32 as of the build, with the date.
 
 ### 6.9 A single key's backup: Words or Shares (owner, 2026-10-22; F240, 2026-11-10)
@@ -1189,7 +1189,7 @@ explanation on a working screen, by the owner's decision (F112); F240
 moved it here from the Kind card.
 
 The second line of each row is a fact of the row, not an explanation;
-how the two compare is Learn's (§15.3). On chain a single key is what
+how the two compare is Learn's. On chain a single key is what
 its address type makes: one descriptor, one xpub, which a coordinator
 sees as one key.
 
@@ -1532,7 +1532,7 @@ generator only: everything it returns is parsed again by
 `Codex32::parse`, which stays the only door in. This loosens nothing BIP
 93 requires (it says implementations SHOULD offer corrections and SHOULD
 NOT proceed without confirmation), but it is new behaviour that the code
-said it would not have, so it is a decision (§14, D2).
+said it would not have, so it is a decision (D2).
 
 ### 8.5 Loading: case, duplicates
 
@@ -2099,7 +2099,7 @@ symbols", "Recovery symbols"), "Strings made" and its rows, "Check on
 another device" and its rows, the error-correction screens' words (§8.4),
 the Starter's rows. Working screens carry no explanation: why the
 characters must be random, what a translation symbol is, and how to use
-the booklet are in Learn (§15.3).
+the booklet are in Learn.
 
 ### 13.4 Tokens
 
@@ -2140,27 +2140,3 @@ with it on shows the unique proposal and loads only after the boxes are
 typed again from the paper; Check a string loads nothing; Practice refuses
 non-sample entropy; each template choice makes a PDF saved under its
 name.
-
-## 14. Decisions to record
-
-Moved to `docs/history/CODEX32-LOG.md`.
-
-## 15. Plan
-
-Moved to `docs/history/CODEX32-LOG.md`.
-
-### 15.1 Rules for the implementing agent
-
-Moved to `docs/history/CODEX32-LOG.md`.
-
-### 15.2 Batches
-
-Moved to `docs/history/CODEX32-LOG.md`.
-
-### 15.3 Edit list
-
-Moved to `docs/history/CODEX32-LOG.md`.
-
-### 15.4 Questions for the owner
-
-Moved to `docs/history/CODEX32-LOG.md`.

@@ -54,7 +54,7 @@ review. Its wording is in the one strings file.
 explorer, vanity addresses, silent payments, the Lightning
 node key, SLIP-39 and codex32 backup screens and Learn are not part of the
 Wallets tab on day one; they
-return as Wallets-tab tools in the order of §9.
+return as Wallets-tab tools in the order they were listed.
 
 ## 2. Reassembling a wallet
 
@@ -493,8 +493,7 @@ item's foot button is its own next action until it is done, and only
 then **Continue**; an item not done cannot be passed, and the items
 after it open once it is done, each saying "After: {item}" meanwhile
 (2026-10-10, `docs/history/NEW-WALLET.md` §14.1). Opened
-from an action on the wallet's chart (2026-10-10, `docs/history/NEW-WALLET.md`
-§9) it opens at that item with the plan the chart shows, and makes
+from an action on the wallet's chart (2026-10-10) it opens at that item with the plan the chart shows, and makes
 nothing For the stick: each item's own **Make it** does. A change made on the chart (a
 move, another copy, a thing destroyed, a place removed; `docs/history/NEW-WALLET.md`
 §9.7) is an edit of the map, as the plan's cards make: the checklist is
@@ -724,14 +723,6 @@ the same rule.
 - **Flow tests** drive each flow through its steps for every kind in the
   capability table, from every entry point of §2.
 - **`core/`'s own tests** run first, unchanged.
-
-## 9. Order of work
-
-Moved to `docs/history/WALLETS-LOG.md`.
-
-## 10. Decided 2026-10-04
-
-Moved to `docs/history/WALLETS-LOG.md`.
 
 ## 11. Rules the flows file held
 

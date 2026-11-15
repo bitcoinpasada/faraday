@@ -252,7 +252,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         t.shot("home-empty")?;
     }
     // Settings' Time section, and Set the time with the clock not known
-    // yet (`docs/TOTP.md` §9).
+    // yet.
     t.press(Action::Nav(Screen::Settings));
     t.shot("settings-time")?;
     t.press(Action::OpenSetTime);
@@ -1213,7 +1213,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }
     println!("a GPG key made in the vault signed two files at once");
     // TOTP codes for the entries the imported file left in the vault
-    // (`docs/TOTP.md` §9): the clock is the GPG step's fixed one, so the
+    // (`docs/TOTP.md`): the clock is the GPG step's fixed one, so the
     // codes are the same in every render.
     t.press(Action::OpenCodes);
     if t.app.screen == Screen::SetTime {

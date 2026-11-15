@@ -126,7 +126,7 @@ tour at that size at Standard text:
 | `targets::desktop_1280x800` | 1280 × 800 at 160 dpi | the desktop window, one dp a pixel |
 
 Larger text only grows controls (`docs/TEXT-SIZE.md` §5) and is left to
-the review run below. A measuring run (§5) took 5 to 11 s for the default
+the review run below. A measuring run took 5 to 11 s for the default
 tour at one size on the build machine, PNGs included; A1 times the whole
 set and, if one size's test passes a minute, splits it by tour.
 
@@ -150,7 +150,7 @@ states no design value beyond the floor.
 
 ### 2.5 The ratchet
 
-Today's count is far from zero (§5), so the test holds a count that only
+Today's count is far from zero, so the test holds a count that only
 falls, as `lint-tokens` does: tools/touch-targets.counts, one line per
 size, screen and action kind (the action's variant, its fields left
 off), with how many distinct actions of that kind are under the floor
@@ -163,7 +163,7 @@ desktop_1280x800 Backups Nav 7
 `just lint-touch-targets` fails when a line's count rises or a key is new (listing the
 targets of §2.4 that make it), and when a count falls (lower the line, so
 the ratchet only tightens). A rise is the owner's decision, recorded in
-DECISIONS (`structure.ratchet-raised`, §7). Writing the file again is
+DECISIONS (`structure.ratchet-raised`). Writing the file again is
 `FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets`, for a change that lowers counts.
 
 ## 3. Exceptions
@@ -171,7 +171,7 @@ DECISIONS (`structure.ratchet-raised`, §7). Writing the file again is
 A target under the floor that cannot be larger on that layout is listed
 here with the decision that allows it; the test reads the same table
 (a constant beside the test, by action kind and size class). The owner
-allowed these three (§8, Q2; F152).
+allowed these three (F152).
 
 | Case | Action kinds | Size classes | What the measuring run found | Allowed by |
 |---|---|---|---|---|
@@ -180,7 +180,7 @@ allowed these three (§8, Q2; F152).
 | The backup board's form toggles on a chip, 20 dp | `Board` (toggles) | every class | 20 dp against 48 | F108 (its touch targets line) |
 
 Everything else under the floor is a defect, on every layout, the
-desktop's included (§8, Q3): it is counted in the ratchet and
+desktop's included: it is counted in the ratchet and
 fixed by spacing or sizing the controls: the desktop sidebar's and the
 lists' rows drawn 40 dp or less and stacked with no gap (`Nav`,
 `Resume`, `OpenWallet`, `ExploreKey`, `Vault`, `Step`), word entry's
@@ -191,10 +191,6 @@ split target under the floor still counts; the cure is room between the
 controls, not a smaller target.
 
 ## 4. State layers by construction
-
-### 4.1 Today
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
 
 ### 4.2 The constructor
 
@@ -290,24 +286,3 @@ sheet is `Ui::press_plain(.., Plain::Beside, ..)`.
 
 The compiler then holds the rule: no code outside faraday-ui can make a
 press without its layer, nor draw a layer apart from its press.
-
-### 4.4 Migration
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
-
-## 5. Today's count
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
-
-## 6. Batches
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
-
-## 7. The registry when built
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
-
-## 8. Questions for the owner
-
-Moved to `docs/history/M3-CHECKS-LOG.md`.
-

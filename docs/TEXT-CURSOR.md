@@ -37,11 +37,6 @@ A field has the whole of this only when it is (a) a `typing_target`,
 `pointer::field_action`, so a press places the caret, and (e) reached by
 `edit_key` before its own key handler in `Faraday::key`.
 
-## 2. Survey (2026-10-30)
-
-Moved to `docs/history/TEXT-CURSOR-LOG.md`.
-
-
 ## 3. Design
 
 - **Material 3.** Text fields (m3.material.io, Text fields): the caret is
@@ -114,11 +109,6 @@ Moved to `docs/history/TEXT-CURSOR-LOG.md`.
   straight through or fixed in the middle, with no Enter; a line not yet
   right stays.
 
-## 4. Batches
-
-Moved to `docs/history/TEXT-CURSOR-LOG.md`.
-
-
 ## 5. Tests
 
 User-facing only (CLAUDE.md): type, move left twice, type: the character
@@ -130,7 +120,3 @@ changed with the words after it kept; the codex32 re-entry's boxes and
 the string typed back; the paperkey line fixed in the middle. In
 `faraday/faraday-core/tests/all/caret.rs`, `languages.rs`,
 `codex32_make.rs`, `gpg_restore.rs` and `codex32_correct.rs`.
-
-## 6. Questions for the owner
-
-Moved to `docs/history/TEXT-CURSOR-LOG.md`.

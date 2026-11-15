@@ -9,10 +9,6 @@ the backup board, and then sees each stick drawn on screen as it is
 brought in and checked. Every choice here is the owner's of 2026-10-30
 (F175). It changed `docs/BACKUP-FLOW.md` §4.2 and §10.2.
 
-## 1. What changes
-
-Moved to `docs/history/STICK-SETUP-LOG.md`.
-
 ## 2. The Sticks and vaults card
 
 ### 2.1 Where it is
@@ -240,14 +236,6 @@ sticks are laid out and read here, before the keys: a stick is not read
 while a key or a vault is open; reading them now makes sure every vault
 has a stick that works before there is anything to lose; nothing is
 written to them until the lock; and what Check it later means (§4).
-
-## 8. What changes with it
-
-Moved to `docs/history/STICK-SETUP-LOG.md`.
-
-## 9. Tests
-
-Moved to `docs/history/STICK-SETUP-LOG.md`.
 
 ## 10. Choices made here
 

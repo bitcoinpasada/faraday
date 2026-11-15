@@ -11,10 +11,6 @@ later stages of setting up a multisig wallet, the backups especially,
 and the desktop app slows down in the same flows. The
 ask: Faraday always runs quick and smooth.
 
-## 1. What is wrong (read from the code at 2e807ae; not yet measured)
-
-Moved to `docs/history/SPEED-LOG.md`.
-
 ## 2. Rules for every part
 
 1. **What is kept is public, except a secret the person chose to show**
@@ -287,10 +283,6 @@ while shown, F195). The budget tests hold that a frame
 drawn again fills no shape (`faraday-core/src/work/budget/name.rs`, and
 every screen of §8.3's frames).
 
-### 3.9 The web demo (issue 128, built in the website's own repository)
-
-Moved to `docs/history/SPEED-LOG.md`.
-
 ### 3.10 `--timings` shows events and storage (issue 129)
 
 The desktop's `FrameTimings` line gains `events {mean} ms (worst
@@ -319,7 +311,7 @@ boot stick through the disk process (`docs/IMAGES.md` §10.6).
 
 ### 3.12 The vault 2 card and the sticks card; the late flow again (2026-10-19)
 
-The two leftovers §6 names after B, and a measurement of the late flow
+The two leftovers named after B, and a measurement of the late flow
 with what was added since (the board's files box, the access layers,
 Create's Start and Wallet cards, the flows-in-progress rows).
 
@@ -337,7 +329,7 @@ Create's Start and Wallet cards, the flows-in-progress rows).
 - **The late flow, measured** with §4's harness after both: the
   checklist at every stage, a scroll, a pointer move, the board in
   every layer view, Create's cards, at 1366×768 and 2560×1600 scale 2;
-  the results in §6. Any frame over 16 ms is named with what it spends
+  the results. Any frame over 16 ms is named with what it spends
   its time on; nothing else is changed here.
 
 ## 4. Measuring
@@ -353,14 +345,6 @@ build machine, release profile, at 1366×768 scale 1 and 2560×1600 scale
 - the event handling of a pointer move over it.
 
 The plan of measuring before and after each change: moved to `docs/history/SPEED-LOG.md`.
-
-## 5. Batches
-
-Moved to `docs/history/SPEED-LOG.md`.
-
-## 6. Results
-
-Moved to `docs/history/SPEED-LOG.md`.
 
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 
@@ -405,10 +389,6 @@ time: frames, every press, screens as the Inbox and the wallets grow,
 pages at rest, and the key moments (§8.3), in the kinds of §8.2.
 
 The speed audit and what it fixed: moved to `docs/history/SPEED-LOG.md`.
-
-### 8.1 What the audit fixed
-
-Moved to `docs/history/SPEED-LOG.md`.
 
 ### 8.2 New counted kinds
 

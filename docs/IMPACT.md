@@ -157,14 +157,6 @@ On a push to `main` the check is given the pushed range, so a pair left
 unmet there fails as it does on a pull request (F258). With no range it
 compares the tip with its merge base on `main`.
 
-### 2.3 `impact.py docs [--check]`
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
-### 2.4 `impact.py report [--out <file>]`
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
 ### 2.5 `impact.py lint`
 
 The registry checked against itself and the tree, run by `check` before
@@ -293,14 +285,6 @@ script prints an extra rule's id and its file's name only (`(a rule of
 <file>)`, `(a consumer of <file>)`), never the file's other text, in
 what `check` writes to a log.
 
-## 7. docs/CHECKS.md
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
-## 8. Where a rule comes from
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
 ## 9. The first rules
 
 ### 9.1 The rules
@@ -341,22 +325,6 @@ the packages `faraday-desktop` and `faraday-stick` (the device app) and
 `faraday-starter-shell` (the Starter), and fails on a workspace crate
 the app is built from that no pattern of its consumer reads. Where cargo
 cannot run, it prints a note and skips the comparison.
-
-### 9.3 Checks proposed beside it
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
-## 10. Order of work
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
-## 11. Questions for the owner
-
-Moved to `docs/history/IMPACT-LOG.md`.
-
-## 12. Rule line for CLAUDE.md
-
-Moved to `docs/history/IMPACT-LOG.md`.
 
 ## 13. What this does not catch
 

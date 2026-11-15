@@ -433,10 +433,6 @@ signed-amount memory, `docs/WALLETS.md` §3.3). The page says whether the
 sealed vault in the Outbox differs from the one on the stick, and that
 writing it back is safe and optional.)*
 
-## 5. Building it
-
-Moved to `docs/history/SPEND-FROM-BACKUP-LOG.md`.
-
 ## 6. As built, beyond the proposal
 
 - **Loading after the unlock.** The vault's own list appears on page 3,

@@ -663,10 +663,6 @@ the strings lint fails a key no code names. The keys are in `en.rs`, prefixes `h
 The values are the manifest's and the cross-check's, carried by
 `faraday-guide` (§1), not strings of this file.
 
-### 8.7 The guide's pages
-
-Moved to `docs/history/CRYPTO-LEARN-LOG.md`.
-
 ## 9. Tests and checks of reach
 
 ### 9.1 The reachability test
@@ -1176,7 +1172,7 @@ what:
    bar's order, the Learn tab and the block's drawing at every size and
    the Pi, the Starter's sheet; the strings (§8.6); the two new Learn
    pages (Secure Boot keys, Checking what is written); DESIGN §4.1 and §4.12 and
-   LAYOUT §8 point to §8; the guide's pages (§8.7). The code follows: the
+   LAYOUT §8 point to §8; the guide's pages. The code follows: the
    icon baked, the strings, the pages registered (`secure-boot-keys` in
    `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
    `OWN` and `LearnId`), `keys_kept_page()` added to Explore's pages and

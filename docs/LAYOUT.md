@@ -13,10 +13,6 @@ The Starter follows the same rules
 (`docs/STARTER.md` §3.1d, F91). DESIGN §3 states these rules in
 short.
 
-## 1. What changes
-
-Moved to `docs/history/LAYOUT-LOG.md`.
-
 ## 2. Size classes
 
 A window's class is read from its size in dp at the screen's density
@@ -405,10 +401,6 @@ the type roles of §8 (`BUTTON_H`, `FIELD_H`, `LIST_1` to `LIST_3`,
 (`docs/STARTER.md` §3.1d) are the same names where they are the same
 thing.
 
-## 10. The design calls (2026-10-23)
-
-Moved to `docs/history/LAYOUT-LOG.md`.
-
 ## 11. Tests
 
 User-facing, each at the sizes that show it: a 268 × 358 panel shows
@@ -440,14 +432,6 @@ class: 1280x800, 1920x1080, 2000x1090, 2560x1440 and 3840x2160,
 240x320 at 143, and the stick's 7-inch and 10-inch panels at both
 orientations (1024x600 and 600x1024 at 170 dpi, which stand for
 960x580@133, 1280x800 and 800x1280 at 150), each again at Larger.
-
-## 12. Plan
-
-Moved to `docs/history/LAYOUT-LOG.md`.
-
-## 13. Wide windows: what is wasted today (2026-10-24)
-
-Moved to `docs/history/LAYOUT-LOG.md`.
 
 ## 14. Reading width and wide content
 
@@ -747,12 +731,4 @@ Moved out with the step-through (F260): nothing of it is left to place.
 | Guide | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it |
 | The Starter | the same rules (`docs/STARTER.md` §3.1d): its page area is the window less the rail, its top bar's actions at the window's edge, a destination's cards in a column of at most `CONTENT_MAX` and a task page's text in `COL_W`, centred in the room beside the rail; nothing is capped by the window |
 | Sheets and dialogs | as §5: `SHEET_MAX`, centred |
-| The Pi panel and compact windows | unchanged by §13 to §17, but for the input panel on compact windows that are not short (§16.3) |
-
-## 18. How this fits the plan already made
-
-Moved to `docs/history/LAYOUT-LOG.md`.
-
-## 19. Plan for wide windows
-
-Moved to `docs/history/LAYOUT-LOG.md`.
+| The Pi panel and compact windows | unchanged by §14 to §17, but for the input panel on compact windows that are not short (§16.3) |

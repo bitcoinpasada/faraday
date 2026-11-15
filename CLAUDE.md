@@ -17,11 +17,9 @@ plan <paths>` lists the ones a change touches.
   words what is not, and carries no work list: no table of work, no labels
   for pieces of work, no estimates (F214). What must come first and which
   files change stay as plain text where they matter to anyone building
-  Faraday. The change that builds the last of a Spec's open work moves what
-  is only about building it to `docs/history/<NAME>-LOG.md` and makes it a
-  Reference; a moved section keeps its heading with one line, ``Moved to
-  `docs/history/<NAME>-LOG.md`.``, and sections are never renumbered.
-  `lint-docs` holds this.
+  Faraday. The change that builds the last of a Spec's open work makes it a
+  Reference and deletes what was only about building it (git keeps it);
+  sections are never renumbered. `lint-docs` holds this.
 - Faraday's decisions are numbered F1 onward, one file each
   (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
   index, then only the decision you need. A new decision is a new file

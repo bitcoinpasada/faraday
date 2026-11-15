@@ -470,14 +470,6 @@ the kept state, `tools/lint-secrets.sh`).
 
 ## 10. Plan
 
-### 10.1 Order of building
-
-Moved to `docs/history/SEED-CONVERSION-LOG.md`.
-
-### 10.2 Edit list
-
-Moved to `docs/history/SEED-CONVERSION-LOG.md`.
-
 ## 11. Shamir39
 
 Ian Coleman's Shamir39 splits BIP-39 words into shares that are

@@ -605,15 +605,3 @@ scheme, and Faraday Demo inside it shares it: the Demo opens in the
 Starter's theme, and a theme chosen in the Demo is the Starter's
 (F126, `docs/STARTER.md` §5.3). The Starter's Text size is on its About
 page, not here, as F85 decided (`docs/TEXT-SIZE.md` §6).
-
-## 15. Plan
-
-Moved to `docs/history/THEMES-LOG.md`.
-
-## 16. Edit list
-
-Moved to `docs/history/THEMES-LOG.md`.
-
-## 17. The owner's answers (2026-10-24)
-
-Moved to `docs/history/THEMES-LOG.md`.

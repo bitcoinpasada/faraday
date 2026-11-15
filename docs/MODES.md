@@ -581,14 +581,6 @@ away from the device is.
 All in `faraday/faraday-strings/src/en.rs`, each with its doc line as
 the file has them.
 
-## 9. The website, in its repository
-
-Moved to `docs/history/MODES-LOG.md`.
-
-## 10. Batches
-
-Moved to `docs/history/MODES-LOG.md`.
-
 ## 11. Settled with the owner (2026-10-22)
 
 1. A lock comes back in the mode the person was in, a test network as

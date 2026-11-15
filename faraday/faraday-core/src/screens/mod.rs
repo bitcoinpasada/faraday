@@ -95,8 +95,7 @@ enum Area {
     /// window's edge.
     Work,
     /// No wide layout built yet: the area the old frame gave it,
-    /// centred, until its batch changes this line (`docs/LAYOUT.md` §19
-    /// lists them).
+    /// centred, until a wide layout is built for it.
     Until,
 }
 

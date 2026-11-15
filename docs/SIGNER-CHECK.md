@@ -661,26 +661,6 @@ with the other two (S7, no F1).
   do no costly work; the press that completes the second card counts
   one check.
 
-## 10. Plan
-
-Moved to `docs/history/SIGNER-CHECK-LOG.md`.
-
-### 10.1 Rules for the implementing agent
-
-Moved to `docs/history/SIGNER-CHECK-LOG.md`.
-
-### 10.2 Batches
-
-Moved to `docs/history/SIGNER-CHECK-LOG.md`.
-
-### 10.3 Edit list
-
-Moved to `docs/history/SIGNER-CHECK-LOG.md`.
-
-### 10.4 Questions for the owner
-
-Moved to `docs/history/SIGNER-CHECK-LOG.md`.
-
 ## 11. The one flow for two PSBTs
 
 Compare two PSBTs (`docs/COMPARE.md` §2) is folded into Check a signer:

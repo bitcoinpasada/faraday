@@ -10,7 +10,7 @@ read-only `View`, so a screen that calls costly work does not compile.
 The work counters, the budget tests (`faraday-core/src/work/budget/`,
 `work/kept.rs`) and parse-once (`docs/SPEED.md` §3.3) all stay. The debug
 guard was removed in D2, once the types and the lint enforced everything
-it checked (§10).
+it checked.
 
 ## 1. The guarantee
 
@@ -227,10 +227,6 @@ and shows the checksum of the `h` form.
 
 The tests whose expectations changed: moved to `docs/history/COMPUTE-LOG.md`.
 
-## 6. Batches
-
-Moved to `docs/history/COMPUTE-LOG.md`.
-
 ## 7. `faraday/clippy.toml`
 
 Third-party paths only. `disallowed-methods`: `Compute::new` (allowed
@@ -294,14 +290,6 @@ Rustdoc on this toolchain does not check the error code a
 differing in the one thing refused, is what shows the refusal is the
 one meant; the codes are written for the reader.
 
-## 10. When the debug guard is removed
-
-Moved to `docs/history/COMPUTE-LOG.md`.
-
-## 11. Docs
-
-Moved to `docs/history/COMPUTE-LOG.md`.
-
 ## 12. Risks
 
 Item 1: moved to `docs/history/COMPUTE-LOG.md`.
@@ -315,14 +303,6 @@ Item 1: moved to `docs/history/COMPUTE-LOG.md`.
    screen is not caught (the guard did not catch it either).
 
 Items 6 to 8: moved to `docs/history/COMPUTE-LOG.md`.
-
-## 13. Build time
-
-Moved to `docs/history/COMPUTE-LOG.md`.
-
-## 14. Estimate
-
-Moved to `docs/history/COMPUTE-LOG.md`.
 
 ## 15. Named costs, measured (F238)
 

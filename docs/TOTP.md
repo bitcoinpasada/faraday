@@ -11,10 +11,6 @@ clock is. The Pi has no real-time clock and starts at 1970. The stick
 reads the PC's hardware clock as UTC, and a PC that runs Windows keeps
 that clock in local time, so the stick can be hours off.
 
-## 0. Rules for the implementing agent
-
-Moved to `docs/history/TOTP-LOG.md`.
-
 ## Decisions recorded (owner, 2026-10-11)
 
 1. Faraday shows TOTP codes for the entries in open vaults. The secrets
@@ -399,9 +395,3 @@ The codes are checked against RFC 6238 Appendix B and RFC 4226
 Appendix D in `faraday/faraday-vault/tests/totp.rs`; what a person sees
 of the clock and the codes is in `faraday/faraday-core/tests/all/clock.rs`
 and `faraday/faraday-core/tests/all/totp.rs`.
-
-Moved to `docs/history/TOTP-LOG.md`.
-
-## 9. Docs and snapshots
-
-Moved to `docs/history/TOTP-LOG.md`.

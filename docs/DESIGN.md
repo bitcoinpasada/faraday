@@ -580,7 +580,7 @@ shell — takes keys as a desktop app does. Nothing on a screen says so.
 ### 4.16 Structure chart
 
 How a thing is made of others and where each of those is: Faraday's
-wallet at a glance (`docs/history/NEW-WALLET.md` §6), the wallet over its keys
+wallet at a glance, the wallet over its keys
 over its backup; and the same chart from an open vault (§7.2), the
 backup over the keys over the wallet.
 
@@ -774,7 +774,6 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Randomness` | Add randomness, from Settings or from the Randomness row at a press that draws the system's randomness (§4, Randomness row), its top app bar going back there: the status line, the label **Add randomness to the pool** over the source (Camera, Dice, Coins, Cards and, on the desktop app, Pointer and keys), none chosen and nothing started until one is pressed, and New key's pad for it, the batch and its Add, or Pointer and keys' area and its count; once a batch is added, a check mark and "Added to the pool 3 times · last: 6 dice rolls", a pressed state layer easing away behind it at each batch (`docs/OWN-RANDOMNESS.md` §2.1, §2.2). New key's Generator card draws the same sources on itself. | Page |
 | `Settings` | **Steps only · Guided**, the flows' control and setting; then Mode; the session (the keys loaded) and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Appearance (Theme as filter chips, one per theme, Cobalt's marked Default; Mode, Light · Dark; Contrast, Standard · Medium · High; Text size, Standard · Large · Larger, `docs/TEXT-SIZE.md` §2; the Reduce motion switch, THEMES §12); Display (Scale, and on a 7-inch or 10-inch panel Rotation, Landscape · Portrait, `docs/ORIENTATION.md` §6); what is remembered (Signed amounts, Sealed into an open vault · Kept until power-off only; Nonce history, Kept in an open vault · Off, `docs/FLOWS.md`, Nonce history); About. With Guided on, each card carries a one- or two-sentence explainer under its title, beside the Guided text's accent bar (what Lock, Remove every key and the timers do; what reads the clock; how added randomness is mixed; what Appearance, Display, Signed amounts and Nonce history set, and under Rotation what each way suits; when the self-test runs); with Steps only, labels, values and actions only. In About, Run again (Material 3's Progress indicators, a disabled button rather than a spinner) reads "Running" and takes no press while the self-test runs; when it ends a snackbar (Material 3's Snackbar) says "Self-test passed: N checks" or "Self-test failed: <check>" and the result line shows the fresh result. On a compact window a list of the sections, each its own page; from medium up every card on one page (`docs/LAYOUT.md` §17). | Page |
 | `Transfer` | The desktop app as the device's QR link: files and text out as codes, in by camera. Only in the desktop app. Send text is an outlined multi-line text field with its count or refusal under it and Paste, Clear and Show as QR (Material 3 Text fields, Cards, Buttons). | Page |
-
 
 **Check** (F255; Material 3 Lists). A page under the top app bar named
 **Check**, opened from its row right under Home on the expanded rail and
@@ -1157,18 +1156,6 @@ as two-line items and the fact rows), Text fields (outlined, the
 passphrase and the compared value), Segmented buttons (the xpub's
 spelling), Buttons (filled, outlined and text, one filled action per
 card) and Progress indicators (linear, determinate) pages.
-
-## 6. What changes from today
-
-Moved to `docs/history/DESIGN-LOG.md`.
-
-## 7. Open questions for the owner
-
-Moved to `docs/history/DESIGN-LOG.md`.
-
-## 8. How this gets built
-
-Moved to `docs/history/DESIGN-LOG.md`.
 
 ## 9. Checklist for a change
 

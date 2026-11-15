@@ -9,21 +9,9 @@ The pass that made the repository easy to audit, and the rules it set
 that hold now: the dependency policy (§6), the layout rule (§7.1), the
 enforcement (§7.2) and the shape of the areas (§7.3).
 
-## 1. What this changes in the plan
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-## 2. Phase 0: what is false and what is personal
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
 ## 3. Phase 0b: the hard fork (F72)
 
 Built (F72). The order within the phase: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-### 3.1 Names
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ### 3.2 What the rename must not touch
 
@@ -38,14 +26,6 @@ and `faraday-kdbx-uuid`; the silent payments record's header is
 `faraday-silent`.
 
 What the rename was expected to change, and its check: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-### 3.3 Provenance, frozen before the rename
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-### 3.4 Made Faraday's
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ## 4. Phases 1 and 2: maps and the docs layout
 
@@ -257,46 +237,6 @@ this pass came from, is on the board.
   `faraday/faraday-core/src/backup_flow/area.rs`).
 - The transitional mutable accessors some areas still hand out: moved to
   `docs/history/STRUCTURE-PASS-LOG.md`.
-
-### 7.4 Phase 7's plan
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.1 The rules each area commit follows
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.2 The inventory
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.3 Per area
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.4 The order
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.5 The ratchet
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.6 Risks
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-#### 7.4.7 Out of scope
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-## 8. Order, checks and builds
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
-
-## 9. Questions for the owner
-
-Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ## 10. Checklist for a change
 

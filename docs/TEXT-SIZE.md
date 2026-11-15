@@ -286,15 +286,3 @@ Starter's `snap` example takes the same variable (`just
 faraday-starter-snap`, into `out/snapshots/starter/WxH-larger/`), and
 lists the same in its `cut.txt`; the held Transfer and Learn are
 Faraday's own screens, checked by Faraday's renders.
-
-## 8. Batches
-
-Moved to `docs/history/TEXT-SIZE-LOG.md`.
-
-## 9. Questions for the owner
-
-Moved to `docs/history/TEXT-SIZE-LOG.md`.
-
-## 10. Docs that follow
-
-Moved to `docs/history/TEXT-SIZE-LOG.md`.

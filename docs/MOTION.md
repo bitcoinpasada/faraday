@@ -21,10 +21,6 @@ for that.
    The wheel and keys stop hard at the ends.
 4. **Light mode**, chosen in Settings (Appearance: Dark, Light).
 
-## 2. What was wrong (measured 2026-10-06)
-
-Moved to `docs/history/MOTION-LOG.md`.
-
 ## 3. Design
 
 ### 3.1 Shell API (`core/faraday-shell-api`)

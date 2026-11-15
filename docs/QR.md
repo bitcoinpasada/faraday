@@ -240,10 +240,6 @@ intact, not who sent it.
   test kit, decoded at full size. No claim of physical camera success is
   made from synthetic frames, as Faraday OS's own notes say.
 
-## 6. Built 2026-10-05
-
-Moved to `docs/history/QR-LOG.md`.
-
 ## 7. QR codes for public values, and the TOTP secret (F28)
 
 The decision is `docs/DECISIONS.md` F28, its presses amended by F123
@@ -420,10 +416,6 @@ a module from about 16 cm (1920 wide, from about 11 cm). A multisig descriptor o
 version 25; the QR sheet then shows it animated, as any descriptor, and
 its PNG goes as parts.
 
-### 7.2 Code
-
-Moved to `docs/history/QR-LOG.md`.
-
 ### 7.3 Decided, with nothing open
 
 - The TOTP secret as an `otpauth://` QR: yes, opened by a press (F123),
@@ -435,10 +427,6 @@ Moved to `docs/history/QR-LOG.md`.
 - BIP-85 child words as a SeedQR: no (owner, 2026-10-14). The BIP-85
   screen shows no code of any output.
 - A receive address as a PNG: no. A node id as a PNG: yes.
-
-### 7.4 Batch Q1
-
-Moved to `docs/history/QR-LOG.md`.
 
 ## 8. Parity with Gauss
 

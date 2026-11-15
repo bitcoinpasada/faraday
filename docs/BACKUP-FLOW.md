@@ -617,10 +617,6 @@ and matched. A write made on the stick visit page does not count
 
 ## 10. The Bitcoin wallet
 
-### 10.1 What the code does today
-
-Moved to `docs/history/BACKUP-FLOW-LOG.md`.
-
 ### 10.2 The change
 
 (Every bullet below keeps what the plan can say: §2.)
@@ -1712,10 +1708,6 @@ plans on the board, keeping what each checked; none is deleted.
    says "{file} did not read back from {stick}; try another stick". This
    is beside §4.6's binding, which checks the vault files and the
    listing.
-
-### 17.11 Batches
-
-Moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
 ### 17.13 Decided while building F1 (2026-10-16)
 
@@ -2816,11 +2808,3 @@ keep, on the sheet. Learn says why (below).
   number.
 - An absolute lock (`after`) gets no margin row: moving coins does not
   change it.
-
-### 18.6 Edit list, tests
-
-Moved to `docs/history/BACKUP-FLOW-LOG.md`.
-
-### 18.7 Questions for the owner
-
-Moved to `docs/history/BACKUP-FLOW-LOG.md`.

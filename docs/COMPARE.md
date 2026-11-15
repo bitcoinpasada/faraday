@@ -488,14 +488,6 @@ Drawing reads the kept lines and works nothing out.
 
 ## 5. Code
 
-### 5.1 In core/faraday-psbt
-
-Moved to `docs/history/COMPARE-LOG.md`.
-
-### 5.2 In faraday-core
-
-Moved to `docs/history/COMPARE-LOG.md`.
-
 ### 5.3 Costs and drawing
 
 - Compare costs a parse of each file and an inspection of each (both
@@ -605,7 +597,3 @@ checklist in `docs/KEYS.md`.
 
 No difference from Material: both screens are DESIGN §4's components in
 DESIGN §5's step flow and Spend's review.
-
-## 8. What comes first, and which files change
-
-Moved to `docs/history/COMPARE-LOG.md`.

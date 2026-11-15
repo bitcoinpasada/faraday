@@ -104,7 +104,7 @@ impl KeyInfo {
 }
 
 /// Why a key's secret leaves the store as text. The list is closed
-/// (`docs/KEYS.md` §9, F70): a new reason is a new variant, seen in
+/// (`docs/KEYS.md` §2, F70): a new reason is a new variant, seen in
 /// review.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reveal {

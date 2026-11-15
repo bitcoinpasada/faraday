@@ -68,7 +68,7 @@ impl FileKind {
 }
 
 /// Why a secret file goes to the Outbox, named after the key boundary's
-/// reveal list (docs/KEYS.md §9).
+/// reveal list (docs/KEYS.md §2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum OutReason {
     /// A file the person let out unprotected.

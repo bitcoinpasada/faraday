@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Reference
-**Status:** Built (F178, F180, F181, F190, F191, F192, F193, F213): the timing fixes, the switches, the reasons in the manifest and their check, the generated lists and the cross-check's outside sources. §6 is the work kept for later. Built along the way: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8), the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4), the JSON reader from `serde_json` behind Faraday's visitor (§5.13), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10), hex from base16ct in `faraday_crypto::hex`, judged by CPython's `bytes.fromhex` in area `entropy` (§5.11), the documentation fixes of §7, the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4) and the quiz's seed from the session's generator (§5.16), btclib's change rule judging psbt-review (§9.4) and Core's watch-only descriptor wallet beside it, aezeed's software-round pass (§9.4), area `compile` for the policy compiler (§9.4), area `sign-check` for the signatures a PSBT carries (§9.4), area `import` reading the real wallet files the wallets' own test suites publish (§9.4), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4), and HMAC, PBKDF2 and scrypt judged in the same area by `hmac`, `hashlib.pbkdf2_hmac` and `hashlib.scrypt` (§9.4), and `zlib.crc32` and cbor2 judging the one CRC-32 and the one CBOR in area `ur` and the GPT's CRC fields in the Starter's tests (§9.4), the one HKDF in `faraday-crypto` (`hkdf_sha256` beside `hkdf_sha256_expand`, §5.17) used by the QR vault's message, and PyCA's `HKDFExpand` and `HKDF` judging both in area `hash` (§9.4), which closes the one copy of each kept piece (§5.17), and pyotp judging the TOTP codes, the seconds left and the periods of the vault's one-time passwords and its reading of otpauth URIs in area `totp` (§9.4), and SeedSigner's `mnemonic_generation.py` over embit's BIP-39 judging the hashed dice procedure at 50 and 99 rolls and direct selection's last word, in area `entropy` (§9.4)
+**Status:** Built (F178, F180, F181, F190, F191, F192, F193, F213): the timing fixes, the switches, the reasons in the manifest and their check, the generated lists and the cross-check's outside sources. §6 is the work kept for later. Built along the way: AEZ's AES round from the aes crate, BLAKE2b from the blake2 crate, the sealing's counter nonce removed, the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng, X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries, SLIP-39's GF(256) and checksum without a branch, the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1, the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign`, the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3), the descriptor checksum from miniscript, the PNG writer's Adler-32 from `adler2`, the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4), the JSON reader from `serde_json` behind Faraday's visitor, the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct, hex from base16ct in `faraday_crypto::hex`, judged by CPython's `bytes.fromhex` in area `entropy`, the documentation fixes of §7, the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4) and the quiz's seed from the session's generator, btclib's change rule judging psbt-review (§9.4) and Core's watch-only descriptor wallet beside it, aezeed's software-round pass (§9.4), area `compile` for the policy compiler (§9.4), area `sign-check` for the signatures a PSBT carries (§9.4), area `import` reading the real wallet files the wallets' own test suites publish (§9.4), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4), and HMAC, PBKDF2 and scrypt judged in the same area by `hmac`, `hashlib.pbkdf2_hmac` and `hashlib.scrypt` (§9.4), and `zlib.crc32` and cbor2 judging the one CRC-32 and the one CBOR in area `ur` and the GPT's CRC fields in the Starter's tests (§9.4), the one HKDF in `faraday-crypto` (`hkdf_sha256` beside `hkdf_sha256_expand`) used by the QR vault's message, and PyCA's `HKDFExpand` and `HKDF` judging both in area `hash` (§9.4), which closes the one copy of each kept piece, and pyotp judging the TOTP codes, the seconds left and the periods of the vault's one-time passwords and its reading of otpauth URIs in area `totp` (§9.4), and SeedSigner's `mnemonic_generation.py` over embit's BIP-39 judging the hashed dice procedure at 50 and 99 rolls and direct selection's last word, in area `entropy` (§9.4)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -9,14 +9,14 @@ rules for keys, saying why for each piece. This spec states the rule
 (§1), how `just lint` holds it (§2), what Faraday writes itself once the
 work here is built (§3), what is checked again later (§6), the documentation
 fixes (§7) and what the cross-check compares each action with (§9). The
-timing fixes (§4), the switches (§5) and the order of work (§8) are
+timing fixes, the switches and the order of work are
 not kept here. The choices are the
 owner's of 2026-10-30 (F178) and 2026-10-31 (F180, F181, F191, F192).
 
 The facts are from a review of the tree at 0.1.9 against crates.io,
 docs.rs and the crates' sources on 2026-10-30, and a review of the tree
-on 2026-10-31 (main after the timing fixes of §4.2, §4.3 and the
-branch-free form of §4.1) that read the code Faraday wrote outside the
+on 2026-10-31 (main after the timing fixes and the
+branch-free scalar form) that read the code Faraday wrote outside the
 manifest's `written_here`, every path a secret takes, every place a
 secret is held in text or a growable buffer, the facts the first review
 left unchecked, and the cross-check. Where a fact could not
@@ -252,8 +252,7 @@ are four. The owner's decisions of 2026-10-31 (F180) and 2026-11-05 (F213):
 - `docs/STANDARDS.md` §10, a new section, "What Faraday writes itself",
   generated between marker lines: one table per reason, with columns
   Piece, Where (the crate), Note, Decision. STANDARDS' header sentence
-  that names the generated sections (§1 to §7) names §10 too. §8 and §9
-  keep their numbers.
+  that names the generated sections (§1 to §7) names §10 too.
 
 `gen.py check` holds both. The rule `crypto.generated` already covers
 `docs/STANDARDS.md` and `docs/AUDIT.md`.
@@ -276,10 +275,6 @@ spec as `planned`, `active` when `crypto-check` holds it.
   manifest does not name is established (cargo vet holds that it is
   vetted, not that it is established)
 
-### 2.5 The inventory's name matching
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
 ## 3. What Faraday writes itself
 
 Moved to `docs/STANDARDS.md` §10 and `docs/AUDIT.md` §3, which the manifest generates.
@@ -299,124 +294,6 @@ Moved to the same two places.
 ### 3.4 Only the part used is written
 
 Moved to the same two places.
-
-## 4. The timing fixes, and what wiping reaches
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.1 F-1: scalar arithmetic on secrets
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.2 F-2: AEZ's AES round (built)
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.3 F-3: SLIP-39's GF(256) and checksum (built)
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.4 F-4: codex32's GF(32), checksum and alphabet
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.5 F-5: word lookups
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.6 F-6: comparisons of secrets
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.7 F-7: BIP-352 tweaks, and contexts that are not randomized
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.8 Copies of secrets in freed memory
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 4.9 A wiping allocator
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-How a leftover copy is found by test is `docs/SECRET-LEAKS.md`.
-
-### 4.10 Display-only and input-only
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-## 5. The switches
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.1 BLAKE2b
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.2 HKDF: not a switch
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.3 AEZ's AES round (built)
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.4 Scalar arithmetic
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.5 The BIP-39 core: not a switch
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.6 The RSA RNG adapter
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.7 X.509 and DER
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.8 The single-key and multisig finalizer
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.9 The sealing's counter nonce, removed
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.10 Base64, four copies
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.11 Hex, one copy
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.12 The descriptor checksum
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.13 The JSON reader
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.14 Adler-32
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.15 The zero check, the wipes, one Argon2id call
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.16 The quiz's seed
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
-### 5.17 One copy of each kept piece
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
 
 ## 6. Check again later
 
@@ -492,18 +369,17 @@ codex32 0.1.0 (2023, by a BIP-93 author) is the one release.
 
 **What would change it.** A release that is `no_std`, holds the seed
 in a type that is neither `Clone` nor `Debug` and is wiped, and computes
-without a branch on a symbol (§4.4). Faraday's worksheets, fresh sets
+without a branch on a symbol. Faraday's worksheets, fresh sets
 and error correction would stay in front.
 
 ### 6.7 HKDF's upstream fix
 
 hkdf 0.13.0 leaves the pseudorandom key and each output block T(i)
-unwiped (§5.2). A change that holds both in `Zeroizing` (the PRK out of
+unwiped. A change that holds both in `Zeroizing` (the PRK out of
 `GenericHkdfExtract::finalize` and `GenericHkdf::new`, `prev` in
 `expand_multi_info`) is proposed to RustCrypto/KDFs (owner, 2026-10-31).
 
-The same class of upstream issue, on the stack, where §4.9's
-`WipeOnFree` does not reach: hmac 0.13.0's key setup (`get_der_key`'s
+The same class of upstream issue, on the stack, where `WipeOnFree` does not reach: hmac 0.13.0's key setup (`get_der_key`'s
 block and hash, `new_from_slice`'s key XOR ipad and opad) and pbkdf2
 0.13.0's U_i are stack arrays never wiped, and hmac's `zeroize` feature
 reaches only the hash cores. They hold the seed sentence's key block at
@@ -535,7 +411,7 @@ lock pins. Then `faraday_crypto::crc32` wraps it, adding no crate.
 ### 6.9 A constant-time bip39 crate
 
 The bip39 crate (3.0.0, 2026-09-17) finds words by `find_word` and packs
-entropy with a branch per bit (§4.5).
+entropy with a branch per bit.
 
 **What would change it.** A release whose word lookup and packing do not
 follow the words. Then the BIP-39 core moves to it, with a trust entry
@@ -549,7 +425,7 @@ and is removed.
 ## 7. Documentation fixes
 
 All are made, ahead of the switches, but §7.2's MuSig2 text is right
-only once the scalar switch (§4.1) is made.
+only once the scalar switch is made.
 
 ### 7.1 AUDIT §1: the session generator's SHA-256
 
@@ -621,28 +497,28 @@ patched version, and rsa 0.10.0-rc.18's own README says the crate is
 vulnerable to the Marvin Attack. The sentence says what `deny.toml`
 says: 0.9 and 0.10 both carry the advisory, which is not reachable in
 Faraday, because Faraday never decrypts with RSA and signs with
-blinding; and the page names §4.10's limit, that key generation's prime
+blinding; and the page names the limit that key generation's prime
 search is not constant time.
 
 ### 7.8 Secret handling that claims more than the code does
 
 A manifest line or a module doc that says a secret is wiped, or that no
 secret is held, where the code leaves a copy, says what the code does,
-and the code is not changed for it (§4.8). The review of 2026-10-31
+and the code is not changed for it. The review of 2026-10-31
 found: `wif-read`'s "The decoded buffer is zeroized before the reader
 returns" (base58ck's own scratch and result vectors are freed unwiped);
 `wallet-files`' "no secret is held" (`faraday_intake::wallet::holds_secret`
 parses an Electrum file holding an `xprv` or a seed into plain strings);
 and `totp`, `bip85`, `gpg-paperkey` and `codex32`, whose lines name
-wiping or constant time that §4.4 to §4.6 or this section correct.
+wiping or constant time that the timing fixes or this section correct.
 Each line gains what is left, plainly: "<what> is freed unwiped, until
-the next lock (§4.8)."
+the next lock."
 
 ### 7.9 What wiping does not reach, said where secrets are described
 
 `docs/KEYS.md` §2 says what Faraday's types wipe, and the manifest's
 Secret handling lines say what each action wipes; neither says what
-wiping cannot reach. KEYS §2 gains §4.9's five stated limits (a secret
+wiping cannot reach. KEYS §2 gains five stated limits (a secret
 in a plain type while live; a copy in freed heap until the process ends; the stack and registers, `Copy` types and
 moved-from slots; memory other code allocates itself; swap, sleep
 images and crash dumps, none on the stick and the Pi, the desktop
@@ -653,15 +529,11 @@ memory other code allocates, a copy in freed heap until the process
 ends (the next lock on the device), and anything outside the process
 (none on the device; the computer's own on the desktop)."
 
-## 8. Order of work
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
-
 ## 9. The cross-check's outside sources
 
 Decided (owner, 2026-10-31; F191, F192). This section says what the
 cross-check (F79, `docs/CROSSCHECK.md` §10, `tools/crosscheck/README.md`)
-compares each action with once the switches of §4 and §5 are made: the
+compares each action with once the switches are made: the
 rules that choose (§9.2), the places where a check would compare a
 library with itself and how each is cleared (§9.3), each action's
 judges before and after (§9.4), what is not taken and why (§9.5), the
@@ -748,7 +620,7 @@ vault): 66 of 97 name an area, 31 none.
 6. **A switch lands with its cross-check change** (F191): in the same
    commit and the same passing `just crosscheck`, so no commit has a
    piece judged by the library it moved to, or an action whose judge
-   was dropped and not replaced. Its cross-check change is named in §8.
+   was dropped and not replaced. Its cross-check change is named in this document's history.
 
 The other choices of 2026-10-31 decide single rows and are in §9.4 and
 §9.5: Go reaches a released btcd, pinned, for new uses, and pull
@@ -779,7 +651,7 @@ withdrawn.
 | `aezeed` | not a library: on a builder with AES-NI both sides run the processor's round, so the fixsliced round the Pi runs is never compared | a second pass with the aes crate's software round and LND's AEZ built without assembly (built) |
 | btclib's ports of Core | `script/solver.py` and `script/spendability.py` are Core's logic | not counted as a second lineage beside Core; where only they cover a rule, Faraday's second version stays (rule 1) |
 
-No switch of §5 makes an existing judge collide: the switches to BLAKE2b, X.509 and DER, base64, hex, the JSON reader, Adler-32 and the Argon2id call move pieces onto RustCrypto crates, `serde_json`, `adler2`
+No switch makes an existing judge collide: the switches to BLAKE2b, X.509 and DER, base64, hex, the JSON reader, Adler-32 and the Argon2id call move pieces onto RustCrypto crates, `serde_json`, `adler2`
 and miniscript, and their judges are Go's x/crypto, OpenSSL, GnuPG,
 Core's C++, CPython's `base64`, `binascii`, `json` and `zlib`, and
 pykeepass with its argon2-cffi (and, once F190's vault is judged,
@@ -789,7 +661,7 @@ its own curve, neither libsecp256k1, so they stay valid.
 
 ### 9.4 Each action
 
-Faraday's side is the code after §4 and §5. "Kept" is the judges in use
+Faraday's side is the code after the timing fixes and the switches. "Kept" is the judges in use
 today; "Added" names what was added; "Second version" is what of Faraday's
 second version is retired or kept under rule 1; "Class" is the
 `independence` class after the cross-check is extended (none: no area, judged in tests or
@@ -838,7 +710,7 @@ not at all).
 | sign-check | libsecp256k1 (verification), bitcoin (sighash) | none | a new area (built): python-ecdsa and btclib verify every signature on a PSBT, partial or in a finalized witness, over btclib's sighashes; btclib's script engine runs the complete inputs; Core's `finalizepsbt` and `testmempoolaccept` judge them and the transaction. Core's rules, as the area found them: a partial input names one sighash type, so its PSBT sighash-type field is written when its signatures share a non-ALL type, and an input with mixed types is not asked of Core; an input that arrives final is taken as it is, so its signatures are judged by `testmempoolaccept` on the extracted transaction, not by `finalizepsbt`'s `complete`. Known: a partial signature that is not well formed is refused by Faraday's reader where Core reads it and leaves the input unfinalized; and a bug in Faraday held until it is fixed: a finalized taproot signature of 65 bytes ending in 0x00 is called valid where BIP 341 and Core call it malformed | the report of a reused r or R, written from Faraday's own rule, failing closed (signatures that verify with one nonce, differing in key or in message) | outside-and-own |
 | compile | miniscript's policy compiler | none | a new area (built): Core's `getdescriptorinfo` and `deriveaddresses` take the output; python-bip380 and btclib parse it; the policy and the parsed miniscript compared as boolean formulas over the keys and lock times. Known: a single key under `tr()` is refused by the compiler, and python-bip380's `v:multi_a` script differs from BIP 379's | the lift of a miniscript to a formula, written from the fragments' meanings, and the rules by which a policy is refused | outside-and-own |
 | sb-keys | rsa, sha2, chacha20, x509-cert and der; CMS, signature lists and `.auth` Faraday's | OpenSSL (tests) | GnuTLS's `certtool` reads every certificate and verifies its self-signature; the OVMF run (`faraday/tools/sb-ovmf-check.py`) named in `other` and run by `just crosscheck` | none | none (tests) |
-| sb-sign | rsa, sha2, x509-cert and der; Authenticode and CMS Faraday's | sbverify, OpenSSL (tests) | the OVMF run; pesign's `pesigcheck` (NSS) does not take the db certificate as a signer (§5.7), so it judges the real signed binaries (sb-check) and not the images made here | none | none (tests) |
+| sb-sign | rsa, sha2, x509-cert and der; Authenticode and CMS Faraday's | sbverify, OpenSSL (tests) | the OVMF run; pesign's `pesigcheck` (NSS) does not take the db certificate as a signer, so it judges the real signed binaries (sb-check) and not the images made here | none | none (tests) |
 | sb-check | x509-cert, der | sbverify; images signed by `sbsign` and `osslsigncode` | `pesigcheck` on two real signed binaries, each under 2 MiB, their signer and image hash named and compared with `pesign`'s; the OVMF run | none | none (tests) |
 | starter-signed | rsa, sha2; the PE checksum and certificate table Faraday's | sbverify (tests) | python3-pefile's PE checksum field and certificate-table entry, compared with the image's header for every image signed, moved or real | none | none (tests) |
 | gpg-create, gpg-sign, gpg-verify | Own packets over ed25519-dalek; base64ct | GnuPG 2.4 (tests) | Sequoia's `sq` 1.3.1, built over Nettle (the tests and the cross-check's tools check fail unless `sq version` says so), inspects every certificate Faraday writes (both keys, the user ID, the expiry, the renewal), takes the revocation certificate and verifies each detached signature over SHA-256 and SHA-512, refusing one over other data; a signature `sq` makes (over SHA-512, the one hash `sq sign` offers) and its key are among gpg-verify's fixtures (`tools/vectors/release-sums/sequoia`) (built) | none | none (tests) |
@@ -942,10 +814,6 @@ The standard library covers the rest: `hashlib`, `hmac`, `json`,
 `zlib`, `uuid`. btclib's wheels, Core's functional-test
 framework and its `crypto/ripemd160.py`, python-ecdsa, PyCA
 cryptography, Go and the volvelle harness are in place already.
-
-### 9.7 The batches
-
-Moved to `docs/history/ESTABLISHED-LOG.md`.
 
 ### 9.8 Not decided: a vault reader written from VAULT.md alone
 

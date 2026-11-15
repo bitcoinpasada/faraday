@@ -35,8 +35,8 @@
 #    owner, docs-and-tour task lists) fails, and so does a line of build
 #    log in its text: a dated "Built 2026-10-19", "Specified, not built",
 #    or words for the implementing agent. A section whose whole body is a
-#    stub naming where it moved ("Moved to `docs/history/X-LOG.md`.")
-#    passes, so a cited section number keeps resolving.
+#    stub naming where it moved is not kept: a section that is only about
+#    building is deleted, and a section number is never reused.
 #
 # 5. Decisions. docs/DECISIONS.md's table has one row per decision, F1
 #    upward with none missing or twice; each row links its file, under
@@ -52,8 +52,7 @@
 #
 # 8. No work list in a Spec or Reference (F214): no table whose first
 #    column is Batch, no batch named in an `**Open:**` line, and in a Spec
-#    no heading of batches or order of work unless its whole body is the
-#    stub of rule 4.
+#    no heading of batches or order of work.
 #
 # 9. Index. The "Every document" list of docs/README.md is what
 #    tools/docs-index.py makes from the documents' headers.
@@ -115,7 +114,6 @@ PLAN = re.compile(
 LOG_LINE = re.compile(
     r"(^|[.;:]\s+|\()\**Built( on)? \(?\d{4}-\d{2}-\d{2}"
     r"|specified, not built|implementing agent", re.I)
-STUB = re.compile(r"^(.*: )?[Mm]oved to `docs/history/[^`]+`\.?$")
 
 
 def check_log(f, kind):
@@ -133,19 +131,14 @@ def check_log(f, kind):
         m = re.match(r"(#+)\s+(.*)", l)
         if m:
             heads.append((n, len(m.group(1)), m.group(2)))
-        elif not STUB.match(l.strip()) and LOG_LINE.search(l):
-            fail(f, n + 1, "a line of build log in a Reference; move it to "
-                           "docs/history/")
-    for i, (n, level, title) in enumerate(heads):
+        elif LOG_LINE.search(l):
+            fail(f, n + 1, "a line of build log in a Reference; delete it "
+                           "(git keeps it)")
+    for n, _level, title in heads:
         if not PLAN.search(title):
             continue
-        end = next((m for m, lv, _ in heads[i + 1:] if lv <= level), len(lines))
-        body = [l.strip() for l in lines[n + 1:end] if l.strip()]
-        if len(body) == 1 and STUB.match(body[0]):
-            continue
         fail(f, n + 1, f"heading `{title}` is plan or build log in a "
-                       "Reference; move the section to docs/history/ and "
-                       "leave a one-line stub")
+                       "Reference; delete the section (git keeps it)")
 
 
 # Rule 8: no work list in a Spec or Reference (F214).
@@ -166,7 +159,7 @@ def check_work_list(f, kind):
             continue
         elif WORK_TABLE.match(l):
             fail(f, n + 1, "a table of batches; a Spec carries no work list "
-                           "(F214): move it to docs/history/")
+                           "(F214): delete it (git keeps it)")
         elif l.startswith("**Open:**") and n < 12 and WORK_WORD.search(l):
             fail(f, n + 1, "an `**Open:**` line naming a batch; say in plain "
                            "words what is not built (F214)")
@@ -176,16 +169,11 @@ def check_work_list(f, kind):
                 heads.append((n, len(m.group(1)), m.group(2)))
     if kind != "Spec":
         return
-    for i, (n, level, title) in enumerate(heads):
+    for n, _level, title in heads:
         if not WORK_HEAD.search(title):
             continue
-        end = next((m for m, lv, _ in heads[i + 1:] if lv <= level), len(lines))
-        body = [l.strip() for l in lines[n + 1:end] if l.strip()]
-        if len(body) == 1 and STUB.match(body[0]):
-            continue
         fail(f, n + 1, f"heading `{title}` names work in a Spec (F214); say "
-                       "it as design, or move the section to docs/history/ "
-                       "and leave a one-line stub")
+                       "it as design, or delete the section (git keeps it)")
 
 
 # Rule 5: the decisions and their index.

@@ -98,18 +98,6 @@ apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 A UR, BBQr or numbered-parts transfer is read part by part ("UR: 5 of 9
 · missing 2, 7") and the whole is then one of the kinds above.
 
-## 3. What happens today
-
-Moved to `docs/history/SCANNING-LOG.md`.
-
-### 3.1 The matrix
-
-Moved to `docs/history/SCANNING-LOG.md`.
-
-### 3.2 What is wrong with it
-
-Moved to `docs/history/SCANNING-LOG.md`.
-
 ## 4. What each scanner does with each kind
 
 ### 4.1 The rule
@@ -125,8 +113,7 @@ three things with what it read:
   never pass on. The read card names it, with **Scan again** and
   **Cancel** only.
 
-Never, from any scanner: a secret filed in Files or the Inbox (§3.2 item
-1), shown, put in a note or a vault entry other than its own kind's; a
+Never, from any scanner: a secret filed in Files or the Inbox, shown, put in a note or a vault entry other than its own kind's; a
 copy check loading what it compares.
 
 ### 4.2 Where each kind goes
@@ -175,7 +162,7 @@ destination's action.
 | Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a codex32 or SLIP-39 share, to its form | every other kind | as §4.2 |
 | A form's Scan (codex32, SLIP-39, Seed XOR) | its own form's part; the other share form's, switching to that form with it in; a seed, to the seed sheet | every other kind | as §4.2; a string that starts as its form's does keeps the parser's line ("Not a codex32 string: …") |
 | A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
-| What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left (§10 item 6) | every other kind on its line, as in §5.5; a secret is not filed |
+| What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left | every other kind on its line, as in §5.5; a secret is not filed |
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
 | Sign a message's Scan, on the Message step | plain text, as the message, never filed | none | every secret kind and every other kind of code on the line, "{kind} · not used here" (16 or 32 bytes of valid UTF-8 that no other kind takes are plain text and the message, unless they are a private key as text); nothing is kept; a code in parts is put together first and what it makes is judged the same way |
 | Copy checks | the copy, compared, never loaded | none | every other kind on the line; a SeedQR of another seed: "This is another seed's SeedQR" |
@@ -369,8 +356,7 @@ one:
 - Its actions: **Use without a passphrase** (filled), **Add a
   passphrase**, **Cancel**; from a wallet's or the Spend tab's scanner,
   **Not this one**. For 12 or 24 words, a text button **It is a Seed XOR
-  part**, which opens Add a key's Seed XOR form with this part in (§10
-  item 4).
+  part**, which opens Add a key's Seed XOR form with this part in.
 - After **Use without a passphrase**: Wallets, with the key
   under Keys without a wallet and **Make a wallet from this key**, **Add
   another key**, **Restore an existing wallet**; or the wallet that uses
@@ -429,11 +415,3 @@ Paste, on the purposes of §1:
   stick first", and the stick is held back while the card holds it.
 - A codex32 secret, a codex32 share and an aezeed read in each scanner
   against BIP 93's and LND's published vectors.
-
-## 9. Batches
-
-Moved to `docs/history/SCANNING-LOG.md`.
-
-## 10. Decided (owner, 2026-10-29)
-
-Moved to `docs/history/SCANNING-LOG.md`.

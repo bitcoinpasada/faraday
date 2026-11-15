@@ -73,7 +73,7 @@ committed by `faraday-entropy`'s `PointerKeys`.
 | Camera noise | every shell with a camera | frames, as New key's mix takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
 | Coins | every shell | flips, as New key takes them (`CoinFlips`) | `CoinFlips::commitment`, as New key's |
 | Cards | every shell | draws from a shuffled deck, as New key takes them (`CardDraws`, refusing a card already drawn from its deck) | `CardDraws::commitment`: SHA-256 of the draws' indices, as New key's |
-| Pointer and keys | the desktop app | while it is the source chosen (§5 item 4): each move of the pointer, with no button down, over its area, its x and y in the frame's pixels; each key typed for it, a character, Backspace or Delete, by its code (a character's Unicode scalar value, Backspace 0x110000, Delete 0x110001); each with the core's time in ms and a running count from 0 | a 17-byte big-endian record per event, `P` ‖ count (u32) ‖ ms (u64) ‖ x (u16) ‖ y (u16) or `K` ‖ count ‖ ms ‖ code (u32); SHA-256("faraday pointer keys" ‖ the records), committed every 64 events, when the pointer leaves the area or the window, when a key is not the source's, when the source or the page is left, and when New key's Make the words is pressed, which then makes no words: the key waits for the generator's bytes again, so they hold the batch |
+| Pointer and keys | the desktop app | while it is the source chosen: each move of the pointer, with no button down, over its area, its x and y in the frame's pixels; each key typed for it, a character, Backspace or Delete, by its code (a character's Unicode scalar value, Backspace 0x110000, Delete 0x110001); each with the core's time in ms and a running count from 0 | a 17-byte big-endian record per event, `P` ‖ count (u32) ‖ ms (u64) ‖ x (u16) ‖ y (u16) or `K` ‖ count ‖ ms ‖ code (u32); SHA-256("faraday pointer keys" ‖ the records), committed every 64 events, when the pointer leaves the area or the window, when a key is not the source's, when the source or the page is left, and when New key's Make the words is pressed, which then makes no words: the key waits for the generator's bytes again, so they hold the batch |
 
 Camera frames only add (F158): to the system's randomness here, to
 New key's This device through `device_own` (§2.3), or to a mix as one
@@ -162,7 +162,7 @@ bytes in a `Zeroizing`, and the counts for the status line.
   ("faraday fresh" ‖ what ‖ bytes ‖ `acc`); without, exactly what it
   returns today.
 - **New key's This device**: `DeviceRandom` takes SHA-256("faraday
-  device own" ‖ bytes ‖ `acc`) when `acc` exists (§5 item 2).
+  device own" ‖ bytes ‖ `acc`) when `acc` exists.
 - **Never substituted.** `acc` alone makes nothing: no seed, no pool
   entry, no key. Before the system's first answer `acc` waits.
 - **New key's mix** (`Mixed`, not `acc`): SHA-256 over its sources'
@@ -480,18 +480,6 @@ outside Faraday (F160, F177).
 For §3: `check-kernel-config.sh` fails a board whose `CONFIG_CMDLINE`
 lacks the two parameters (A).
 
-## 5. Questions for the owner
-
-Moved to `docs/history/OWN-RANDOMNESS-LOG.md`.
-
-## 6. Order of building and files changed
-
-Moved to `docs/history/OWN-RANDOMNESS-LOG.md`.
-
-## 7. Docs that follow
-
-Moved to `docs/history/OWN-RANDOMNESS-LOG.md`.
-
 ## 8. Add randomness at every press that draws the system's (F157)
 
 The owner's decision (2026-10-28): wherever a cryptographic function
@@ -623,10 +611,6 @@ before the press:
   offers it, even where the bar's tools would otherwise fit (DESIGN
   §4's Bar row). Its 48 dp target and the chevron's do not overlap.
 
-### 8.4 Code changes
-
-Moved to `docs/history/OWN-RANDOMNESS-LOG.md`.
-
 ### 8.5 Tests
 
 In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
@@ -659,7 +643,3 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
    Randomness row on its Sign step. A Dice, Coins or Cards key has none.
    A split wallet's Files list, with Add signatures on a file of the open
    spend, has none (row 14).
-
-### 8.6 Questions for the owner
-
-Moved to `docs/history/OWN-RANDOMNESS-LOG.md`.

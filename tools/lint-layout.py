@@ -21,7 +21,7 @@
 #    is not counted, but each marker (over one line or several) carries
 #    `reason = "…"`; one without fails, naming file:line.
 #
-# 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.4.5). The number of
+# 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.2). The number of
 #    top-level fields of `pub struct Faraday` in lib.rs (`fields Faraday
 #    N`) only falls, and so does the list of files under faraday/ with an
 #    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed

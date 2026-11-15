@@ -615,30 +615,6 @@ the backup flow's screen while it restores a GPG key, Learn opens on
 that page. "The paperkey" keeps the GnuPG commands for a computer that
 is not Faraday.
 
-## 10. Decision draft: F-next
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
-## 11. Plan
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
-### 11.1 Rules for the implementing agent
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
-### 11.2 Batches
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
-### 11.3 Edit list
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
-### 11.4 Questions for the owner
-
-Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
-
 ## 12. Moving a key to a vault on another machine
 
 F215. Two machines with only a camera between them: the old vault shows

@@ -85,7 +85,7 @@ changes, never while drawing.
   `faraday/faraday-host/tests/all/pi_panel.rs` walks them) and fails
   where the key the app works out has no section and is not the
   fallback.
-- The guide lint (`tools/lint-guide.py`, §8) fails a key written twice,
+- The guide lint (`tools/lint-guide.py`) fails a key written twice,
   a key no place reaches (the code's keys are read from the one
   function), and a `Screen` or Starter page that no page names and the
   guide's list of places still to write does not list. That list only
@@ -262,10 +262,6 @@ the start guides' own.
 
 ## 5. Learn's place
 
-### 5.1 The pages
-
-Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
-
 ### 5.2 The code
 
 - **`faraday/faraday-guide`** is the guide's crate: the pages read from
@@ -290,10 +286,6 @@ Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
 - **`faraday/faraday-core/src/walkthrough.rs`** is Guided mode's
   walk-through (F82).
 
-### 5.3 The strings and the screens that draw them
-
-Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
-
 ### 5.4 About
 
 About (Settings' last section in Faraday, the ⋮'s About in the Starter)
@@ -301,14 +293,6 @@ stays what it is: the version, the facts of the build, the self-test.
 It holds the notices a Learn page carried: the codex32 booklet's MIT
 notice (F93). What Faraday is, for a person who asks, is its first line,
 as now.
-
-### 5.5 `docs/CRYPTO-LEARN.md`
-
-Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
-
-### 5.6 The lints
-
-Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
 
 ## 6. The Starter
 
@@ -332,7 +316,3 @@ person is on, and links the guides to starting a computer from the stick
 (`start/`), which stay the website's. The walkthroughs, the screen
 pages, GUIDE.md and the pictures are history (`docs/history/`), not
 published.
-
-## 8. What comes first and which files change
-
-Moved to `docs/history/GUIDE-IN-APP-LOG.md`.

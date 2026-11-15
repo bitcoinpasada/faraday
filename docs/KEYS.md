@@ -8,10 +8,6 @@ F70 decided that one crate, `faraday-keys`, owns every secret in memory,
 and that faraday-core holds handles. This document says what the
 boundary is.
 
-## 1. Where secrets are today
-
-Moved to `docs/history/KEYS-LOG.md`.
-
 ## 2. What the boundary is
 
 - **Key material** lives in `faraday-keys` and nowhere else:
@@ -37,7 +33,7 @@ Moved to `docs/history/KEYS-LOG.md`.
     erased at the sweep's Done, a lock or leaving its sheet; it leaves
     only as signatures (`Keys::sweep_sign`), and has no reveal;
   - the whole open vault: every decrypted record, passwords and notes
-    included (owner, 2026-10-21, Q1 of §9: every decrypted vault byte is
+    included (owner, 2026-10-21: every decrypted vault byte is
     in faraday-keys);
   - the slot key that seals them again.
 - **Operations** on key material are functions of `faraday-keys`. They
@@ -55,7 +51,7 @@ Moved to `docs/history/KEYS-LOG.md`.
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
   The list of reasons is closed, sixteen `Reveal` variants
-  (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9;
+  (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21;
   the three before the last two, owner, 2026-10-26, F125; the last two, F219 and F226):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
   check; paper forms (Seed XOR, codex32, SLIP-39 shares, a master seed as hex,
@@ -236,7 +232,7 @@ impl Keys {
     pub fn same_words(&self, a: KeyId, b: KeyId) -> bool;
     pub fn xpub_text(&self, c: &Compute, id: KeyId, at: &Path) -> String;
 
-    // Operations (one per group in §1), for example:
+    // Operations (one per group), for example:
     pub fn sign_psbt(&mut self, c: &Compute, psbt: &mut Psbt,
                      seed: &SignSeed) -> SignReport;
     pub fn sign_message(&self, c: &Compute, id: KeyId, at: &Path,
@@ -640,10 +636,6 @@ its own frame, unwiped, under every one of these calls.
   that loads back from a vault) and checks against the vectors the
   primitive crates already use.
 
-## 7. Size and cost
-
-Moved to `docs/history/KEYS-LOG.md`.
-
 ## 8. What it buys
 
 An auditor reads faraday/faraday-keys and the primitive crates, plus
@@ -654,10 +646,6 @@ the reveal list, and can state:
 
 Before F70 that took reading 36 files of faraday-core. As built, the
 three statements are `docs/AUDIT.md` §2.
-
-## 9. Questions for the owner
-
-Answered 2026-10-21 (F70); the answers in force are in §2 (Q1, the vault's scope; Q2, the eleven reveals, fourteen since F125) and §6 (Q4, tests exempt), and the questions: moved to `docs/history/KEYS-LOG.md`.
 
 ## 10. Checklist for a change
 

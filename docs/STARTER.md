@@ -222,8 +222,7 @@ samples compiled in (F126, §5.3).
   image beyond the one file named, nothing read from the environment.
   The writer checks the device again before it writes (§4.3) and never
   takes a path from anything but its arguments. (The BitLocker calls
-  that went through it as `--bitlocker <verb>` are removed by F33,
-  §6.6.)
+  that went through it as `--bitlocker <verb>` are removed by F33.)
 - On Windows, winit already brings in `windows-sys`; the Win32 calls
   the shell needs (disks, volumes, registry, shortcuts, elevation) go
   through it, and no other Windows crate is added.
@@ -1558,7 +1557,7 @@ start from the stick, Secure Boot back on.
 
 Until 2026-10-14 this section was the BitLocker guard (F11, F12, F17,
 F21): Show the recovery key with its QR code and Save, an extra-safe
-suspension with a marker, a logon reminder and Resume, and §6.6's
+suspension with a marker, a logon reminder and Resume, and the
 acceptance runs. F33 removed it (commit 53a715be); F49 brings back,
 from that code, the elevated `--bitlocker` verbs and the WMI reading,
 with a restart count in place of the marker (§6.2), and nothing of the
@@ -1695,10 +1694,6 @@ refusal code, how Windows counts the starts, and whether
 the viewer holds the key sheet open when the Starter exits.
 
 F33's and F49's work lists and their tests: moved to `docs/history/STARTER-LOG.md`.
-
-### 6.6 What is removed
-
-Moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.7 The guides' new text
 
