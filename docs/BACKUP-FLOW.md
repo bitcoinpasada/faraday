@@ -840,14 +840,8 @@ once (F6); the flow is offered and nothing waits for it.
 
 In `faraday/faraday-strings/src/en.rs`, prefix `backup_flow_`. `{m}` is
 the medium (`app.medium`), as `write_out_*` take it; a stick's name is
-`{stick}`.
-
-| Name | Text |
-|---|---|
-| `backup_flow_add_vault` | Add {} |
-| `backup_flow_finish_paper` | Finish its paper copy first |
-| `backup_flow_vault_for_round` | Keep it in a vault for the round |
-| `backup_flow_first_gone` | {} no longer has the vault |
+`{stick}`. The strings are the ones in that file under the prefix; none
+is kept here.
 
 The plan's lines of §10.3 are the plan's own strings: `plan_all_at_one_place`
 "Every secret of this wallet is at {}. Separate places are strongly

@@ -7,7 +7,7 @@
 //! the shell reports what it reads through [`Starter::starter_event`] and takes
 //! what the Starter asks for from [`Starter::next_command`] ([`api`]).
 //!
-//! Transfer and Learn are the desktop app's own screens (§2): the Starter
+//! Transfer and Guide are the desktop app's own screens (§2): the Starter
 //! holds a `Faraday` in online mode ([`Faraday::held`]) and draws its
 //! frame under the Starter's own top app bar while one of them is open
 //! (`docs/STARTER.md` §3.1d); its way back returns to the Starter's page.
@@ -362,7 +362,7 @@ pub enum StarterAction {
     /// Transfer, the desktop app's own.
     Transfer,
     /// Guide: the destination listing the guide's pages.
-    Learn,
+    GuideDestination,
     /// A guide's Learn page.
     StartGuide(StartGuide),
     /// About.
@@ -485,7 +485,7 @@ impl StarterAction {
             StarterAction::UninstallNow => (19, 0),
             StarterAction::OpenDesktop => (20, 0),
             StarterAction::Transfer => (21, 0),
-            StarterAction::Learn => (22, 0),
+            StarterAction::GuideDestination => (22, 0),
             StarterAction::StartGuide(StartGuide::Maker(id)) => (
                 23,
                 MAKER_CODE
@@ -574,7 +574,7 @@ impl StarterAction {
             19 => StarterAction::UninstallNow,
             20 => StarterAction::OpenDesktop,
             21 => StarterAction::Transfer,
-            22 => StarterAction::Learn,
+            22 => StarterAction::GuideDestination,
             23 if arg >= MAKER_CODE => StarterAction::StartGuide(StartGuide::Maker(
                 faraday_guide::MAKERS.get((arg - MAKER_CODE) as usize)?.id,
             )),
@@ -2058,7 +2058,7 @@ impl Starter {
             }
             StarterAction::OpenDesktop => self.open_demo_asked(),
             StarterAction::Transfer => self.show_held(),
-            StarterAction::Learn => self.open(Page::Guide),
+            StarterAction::GuideDestination => self.open(Page::Guide),
             StarterAction::StartGuide(id) => {
                 if id.page().is_some() {
                     self.start_shown = Some(id);

@@ -1110,7 +1110,7 @@ impl StepView<'_> {
         }
         // Held for want of a registered wallet: register the one the
         // PSBT defines, or, where it defines none, load its
-        // descriptor (`docs/FLOWS.md`, Spend).
+        // descriptor (`docs/SPEND-FROM-BACKUP.md` §8).
         if i.warnings
             .iter()
             .any(|wn| wn.kind == faraday_psbt::WarningKind::WalletNotRegistered)

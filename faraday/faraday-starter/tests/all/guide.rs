@@ -72,7 +72,7 @@ fn every_page_opens_a_guide_page_that_is_written() {
 #[test]
 fn the_guide_destination_lists_the_starters_pages_and_a_press_opens_one() {
     let mut s = starter(1280, 800);
-    s.press(StarterAction::Learn);
+    s.press(StarterAction::GuideDestination);
     let texts = s.drawn_texts();
     for place in GUIDE_PLACES {
         let title = &faraday_guide::guide_page(place).unwrap().title;

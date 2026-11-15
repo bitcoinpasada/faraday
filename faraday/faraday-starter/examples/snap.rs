@@ -1026,13 +1026,13 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "templates-saved")?;
     codex32_template_shots(s)?;
 
-    // The desktop app's own Transfer and Learn.
+    // The desktop app's own Transfer and Guide.
     let mut h = s.starter();
     h.press(StarterAction::Transfer);
     s.shot(&mut h, "transfer")?;
     let mut h = s.starter();
-    h.press(StarterAction::Learn);
-    s.shot(&mut h, "learn")?;
+    h.press(StarterAction::GuideDestination);
+    s.shot(&mut h, "guide")?;
     destination_shots(s)?;
     demo_shots(s)?;
     step_shots(s)

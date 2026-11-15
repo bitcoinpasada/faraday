@@ -96,7 +96,7 @@ const DESTINATIONS: [StarterAction; 4] = [
     StarterAction::Home,
     StarterAction::MakePage,
     StarterAction::ToolsPage,
-    StarterAction::Learn,
+    StarterAction::GuideDestination,
 ];
 
 #[test]
@@ -120,7 +120,7 @@ fn each_destination_opens_its_page() {
     assert!(s.drawn_texts().iter().any(|t| t == "Open Transfer"));
     tap(&mut s, StarterAction::Home);
     assert_eq!(s.page, Page::Home);
-    tap(&mut s, StarterAction::Learn);
+    tap(&mut s, StarterAction::GuideDestination);
     assert_eq!(s.page, Page::Guide);
     assert!(s.drawn_texts().iter().any(|t| t == "Faraday Starter"));
 }
@@ -215,7 +215,7 @@ fn larger_text_still_offers_every_destination() {
 fn the_guide_keeps_the_rail_or_the_bar_and_a_start_guide_goes_back_to_it() {
     for (w, h) in [(400, 700), (700, 900), (1300, 800)] {
         let mut s = starter(w, h);
-        tap(&mut s, StarterAction::Learn);
+        tap(&mut s, StarterAction::GuideDestination);
         assert_eq!(s.page, Page::Guide, "{w}");
         let t = s.drawn_texts();
         // The top app bar names it; the guide's pages are under it.

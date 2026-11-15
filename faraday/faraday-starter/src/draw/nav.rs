@@ -43,7 +43,7 @@ fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
         one(
             Icon::Help.into(),
             S.starter_row_guide,
-            StarterAction::Learn,
+            StarterAction::GuideDestination,
             Destination::Guide,
         ),
     ]

@@ -915,7 +915,7 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
 
     // Guide: the destination with the start guides, one opened as a
     // page of the held app and closed back to the Guide.
-    starter.press(StarterAction::Learn);
+    starter.press(StarterAction::GuideDestination);
     assert!(!starter.showing_held());
     assert_eq!(starter.page, Page::Guide);
     assert!(shows(

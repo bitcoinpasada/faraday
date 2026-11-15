@@ -124,8 +124,8 @@ fn states() -> Vec<(&'static str, Starter)> {
     s.press(StarterAction::Transfer);
     out.push(("Transfer", s));
     let mut s = starter();
-    s.press(StarterAction::Learn);
-    out.push(("Learn", s));
+    s.press(StarterAction::GuideDestination);
+    out.push(("Guide", s));
     out
 }
 

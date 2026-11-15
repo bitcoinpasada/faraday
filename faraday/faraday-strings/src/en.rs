@@ -10923,7 +10923,7 @@ strings! {
     wallet_account_silent: "Silent payments · BIP-352",
     /// The account dialog's dismissive action.
     wallet_account_cancel: "Cancel",
-    // ----- Register this wallet, from a spend (docs/FLOWS.md, Spend), faraday-core -----
+    // ----- Register this wallet, from a spend (docs/SPEND-FROM-BACKUP.md §8), faraday-core -----
     /// The Spend review's button under the line that holds a spend from
     /// a wallet of several keys not registered here, where the PSBT
     /// carries the cosigners' keys; and the register sheet's title.
