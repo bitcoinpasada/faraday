@@ -17,6 +17,8 @@ pub(crate) struct Idle {
     carry: u64,
     /// This process locks for idleness, after this many ms without input.
     locking: Option<u64>,
+    /// This process follows a lock for idleness.
+    followed: bool,
     /// The lock asked for last is a step of a backup flow (bringing in
     /// the setup's sticks, Lock and write), not the person's own Lock:
     /// it keeps Make a new wallet. Set by
@@ -42,6 +44,7 @@ impl Idle {
             last_input: None,
             carry: 0,
             locking: None,
+            followed: false,
             lock_for_flow: false,
             shown: None,
             warn_min: 0,
@@ -68,6 +71,12 @@ impl Idle {
     pub(crate) fn followed_lock(&mut self, ms: u64) {
         self.carry = ms;
         self.last_input = None;
+        self.followed = true;
+    }
+
+    /// Whether this process follows a lock for idleness.
+    pub(crate) fn follows_lock(&self) -> bool {
+        self.followed
     }
 
     /// Time without input so far at `now_ms`, counted across an idle

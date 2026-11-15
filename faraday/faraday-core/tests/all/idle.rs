@@ -363,3 +363,57 @@ fn the_sheet_under_the_idle_warning_is_back_once_the_warning_is_put_away() {
     app.event(Event::Key(Key::Char('a')));
     assert_eq!(app.sheet, under, "the guide is where it was");
 }
+
+const SEED_WORDS: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+fn locked_texts(app: &mut Faraday) -> String {
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.drawn_texts().plain().join(" ")
+}
+
+#[test]
+fn a_lock_names_a_secret_in_the_clear_still_waiting() {
+    let mut app = after_idle_lock(vec![("seed.txt".into(), SEED_WORDS.as_bytes().to_vec())]);
+    assert_eq!(app.sheet, Some(Sheet::Locked));
+    let text = locked_texts(&mut app);
+    assert!(text.contains("Locked after a time without input"), "{text}");
+    assert!(text.contains("with a secret in the clear"), "{text}");
+}
+
+#[test]
+fn a_waiting_file_with_no_secret_is_not_named_as_one() {
+    let mut app = after_idle_lock(vec![("vault.kdbx".into(), vec![1, 2, 3])]);
+    let text = locked_texts(&mut app);
+    assert!(!text.contains("secret in the clear"), "{text}");
+}
+
+#[test]
+fn the_sheet_held_up_with_no_lock_does_not_say_keys_were_wiped() {
+    let mut app = Faraday::new();
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("seed.txt"),
+            SEED_WORDS.as_bytes().to_vec(),
+        )]),
+        kept: Vec::new(),
+    });
+    tick(&mut app, 0);
+    tick(&mut app, 120 * MIN);
+    assert_eq!(app.sheet, Some(Sheet::Locked));
+    let text = locked_texts(&mut app);
+    assert!(!text.contains("wiped"), "{text}");
+    assert!(!text.contains("Locked after"), "{text}");
+}

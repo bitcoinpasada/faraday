@@ -1882,14 +1882,25 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let shown = app.outbox.len().min(5);
-    let head = (Icon::Lock.into(), Role::Primary.paint(), EN.locked_locked);
+    let locked = app.idle_followed_lock();
+    let title = if locked {
+        EN.locked_locked
+    } else {
+        EN.locked_not_locked
+    };
+    let head = (Icon::Lock.into(), Role::Primary.paint(), title);
+    // The same classification as the stick visit's notice of secret files.
+    let plain = |i: &crate::Item| i.kind.exposure() == crate::secrets::Exposure::Secret;
+    let secrets = app.outbox.iter().filter(|i| plain(i)).count();
     crate::compact::dialog(
         ui,
         (w, h, T::DIALOG_MAX),
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += ui.wrap_as((x, cy, iw), BODY_M, muted, EN.locked_locked_after) + 12.0;
+            if locked {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, muted, EN.locked_locked_after) + 12.0;
+            }
             let lines = [
                 (app.vaults().unsaved, EN.locked_changes_lost),
                 (app.vaults().step_dropped, EN.locked_step_dropped),
@@ -1912,9 +1923,15 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     &[&Text::num(app.outbox.len() as u64), app.medium.for_the()],
                 );
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Warning, &line) + 8.0;
+                if secrets > 0 {
+                    let line = Text::fill(EN.locked_secret_waiting, &[&Text::num(secrets as u64)]);
+                    cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, &line)
+                        + faraday_draw::tokens::GAP_SMALL;
+                }
                 for item in app.outbox.iter().take(shown) {
+                    let tone = if plain(item) { Role::Error } else { ink };
                     let n = ui.fit_as(BODY_M.mono(), &item.name, iw);
-                    ui.text_as(x, cy, BODY_M.mono(), ink, &n);
+                    ui.text_as(x, cy, BODY_M.mono(), tone, &n);
                     cy += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 }
             }

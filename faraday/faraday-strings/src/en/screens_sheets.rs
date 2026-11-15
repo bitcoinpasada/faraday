@@ -239,6 +239,12 @@ macro_rules! words_screens_sheets {
     locked_locked: "Locked",
     /// Line in `locked_sheet`.
     locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
+    /// Title of `locked_sheet` when nothing was locked: the power-off time
+    /// came with the Outbox not empty.
+    locked_not_locked: "Not locked",
+    /// Line in `locked_sheet`, error tone, when a waiting file holds a secret
+    /// in the clear. `{}`: how many.
+    locked_secret_waiting: "Waiting files with a secret in the clear: {}. A lock does not wipe them.",
     /// Line in `locked_sheet`, after a vault's changes were lost.
     locked_changes_lost: "Changes to a vault were not saved. They did not fit in the vault, or the vault could not be written.",
     /// Line in `locked_sheet`, after a vault was sealed without its new memory step.

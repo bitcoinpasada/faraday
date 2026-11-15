@@ -341,6 +341,12 @@ impl Faraday {
         self.idle.locking()
     }
 
+    /// Whether this process follows a lock for idleness, as against the
+    /// Locked sheet held up with nothing locked.
+    pub(crate) fn idle_followed_lock(&self) -> bool {
+        self.idle.follows_lock()
+    }
+
     /// This process follows a lock for idleness after `ms` without input:
     /// the time counts toward power-off, and the lock screen shows.
     pub(crate) fn idle_locked(&mut self, ms: u64) {
