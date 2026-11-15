@@ -7,6 +7,12 @@ USB device's descriptor, another wallet's file. The parsers in the shared
 crates (camera frames, PSBTs, descriptors, keys, key shares, JSON) are
 fuzzed from `fuzz/` (`fuzz/README.md`).
 
+The targets are split from `fuzz/` by build weight. A target there builds
+in about 2 minutes from a cold target directory, one here in about 5,
+because these crates pull in the app's dependencies (the windowing and
+Starter libraries among them). A single crate would make every `fuzz/`
+target pay the larger build, and saves time only when both are built cold.
+
 This runs on a developer's machine and nowhere else. There is no hosted
 CI. The run before a release is `just fuzz-release`, which runs these
 targets and those of `fuzz/` (`fuzz/README.md`, "Before a release").
