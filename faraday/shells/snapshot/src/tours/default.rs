@@ -250,6 +250,10 @@ pub(crate) fn fp_hex(fp: [u8; 4]) -> String {
 
 /// Costs what `visit_tour`, `copy_tour`, `public_tour` and the rest it
 /// calls cost.
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "a linear script of screenshots and key presses, one after the other"
+)]
 pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<(), String> {
     if medium == Medium::Stick {
         devices_tour(t)?;

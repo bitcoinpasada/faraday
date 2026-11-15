@@ -593,6 +593,10 @@ impl Faraday {
 
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `KeyWallet`).
+    #[expect(
+        clippy::cognitive_complexity,
+        reason = "a match over the Restore wallet flow's actions, one arm each"
+    )]
     pub(crate) fn restore_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),

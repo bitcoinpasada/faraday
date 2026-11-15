@@ -29,4 +29,4 @@ disallowed-methods = [
 # A function over this cognitive complexity carries an expect with its reason
 # (docs/STRUCTURE-PASS.md §7.2); the same number is in core/clippy.toml and
 # faraday/clippy.toml, which this file shadows for its crate.
-cognitive-complexity-threshold = 40
+cognitive-complexity-threshold = 35

@@ -412,6 +412,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::cognitive_complexity,
+        reason = "a table of inputs and the route each one takes"
+    )]
     fn routing_table() {
         let c = Compute::unchecked();
         let digits48 = [b'0'; 48];

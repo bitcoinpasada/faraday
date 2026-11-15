@@ -6,4 +6,4 @@
 # nesting, not of length) over this carries
 # `#[expect(clippy::cognitive_complexity, reason = "...")]`
 # (docs/STRUCTURE-PASS.md §7.3). The same number is in faraday/clippy.toml.
-cognitive-complexity-threshold = 40
+cognitive-complexity-threshold = 35

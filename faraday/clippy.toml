@@ -111,4 +111,4 @@ disallowed-types = [
 
 # A function over this cognitive complexity carries an expect with its reason
 # (docs/STRUCTURE-PASS.md §7.2). The same number is in core/clippy.toml.
-cognitive-complexity-threshold = 40
+cognitive-complexity-threshold = 35
