@@ -865,7 +865,10 @@ fn numbers_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
 fn starts_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
     let mut out = Zeroizing::new(Vec::with_capacity(24));
     for start in text.split(' ') {
-        let mut found = (0..2048u16).filter(|&n| {
+        // Every word is compared, the first match and their count kept; only
+        // the step taken on a match branches.
+        let (mut first, mut count) = (0u16, 0u32);
+        for n in 0..2048u16 {
             let word = Language::English.word(n);
             // Lengths are not secret; the bytes are compared in constant
             // time, the whole word or its four-letter start.
@@ -876,11 +879,15 @@ fn starts_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
                     .as_bytes()
                     .get(..4)
                     .is_some_and(|w| bool::from(w.ct_eq(start.as_bytes())));
-            whole | prefix
-        });
-        let n = found.next()?;
-        found.next().is_none().then_some(())?;
-        out.push(n);
+            if whole | prefix {
+                if count == 0 {
+                    first = n;
+                }
+                count += 1;
+            }
+        }
+        (count == 1).then_some(())?;
+        out.push(first);
     }
     Some(out)
 }

@@ -579,7 +579,8 @@ fn pass_field(
     } else if chip.is_some() && secret == crate::demo::PASSPHRASE {
         crate::screens::code_field(ui, x, fy, w, FIELD_H, secret);
     } else {
-        let dots = "•".repeat(secret.chars().count());
+        // Wiped when dropped, like the field it stands for.
+        let dots = faraday_text::Text::repeated("•", secret.chars().count());
         ui.typed(
             x + FIELD_PAD,
             fy,

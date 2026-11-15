@@ -399,14 +399,15 @@ impl Points {
     /// The polynomial's value at `x`, Lagrange interpolation over
     /// GF(256).
     fn at(&self, x: u8) -> SecretBytes {
-        let mut out = [0u8; MAX_STRENGTH_BYTES];
+        // Worked in the result's own buffer, so no plain copy is moved in.
+        let mut out = SecretBytes {
+            buf: [0u8; MAX_STRENGTH_BYTES],
+            len: self.len as u8,
+        };
         for i in 0..self.n {
             if self.x[i] == x {
-                out.copy_from_slice(&self.y[i]);
-                return SecretBytes {
-                    buf: out,
-                    len: self.len as u8,
-                };
+                out.buf.copy_from_slice(&self.y[i]);
+                return out;
             }
         }
         // The basis polynomial of each point at `x`: the product over the
@@ -420,14 +421,11 @@ impl Points {
                 den = gf_mul(den, self.x[i] ^ self.x[j]);
             }
             let basis = gf_mul(num, gf_inv(den));
-            for (k, byte) in out.iter_mut().take(self.len).enumerate() {
+            for (k, byte) in out.buf.iter_mut().take(self.len).enumerate() {
                 *byte ^= gf_mul(self.y[i][k], basis);
             }
         }
-        SecretBytes {
-            buf: out,
-            len: self.len as u8,
-        }
+        out
     }
 }
 
@@ -1499,14 +1497,14 @@ fn split_secret(
 
     let mut base = Points::new(len);
     let random_shares = threshold as usize - 2;
-    let mut buf = [0u8; MAX_STRENGTH_BYTES];
     for (i, slot) in out.iter_mut().take(random_shares).enumerate() {
-        random(&mut buf[..len]);
-        base.push(i as u8, &buf[..len]);
-        *slot = Some(SecretBytes {
-            buf,
+        // Filled in place: no plain copy of the share is made to move in.
+        let share = slot.insert(SecretBytes {
+            buf: [0u8; MAX_STRENGTH_BYTES],
             len: len as u8,
         });
+        random(&mut share.buf[..len]);
+        base.push(i as u8, &share.buf[..len]);
     }
 
     let mut digest_share = [0u8; MAX_STRENGTH_BYTES];
@@ -1524,6 +1522,5 @@ fn split_secret(
     {
         *slot = Some(base.at(i as u8));
     }
-    buf.zeroize();
     digest_share.zeroize();
 }

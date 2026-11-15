@@ -12,13 +12,20 @@ use crate::ui::pal::*;
 /// The two passphrases are typed, alike and not empty: the step's primary
 /// action is on (`Style::Primary.when(..)`).
 pub(crate) fn ready(first: &str, second: &str) -> bool {
-    !first.is_empty() && first == second
+    !first.is_empty() && same(first, second)
+}
+
+/// The two passphrases are the same text: the bytes are compared in
+/// constant time, the lengths are not hidden.
+fn same(first: &str, second: &str) -> bool {
+    use subtle::ConstantTimeEq;
+    first.as_bytes().ct_eq(second.as_bytes()).into()
 }
 
 /// The two passphrases differ: the line shows and the action waits.
 /// Where a passphrase is optional, an empty pair is not a difference.
 pub(crate) fn differ(first: &str, second: &str) -> bool {
-    first != second
+    !same(first, second)
 }
 
 /// The two fields from (x, y), `w` wide, then the line "The two
