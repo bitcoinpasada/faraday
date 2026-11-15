@@ -11,7 +11,7 @@ Shows what a seed makes, to hold against what a wallet app and a hardware wallet
 
 **Key:** seed-check.seed
 
-**Type the words** takes the words of a BIP-39 seed, in any word list Faraday reads; **Scan a SeedQR** reads a standard or compact code. A key already loaded is a row by its fingerprint, and it skips the passphrase. A card closes on the number of words once their checksum holds. A set that is not BIP-39 is loaded with **Add a key** first.
+**Type the words** takes the words of a BIP-39 seed, in any word list Faraday reads; **Scan a SeedQR** reads a standard or compact code. A key already loaded is a row by its fingerprint, and it skips the passphrase. A card closes on the number of words once their checksum holds. A set that is not BIP-39 is loaded with **Add a key** first. Typing the seed puts it on a second device, which is safe within Faraday's design (offline, powered off after use); Check says why.
 
 ## Passphrase
 
@@ -32,3 +32,5 @@ The account the wallet app uses: **Native SegWit**, **Taproot**, **Nested SegWit
 **Fingerprint**, **Without the passphrase** where one was given, **Path**, **Script**, **Xpub** with its origin, and the first receive and change addresses, each whole. Where the script has a SLIP-132 spelling, a button over the xpub shows it or the plain xpub. The xpub and the receive address open their code. A multisig account has no addresses: they belong to the whole wallet.
 
 **Another account** and **Another seed** pick again. **Done** drops the seed. **Keep this key** loads it as **Add a key** does, and is not offered while a stick is in or for a key already loaded. Cancel, leaving the screen, the idle lock and a lock drop the seed too.
+
+The result shows what the seed makes, not what a wallet app or hardware wallet holds: a match means both made the same keys from the same seed.

@@ -24,3 +24,9 @@ What to hold up against a hardware wallet, one row for each thing to check, in g
 **Key:** check.messages
 
 **A signed message** opens Check a signed message. **Child seeds** opens Child seeds and passwords, marked **Seed**. **An xpub's other spellings** opens Convert an xpub.
+
+## Typing a seed here
+
+**Key:** check.seed
+
+A row marked **Seed**, **A seed made from dice rolls** and **A backup in another form** take a seed, its shares or its code into this device, to hold what it makes against a hardware wallet. That puts the seed on a second device. It is safe within Faraday's design: Faraday is offline, used in a secure place and powered off after use, and the seed is dropped by **Done**, Cancel, leaving the screen, the idle lock and a lock, unless **Keep this key** is pressed. Type a seed that holds money only on an offline Faraday; Faraday Demo and the Starter run online and are for test seeds. A match does not show that either device is honest.

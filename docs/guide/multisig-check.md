@@ -18,3 +18,5 @@ Shows what a wallet of several keys is, from its descriptor, a BIP-388 policy, a
 **Key:** multisig-check.result
 
 The shape of the wallet, then each cosigner's fingerprint, path and whole extended public key, in groups of four, in the descriptor's order. **Yours** marks a cosigner that a key loaded here is. The descriptor checksum says whether the setup gave one and it held, or that it was worked out here. **Quorum** shows where the shape does not state one, as seeds; **Ways to spend** lists each way a script tree or a miniscript is spent. The first receive address is the one every coordinator shows when the wallet is set up.
+
+The result is what the setup says. It does not show that a signer holds a key or that a coordinator stored the same setup: each device's own screen says that.
