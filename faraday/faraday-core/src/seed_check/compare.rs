@@ -363,14 +363,14 @@ impl CompareWork {
     }
 }
 
-/// Costs what `transfer::check` costs. The refusal for a value that may not
+/// Costs what `text_check::check` costs. The refusal for a value that may not
 /// be compared: a private key, a seed, a secret file or a part of one, as
 /// Transfer's Send field refuses them, or a value too long to check.
 fn refusal(c: &Compute, network: Network, text: &str) -> Option<Text> {
-    use crate::transfer::TextCheck;
-    let private = match crate::transfer::check(c, text) {
+    use crate::text_check::TextCheck;
+    let private = match crate::text_check::check(c, text) {
         TextCheck::TooLong => {
-            let size = crate::screens::size_text(crate::transfer::MAX_TEXT as u64);
+            let size = crate::screens::size_text(crate::text_check::MAX_TEXT as u64);
             return Some(Text::fill(EN.seed_check_compare_too_long, &[&size]));
         }
         TextCheck::Secret(_) | TextCheck::Inside(_) | TextCheck::Partial | TextCheck::SeedHex => {

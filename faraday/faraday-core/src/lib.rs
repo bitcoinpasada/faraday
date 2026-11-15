@@ -49,7 +49,7 @@
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
 //!   glance), `walkthrough` (Guided mode's walk-through), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
-//!   (what a code read is), `picture` (a QR code to keep), `demo` (what Practice refuses),
+//!   (what a code read is), `text_check` (the secrets a text holds, refused by Transfer's Send text and by Compare with the wallet app's), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
@@ -177,6 +177,7 @@ pub mod glance;
 pub mod picture;
 mod scan_key;
 pub mod scan_read;
+pub(crate) mod text_check;
 mod screens;
 mod visible;
 mod walkthrough;

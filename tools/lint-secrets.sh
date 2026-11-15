@@ -555,6 +555,7 @@ faraday/faraday-core/src/scan_read.rs
 faraday/faraday-core/src/transfer/mod.rs
 faraday/faraday-core/src/transfer/screen.rs
 faraday/faraday-core/src/transfer/text.rs
+faraday/faraday-core/src/text_check.rs
 faraday/faraday-core/src/lightning/mod.rs
 faraday/faraday-core/src/lightning/screen.rs
 faraday/faraday-core/src/chart_edit.rs

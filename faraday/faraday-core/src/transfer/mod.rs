@@ -13,8 +13,8 @@
 pub(crate) mod screen;
 mod text;
 
-pub(crate) use text::check;
-pub use text::{MAX_TEXT, SendText, TextCheck, TextPress};
+pub use crate::text_check::{MAX_TEXT, TextCheck};
+pub use text::{SendText, TextPress};
 
 use crate::qr_view::qr_source;
 use crate::strings::EN;
@@ -437,7 +437,7 @@ impl Faraday {
         self.online && self.screen == Screen::Transfer && self.sheet.is_none()
     }
 
-    /// Costs what [`text::check`] costs. A key typed into the Send text
+    /// Costs what [`crate::text_check::check`] costs. A key typed into the Send text
     /// card's field: whether it was taken.
     pub(crate) fn transfer_key(&mut self, key: faraday_shell_api::Key) -> bool {
         if !self.transfer_text_here() {
@@ -456,7 +456,7 @@ impl Faraday {
         }
     }
 
-    /// Costs what [`text::check`] costs. The clipboard's text, asked for by
+    /// Costs what [`crate::text_check::check`] costs. The clipboard's text, asked for by
     /// Paste, into the Send text card's field. Returns whether it was
     /// taken here.
     pub(crate) fn transfer_pasted(&mut self, text: &str) -> bool {
@@ -615,7 +615,7 @@ impl Faraday {
         self.transfer.open_folder(self.online, &mut self.out);
     }
 
-    /// Costs what [`text::check`] costs. A press on the Send text card:
+    /// Costs what [`crate::text_check::check`] costs. A press on the Send text card:
     /// Paste asks for the clipboard, Clear wipes the field, Show as QR
     /// checks the text once more and opens the sheet.
     pub(crate) fn transfer_text_press(&mut self, press: TextPress) {
