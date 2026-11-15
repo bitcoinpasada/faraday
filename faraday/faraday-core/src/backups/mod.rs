@@ -3211,8 +3211,7 @@ impl Faraday {
             plan::What::Codex32QrFile(..) => {
                 let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
-                let share =
-                    Text::from_char(char::to_ascii_uppercase(&char::from(index)));
+                let share = Text::from_char(char::to_ascii_uppercase(&char::from(index)));
                 let title = Text::fill(EN.c32_picture_title, &[&share, id]);
                 let lines = [Text::of(EN.c32_picture_line)];
                 Some(zeroize::Zeroizing::new(crate::picture::labelled_png(

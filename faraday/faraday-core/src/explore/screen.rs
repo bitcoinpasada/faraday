@@ -371,10 +371,7 @@ fn secret(app: &View, ui: &mut Ui, at: Cols, y: f32) -> f32 {
             let name = match (k, index) {
                 (0, _) => Text::of(EN.explore_master_seed),
                 (_, b's') => Text::of(EN.explore_codex32_secret),
-                (_, i) => Text::fill(
-                    EN.explore_codex32_share,
-                    &[&Text::from_char(char::from(i))],
-                ),
+                (_, i) => Text::fill(EN.explore_codex32_share, &[&Text::from_char(char::from(i))]),
             };
             cy += value_row(ui, at, cy, &name, form);
         }

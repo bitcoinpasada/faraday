@@ -5,8 +5,8 @@
 
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use faraday_bip::json::{self, Value};
+use libfuzzer_sys::fuzz_target;
 
 /// The value written as JSON again.
 fn write(v: &Value) -> String {

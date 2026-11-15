@@ -1943,9 +1943,8 @@ fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text>
     let w = sh.step_width(j);
     let lead: Vec<Text> = (0..w)
         .map(|n| {
-            sh.sum_cell(j, n).map_or_else(dot, |v| {
-                Text::from_char_uppercase(char_of(v))
-            })
+            sh.sum_cell(j, n)
+                .map_or_else(dot, |v| Text::from_char_uppercase(char_of(v)))
         })
         .collect();
     let lead = Text::joined(&lead, " ");

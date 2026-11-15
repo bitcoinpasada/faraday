@@ -821,8 +821,7 @@ impl Faraday {
             else {
                 continue;
             };
-            let share =
-                Text::from_char(char::to_ascii_uppercase(&char::from(index)));
+            let share = Text::from_char(char::to_ascii_uppercase(&char::from(index)));
             // Only a string of the plan's set is written: a key loaded
             // with another set holds strings that are not it.
             let record = self

@@ -163,5 +163,8 @@ fn a_checksum_starting_like_a_private_key_still_reads() {
     use faraday_crypto::work::Compute;
     let body = "wpkh([73c5da0a/84h/0h/1256090h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";
     assert_eq!(checksum(body), "tprvgjmv");
-    assert!(reads_as_descriptor(&Compute::unchecked(), &format!("{body}#tprvgjmv")));
+    assert!(reads_as_descriptor(
+        &Compute::unchecked(),
+        &format!("{body}#tprvgjmv")
+    ));
 }

@@ -2111,10 +2111,7 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
         let o = b as f32 * span;
         let (col, row) = if g.lettered {
             let letter = char::from(b'A' + u8::try_from(b).unwrap_or(0));
-            (
-                Text::of(&Text::num(b as u64 + 1)),
-                Text::from_char(letter),
-            )
+            (Text::of(&Text::num(b as u64 + 1)), Text::from_char(letter))
         } else {
             let at = Text::of(&Text::num((b * COPY_BLOCK) as u64));
             (at.duplicate(), at)
