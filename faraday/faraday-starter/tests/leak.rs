@@ -10,6 +10,7 @@ use faraday_leak_scan::Form;
 use faraday_starter::api::{Computer, Os, RecoveryKey};
 use faraday_starter::notes::Notes;
 
+const ID: &str = "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}";
 const KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";
 
 #[expect(
@@ -54,8 +55,8 @@ fn no_block_freed_holds_the_whole_key_while_the_sheet_is_made() {
     let c = compute();
     let forms = forms();
     let armed = faraday_leak_scan::arm(&forms);
-    let key = RecoveryKey::parse("C:", KEY).expect("a key");
-    let pdf = notes.pdf_with_key(&c, &key);
+    let key = RecoveryKey::parse("C:", ID, KEY).expect("a key");
+    let pdf = notes.pdf_with_key(&c, std::slice::from_ref(&key));
     drop(key);
     drop(pdf);
     let report = armed.finish();
@@ -72,8 +73,8 @@ fn no_block_freed_holds_the_whole_key_while_the_sheet_is_made() {
 fn the_pdf_with_the_key_is_wiped_when_dropped() {
     let notes = Notes::for_computer(&dell()).expect("notes");
     let c = compute();
-    let key = RecoveryKey::parse("C:", KEY).expect("a key");
-    let pdf = notes.pdf_with_key(&c, &key);
+    let key = RecoveryKey::parse("C:", ID, KEY).expect("a key");
+    let pdf = notes.pdf_with_key(&c, std::slice::from_ref(&key));
     let forms = forms();
     let armed = faraday_leak_scan::arm(&forms);
     drop(pdf);
