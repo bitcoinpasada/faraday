@@ -122,8 +122,9 @@ and checks no signature; events only today; a
 | `compute()` in the Starter shell's `tests/all/finder.rs` | `new(count)`, a function that counts the files hashed | The finder's tests, which check that only files named on the image list are read |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
-The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,
-file by file and function by function; a new mint is a line in both.
+Clippy holds a mint (`faraday/clippy.toml`, §7): each site carries
+`#[expect(clippy::disallowed_methods, reason = "a mint: …")]`. This table
+says which sites are allowed; a new mint is a line here.
 
 Core's non-test sources mint nothing (but `Compute::unchecked`, which is
 itself made with `new`); they pass their callers' tokens through. The Starter's `phone_code` (a QR code each frame) is kept on its
@@ -259,11 +260,8 @@ still holds wherever the feature is on.
 by `just lint`; walks `core/*/src` and `faraday/**/src`, skipping
 `#[cfg(test)]`; fails on:
 
-1. a function with a `&Compute` parameter whose doc's first line does not
-   state its cost; a function that calls `.count(` and takes no
-   `&Compute`;
-2. `Compute::new` outside §3's list (tests and tools included),
-   `Compute::unchecked` anywhere under `faraday/` but `faraday/fuzz/`,
+1. a function that calls `.count(` and takes no `&Compute`;
+2. `Compute::unchecked` anywhere under `faraday/` but `faraday/fuzz/`,
    either constructor in core's non-test sources (but `unchecked`'s own
    body), the `unchecked` feature in a `faraday/**/Cargo.toml` but the
    fuzz crate's;

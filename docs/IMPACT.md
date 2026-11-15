@@ -429,7 +429,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `keys.new-reveal` | `faraday/faraday-keys/src/session.rs` (`lines` in `Reveal`) | P | `docs/KEYS.md` and `docs/AUDIT.md` | `docs/KEYS.md` §2 |
 | `keys.secret-files` | a file starting to hold secrets | R | added to `lint-secrets`' `SECRET_FILES` | `tools/README.md` |
 | `compute.token` | `core/*/src/**`, `faraday/**/src/**` | H | `costs-lint`, the budget tests | `CLAUDE.md`, F69 |
-| `compute.new-mint` | a `Compute::new` added (`lines`) | P | `docs/COMPUTE.md` (§3's list) | `docs/COMPUTE.md` §8 |
+| `compute.new-mint` | a `Compute::new` added (`lines`) | P | `docs/COMPUTE.md` (§3's list), held by clippy | `docs/COMPUTE.md` §8 |
 | `speed.kept-in-step` | a field kept on the state for drawing (`lines`, in `faraday/faraday-core/src/**`) | R | the invariant written where it lives, a test that changes the source | `CLAUDE.md`, `docs/SPEED.md` §3.3 |
 | `speed.late-flow-timed` | `**/screen.rs`, `faraday/faraday-core/src/drawing.rs`, `faraday/faraday-core/src/screens/**` | R | the late-flow timing before commit | `docs/SPEED.md` §7 |
 | `speed.budgets` | the same | H | the budget tests in `faraday/faraday-core/src/work/budget/` | `CLAUDE.md` |
@@ -444,7 +444,6 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `crypto.generated` | `docs/STANDARDS.md` §1 to §7 and §10, `docs/AUDIT.md` §3 | H, planned | F148's `gen.py check` | F148 |
 | `crypto.at-source` | `core/**` | R | fixed at its source, not wrapped | `CLAUDE.md` |
 | `crypto.kept-values` | a type re-implemented from `core/` | R | keeps the values the original keeps | `CLAUDE.md` |
-| `crypto.costs-said` | a costly function added | R | "Costs …" first in its doc (H by `costs-lint` where it takes the token) | `CLAUDE.md` |
 | `deps.vetted` | `**/Cargo.toml`, `Cargo.lock` | H | `cargo vet --locked`, `cargo deny check` | F71 |
 | `deps.page` | a registry dependency line added to a `Cargo.toml` (`lines`; not a `path` dependency, not a package key) | P | a page of `docs/deps/` (the script cannot take the crate's name from the line) | F71 |
 | `deps.locked` | a `cargo` line added in `justfile`, `faraday/faraday.just`, `**/*.sh` (`lines`) | R | it passes `--locked` | `CLAUDE.md`, F71 |

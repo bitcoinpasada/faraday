@@ -131,10 +131,9 @@ plan <paths>` lists the ones a change touches.
   decision; a screen review names the Material page it was checked
   against.
 - **Drawing and costly work:** drawing reads and does not work things
-  out; costly work takes `c: &Compute` and says "Costs …" in its doc's
-  first line; work added while drawing is timed once in a late-flow
+  out; costly work takes `c: &Compute`; work added while drawing is timed once in a late-flow
   session for the batch, before it is pushed: `docs/SPEED.md` §3.3 and §7,
-  `docs/COMPUTE.md` (held by `costs-lint` and the budget tests); a named
+  `docs/COMPUTE.md` (held by `costs-lint`, clippy and the budget tests); a named
   costly operation is held by an instruction count, raised only in a
   commit that says why, and a stated cost says how it was measured (F238).
 - **Code structure** (F74, F196, F248, F253): an area's code, state and screen in its

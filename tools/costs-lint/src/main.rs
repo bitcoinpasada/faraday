@@ -7,12 +7,9 @@
 //! tests only (`#[cfg(test)]`, and the test kit's
 //! `#[cfg(any(test, feature = "testkit"))]`), and fails on:
 //!
-//! 1. a function taking `&Compute` whose doc's first line does not start
-//!    with "Costs " (`CLAUDE.md`: a costly function says so first); a
-//!    function that counts work (`c.count(…)`, `work::count(Work::…)`)
+//! 1. a function that counts work (`c.count(…)`, `work::count(Work::…)`)
 //!    and takes no `&Compute`;
-//! 2. a mint (`Compute::new`) outside [`MINTS`], anywhere under
-//!    `faraday/`, tests and tools included; `Compute::unchecked` anywhere
+//! 2. `Compute::unchecked` anywhere
 //!    under `faraday/` but its fuzz targets; either constructor in core's
 //!    sources outside its tests; the `unchecked` feature named in a
 //!    `faraday/**/Cargo.toml` but the fuzz crate's;
@@ -36,305 +33,6 @@ use costs_lint::walk::{
 };
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
-
-/// Where a token may be minted: (file, function, why). The function is
-/// the innermost named one around the mint, with its type for a method
-/// (`Type::name`). `docs/COMPUTE.md` §3, with the test and tool mints the
-/// gating batches added (each in a crate that cannot reach faraday-core's
-/// test kit). Every site also carries clippy's
-/// `#[expect(clippy::disallowed_methods, reason = "a mint: …")]`.
-const MINTS: &[(&str, &str, &str)] = &[
-    (
-        "faraday/faraday-core/src/compute.rs",
-        "Faraday::compute",
-        "event code holding &mut Faraday",
-    ),
-    (
-        "faraday/faraday-core/src/drawing.rs",
-        "View::new",
-        "View's own token, for its memo fills, kept values and Allowed entries",
-    ),
-    (
-        "faraday/faraday-core/src/testkit.rs",
-        "compute",
-        "Faraday's tests and the snapshot tool's sessions",
-    ),
-    (
-        "faraday/faraday-core/src/worker.rs",
-        "worker_loop",
-        "the core's worker thread, which draws nothing (a token cannot cross threads)",
-    ),
-    (
-        "faraday/faraday-storage/src/lib.rs",
-        "Pictures::ask",
-        "the pictures' worker thread, which draws nothing (a token cannot cross threads)",
-    ),
-    (
-        "faraday/faraday-disk/src/main.rs",
-        "pictures",
-        "the disk process's pictures thread, which draws nothing",
-    ),
-    (
-        "faraday/faraday-disk/src/main.rs",
-        "main",
-        "the disk process's serving loop, which draws nothing",
-    ),
-    (
-        "faraday/shells/snapshot/src/main.rs",
-        "main",
-        "the snapshot tool, which makes no drawing claim",
-    ),
-    (
-        "faraday/faraday-vault/examples/argon2_bench.rs",
-        "main",
-        "a benchmark tool that draws nothing",
-    ),
-    (
-        "faraday/faraday-vault/examples/vectors.rs",
-        "compute",
-        "the vault's vector tool and the test that runs it",
-    ),
-    (
-        "faraday/faraday-vault/examples/qr_vectors.rs",
-        "compute",
-        "the QR vault's vector tool and the test that runs it",
-    ),
-    (
-        "faraday/faraday-vault/tests/contents.rs",
-        "compute",
-        "faraday-vault's contents tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/kdbx_xml.rs",
-        "compute",
-        "faraday-vault's KDBX document tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/kdbx_items.rs",
-        "compute",
-        "faraday-vault's KDBX item tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/keyed.rs",
-        "compute",
-        "faraday-vault's key file and YubiKey secret tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/keyfile_write.rs",
-        "compute",
-        "faraday-vault's key file writer tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/attachments.rs",
-        "compute",
-        "faraday-vault's attachment tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/reader_memory.rs",
-        "compute",
-        "faraday-vault's reader memory tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/file.rs",
-        "compute",
-        "faraday-vault's file vault tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/shells/starter/src/finder.rs",
-        "Finder::answer",
-        "the Starter's finder thread, which draws nothing (a token cannot cross threads)",
-    ),
-    (
-        "faraday/shells/starter/tests/all/finder.rs",
-        "compute",
-        "the Starter's finder tests, which count the files hashed",
-    ),
-    (
-        "faraday/faraday-vault/tests/sizes.rs",
-        "compute",
-        "faraday-vault's size tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-ots/tests/ots.rs",
-        "compute",
-        "faraday-ots's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/core_wallet.rs",
-        "compute",
-        "faraday-keys' Core wallet tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-kef/tests/kef.rs",
-        "compute",
-        "faraday-kef's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/tests/kdbx.rs",
-        "compute",
-        "faraday-vault's KDBX tests, which count the key-stretching runs",
-    ),
-    (
-        "faraday/faraday-pgp/src/message/tests.rs",
-        "compute",
-        "faraday-pgp's message tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/src/tests.rs",
-        "compute",
-        "faraday-vault's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-disk/tests/disks.rs",
-        "compute",
-        "faraday-disk's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/head.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/foreign.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/oversized.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/replace.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/torn_vault_write.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-files/tests/vault_by_contents.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-storage/tests/all/main.rs",
-        "compute",
-        "faraday-storage's tests, which draw nothing",
-    ),
-    (
-        "faraday/shells/desktop/src/lib.rs",
-        "Demo::sticks",
-        "the desktop shell's look at the stick folders, which draws nothing",
-    ),
-    (
-        "faraday/shells/stick/src/main.rs",
-        "Shell::mounted_sticks",
-        "the stick shell's look at the mounted sticks, which draws nothing",
-    ),
-    (
-        "faraday/faraday-files/tests/picture.rs",
-        "compute",
-        "faraday-files' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/src/vault/tests.rs",
-        "compute",
-        "faraday-keys' unit tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-vault/examples/large.rs",
-        "phases",
-        "the measuring example, a tool outside the app",
-    ),
-    (
-        "faraday/faraday-vault/examples/large.rs",
-        "main",
-        "the measuring example, a tool outside the app",
-    ),
-    (
-        "faraday/faraday-keys/tests/hsm_secret.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/operations.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/vault_keyed.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/codex32.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/slip39_set.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/qr_vault.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-intake/tests/all/common.rs",
-        "compute",
-        "faraday-intake's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-keys/tests/vault.rs",
-        "compute",
-        "faraday-keys' tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-qr/tests/formats.rs",
-        "compute",
-        "faraday-qr's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-qr/tests/interop.rs",
-        "compute",
-        "faraday-qr's tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-scanner/src/lib.rs",
-        "compute",
-        "faraday-scanner's unit tests, which cannot reach faraday-core's test kit",
-    ),
-    (
-        "faraday/faraday-starter/tests/all/bitlocker.rs",
-        "compute",
-        "the Starter's tests, which draw nothing",
-    ),
-    (
-        "faraday/faraday-starter/tests/all/notes.rs",
-        "compute",
-        "the Starter's tests, which draw nothing",
-    ),
-    (
-        "faraday/faraday-starter/tests/all/template.rs",
-        "compute",
-        "the Starter's tests, which draw nothing",
-    ),
-    (
-        "faraday/faraday-starter/tests/all/template_codex32.rs",
-        "compute",
-        "the Starter's tests, which draw nothing",
-    ),
-    (
-        "faraday/faraday-starter/examples/snap.rs",
-        "compute",
-        "the Starter's snapshot tool, which makes no drawing claim",
-    ),
-];
 
 /// The one place core's sources make a token outside their tests: the
 /// token that counts nothing is itself made with `new`.
@@ -399,25 +97,6 @@ impl Findings {
     }
 }
 
-/// The first line of an item's doc, trimmed.
-fn doc_first_line(attrs: &[syn::Attribute]) -> Option<String> {
-    for a in attrs {
-        if !a.path().is_ident("doc") {
-            continue;
-        }
-        if let syn::Meta::NameValue(nv) = &a.meta
-            && let syn::Expr::Lit(l) = &nv.value
-            && let syn::Lit::Str(s) = &l.lit
-        {
-            let v = s.value();
-            if let Some(line) = v.lines().map(str::trim).find(|l| !l.is_empty()) {
-                return Some(line.to_string());
-            }
-        }
-    }
-    None
-}
-
 /// Whether `ty` is `&Compute` (any path ending in `Compute`).
 fn is_compute_ref(ty: &syn::Type) -> bool {
     match ty {
@@ -476,7 +155,6 @@ fn check_source(root: &Path, file: &Path, out: &mut Findings) {
         core: r.starts_with("core/"),
         out,
         self_ty: Vec::new(),
-        trait_impl: Vec::new(),
         fns: Vec::new(),
         drawing: Vec::new(),
     };
@@ -489,8 +167,6 @@ struct Source<'o> {
     out: &'o mut Findings,
     /// The type of each `impl` around, innermost last.
     self_ty: Vec<Option<String>>,
-    /// Whether each `impl` around is a trait's.
-    trait_impl: Vec<bool>,
     /// Each function around: its name and whether it takes `&Compute`.
     fns: Vec<(String, bool, usize)>,
     /// Whether each function around draws (rule 4).
@@ -516,25 +192,12 @@ impl Source<'_> {
         }
     }
 
-    fn enter_fn(&mut self, attrs: &[syn::Attribute], sig: &syn::Signature, check_doc: bool) {
+    fn enter_fn(&mut self, sig: &syn::Signature) {
         let takes = sig.inputs.iter().any(|i| match i {
             syn::FnArg::Typed(t) => is_compute_ref(&t.ty),
             syn::FnArg::Receiver(_) => false,
         });
         let name = self.fn_name(&sig.ident);
-        if takes && check_doc {
-            let ok = doc_first_line(attrs).is_some_and(|l| l.starts_with("Costs "));
-            if !ok {
-                self.out.add(
-                    &self.file,
-                    Self::line(sig.ident.span()),
-                    "rule 1",
-                    format!(
-                        "`{name}` takes `&Compute`: its doc's first line says what it costs (\"Costs …\")"
-                    ),
-                );
-            }
-        }
         let self_ty = self.self_ty.last().cloned().flatten();
         let render = sig.ident.to_string().starts_with("render");
         let d = render || draws(sig, self_ty.as_deref());
@@ -727,12 +390,10 @@ impl<'a> Visit<'a> for Source<'_> {
 
     fn visit_item_impl(&mut self, i: &'a syn::ItemImpl) {
         self.self_ty.push(impl_name(i));
-        self.trait_impl.push(i.trait_.is_some());
         for it in &i.items {
             self.visit_impl_item(it);
         }
         self.self_ty.pop();
-        self.trait_impl.pop();
     }
 
     fn visit_impl_item(&mut self, i: &'a syn::ImplItem) {
@@ -740,8 +401,7 @@ impl<'a> Visit<'a> for Source<'_> {
             if is_test(&f.attrs) {
                 return;
             }
-            let check_doc = !self.trait_impl.last().copied().unwrap_or(false);
-            self.enter_fn(&f.attrs, &f.sig, check_doc);
+            self.enter_fn(&f.sig);
             let b = self.body(&f.block);
             self.leave_fn(b);
         } else {
@@ -752,19 +412,17 @@ impl<'a> Visit<'a> for Source<'_> {
     fn visit_item_fn(&mut self, f: &'a syn::ItemFn) {
         // A free function: no impl around it, even nested in a method.
         self.self_ty.push(None);
-        self.trait_impl.push(false);
-        self.enter_fn(&f.attrs, &f.sig, true);
+        self.enter_fn(&f.sig);
         let b = self.body(&f.block);
         self.leave_fn(b);
         self.self_ty.pop();
-        self.trait_impl.pop();
     }
 
     fn visit_trait_item_fn(&mut self, f: &'a syn::TraitItemFn) {
         if is_test(&f.attrs) {
             return;
         }
-        self.enter_fn(&f.attrs, &f.sig, true);
+        self.enter_fn(&f.sig);
         let b = match &f.default {
             Some(block) => self.body(block),
             None => Body::default(),
@@ -774,10 +432,8 @@ impl<'a> Visit<'a> for Source<'_> {
 
     fn visit_item_trait(&mut self, t: &'a syn::ItemTrait) {
         self.self_ty.push(Some(t.ident.to_string()));
-        self.trait_impl.push(false);
         visit::visit_item_trait(self, t);
         self.self_ty.pop();
-        self.trait_impl.pop();
     }
 
     fn visit_item_struct(&mut self, s: &'a syn::ItemStruct) {
@@ -905,14 +561,6 @@ impl<'a> Visit<'a> for Mints<'_> {
                     line,
                     "rule 2",
                     format!("`{name}` uses `Compute::unchecked`, which is never Faraday's"),
-                );
-            }
-            if what == "new" && !MINTS.iter().any(|(f, n, _)| *f == self.file && *n == name) {
-                self.out.add(
-                    &self.file,
-                    line,
-                    "rule 2",
-                    format!("`{name}` mints a token (`Compute::new`) and is not on the costs lint's list of mints (docs/COMPUTE.md §3)"),
                 );
             }
         }

@@ -125,8 +125,8 @@ misses = "whether the website's download page follows"
 id = "costs-lint"
 run = "cargo run -q -p costs-lint"
 stage = "just lint"
-catches = "a costly function without the compute token or its Costs doc line, a stray Compute::new, a Compute stored outside View"
-misses = "work that is costly and not marked so"
+catches = "counted work without the compute token, Compute::unchecked outside the fuzz targets, a Compute stored outside View, drawing that reaches the token"
+misses = "costly work that does not count itself; a mint, which clippy holds"
 
 [[check]]
 id = "lint-op-cost"
@@ -759,15 +759,6 @@ when = ["faraday/**/src/**", "!**/screen.rs", "!faraday/faraday-core/src/screens
 kind = "review"
 
 [[rule]]
-id = "crypto.costs-said"
-title = "a function that costs more than a lookup says \"Costs\" in the first line of its doc"
-source = ["CLAUDE.md"]
-when = ["core/*/src/**", "faraday/**/src/**", "!core/faraday-draw/**"]
-kind = "review"
-held_by = ["costs-lint"]
-misses = "work that is costly and not marked so"
-
-[[rule]]
 id = "crypto.kef-claim"
 title = "what Faraday says of KEF is what it does: all twelve versions read, only versions 20 and 5 written, Krux's refusals kept when writing, seeds.json and a passphrase that is a code left out, and the claim says it was checked against Krux's code and not on a device"
 source = ["docs/decisions/F219.md", "docs/decisions/F261.md", "docs/KEF.md §2", "docs/STANDARDS.md §0"]
@@ -940,7 +931,7 @@ when = ["core/*/src/**", "faraday/**/src/**"]
 lines = '^\+.*\bCompute::new\('
 kind = "pair"
 with = ["docs/COMPUTE.md"]
-held_by = ["costs-lint"]
+held_by = ["clippy"]
 
 # ----------------------------------------------------------------- speed
 

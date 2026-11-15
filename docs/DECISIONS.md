@@ -275,5 +275,6 @@ Read this table, then only the decision you need.
 | [F260](decisions/F260.md) | The codex32 booklet's step-through and tracker leave the app | 2026-11-14 | Active | keys |
 | [F261](decisions/F261.md) | KEF writes versions 20 and 5 and reads all twelve | 2026-11-14 | Active | crypto |
 | [F263](decisions/F263.md) | A multisig setup file with no Format line is P2SH, as Coldcard reads it | 2026-11-14 | Active | wallets |
+| [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
 | [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
 | [F264](decisions/F264.md) | The Argon QR Vault and its test tool live in their own repository; Faraday keeps nothing for them but `faraday-window`'s default feature | 2026-11-14 | Active | standards |

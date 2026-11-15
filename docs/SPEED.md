@@ -155,7 +155,7 @@ after that every frame and every press only looks it up.
 
 **The token** (`docs/COMPUTE.md`, F69). Every costly function, in core
 and in Faraday's crates, takes `c: &Compute` (`faraday_crypto::work`) and
-counts its work through it; its doc's first line says "Costs …". The
+counts its work through it. The
 token is not `Clone`, `Copy`, `Default`, `Send` or `Sync`, and is
 minted only at entry points: event code holding `&mut Faraday`
 (`Faraday::compute`), the drawing view, worker threads and processes
@@ -567,9 +567,8 @@ COMPUTE D1 (2026-10-21) added:
   `TEXTS_READ_KEPT`, `WALLET_ADDRESSES_KEPT` and the rest).
 
 The lints in `just lint` hold what the types do not (COMPUTE §7 to §9):
-`tools/costs-lint` (a function taking the token says "Costs …" first;
-counted work takes a token; a mint only at its listed sites; no kept
-token but `View`'s; no mint while drawing), `faraday/clippy.toml` run
+`tools/costs-lint` (counted work takes a token; no kept
+token but `View`'s; no mint while drawing; clippy holds a mint), `faraday/clippy.toml` run
 through `tools/clippy.py`, and the `compile_fail` doctests on
 `Compute` and `View`.
 
