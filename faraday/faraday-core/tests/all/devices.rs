@@ -556,6 +556,29 @@ fn a_receiver_leaves_a_mark_on_the_bar_on_every_screen_after_the_reminder_is_und
 }
 
 #[test]
+fn compact_home_carries_the_receiver_mark_while_one_is_attached() {
+    let mut app = shown(laptop());
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(!marked(&mut app));
+    app.usb_devices(&[receiver()]);
+    assert!(marked(&mut app));
+    app.usb_devices(&[]);
+    assert!(!marked(&mut app));
+}
+
+#[test]
 fn the_sheet_before_a_secret_says_what_no_check_can_see() {
     let mut app = shown(desktop());
     app.usb_devices(&[receiver()]);

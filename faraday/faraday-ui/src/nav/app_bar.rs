@@ -217,7 +217,21 @@ pub fn icon_action<A: Copy + PartialEq>(
     on: bool,
     label: &'static str,
 ) -> f32 {
-    let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
+    icon_action_at(ui, right, APP_BAR_H / 2.0, icon, action, on, label)
+}
+
+/// [`icon_action`] centred at `mid` instead of the bar's middle, for a
+/// head that is not a bar's height (Home's).
+pub fn icon_action_at<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    right: f32,
+    mid: f32,
+    icon: impl Into<Glyph>,
+    action: A,
+    on: bool,
+    label: &'static str,
+) -> f32 {
+    let (x, y) = (right - TOUCH, (mid - TOUCH / 2.0).max(0.0));
     // Lit: a toggled icon button's selected state, its container
     // secondary-container and its icon on it.
     if on {

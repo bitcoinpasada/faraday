@@ -19,7 +19,7 @@ mod rail;
 
 pub use app_bar::{
     AppBar, app_bar, app_bar_fill, bar_title_one_line, bar_title_whole, close_button,
-    close_button_in, help, icon_action, more, pill_top,
+    close_button_in, help, icon_action, icon_action_at, more, pill_top,
 };
 pub use bar::bar;
 pub use chip::{Chip, status_chip};

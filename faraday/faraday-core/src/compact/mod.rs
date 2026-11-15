@@ -197,12 +197,18 @@ pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
 /// (a warning icon, "Wireless keyboard"), its right edge at `right`.
 /// Returns where the next tool ends.
 pub(crate) fn receiver_mark(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    receiver_mark_at(app, ui, right, BAR_H / 2.0)
+}
+
+/// [`receiver_mark`] centred at `mid`, for Home's head.
+fn receiver_mark_at(app: &View, ui: &mut Ui, right: f32, mid: f32) -> f32 {
     if !app.devices.receiver_marked() {
         return right;
     }
-    faraday_ui::nav::icon_action(
+    faraday_ui::nav::icon_action_at(
         ui,
         right,
+        mid,
         Icon::Warning,
         Action::ReceiverMark,
         false,
@@ -1049,7 +1055,12 @@ fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
     // OFFLINE) under FARADAY where the two do not fit side by side; the
     // mark alone where the pill leaves no room for it.
     let (nx, ny) = (M + 28.0, y + 6.0);
-    let room = w - M - pw - faraday_draw::tokens::GAP;
+    // The receiver's mark, as on every bar, left of the pill (or at the
+    // right edge without one), and the name ends before it.
+    let pill_x = w - M - pw;
+    let mid = y - 2.0 + faraday_draw::tokens::MODE_PILL_HEIGHT / 2.0;
+    let tools = receiver_mark_at(app, ui, if pill { pill_x } else { w - M }, mid);
+    let room = tools.min(pill_x) - faraday_draw::tokens::GAP;
     ui.wordmark_fitted((nx, ny, room - nx), 11.0, Role::OnSurface, suffix);
     if pill {
         crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
