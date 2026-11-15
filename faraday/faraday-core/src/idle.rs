@@ -27,6 +27,9 @@ pub(crate) struct Idle {
     /// While Make a new wallet holds the lock: the words on show were put
     /// away at the warning time, once; input clears it.
     masked_held: bool,
+    /// The sheet the warning came over, put back when the warning is put
+    /// away.
+    under: Option<crate::Sheet>,
 }
 
 impl Idle {
@@ -39,6 +42,7 @@ impl Idle {
             shown: None,
             warn_min: 0,
             masked_held: false,
+            under: None,
         }
     }
 
@@ -101,6 +105,16 @@ impl Idle {
 
     pub(crate) fn set_shown(&mut self, left: Option<u64>) {
         self.shown = left;
+    }
+
+    /// Notes the sheet the warning came over.
+    pub(crate) fn set_under(&mut self, sheet: Option<crate::Sheet>) {
+        self.under = sheet;
+    }
+
+    /// The sheet the warning came over, taken: it is remembered once.
+    pub(crate) fn take_under(&mut self) -> Option<crate::Sheet> {
+        self.under.take()
     }
 
     pub(crate) fn warn_min(&self) -> u64 {

@@ -1022,6 +1022,31 @@ impl Faraday {
         for c in tail.chars() {
             self.type_back(c);
         }
+        // A capped field may take less than it was given: the original
+        // is put back rather than a shortened text kept.
+        if len(self).unwrap_or(0) < caret + tail.chars().count() {
+            while len(self).is_some_and(|l| l > 0) && self.typing_target() == Some(target) {
+                let before = len(self);
+                self.key(KeyIn::Backspace);
+                if len(self) == before {
+                    break;
+                }
+            }
+            for c in text.chars() {
+                self.type_back(c);
+            }
+            self.typing.set_editing(false);
+            if gpg {
+                self.gpg_restore_hold(false);
+            }
+            let end = len(self).unwrap_or(n);
+            self.typing.set_edit(Edit {
+                field: self.typing_target(),
+                caret: (lo < end).then_some(lo),
+                anchor: None,
+            });
+            return;
+        }
         self.typing.set_editing(false);
         if gpg {
             self.gpg_restore_hold(false);

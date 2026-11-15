@@ -379,3 +379,29 @@ fn a_word_grid_shows_one_caret_in_the_cell_being_typed() {
     }
     assert_eq!(carets_shown(&mut app, 3_000), 1, "with a word taken");
 }
+
+#[test]
+fn typing_inside_a_full_field_keeps_its_old_text() {
+    let mut app = testkit::started();
+    tick(&mut app, 1_000);
+    app.press(Action::Nav(Screen::Catalog));
+    let full: String = "abcdefghij".repeat(4);
+    for c in full.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let _ = app.frame();
+    assert_eq!(testkit::catalog_find(&app), full);
+    let (x, y) = app
+        .where_typed(Action::TypeHere(faraday_core::edit::Here::Find), 3)
+        .unwrap();
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    app.event(Event::Key(Key::Char('x')));
+    assert_eq!(
+        testkit::catalog_find(&app),
+        full,
+        "the field keeps its text, not a shortened one"
+    );
+}

@@ -326,3 +326,41 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
         "nothing to come back to"
     );
 }
+
+#[test]
+fn the_idle_warning_comes_over_the_code_sheet_and_takes_the_code_off_the_screen() {
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("a wallet");
+    tick(&mut app, 0);
+    app.press(Action::PublicOut(w, 12));
+    app.press(Action::ShowCode(faraday_core::Code::SpecterDiy(w)));
+    assert_eq!(app.sheet, Some(Sheet::Qr));
+    assert!(app.qr().is_some());
+    tick(&mut app, 25 * MIN);
+    assert!(app.qr().is_none(), "the code is gone");
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn), "the warning counts down");
+}
+
+#[test]
+fn the_sheet_under_the_idle_warning_is_back_once_the_warning_is_put_away() {
+    let mut app = with_wallet();
+    tick(&mut app, 0);
+    app.press(Action::Guide);
+    let under = app.sheet;
+    assert_eq!(under, Some(Sheet::Guide));
+    tick(&mut app, 26 * MIN);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    app.event(Event::Key(Key::Char('a')));
+    assert_eq!(app.sheet, under, "the guide is where it was");
+}

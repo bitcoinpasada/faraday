@@ -1561,6 +1561,15 @@ impl Faraday {
             || self.wallets.spend().is_some()
     }
 
+    /// Puts the idle warning away: the sheet it came over comes back,
+    /// unless the warning took its content away (a code on the QR sheet).
+    fn put_away_idle_warning(&mut self) {
+        self.sheet = self
+            .idle
+            .take_under()
+            .filter(|s| *s != Sheet::Qr || self.qr().is_some());
+    }
+
     /// The idle timers. Returns whether the screen
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
@@ -1593,7 +1602,15 @@ impl Faraday {
             && !held
         {
             let changed = self.sheet != Some(Sheet::IdleWarn);
-            if changed && self.sheet.is_none() {
+            // Over any sheet but a lock's own: a code on the QR sheet
+            // goes too, and the warning counts down over it.
+            if changed
+                && !matches!(
+                    self.sheet,
+                    Some(Sheet::Lock | Sheet::LockAsk | Sheet::Locked)
+                )
+            {
+                self.idle.set_under(self.sheet);
                 self.sheet = Some(Sheet::IdleWarn);
                 self.idle.set_warn_min(idle / min);
                 self.secrets_off_screen();
@@ -2234,6 +2251,7 @@ impl Faraday {
         self.job_locked();
         // What is on show goes first, its text wiped.
         self.lock_secrets_off_screen();
+        self.idle.set_under(None);
         // The vaults seal on the worker; the lock goes on in
         // `lock_finish` when the last is done.
         self.vault_seal_all(may_lose);
@@ -4626,7 +4644,7 @@ impl App for Faraday {
                 // it does nothing else.
                 if self.sheet == Some(Sheet::IdleWarn) {
                     if phase == TouchPhase::Down {
-                        self.sheet = None;
+                        self.put_away_idle_warning();
                         self.pointer.set_pressed(None);
                     }
                 } else {
@@ -4637,7 +4655,7 @@ impl App for Faraday {
                 self.input_now();
                 self.typing.blink_from(self.now_ms);
                 if self.sheet == Some(Sheet::IdleWarn) {
-                    self.sheet = None;
+                    self.put_away_idle_warning();
                 } else if self.later_then_slow(k) {
                     // Drawn first, done on the tick after (`docs/SPEED.md`
                     // §9).
@@ -4667,7 +4685,7 @@ impl App for Faraday {
             Event::Back => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
-                    self.sheet = None;
+                    self.put_away_idle_warning();
                 } else {
                     self.mouse_back();
                 }
@@ -4675,7 +4693,7 @@ impl App for Faraday {
             Event::Forward => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
-                    self.sheet = None;
+                    self.put_away_idle_warning();
                 } else {
                     self.mouse_forward();
                 }
@@ -4683,7 +4701,7 @@ impl App for Faraday {
             Event::Scroll { x, y, dy } => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
-                    self.sheet = None;
+                    self.put_away_idle_warning();
                 }
                 // A gesture goes on moving the region it started over.
                 if self.pointer.scroll_at().is_none() {
@@ -4698,7 +4716,7 @@ impl App for Faraday {
             Event::Wheel { x, y, dy } => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
-                    self.sheet = None;
+                    self.put_away_idle_warning();
                 }
                 self.point_region(i32::from(x), i32::from(y));
                 // The shells send 48 pixels a notch; the notch's distance
