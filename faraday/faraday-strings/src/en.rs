@@ -10935,8 +10935,6 @@ strings! {
     /// The label of the firmware boot entry the Starter makes on Linux; it
     /// also finds the entry again.
     starter_boot_entry_label: "Faraday stick",
-    /// A USB stick mounted with no volume label: `{}` its device name.
-    stick_usb_stick: "USB stick ({})",
     // ----- Virtual machines by name, as the stick's device check and the Starter show them -----
     /// A hypervisor's name.
     vm_qemu: "QEMU",

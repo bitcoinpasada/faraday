@@ -1,8 +1,8 @@
 //! Faraday's stick shell: it
 //! hosts `faraday-core`. The app (`Faraday`), sticks reported to
 //! it by the disk process over its two FIFOs (`docs/SECURITY-MODEL.md` "When root is used"), or from
-//! `/proc/mounts` where there is no disk process, with their files read
-//! and written through `faraday-storage`; the clean marker
+//! the plain directories of `Dirs` where there is none, with their files
+//! read and written through `faraday-storage`; the clean marker
 //! `faraday-grant` checks, published while the app is clean (§5.1); the
 //! Inbox and Outbox kept in `/run/faraday`
 //! across a lock, exit code 75 when the app locks (the inittab's loop
@@ -74,27 +74,13 @@
 //! its own. `--no-camera` refuses, which is how the
 //! file fallback is exercised on a build box that has a webcam.
 //!
-//! Files (§16.16): the boot medium's data partition is mounted at
-//! `/mnt/microsd` by init, every other FAT partition on a USB disk under
-//! `/mnt/usb`, and `--files DIR` points the channel at one directory on
-//! a build box. A `RequestFile` is answered with every file in every
-//! mounted place that could be what was asked for, newest first, as one
-//! `FileList`; the list is built then and there, so a stick plugged in
-//! after the app is up is on it. The core draws the list and asks for
-//! one of them by name with `ReadFile`, which is answered with its
-//! bytes. A `WriteFile` saves to `/mnt/microsd`, or to the first
-//! plugged-in partition when there is no boot medium mounted, under the
-//! core's name hint, never over a file already there, and is answered
-//! `FileWritten`, or `FileNotWritten` when there is nowhere to save to.
-//! The shell reads no format and draws nothing: the core draws every
-//! screen, and this shell only says what is on the media.
-//!
-//! Settings (§6): the six settings the app keeps live in
-//! `faraday-settings.txt` on the same partition, read once at start
-//! and rewritten whenever the user changes one. The write goes to a
-//! temporary file, is flushed, and is renamed over the settings, so a
-//! card pulled mid-write keeps the old ones. No card mounted is no
-//! settings kept, and one line for `--verbose` to say so.
+//! Files: nothing is mounted on the device, so this shell serves no
+//! file channel of its own. The sticks' files go through the disk
+//! process (`faraday-storage`), and the app's `RequestFile`, `ReadFile`
+//! and `WriteFile` are answered as unavailable, `StoreSettings` is
+//! dropped. `--files DIR` names one plain directory on a build box for
+//! what `files.rs` still writes: the timings and the boot report where
+//! there is no disk process.
 //!
 //! Timings (§16.35): `--timings` is the dev card's one way of saying how
 //! long anything takes. The loop times every call it already makes into
@@ -153,7 +139,6 @@ use std::time::{Duration, Instant};
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
 use faraday_boot::medium::Record;
-use faraday_core::strings::{EN, fill};
 use faraday_core::{
     BootMedium, Faraday, Medium, Mode, STICK_MODES, SecureBootAtStart, StickInfo, StorageEvent,
 };
@@ -162,7 +147,7 @@ use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, Orientation, SecureHardware,
     TouchPhase,
 };
-use faraday_storage::{Boxes, Dirs, DiskProcess, Sticks, serve_with, stick_info_after};
+use faraday_storage::{Boxes, Dirs, DiskProcess, Sticks, serve_with};
 use fb::{Depth, Geometry};
 use files::Files;
 use pace::Pace;
@@ -407,9 +392,6 @@ fn mode_at_start(dir: &Path) -> Mode {
         .find(|m| mode_token(*m).is_some_and(|t| t.as_bytes() == text.as_slice()))
         .unwrap_or(Mode::Mainnet)
 }
-
-/// Where init mounts every other FAT partition of a USB disk.
-const USB_MOUNTS: &str = "/mnt/usb";
 
 /// The medium the machine started from (`faraday_boot::medium`):
 /// `/dev/mmcblk0p2` on a Raspberry Pi; on the PC, `layout` until init has
@@ -1613,66 +1595,15 @@ impl Shell {
                         pending.push_back(Event::ClipboardNotWritten { kind });
                     }
                     Command::Exit => self.done = true,
-                    // The boot medium's data partition at
-                    // /mnt/microsd and every FAT partition init mounted
-                    // under /mnt/usb, looked at again for each request
-                    // so a stick plugged in a moment ago is on the
-                    // list: one answer per request, carrying the names
-                    // a person finds those partitions by, and the
-                    // reason for an empty one only where --verbose can
-                    // see it.
-                    Command::RequestFile { kind } => {
-                        let event = match self.files.list(kind) {
-                            Ok(entries) => Event::FileList {
-                                kind,
-                                entries,
-                                place: self.files.place().map(|p| faraday_text::Text::of(&p)),
-                            },
-                            Err(reason) => {
-                                self.say(&reason);
-                                Event::FileUnavailable { kind }
-                            }
-                        };
-                        pending.push_back(event);
+                    // No file channel of this shell's own: the sticks'
+                    // files go through the disk process.
+                    Command::RequestFile { kind } | Command::ReadFile { kind, .. } => {
+                        pending.push_back(Event::FileUnavailable { kind });
                     }
-                    // One of the names the listing carried, which the
-                    // person chose on the core's Files screen.
-                    Command::ReadFile { kind, name } => {
-                        let event = match self.files.read(kind, &name) {
-                            Ok(bytes) => Event::File { kind, bytes },
-                            Err(reason) => {
-                                self.say(&reason);
-                                Event::FileUnavailable { kind }
-                            }
-                        };
-                        pending.push_back(event);
+                    Command::WriteFile { kind, .. } => {
+                        pending.push_back(Event::FileNotWritten { kind });
                     }
-                    Command::WriteFile {
-                        kind,
-                        name_hint,
-                        bytes,
-                    } => {
-                        let wrote = costly::timed(&mut self.timings, costly::FILE_WRITTEN, || {
-                            self.files.write(&name_hint, &bytes)
-                        });
-                        let event = match wrote {
-                            Ok(path) => {
-                                self.say(&format!("wrote {}", path.display()));
-                                Event::FileWritten { kind }
-                            }
-                            Err(reason) => {
-                                self.say(&reason);
-                                Event::FileNotWritten { kind }
-                            }
-                        };
-                        pending.push_back(event);
-                    }
-                    // The settings, kept beside the user's files under a
-                    // name of this shell's choosing.
-                    Command::StoreSettings { bytes } => match self.files.write_settings(&bytes) {
-                        Ok(path) => self.say(&format!("wrote {}", path.display())),
-                        Err(reason) => self.say(&reason),
-                    },
+                    Command::StoreSettings { .. } => {}
                     Command::CameraOn => {
                         // Which cameras there are, for the scan sheet's
                         // choice, as of the moment it opens.
@@ -2004,58 +1935,15 @@ impl Shell {
         (sticks, problems)
     }
 
-    /// The sticks: from the disk process when there is one, else the boot
-    /// medium's data partition and every partition init mounted under
-    /// `/mnt/usb`, as `/proc/mounts` lists them now.
+    /// The sticks the disk process lists; none without one, as nothing is
+    /// mounted on the device.
     fn mounted_sticks(&mut self) -> (Vec<StickInfo>, Vec<(String, bool)>) {
         if let Some(disk) = self.disk.clone() {
             let hide = self.clean != Some(false) && Instant::now() < self.hide_until;
             let found = diskwork::list(&mut lock(&disk), hide);
             return self.listed(found);
         }
-        let mounts = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
-        let mut sticks = Vec::new();
-        // The token for the listing's reads, minted where the shell looks
-        // at the sticks (docs/COMPUTE.md §3).
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "a mint: the shell's look at the sticks draws nothing (docs/COMPUTE.md §3)"
-        )]
-        let c = faraday_crypto::work::Compute::new(|_| {});
-        for line in mounts.lines() {
-            let point = line.split_whitespace().nth(1).unwrap_or("");
-            if point == DEFAULT_FILES {
-                // The app names the boot medium itself.
-                sticks.push(stick_info_after(
-                    &c,
-                    &self.sticks,
-                    Path::new(point),
-                    "",
-                    true,
-                ));
-            } else if let Some(name) = point
-                .strip_prefix(USB_MOUNTS)
-                .and_then(|p| p.strip_prefix('/'))
-            {
-                // init names the mount after the volume label, or after the
-                // device when the stick has none.
-                let label = if name.starts_with("sd")
-                    && name[2..].chars().skip(1).all(|c| c.is_ascii_digit())
-                {
-                    fill(EN.stick_usb_stick, &[name])
-                } else {
-                    name.to_string()
-                };
-                sticks.push(stick_info_after(
-                    &c,
-                    &self.sticks,
-                    Path::new(point),
-                    &label,
-                    false,
-                ));
-            }
-        }
-        (sticks, Vec::new())
+        (Vec::new(), Vec::new())
     }
 
     /// Tells the app when the sticks or their files change. With a disk

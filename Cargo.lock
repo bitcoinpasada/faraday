@@ -1317,7 +1317,6 @@ dependencies = [
  "faraday-core",
  "faraday-crypto",
  "faraday-draw",
- "faraday-leak-scan",
  "faraday-paper",
  "faraday-scanner",
  "faraday-shell-api",

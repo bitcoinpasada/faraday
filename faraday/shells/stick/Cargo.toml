@@ -34,4 +34,3 @@ workspace = true
 [dev-dependencies]
 faraday-draw = { path = "../../../core/faraday-draw" }
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
-faraday-leak-scan = { path = "../../tools/leak-scan" }
