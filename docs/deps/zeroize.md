@@ -13,9 +13,11 @@ It also wipes the Argon2 working memory in `faraday_crypto::argon2`
 (the one Argon2 call the self-test, the KDBX container and the QR
 vault's OpenPGP message make), the cluster buffer in `faraday-fat`, and
 `faraday-draw`'s recorded drawing list, whose text is wiped when it is
-cleared after a frame, and the decoded bytes of a base64 or hex text
+cleared after a frame, the decoded bytes of a base64 or hex text
 `faraday-psbt` and `faraday-bip` read (a raw transaction in hex, a base64
-record).
+record), and `faraday-paper`'s PDF page operators, which carry what a
+sheet prints (a recovery key on the Starter's sheet) and are wiped when
+the page drops.
 
 **Why this crate.** Its `zeroize()` is a volatile write followed by a
 compiler fence, which is what stops the optimiser from removing a store

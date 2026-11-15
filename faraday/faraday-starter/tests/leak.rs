@@ -45,12 +45,11 @@ fn forms() -> Vec<Form> {
 }
 
 /// The key as the Starter holds it, from parsed to dropped: the key, the
-/// value built from it for the sheet and the rows are wiped, so no block
-/// freed holds the whole key. The sheet's writer (`faraday-paper`'s
-/// `notes`) still frees its line-sized copies of the key's halves
-/// unwiped; they are not the whole key, and are left to that crate.
+/// value built from it for the sheet, the rows, the sheet's lines and its
+/// page are wiped, so no block freed holds the whole key or a line of it
+/// (four groups).
 #[test]
-fn no_block_freed_holds_the_whole_key_while_the_sheet_is_made() {
+fn no_block_freed_holds_the_key_or_a_line_of_it_while_the_sheet_is_made() {
     let notes = Notes::for_computer(&dell()).expect("notes");
     let c = compute();
     let forms = forms();
@@ -60,12 +59,7 @@ fn no_block_freed_holds_the_whole_key_while_the_sheet_is_made() {
     drop(key);
     drop(pdf);
     let report = armed.finish();
-    let whole: Vec<_> = report
-        .freed
-        .iter()
-        .filter(|h| h.form == "key" || h.form == "key, groups joined")
-        .collect();
-    assert!(whole.is_empty(), "{whole:?}");
+    assert!(report.freed.is_empty(), "{:?}", report.freed);
 }
 
 /// The finished PDF, which carries the key, is wiped when it is dropped.

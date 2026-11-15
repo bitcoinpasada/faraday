@@ -16,6 +16,8 @@ faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-draw = { path = "../../core/faraday-draw" }
 # The wording of the sheets and of a build's description.
 faraday-strings = { path = "../faraday-strings" }
+# A page's operators carry what a sheet prints, and are wiped when it drops.
+zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]
 workspace = true

@@ -5,3 +5,4 @@
 pub mod build;
 pub mod edid;
 pub mod pdf;
+mod wipe;

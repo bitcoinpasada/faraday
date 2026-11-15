@@ -5,6 +5,7 @@
 //! go to the Outbox as PDFs on every shell; the device itself prints
 //! nothing. Neither sheet carries a secret (`faraday-core`'s `wallet_backup`).
 
+use crate::wipe::{self, Line};
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
@@ -89,10 +90,17 @@ pub const PLACES_MAX: usize = 13;
 /// going down, as the screens draw.
 #[derive(Default)]
 struct Page {
+    /// Wiped when the page drops: a page may carry what a sheet prints.
     ops: Vec<u8>,
     /// A page not A4 portrait: its width and height in points
     /// ([`RawPage`]).
     media: Option<(f32, f32)>,
+}
+
+impl Drop for Page {
+    fn drop(&mut self) {
+        wipe::bytes(&mut self.ops);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -115,6 +123,12 @@ impl Font {
 /// Text in PDF's WinAnsi encoding, escaped for a string literal.
 pub fn pdf_text(s: &str) -> Vec<u8> {
     let mut out = Vec::new();
+    push_pdf_text(&mut out, s);
+    out
+}
+
+/// [`pdf_text`] written onto the end of `out`, with no copy of its own.
+fn push_pdf_text(out: &mut Vec<u8>, s: &str) {
     for c in s.chars() {
         let b = match c {
             '(' | ')' | '\\' => {
@@ -134,7 +148,6 @@ pub fn pdf_text(s: &str) -> Vec<u8> {
         };
         out.push(b);
     }
-    out
 }
 
 impl Page {
@@ -152,7 +165,7 @@ impl Page {
             )
             .as_bytes(),
         );
-        self.ops.extend_from_slice(&pdf_text(s));
+        push_pdf_text(&mut self.ops, s);
         self.ops.extend_from_slice(b") Tj ET\n");
     }
 
@@ -179,32 +192,37 @@ impl Page {
             _ => size * 0.5,
         };
         let max = ((width / per).floor() as usize).max(8);
-        let mut lines: Vec<String> = Vec::new();
+        let lh = size * 1.35;
+        let mut count = 0usize;
         if matches!(font, Font::Mono) {
-            let chars: Vec<char> = s.chars().collect();
-            for chunk in chars.chunks(max) {
-                lines.push(chunk.iter().collect());
+            // Lines are slices of `s`: no copy of it is made.
+            let mut rest = s;
+            while !rest.is_empty() {
+                let end = rest.char_indices().nth(max).map_or(rest.len(), |(i, _)| i);
+                self.text(x, y + count as f32 * lh, size, font, &rest[..end]);
+                count += 1;
+                rest = &rest[end..];
             }
         } else {
-            let mut line = String::new();
+            // A line is built in a wiping buffer that never regrows.
+            let mut line = Line::with_capacity(s.len());
             for word in s.split_whitespace() {
                 if !line.is_empty() && line.len() + 1 + word.len() > max {
-                    lines.push(std::mem::take(&mut line));
+                    self.text(x, y + count as f32 * lh, size, font, line.as_str());
+                    count += 1;
+                    line.clear();
                 }
                 if !line.is_empty() {
-                    line.push(' ');
+                    line.push_space();
                 }
                 line.push_str(word);
             }
             if !line.is_empty() {
-                lines.push(line);
+                self.text(x, y + count as f32 * lh, size, font, line.as_str());
+                count += 1;
             }
         }
-        let lh = size * 1.35;
-        for (i, l) in lines.iter().enumerate() {
-            self.text(x, y + i as f32 * lh, size, font, l);
-        }
-        lines.len() as f32 * lh
+        count as f32 * lh
     }
 
     fn qr(&mut self, m: &QrMatrix, x: f32, y: f32, side: f32) {
@@ -231,7 +249,11 @@ impl Page {
 /// document.
 fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
     PICTURES.with(|c| c.set(c.get().wrapping_add(1)));
-    let mut out: Vec<u8> = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n".to_vec();
+    // Room for every page's operators and the structure round them, so the
+    // document never regrows and frees a copy of a page unwiped.
+    let room: usize = pages.iter().map(|p| p.ops.len() + 512).sum::<usize>() + 4096;
+    let mut out: Vec<u8> = Vec::with_capacity(room);
+    out.extend_from_slice(b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
     let mut offsets: Vec<usize> = Vec::new();
     let n = pages.len();
     // 1 catalog, 2 pages, 3..5 fonts, then a page and its contents each.
@@ -275,10 +297,14 @@ fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
             )
             .as_bytes(),
         );
-        let mut body = format!("<< /Length {} >>\nstream\n", page.ops.len()).into_bytes();
-        body.extend_from_slice(&page.ops);
-        body.extend_from_slice(b"endstream");
-        obj(&mut out, &mut offsets, &body);
+        // Written straight into the document, with no copy of the operators.
+        offsets.push(out.len());
+        let id = offsets.len();
+        out.extend_from_slice(
+            format!("{id} 0 obj\n<< /Length {} >>\nstream\n", page.ops.len()).as_bytes(),
+        );
+        out.extend_from_slice(&page.ops);
+        out.extend_from_slice(b"endstream\nendobj\n");
     }
     obj(
         &mut out,
@@ -338,7 +364,25 @@ pub fn notes(
     rows: &[(String, Option<String>)],
     steps: &[(String, Vec<String>)],
 ) -> Vec<u8> {
-    let mut p = Page::default();
+    // The page's operators are presized for every line, so they never
+    // regrow and leave a copy of a row's text in freed memory. A line holds
+    // a word at least, and each line's operator is under 90 bytes besides
+    // its text, which escapes to at most twice its length.
+    let texts =
+        rows.iter()
+            .flat_map(|(l, v)| [l.as_str(), v.as_deref().unwrap_or("")])
+            .chain(steps.iter().flat_map(|(h, ls)| {
+                std::iter::once(h.as_str()).chain(ls.iter().map(String::as_str))
+            }))
+            .chain(std::iter::once(title));
+    let room: usize = texts
+        .map(|t| (t.len() / 2 + 1) * 90 + 2 * t.len())
+        .sum::<usize>()
+        + 200 * (rows.len() + steps.len() + 1);
+    let mut p = Page {
+        ops: Vec::with_capacity(room),
+        media: None,
+    };
     let width = PAGE_W - 2.0 * MARGIN;
     let mut y = MARGIN;
     y += p.wrapped(MARGIN, y, width, 20.0, Font::Bold, title) + 18.0;

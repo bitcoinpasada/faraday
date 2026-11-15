@@ -1098,6 +1098,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-draw",
  "faraday-strings",
+ "zeroize",
 ]
 
 [[package]]
