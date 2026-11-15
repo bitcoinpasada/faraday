@@ -544,7 +544,14 @@ fn write_back_over_shared(first: bool) {
         img[data + (x - 2) * cb..data + (x - 2) * cb + old.len()].copy_from_slice(&old);
         x
     } else {
-        // The root's chain gets a second cluster, MINE.KDBX's own.
+        // The root's first cluster is full, its free slots deleted entries
+        // and not an end marker, so its chain goes on to a second cluster,
+        // MINE.KDBX's own.
+        for slot in img[data..data + cb].chunks_exact_mut(32).skip(3) {
+            slot.fill(0x41);
+            slot[0] = 0xE5;
+            slot[11] = 0x20;
+        }
         let (_, m) = entry_of(&img, 0);
         set_fat(&mut img, 2, m as u32);
         set_fat(&mut img, m, 0x0FFF_FFFF);

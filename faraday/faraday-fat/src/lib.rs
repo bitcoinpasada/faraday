@@ -198,6 +198,10 @@ pub enum Fault {
     Unwritten,
     /// Two files, or a file and a folder, that share a cluster.
     SharedCluster,
+    /// A file whose last cluster the FAT marks free.
+    FreeEnd,
+    /// Entries in the top folder past its end marker.
+    HiddenEntries,
 }
 
 /// Why FAT cannot hold a name.
@@ -225,8 +229,12 @@ pub enum Kind {
 /// One entry of the root directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
-    /// The long name, or the short one when there is none.
+    /// The long name, or the short one when there is none, for display:
+    /// control and direction characters shown as U+FFFD, so two entries
+    /// can show the same name.
     pub name: Text,
+    /// The name as the disk holds it, which a lookup matches first.
+    real: Text,
     /// The size in bytes; 0 for a directory.
     pub size: u32,
     /// A directory, listed and never entered.
@@ -342,6 +350,9 @@ impl BootSector {
 pub fn boot_sector_serial(sector: &[u8]) -> Option<u32> {
     BootSector::parse(sector)?.serial
 }
+
+/// A file's name and its first bytes, or why they were not read.
+pub type Head = (Text, Result<Vec<u8>, Error>);
 
 /// An open FAT16 or FAT32 volume.
 pub struct Volume<D: Disk> {
@@ -526,7 +537,7 @@ impl<D: Disk> Volume<D> {
         let s: Text = l.iter().map(|&b| char::from(b)).collect();
         let s = s.trim_end();
         // not wording: the label FAT writes for none, compared
-        (!s.is_empty() && s != "NO NAME").then(|| Text::of(s))
+        (!s.is_empty() && s != "NO NAME").then(|| printable(s))
     }
 
     /// The volume serial number in the boot sector, when there is one.
@@ -547,7 +558,7 @@ impl<D: Disk> Volume<D> {
             let s: Text = l.iter().map(|&b| char::from(b)).collect();
             let s = s.trim_end();
             // not wording: the label FAT writes for none, compared
-            (!s.is_empty() && s != "NO NAME").then(|| Text::of(s))
+            (!s.is_empty() && s != "NO NAME").then(|| printable(s))
         }))
     }
 
@@ -881,7 +892,17 @@ impl<D: Disk> Volume<D> {
     }
 
     fn find(&mut self, name: &str) -> Result<Option<Entry>, Error> {
-        Ok(self.list()?.into_iter().find(|e| same_name(&e.name, name)))
+        Ok(pick_named(self.list()?, name, None))
+    }
+
+    /// Whether any entry, file or folder, is called `name` by its real or
+    /// its shown name, ignoring case: true for a name two entries share,
+    /// which [`Volume::find`] reads as none.
+    fn taken(&mut self, name: &str) -> Result<bool, Error> {
+        Ok(self
+            .list()?
+            .iter()
+            .any(|e| same_name(&e.real, name) || same_name(&e.name, name)))
     }
 
     /// A file's contents, from its entry, refused when larger than `max`
@@ -896,14 +917,16 @@ impl<D: Disk> Volume<D> {
         let size = e.size as usize;
         let cb = self.cluster_bytes as usize;
         let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
-        if back {
-            // The last cluster's entry from the medium too: a chain that
-            // does not end there is one a stick dropped the write of.
-            let last = *chain.last().ok_or(Error::Corrupt(Fault::FileLonger))?;
-            let next = self.fat_get(last)?;
-            if !self.is_end(next) {
-                return Err(Error::Corrupt(Fault::Unwritten));
-            }
+        // The last cluster's entry too: one marked free is a file a later
+        // write would land on. A read-back wants it to end the chain: one
+        // that does not is one a stick dropped the write of.
+        let last = *chain.last().ok_or(Error::Corrupt(Fault::FileLonger))?;
+        let next = self.fat_get(last)?;
+        if next == 0 {
+            return Err(Error::Corrupt(Fault::FreeEnd));
+        }
+        if back && !self.is_end(next) {
+            return Err(Error::Corrupt(Fault::Unwritten));
         }
         let mut out = vec![0u8; size];
         for (k, part) in out.chunks_mut(cb).enumerate() {
@@ -958,7 +981,13 @@ impl<D: Disk> Volume<D> {
             return Ok((e.size, Vec::new()));
         }
         let cb = self.cluster_bytes as usize;
-        let chain = self.chain_start(e.cluster, end.div_ceil(cb))?;
+        // The whole file's chain, as a whole read walks it: a last cluster
+        // marked free is refused here too.
+        let chain = self.chain_start(e.cluster, (e.size as usize).div_ceil(cb))?;
+        let last = *chain.last().ok_or(Error::Corrupt(Fault::FileLonger))?;
+        if self.fat_get(last)? == 0 {
+            return Err(Error::Corrupt(Fault::FreeEnd));
+        }
         let first = start / cb;
         let mut whole = vec![0u8; end.div_ceil(cb) * cb - first * cb];
         for (k, part) in whole.chunks_mut(cb).enumerate() {
@@ -976,6 +1005,10 @@ impl<D: Disk> Volume<D> {
     /// the file and not the rest.
     pub fn head(&mut self, name: &str, n: usize, max: u32) -> Result<Vec<u8>, Error> {
         let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
+        self.head_entry(&e, n, max)
+    }
+
+    fn head_entry(&mut self, e: &Entry, n: usize, max: u32) -> Result<Vec<u8>, Error> {
         if e.size > max {
             return Err(Error::TooLarge);
         }
@@ -989,6 +1022,24 @@ impl<D: Disk> Volume<D> {
         for (k, part) in out.chunks_mut(cb).enumerate() {
             let at = self.cluster_at(chain[k]);
             self.disk.read_at(at, part)?;
+        }
+        Ok(out)
+    }
+
+    /// The first `n` bytes of each file `pick` takes, from one pass of the
+    /// directory: each as [`Volume::head`] reads it, by its own entry.
+    pub fn heads(
+        &mut self,
+        pick: &mut dyn FnMut(&str, u32) -> bool,
+        n: usize,
+        max: u32,
+    ) -> Result<Vec<Head>, Error> {
+        let mut out = Vec::new();
+        for e in self.list()? {
+            if !e.dir && pick(&e.name, e.size) {
+                let b = self.head_entry(&e, n, max);
+                out.push((e.name, b));
+            }
         }
         Ok(out)
     }
@@ -1103,8 +1154,16 @@ impl<D: Disk> Volume<D> {
             let chain = self.root_chain()?;
             let bytes = self.root_bytes(&chain)?;
             let mut run = 0;
+            // Past the first end marker, every slot must be zero: an entry
+            // there is one no listing shows, and a write beside it would
+            // show it.
+            let end = bytes.chunks_exact(32).position(|e| e[0] == 0);
+            let hidden = end.is_some_and(|z| bytes[z * 32..].iter().any(|&b| b != 0));
             for i in 0..self.slots(&chain) {
                 let first = bytes[i * 32];
+                if first == 0 && hidden {
+                    return Err(Error::Corrupt(Fault::HiddenEntries));
+                }
                 if first == 0 || first == 0xE5 {
                     run += 1;
                     if run == count {
@@ -1188,7 +1247,7 @@ impl<D: Disk> Volume<D> {
     pub fn create(&mut self, name: &str, data: &[u8]) -> Result<(), Error> {
         check_name(name)?;
         let size = u32::try_from(data.len()).map_err(|_| Error::TooLarge)?;
-        if self.find(name)?.is_some() {
+        if self.taken(name)? {
             return Err(Error::Exists);
         }
         let taken = self.store(data)?;
@@ -1205,7 +1264,7 @@ impl<D: Disk> Volume<D> {
     pub fn rename(&mut self, from: &str, to: &str) -> Result<(), Error> {
         check_name(to)?;
         let e = self.find(from)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
-        if !same_name(from, to) && self.find(to)?.is_some() {
+        if !same_name(from, to) && self.taken(to)? {
             return Err(Error::Exists);
         }
         // The new entries reach the medium before the old are erased, so
@@ -1515,35 +1574,49 @@ impl<D: Disk> Volume<D> {
             }
         }
         let cb = u64::from(self.cluster_bytes);
-        let mut runs = Vec::new();
+        let mut runs: Vec<(u64, u64)> = Vec::new();
         // Each file's chain, and the clusters its size says it holds; a
-        // folder's whole chain is held by the folder.
-        let entries = parse_dir(&bytes);
-        let mut chains = Vec::new();
-        for e in &entries {
-            if e.cluster == 0 || (!e.dir && e.size == 0) {
+        // folder's whole chain is held by the folder. A cluster past a
+        // file's end is looked at once for the whole volume, so the walk is
+        // bounded by the volume's clusters however the chains cross.
+        let mut seen = Bits::new(self.clusters + 2);
+        let mut done: BTreeSet<(u32, u32)> = BTreeSet::new();
+        for e in parse_dir(&bytes) {
+            if e.dir || e.cluster == 0 || e.size == 0 || !done.insert((e.cluster, e.size)) {
                 continue;
             }
-            if !e.dir {
-                chains.push((e.size, self.chain(e.cluster)?));
-            }
-        }
-        for (size, chain) in chains {
             // The file's own last cluster, by its size: a chain may run
             // longer than the size needs, and what is past the file's end,
             // whole clusters included, is not the file's, unless a cluster
             // is also another entry's.
-            let tail = u64::from(size) % cb;
-            let needed = u64::from(size).div_ceil(cb) as usize;
-            if tail != 0
-                && let Some(&c) = chain.get(needed - 1)
-            {
-                runs.push((self.cluster_at(c) + tail, cb - tail));
-            }
-            for &c in chain.iter().skip(needed) {
-                if !claimed.has(c) {
-                    runs.push((self.cluster_at(c), cb));
+            let tail = u64::from(e.size) % cb;
+            let needed = u64::from(e.size).div_ceil(cb) as usize;
+            let (mut c, mut i) = (e.cluster, 0usize);
+            loop {
+                if !self.valid(c) {
+                    return Err(Error::Corrupt(Fault::ClusterOutside));
                 }
+                if i + 1 == needed && tail != 0 {
+                    runs.push((self.cluster_at(c) + tail, cb - tail));
+                }
+                if i >= needed {
+                    if !seen.insert(c) {
+                        break;
+                    }
+                    if !claimed.has(c) {
+                        let at = self.cluster_at(c);
+                        match runs.last_mut() {
+                            Some(r) if r.0 + r.1 == at => r.1 += cb,
+                            _ => runs.push((at, cb)),
+                        }
+                    }
+                }
+                let next = self.fat_get(c)?;
+                if self.is_end(next) {
+                    break;
+                }
+                c = next;
+                i += 1;
             }
         }
         self.zero_runs(&runs)
@@ -1657,10 +1730,7 @@ impl<D: Disk> Volume<D> {
             } else {
                 self.chain_bytes(&chain)?
             };
-            let e = parse_dir(&bytes)
-                .into_iter()
-                .find(|e| e.dir && same_name(&e.name, name))
-                .ok_or(Error::NotFound)?;
+            let e = pick_named(parse_dir(&bytes), name, Some(true)).ok_or(Error::NotFound)?;
             chain = self.chain_within(e.cluster, self.max_root_clusters(), Fault::FolderLong)?;
             root = false;
         }
@@ -1669,10 +1739,7 @@ impl<D: Disk> Volume<D> {
         } else {
             self.chain_bytes(&chain)?
         };
-        let e = parse_dir(&bytes)
-            .into_iter()
-            .find(|e| !e.dir && same_name(&e.name, file))
-            .ok_or(Error::NotFound)?;
+        let e = pick_named(parse_dir(&bytes), file, Some(false)).ok_or(Error::NotFound)?;
         let i = e.slots.1;
         let at = if root {
             self.slot_at(&chain, i)
@@ -1760,6 +1827,21 @@ fn same_name(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
+/// The entry called `name` among `entries` (the folders, the files, or both):
+/// the one entry whose real name or whose shown name it is, ignoring case.
+/// Two that match, case twins or entries that differ only in characters the
+/// shown name hides, find none.
+fn pick_named(entries: Vec<Entry>, name: &str, dir: Option<bool>) -> Option<Entry> {
+    let mut found = entries
+        .into_iter()
+        .filter(|e| dir.is_none_or(|d| e.dir == d))
+        .filter(|e| same_name(&e.real, name) || same_name(&e.name, name));
+    match (found.next(), found.next()) {
+        (Some(e), None) => Some(e),
+        _ => None,
+    }
+}
+
 /// A long name being gathered: its checksum, its parts, its first slot.
 type Gathering = (u8, Vec<Option<[u16; 13]>>, usize);
 
@@ -1837,11 +1919,13 @@ fn parse_dir(bytes: &[u8]) -> Vec<Entry> {
             Some(x) => x,
             None => (short_text(&short, e[12]), i),
         };
+        let shown = printable(&name);
         let cluster = (u32::from(u16::from_le_bytes([e[20], e[21]])) << 16)
             | u32::from(u16::from_le_bytes([e[26], e[27]]));
         let dir = e[11] & ATTR_DIR != 0;
         out.push(Entry {
-            name,
+            name: shown,
+            real: name,
             size: if dir { 0 } else { u32_at(e, 28) },
             dir,
             cluster,
@@ -1856,6 +1940,34 @@ fn parse_dir(bytes: &[u8]) -> Vec<Entry> {
     out
 }
 
+/// Text a person reads: control characters and the characters that
+/// reorder or hide others (direction marks and overrides, zero-width
+/// and joining marks, the byte order mark, the soft hyphen) become
+/// U+FFFD, so a name cannot look like another.
+fn printable(s: &str) -> Text {
+    s.chars()
+        .map(|c| {
+            let hidden = c.is_control()
+                || matches!(
+                    c,
+                    '\u{AD}'
+                        | '\u{61C}'
+                        | '\u{180E}'
+                        | '\u{200B}'..='\u{200F}'
+                        | '\u{2028}'..='\u{202E}'
+                        | '\u{2060}'..='\u{206F}'
+                        | '\u{FEFF}'
+                        | '\u{FFF9}'..='\u{FFFB}'
+                );
+            if hidden {
+                char::REPLACEMENT_CHARACTER
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 /// A short name as text, with the lower-case flags Windows sets in
 /// byte 12 applied.
 fn short_text(short: &[u8; 11], flags: u8) -> Text {
@@ -1867,7 +1979,7 @@ fn short_text(short: &[u8; 11], flags: u8) -> Text {
                 if lower { c.to_ascii_lowercase() } else { c }
             })
             .collect();
-        Text::of(t.trim_end())
+        text!("{}", t.trim_end())
     };
     let base = part(&short[..8], flags & 0x08 != 0);
     let ext = part(&short[8..], flags & 0x10 != 0);

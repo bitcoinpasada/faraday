@@ -10319,6 +10319,10 @@ strings! {
     fat_fault_unwritten: "a block kept its old bytes",
     /// A stick's filesystem contradicts itself: two files share a cluster.
     fat_fault_shared_cluster: "two files share a cluster",
+    /// A stick's filesystem contradicts itself: a file's last cluster is free.
+    fat_fault_free_end: "a file's last cluster is marked free",
+    /// A stick's filesystem hides entries: some follow the end of the folder.
+    fat_fault_hidden_entries: "entries follow the end of the top folder",
     /// A file name FAT cannot hold.
     fat_name_empty: "an empty name",
     /// A file name FAT cannot hold.

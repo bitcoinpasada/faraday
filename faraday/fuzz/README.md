@@ -86,7 +86,7 @@ shipped binary does.
 
 | Target | What it feeds |
 |---|---|
-| `fat` | `faraday_fat::Volume::open` with the input as a partition image: the boot sector, the FATs and the root directory. Every file listed is read, then a file is created, renamed and deleted, so the write paths walk the same structures. `boot_sector_label` reads the first sector alone. |
+| `fat` | `faraday_fat::Volume::open` with the input as a partition image: the boot sector, the FATs and the root directory. Every file listed is read, then a file is created, renamed, deleted and wiped, the label set, the free space zeroed and the volume made empty, so the write paths walk the same structures; a file read before them reads the same after. The seeds are a FAT12 and a small FAT32 image. `boot_sector_label` reads the first sector alone. |
 | `read_wallet` | `faraday_intake::wallet::read_wallet` with the input as text: a single-key file, a Caravan config or an Electrum wallet file. The JSON reader under it is fuzzed on its own in `fuzz/` (`json`). |
 | `classify_file` | `faraday_core::wallet::classify_read`, which Files runs on every file that comes in (a visit's, and the boot stick's with no press): the vault header, EFI image, certificate, PSBT, GPG, signed message, multisig share, wallet, key, words, entries, seed part and raw transaction readers in order. The first byte picks the name's extension. |
 | `inbox_found` | Several files at once: the input split at each `0x1e` byte, brought into the Inbox as a stick's files are, put together by `inbox_found_now` (multisig shares merged, SLIP-39 and codex32 groups recovered and given a fingerprint, cosigner keys read), then loaded. SLIP-39 shares that ask for more than the base number of PBKDF2 rounds are left out. |

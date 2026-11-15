@@ -45,6 +45,10 @@ fn io_text(e: std::io::Error) -> Text {
 
 pub use faraday_codec::MAX_READ;
 
+/// The most files of one stick examined as vaults: a stick holding more
+/// has the rest listed as files and not looked into.
+pub const MAX_VAULT_CANDIDATES: usize = 4096;
+
 /// The largest file read from a stick that begins as KDBX 4: the longest
 /// file a vault has (`docs/VAULT.md` §2). It travels between the app and
 /// the disk process in pieces of [`proto::PIECE`], since a frame keeps its
@@ -60,6 +64,9 @@ pub const MAX_VAULT_READ: u64 = vault_file::MAX_FILE_LEN;
 /// the disk process, which a 1 GB Pi has to spare. Its header is checked against
 /// this before any pixel is decoded.
 pub const MAX_PIXELS: usize = 4096 * 4096;
+
+/// A file's name and its first bytes, or why they were not read.
+pub type Head = (Text, Result<Vec<u8>, Text>);
 
 /// A stick's top level.
 pub trait Place {
@@ -95,6 +102,19 @@ pub trait Place {
         let mut b = self.read(name, max)?;
         b.truncate(n);
         Ok(b)
+    }
+    /// The first `n` bytes of each file `pick` takes (by name and size),
+    /// each as [`Place::head`] reads it, in the one pass over the place's
+    /// directory that a place can make.
+    fn heads(&mut self, pick: &mut dyn FnMut(&str, u64) -> bool, n: usize, max: u64) -> Vec<Head> {
+        let mut out = Vec::new();
+        for (name, len) in self.files().unwrap_or_default() {
+            if pick(&name, len) {
+                let b = self.head(&name, n, max);
+                out.push((name, b));
+            }
+        }
+        out
     }
     /// A new file, on the medium when this returns. Refused when the name
     /// is taken.
@@ -317,6 +337,8 @@ pub fn fat_text(e: faraday_fat::Error) -> Text {
             Fault::EmptyRoot => EN.fat_fault_empty_root,
             Fault::Unwritten => EN.fat_fault_unwritten,
             Fault::SharedCluster => EN.fat_fault_shared_cluster,
+            Fault::FreeEnd => EN.fat_fault_free_end,
+            Fault::HiddenEntries => EN.fat_fault_hidden_entries,
         },
         Error::Name(n) => match n {
             BadName::Empty => EN.fat_name_empty,
@@ -356,6 +378,20 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
     fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, Text> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0.head(name, n, max).map_err(fat_text)
+    }
+
+    fn heads(&mut self, pick: &mut dyn FnMut(&str, u64) -> bool, n: usize, max: u64) -> Vec<Head> {
+        let max = u32::try_from(max).unwrap_or(u32::MAX);
+        match self
+            .0
+            .heads(&mut |name, len| pick(name, u64::from(len)), n, max)
+        {
+            Ok(v) => v
+                .into_iter()
+                .map(|(name, b)| (name, b.map_err(fat_text)))
+                .collect(),
+            Err(_) => Vec::new(),
+        }
     }
 
     fn read_part(
@@ -506,19 +542,24 @@ pub fn checked_for_write(name: &str) -> Result<&str, Text> {
 /// vault: the names in `files` that are a vault by its contents
 /// (`docs/VAULT.md` §1.1), whatever the name, a `.kdbx` too.
 /// A file is read only where its length is a length a vault can have. Made once when the listing is, and kept with it.
-pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(Text, u64)]) -> Vec<Text> {
-    let mut out = Vec::new();
-    for (n, len) in files {
+pub fn vault_names(c: &Compute, place: &mut dyn Place, _files: &[(Text, u64)]) -> Vec<Text> {
+    // The files of the listing that could be vaults, no more than
+    // MAX_VAULT_CANDIDATES of them, and their heads in one pass.
+    let mut taken = 0usize;
+    let mut pick = |n: &str, len: u64| {
         let named = is_kdbx_name(n);
-        if (n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(*len) {
-            continue;
+        let fit = !((n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(len));
+        if fit && taken < MAX_VAULT_CANDIDATES {
+            taken += 1;
+            return true;
         }
+        false
+    };
+    let mut out = Vec::new();
+    for (n, b) in place.heads(&mut pick, vault_file::HEAD_LEN, MAX_VAULT_READ) {
         c.count(Work::FileRead);
-        if place
-            .head(n, vault_file::HEAD_LEN, MAX_VAULT_READ)
-            .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
-        {
-            out.push(n.clone());
+        if b.is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4)) {
+            out.push(n);
         }
     }
     out.sort();

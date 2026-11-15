@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use faraday_fat::{
-    BadName, BootSector, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, Wiped,
+    BadName, BootSector, Disk, Error, FAT_PIECE, Fault, Kind, MAX_ROOT_BYTES, Volume, Wiped,
     boot_sector_label, boot_sector_serial, label_bytes,
 };
 
@@ -1244,7 +1244,19 @@ fn vault_over_a_free_marked_cluster(dotted: bool) {
         }
         let mut v = Volume::open(bytes).unwrap();
         if !dotted {
-            assert_eq!(v.read("NOTES.TXT", 1 << 20).unwrap().len(), 1, "{name}");
+            // Its last cluster is marked free: the read is refused.
+            assert!(
+                matches!(v.read("NOTES.TXT", 1 << 20), Err(Error::Corrupt(_))),
+                "{name}"
+            );
+            // And so is a piece of it.
+            assert!(
+                matches!(
+                    v.read_part("NOTES.TXT", 0, 1, 1 << 20),
+                    Err(Error::Corrupt(_))
+                ),
+                "{name}: a piece"
+            );
         }
 
         let vault = pattern(6_000, 7);
@@ -1390,4 +1402,366 @@ fn a_folders_file_in_a_root_files_chain_past_its_size_survives_zeroing() {
             "{name}: the folder's file changed"
         );
     }
+}
+
+/// A partition that counts the reads made of it.
+struct Reads {
+    bytes: Vec<u8>,
+    reads: usize,
+}
+
+impl Disk for Reads {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.reads += 1;
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A FAT32 volume's entry for cluster `c`, in every copy of the FAT.
+fn set_fat32(bytes: &mut [u8], c: u32, v: u32) {
+    let le16 = |at: usize| u16::from_le_bytes([bytes[at], bytes[at + 1]]) as usize;
+    let le32 = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let bps = le16(11);
+    let fat = le16(14) * bps;
+    let fat_bytes = le32(36) as usize * bps;
+    for k in 0..bytes[16] as usize {
+        let e = fat + k * fat_bytes + c as usize * 4;
+        bytes[e..e + 4].copy_from_slice(&v.to_le_bytes());
+    }
+}
+
+#[test]
+fn zeroing_the_free_space_of_a_thousand_entries_on_one_looping_chain_reads_a_bounded_number_of_times()
+ {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("zero-loops");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("ONE.BIN", &pattern(600, 1)).unwrap();
+    let mut bytes = v.into_disk();
+    // One file whose chain runs on from its end into a loop of three
+    // clusters, and a thousand entries naming it.
+    let at = bytes.windows(11).position(|w| w == b"ONE     BIN").unwrap();
+    let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+    let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+    let first = (u32::from(hi) << 16) | u32::from(lo);
+    set_fat32(&mut bytes, first + 1, first + 2);
+    set_fat32(&mut bytes, first + 2, first + 3);
+    set_fat32(&mut bytes, first + 3, first + 1);
+    set_fat32(&mut bytes, first, first + 1);
+    let entry: Vec<u8> = bytes[at..at + 32].to_vec();
+    for i in 1..1000usize {
+        let mut e = entry.clone();
+        e[0] = b'A' + (i % 26) as u8;
+        e[1] = b'0' + (i / 26 % 10) as u8;
+        e[2] = b'0' + (i / 260 % 10) as u8;
+        e[3] = b'0' + (i / 2600 % 10) as u8;
+        e[11] = 0x20;
+        e[28..32].copy_from_slice(&600u32.to_le_bytes());
+        bytes[at + i * 32..at + (i + 1) * 32].copy_from_slice(&e);
+    }
+    let mut v = Volume::open(Reads { bytes, reads: 0 }).unwrap();
+    let mut from = 2;
+    let mut done = false;
+    for _ in 0..50 {
+        match v.zero_free(from, 1 << 30) {
+            Ok(z) if z.done => {
+                done = true;
+                break;
+            }
+            Ok(z) => from = z.next,
+            Err(_) => break,
+        }
+    }
+    let reads = v.into_disk().reads;
+    assert!(done, "the free space was not zeroed to its end");
+    assert!(
+        reads < 20_000,
+        "{reads} reads to zero the free space of a thousand entries"
+    );
+}
+
+#[test]
+fn entries_past_the_end_of_the_directory_are_not_shown_by_a_write_beside_them() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("hidden");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("REAL.TXT", b"real").unwrap();
+    let mut bytes = v.into_disk();
+    // Past the end of the directory, an entry no listing shows.
+    let at = bytes.windows(11).position(|w| w == b"REAL    TXT").unwrap();
+    let mut hidden = bytes[at..at + 32].to_vec();
+    hidden[..11].copy_from_slice(b"HIDDEN  TXT");
+    bytes[at + 64..at + 96].copy_from_slice(&hidden);
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 1);
+    let made = v.create("NEW.TXT", b"new");
+    assert!(
+        matches!(made, Err(Error::Corrupt(Fault::HiddenEntries))),
+        "{made:?}"
+    );
+    let mut after: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    after.sort();
+    assert_eq!(after, ["REAL.TXT"]);
+}
+
+#[test]
+fn a_name_with_a_control_character_is_listed_without_it() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("printable");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("evil.txt", b"x").unwrap();
+    let mut bytes = v.into_disk();
+    let at = bytes.windows(11).position(|w| w == b"EVIL    TXT").unwrap();
+    bytes[at + 1] = 0x01;
+    bytes[at + 2] = 0x85;
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 1);
+    assert!(
+        names[0].chars().all(|c| !c.is_control()),
+        "{:?} listed",
+        names[0]
+    );
+}
+
+#[test]
+fn the_fuzz_targets_fat32_seed_is_a_volume_that_opens_and_lists() {
+    let seed = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fuzz/corpus/fat/fat32-two-files.img");
+    let mut v = Volume::open(std::fs::read(seed).unwrap()).unwrap();
+    assert_eq!(v.kind(), Kind::Fat32);
+    assert_eq!(v.read("HELLO.TXT", 1 << 20).unwrap(), b"hello");
+    v.create("new.txt", b"faraday").unwrap();
+    assert_eq!(v.read("new.txt", 1 << 20).unwrap(), b"faraday");
+}
+
+#[test]
+fn two_files_whose_names_differ_only_in_hidden_characters_stay_two_files() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("hidden-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("aaa.txt", b"one").unwrap();
+    v.create("aab.txt", b"two").unwrap();
+    let mut bytes = v.into_disk();
+    for (name, c) in [(b"AAA     TXT", 0x01u8), (b"AAB     TXT", 0x02u8)] {
+        let at = bytes.windows(11).position(|w| w == name).unwrap();
+        bytes[at + 1] = c;
+        bytes[at + 2] = b'X';
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[0], names[1], "shown the same");
+    v.delete("A\u{1}X.TXT").unwrap();
+    let left = v.list().unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(v.read("A\u{2}X.TXT", 1 << 20).unwrap(), b"two");
+}
+
+#[test]
+fn a_long_name_with_a_direction_mark_is_listed_without_it() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("lfn-marks");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("longname_for_lfn.txt", b"x").unwrap();
+    let mut bytes = v.into_disk();
+    // The first long-name slot: its fourth and sixth characters.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o] & 0x1F == 1)
+        .unwrap();
+    bytes[at + 7..at + 9].copy_from_slice(&0x202Eu16.to_le_bytes());
+    bytes[at + 14..at + 16].copy_from_slice(&0x200Eu16.to_le_bytes());
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 1);
+    assert!(
+        !names[0].contains(['\u{202E}', '\u{200E}']),
+        "{:?} listed",
+        names[0]
+    );
+}
+
+#[test]
+fn a_volume_label_with_control_characters_is_drawn_without_them() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("label-controls");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.set_label(Some(*b"FAR\x01\x85\x1bADAY ")).unwrap();
+    let label = v.volume_label().unwrap().unwrap();
+    assert!(label.chars().all(|c| !c.is_control()), "{label:?}");
+}
+
+#[test]
+fn a_name_two_files_share_by_case_is_acted_on_for_neither() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("case-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("mine.kdbx", b"vault").unwrap();
+    v.create("mind.kdbx", b"decoy").unwrap();
+    let mut bytes = v.into_disk();
+    // The second's long name becomes MINE.KDBX, beside the first's mine.kdbx.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o + 1] == b'm' && bytes[o + 7] == b'd')
+        .unwrap();
+    for (k, c) in b"MINE.KDBX".iter().enumerate() {
+        let units = [1, 3, 5, 7, 9, 14, 16, 18, 20];
+        bytes[at + units[k]] = *c;
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 2);
+    assert!(v.read("mine.kdbx", 1 << 20).is_err());
+    assert!(v.wipe("mine.kdbx").is_err());
+    assert!(v.delete("mine.kdbx").is_err());
+    assert_eq!(v.list().unwrap().len(), 2, "nothing was deleted");
+    // Another name onto the twins, and a write of the name they share, are
+    // refused too, and both files stay.
+    v.create("other.kdbx", b"o").unwrap();
+    assert!(matches!(
+        v.rename("other.kdbx", "mine.kdbx"),
+        Err(Error::Exists)
+    ));
+    assert!(matches!(v.create("mine.kdbx", b"new"), Err(Error::Exists)));
+    assert!(matches!(v.create("MINE.kdbx", b"new"), Err(Error::Exists)));
+    assert_eq!(v.list().unwrap().len(), 3, "both files stay");
+    assert_eq!(v.read("other.kdbx", 1 << 20).unwrap(), b"o");
+}
+
+#[test]
+fn saving_a_vault_under_a_name_two_folders_share_by_case_is_refused() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("folder-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let i = img.to_str().unwrap();
+    assert!(mtools("mmd", &["-i", i, "::vault.kdbx"]).0);
+    assert!(mtools("mmd", &["-i", i, "::vaulu.kdbx"]).0);
+    let mut bytes = std::fs::read(&img).unwrap();
+    // The second folder's long name becomes VAULT.KDBX, beside vault.kdbx.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o + 1] == b'v' && bytes[o + 9] == b'u')
+        .unwrap();
+    for (k, c) in b"VAULT.KDBX".iter().enumerate() {
+        let units = [1, 3, 5, 7, 9, 14, 16, 18, 20, 22];
+        bytes[at + units[k]] = *c;
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 2);
+    assert!(matches!(
+        v.create("vault.kdbx", b"vault"),
+        Err(Error::Exists)
+    ));
+    v.create("temp.kdbx", b"vault").unwrap();
+    assert!(matches!(
+        v.rename("temp.kdbx", "vault.kdbx"),
+        Err(Error::Exists)
+    ));
+    let names: Vec<_> = v
+        .list()
+        .unwrap()
+        .into_iter()
+        .map(|e| (e.name, e.dir))
+        .collect();
+    assert_eq!(
+        names.len(),
+        3,
+        "both folders stay and nothing joins them: {names:?}"
+    );
+    assert_eq!(v.read("temp.kdbx", 1 << 20).unwrap(), b"vault");
+}
+
+#[test]
+fn a_name_two_files_share_by_what_is_shown_is_acted_on_for_neither() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("shown-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("aaa.txt", b"one").unwrap();
+    v.create("aab.txt", b"two").unwrap();
+    let mut bytes = v.into_disk();
+    for (name, c) in [(b"AAA     TXT", 0x01u8), (b"AAB     TXT", 0x02u8)] {
+        let at = bytes.windows(11).position(|w| w == name).unwrap();
+        bytes[at + 1] = c;
+        bytes[at + 2] = b'X';
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    let shown = v.list().unwrap()[0].name.clone();
+    assert!(v.read(&shown, 1 << 20).is_err());
+    assert!(v.delete(&shown).is_err());
+    assert!(v.wipe(&shown).is_err());
+    v.create("other.txt", b"o").unwrap();
+    assert!(matches!(v.rename("other.txt", &shown), Err(Error::Exists)));
+    assert!(matches!(v.create(&shown, b"new"), Err(Error::Exists)));
+    assert_eq!(v.list().unwrap().len(), 3, "nothing was added or deleted");
+}
+
+#[test]
+fn zeroing_the_free_space_with_a_folder_whose_chain_loops_ends_and_leaves_the_volume_usable() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("zero-folder-loop");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let i = img.to_str().unwrap();
+    assert!(mtools("mmd", &["-i", i, "::SUB"]).0);
+    let keep = pattern(900, 3);
+    mput(&dir, &img, "KEEP.BIN", &keep);
+    let mut bytes = std::fs::read(&img).unwrap();
+    let at = bytes.windows(11).position(|w| w == b"SUB        ").unwrap();
+    let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+    let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+    let first = (u32::from(hi) << 16) | u32::from(lo);
+    // The folder's one cluster is followed by itself.
+    set_fat32(&mut bytes, first, first);
+    let mut v = Volume::open(Reads { bytes, reads: 0 }).unwrap();
+    let mut from = 2;
+    let mut done = false;
+    for _ in 0..50 {
+        match v.zero_free(from, 1 << 30) {
+            Ok(z) if z.done => {
+                done = true;
+                break;
+            }
+            Ok(z) => from = z.next,
+            // The loop is refused, not walked.
+            Err(Error::Corrupt(_)) => {
+                done = true;
+                break;
+            }
+            Err(e) => panic!("{e:?}"),
+        }
+    }
+    assert!(done, "zeroing did not end");
+    assert_eq!(v.read("KEEP.BIN", 1 << 20).unwrap(), keep);
 }
