@@ -155,8 +155,9 @@ beside them, after a first job that does nothing on a pull request or a run
 by hand. Its result is shown on the commit and the pull request. A push to
 main whose head commit already passed this check (a run of it started by hand
 on a branch) runs nothing again: that first job finds the run, names it, and
-skips the rest (F265); when a manifest or lock file changed, so main's cache
-needs saving, only the test shards are skipped.
+skips every test and lint (F265); when main's cache lacks the dependencies
+of a job (a manifest or lock file changed), one more job per missing cache
+compiles just those dependencies and saves them, running no test or lint.
 
 One crate's tests or one lint recipe can run there alone, started by hand on
 any branch (`.github/workflows/targeted.yml`, F243); `lint` is `none` for

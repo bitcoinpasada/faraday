@@ -9,9 +9,11 @@
 #
 # A push to main whose head commit already has a passed run of this workflow (the
 # push train's, started by hand on a branch) runs nothing again: the first job,
-# gate, finds that run and the later jobs are skipped (docs/decisions/F265.md).
+# gate, finds that run and the check's jobs are skipped; only warm, on main, then
+# compiles the dependencies of each job whose cache main lacks, without running
+# any test or lint (docs/decisions/F265.md).
 #
-# `just` is spread over twenty-three jobs: gate, then one compiles the tests once and
+# `just` is spread over twenty-four jobs: gate, then one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests
 # and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
@@ -51,7 +53,7 @@ jobs:
       actions: read
     outputs:
       pass: ${{ steps.look.outputs.pass }}
-      skip: ${{ steps.look.outputs.skip }}
+      warm: ${{ steps.look.outputs.warm }}
     steps:
       - if: github.event_name == 'push'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,35 +67,80 @@ jobs:
           TOOLS_HASH: ${{ github.event_name == 'push' && hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') || '' }}
         run: |
           set -euo pipefail
-          echo "pass=false" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "pass=false" >> "$GITHUB_OUTPUT"; echo "warm=[]" >> "$GITHUB_OUTPUT"
           [ "$EVENT" = push ] || { echo "Not a push to main: the whole check runs."; exit 0; }
           run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=30" \
             --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | first | .id // empty")
           if [ -z "$run" ]; then echo "No passed run of this check on ${GITHUB_SHA}: the whole check runs."; exit 0; fi
           echo "pass=true" >> "$GITHUB_OUTPUT"
           echo "Run ${run} already passed the check on ${GITHUB_SHA}." | tee -a "$GITHUB_STEP_SUMMARY"
-          # Main's caches (F212: only a push to main writes them) for this commit's manifests: a missing one
-          # means the jobs that save it run again, with only the test shards skipped.
+          # Main's caches (F212: only a push to main writes them) for this commit's manifests: each
+          # missing one is warmed by the job `warm`, which compiles that job's dependencies and runs nothing else.
           tools=$(grep -o 'TOOLS=[^"]*' .github/actions/setup/action.yml | head -1 | cut -d= -f2)
-          missing=
-          for k in "deps-Linux-build-tests-${DEPS_HASH}" "deps-Linux-doc-tests-${DEPS_HASH}" \
-                   "deps-Linux-lint-clippy-${DEPS_HASH}" "deps-Linux-lint-deps-${DEPS_HASH}" "deps-Linux-lint-repo-${DEPS_HASH}" \
-                   "deps-Linux-lint-touch-targets-${DEPS_HASH}" "deps-Linux-lint-op-cost-${DEPS_HASH}" "cargo-Linux-${tools}-${TOOLS_HASH}"; do
+          warm=
+          for j in build-tests doc-tests lint-clippy lint-deps lint-repo lint-touch-targets lint-op-cost; do
+            k="deps-Linux-${j}-${DEPS_HASH}"
             n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/caches?ref=refs/heads/main&key=${k}" \
               --jq "[.actions_caches[] | select(.key == \"${k}\")] | length")
-            [ "$n" != 0 ] || missing="${missing} ${k}"
+            [ "$n" != 0 ] || warm="${warm} ${j}"
           done
-          if [ -n "$missing" ]; then
-            echo "Main's cache lacks:${missing}: the jobs that save it run, the test shards do not." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
+          k="cargo-Linux-${tools}-${TOOLS_HASH}"
+          n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/caches?ref=refs/heads/main&key=${k}" \
+            --jq "[.actions_caches[] | select(.key == \"${k}\")] | length")
+          # The tools cache is saved by any warm job; lint-repo's is the cheapest.
+          case " ${warm} " in *" lint-repo "*) ;; *) [ "$n" != 0 ] || warm="${warm} lint-repo" ;; esac
+          if [ -n "$warm" ]; then
+            echo "warm=$(printf '%s\n' $warm | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+            echo "Main's cache lacks the dependencies of:${warm}: warm saves them, nothing else runs." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Main's caches are there: nothing else runs." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          echo "skip=true" >> "$GITHUB_OUTPUT"
-          echo "Main's caches are there: nothing else runs." | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # A push to main whose head already passed (F265): for each job whose
+  # dependencies main's cache lacks, compile just those and save them (F212),
+  # with no test or lint run. The compile is the one the job's own command
+  # does, so the cached files are the ones the job restores.
+  warm:
+    name: warm ${{ matrix.job }}
+    needs: gate
+    if: needs.gate.outputs.pass == 'true' && needs.gate.outputs.warm != '[]' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.gate.outputs.warm) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          deps: ${{ matrix.job }}
+      # Each is the compile of that job's command (below), without its run:
+      # lint-clippy's deps are cargo check's, as clippy builds a dependency with
+      # plain rustc; lint-deps compiles nothing in target/ (the fuzz crates have
+      # their own folders), so its cache is only saved.
+      - name: Compile this job's dependencies
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          case "$JOB" in
+            build-tests)        cargo nextest archive --locked --workspace --archive-file "$RUNNER_TEMP/warm.tar.zst" ;;
+            doc-tests)          cargo test --locked --workspace --doc --no-run ;;
+            lint-clippy)        cargo check --locked --workspace --all-targets ;;
+            lint-deps)          ;;
+            lint-repo)          cargo build --locked -p costs-lint ;;
+            lint-touch-targets) cargo nextest archive --locked -p faraday-snapshot -p faraday-starter --archive-file "$RUNNER_TEMP/warm.tar.zst" ;;
+            lint-op-cost)       cargo build --locked --release -p op-cost ;;
+            *) echo "unknown job $JOB"; exit 1 ;;
+          esac
+      - uses: ./.github/actions/save-deps
 
   build-tests:
     name: build tests
     needs: gate
-    if: needs.gate.outputs.skip != 'true'
+    if: needs.gate.outputs.pass != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     steps:
@@ -147,7 +194,7 @@ jobs:
   doc-tests:
     name: doc tests
     needs: gate
-    if: needs.gate.outputs.skip != 'true'
+    if: needs.gate.outputs.pass != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     steps:
@@ -165,7 +212,7 @@ jobs:
   lint:
     name: ${{ matrix.part }}
     needs: gate
-    if: needs.gate.outputs.skip != 'true'
+    if: needs.gate.outputs.pass != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     strategy:
@@ -193,7 +240,7 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [gate, build-tests, tests, doc-tests, lint]
+    needs: [gate, build-tests, tests, doc-tests, lint, warm]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -203,6 +250,6 @@ jobs:
           GATE: ${{ needs.gate.result }}
         run: |
           echo "gate $GATE; $RESULTS"
-          # A job skipped because gate found a pass (F265) is not a failure; gate itself must have passed.
+          # A job skipped (gate found a pass, or warm had nothing to warm, F265) is not a failure; gate itself must have passed.
           [ "$GATE" = success ] || exit 1
           for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || exit 1; done
