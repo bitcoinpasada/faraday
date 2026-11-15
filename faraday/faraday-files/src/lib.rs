@@ -552,7 +552,7 @@ pub fn vault_names(c: &Compute, place: &mut dyn Place, _files: &[(Text, u64)]) -
         let named = is_kdbx_name(n);
         let fit = !((n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(len));
         if fit && taken < MAX_VAULT_CANDIDATES {
-            taken += 1;
+            taken = taken.saturating_add(1);
             return true;
         }
         false
