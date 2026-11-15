@@ -48,8 +48,8 @@ use row::{ROW_ROOM, ROW_TEXT, press_row};
 
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
-    LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_PAD_V, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H,
-    PROGRESS_H, RAIL_W, SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S, TPL_OPTION_GAP,
+    GAP_SMALL, LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_PAD_V, MARGIN_COMPACT, MARGIN_WIDE,
+    NAV_BAR_H, PROGRESS_H, RAIL_W, SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S, TPL_OPTION_GAP,
     TPL_OPTION_INDENT, TypeRole,
 };
 
@@ -1806,71 +1806,93 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y + 24.0 - y0
 }
 
-/// BitLocker on the system drive (§6, F49), on Windows with it on or
-/// suspended: the drive's state as Windows reads it, and the one step it
-/// allows, never required: Temporarily suspend BitLocker while on,
-/// Resume BitLocker while suspended. Returns its height.
+/// BitLocker on the system drive (§6, F49), on Windows with it on,
+/// suspended or not read: the drive's state as Windows reads it, the one
+/// step it allows, never required (Temporarily suspend BitLocker while
+/// on, Resume BitLocker while suspended), and, while the restart would
+/// be held, the line saying Windows may ask for the recovery key. Not
+/// read shows the row and that line only. Returns its height.
 fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let Some(b) = starter
+    let unread = starter.bitlocker_unread();
+    let read = starter
         .bitlocker
         .as_ref()
-        .filter(|_| starter.bitlocker_offered())
-    else {
+        .filter(|_| !unread && starter.bitlocker_offered());
+    if !unread && read.is_none() {
         return 0.0;
-    };
+    }
     let mut y = y0;
-    let on = b.protection == crate::api::Protection::On;
-    let state = if on {
-        S.starter_bitlocker_enabled.to_string()
-    } else {
-        match b.starts_left {
-            Some(0) => S.starter_bitlocker_suspended_until.to_string(),
-            Some(1) => S.starter_bitlocker_suspended_once.to_string(),
-            Some(n) => fill(S.starter_bitlocker_suspended_times, &[&n.to_string()]),
-            None => S.starter_bitlocker_suspended.to_string(),
+    let on = read.is_some_and(|b| b.protection == crate::api::Protection::On);
+    let (key, state) = match read {
+        None => {
+            let drive = starter.bitlocker.as_ref().map_or("", |b| b.drive.as_str());
+            let key = if drive.is_empty() {
+                S.starter_bitlocker_row_system.to_string()
+            } else {
+                fill(S.starter_bitlocker_row, &[drive])
+            };
+            (key, S.starter_bitlocker_not_read.to_string())
+        }
+        Some(b) => {
+            let state = if on {
+                S.starter_bitlocker_enabled.to_string()
+            } else {
+                match b.starts_left {
+                    Some(0) => S.starter_bitlocker_suspended_until.to_string(),
+                    Some(1) => S.starter_bitlocker_suspended_once.to_string(),
+                    Some(n) => fill(S.starter_bitlocker_suspended_times, &[&n.to_string()]),
+                    None => S.starter_bitlocker_suspended.to_string(),
+                }
+            };
+            (fill(S.starter_bitlocker_row, &[&b.drive]), state)
         }
     };
-    y += note_row(
-        ui,
-        x,
-        y,
-        w,
-        &fill(S.starter_bitlocker_row, &[&b.drive]),
-        &state,
-        Role::OnSurface,
-    );
+    y += note_row(ui, x, y, w, &key, &state, Role::OnSurface);
     y += 10.0;
-    if let Some(why) = &starter.bitlocker_failed {
-        y += line(ui, x, y, w, &reason_text(why), Role::Error);
+    if read.is_some() {
+        if let Some(why) = &starter.bitlocker_failed {
+            y += line(ui, x, y, w, &reason_text(why), Role::Error);
+        }
+        let busy = starter.bitlocker_step.is_some();
+        let style = Style::Secondary.when(!busy);
+        let (label, action) = if on {
+            (S.starter_bitlocker_suspend, StarterAction::SuspendBitLocker)
+        } else {
+            (S.starter_bitlocker_resume, StarterAction::ResumeBitLocker)
+        };
+        y += buttons(ui, x, y, w, &[(label, style, action)]) + 8.0;
+        if busy {
+            y += line(
+                ui,
+                x,
+                y,
+                w,
+                S.starter_waiting_permission,
+                Role::OnSurfaceVariant,
+            );
+        } else if on {
+            y += line(
+                ui,
+                x,
+                y,
+                w,
+                &fill(
+                    S.starter_bitlocker_suspend_note,
+                    &[&crate::api::SUSPEND_STARTS.to_string()],
+                ),
+                Role::OnSurfaceVariant,
+            );
+        }
     }
-    let busy = starter.bitlocker_step.is_some();
-    let style = Style::Secondary.when(!busy);
-    let (label, action) = if on {
-        (S.starter_bitlocker_suspend, StarterAction::SuspendBitLocker)
-    } else {
-        (S.starter_bitlocker_resume, StarterAction::ResumeBitLocker)
-    };
-    y += buttons(ui, x, y, w, &[(label, style, action)]) + 8.0;
-    if busy {
+    let idle_on = on && starter.bitlocker_step.is_none();
+    if (unread || idle_on) && starter.restart_needs_key() {
         y += line(
             ui,
             x,
             y,
             w,
-            S.starter_waiting_permission,
-            Role::OnSurfaceVariant,
-        );
-    } else if on {
-        y += line(
-            ui,
-            x,
-            y,
-            w,
-            &fill(
-                S.starter_bitlocker_suspend_note,
-                &[&crate::api::SUSPEND_STARTS.to_string()],
-            ),
-            Role::OnSurfaceVariant,
+            S.starter_bitlocker_restart_warning,
+            Role::Warning,
         );
     }
     y + 16.0 - y0
@@ -1949,14 +1971,18 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
         RestartTo::Firmware => S.starter_restart,
         RestartTo::Stick => S.starter_restart_stick,
     };
-    let actions = [
-        (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-        (
-            S.starter_restart_now,
-            Style::Primary,
-            StarterAction::RestartNow,
-        ),
-    ];
+    // BitLocker on or not read, not suspended, no key printed: the
+    // restart is a hold under the warning (F136).
+    let held = starter.restart_needs_key();
+    let press = [(
+        S.starter_restart_now,
+        Style::Primary,
+        StarterAction::RestartNow,
+    )];
+    let actions: Vec<_> =
+        std::iter::once((S.starter_cancel, Style::Secondary, StarterAction::Cancel))
+            .chain(press.into_iter().filter(|_| !held))
+            .collect();
     let title = (Icon::Power, Role::OnSurface, head);
     dialog(
         ui,
@@ -1984,12 +2010,35 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
                 );
             }
             y += 4.0;
+            if held {
+                y += line(
+                    ui,
+                    x,
+                    y,
+                    iw,
+                    S.starter_bitlocker_restart_warning,
+                    Role::Warning,
+                ) + GAP_SMALL;
+            }
             if to == RestartTo::Stick && os == Os::Linux {
                 y += link(ui, x, y, iw, StartGuide::BootEntry);
             }
             // Small enough on a small panel that the sheet's buttons fit.
             let side = if ui.compact { 104.0 } else { 160.0 };
             y += phone_code(starter, ui, x, y, iw, side, &address);
+            if held {
+                y += hold(
+                    starter,
+                    ui,
+                    (x, y, iw),
+                    if starter.bitlocker_unread() {
+                        S.starter_restart_unread_hold
+                    } else {
+                        S.starter_restart_without_key_hold
+                    },
+                    StarterAction::RestartNow,
+                );
+            }
             y - y0
         },
         &actions,

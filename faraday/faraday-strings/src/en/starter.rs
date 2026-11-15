@@ -544,6 +544,18 @@ macro_rules! words_starter {
     starter_bitlocker_suspend: "Temporarily suspend BitLocker",
     /// Under the button: `{}` the number of starts.
     starter_bitlocker_suspend_note: "For the next {} times Windows starts; then it turns back on by itself",
+    /// On the Start page after the suspend button's note while BitLocker
+    /// is on or not read, and on the restart sheet above its hold, until
+    /// the key is printed or BitLocker suspended.
+    starter_bitlocker_restart_warning: "Windows may ask for the recovery key if it starts with Secure Boot off or this computer's Secure Boot keys changed.",
+    /// The Start page's BitLocker row when the drive is not known.
+    starter_bitlocker_row_system: "BitLocker, system drive",
+    /// Its value: the state could not be read.
+    starter_bitlocker_not_read: "Not read",
+    /// Restart sheet's hold while BitLocker's state is not known.
+    starter_restart_unread_hold: "Hold to restart, BitLocker not read",
+    /// Restart sheet's hold while BitLocker is on, not suspended, no key printed.
+    starter_restart_without_key_hold: "Hold to restart without the recovery key",
     /// Button: turn BitLocker back on now.
     starter_bitlocker_resume: "Resume BitLocker",
     /// While the elevation prompt is open.

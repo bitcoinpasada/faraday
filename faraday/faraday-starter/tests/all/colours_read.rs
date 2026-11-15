@@ -201,7 +201,8 @@ fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
     })));
     out.push(("write failed", failed));
 
-    let mut begin = start(w, h, theme, true);
+    // Taller than the page's first screen: its steps are all drawn.
+    let mut begin = start(w, h * 2, theme, true);
     begin.press(StarterAction::Start);
     begin.starter_event(StarterEvent::BitLocker(Some(BitLocker {
         drive: "C:".into(),

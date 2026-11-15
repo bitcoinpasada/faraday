@@ -11,7 +11,9 @@ The last step turns Secure Boot back on, before Windows starts. With Secure Boot
 
 1. Plug the stick in.
 
-2. Open the BIOS with Faraday Starter's Restart into the BIOS.
+2. BitLocker on: Temporarily suspend BitLocker, or print the recovery key.
+
+3. Open the BIOS with Faraday Starter's Restart into the BIOS.
 
 By hand: Settings → System → Recovery (Windows 10: Settings → Update & Security → Recovery), Restart now beside Advanced startup, then Troubleshoot → Advanced options → UEFI Firmware Settings → Restart.
 
@@ -19,7 +21,7 @@ No UEFI Firmware Settings entry: restart and press the maker's key at power-on, 
 
 Use Restart, not Shut down: with Fast Startup on, Shut down does not fully close Windows.
 
-3. Find Secure Boot, usually on the Security, Boot or Authentication tab, and set it to Disabled. Save changes and exit.
+4. Find Secure Boot, usually on the Security, Boot or Authentication tab, and set it to Disabled. Save changes and exit.
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
@@ -27,7 +29,7 @@ If the Secure Boot setting cannot be found: exit the BIOS without saving changes
 
 ## Choosing the stick
 
-4. Saving restarts the computer. On that restart, press the maker's boot menu key and choose the stick, before Windows starts. If it is listed twice, choose the one that starts with UEFI.
+5. Saving restarts the computer. On that restart, press the maker's boot menu key and choose the stick, before Windows starts. If it is listed twice, choose the one that starts with UEFI.
 
 The stick is listed under the name printed on it (SanDisk, Kingston…), often after "UEFI:", not as Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
@@ -35,9 +37,9 @@ Without a boot menu key: choose the stick in the BIOS's boot override list. If t
 
 ## Afterwards
 
-5. Turn the computer off from Faraday and pull the stick out.
+6. Turn the computer off from Faraday and pull the stick out.
 
-6. Turn Secure Boot back on: open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts.
+7. Turn Secure Boot back on: open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts.
 
 If Secure Boot cannot be enabled, or Windows does not start with it on: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 

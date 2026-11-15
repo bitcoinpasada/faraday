@@ -827,6 +827,12 @@ pub struct Starter {
     pub include_key: bool,
     /// The recovery key is being read for the sheet.
     pub key_reading: bool,
+    /// The sheet with the recovery key opened in this run: the key is
+    /// on paper, so the restart needs no hold (F136).
+    pub(crate) key_printed: bool,
+    /// A sheet with the recovery key was sent to the shell and has not
+    /// opened yet.
+    key_pending: bool,
     /// Another encryption product found here (§6.4), by name.
     pub other: Option<String>,
     /// The person said they have its rescue disk or password.
@@ -959,6 +965,8 @@ impl Starter {
             bitlocker_failed: None,
             include_key: false,
             key_reading: false,
+            key_printed: false,
+            key_pending: false,
             other: None,
             other_confirmed: false,
             concerns: Vec::new(),
@@ -1106,6 +1114,32 @@ impl Starter {
                 .is_some_and(|b| matches!(b.protection, Protection::On | Protection::Suspended))
     }
 
+    /// Whether BitLocker's state on this Windows computer is not known:
+    /// not yet read, the read failed, or Windows gave an answer that is
+    /// none of the three (`Protection::Unknown`). A lookup.
+    pub(crate) fn bitlocker_unread(&self) -> bool {
+        self.computer.os == Os::Windows
+            && self.facts().mac().is_none()
+            && self
+                .bitlocker
+                .as_ref()
+                .is_none_or(|b| b.protection == Protection::Unknown)
+    }
+
+    /// Whether the restart is a hold (F136): on Windows, BitLocker is on
+    /// or not read, neither suspended nor with its recovery key printed in
+    /// this run, so Windows may ask for the key at the next start (an
+    /// unencrypted PC is held too: not knowing fails closed). A lookup.
+    pub(crate) fn restart_needs_key(&self) -> bool {
+        !self.key_printed
+            && (self.bitlocker_unread()
+                || (self.bitlocker_offered()
+                    && self
+                        .bitlocker
+                        .as_ref()
+                        .is_some_and(|b| b.protection == Protection::On)))
+    }
+
     /// Whether `step` can be asked now: offered, nothing under way, and
     /// the drive as the step needs it (Suspend with protection on,
     /// Resume while suspended).
@@ -1130,6 +1164,7 @@ impl Starter {
         let c = self.held.compute();
         if let Some(notes) = notes::Notes::for_computer(&self.computer) {
             self.notes_open_failed = None;
+            self.key_pending = keys.is_some();
             let pdf = match &keys {
                 Some(k) => notes.pdf_with_key(&c, k),
                 None => notes.pdf(&c),
@@ -1551,7 +1586,12 @@ impl Starter {
             StarterEvent::TemplateOpened(r) => {
                 self.template.open_failed = r.err();
             }
-            StarterEvent::NotesOpened(r) => self.notes_open_failed = r.err(),
+            StarterEvent::NotesOpened(r) => {
+                // Printed means the sheet that carried the key opened.
+                self.key_printed |= self.key_pending && r.is_ok();
+                self.key_pending = false;
+                self.notes_open_failed = r.err();
+            }
             StarterEvent::BitLocker(b) => {
                 // The reading without elevation has no count: the one the
                 // elevated copy read this session stands while the drive
@@ -1692,6 +1732,20 @@ impl Starter {
         // A Mac's Start page has no BitLocker block: its steps change
         // Startup Security, not Secure Boot.
         if page == Page::Start && self.computer.os == Os::Windows && self.facts().mac().is_none() {
+            self.out.push_back(StarterCommand::ReadBitLocker);
+        }
+    }
+
+    /// Opens the restart sheet. On Windows with BitLocker not read yet
+    /// (Home's Next reaches the sheet without the Start page) it asks
+    /// for the reading, which changes nothing, so the sheet holds the
+    /// restart only for what Windows answers (F49, F136).
+    fn open_restart(&mut self, to: RestartTo) {
+        self.sheet = Some(Sheet::Restart(to));
+        if self.computer.os == Os::Windows
+            && self.facts().mac().is_none()
+            && self.bitlocker.is_none()
+        {
             self.out.push_back(StarterCommand::ReadBitLocker);
         }
     }
@@ -1901,9 +1955,9 @@ impl Starter {
                 Card::Firmware | Card::Stick if !self.restart_holds().is_empty() => {}
                 Card::Firmware => {
                     self.restart_failed = None;
-                    self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
+                    self.open_restart(RestartTo::Firmware);
                 }
-                Card::Stick => self.sheet = Some(Sheet::Restart(RestartTo::Stick)),
+                Card::Stick => self.open_restart(RestartTo::Stick),
                 Card::StartMac => self.go(Page::Start),
             },
             StarterAction::Item(item) => match item {
@@ -1993,7 +2047,7 @@ impl Starter {
                     && self.restart_holds().is_empty()
                 {
                     self.restart_failed = None;
-                    self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
+                    self.open_restart(RestartTo::Firmware);
                 }
             }
             StarterAction::RestartStick => {
@@ -2003,7 +2057,7 @@ impl Starter {
                     && !self.facts().protected_open()
                     && self.restart_holds().is_empty()
                 {
-                    self.sheet = Some(Sheet::Restart(RestartTo::Stick));
+                    self.open_restart(RestartTo::Stick);
                 }
             }
             StarterAction::RestartNow if !self.restart_holds().is_empty() => self.sheet = None,

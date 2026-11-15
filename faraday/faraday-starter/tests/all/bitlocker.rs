@@ -2,13 +2,14 @@
 //! Windows with BitLocker on the system drive, the page offers, never
 //! requires, to suspend it for the next three times Windows starts, to
 //! resume it, and to put its recovery key on the printed sheet when the
-//! person ticks it. With BitLocker off, not read, or not on Windows,
-//! none of it shows. The key is never drawn and never a QR code.
+//! person ticks it. With BitLocker off or not on Windows, none of it
+//! shows; not read shows "Not read". The key is never drawn and never a
+//! QR code.
 
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, Computer, Os, Protection, Reason, RecoveryKey, StarterCommand,
-    StarterEvent,
+    BitLocker, BitLockerStep, Bus, Computer, Disk, FaradayStick, Os, Protection, Reason,
+    RecoveryKey, StarterCommand, StarterEvent,
 };
 use faraday_starter::notes::Notes;
 use faraday_starter::{Page, Starter, StarterAction};
@@ -51,6 +52,27 @@ fn drive(protection: Protection, starts_left: Option<u32>) -> Option<BitLocker> 
     })
 }
 
+/// A Faraday stick Windows lists, for the restart from the stick.
+fn faraday_stick() -> Disk {
+    Disk {
+        id: "1".into(),
+        device: "Disk 1".into(),
+        vendor: "Maker".into(),
+        model: "Stick".into(),
+        serial: "SN-1".into(),
+        size: 32_000_000_000,
+        bus: Bus::Usb,
+        volumes: Vec::new(),
+        in_use: None,
+        fixed: false,
+        faraday: Some(FaradayStick {
+            release: Some("6.6.84-faraday-0.2.0".into()),
+            read: true,
+            boot_sha256: None,
+        }),
+    }
+}
+
 fn key() -> RecoveryKey {
     RecoveryKey::parse("C:", ID, KEY).expect("a key")
 }
@@ -60,9 +82,9 @@ fn commands(s: &mut Starter) -> Vec<StarterCommand> {
     std::iter::from_fn(|| s.next_command()).collect()
 }
 
-/// On the Start page of a computer running `os`, with what Windows reads
-/// of BitLocker answered.
-fn start_page(os: Os, read: Option<BitLocker>) -> Starter {
+/// The Home page of a computer running `os`, no stick attached, nothing
+/// asked of the shell yet.
+fn home(os: Os) -> Starter {
     let mut s = Starter::new();
     s.event(Event::Display(DisplayInfo {
         width: 1280,
@@ -79,6 +101,13 @@ fn start_page(os: Os, read: Option<BitLocker>) -> Starter {
     s.starter_event(StarterEvent::Computer(dell(os)));
     s.starter_event(StarterEvent::Disks(Vec::new()));
     let _ = commands(&mut s);
+    s
+}
+
+/// On the Start page of a computer running `os`, with what Windows reads
+/// of BitLocker answered.
+fn start_page(os: Os, read: Option<BitLocker>) -> Starter {
+    let mut s = home(os);
     s.press(StarterAction::Start);
     assert_eq!(s.page, Page::Start);
     let asked = commands(&mut s);
@@ -244,7 +273,7 @@ fn a_refused_step_says_why_and_the_drive_stays_as_read() {
 }
 
 #[test]
-fn with_bitlocker_off_not_read_or_not_on_windows_none_of_it_shows() {
+fn bitlocker_steps_and_key_show_only_when_read_on_on_windows() {
     for (os, read) in [
         (Os::Windows, drive(Protection::None, None)),
         (Os::Windows, drive(Protection::Unknown, None)),
@@ -252,7 +281,16 @@ fn with_bitlocker_off_not_read_or_not_on_windows_none_of_it_shows() {
         (Os::Linux, None),
     ] {
         let mut s = start_page(os, read.clone());
-        for t in ["BitLocker, drive", SUSPEND, RESUME, TICK] {
+        let unread = os == Os::Windows
+            && read
+                .as_ref()
+                .is_none_or(|b| b.protection == Protection::Unknown);
+        assert_eq!(shows(&mut s, "Not read"), unread, "{os:?} {read:?}");
+        assert!(
+            unread || !shows(&mut s, "BitLocker, drive"),
+            "{os:?} {read:?}"
+        );
+        for t in [SUSPEND, RESUME, TICK] {
             assert!(!shows(&mut s, t), "{os:?} {read:?}: {t}");
         }
         let _ = commands(&mut s);
@@ -415,4 +453,155 @@ fn a_key_read_that_is_empty_says_no_recovery_key_and_prints_nothing() {
     s.starter_event(StarterEvent::RecoveryKey(Ok(Vec::new())));
     assert!(commands(&mut s).is_empty());
     assert!(shows(&mut s, "The drive has no BitLocker recovery key."));
+}
+
+/// The restart sheet on a Windows computer whose Secure Boot is off,
+/// with BitLocker as read.
+fn restart_sheet(read: Option<BitLocker>) -> Starter {
+    let mut s = start_page(Os::Windows, read);
+    let mut c = dell(Os::Windows);
+    c.secure_boot = Some(false);
+    s.starter_event(StarterEvent::Computer(c));
+    let _ = commands(&mut s);
+    s.press(StarterAction::Restart);
+    assert!(s.sheet.is_some(), "the restart sheet is up");
+    let _ = commands(&mut s);
+    s
+}
+
+const RESTART_WARNING: &str = "recovery key if it starts with Secure Boot off";
+const RESTART_HOLD: &str = "Hold to restart without the recovery key";
+const RESTART_UNREAD: &str = "Hold to restart, BitLocker not read";
+
+/// A tap at the restart button, Down and Up, as a finger does.
+fn tap(s: &mut Starter) {
+    let _ = s.drawn_texts();
+    let (x, y) = s.where_offered(StarterAction::RestartNow).expect("offered");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        s.event(Event::Touch { x, y, phase });
+    }
+}
+
+/// The restart is a hold: a tap does nothing, held it sends `sent`.
+fn assert_held(s: &mut Starter, label: &str, sent: StarterCommand) {
+    assert!(shows(s, label), "{label}");
+    let at = position(s, label).expect("the hold");
+    // The sheet's own warning, not the Start page's under it: between the
+    // sheet's first line and the hold.
+    let top =
+        position(s, "This restarts the computer now. Save your work first.").expect("the sheet");
+    let warned = texts(s).iter().rposition(|t| t.contains(RESTART_WARNING));
+    assert!(
+        warned.is_some_and(|w| top < w && w < at),
+        "the warning between the sheet's first line and the hold"
+    );
+    tap(s);
+    assert!(s.sheet.is_some());
+    assert!(commands(s).is_empty());
+    crate::starter::hold(s, StarterAction::RestartNow);
+    assert_eq!(s.sheet, None);
+    assert_eq!(commands(s), [sent]);
+}
+
+/// The restart is a press: one tap restarts.
+fn assert_pressed(s: &mut Starter) {
+    for l in [RESTART_HOLD, RESTART_UNREAD] {
+        assert!(!shows(s, l), "{l}");
+    }
+    tap(s);
+    assert_eq!(s.sheet, None);
+    assert_eq!(commands(s), [StarterCommand::RestartIntoFirmware]);
+}
+
+#[test]
+fn restart_is_a_hold_while_bitlocker_is_on_with_no_key_printed() {
+    let mut s = restart_sheet(drive(Protection::On, None));
+    assert_held(&mut s, RESTART_HOLD, StarterCommand::RestartIntoFirmware);
+}
+
+#[test]
+fn restart_is_a_hold_while_bitlocker_is_not_read() {
+    for read in [None, drive(Protection::Unknown, None)] {
+        let mut s = restart_sheet(read.clone());
+        assert_held(&mut s, RESTART_UNREAD, StarterCommand::RestartIntoFirmware);
+    }
+}
+
+#[test]
+fn restart_to_a_device_is_held_the_same() {
+    let mut s = start_page(Os::Windows, drive(Protection::On, None));
+    let mut c = dell(Os::Windows);
+    c.secure_boot = Some(false);
+    s.starter_event(StarterEvent::Computer(c));
+    s.starter_event(StarterEvent::Disks(vec![faraday_stick()]));
+    let _ = commands(&mut s);
+    s.press(StarterAction::RestartStick);
+    assert!(s.sheet.is_some());
+    assert_held(
+        &mut s,
+        RESTART_HOLD,
+        StarterCommand::RestartFromStick {
+            device: "Disk 1".into(),
+        },
+    );
+}
+
+#[test]
+fn restart_from_home_reads_bitlocker_first_and_is_a_press_when_it_is_off() {
+    let mut s = home(Os::Windows);
+    // With a Faraday stick attached, Home's Next is the restart.
+    s.starter_event(StarterEvent::Disks(vec![faraday_stick()]));
+    let _ = commands(&mut s);
+    assert_eq!(s.page, Page::Home);
+    let _ = s.drawn_texts();
+    s.press(StarterAction::Next);
+    assert!(s.sheet.is_some(), "the restart sheet is up");
+    // Not read yet: the hold, and the reading is asked for.
+    assert_eq!(commands(&mut s), [StarterCommand::ReadBitLocker]);
+    assert!(shows(&mut s, RESTART_UNREAD));
+    // Windows answers there is no BitLocker: one tap restarts.
+    s.starter_event(StarterEvent::BitLocker(drive(Protection::None, None)));
+    assert_pressed(&mut s);
+}
+
+#[test]
+fn restart_is_a_press_once_the_key_sheet_opened() {
+    let mut s = start_page(Os::Windows, drive(Protection::On, None));
+    s.press(StarterAction::IncludeKey);
+    s.press(StarterAction::PrintNotes);
+    s.starter_event(StarterEvent::RecoveryKey(Ok(vec![key()])));
+    let mut c = dell(Os::Windows);
+    c.secure_boot = Some(false);
+    s.starter_event(StarterEvent::Computer(c));
+    // Made but not yet opened, or failed to open: still a hold.
+    s.starter_event(StarterEvent::NotesOpened(Err(Reason::NoWriter)));
+    s.press(StarterAction::Restart);
+    assert!(shows(&mut s, RESTART_HOLD));
+    s.press(StarterAction::Cancel);
+    s.press(StarterAction::PrintNotes);
+    s.starter_event(StarterEvent::RecoveryKey(Ok(vec![key()])));
+    s.starter_event(StarterEvent::NotesOpened(Ok(())));
+    let _ = commands(&mut s);
+    s.press(StarterAction::Restart);
+    assert_pressed(&mut s);
+}
+
+#[test]
+fn restart_is_a_press_while_bitlocker_is_suspended() {
+    let mut s = restart_sheet(drive(Protection::Suspended, Some(3)));
+    assert_pressed(&mut s);
+}
+
+#[test]
+fn the_hold_comes_back_after_resume() {
+    let mut s = start_page(Os::Windows, drive(Protection::Suspended, Some(3)));
+    s.press(StarterAction::ResumeBitLocker);
+    s.starter_event(StarterEvent::BitLocker(drive(Protection::On, None)));
+    let mut c = dell(Os::Windows);
+    c.secure_boot = Some(false);
+    s.starter_event(StarterEvent::Computer(c));
+    let _ = commands(&mut s);
+    s.press(StarterAction::Restart);
+    let _ = commands(&mut s);
+    assert_held(&mut s, RESTART_HOLD, StarterCommand::RestartIntoFirmware);
 }

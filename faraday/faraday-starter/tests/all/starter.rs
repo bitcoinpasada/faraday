@@ -3,8 +3,8 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    Bus, Computer, Concern, DevImage, Disk, FaradayStick, FoundImage, ImageFinding, InUse, Kind,
-    Mode, Os, Reason, Source, StarterCommand, StarterEvent, Volume,
+    BitLocker, Bus, Computer, Concern, DevImage, Disk, FaradayStick, FoundImage, ImageFinding,
+    InUse, Kind, Mode, Os, Protection, Reason, Source, StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Page, RestartTo, Sheet, StartGuide, Starter, StarterAction};
@@ -746,6 +746,12 @@ fn start_offers_the_firmware_buttons_on_windows() {
     // Shown, the page reads BitLocker (F49), which changes nothing.
     assert_eq!(commands(&mut starter), [StarterCommand::ReadBitLocker]);
     assert!(shows(&mut starter, "Restart into the BIOS"));
+    // BitLocker read as off: the restart is a press.
+    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        starts_left: None,
+    })));
     let _ = starter.drawn_texts();
     assert!(starter.offers_action(StarterAction::Restart));
     tap(&mut starter, StarterAction::Restart);
@@ -1019,6 +1025,9 @@ fn homes_next_step_on_windows_with_secure_boot_on_is_the_firmware() {
     starter.starter_event(StarterEvent::Computer(windows(true)));
     assert!(card_says(&mut starter, "Restart into the BIOS"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
+    // Home's Next asked for the BitLocker reading when it opened the
+    // sheet; that is not what is checked here.
+    let _ = commands(&mut starter);
     // The Start page offers its restart too.
     starter.press(StarterAction::Start);
     let _ = starter.drawn_texts();

@@ -396,6 +396,12 @@ decision = "F136"
 case = "Hold to write the older release, keeping data over a stick holding a newer one: going back to an older release"
 
 [[hold]]
+where = "starter"
+hold = "StarterAction::RestartNow"
+decision = "F136"
+case = "Hold to restart without the recovery key, or with BitLocker not read: restarting into the BIOS while Windows may ask for a recovery key that was neither printed nor made unneeded by suspending BitLocker"
+
+[[hold]]
 where = "signing"
 hold = "WarningKind::HighFee"
 decision = "F136"

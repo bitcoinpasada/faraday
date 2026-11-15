@@ -1017,9 +1017,20 @@ as for a Mac with the T2 chip only.
 **BitLocker** (F49), on Windows with BitLocker on or suspended on the
 system drive, between Write down and step 1: the row **BitLocker, drive
 C:** with its state, and the one step that state allows, never required
-(§6.2). Nothing waits on it: the restart and the steps are the same
-with BitLocker off. Another encryption product not yet confirmed
-(§6.4) still closes the restart button.
+(§6.2). While BitLocker is on and the key is not printed, a line after
+the suspend button's note says Windows may ask for the recovery key if
+it starts with Secure Boot off or this computer's Secure Boot keys
+changed; not read, the same line is under the row. While it is on and
+neither suspended nor the key printed in this run (the sheet that
+carried it opened), the restart sheet shows that line above Restart,
+which is a hold, **Hold to restart without the recovery key** (F136);
+not read (nothing read yet, a failed read, or anything other than 1, 3,
+5 or 6, as §6.2), the row reads **Not read** and the hold **Hold to
+restart, BitLocker not read**. A restart sheet opened with BitLocker not
+read yet asks for the reading. Suspended or printed, it is a press. Suspending stays the
+person's choice. With BitLocker off the restart and the steps are the same as
+without it. Another encryption product not yet confirmed (§6.4) still
+closes the restart button.
 
 Tests (F47), user-facing: the page's rows and the sheet's content for
 a known maker, a maker without a page and an Intel Mac (a T2 Mac, one
@@ -1606,11 +1617,15 @@ whose Secure Boot keys changed does not ask afterwards either.
   its own. 1, 3 and 6 read as on, 5 as suspended (the Windows test
   virtual machine read 1 and 5, `tests/windows/vm-on.wmi`,
   `vm-suspended.wmi`); anything else, 2 included, or nothing read, is
-  not known, and not known offers nothing. No marker file and no logon
+  not known, and not known offers no step: its row reads **Not read** and
+  the restart is held as when on (§3.4). No marker file and no logon
   entry: Windows' own count ends a suspension.
 - **On**: the row **BitLocker, drive C:** reads **On**, with
   **Temporarily suspend BitLocker** and under it "For the next 3 times
-  Windows starts; then it turns back on by itself". The button starts
+  Windows starts; then it turns back on by itself", then the line that
+  Windows may ask for the recovery key if it starts with Secure Boot
+  off or this computer's Secure Boot keys changed, while the key is not
+  printed. The button starts
   the elevated copy (`--bitlocker suspend`, one elevation prompt, as the
   writer's), which calls `DisableKeyProtectors` with a `DisableCount`
   of 3 on every protected operating-system volume, as `manage-bde

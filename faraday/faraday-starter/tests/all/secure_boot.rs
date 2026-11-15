@@ -6,7 +6,8 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, StarterCommand, StarterEvent,
+    BitLocker, Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, Protection,
+    StarterCommand, StarterEvent,
 };
 use faraday_starter::decide::Item;
 use faraday_starter::{Page, RestartTo, Sheet, Starter, StarterAction};
@@ -108,15 +109,33 @@ fn every_page(starter: &mut Starter) -> Vec<String> {
 }
 
 #[test]
-fn without_bitlocker_read_on_nothing_in_the_starter_asks_for_shows_or_holds_a_recovery_key() {
+fn with_bitlocker_not_read_the_starter_offers_no_step_and_shows_no_key() {
     // BitLocker's steps and the key on the sheet are offered only with
     // BitLocker read on the system drive (F49, `tests/bitlocker.rs`);
-    // here Windows has answered nothing about it.
+    // here Windows has answered nothing about it: the Start page says
+    // so, with the line that Windows may ask for the recovery key.
     for secure_boot in [Some(true), Some(false), None] {
         let mut s = starter(secure_boot);
-        for page in every_page(&mut s) {
+        let pages = every_page(&mut s);
+        assert!(
+            pages[1].contains("Not read"),
+            "{secure_boot:?}: {}",
+            pages[1]
+        );
+        assert!(
+            pages[1].contains("Windows may ask for the recovery key"),
+            "{secure_boot:?}: {}",
+            pages[1]
+        );
+        for page in pages {
             let page = page.to_lowercase();
-            for word in ["recovery key", "resume", "suspend", "back up", "key shown"] {
+            for word in [
+                "resume",
+                "suspend",
+                "back up",
+                "key shown",
+                "include the bitlocker recovery key",
+            ] {
                 assert!(!page.contains(word), "{secure_boot:?}: {word}: {page}");
             }
         }
@@ -134,6 +153,12 @@ fn without_bitlocker_read_on_nothing_in_the_starter_asks_for_shows_or_holds_a_re
 fn use_a_device_is_offered_only_while_windows_reports_secure_boot_off() {
     // Off: the card restarts from the stick, through Use a device.
     let mut s = starter(Some(false));
+    // BitLocker read as off: the restart is a press.
+    s.starter_event(StarterEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        starts_left: None,
+    })));
     assert!(text(&mut s).contains("Restart from the stick"));
     s.press(StarterAction::Next);
     assert_eq!(s.sheet, Some(Sheet::Restart(RestartTo::Stick)));
@@ -179,6 +204,12 @@ fn turn_secure_boot_back_on_is_listed_while_it_is_off_and_ends_the_start_page() 
     // It opens the Start page at its last step.
     s.press(StarterAction::Item(Item::SecureBootOn));
     assert_eq!(s.page, Page::Start);
+    // Windows reads BitLocker as off: the page's steps show.
+    s.starter_event(StarterEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        starts_left: None,
+    })));
     // The page is longer than the screen with a stick attached: its end.
     let _ = s.frame();
     for _ in 0..20 {
@@ -194,6 +225,11 @@ fn turn_secure_boot_back_on_is_listed_while_it_is_off_and_ends_the_start_page() 
     let mut s = starter(Some(true));
     assert!(!text(&mut s).contains("Turn Secure Boot back on"));
     s.press(StarterAction::Start);
+    s.starter_event(StarterEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        starts_left: None,
+    })));
     assert!(text(&mut s).contains("Turn Secure Boot back on before starting Windows"));
 }
 
