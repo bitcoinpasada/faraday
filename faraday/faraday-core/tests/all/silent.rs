@@ -771,3 +771,31 @@ fn a_coldcard_export_of_both_accounts_loads_the_one_chosen() {
     assert_eq!(app.sheet, None);
     assert!(app.session.wallets.is_empty());
 }
+
+#[test]
+fn a_silent_payments_wallets_backup_sheet_names_its_key_and_address_and_lists_no_receive_addresses()
+{
+    let c = faraday_core::testkit::compute();
+    let mut app = with_key();
+    app.press(Action::Silent);
+    let record = app.silent_record(&c).unwrap();
+    let mut app = with_key();
+    files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
+    app.press(Action::LoadWallet(0));
+    let w = &app.session.wallets[0];
+    let sheet = String::from(&*faraday_core::wallet_backup::sheet_wallet(
+        &c,
+        &app.session,
+        w,
+    ));
+    let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint).to_string();
+    let silent = w.policy().silent().unwrap();
+    assert!(
+        sheet.starts_with("faraday-sheet 1\nkind: wallet\n"),
+        "{sheet}"
+    );
+    assert!(sheet.contains(&format!("key: 1 {fp} ")), "{sheet}");
+    assert!(sheet.contains(&silent.address()), "{sheet}");
+    assert!(sheet.contains("account 0"), "{sheet}");
+    assert!(!sheet.contains("address: "), "{sheet}");
+}

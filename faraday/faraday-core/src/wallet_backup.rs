@@ -325,6 +325,16 @@ pub(crate) fn sheet_wallet_on(
         "descriptor: {}\n",
         &*wallet.policy().to_descriptor_checksummed()
     ));
+    // A silent payments wallet has no keys in its policy: its one slot is
+    // the key it was derived from, and the descriptor line is its address.
+    if let Some(silent) = wallet.policy().silent() {
+        out.push_str(&text!(
+            "key: 1 {} account {}\n",
+            &*fp_of(slots.first().copied().flatten()),
+            silent.account
+        ));
+        return out;
+    }
     for (i, fingerprint) in slots.iter().enumerate() {
         let key = &wallet.policy().keys()[i];
         out.push_str(&text!(
