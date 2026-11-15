@@ -30,6 +30,7 @@ use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
+use zeroize::Zeroizing;
 
 /// The room a seed phrase is built in, bytes: more than 24 words of the
 /// longest BIP-39 list, so a seed phrase never moves.
@@ -142,21 +143,27 @@ pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     holds_spend_key(t).then_some(TextSecret::SilentSpendKey)
 }
 
+/// A whole transfer as it is kept: a name when it brought one, an
+/// extension, and the bytes, in room that is wiped when dropped.
+pub type Kept = (Option<Text>, &'static str, Zeroizing<Vec<u8>>);
+
 /// What a whole transfer becomes when it is kept: a name when it brought
-/// one, an extension, and the bytes.
-pub fn arrival(a: faraday_qr::Arrived) -> (Option<Text>, &'static str, Vec<u8>) {
+/// one, an extension, and the bytes, in room that is wiped when dropped
+/// (a seed's words and an extended private key are among them).
+pub fn arrival(a: faraday_qr::Arrived) -> Kept {
     use faraday_qr::Arrived;
     match a {
-        Arrived::Psbt(p) => (None, "psbt", p),
-        // A finished transaction is kept as hex, as one written here is.
-        Arrived::Transaction(t) => (
-            None,
-            "txn",
-            faraday_crypto::hex::encode_string(&t).as_bytes().to_vec(),
-        ),
-        Arrived::File(name, data, _) => (Some(Text::of(&name)), "", data),
+        Arrived::Psbt(p) => (None, "psbt", Zeroizing::new(p)),
+        // A finished transaction is kept as hex, as one written here is,
+        // written straight into wiping room.
+        Arrived::Transaction(t) => {
+            let mut hex = Zeroizing::new(vec![0u8; t.len() * 2]);
+            faraday_crypto::hex::encode_lower(&t, &mut hex);
+            (None, "txn", hex)
+        }
+        Arrived::File(name, data, _) => (Some(Text::of(&name)), "", Zeroizing::new(data)),
         Arrived::Keys(t) | Arrived::Descriptor(t) | Arrived::Text(t) => {
-            (None, "txt", t.into_bytes())
+            (None, "txt", Zeroizing::new(t.into_bytes()))
         }
     }
 }

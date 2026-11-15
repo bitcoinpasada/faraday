@@ -684,3 +684,63 @@ fn a_seed_over_comment_lines_beside_a_descriptor_classified_leaves_no_copy() {
     assert_eq!(kind, faraday_core::wallet::FileKind::SecretWallet);
     finish("seed in comments classified", armed, false);
 }
+
+#[test]
+fn a_scanned_seed_and_xprv_kept_as_files_leave_no_freed_copy() {
+    // The text each scan read is built before the arming and left
+    // unfreed: what is looked at is what keeping the transfer frees.
+    let mut forms = seed_forms("");
+    forms.extend(planted_xprv_forms());
+    let texts = [PHRASE, PLANTED_XPRV].map(|t| std::mem::ManuallyDrop::new(String::from(t)));
+    let armed = arm(&forms);
+    for t in &texts {
+        let (name, ext, data) = faraday_intake::arrival(faraday_qr::classify_text(t));
+        assert!(name.is_none());
+        assert_eq!(ext, "txt");
+        assert_eq!(&*data, t.as_bytes());
+    }
+    finish("scanned seed and xprv kept", armed, false);
+}
+
+/// Receive reads `text` as the camera would, the hold to save without
+/// encryption is held, and the shell's command is taken: the file it
+/// saves is checked to be the text. The command's bytes belong to the
+/// shell, which frees them, so they are left unfreed here.
+fn received_and_saved(text: &str) {
+    let mut app = testkit::started();
+    app.online = true;
+    app.press(Action::Nav(Screen::Transfer));
+    app.press(Action::TransferReceive);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    app.event(Event::Scanned {
+        bytes: text.as_bytes().to_vec(),
+    });
+    assert_eq!(app.sheet, Some(Sheet::SecretOut), "the hold was not asked");
+    app.press(Action::SecretHold);
+    let Some(faraday_core::StorageCommand::SaveDownload { name, bytes }) = app.poll_storage()
+    else {
+        panic!("nothing was saved");
+    };
+    assert!(name.ends_with(".txt"), "saved as {name:?}");
+    assert_eq!(
+        bytes,
+        text.as_bytes(),
+        "what was saved is not what was read"
+    );
+    std::mem::forget(bytes);
+    app.storage(faraday_core::StorageEvent::Saved {
+        path: faraday_text::Text::of("~/Downloads/received.txt"),
+    });
+}
+
+#[test]
+fn a_seed_and_an_xprv_received_and_saved_leave_no_freed_copy() {
+    // Each scan's text is built after the arming; the app wraps it in
+    // wiping bytes as soon as it arrives.
+    let mut forms = seed_forms("");
+    forms.extend(planted_xprv_forms());
+    let armed = arm(&forms);
+    received_and_saved(PHRASE);
+    received_and_saved(PLANTED_XPRV);
+    finish("received seed and xprv saved", armed, false);
+}

@@ -2508,7 +2508,7 @@ impl Faraday {
         }
         // BBQr and numbered parts are put together here; anything else is
         // read as before.
-        let mut item: Option<(Option<Text>, &str, Vec<u8>)> = None;
+        let mut item: Option<faraday_intake::Kept> = None;
         match scan.assembler.feed(&raw) {
             faraday_qr::Step::Part {
                 what,
@@ -2548,7 +2548,7 @@ impl Faraday {
         let (named, ext, data) = match item {
             Some(i) => i,
             None if crate::wallet::read_psbt(&c, &bytes).is_some() => {
-                (None, "psbt", bytes.to_vec())
+                (None, "psbt", zeroize::Zeroizing::new(bytes.to_vec()))
             }
             None => {
                 // An address goes to the address check's page, not filed.
@@ -2567,10 +2567,10 @@ impl Faraday {
                 if std::str::from_utf8(&bytes).is_err()
                     && faraday_codec::kef::recognize(&bytes).is_some()
                 {
-                    (None, "txt", bytes.to_vec())
+                    (None, "txt", zeroize::Zeroizing::new(bytes.to_vec()))
                 } else if scan_read::is_qr_vault(&bytes) {
                     // A QR vault is binary too, and keeps its bytes.
-                    (None, "pgp", bytes.to_vec())
+                    (None, "pgp", zeroize::Zeroizing::new(bytes.to_vec()))
                 } else {
                     if let Some(scan) = self.camera.scan.as_mut() {
                         scan.single = Some(bytes.clone());
@@ -2583,13 +2583,13 @@ impl Faraday {
                         && crate::wallet::classify(&c, "", &bytes)
                             == crate::wallet::FileKind::Message
                     {
-                        arrived.2 = bytes.to_vec();
+                        arrived.2 = zeroize::Zeroizing::new(bytes.to_vec());
                     }
                     arrived
                 }
             }
         };
-        Some((named, ext, zeroize::Zeroizing::new(data)))
+        Some((named, ext, data))
     }
 }
 
@@ -2613,9 +2613,9 @@ fn read_wallet_fact(c: &Compute, text: &str) -> Option<Text> {
 fn ur_item(
     scan: &mut ScanState,
     message: faraday_codec::ur::Message,
-) -> Option<(Option<Text>, &'static str, Vec<u8>)> {
+) -> Option<faraday_intake::Kept> {
     Some(match message {
-        faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
+        faraday_codec::ur::Message::Psbt(p) => (None, "psbt", zeroize::Zeroizing::new(p)),
         faraday_codec::ur::Message::Bytes(b) => {
             if scan.purpose == crate::ScanPurpose::MessageText && std::str::from_utf8(&b).is_err() {
                 scan.note = Some(scan_read::Kind::Unreadable.not_here());
@@ -2625,10 +2625,12 @@ fn ur_item(
         }
         faraday_codec::ur::Message::Other { ur_type, cbor } => {
             match faraday_qr::registry::read(&ur_type, &cbor) {
-                Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
+                Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
+                    (None, "psbt", zeroize::Zeroizing::new(p))
+                }
                 Ok(Some(faraday_qr::registry::Read::Keys(t)))
                 | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                    (None, "txt", t.into_bytes())
+                    (None, "txt", zeroize::Zeroizing::new(t.into_bytes()))
                 }
                 Ok(None) => {
                     scan.note = Some(Text::fill(EN.read_code_ur_unknown, &[&ur_type]));

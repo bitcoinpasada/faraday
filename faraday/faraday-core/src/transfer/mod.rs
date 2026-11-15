@@ -82,7 +82,7 @@ fn base_name(path: &str) -> &str {
 /// A whole transfer as Receive saves it: a name when it brought one, the
 /// extension for one without, and the bytes. A transaction is saved as
 /// hex text.
-fn received(a: faraday_qr::Arrived) -> (Option<faraday_text::Text>, &'static str, Vec<u8>) {
+fn received(a: faraday_qr::Arrived) -> faraday_intake::Kept {
     match crate::arrival(a) {
         (n, "txn", d) => (n, "txt", d),
         other => other,
@@ -98,14 +98,14 @@ fn read_any(
     scan: &mut ScanState,
     bytes: &[u8],
     secret: &mut bool,
-) -> Option<(Option<faraday_text::Text>, &'static str, Vec<u8>)> {
+) -> Option<faraday_intake::Kept> {
     scan.reads += 1;
     let Ok(raw) = std::str::from_utf8(bytes) else {
         // Bytes that are not text: a PSBT, or kept as they are.
         return Some(if wallet::read_psbt(c, bytes).is_some() {
-            (None, "psbt", bytes.to_vec())
+            (None, "psbt", zeroize::Zeroizing::new(bytes.to_vec()))
         } else {
-            (None, "bin", bytes.to_vec())
+            (None, "bin", zeroize::Zeroizing::new(bytes.to_vec()))
         });
     };
     let text = raw.trim();
@@ -144,17 +144,19 @@ fn read_any(
             }
         };
         return Some(match message {
-            faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
+            faraday_codec::ur::Message::Psbt(p) => (None, "psbt", zeroize::Zeroizing::new(p)),
             faraday_codec::ur::Message::Bytes(b) => match std::str::from_utf8(&b) {
                 Ok(t) => received(faraday_qr::classify_text(t)),
-                Err(_) => (None, "bin", b),
+                Err(_) => (None, "bin", zeroize::Zeroizing::new(b)),
             },
             faraday_codec::ur::Message::Other { ur_type, cbor } => {
                 match faraday_qr::registry::read(&ur_type, &cbor) {
-                    Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
+                    Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
+                        (None, "psbt", zeroize::Zeroizing::new(p))
+                    }
                     Ok(Some(faraday_qr::registry::Read::Keys(t)))
                     | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                        (None, "txt", t.into_bytes())
+                        (None, "txt", zeroize::Zeroizing::new(t.into_bytes()))
                     }
                     // A private key or a seed is kept as the CBOR it
                     // carried and is a secret: the hold saves it.
@@ -162,18 +164,18 @@ fn read_any(
                         faraday_qr::registry::Error::Private | faraday_qr::registry::Error::Seed,
                     ) => {
                         *secret = true;
-                        (None, "cbor", cbor)
+                        (None, "cbor", zeroize::Zeroizing::new(cbor))
                     }
                     // A kind this build does not read, and a registry UR
                     // it refused as not in the registry's shape, are kept
                     // as the CBOR they carried.
-                    _ => (None, "cbor", cbor),
+                    _ => (None, "cbor", zeroize::Zeroizing::new(cbor)),
                 }
             }
         });
     }
     if wallet::read_psbt(c, bytes).is_some() {
-        return Some((None, "psbt", bytes.to_vec()));
+        return Some((None, "psbt", zeroize::Zeroizing::new(bytes.to_vec())));
     }
     Some(received(faraday_qr::classify_text(text)))
 }
@@ -358,7 +360,7 @@ impl TransferArea {
             || crate::seed_in_code(c, bytes).is_some()
             || crate::scan_read::secret_kind(c, &data).is_some();
         if secret {
-            return Some((name, zeroize::Zeroizing::new(data)));
+            return Some((name, data));
         }
         self.save(scan, name, data, false, out);
         None
@@ -370,7 +372,7 @@ impl TransferArea {
         &mut self,
         scan: &mut ScanState,
         name: Text,
-        data: Vec<u8>,
+        mut data: zeroize::Zeroizing<Vec<u8>>,
         secret: bool,
         out: &mut Out,
     ) {
@@ -378,7 +380,9 @@ impl TransferArea {
         self.state.saving.push_back(secret);
         out.storage_out.push_back(StorageCommand::SaveDownload {
             name: faraday_text::Text::of(&name),
-            bytes: data,
+            // The bytes move
+            // to the shell's command as they are, without a copy.
+            bytes: std::mem::take(&mut *data),
         });
     }
 
@@ -586,13 +590,8 @@ impl Faraday {
     ) {
         self.transfer_skip();
         self.camera.with_scan(|scan| {
-            self.transfer.save(
-                scan,
-                Text::of(name.as_ref()),
-                data.to_vec(),
-                true,
-                &mut self.out,
-            )
+            self.transfer
+                .save(scan, Text::of(name.as_ref()), data, true, &mut self.out)
         });
     }
 
