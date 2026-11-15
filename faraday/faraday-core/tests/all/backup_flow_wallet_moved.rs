@@ -263,11 +263,25 @@ fn a_copy_that_stops_part_way_leaves_every_added_vault_as_it_was() {
     shell.flow(&mut app, F::Continue);
     open_vault(&mut shell, &mut app, 0, PHRASE);
     open_vault(&mut shell, &mut app, 1, PHRASE_2);
-    let shape = |app: &Faraday| -> Vec<(Vec<u8>, Vec<Vec<u8>>)> {
+    // What each vault holds, record by record: its kind, key ids and a
+    // digest of every field, so a field written in place shows too. Only
+    // digests are compared and printed, never a seed or passphrase.
+    type Held = (Vec<(u8, u64)>, Vec<Vec<u8>>);
+    let shape = |app: &Faraday| -> Vec<Held> {
+        use std::hash::{Hash, Hasher};
         (0..2)
             .map(|o| {
                 (
-                    contents(app, o).iter().map(|r| r.kind).collect(),
+                    contents(app, o)
+                        .iter()
+                        .map(|r| {
+                            let mut h = std::collections::hash_map::DefaultHasher::new();
+                            for n in 0..=u8::MAX {
+                                r.field(n).hash(&mut h);
+                            }
+                            (r.kind, h.finish())
+                        })
+                        .collect(),
                     held(app, o, Moved::Seed),
                 )
             })

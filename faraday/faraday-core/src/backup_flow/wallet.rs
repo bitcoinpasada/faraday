@@ -55,7 +55,7 @@ struct CopyCtx<'a> {
 }
 
 impl CopyCtx<'_> {
-    /// Whether `t` is this wallet's description, by its checksum.
+    /// Costs reading the wallet description `t` (`read_wallet`): whether it is this wallet's, by its checksum.
     fn of_wallet(&self, t: &str) -> bool {
         crate::wallet::read_wallet(self.c, t)
             .ok()
@@ -1324,7 +1324,7 @@ impl Faraday {
         self.wallet_copy_plans(&cx, added);
     }
 
-    /// What every added vault takes, gathered before anything is written:
+    /// Costs what each added vault's `wallet_copy_vault` costs: what every added vault takes, gathered before anything is written:
     /// one vault that cannot take its share stops the copy with nothing
     /// written.
     fn wallet_copy_gather(
@@ -1339,7 +1339,7 @@ impl Faraday {
         Ok(work)
     }
 
-    /// Each seed the plan puts in added vault `v` (open at `o`), as the record the plan wants: from a holder, from the vault itself or from the key typed back.
+    /// Costs a key fingerprint per record of the open vault and the reads of a holder's or the typed key's seed: each seed the plan puts in added vault `v` (open at `o`), as the record the plan wants: from a holder, from the vault itself or from the key typed back.
     fn wallet_copy_seeds(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1460,7 +1460,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// The wallet description where the plan puts it in added vault `v`: from a holder, or the description file kept in Files.
+    /// Costs a description read (`read_wallet`) per wallet record of each holder: the wallet description where the plan puts it in added vault `v`: from a holder, or the description file kept in Files.
     fn wallet_copy_description(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1523,7 +1523,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// What the plan no longer keeps in added vault `v` of this wallet: a seed it does not put there, the description where it keeps it elsewhere.
+    /// Costs a key fingerprint per key record of the open vault and a description read per wallet record: what the plan no longer keeps in added vault `v` of this wallet: a seed it does not put there, the description where it keeps it elsewhere.
     fn wallet_copy_gone(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1536,9 +1536,6 @@ impl Faraday {
         let c = cx.c;
         let wf = cx.wf;
         let of_wallet = |t: &str| cx.of_wallet(t);
-        // Each share the plan keeps in the vault (§17.6), as a type 13
-        // record: from a holder that keeps it, else made from the
-        // wallet's description, loaded or kept in a vault or Files.
         // What the plan no longer keeps here of this wallet goes (§10.2):
         // a seed it does not put in this vault, the description where it
         // keeps it elsewhere. Another wallet's records are never
@@ -1568,7 +1565,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// Each share the plan keeps in added vault `v`, and the other shares of this wallet that go.
+    /// Costs a share record made (`wallet_share_record`: a description read and a sheets rebuild) per kept share, and the share answers (`vault_shares`): each share the plan keeps in added vault `v`, and the other shares of this wallet that go.
     fn wallet_copy_shares(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1638,7 +1635,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// Each passphrase the plan keeps alone in added vault `v`, and those of this wallet's seeds it no longer keeps there.
+    /// Costs the passphrase answers (`vault_passphrases`) and a key fingerprint per key record of the open vault: each passphrase the plan keeps alone in added vault `v`, and those of this wallet's seeds it no longer keeps there.
     fn wallet_copy_passphrases(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1710,7 +1707,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// The codex32 strings and the plan record of added vault `v`, then only what this flow put into the vault is taken out, and the vault must take the result.
+    /// Costs the record tokens of the vault and the vault's refusal and fit check of the result (`vault_refuses`, `fit`): the codex32 strings and the plan record of added vault `v`, then only what this flow put into the vault is taken out, and the vault must take the result.
     fn wallet_copy_close(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1768,7 +1765,7 @@ impl Faraday {
         Ok(())
     }
 
-    /// What added vault `v` takes of the copy: the records to add and the
+    /// Costs what its parts cost (seeds, description, gone, shares, passphrases, close) and the vault's record tokens (`vault_tokens`, `vault_others`): what added vault `v` takes of the copy: the records to add and the
     /// ones of this flow to take out, nothing written. A vault still locked
     /// or a key not here stops it.
     fn wallet_copy_vault(&mut self, cx: &CopyCtx<'_>, v: usize) -> Result<CopyWork, CopyStop> {
@@ -1884,7 +1881,7 @@ impl Faraday {
         }
     }
 
-    /// After the writes: the plan record of every vault of the wallet says
+    /// Costs a plan record write and a seal (`seals_write`) per vault of the wallet: after the writes, the plan record of every vault of the wallet says
     /// the plan as it is now, and the added vaults are sealed and made.
     fn wallet_copy_plans(&mut self, cx: &CopyCtx<'_>, added: Vec<usize>) {
         use faraday_vault::records::{field, kind as rkind};
