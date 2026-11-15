@@ -582,7 +582,7 @@ pub fn keys(
                     .map(|c| (1.0, KeyInput::Char(c), enabled & letter_bit(c) != 0))
                     .collect();
                 if r == 2 {
-                    // §16.118: a wordlist keyboard has no ✓ — a word is
+                    // A wordlist keyboard has no ✓ — a word is
                     // taken by a tap on its candidate — so row three is
                     // the seven letters and the backspace at the right.
                     entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
@@ -1093,7 +1093,7 @@ mod tests {
                     assert_eq!(w[0].1, w[1].0, "{kind:?} rows are adjacent");
                 }
                 // The kana grid is the one keyboard with an empty cell:
-                // the 五十音 leaves five cells for four keys (§16.118).
+                // the 五十音 leaves five cells for four keys.
                 let mut empty: i64 = 0;
                 let mut gaps = 0;
                 for &(y, bottom) in &ys {
@@ -1170,7 +1170,7 @@ mod tests {
             Modifiers::default(),
         );
         // Fifty cells, one of them empty: four keys for the five the
-        // 五十音 leaves over (§16.118).
+        // 五十音 leaves over.
         assert_eq!(caps.len(), 49);
         // Row order is the vowels; column order the consonant groups.
         let at = |row: i32, column: usize| {

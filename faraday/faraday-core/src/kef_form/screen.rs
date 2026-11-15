@@ -191,7 +191,7 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         }
     }
     // On Paper the code counts once its drawn copy was scanned back, or
-    // with no camera to scan it with, once it opened (§15.1).
+    // with no camera to scan it with, once it opened (`docs/KEF.md` §15.1).
     let no_camera = app.cameras().is_empty();
     if f.paper && !f.scanned {
         let line = format!("{}: {}", EN.kef_drawn_copy, EN.kef_not_scanned);

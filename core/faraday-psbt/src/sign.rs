@@ -71,7 +71,7 @@ pub enum Nonce {
 }
 
 /// Where a Schnorr signature's auxiliary randomness comes from
-/// (§16.14, security review 2026-09-11, L3).
+/// (security review 2026-09-11, L3).
 ///
 /// BIP-340 mixes 32 auxiliary bytes into the nonce. Zero is allowed and
 /// is what a device produces when its signatures are meant to be
@@ -209,7 +209,7 @@ pub struct SignResult {
     /// Signatures written, in input order.
     pub signed_inputs: Vec<InputSignature>,
     /// Public nonces this pass drew, wrote and kept in the session:
-    /// round 1 of §16.100, one per input and participant.
+    /// round 1, one per input and participant.
     pub nonces_shared: usize,
     /// The public nonces this pass wrote into the PSBT for this
     /// device's own keys (a round 1 draw, or the kept nonce a mend

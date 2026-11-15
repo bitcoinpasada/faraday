@@ -1150,7 +1150,7 @@ mod tests {
         for c in word.chars() {
             assert!(w.type_char(c), "{word}: {c}");
         }
-        // §16.118: nothing the letters do takes the word. A word typed
+        // Nothing the letters do takes the word. A word typed
         // out in full is the first candidate, and a tap on it accepts.
         assert!(w.commit_candidate(0), "{word}");
         assert!(w.prefix().is_empty(), "{word} was not taken");
@@ -1229,7 +1229,7 @@ mod tests {
         assert!(w.type_char('t'));
         assert_eq!(w.prefix(), keys("act"));
         // "act", "action", "actor", "actress" all start with it, so the
-        // strip is how one of them is taken (§16.118).
+        // strip is how one of them is taken.
         assert!(w.candidates().count() > 1);
         assert!(!w.accepting());
         assert!(w.commit_candidate(0));

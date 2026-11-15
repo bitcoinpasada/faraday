@@ -1282,7 +1282,7 @@ impl crate::Faraday {
     }
 
     /// Opens the flow for the session with `start` chosen and Start
-    /// closed on it, as the Tools tiles for one form do (§15.3).
+    /// closed on it, as the Tools tiles for one form do (NEW-WALLET §15.3).
     pub(crate) fn keygen_open_on(&mut self, start: Start) {
         self.keygen_open(None);
         if let Some(k) = self.keygen.state.as_mut() {
@@ -1397,7 +1397,7 @@ impl crate::Faraday {
 
     /// The Words card's Continue for a key typed: Key opens once the
     /// words are whole and their checksum holds, or the parts are enough,
-    /// with Add a key's own messages when they are not (§15.2).
+    /// with Add a key's own messages when they are not (NEW-WALLET §15.2).
     fn keygen_typed_next(&mut self) {
         let Some(k) = self.keygen.state.as_ref() else {
             return;
@@ -1757,7 +1757,7 @@ impl crate::Faraday {
     /// Lock in for a key typed or scanned: loaded as Add a key loads it
     /// (`Faraday::typed_load`, or the form's own for shares, codex32 and
     /// Seed XOR), with the passphrase typed on the Key card, not marked
-    /// made here; for a Create slot it fills the slot (§15.2).
+    /// made here; for a Create slot it fills the slot (NEW-WALLET §15.2).
     fn keygen_lock_typed(&mut self) {
         let c = self.compute();
         if !self.may_load_keys() {
@@ -1838,7 +1838,7 @@ impl crate::Faraday {
         };
         k.done[usize::from(kstep::KEY)] = true;
         // A key typed or scanned has its words already: no Words or Quiz
-        // (§15.2).
+        // (NEW-WALLET §15.2).
         if k.slot.is_some() || k.typed() {
             self.keygen_done();
             return;
@@ -2164,7 +2164,7 @@ impl crate::Faraday {
             let tall =
                 h - faraday_draw::tokens::APP_BAR_H - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
             // The input panel's room: at the foot its height; beside the
-            // sheets its width, from the column's start (§16.3).
+            // sheets its width, from the column's start (`docs/LAYOUT.md` §16.3).
             let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);
             let start = panel.start_room();
             let lead = if start > 0.0 {

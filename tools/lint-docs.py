@@ -57,6 +57,14 @@
 # 9. Index. The "Every document" list of docs/README.md is what
 #    tools/docs-index.py makes from the documents' headers.
 #
+# 10. Citations. In a comment of a Rust, TOML, Python or shell file, a
+#    citation of section 15 or 16 (the sections of the retired plans that
+#    no longer exist under those numbers) names its document or standard
+#    on the same line or an earlier line of the same comment block
+#    (consecutive `//` or `#` lines): a docs/ document's name (LAYOUT,
+#    `docs/LAYOUT.md`), a standard (BIP-174, RFC 9106) or NEW-WALLET. A .md
+#    file's own section references are not checked.
+#
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does (`python3 -I -B tools/lint-docs.py`).
 
@@ -343,6 +351,30 @@ for f in files:
         else:
             for m in re.finditer(r"`([^`\n]+)`", l):
                 check_just(f, n, m.group(1))
+
+DOC_STEMS = {os.path.splitext(os.path.basename(f))[0] for f in files
+             if f.startswith("docs/") and f.endswith(".md")}
+DOC_STEMS = {s for s in DOC_STEMS if s.upper() == s and len(s) > 2}
+NAMED = re.compile(
+    r"\b(?:" + "|".join(sorted(map(re.escape, DOC_STEMS))) + r")\b"
+    r"|\.md\b|\bBIP[- ]?\d+|\bRFC ?\d+|\bSLIP[- ]?\d+|\bFIPS\b|\bSEC ?\d")
+CITE = re.compile(r"§ ?1[56]\b")
+for f in files:
+    if not f.endswith((".rs", ".toml", ".py", ".sh")):
+        continue
+    if f.startswith(("docs/history/", "tools/vectors/")):
+        continue
+    block = []
+    for n, l in enumerate(open(f, encoding="utf-8").read().split("\n"), 1):
+        t = l.strip()
+        if t.startswith(("//", "#")):
+            block.append(t)
+        else:
+            block = []
+        if t.startswith(("//", "#")) and CITE.search(t):
+            if not NAMED.search(CITE.sub("", " ".join(block))):
+                fail(f, n, "a § 15 or § 16 citation names no document or "
+                           "standard in its comment block")
 
 for m in failures:
     print(m)

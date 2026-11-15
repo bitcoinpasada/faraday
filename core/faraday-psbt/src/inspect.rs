@@ -756,7 +756,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     let secp = Secp256k1::verification_only();
     let inner = psbt.inner();
     let tx = &inner.unsigned_tx;
-    // The id the open MuSig2 session, if any, is keyed by (§16.100).
+    // The id the open MuSig2 session, if any, is keyed by.
     let txid = tx.compute_txid();
     let mut warnings = Vec::new();
 
@@ -1503,7 +1503,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
 
     let is_self_transfer = !outputs.is_empty() && outputs.iter().all(OutputInfo::is_ours);
 
-    // §16.111 rules 1, 2 and 5: what is already signed here is checked
+    // What is already signed here is checked
     // here, so a signature that is not this transaction's, a nonce used
     // twice and an inscription envelope all reach the review as cards.
     let signatures = crate::verify::verify_signatures(psbt, ctx);
@@ -2410,14 +2410,14 @@ pub struct MusigInput {
     /// This device's participants on the input.
     pub ours: Vec<MusigParticipation>,
     /// Every participant this device holds will share a public nonce
-    /// this pass and sign none of it: round 1 (§16.100).
+    /// this pass and sign none of it: round 1.
     pub will_share_nonce: bool,
     /// At least one public nonce of this device's on the input belongs
     /// to no open session, so this pass replaces it.
     pub nonce_stale: bool,
 }
 
-/// Which of §16.100's three ways one participant of a MuSig2 input is
+/// Which of the three ways one participant of a MuSig2 input is
 /// handled in this pass.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MusigRound {
@@ -2645,7 +2645,7 @@ fn musig_sub_path(path: &DerivationPath) -> Option<(bool, u32)> {
 
 /// Costs an address derivation (through `script_at_with`). Establishes
 /// what a `P2trKey` input carrying `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`
-/// is, in the order §16.100 states: the registered wallet, the
+/// is, in this order: the registered wallet, the
 /// aggregate, this device's participants, the sub-path, and the script.
 /// `Ok(None)` is an input that is not a MuSig2 input at all.
 ///

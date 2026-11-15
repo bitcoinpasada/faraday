@@ -3030,7 +3030,7 @@ fn take_in_camera(shell: &mut Shell) {
 fn housekeeping(shell: &mut Shell) {
     // The first page the kernel would not pin, said once and only
     // with --verbose: it is a machine configuration a developer can
-    // act on and the person using the device cannot (§16.49). The
+    // act on and the person using the device cannot. The
     // release image has no swap and no console, so on a card this
     // line is neither needed nor seen.
     if faraday_crypto::pin_failure_to_report() {

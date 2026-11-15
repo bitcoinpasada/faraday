@@ -76,9 +76,8 @@ subtle = { version = "2.6", default-features = false }
 sha2 = { version = "0.11", default-features = false }
 hmac = { version = "0.13", default-features = false }
 pbkdf2 = { version = "0.13", default-features = false }
-# Argon2id for the key kept on the device (§15 item 32;
-# docs/deps/argon2.md). `default-features = false` drops the
-# `password-hash` string format and the RNG; the memory is a `Vec<Block>`
+# Argon2id for the key kept on the device (docs/deps/argon2.md).
+# `default-features = false` drops the `password-hash` string format and the RNG; the memory is a `Vec<Block>`
 # the caller owns, so no `alloc` feature is needed.
 argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
 # Hex, one module (docs/deps/base16ct.md): `faraday_crypto::hex`, and
@@ -107,7 +106,7 @@ ocb3 = { version = "0.2", default-features = false }
 # `hazmat` is the feature that allows GCM's 4-byte tag (docs/deps/aes-gcm.md).
 ctr = { version = "0.10", default-features = false }
 aes-gcm = { version = "0.11", default-features = false, features = ["aes", "hazmat"] }
-# rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (§16.1).
+# rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (docs/deps/bitcoin.md).
 # `secp-recovery` is a feature of the same crate, not another dependency:
 # it turns on libsecp256k1's public-key recovery and rust-bitcoin's
 # `sign_message` signature type, which BIP-137 needs to check a message
@@ -157,7 +156,7 @@ lzma-rust2 = { version = "0.22", default-features = false, features = ["std", "x
 # tools that wrote NFKD forms before use the same crate.
 unicode-normalization = { version = "0.1", default-features = false }
 
-# Rendering (§4.3, §16.3): pure Rust, no_std with `no-std-float` (libm).
+# Rendering (docs/deps/tiny-skia.md): pure Rust, no_std with `no-std-float` (libm).
 tiny-skia = { version = "0.12", default-features = false, features = ["no-std-float"] }
 
 # Build-time and shell-only tools; never in a core crate.

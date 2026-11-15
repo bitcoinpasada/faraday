@@ -590,7 +590,7 @@ fn wallets_opens_the_wallet() {
 }
 
 /// Another wallet from these seeds is New wallet from this one: Create
-/// filled from the restored wallet, at the next account (§16.2).
+/// filled from the restored wallet, at the next account (NEW-WALLET §16.2).
 #[test]
 fn another_wallet_from_these_seeds_opens_create_at_the_next_account() {
     let (mut app, w) = single_key_done();

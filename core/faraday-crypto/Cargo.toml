@@ -10,7 +10,7 @@ publish = false
 
 [features]
 # The pages that hold long-lived secrets are pinned into RAM, so that a
-# seed cannot be written to swap in the clear (§5.5, §16.49). Off by
+# seed cannot be written to swap in the clear Off by
 # default: this crate is `no_std` and also builds for the browser and for
 # Android, neither of which may link `libc`. The desktop and Pi shells
 # turn it on through their dependency on this crate.

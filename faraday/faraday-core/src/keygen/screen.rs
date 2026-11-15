@@ -659,7 +659,7 @@ fn word_grid(
 fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A key typed in a form other than words has no words to show: the
-    // parts typed, until it is locked in (§15.2).
+    // parts typed, until it is locked in (NEW-WALLET §15.2).
     let parts = k.typed() && k.mnemonic.is_none() && k.done[usize::from(kstep::TYPED)];
     if k.mnemonic.is_none() && !parts {
         ui.text_as(
