@@ -94,6 +94,8 @@ const SYMBOLS: &[char] = &[
     // them.
     'ℵ', 'α', 'β', 'Γ', 'Δ', '∆', 'ε', 'η', 'Θ', 'Λ', 'μ', 'Ξ', 'Π', 'ρ', 'Σ', 'Φ', 'Ψ', 'Ω', '€',
     '⊕', '†', '‡',
+    // The mark a hidden character is drawn as (`faraday-core`'s `visible`).
+    '◌',
 ];
 
 /// The icon code points, and where each comes from. `U+E9xx` are

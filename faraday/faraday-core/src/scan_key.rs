@@ -1029,6 +1029,11 @@ impl Faraday {
                 return self.scanned(words.as_bytes().to_vec());
             }
         }
+        // A text that reads as a signed message is filed as pasted: it may
+        // end in the white space the trim drops, and that was signed.
+        if crate::wallet::classify(&c, "", text.as_bytes()) == crate::wallet::FileKind::Message {
+            return self.scanned(text.as_bytes().to_vec());
+        }
         self.scanned(t.as_bytes().to_vec());
     }
 
@@ -2571,7 +2576,17 @@ impl Faraday {
                     if let Some(scan) = self.camera.scan.as_mut() {
                         scan.single = Some(bytes.clone());
                     }
-                    faraday_intake::arrival(faraday_qr::classify_text(&text))
+                    let mut arrived = faraday_intake::arrival(faraday_qr::classify_text(&text));
+                    // A signed message keeps the bytes as they were read:
+                    // its text may end in the white space the trimmed
+                    // text drops, and that is part of what was signed.
+                    if arrived.1 == "txt"
+                        && crate::wallet::classify(&c, "", &bytes)
+                            == crate::wallet::FileKind::Message
+                    {
+                        arrived.2 = bytes.to_vec();
+                    }
+                    arrived
                 }
             }
         };

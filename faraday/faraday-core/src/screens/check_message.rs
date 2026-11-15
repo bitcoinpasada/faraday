@@ -145,12 +145,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 12.0;
     }
-    y += ui.wrap_as(
-        (x + vx, y, width - vx),
-        BODY_M,
-        Role::OnSurface,
-        &c.signed.message,
-    );
+    let shown = app.message.shown().text(&c.signed.message);
+    y += ui.wrap_as((x + vx, y, width - vx), BODY_M, Role::OnSurface, &shown);
     if compact {
         y += 16.0 + crate::compact::screen::about(ui, x, y + 16.0, width, guide);
         crate::compact::screen::finish(app, ui, h, y - top + 24.0);

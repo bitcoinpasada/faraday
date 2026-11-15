@@ -5,6 +5,7 @@ use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
+use crate::visible::first_line;
 use crate::{Action, Code, Screen, flow, walkthrough};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, TITLE_S};
 use faraday_ui::parts::wrap_buttons;
@@ -65,7 +66,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     .map(|a| String::from(&*short(a)))
                     .unwrap_or_else(|| EN.message_none_chosen.into()),
                 mstep::TEXT => {
-                    let t = m.text.lines().next().unwrap_or("");
+                    let t = first_line(&m.text);
                     if t.is_empty() {
                         EN.message_not_written.to_string()
                     } else {
@@ -169,7 +170,16 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         mstep::TEXT => {
-            let box_h = 120.0;
+            // The field is as high as the message, its hidden characters
+            // drawn as marks, so no line of it is out of sight.
+            let shown = app.message.shown().text(&m.text);
+            let room_w = w - 28.0;
+            let laid = kept_lines(app, ui, &m.text, &shown, room_w);
+            let box_h = if m.text.is_empty() {
+                120.0
+            } else {
+                (laid.h + 24.0).max(120.0)
+            };
             // Material's outlined text field: its edge in outline, in
             // primary and thicker while typing goes to it.
             use faraday_draw::tokens::{FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_RADIUS};
@@ -198,7 +208,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     ui.caret(room.0, room.1 + (ui.line_as(BODY_M) - h) / 2.0, h);
                 }
             } else {
-                ui.typed_lines(room, BODY_M, Role::OnSurface, &m.text, (m.typing, here));
+                ui.draw_typed((room.0, room.1), Role::OnSurface, &laid, (m.typing, here));
             }
             ui.c.pop_clip();
             cy += box_h + 12.0;
@@ -278,6 +288,13 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             cy += 52.0;
         }
         _ => {
+            // The whole message that is signed, before and after.
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.app_message);
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+            let shown = app.message.shown().text(&m.text);
+            let laid = kept_lines(app, ui, &m.text, &shown, w);
+            ui.draw_wrapped((x, cy), Role::OnSurface, &laid);
+            cy += laid.h + 14.0;
             match m.signed.as_ref() {
                 None => {
                     if pin_button(
@@ -341,4 +358,21 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     cy - y
+}
+
+/// `shown`, the visible form of the message `text`, laid out at `width`
+/// in the body face, its lines kept while the message is the same.
+fn kept_lines<'s>(
+    app: &View,
+    ui: &Ui,
+    text: &str,
+    shown: &'s str,
+    width: f32,
+) -> faraday_ui::roles::Wrapped<'s> {
+    let basis = ui.wrap_basis(BODY_M, width);
+    let lines = app
+        .message
+        .shown()
+        .lines(text, basis, |v| ui.wrap_ranges(BODY_M, v, width));
+    ui.wrapped_with(BODY_M, shown, width, lines)
 }

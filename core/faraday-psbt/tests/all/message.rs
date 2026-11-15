@@ -423,3 +423,19 @@ fn a_witness_signature_that_is_not_der_is_malformed() {
         Err(Error::Invalid)
     );
 }
+
+/// A message that ends in a newline is read back from the file Faraday
+/// wrote for it as the same message, and a file from another tool, whose
+/// last newline is the file's own, still reads as before.
+#[test]
+fn a_message_ending_in_a_newline_reads_back_from_its_file() {
+    for message in ["hello\n", "hello\n\n", "a\nb\n", "\n", "hello"] {
+        let file = message::signed_text("bc1qaddress", "c2ln", message);
+        let read = message::parse_signed(&file).expect("the file reads");
+        assert_eq!(read.message.as_str(), message, "{message:?}");
+    }
+    let sparrow = message::parse_signed("bc1qaddress\nc2ln\nhello\n").expect("reads");
+    assert_eq!(sparrow.message.as_str(), "hello");
+    let bare = message::parse_signed("bc1qaddress\nc2ln\nhello").expect("reads");
+    assert_eq!(bare.message.as_str(), "hello");
+}

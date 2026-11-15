@@ -1000,9 +1000,16 @@ pub(crate) struct MessageArea {
     state: Option<MessageState>,
     /// The Inbox file of the signed message being checked.
     checking: Option<usize>,
+    /// The message as drawn, kept while it is the same.
+    shown: crate::visible::Shown,
 }
 
 impl MessageArea {
+    /// The message as drawn: its visible form and lines, kept.
+    pub(crate) fn shown(&self) -> &crate::visible::Shown {
+        &self.shown
+    }
+
     /// The cards' state, while the flow is open.
     pub(crate) fn state(&self) -> Option<&MessageState> {
         self.state.as_ref()
@@ -1022,6 +1029,7 @@ impl MessageArea {
     pub(crate) fn clear(&mut self) {
         self.state = None;
         self.checking = None;
+        self.shown = crate::visible::Shown::default();
     }
 
     /// How far the column is scrolled, units, while the flow is open.

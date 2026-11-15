@@ -129,6 +129,7 @@ mod loose_key;
 mod memory_unknown;
 mod message_format;
 mod message_scan;
+mod message_whole;
 mod mode_files;
 mod modes;
 mod mouse_buttons;

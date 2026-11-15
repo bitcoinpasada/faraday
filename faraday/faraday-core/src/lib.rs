@@ -178,6 +178,7 @@ pub mod picture;
 mod scan_key;
 pub mod scan_read;
 mod screens;
+mod visible;
 mod walkthrough;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).

@@ -378,7 +378,8 @@ pub fn virtual_txids(address: &Address, message: &str) -> (Txid, Txid) {
 
 /// The three-line text form a signed message travels in, built: the
 /// address on the first line, the signature on the second, the message
-/// from the third to the end with its newlines kept. A QR or a file in
+/// from the third to the end with its newlines kept (one that ends in a
+/// newline is followed by the file's own). A QR or a file in
 /// this form is checked with nothing typed.
 ///
 /// ```text
@@ -393,6 +394,11 @@ pub fn signed_text(address: &str, signature: &str, message: &str) -> Text {
     out.push_str(signature);
     out.push('\n');
     out.push_str(message);
+    // A message that ends in a newline gets the file's own after it, so
+    // that the one `parse_signed` drops is not the message's.
+    if message.ends_with('\n') {
+        out.push('\n');
+    }
     out
 }
 
