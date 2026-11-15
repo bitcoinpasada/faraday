@@ -7,7 +7,10 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::visible::first_line;
 use crate::{Action, Code, Screen, flow, walkthrough};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, TITLE_S};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, GAP, MESSAGE_FIELD_MIN_H, MESSAGE_FIELD_PAD_X, MESSAGE_FIELD_PAD_Y,
+    MESSAGE_SHOWN_GAP, TITLE_S,
+};
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -173,12 +176,12 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // The field is as high as the message, its hidden characters
             // drawn as marks, so no line of it is out of sight.
             let shown = app.message.shown().text(&m.text);
-            let room_w = w - 28.0;
+            let room_w = w - 2.0 * MESSAGE_FIELD_PAD_X;
             let laid = kept_lines(app, ui, &m.text, &shown, room_w);
             let box_h = if m.text.is_empty() {
-                120.0
+                MESSAGE_FIELD_MIN_H
             } else {
-                (laid.h + 24.0).max(120.0)
+                (laid.h + 2.0 * MESSAGE_FIELD_PAD_Y).max(MESSAGE_FIELD_MIN_H)
             };
             // Material's outlined text field: its edge in outline, in
             // primary and thicker while typing goes to it.
@@ -195,7 +198,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let here = Action::TypeHere(crate::edit::Here::Message);
             ui.press_box(x, cy, w, box_h, here);
             ui.c.push_clip(ui.rect(x, cy, w, box_h));
-            let room = (x + 14.0, cy + 12.0, w - 28.0);
+            let room = (x + MESSAGE_FIELD_PAD_X, cy + MESSAGE_FIELD_PAD_Y, room_w);
             if m.text.is_empty() {
                 let hint = if m.typing {
                     EN.message_type_the_message
@@ -294,7 +297,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let shown = app.message.shown().text(&m.text);
             let laid = kept_lines(app, ui, &m.text, &shown, w);
             ui.draw_wrapped((x, cy), Role::OnSurface, &laid);
-            cy += laid.h + 14.0;
+            cy += laid.h + MESSAGE_SHOWN_GAP;
             match m.signed.as_ref() {
                 None => {
                     if pin_button(

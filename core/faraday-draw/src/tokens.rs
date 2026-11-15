@@ -2072,6 +2072,16 @@ pub const INVOICE_FIELD_PAD_X: f32 = 14.0;
 /// Decode a Lightning invoice: the text's inset from the field's top edge,
 /// and the bottom edge its text stops above.
 pub const INVOICE_FIELD_PAD_Y: f32 = 12.0;
+/// Sign a message: the text's inset from the message field's side edges.
+pub const MESSAGE_FIELD_PAD_X: f32 = 14.0;
+/// Sign a message: the text's inset from the message field's top edge,
+/// and the bottom edge its text stops above.
+pub const MESSAGE_FIELD_PAD_Y: f32 = 12.0;
+/// Sign a message: the message field's height when empty, and the least
+/// it is as it grows with the message.
+pub const MESSAGE_FIELD_MIN_H: f32 = 120.0;
+/// Sign a message: the space under the whole message shown before signing.
+pub const MESSAGE_SHOWN_GAP: f32 = 14.0;
 /// Decode a Lightning invoice: the gap between the field and its buttons,
 /// and the line space under a refusal.
 pub const INVOICE_GAP: f32 = 12.0;
