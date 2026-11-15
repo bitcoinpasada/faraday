@@ -6,17 +6,17 @@ use crate::codex32_correct::{Offered, typable};
 use crate::forms::{Form, completion, slip39_completion};
 use crate::idle;
 use crate::strings::EN;
+#[cfg(feature = "demo")]
+use crate::transfer;
 use crate::wallet::fp_text;
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, forms, mstep, secret_text};
 use crate::{
     Medium, SecureBootAtStart, Session, backup_flow, backups, bip85, boot_import, compact, create,
     decode, devices, drawing, edit, explore, fade, fresh, glance, guide, in_progress, inbox,
     inputs, keygen, lightning, memory, modes, motion, out, pointer, qr_view, restore, samples,
-    scan_key, secrets, seeds, set_time, silent, spend_backup, state, stick, tools, trail,
-    vanity, vault, wallet, wallet_backup, wordlist, worker,
+    scan_key, secrets, seeds, set_time, silent, spend_backup, state, stick, tools, trail, vanity,
+    vault, wallet, wallet_backup, wordlist, worker,
 };
-#[cfg(feature = "demo")]
-use crate::transfer;
 use faraday_bip::bip39::Language;
 use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
