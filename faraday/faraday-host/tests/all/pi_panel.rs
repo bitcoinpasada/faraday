@@ -176,7 +176,7 @@ fn screens() -> Vec<Screen> {
 }
 
 fn sheets() -> Vec<Sheet> {
-    let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Guide, WordList,
+    let mut all = every!(Sheet: Lock, LockAsk, RemoveKeys, Power, Qr, Scan, Locked, NewInput, Guide, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,

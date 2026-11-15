@@ -341,6 +341,12 @@ case = "Restart with files waiting or a vault unsaved: the person's own destruct
 
 [[hold]]
 where = "app"
+hold = "Action::RemoveKeysHold"
+decision = "F136"
+case = "Remove every key while a key is kept nowhere else: the person's own destructive act"
+
+[[hold]]
+where = "app"
 hold = "VaultAction::HoldDelete"
 decision = "F136"
 case = "Delete a vault's item: the person's own destructive act"

@@ -26,6 +26,15 @@ macro_rules! words_screens_settings {
     settings_lock: "Lock",
     /// Button in `settings`.
     settings_remove_every: "Remove every key",
+    /// The title of the sheet Remove every key opens while a key is kept
+    /// nowhere else.
+    settings_remove_every_title: "Remove every key",
+    /// The hold on that sheet.
+    settings_hold_remove_every: "Hold to remove every key",
+    /// The line above the list on that sheet.
+    settings_remove_every_line: "Keys kept nowhere else are lost",
+    /// What the sheet says follows.
+    settings_remove_every_then: "Every key loaded is removed from memory",
     /// Button in `settings`.
     settings_power_off_button: "Power off",
     /// Button in `settings` in the desktop app, where there is no power to turn off.

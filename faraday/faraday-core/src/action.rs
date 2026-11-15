@@ -88,8 +88,11 @@ pub enum Action {
     PickKey([u8; 4]),
     /// Remove a wallet from the session.
     RemoveWallet(usize),
-    /// Remove every key from the session.
+    /// Remove every key from the session: a press, or the list's hold
+    /// while a key is kept nowhere else.
     RemoveKeys,
+    /// Remove every key from the session, held ([`Action::RemoveKeys`]).
+    RemoveKeysHold,
     /// Start signing the Inbox PSBT at this index.
     StartSpend(usize),
     /// Open or close a step card.
@@ -991,6 +994,7 @@ pub fn is_hold(a: Action) -> bool {
         ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
             | Action::HoldPowerOff
             | Action::HoldRestart
+            | Action::RemoveKeysHold
             | Action::SecretHold
             | Action::KeyPathHold
             | Action::OutboxDeleteHold

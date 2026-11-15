@@ -451,6 +451,11 @@ impl VaultArea {
         self.state.focus = focus;
     }
 
+    /// Whether the file `name` was chosen as a key file this power-on.
+    pub(crate) fn key_file_was_used(&self, name: &str) -> bool {
+        self.state.key_files_used.iter().any(|n| n.as_str() == name)
+    }
+
     /// The key file chosen, taken away.
     pub(crate) fn clear_unlock_parts(&mut self) {
         self.state.unlock_key = None;
@@ -2162,6 +2167,9 @@ pub struct Vaults {
     /// The key file chosen to unlock with: its name in Files. Nothing of
     /// it is read until Unlock.
     pub unlock_key: Option<Text>,
+    /// The names of the files chosen as a key file this power-on, kept so
+    /// that deleting one from a stick takes a hold. RAM only.
+    pub key_files_used: Vec<Text>,
     /// The file the key file dialog has marked, by its place in the list.
     pub key_pick: usize,
     /// The key file dialog is Create a vault's: its Choose sets the form's

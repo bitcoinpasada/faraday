@@ -158,6 +158,7 @@ mod qr_vault_entry;
 mod quit;
 mod quorum_all_keys;
 mod register_wallet;
+mod remove_keys;
 mod restart;
 mod restore;
 mod restore_shares;

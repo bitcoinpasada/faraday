@@ -195,14 +195,7 @@ impl Faraday {
         // What is in no open vault can be saved into the one open now.
         let can_save = self.vaults.current_id().is_some();
         for (i, k) in self.session.keys.all().enumerate() {
-            let vault = match self.session.keys.seed_record_id(i) {
-                Some(id) => self.vaults.seed_vault(id),
-                None => self
-                    .session
-                    .keys
-                    .words_id(c, i)
-                    .and_then(|w| self.vaults.words_vault(c, w)),
-            };
+            let vault = self.key_vault(c, i);
             let save = (can_save
                 && vault.is_none()
                 && (k.has_words() || self.session.keys.holds_seed_bytes(i)))
@@ -236,6 +229,28 @@ impl Faraday {
         // What is nowhere else first, where it is read.
         out.wiped.sort_by_key(|(_, nowhere, _)| !nowhere);
         out
+    }
+
+    /// Costs a parse of the key's words. The open vault that holds the
+    /// session's key `i`, by its record's id or by its words' entropy.
+    fn key_vault(&self, c: &Compute, i: usize) -> Option<Text> {
+        match self.session.keys.seed_record_id(i) {
+            Some(id) => self.vaults.seed_vault(id),
+            None => self
+                .session
+                .keys
+                .words_id(c, i)
+                .and_then(|w| self.vaults.words_vault(c, w)),
+        }
+    }
+
+    /// Costs a parse of each key's words. Whether a key loaded is kept
+    /// nowhere else: in no open vault and with no copy checked, as the
+    /// Lock sheet lists it.
+    pub(crate) fn keys_kept_nowhere(&self, c: &Compute) -> bool {
+        self.session.keys.all().enumerate().any(|(i, k)| {
+            self.key_vault(c, i).is_none() && !self.seed_copy_checked(c, k.fingerprint.0)
+        })
     }
 
     /// The vaults the Inbox and Outbox hold: one row per vault, the

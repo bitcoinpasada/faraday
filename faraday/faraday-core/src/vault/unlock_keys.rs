@@ -73,6 +73,7 @@ pub(crate) fn set_named(
         return Err(Bad::KeyFile(Text::fill(EN.vault_key_file_gone, &[name])));
     };
     let bytes = &item.bytes;
+    app.vaults.state.key_files_used.push(Text::of(name));
     app.vaults
         .edit_or(id, |s| s.set_key_file_from(id, bytes))
         .map_err(|e| Bad::KeyFile(key_file_line(e, name)))
@@ -134,6 +135,7 @@ pub(crate) fn choose(app: &mut Faraday) {
     }
     let files = candidates(app);
     if let Some((name, _)) = files.get(app.vaults.key_pick) {
+        app.vaults.state.key_files_used.push(Text::of(name));
         if app.vaults.key_for_create {
             if let Some(c) = app.vaults.state.create.as_mut() {
                 c.key = super::KeyChoice::File(Text::of(name));

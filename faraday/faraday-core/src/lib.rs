@@ -474,6 +474,9 @@ pub enum Sheet {
     Lock,
     /// Lock asked for while a vault is open: what is sealed and not saved, or lost.
     LockAsk,
+    /// Remove every key, while a key is kept nowhere else: the list, and
+    /// the hold.
+    RemoveKeys,
     /// Power off with files in the Outbox.
     Power,
     /// A QR code, or an animated run of them.
@@ -1985,6 +1988,7 @@ impl Faraday {
             | Action::PickKey(..)
             | Action::RemoveWallet(..)
             | Action::RemoveKeys
+            | Action::RemoveKeysHold
             | Action::StartSpend(..)
             | Action::Step(..)
             | Action::StepNext(..)

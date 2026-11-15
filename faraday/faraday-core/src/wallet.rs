@@ -4047,7 +4047,17 @@ impl Faraday {
                     self.spend_after_wallet_removed();
                 }
             }
-            Action::RemoveKeys => {
+            Action::RemoveKeys | Action::RemoveKeysHold => {
+                if action == Action::RemoveKeys {
+                    let c = self.compute();
+                    if self.keys_kept_nowhere(&c) {
+                        self.sheet = Some(crate::Sheet::RemoveKeys);
+                        return;
+                    }
+                }
+                if self.sheet == Some(crate::Sheet::RemoveKeys) {
+                    self.sheet = None;
+                }
                 self.session.keys.clear();
                 self.wallets.clear_spend();
             }

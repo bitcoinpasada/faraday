@@ -691,6 +691,36 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// Remove every key, while a key is kept nowhere else: the list the Lock
+/// sheet gives, and the hold.
+pub(super) fn remove_keys_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    kept_sheet(
+        app,
+        ui,
+        (w, h),
+        (
+            Icon::Error.into(),
+            Role::Error.paint(),
+            EN.settings_remove_every_title,
+        ),
+        (
+            EN.settings_remove_every_line,
+            Role::Error.paint(),
+            None,
+            None,
+        ),
+        &kept_sections(app, false, false, Text::of(EN.settings_remove_every_then)),
+        &[
+            (EN.power_cancel, Style::Secondary, Action::Cancel),
+            (
+                EN.settings_hold_remove_every,
+                Style::Primary,
+                Action::RemoveKeysHold,
+            ),
+        ],
+    );
+}
+
 /// Writing what is For the stick from a session that held a secret: the
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {

@@ -596,3 +596,21 @@ fn check_a_signer_is_offered_on_a_psbt_row_only() {
     let other = menu(1);
     assert!(!other.contains(&"Check a signer".to_string()), "{other:?}");
 }
+
+#[test]
+fn a_vaults_key_file_deleted_from_the_stick_takes_a_hold() {
+    let (_shell, mut app) = visiting(Vec::new(), vec![file("savings.keyx", &[7u8; 32])]);
+    menu_of(&mut app, Row::Stick(0));
+    choose(&mut app, "Delete from the stick");
+    while app.poll_storage().is_some() {}
+    let _ = app.frame();
+    assert!(!app.offers(Action::DeleteGo), "no plain button");
+    assert!(app.offers(Action::Vault(faraday_core::vault::VaultAction::HoldWipe)));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "Hold to delete a vault's key file"),
+        "{texts:?}"
+    );
+}

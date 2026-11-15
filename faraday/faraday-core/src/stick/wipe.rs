@@ -183,27 +183,52 @@ impl Faraday {
         }
     }
 
-    /// Whether the sheet's button is a hold: a vault is among the files
-    /// chosen (`docs/FLOWS.md` decisions 4 and 61), or the free space or
-    /// the whole partition is zeroed (F131).
+    /// Whether the sheet's button is a hold: a vault or a vault's key file
+    /// is among the files chosen (`docs/FLOWS.md` decisions 4 and 61), or
+    /// the free space or the whole partition is zeroed (F131).
     pub(crate) fn delete_holds(&self) -> bool {
         self.stick
             .delete_ask
             .as_ref()
             .is_some_and(|d| match d.what {
-                // Told a vault by its contents when the listing was made
-                // (§2.1), or named `.kdbx`, whatever it holds: erring safe.
-                What::Files => self
-                    .stick
-                    .iter()
-                    .find(|s| s.id == d.stick)
-                    .is_some_and(|s| {
-                        d.chosen
-                            .iter()
-                            .any(|f| s.is_vault(f) || f.to_ascii_lowercase().ends_with(".kdbx"))
-                    }),
+                What::Files => {
+                    self.chosen_any(|s, f| self.is_vault_name(s, f) || self.is_key_file(f))
+                }
                 What::Free | What::Whole => true,
             })
+    }
+
+    /// Whether the files chosen are a vault's key file and no vault: its
+    /// hold says so.
+    pub(crate) fn delete_holds_key_file_only(&self) -> bool {
+        self.stick
+            .delete_ask
+            .as_ref()
+            .is_some_and(|d| d.what == What::Files)
+            && !self.chosen_any(|s, f| self.is_vault_name(s, f))
+            && self.chosen_any(|_, f| self.is_key_file(f))
+    }
+
+    /// Whether any file chosen to delete satisfies `is`.
+    fn chosen_any(&self, is: impl Fn(&crate::StickInfo, &str) -> bool) -> bool {
+        let Some(d) = self.stick.delete_ask.as_ref() else {
+            return false;
+        };
+        self.stick
+            .iter()
+            .find(|s| s.id == d.stick)
+            .is_some_and(|s| d.chosen.iter().any(|f| is(s, f)))
+    }
+
+    /// Told a vault by its contents when the listing was made (§2.1), or
+    /// named `.kdbx`, whatever it holds: erring safe.
+    fn is_vault_name(&self, s: &crate::StickInfo, f: &str) -> bool {
+        s.is_vault(f) || f.to_ascii_lowercase().ends_with(".kdbx")
+    }
+
+    /// A `.keyx` file, or a file chosen as a key file this power-on.
+    fn is_key_file(&self, f: &str) -> bool {
+        f.to_ascii_lowercase().ends_with(".keyx") || self.vaults.key_file_was_used(f)
     }
 
     /// The sheet's choice of what.
@@ -498,6 +523,11 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ),
         What::Free => EN.stick_wipe_hold_zero_free.to_string(),
         What::Whole => EN.stick_wipe_hold_zero_partition.to_string(),
+    };
+    let held_go = if d.what == What::Files && app.delete_holds_key_file_only() {
+        EN.stick_wipe_hold_delete_key_file.to_string()
+    } else {
+        held_go
     };
     let go_style = Style::Primary.when(d.what != What::Files || n != 0);
     let amount = |whole: bool| -> String {

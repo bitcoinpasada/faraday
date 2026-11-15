@@ -1410,6 +1410,9 @@ macro_rules! words_common {
     /// The Delete files sheet's button when a vault is chosen: a hold
     /// (`docs/FLOWS.md` decision 4). `{}`: the count, "file" or "files".
     stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
+    /// The Delete files sheet's button when only a vault's key file is
+    /// chosen: a hold.
+    stick_wipe_hold_delete_key_file: "Hold to delete a vault's key file",
     /// The Delete sheet's hold for the free space (F131).
     stick_wipe_hold_zero_free: "Hold to zero the free space",
     /// The Delete sheet's hold for the whole partition (F131).

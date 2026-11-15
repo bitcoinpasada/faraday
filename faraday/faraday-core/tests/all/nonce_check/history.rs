@@ -1044,6 +1044,7 @@ fn a_spend_closed_and_opened_again_with_no_vault_open_is_not_held() {
     let (mut app, id) = held_spend();
     faraday_core::testkit::nonce_history_drop(&mut app, id);
     app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
     assert!(app.spend().is_none(), "the spend is closed");
     load_zebra(&mut app);
     start(&mut app, 2);

@@ -535,6 +535,7 @@ fn the_finish_cards_nonce_line_follows_a_key_loaded_while_it_is_drawn() {
             "{id}: the key came in after the card was drawn"
         );
         app.press(Action::RemoveKeys);
+        app.press(Action::RemoveKeysHold);
         // Keys removed close the spend: there is no card left to read.
         assert!(app.spend().is_none(), "{id}");
         assert_eq!(finish_line(&mut app), None, "{id}");
