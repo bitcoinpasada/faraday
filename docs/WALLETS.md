@@ -692,7 +692,7 @@ groups and their tiles:
 |---|---|
 | Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · My seed makes my wallet · Sweep a private key · Convert a seed · Krux code · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
 | Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · Miniscript and inheritance · Restore an existing wallet · Back up a wallet · Read a Bitcoin Core wallet · Check a multisig setup |
-| Transactions | Sign a transaction · Nonce check · Check a signer · Compare two PSBTs · Decode a transaction · Decode a Lightning invoice · Check an address |
+| Transactions | Sign a transaction · Nonce check · Check a signer · Decode a transaction · Decode a Lightning invoice · Check an address |
 | Messages | Sign a message · Check a signed message · Check a timestamp |
 | Vaults and other keys | Vaults · QR vault · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
@@ -863,7 +863,8 @@ rule of its flow.
   Transaction card, after the fee and before the warnings, the section
   "Fee bump" appears when Files holds another transaction spending the
   same inputs. It gives the result line, its lines, its facts and
-  **Compare**, and does not stop signing (`docs/COMPARE.md` §4.2).
+  **Compare**, which opens Check a signer on the pair, and does not stop
+  signing (`docs/COMPARE.md` §4.2).
 - **The wallet card's first button** (decisions 43 and 45), primary, is
   **Spend from this wallet**; **Sign the PSBT from the stick** with a
   PSBT for this wallet in Files, which opens its review at once; **Carry

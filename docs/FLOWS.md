@@ -132,7 +132,7 @@ press is the act.
 
 **Back within a flow** (F104). In Restore, Sign a transaction, the Spend
 tab, Sign a message, Create a vault, BIP-85, Convert a seed, Silent payments, Vanity,
-Make a new wallet, Back up a wallet, the backup flow, Compare two PSBTs and Check a signer,
+Make a new wallet, Back up a wallet, the backup flow and Check a signer,
 Back opens the step before the open one with its choices as they were,
 and the way back is named after it; Back from the first step leaves the
 flow as F77 says. A running step (a vault being made, a search under
@@ -278,12 +278,11 @@ menu.
    sheet From the stick, Add to vault where it is the only action. The
    ⋮ holds, in this order and only where the row has them: **Add to
    vault** (where it is not the visible one), **Show as QR**, **Make
-   PDF** (For the stick), **Check a signer** (a PSBT's row, after
-   **Show as QR** where it has one), **Check this setup** (a wallet
+   PDF** (For the stick), **Check a signer** (a PSBT's row and a
+   finished transaction's row, after **Show as QR** where it has one;
+   `docs/SIGNER-CHECK.md` §11.2), **Check this setup** (a wallet
    file of more than one key, after **Show as QR** where it has one;
-   `Screen::MultisigCheck`, Check a multisig setup), **Compare** (a PSBT's row and a
-   finished transaction's row, after **Check a signer** where the row
-   has it; `docs/COMPARE.md` §2.1), **Rename** (For the stick only),
+   `Screen::MultisigCheck`, Check a multisig setup), **Rename** (For the stick only),
    **Details**, **Remove**. There is no visible **Remove** button. A row with no main
    action shows only the ⋮. A vault action (Add to vault, Import, Sign
    with key) is not shown, as a button or in the ⋮, while no vault is

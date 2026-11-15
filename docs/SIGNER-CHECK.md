@@ -1,14 +1,18 @@
 # Check a signer
 
 **Kind:** Spec
-**Open:** the one flow for two PSBTs (§11), Compare two PSBTs folded into Check a signer, is not built: Compare is still its own tile and screen (`docs/COMPARE.md`)
-**Status:** Built but for §11; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3)
+**Open:** the seed step (§12), loading on the Result the seed of a key that signed so that its nonces are checked in the same pass, is not built: the Result's **Load {fp}** opens Add a key
+**Status:** Built but for §12, the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
 only what it was asked: added signatures, or finalized an input from
-signatures that verify. Anything else is a finding. The decision is
-F84 (`docs/DECISIONS.md`); a signer's choice of nonces is not checked here.
+signatures that verify. Anything else is a finding. The same flow takes
+any two PSBTs or finished transactions, an original and its replacement
+among them, and lists how they differ and whether the replacement only
+raises the fee (§11; the rules are `docs/COMPARE.md`). The decisions are
+F84 and F270 (`docs/DECISIONS.md`); a signer's choice of nonces is not
+checked here.
 
 ## 1. The rule
 
@@ -78,42 +82,50 @@ Every check is in `core/faraday-psbt`; faraday-core's flow (§8.1) calls
 
 **Where it starts.** A tile in Tools' Transactions group, after **Nonce
 check**: "Check a signer", its line "Sent and returned PSBTs compared",
-its standards BIP-174 and BIP-373. It opens with nothing needed first:
+its standards BIP-174, BIP-373 and BIP-125. It opens with nothing needed first:
 no key, no wallet. It has no sidebar row and no Cancel: it keeps
 nothing a person would lose (`docs/FLOWS.md`, Flows in progress, item
 4). Its state, public, is kept until a lock or power-off, as Decode's
 is: the tile reopens a kept flow as it was, its report included, with the
 way back set anew. Files' ⋮ **Check a signer** replaces what is kept.
 
-**From Files.** A PSBT row's ⋮ in Files, From the stick and For the
-stick alike, carries **Check a signer** (`docs/FLOWS.md`, A ⋮ on every
-file, item 1: after **Show as QR**). It opens the flow with that file as
-Returned, its card closed on it with **Change**. Where exactly one other
-PSBT in Files shares its unsigned transaction and carries fewer
-signatures, that one is Sent and the check has run; otherwise the Sent
-card is open, the file's transaction first.
+**From Files.** A PSBT's row and a finished transaction's row in
+Files' ⋮, From the stick and For the stick alike, carry **Check a
+signer** (`docs/FLOWS.md`, A ⋮ on every file, item 1: after **Show as
+QR**). It opens the flow with that file as Returned, its card closed on
+it with **Change**. Sent is the first of these that holds, and the check
+has run: exactly one other PSBT in Files shares its unsigned transaction
+and carries fewer signatures; exactly one file of another unsigned
+transaction spends an input of it (the original it replaces, §11.2).
+Otherwise the Sent card is open, the files sharing an input first.
 
 **Steps.** A step flow (DESIGN §5), three cards:
 
-1. **Sent**: the PSBT that went to the device.
-2. **Returned**: the PSBT that came back.
-3. **Result**: the verdict and the findings.
+1. **Sent**: the PSBT that went to the device, or an original.
+2. **Returned**: the PSBT that came back, or a replacement.
+3. **Result**: the fee bump where it applies, the verdict and the
+   findings, and the differences (§11.5).
+
+Either card also takes a finished transaction (§11.1).
 
 **Where the PSBTs come from.**
 
-- **Files**: every PSBT in Files, From the stick and For the stick
-  alike (a PSBT this device signed and wrote out is a fair Sent). A row
-  per file: its name, and on its line "{n} signatures · {txid short
-  form}" (DESIGN §4.5). What the line reads comes from the file's
+- **Files**: every PSBT and every finished transaction in Files, From
+  the stick and For the stick alike (a PSBT this device signed and wrote
+  out is a fair Sent). A row per file: its name, and on its line "{n}
+  signatures · {txid short form}" (DESIGN §4.5), or "Finished · {txid
+  short form}" (§11.3). What the line reads comes from the file's
   `PsbtSeen`, kept on the Inbox item since it came in: a lookup.
 - **Scan**: a secondary button on each of the two cards opens the
   scanner titled "Scan the PSBT sent" or "Scan the PSBT returned"
-  (DESIGN §4.9; `crypto-psbt`, animated or not, and base64 text). A PSBT
-  read there goes to that card, named "Scanned", and nowhere else: it
-  is not put in Files and does not open Spend. Anything else read is
-  refused with the scanner's own line, "Not a PSBT".
-- Bytes that do not parse as a PSBT, version 0 or version 2, are
-  refused on the card as Files refuses them (`wallet::read_psbt`).
+  (DESIGN §4.9; `crypto-psbt`, animated or not, base64 text and a
+  finished transaction's hex). What is read there goes to that card,
+  named "Scanned", and nowhere else: it is not put in Files and does not
+  open Spend. Anything else read is refused with the scanner's own line,
+  "Not a PSBT or a transaction".
+- Bytes that parse neither as a PSBT, version 0 or version 2, nor as a
+  finished transaction are refused on the card as Files refuses them
+  (`wallet::read_psbt`, `faraday_psbt::transaction::read_raw`).
 
 **Which is which.** The person says. One default: where Files holds one
 unsigned transaction in exactly two PSBTs, their signature counts
@@ -123,9 +135,10 @@ check has run. Files of other transactions, one each, do not stop it; a
 second transaction with two files, or three files of one transaction,
 leave no default. Otherwise both cards are open, Sent first.
 
-The Returned card lists first the PSBTs of the Sent one's transaction,
-then under a section label "Other transactions" the rest. The file
-chosen as Sent is not listed. Two files with the same bytes are listed
+The card chosen second lists first the files that spend an input of the
+other card's file, those of its own unsigned transaction first, then
+under a section label "Other transactions" the rest (§11.3). The file
+on the other card is not listed. Two files with the same bytes are listed
 both; picking them gives "No signature was added" (§6.2, S9).
 
 A signature count is every signature the file carries: partial,
@@ -150,16 +163,20 @@ transactions first.
   rest of the check still runs, so the person sees what else changed.
 
 **When it runs.** On the press that completes the second card (a
-choice or a scan), or on Swap, the glue mints the token and the check
-runs once; its report is kept on the state (§8.2). It runs again when a
-key is loaded or dropped while a report is kept, since the nonce lines
-depend on it.
+choice or a scan), or on Swap, the glue mints the token and the result
+is made once; it is kept on the state (§8.2). It is made again when a
+key is loaded or dropped or a wallet registered while a result is kept,
+since the nonce lines and which outputs are the person's depend on them
+(§11.4).
 
 **Where it leaves the person.** The Result card's actions: **Show as
-QR** (the Returned PSBT, public, the QR sheet), **Swap**, **Choose
-again** (ghost), **Done** (back to where the flow was opened, F77).
-Where the seed of a key that signed is not loaded: **Load {fp}**,
-secondary, which opens Add a key and comes back to the result.
+QR** (the Returned PSBT, public, the QR sheet; only where Returned is a
+PSBT), **Swap**, **Choose again** (ghost), **Done** (back to where the
+flow was opened, F77). Where the seed of a key that signed is not
+loaded, or a key the fee bump names (`docs/COMPARE.md` §3.4, U2 and
+U3): **Load {fp}**, secondary, which opens Add a key and comes back to
+the result (§11.5; for a key that signed, the seed step of §12 is to
+take its place).
 
 ## 4. The screen
 
@@ -169,11 +186,12 @@ working screen. The ? opens the Learn section.
 
 | Card | Open | Closed |
 |---|---|---|
-| Sent | Option rows (§4.2), one per PSBT: the file's name; "{n} signatures · {txid}" as its line. Under them **Scan**, secondary. Empty: "No PSBT in Files" (§4.14, Empty state) and **Scan**. | The file's name, or "Scanned"; **Change**. |
-| Returned | The same rows, the Sent one's transaction first, then "Other transactions" (§4.12, Section label) and the rest; **Scan**. | As Sent. |
+| Sent | Option rows (§4.2), one per PSBT or finished transaction: the file's name; "{n} signatures · {txid}" or "Finished · {txid}" as its line. Under them **Scan**, secondary. Empty: "No PSBT or transaction in Files" (§4.14, Empty state) and **Scan**. | The file's name, or "Scanned"; **Change**. |
+| Returned | The same rows, the files spending an input of the other card's first, then "Other transactions" (§4.12, Section label) and the rest; **Scan**. | As Sent. |
 | Result | Below. | — |
 
-The Result card, top down:
+The Result card, where both are PSBTs of one unsigned transaction, top
+down (the whole card, with the fee bump and the differences, is §11.5):
 
 1. **The verdict**, a Result line (§4.11) in its tone: §5.
 2. **Facts** (§4.11, Fact), label over value:
@@ -199,7 +217,8 @@ The Result card, top down:
    warnings do. "No findings" where there are none.
 4. **Stated**, a section label, then the Info lines (§6.8), where there
    are any.
-5. The actions (§3).
+5. **Differences** (§11.5).
+6. The actions (§3).
 
 On the small panel each card is a page with the bar's tools (§4.1);
 the Result page scrolls.
@@ -515,7 +534,7 @@ whole PSBT.
 
 ### 8.1 Where it lives
 
-- **The check**, in core/faraday-psbt/src/signer.rs (new),
+- **The check**, in core/faraday-psbt/src/signer.rs,
   `faraday_psbt::signer`: `check(c, sent, returned, sent_bytes,
   returned_bytes, ctx) -> Report`, where `sent_bytes` and `returned_bytes`
   are the two files as the person has them (raw, base64 decoded where the
@@ -550,15 +569,13 @@ whole PSBT.
   press's `wallet_flow_sync` calls `signer_check_sync`, which compares
   the keys the report was made with against the keys now loaded.
 - **The flow**, in the decode area: Decode and Check a signer both read
-  a transaction from Files or a scan to show what it is. The area's
-  module becomes a folder, faraday/faraday-core/src/decode/ with
-  mod.rs (today's `decode.rs`, the area struct gaining a private
-  `check` field), check.rs (the flow's state and logic) and
-  check_screen.rs (its cards); `screens/decode.rs` moves to
-  decode/screen.rs. No field is added to `Faraday` and no file gains an
-  `impl Faraday` (`tools/lint-layout.counts`); the decode line in that
-  list is renamed with the file. `lib.rs`'s code map names the files
-  and the new `Screen::SignerCheck`.
+  a transaction from Files or a scan to show what it is. The area is
+  the folder faraday/faraday-core/src/decode/: mod.rs (the area struct,
+  with a private `check` field, and the presses), check.rs (the flow's
+  state and logic), check_screen.rs (its cards), check_others.rs and
+  diff_words.rs (§11.7), and screen.rs (Decode's). No field of `Faraday`
+  holds the flow (`tools/lint-layout.counts`). `lib.rs`'s code map names
+  the files and `Screen::SignerCheck`.
 - **Words**: every finding's and fact's wording in
   `faraday/faraday-strings/src/en.rs`; faraday-core fills them from the
   typed findings. The core crate returns no text for the check.
@@ -639,7 +656,7 @@ with the other two (S7, no F1).
 
 ### 9.2 The tests
 
-- core/faraday-psbt/tests/all/signer.rs (new): every row of §9.1 gives
+- core/faraday-psbt/tests/all/signer.rs: every row of §9.1 gives
   its verdict and exactly its findings, at their levels (the Sent of the
   core-signed rows is core-sent); Swap of a clean pair gives S7 per
   signature and S9, and no clean verdict; a pair written with
@@ -660,41 +677,39 @@ with the other two (S7, no F1).
 
 ## 11. The one flow for two PSBTs
 
-Compare two PSBTs (`docs/COMPARE.md` §2) is folded into Check a signer:
-one tile, one screen, one guide page, and one Result that holds the
-comparison's differences, the fee bump result where it applies and, where
-both files are PSBTs, the signer's report. Nothing in the check
+Compare two PSBTs is folded into Check a signer (F270): one tile, one
+screen, one guide page, and one Result that holds the comparison's
+differences, the fee bump result where it applies and, where both files
+are PSBTs, the signer's report. The check
 (`core/faraday-psbt/src/signer.rs`), the comparison
-(`core/faraday-psbt/src/diff.rs`) or the fee bump
-(`core/faraday-psbt/src/bump.rs`) changes: the fee bump's rules and
-wording are COMPARE §3, and Sign a transaction's review keeps its fee bump
-section (COMPARE §4), its **Compare** opening this flow. This section
-replaces COMPARE §2 and changes §3 and §4 above where it says so; until it
-is built, those describe the app.
+(`core/faraday-psbt/src/diff.rs`) and the fee bump
+(`core/faraday-psbt/src/bump.rs`) are each as they were: the comparison's
+and the fee bump's rules and wording are `docs/COMPARE.md` §2 and §3, and
+Sign a transaction's review keeps its fee bump section (COMPARE §4), its
+**Compare** opening this flow. How it was designed and what went is
+`docs/history/SIGNER-CHECK-LOG.md`.
 
 ### 11.1 The cards and what each takes
 
-The two cards keep their names, **Sent** and **Returned**. Compare's
-First is Sent and its Second is Returned; between an original and its
+The two cards are **Sent** and **Returned**. Between an original and its
 replacement (COMPARE §3.1), Sent is the original and Returned the
 replacement.
 
-Each card takes what Compare's cards take today: a PSBT, version 0 or 2,
-raw or as base64 text, or a finished transaction, raw or as hex, from
-Files or a scan. Anything else is refused on the card and in the scanner
-with "Not a PSBT or a transaction", as `wallet::read_psbt` and
+Each card takes a PSBT, version 0 or 2, raw or as base64 text, or a
+finished transaction, raw or as hex, from Files or a scan. Anything else
+is refused on the card and in the scanner with "Not a PSBT or a
+transaction", as `wallet::read_psbt` and
 `faraday_psbt::transaction::read_raw` refuse it.
 
-One side holds the union of the two flows' sides today
-(`decode::check::Side`, the one `Side`): the bytes, the version 0 form, the
+One side (`decode::check::Side`) holds the bytes, the version 0 form, the
 PSBT's own version (`None` for a finished transaction), the outpoints it
 spends (sorted), its unsigned transaction's txid, its name, its origin
-(`check::Origin`, already shared) and `differs`. The bytes of a PSBT are
-kept as Check a signer keeps them (`check::raw_bytes`: raw, base64 decoded
-where the file is text), which `signer::check` reads; the bytes of a
-finished transaction as Files holds them (raw or hex), which `read_raw` and
-`raw_as_psbt` read, and never through `raw_bytes`, since hex text can also
-decode as base64. `differs` compares with `check::same_bytes` for both.
+(`check::Origin`) and `differs`. The bytes of a PSBT are kept as
+`check::raw_bytes` gives them (raw, base64 decoded where the file is
+text), which `signer::check` reads; the bytes of a finished transaction
+as Files holds them (raw or hex), which `read_raw` and `raw_as_psbt`
+read, and never through `raw_bytes`, since hex text can also decode as
+base64. `differs` compares with `check::same_bytes` for both.
 
 **A finished transaction is not a returned PSBT.** The signer check runs
 only where both sides are PSBTs. It cannot be run on a finished
@@ -707,60 +722,51 @@ so every key origin, UTXO and script the Sent PSBT carries would read as
 removed, and no signature in it is held to a key the sent PSBT names
 (§6.2). With a finished transaction on either card the Result says "The
 signer check needs two PSBTs" and shows the fee bump and the differences
-only.
-
-Nothing refused today is accepted: today's cards refuse a finished
-transaction ("Not a PSBT"); the merged card takes it, as Compare's did,
-and the check still never judges it, so no pair reaches a verdict the
-check would not give it today. Every finding, verdict and refusal of §5
-and §6 stands as it is.
+only. No pair reaches a verdict the check would not give two PSBTs, and
+every finding, verdict and refusal of §5 and §6 stands as it is.
 
 ### 11.2 Names and ways in
 
-- **Screen and presses.** `Screen::SignerCheck` is the one screen;
-  `Screen::Compare` goes. `Action::SignerCheck(SignerPress)` is the one
-  action; `Action::Compare` and `ComparePress` go. `SignerPress` gains
-  `FromReview(bool, usize)` (Compare's, as it is); `ComparePress::CheckSigner`
-  goes, since the report is on the same card. `decode::check::Slot` (Sent,
-  Returned) is the one slot; `compare::Slot` goes.
+- **Screen and presses.** `Screen::SignerCheck` is the screen,
+  `Action::SignerCheck(SignerPress)` its action, with
+  `SignerPress::FromReview(bool, usize)` for Sign a transaction's review;
+  `decode::check::Slot` (Sent, Returned) is the slot.
 - **Scanners.** `ScanPurpose::CheckSent` and `ScanPurpose::CheckReturned`,
-  titled "Scan the PSBT sent" and "Scan the PSBT returned", take what
-  Compare's did: `crypto-psbt`, animated or not, base64 text and a finished
-  transaction's hex. Practice's sample pair stays (`docs/MODES.md` §5.3).
-  `ScanPurpose::CompareFirst` and `CompareSecond` go.
+  titled "Scan the PSBT sent" and "Scan the PSBT returned", take
+  `crypto-psbt`, animated or not, base64 text and a finished
+  transaction's hex. Practice offers its sample pair there
+  (`docs/MODES.md` §5.3).
 - **Tools.** One tile, `Go::SignerCheck`, in the Transactions group after
   **Nonce check**: "Check a signer", its line "Sent and returned PSBTs
-  compared", its standards BIP-174, BIP-373 and BIP-125. `Go::Compare` and
-  its tile go, and so does its row in `docs/WALLETS.md` §7. A press reopens
-  a kept flow as it was; otherwise it opens on §3's default pair.
+  compared", its standards BIP-174, BIP-373 and BIP-125
+  (`docs/WALLETS.md` §7). A press reopens a kept flow as it was;
+  otherwise it opens on §3's default pair.
 - **Files.** One entry in the ⋮ of a PSBT's row and of a finished
   transaction's row, From the stick and For the stick: **Check a signer**,
-  after **Show as QR** (`docs/FLOWS.md`, A ⋮ on every file, item 1);
-  **Compare** goes. It opens the flow with that file as Returned. Sent is
-  then, the first of these that holds: the one other PSBT of its unsigned
-  transaction with fewer signatures (§3, From Files); the one file of
-  another unsigned transaction that spends an input of it, counted as
-  COMPARE §4.1 counts (the original it replaces); else the Sent card is
-  open.
+  after **Show as QR** (`docs/FLOWS.md`, A ⋮ on every file, item 1). It
+  opens the flow with that file as Returned. Sent is then, the first of
+  these that holds: the one other PSBT of its unsigned transaction with
+  fewer signatures (§3, From Files); the one file of another unsigned
+  transaction that spends an input of it, counted as COMPARE §4.1 counts
+  (the original it replaces); else the Sent card is open.
 - **Check** (DESIGN §5, Check, row 4 "What it signed"): the row opens the
   flow as the tile does, with **Check** as its way back ("Back to Check",
   F146).
-- **Sign a transaction's review.** A fee bump result's **Compare** (its
-  label kept) presses `SignerPress::FromReview`: the other transaction's
-  file is Sent and the PSBT under review is Returned, named by its source
-  as the review names it, and the flow runs.
+- **Sign a transaction's review.** A fee bump result's **Compare**
+  presses `SignerPress::FromReview`: the other transaction's file is Sent
+  and the PSBT under review is Returned, named by its source as the
+  review names it, and the flow runs.
 
 ### 11.3 The lists
 
 Each card lists every PSBT and every finished transaction in Files, From
 the stick then For the stick. A PSBT's row reads "{n} signatures · {txid
 short form}" (from its `PsbtSeen`), a finished transaction's "Finished ·
-{txid short form}" (its id kept on the state, as Compare keeps it). Empty:
-"No PSBT or transaction in Files" and **Scan**. The card chosen second
-lists first the files that spend an input of the other card's file, those
-of its own unsigned transaction first, then "Other transactions" and the
-rest; the file on the other card is not listed. §3's default pair reads
-PSBTs only, as today.
+{txid short form}" (its id kept on the state). Empty: "No PSBT or
+transaction in Files" and **Scan**. The card chosen second lists first
+the files that spend an input of the other card's file, those of its own
+unsigned transaction first, then "Other transactions" and the rest; the
+file on the other card is not listed. §3's default pair reads PSBTs only.
 
 ### 11.4 When it runs
 
@@ -772,13 +778,13 @@ with the token the glue mints. It always makes the comparison
 (`faraday_psbt::bump::judge`), over each side's inspection, a finished
 transaction's amounts filled as COMPARE §2.2 says; where both sides are
 PSBTs, also the check and its nonce lines (§8.1). One sync,
-`Faraday::signer_check_sync`, takes in `compare_sync`: it makes the result
-again when the keys or wallets differ from those it was made with
-(`InspectInputs`), works out `differs` and the finished transactions' ids
-the lists read, and the two stale paths are one. The invariant of §8.2
-holds for the whole result: it is the result for the two sides kept,
-against the keys and wallets loaded. Drawing reads it; one budget test
-holds the flow (`faraday/faraday-core/src/work/budget/signer.rs`).
+`Faraday::signer_check_sync`, makes the result again when the keys or
+wallets differ from those it was made with (`InspectInputs`), works out
+`differs` and the finished transactions' ids the lists read, and has one
+stale path. The invariant of §8.2 holds for the whole result: it is the
+result for the two sides kept, against the keys and wallets loaded.
+Drawing reads it; one budget test holds the flow
+(`faraday/faraday-core/src/work/budget/signer.rs`).
 
 ### 11.5 The Result card
 
@@ -786,18 +792,16 @@ Top down; checked against Material 3's cards, lists and dividers pages:
 
 1. **Fee bump**, only where COMPARE §3.1 applies (the txids differ and an
    outpoint is spent by both): the section label, the result line in its
-   tone, its lines and its facts, as Compare shows them today
-   (`BumpShown`). Then a full-width divider (Material 3 Dividers).
-2. **The verdict**: where both are PSBTs, §5's Result line, unchanged;
-   else "The signer check needs two PSBTs", in body text,
-   on-surface-variant, with no icon and no tone.
+   tone, its lines and its facts (COMPARE §3.4). Then a full-width
+   divider (Material 3 Dividers).
+2. **The verdict**: where both are PSBTs, §5's Result line; else "The
+   signer check needs two PSBTs", in body text, on-surface-variant, with
+   no icon and no tone.
 3. **Facts**, label over value: where the check ran and the two are one
-   unsigned transaction, §4's facts as they are; otherwise Compare's:
-   "Transaction" (both txids, labelled "Sent" and "Returned", or the one
-   txid whole), "Fee" for each, labelled the same, or "Not known", and
-   "Inputs" and "Outputs" counted in both and on one side only.
+   unsigned transaction, §4's facts; otherwise the comparison's (COMPARE
+   §2.7).
 4. **Findings** and **Stated**, as §4, where the check ran (Findings not
-   where the two share no input, as today).
+   where the two share no input).
 5. **Differences**, the section label, then a line per difference in body
    text, no icon and no tone, in COMPARE §2.7's order; "No differences"
    where there are none.
@@ -820,63 +824,124 @@ bump's result.
 |---|---|---|---|---|
 | One unsigned transaction, both PSBTs, Returned signed | Not shown | §5's, such as "Only signatures were added" | §4's | The signature counts and finals (C3, C6 to C9) |
 | The same bytes twice | Not shown | "1 finding", "No signature was added" (§6.2) | §4's | "No differences" |
-| One unsigned transaction, a finished transaction on a card | Not shown | "The signer check needs two PSBTs" | Compare's | As Compare lists them |
-| Different transactions spending an outpoint in common | COMPARE §3.4's result | §5's "{n} findings", or the line above where a card holds a finished transaction | Compare's | As Compare lists them |
-| No input in common | Not shown | "Not the same transaction", or the line above | Compare's | Each input and output on one side only |
+| One unsigned transaction, a finished transaction on a card | Not shown | "The signer check needs two PSBTs" | The comparison's | As COMPARE §2.5 lists them |
+| Different transactions spending an outpoint in common | COMPARE §3.4's result | §5's "{n} findings", or the line above where a card holds a finished transaction | The comparison's | As COMPARE §2.5 lists them |
+| No input in common | Not shown | "Not the same transaction", or the line above | The comparison's | Each input and output on one side only |
 
 On the small panel each card is a page with the bar's tools; the Result
 page scrolls.
 
 ### 11.6 Wording
 
-The differences (COMPARE §2.5) take this flow's two names: "first"
-becomes "sent", "second" becomes "returned", and "{x} only" becomes "{x}
-in the sent only" or "in the returned only". The strings keep their places
-in `faraday/faraday-strings/src/en.rs`; a key naming first or second is
-renamed to sent or returned.
-
-| Id | Wording |
-|---|---|
-| C1 | "Version: {a} sent, {b} returned" |
-| C2 | "Locktime: {a} sent, {b} returned" |
-| C3 | "PSBT version: {a} sent, {b} returned" |
-| C4 | "Input {op}: in the sent only" / "… in the returned only" |
-| C5 | "Input {op}: sequence {a} sent, {b} returned" |
-| C6 | "Input {op}: spends {a} sent, {b} returned" |
-| C7 | "Input {op}: amount stated in the sent only" / "… in the returned only" |
-| C8 | "Input {op}: {a} signatures sent, {b} returned" |
-| C9 | "Input {op}: final in the sent only" / "… in the returned only" |
-| C10 | "Output to {addr}: {amount}, in the sent only" / "… in the returned only" |
-| C11 | "Output to {addr}: {a} sent, {b} returned" |
-| C12 | "Input {op}: spent twice in the sent" / "… in the returned" |
-| C13 | "Output to {addr}: yours in the sent only" / "… in the returned only" |
-
-The facts' "{n} first only" and "{n} second only" become "{n} in the sent
-only" and "{n} in the returned only"; the facts' labels "First" and
-"Second" become the cards' "Sent" and "Returned". The fee bump keeps
-"original" and "replacement" (COMPARE §3.4). One string is new: "The
-signer check needs two PSBTs". The strings that only Compare's tile, its
-Files entry, its scanners and its Result's **Check a signer** read go.
+The differences are COMPARE §2.5's, naming the two files sent and
+returned ("{x} in the sent only", "in the returned only"); the facts'
+labels are the cards' "Sent" and "Returned", and their counts "{n} in the
+sent only" and "{n} in the returned only". The fee bump keeps "original"
+and "replacement" (COMPARE §3.4). The Result's line where a card holds a
+finished transaction is "The signer check needs two PSBTs". Every string
+is in `faraday/faraday-strings/src/en.rs`.
 
 ### 11.7 Where it lives
 
-The flow stays in the decode area, and Compare's folder is folded into it,
-all in faraday/faraday-core/src/decode/: check.rs holds the one state,
-side, slot and press; check_screen.rs the cards and the one Result;
-check_words.rs the check's words; Compare's others.rs (the files sharing
-an input) becomes check_others.rs, and its words.rs (the differences' and
-the fee bump's words) diff_words.rs. The presses stay in the area's
-mod.rs. No field is added to `Faraday`; the area's `compare` field goes.
+In the decode area, faraday/faraday-core/src/decode/: check.rs holds the
+one state, side, slot and press; check_screen.rs the cards and the one
+Result; check_words.rs the check's words; check_others.rs the files
+sharing an input; diff_words.rs the differences' and the fee bump's
+words. The presses are in the area's mod.rs. No field of `Faraday` holds
+the flow.
 
 ### 11.8 The manifest and the guide
 
-In `docs/crypto/actions.toml` both actions keep their ids, names, labels,
-classes and own lines: `sign-check` ("Check a PSBT's signatures") drops
-"Compare" from its screens, and `fee-bump` ("Compare PSBTs and the fee
-bump": the comparison is still made, and the name says what is done, not
-which tile) names "SignerCheck" for "Compare"; their functions follow the
+In `docs/crypto/actions.toml`, `sign-check` ("Check a PSBT's
+signatures") and `fee-bump` ("Compare PSBTs and the fee bump": the
+comparison is still made, and the name says what is done, not which
+tile) both list the screen `SignerCheck`; their functions follow the
 code. The rows `check-signer` and `fee-bump` keep their ids.
 
-The guide has one page, `docs/guide/signer-check.md`: Compare's fee bump
-and differences sections join it under its key, and its Actions section
-loses Compare's **Check a signer**.
+The guide has one page, `docs/guide/signer-check.md`, which holds the
+fee bump and the differences.
+
+## 12. The seed step: the nonces checked in the same pass
+
+Not built: today the Result's **Load {fp}** opens Add a key,
+and the person comes back to the Result by its way back; nothing below
+is drawn yet.
+
+Checking a signed PSBT and checking its nonces are one task for a person
+holding the seed of a key that signed: the check recomputes each added
+signature's nonce where the key's seed is loaded (§8.1, the "Nonces
+recomputed" fact), and says "{fp} not loaded" where it is not. The seed
+step offers the seed at that point, on the Result, so a person never
+opens Add a key or the Nonce check as a second tool to finish the check.
+
+**Where it shows.** On the Result, where the check ran and the "Nonces
+recomputed" fact names a key not loaded: under that fact, a row per such
+key (Material 3 Lists, a one-line item): the fingerprint, its supporting
+line "Seed not loaded", and a trailing text button **Load the seed**. It
+takes the place of the actions' **Load {fp}** for those keys; a key only
+the fee bump names (COMPARE §3.4, U2 and U3) keeps **Load {fp}**, since
+any form of that key, or its wallet, answers it. A key with no seed (a
+fingerprint with no origin, a MuSig2 aggregate) has no row: its nonce is
+not one a seed recomputes (§6.4).
+
+**The sheet.** **Load the seed** opens a sheet (DESIGN §5, Sheet;
+checked against Material 3's Dialogs page, a simple dialog of list rows)
+titled "Seed of {fp}", with the three ways in:
+
+1. **Type the words**: Add a key's BIP-39 form (`docs/FLOWS.md`, New
+   key and Add a key: the count over its boxes, every word list it
+   reads), opened as a page for this key alone, its way back to the
+   Result.
+2. **Scan a SeedQR**: the scanner titled "Scan the SeedQR", Standard and
+   Compact; the passphrase asked after it is read, on decision 52's
+   sheet (**Use without a passphrase**, **Add a passphrase**).
+3. **Open a vault**: the vaults in memory (`docs/FLOWS.md`, Vaults); a
+   locked one opens as for a flow that needs a vault (decision 10),
+   **Unlock** coming back here, and **Load from {vault}** (F62) offers
+   the key ticked where the vault holds it.
+
+With a stick in, Type the words and Scan a SeedQR open the sheet that
+asks for it to be pulled, as everywhere a seed is typed or scanned
+(`docs/FLOWS.md`, decisions 8 and 9). A SLIP-39 set, codex32 shares or
+Seed XOR parts are loaded with Add a key, as today.
+
+**The passphrase and the fingerprint.** Typed words then ask
+**No passphrase**, or **Passphrase** and **Passphrase again** behind
+their eyes, as My seed makes my wallet's Passphrase card does. The seed
+and passphrase must make the fingerprint the row names: where they make
+another, the page or sheet says "Fingerprint {x}: not {fp}", nothing is
+loaded, and the person changes the words or the passphrase. A seed that
+makes the fingerprint is loaded as Add a key loads one (`faraday-keys`,
+no new reveal and no copy kept by the flow, `docs/KEYS.md`), and stays
+loaded, as any key, until it is dropped or the device locks.
+
+**The same pass.** The press that loads the key brings the person back
+to the Result and runs the check again with it, as a key loaded while a
+report is kept already does (§8.2, `signer_check_sync`): the result is
+made once on that press, the "Nonces recomputed" fact and the nonce
+lines (S6) now counting that key, and the Result is scrolled to the
+fact. Nothing in the rule changes: a clean verdict still does not need
+the seeds (§1, rule 5), and a nonce a loaded key does not reproduce is
+S6 as it is today.
+
+**Practice.** Both scanners offer a second sample pair beside §3's,
+"Load sample PSBT, signed elsewhere": the Sent scanner hands over
+`demo-regtest.psbt`, the Returned scanner `signer-random-nonce.psbt`,
+signed by the "abandon … about" key, which Practice does not load at the
+start, with a nonce RFC 6979 does not give. The Result reads "Only
+signatures were added" with "None: 73c5da0a not loaded" and the key's
+row; **Load the seed**, **Type the words** and Practice's sample words
+(`docs/MODES.md` §5) load it, and the same Result then carries S6.
+
+**What the build touches.** The Result's rows and the sheet in
+faraday/faraday-core/src/decode/check_screen.rs; a press for the row and
+the fingerprint match in decode/check.rs and the area's mod.rs, reaching
+the words form, the SeedQR scanner and the vault unlock through their
+own presses with this flow as their way back; the strings in
+`faraday/faraday-strings/src/en.rs`; the sample pair in
+faraday/faraday-core/src/samples/ (`docs/MODES.md` §5.3). Tests: the row
+shows only for a key not loaded; typed words of another fingerprint load
+nothing; the right words load the key and turn the random-nonce result
+to S6 in one press; a SeedQR and a vault do the same; a key the fee bump
+names keeps **Load {fp}**; the budget test counts one check on the
+loading press.

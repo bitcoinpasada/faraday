@@ -43,7 +43,7 @@ need. Each document's header says what kind it is:
 | What does My seed makes my wallet take, show and keep? | `docs/FLOWS.md` (My seed makes my wallet), `docs/DESIGN.md` §5 (`SeedCheck`) |
 | What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/guide/core-wallet.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/guide/invoice.md` |
-| How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
+| How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` (the rules); `docs/SIGNER-CHECK.md` §11, where they are shown |
 | What does the Check place list, and where is it in the navigation? | `docs/DESIGN.md` §5 (`Check`), `docs/decisions/F255.md` |
 | What does Check an address show for a found address and for a miss? | `docs/DESIGN.md` §5 (Check an address, The result), §4.5 (Whole string); the search, `docs/QR.md` §2 |
 | What does Check a signer show, and how does it open? | `docs/SIGNER-CHECK.md` (§3, the flow), `docs/guide/signer-check.md` |
@@ -93,7 +93,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/BACKUP-FLOW.md`: The backup flow. Built: GPG keys, the Secure Boot keys and the Bitcoin wallet.
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built.
-- `docs/COMPARE.md`: Compare two PSBTs, and the fee bump. Built (F233).
+- `docs/COMPARE.md`: Comparing two transactions, and the fee bump. Built (F233, F270).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F81, F126; Practice's aids in Faraday Demo's host strip, §14, F118).
 - `docs/DEVELOPING.md`: Developing Faraday. Built.
@@ -141,7 +141,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; §2 lists what works; §5 is built except Electrum seed words.
 - `docs/LAYOUT.md`: Layout at every window size. Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Guide in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/SIGNER-CHECK.md`: Check a signer. Built but for §11; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
+- `docs/SIGNER-CHECK.md`: Check a signer. Built but for §12, the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
 
@@ -183,7 +183,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | What does Check a timestamp take and show, and what does a proof prove? | `docs/DESIGN.md` §5 (`OtsCheck`), `docs/decisions/F230.md`, `docs/guide/ots-check.md` |
 | What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/guide/core-wallet.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/guide/invoice.md` |
-| How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
+| How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` (the rules); `docs/SIGNER-CHECK.md` §11, where they are shown |
 | What does Check a signer show, and how does it open? | `docs/SIGNER-CHECK.md` (§3, the flow), `docs/guide/signer-check.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
@@ -225,7 +225,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record, and the call for outside review of Faraday's own specifications (§10). Built (F19); the Audits page does not yet show §10 (F160, F177).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
-- `docs/COMPARE.md`: Compare two PSBTs, and the fee bump: the differences between any two PSBTs or finished transactions, listed without judging, and whether a replacement only raises the fee, in Compare and on Sign a transaction's review. Built (F233).
+- `docs/COMPARE.md`: Comparing two transactions, and the fee bump: the differences between any two PSBTs or finished transactions, listed without judging, and whether a replacement only raises the fee, on Check a signer's Result and on Sign a transaction's review. Built (F233, F270).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F240); no Codex32QR picture for 74 and 127 characters.
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F81).
@@ -273,7 +273,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/SECRET-LEAKS.md`: Tests that fail on a secret left in memory or on screen: a test-only allocator that scans freed and live blocks for the test secrets' forms, the tours' check of the frame after Lock, a hide or leaving a page, the secret types' rules and the named entries that let a known copy through (F250). Built; the files that name a secret type and still build heap text are later work.
-- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included, but for the one flow for two PSBTs (§11), Compare two PSBTs folded into it.
+- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned, and any two PSBTs or finished transactions compared (§11). Built, Practice's sample pair included, but for the seed step (§12), loading on the Result the seed of a key that signed.
 - `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.

@@ -249,7 +249,7 @@ Read this table, then only the decision you need.
 | [F230](decisions/F230.md) | An OpenTimestamps proof is checked on the device against a block header the person gives, checked against python-opentimestamps | 2026-11-09 | Active, built: the reader, the cross-check against python-opentimestamps and the Check a timestamp tool | signing |
 | [F231](decisions/F231.md) | A passphrase record belongs to exactly the key it names: saving another passphrase of one seed asks nothing, and only codex32 shares of one set are grouped | 2026-11-09 | Active | security |
 | [F232](decisions/F232.md) | A BOLT 12 offer is read in Decode a Lightning invoice, read only, through a reader of Faraday's own, checked against Core Lightning's code | 2026-11-10 | Amended by F247 | formats |
-| [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Active, built | signing |
+| [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Amended by F270 | signing |
 | [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Amended by F257 | wallets |
 | [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Amended by F255 | stick |
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
@@ -283,3 +283,4 @@ Read this table, then only the decision you need.
 | [F266](decisions/F266.md) | The Linux Starter always draws its own close button | 2026-11-14 | Active | starter |
 | [F268](decisions/F268.md) | Decisions that no longer bind move to history | 2026-11-14 | Active | repository |
 | [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
+| [F270](decisions/F270.md) | Check a signer takes in Compare two PSBTs: one tile and one Result for two PSBTs or finished transactions | 2026-11-15 | Active, built | signing |
