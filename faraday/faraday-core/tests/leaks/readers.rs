@@ -283,6 +283,52 @@ fn opened_leaves_no_copy(code: Vec<u8>, name: &str, opened: fn(&Faraday) -> bool
     finish(name, armed, true);
 }
 
+/// A note a Krux code holds that a person may use as a passphrase.
+const KEF_NOTE: &str = "Spare-passphrase Quartz-Harbor-Velvet-4417-Ember-Sable-902";
+
+#[test]
+fn a_krux_note_used_as_a_passphrase_leaves_no_copy_after_lock() {
+    let mut note = zeroize::Zeroizing::new(Vec::with_capacity(KEF_NOTE.len()));
+    note.extend_from_slice(KEF_NOTE.as_bytes());
+    let code = kef_code_of(20, note);
+    let mut forms = seed_forms("");
+    forms.push(Form::new(
+        "code passphrase",
+        KEF_PASSPHRASE.as_bytes().to_vec(),
+    ));
+    forms.push(Form::new("note", KEF_NOTE.as_bytes().to_vec()));
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    app.event(Event::Scanned { bytes: code });
+    let _ = app.frame();
+    let open = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .and_then(|c| c.ways.iter().position(|w| w.label() == "Open"))
+        .expect("the card offers Open");
+    app.press(Action::ReadGo(open as u8));
+    type_text(&mut app, KEF_PASSPHRASE);
+    app.event(Event::Key(Key::Enter));
+    for _ in 0..6 {
+        testkit::settle(&mut app);
+        if app.busy().is_none() {
+            break;
+        }
+    }
+    let _ = app.frame();
+    assert!(testkit::kef_shows_contents(&app), "the note did not open");
+    app.press(Action::KefRead(
+        faraday_core::seeds::kef::KefAct::UseAsPassphrase,
+    ));
+    let _ = app.frame();
+    assert_ne!(app.sheet, Some(Sheet::KefRead), "the note was not carried");
+    app.press(Action::Cancel);
+    crate::seed_load::lock(&mut app);
+    finish("krux note used as passphrase", armed, true);
+}
+
 /// The key of `tools/vectors/paperkey/faraday-key.txt`: the seeds it was
 /// made from.
 fn paper_seeds() -> ([u8; 32], [u8; 32]) {

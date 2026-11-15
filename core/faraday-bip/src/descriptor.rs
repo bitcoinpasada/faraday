@@ -139,9 +139,12 @@ pub(crate) fn token_fits(leaf: &str) -> bool {
 /// `miniscript`'s tree reader splits it outside a `tr()` tree; a tree's `{`
 /// and `}` count as part of a leaf, since in a key they are not divisions.
 /// Every route that gives a whole descriptor to `miniscript` checks this
-/// first, on the text it gives.
+/// first, on the text it gives. Text with no `(` is no wallet descriptor
+/// (every one is a script name and its arguments in brackets), so
+/// `miniscript` is never given it: it would copy such text, a note or a
+/// passphrase, into the error it builds and free that unwiped.
 pub(crate) fn tokens_fit(text: &str) -> bool {
-    text.split(['(', ')', ',']).all(token_fits)
+    text.contains('(') && text.split(['(', ')', ',']).all(token_fits)
 }
 
 /// Whether `text` carries an `xprv` or a `tprv`: a run of letters and
