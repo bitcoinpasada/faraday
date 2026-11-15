@@ -326,7 +326,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
     next.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of(&name.clone()),
-        bytes,
+        bytes: bytes.into(),
     });
     next.storage(StorageEvent::Sticks(Vec::new()));
     let k = next

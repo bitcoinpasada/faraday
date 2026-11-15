@@ -62,7 +62,11 @@ fn pump(app: &mut Faraday, dir: &Path) -> Vec<faraday_text::Text> {
         if let StorageCommand::Read { stick, name } = c {
             asked.push(name.clone());
             let bytes = read(&dir.display().to_string(), &name).unwrap();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     asked

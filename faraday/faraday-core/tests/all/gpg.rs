@@ -95,7 +95,11 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -895,7 +899,7 @@ fn a_ticked_file_whose_bytes_change_drops_its_tick() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of("S"),
         name: faraday_text::Text::of(&changed.0.clone()),
-        bytes: changed.1.clone(),
+        bytes: changed.1.clone().into(),
     });
     let named: Vec<&str> = app
         .inbox()
@@ -1440,7 +1444,11 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = boot.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -1498,7 +1506,11 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -1576,7 +1588,11 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = boot.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     for (name, bytes) in &files {

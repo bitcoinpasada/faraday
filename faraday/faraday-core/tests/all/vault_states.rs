@@ -1767,7 +1767,7 @@ fn a_copy_of_a_file_with_the_made_keyx_name_written_to_a_stick_keeps_the_key_to_
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of("a"),
         name: faraday_text::Text::of("keyed.keyx"),
-        bytes: vec![1, 2, 3],
+        bytes: vec![1, 2, 3].into(),
     });
     // Its write to another stick was started and is answered now.
     testkit::inbox_write_started(&mut app, "keyed.keyx");

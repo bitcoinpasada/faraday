@@ -272,7 +272,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: vault.clone(),
+                bytes: vault.clone().into(),
             });
         }
     }

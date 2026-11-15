@@ -123,7 +123,11 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Read { stick, name } = c {
             let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     assert!(

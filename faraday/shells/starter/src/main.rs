@@ -109,7 +109,7 @@ struct Shell {
     /// What [`watch_listing`] reads: the Downloads folder and the
     /// cameras, sent when either changed.
     listing: Receiver<Listing>,
-    listed: Option<StorageEvent>,
+    listed: Option<faraday_storage::Downloads>,
     cameras: Option<Vec<(String, String)>>,
     boxes: Boxes,
     /// The sticks' folders, their pictures read on a thread of their own.
@@ -569,7 +569,7 @@ impl Shell {
             return;
         };
         if self.listed.as_ref() != Some(&now.files) {
-            self.starter.held().storage(now.files.clone());
+            self.starter.held().storage(now.files.event());
             self.listed = Some(now.files);
             core.redraw();
         }
@@ -700,7 +700,7 @@ impl Program for Shell {
 /// cameras.
 #[derive(Clone, PartialEq)]
 struct Listing {
-    files: StorageEvent,
+    files: faraday_storage::Downloads,
     cameras: Vec<(String, String)>,
 }
 
@@ -718,7 +718,7 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
         let mut last = None;
         loop {
             let now = Listing {
-                files: host.files(),
+                files: host.downloads(),
                 cameras: camera::list(),
             };
             if last.as_ref() != Some(&now) {

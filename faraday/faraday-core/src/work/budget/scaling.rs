@@ -203,7 +203,11 @@ fn boot_import(copies: usize) -> Faraday {
                     .find(|(f, _)| *f == *name)
                     .map(|f| f.1.clone())
                     .unwrap_or_default();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { name, .. } => app.storage(StorageEvent::QrRead {
                 name,

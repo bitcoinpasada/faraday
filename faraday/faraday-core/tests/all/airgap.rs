@@ -190,7 +190,7 @@ fn the_boot_import_offers_its_files_at_once() {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: OTHER.as_bytes().to_vec(),
+                bytes: OTHER.as_bytes().to_vec().into(),
             });
         }
     }

@@ -1482,7 +1482,8 @@ fn save(app: &mut Faraday) {
         Value::Set(parts) => {
             // One file for the share on show, never the whole set.
             let at = s.part.min(parts.len().saturating_sub(1));
-            let mut one = Zeroizing::new(Vec::new());
+            let size = parts.iter().map(|p| p.len() + 1).sum();
+            let mut one = Zeroizing::new(Vec::with_capacity(size));
             if let Some(part) = parts.get(at) {
                 one.extend_from_slice(part.as_bytes());
                 one.push(b'\n');

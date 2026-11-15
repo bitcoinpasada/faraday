@@ -81,12 +81,6 @@ const KEPT: &[(&str, &str, &str, &str)] = &[
         "its only wiping part is EntropyBytes, which wipes on drop and compares without a branch on a byte, so the derived copy and comparison are its own; the snapshot and replay shells copy events and the tests compare them",
     ),
     (
-        "faraday/faraday-core/src/storage_api.rs",
-        "StorageEvent",
-        "Clone,PartialEq,Debug",
-        "its wiping parts are Zeroizing buffers (the files restored, a picture's bytes and codes), as Restored's files already were; the shells and tests copy, compare and print events (fixed in a later change: a function of the type that does)",
-    ),
-    (
         "faraday/faraday-core/src/backup_flow/mod.rs",
         "Live",
         "Debug",
@@ -97,6 +91,12 @@ const KEPT: &[(&str, &str, &str, &str)] = &[
         "BackupFlow",
         "Clone,Debug",
         "holds Live, whose copy is its own and whose Debug is Writing's own",
+    ),
+    (
+        "faraday/faraday-core/src/backup_flow/mod.rs",
+        "Reading",
+        "Clone,Debug",
+        "holds ReadFiles, whose Clone copies into wiping buffers and whose Debug prints a count only; a copy of a reading is taken to work on while the flow changes",
     ),
     (
         "faraday/faraday-core/src/dice_entry/screen.rs",

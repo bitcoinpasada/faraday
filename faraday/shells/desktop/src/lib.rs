@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::{BOOT_FOLDER, Faraday, StickInfo, StorageEvent};
 use faraday_shell_api::{Command, Event};
-use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info_after};
+use faraday_storage::{Boxes, Dirs, Downloads, Host, serve_with, stick_info_after};
 use faraday_window::camera;
 use faraday_window::clipboard::Clipboard;
 
@@ -89,7 +89,7 @@ pub enum Asked {
 /// cameras.
 #[derive(Clone, PartialEq)]
 struct Listing {
-    files: StorageEvent,
+    files: Downloads,
     cameras: Vec<(String, String)>,
 }
 
@@ -107,7 +107,7 @@ pub struct Demo {
     /// it again.
     latest: Option<Listing>,
     /// The Downloads folder as last listed to the app.
-    listed: Option<StorageEvent>,
+    listed: Option<Downloads>,
     /// The cameras as last listed to the app.
     cameras: Option<Vec<(String, String)>>,
     boxes: Boxes,
@@ -284,7 +284,7 @@ impl Demo {
         };
         let mut changed = false;
         if self.listed.as_ref() != Some(&now.files) {
-            app.storage(now.files.clone());
+            app.storage(now.files.event());
             self.listed = Some(now.files);
             changed = true;
         }
@@ -406,7 +406,7 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>, stop: Ar
         let mut last = None;
         while !stop.load(Ordering::Relaxed) {
             let now = Listing {
-                files: host.files(),
+                files: host.downloads(),
                 cameras: camera::list(),
             };
             if is_new(&mut last, &now) && out.send(now).is_err() {
@@ -530,7 +530,7 @@ mod tests {
     fn a_listing_is_sent_only_when_it_changed() {
         let mut last = None;
         let mut now = Listing {
-            files: StorageEvent::Cameras(Vec::new()),
+            files: Downloads::default(),
             cameras: Vec::new(),
         };
         assert!(is_new(&mut last, &now));

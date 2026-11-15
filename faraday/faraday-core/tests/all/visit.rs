@@ -1391,7 +1391,7 @@ fn a_picture_asked_for_says_it_is_being_read_until_its_codes_come() {
         app.storage(StorageEvent::Read {
             stick,
             name,
-            bytes: b"text".to_vec(),
+            bytes: b"text".to_vec().into(),
         });
     }
     let _ = app.frame();

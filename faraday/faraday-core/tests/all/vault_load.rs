@@ -359,7 +359,7 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: bytes.clone(),
+                bytes: bytes.clone().into(),
             });
         }
     }

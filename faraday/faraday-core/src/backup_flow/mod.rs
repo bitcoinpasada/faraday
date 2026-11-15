@@ -766,7 +766,7 @@ pub struct Reading {
     /// Free bytes.
     pub free: Option<u64>,
     /// The vault files read, with their bytes.
-    pub files: Vec<(VaultRead, Vec<u8>)>,
+    pub files: ReadFiles,
     /// Why it cannot be used, or is refused.
     pub problem: Option<Problem>,
     /// Why a vault file on the stick was not read: this computer has not the
@@ -798,6 +798,47 @@ pub struct Reading {
     /// stick it is, so it is bound once read with no second tap, unless
     /// it reads like a stick bound to another place (§4.2).
     pub chosen: bool,
+}
+
+/// The vault files read off a stick, with their bytes in wiping buffers.
+/// Reading holds them where a copy of it is taken to work on while the app
+/// changes; each copy is a wiping buffer too, and `Debug` prints no bytes.
+#[derive(Default)]
+pub struct ReadFiles(Vec<(VaultRead, zeroize::Zeroizing<Vec<u8>>)>);
+
+impl Clone for ReadFiles {
+    fn clone(&self) -> Self {
+        ReadFiles(
+            self.0
+                .iter()
+                .map(|(r, b)| {
+                    let mut copy = zeroize::Zeroizing::new(Vec::with_capacity(b.len()));
+                    copy.extend_from_slice(b);
+                    (r.clone(), copy)
+                })
+                .collect(),
+        )
+    }
+}
+
+impl std::fmt::Debug for ReadFiles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ReadFiles({} files)", self.0.len())
+    }
+}
+
+impl std::ops::Deref for ReadFiles {
+    type Target = Vec<(VaultRead, zeroize::Zeroizing<Vec<u8>>)>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ReadFiles {
+    /// Adds a file read.
+    pub fn push(&mut self, read: VaultRead, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        self.0.push((read, bytes));
+    }
 }
 
 /// A write under way (step 6).

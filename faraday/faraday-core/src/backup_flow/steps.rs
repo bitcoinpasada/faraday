@@ -835,7 +835,7 @@ impl Faraday {
             pending: kdbx.clone(),
             space_pending: false,
             free: None,
-            files: Vec::new(),
+            files: Default::default(),
             problem: None,
             short,
             picks: Vec::new(),
@@ -886,7 +886,7 @@ impl Faraday {
             .is_some_and(|r| r.id == stick && r.pending.iter().any(|n| n == name))
     }
 
-    pub(crate) fn flow_read_answer(&mut self, name: &str, bytes: Option<Vec<u8>>) {
+    pub(crate) fn flow_read_answer(&mut self, name: &str, bytes: Option<Zeroizing<Vec<u8>>>) {
         let c = self.compute();
         let Some(i) = self.fi() else {
             return;
@@ -902,14 +902,14 @@ impl Faraday {
             && let Some(sha) = sha
             && fv::file::inspect(&bytes).is_ok()
         {
-            r.files.push((
+            r.files.push(
                 VaultRead {
                     name: Text::of(name),
                     len: bytes.len(),
                     sha,
                 },
                 bytes,
-            ));
+            );
         }
         self.flow_reading_settled();
     }
@@ -1682,7 +1682,7 @@ impl Faraday {
         i: usize,
         v: usize,
         name: &str,
-        bytes: Vec<u8>,
+        bytes: Zeroizing<Vec<u8>>,
         label: &str,
     ) -> Text {
         let c = self.compute();

@@ -15,7 +15,10 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let ok = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![(faraday_text::Text::of("backup-gate"), b"old".to_vec())],
+        vec![(
+            faraday_text::Text::of("backup-gate"),
+            b"old".to_vec().into(),
+        )],
     );
     assert!(ok.is_ok());
     // A save that fails on a name it cannot write, listed after the gate.
@@ -23,11 +26,11 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
         vec![(faraday_text::Text::of("inbox-file"), vec![1].into())],
         Vec::new(),
         vec![
-            (faraday_text::Text::of("settings"), b"s".to_vec()),
-            (faraday_text::Text::of("bad/name"), b"x".to_vec()),
+            (faraday_text::Text::of("settings"), b"s".to_vec().into()),
+            (faraday_text::Text::of("bad/name"), b"x".to_vec().into()),
             (
                 faraday_text::Text::of("backup-gate"),
-                b"gpg\tabc\tKey\n".to_vec(),
+                b"gpg\tabc\tKey\n".to_vec().into(),
             ),
         ],
     );
@@ -53,7 +56,7 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let failed = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![(faraday_text::Text::of("backup-gate"), b"x".to_vec())],
+        vec![(faraday_text::Text::of("backup-gate"), b"x".to_vec().into())],
     );
     assert!(failed.is_err());
     assert!(
@@ -69,7 +72,10 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let _ = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![(faraday_text::Text::of("backup-flow"), b"old flow".to_vec())],
+        vec![(
+            faraday_text::Text::of("backup-flow"),
+            b"old flow".to_vec().into(),
+        )],
     );
     fs::write(dir.join("kept/.backup-flow.tmp"), b"half").unwrap();
     assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"old flow");
@@ -78,7 +84,10 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     let _ = boxes.save(
         Vec::new(),
         Vec::new(),
-        vec![(faraday_text::Text::of("backup-flow"), b"new flow".to_vec())],
+        vec![(
+            faraday_text::Text::of("backup-flow"),
+            b"new flow".to_vec().into(),
+        )],
     );
     assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"new flow");
     let _ = fs::remove_dir_all(&dir);

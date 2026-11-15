@@ -108,7 +108,11 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
         match c {
             StorageCommand::Read { stick, name } => {
                 let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
@@ -272,7 +276,11 @@ fn reads(app: &mut Faraday, files: &[(String, Vec<u8>)]) -> Vec<String> {
             StorageCommand::Read { stick, name } => {
                 asked.push(String::from(&*name));
                 let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { name, .. } => {
                 asked.push(String::from(&*name));
@@ -386,7 +394,11 @@ fn pulled_while_import_reads_what_was_read_comes_in_and_the_rest_is_said() {
             && name == "notes.txt"
         {
             let bytes = files[0].1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
         }
     }
     assert!(app.inbox().is_empty(), "something came in before the reads");
@@ -947,7 +959,11 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         match c {
             StorageCommand::Read { stick, name } => {
                 let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
@@ -965,7 +981,11 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         match c {
             StorageCommand::Read { stick, name } => {
                 let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
@@ -1517,7 +1537,11 @@ fn text_picture_asked() -> faraday_core::Faraday {
             match c {
                 StorageCommand::Read { stick, name } => {
                     let bytes = files.iter().find(|(n, _)| *n == *name).unwrap().1.clone();
-                    app.storage(StorageEvent::Read { stick, name, bytes });
+                    app.storage(StorageEvent::Read {
+                        stick,
+                        name,
+                        bytes: bytes.into(),
+                    });
                 }
                 StorageCommand::ReadQr { name, .. } => {
                     app.storage(StorageEvent::QrRead {

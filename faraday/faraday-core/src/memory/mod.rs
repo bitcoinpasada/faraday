@@ -528,15 +528,15 @@ impl Faraday {
         // has been away.
         out.extend(self.idle_kept());
         out.into_iter()
-            .map(|(name, bytes)| (faraday_text::Text::of(&name), bytes))
+            .map(|(name, bytes)| (faraday_text::Text::of(&name), bytes.into()))
             .collect()
     }
 
     /// Reads back what the previous process kept.
-    pub(crate) fn restore_kept(&mut self, kept: &[(faraday_text::Text, Vec<u8>)]) {
+    pub(crate) fn restore_kept(&mut self, kept: &crate::Kept) {
         // The flows first, then the keys that wait: each key's gate is
         // read against the flows whatever order the entries are listed in.
-        let mut gate: Option<&Vec<u8>> = None;
+        let mut gate: Option<&[u8]> = None;
         for (name, bytes) in kept {
             match name.as_str() {
                 "settings" => {

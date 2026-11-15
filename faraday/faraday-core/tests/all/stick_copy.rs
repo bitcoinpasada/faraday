@@ -91,7 +91,11 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
             StorageCommand::Read { stick, name } => {
                 let s = sticks.iter().find(|s| s.id == &*stick).expect("a stick");
                 let bytes = s.files[&*name].clone();
-                app.storage(StorageEvent::Read { stick, name, bytes });
+                app.storage(StorageEvent::Read {
+                    stick,
+                    name,
+                    bytes: bytes.into(),
+                });
             }
             StorageCommand::ReadQr { stick, name } => {
                 let s = sticks.iter().find(|s| s.id == &*stick).expect("a stick");

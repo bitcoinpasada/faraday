@@ -648,7 +648,7 @@ impl Faraday {
 
     /// A file Import asked for, read: held here, a vault too, until every
     /// file it asked for is answered.
-    fn import_read(&mut self, name: &str, bytes: Vec<u8>) {
+    fn import_read(&mut self, name: &str, bytes: zeroize::Zeroizing<Vec<u8>>) {
         let c = self.compute();
         let Some(imp) = self.import.state.as_mut() else {
             return;

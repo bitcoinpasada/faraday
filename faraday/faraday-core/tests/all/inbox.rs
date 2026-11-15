@@ -288,7 +288,7 @@ fn boot_stick(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: bytes.clone(),
+                bytes: bytes.clone().into(),
             });
         }
     }
@@ -462,7 +462,7 @@ fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of("s"),
         name: faraday_text::Text::of("notes.txt"),
-        bytes: b"second\n".to_vec(),
+        bytes: b"second\n".to_vec().into(),
     });
     let names: Vec<(&str, &[u8])> = app
         .inbox()
@@ -487,7 +487,7 @@ fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of("s"),
         name: faraday_text::Text::of("notes.txt"),
-        bytes: b"first\n".to_vec(),
+        bytes: b"first\n".to_vec().into(),
     });
     assert_eq!(app.inbox().len(), 2, "the same bytes again are no new file");
 }

@@ -181,7 +181,11 @@ impl Tour {
             match c {
                 StorageCommand::Read { stick, name } => {
                     let ev = match std::fs::read(Path::new(&*stick).join(&*name)) {
-                        Ok(bytes) => StorageEvent::Read { stick, name, bytes },
+                        Ok(bytes) => StorageEvent::Read {
+                            stick,
+                            name,
+                            bytes: bytes.into(),
+                        },
                         Err(e) => StorageEvent::ReadFailed {
                             stick,
                             name,

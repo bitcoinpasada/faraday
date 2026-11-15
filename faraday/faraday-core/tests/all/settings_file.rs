@@ -50,7 +50,7 @@ fn pump(app: &mut Faraday, file: Option<&[u8]>) -> Vec<(String, String, Vec<u8>)
                     app.storage(StorageEvent::Read {
                         stick,
                         name,
-                        bytes: bytes.to_vec(),
+                        bytes: bytes.to_vec().into(),
                     });
                 }
             }

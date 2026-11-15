@@ -529,8 +529,6 @@ impl Boxes {
                 Ok(())
             }
             Boxes::Dir(dir) => {
-                // The kept files' bytes move into wiping buffers as they are.
-                let kept: faraday_core::Files = faraday_core::files_from(kept);
                 for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
                     fs::create_dir_all(&d).map_err(|e| text!("{e}"))?;
@@ -655,10 +653,7 @@ impl Boxes {
                 StorageEvent::Restored {
                     inbox: load("inbox"),
                     outbox: load("outbox"),
-                    kept: load("kept")
-                        .into_iter()
-                        .map(|(n, mut b)| (n, std::mem::take(&mut *b)))
-                        .collect(),
+                    kept: load("kept"),
                 }
             }
         }
@@ -678,17 +673,40 @@ pub struct Host {
     pub opens: bool,
 }
 
-impl Host {
-    /// The Downloads folder as the app sees it.
-    pub fn files(&self) -> StorageEvent {
+/// The Downloads folder as the app is told of it, held apart from
+/// [`StorageEvent::HostFiles`]: a storage event is neither `Clone` nor
+/// `PartialEq`, and a shell compares one listing with the last.
+#[derive(Clone, PartialEq, Default)]
+pub struct Downloads {
+    dir: Text,
+    files: Vec<(Text, u64)>,
+    opens: bool,
+}
+
+impl Downloads {
+    /// The event that tells the app of this listing.
+    pub fn event(&self) -> StorageEvent {
         StorageEvent::HostFiles {
-            dir: text!("{}", self.downloads.display()),
-            files: host_listing(&self.downloads)
-                .into_iter()
-                .map(|(n, s)| (faraday_text::Text::of(n.as_str()), s))
-                .collect(),
+            dir: self.dir.clone(),
+            files: self.files.clone(),
             opens: self.opens,
         }
+    }
+}
+
+impl Host {
+    /// The Downloads folder as the app sees it.
+    pub fn downloads(&self) -> Downloads {
+        Downloads {
+            dir: text!("{}", self.downloads.display()),
+            files: host_listing(&self.downloads),
+            opens: self.opens,
+        }
+    }
+
+    /// The event that tells the app of the Downloads folder.
+    pub fn files(&self) -> StorageEvent {
+        self.downloads().event()
     }
 }
 
@@ -875,7 +893,7 @@ fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, d
             Ok(bytes) => StorageEvent::Read {
                 stick: faraday_text::Text::of(stick.as_str()),
                 name: faraday_text::Text::of(name.as_str()),
-                bytes,
+                bytes: bytes.into(),
             },
             Err(reason) => StorageEvent::ReadFailed {
                 stick: faraday_text::Text::of(stick.as_str()),

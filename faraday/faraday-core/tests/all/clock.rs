@@ -119,7 +119,7 @@ fn pump_reads(app: &mut Faraday, file: Option<&[u8]>) {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: bytes.to_vec(),
+                bytes: bytes.to_vec().into(),
             });
         }
     }

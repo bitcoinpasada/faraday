@@ -209,7 +209,7 @@ pub fn plain_files(files: crate::Files) -> Vec<(String, Vec<u8>)> {
 
 /// What the app kept, with its names as plain strings, for a test to compare.
 pub fn plain_kept(kept: crate::Kept) -> Vec<(String, Vec<u8>)> {
-    named(kept)
+    named(kept.into_iter().map(|(n, b)| (n, b.to_vec())).collect())
 }
 
 /// A kit's spend and its cosigner's copy, with the cosigner's fingerprint.

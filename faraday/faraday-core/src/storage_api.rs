@@ -10,7 +10,7 @@ use zeroize::Zeroizing;
 pub type Files = Vec<(Text, Zeroizing<Vec<u8>>)>;
 
 /// What the app keeps for itself across a lock: each entry's name and bytes.
-pub type Kept = Vec<(Text, Vec<u8>)>;
+pub type Kept = Files;
 
 /// Files from bytes taken as they are: `Vec<u8>` or already wiping, under
 /// names given as `&str` or already `Text`.
@@ -23,10 +23,7 @@ pub fn files_from<N: AsRef<str>, B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(N, B)>
 
 /// What the app keeps, from entries named by `&str` or already `Text`.
 pub fn kept_from<N: AsRef<str>>(entries: Vec<(N, Vec<u8>)>) -> Kept {
-    entries
-        .into_iter()
-        .map(|(n, b)| (Text::of(n.as_ref()), b))
-        .collect()
+    files_from(entries)
 }
 
 /// A stick or card the shell sees, with the files on it.
@@ -186,8 +183,9 @@ pub enum BootMedium {
     NotFound,
 }
 
-/// What the shell tells the app about storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What the shell tells the app about storage. It carries file bytes in
+/// wiping buffers and has no `Debug`, `Clone` or `PartialEq`, which would
+/// print or copy them.
 pub enum StorageEvent {
     /// What was found of the medium the machine started from; sent once it
     /// is known, and again if it changes.
@@ -207,7 +205,7 @@ pub enum StorageEvent {
         /// The file.
         name: Text,
         /// Its contents.
-        bytes: Vec<u8>,
+        bytes: Zeroizing<Vec<u8>>,
     },
     /// A read that failed.
     ReadFailed {
@@ -515,7 +513,7 @@ pub enum StorageEvent {
         outbox: Files,
         /// What the app keeps for itself across a lock: settings and the
         /// signed-amount memory.
-        kept: Vec<(Text, Vec<u8>)>,
+        kept: Kept,
     },
 }
 
@@ -673,8 +671,8 @@ pub enum StorageCommand {
         /// Outbox files.
         outbox: Files,
         /// What the app keeps for itself: settings and the signed-amount
-        /// memory, nothing secret (`docs/WALLETS.md` §3.3).
-        kept: Vec<(Text, Vec<u8>)>,
+        /// memory; an entry may hold a secret, so the bytes are in wiping buffers (`docs/WALLETS.md` §3.3).
+        kept: Kept,
     },
 }
 

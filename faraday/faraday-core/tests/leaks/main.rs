@@ -25,6 +25,7 @@ mod scan;
 mod seed_load;
 mod sign;
 mod stick_visit;
+mod storage_events;
 mod ur_message;
 mod vault_names;
 

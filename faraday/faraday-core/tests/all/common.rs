@@ -323,7 +323,11 @@ impl Shell {
                     match d.file(&name) {
                         Some(b) => {
                             let bytes = b.clone();
-                            app.storage(StorageEvent::Read { stick, name, bytes });
+                            app.storage(StorageEvent::Read {
+                                stick,
+                                name,
+                                bytes: bytes.into(),
+                            });
                         }
                         None => app.storage(StorageEvent::ReadFailed {
                             stick,

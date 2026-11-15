@@ -27,7 +27,7 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
             app.storage(StorageEvent::Read {
                 stick,
                 name,
-                bytes: vault.to_vec(),
+                bytes: vault.to_vec().into(),
             });
         }
     }

@@ -64,7 +64,7 @@ fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of(FILE),
-        bytes: words().into_bytes(),
+        bytes: words().into_bytes().into(),
     });
     let item = app
         .inbox()
@@ -97,7 +97,7 @@ fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of(FILE),
-        bytes: words().into_bytes(),
+        bytes: words().into_bytes().into(),
     });
     assert!(app.session.keys.is_empty(), "loaded before the stick left");
     detach(&mut app);
@@ -135,7 +135,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of(&name.clone()),
-        bytes,
+        bytes: bytes.into(),
     });
     let item = app
         .inbox()
@@ -242,7 +242,7 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of(FILE),
-        bytes: words().into_bytes(),
+        bytes: words().into_bytes().into(),
     });
     assert!(app.inbox().iter().any(|i| i.name == "key-1-words-2.txt"));
     detach(&mut app);
@@ -376,7 +376,7 @@ fn stick_with_a_text_picture_and_its_wallet() -> Faraday {
     app.storage(StorageEvent::Read {
         stick: faraday_text::Text::of(STICK),
         name: faraday_text::Text::of("note-wallet.txt"),
-        bytes: wallet.into_bytes(),
+        bytes: wallet.into_bytes().into(),
     });
     read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
     detach(&mut app);
