@@ -189,13 +189,13 @@ had to list one screen by hand.
   it is not listed: in a secret file `lint-secrets` rule 3 refuses
   `String` itself. Other copies into a plain `Vec` (`Vec::from`,
   `collect`, `extend_from_slice`) are held by review.
-- **`lint-secrets` finds a secret file by the types it uses**, not only
-  by its place in `SECRET_FILES`: a file that names a secret type
-  (`Secret`, `SecretText`, `Zeroizing`, a `faraday-keys` holder,
-  `SeedBytes`, rule 4a's list) is held by rule 3 (no heap text) like the
-  listed ones, and a listed file that names none is reported, so the
-  list holds only what it should. This closes the gap the script's own
-  header states: a new module is held only once someone adds it.
+- **`lint-secrets` finds a secret file by the types it uses**: a file
+  that names a secret type (`Secret`, `SecretText`, `Zeroizing`, a
+  `faraday-keys` holder, `SeedBytes`, rule 4a's list, the wiping text) is
+  held by rule 3 (no heap text) with nobody listing it. The only hand
+  lists are `UNHELD` (a file that names only the wiping text and is not
+  held, with why) and `NAMELESS` (a held file that names no secret type,
+  with why).
 
 ## 7. Allowed entries
 
@@ -231,11 +231,10 @@ entry is made only in a commit that says why, and passes review.
 - **Faraday Demo and the Starter** run on an online computer and hold
   test data: no leak work is done for them alone (F181 point 3). The
   tests run in the crates they share with the device.
-- **Held files.** Every file that names a secret type is in `SECRET_FILES`
-  and builds no heap text (rule 3); a new file that does is found by the
-  lint without anyone listing it. A file that holds text only as wiping
-  `Text` and names no secret type is not found yet: it is held when it is
-  listed.
+- **Held files.** Every file that names a secret type is held and builds
+  no heap text (rule 3); a new file that does is found by the lint
+  without anyone listing it. A file that holds a secret without naming a
+  secret type is held only when it is on `NAMELESS`.
 - **Nothing is shipped.** The allocator is a dev-dependency, no shipped
   program installs it or any other global allocator, and F181's rule
   (`speed.no-wiping-allocator`) holds as it is. If the hits argue for

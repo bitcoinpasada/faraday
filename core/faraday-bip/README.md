@@ -60,8 +60,9 @@ None. The workspace sets `unsafe_code = "forbid"`.
 
 ## Secrets
 
-Every module in the list below is in `tools/lint-secrets.sh`'s
-`SECRET_FILES`: no printing, no `Debug` on secret types, no heap text.
+Every module in the list below that names a secret type is held by
+`tools/lint-secrets.sh` (rule 3; one that names none is on its
+`NAMELESS`): no printing, no `Debug` on secret types, no heap text.
 
 - `keys.rs`: `MasterKey`, `DerivedKey`, `XprivAscii`, `WifAscii`; the secret
   key is overwritten with `non_secure_erase`. `vanity.rs`, `musig.rs`,

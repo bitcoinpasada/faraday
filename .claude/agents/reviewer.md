@@ -60,7 +60,7 @@ Read for the area a change is in; no trailer attests it.
 
 **Keys, vaults and QR**
 
-- A file that starts to hold secrets is added to lint-secrets' SECRET_FILES.
+- A file that starts to hold secrets names a secret type, and lint-secrets holds it; one that cannot is added to its NAMELESS, with why.
 - An entry in tools/leak-entries.toml, or a form the leak tests look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry.
 - A change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see.
 - That a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password.

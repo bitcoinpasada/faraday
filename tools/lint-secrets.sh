@@ -80,16 +80,16 @@
 #      Text; a `String` type there is still a hit.
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
 #      public data and may use String freely. A file is a secret file when
-#      it is in SECRET_FILES below (paths are relative to the repository
-#      root and need not be under core/). A non-test source file under
-#      core/ or faraday/ that uses a secret type (the names of rule 2,
-#      4a's key types, `zeroize`), and is not in SECRET_FILES, is reported, so
-#      a new module is found without anyone adding it; so is a listed file
-#      that uses none (unless it is in NAMELESS, with its reason), and a
-#      NAMELESS file that now uses one. The wiping text of faraday_text counts
-#      as a secret type: a file naming it is in SECRET_FILES or, with a
-#      reason that is true, in UNHELD (below), the one place such a file may
-#      stay out of rule 3. A file on UNHELD names no other secret type. The
+#      it names a secret type. SECRET_FILES is worked out below, not listed:
+#      the non-test source files under core/ and faraday/ (type_files) that
+#      name a secret type (the names of rule 2, 4a's key types, `zeroize`),
+#      less UNHELD, plus NAMELESS, so a new module is found without anyone
+#      adding it. The wiping text of faraday_text counts as a secret type: a
+#      file naming it is held or, with a reason that is true, on UNHELD
+#      (below), the one place such a file may stay out of rule 3. A file on
+#      UNHELD names no other secret type. NAMELESS (with its reasons) holds
+#      the files that hold a secret and name no secret type; one that now
+#      names one is reported. These two are the only hand lists. The
 #      files type_files leaves out (the shells, tools, fuzz and the Starter)
 #      are not read by this check.
 #
@@ -348,329 +348,21 @@ rule2_types() {
 }
 report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
 
-# Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="core/faraday-bip/src/json.rs
-faraday/faraday-vault/src/contents.rs
-faraday/faraday-vault/src/contents/tree.rs
-faraday/faraday-vault/src/kdbx/mod.rs
-faraday/faraday-vault/src/kdbx/keys.rs
-faraday/faraday-vault/src/kdbx/keyfile.rs
-faraday/faraday-vault/src/kdbx/blocks.rs
-faraday/faraday-vault/src/kdbx/inner.rs
-faraday/faraday-vault/src/kdbx/xml/mod.rs
-faraday/faraday-vault/src/kdbx/xml/read.rs
-faraday/faraday-vault/src/kdbx/items/mod.rs
-faraday/faraday-vault/src/kdbx/items/write.rs
-faraday/faraday-vault/src/kdbx/items/forms.rs
-faraday/faraday-vault/src/kdbx/gzip.rs
-faraday/faraday-vault/src/file.rs
-core/faraday-crypto/src/secret.rs
-core/faraday-bip/src/bip39.rs
-core/faraday-bip/src/slip39.rs
-core/faraday-bip/src/keys.rs
-core/faraday-bip/src/bip85.rs
-core/faraday-bip/src/xkey.rs
-core/faraday-bip/src/wif.rs
-core/faraday-entropy/src/lib.rs
-core/faraday-entropy/src/dice.rs
-core/faraday-entropy/src/booklet.rs
-core/faraday-entropy/src/coins.rs
-core/faraday-entropy/src/hex.rs
-core/faraday-entropy/src/xor.rs
-core/faraday-entropy/src/cards.rs
-core/faraday-entropy/src/camera.rs
-core/faraday-entropy/src/device.rs
-core/faraday-entropy/src/mix.rs
-faraday/faraday-vault/src/layouts.rs
-core/faraday-bip/src/codex32/mod.rs
-core/faraday-bip/src/codex32/worksheet.rs
-core/faraday-bip/src/codex32/fresh.rs
-core/faraday-bip/src/codex32/correct.rs
-core/faraday-bip/src/silent.rs
-core/faraday-bip/src/aez.rs
-core/faraday-bip/src/aezeed.rs
-core/faraday-bip/src/vanity.rs
-core/faraday-bip/src/account.rs
-core/faraday-bip/src/bsms.rs
-core/faraday-bip/src/multisig_config.rs
-core/faraday-bip/src/musig.rs
-core/faraday-bip/src/slip132.rs
-faraday/faraday-intake/src/caravan.rs
-faraday/faraday-core/src/word_entry.rs
-faraday/faraday-core/src/quiz.rs
-faraday/faraday-core/src/grind.rs
-faraday/faraday-pgp/src/paperkey.rs
-faraday/faraday-pgp/src/message.rs
-faraday/faraday-keys/src/job.rs
-faraday/faraday-keys/src/hsm_secret.rs
-faraday/faraday-keys/src/slip39_set.rs
-faraday/faraday-pgp/src/secret.rs
-faraday/faraday-vault/src/qr.rs
-faraday/faraday-kef/src/lib.rs
-faraday/faraday-core/src/worker/kef.rs
-faraday/faraday-core/src/worker.rs
-faraday/faraday-keys/src/kef.rs
-faraday/faraday-keys/src/qr_vault.rs
-faraday/faraday-keys/src/core_wallet.rs
-faraday/faraday-vault/src/records.rs
-faraday/faraday-vault/src/kdbx/tests.rs
-faraday/faraday-ui/src/press.rs
-faraday/faraday-scanner/src/lib.rs
-faraday/faraday-samples/src/data.rs
-faraday/faraday-pgp/src/message/tests.rs
-faraday/faraday-keys/src/vault/seal.rs
-faraday/faraday-keys/src/vault/edits.rs
-faraday/faraday-keys/src/psbt.rs
-faraday/faraday-keys/src/parts.rs
-faraday/faraday-keys/src/lib.rs
-faraday/faraday-host/src/scroll.rs
-faraday/faraday-guide/src/how.rs
-faraday/faraday-guide/src/block.rs
-faraday/faraday-core/src/wallet_backup/shown.rs
-faraday/faraday-core/src/screens/spend.rs
-faraday/faraday-core/src/screens/files.rs
-faraday/faraday-core/src/wallet.rs
-faraday/faraday-core/src/wallet/state.rs
-faraday/faraday-core/src/vault/screen/secret.rs
-faraday/faraday-core/src/vault/area.rs
-faraday/faraday-core/src/vault/mod.rs
-faraday/faraday-core/src/vault/create_key.rs
-faraday/faraday-core/src/vault/dice.rs
-faraday/faraday-core/src/vault/more.rs
-faraday/faraday-core/src/vault/out.rs
-faraday/faraday-core/src/vault/screen/codes.rs
-faraday/faraday-core/src/vault/screen.rs
-faraday/faraday-core/src/vault/seal.rs
-faraday/faraday-core/src/vault/stretch.rs
-faraday/faraday-core/src/vault/unlock_keys.rs
-faraday/faraday-core/src/nav/mod.rs
-faraday/faraday-core/src/fresh/roller/five.rs
-faraday/faraday-core/src/scan_key.rs
-faraday/faraday-core/src/decode/check.rs
-faraday/faraday-core/src/decode/mod.rs
-faraday/faraday-core/src/silent/mod.rs
-faraday/faraday-core/src/codex32/mod.rs
-faraday/faraday-core/src/codex32/screen.rs
-faraday/faraday-core/src/codex32_correct/mod.rs
-faraday/faraday-core/src/codex32_correct/screen.rs
-faraday/faraday-core/src/spend_backup/mod.rs
-faraday/faraday-core/src/spend_backup/screen.rs
-faraday/faraday-core/src/backups/mod.rs
-faraday/faraday-core/src/backups/screen.rs
-core/faraday-draw/src/tokens.rs
-core/faraday-selftest/src/lib.rs
-core/faraday-shell-api/src/lib.rs
-faraday/faraday-strings/src/en.rs
-core/faraday-crypto/src/pinned.rs
-core/faraday-crypto/src/lib.rs
-core/faraday-crypto/src/hash.rs
-core/faraday-crypto/src/hex.rs
-core/faraday-crypto/src/argon2.rs
-core/faraday-codec/src/seedqr.rs
-core/faraday-codec/src/lib.rs
-core/faraday-codec/src/decode.rs
-core/faraday-codec/src/png.rs
-core/faraday-codec/src/classify.rs
-core/faraday-codec/src/qr.rs
-core/faraday-codec/src/ur/bytewords.rs
-core/faraday-codec/src/ur/fountain.rs
-core/faraday-codec/src/ur/mod.rs
-core/faraday-crypto/src/blake2b.rs
-core/faraday-crypto/src/scrypt.rs
-core/faraday-crypto/src/wipe.rs
-core/faraday-crypto/src/work.rs
-core/faraday-entropy/src/pointer_keys.rs
-core/faraday-psbt/src/context.rs
-core/faraday-psbt/src/lib.rs
-core/faraday-psbt/src/musig.rs
-core/faraday-psbt/src/message.rs
-core/faraday-psbt/src/sign.rs
-core/faraday-psbt/src/verify.rs
-faraday/faraday-core/src/fresh/page.rs
-faraday/faraday-core/src/work/budget.rs
-faraday/faraday-core/src/work/budget/codex32.rs
-faraday/faraday-core/src/work/budget/identities.rs
-faraday/faraday-core/src/work/budget/moments.rs
-faraday/faraday-core/src/work/budget/presses.rs
-faraday/faraday-core/src/work/budget/shown.rs
-faraday/faraday-core/src/work.rs
-faraday/faraday-core/src/drawing.rs
-faraday/faraday-core/src/drawing/allowed.rs
-faraday/faraday-core/src/drawing/kept.rs
-faraday/faraday-core/src/ui.rs
-faraday/faraday-core/src/explore/shown.rs
-faraday/faraday-keys/src/message.rs
-faraday/faraday-keys/src/vanity.rs
-faraday/faraday-sb/src/rng.rs
-faraday/faraday-strings/src/bip.rs
-core/faraday-text/src/lib.rs
-core/faraday-text/src/text.rs
-core/faraday-text/src/num.rs
-faraday/faraday-intake/src/secret_buf.rs
-faraday/faraday-disk/src/lib.rs
-faraday/faraday-disk/src/main.rs
-faraday/faraday-fat/src/lib.rs
-faraday/faraday-files/src/lib.rs
-faraday/faraday-files/src/proto.rs
-faraday/faraday-sqlite/src/lib.rs
-faraday/faraday-storage/src/lib.rs
-faraday/faraday-core/src/testkit.rs
-faraday/faraday-core/src/samples/mod.rs
-faraday/faraday-core/src/review.rs
-faraday/faraday-core/src/convert/mod.rs
-faraday/faraday-core/src/convert/set.rs
-faraday/faraday-core/src/core_wallet/tool.rs
-faraday/faraday-core/src/ots_check/hash.rs
-faraday/faraday-core/src/ots_check/mod.rs
-faraday/faraday-core/src/boot_import/mod.rs
-faraday/faraday-core/src/boot_import/text_ask.rs
-faraday/faraday-core/src/compact/mod.rs
-faraday/faraday-core/src/forms.rs
-faraday/faraday-core/src/stick/pills.rs
-faraday/faraday-core/src/bip85/mod.rs
-faraday/faraday-qr/src/bbqr.rs
-faraday/faraday-qr/src/wiping.rs
-faraday/faraday-qr/src/send.rs
-faraday/faraday-intake/src/lib.rs
-faraday/faraday-intake/src/wallet.rs
-faraday/faraday-core-wallet/src/lib.rs
-faraday/faraday-core-wallet/src/normal.rs
-faraday/faraday-sb/src/x509.rs
-faraday/faraday-host/src/lib.rs
-faraday/faraday-plan/src/codex32.rs
-faraday/faraday-plan/src/lib.rs
-faraday/faraday-plan/src/text.rs
-faraday/faraday-vault/src/kdbx/items/text.rs
-faraday/faraday-vault/src/lib.rs
-faraday/faraday-vault/src/entries.rs
-faraday/faraday-vault/src/totp.rs
-faraday/faraday-pgp/src/certificate.rs
-faraday/faraday-pgp/src/lib.rs
-faraday/faraday-core/src/qr_view.rs
-faraday/faraday-core/src/qr_tool/item.rs
-faraday/faraday-core/src/qr_tool/mod.rs
-faraday/faraday-core/src/qr_tool/offers.rs
-faraday/faraday-core/src/qr_tool/open.rs
-faraday/faraday-core/src/scan_read.rs
-faraday/faraday-core/src/transfer/mod.rs
-faraday/faraday-core/src/transfer/screen.rs
-faraday/faraday-core/src/transfer/text.rs
-faraday/faraday-core/src/text_check.rs
-faraday/faraday-core/src/lightning/mod.rs
-faraday/faraday-core/src/lightning/screen.rs
-faraday/faraday-core/src/chart_edit.rs
-faraday/faraday-core/src/create.rs
-faraday/faraday-core/src/keygen/area.rs
-faraday/faraday-core/src/keygen/mod.rs
-faraday/faraday-core/src/keygen/screen.rs
-faraday/faraday-core/src/seed_check/act.rs
-faraday/faraday-core/src/seed_check/area.rs
-faraday/faraday-core/src/seed_check/compare.rs
-faraday/faraday-core/src/seed_check/mod.rs
-faraday/faraday-core/src/seed_check/screen.rs
-faraday/faraday-core/src/seeds/kef.rs
-faraday/faraday-core/src/seeds/mod.rs
-faraday/faraday-core/src/seeds/read.rs
-faraday/faraday-core/src/seeds/sweep.rs
-faraday/faraday-core/src/backup_flow/steps.rs
-faraday/faraday-core/src/backup_flow/gpg_restore.rs
-faraday/faraday-core/src/wallet_backup.rs
-faraday/faraday-core/src/wallet_backup/kef.rs
-faraday/faraday-core/src/tools/mod.rs
-faraday/faraday-core/src/codes/mod.rs
-faraday/faraday-core/src/copy_check.rs
-faraday/faraday-core/src/item.rs
-faraday/faraday-keys/src/bip85.rs
-faraday/faraday-keys/src/codex32.rs
-faraday/faraday-keys/src/gpg.rs
-faraday/faraday-keys/src/hsm_node.rs
-faraday/faraday-keys/src/identity.rs
-faraday/faraday-keys/src/lightning.rs
-faraday/faraday-keys/src/operations.rs
-faraday/faraday-keys/src/seed_check.rs
-faraday/faraday-keys/src/session.rs
-faraday/faraday-keys/src/silent.rs
-faraday/faraday-keys/src/texts.rs
-faraday/faraday-keys/src/totp.rs
-faraday/faraday-keys/src/vault/mod.rs
-faraday/faraday-keys/src/vault/reveals.rs
-faraday/faraday-keys/src/vault/tests.rs
-faraday/faraday-core/src/screens/entry.rs
-faraday/faraday-core/src/screens/mod.rs
-faraday/faraday-core/src/screens/parts.rs
-faraday/faraday-core/src/screens/sheets.rs
-faraday/faraday-core/src/screens/visit.rs
-faraday/faraday-core/src/restore.rs
-faraday/faraday-core/src/gpg.rs
-faraday/faraday-core/src/signing.rs
-faraday/faraday-core/src/signing/collect.rs
-faraday/faraday-core/src/signing/read.rs
-faraday/faraday-core/src/secrets.rs
-faraday/faraday-core/src/codex32_backup/mod.rs
-faraday/faraday-core/src/glance/mod.rs
-faraday/faraday-core/src/glance/sheet.rs
-faraday/faraday-core/src/inbox.rs
-faraday/faraday-core/src/visit_taken.rs
-faraday/faraday-core/src/storage_api.rs
-faraday/faraday-core/src/backup_flow/mod.rs
-faraday/faraday-core/src/backup_flow/wallet.rs
-faraday/faraday-core/src/kef_form/mod.rs
-faraday/faraday-core/src/plan/cards.rs
-faraday/faraday-core/src/explore/screen.rs
-faraday/faraday-core/src/picture.rs
-faraday/faraday-core/src/inputs.rs
-faraday/faraday-core/src/fresh.rs
-faraday/faraday-core/src/fresh/roller/mod.rs
-faraday/faraday-core/src/edit.rs
-faraday/faraday-core/src/dice_entry/mod.rs
-faraday/faraday-core/src/kef_tool/mod.rs
-core/faraday-draw/src/canvas/list.rs
-core/faraday-draw/src/canvas.rs
-faraday/faraday-core/src/qr_tool/screen.rs
-faraday/faraday-qr/src/specter.rs
-faraday/faraday-core/src/backup_flow/wallet_files.rs
-faraday/faraday-core/src/compute.rs
-faraday/faraday-core/src/worker/kef_make.rs
-faraday/faraday-core/src/held.rs
-faraday/faraday-core/src/lib.rs
-faraday/faraday-core/src/state.rs
-faraday/faraday-core/src/testkit/public.rs
-core/faraday-bip/src/policy.rs
-core/faraday-bip/src/tapmulti.rs
-faraday/faraday-ui/src/roles.rs
-faraday/faraday-core/src/backup_flow/seed_names.rs
-faraday/faraday-core/src/keygen/entries.rs
-faraday/faraday-core/src/vault/related.rs
-faraday/faraday-core/src/signing/fresh.rs
-faraday/faraday-core/src/samples/screen.rs
-faraday/faraday-ui/src/nav/chip.rs
-faraday/faraday-core/src/qr_tool/seal.rs"
-# One path per line above; the checks below match a path between spaces.
-SECRET_FILES=$(echo $SECRET_FILES)
-for f in $SECRET_FILES; do
-    [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
-done
-# A character is never encoded into a bare stack array in a held file: the
-# array is not wiped, so a seed word's or a passphrase's last character would
-# stay on the stack. Text::from_char and the wiping text's own push do it.
-for f in $SECRET_FILES; do
-    [ -f "$f" ] || continue
-    if grep -nE 'encode_utf8\(&mut \[' "$f" | grep -v '^[0-9]*:[[:space:]]*//' | grep -q .; then
-        echo "lint-secrets: $f encodes a character into an unwiped stack array (use Text::from_char)"
-        status=1
-    fi
-done
-# Files in SECRET_FILES that hold a secret without naming a secret type or the
-# wiping text, each with why:
+# Rule 3: no heap text in the files that hold secret material. A file holds
+# secret material when it names a secret type (SECRET_NAMES, the wiping text
+# included): SECRET_FILES is worked out below from the files type_files lists,
+# less UNHELD, plus NAMELESS. The two hand lists are NAMELESS and UNHELD.
+# Files that hold a secret without naming a secret type or the wiping text,
+# each with why:
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
 #   keys/parts.rs      handles a key file's bytes and builds the Components that hold its key
 #   faraday-text lib   declares and documents the wiping text type of text.rs
 NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-keys/src/parts.rs core/faraday-text/src/lib.rs"
-# Files that name the wiping text or hold test text and are not in
-# SECRET_FILES (the unheld files), each with why. This list is the one place
-# such a file may stay out of SECRET_FILES; a file listed here that is also in
-# SECRET_FILES, or that is missing, is reported:
+# Files that name the wiping text or hold test text and are not held (the
+# unheld files), each with why. This list is the one place such a file may
+# stay out of SECRET_FILES; a file listed here that is missing, or that names a
+# secret type other than the wiping text, is reported:
 #   testkit/plain.rs  the test kit's key texts as plain text: public fixtures and
 #                     published dummy data, built only with the `testkit` feature
 #                     for tests, tools and the online Starter, never in the device app;
@@ -767,7 +459,6 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       test code, test file names
 #   faraday/faraday-core/src/work/budget/signer.rs
 #       test code, test file names
-#       test code, test file names
 #   faraday/faraday-ui/src/lib.rs
 #       SVG path data and test lines
 #   faraday/faraday-ui/src/nav/app_bar.rs
@@ -834,31 +525,37 @@ faraday/faraday-host/src/labels.rs
 faraday/faraday-sb/src/lib.rs
 core/faraday-psbt/src/psbt.rs"
 UNHELD=$(echo $UNHELD)
+names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
+SECRET_FILES=$({ for f in $(type_files); do
+    names_secret "$f" || continue
+    case " $UNHELD " in *" $f "*) ;; *) echo "$f" ;; esac
+done; echo $NAMELESS | tr ' ' '\n'; } | sort -u)
+# One path per line above; the checks below match a path between spaces.
+SECRET_FILES=$(echo $SECRET_FILES)
+# A character is never encoded into a bare stack array in a held file: the
+# array is not wiped, so a seed word's or a passphrase's last character would
+# stay on the stack. Text::from_char and the wiping text's own push do it.
+for f in $SECRET_FILES; do
+    [ -f "$f" ] || continue
+    if grep -nE 'encode_utf8\(&mut \[' "$f" | grep -v '^[0-9]*:[[:space:]]*//' | grep -q .; then
+        echo "lint-secrets: $f encodes a character into an unwiped stack array (use Text::from_char)"
+        status=1
+    fi
+done
 unheld=$(for f in $UNHELD; do
     [ -f "$f" ] || { echo "$f: missing"; continue; }
-    case " $SECRET_FILES " in *" $f "*) echo "$f: is in SECRET_FILES" ;; esac
-    grep -qE "$OTHER_SECRET_NAMES" "$f" && echo "$f: names a secret type other than the wiping text; hold it in SECRET_FILES"
+    grep -qE "$OTHER_SECRET_NAMES" "$f" && echo "$f: names a secret type other than the wiping text; it cannot be on UNHELD"
     grep -qE '\bfaraday_text\b' "$f" || echo "$f: no longer names the wiping text; remove it from UNHELD"
 done)
 report "UNHELD is out of date (rule 3)" "$unheld"
-names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
-unlisted=$(for f in $(type_files); do
-    names_secret "$f" || continue
-    case " $SECRET_FILES $UNHELD " in *" $f "*) ;; *) echo "$f" ;; esac
+missing=$(for f in $NAMELESS; do
+    [ -f "$f" ] || echo "$f: missing"
 done)
-report "a file that uses a secret type is not in SECRET_FILES or UNHELD (rule 3)" "$unlisted"
-nameless=$(for f in $SECRET_FILES; do
-    [ -f "$f" ] || continue
-    names_secret "$f" && continue
-    case " $NAMELESS " in *" $f "*) ;; *) echo "$f" ;; esac
-done)
-report "a file in SECRET_FILES that uses no secret type (rule 3; remove it, or name it in NAMELESS with why)" "$nameless"
+report "NAMELESS is out of date (rule 3)" "$missing"
 redundant=$(for f in $NAMELESS; do
     [ -f "$f" ] && names_secret "$f" && echo "$f"
 done)
 report "a file in NAMELESS that now names a secret type (rule 3; remove it from NAMELESS)" "$redundant"
-dup=$(tr ' ' '\n' <<< "$SECRET_FILES" | sort | uniq -d | sed 's/$/: listed twice/')
-report "SECRET_FILES lists a file twice (rule 3)" "$dup"
 # The text builders: the type, its macros and the calls that make a String.
 HEAP_TEXT='\bString\b|\b(Arc|Box)<str>|alloc::string|\bto_string\b|\bto_owned\b|\bformat!|\.into_owned\(\)'
 # The calls that build a String (or a Vec) from other text. A line that holds

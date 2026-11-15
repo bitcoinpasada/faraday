@@ -43,4 +43,4 @@ None. The workspace sets `unsafe_code = "forbid"`.
 
 `RawEntropy`, `DiceRolls`, `CoinFlips`, `RawHex`, `CardDraws` and `SeedXor`
 are fixed buffers that implement `Zeroize` and `ZeroizeOnDrop` and are
-erased on drop. Every file of `src/` is in `tools/lint-secrets.sh`'s `SECRET_FILES`.
+erased on drop. Every file of `src/` is held by `tools/lint-secrets.sh` (it names a secret type, or is on its `NAMELESS`).
