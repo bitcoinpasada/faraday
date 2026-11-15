@@ -21,6 +21,8 @@ Text that is no address, an address of another network and a link this device do
 
 **Key:** check-address.result
 
-The first 100 receive and change addresses of each loaded wallet and of each loaded key's standard accounts are searched. A find names the wallet or key, the place (**Receive** or **Change** and its index), the wallet's shape and the path, or each key's path in a multisig wallet. A find in a key's account offers **Make a wallet**, then **Open the wallet**.
+The first 100 receive and change addresses of each loaded wallet and of each loaded key's standard accounts are searched. A find names the wallet or key, the place (**Receive** or **Change** and its index), the wallet's shape and the path, or each key's path in a multisig wallet. A find in a key's account offers **Make a wallet**, then **Open the wallet**. A find in a single-key wallet whose key is loaded, or in a loaded key's account, also offers **Sign a message with this address**.
+
+A find says this device makes the address; whether a wallet app or hardware wallet shows the same one is read on its own screen.
 
 A miss names how far it looked. **Look further** goes to deeper indices, and **Stop** ends the search where it is. With no wallet and no key loaded the page says **Load a key or a wallet first**.
