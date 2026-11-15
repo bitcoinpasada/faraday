@@ -254,6 +254,8 @@ macro_rules! words_starter {
     starter_mode_whole_card: "New Faraday card",
     /// Its second line.
     starter_mode_whole_sub: "Everything on it is lost",
+    /// Its second line on a Faraday stick.
+    starter_mode_whole_data_sub: "Everything on its data partition is lost",
     /// Option.
     starter_mode_keep: "Replace Faraday, keep data",
     /// Its second line.
@@ -309,6 +311,8 @@ macro_rules! words_starter {
     starter_keep_newer: "This stick holds a newer Faraday: {}",
     /// Confirm's line under it: the case its hold is for (F136).
     starter_keep_older_case: "Only to go back to an older release.",
+    /// Confirm's Write over a Faraday stick, a hold (F136).
+    starter_erase_data_hold: "Hold to erase the data partition",
     /// Confirm's Write over a newer stick, a hold (F136).
     starter_keep_older_hold: "Hold to write the older release",
     /// Keep data writing a dev build.

@@ -1095,10 +1095,22 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Target::Stick => S.starter_mode_whole_stick,
         Target::Pi => S.starter_mode_whole_card,
     };
-    let options = [
-        (Mode::Whole, whole, S.starter_mode_whole_sub),
+    let stick = starter
+        .chosen_disk()
+        .is_some_and(crate::decide::is_faraday_stick);
+    let whole_sub = if stick {
+        S.starter_mode_whole_data_sub
+    } else {
+        S.starter_mode_whole_sub
+    };
+    let mut options = [
+        (Mode::Whole, whole, whole_sub),
         (Mode::KeepData, S.starter_mode_keep, S.starter_mode_keep_sub),
     ];
+    if stick {
+        // Keeping the data is listed first where erasing it loses the data partition.
+        options.reverse();
+    }
     ui.rule(x, y, w, Role::OutlineVariant);
     for (m, head, sub) in options {
         let refused = starter.mode_refusal(m);
@@ -1281,6 +1293,7 @@ fn write_buttons(
     }
     if style == Style::Primary && starter.is_hold(StarterAction::Write) {
         let label = match starter.chosen_disk() {
+            _ if starter.writes_over_stick() => S.starter_erase_data_hold.to_string(),
             Some(d) if !starter.writes_older() => {
                 fill(S.starter_unlike_hold, &[&size_text(d.size)])
             }

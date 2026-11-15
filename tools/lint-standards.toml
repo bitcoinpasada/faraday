@@ -393,7 +393,7 @@ case = "Hold to continue, the Starter's Continue anyway: a TV or a KVM that is t
 where = "starter"
 hold = "StarterAction::Write"
 decision = "F136"
-case = "Hold to write the older release, keeping data over a stick holding a newer one: going back to an older release"
+case = "Hold to write the older release, keeping data over a stick holding a newer one: going back to an older release; Hold to erase the data partition, a new stick written over a Faraday stick: the person's own data, erased on purpose"
 
 [[hold]]
 where = "starter"

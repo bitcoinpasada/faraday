@@ -29,11 +29,11 @@ A row gives the maker and model, the size and what is on the disk: **Faraday sti
 
 **Key:** starter-stick.mode
 
-**New Faraday stick** (**New Faraday card** for a Pi card) writes the whole disk, and everything on it is lost. **Replace Faraday, keep data** is offered only on a Faraday stick and is told under Keep data.
+**New Faraday stick** (**New Faraday card** for a Pi card) writes the whole disk, losing everything on it; on a Faraday stick it is a hold. **Replace Faraday, keep data**, offered only there and listed first, is told under Keep data.
 
 **Name** is the name given to the data partition of a whole stick or card; empty writes none. It is written in capitals, at most 11 characters, and the names of the boot partitions, EFI, bootfs and FARADAYBOOT, are refused.
 
-**Clear the whole stick first** is offered for a new stick only and writes zeros over every sector before the stick is made; it adds the time shown.
+**Clear the whole stick first** is offered for a new stick only and writes zeros over every sector first; it adds the time shown.
 
 **Boot file** is offered for a stick: **The release's (unsigned)**, or **One I signed**, which lists the .efi files in Downloads to take one from. The file must be this release's own with a signature that holds.
 

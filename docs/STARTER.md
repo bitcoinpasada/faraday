@@ -814,6 +814,12 @@ Downloads.
    (the disk is not a Faraday stick), *New Faraday stick* is the only
    choice and starts ticked.
    - *New Faraday stick*: the whole stick; everything on it is lost.
+     The Starter does not open the data partition, and the disk list
+     cannot tell an empty one from one that was not read, so every
+     Faraday stick counts as holding data. On a Faraday stick the line
+     under this choice reads "Everything on its data partition is lost",
+     *Replace Faraday, keep data* is listed first, and Confirm's Erase
+     and write is **Hold to erase the data partition** (F136).
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
      settings, is not read and not written. One line under it states

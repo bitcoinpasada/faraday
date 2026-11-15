@@ -78,6 +78,14 @@ pub fn unlike_a_stick(disk: &Disk) -> Option<Unlike> {
     }
 }
 
+/// Whether `disk` is a Faraday stick, whose data partition may hold
+/// vaults (F244). The disk list cannot say whether that partition is empty
+/// or was not read (a blank volume is what a failed read gives), so a
+/// Faraday stick always counts as holding data and its erase is a hold.
+pub fn is_faraday_stick(disk: &Disk) -> bool {
+    disk.faraday.is_some()
+}
+
 /// The disks Which stick (or Which card) lists for `target`, in order:
 /// Faraday sticks first, then the others, each by size, the smallest
 /// first. Only USB disks are listed, and for a Pi card the computer's own
@@ -212,6 +220,18 @@ impl crate::Starter {
             && self
                 .chosen_disk()
                 .is_some_and(|d| unlike_a_stick(d).is_some())
+    }
+
+    /// Whether Confirm's Write erases a Faraday stick ([`is_faraday_stick`]):
+    /// its Write is then a hold that names its data partition (F136). A
+    /// lookup.
+    pub(crate) fn writes_over_stick(&self) -> bool {
+        self.page == crate::Page::Confirm
+            && self
+                .making
+                .as_ref()
+                .is_some_and(|m| m.mode == Some(crate::api::Mode::Whole))
+            && self.chosen_disk().is_some_and(is_faraday_stick)
     }
 
     /// Whether Confirm's Write keeps data and writes an older release over

@@ -155,13 +155,15 @@ impl Starter {
 
     /// Whether `action` acts only when held to the end (F136): Continue
     /// anyway's answer, Write on Confirm when keep data writes an
-    /// older release over a newer stick or the disk looks unlike a stick,
-    /// and Restart while BitLocker is on or not read with no recovery key
-    /// printed. A lookup.
+    /// older release over a newer stick, the disk looks unlike a stick, or
+    /// Write the whole stick erases a Faraday stick, and Restart while
+    /// BitLocker is on or not read with no recovery key printed. A lookup.
     pub(crate) fn is_hold(&self, action: StarterAction) -> bool {
         match action {
             StarterAction::LetThrough => true,
-            StarterAction::Write => self.writes_older() || self.writes_unlike(),
+            StarterAction::Write => {
+                self.writes_older() || self.writes_unlike() || self.writes_over_stick()
+            }
             StarterAction::RestartNow => {
                 matches!(self.sheet, Some(Sheet::Restart(_))) && self.restart_needs_key()
             }

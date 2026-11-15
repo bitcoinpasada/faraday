@@ -87,9 +87,35 @@ pub(super) fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&s
             read: true,
             boot_sha256: release.map(|_| BOOT_SUM.repeat(64)),
         }),
-        volumes: Vec::new(),
+        // A boot partition and an empty data partition.
+        volumes: vec![
+            Volume {
+                label: None,
+                files: true,
+                fs: "vfat".into(),
+                encrypted: false,
+            },
+            Volume {
+                label: None,
+                files: false,
+                fs: String::new(),
+                encrypted: false,
+            },
+        ],
         ..disk(id, model, size)
     }
+}
+
+/// A Faraday stick whose data partition holds a file system.
+fn faraday_stick_with_files(id: &str, model: &str, size: u64) -> Disk {
+    let mut d = faraday_stick(id, model, size, Some("6.6.84-faraday-0.1.0"));
+    d.volumes[1] = Volume {
+        label: Some("DATA".into()),
+        files: true,
+        fs: "vfat".into(),
+        encrypted: false,
+    };
+    d
 }
 
 /// A disk with its own vendor and model strings, as an INQUIRY or USB
@@ -477,6 +503,51 @@ fn keep_data_writes_an_older_faraday_over_a_newer_stick_only_after_the_hold() {
     )]);
     to_confirm(&mut starter, "sdb", Mode::KeepData);
     assert!(!shows(&mut starter, "newer Faraday"));
+}
+
+/// A Faraday stick lists keep data first and erases only after a hold,
+/// whatever its data partition reads as (a file system, none listed, or a
+/// blank volume, which is also what a failed read gives).
+#[test]
+fn erasing_a_faraday_stick_takes_a_hold() {
+    let mut starter = starter_with(vec![faraday_stick_with_files("sdb", "Mine", 16 * GB)]);
+    starter.press(StarterAction::Make(Target::Stick));
+    let n = number(&starter, "sdb");
+    starter.press(n);
+    assert!(says(
+        &mut starter,
+        "Everything on its data partition is lost"
+    ));
+    let all = texts(&mut starter).join(" ");
+    assert!(all.find("keep data").unwrap() < all.find("New Faraday stick").unwrap());
+    starter.press(StarterAction::Mode(Mode::Whole));
+    starter.press(StarterAction::Continue);
+    assert!(says(&mut starter, "Hold to erase the data partition"));
+    let _ = commands(&mut starter);
+    tap(&mut starter, StarterAction::Write);
+    assert!(commands(&mut starter).is_empty());
+    hold(&mut starter, StarterAction::Write);
+    assert_eq!(commands(&mut starter).len(), 1);
+
+    // Partitions that were not listed.
+    let mut unlisted = faraday_stick("sdb", "Mine", 16 * GB, Some("6.6.84-faraday-0.1.0"));
+    unlisted.volumes.clear();
+    let mut starter = starter_with(vec![unlisted]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    assert!(says(&mut starter, "Hold to erase the data partition"));
+
+    // A data volume listed but blank: no file system read.
+    let mut starter = starter_with(vec![faraday_stick(
+        "sdb",
+        "Mine",
+        16 * GB,
+        Some("6.6.84-faraday-0.1.0"),
+    )]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    assert!(says(&mut starter, "Hold to erase the data partition"));
+    let _ = commands(&mut starter);
+    tap(&mut starter, StarterAction::Write);
+    assert!(commands(&mut starter).is_empty());
 }
 
 #[test]
