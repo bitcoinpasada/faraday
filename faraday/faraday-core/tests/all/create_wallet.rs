@@ -1284,3 +1284,14 @@ fn changing_the_kind_empties_a_cosigners_slot_whose_key_is_not_at_the_new_kinds_
         Source::Cosigner(faraday_text::Text::of(&xpub))
     );
 }
+
+#[test]
+fn check_names_what_it_matches_compares() {
+    let (mut app, _) = made();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Same in your wallet software?"),
+        "the addresses are compared against the wallet software: {texts:?}"
+    );
+    assert!(texts.iter().any(|t| t == "It matches"), "{texts:?}");
+}

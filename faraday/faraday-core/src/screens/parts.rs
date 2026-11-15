@@ -1,7 +1,7 @@
 //! Parts two or more screens draw: rows, buttons, fields and word cells.
 
 use crate::drawing::View;
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
@@ -569,6 +569,18 @@ fn lines_of<'s>(ui: &Ui, size: TypeRole, s: &'s str, max: f32) -> Vec<&'s str> {
     out
 }
 
+/// The wallet software wallet `i`'s plan names, where the backup is open
+/// on it and a software is chosen, else "your wallet software".
+fn compare_software(app: &View, i: usize) -> &'static str {
+    app.backup()
+        .filter(|b| b.wallet == i)
+        .and_then(|b| b.answers.software.iter().position(|&on| on))
+        .filter(|&k| k != crate::plan::software::NOT_SURE)
+        .and_then(|k| super::backup::SOFTWARE_ROWS.get(k))
+        .copied()
+        .unwrap_or(EN.first_addresses_your_software)
+}
+
 /// A wallet's first two receive addresses and first change address,
 /// under a label, as Create's Check and Restore's show them, with the
 /// warning while a key made here waits for its backup. Returns the
@@ -592,6 +604,13 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         ) + 8.0;
         return cy - y;
     }
+    let software = compare_software(app, i);
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        &fill(EN.first_addresses_compare, &[software]),
+    ) + tokens::GAP_SMALL;
     // Where an address starts beside its label.
     let beside = 96.0;
     for (label, change, idx) in [

@@ -937,3 +937,15 @@ fn a_restore_s_step_count_states_no_total() {
         "a step count states a total: {shown:?}"
     );
 }
+
+#[test]
+fn check_names_what_it_matches_compares() {
+    let mut shell = crate::common::Shell::new();
+    let (mut app, _) = single_key_at_check(&mut shell, 0);
+    let texts = drawn(&mut app);
+    assert!(
+        texts.contains("Same in your wallet software?"),
+        "the addresses are compared against the wallet software: {texts}"
+    );
+    assert!(texts.contains("It matches"), "{texts}");
+}

@@ -721,6 +721,12 @@ fn slot_passphrase(
                 )
             },
         );
+        cy += ui.wrap_as(
+            (px, cy, pw),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.create_pass_kept,
+        ) + tokens::GAP_SMALL;
         cy += never_real_seed(app, ui, px, cy, pw);
         if let Some(n) = &c.pass_note {
             cy += ui.wrap_as((px, cy, pw), BODY_M, Role::Error, n) + 6.0;
@@ -762,12 +768,6 @@ fn create_check(
         if let Some(set) = c.built.and_then(|i| app.create_shares_set(i)) {
             cy += change_row(ui, x, cy, w, EN.create_backup, &set.line(), None);
         }
-        cy += ui.wrap_as(
-            (x, cy, w),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.create_compare_addresses,
-        ) + tokens::GAP;
         cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
         cy += 6.0;
         cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);

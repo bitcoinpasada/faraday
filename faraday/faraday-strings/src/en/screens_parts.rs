@@ -14,6 +14,11 @@ macro_rules! words_screens_parts {
     // ----- first_addresses (faraday-core/src/screens/parts.rs) -----
     /// Section label in `first_addresses`.
     first_addresses_heading: "The wallet's first addresses",
+    /// Label in `first_addresses`, over the addresses, so that "It matches"
+    /// answers it. `{}`: the plan's wallet software.
+    first_addresses_compare: "Same in {}?",
+    /// In `first_addresses_compare`, where the plan names no software.
+    first_addresses_your_software: "your wallet software",
     /// Text in `first_addresses`.
     first_addresses_receive_0_0: "Receive 0/0",
     /// Text in `first_addresses`.

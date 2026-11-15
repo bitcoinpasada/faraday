@@ -117,8 +117,8 @@ macro_rules! words_screens_create {
     create_back_up_button: "Back up wallet",
     /// Line in `create_body`.
     create_make_the_wallet: "Make the wallet first",
-    /// Create's Check card, a line over the first addresses.
-    create_compare_addresses: "Compare these addresses before funding the wallet",
+    /// Create's passphrase pair, a line under it.
+    create_pass_kept: "Kept nowhere until its backup. Another passphrase is another wallet.",
         }
     };
 }
