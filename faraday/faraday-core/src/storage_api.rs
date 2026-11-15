@@ -343,9 +343,10 @@ pub enum StorageEvent {
         /// The image's name.
         name: Text,
         /// The picture's bytes, unchanged.
-        bytes: Vec<u8>,
-        /// Each code's payload.
-        payloads: Vec<Vec<u8>>,
+        bytes: Zeroizing<Vec<u8>>,
+        /// Each code's payload: a SeedQR's digits or entropy, wiped when
+        /// dropped.
+        payloads: Zeroizing<Vec<Vec<u8>>>,
     },
     /// The time on this computer's clock, Unix seconds: what a GPG key or
     /// signature states as its creation time.

@@ -187,8 +187,8 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     own_tick(&mut app, "key-1-seedqr.png");
     app.storage(StorageEvent::QrRead {
         name: faraday_text::Text::of("key-1-seedqr.png"),
-        bytes: b"a picture".to_vec(),
-        payloads: vec![seedqr_digits()],
+        bytes: (b"a picture".to_vec()).into(),
+        payloads: (vec![seedqr_digits()]).into(),
     });
     let item = app
         .inbox()
@@ -255,8 +255,8 @@ fn read_text_picture(app: &mut faraday_core::Faraday, payload: Vec<u8>) {
     own_tick(app, "note.png");
     app.storage(StorageEvent::QrRead {
         name: faraday_text::Text::of("note.png"),
-        bytes: b"a picture".to_vec(),
-        payloads: vec![payload],
+        bytes: (b"a picture".to_vec()).into(),
+        payloads: (vec![payload]).into(),
     });
 }
 

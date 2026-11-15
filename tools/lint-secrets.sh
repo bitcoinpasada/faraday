@@ -181,6 +181,7 @@ ALLOWED_TYPES=$(cat <<'EOF'
 faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's two values, a Copy element of wiped buffers that the tour and the tests compare and print
 core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
 core/faraday-shell-api/src/lib.rs:Event Clone,PartialEq its only wiping part is EntropyBytes, which wipes on drop and compares without a branch on a byte, so the derived copy and comparison are its own; the snapshot and replay shells copy events and the tests compare them
+faraday/faraday-core/src/storage_api.rs:StorageEvent Clone,PartialEq,Debug its wiping parts are Zeroizing buffers (the files restored, a picture's bytes and codes), as Restored's files already were; the shells and tests copy, compare and print events (fixed in a later change: a function of the type that does)
 faraday/faraday-core/src/backup_flow/mod.rs:Live Debug holds Writing, whose Debug is its own and prints the names and sizes of what it holds; its copy is its own
 faraday/faraday-core/src/backup_flow/mod.rs:BackupFlow Clone,Debug holds Live, whose copy is its own and whose Debug is Writing's own
 faraday/faraday-core/src/dice_entry/screen.rs:Ask Clone,Copy for it is Copy: it borrows the dice entry and holds no copy of it

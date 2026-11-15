@@ -97,6 +97,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                         &mut faraday_files::Dir(dir.clone()),
                         &name,
                     )
+                    .map(|(b, c)| (b.to_vec(), c.to_vec()))
                     .expect("read"),
                     None => {
                         let bytes = s.files[&*name].clone();
@@ -109,8 +110,8 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                 };
                 app.storage(StorageEvent::QrRead {
                     name,
-                    bytes,
-                    payloads,
+                    bytes: bytes.into(),
+                    payloads: payloads.into(),
                 });
             }
             StorageCommand::Write {

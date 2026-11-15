@@ -16,6 +16,9 @@ use crate::vault::{Focus, Form, TextBox, Work};
 use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCommand, sha256_of};
 use zeroize::Zeroizing;
 
+/// A picture read back: its bytes and its QR codes' payloads, both wiped when freed.
+type PictureRead = (Zeroizing<Vec<u8>>, Zeroizing<Vec<Vec<u8>>>);
+
 pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
 /// The room a new vault is counted at: a new vault's file, one step.
@@ -2999,7 +3002,7 @@ impl Faraday {
     /// lock; a SeedQR against the Outbox's picture byte for byte and, while
     /// its key is loaded, against the digits of the key's words, which are
     /// written out for the comparison and dropped.
-    pub(crate) fn flow_qr_answer(&mut self, name: &str, read: Option<(Vec<u8>, Vec<Vec<u8>>)>) {
+    pub(crate) fn flow_qr_answer(&mut self, name: &str, read: Option<PictureRead>) {
         let c = self.compute();
         use crate::backup_flow::ReadBack;
         let Some(i) = self.fi() else {
@@ -3020,10 +3023,10 @@ impl Faraday {
         let good = match (want, read) {
             (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&c, &codes.concat()) == h, // not text: bytes
             (Some(ReadBack::Seed(fp)), Some((bytes, codes))) => {
-                self.secret_picture_reads(&c, &meant, (&bytes, &codes), &fp, None)
+                self.secret_picture_reads(&c, &meant, (&bytes[..], &codes[..]), &fp, None)
             }
             (Some(ReadBack::Codex32(fp, j)), Some((bytes, codes))) => {
-                self.secret_picture_reads(&c, &meant, (&bytes, &codes), &fp, Some(j))
+                self.secret_picture_reads(&c, &meant, (&bytes[..], &codes[..]), &fp, Some(j))
             }
             _ => false,
         };

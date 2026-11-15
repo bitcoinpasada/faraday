@@ -817,8 +817,8 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     });
     back.storage(faraday_core::StorageEvent::QrRead {
         name: faraday_text::Text::of(&picture.0.clone()),
-        bytes: picture.1.clone(),
-        payloads: read,
+        bytes: (picture.1.clone()).into(),
+        payloads: (read).into(),
     });
     assert!(
         back.inbox_found_now(&c)

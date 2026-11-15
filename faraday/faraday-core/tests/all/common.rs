@@ -522,8 +522,8 @@ impl Shell {
                     };
                     app.storage(StorageEvent::QrRead {
                         name,
-                        bytes,
-                        payloads,
+                        bytes: bytes.into(),
+                        payloads: payloads.into(),
                     });
                 }
                 StorageCommand::SaveBoxes {

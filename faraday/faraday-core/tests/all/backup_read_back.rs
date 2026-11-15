@@ -212,8 +212,8 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
         assert!(!payloads.is_empty(), "{name} holds a code");
         app.storage(StorageEvent::QrRead {
             name: faraday_text::Text::of(&name.clone()),
-            bytes: bytes.clone(),
-            payloads,
+            bytes: (bytes.clone()).into(),
+            payloads: payloads.into(),
         });
     }
     app.storage(StorageEvent::Sticks(Vec::new()));

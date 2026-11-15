@@ -1401,8 +1401,8 @@ impl Faraday {
             }
             StorageEvent::QrRead {
                 name,
-                bytes,
-                payloads,
+                mut bytes,
+                mut payloads,
             } => {
                 // A picture holding a SeedQR comes in only on the
                 // person's own tick: another is dropped, left listed.
@@ -1424,7 +1424,7 @@ impl Faraday {
                     // codes hold, to be written to another stick; it takes
                     // the exposure of what they hold.
                     let before = self.inbox.len();
-                    self.qr_read(&name, payloads);
+                    self.qr_read(&name, std::mem::take(&mut payloads));
                     let holds = self.picture_holds(before);
                     // Under its own name, unless what its codes held took it.
                     let got = if self.inbox.iter().skip(before).any(|i| i.name == *name) {
@@ -1433,7 +1433,7 @@ impl Faraday {
                         self.inbox.retain(|i| i.name != *name);
                         faraday_text::Text::of(&name)
                     };
-                    let mut item = Item::new(&c, &got, bytes);
+                    let mut item = Item::new(&c, &got, std::mem::take(&mut *bytes));
                     item.picture = Some(holds);
                     self.inbox.push(item);
                     self.save_boxes();

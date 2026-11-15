@@ -108,8 +108,8 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
                     name,
-                    bytes: Vec::new(),
-                    payloads: vec![zebra_seedqr()],
+                    bytes: (Vec::new()).into(),
+                    payloads: (vec![zebra_seedqr()]).into(),
                 });
             }
             _ => {}
@@ -273,8 +273,8 @@ fn reads(app: &mut Faraday, files: &[(String, Vec<u8>)]) -> Vec<String> {
                 asked.push(String::from(&*name));
                 app.storage(StorageEvent::QrRead {
                     name,
-                    bytes: Vec::new(),
-                    payloads: vec![zebra_seedqr()],
+                    bytes: (Vec::new()).into(),
+                    payloads: (vec![zebra_seedqr()]).into(),
                 });
             }
             _ => {}
@@ -908,8 +908,8 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
             asked = true;
             app.storage(StorageEvent::QrRead {
                 name,
-                bytes: Vec::new(),
-                payloads: vec![zebra_wallet().into_bytes()],
+                bytes: (Vec::new()).into(),
+                payloads: (vec![zebra_wallet().into_bytes()]).into(),
             });
         }
     }
@@ -947,8 +947,8 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
                     name,
-                    bytes: Vec::new(),
-                    payloads: vec![seed_seedqr(0)],
+                    bytes: (Vec::new()).into(),
+                    payloads: (vec![seed_seedqr(0)]).into(),
                 });
             }
             _ => {}
@@ -965,8 +965,8 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
                     name,
-                    bytes: Vec::new(),
-                    payloads: vec![seed_seedqr(0)],
+                    bytes: (Vec::new()).into(),
+                    payloads: (vec![seed_seedqr(0)]).into(),
                 });
             }
             _ => {}
@@ -1517,8 +1517,8 @@ fn text_picture_asked() -> faraday_core::Faraday {
                 StorageCommand::ReadQr { name, .. } => {
                     app.storage(StorageEvent::QrRead {
                         name,
-                        bytes: Vec::new(),
-                        payloads: vec![b"a short note 123".to_vec()],
+                        bytes: (Vec::new()).into(),
+                        payloads: (vec![b"a short note 123".to_vec()]).into(),
                     });
                 }
                 _ => {}

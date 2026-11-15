@@ -1323,7 +1323,10 @@ impl DiskProcess {
             && let Some((_, stick, name, _)) = self.picture.take()
         {
             let picture = match Response::decode(&frame) {
-                Ok(Response::Qr { bytes, codes }) => Ok((bytes, codes)),
+                Ok(Response::Qr { bytes, codes }) => Ok((
+                    zeroize::Zeroizing::new(bytes),
+                    zeroize::Zeroizing::new(codes),
+                )),
                 Ok(Response::Failed(why)) => Err(why),
                 Ok(_) => Err(Text::of(EN.storage_answer_codes)),
                 Err(_) => Err(Text::of(EN.storage_answer_malformed)),

@@ -337,7 +337,7 @@ impl BootImportArea {
 
 impl Faraday {
     /// What a picture's codes held, read as the camera reads them.
-    pub(crate) fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
+    pub(crate) fn qr_read(&mut self, name: &str, mut payloads: zeroize::Zeroizing<Vec<Vec<u8>>>) {
         if payloads.is_empty() {
             self.visit
                 .log_push((Text::fill(EN.qr_read_copied_no_qr, &[name]), true));
@@ -350,7 +350,10 @@ impl Faraday {
             let before = self.inbox.len();
             let mut seeds = 0;
             let mut asked = 0;
-            for p in payloads {
+            // Each code is moved into a wiping buffer, not copied; any left
+            // after a transfer comes together are wiped with the rest.
+            for p in payloads.iter_mut() {
+                let p = zeroize::Zeroizing::new(std::mem::take(p));
                 if self.visit_seedqr(name, &p, &mut seeds, &mut asked) {
                     continue;
                 }
@@ -359,7 +362,7 @@ impl Faraday {
                 }
                 let parts = self.camera.scan().is_some_and(crate::ScanState::in_parts);
                 let n = self.inbox.len();
-                self.scanned(p);
+                self.scanned_wiped(p);
                 // A transfer in parts that has just come together
                 // ends the reading: what follows is another.
                 if parts && self.inbox.len() > n {
@@ -622,8 +625,10 @@ impl Faraday {
             }
             // The picture's bytes are not kept: what its codes hold is
             // imported, and the picture is copied on a visit.
-            StorageEvent::QrRead { name, payloads, .. } if self.import_waits(None, &name) => {
-                self.import_codes(&name, payloads)
+            StorageEvent::QrRead {
+                name, mut payloads, ..
+            } if self.import_waits(None, &name) => {
+                self.import_codes(&name, std::mem::take(&mut *payloads))
             }
             other => return Some(other),
         }

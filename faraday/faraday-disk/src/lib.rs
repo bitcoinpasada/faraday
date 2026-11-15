@@ -862,7 +862,10 @@ impl Disks {
             Request::ReadQr { stick, name } => self
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read_qr_png(c, &mut p as &mut dyn Place, &name))
-                .map(|(bytes, codes)| Response::Qr { bytes, codes }),
+                .map(|(mut bytes, mut codes)| Response::Qr {
+                    bytes: std::mem::take(&mut *bytes),
+                    codes: std::mem::take(&mut *codes),
+                }),
         };
         answer.unwrap_or_else(Response::Failed)
     }

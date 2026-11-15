@@ -23,6 +23,7 @@ mod planted;
 mod readers;
 mod seed_load;
 mod sign;
+mod stick_visit;
 mod vault_names;
 
 use faraday_leak_scan::{Armed, Form};

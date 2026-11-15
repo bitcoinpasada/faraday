@@ -1400,15 +1400,18 @@ pub fn write_file(
 /// A PNG on a stick: its bytes as they are, and its QR codes' payloads.
 /// A picture whose codes cannot be read (not a PNG, too many pixels) is
 /// still read, with no codes: it is copied as a file.
-pub type Picture = (Vec<u8>, Vec<Vec<u8>>);
+pub type Picture = (
+    zeroize::Zeroizing<Vec<u8>>,
+    zeroize::Zeroizing<Vec<Vec<u8>>>,
+);
 
 /// Costs a read of the file and [`qr_in_png`]: a PNG on a stick, read,
 /// its bytes and its QR codes ([`Picture`]).
 pub fn read_qr_png(c: &Compute, place: &mut dyn Place, name: &str) -> Result<Picture, Text> {
-    let bytes = read(place, name)?;
+    let bytes = zeroize::Zeroizing::new(read(place, name)?);
     // Moved, not copied, to whoever holds the picture.
-    let mut codes = qr_in_png(c, &bytes).unwrap_or_default();
-    Ok((bytes, std::mem::take(&mut *codes)))
+    let codes = qr_in_png(c, &bytes).unwrap_or_default();
+    Ok((bytes, codes))
 }
 
 /// Costs [`qr_in_png`]: a picture's bytes as the disk process answers
