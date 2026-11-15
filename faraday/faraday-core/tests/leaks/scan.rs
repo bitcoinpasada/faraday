@@ -8,6 +8,7 @@ use crate::{arm, finish};
 use faraday_codec::qr::{self, Ecc, Payload};
 use faraday_core::testkit;
 use faraday_leak_scan::Form;
+use faraday_shell_api::App;
 use zeroize::Zeroize;
 
 /// The digits and the forms they are looked for in: all of them, and
@@ -53,4 +54,25 @@ fn a_frame_holding_a_code_shrunk_leaves_no_freed_copy() {
     small.zeroize();
     drop(small);
     finish("a frame holding a code shrunk", armed, false);
+}
+
+/// A camera frame handed in with no scan open is dropped wiped.
+#[test]
+fn a_camera_frame_with_no_scan_open_leaves_no_freed_copy() {
+    let digits = std::mem::ManuallyDrop::new(digits());
+    let mut luma = vec![255u8; 4096];
+    luma[..digits.len()].copy_from_slice(&digits);
+    let mut chroma = vec![128u8; 2048];
+    chroma[..digits.len()].copy_from_slice(&digits);
+    let wanted = forms(&digits);
+    let armed = arm(&wanted);
+    let mut app = testkit::started();
+    assert!(app.scan().is_none(), "a scan is open");
+    app.event(faraday_shell_api::Event::CameraFrame {
+        width: 64,
+        height: 64,
+        luma,
+        chroma: Some(chroma),
+    });
+    finish("a camera frame with no scan open", armed, false);
 }

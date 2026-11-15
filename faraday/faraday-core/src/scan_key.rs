@@ -167,14 +167,14 @@ impl Camera {
         &mut self,
         width: u16,
         height: u16,
-        luma: Vec<u8>,
-        chroma: Option<Vec<u8>>,
+        luma: zeroize::Zeroizing<Vec<u8>>,
+        chroma: Option<zeroize::Zeroizing<Vec<u8>>>,
     ) -> bool {
         let Some(s) = self.scan.as_mut() else {
             return false;
         };
-        s.frame = Some((width, height, zeroize::Zeroizing::new(luma)));
-        s.chroma = chroma.map(zeroize::Zeroizing::new);
+        s.frame = Some((width, height, luma));
+        s.chroma = chroma;
         s.frames = s.frames.wrapping_add(1);
         s.waiting_since = None;
         if s.no_picture == Some(crate::NoPicture::Silent) {

@@ -3812,6 +3812,8 @@ impl App for Faraday {
                 luma,
                 chroma,
             } => {
+                let luma = zeroize::Zeroizing::new(luma);
+                let chroma = chroma.map(zeroize::Zeroizing::new);
                 if !self.camera.frame_in(width, height, luma, chroma) {
                     return;
                 }
