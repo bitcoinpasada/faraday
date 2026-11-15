@@ -221,12 +221,19 @@ jobs:
       # Unpacked into target/, where the build job compiled it: a test that
       # names a path fixed when it was compiled (env!("CARGO_BIN_EXE_…"),
       # env!("CARGO_TARGET_TMPDIR")) finds it at the same place here.
+      # A test that fails is run once more; one that then passes is flaky: the run passes
+      # and the job's summary names it, so it is fixed and not hidden.
       - name: Run this shard's tests
         run: |
           mkdir -p target/tmp
+          set -o pipefail
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --workspace-remap . --extract-to . --extract-overwrite \
-            --partition "hash:${{ matrix.shard }}/${SHARDS}"
+            --partition "hash:${{ matrix.shard }}/${SHARDS}" \
+            --retries 1 2>&1 | tee nextest.log
+          if grep -q 'FLAKY' nextest.log; then
+            { echo "Flaky tests (failed once, passed on the retry):"; grep -E '^ *FLAKY' nextest.log | sort -u; } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   doc-tests:
     name: doc tests

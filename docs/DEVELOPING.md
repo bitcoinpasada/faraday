@@ -152,7 +152,7 @@ request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
 the tools above at the versions it names, spread over twenty-five jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`), fourteen each run a fourteenth of them (`--partition
-hash:k/14`), and the doc tests, the parser crates' tests on a 32-bit
+hash:k/14`, a failed test run once more and named in the job's summary when it then passes), and the doc tests, the parser crates' tests on a 32-bit
 target and the five parts of `just lint` run
 beside them, after a first job that does nothing on a pull request or a run
 by hand. Its result is shown on the commit and the pull request. A push to
