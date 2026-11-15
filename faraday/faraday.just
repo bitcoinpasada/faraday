@@ -300,31 +300,13 @@ faraday-sb-ovmf out="out/sb-ovmf-check":
 # out/faraday/x86_64-uefi/faraday, and beside it faraday-disk
 # and faraday-grant: what faraday/image/run-build.sh puts in
 # the image. The board's board.conf (faraday/image/boards/) names the
-# Rust target and the C compiler.
+# Rust target and the C compiler; both are built in the pinned container
+# faraday/build/device/, never with the host's compilers.
 [group('build')]
 faraday-stick-bin:
     #!/usr/bin/env bash
     set -euo pipefail
-    . faraday/image/boards/{{stick_board}}/board.conf
-    under="${RUST_TARGET//-/_}"
-    upper="$(echo "$under" | tr 'a-z' 'A-Z')"
-    export "CC_${under}=$CC"
-    export "AR_${under}=${CC%gcc}ar"
-    export "CARGO_TARGET_${upper}_LINKER=$CC"
-    export "CFLAGS_${under}=$CFLAGS"
-    export RUSTFLAGS="-C target-feature=+crt-static"
-    # No local path in the binaries (faraday/image/path-remap.sh).
-    . faraday/image/path-remap.sh
-    # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
-    # status hides a failure of the command inside it.
-    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
-    export FARADAY_BUILD
-    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
-    mkdir -p out/faraday/{{stick_board}}
-    cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
-        "target/$RUST_TARGET/release/faraday-grant" out/faraday/{{stick_board}}/
-    file out/faraday/{{stick_board}}/faraday out/faraday/{{stick_board}}/faraday-disk \
-        out/faraday/{{stick_board}}/faraday-grant
+    faraday/build/device/run.sh "{{docker}}" {{stick_board}} "{{release}}" "{{dev}}" "{{version}}" "{{source_date_epoch}}" "{{build_cache}}"
 
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
 # (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
@@ -387,33 +369,14 @@ faraday-stick-boot +args:
 # The Pi's app, cross-compiled for the board the `board` variable names
 # (armv7, static against glibc), at out/faraday/<board>/faraday, and
 # beside it faraday-disk and faraday-grant, as for the
-# stick.
+# stick, in the same container.
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
 [group('build')]
 faraday-pi-bin:
     #!/usr/bin/env bash
     set -euo pipefail
-    . faraday/image/boards/{{board}}/board.conf
-    under="${RUST_TARGET//-/_}"
-    upper="$(echo "$under" | tr 'a-z' 'A-Z')"
-    export "CC_${under}=$CC"
-    export "AR_${under}=${CC%gcc}ar"
-    export "CARGO_TARGET_${upper}_LINKER=$CC"
-    export "CFLAGS_${under}=$CFLAGS"
-    export RUSTFLAGS="-C target-feature=+crt-static"
-    # No local path in the binaries (faraday/image/path-remap.sh).
-    . faraday/image/path-remap.sh
-    # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
-    # status hides a failure of the command inside it.
-    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
-    export FARADAY_BUILD
-    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
-    mkdir -p out/faraday/{{board}}
-    cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
-        "target/$RUST_TARGET/release/faraday-grant" out/faraday/{{board}}/
-    file out/faraday/{{board}}/faraday out/faraday/{{board}}/faraday-disk \
-        out/faraday/{{board}}/faraday-grant
+    faraday/build/device/run.sh "{{docker}}" {{board}} "{{release}}" "{{dev}}" "{{version}}" "{{source_date_epoch}}" "{{build_cache}}"
 
 # The Faraday microSD card image, at out/pi/faraday-<board>-any.img
 # (dev=1: -any-dev.img, with a console and a login on the board's serial

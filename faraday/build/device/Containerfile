@@ -1,0 +1,55 @@
+# The build container for the device's binaries (docs/DEVELOPING.md §5): the
+# app, faraday-disk and faraday-grant for the stick (x86-64, static against
+# musl) and for the Pi (armv7, static against glibc), `just faraday-stick-bin`
+# and `just faraday-pi-bin`.
+#
+# The base image is pinned by digest, not by tag (what debian:bookworm-slim
+# pointed at on 2026-09-16, the digest faraday/image/Dockerfile builds on).
+# Debian's packages, the C compilers and the C libraries the binaries are
+# linked with, come from one dated state of snapshot.debian.org, which does
+# not change: the same names install the same versions on any day. The Rust
+# toolchain is the release named by rust-toolchain.toml (build.sh refuses a
+# different one), installed from the standalone tarball and the two targets'
+# standard library tarballs, each with its SHA-256 written here, so a changed
+# tarball fails the build.
+FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+
+ARG DEBIAN_SNAPSHOT=20260916T000000Z
+RUN printf '%s\n' \
+        "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/$DEBIAN_SNAPSHOT/ bookworm main" \
+        > /etc/apt/sources.list \
+    && rm -f /etc/apt/sources.list.d/* \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends \
+        binutils binutils-arm-linux-gnueabihf ca-certificates curl file gcc \
+        gcc-arm-linux-gnueabihf git libc6-dev libc6-dev-armhf-cross xz-utils \
+    && apt-get clean && find /var/lib/apt/lists -type f -delete
+
+ARG RUST_VERSION=1.97.0
+ARG RUST_SHA256=1cf17e4905b841d4c8e3f76467ac148d55fb3f54bf213c86f0d287a36471d904
+ARG RUST_STD_MUSL_SHA256=9744b43bed4a89db05e83dc8054d3e92e23ddb70a6c08c54ccde9a58d7b28627
+ARG RUST_STD_ARMV7_SHA256=b756f6494060af5be0aa6ef63cd6fe3136945a4bf56526ea266ac5558558f7c1
+RUN set -eu; \
+    host="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"; \
+    musl="rust-std-${RUST_VERSION}-x86_64-unknown-linux-musl"; \
+    armv7="rust-std-${RUST_VERSION}-armv7-unknown-linux-gnueabihf"; \
+    for name in "$host" "$musl" "$armv7"; do \
+        curl --proto '=https' --tlsv1.2 -fsSL -o "/tmp/$name.tar.xz" \
+            "https://static.rust-lang.org/dist/$name.tar.xz"; \
+    done; \
+    echo "$RUST_SHA256  /tmp/$host.tar.xz" | sha256sum -c -; \
+    echo "$RUST_STD_MUSL_SHA256  /tmp/$musl.tar.xz" | sha256sum -c -; \
+    echo "$RUST_STD_ARMV7_SHA256  /tmp/$armv7.tar.xz" | sha256sum -c -; \
+    for name in "$host" "$musl" "$armv7"; do tar -C /tmp -xf "/tmp/$name.tar.xz"; done; \
+    "/tmp/$host/install.sh" --prefix=/usr/local \
+        --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu; \
+    "/tmp/$musl/install.sh" --prefix=/usr/local; \
+    "/tmp/$armv7/install.sh" --prefix=/usr/local; \
+    find /tmp -mindepth 1 -delete
+
+# Mounted by faraday.just: /src (the checkout, read-only), /out, /build
+# (the target directory) and /cargo (the registry cache).
+ENV CARGO_HOME=/cargo \
+    CARGO_TARGET_DIR=/build/target \
+    LC_ALL=C
+WORKDIR /src

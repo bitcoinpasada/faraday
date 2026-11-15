@@ -30,6 +30,9 @@ BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="https://cdn.kernel.org/pub/linux/kerne
 # was checked, rather than one computed from a download of our own: a
 # hash from the same fetch it is meant to check checks nothing.
 # KERNEL_SHA256 4633bbda2ab95eaf2a7af4041236451d6759c72e6946265531af4b3aacefbf89
+# The tarball's hash, where Buildroot looks for one (BR2_DOWNLOAD_FORCE_CHECK_HASHES
+# refuses a download with none). /image is this tree as build.sh sees it.
+BR2_GLOBAL_PATCH_DIR="/image/boards/x86_64-uefi/buildroot-global"
 BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
 # The five mainline commits from 6.19 by which the EFI stub reads the
 # EDID of the screen the firmware draws on and puts its base block in

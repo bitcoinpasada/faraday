@@ -226,13 +226,20 @@ hardware it is offered under (`docs/IMAGES.md` §1, §2).
 
 ## 5. Reproducing a release
 
-The images are built in a container with every compiler pinned, the
+The images are built in containers with every compiler pinned, the
 commit date as `SOURCE_DATE_EPOCH`, host paths remapped out of the
 output, and the FAT serials derived from that date
 (`faraday/image/fat-serial.sh`, `docs/STICK-IDENTITY.md`). The kernel's
 release string carries the build ID, never a date (`docs/decisions/F5.md`),
 and the Pi image carries it in `faraday-build.txt` on its boot partition.
-The host's dosfstools 4.2 does not read `SOURCE_DATE_EPOCH`, so `mkfs.vfat`
+The device's binaries (`just faraday-stick-bin`, `just faraday-pi-bin`,
+which the image recipes run first) are built in their own container,
+`faraday/build/device/`: Debian bookworm by digest, its C compilers and C
+libraries from one dated state of snapshot.debian.org, the Rust toolchain
+from tarballs with their SHA-256 written in the Containerfile. Buildroot
+(the kernel, BusyBox, the C library and the tools) builds in the image
+container, and `BR2_DOWNLOAD_FORCE_CHECK_HASHES` makes it refuse a
+download that has no hash in the tree. The host's dosfstools 4.2 does not read `SOURCE_DATE_EPOCH`, so `mkfs.vfat`
 is given `--invariant`, which fixes the time it would stamp on the root
 directory's volume-label entry. To check a release:
 

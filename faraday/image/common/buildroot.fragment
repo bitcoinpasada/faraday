@@ -9,6 +9,13 @@
 # Two builders must get the same bytes.
 BR2_REPRODUCIBLE=y
 
+# A download with no hash in the tree fails the build: a package Buildroot
+# or this repository adds without one cannot pass unchecked. The kernel's
+# tarball, which Buildroot has no hash for, is hashed in the board's
+# BR2_GLOBAL_PATCH_DIR (linux/linux.hash, and linux-headers/ for the
+# headers taken from the same tarball).
+BR2_DOWNLOAD_FORCE_CHECK_HASHES=y
+
 # One compiler cache for every variant, mounted at /ccache. Building a
 # second board or panel then costs the packages that differ and not the
 # toolchain.

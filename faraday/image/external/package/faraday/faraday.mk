@@ -2,7 +2,7 @@
 #
 # faraday
 #
-# The app, cross-compiled on the host by faraday.just and mounted
+# The app, cross-compiled in the pinned container by faraday.just and mounted
 # into the build container. There is no source, no download and no build
 # step: this package is an install rule and a check that the file is there.
 #
