@@ -7,7 +7,7 @@
 //! names one of our fingerprints but does not reproduce the script blocks
 //! signing, never a silent skip.
 
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -18,7 +18,7 @@ use bitcoin::psbt::{Input, Output};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
 use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 use bitcoin::taproot::TapTweakHash;
-use bitcoin::{Address, Amount, ScriptBuf, Sequence, Transaction, TxOut, Txid, VarInt};
+use bitcoin::{Amount, ScriptBuf, Sequence, Transaction, TxOut, Txid};
 use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_crypto::work::{Compute, Work};
 
@@ -26,12 +26,19 @@ use faraday_bip::spend::{Lock, SpendPath};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
 use crate::Psbt;
-use crate::classify::{Classified, Multisig, ScriptKind, classify};
+use crate::classify::{Classified, Multisig, ScriptKind};
 use crate::context::Context;
 use crate::reason::Reason;
 
+mod checks;
 mod detail;
+mod inputs;
+mod outputs;
 mod sighash;
+
+use checks::{Fee, Signed, Totals};
+use inputs::{Inputs, Walk, read_inputs};
+use outputs::{Outputs, read_outputs};
 
 pub use detail::Detail;
 pub(crate) use sighash::{sighash_answers, sighash_stricter};
@@ -747,738 +754,62 @@ fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, detail: De
 
 /// Costs a script derivation for each wallet an input or output claims,
 /// and the checks: inspects `psbt` for the keys and network in `ctx`.
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "reads the PSBT's inputs, outputs and fields, and the signing and registration checks on them, in one pass"
-)]
 pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     c.count(Work::PsbtInspect);
     let secp = Secp256k1::verification_only();
     let inner = psbt.inner();
     let tx = &inner.unsigned_tx;
-    // The id the open MuSig2 session, if any, is keyed by.
-    let txid = tx.compute_txid();
-    let mut warnings = Vec::new();
+    let w = Walk {
+        c,
+        psbt,
+        ctx,
+        secp: &secp,
+        txid: tx.compute_txid(),
+    };
 
-    let mut inputs = Vec::with_capacity(inner.inputs.len());
-    let mut participating: Vec<Fingerprint> = Vec::new();
-    let mut multisig: Option<MultisigSummary> = None;
-    let mut musig: Option<MusigSummary> = None;
-    let mut kinds: Vec<ScriptKind> = Vec::new();
-    let mut input_scripts: Vec<ScriptBuf> = Vec::new();
-    // The inputs held for want of a registered wallet, and which keys of
-    // each multisig input a loaded key derives, for the register offer.
-    let mut unregistered: Vec<usize> = Vec::new();
-    // The person's wallets the inputs spend: an output is their change
-    // only when it is the one wallet all of these are (F254).
-    let mut spent: Vec<OwnWallet> = Vec::new();
-    let mut multisig_ours: alloc::collections::BTreeMap<usize, Vec<bool>> =
-        alloc::collections::BTreeMap::new();
-    let mut total_in = Amount::ZERO;
-    let mut fee_known = true;
-    let mut has_witness = false;
-    let mut weight = (4 + 4) * 4
-        + VarInt::from(tx.input.len()).size() * 4
-        + VarInt::from(tx.output.len()).size() * 4;
+    let Inputs {
+        mut warnings,
+        inputs,
+        participating,
+        multisig,
+        musig,
+        kinds,
+        input_scripts,
+        unregistered,
+        multisig_ours,
+        spent,
+        total_in,
+        fee_known,
+        mut weight,
+        ..
+    } = read_inputs(&w);
+    let Outputs {
+        outputs,
+        total_out,
+        amount_to_others,
+        change_total,
+    } = read_outputs(&w, &spent, &mut warnings, &mut weight);
 
-    for (i, input) in inner.inputs.iter().enumerate() {
-        let cl = classify(inner, i);
-        for p in &cl.problems {
-            warn(
-                &mut warnings,
-                Level::Blocked,
-                WarningKind::UtxoMismatch,
-                Detail::InputFault {
-                    input: i,
-                    reason: *p,
-                },
-            );
-        }
-        if cl.amount_unverified {
-            warn(
-                &mut warnings,
-                Level::Blocked,
-                WarningKind::AmountUnverified,
-                Detail::AmountUnverified { input: i },
-            );
-        }
-        let amount = match &cl.utxo {
-            Some(u) => {
-                total_in = total_in.checked_add(u.value).unwrap_or(Amount::MAX_MONEY);
-                input_scripts.push(u.script_pubkey.clone());
-                Some(u.value)
-            }
-            None => {
-                fee_known = false;
-                warn(
-                    &mut warnings,
-                    Level::Danger,
-                    WarningKind::MissingUtxo,
-                    Detail::MissingUtxo { input: i },
-                );
-                None
-            }
-        };
-        let spk = cl.utxo.as_ref().map(|u| u.script_pubkey.clone());
-        let txin = &tx.input[i];
-        let finalized = input.final_script_sig.is_some() || input.final_script_witness.is_some();
+    checks::address_reuse(&outputs, &input_scripts, &mut warnings);
+    checks::message_request(psbt, &mut warnings);
+    let fee_known = checks::money_range(&inputs, tx, fee_known, &mut warnings);
+    let Fee {
+        fee,
+        fee_rate_sat_vb,
+        vsize_estimate,
+    } = checks::fee_checks(
+        &Totals {
+            total_in,
+            total_out,
+            amount_to_others,
+            weight,
+        },
+        fee_known,
+        &mut warnings,
+    );
 
-        if finalized {
-            let ss = input.final_script_sig.as_ref().map_or(0, |s| s.len());
-            let wit = input.final_script_witness.as_ref().map_or(0, |w| w.size());
-            weight += (32 + 4 + 4 + VarInt::from(ss).size() + ss) * 4 + wit;
-            has_witness |= wit > 0;
-        } else {
-            weight += cl
-                .satisfaction_weight
-                .unwrap_or_else(|| cl.kind.estimated_weight());
-            has_witness |= !matches!(cl.kind, ScriptKind::P2pkh);
-        }
-        let signable = cl.kind.is_supported()
-            && (cl.kind != ScriptKind::P2trScript || tap_signable(&secp, input, spk.as_deref()));
-        if signable {
-            if !kinds.contains(&cl.kind) {
-                kinds.push(cl.kind);
-            }
-        } else {
-            let reason = match cl.kind {
-                ScriptKind::P2trScript => Reason::NoTaprootLeafOrKey,
-                _ => Reason::UnknownScript,
-            };
-            if cl.utxo.is_some() && !finalized {
-                warn(
-                    &mut warnings,
-                    Level::Caution,
-                    WarningKind::UnsupportedInput,
-                    Detail::CannotSign { input: i, reason },
-                );
-            }
-        }
-
-        let mut is_ours = false;
-        // The person's wallet this input spends, when it is verified as one.
-        let mut own: Option<OwnWallet> = None;
-        let mut origin: Option<KeyOrigin> = None;
-        let mut musig_established: Option<MusigInput> = None;
-        // The registered wallet whose script this input is, for the kinds
-        // a wallet of several keys can be.
-        let registered = match cl.kind {
-            ScriptKind::Multisig { .. }
-            | ScriptKind::Miniscript { .. }
-            | ScriptKind::P2trScript
-            | ScriptKind::Unknown => wallet_input(c, ctx, input, spk.as_deref()),
-            _ => None,
-        };
-        match cl.kind {
-            ScriptKind::P2pkh | ScriptKind::P2shP2wpkh | ScriptKind::P2wpkh => {
-                for (pk, (fp, path)) in &input.bip32_derivation {
-                    let fp = Fingerprint::from(*fp);
-                    let claim = KeyOrigin {
-                        fingerprint: fp,
-                        path: path.clone(),
-                    };
-                    let Some(key) = ctx.key(fp) else {
-                        origin.get_or_insert(claim);
-                        continue;
-                    };
-                    origin = Some(claim);
-                    match key.derive(&secp, path) {
-                        Some(d) if d.key == *pk && Some(&d.script_pubkey) == spk.as_ref() => {
-                            is_ours = true;
-                            own = Some(OwnWallet::Account {
-                                key: fp,
-                                path: account_of(path),
-                            });
-                            push_unique(&mut participating, fp);
-                        }
-                        Some(d) => mismatch(&mut warnings, i, fp, path, d.key == *pk),
-                        None => {
-                            push_unique(&mut participating, fp);
-                            warn(
-                                &mut warnings,
-                                Level::Caution,
-                                WarningKind::UnknownDerivation,
-                                Detail::KeyNotUnderAccount {
-                                    input: i,
-                                    key: fp,
-                                    path: path.clone(),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-            ScriptKind::Multisig { m, n, .. } => {
-                let ms = cl
-                    .multisig
-                    .as_ref()
-                    .expect("multisig kind carries the script");
-                let cosigners = cosigners(c, &secp, ms, input, ctx);
-                let ours = cosigners.iter().any(|c| c.ours);
-                multisig_ours.insert(i, cosigners.iter().map(|c| c.ours).collect());
-                for (key, cosigner) in ms.keys.iter().zip(&cosigners) {
-                    if let Some(fp) = cosigner.fingerprint {
-                        let path = input.bip32_derivation[&key.inner].1.clone();
-                        let claim = KeyOrigin {
-                            fingerprint: fp,
-                            path,
-                        };
-                        if cosigner.ours {
-                            origin = Some(claim);
-                            push_unique(&mut participating, fp);
-                            continue;
-                        }
-                        let path = &claim.path;
-                        if ctx.is_ours(fp) {
-                            match derives_to(c, &secp, ctx, fp, path, &key.inner) {
-                                Some(_) => mismatch(&mut warnings, i, fp, path, false),
-                                None => {
-                                    push_unique(&mut participating, fp);
-                                    warn(
-                                        &mut warnings,
-                                        Level::Caution,
-                                        WarningKind::UnknownDerivation,
-                                        Detail::KeyNotUnderAccount {
-                                            input: i,
-                                            key: fp,
-                                            path: path.clone(),
-                                        },
-                                    );
-                                }
-                            }
-                        }
-                        origin.get_or_insert(claim);
-                    }
-                }
-                is_ours = ours;
-                match &multisig {
-                    None => {
-                        multisig = Some(MultisigSummary {
-                            m: usize::from(m),
-                            n: usize::from(n),
-                            cosigners,
-                            ours,
-                            wallet: registered,
-                        })
-                    }
-                    Some(first) if first.m != usize::from(m) || first.n != usize::from(n) => warn(
-                        &mut warnings,
-                        Level::Info,
-                        WarningKind::MixedScriptTypes,
-                        Detail::MultisigShapes {
-                            input: i,
-                            m: usize::from(m),
-                            n: usize::from(n),
-                            first_m: first.m,
-                            first_n: first.n,
-                        },
-                    ),
-                    Some(_) => {}
-                }
-            }
-            ScriptKind::P2trKey if has_musig_field(input) => {
-                match musig_input(c, &secp, ctx, input, spk.as_deref()) {
-                    Err(block) => warn(
-                        &mut warnings,
-                        Level::Blocked,
-                        block.kind,
-                        Detail::InputFault {
-                            input: i,
-                            reason: block.reason,
-                        },
-                    ),
-                    Ok(None) => {}
-                    Ok(Some(mut established)) => {
-                        is_ours = !established.ours.is_empty();
-                        if is_ours {
-                            own = Some(OwnWallet::Registered(established.wallet));
-                        }
-                        if let Some(first) = established.ours.first() {
-                            origin = Some(KeyOrigin {
-                                fingerprint: first.fingerprint,
-                                path: first.path.clone(),
-                            });
-                            for participation in &established.ours {
-                                push_unique(&mut participating, participation.fingerprint);
-                            }
-                        }
-                        // What this pass will do with each participant
-                        // this device holds, which is what the hold's
-                        // label and the caution below are about.
-                        let rounds: Vec<MusigRound> = established
-                            .ours
-                            .iter()
-                            .map(|p| {
-                                musig_round(c, psbt, &established, p, ctx.musig_session, txid, i)
-                            })
-                            .collect();
-                        established.will_share_nonce = !rounds.is_empty()
-                            && rounds.iter().all(|r| matches!(r, MusigRound::Share { .. }));
-                        established.nonce_stale = rounds
-                            .iter()
-                            .any(|r| matches!(r, MusigRound::Share { stale: true }));
-                        if established.nonce_stale {
-                            warn(
-                                &mut warnings,
-                                Level::Caution,
-                                WarningKind::MusigNonceReplaced,
-                                Detail::MusigNonceReplaced { input: i },
-                            );
-                        }
-                        if musig.is_none() {
-                            musig = Some(MusigSummary {
-                                wallet: established.wallet,
-                                keys: established.participants.len(),
-                                partial_signatures: crate::musig::partial_sigs(input)
-                                    .map_or(0, |sigs| sigs.len()),
-                                ours: established.ours.iter().map(|p| p.fingerprint).collect(),
-                            });
-                        }
-                        musig_established = Some(established);
-                    }
-                }
-            }
-            ScriptKind::P2trKey => {
-                for (xonly, (_, (fp, path))) in &input.tap_key_origins {
-                    let fp = Fingerprint::from(*fp);
-                    let claim = KeyOrigin {
-                        fingerprint: fp,
-                        path: path.clone(),
-                    };
-                    let Some(key) = ctx.key(fp) else {
-                        origin.get_or_insert(claim);
-                        continue;
-                    };
-                    origin = Some(claim);
-                    match key.derive(&secp, path) {
-                        Some(d)
-                            if d.key.x_only_public_key().0 == *xonly
-                                && Some(&d.script_pubkey) == spk.as_ref()
-                                && input.tap_internal_key == Some(*xonly) =>
-                        {
-                            is_ours = true;
-                            own = Some(OwnWallet::Account {
-                                key: fp,
-                                path: account_of(path),
-                            });
-                            push_unique(&mut participating, fp);
-                        }
-                        Some(d) => mismatch(
-                            &mut warnings,
-                            i,
-                            fp,
-                            path,
-                            d.key.x_only_public_key().0 == *xonly,
-                        ),
-                        None => {
-                            push_unique(&mut participating, fp);
-                            warn(
-                                &mut warnings,
-                                Level::Caution,
-                                WarningKind::UnknownDerivation,
-                                Detail::KeyNotUnderAccount {
-                                    input: i,
-                                    key: fp,
-                                    path: path.clone(),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-            ScriptKind::Miniscript { .. } | ScriptKind::P2trScript | ScriptKind::Unknown => {
-                origin = input
-                    .bip32_derivation
-                    .values()
-                    .map(|(fp, path)| ((*fp).into(), path))
-                    .chain(
-                        input
-                            .tap_key_origins
-                            .values()
-                            .map(|(_, (fp, path))| ((*fp).into(), path)),
-                    )
-                    .max_by_key(|(fp, _)| ctx.is_ours(*fp))
-                    .map(|(fingerprint, path)| KeyOrigin {
-                        fingerprint,
-                        path: path.clone(),
-                    });
-                // A miniscript or taproot-tree wallet in use answers for
-                // its own inputs: the script in front of us is that
-                // wallet's own at the index its key origins name. This
-                // is the rule a multisig input is read by, and it is the
-                // only thing that says whose these coins are, since the
-                // script itself is not one this crate takes apart.
-                if registered.is_some() {
-                    is_ours = true;
-                    for (fp, _) in input
-                        .bip32_derivation
-                        .values()
-                        .map(|(fp, path)| (Fingerprint::from(*fp), path))
-                        .chain(
-                            input
-                                .tap_key_origins
-                                .values()
-                                .map(|(_, (fp, path))| (Fingerprint::from(*fp), path)),
-                        )
-                    {
-                        if ctx.is_ours(fp) {
-                            push_unique(&mut participating, fp);
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Some(w) = registered
-            .map(OwnWallet::Registered)
-            .or(own)
-            .map(|w| w.named(ctx))
-        {
-            if !spent.contains(&w) {
-                spent.push(w);
-            }
-        } else if !finalized
-            && matches!(
-                cl.kind,
-                ScriptKind::P2pkh
-                    | ScriptKind::P2shP2wpkh
-                    | ScriptKind::P2wpkh
-                    | ScriptKind::P2trKey
-                    | ScriptKind::Multisig { .. }
-            )
-        {
-            // An input verified as no wallet of the person's that still
-            // names a loaded key and is a single-key script (p2pkh,
-            // p2sh-p2wpkh, p2wpkh, p2tr key path) or an unregistered
-            // 1-of-1 multi (signed from a loaded key; one of several keys
-            // is blocked anyway) is one the signer signs
-            // from the loaded key (a key at a path outside the accounts,
-            // another script type): it is a wallet of its own, so nothing
-            // is change of it. An input the signer leaves unsigned (a
-            // tap-script or miniscript no wallet is registered for) is not
-            // recorded.
-            let ecdsa = input
-                .bip32_derivation
-                .values()
-                .map(|(fp, path)| (Fingerprint::from(*fp), path));
-            let taproot = input
-                .tap_key_origins
-                .values()
-                .map(|(_, (fp, path))| (Fingerprint::from(*fp), path));
-            for (fp, path) in ecdsa.chain(taproot) {
-                if ctx.is_ours(fp) {
-                    let w = OwnWallet::Account {
-                        key: fp,
-                        path: account_of(path),
-                    };
-                    if !spent.contains(&w) {
-                        spent.push(w);
-                    }
-                }
-            }
-        }
-
-        // A script of several keys is signed only for a registered
-        // wallet whose script it is: the coordinator's word for who the
-        // cosigners are is not taken. Only an input that names a loaded
-        // key is held to it, since no other input is signed here. A
-        // miniscript or a taproot tree of one key is not held, and not
-        // signed either: it is left unsigned, said so, while the rest
-        // of the transaction is signed (F141).
-        if !finalized && registered.is_none() {
-            let several = crate::register::several_keys(c, &secp, input, cl.kind, spk.as_deref());
-            let names_ours = input_origins(input).any(|(fp, _)| ctx.is_ours(fp));
-            if several && names_ours {
-                warn(
-                    &mut warnings,
-                    Level::Blocked,
-                    WarningKind::WalletNotRegistered,
-                    Detail::WalletNotRegistered { input: i },
-                );
-                unregistered.push(i);
-            } else if names_ours && signed_through_wallet(cl.kind) {
-                let taproot = cl.kind == ScriptKind::P2trScript;
-                warn(
-                    &mut warnings,
-                    Level::Caution,
-                    WarningKind::NoWalletForScript { input: i, taproot },
-                    Detail::NoWalletForScript { input: i, taproot },
-                );
-            }
-        }
-
-        let sighash = sighash_kind(input, cl.kind, spk.as_deref());
-        sighash::sighash_card(&mut warnings, i, sighash, inner.unsigned_tx.output.len());
-
-        let mut already_signed_by = Vec::new();
-        for pk in input.partial_sigs.keys() {
-            if let Some((fp, _)) = input.bip32_derivation.get(&pk.inner) {
-                push_unique(&mut already_signed_by, (*fp).into());
-            }
-        }
-        if input.tap_key_sig.is_some()
-            && let Some(internal) = input.tap_internal_key
-            && let Some((_, (fp, _))) = input.tap_key_origins.get(&internal)
-        {
-            push_unique(&mut already_signed_by, (*fp).into());
-        }
-        let signatures = input.partial_sigs.len()
-            + usize::from(input.tap_key_sig.is_some())
-            + input.tap_script_sigs.len();
-
-        let spend_route = spend_route(c, &secp, ctx, input, &cl, tx, i);
-        // Refused only when no way the person's keys take part in is
-        // open: the path read from the PSBT may be the coordinator's
-        // guess, its other keys' origins left off (F136).
-        if let Some(SpendRoute::Script(path)) = &spend_route
-            && path.locks.iter().any(|l| !lock_met(*l, tx, i))
-            && !own_path_open(c, ctx, input, &cl, tx, i)
-        {
-            for lock in &path.locks {
-                if !lock_met(*lock, tx, i) {
-                    warn(
-                        &mut warnings,
-                        Level::Blocked,
-                        WarningKind::TimelockNotMet {
-                            path: path.clone(),
-                            lock: *lock,
-                        },
-                        Detail::TimelockNotMet {
-                            input: i,
-                            lock: *lock,
-                        },
-                    );
-                }
-            }
-        }
-
-        inputs.push(InputInfo {
-            index: i,
-            txid: txin.previous_output.txid,
-            vout: txin.previous_output.vout,
-            amount,
-            script_type: cl.kind,
-            is_ours,
-            origin,
-            sighash,
-            already_signed_by,
-            signatures,
-            finalized,
-            sequence: txin.sequence,
-            spend_route,
-            musig: musig_established,
-        });
-    }
-    if has_witness {
-        weight += 2;
-    }
-
-    // Outputs.
-    let network = bitcoin::Network::from(ctx.network);
-    let mut outputs = Vec::with_capacity(tx.output.len());
-    let mut total_out = Amount::ZERO;
-    let mut amount_to_others = Amount::ZERO;
-    let mut change_total = Amount::ZERO;
-    for (i, txout) in tx.output.iter().enumerate() {
-        let out = &inner.outputs[i];
-        let spk = &txout.script_pubkey;
-        let script_len = spk.len();
-        weight += (8 + VarInt::from(script_len).size() + script_len) * 4;
-        total_out = total_out
-            .checked_add(txout.value)
-            .unwrap_or(Amount::MAX_MONEY);
-
-        let address = match Address::from_script(spk, network) {
-            Ok(a) => a.to_string(),
-            Err(_) => {
-                let (level, detail) = if spk.is_op_return() {
-                    (Level::Info, Detail::DataOutput { output: i })
-                } else {
-                    (Level::Caution, Detail::NonStandardOutput { output: i })
-                };
-                warn(&mut warnings, level, WarningKind::NonStandardScript, detail);
-                String::new()
-            }
-        };
-
-        let (kind, own) = output_kind(c, &secp, out, txout, ctx, i, &mut warnings);
-        let kind = change_or_transfer(kind, own, &spent, ctx, i, &mut warnings);
-        match kind {
-            OutputKind::Change { .. } | OutputKind::WalletChange { .. } => {
-                change_total = change_total
-                    .checked_add(txout.value)
-                    .unwrap_or(Amount::MAX_MONEY);
-            }
-            _ => {
-                amount_to_others = amount_to_others
-                    .checked_add(txout.value)
-                    .unwrap_or(Amount::MAX_MONEY);
-            }
-        }
-
-        let is_dust = txout.value < spk.minimal_non_dust();
-        if is_dust {
-            warn(
-                &mut warnings,
-                Level::Caution,
-                WarningKind::DustOutput,
-                Detail::Dust {
-                    output: i,
-                    sat: txout.value.to_sat(),
-                },
-            );
-        }
-
-        outputs.push(OutputInfo {
-            index: i,
-            address,
-            script_pubkey: spk.clone(),
-            amount: txout.value,
-            kind,
-            is_dust,
-        });
-    }
-
-    // Address reuse.
-    for (j, b) in outputs.iter().enumerate() {
-        if let Some(a) = outputs[..j]
-            .iter()
-            .find(|a| a.script_pubkey == b.script_pubkey)
-        {
-            warn(
-                &mut warnings,
-                Level::Caution,
-                WarningKind::AddressReuse,
-                Detail::SameAddress {
-                    first: a.index,
-                    second: j,
-                },
-            );
-        } else if let Some(k) = input_scripts.iter().position(|s| *s == b.script_pubkey) {
-            warn(
-                &mut warnings,
-                Level::Caution,
-                WarningKind::AddressReuse,
-                Detail::PaysToInput {
-                    output: j,
-                    input: k,
-                },
-            );
-        }
-    }
-
-    // BIP-322's `to_sign` (version 0, or an OP_RETURN of 0 as the only
-    // output of a spend of output 0 on input 0) is no spend: signing it signs a message whose text is not
-    // shown here.
-    if tx.version.0 == 0 || looks_like_message_request(psbt) {
-        warn(
-            &mut warnings,
-            Level::Blocked,
-            WarningKind::MessageRequest,
-            Detail::MessageRequest,
-        );
-    }
-
-    // The money range, as Core checks it: the outputs as CheckTransaction
-    // does, the amounts the inputs spend as CheckTxInputs does.
-    if crate::transaction::money_total(inputs.iter().filter_map(|i| i.amount)).is_err() {
-        fee_known = false;
-        warn(
-            &mut warnings,
-            Level::Blocked,
-            WarningKind::AmountOutOfRange,
-            Detail::InputsOverMaxMoney,
-        );
-    }
-    if crate::transaction::money_total(tx.output.iter().map(|o| o.value)).is_err() {
-        fee_known = false;
-        warn(
-            &mut warnings,
-            Level::Blocked,
-            WarningKind::AmountOutOfRange,
-            Detail::OutputsOverMaxMoney,
-        );
-    }
-
-    // Fee.
-    let vsize_estimate = weight.div_ceil(4);
-    let mut fee = Amount::ZERO;
-    let mut fee_rate_sat_vb = None;
-    if fee_known {
-        match total_in.checked_sub(total_out) {
-            Some(f) => fee = f,
-            None => {
-                fee_known = false;
-                warn(
-                    &mut warnings,
-                    Level::Blocked,
-                    WarningKind::UtxoMismatch,
-                    Detail::OutputsExceedInputs,
-                );
-            }
-        }
-    }
-    if fee_known {
-        let rate = fee.to_sat() as f32 / vsize_estimate as f32;
-        fee_rate_sat_vb = Some(rate);
-        let base = if amount_to_others > Amount::ZERO {
-            amount_to_others
-        } else {
-            total_out
-        };
-        if base > Amount::ZERO {
-            let pct = fee.to_sat().saturating_mul(100) / base.to_sat();
-            let kind = WarningKind::HighFee {
-                pct_of_amount: pct.min(u64::from(u32::MAX)) as u32,
-            };
-            if fee > HIGH_FEE_DANGER_ABS || pct >= HIGH_FEE_DANGER_PCT {
-                warn(
-                    &mut warnings,
-                    Level::Danger,
-                    kind,
-                    Detail::FeeShare {
-                        fee: fee.to_sat(),
-                        pct,
-                    },
-                );
-            } else if pct >= HIGH_FEE_CAUTION_PCT {
-                warn(
-                    &mut warnings,
-                    Level::Caution,
-                    kind,
-                    Detail::FeeShare {
-                        fee: fee.to_sat(),
-                        pct,
-                    },
-                );
-            }
-        }
-        if fee.to_sat() >= ABSURD_FEE_RATE_SAT_VB.saturating_mul(vsize_estimate as u64) {
-            warn(
-                &mut warnings,
-                Level::Danger,
-                WarningKind::AbsurdFeeRate,
-                Detail::FeeRate {
-                    sat_vb: rate as u64,
-                },
-            );
-        }
-    }
-
-    // Network.
     network_checks(inner, ctx, &mut warnings);
-
-    // Script mix.
-    if kinds.len() > 1 {
-        warn(
-            &mut warnings,
-            Level::Info,
-            WarningKind::MixedScriptTypes,
-            Detail::MixedScripts {
-                kinds: kinds.clone(),
-            },
-        );
-    }
+    script_mix(kinds, &mut warnings);
 
     // Locktime and RBF.
     let locktime = locktime(tx.lock_time);
@@ -1503,69 +834,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
 
     let is_self_transfer = !outputs.is_empty() && outputs.iter().all(OutputInfo::is_ours);
 
-    // What is already signed here is checked
-    // here, so a signature that is not this transaction's, a nonce used
-    // twice and an inscription envelope all reach the review as cards.
-    let signatures = crate::verify::verify_signatures(psbt, ctx);
-    let mismatched: Vec<usize> = (0..inner.inputs.len())
-        .filter(|i| crate::verify::witness_shape_mismatch(inner, *i))
-        .collect();
-    sighash::signature_cards(&mut warnings, &signatures, &inputs, &mismatched);
-    // Made at the first input that needs it: one copy of the file for the
-    // whole loop.
-    let mut pass: Option<crate::verify::Pass> = None;
-    for input in 0..inner.inputs.len() {
-        if crate::verify::witness_shape_mismatch(inner, input) {
-            warn(
-                &mut warnings,
-                Level::Danger,
-                WarningKind::WitnessMismatch { input },
-                Detail::WitnessMismatch { input },
-            );
-        } else if crate::verify::witness_mismatch(inner, input)
-            && !pass
-                .get_or_insert_with(|| crate::verify::Pass::new(inner))
-                .final_signature_wrong(inner, input)
-        {
-            warn(
-                &mut warnings,
-                Level::Danger,
-                WarningKind::FinalFieldsRefused { input },
-                Detail::FinalFieldsRefused { input },
-            );
-        }
-    }
-    let nonce_reuse = crate::verify::repeated_nonces(psbt, &signatures);
-    for reuse in &nonce_reuse {
-        warn(
-            &mut warnings,
-            Level::Danger,
-            WarningKind::NonceReuse {
-                key: String::from(&*reuse.name()),
-            },
-            Detail::NonceReuse {
-                key: String::from(&*reuse.name()),
-            },
-        );
-    }
-    let inscriptions = crate::verify::inscriptions(psbt);
-    for inscription in &inscriptions {
-        warn(
-            &mut warnings,
-            Level::Info,
-            WarningKind::Inscription {
-                input: inscription.input,
-                content_type: inscription
-                    .content_type
-                    .as_deref()
-                    .map(String::from)
-                    .unwrap_or_default(),
-            },
-            Detail::Inscription {
-                input: inscription.input,
-            },
-        );
-    }
+    let Signed {
+        signatures,
+        nonce_reuse,
+        inscriptions,
+    } = checks::signature_checks(psbt, ctx, &inputs, &mut warnings);
 
     let unread = unread_fields(inner);
     if unread > 0 {
@@ -1577,20 +850,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         );
     }
 
-    // The wallet the PSBT defines, offered where nothing else blocks. A
-    // key under a loaded fingerprint that is not its key blocks (F136)
-    // and is still offered: registering refuses that key by name.
-    let register = warnings
-        .iter()
-        .filter(|w| w.level == Level::Blocked)
-        .all(|w| {
-            matches!(
-                w.kind,
-                WarningKind::WalletNotRegistered | WarningKind::UnknownDerivation
-            )
-        })
-        .then(|| crate::register::offer(c, psbt, &unregistered, &multisig_ours))
-        .flatten();
+    let register = register_offer(c, psbt, &warnings, &unregistered, &multisig_ours);
 
     warnings.sort_by_key(|w| core::cmp::Reverse(w.level));
 
@@ -1617,6 +877,42 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         is_self_transfer,
         register,
     }
+}
+
+/// An info card when the inputs are of more than one script type.
+fn script_mix(kinds: Vec<ScriptKind>, warnings: &mut Vec<Warning>) {
+    if kinds.len() > 1 {
+        warn(
+            warnings,
+            Level::Info,
+            WarningKind::MixedScriptTypes,
+            Detail::MixedScripts { kinds },
+        );
+    }
+}
+
+/// Costs what `register::offer` costs. The wallet the PSBT defines,
+/// offered where nothing else blocks. A key under a loaded fingerprint
+/// that is not its key blocks (F136) and is still offered: registering
+/// refuses that key by name.
+fn register_offer(
+    c: &Compute,
+    psbt: &Psbt,
+    warnings: &[Warning],
+    unregistered: &[usize],
+    multisig_ours: &alloc::collections::BTreeMap<usize, Vec<bool>>,
+) -> Option<crate::register::Registration> {
+    warnings
+        .iter()
+        .filter(|w| w.level == Level::Blocked)
+        .all(|w| {
+            matches!(
+                w.kind,
+                WarningKind::WalletNotRegistered | WarningKind::UnknownDerivation
+            )
+        })
+        .then(|| crate::register::offer(c, psbt, unregistered, multisig_ours))
+        .flatten()
 }
 
 /// A key origin naming loaded key `fp` at a `path` under its account
