@@ -241,6 +241,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `psbt_v2` | `faraday_psbt::v2::PsbtV2::parse_bytes`, written back and read to the same PSBT, then `to_v0`; `parse_base64` over text |
 | `raw_hex` | `faraday_entropy::RawHex::parse` over text |
 | `hex_decode` | `faraday_crypto::hex` `decode_vec`, `decode_into` and `decode_exact` over text, which must agree, and what decodes encodes back to the text in lower case |
+| `address_text` | `faraday_codec::address_text::find` over text: at most 100 addresses kept, none twice, each one an address, and the same text gives the same addresses twice |
 | `bip21` | `faraday_codec::bip21::parse` over text: a URI read has no `?` in its address and an amount of at most 21 million bitcoin, and reads the same twice |
 | `bolt11` | `faraday_codec::bolt11::decode` over text: a payee key read is in compressed form and every fallback address comes out as text |
 | `bolt12` | `faraday_codec::bolt12::decode` over text: an offer read names an issuer id or a path, has a description when it has an amount, sets only odd feature bits and names a chain it knows |

@@ -112,6 +112,7 @@ fn area_of(screen: Screen) -> Area {
         // Explore is reading content: its fields, values and the
         // addresses in the column (`docs/LAYOUT.md` §17).
         Screen::Explore => Area::Reading(READING_EXPLORE_W),
+        Screen::CheckAddress => Area::Reading(READING_EXPLORE_W),
         Screen::Spend
         | Screen::Message
         | Screen::CheckMessage
@@ -382,7 +383,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         crate::leaks::page_drawn(ui);
         if matches!(
             sheet,
-            Sheet::BoardMenu | Sheet::FileMenu | Sheet::KeyLengths | Sheet::FigMenu
+            Sheet::BoardMenu
+                | Sheet::FileMenu
+                | Sheet::KeyLengths
+                | Sheet::AddressFiles
+                | Sheet::FigMenu
         ) && !app.is_compact()
         {
             ui.still();
@@ -500,6 +505,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(ui, w, h),
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),
             Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),
+            Sheet::AddressFiles => crate::address_check::screen::files_menu(app, ui, w, h),
             Sheet::GpgRestore => crate::backup_flow::gpg_restore_screen::sheet(app, ui, w, h),
             Sheet::FigMenu => crate::backup_flow::figures::menu_sheet(app, ui, w, h),
             Sheet::LaterAsk => crate::backup_flow::figures::later_sheet(app, ui, w, h),
@@ -655,6 +661,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
         Screen::Decode => crate::decode::screen::draw(app, ui, x, cw, h),
         Screen::Invoice => crate::invoice::screen::draw(app, ui, x, cw, h),
+        Screen::CheckAddress => crate::address_check::screen::draw(app, ui, x, cw, h),
         Screen::NonceCheck => nonce_check::draw(app, ui, x, cw, h),
         Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),

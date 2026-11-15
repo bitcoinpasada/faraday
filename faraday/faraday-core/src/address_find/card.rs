@@ -6,7 +6,7 @@
 
 use super::look::FoundIn;
 use super::{Look, LookWay};
-use crate::scan_read::{ReadCard, Way};
+use crate::scan_read::Way;
 use crate::strings::EN;
 use faraday_bip::keys::ScriptType;
 use faraday_text::Text;
@@ -89,11 +89,9 @@ fn searched(look: &Look) -> Text {
     Text::fill(EN.address_check_searched_value, &[&looked, &of])
 }
 
-/// The card's answer and ways over made again from the look it holds.
-pub(crate) fn refresh(card: &mut ReadCard) {
-    let Some(look) = card.look.as_ref() else {
-        return;
-    };
+/// The card's answer and its ways over, made from the look: again as a
+/// look further goes on.
+pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
     let address = || {
         row(
             EN.address_check_address,
@@ -101,101 +99,97 @@ pub(crate) fn refresh(card: &mut ReadCard) {
             true,
         )
     };
-    let (answer, ways) =
-        if let (Some((_, change, index)), Some(found)) = (look.found, look.found_in.as_ref()) {
-            let at = Text::num(u64::from(index));
-            let place = Text::fill(
-                if change {
-                    EN.address_check_change
-                } else {
-                    EN.address_check_receive
-                },
-                &[&at],
-            );
-            match found {
-                FoundIn::Wallet { name, shape, keys } => {
-                    let mut rows = vec![
-                        address(),
-                        row(EN.address_check_place, place, false),
-                        row(EN.address_check_wallet, shape.clone(), false),
-                    ];
-                    let lines: Vec<Text> = keys.iter().map(keep_path).collect();
-                    rows.push(Row {
-                        label: if lines.len() == 1 {
-                            EN.address_check_path
-                        } else {
-                            EN.address_check_keys
-                        },
-                        lines,
-                        mono: true,
-                    });
-                    (
-                        Answer {
-                            found: true,
-                            head: Text::fill(EN.address_check_found, &[name]),
-                            rows,
-                            looking: None,
-                        },
-                        Vec::new(),
-                    )
-                }
-                FoundIn::Account {
-                    label,
-                    script,
-                    number,
-                    line,
-                    ..
-                } => (
+    if let (Some((_, change, index)), Some(found)) = (look.found, look.found_in.as_ref()) {
+        let at = Text::num(u64::from(index));
+        let place = Text::fill(
+            if change {
+                EN.address_check_change
+            } else {
+                EN.address_check_receive
+            },
+            &[&at],
+        );
+        match found {
+            FoundIn::Wallet { name, shape, keys } => {
+                let mut rows = vec![
+                    address(),
+                    row(EN.address_check_place, place, false),
+                    row(EN.address_check_wallet, shape.clone(), false),
+                ];
+                let lines: Vec<Text> = keys.iter().map(keep_path).collect();
+                rows.push(Row {
+                    label: if lines.len() == 1 {
+                        EN.address_check_path
+                    } else {
+                        EN.address_check_keys
+                    },
+                    lines,
+                    mono: true,
+                });
+                (
                     Answer {
                         found: true,
-                        head: Text::fill(EN.address_check_found_key, &[label]),
-                        rows: vec![
-                            address(),
-                            row(EN.address_check_place, place, false),
-                            row(
-                                EN.address_check_account,
-                                Text::fill(
-                                    EN.address_check_account_value,
-                                    &[&script_name(*script), &Text::num(u64::from(*number))],
-                                ),
-                                false,
-                            ),
-                            row(EN.address_check_path, keep_path(line), true),
-                        ],
+                        head: Text::fill(EN.address_check_found, &[name]),
+                        rows,
                         looking: None,
                     },
-                    vec![look.made.map_or(Way::MakeWallet, Way::OpenWallet)],
-                ),
+                    Vec::new(),
+                )
             }
-        } else {
-            let progress = look.progress();
-            let value = match progress {
-                Some((done, depth)) => Text::fill(
-                    EN.read_look_progress,
-                    &[&Text::num(u64::from(done)), &Text::num(u64::from(depth))],
-                ),
-                None => searched(look),
-            };
-            let ways = if progress.is_some() {
-                vec![Way::Look(LookWay::Stop)]
-            } else if look.ended() {
-                Vec::new()
-            } else {
-                look.offered()
-                    .map(|(i, _)| Way::Look(LookWay::To(i)))
-                    .collect()
-            };
-            (
+            FoundIn::Account {
+                label,
+                script,
+                number,
+                line,
+                ..
+            } => (
                 Answer {
-                    found: false,
-                    head: Text::of(EN.address_check_missed),
-                    rows: vec![address(), row(EN.address_check_searched, value, false)],
-                    looking: progress,
+                    found: true,
+                    head: Text::fill(EN.address_check_found_key, &[label]),
+                    rows: vec![
+                        address(),
+                        row(EN.address_check_place, place, false),
+                        row(
+                            EN.address_check_account,
+                            Text::fill(
+                                EN.address_check_account_value,
+                                &[&script_name(*script), &Text::num(u64::from(*number))],
+                            ),
+                            false,
+                        ),
+                        row(EN.address_check_path, keep_path(line), true),
+                    ],
+                    looking: None,
                 },
-                ways,
-            )
+                vec![look.made.map_or(Way::MakeWallet, Way::OpenWallet)],
+            ),
+        }
+    } else {
+        let progress = look.progress();
+        let value = match progress {
+            Some((done, depth)) => Text::fill(
+                EN.read_look_progress,
+                &[&Text::num(u64::from(done)), &Text::num(u64::from(depth))],
+            ),
+            None => searched(look),
         };
-    card.answer = Some(answer);
-    card.facts = Vec::new();
-    card.ways = ways;
+        let ways = if progress.is_some() {
+            vec![Way::Look(LookWay::Stop)]
+        } else if look.ended() {
+            Vec::new()
+        } else {
+            look.offered()
+                .map(|(i, _)| Way::Look(LookWay::To(i)))
+                .collect()
+        };
+        (
+            Answer {
+                found: false,
+                head: Text::of(EN.address_check_missed),
+                rows: vec![address(), row(EN.address_check_searched, value, false)],
+                looking: progress,
+            },
+            ways,
+        )
+    }
 }

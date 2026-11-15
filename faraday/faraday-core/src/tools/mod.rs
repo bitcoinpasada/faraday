@@ -188,6 +188,8 @@ pub struct ToolsArea {
     pub(crate) core_wallet: crate::core_wallet::tool::CoreWalletArea,
     /// Decode a Lightning invoice.
     pub(crate) invoice: crate::invoice::InvoiceArea,
+    /// Check an address.
+    pub(crate) address_check: crate::address_check::AddressCheckArea,
 }
 
 impl ToolsArea {
@@ -251,6 +253,9 @@ impl ToolsArea {
         }
         if screen != Screen::Invoice {
             self.invoice.clear();
+        }
+        if screen != Screen::CheckAddress {
+            self.address_check.clear();
         }
     }
 
@@ -496,6 +501,9 @@ impl Faraday {
         }
         if self.screen == Screen::Invoice {
             return crate::invoice::key(self, key);
+        }
+        if self.screen == Screen::CheckAddress {
+            return crate::address_check::key(self, key);
         }
         if self.screen != Screen::Tools {
             return false;

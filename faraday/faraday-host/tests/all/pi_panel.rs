@@ -172,7 +172,7 @@ fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
         Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, CoreWallet, SeedCheck, Silent, Explore, Lightning, Tools, Unlock,
-        VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow, Check, MultisigCheck)
+        VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, CheckAddress, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow, Check, MultisigCheck)
 }
 
 fn sheets() -> Vec<Sheet> {
@@ -183,7 +183,7 @@ fn sheets() -> Vec<Sheet> {
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,
-        Sweep, KeyFile, OutboxDelete, Published, MadeWallet, CheckBackups);
+        Sweep, KeyFile, OutboxDelete, Published, MadeWallet, CheckBackups, AddressFiles);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
         own: true,

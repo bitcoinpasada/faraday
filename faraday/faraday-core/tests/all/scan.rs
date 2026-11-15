@@ -85,8 +85,8 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
     let ours = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 3));
     app.press(Action::Scan);
     scan(&mut app, &format!("bitcoin:{ours}?amount=0.001"));
-    let card = app.scan().and_then(|s| s.card.as_ref()).unwrap();
-    let said: Vec<String> = card
+    let page = app.address_check_state().unwrap();
+    let said: Vec<String> = page
         .result_lines()
         .iter()
         .map(|l| String::from(l.as_str()))

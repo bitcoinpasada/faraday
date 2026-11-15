@@ -26,7 +26,7 @@ fn screens() -> Vec<Screen> {
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
         Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, SeedCheck, CoreWallet,
         Silent, Explore, Lightning, Tools, Unlock, VaultContents, Codes, SpendBackup, Vanity,
-        Decode, Invoice, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow,
+        Decode, Invoice, CheckAddress, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow,
         Check, MultisigCheck)
 }
 

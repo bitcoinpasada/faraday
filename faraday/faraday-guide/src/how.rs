@@ -758,7 +758,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys are used; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("An address index of 2^31 or more is refused."), p("A search looks only as far as the index it is given."), p("A search keeps its first 50 matches and counts the rest.")],
         own_calls: &[p("none")],
-        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools", "SeedCheck", "MultisigCheck"],
+        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools", "SeedCheck", "MultisigCheck", "CheckAddress"],
     },
     Block {
         id: "descriptor",
@@ -893,7 +893,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public text is read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("An address of another network is refused."), p("A scanned address is looked for among 100 addresses on each chain of each loaded wallet.")],
         own_calls: &[p("none")],
-        screens: &["Files", "Spend", "Tools"],
+        screens: &["Files", "Spend", "Tools", "CheckAddress"],
     },
     Block {
         id: "tools-hash",
@@ -1763,7 +1763,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; the seed and master key functions it calls state their own."), p("The text of a file read as a secret and the words made from it are zeroizing; an Inbox or Outbox file's bytes are held in wiping buffers, as are the messages that hand them to the disk process and back, and the text a wallet file is read from when it is added, restored or used; a file that may hold a secret is dropped from the Inbox at a lock.")],
         limits: &[p("Text of a seed's words is read only if the words are in a BIP 39 list and their checksum holds."), p("A scanner that loads a seed takes the seed's own forms and refuses a private key.")],
         own_calls: &[p("A secret pasted or scanned where a secret may not go is refused, whatever its form. Conservative."), w("no decision")],
-        screens: &["Files", "Explore", "SeedCheck"],
+        screens: &["Files", "Explore", "SeedCheck", "CheckAddress"],
     },
     Block {
         id: "vault-create",

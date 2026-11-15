@@ -13,6 +13,7 @@ pub(crate) mod busy;
 pub(crate) mod cancel;
 pub(crate) mod chart_edit;
 pub(crate) mod check;
+pub(crate) mod check_address;
 pub(crate) mod codex32;
 pub(crate) mod codex32_backup;
 pub(crate) mod codex32_correct;
@@ -91,6 +92,10 @@ pub(crate) enum TourFn {
 pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("spend", TourFn::Plain(spend::spend_tour)),
     ("check", TourFn::Plain(check::check_tour)),
+    (
+        "check-address",
+        TourFn::Plain(check_address::check_address_tour),
+    ),
     ("convert", TourFn::Plain(convert::convert_tour)),
     ("invoice", TourFn::Plain(invoice::invoice_tour)),
     ("devices", TourFn::Plain(devices::devices_tour)),

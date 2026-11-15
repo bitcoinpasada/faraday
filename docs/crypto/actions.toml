@@ -2157,6 +2157,7 @@ screens = [
   "Tools",
   "SeedCheck",
   "MultisigCheck",
+  "CheckAddress",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
@@ -2995,12 +2996,16 @@ screens = [
   "Files",
   "Spend",
   "Tools",
+  "CheckAddress",
 ]
 functions = [
   "core/faraday-bip/src/address.rs::is_bech32_prefix",
   "core/faraday-bip/src/address.rs::is_address_prefix",
   "core/faraday-bip/src/address.rs::parses",
   "core/faraday-bip/src/address.rs::parse",
+  "core/faraday-codec/src/address_text.rs::address_of",
+  "core/faraday-codec/src/address_text.rs::find",
+  "faraday/faraday-core/src/address_check/file.rs::list",
   "faraday/faraday-core/src/lib.rs::Faraday::address_read",
   "faraday/faraday-core/src/scan_key.rs::Faraday::address_card_put",
 ]
@@ -7339,6 +7344,7 @@ screens = [
   "Files",
   "Explore",
   "SeedCheck",
+  "CheckAddress",
 ]
 functions = [
   "faraday/faraday-core/src/inbox.rs::Secret::fingerprint",

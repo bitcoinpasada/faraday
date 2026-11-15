@@ -1925,7 +1925,44 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let y = y - (grown - h) / 2.0;
         let r = faraday_draw::tokens::shape_full(grown);
         let size = faraday_draw::tokens::LABEL_L.size;
-        self.button_drawn((x, y, w, grown, r), size, label, style, action, None)
+        self.button_drawn((x, y, w, grown, r), size, label, style, action, None, None)
+    }
+
+    /// [`Ui::button`] with `icon` before its label, as Material's
+    /// buttons with an icon are drawn (`docs/DESIGN.md` §4.13). Returns
+    /// its width.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a button's position, size, icon, label, style and action, as every button helper takes them"
+    )]
+    pub fn button_icon(
+        &mut self,
+        (x, y, w, h): (f32, f32, Option<f32>, f32),
+        icon: Icon,
+        label: &str,
+        style: Style,
+        action: A,
+    ) -> f32 {
+        let grown = self.button_height(h);
+        let y = y - (grown - h) / 2.0;
+        let r = faraday_draw::tokens::shape_full(grown);
+        let size = faraday_draw::tokens::LABEL_L.size;
+        self.button_drawn(
+            (x, y, w, grown, r),
+            size,
+            label,
+            style,
+            action,
+            None,
+            Some(icon),
+        )
+    }
+
+    /// How wide [`Ui::button_icon`] draws `label` in `style` when given
+    /// no width.
+    pub fn button_icon_width(&self, label: &str, style: Style) -> f32 {
+        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH_BUTTON};
+        self.button_width(label, style) + ICON_GLYPH_BUTTON + ICON_GAP
     }
 
     /// A text button standing alone in a column of content, or first in
@@ -1956,7 +1993,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // A key keeps its size whatever the text size: the keyboards
         // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None))
+        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None))
     }
 
     /// [`Ui::button_in`] for a key of the on-screen keyboard: it shows
@@ -1971,7 +2008,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     ) -> f32 {
         let size = faraday_draw::tokens::key_label(at.3);
         self.fixed_text(|ui| {
-            ui.button_drawn(at, size, label, style, action, Some(Unpressed::Keyboard))
+            ui.button_drawn(
+                at,
+                size,
+                label,
+                style,
+                action,
+                Some(Unpressed::Keyboard),
+                None,
+            )
         })
     }
 
@@ -1991,6 +2036,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// A button or a key with its label at `size` in the medium face:
     /// [`Ui::button`] and [`Ui::button_in`].
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a button's place, size, label, style, action, press kind and icon"
+    )]
     fn button_drawn(
         &mut self,
         (x, y, w, h, r): (f32, f32, Option<f32>, f32, f32),
@@ -1999,6 +2048,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         style: Style,
         action: A,
         unpressed: Option<Unpressed>,
+        icon: Option<Icon>,
     ) -> f32 {
         use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
@@ -2007,7 +2057,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             style
         };
-        let tick = if style == Style::Selected {
+        // A chosen option's tick, or the icon a button was given.
+        let mark = if style == Style::Selected {
+            Some(Icon::Done)
+        } else {
+            icon
+        };
+        let tick = if mark.is_some() {
             ICON_GLYPH_BUTTON + ICON_GAP
         } else {
             0.0
@@ -2055,18 +2111,18 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 let shown = ui.fit(size, weight, label, room);
                 let tw = ui.measure(size, weight, &shown);
                 let lx = x + (width - tw - tick) / 2.0;
-                if tick > 0.0 {
+                if let Some(mark) = mark {
                     let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
-                    ui.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
+                    ui.icon(lx, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
                 }
                 ui.text_mid(lx + tick, y, h, size, weight, fg, &shown);
                 width
             });
         }
         let lx = x + (width - tw - tick) / 2.0;
-        if tick > 0.0 {
+        if let Some(mark) = mark {
             let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
-            self.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
+            self.icon(lx, iy, ICON_GLYPH_BUTTON, mark, ICON_GLYPH_BUTTON, fg);
         }
         self.text_mid(lx + tick, y, h, size, weight, fg, label);
         width

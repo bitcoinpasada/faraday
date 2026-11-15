@@ -16,7 +16,7 @@ use faraday_text::{Text, text};
 use crate::plan::{At, What};
 use crate::qr_view::TOO_FINE_PASSES;
 use crate::scan_read::{self, Kind};
-use crate::wallet::{Session, fp_text};
+use crate::wallet::fp_text;
 use crate::{Action, Faraday, SEEN_FRAMES, ScanPurpose, ScanState, Sheet, TOO_FINE_TENTHS};
 use faraday_intake::seed_in_code;
 
@@ -67,44 +67,6 @@ impl Camera {
     /// The scan sheet's state, while it is open.
     pub(crate) fn scan(&self) -> Option<&ScanState> {
         self.scan.as_ref()
-    }
-
-    /// A press on the open read card's **Look further** or **Stop**.
-    pub(crate) fn look_press(
-        &mut self,
-        way: crate::address_find::LookWay,
-        now: u64,
-        session: &Session,
-    ) {
-        let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut()) else {
-            return;
-        };
-        if let Some(look) = card.look.as_mut() {
-            look.sync(&session.wallets);
-            look.press(way, now);
-        }
-        crate::address_find::refresh(card);
-    }
-
-    /// Costs an address derivation for each index of the tick. One tick of
-    /// the look under way on the open read card. Returns whether it ran.
-    pub(crate) fn look_step(&mut self, c: &Compute, session: &Session, now: u64) -> bool {
-        let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut()) else {
-            return false;
-        };
-        let Some(look) = card.look.as_mut().filter(|l| l.running()) else {
-            return false;
-        };
-        look.sync(&session.wallets);
-        if !look.running() {
-            crate::address_find::refresh(card);
-            return true;
-        }
-        let policies: Vec<_> = session.wallets.iter().map(|w| w.policy()).collect();
-        look.tick(c, &policies, now);
-        look.settle(session);
-        crate::address_find::refresh(card);
-        true
     }
 
     /// The scanner's line says `note`, while the sheet is open.
@@ -336,10 +298,12 @@ impl Camera {
 
 impl Faraday {
     /// Costs what [`Faraday::address_check`] and [`Faraday::read_card`]
-    /// cost. The read card of an address `read` as the address check
-    /// reads it (`docs/DESIGN.md` §5, Check an address): on the address
-    /// check's own scanner the result card, else the address named with
-    /// **Check the address** as its way over; a refusal is its line.
+    /// cost. An address `read` as the address check reads it
+    /// (`docs/DESIGN.md` §5, Check an address): on the address check's own
+    /// scanner and on Home's Scan the scanner ends and the page opens with
+    /// its answer or its refusal; on any other scanner the read card names
+    /// the address with **Check the address** as its way over, a refusal
+    /// its line.
     pub(crate) fn address_card_put(
         &mut self,
         c: &Compute,
@@ -350,74 +314,17 @@ impl Faraday {
             .camera
             .scan()
             .is_some_and(|s| s.ask == crate::Ask::Address);
+        if page {
+            drop(bytes);
+            self.scan_close();
+            return crate::address_check::show(self, c, read);
+        }
         let mut card = self.read_card(c, scan_read::Kind::Address, (None, "txt", bytes));
         match read {
             Err(why) => card.facts.push(why),
-            Ok(addr) if page => match self.address_check(c, &addr) {
-                Some(look) => {
-                    card.look = Some(look);
-                    crate::address_find::refresh(&mut card);
-                }
-                None => card.facts.push(Text::of(EN.address_check_load_first)),
-            },
             Ok(_) => card.ways = vec![scan_read::Way::CheckAddress],
         }
         self.read_card_put(card);
-    }
-
-    /// Costs a key derivation for each step of an account's path, a
-    /// descriptor parse and two address derivations. A press on the
-    /// result card's **Make a wallet**: the wallet of the key's account
-    /// the address was found in; the card then offers to open it.
-    fn address_make(&mut self) {
-        let Some(at) = self
-            .camera
-            .scan()
-            .and_then(|s| s.card.as_ref())
-            .and_then(|k| k.look.as_ref())
-            .and_then(|l| match l.found_in.as_ref()? {
-                crate::address_find::FoundIn::Account { at, script, .. } => {
-                    Some((*at.0.as_bytes(), at.1.clone(), *script))
-                }
-                crate::address_find::FoundIn::Wallet { .. } => None,
-            })
-        else {
-            return;
-        };
-        let c = self.compute();
-        match self.make_wallet_at(&c, at.0, &at.1, at.2) {
-            Ok(place) => {
-                if let Some(card) = self.camera.scan.as_mut().and_then(|s| s.card.as_mut()) {
-                    if let Some(look) = card.look.as_mut() {
-                        look.made = Some(place);
-                    }
-                    crate::address_find::refresh(card);
-                }
-            }
-            Err(why) => self.toast(&why),
-        }
-    }
-
-    /// A press on **Look further** or **Stop**.
-    pub(crate) fn look_go(&mut self, way: crate::address_find::LookWay) {
-        let now = self.now_ms;
-        self.camera.look_press(way, now, &self.session);
-    }
-
-    /// Costs an address derivation for each index of the tick, on both
-    /// chains of every loaded wallet. Returns whether to draw.
-    pub(crate) fn look_tick(&mut self, now_ms: u64) -> bool {
-        let running = self
-            .camera
-            .scan()
-            .and_then(|s| s.card.as_ref())
-            .and_then(|k| k.look.as_ref())
-            .is_some_and(crate::address_find::Look::running);
-        if !running {
-            return false;
-        }
-        let c = self.compute();
-        self.camera.look_step(&c, &self.session, now_ms)
     }
 
     /// The scan sheet's state, while the camera sheet is open.
@@ -968,6 +875,8 @@ impl Faraday {
     pub(crate) fn paste(&mut self) {
         if self.scan_pastes() {
             self.scan_paste();
+        } else if self.screen == crate::Screen::CheckAddress && self.sheet.is_none() {
+            crate::address_check::request_paste(self);
         } else if self.on_transfer_text() {
             #[cfg(feature = "demo")]
             self.transfer_paste();
@@ -996,6 +905,7 @@ impl Faraday {
     pub(crate) fn pasted(&mut self, text: Text) {
         if self.entry_pasted(&text)
             || self.explore_pasted(&text)
+            || crate::address_check::pasted(self, &text)
             || (!self.scan_pastes() && self.transfer_took(&text))
             || !self.scan_pastes()
         {
@@ -1561,8 +1471,6 @@ impl Faraday {
             ext,
             filed: None,
             kef,
-            look: None,
-            answer: None,
         }
     }
 
@@ -1637,18 +1545,6 @@ impl Faraday {
         let Some(way) = scan.card.as_ref().and_then(|k| k.ways.get(i).cloned()) else {
             return;
         };
-        // A look further goes on the card, which stays.
-        if let Way::Look(look) = way {
-            return self.look_go(look);
-        }
-        // The wallet of a key's account: made on the card, then opened.
-        if way == Way::MakeWallet {
-            return self.address_make();
-        }
-        if let Way::OpenWallet(place) = way {
-            self.scan_close();
-            return self.act(Action::OpenWallet(place));
-        }
         // A way that loads a key waits for the stick to be out.
         if way.loads_a_key() && !self.may_load_keys() {
             return;

@@ -5,6 +5,7 @@
 //! **Stop** stops.
 
 use faraday_bip::policy::WalletPolicy;
+use faraday_core::address_check::AddressPress;
 use faraday_core::create::NewKind;
 use faraday_core::{Action, Ask, Faraday, StorageEvent, testkit};
 use faraday_shell_api::{App, Event};
@@ -45,32 +46,52 @@ fn address(descriptor: &str, change: bool, index: u32) -> String {
 }
 
 fn read(app: &mut Faraday, text: &str) {
+    // A read closes the scanner: the next one opens it again.
+    if app.scan().is_none() {
+        app.press(Action::ScanFor(Ask::Address));
+    }
     app.event(Event::Scanned {
         bytes: text.as_bytes().to_vec(),
     });
     let _ = app.frame();
 }
 
-/// What the read card says, or the scanner's note where an address found
-/// at once leaves no card.
+/// What the address check's page says, or the scanner's note while the
+/// page is not open.
 fn said(app: &Faraday) -> String {
-    let Some(scan) = app.scan() else {
-        return String::new();
-    };
-    match scan.card.as_ref() {
-        Some(k) => k
+    if let Some(page) = app.address_check_state() {
+        let mut out: Vec<String> = page
             .result_lines()
             .iter()
-            .chain(&k.facts)
-            .map(|f| String::from(f.as_str()))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        None => scan
-            .note
-            .as_ref()
-            .map(|n| String::from(n.as_str()))
-            .unwrap_or_default(),
+            .map(|l| String::from(l.as_str()))
+            .collect();
+        out.extend(page.refusal().map(|r| String::from(r.as_str())));
+        if page.load_first() {
+            out.push("Load a key or a wallet first".to_string());
+        }
+        return out.join("\n");
     }
+    app.scan()
+        .and_then(|s| s.note.as_ref())
+        .map(|n| String::from(n.as_str()))
+        .unwrap_or_default()
+}
+
+/// The labels of the ways over the page's result offers.
+fn ways(app: &Faraday) -> Vec<String> {
+    app.address_check_state()
+        .map(|p| {
+            p.ways()
+                .iter()
+                .map(|w| String::from(w.label().as_str()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// A press on the page's way over at `i`.
+fn way(i: u8) -> Action {
+    Action::AddressCheck(AddressPress::Way(i))
 }
 
 /// Ticks a millisecond apart until nothing looks any more.
@@ -90,7 +111,7 @@ fn an_address_at_150_is_found_by_looking_to_a_thousand() {
     let mut app = checking(std::slice::from_ref(&d));
     read(&mut app, &address(&d, false, 150));
     assert!(said(&app).contains("first 100"), "{}", said(&app));
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     look_through(&mut app);
     assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
 }
@@ -100,7 +121,7 @@ fn a_change_address_at_5000_is_found_by_looking_to_ten_thousand() {
     let d = single(0);
     let mut app = checking(std::slice::from_ref(&d));
     read(&mut app, &address(&d, true, 5_000));
-    app.press(Action::ReadGo(1));
+    app.press(way(1));
     look_through(&mut app);
     assert!(said(&app).contains("Change · index 5000"), "{}", said(&app));
 }
@@ -110,7 +131,7 @@ fn a_multisig_address_past_100_is_found() {
     let d = testkit::savings();
     let mut app = checking(std::slice::from_ref(&d));
     read(&mut app, &address(&d, false, 120));
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     look_through(&mut app);
     assert!(said(&app).contains("Receive · index 120"), "{}", said(&app));
 }
@@ -121,7 +142,7 @@ fn a_miss_says_how_far_it_looked_and_in_how_many_wallets() {
     read(&mut app, &address(&single(1), false, 7));
     assert!(said(&app).contains("first 100"), "{}", said(&app));
     assert!(said(&app).contains("2 wallets"), "{}", said(&app));
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     look_through(&mut app);
     assert!(said(&app).contains("first 1000"), "{}", said(&app));
     assert!(said(&app).contains("2 wallets"), "{}", said(&app));
@@ -131,11 +152,11 @@ fn a_miss_says_how_far_it_looked_and_in_how_many_wallets() {
 fn stop_ends_the_look() {
     let mut app = checking(&[single(0)]);
     read(&mut app, &address(&single(1), false, 7));
-    app.press(Action::ReadGo(1));
+    app.press(way(1));
     app.event(Event::Tick { now_ms: 1 });
     assert!(said(&app).contains("Looking"), "{}", said(&app));
     // Stop is the card's only way while it looks.
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     let stopped = said(&app);
     assert!(stopped.contains("Not found"), "{stopped}");
     for t in 2..50 {
@@ -148,7 +169,7 @@ fn stop_ends_the_look() {
 fn a_look_ends_when_the_loaded_wallets_change_and_does_not_claim_the_new_one() {
     let mut app = checking(&[single(0), single(1)]);
     read(&mut app, &address(&single(1), false, 5_000));
-    app.press(Action::ReadGo(1));
+    app.press(way(1));
     app.event(Event::Tick { now_ms: 1 });
     assert!(said(&app).contains("Looking"), "{}", said(&app));
     // The first wallet goes and the second takes its place.
@@ -160,21 +181,20 @@ fn a_look_ends_when_the_loaded_wallets_change_and_does_not_claim_the_new_one() {
         app.event(Event::Tick { now_ms: t });
     }
     assert_eq!(said(&app), line);
-    let card = app.scan().unwrap().card.as_ref().unwrap();
-    assert!(card.ways.is_empty());
+    assert!(ways(&app).is_empty());
 }
 
 #[test]
 fn a_find_keeps_the_name_of_its_wallet_when_the_wallets_change() {
     let mut app = checking(&[single(0), single(1)]);
     read(&mut app, &address(&single(1), false, 150));
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     look_through(&mut app);
     let found = said(&app);
     let name = app.session.wallets[1].name.clone();
     assert!(found.contains(name.as_str()), "{found}");
     app.session.wallets.remove(0);
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     assert_eq!(said(&app), found);
 }
 
@@ -273,7 +293,7 @@ fn a_standard_account_is_looked_further_in() {
     // BIP-44 m/44'/0'/0'/0/150 of `OTHER`, made with embit 0.8.0 (Python): `HDKey.from_seed(bip39.mnemonic_to_seed(words))`, `derive("m/44h/0h/0h/0/150")`, `script.p2pkh(..).address()`; its index 0 is the embit address above.
     read(&mut app, "1B2iaW2V1eutqAyXQxgussmdjeqDz4PPvw");
     assert!(said(&app).contains("first 100"), "{}", said(&app));
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     look_through(&mut app);
     assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
     assert!(said(&app).contains("m/44h/0h/0h"), "{}", said(&app));
@@ -391,19 +411,8 @@ fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
         "{card}"
     );
     assert!(card.contains("Path: "), "{card}");
-    let ways = |app: &Faraday| -> Vec<String> {
-        app.scan()
-            .and_then(|s| s.card.as_ref())
-            .map(|k| {
-                k.ways
-                    .iter()
-                    .map(|w| String::from(w.label().as_str()))
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
     assert_eq!(ways(&app), ["Make a wallet"]);
-    app.press(Action::ReadGo(0));
+    app.press(way(0));
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(ways(&app), ["Open the wallet"]);
 }
@@ -423,9 +432,9 @@ fn a_miss_offers_look_further_and_names_what_it_searched() {
         )),
         "{card}"
     );
-    let ways = &app.scan().unwrap().card.as_ref().unwrap().ways;
+    let ways = ways(&app);
     assert_eq!(ways.len(), 2);
-    assert!(ways[0].label().as_str().starts_with("Look further"));
+    assert!(ways[0].starts_with("Look further"));
 }
 
 #[test]

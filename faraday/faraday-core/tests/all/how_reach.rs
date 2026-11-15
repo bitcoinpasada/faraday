@@ -60,6 +60,7 @@ fn screen(name: &str) -> Screen {
         "SeedCheck" => S::SeedCheck,
         "CoreWallet" => S::CoreWallet,
         "Invoice" => S::Invoice,
+        "CheckAddress" => S::CheckAddress,
         other => panic!("{other} is not a Screen"),
     }
 }

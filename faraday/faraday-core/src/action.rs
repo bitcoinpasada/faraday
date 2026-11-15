@@ -925,6 +925,8 @@ pub enum Action {
     SignerCheck(crate::decode::check::SignerPress),
     /// A press on Decode a Lightning invoice (`Screen::Invoice`).
     Invoice(crate::invoice::InvoicePress),
+    /// A press on Check an address (`Screen::CheckAddress`).
+    AddressCheck(crate::address_check::AddressPress),
     /// Show or hide the decoded transaction's hex.
     DecodeHex,
     /// The decoded transaction as a QR code.

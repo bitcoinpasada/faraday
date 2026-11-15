@@ -741,18 +741,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .map_or(0.0, |card| {
             card.facts.len().saturating_sub(2) as f32 * faraday_draw::tokens::CARD_FACT_LINE
         });
-    // The address check's result card is as tall as its facts are.
-    let result_h = sc
-        .card
-        .as_ref()
-        .and_then(|card| card.answer.as_ref())
-        .map_or(0.0, |a| {
-            let inner = side_w - 2.0 * T::PAD;
-            faraday_ui::parts::measured(ui, |ui| {
-                crate::address_find::screen::result(ui, (0.0, 0.0, inner), a)
-            }) + 2.0 * T::PAD
-        });
-    let side_h = (side_w * 0.75 + more).max(result_h);
+    let side_h = side_w * 0.75 + more;
     let sw = side_w + 2.0 * pad;
     let rows = if ui.compact && app.cameras().len() > 1 {
         // The camera buttons wrap at the picture's width: the rows they
@@ -1060,10 +1049,6 @@ fn read_card(
 ) {
     let (x, w) = (x + T::PAD, w - 2.0 * T::PAD);
     let mut cy = y + T::PAD;
-    if let Some(answer) = card.answer.as_ref() {
-        crate::address_find::screen::result(ui, (x, cy, w), answer);
-        return;
-    }
     let tone = if card.kind.secret() {
         Role::Warning
     } else {
@@ -1144,17 +1129,6 @@ fn read_card_foot(
         .map(|(i, way)| {
             let off = stick_in && way.loads_a_key();
             let style = match (i + 1 == card.ways.len(), off) {
-                // The address check's result: Look further a text button,
-                // Make a wallet filled tonal.
-                _ if matches!(way, crate::scan_read::Way::Look(_)) => Style::Ghost,
-                (true, _)
-                    if matches!(
-                        way,
-                        crate::scan_read::Way::MakeWallet | crate::scan_read::Way::OpenWallet(_)
-                    ) =>
-                {
-                    Style::Tonal
-                }
                 (true, false) => Style::Primary,
                 (true, true) => Style::PrimaryOff,
                 (false, false) => Style::Tonal,

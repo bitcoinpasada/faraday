@@ -11,7 +11,7 @@ mod look;
 pub(crate) mod screen;
 
 pub(crate) use accounts::{Account, unmade};
-pub(crate) use card::{Answer, refresh};
+pub(crate) use card::{Answer, answer};
 pub use look::LookWay;
 pub(crate) use look::{FoundIn, Look};
 

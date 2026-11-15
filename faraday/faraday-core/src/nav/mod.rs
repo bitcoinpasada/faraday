@@ -158,6 +158,7 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Codes
         | Screen::Decode
         | Screen::Invoice
+        | Screen::CheckAddress
         | Screen::NonceCheck
         | Screen::SignerCheck
         | Screen::Catalog

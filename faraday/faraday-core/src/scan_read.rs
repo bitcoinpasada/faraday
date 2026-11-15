@@ -574,34 +574,6 @@ pub struct ReadCard {
     /// A Krux encrypted code's header and the time its count takes here,
     /// worked out once at the read.
     pub(crate) kef: Option<crate::seeds::kef::Header>,
-    /// An address's look through the loaded wallets, past the first
-    /// hundred of each chain, while the card is of an address that was
-    /// not found.
-    pub(crate) look: Option<crate::address_find::Look>,
-    /// What the address check's result card says, made again with the
-    /// look.
-    pub(crate) answer: Option<crate::address_find::Answer>,
-}
-
-impl ReadCard {
-    /// What the address check's result card says, a line each: the Result
-    /// line, then each fact as its label, a colon and its value; empty
-    /// for any other card.
-    pub fn result_lines(&self) -> Vec<Text> {
-        let Some(a) = self.answer.as_ref() else {
-            return Vec::new();
-        };
-        let mut out = vec![a.head.clone()];
-        for row in &a.rows {
-            for (i, line) in row.lines.iter().enumerate() {
-                let mut one = Text::of(if i == 0 { row.label } else { "" });
-                one.push_str(": ");
-                one.push_str(line);
-                out.push(one);
-            }
-        }
-        out
-    }
 }
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":

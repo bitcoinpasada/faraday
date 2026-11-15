@@ -103,6 +103,7 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::Vanity => vanity_key(step),
         Screen::Decode => "decode",
         Screen::Invoice => "invoice",
+        Screen::CheckAddress => "check-address",
         Screen::NonceCheck => "nonce-check",
         Screen::SignerCheck => "signer-check",
         Screen::Catalog => "catalog",

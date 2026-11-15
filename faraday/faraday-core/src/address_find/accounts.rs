@@ -22,6 +22,7 @@ const KINDS: [NewKind; 4] = [
 ];
 
 /// One standard account of a loaded key, as a search target.
+#[derive(Clone)]
 pub(crate) struct Account {
     /// The key's name.
     pub(crate) label: Text,

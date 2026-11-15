@@ -3,7 +3,7 @@
 
 use faraday_core::catalog::TILES;
 use faraday_core::testkit::{self, Kit};
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::App;
 
 fn kit() -> Kit {
@@ -26,7 +26,7 @@ fn with_files(files: Vec<(&str, Vec<u8>)>) -> Faraday {
 }
 
 #[test]
-fn check_an_address_with_no_wallet_loads_one_and_returns() {
+fn check_an_address_with_no_wallet_opens_its_page_saying_to_load_one() {
     let mut app = with_files(vec![("wallet.txt", kit().descriptor.into_bytes())]);
     app.press(Action::Nav(Screen::Catalog));
     let i = TILES
@@ -35,12 +35,11 @@ fn check_an_address_with_no_wallet_loads_one_and_returns() {
         .unwrap();
     assert!(app.session.wallets.is_empty());
     app.press(Action::Catalog(i as u8));
-    assert_eq!(app.screen, Screen::Restore, "no wallet: loading one");
-    app.press(Action::RUse(0));
-    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.screen, Screen::CheckAddress, "the page opens");
+    assert!(app.address_check_state().unwrap().load_first());
+    app.press(Action::Nav(Screen::Catalog));
     assert_eq!(app.screen, Screen::Catalog, "back where it was opened");
-    assert_eq!(app.sheet, Some(Sheet::Scan), "on the address check");
-    assert!(app.restore().is_none());
+    assert!(app.address_check_state().is_none(), "nothing is kept");
 }
 
 #[test]

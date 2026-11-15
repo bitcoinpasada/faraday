@@ -78,6 +78,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
         | Screen::Codes
         | Screen::Decode
         | Screen::Invoice
+        | Screen::CheckAddress
         | Screen::NonceCheck
         | Screen::Catalog => false,
         #[cfg(feature = "demo")]
@@ -122,6 +123,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
         Screen::Invoice => EN.compact_invoice,
+        Screen::CheckAddress => EN.address_check_title,
         Screen::NonceCheck => EN.compact_nonce_check,
         Screen::SignerCheck => EN.catalog_check_a_signer,
         #[cfg(feature = "demo")]
@@ -607,6 +609,7 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         },
         // Decode a Lightning invoice goes back where it was opened from.
         Screen::Invoice => crate::invoice::screen::back_of(app),
+        Screen::CheckAddress => crate::address_check::screen::back_of(app),
         // The nonce check goes back where it was opened from.
         Screen::NonceCheck => match app.outside_check() {
             Some(o) => (crate::screens::decode_back(o.back), Action::Nav(o.back)),
@@ -1517,6 +1520,7 @@ impl Faraday {
                 | Screen::Vanity
                 | Screen::Decode
                 | Screen::Invoice
+                | Screen::CheckAddress
                 | Screen::NonceCheck
                 | Screen::SignerCheck
                 | Screen::MultisigCheck
@@ -1551,6 +1555,7 @@ impl Faraday {
     fn osk_kind(&self) -> faraday_draw::widgets::keyboard::KeyboardKind {
         use faraday_draw::widgets::keyboard::KeyboardKind as K;
         match self.screen {
+            Screen::CheckAddress if self.sheet.is_none() => K::Address,
             Screen::Explore
                 if self.sheet.is_none()
                     && self

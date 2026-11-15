@@ -31,7 +31,7 @@ pub(crate) fn result(ui: &mut Ui, (x, y, w): (f32, f32, f32), a: &Answer) -> f32
     let mut cy = y + head_h + GAP;
     ui.rule(x, cy, w, Role::OutlineVariant);
     cy += GAP;
-    for row in &a.rows {
+    for (i, row) in a.rows.iter().enumerate() {
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, row.label) + GAP_SMALL;
         let size = if row.mono { BODY_M.mono() } else { BODY_M };
         for line in &row.lines {
@@ -46,8 +46,11 @@ pub(crate) fn result(ui: &mut Ui, (x, y, w): (f32, f32, f32), a: &Answer) -> f32
             cy += PROGRESS_H;
         }
         cy += GAP_SMALL;
-        ui.rule(x, cy, w, Role::OutlineVariant);
-        cy += GAP;
+        // A rule between the facts, none under the last.
+        if i + 1 < a.rows.len() {
+            ui.rule(x, cy, w, Role::OutlineVariant);
+            cy += GAP;
+        }
     }
     cy - y
 }

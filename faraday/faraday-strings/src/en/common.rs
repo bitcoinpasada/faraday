@@ -392,8 +392,8 @@ macro_rules! words_common {
     // ----- address_note (faraday-core/src/lib.rs) -----
     /// Text in `address_note`.
     address_note_that_address_fails: "That address fails its checksum: a character in it is wrong",
-    /// Text in `address_note`. `{}`: `wallet::network_name(net)`.
-    address_note_wrong_network: "That address is not on {}",
+    /// Text in `address_note`. `{}`: the address's network, then the wallet's, each as `wallet::network_name` names it, in lower case.
+    address_note_wrong_network: "A {} address; this wallet is {}",
     /// Text in `address_note`.
     address_note_change: "change",
     /// Text in `address_note`.
@@ -402,6 +402,16 @@ macro_rules! words_common {
     address_note_uri_required: "That payment link needs something this device does not read",
     /// Text in `address_note`: a `bitcoin:` link that is not well formed.
     address_note_uri_malformed: "That payment link is not well formed",
+    /// Title of Check an address's page.
+    address_check_title: "Check an address",
+    /// Label of Check an address's field.
+    address_check_field: "Address",
+    /// Button on Check an address: scan the address.
+    address_check_scan: "Scan",
+    /// Under Check an address's field: the text is no Bitcoin address.
+    address_check_not_bitcoin: "Not a Bitcoin address",
+    /// Under Check an address's field: the text is another kind of code.
+    address_check_not_an_address: "Not an address",
     /// Result line of the address check when the address is one of a loaded wallet's. `{}`: the wallet's name.
     address_check_found: "Found in {}",
     /// Result line of the address check when the address is one of a loaded key's standard accounts. `{}`: the key's name.
@@ -444,6 +454,16 @@ macro_rules! words_common {
     address_check_account_one: "1 key account",
     /// The address check's result: wallets and key accounts searched. `{}`: the wallets, the key accounts, each as counted above.
     address_check_wallets_accounts: "{} and {}",
+    /// Check an address's button that opens the menu of text files in Files, and that menu's title.
+    address_check_file: "From a file",
+    /// Check an address's menu in place of a file that is empty, over 64 KiB or not text.
+    address_check_not_text: "Not a text file",
+    /// Check an address's line for a file that holds a wallet description.
+    address_check_descriptor: "A wallet description, not an address",
+    /// Check an address's line for a text file that holds no address.
+    address_check_none_in_file: "No address in the file",
+    /// Check an address's count over the list of a file's addresses. `{}`: how many are listed, then how many the file holds.
+    address_check_read_count: "{} of {} addresses read",
     /// Way over from another scanner's read card of an address to the address check.
     read_go_address: "Check the address",
     /// Button on the read card of an address not found. `{}`: the depth, in indices of each chain.

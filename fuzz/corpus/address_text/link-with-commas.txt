@@ -1,0 +1,9 @@
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=Smith,John&req-pop=1
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=1,5
+BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=x,1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=1..
+(bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=a(b)) 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=a)b&req-pop=1
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=[x]&req-x=1
+bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?label=say"hi"&req-x=1
+["bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq","bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"]

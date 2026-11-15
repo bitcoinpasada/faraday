@@ -121,6 +121,7 @@
 //! | `Vanity` | `vanity/screen.rs` |
 //! | `Decode` | `decode/screen.rs` |
 //! | `Invoice` | `invoice/screen.rs` |
+//! | `CheckAddress` | `address_check/screen.rs` |
 //! | `NonceCheck` | `screens/nonce_check.rs` |
 //! | `SignerCheck` | `decode/check_screen.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
@@ -129,6 +130,7 @@
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
+pub mod address_check;
 mod address_find;
 mod qr_view;
 mod receipt;
@@ -397,6 +399,8 @@ pub enum Screen {
     Decode,
     /// A Lightning invoice taken apart.
     Invoice,
+    /// Check an address: typed, pasted or scanned, searched in the loaded wallets.
+    CheckAddress,
     /// A signed transaction brought in, checked rather than signed.
     NonceCheck,
     /// Check a signer: the PSBT sent and the one returned, compared.
@@ -599,6 +603,8 @@ pub enum Sheet {
     NavMenu(Option<nav::Overflow>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
+    /// Check an address's From a file: the menu of text files in Files (`address_check/screen.rs`).
+    AddressFiles,
     /// **Published words**: a key on Mainnet whose words are published, **Remove** or **Keep for testing**.
     Published,
     /// **Restore a GPG key**: the public keys in Files.
@@ -2144,6 +2150,7 @@ impl Faraday {
             | Action::SpendHex) => self.decode_act(a, &c),
             a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
             Action::Invoice(p) => invoice::act(self, p),
+            Action::AddressCheck(p) => address_check::act(self, p),
             a @ (Action::SignMessage
             | Action::MStep(..)
             | Action::MNext(..)
@@ -2331,7 +2338,7 @@ impl Faraday {
     /// not one; the line it is refused with (a payment link that needs
     /// something this device does not read, a checksum that fails, another
     /// network's address); or the address, from a `bitcoin:` link as well.
-    fn address_read(
+    pub(crate) fn address_read(
         &self,
         text: &str,
     ) -> Option<Result<faraday_bip::bitcoin::Address, faraday_text::Text>> {
@@ -2370,9 +2377,23 @@ impl Faraday {
             return (is_uri && !t.is_empty())
                 .then(|| Err(faraday_text::Text::of(EN.address_note_uri_malformed)));
         };
-        Some(addr.require_network(net.into()).map_err(|_| {
-            faraday_text::Text::fill(EN.address_note_wrong_network, &[wallet::network_name(net)])
-        }))
+        if addr.is_valid_for_network(net.into()) {
+            return Some(Ok(addr.assume_checked()));
+        }
+        // Testnet and signet write their addresses alike: the first
+        // network that takes it names it.
+        let of = faraday_bip::keys::Network::ALL
+            .iter()
+            .copied()
+            .find(|&n| addr.is_valid_for_network(n.into()))
+            .unwrap_or(net);
+        Some(Err(faraday_text::Text::fill(
+            EN.address_note_wrong_network,
+            &[
+                &faraday_text::Text::ascii_lowercase(wallet::network_name(of)),
+                &faraday_text::Text::ascii_lowercase(wallet::network_name(net)),
+            ],
+        )))
     }
 
     /// Costs an address derivation (through `find_address`), and a key
@@ -2382,7 +2403,7 @@ impl Faraday {
     /// of them (`docs/QR.md` §2: "Is this address mine?"), and for none of
     /// them the look further that is offered. `None` when no wallet and no
     /// key is loaded.
-    fn address_check(
+    pub(crate) fn address_check(
         &self,
         c: &Compute,
         addr: &faraday_bip::bitcoin::Address,
@@ -3746,7 +3767,7 @@ impl App for Faraday {
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
-                    | self.look_tick(now_ms)
+                    | address_check::tick(self, now_ms)
                     | self.chart_side_tick(now_ms)
                     | self.key_path_sheet_open()
                     | self.published_sheet_open()

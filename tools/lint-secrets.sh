@@ -230,6 +230,12 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       how far a search looked, in how many wallets, and a found wallet's name, chain and index
 #   faraday/faraday-core/src/address_find/look.rs
 #       a found wallet's name, as it was at the find
+#   faraday/faraday-core/src/address_check/mod.rs
+#       the address typed or pasted, held in the wiping text and emptied when a secret is pasted, and its refusal lines
+#   faraday/faraday-core/src/address_check/file.rs
+#       a file's addresses and their answers, public text, read once the file is not a secret
+#   faraday/faraday-core/src/address_check/screen.rs
+#       the count over a file's addresses, drawn
 #   faraday/faraday-core/src/codes/screen.rs
 #       the seconds left on a code, never the code
 #   faraday/faraday-core/src/work/kept.rs
@@ -294,6 +300,9 @@ faraday/faraday-core/src/explore/mod.rs
 faraday/faraday-core/src/address_find/accounts.rs
 faraday/faraday-core/src/address_find/card.rs
 faraday/faraday-core/src/address_find/look.rs
+faraday/faraday-core/src/address_check/mod.rs
+faraday/faraday-core/src/address_check/file.rs
+faraday/faraday-core/src/address_check/screen.rs
 faraday/faraday-core/src/codes/screen.rs
 faraday/faraday-core/src/work/kept.rs
 faraday/faraday-core/src/work/budget/scaling.rs

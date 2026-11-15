@@ -226,6 +226,26 @@ reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for the
 file = "faraday/faraday-core/src/wallet.rs"
 reason = "Glue over rust-bitcoin's types: parses addresses, paths and sighash types and calls faraday-bip, faraday-psbt and faraday-keys, which the stamp covers."
 
+[[uncovered]]
+file = "faraday/faraday-core/src/address_check/file.rs"
+reason = "Check an address's From a file: reads a text file for its addresses and looks each up among the scripts of the loaded wallets and key accounts, which faraday-bip derives and the stamp covers. Computes nothing cryptographic of its own."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/address_check/mod.rs"
+reason = "Check an address's page: reads typed, pasted or scanned text to an address and hands it to the search of the loaded wallets and keys; the addresses are derived by faraday-bip, which the stamp covers. Computes nothing cryptographic."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/address_find/accounts.rs"
+reason = "Names a loaded key's standard accounts for the address search; the keys and addresses at them are derived by faraday-keys and faraday-bip, which the stamp covers. Computes nothing cryptographic."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/multisig_check/mod.rs"
+reason = "Check a multisig setup: reads a descriptor's cosigners and compares them with a loaded key's fingerprint and path; the policy is parsed by faraday-bip, which the stamp covers. Computes nothing cryptographic."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/scan_key.rs"
+reason = "The scanner's read cards; the address check's hand-over reads a scanned address and passes it to the search, whose addresses are derived by faraday-bip, which the stamp covers. Computes nothing cryptographic."
+
 # ----------------------------------------------------------- out of app
 # STANDARDS §0: work whose standard is unpublished, or whose construction
 # is Faraday's own and unreviewed, stays in the repository, built and

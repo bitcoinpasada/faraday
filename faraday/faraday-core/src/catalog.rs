@@ -498,6 +498,11 @@ pub fn matches(tile: &Tile, find: &str) -> bool {
 }
 
 impl Faraday {
+    /// Check an address's state, while its page is open.
+    pub fn address_check_state(&self) -> Option<&crate::address_check::AddressCheckState> {
+        self.tools.address_check.state()
+    }
+
     /// Decode a Lightning invoice's state, while its screen is open.
     pub fn invoice(&self) -> Option<&crate::invoice::InvoiceState> {
         self.tools.invoice.state()
@@ -647,10 +652,7 @@ impl Faraday {
             },
             Go::Invoice => crate::invoice::open(self),
             // No wallet loaded: Restore, which comes back here.
-            Go::CheckAddress if self.session.wallets.is_empty() => {
-                self.act(Action::RestoreFor(crate::restore::Check::Address));
-            }
-            Go::CheckAddress => self.act(Action::ScanFor(crate::Ask::Address)),
+            Go::CheckAddress => crate::address_check::open(self),
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),

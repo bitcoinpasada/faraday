@@ -179,7 +179,7 @@ address check, first-100 search and **Look further** as a scanned
 address; a secret is refused as Paste refuses it, a kind that is not an
 address is named, and a file of several addresses lists each with its
 place. The screen, the refusals and the fuzz targets are DESIGN §5's
-Check, "Check an address"; the page is not built yet (DESIGN's Open line): until it is, the result card shows on the scanner's read card.
+Check, "Check an address".
 
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and

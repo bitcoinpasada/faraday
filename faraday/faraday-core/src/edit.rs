@@ -266,6 +266,8 @@ pub enum Here {
     TransferText,
     /// Decode a Lightning invoice's text.
     Invoice,
+    /// Check an address's field.
+    CheckAddress,
 }
 
 impl Faraday {
@@ -339,6 +341,7 @@ impl Faraday {
                 Here::Aezeed
             }
             Screen::Invoice if self.invoice().is_some() => Here::Invoice,
+            Screen::CheckAddress if self.address_check_state().is_some() => Here::CheckAddress,
             #[cfg(feature = "demo")]
             Screen::Transfer if self.transfer_text_here() => Here::TransferText,
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
@@ -520,6 +523,7 @@ impl Faraday {
             }
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::Invoice => self.invoice().is_some(),
+            Screen::CheckAddress => self.address_check_state().is_some(),
             #[cfg(feature = "demo")]
             Screen::Transfer => self.transfer_text_here(),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
@@ -745,6 +749,7 @@ impl Faraday {
             Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
             Here::Aezeed => &self.lightning.state()?.typed,
             Here::Invoice => self.invoice()?.text(),
+            Here::CheckAddress => self.address_check_state()?.typed(),
             #[cfg(feature = "demo")]
             Here::TransferText => self.transfer.text().text(),
             Here::Chart => {
@@ -1198,6 +1203,7 @@ impl Faraday {
             Screen::Explore => self.explore.state().is_some(),
             Screen::Lightning => self.lightning.state().is_some(),
             Screen::Invoice => self.invoice().is_some(),
+            Screen::CheckAddress => self.address_check_state().is_some(),
             Screen::Tools => self.tools.state().is_some(),
             Screen::KefTool => self.tools.kef_tool.state().is_some(),
             Screen::QrTool => self.tools.qr_tool.state().is_some(),
