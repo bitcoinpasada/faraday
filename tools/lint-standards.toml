@@ -163,6 +163,10 @@ file = "faraday/faraday-core/src/explore/shown.rs"
 reason = "Explore's shown keys: the xprv and WIF are faraday-keys' reveals, which the stamp covers."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/seed_check/mod.rs"
+reason = "My seed makes my wallet's accounts: reads a path typed by hand with Explore's path parser in faraday-core and asks faraday-keys for the account key and faraday-bip for its SLIP-132 spelling and addresses, which the stamp covers; it derives nothing itself."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/inbox.rs"
 reason = "Reads a derivation path's steps to tell a wallet's kind; computes nothing."
 

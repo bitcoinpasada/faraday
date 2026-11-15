@@ -169,6 +169,7 @@ mod secrets;
 mod secure_boot_reminder;
 mod secure_boot_sign;
 mod seed_backup;
+mod seed_check;
 mod seeds_first;
 mod select;
 mod selftest;

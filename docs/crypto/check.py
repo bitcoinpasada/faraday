@@ -886,7 +886,7 @@ TILE_SCREENS = {
     # The vault list's two ways in: Create a vault and Unlock.
     "Vaults": ("Vaults", "CreateVault", "Unlock"), "Codes": ("Codes",),
     "CreateVault": ("CreateVault",), "VaultCategory": ("VaultContents",),
-    "Compare": ("Compare",), "Calculator": ("Tools",), "WordList": ("Tools",),
+    "SeedCheck": ("SeedCheck",), "Compare": ("Compare",), "Calculator": ("Tools",), "WordList": ("Tools",),
     # The Sweep sheet, over Tools.
     "Sweep": ("Tools",),
     # Krux code, the tool that makes one.

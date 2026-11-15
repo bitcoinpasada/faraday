@@ -679,14 +679,16 @@ impl Faraday {
 
     /// Whether `key` is left for the tick after a frame: Enter where it
     /// reads an aezeed or Core Lightning's file or words, which scrypt,
-    /// Argon2id or a PBKDF2 stretch. Not
+    /// Argon2id or a PBKDF2 stretch, or ends My seed makes my wallet's
+    /// passphrase. Not
     /// while a job runs: then the key is refused as every key is.
     pub(crate) fn key_slow(&self, key: faraday_shell_api::Key) -> bool {
         key == faraday_shell_api::Key::Enter
             && self.worker.busy().is_none()
-            && self.screen == Screen::Lightning
-            && (self.lightning_reads_aezeed()
-                || (self.sheet.is_none() && self.lightning.on_core_lightning()))
+            && ((self.screen == Screen::Lightning
+                && (self.lightning_reads_aezeed()
+                    || (self.sheet.is_none() && self.lightning.on_core_lightning())))
+                || crate::seed_check::enter_is_slow(self))
     }
 
     /// [`Faraday::key_slow`] once a key waiting from before is taken, so a

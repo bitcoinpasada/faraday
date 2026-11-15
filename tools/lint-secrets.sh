@@ -555,6 +555,10 @@ faraday/faraday-core/src/create.rs
 faraday/faraday-core/src/keygen/area.rs
 faraday/faraday-core/src/keygen/mod.rs
 faraday/faraday-core/src/keygen/screen.rs
+faraday/faraday-core/src/seed_check/act.rs
+faraday/faraday-core/src/seed_check/area.rs
+faraday/faraday-core/src/seed_check/mod.rs
+faraday/faraday-core/src/seed_check/screen.rs
 faraday/faraday-core/src/seeds/kef.rs
 faraday/faraday-core/src/seeds/mod.rs
 faraday/faraday-core/src/seeds/read.rs
@@ -575,6 +579,7 @@ faraday/faraday-keys/src/hsm_node.rs
 faraday/faraday-keys/src/identity.rs
 faraday/faraday-keys/src/lightning.rs
 faraday/faraday-keys/src/operations.rs
+faraday/faraday-keys/src/seed_check.rs
 faraday/faraday-keys/src/session.rs
 faraday/faraday-keys/src/silent.rs
 faraday/faraday-keys/src/texts.rs

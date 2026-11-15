@@ -13,7 +13,8 @@ use crate::{boot_import, seeds, vanity};
 /// shares and Specter DIY pictures, and Make the code and Compare of a
 /// Krux code, in Tools and on the checklist, and Make the code and Open of a QR
 /// vault in Tools, Check a timestamp's file over
-/// 3 MiB (`ots_check::hash::JOB_BYTES`) and Read of a Bitcoin Core wallet; the other presses move
+/// 3 MiB (`ots_check::hash::JOB_BYTES`), Read of a Bitcoin Core wallet;
+/// the other presses move
 /// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
@@ -100,6 +101,13 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             )
             | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
+            // Under the line by count, not yet timed on a Pi 3B+: the
+            // late-flow timing settles whether they stay.
+            | Action::SeedCheck(
+                crate::seed_check::SeedAction::NoPass
+                    | crate::seed_check::SeedAction::UsePass
+                    | crate::seed_check::SeedAction::Keep,
+            )
             | Action::Vanity(vanity::VanityAction::Use)
             | Action::Convert(
                 crate::convert::ConvertAction::To(_)
@@ -135,7 +143,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
 }
 
 /// What the frame drawn before a slow press's work says, when the work
-/// is long enough to be seen: pictures and PDFs made.
+/// is long enough to be seen: pictures and PDFs made, a key stretched.
 pub(crate) fn working_text(a: Action) -> Option<&'static str> {
     use crate::backup_flow::steps::FlowAction as F;
     matches!(
@@ -145,4 +153,15 @@ pub(crate) fn working_text(a: Action) -> Option<&'static str> {
             | Action::Convert(crate::convert::ConvertAction::Save)
     )
     .then_some(EN.working_files)
+    .or_else(|| {
+        matches!(
+            a,
+            Action::SeedCheck(
+                crate::seed_check::SeedAction::NoPass
+                    | crate::seed_check::SeedAction::UsePass
+                    | crate::seed_check::SeedAction::Keep,
+            )
+        )
+        .then_some(EN.working_seed_key)
+    })
 }

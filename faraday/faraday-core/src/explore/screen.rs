@@ -420,7 +420,7 @@ fn word_grid(ui: &mut Ui, words: &str, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// A script's name, as the Script row's buttons say it.
-pub(super) fn script_name(s: ScriptType) -> &'static str {
+pub(crate) fn script_name(s: ScriptType) -> &'static str {
     match s {
         ScriptType::NativeSegwit => EN.explore_native_segwit,
         ScriptType::Taproot => EN.explore_taproot,

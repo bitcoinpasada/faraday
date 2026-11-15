@@ -106,6 +106,7 @@
 //! | `KefTool` | `kef_tool/screen.rs` |
 //! | `QrTool` | `qr_tool/screen.rs` |
 //! | `OtsCheck` | `ots_check/screen.rs` |
+//! | `SeedCheck` | `seed_check/screen.rs` |
 //! | `CoreWallet` | `core_wallet/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
@@ -203,6 +204,7 @@ pub mod quiz;
 mod review;
 pub mod secrets;
 pub mod secure_boot;
+pub mod seed_check;
 pub mod seeds;
 mod signing;
 pub mod silent;
@@ -357,6 +359,8 @@ pub enum Screen {
     QrTool,
     /// Tools' Check a timestamp: an OpenTimestamps proof against a block header.
     OtsCheck,
+    /// Tools' My seed makes my wallet: a seed's xpub and addresses.
+    SeedCheck,
     /// Tools' Read a Bitcoin Core wallet: a `wallet.dat` read and checked.
     CoreWallet,
     /// Silent payments: a loaded key's address and scan key.
@@ -1809,6 +1813,7 @@ impl Faraday {
             a if devices::camera_press(a) => EN.pull_what_scan,
             Action::Convert(C::Check) if convert::checks_by_scan(self) => EN.pull_what_scan,
             Action::Entry(_)
+            | Action::SeedCheck(crate::seed_check::SeedAction::Type)
             | Action::EntryWallet(_)
             | Action::ScanSeed
             | Action::ScanKey(_)
@@ -2440,7 +2445,9 @@ impl Faraday {
             Action::Host(_) => {}
             Action::SpendBackup(f) => self.spend_backup_act(f),
             Action::Vanity(v) => self.vanity_act(v),
-            Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
+            Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) | Action::SeedCheck(_) => {
+                self.tool_act(action)
+            }
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
             Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
             Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
@@ -4570,7 +4577,13 @@ impl App for Faraday {
                     self.later_now();
                     self.later = Some(Later::Key(k));
                     self.worker.set_drawn(false);
-                    self.working(self.lightning_working());
+                    let line = if self.screen == Screen::SeedCheck {
+                        working_text(Action::SeedCheck(seed_check::SeedAction::UsePass))
+                            .unwrap_or(EN.working_node_key)
+                    } else {
+                        self.lightning_working()
+                    };
+                    self.working(line);
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;

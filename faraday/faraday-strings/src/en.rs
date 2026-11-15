@@ -2112,6 +2112,90 @@ strings! {
     explore_nested_segwit: "Nested SegWit",
     /// Text in `draw`.
     explore_legacy: "Legacy",
+    /// A line of the Result in My seed makes my wallet.
+    seed_check_multisig_native: "Multisig · Native SegWit",
+    /// A line of the Result in My seed makes my wallet.
+    seed_check_multisig_nested: "Multisig · Nested SegWit",
+    /// A line of the Account card in My seed makes my wallet. `{}`: where the addresses start.
+    seed_check_starts: "Addresses start {}",
+    /// A line of the Account card in My seed makes my wallet.
+    seed_check_cosigner: "A cosigner's key",
+    /// The screen's title and its Tools tile in My seed makes my wallet.
+    seed_check_title: "My seed makes my wallet",
+    /// The Tools tile's line of My seed makes my wallet.
+    seed_check_line: "Seed words to its xpub and addresses",
+    /// A card of My seed makes my wallet.
+    seed_check_card_seed: "Seed",
+    /// A card of My seed makes my wallet.
+    seed_check_card_passphrase: "Passphrase",
+    /// A card of My seed makes my wallet.
+    seed_check_card_account: "Account",
+    /// A card of My seed makes my wallet.
+    seed_check_card_result: "Result",
+    /// A way in on the Seed card of My seed makes my wallet.
+    seed_check_type: "Type the words",
+    /// A way in on the Seed card of My seed makes my wallet.
+    seed_check_scan: "Scan a SeedQR",
+    /// The keys loaded, on the Seed card of My seed makes my wallet.
+    seed_check_loaded: "A key loaded here",
+    /// A loaded key's mark on the Seed card of My seed makes my wallet.
+    seed_check_with_passphrase_mark: "passphrase",
+    /// The Seed card's summary of My seed makes my wallet. `{}`: how many words.
+    seed_check_words_n: "{} words",
+    /// The Seed card's action of My seed makes my wallet.
+    seed_check_continue: "Continue",
+    /// A choice on the Passphrase card of My seed makes my wallet.
+    seed_check_no_passphrase: "No passphrase",
+    /// A choice on the Passphrase card of My seed makes my wallet.
+    seed_check_add_passphrase: "Add a passphrase",
+    /// A field of the Passphrase card of My seed makes my wallet.
+    seed_check_passphrase: "Passphrase",
+    /// A field of the Passphrase card of My seed makes my wallet.
+    seed_check_passphrase_again: "Passphrase again",
+    /// An action of the Passphrase card of My seed makes my wallet.
+    seed_check_use_passphrase: "Use this passphrase",
+    /// The Passphrase card's summary of My seed makes my wallet. `{}`: the fingerprint.
+    seed_check_fingerprint_is: "Fingerprint {}",
+    /// The Passphrase card's summary of My seed makes my wallet when the passphrase is used. `{}`: the fingerprint.
+    seed_check_fingerprint_is_with: "Fingerprint {} · with a passphrase",
+    /// A row of the Account card of My seed makes my wallet.
+    seed_check_other_account: "Another account or path",
+    /// An action of the Account card of My seed makes my wallet.
+    seed_check_use_path: "Use this path",
+    /// What a Legacy test network address starts with, in My seed makes my wallet's Account card.
+    seed_check_legacy_test_start: "m or n",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_fingerprint: "Fingerprint",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_without: "Without the passphrase",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_path: "Path",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_script: "Script",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_xpub: "Xpub",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_receive: "First receive address",
+    /// A row of the Result in My seed makes my wallet.
+    seed_check_change_address: "First change address",
+    /// The plain spelling of the Xpub row in My seed makes my wallet.
+    seed_check_plain: "xpub",
+    /// An action of the Result in My seed makes my wallet.
+    seed_check_another_account: "Another account",
+    /// An action of the Result in My seed makes my wallet.
+    seed_check_another_seed: "Another seed",
+    /// An action of the Result in My seed makes my wallet.
+    seed_check_keep: "Keep this key",
+    /// An action of the Result in My seed makes my wallet.
+    seed_check_done: "Done",
+    /// An action of My seed makes my wallet.
+    seed_check_cancel: "Cancel",
+    /// The title of the Xpub's code sheet in My seed makes my wallet.
+    seed_check_xpub_code: "Account xpub",
+    /// The title of the receive address's code sheet in My seed makes my wallet.
+    seed_check_receive_code: "Receive address",
+    /// The Seed card, words a scanner read that are no BIP-39 seed.
+    seed_check_not_seed: "Not a BIP-39 seed",
     /// Line in `draw`.
     explore_script: "Script",
     /// Text in `draw`.
@@ -7636,6 +7720,9 @@ strings! {
     /// A toast on the frame drawn before an aezeed is stretched for its
     /// node key.
     working_node_key: "Working out the node key",
+    /// A toast on the frame drawn before My seed makes my wallet stretches
+    /// a key for a passphrase or for Keep this key.
+    working_seed_key: "Working out the key",
     /// Toast while an aezeed is read for Convert.
     working_aezeed: "Reading the aezeed",
     /// The line of the job that signs a transaction.

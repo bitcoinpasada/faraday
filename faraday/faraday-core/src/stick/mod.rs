@@ -71,6 +71,7 @@ pub(crate) fn tools_lose_secrets(app: &mut Faraday, wipe: bool) {
     crate::core_wallet::tool::stick_attached(app, wipe);
     crate::qr_tool::stick_attached(app, wipe);
     crate::kef_tool::stick_attached(app, wipe);
+    crate::seed_check::stick_attached(app, wipe);
     crate::convert::stick_attached(app, wipe);
 }
 
@@ -85,6 +86,7 @@ pub(crate) fn keep_focus_off(app: &mut Faraday) {
     crate::core_wallet::tool::stick_attached(app, false);
     crate::qr_tool::stick_attached(app, false);
     crate::kef_tool::stick_attached(app, false);
+    crate::seed_check::stick_attached(app, false);
 }
 
 /// Whether typing at `focus` is a secret the stick rule refuses

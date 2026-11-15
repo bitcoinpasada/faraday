@@ -180,6 +180,8 @@ pub struct ToolsArea {
     pub(crate) qr_tool: crate::qr_tool::QrToolArea,
     /// Check a timestamp.
     pub(crate) ots: crate::ots_check::OtsArea,
+    /// My seed makes my wallet.
+    pub(crate) seed_check: crate::seed_check::SeedArea,
     /// Read a Bitcoin Core wallet.
     pub(crate) core_wallet: crate::core_wallet::tool::CoreWalletArea,
     /// Decode a Lightning invoice.
@@ -425,6 +427,7 @@ impl Faraday {
             crate::Action::KefTool(k) => crate::kef_tool::act(self, k),
             crate::Action::QrTool(k) => crate::qr_tool::act(self, k),
             crate::Action::OtsCheck(k) => crate::ots_check::act(self, k),
+            crate::Action::SeedCheck(k) => crate::seed_check::act(self, k),
             crate::Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
             _ => {}
         }
@@ -437,6 +440,7 @@ impl Faraday {
             || crate::kef_tool::key(self, key)
             || crate::qr_tool::key(self, key)
             || crate::ots_check::key(self, key)
+            || crate::seed_check::key(self, key)
             || crate::core_wallet::tool::key(self, key)
     }
 
@@ -446,6 +450,7 @@ impl Faraday {
         crate::kef_tool::tidy(self);
         crate::qr_tool::tidy(self);
         crate::ots_check::tidy(self);
+        crate::seed_check::tidy(self);
         crate::core_wallet::tool::tidy(self);
         // Leaving Transfer wipes the text typed or pasted for Send text.
         if self.screen != Screen::Transfer {

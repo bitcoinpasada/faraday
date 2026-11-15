@@ -563,7 +563,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The private key and chain code are overwritten when the key is dropped and where the decoded copy stood; the key lives on a pinned page; copies bitcoin makes inside derivation are outside Faraday's reach (stated in the module).")],
         limits: &[p("Only a depth-0 key is a master key; a key at another depth is refused."), p("An extended key text that breaks any of BIP 32 test vector 5's rules is refused.")],
         own_calls: &[p("An extended private key is decoded by Faraday's own strict reader because bitcoin accepts seven of the sixteen serialisations vector 5 rejects. Conservative."), w("no decision")],
-        screens: &["Entry", "KeyGen", "Restore", "Files", "Bip85", "VaultContents"],
+        screens: &["Entry", "KeyGen", "Restore", "Files", "Bip85", "VaultContents", "SeedCheck"],
     },
     Block {
         id: "derive",
@@ -571,14 +571,14 @@ pub static BLOCKS: &[Block] = &[
         action: "Derives a child key and the extended public key of an account, by BIP 32 and the purposes of BIP 44, 49, 84 and 86.",
         standards: &[p("BIP 32, Hierarchical Deterministic Wallets, Deployed"), p("BIP 44, Multi-Account Hierarchy for Deterministic Wallets, Deployed"), p("BIP 49, Derivation scheme for P2WPKH-nested-in-P2SH based accounts, Deployed"), p("BIP 84, Derivation scheme for P2WPKH based accounts, Deployed"), p("BIP 86, Key Derivation for Single Key P2TR Outputs, Deployed")],
         implementation: &[p("Library: bitcoin 0.32.102, by the rust-bitcoin developers."), p("Library: secp256k1 0.29.1, by the rust-bitcoin developers (rust-secp256k1), over libsecp256k1, by Bitcoin Core's libsecp256k1 project (bitcoin-core/secp256k1)."), p("Faraday's code: core/faraday-bip: The account path is purpose'/coin'/account' with the purpose of the script type; an account or index of 2^31 or more is refused; the key text is [fingerprint/path]xpub with h for hardened. Explore reads a path typed with h or ' for hardened, of at most 10 levels, each index under 2^31, and takes the script type from a hardened purpose of 44, 49, 84 or 86; the account of an address path is the path without its chain and index, and none for the multisig purposes 45 and 48.")],
-        checked: &[m("tools/vectors/bip32"), p("Published, by BIP 32's authors (bitcoin/bips)."), m("core/faraday-bip/tests/all/bip32.rs::vectors_1_to_4_through_master_key"), m("core/faraday-bip/tests/all/bip32.rs::hardened_marker_spellings_are_equivalent"), m("core/faraday-bip/tests/all/accounts.rs::bip44_legacy_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::bip49_nested_segwit_testnet"), m("core/faraday-bip/tests/all/accounts.rs::bip84_native_segwit_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::bip86_taproot_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::other_accounts_and_index_limits"), m("core/faraday-bip/tests/all/accounts.rs::coin_types_and_purposes_decide_the_path"), m("faraday/faraday-core/tests/all/explore.rs::bip84_and_bip86s_first_addresses"), m("faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named"), m("self-test bip32_vector"), w("no fuzz target: Takes a parsed path and a held key; the extended key texts are fuzzed by master's xkey target")],
+        checked: &[m("tools/vectors/bip32"), p("Published, by BIP 32's authors (bitcoin/bips)."), m("tools/vectors/seed-check"), p("Computed by Bitcoin Core (the pinned bitcoind on regtest), run by tools/vectors/seed-check/gen.py: the account key and first receive and change addresses at m/44'/0'/0' and the cosigner key at m/48'/0'/0'/2' of the test phrase with no passphrase, imported as descriptors into a blank wallet, with the regtest version bytes changed to mainnet's."), m("core/faraday-bip/tests/all/bip32.rs::vectors_1_to_4_through_master_key"), m("core/faraday-bip/tests/all/bip32.rs::hardened_marker_spellings_are_equivalent"), m("core/faraday-bip/tests/all/accounts.rs::bip44_legacy_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::bip49_nested_segwit_testnet"), m("core/faraday-bip/tests/all/accounts.rs::bip84_native_segwit_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::bip86_taproot_mainnet"), m("core/faraday-bip/tests/all/accounts.rs::other_accounts_and_index_limits"), m("core/faraday-bip/tests/all/accounts.rs::coin_types_and_purposes_decide_the_path"), m("faraday/faraday-core/tests/all/explore.rs::bip84_and_bip86s_first_addresses"), m("faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named"), m("faraday/faraday-core/tests/all/seed_check.rs::bip44_and_bip48_give_what_bitcoin_core_makes_of_the_same_phrase"), m("self-test bip32_vector"), w("no fuzz target: Takes a parsed path and a held key; the extended key texts are fuzzed by master's xkey target")],
         cross_check: CrossCheck::Area(&AREA_BIP32),
         independence: &[p("Compared with others' code: btclib-wallet's bip32, by the btclib developers, on btclib's own curve; and hdkeychain from btcd v0.27.0, by the btcd developers, on decred's secp256k1.")],
         code: &[c("core/faraday-bip/src/keys.rs", "MasterKey::derive"), c("core/faraday-bip/src/keys.rs", "MasterKey::account_xpub"), c("faraday/faraday-keys/src/texts.rs", "key_text")],
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("A derived private key is overwritten when it is dropped and where its stack copy stood; only the extended public key leaves.")],
         limits: &[p("Account and address indexes of 2^31 or more are refused."), p("An Explore path of more than 10 levels, or with an empty level or an index of 2^31 or more, is refused.")],
         own_calls: &[p("Hardened steps are written h. Neutral, F66."), p("The account is asked after the quorum, not on Kind. Neutral, F98."), p("Restore takes a seed for a wallet's key slot only when its whole extended public key at the slot's path matches the wallet's, not the four bytes of its fingerprint. Conservative, F155.")],
-        screens: &["Create", "Explore", "Wallets", "Tools", "Restore", "Vanity"],
+        screens: &["Create", "Explore", "Wallets", "Tools", "Restore", "Vanity", "SeedCheck"],
     },
     Block {
         id: "multisig-account",
@@ -758,7 +758,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys are used; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("An address index of 2^31 or more is refused."), p("A search looks only as far as the index it is given."), p("A search keeps its first 50 matches and counts the rest.")],
         own_calls: &[p("none")],
-        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools"],
+        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools", "SeedCheck"],
     },
     Block {
         id: "descriptor",
@@ -773,7 +773,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys and public text are read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("A threshold above the keys, a key repeated, a key with no origin outside a single-key template, and a miniscript that is not sane are refused."), p("A key expression's derivation must be /** or /<0;1>/*."), p("Multisig takes at most 15 keys.")],
         own_calls: &[p("Only BIP 341's H, or an extended key over H, counts as an unspendable internal key. Conservative, F132."), p("One text is written, with h for hardened. Neutral, F66.")],
-        screens: &["CoreWallet", "Wallets", "WalletsStart", "Files", "Restore", "Create", "Tools", "Explore", "Silent", "VaultContents"],
+        screens: &["CoreWallet", "Wallets", "WalletsStart", "Files", "Restore", "Create", "Tools", "Explore", "Silent", "VaultContents", "SeedCheck"],
     },
     Block {
         id: "recovery",
@@ -878,7 +878,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys are read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("A key whose version disagrees with its script is refused.")],
         own_calls: &[p("A SLIP-132 version is checked against the script and the path around the key. Conservative, F155.")],
-        screens: &["Tools", "Wallets"],
+        screens: &["Tools", "Wallets", "SeedCheck"],
     },
     Block {
         id: "address-read",

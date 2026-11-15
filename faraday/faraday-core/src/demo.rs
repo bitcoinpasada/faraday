@@ -147,6 +147,8 @@ pub enum PassField {
     PotentialAgain,
     /// A seed read's passphrase (0) and its repeat (1).
     SeedRead(u8),
+    /// My seed makes my wallet's passphrase (0) and its repeat (1).
+    SeedCheck(u8),
     /// A Create slot's passphrase (0) and its repeat (1).
     Slot(u8),
     /// Create a vault's passphrase `i`, and its repeat.
@@ -202,6 +204,7 @@ impl PassField {
         match self {
             PassField::KeyGen(_) => PassField::KeyGen(0),
             PassField::SeedRead(_) => PassField::SeedRead(0),
+            PassField::SeedCheck(_) => PassField::SeedCheck(0),
             PassField::Slot(_) => PassField::Slot(0),
             PassField::Phrase(i, _) => PassField::Phrase(i, false),
             PassField::QrMake(_) => PassField::QrMake(0),
@@ -385,6 +388,7 @@ impl Faraday {
                 }
             }
             PassField::SeedRead(i) => self.seed_read_filled(i),
+            PassField::SeedCheck(_) => crate::seed_check::fill_demo_pass(self),
             PassField::Slot(i) => {
                 // The first field fills its repeat too, where empty.
                 self.create.fill_pass(i, PASSPHRASE);

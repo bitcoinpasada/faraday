@@ -23,6 +23,8 @@ pub enum Go {
     SeedQr,
     /// Explore a key.
     Explore,
+    /// My seed makes my wallet.
+    SeedCheck,
     /// BIP-85.
     Bip85,
     /// Convert a seed.
@@ -168,6 +170,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_explore_key_line,
         tags: &["BIP-32", "BIP-44", "BIP-84", "BIP-86"],
         go: Go::Explore,
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.seed_check_title,
+        line: EN.seed_check_line,
+        tags: &["BIP-32", "BIP-39", "BIP-84"],
+        go: Go::SeedCheck,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -595,6 +604,7 @@ impl Faraday {
                 self.act(Action::ScanSeed);
             }
             Go::Explore => self.act(Action::Explore),
+            Go::SeedCheck => crate::seed_check::act(self, crate::seed_check::SeedAction::Open),
             Go::Bip85 => self.act(Action::Bip85),
             Go::Convert => self.act(Action::Convert(crate::convert::ConvertAction::Open)),
             Go::KefCode => self.act(Action::KefTool(crate::kef_tool::KefToolAction::Open)),

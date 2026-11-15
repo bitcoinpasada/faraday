@@ -1497,10 +1497,20 @@ impl Faraday {
         }
     }
 
-    /// Whether Add a key's form takes the keys typed: on Add a key, or on
-    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2).
+    /// Whether My seed makes my wallet's Seed card shows the words form.
+    pub(crate) fn seed_words_typing(&self) -> bool {
+        self.tools
+            .seed_check
+            .state()
+            .is_some_and(|s| s.typing_words())
+    }
+
+    /// Whether Add a key's form takes the keys typed: on Add a key, on
+    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2)
+    /// or on My seed makes my wallet's Seed card.
     pub(crate) fn entry_typing_here(&self) -> bool {
         self.screen == Screen::Entry
+            || (self.screen == Screen::SeedCheck && self.seed_words_typing())
             || (self.screen == Screen::KeyGen
                 && self
                     .keygen

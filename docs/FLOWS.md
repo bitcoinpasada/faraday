@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet (the whole flow), Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Compare with the wallet app's, its Check row and its Practice sample for the Seed card, Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1829,12 +1829,14 @@ shows the fingerprints, the account's xpub and its first receive and
 change addresses, each whole. The person holds them against what the
 wallet app and the hardware wallet show. Nothing has to be typed or
 scanned from the wallet app to get a result. At the end the person drops
-the seed or keeps it loaded. Not built: the whole flow below. Its screen
+the seed or keeps it loaded. Built but for the Check row (it opens from
+Tools now) and **Compare with the wallet app's**, below, which are not
+built. Its screen
 is `docs/DESIGN.md` §5, My seed makes my wallet.
 
 | From | What opens it |
 |---|---|
-| Check | its first row, **My seed makes my wallet**: the Seed card open |
+| Check | its first row, **My seed makes my wallet**: the Seed card open (not built: the Check screen is not) |
 | Tools | the tile **My seed makes my wallet** in Keys and seeds, after **Explore a key**, its line "Seed words to its xpub and addresses", tags BIP-32, BIP-39, BIP-84: the same. Tools stays the list of every flow; Check is a second way in |
 
 It opens with nothing needed first, no key and no wallet. The screen is a
@@ -1921,7 +1923,8 @@ Every string is shown whole (DESIGN.md §4.5), since a check by eye of
 the first and last characters is the check an attacker's address is made
 to pass.
 
-**Compare with the wallet app's** (decided here: kept, small). A text
+**Compare with the wallet app's** (decided here: kept, small; not built,
+so the Result has no such button yet). A text
 button on the Result, for a person who has a file or a QR code at hand.
 It opens one outlined text field (typing and a paste) with **Scan** and
 **From Files** beside it, and checks what is given against the account
@@ -2040,14 +2043,17 @@ passphrase and without it; BIP-32's test vectors 1 to 5
 against btclib and btcd, as the cross-check's `bip32` and `addr` areas
 run them (`tools/crosscheck/area_bip32.py`,
 `tools/crosscheck/area_addr.py`), and a SeedQR against its area
-(`tools/crosscheck/area_seedqr.py`). A test for each account row, for
+(`tools/crosscheck/area_seedqr.py`). Built: a test for each account row, for
 Keep this key (the key loaded as Add a key loads it, refused with a
-stick in) and for Done, Cancel and a lock (the key gone), and for each
+stick in) and for Done, Cancel and a lock (the key gone). Not built: a test for each
 compare line: a match from an xpub, an address and a descriptor, a
 multisig's "key 2 of 3", "It matches without the passphrase", and an
 origin whose key is not the seed's.
 
-**Practice** (`docs/MODES.md` §6). The Seed card hands Use a sample the
+**Practice** (`docs/MODES.md` §6). Built: the passphrase fields offer
+`faraday` (MODES §6.2), and a SeedQR is read through the read sheet. Not
+built: the Seed card's word sample and its scanner's sample, and the
+compare samples. The design: the Seed card hands Use a sample the
 next word sample, as Add a key does, and its scanner that sample's
 SeedQR; the passphrase fields offer `faraday` (MODES §6.2). With test
 key 1 and **Native SegWit** picked, the Result shows sample Spending's

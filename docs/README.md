@@ -40,6 +40,7 @@ need. Each document's header says what kind it is:
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | What does Check a timestamp take and show, and what does a proof prove? | `docs/DESIGN.md` §5 (`OtsCheck`), `docs/decisions/F230.md`, `docs/guide/ots-check.md` |
+| What does My seed makes my wallet take, show and keep? | `docs/FLOWS.md` (My seed makes my wallet), `docs/DESIGN.md` §5 (`SeedCheck`) |
 | What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/guide/core-wallet.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/guide/invoice.md` |
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |

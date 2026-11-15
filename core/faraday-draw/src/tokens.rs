@@ -1876,6 +1876,10 @@ pub const ROW_CHEVRON: f32 = 9.0;
 /// The room a row's chevron takes from its text: the box and a gap.
 pub const ROW_CHEVRON_ROOM: f32 = ICON_SMALL + GAP;
 
+/// The height a word entry's own keyboard is sized to inside a card, which
+/// then grows to it.
+pub const CARD_ENTRY_ROOM: f32 = 2000.0;
+
 /// The smallest text drawn: Material's label-small. A size asked for
 /// under it is drawn at it.
 pub const TEXT_MIN: f32 = 11.0;

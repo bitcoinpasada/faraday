@@ -48,6 +48,7 @@ pub mod parts;
 pub mod psbt;
 pub mod qr_vault;
 pub mod secure_boot;
+pub mod seed_check;
 pub mod session;
 pub mod silent;
 pub mod slip39_set;
@@ -70,6 +71,7 @@ pub use qr_vault::{
     QrPassOffer, QrSealJob, QrUnsupported, qr_cost, qr_item_offered, qr_note_over,
     qr_seal_note_job,
 };
+pub use seed_check::CheckFacts;
 pub use session::{
     CopyCheck, Handout, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed,
     WordsId, compare_words, words_id,

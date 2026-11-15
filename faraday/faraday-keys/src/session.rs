@@ -391,6 +391,10 @@ pub struct Keys {
     /// ([`Keys::sweep_read`], F171): one at most, never kept, erased when
     /// it is dropped.
     sweep: Option<crate::sweep::SweepKey>,
+    /// The seed My seed makes my wallet holds, while the check is open
+    /// ([`Keys::check_read`]): one at most, never one of the keys, erased
+    /// when it is dropped.
+    pub(crate) check: Option<crate::seed_check::HeldCheck>,
     /// An aezeed read for Convert, while the tool holds it
     /// ([`Keys::aezeed_hold`]): never one of the keys.
     pub(crate) aezeed: Option<crate::lightning::HeldAezeed>,
@@ -418,6 +422,7 @@ impl Keys {
             stick: None,
             blind: None,
             sweep: None,
+            check: None,
             aezeed: None,
             slip39_set: None,
             qr_item: None,
@@ -549,6 +554,7 @@ impl Keys {
     pub fn holds_secret(&self) -> bool {
         !self.entries.is_empty()
             || self.sweep.is_some()
+            || self.check.is_some()
             || self.aezeed.is_some()
             || self.slip39_set.is_some()
             || self.qr_item.is_some()
@@ -728,7 +734,7 @@ impl Keys {
     }
 
     /// No key is added while a stick is attached.
-    fn no_stick(&self) -> Result<(), Refusal> {
+    pub(crate) fn no_stick(&self) -> Result<(), Refusal> {
         match self.stick {
             Some(noun) => Err(Refusal::StickAttached(noun)),
             None => Ok(()),
@@ -736,7 +742,7 @@ impl Keys {
     }
 
     /// Refuses a key that is not a sample while the demo is on.
-    fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
+    pub(crate) fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
         if self.demo() && !self.is_public(fp) {
             return Err(Refusal::NotAllowed(Text::of(&fp_text(fp))));
         }
@@ -953,6 +959,7 @@ impl Keys {
     pub fn clear(&mut self) {
         self.entries.clear();
         self.sweep = None;
+        self.check = None;
         self.aezeed = None;
         self.slip39_set = None;
         self.qr_item = None;

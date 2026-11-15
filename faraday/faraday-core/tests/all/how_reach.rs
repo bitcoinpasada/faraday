@@ -56,6 +56,7 @@ fn screen(name: &str) -> Screen {
         "KefTool" => S::KefTool,
         "QrTool" => S::QrTool,
         "OtsCheck" => S::OtsCheck,
+        "SeedCheck" => S::SeedCheck,
         "CoreWallet" => S::CoreWallet,
         "Invoice" => S::Invoice,
         "Compare" => S::Compare,

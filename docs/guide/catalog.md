@@ -13,7 +13,7 @@ Every flow of the app on one page, in groups of tiles, each with the standards i
 
 A tile that cannot open yet shows in its own line what it needs first; one that needs nothing opens its flow.
 
-**Add a key** makes a key from dice, coins, cards, hex, camera or a mix, or takes its words typed. **Scan a SeedQR** takes a standard or compact code. **SLIP-39 shares** deals a new key as m of n shares, and **Restore from SLIP-39** takes shares typed or scanned back into a key. **codex32** takes a secret or its shares typed into a key. **Seed XOR** combines parts into a key. **Sweep a private key** moves a paper wallet's or a WIF key's coins to a wallet; Practice sweeps no private key.
+**Add a key** makes a key from dice, coins, cards, hex, camera or a mix, or takes its words typed. **Scan a SeedQR** takes a standard or compact code. **SLIP-39 shares** deals a new key as m of n shares, and **Restore from SLIP-39** takes shares typed or scanned back into a key. **codex32** takes a secret or its shares typed into a key. **Seed XOR** combines parts into a key. **My seed makes my wallet** takes a seed's words and passphrase and shows its fingerprint, an account's xpub and first addresses, to hold against a wallet app. **Sweep a private key** moves a paper wallet's or a WIF key's coins to a wallet; Practice sweeps no private key.
 
 ## Keys and seeds: working with a key
 

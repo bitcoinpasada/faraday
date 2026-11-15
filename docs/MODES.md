@@ -451,6 +451,7 @@ no typing is swallowed.
 |---|---|
 | `KeyGen(0 or 1)`: New key's BIP-39 passphrase and its repeat | `faraday/faraday-core/src/keygen/mod.rs`, `keygen/screen.rs` (`KPassField`) |
 | `Entry`: Add a key's passphrase | `faraday/faraday-core/src/screens/entry.rs`, `compact/screen.rs` |
+| `SeedCheck(0 or 1)`: My seed makes my wallet's passphrase and its repeat | `faraday/faraday-core/src/seed_check/screen.rs`, `act.rs` (`fill_demo_pass`) |
 | `SeedRead(0 or 1)`: a seed read's passphrase and repeat | `faraday/faraday-core/src/seeds/read.rs` (`Sheet::SeedRead`) |
 | `Potential`: the potential wallet's | `Sheet::Potential` (`screens/sheets.rs`) |
 | `Slot(0 or 1)`: Make a new wallet's passphrase slot | `faraday/faraday-core/src/create.rs` (`pass_slot`, `pass_focus`) |

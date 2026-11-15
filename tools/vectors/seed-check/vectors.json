@@ -1,0 +1,13 @@
+{
+ "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+ "bip44": {
+  "origin": "44h/0h/0h",
+  "xpub": "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj",
+  "receive": "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+  "change": "1J3J6EvPrv8q6AC3VCjWV45Uf3nssNMRtH"
+ },
+ "bip48": {
+  "origin": "48h/0h/0h/2h",
+  "xpub": "xpub6DkFAXWQ2dHxq2vatrt9qyA3bXYU4ToWQwCHbf5XB2mSTexcHZCeKS1VZYcPoBd5X8yVcbXFHJR9R8UCVpt82VX1VhR28mCyxUFL4r6KFrf"
+ }
+}

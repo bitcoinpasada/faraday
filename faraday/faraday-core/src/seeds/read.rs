@@ -445,6 +445,17 @@ impl Faraday {
             self.seed_read_wallet(w, fp, &pass);
             return;
         }
+        // My seed makes my wallet reads the words as its own key.
+        if self.screen == Screen::SeedCheck
+            && s.loaded.is_none()
+            && let Source::Words(w) = &s.source
+        {
+            let w = w.clone();
+            self.seed_read.state = None;
+            self.sheet = None;
+            crate::seed_check::scanned(self, w.as_str(), pass.as_str());
+            return;
+        }
         // Check the money's passphrase, or one typed after every kind:
         // the seed in place becomes its key with it.
         if let (Some(why @ (ForSpendBackup::Guess | ForSpendBackup::Replace)), Some(plain)) =

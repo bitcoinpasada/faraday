@@ -93,9 +93,14 @@ impl Faraday {
         // said something of its own.
         if toast.is_some()
             && self.out.toast.as_ref().map(|(t, _)| t.clone()) == toast
-            && [EN.working_files, EN.working_node_key, EN.working_aezeed]
-                .iter()
-                .any(|w| toast.as_deref() == Some(*w))
+            && [
+                EN.working_files,
+                EN.working_node_key,
+                EN.working_aezeed,
+                EN.working_seed_key,
+            ]
+            .iter()
+            .any(|w| toast.as_deref() == Some(*w))
         {
             self.out.toast = None;
         }

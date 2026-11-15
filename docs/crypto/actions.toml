@@ -1197,6 +1197,7 @@ screens = [
   "Files",
   "Bip85",
   "VaultContents",
+  "SeedCheck",
 ]
 functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::from_seed",
@@ -1216,6 +1217,8 @@ functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::for_network",
   "faraday/faraday-keys/src/session.rs::Keys::fingerprint_with",
   "faraday/faraday-keys/src/identity.rs::fp_text",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_read",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_keep",
 ]
 code = [
   "core/faraday-bip/src/keys.rs::MasterKey::from_seed",
@@ -1299,6 +1302,7 @@ screens = [
   "Tools",
   "Restore",
   "Vanity",
+  "SeedCheck",
 ]
 functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::derive",
@@ -1331,6 +1335,9 @@ functions = [
   "faraday/faraday-core/src/create.rs::path_spec",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_took",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_xpub_at",
+  "faraday/faraday-core/src/seed_check/mod.rs::read_path",
+  "faraday/faraday-core/src/seed_check/mod.rs::script_of",
 ]
 code = [
   "core/faraday-bip/src/keys.rs::MasterKey::derive",
@@ -1349,6 +1356,7 @@ adds = "The account path is purpose'/coin'/account' with the purpose of the scri
 [action.checked]
 vectors = [
   "bip32",
+  "seed-check",
 ]
 tests = [
   "core/faraday-bip/tests/all/bip32.rs::vectors_1_to_4_through_master_key",
@@ -1361,6 +1369,7 @@ tests = [
   "core/faraday-bip/tests/all/accounts.rs::coin_types_and_purposes_decide_the_path",
   "faraday/faraday-core/tests/all/explore.rs::bip84_and_bip86s_first_addresses",
   "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
+  "faraday/faraday-core/tests/all/seed_check.rs::bip44_and_bip48_give_what_bitcoin_core_makes_of_the_same_phrase",
 ]
 crosscheck = "bip32"
 independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve; and `hdkeychain` from btcd v0.27.0, by the btcd developers, on decred's secp256k1" }
@@ -2151,6 +2160,7 @@ screens = [
   "Spend",
   "SpendBackup",
   "Tools",
+  "SeedCheck",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
@@ -2255,6 +2265,7 @@ screens = [
   "Explore",
   "Silent",
   "VaultContents",
+  "SeedCheck",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse",
@@ -2893,6 +2904,7 @@ standards = [
 screens = [
   "Tools",
   "Wallets",
+  "SeedCheck",
 ]
 functions = [
   "core/faraday-bip/src/slip132.rs::version_bytes",
@@ -9936,6 +9948,10 @@ source = "own"
 [vector.seedqr]
 source = "published"
 by = "SeedSigner's SeedQR specification, by the SeedSigner developers"
+
+[vector.seed-check]
+source = "outside"
+by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/seed-check/gen.py`: the account key and first receive and change addresses at m/44'/0'/0' and the cosigner key at m/48'/0'/0'/2' of the test phrase with no passphrase, imported as descriptors into a blank wallet, with the regtest version bytes changed to mainnet's"
 
 [vector.sighash]
 source = "published"

@@ -125,6 +125,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::KefTool
         | Screen::QrTool
         | Screen::OtsCheck
+        | Screen::SeedCheck
         | Screen::CoreWallet
         | Screen::Silent
         | Screen::Lightning
@@ -623,6 +624,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::KefTool => crate::kef_tool::screen::draw(app, ui, x, cw, h),
         Screen::QrTool => crate::qr_tool::screen::draw(app, ui, x, cw, h),
         Screen::OtsCheck => crate::ots_check::screen::draw(app, ui, x, cw, h),
+        Screen::SeedCheck => crate::seed_check::screen::draw(app, ui, x, cw, h),
         Screen::CoreWallet => crate::core_wallet::screen::draw(app, ui, x, cw, h),
         Screen::Silent => crate::silent::screen::draw(app, ui, x, cw, h),
         Screen::Explore => crate::explore::screen::draw(app, ui, x, cw, h),

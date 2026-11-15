@@ -1600,6 +1600,9 @@ impl Faraday {
                     if let Some(found) = also {
                         self.seed_read_offer_kef(found.envelope);
                     }
+                } else if self.screen == crate::Screen::SeedCheck {
+                    // A code that holds no seed is said on the Seed card.
+                    crate::seed_check::not_a_seed(self);
                 }
             }
             // A QR vault scanned is never filed: the tool opens holding it.
@@ -2267,6 +2270,17 @@ impl Faraday {
         if self.keygen_scanned(words) {
             self.seed_carried_tidy();
             return;
+        }
+        // My seed makes my wallet: words that are no seed are said on its
+        // Seed card; the rest go to the sheet that asks the passphrase.
+        if self.screen == crate::Screen::SeedCheck {
+            let c = self.compute();
+            if crate::wallet::parse_words(&c, faraday_bip::bip39::Language::English, words).is_err()
+            {
+                crate::seed_check::not_a_seed(self);
+                self.scan_close();
+                return;
+            }
         }
         self.seed_read_open(words);
         self.seed_read_marked(kind);

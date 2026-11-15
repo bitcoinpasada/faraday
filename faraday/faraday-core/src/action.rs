@@ -788,6 +788,8 @@ pub enum Action {
     QrTool(crate::qr_tool::QrToolAction),
     /// A press in the Check a timestamp tool.
     OtsCheck(crate::ots_check::OtsAction),
+    /// A press in the My seed makes my wallet tool.
+    SeedCheck(crate::seed_check::SeedAction),
     /// A press in the Read a Bitcoin Core wallet tool.
     CoreWallet(crate::core_wallet::tool::CoreWalletAction),
     /// Fill a slot with the account key in an Inbox file.
