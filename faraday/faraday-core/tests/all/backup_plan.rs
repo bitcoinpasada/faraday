@@ -18,6 +18,7 @@ fn seed(name: &str, here: bool) -> Seed {
     Seed {
         name: faraday_text::Text::of(name),
         here,
+        shares: false,
         passphrase: false,
     }
 }
@@ -1655,6 +1656,7 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
         .map(|i| faraday_core::plan::Seed {
             name: faraday_text::text!("{:08x}", 0x1000_0000u32 + i),
             here: true,
+            shares: false,
             passphrase: false,
         })
         .collect();

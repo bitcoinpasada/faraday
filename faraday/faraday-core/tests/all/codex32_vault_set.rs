@@ -492,6 +492,7 @@ fn plan_text_with(extra: &str, before: bool) -> Option<plan::Answers> {
         seeds: vec![plan::Seed {
             name: faraday_text::Text::of("aaaa0001"),
             here: true,
+            shares: false,
             passphrase: false,
         }],
         splits: false,

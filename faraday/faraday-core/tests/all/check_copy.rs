@@ -1142,6 +1142,7 @@ fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
         seeds: vec![Seed {
             name: faraday_text::Text::of("aaaa0001"),
             here: true,
+            shares: false,
             passphrase: false,
         }],
         splits: false,
@@ -1203,6 +1204,7 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
         seeds: vec![Seed {
             name: faraday_text::Text::of("aaaa0001"),
             here: true,
+            shares: false,
             passphrase: false,
         }],
         splits: false,

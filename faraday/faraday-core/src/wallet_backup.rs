@@ -3146,6 +3146,7 @@ impl Faraday {
             .map(|(fp, key)| plan::Seed {
                 name: Text::from_utf8_lossy(&fp.to_hex()),
                 here: key.is_some(),
+                shares: key.is_none() && self.session.keys.all().any(|k| k.fingerprint == fp),
                 passphrase: key.is_some_and(|k| self.session.keys[k].has_passphrase),
             })
             .collect();

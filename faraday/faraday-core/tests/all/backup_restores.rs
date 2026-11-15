@@ -319,6 +319,7 @@ fn the_board_line_for_a_wallet_with_several_ways_never_says_more_seeds_than_a_wa
         .map(|i| Seed {
             name: faraday_text::text!("{:08x}", 0x1000_0000u32 + i),
             here: true,
+            shares: false,
             passphrase: false,
         })
         .collect();
@@ -409,4 +410,35 @@ fn a_place_the_plan_says_sees_the_balance_is_one_restore_rebuilds() {
             }
         }
     }
+}
+
+/// A key loaded here from SLIP-39 shares or a master seed, with no words
+/// and no codex32 set, is not on its own device and not kept by the plan:
+/// the plan does not say any place lost leaves a wallet that rebuilds, and
+/// says so in one line.
+#[test]
+fn a_key_loaded_without_words_is_not_counted_as_on_its_own_device() {
+    use faraday_core::plan::{Answers, At, Lost, check, map};
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut app = crate::common::device(Vec::new());
+    let fp = app.session.keys.add_seed(&c, &[7u8; 32], "").unwrap();
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let pos = app.session.keys.position(fp).unwrap();
+    let x = app.session.keys.xpub_at(&c, pos, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let d = format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)");
+    let i = app
+        .session
+        .add_wallet(&c, "Test", &d, "Test wallet", Origin::Named)
+        .expect("reads");
+    let shape = app.plan_shape_now(i);
+    assert_eq!(shape.seeds.len(), 1);
+    assert!(!shape.seeds[0].here && shape.seeds[0].shares);
+    let a = Answers::defaults(&shape);
+    assert!(
+        map(&c, &shape, &a).iter().all(|s| s.at != At::Away),
+        "the key is on no device of the plan's"
+    );
+    assert_ne!(check(&c, &shape, &a).lost, Lost::Yes);
 }

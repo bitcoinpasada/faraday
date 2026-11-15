@@ -128,6 +128,9 @@ macro_rules! words_screens_backup {
     // ----- plan (faraday-core/src/screens/backup.rs) -----
     /// Line in `plan_body`.
     plan_a_key_made_here: "A key made here signs only once this backup is done.",
+    /// Line on the board and the plan's map for a key loaded here that is kept
+    /// as shares outside the plan. `{}`: the key's fingerprint.
+    plan_seed_kept_as_shares: "Seed {} was loaded from shares or a master seed: this plan does not count it",
     /// Text in `plan_body`.
     plan_what_is_a_share: "What is a share?",
     /// Section label in `plan_body`.

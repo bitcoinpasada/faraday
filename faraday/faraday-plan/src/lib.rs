@@ -168,6 +168,11 @@ pub struct Seed {
     /// Loaded here from words: it can go on paper, into the vault or a
     /// file. A seed not here is on its own device.
     pub here: bool,
+    /// Loaded here with neither words nor a codex32 set (SLIP-39 shares,
+    /// a master seed): kept as shares outside the plan, which holds
+    /// nothing that restores it. It is not on its own device either, and
+    /// counts for no check. Never set with `here`.
+    pub shares: bool,
     /// Loaded with a BIP-39 passphrase, which has its own places.
     pub passphrase: bool,
 }
@@ -1682,7 +1687,7 @@ pub fn stored_map(shape: &Shape, a: &Answers) -> Vec<Spot> {
         });
     }
     let away: Vec<(What, Tag)> = (0..shape.seeds.len())
-        .filter(|&i| !shape.seeds[i].here)
+        .filter(|&i| !shape.seeds[i].here && !shape.seeds[i].shares)
         .map(|i| (What::Seed(i), Tag::Secret))
         .collect();
     if !away.is_empty() {

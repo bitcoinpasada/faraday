@@ -180,6 +180,7 @@ impl Faraday {
             .map(|i| plan::Seed {
                 name: Text::fill(EN.backup_flow_key_n, &[&Text::num((i + 1) as u64)]),
                 here: true,
+                shares: false,
                 passphrase: false,
             })
             .collect();

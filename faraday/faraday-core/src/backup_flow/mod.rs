@@ -2092,6 +2092,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             w.shape.seeds.push(crate::plan::Seed {
                 name: faraday_text::Text::of(name),
                 here: here == "1",
+                shares: false,
                 passphrase: pass == "1",
             });
             true

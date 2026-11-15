@@ -582,6 +582,7 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
     let seed = |n: &str| plan::Seed {
         name: faraday_text::Text::of(n),
         here: true,
+        shares: false,
         passphrase: false,
     };
     let shape = Shape {
@@ -649,6 +650,7 @@ fn one_key_shape() -> Shape {
         seeds: vec![plan::Seed {
             name: faraday_text::Text::of("a"),
             here: true,
+            shares: false,
             passphrase: false,
         }],
         splits: false,
@@ -1041,6 +1043,7 @@ fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
             .map(|i| plan::Seed {
                 name: faraday_text::text!("k{i}"),
                 here: true,
+                shares: false,
                 passphrase: passphrase && i == 0,
             })
             .collect(),
@@ -2322,6 +2325,7 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
             .map(|i| plan::Seed {
                 name: faraday_text::text!("k{i}"),
                 here: true,
+                shares: false,
                 passphrase: false,
             })
             .collect(),

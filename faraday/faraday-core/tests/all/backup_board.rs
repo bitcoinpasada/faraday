@@ -440,6 +440,7 @@ fn seed(name: &str) -> Seed {
     Seed {
         name: faraday_text::Text::of(name),
         here: true,
+        shares: false,
         passphrase: false,
     }
 }

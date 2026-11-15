@@ -11,6 +11,7 @@ fn shape() -> Shape {
         seeds: vec![Seed {
             name: Text::of("a"),
             here: true,
+            shares: false,
             passphrase: false,
         }],
         splits: false,

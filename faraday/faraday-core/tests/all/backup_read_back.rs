@@ -624,6 +624,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
         seeds: vec![plan::Seed {
             name: faraday_text::Text::of("aaaa0001"),
             here: true,
+            shares: false,
             passphrase: true,
         }],
         splits: false,

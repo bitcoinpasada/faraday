@@ -444,7 +444,11 @@ Defaults from the wallet: one key, paper words, two places, the sheet
 in each, the descriptor as a QR picture; a multisig, a place per seed,
 each with its seed and the whole wallet sheet, m − 1 keys left off each
 share should shares be ticked; seeds held elsewhere are listed "On
-its own device" and get no paper here; watch only, no seed question.
+its own device" and get no paper here; a key loaded here with neither
+words nor a codex32 set (SLIP-39 shares, a master seed) is on no device
+of the plan's: it is listed nowhere, counts for no check, and one line on
+the board and the map says "Seed {fingerprint} was loaded from shares or
+a master seed: this plan does not count it"; watch only, no seed question.
 "Paper and vault" puts one seed in each vault, vault *v* holding the
 *v*th seed here, and the wallet in every vault; the third preset adds
 watch-only software (these two are plan builders since F53, not
