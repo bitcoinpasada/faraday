@@ -14,8 +14,12 @@
 //! answers is compared against the one recorded, and so is the count of
 //! files that did not parse, so a source that stops parsing shows.
 //!
-//! The constant is remade only when a change to what `inspect` reports is
-//! meant, and then the commit says what is reported differently.
+//! The fuzz corpus files are a fixed list, so a file a fuzz run adds is not
+//! read. The constant is remade only when a change to what `inspect` reports
+//! is meant, and then the commit says what is reported differently. The
+//! digest is over Debug text, so a bitcoin or miniscript upgrade that changes
+//! Debug output changes it with no change to `inspect`; that commit remakes
+//! DIGEST and says so.
 
 use std::path::{Path, PathBuf};
 
@@ -36,11 +40,53 @@ mod musig_example;
 mod wallet;
 
 /// SHA-256 over the Debug text of every inspection, in order.
-const DIGEST: &str = "555dc4d2fdfd6056eb99d3cf00752bf1933011ec214f2f54748ff9aa25410fb5";
+const DIGEST: &str = "dd4a164b8a322b0c8f9431a1fe06c2622c6227791a899835273afa9494b8fac1";
 /// How many PSBTs are inspected (each under every context).
-const PSBTS: usize = 148;
+const PSBTS: usize = 149;
 /// How many files read as PSBT sources did not parse.
 const SKIPPED: usize = 40;
+
+/// The fuzz corpus files read, by folder, each sorted. A fixed list: a corpus
+/// file added by a fuzz run is not read, and one removed or renamed fails the
+/// test, so only a change to what a signer sees moves the digest.
+const PSBT_PARSE: &[&str] = &[
+    "bip370-all-fields.psbt.bin",
+    "demo-regtest.psbt.bin",
+    "demo-regtest.psbt.txt",
+    "final-input-spent-output-missing.psbt.bin",
+    "finalize-prevout-output-missing.psbt.bin",
+    "wallet-2of3.psbt.bin",
+    "wallet-2of3.psbt.txt",
+    "warn-change-spoof.psbt.bin",
+    "warn-change-spoof.psbt.txt",
+    "warn-unsupported-input.psbt.bin",
+    "warn-unsupported-input.psbt.txt",
+    "warn-utxo-mismatch.psbt.bin",
+    "warn-utxo-mismatch.psbt.txt",
+];
+const PSBT_V2: &[&str] = &[
+    "bip370-0.psbt.bin",
+    "bip370-1.psbt.bin",
+    "bip370-2.psbt.bin",
+    "bip370-3.psbt.bin",
+    "bip370-4.psbt.bin",
+    "bip370-5.psbt.bin",
+];
+const CLASSIFY: &[&str] = &["psbt-base64.txt", "psbt-binary.bin"];
+const SIGNER_CHECK: &[&str] = &[
+    "demo-regtest.psbt.seed",
+    "finalize-multi-smallest-final.psbt.seed",
+    "finalize-multi-smallest-wsh-final.psbt.seed",
+    "finalize-multi-smallest-wsh.psbt.seed",
+    "finalize-multi-smallest.psbt.seed",
+    "finalize-or-b-final.psbt.seed",
+    "finalize-or-b.psbt.seed",
+    "finalize-tap-leaf-order-final.psbt.seed",
+    "finalize-tap-leaf-order.psbt.seed",
+    "finalize-tap-leaf-tie-final.psbt.seed",
+    "finalize-tap-leaf-tie.psbt.seed",
+    "finalize-thresh-tie-final.psbt.seed",
+];
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -80,15 +126,8 @@ fn known_psbts(c: &Compute) -> (Vec<(String, Psbt)>, usize) {
     let root = root();
 
     // (directory, only files ending in one of these; empty is all)
-    let dirs: [(&str, &[&str]); 7] = [
+    let dirs: [(&str, &[&str]); 3] = [
         ("tools/vectors/psbt", &[]),
-        ("fuzz/corpus/psbt_parse", &[]),
-        ("fuzz/corpus/psbt_v2", &[]),
-        (
-            "fuzz/corpus/classify",
-            &["psbt-base64.txt", "psbt-binary.bin"],
-        ),
-        ("fuzz/corpus/signer_check", &[".seed"]),
         ("tools/vectors/bbqr", &[".psbt"]),
         ("tools/vectors/own-randomness", &["musig-unsigned.psbt"]),
     ];
@@ -102,6 +141,22 @@ fn known_psbts(c: &Compute) -> (Vec<(String, Psbt)>, usize) {
                 continue;
             }
             let bytes = std::fs::read(&path).unwrap();
+            match read(c, &bytes) {
+                Some(p) => out.push((format!("{dir}/{name}"), p)),
+                None => skipped += 1,
+            }
+        }
+    }
+
+    for (dir, names) in [
+        ("fuzz/corpus/psbt_parse", PSBT_PARSE),
+        ("fuzz/corpus/psbt_v2", PSBT_V2),
+        ("fuzz/corpus/classify", CLASSIFY),
+        ("fuzz/corpus/signer_check", SIGNER_CHECK),
+    ] {
+        for name in names {
+            let bytes = std::fs::read(root.join(dir).join(name))
+                .unwrap_or_else(|e| panic!("{dir}/{name} is missing: {e}"));
             match read(c, &bytes) {
                 Some(p) => out.push((format!("{dir}/{name}"), p)),
                 None => skipped += 1,
@@ -178,16 +233,20 @@ fn known_psbts(c: &Compute) -> (Vec<(String, Psbt)>, usize) {
 
     // A lone 0 OP_RETURN output spending from the person's own address: a
     // signed-message request (BIP-322's `to_sign` for "Hello World").
-    out.push((
-        "built/message-request".to_string(),
-        message_request(&abandon),
-    ));
+    // On a version 0 transaction (BIP-322's own) and on a version 2 one, so
+    // each half of "version 0 or looks like a message request" shows alone.
+    for version in [0, 2] {
+        out.push((
+            format!("built/message-request-v{version}"),
+            message_request(&abandon, version),
+        ));
+    }
     (out, skipped)
 }
 
 /// BIP-322's `to_sign` for "Hello World" and the first receive address of
 /// `abandon`, as a PSBT the key signs for.
-fn message_request(abandon: &faraday_bip::keys::MasterKey) -> Psbt {
+fn message_request(abandon: &faraday_bip::keys::MasterKey, version: i32) -> Psbt {
     use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
     let c = Compute::unchecked();
     let net = Network::Regtest;
@@ -219,7 +278,7 @@ fn message_request(abandon: &faraday_bip::keys::MasterKey) -> Psbt {
         }],
     };
     let to_sign = Transaction {
-        version: bitcoin::transaction::Version(0),
+        version: bitcoin::transaction::Version(version),
         lock_time: bitcoin::absolute::LockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint::new(to_spend.compute_txid(), 0),
