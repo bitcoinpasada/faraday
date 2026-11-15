@@ -19,7 +19,6 @@
 //! written (#10), and produced twice to confirm the bytes are identical
 //! (#8) — the second signing reuses the first's auxiliary randomness, so
 //! the check is of the signing itself and not of the randomness.
-//! Anti-exfil is a later milestone.
 
 use alloc::borrow::Cow;
 use alloc::collections::BTreeMap;
