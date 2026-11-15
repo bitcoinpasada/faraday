@@ -22,7 +22,7 @@ use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 use crate::Screen;
-use crate::compare::{self, ComparePress, CompareState, Slot};
+use crate::compare::{self, ComparePress, CompareState};
 use crate::wallet::Session;
 use crate::{Action, Faraday, Item, QrView, decode, wallet};
 
@@ -1140,13 +1140,24 @@ impl Faraday {
         name: Text,
         origin: check::Origin,
     ) -> bool {
-        let Some((psbt, _)) = wallet::read_psbt_kept(c, bytes) else {
+        let Some((psbt, v2)) = wallet::read_psbt_kept(c, bytes) else {
             if let Some(s) = self.decode.check.as_mut() {
                 s.refused[usize::from(slot.card())] = Some(Text::of(EN.wallet_not_a_psbt));
             }
             return false;
         };
         let txid = psbt.inner().unsigned_tx.compute_txid();
+        let outpoints = {
+            let mut spent: Vec<_> = psbt
+                .inner()
+                .unsigned_tx
+                .input
+                .iter()
+                .map(|i| i.previous_output)
+                .collect();
+            spent.sort();
+            spent
+        };
         let side = check::Side {
             bytes: Zeroizing::new(check::raw_bytes(bytes)),
             psbt,
@@ -1154,6 +1165,8 @@ impl Faraday {
             origin,
             differs: false,
             txid,
+            version: Some(if v2.is_some() { 2 } else { 0 }),
+            outpoints,
         };
         let Some(s) = self.decode.check.as_mut() else {
             return false;
@@ -1347,8 +1360,8 @@ impl Faraday {
             P::Scan(slot) => {
                 let mut scan = crate::qr_view::ScanState::default();
                 scan.purpose = match slot {
-                    Slot::First => crate::ScanPurpose::CompareFirst,
-                    Slot::Second => crate::ScanPurpose::CompareSecond,
+                    check::Slot::Sent => crate::ScanPurpose::CompareFirst,
+                    check::Slot::Returned => crate::ScanPurpose::CompareSecond,
                 };
                 self.camera.open(scan);
                 self.sheet = Some(crate::Sheet::Scan);
@@ -1370,13 +1383,13 @@ impl Faraday {
             }
             P::Again => {
                 if let Some(s) = self.decode.compare.as_mut() {
-                    s.open_card(Slot::Second.card());
+                    s.open_card(check::Slot::Returned.card());
                 }
             }
             P::CheckSigner => {
                 let both = self.decode.compare().and_then(|s| {
                     let one =
-                        |d: &compare::Side| (d.bytes.clone(), Text::of(&d.name), d.origin.clone());
+                        |d: &check::Side| (d.bytes.clone(), Text::of(&d.name), d.origin.clone());
                     Some((one(s.first.as_ref()?), one(s.second.as_ref()?)))
                 });
                 if let Some((first, second)) = both {
@@ -1542,7 +1555,7 @@ impl Faraday {
         self.screen = Screen::Compare;
         self.list_offset = 0.0;
         self.compare_sync();
-        for (slot, file) in [(Slot::First, first), (Slot::Second, second)] {
+        for (slot, file) in [(check::Slot::Sent, first), (check::Slot::Returned, second)] {
             if let Some((bytes, name, origin)) = file {
                 self.compare_take(c, slot, &bytes, name, origin);
             }
@@ -1556,7 +1569,7 @@ impl Faraday {
     pub(crate) fn compare_take(
         &mut self,
         c: &Compute,
-        slot: Slot,
+        slot: check::Slot,
         bytes: &[u8],
         name: Text,
         origin: check::Origin,
@@ -1571,14 +1584,18 @@ impl Faraday {
             }
             return false;
         };
-        let mut outpoints: Vec<_> = psbt
-            .unsigned_tx()
-            .input
-            .iter()
-            .map(|i| i.previous_output)
-            .collect();
-        outpoints.sort();
-        let side = compare::Side {
+        let outpoints = {
+            let mut spent: Vec<_> = psbt
+                .unsigned_tx()
+                .input
+                .iter()
+                .map(|i| i.previous_output)
+                .collect();
+            spent.sort();
+            spent
+        };
+        let txid = psbt.unsigned_tx().compute_txid();
+        let side = check::Side {
             bytes: Zeroizing::new(bytes.to_vec()),
             psbt,
             version,
@@ -1586,6 +1603,7 @@ impl Faraday {
             name: Text::of(name.as_str()),
             origin,
             differs: false,
+            txid,
         };
         let Some(s) = self.decode.compare.as_mut() else {
             return false;
@@ -1612,7 +1630,7 @@ impl Faraday {
             // A finished transaction takes the amounts it spends from the
             // PSBTs of its unsigned transaction in Files, and for an input
             // still without one from the other card's PSBT (rule I4).
-            let as_psbt = |side: &compare::Side| {
+            let as_psbt = |side: &check::Side| {
                 if side.version.is_some() {
                     return side.psbt.clone();
                 }
@@ -1672,7 +1690,7 @@ impl Faraday {
             return;
         }
         let differs =
-            |side: &Option<compare::Side>| match side.as_ref().map(|s| (&s.origin, &s.bytes)) {
+            |side: &Option<check::Side>| match side.as_ref().map(|s| (&s.origin, &s.bytes)) {
                 // The same name and bytes in either box is the file.
                 Some((check::Origin::File { name, .. }, bytes)) => !self
                     .inbox
@@ -1733,8 +1751,8 @@ impl Faraday {
     /// scanner. Returns whether the scanner on screen is one of them.
     pub(crate) fn compare_scanned(&mut self, bytes: &[u8]) -> bool {
         let slot = match self.camera.scan().map(|s| s.purpose) {
-            Some(crate::ScanPurpose::CompareFirst) => Slot::First,
-            Some(crate::ScanPurpose::CompareSecond) => Slot::Second,
+            Some(crate::ScanPurpose::CompareFirst) => check::Slot::Sent,
+            Some(crate::ScanPurpose::CompareSecond) => check::Slot::Returned,
             _ => return false,
         };
         let c = self.compute();

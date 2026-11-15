@@ -9,7 +9,7 @@ use crate::strings::EN;
 use crate::wallet::{InspectInputs, PsbtSeen};
 use crate::{Item, Screen, flow};
 use faraday_bip::base64;
-use faraday_bip::bitcoin::Txid;
+use faraday_bip::bitcoin::{OutPoint, Txid};
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_psbt::signer::{Report, Verdict};
 use faraday_psbt::{Inspection, Level, OutputKind, Psbt};
@@ -96,6 +96,10 @@ pub(crate) struct Side {
     pub differs: bool,
     /// Its unsigned transaction.
     pub txid: Txid,
+    /// The PSBT's own version, 0 or 2; `None` for a finished transaction.
+    pub version: Option<u8>,
+    /// The outpoints it spends, sorted.
+    pub outpoints: Vec<OutPoint>,
 }
 
 /// The flow's state.

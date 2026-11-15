@@ -30,8 +30,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = (0..=RESULT)
         .map(|n| {
             let side = match n {
-                0 => s.side(Slot::First),
-                1 => s.side(Slot::Second),
+                0 => s.side(Slot::Sent),
+                1 => s.side(Slot::Returned),
                 _ => None,
             };
             flow::Card {
@@ -93,8 +93,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// What the open card holds.
 fn card(app: &View, s: &CompareState, ui: &mut Ui, n: u8, at: (f32, f32, f32)) -> f32 {
     match n {
-        0 => choose(app, s, ui, Slot::First, at),
-        1 => choose(app, s, ui, Slot::Second, at),
+        0 => choose(app, s, ui, Slot::Sent, at),
+        1 => choose(app, s, ui, Slot::Returned, at),
         _ => result(s, ui, at),
     }
 }

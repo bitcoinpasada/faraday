@@ -5,13 +5,12 @@
 //! Everything kept here is public data (two PSBTs and the comparison of
 //! them), kept until a lock or power-off as Check a signer's is.
 
-use crate::decode::check::Origin;
+use crate::decode::check::{Origin, Side, Slot};
 use crate::strings::EN;
 use crate::wallet::InspectInputs;
 use crate::{Item, Screen, flow};
-use faraday_bip::bitcoin::{OutPoint, Txid};
+use faraday_bip::bitcoin::Txid;
 use faraday_bip::keys::Fingerprint;
-use faraday_psbt::Psbt;
 use faraday_psbt::bump::{Bump, Line, Outcome};
 use faraday_psbt::diff::Differences;
 use faraday_text::{Text, text};
@@ -20,25 +19,6 @@ use zeroize::Zeroizing;
 pub(crate) mod others;
 pub(crate) mod screen;
 pub(crate) mod words;
-
-/// The two cards that choose a transaction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Slot {
-    /// The first file (the original of a fee bump).
-    First,
-    /// The second file (the replacement of a fee bump).
-    Second,
-}
-
-impl Slot {
-    /// The card's place in the flow: First, Second, then the Result.
-    pub(crate) fn card(self) -> u8 {
-        match self {
-            Slot::First => 0,
-            Slot::Second => 1,
-        }
-    }
-}
 
 /// The card the Result is on.
 pub(crate) const RESULT: u8 = 2;
@@ -76,28 +56,6 @@ pub enum ComparePress {
     /// opens with that file as First and the PSBT under review as
     /// Second, compared.
     FromReview(bool, usize),
-}
-
-/// One side of the comparison: the file as the person has it, read.
-pub(crate) struct Side {
-    /// The file's bytes as the person has them (raw, base64 or hex).
-    pub bytes: Zeroizing<Vec<u8>>,
-    /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`),
-    /// or a finished transaction as a PSBT whose inputs are final.
-    pub psbt: Psbt,
-    /// The PSBT's own version, 0 or 2; `None` for a finished transaction.
-    pub version: Option<u8>,
-    /// The outpoints it spends, sorted.
-    pub outpoints: Vec<OutPoint>,
-    /// What the closed card shows: the file's name, or "Scanned".
-    pub name: Text,
-    /// Where it came from.
-    pub origin: Origin,
-    /// Whether Files holds no file of this name, in either box, with
-    /// these bytes any more: the copy and its result are kept. Worked
-    /// out by `Faraday::compare_sync` while the flow is on screen and on
-    /// arriving at it, and made false again by a pick.
-    pub differs: bool,
 }
 
 /// The flow's state.
@@ -149,8 +107,8 @@ impl CompareState {
 
     pub(crate) fn side(&self, slot: Slot) -> Option<&Side> {
         match slot {
-            Slot::First => self.first.as_ref(),
-            Slot::Second => self.second.as_ref(),
+            Slot::Sent => self.first.as_ref(),
+            Slot::Returned => self.second.as_ref(),
         }
     }
 
@@ -161,8 +119,8 @@ impl CompareState {
         self.shown = None;
         self.refused[usize::from(slot.card())] = None;
         let other = match slot {
-            Slot::First => &mut self.second,
-            Slot::Second => &mut self.first,
+            Slot::Sent => &mut self.second,
+            Slot::Returned => &mut self.first,
         };
         // The other card may not hold this file.
         if other
@@ -172,17 +130,17 @@ impl CompareState {
             *other = None;
         }
         match slot {
-            Slot::First => self.first = Some(side),
-            Slot::Second => self.second = Some(side),
+            Slot::Sent => self.first = Some(side),
+            Slot::Returned => self.second = Some(side),
         }
         self.scroll.follow = true;
         let both = self.first.is_some() && self.second.is_some();
         self.open = if both {
             RESULT
-        } else if slot == Slot::First {
-            Slot::Second.card()
+        } else if slot == Slot::Sent {
+            Slot::Returned.card()
         } else {
-            Slot::First.card()
+            Slot::Sent.card()
         };
         both
     }
@@ -267,8 +225,8 @@ pub(crate) fn rows(
 ) -> (Vec<usize>, Vec<usize>) {
     let (mut same, mut other) = (Vec::new(), Vec::new());
     let beside = match slot {
-        Slot::Second => first,
-        Slot::First => second,
+        Slot::Returned => first,
+        Slot::Sent => second,
     };
     for (n, (outbox, _, item)) in all.iter().enumerate() {
         match beside {

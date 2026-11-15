@@ -9,8 +9,8 @@
 
 use faraday_bip::keys::Network;
 use faraday_core::catalog::{Go, TILES};
-use faraday_core::compare::{ComparePress, Slot};
-use faraday_core::decode::check::SignerPress;
+use faraday_core::compare::ComparePress;
+use faraday_core::decode::check::{SignerPress, Slot};
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::strings::EN;
 use faraday_core::testkit;
@@ -167,7 +167,7 @@ fn change_opens_a_card_and_choosing_a_file_compares_again() {
     app.press(Action::Nav(Screen::Files));
     choose_compare(&mut app, Row::In(1));
     // Two files spend the same inputs: nothing is chosen for First.
-    app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
+    app.press(Action::Compare(ComparePress::Pick(Slot::Sent, 0)));
     assert!(shows(&mut app, "original.psbt"));
     assert!(shows(&mut app, EN.bump_cannot_tell));
     // Change on First opens its card, which lists the third file.
@@ -179,7 +179,7 @@ fn change_opens_a_card_and_choosing_a_file_compares_again() {
     let pick = app
         .drawn_actions()
         .into_iter()
-        .find(|a| matches!(a, Action::Compare(ComparePress::Pick(Slot::First, 2))))
+        .find(|a| matches!(a, Action::Compare(ComparePress::Pick(Slot::Sent, 2))))
         .expect("the First card draws the third file");
     app.press(pick);
     assert_eq!(app.screen, Screen::Compare);
@@ -195,14 +195,14 @@ fn change_opens_a_card_and_choosing_a_file_compares_again() {
 fn a_scanned_psbt_reaches_its_card_and_not_files() {
     let mut app = testkit::started();
     open(&mut app);
-    app.press(Action::Compare(ComparePress::Scan(Slot::First)));
+    app.press(Action::Compare(ComparePress::Scan(Slot::Sent)));
     assert_eq!(app.sheet, Some(Sheet::Scan));
     read(&mut app, &original());
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Compare);
     assert!(app.inbox().is_empty(), "nothing was filed");
     assert!(shows(&mut app, EN.signer_scanned));
-    app.press(Action::Compare(ComparePress::Scan(Slot::Second)));
+    app.press(Action::Compare(ComparePress::Scan(Slot::Returned)));
     read(&mut app, &replacement());
     assert_eq!(app.screen, Screen::Compare);
     assert!(app.inbox().is_empty());
@@ -218,7 +218,7 @@ fn a_scanned_psbt_reaches_its_card_and_not_files() {
 fn a_scanned_transaction_reaches_its_card() {
     let mut app = testkit::started();
     open(&mut app);
-    app.press(Action::Compare(ComparePress::Scan(Slot::First)));
+    app.press(Action::Compare(ComparePress::Scan(Slot::Sent)));
     read(&mut app, &vector("bump-core-original.tx"));
     assert_eq!(app.screen, Screen::Compare);
     let sheet = app.sheet;
@@ -230,7 +230,7 @@ fn a_scanned_transaction_reaches_its_card() {
 fn something_else_scanned_is_not_a_transaction() {
     let mut app = testkit::started();
     open(&mut app);
-    app.press(Action::Compare(ComparePress::Scan(Slot::First)));
+    app.press(Action::Compare(ComparePress::Scan(Slot::Sent)));
     read(&mut app, b"not a transaction");
     assert_eq!(app.sheet, Some(Sheet::Scan));
     assert!(app.inbox().is_empty());
@@ -263,8 +263,8 @@ fn check_a_signer_shows_for_one_transaction_and_opens_it_checked() {
     // flow opens with nothing chosen.
     choose_compare(&mut app, Row::In(1));
     assert_eq!(app.screen, Screen::Compare);
-    app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
-    app.press(Action::Compare(ComparePress::Pick(Slot::Second, 1)));
+    app.press(Action::Compare(ComparePress::Pick(Slot::Sent, 0)));
+    app.press(Action::Compare(ComparePress::Pick(Slot::Returned, 1)));
     let t = texts(&mut app);
     assert!(t.iter().any(|l| l == EN.catalog_check_a_signer), "{t:?}");
     app.press(Action::Compare(ComparePress::CheckSigner));
@@ -337,8 +337,8 @@ fn back_in_check_a_signer_opens_the_card_before_and_from_the_first_leaves() {
         ]);
         app.press(Action::Nav(Screen::Files));
         choose_compare(&mut app, Row::In(1));
-        app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
-        app.press(Action::Compare(ComparePress::Pick(Slot::Second, 1)));
+        app.press(Action::Compare(ComparePress::Pick(Slot::Sent, 0)));
+        app.press(Action::Compare(ComparePress::Pick(Slot::Returned, 1)));
         app.press(Action::Compare(ComparePress::CheckSigner));
         assert_eq!(app.screen, Screen::SignerCheck);
         // The Result is open: Back opens Returned, named after Sent.

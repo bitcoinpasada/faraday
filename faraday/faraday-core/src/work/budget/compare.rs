@@ -3,7 +3,8 @@
 //! inspections, and drawing the Result card again, a pointer move and a
 //! scroll work out nothing.
 
-use crate::compare::{ComparePress, Slot};
+use crate::compare::ComparePress;
+use crate::decode::check::Slot;
 use crate::work::{Work, since, snapshot};
 use crate::{Action, Faraday, StorageEvent, testkit};
 use faraday_shell_api::{App, Event};
@@ -47,10 +48,10 @@ fn open_unchosen() -> Faraday {
 #[test]
 fn the_press_completing_the_second_card_counts_its_inspections_and_drawing_counts_none() {
     let mut app = open_unchosen();
-    app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
+    app.press(Action::Compare(ComparePress::Pick(Slot::Sent, 0)));
     let _ = app.frame();
     let before = snapshot();
-    app.press(Action::Compare(ComparePress::Pick(Slot::Second, 1)));
+    app.press(Action::Compare(ComparePress::Pick(Slot::Returned, 1)));
     let press = since(&before);
     assert!(press.of(Work::PsbtInspect) > 0, "the pair is inspected");
     assert_eq!(press.of(Work::Sign), 0);
