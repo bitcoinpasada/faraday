@@ -110,7 +110,12 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
             &[&at],
         );
         match found {
-            FoundIn::Wallet { name, shape, keys } => {
+            FoundIn::Wallet {
+                name,
+                shape,
+                keys,
+                sign,
+            } => {
                 let mut rows = vec![
                     address(),
                     row(EN.address_check_place, place, false),
@@ -133,7 +138,10 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
                         rows,
                         looking: None,
                     },
-                    Vec::new(),
+                    sign.as_ref()
+                        .map(|_| Way::SignAddress)
+                        .into_iter()
+                        .collect(),
                 )
             }
             FoundIn::Account {
@@ -141,6 +149,7 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
                 script,
                 number,
                 line,
+                sign,
                 ..
             } => (
                 Answer {
@@ -161,7 +170,11 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
                     ],
                     looking: None,
                 },
-                vec![look.made.map_or(Way::MakeWallet, Way::OpenWallet)],
+                sign.as_ref()
+                    .map(|_| Way::SignAddress)
+                    .into_iter()
+                    .chain([look.made.map_or(Way::MakeWallet, Way::OpenWallet)])
+                    .collect(),
             ),
         }
     } else {

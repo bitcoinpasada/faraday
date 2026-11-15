@@ -411,10 +411,11 @@ fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
         "{card}"
     );
     assert!(card.contains("Path: "), "{card}");
-    assert_eq!(ways(&app), ["Make a wallet"]);
-    app.press(way(0));
+    let sign = "Sign a message with this address";
+    assert_eq!(ways(&app), [sign, "Make a wallet"]);
+    app.press(way(1));
     assert_eq!(app.session.wallets.len(), 1);
-    assert_eq!(ways(&app), ["Open the wallet"]);
+    assert_eq!(ways(&app), [sign, "Open the wallet"]);
 }
 
 #[test]

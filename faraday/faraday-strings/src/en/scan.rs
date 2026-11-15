@@ -200,6 +200,8 @@ macro_rules! words_scan {
     read_go_note: "Save as a note",
     /// The read card's way over for text: Sign a message with it.
     read_go_message: "Sign this message",
+    /// The address check's way over for a find in a single-key wallet, or in a loaded key's account: Sign a message at that address.
+    read_go_sign_address: "Sign a message with this address",
     /// The read card's way over for a public kind: filed in Files.
     read_keep: "Keep in Files",
     /// The read card's kind for a Krux encrypted code.

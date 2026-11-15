@@ -744,7 +744,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Create` | Making a new wallet: Kind, for a single key its Backup card (Words or Shares), for a multisig the quorum (a multisig that is a descriptor with its path, BIP-48 by default or BIP-87 after Change, and the account), whether vaults are part of the backup, the keys, Check with **Back up wallet** at its foot (no Back up card). | Step flow |
 | `Restore` | Restoring a wallet from its description and its seeds. | Step flow |
 | `KeyGen` | Making a new key: Start (no choice ticked until one is pressed; SLIP-39 shares are chosen here, under Other forms), the length (BIP-39 words chosen, no count until one is pressed: 12 words and 24 words, the rest under **Other**, a menu of 15, 18 and 21; a count pressed is taken and Randomness opens, with no Continue), the source of randomness, its entries (§4.3) or, for This device, the Generator card with Add randomness's sources on it (Pointer and keys among them on the desktop app), Camera first and none chosen until one is pressed (no pad, key or camera live before that), each pad and its Add once chosen, "Randomness added to the pool" once any is added, and **Skip**, a text button at the start of the foot row while nothing is added, **Make the words** filled at its end, the passphrase, lock in; or, with Codex32 chosen, Make codex32 shares' cards (`docs/CODEX32.md` §6): Scheme, Identifier, Entropy, the entry with the worksheets filling live (§4.10 Worksheet), Worksheets, Strings and the Result **Strings made**. | Step flow |
-| `Message` | Signing a message with a single-key wallet's key. | Step flow |
+| `Message` | Signing a message with a single-key wallet's key, or a loaded key's at an address Check an address found. | Step flow |
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
 | `OtsCheck` | A timestamp checked: four cards, **Proof**, **File**, **Block header** and **Result**, each closed to its name and what was taken; the proof and the file are chosen from Files (the file also as a typed SHA-256), the header typed or pasted as hex, scanned or chosen from Files, and **Result** lists each path with the block it reaches, or the one line saying why a take was refused. Checked against Material 3's cards page and its lists page. | Step flow |
@@ -911,6 +911,18 @@ A find in a single-key wallet, in order:
   "73c5da0a · m/84h/0h/0h/0/12" (§4.6, Path), wrapping after the
   fingerprint where the line does not hold both.
 
+Where the find is in a single-key wallet whose key is loaded (receive or
+change), the card ends with **Sign a message with this address**, a text
+button (Material 3 Buttons, Text), which opens Sign a message (§5,
+`Message`) with its Address card done. A receive find opens it with that
+wallet and index chosen. A change find opens it on the key's path: the
+Address card shows the address, "Change address 1/3" and the Path line
+(§4.6), with no **-** or **+**. A multisig or miniscript wallet, a
+watch-only wallet and a wallet whose key is not loaded offer nothing.
+A receive address of a key with no wallet opens on the path as well: the
+Address card shows "Receive address 0/n" and the Path line, with no wallet
+buttons.
+
 A find in a multisig or miniscript wallet is the same card with the
 wallet's shape ("2 of 3 · native SegWit multisig") and, in place of
 **Path**, **Keys**: one line for each key of the descriptor, in its order,
@@ -923,7 +935,8 @@ A find in a loaded key's standard account, where no wallet is made from
 it: the Result line **Found in key Alice** (the key's name); **Address**;
 **Place**; **Account** in place of **Wallet**, the account's script and
 number, "Native SegWit · account 0"; and **Path** as a single-key find
-has it. The card ends with **Make a wallet**, filled tonal, which makes
+has it. The card ends with **Sign a message with this address** (text)
+and **Make a wallet**, filled tonal, which makes
 the wallet of that key, path and script (Make a wallet, below; **Open
 the wallet** where one is loaded).
 

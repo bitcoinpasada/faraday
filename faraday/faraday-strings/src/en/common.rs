@@ -1014,6 +1014,17 @@ macro_rules! words_common {
     message_sign_a_message: "Sign a message",
     /// Text in `message_body`. `{}`: `m.index`.
     message_receive_address: "Receive address 0/{}",
+    /// Text in `message_body`. `{}`: the change address's index.
+    message_change_address: "Change address 1/{}",
+    /// Text in `Session::sign_message_at`: the key behind a found address is
+    /// no longer loaded. `{}`: the key's fingerprint.
+    message_key_not_loaded: "Key {} is not loaded here",
+    /// Text in `Session::sign_message_at`: the key cannot derive the found
+    /// address's path. `{}`: the key's fingerprint.
+    message_key_cannot_derive: "Key {} cannot derive this path",
+    /// Text in `Session::sign_message_at`: the key gives another address at
+    /// the path. `{}`: the key's fingerprint.
+    message_key_not_this_address: "Key {} does not give this address at its path",
     /// Text in `message_body`.
     message_type_the_message: "Type the message",
     /// Text in `message_body`.

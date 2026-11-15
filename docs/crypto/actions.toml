@@ -5938,6 +5938,7 @@ functions = [
   "faraday/faraday-keys/src/message.rs::sign",
   "faraday/faraday-keys/src/session.rs::Keys::sign_message",
   "faraday/faraday-core/src/wallet.rs::Session::sign_message",
+  "faraday/faraday-core/src/wallet.rs::Session::sign_message_at",
 ]
 code = ["core/faraday-psbt/src/message.rs::sign"]
 
@@ -5948,7 +5949,7 @@ through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
 ]
-adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used. In the app the key is the one behind an address of a loaded single-key wallet's receive chain, and a wallet of several keys is refused."
+adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used. In the app the key is the one behind an address of a loaded single-key wallet's receive chain, or the loaded key at the path of an address the address check found, signing only once the key gives that address; a wallet of several keys is refused."
 
 [[action.implementation.written_here]]
 what = "BIP-322 \"simple\" message signatures (`faraday-psbt::message`)"

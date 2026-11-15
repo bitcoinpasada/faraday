@@ -35,6 +35,9 @@ pub(crate) enum FoundIn {
         name: Text,
         shape: Text,
         keys: Vec<Text>,
+        /// What Sign a message takes of the address: a single-key wallet
+        /// whose key is loaded.
+        sign: Option<SignAt>,
     },
     /// A loaded key's standard account: the key's name, the account's
     /// script, number and where a wallet of it is made, and the one line
@@ -45,7 +48,37 @@ pub(crate) enum FoundIn {
         number: u32,
         line: Text,
         at: (Fingerprint, DerivationPath),
+        /// What Sign a message takes of the address: the key is loaded.
+        sign: Option<SignAt>,
     },
+}
+
+/// What Sign a message takes of a find.
+#[derive(Clone)]
+pub(crate) enum SignAt {
+    /// Receive address `index` of the single-key wallet at this place:
+    /// Sign a message opens on that wallet, with -/+ still stepping.
+    Wallet(usize, u32),
+    /// Any other address of a loaded key: Sign a message on its path.
+    Key(crate::wallet::MessageAt),
+}
+
+impl FoundIn {
+    /// What Sign a message takes of the find, if it offers it.
+    pub(crate) fn sign(&self) -> Option<&SignAt> {
+        match self {
+            FoundIn::Wallet { sign, .. } | FoundIn::Account { sign, .. } => sign.as_ref(),
+        }
+    }
+}
+
+/// The path of address `index` on a chain below `base`.
+fn leaf(base: &DerivationPath, change: bool, index: u32) -> Option<DerivationPath> {
+    use faraday_bip::bitcoin::bip32::ChildNumber;
+    Some(
+        base.child(ChildNumber::from_normal_idx(u32::from(change)).ok()?)
+            .child(ChildNumber::from_normal_idx(index).ok()?),
+    )
 }
 
 /// "m/84h/0h/0h/0/12": an account's path, the chain and the index.
@@ -138,24 +171,39 @@ impl Look {
             return;
         };
         self.found_in = if let Some(a) = self.account(w) {
+            let line = Text::fill(
+                crate::strings::EN.address_check_key_path,
+                &[
+                    &crate::wallet::fp_text(a.fingerprint),
+                    &full_path(&a.account, change, index),
+                ],
+            );
+            let sign = session
+                .keys
+                .position(a.fingerprint)
+                .and_then(|_| leaf(&a.account, change, index))
+                .map(|path| {
+                    SignAt::Key(crate::wallet::MessageAt {
+                        fingerprint: a.fingerprint,
+                        path,
+                        script: a.script_type,
+                        change,
+                        index,
+                        address: self.address.clone(),
+                        line: line.clone(),
+                    })
+                });
             Some(FoundIn::Account {
                 label: a.label.clone(),
                 script: a.script_type,
                 number: a.number,
-                line: Text::fill(
-                    crate::strings::EN.address_check_key_path,
-                    &[
-                        &crate::wallet::fp_text(a.fingerprint),
-                        &full_path(&a.account, change, index),
-                    ],
-                ),
+                line,
                 at: (a.fingerprint, a.account.clone()),
+                sign,
             })
         } else {
-            session.wallets.get(w).map(|wl| FoundIn::Wallet {
-                name: wl.name.clone(),
-                shape: Session::shape(wl),
-                keys: wl
+            session.wallets.get(w).map(|wl| {
+                let keys: Vec<Text> = wl
                     .policy()
                     .keys()
                     .iter()
@@ -168,9 +216,45 @@ impl Look {
                             ],
                         ))
                     })
-                    .collect(),
+                    .collect();
+                let sign = if !session.message_wallets().contains(&w) {
+                    None
+                } else if !change {
+                    Some(SignAt::Wallet(w, index))
+                } else {
+                    let single = wl.policy().keys().first();
+                    match (single, crate::wallet::Kind::of(wl.policy()), keys.first()) {
+                        (Some(k), crate::wallet::Kind::Single(script), Some(line)) => k
+                            .fingerprint()
+                            .zip(k.path())
+                            .and_then(|(fingerprint, origin)| {
+                                Some(SignAt::Key(crate::wallet::MessageAt {
+                                    fingerprint,
+                                    path: leaf(origin, true, index)?,
+                                    script,
+                                    change: true,
+                                    index,
+                                    address: self.address.clone(),
+                                    line: line.clone(),
+                                }))
+                            }),
+                        _ => None,
+                    }
+                };
+                FoundIn::Wallet {
+                    name: wl.name.clone(),
+                    shape: Session::shape(wl),
+                    sign,
+                    keys,
+                }
             })
         };
+    }
+
+    /// Whether the wallet at `place` is still the one the look began in.
+    pub(crate) fn same_wallet(&self, session: &Session, place: usize) -> bool {
+        matches!((self.loaded.get(place), session.wallets.get(place)),
+            (Some(c), Some(w)) if w.checksum() == c)
     }
 
     /// Costs an address derivation for each index of each chain of each

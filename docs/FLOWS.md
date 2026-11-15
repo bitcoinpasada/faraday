@@ -1159,6 +1159,14 @@ action:
   whether the first hundred found it or **Look further** did. A file of
   several addresses lists its finds and offers it on none of them; the
   address checked alone offers it.
+- **Check an address**, when its answer is an address of a single-key
+  wallet whose key is loaded here, or of a loaded key's standard account:
+  the answer's way over is **Sign a message with this address**. A
+  receive address of a wallet opens Sign a message on that wallet and
+  index; any other opens it on the key's path, the Address card showing
+  the address and its path. Its Address card is done and the message
+  next. Nothing else offers it: a multisig or watch-only wallet, a
+  wallet whose key is not loaded.
 
 The steps:
 

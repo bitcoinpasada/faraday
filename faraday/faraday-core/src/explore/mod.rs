@@ -93,7 +93,7 @@ type ReadingOf = (
 );
 
 /// The address of `pk` as `script` pays to it on `net`.
-fn address_of(
+pub(crate) fn address_of(
     pk: &CompressedPublicKey,
     script: ScriptType,
     net: faraday_bip::bitcoin::Network,

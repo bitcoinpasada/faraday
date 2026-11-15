@@ -3354,6 +3354,27 @@ pub struct MessageCheck {
     pub wallet: Option<(usize, bool, u32)>,
 }
 
+/// An address of a loaded key by its full path: what Sign a message signs
+/// for when the address check found it outside a wallet's receive chain.
+#[derive(Clone)]
+pub struct MessageAt {
+    /// The key's fingerprint.
+    pub fingerprint: Fingerprint,
+    /// The full path: the account or origin, the chain and the index.
+    pub path: faraday_bip::bitcoin::bip32::DerivationPath,
+    /// The script the address is of.
+    pub script: ScriptType,
+    /// Whether the address is on the change chain.
+    pub change: bool,
+    /// The address's index on its chain.
+    pub index: u32,
+    /// The address found, as the check shows it.
+    pub address: Text,
+    /// The key's fingerprint and the full path, as the check's Path row
+    /// says it.
+    pub line: Text,
+}
+
 impl Session {
     /// The single-key wallets a message can be signed for here.
     pub fn message_wallets(&self) -> Vec<usize> {
@@ -3418,6 +3439,47 @@ impl Session {
             .map_err(|e| Text::of(crate::state::message_error_text(e)))?;
         if signed.address != *self.address(c, w, false, index) {
             return Err(Text::fill(EN.wallet_not_your_key, &[&fp_text(fp)]));
+        }
+        Ok(signed)
+    }
+
+    /// Costs two key derivations (one to check, one inside the signing), an
+    /// address derivation and a signature. Signs `message` with the loaded
+    /// key at `at`'s path, once the address that key gives there on this
+    /// network is the address found.
+    pub fn sign_message_at(
+        &self,
+        c: &Compute,
+        at: &MessageAt,
+        message: &str,
+        format: faraday_psbt::message::Format,
+    ) -> Result<faraday_psbt::message::Signed, Text> {
+        let not_loaded = || Text::fill(EN.message_key_not_loaded, &[&fp_text(at.fingerprint)]);
+        let place = self.keys.position(at.fingerprint).ok_or_else(not_loaded)?;
+        let cannot = || Text::fill(EN.message_key_cannot_derive, &[&fp_text(at.fingerprint)]);
+        let gives = self
+            .keys
+            .xpub_at(c, place, &at.path)
+            .map(|x| {
+                let address = crate::explore::address_of(
+                    &faraday_bip::bitcoin::CompressedPublicKey(x.public_key),
+                    at.script,
+                    self.network().into(),
+                );
+                text!("{address}")
+            })
+            .ok_or_else(cannot)?;
+        let refused = || Text::fill(EN.message_key_not_this_address, &[&fp_text(at.fingerprint)]);
+        if gives != at.address {
+            return Err(refused());
+        }
+        let signed = self
+            .keys
+            .sign_message(c, place, &at.path, at.script, message, format)
+            .ok_or_else(not_loaded)?
+            .map_err(|e| Text::of(crate::state::message_error_text(e)))?;
+        if signed.address != at.address {
+            return Err(refused());
         }
         Ok(signed)
     }

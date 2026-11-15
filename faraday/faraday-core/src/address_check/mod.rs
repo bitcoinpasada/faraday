@@ -375,6 +375,25 @@ fn way(app: &mut Faraday, i: usize) {
         }
         Way::MakeWallet => make(app),
         Way::OpenWallet(place) => app.act(Action::OpenWallet(place)),
+        Way::SignAddress => sign(app),
+        _ => {}
+    }
+}
+
+/// Opens Sign a message on the address the result found, where a loaded
+/// key signs it.
+fn sign(app: &mut Faraday) {
+    let Some(look) = app.address_check_state().and_then(|s| s.look.as_ref()) else {
+        return;
+    };
+    let sign = look.found_in.as_ref().and_then(|f| f.sign().cloned());
+    match sign {
+        Some(crate::address_find::SignAt::Wallet(wallet, index))
+            if look.same_wallet(&app.session, wallet) =>
+        {
+            app.message_open_at(wallet, index);
+        }
+        Some(crate::address_find::SignAt::Key(at)) => app.message_open_path(at),
         _ => {}
     }
 }

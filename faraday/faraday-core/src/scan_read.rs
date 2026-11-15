@@ -493,6 +493,9 @@ pub enum Way {
     MakeWallet,
     /// The wallet made from that account, at this place, opened.
     OpenWallet(usize),
+    /// An address found in a single-key wallet whose key is loaded, or in
+    /// a loaded key's standard account: Sign a message opens on it.
+    SignAddress,
 }
 
 impl Way {
@@ -531,6 +534,7 @@ impl Way {
             Way::CheckAddress => Text::of(EN.read_go_address),
             Way::MakeWallet => Text::of(EN.explore_make_wallet),
             Way::OpenWallet(_) => Text::of(EN.explore_open_wallet),
+            Way::SignAddress => Text::of(EN.read_go_sign_address),
         }
     }
 

@@ -13,7 +13,7 @@ pub(crate) mod screen;
 pub(crate) use accounts::{Account, unmade};
 pub(crate) use card::{Answer, answer};
 pub use look::LookWay;
-pub(crate) use look::{FoundIn, Look};
+pub(crate) use look::{FoundIn, Look, SignAt};
 
 use faraday_bip::bitcoin::secp256k1::{Secp256k1, VerifyOnly};
 use faraday_bip::bitcoin::{Address, Network as BtcNetwork, ScriptBuf};

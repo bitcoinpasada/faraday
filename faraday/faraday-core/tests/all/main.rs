@@ -3,6 +3,7 @@
 mod about_link;
 mod address_look;
 mod address_page;
+mod address_sign;
 mod airgap;
 mod amounts;
 mod appearance;

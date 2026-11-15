@@ -53,13 +53,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(m) = app.message.state() else {
         return;
     };
-    let address = m.wallet.and_then(|w| app.session.wallets.get(w)).map(|w| {
-        if app.receive_held(w) {
-            crate::glance::RECEIVE_WARNING.to_string()
-        } else {
-            String::from(&*app.address_shown(w, false, m.index))
-        }
-    });
+    let address = if let Some(at) = m.at.as_ref() {
+        Some(String::from(&*at.address))
+    } else {
+        m.wallet.and_then(|w| app.session.wallets.get(w)).map(|w| {
+            if app.receive_held(w) {
+                crate::glance::RECEIVE_WARNING.to_string()
+            } else {
+                String::from(&*app.address_shown(w, false, m.index))
+            }
+        })
+    };
     let cards: Vec<flow::Card> = (0..4u8)
         .map(|k| flow::Card {
             title: MSTEPS[k as usize].to_string(),
@@ -126,45 +130,76 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     match n {
         mstep::ADDRESS => {
             let mut bx = x;
-            for wi in app.session.message_wallets() {
+            let wallets = app.session.message_wallets();
+            let any = !wallets.is_empty();
+            for wi in wallets {
                 let wl = &app.session.wallets[wi];
                 let style = Style::chosen(m.wallet == Some(wi));
                 bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi)) + 8.0;
             }
-            cy += 48.0;
-            if let Some(wl) = m.wallet.and_then(|wi| app.session.wallets.get(wi)) {
-                ui.text_mid_as(
-                    (x, cy, 36.0),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    &fill(EN.message_receive_address, &[&m.index.to_string()]),
-                );
-                ui.button(
-                    x + 170.0,
-                    cy,
-                    Some(40.0),
-                    BUTTON_H,
-                    "-",
-                    Style::Secondary,
-                    Action::MIndex(-1),
-                );
-                ui.button(
-                    x + 216.0,
-                    cy,
-                    Some(40.0),
-                    BUTTON_H,
-                    "+",
-                    Style::Secondary,
-                    Action::MIndex(1),
-                );
+            if any {
+                cy += 48.0;
+            }
+            let wallet = m.wallet.and_then(|wi| app.session.wallets.get(wi));
+            // What the card shows: the label's text, the address, and the
+            // path line when the address is of a key's own path.
+            let shown = match (m.at.as_ref(), wallet) {
+                (Some(at), _) => {
+                    let label = if at.change {
+                        EN.message_change_address
+                    } else {
+                        EN.message_receive_address
+                    };
+                    Some((
+                        fill(label, &[&at.index.to_string()]),
+                        at.address.clone(),
+                        false,
+                        Some(&at.line),
+                    ))
+                }
+                (None, Some(wl)) => {
+                    let (a, held) = app.receive_line(wl, false, m.index);
+                    Some((
+                        fill(EN.message_receive_address, &[&m.index.to_string()]),
+                        a,
+                        held,
+                        None,
+                    ))
+                }
+                (None, None) => None,
+            };
+            if let Some((label, address, held, line)) = shown {
+                ui.text_mid_as((x, cy, 36.0), BODY_S, Role::OnSurfaceVariant, &label);
+                if m.at.is_none() {
+                    ui.button(
+                        x + 170.0,
+                        cy,
+                        Some(40.0),
+                        BUTTON_H,
+                        "-",
+                        Style::Secondary,
+                        Action::MIndex(-1),
+                    );
+                    ui.button(
+                        x + 216.0,
+                        cy,
+                        Some(40.0),
+                        BUTTON_H,
+                        "+",
+                        Style::Secondary,
+                        Action::MIndex(1),
+                    );
+                }
                 cy += 46.0;
-                let (a, held) = app.receive_line(wl, false, m.index);
-                cy += ui.wrap_as(
-                    (x, cy, w),
-                    BODY_M.mono(),
-                    if held { Role::Warning } else { Role::OnSurface },
-                    &a,
-                ) + 12.0;
+                let role = if held { Role::Warning } else { Role::OnSurface };
+                let line = line.map(|l| l.replace(" · ", " ·\u{a0}"));
+                let mut rows = vec![(BODY_M.mono(), role, address.as_str())];
+                if let Some(line) = line.as_deref() {
+                    rows.push((BODY_S.mono(), Role::OnSurfaceVariant, line));
+                }
+                for (font, role, text) in rows {
+                    cy += ui.wrap_as((x, cy, w), font, role, text) + 12.0;
+                }
             }
             if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
                 cy += 48.0;
@@ -253,13 +288,14 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         mstep::FORMAT => {
-            let script = m
-                .wallet
-                .and_then(|wi| app.session.wallets.get(wi))
-                .and_then(|wl| match crate::wallet::Kind::of(wl.policy()) {
-                    crate::wallet::Kind::Single(t) => Some(t),
-                    _ => None,
-                });
+            let script = m.at.as_ref().map(|at| at.script).or_else(|| {
+                m.wallet
+                    .and_then(|wi| app.session.wallets.get(wi))
+                    .and_then(|wl| match crate::wallet::Kind::of(wl.policy()) {
+                        crate::wallet::Kind::Single(t) => Some(t),
+                        _ => None,
+                    })
+            });
             let allowed = script
                 .map(faraday_psbt::message::Format::for_script)
                 .unwrap_or(&[]);

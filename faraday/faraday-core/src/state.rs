@@ -975,6 +975,9 @@ pub struct MessageState {
     pub wallet: Option<usize>,
     /// The receive address's index.
     pub index: u32,
+    /// An address of a loaded key by its path, which the address check
+    /// found: signed for instead of a wallet's receive address.
+    pub at: Option<crate::wallet::MessageAt>,
     /// The message.
     pub text: faraday_text::Text,
     /// Typing goes to the message.
@@ -1074,13 +1077,15 @@ impl MessageArea {
             }
             Action::MWallet(i) => {
                 m.wallet = Some(i);
+                m.at = None;
                 m.index = 0;
                 m.signed = None;
             }
-            Action::MIndex(d) => {
+            Action::MIndex(d) if m.at.is_none() => {
                 m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
                 m.signed = None;
             }
+            Action::MIndex(_) => {}
             Action::MType => m.typing = !m.typing,
             Action::MFormat(b) => {
                 m.bip322 = b;
@@ -1174,14 +1179,21 @@ impl Faraday {
             }
             Action::MSign => {
                 if let Some(m) = self.message.state.as_mut()
-                    && let Some(w) = m.wallet
+                    && (m.at.is_some() || m.wallet.is_some())
                 {
                     let format = if m.bip322 {
                         faraday_psbt::message::Format::Bip322
                     } else {
                         faraday_psbt::message::Format::Bip137
                     };
-                    match self.session.sign_message(c, w, m.index, &m.text, format) {
+                    let made = match (&m.at, m.wallet) {
+                        (Some(at), _) => self.session.sign_message_at(c, at, &m.text, format),
+                        (None, Some(w)) => {
+                            self.session.sign_message(c, w, m.index, &m.text, format)
+                        }
+                        (None, None) => return,
+                    };
+                    match made {
                         Ok(signed) => {
                             m.signed = Some(signed);
                             m.out_name = None;
@@ -1290,6 +1302,46 @@ impl Faraday {
         true
     }
 
+    /// Opens Sign a message on receive address `index` of the wallet at
+    /// `wallet`, the address card done: the address check's **Sign a
+    /// message with this address**. Nothing opens for a wallet that is no
+    /// single-key wallet with its key loaded.
+    pub(crate) fn message_open_at(&mut self, wallet: usize, index: u32) {
+        if !self.session.message_wallets().contains(&wallet) {
+            return;
+        }
+        self.act(Action::SignMessage);
+        if let Some(m) = self.message.state.as_mut() {
+            m.wallet = Some(wallet);
+            m.index = index;
+            m.done[mstep::ADDRESS as usize] = true;
+            m.open = Some(mstep::TEXT);
+            m.typing = true;
+            m.scroll.follow = true;
+        }
+        self.message_format_fit();
+    }
+
+    /// Opens Sign a message on the address `at` of a loaded key, the
+    /// address card done: the address check's **Sign a message with this
+    /// address** for a find outside a wallet's receive chain. Nothing opens
+    /// for a key that is not loaded.
+    pub(crate) fn message_open_path(&mut self, at: crate::wallet::MessageAt) {
+        if self.session.keys.position(at.fingerprint).is_none() {
+            return;
+        }
+        self.act(Action::SignMessage);
+        if let Some(m) = self.message.state.as_mut() {
+            m.at = Some(at);
+            m.wallet = None;
+            m.done[mstep::ADDRESS as usize] = true;
+            m.open = Some(mstep::TEXT);
+            m.typing = true;
+            m.scroll.follow = true;
+        }
+        self.message_format_fit();
+    }
+
     /// Opens Sign a message with `text` as the message: the read card's
     /// **Sign this message**. Nothing opens for a code that is no UTF-8 or
     /// when no single-key wallet is loaded.
@@ -1314,14 +1366,18 @@ impl Faraday {
         let Some(m) = self.message.state.as_mut() else {
             return;
         };
-        let allowed = m
-            .wallet
-            .and_then(|w| self.session.wallets.get(w))
-            .and_then(|w| match crate::wallet::Kind::of(w.policy()) {
-                crate::wallet::Kind::Single(t) => Some(Format::for_script(t)),
-                _ => None,
-            })
-            .unwrap_or(&[]);
+        let allowed =
+            m.at.as_ref()
+                .map(|at| Format::for_script(at.script))
+                .or_else(|| {
+                    m.wallet
+                        .and_then(|w| self.session.wallets.get(w))
+                        .and_then(|w| match crate::wallet::Kind::of(w.policy()) {
+                            crate::wallet::Kind::Single(t) => Some(Format::for_script(t)),
+                            _ => None,
+                        })
+                })
+                .unwrap_or(&[]);
         let chosen = if m.bip322 {
             Format::Bip322
         } else {
