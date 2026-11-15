@@ -42,6 +42,7 @@ pub mod keyfile;
 mod keys;
 pub mod xml;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use aes::cipher::inout::InOutBuf;
@@ -492,7 +493,8 @@ fn strip_padding(body: &[u8]) -> Result<usize, Error> {
 /// The keys of a seal, worked out before anything is built: Argon2id has
 /// run and its memory is freed (F206 point 6).
 pub struct SealKeys {
-    keys: keys::Keys,
+    /// On the heap, so only the pointer moves, never the key bytes.
+    keys: Box<keys::Keys>,
     cost: Cost,
     /// The salt the file carries: `random`'s.
     salt: [u8; 32],

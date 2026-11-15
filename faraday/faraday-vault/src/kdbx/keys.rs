@@ -1,6 +1,7 @@
 //! The keys of a KDBX file (`docs/VAULT.md` §1.1) and the HMAC the
 //! header and the block stream are authenticated with.
 
+use alloc::boxed::Box;
 use argon2::Algorithm;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize};
@@ -99,29 +100,30 @@ pub(super) fn file_keys(
     kdf: Kdf,
     cost: &Cost,
     salt: &[u8],
-) -> Result<Keys, Error> {
+) -> Result<Box<Keys>, Error> {
     cost_in_limits(cost)?;
     let mut composite = composite_key(passphrase, components);
     let stretched = argon_run(c, kdf, cost, composite.expose(), salt);
     composite.zeroize();
     let mut t = stretched?;
 
+    // The keys are made in place in their heap holder and only the pointer
+    // moves out: no by-value move of the key bytes leaves a copy on the stack.
+    let mut keys = Box::new(Keys {
+        encryption: Secret::new([0u8; 32]),
+        hmac_base: Secret::new([0u8; 64]),
+    });
     let mut encryption = Sha256::new();
     encryption.update(master_seed);
     encryption.update(t.expose());
-    let mut encryption_key = Secret::new([0u8; 32]);
-    encryption.finalize_into(encryption_key.expose_mut().into());
+    encryption.finalize_into(keys.encryption.expose_mut().into());
     let mut base = Sha512::new();
     base.update(master_seed);
     base.update(t.expose());
     base.update([1u8]);
-    let mut hmac_base = Secret::new([0u8; 64]);
-    base.finalize_into(hmac_base.expose_mut().into());
+    base.finalize_into(keys.hmac_base.expose_mut().into());
     t.zeroize();
-    Ok(Keys {
-        encryption: encryption_key,
-        hmac_base,
-    })
+    Ok(keys)
 }
 
 /// Costs an Argon2 run, asked for so that a cost this machine cannot
