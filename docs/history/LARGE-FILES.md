@@ -1,8 +1,7 @@
 # Large files on a stick visit
 
-**Kind:** Spec
-**Status:** Not built (F26, amended by F30)
-**Open:** all of it (§12).
+**Kind:** History
+**Status:** Withdrawn (2026-11-15): not built and not planned; kept as written
 
 The problem it solves: a stick visit reads at most 18 MiB of a file
 (`faraday-codec` `MAX_READ`, which `faraday-files` re-exports). The figure bounds what one file, held

@@ -1,15 +1,14 @@
 # The backup flow
 
-**Kind:** Spec
-**Status:** Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet
-**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled)
+**Kind:** Reference
+**Status:** Built: GPG keys, the Secure Boot keys and the Bitcoin wallet
 
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
 the backup board F37).
 
 One guided flow makes and backs up every kind of secret Faraday keeps
 in a vault: a GPG key, a set
-of Secure Boot keys, a Nostr key (`docs/NOSTR.md`), and the keys of a
+of Secure Boot keys, and the keys of a
 Bitcoin wallet with its backup plan (`docs/history/NEW-WALLET.md`). The person
 first says where the key will be kept; Faraday reads every stick that
 plan uses while nothing secret is open; the vaults are unlocked or made;
@@ -19,11 +18,10 @@ first step to the last, and it never shows the stick visit page.
 
 **Why a document of its own.** Four of the five kinds are not wallets,
 and the Bitcoin wallet's plan uses the same steps around its own
-checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
-`docs/NOSTR.md` §5 and
+checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8 and
 `docs/FLOWS.md` decision 59 say where each kind enters it.
 
-## 0. Rules for the implementing agent
+## 0. Rules the flow keeps
 
 Rules still in force:
 
@@ -80,8 +78,7 @@ Rules still in force:
   **Bitcoin wallet** may have as many or as few places as the person
   likes, one included; when every secret of the wallet would sit at one
   place, the plan says so in `WARN` and strongly recommends keeping
-  them apart (§10.3). A **Nostr key** may have any number, none included,
-  with no warning. Places are added or removed at any time, part way
+  them apart (§10.3). Places are added or removed at any time, part way
   included (NEW-WALLET §14.4). The plan's check lines report what the
   places give; they do not block.
 - **Every form the plan allows**: a vault on a stick, paper (words,
@@ -95,8 +92,7 @@ Rules still in force:
   different; that is the extent of the check.
 - **What waits.** Signing waits for the writes for every key that cannot
   be made again from seed words: GPG keys, the
-  Secure Boot keys. A Nostr key is derived from the seed by BIP-85:
-  nothing waits. A Bitcoin key keeps NEW-WALLET §14.3's rule. A key in a
+  Secure Boot keys. A Bitcoin key keeps NEW-WALLET §14.3's rule. A key in a
   vault unlocked from a stick signs at once, so existing keys, the
   release's GPG key among them, are not held. A waiting key signs once
   every place its plan gives it is written, which is two or more.
@@ -134,9 +130,7 @@ vault, or give it a vault of its own; a key planned in two vaults is
 made into both. For GPG and Secure Boot keys a place can be
 removed only while more than two remain: the place count's control
 stops at two, and removing a place's stick leaves the place to be given
-another. A Nostr key's plan may have any number of places, none
-included; with none, the entry is saved into the vaults already open
-and no stick is written. It lives in the flow's state (§7), not in a
+another. The plan lives in the flow's state (§7), not in a
 record: once the flow is done, the vaults themselves hold the key.
 GPG's **Paperkey backup** stays on the key's page, outside the plan.
 
@@ -146,7 +140,6 @@ GPG's **Paperkey backup** stays on the key's page, outside the plan.
 |---|---|---|---|---|---|
 | GPG key | the primary key's fingerprint | Tools' **GPG key**, Vault contents' **Make a key** | name and email, expiry | the key's page | Sign a file, Renew |
 | Secure Boot keys | the owner GUID | Tools' **Secure Boot keys**, **Make keys** | PK, KEK, db | the Secure Boot screen | Enrolment files, Sign or check an image's Sign |
-| Nostr key | the npub | the Value card's **Save into a vault** | the Entry (NOSTR §5), with the key loaded | the saved entry's page | nothing |
 | A Bitcoin wallet's keys | the descriptor checksum and the fingerprints of keys made here | Make a new wallet, Restore, Back up (§10) | New key's seeds, or the restored seed | the wallet card and the checklist | spending, NEW-WALLET §14.3 |
 
 These tiles no longer ask for an open vault first (decision 10's "Make a
@@ -177,8 +170,7 @@ A step card of rows, a place's options as buttons under its row
   information.
 
 **Continue** is live whatever the count the kind allows (§1): two or
-more places for GPG and Secure Boot, one or more for a wallet, any
-for Nostr. A plan with no stick goes straight to step 4. A wallet's
+more places for GPG and Secure Boot, one or more for a wallet. A wallet's
 plan shows its check lines and, where they apply, §10.3's two lines.
 
 ### 4.2 Bring in the sticks
@@ -342,10 +334,7 @@ what was made and, a row per vault, "In Vault 1", "In Vault 2". For a
 wallet, New key makes each seed into memory and no vault is written to
 until Back up's plan says which seeds go into which vault (§10.2); a key
 kept only on paper is made and shown for copying, as today. Restore
-takes the seed typed or scanned, into memory the same way. A Nostr key needs
-its seed loaded: the unlock of step 3 loads the keys its vaults hold;
-any other is loaded as a key is (Add a key), and the npub is compared
-with the one chosen before the lock.
+takes the seed typed or scanned, into memory the same way.
 
 For a wallet, the rest of Make a new wallet, the rest of Back up's plan
 (paper, SeedQR, the sheet and shares, the descriptor's form and
@@ -387,7 +376,7 @@ stick of public files:
     the vault beside them, with no question, the vault being made;
   - two sticks in: "One stick at a time".
 - **Writing**: "Writing {file}", DESIGN §4.14's Progress where the write
-  goes in parts (`docs/LARGE-FILES.md`).
+  goes in parts.
 - **Written**: "Written and checked on {label}" in `OK`, the files and
   the stick's row ticked, and each checklist item whose file it was
   ticked "Written to {stick}"; **Pull the stick**.
@@ -448,7 +437,7 @@ inserted before step 2.
   **I destroyed this copy** (NEW-WALLET §14.4 item 1, §9.4).
 - **The minimums hold**: a GPG or Secure Boot plan keeps two
   places; the control to remove a place is not drawn at two. A wallet
-  may go to one place, with §10.3's warning; a Nostr key to none.
+  may go to one place, with §10.3's warning.
 
 ## 5. Screens, progress, leaving
 
@@ -577,7 +566,6 @@ and matched. A write made on the stick visit page does not count
   (§3) read **Back up first** and open the flow on its step.
 - **Once every place the plan gives the key is written**, they are
   themselves again, from the unlock **Done** leads to.
-- **Nostr** has the row and the flow, and nothing waits.
 - The gate reads the flow's state only; the vault carries no mark of
   the flow (§14 item 2).
 
@@ -892,8 +880,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
 - **What waits.** A key made in the flow: GPG's Sign a file
   and Renew, Secure Boot's Enrolment files read **Back up first**, and its
   Sign opens the flow, until every place is written, then work after the unlock;
-  the same keys unlocked from a stick work at once; a Nostr entry saved
-  in the flow exports at once.
+  the same keys unlocked from a stick work at once.
 - **Every form.** Example C writes three sticks, `main-2.kdbx` untouched;
   example D asks for two sticks only, checks Key 3's copy by typed
   words, and writes Vault 1, Vault 2 and the stick of public files;
@@ -910,8 +897,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   unlock from Place 1's stick: the key signs at once and no flow is
   offered.
 - **Places.** A GPG or Secure Boot plan cannot go below two
-  places; a Nostr plan of no place saves into the open vault and writes
-  no stick; a wallet plan of one place is accepted, with the warning
+  places; a wallet plan of one place is accepted, with the warning
   "Every secret of this wallet is at Place 1" under its check lines in
   the map panel and on the done card; a two-place single key with seed
   and passphrase at Place 1 shows it, and with them apart does not; a
@@ -941,7 +927,7 @@ The owner's answers (2026-10-14).
 
 1. **Places by kind**: two or more for GPG and Secure Boot keys,
    with no single-copy hold; one or more for a wallet, with §10.3's
-   warning; any number, none included, for Nostr.
+   warning.
 2. **A power-off between writes**: no mark in the vault and no refresh.
    The flow's state is in `/run/faraday` only and is gone at power-off;
    a key in a vault unlocked from a stick signs at once. A power-off

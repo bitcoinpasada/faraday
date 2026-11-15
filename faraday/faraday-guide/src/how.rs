@@ -1102,7 +1102,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("core/faraday-bip/src/bip85.rs", "derive"), c("faraday/faraday-keys/src/bip85.rs", "child")],
         secret: &[m("Reveal::Bip85Child"), p("The password's base64 is the base64ct crate's, which documents its encoding as constant time with respect to the data; its base85 is shown (§4.10)."), p("The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop. The copies bitcoin makes inside derivation are freed unwiped, until the next lock (docs/KEYS.md, what wiping does not reach).")],
         limits: &[p("Applications 2', 32', 39', 128169', 707764' and 707785' only; no DICE, RSA or Nostr 128002'."), p("Hex is 16 to 64 bytes, a base64 password 20 to 86 characters, a base85 password 10 to 80."), p("An index of 2^31 or more is refused.")],
-        own_calls: &[p("Nostr keys by application 128002' are not built. Neutral, F27.")],
+        own_calls: &[p("none")],
         screens: &["Bip85"],
     },
     Block {
@@ -1942,7 +1942,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("faraday/faraday-vault/src/file.rs", "create_holding"), c("faraday/faraday-keys/src/job.rs", "KdbxJob::run")],
         secret: &[p("none: no secret leaves faraday-keys"), p("The header's and every block's HMAC are compared in constant time (`verify_slice`); Argon2, SHA-2 and ChaCha20 state nothing more."), p("The Argon2id output, the composite key, the encryption key and the HMAC base are Secret values wiped on drop; the document is built in a zeroizing buffer and encrypted in place; the Argon2id memory is overwritten before release.")],
         limits: &[p("One entry, as large as the largest vault size (4 MiB of plain text) holds with the document around it; a larger one is refused as not fitting and no file is made. The entry comes from an open vault, whose file is no larger. KDBX states no limit of its own."), p("The file is a vault of the smallest size that holds it."), p("The export is as safe as its passphrase.")],
-        own_calls: &[p("Nostr entries are never exported (F27). Neutral, F27."), p("The file's seed, IV, salt, inner key and UUIDs are taken from the session's randomness, an answer for every 32 bytes. Neutral, F154.")],
+        own_calls: &[p("The file's seed, IV, salt, inner key and UUIDs are taken from the session's randomness, an answer for every 32 bytes. Neutral, F154.")],
         screens: &["VaultContents"],
     },
     Block {

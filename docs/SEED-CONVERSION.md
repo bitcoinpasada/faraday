@@ -442,7 +442,7 @@ vault or backup changes. Built: the core, `faraday-keys` and the screen.
 ## 9. Tests
 
 Each conversion against its standard's published vectors and against
-an implementation Faraday did not write (F160; `docs/CROSSCHECK.md` §3's
+an implementation Faraday did not write (F160; `docs/CROSSCHECK.md` §10's
 references, run
 through the cross-check (`tools/crosscheck/`), whose `slip39` area runs
 the set row below and the two codex32 ↔ SLIP-39 rows; a row whose reference the cross-check does not yet

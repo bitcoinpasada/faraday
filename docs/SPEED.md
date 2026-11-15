@@ -1,8 +1,7 @@
 # Speed in long flows
 
-**Kind:** Spec
+**Kind:** Reference
 **Status:** Built; the glyph cache measured (§3.8).
-**Open:** the glyph cache's least-recently-used eviction (§3.8), not scheduled: measured, a frame drawn again never misses, and a dense panel clears once in about ten screen visits.
 
 §2 and §7 are standing rules; §3.3, §8.3 and §9 to §13 say what holds now.
 
@@ -236,19 +235,13 @@ already holds, so its timing tells nothing new.
 `Language::index_of` is not changed (with this
 change nothing hot calls it).
 
-### 3.8 The glyph cache: measure first (issue 127)
+### 3.8 The glyph cache
 
 Measured with a harness outside the repository (§4): at scale 2 on the
 desktop window's default size, the number of times `GlyphCache::clear`
 runs per frame on the checklist, the Wallets page and the create flow.
 The harness counts with a temporary patch; nothing is committed for the
 measurement.
-
-If a screen clears the cache on every frame: the cache evicts the least
-recently used glyphs until the new one fits, in place of clearing
-everything, and `CACHE_BUDGET` becomes 1 MB. That is a change to
-`core/faraday-draw`. If no screen clears it every frame,
-nothing changes and the issue is closed with the numbers.
 
 Measured 2026-10-16 at 2560×1600 scale 2: no screen (the checklist at
 every stage, the Wallets page, Create's Keys card) cleared the cache, in
@@ -265,7 +258,7 @@ cache: Home 1.7, 4.7 and 6.4 ms at scale 1, 2560 × 1600 and 3200 × 1800;
 the backup board 4.0, 11.1 and 15.1 ms. Evicting the least-recently-used
 glyphs until a new one fits (`GlyphCache::glyph`,
 `core/faraday-draw/src/fonts/mod.rs`) instead of `clear()` would remove
-that one slow frame; not scheduled.
+that one slow frame; the cache clears as it does.
 
 The app's name and its mark (2026-10-29) are kept as glyphs are: each
 canvas fills FARADAY, the word of the app beside it or under it, and

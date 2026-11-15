@@ -368,7 +368,7 @@ completeness = "12 and 24 words; English only, as the specification assumes; 16 
 id = "bip85"
 section = 3
 what = "BIP 85 (`core/faraday-bip/src/bip85.rs`)"
-completeness = "Applications 2', 32', 39', 128169', 707764', 707785'; no DICE, RSA or Nostr 128002' (F27)"
+completeness = "Applications 2', 32', 39', 128169', 707764', 707785'; no DICE, RSA or Nostr 128002'"
 
 [[row]]
 id = "electrum-seeds"
@@ -487,16 +487,6 @@ section = 4
 what = "Compare two PSBTs and the fee bump (`docs/COMPARE.md`)"
 completeness = "Faraday's own rules for whether a replacement only raises the fee of an original, checked against what Bitcoin Core's `psbtbumpfee` makes (`tools/vectors/psbt/bump-core-*`); BIP-125's relay rules are stated or left to the node, not checked (`docs/COMPARE.md` §3.5)"
 standard_note = "Faraday's review rules"
-
-[[row]]
-id = "anti-exfil"
-section = 4
-what = "Anti-exfil"
-completeness = "Not built; planned in dev builds only (`docs/ANTI-EXFIL.md`, F162)"
-no_action = "Not built."
-standard = "libsecp256k1-zkp `ecdsa_s2c`; FractalEncrypt's four-stage exchange over QR (alpha, unpublished)"
-verified = "None"
-own = "None"
 
 [[row]]
 id = "message-signing"
@@ -676,16 +666,6 @@ id = "hash-primitives"
 section = 5
 what = "Hash, MAC and key-stretching functions (`core/faraday-crypto`)"
 completeness = "SHA-256, HMAC-SHA256 and -SHA512, PBKDF2 through vetted crates; scrypt written here"
-
-[[row]]
-id = "nostr-key"
-section = 5
-what = "Nostr key"
-completeness = "Not built (`docs/NOSTR.md`)"
-no_action = "Not built."
-standard = "BIP 85 128002' (Deployed), NIP-19, NIP-49"
-verified = "None"
-own = "None"
 
 [[row]]
 id = "selftest"
@@ -3974,11 +3954,6 @@ lines = [
   "Hex is 16 to 64 bytes, a base64 password 20 to 86 characters, a base85 password 10 to 80.",
   "An index of 2^31 or more is refused.",
 ]
-
-[[action.own]]
-text = "Nostr keys by application 128002' are not built."
-kind = "Neutral"
-decision = "F27"
 
 [action.review]
 places = [
@@ -8580,11 +8555,6 @@ lines = [
   "The file is a vault of the smallest size that holds it.",
   "The export is as safe as its passphrase.",
 ]
-
-[[action.own]]
-text = "Nostr entries are never exported (F27)."
-kind = "Neutral"
-decision = "F27"
 
 [[action.own]]
 text = "The file's seed, IV, salt, inner key and UUIDs are taken from the session's randomness, an answer for every 32 bytes."

@@ -58,9 +58,7 @@ action in §4 is live on a test network, which is how a developer tries
 Make flows without a stick. A key made there is a real key made on an
 online computer; the line under every field that takes a seed or a secret
 is the guard, in every mode, and the released files are named testnet
-only (F81). F27's rule is
-separate and stands: no Nostr key while `Faraday::online` is set, on
-any network.
+only (F81).
 
 ## 3. What makes a secret
 
@@ -103,7 +101,6 @@ Testnet, Signet and Regtest included.
 | **Show** for the node's private key | Lightning node key | a node's private key, on screen |
 | **Save into {vault}** and **Out unprotected…** for the node's private key | Lightning node key | a node's private key |
 | **Save into {vault}** and **Out unprotected…** for the scan key | Silent payments | a scan key |
-| The Nostr key | none | already absent under `Faraday::online` and in Practice (F27) |
 
 Each screen above opens in Practice. Its other cards, choices and
 public values work; only the actions in the table are disabled.

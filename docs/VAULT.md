@@ -392,9 +392,8 @@ that runs them on four threads opens it faster.
 (the file and a sealed copy beside it while it is written), plus 100 MiB
 (`APP_MIB`) for the contents and the app. One function in
 `faraday-core` gives it from the memory and the size, as
-`vault_need_mib` does today; Unlock's check, Create's choice for **This
-computer** and the import rule of `docs/LARGE-FILES.md` §4.1 all use
-it. On Faraday the whole system is a few tens of megabytes in RAM; on
+`vault_need_mib` does today; Unlock's check, and Create's choice for **This
+computer** all use it. On Faraday the whole system is a few tens of megabytes in RAM; on
 another operating system, or in a KeePass app or `sq` on a desktop, the margin is
 whatever that system leaves free.
 

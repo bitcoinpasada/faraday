@@ -1,8 +1,8 @@
 # A second implementation of each cryptographic step
 
 **Kind:** Spec
-**Status:** Option A decided (F79) and built, §10.5 items 1 to 6; options B and C deferred
-**Open:** the references of Faraday's own replaced by outside code (§10.7), planned; B and C wait for the owner (§9).
+**Status:** Option A decided (F79) and built, §10.5 items 1 to 6
+**Open:** the references of Faraday's own replaced by outside code (§10.7), planned.
 
 ## 1. The idea
 
@@ -19,147 +19,6 @@ compare Faraday's Rust with code other people wrote, and the rest with
 second implementations Faraday's own authors wrote in Python, which are
 not checked against an outside source (F160, F177). §10.7 says which and
 what replaces them.
-
-## 2. What Faraday is made of
-
-Faraday is partly its own Rust and partly libraries. Which part a
-result comes from decides what a second implementation has to differ from.
-
-| Part | Where it comes from |
-|---|---|
-| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), silent payments (BIP-352), the descriptor and wallet-policy layer | Faraday's own Rust, in `faraday-bip` |
-| Transactions, PSBT (BIP-174, 370), BIP-32 derivation, sighash (BIP-143, 341), addresses, script | `rust-bitcoin` 0.32 |
-| Descriptors and miniscript parsing and satisfaction | `rust-miniscript` 12 |
-| ECDSA and Schnorr signing and verifying, all curve arithmetic | `rust-secp256k1`, which wraps Bitcoin Core's C library `libsecp256k1` |
-| SHA-2, HMAC, PBKDF2, Argon2id, ChaCha20-Poly1305 | the RustCrypto crates |
-
-Most "other" Bitcoin libraries also call `libsecp256k1`: libwally,
-python-bitcoinlib, python-bitcointx, and embit when its C binding is
-present. A second implementation that uses it agrees with Faraday on the
-curve by construction and checks only the layers above. An outside check
-of the curve itself needs one of the implementations that do their own
-arithmetic.
-
-The lineage is narrower still. libsecp256k1's developers (Pieter Wuille
-among them) also wrote
-Core's test framework's `key.py`, `secp256k1lab` and the BIP-340, 327 and
-352 reference code, so every curve check today sets code from one small
-group of authors against more of its own. Every miniscript
-implementation but one, rust-miniscript, Core's and python-bip380, comes from one
-group too; btclib-wallet's descriptors and miniscript (built, ESTABLISHED
-§9.7, X18) are the other, and judge the scripts, the types and the
-satisfaction of descriptors beside them. The curve's lineage is accepted
-(owner, 2026-10-29, F160); btclib and python-ecdsa, which share nothing
-with that group, are the second lineage for the curve (§10.7).
-
-## 3. Candidate second implementations
-
-| Candidate | Language | Curve arithmetic | Covers | Notes |
-|---|---|---|---|---|
-| Bitcoin Core's functional-test framework (`test_framework/key.py`, `script.py`, `messages.py`, `descriptors.py`) | Python | its own, pure Python | ECDSA with RFC 6979, BIP-340 Schnorr, every sighash, transaction serialisation, descriptor checksums | Written by Core's developers; no dependencies; slow |
-| The BIPs' own reference code (BIP-340, 327 MuSig2, 352 silent payments, 93 codex32) | Python | pure Python | exactly the BIP each comes with | Written by the BIPs' authors: the strongest second opinion for those BIPs |
-| `python-mnemonic` (Trezor) | Python | none needed | BIP-39 | The BIP's reference implementation |
-| `python-shamir-mnemonic` (Trezor) | Python | none needed | SLIP-39 | The SLIP's reference implementation |
-| embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
-| noble-curves, scure-bip32/39, btc-signer | JavaScript | its own, audited | the same set as embit | Needs a JavaScript engine (QuickJS is about 1 MB) |
-| btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | In `tools/reference/lnd/`, built by `run.sh` over the Go modules its `go.sum` pins, fetched once per machine; the `lightning` area asks it |
-| `argon2-cffi` | Python over C | n/a | Argon2id (the PHC reference C) | Outside RustCrypto's lineage |
-| pykeepass | Python | pure Python | KDBX 4 | `tools/vault/open.py` opens a vault this way |
-
-## 4. What can be computed twice
-
-| Operation | Standards | Needs a secret | Second implementation |
-|---|---|---|---|
-| Seed from words | BIP-39 | yes | python-mnemonic |
-| Master fingerprint, account xpub, child keys | BIP-32, 44, 48, 49, 84, 86 | from a seed: yes; from an xpub: no | btclib-wallet's `bip32` on btclib's own curve (`bip32_ref.py`), and Core itself for addresses |
-| Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core itself (`deriveaddresses`), and btclib-wallet's descriptors (`descriptor_ref.py`) for the script at an index, the kind and the text |
-| Descriptor checksum | BIP-380 | no | Core's `descriptors.py`, BIP 380's own code and btclib's |
-| Which keys and lock times spend a wallet | BIP-379, 68, 65 | no | btclib-wallet's miniscript satisfaction (`Descriptor.satisfy` with a `SpendContext`) |
-| What a compiled policy means | BIP-379 | no | the policy and the miniscript python-bip380 reads, compared as boolean formulas over the keys and waits (area `compile`; the lift is Faraday's second version) |
-| Sighash of each input | BIP-143, 341, 342 | no | Core's `script.py` |
-| Signature verification | ECDSA, BIP-340 | no | Core's `key.py`; for the signatures on a PSBT, python-ecdsa and btclib over btclib's sighashes, btclib's script engine for complete inputs and Core's `finalizepsbt` and `testmempoolaccept` beside them (area `sign-check`; the report of a reused nonce is Faraday's second version). Core's rules there: a partial input's PSBT sighash-type field is written when its signatures share a non-ALL type, an input with mixed types is not asked of Core, and an input that arrives final is judged by `testmempoolaccept` on the extracted transaction, not by `finalizepsbt`'s `complete`. One known failure of Faraday is held: a finalized taproot signature of 65 bytes ending in 0x00 is called valid, until it is refused |
-| Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |
-| Transaction id, finished transaction | BIP-141, 144 | no | Core's `messages.py` |
-| MuSig2 aggregate key, tweaks, nonces, partial signatures and their aggregate, BIP-373's PSBT roles, `musig()` descriptors | BIP-327, 328, 373, 390 | no | the BIP's reference code, btclib's MuSig2 and btclib-wallet's BIP-373 roles on btclib's own curve, and Core's `deriveaddresses` for the descriptors (Core's musig module is libsecp256k1's, as Faraday's point operations are, so it judges the descriptors and addresses, not the curve maths) |
-| Silent payment address, output detection | BIP-352 | scan key: yes | the BIP's reference code |
-| Child seeds and passwords | BIP-85 | yes | its reference implementation |
-| SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
-| Codex32 sets made (secret and derived shares, checksum worksheets) and error correction | BIP-93 | yes | BIP 93's reference code and python-codex32 (`tools/crosscheck/area_codex32.py`, `tools/crosscheck/area_codex32_correct.py`) |
-| Signed message | BIP-322, 137 | signing: yes; checking: no | Core's `signmessagewithprivkey` and btclib for BIP-137; Core has no BIP-322, which needs an outside implementation of its own (§10.7) |
-| Vault cost, passphrase and payload layouts | Argon2id, NFC, §7's payloads | yes | argon2-cffi for Argon2id, Python's `unicodedata` and the area's own §7 layouts; the KDBX file is written by Faraday and read by pykeepass and `keepassxc-cli`, and written by them and read by Faraday; keepass-rs also reads and writes the file, for the format only (`docs/VAULT.md` §10) |
-
-Not worth computing twice: drawing randomness (only its conversion from
-dice, coins or cards is deterministic, and that can be checked), reading QR
-codes, and the screens.
-
-## 5. Where the second implementation runs
-
-**A. At build time, in `just`.** A differential test runs Faraday and
-the Python references side by side over many random inputs and every
-published vector: words, paths, descriptors, transactions, signatures.
-It adds nothing to the stick, costs nothing at run time, and catches most
-implementation bugs before a build. It does not catch a dependency changed
-after the build, or a fault on the machine at hand.
-
-**B. At run time, public data only.** A verifier process on the stick,
-started by the app, with its own user, no files and no network: it
-receives public inputs over a pipe and returns its results. Every check in
-§4 that needs no secret runs here, which covers addresses, checksums,
-sighashes, signature verification, transaction ids and the MuSig2
-public steps.
-
-**C. At run time, secrets too.** The same process also receives seeds and
-private keys, for seed to fingerprint, signature recomputation, BIP-85 and
-the share schemes.
-
-## 6. On screen
-
-Each result that was computed twice carries a small mark beside it:
-"✓ Rust · ✓ Python", in green when they agree. Pressing it lists the
-implementations, their versions and what each produced. A result computed
-once carries "Rust only". A disagreement is red, names both results, and
-stops what depends on it: no export, no signing, no loading of the wallet.
-
-## 7. Costs and risks
-
-- **More code trusted.** CPython is about 20 MB in a Buildroot image;
-  MicroPython well under 1 MB. Either is more code in the image and in the
-  reproducible build, pinned and hashed like everything else.
-- **Secrets in a second language.** Python cannot reliably wipe a seed:
-  strings are immutable and copied by the runtime. The lock cycle still
-  ends the process and the kernel zeroes its memory (`docs/SECURITY-MODEL.md` "Stateless"), but
-  between locks the seed would sit in a second process's heap. This is the
-  cost of option C, and the reason to keep it separate from B.
-- **Speed.** Pure-Python curve arithmetic takes tens of milliseconds an
-  operation on a laptop and more on a Pi. Enough for the handful of
-  results on one screen; too slow for a search over hundreds of addresses
-  or a vanity search, which stay single.
-- **Agreement is not proof.** Two implementations can share a
-  misreading of a BIP; the BIPs' own reference code and published vectors
-  are the defence there. Where the reference is a second implementation Faraday's own
-  authors wrote, a shared misreading is likelier, and the published
-  vectors are the only defence (§10.7).
-
-## 8. Recommendation, and what was decided
-
-1. A first: build-time differential tests against the Python references.
-   Cheapest, catches the most. **Decided** (F79): §10.
-2. B next: the run-time verifier for public data, with the mark on screen.
-   **Deferred** (F79).
-3. C last, behind a setting, once the owner accepts a second process
-   holding seeds. **Deferred** (F79).
-
-The stick's boot partition is 64 MiB (F80), so B or C can still add an
-interpreter to the boot file later without a new layout.
-
-## 9. Open questions for the owner
-
-Only for B and C, when they come back:
-
-1. Stick image first, or the desktop app first?
-2. MicroPython (small, fewer libraries) or CPython (larger, every library
-   in §3)?
-3. Should the second implementation ever receive seeds (option C)?
 
 ## 10. The build-time cross-check (option A)
 
@@ -222,7 +81,7 @@ reviewed outside Faraday" until an outside review (F160, F177, STANDARDS
 test-only Rust command, never shipped in an image or app, reads one
 request a line on stdin and answers one line on stdout: the operation,
 its inputs and Faraday's result. A Python script sends the requests,
-recomputes each result with the area's reference (code from §3, or a
+recomputes each result with the area's reference (code other people wrote, or a
 second implementation Faraday's authors wrote, §10), and stops at the first disagreement,
 naming the operation, the inputs and both results.
 
@@ -416,7 +275,7 @@ The cross-check fetches nothing, ever.
 ### 10.6 What it does not catch
 
 - A library changed after the build, or a fault on the machine that
-  signs; only option B catches those.
+  signs; the cross-check runs at build time only.
 - A misreading of a BIP that both implementations share; the BIPs' own
   reference code and the published vectors are the defence there.
 - A misreading shared by Faraday's Rust and a second implementation, in Python, written by
@@ -456,7 +315,7 @@ built in, are ESTABLISHED §9 (F192).
    strict decoding, BIP-137's other headers, and BIP-340 with its
    randomness given. **python-ecdsa** (the distribution's package): every
    ECDSA signature again under RFC 6979, byte for byte. Both outside the
-   libsecp256k1 lineage (§2).
+   libsecp256k1 lineage.
 3. **HWI's `psbt.py`** (vendored): version 2 PSBTs, which Core refuses.
 4. **PyCA `cryptography`** (the distribution's package): the vault's
    HKDF-SHA256 and the ChaCha20 block.

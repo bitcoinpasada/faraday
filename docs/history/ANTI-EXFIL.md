@@ -1,8 +1,7 @@
 # Anti-exfil
 
-**Kind:** Spec
-**Status:** Planned, not built; experimental, for dev builds only, compiled out of every shipped app (F162)
-**Open:** all of it: Faraday as the host that checks a signer (§4) first, keeping a protected key (§2.1), Faraday as a signer a host checks (§5) second, the Nonce check's reading of an exchange (§6), the encoding and the draft BIP (§7), and the tests (§8)
+**Kind:** History
+**Status:** Withdrawn (2026-11-15): not built and not planned; kept as written
 
 The problem it solves: a signer that chooses its own nonce can hide the
 private key in it, and the signature it makes that way verifies like an

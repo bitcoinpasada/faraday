@@ -77,7 +77,6 @@ need. Each document's header says what kind it is:
 | For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below) |
-| How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
 | How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
@@ -92,6 +91,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 **Reference**
 
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
+- `docs/BACKUP-FLOW.md`: The backup flow. Built: GPG keys, the Secure Boot keys and the Bitcoin wallet.
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built.
 - `docs/COMPARE.md`: Compare two PSBTs, and the fee bump. Built (F233).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
@@ -115,6 +115,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/SECRET-LEAKS.md`: Secret leaks: tests that fail on a secret left in memory or on screen. Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built.
+- `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Built (F174, F182): the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1).
@@ -129,10 +130,8 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 **Spec**
 
-- `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not built; experimental, for dev builds only, compiled out of every shipped app (F162).
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19), except the Audits page's part of §10 (F160).
-- `docs/BACKUP-FLOW.md`: The backup flow. Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet.
-- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step. Option A decided (F79) and built, §10.5 items 1 to 6; options B and C deferred.
+- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step. Option A decided (F79) and built, §10.5 items 1 to 6.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`.
 - `docs/DESIGN.md`: Design system. Built but for the items under Open.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118, `faraday/faraday-host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card; it runs inside Faraday Starter's window, under the Starter's top app bar (§1, F126).
@@ -140,12 +139,9 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/FRAMES.md`: Frames at the panel's rate. Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file, the Backups screen's list and the wallet chart kept across moved frames and the shell's calls to the disk process on a thread of their own, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; §2 lists what works; §5 is built except Electrum seed words.
-- `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/LAYOUT.md`: Layout at every window size. Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Guide in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/SIGNER-CHECK.md`: Check a signer. Built but for §11; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
-- `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
 
@@ -216,7 +212,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 | For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below) |
-| How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
 | How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
@@ -261,8 +256,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 **Spec**
 
-- `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
-- `docs/BACKUP-FLOW.md`: The backup flow. Partly built: the Nostr key's part is open.
+- `docs/BACKUP-FLOW.md`: The backup flow. Built: GPG keys, the Secure Boot keys and the Bitcoin wallet.
 - `docs/DESIGN.md`: Design system. Built but for the Check place (§5, F255), My seed makes my wallet's screen and Check a multisig setup's row and Tools tile among it.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
@@ -270,7 +264,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92) but for Check on the rails and Home's Check tile (F255): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
-- `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
 - `docs/MODES.md`: Modes, Practice and samples. Built here (F81), except the website.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
@@ -279,10 +272,9 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. The worker, the shells' wake, the busy screen, the vault stretches, PSBT signing and read, the backup checklist and more are built; the rest of the jobs (§9) are open.
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
-- `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/SECRET-LEAKS.md`: Tests that fail on a secret left in memory or on screen: a test-only allocator that scans freed and live blocks for the test secrets' forms, the tours' check of the frame after Lock, a hide or leaving a page, the secret types' rules and the named entries that let a known copy through (F250). Built; the files that name a secret type and still build heap text are later work.
 - `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included, but for the one flow for two PSBTs (§11), Compare two PSBTs folded into it.
-- `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
+- `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
 

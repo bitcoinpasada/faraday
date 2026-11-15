@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Check a seed against it for a seed typed or scanned, Add this wallet, and Faraday Demo's Paste)
+**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Check a seed against it for a seed typed or scanned, Add this wallet, and Faraday Demo's Paste)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -580,9 +580,7 @@ with a checkbox and what it is by its name ("PSBT, by its name ·
 all** above them →
 - **Import** (disabled while nothing is ticked, and while the stick is
   out: "Put the stick back in to import") → the ticked files, and no
-  other, read from the stick, a file over 18 MiB failing its read (F26,
-  specified, not built: over 64 MiB, counted and left for a stick
-  visit), a PNG as what its QR codes hold; the sheet lists them, "3 of 5
+  other, read from the stick, a file over 18 MiB failing its read, a PNG as what its QR codes hold; the sheet lists them, "3 of 5
   files read", its ticks fixed → once all are answered, what they held
   comes in, with "Imported 1 wallet · 2 keys · 5 files" (and "· 1 not
   read" when the stick went first): the files From the stick, their
@@ -752,12 +750,7 @@ to use {stick}" and no pane.
   across images; the picture itself comes in too, as it came, to be
   written to another stick. A JPEG's codes are not read; it comes in as
   a File. A file over 18 MiB is listed and cannot be ticked.
-  (F26, `docs/LARGE-FILES.md`; specified, not built.) A file over 64 MiB
-  is listed unticked with its size; ticking it opens the sheet of
-  §3 there: **Import the whole file** (with Size, Free after importing
-  and what the vault needs; refused where it would leave too little to
-  open one) or **Import only what signing needs** (a signing-only entry
-  in Files: Sign a file, Delete, nothing else). A
+  A
   long read shows its progress and **Stop**. A pending signed file (§7
   there) is a row For the stick, ticked when this stick holds its
   source, else "Needs {source name} on this stick"; it is written with
@@ -1130,39 +1123,6 @@ vault's db certificate.
 ## APK signing key
 
 Removed (F99).
-
-## Nostr key
-
-(`docs/NOSTR.md`, F27; specified, not built.) BIP-85 application
-128002', on the stick and the Pi only: Faraday Demo has no Nostr
-key on any network, and Practice has none. Needs a loaded key: with
-none, Tools' **Nostr key** tile reads "Load a key", as Child seeds and
-passwords does.
-
-The tile opens the BIP-85 screen with Nostr chosen → Key (skipped with
-one key loaded) → **Identity and account** (1 and 1, filled in; 0 and
-anything above 2147483647 refused; **Find a pair**: the npubs of
-identities 1 to 5 at account 1 and accounts 1 to 5 at the identity
-typed, a tap picks the pair) → **Value**: the path, the npub with
-**Show as QR** and **PNG**, the nsec masked until **Show** and never a
-code or a file → **Save into {vault}** (an Entry; no vault open:
-decision 10's way into making or unlocking one, and back; or the
-backup flow of decision 59, any number of places, none included, with
-nothing waiting for it) or **Export
-encrypted…** (Password and Again, 12 printable characters or more →
-"Encrypting" → `ncryptsec1…` as text, **Show as QR**, **PNG** and **For
-the stick**, sealed). There is no **Out unprotected…**: the
-ncryptsec is the only way the nsec leaves. Files and labels are named
-by the npub's first 13 characters, never by the key's fingerprint or
-the two numbers. The BIP-85 tile's Application card lists Nostr
-seventh and leads to the same cards.
-
-A saved Nostr entry's page in Vault contents adds **Show as QR** and
-**PNG** for its npub, **Export encrypted…**, and, with its key loaded,
-a **Path** row saying whether the notes' path gives the entry's key. An
-Entry holding an nsec has no **Export for KeePass**. A file holding an
-nsec is a secret in Files with no code and no way For the stick; its
-**Save into {vault}** makes a Nostr entry.
 
 ## Explore
 

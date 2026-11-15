@@ -40,8 +40,8 @@ Read this table, then only the decision you need.
 | [F23](decisions/F23.md) | The PC stick's kernel is 6.18 longterm, ahead of upstream's | 2026-10-14 | Active | stick |
 | [F24](decisions/F24.md) | The stick's reminders come before the first secret, not at start | 2026-10-14 | Active | stick |
 | [F25](history/decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Replaced by F99 | signing |
-| [F26](decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
-| [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
+| [F26](history/decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Withdrawn | stick |
+| [F27](history/decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Withdrawn | keys |
 | [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123, F215, F236 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83, F247 | release |
@@ -176,7 +176,7 @@ Read this table, then only the decision you need.
 | [F159](history/decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Superseded by F190 | security |
 | [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190, F192 | crypto |
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
-| [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Amended by F176 | crypto |
+| [F162](history/decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Withdrawn | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
 | [F164](history/decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Superseded by F268 | crypto |
 | [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |
@@ -190,7 +190,7 @@ Read this table, then only the decision you need.
 | [F173](decisions/F173.md) | A TOTP setup code read with no vault open shows the read card: Unlock {vault}, the code carried, or Make a vault, the code not kept | 2026-10-29 | Active | keys |
 | [F174](decisions/F174.md) | A stick or card does not say it is Faraday's: plain names, its own IDs, known by its layout | 2026-10-30 | Amended by F182, F247 | stick |
 | [F175](decisions/F175.md) | The vaults and the sticks are laid out together, and each stick is drawn as it comes in | 2026-10-30 | Active | backup |
-| [F176](decisions/F176.md) | Anti-exfil names two levels, checked signature and protected key; Faraday as host keeps the second, with rho in memory only and aborts counted in the vault; the reveal never in a PSBT | 2026-10-30 | Active | crypto |
+| [F176](history/decisions/F176.md) | Anti-exfil names two levels, checked signature and protected key; Faraday as host keeps the second, with rho in memory only and aborts counted in the vault; the reveal never in a PSBT | 2026-10-30 | Withdrawn | crypto |
 | [F177](decisions/F177.md) | Each Cryptography block says whose specification, whose implementation and whose check an action rests on, each own or outside | 2026-10-30 | Amended by F179 | crypto |
 | [F178](decisions/F178.md) | Established implementations first: Faraday writes its own only where none exists or none fits its key rules, and says why | 2026-10-30 | Amended by F180, F191 | crypto |
 | [F179](decisions/F179.md) | A Cryptography block's fields are Specification and Code; "implementation" names only a cross-check's second program | 2026-10-30 | Active | crypto |

@@ -8,8 +8,7 @@ A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
 only what it was asked: added signatures, or finalized an input from
 signatures that verify. Anything else is a finding. The decision is
-F84 (`docs/DECISIONS.md`); nonces chosen by a signer that holds no
-seed here are `docs/ANTI-EXFIL.md`, which this flow comes before.
+F84 (`docs/DECISIONS.md`); a signer's choice of nonces is not checked here.
 
 ## 1. The rule
 
@@ -420,8 +419,6 @@ named by its key type and sizes; nothing of its content is shown.
 A proprietary prefix is the device's own text and is not shown: its
 length is. Faraday's own `osk` records (blocked on input, F127)
 never leave in a PSBT, so one on a Returned PSBT is P3 like any other.
-Anti-exfil's pairs, when built (`docs/ANTI-EXFIL.md` §7), become known
-pairs with checks of their own.
 
 ### 6.7 The file's bytes
 

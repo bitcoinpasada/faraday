@@ -1,8 +1,7 @@
 # The Nostr key
 
-**Kind:** Spec
-**Status:** Not built, not scheduled (F27, amended by F34)
-**Open:** all of it (§11), built only when the owner says.
+**Kind:** History
+**Status:** Withdrawn (2026-11-15): not built and not planned; kept as written
 
 The problem it solves: a Nostr identity is one secp256k1 key, and a
 person who loses it loses the identity. BIP-85 2.1.0 (2026-08-02) adds
