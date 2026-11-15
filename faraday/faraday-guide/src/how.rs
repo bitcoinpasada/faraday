@@ -758,7 +758,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys are used; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("An address index of 2^31 or more is refused."), p("A search looks only as far as the index it is given."), p("A search keeps its first 50 matches and counts the rest.")],
         own_calls: &[p("none")],
-        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools", "SeedCheck"],
+        screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools", "SeedCheck", "MultisigCheck"],
     },
     Block {
         id: "descriptor",
@@ -773,7 +773,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys and public text are read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("A threshold above the keys, a key repeated, a key with no origin outside a single-key template, and a miniscript that is not sane are refused."), p("A key expression's derivation must be /** or /<0;1>/*."), p("Multisig takes at most 15 keys.")],
         own_calls: &[p("Only BIP 341's H, or an extended key over H, counts as an unspendable internal key. Conservative, F132."), p("One text is written, with h for hardened. Neutral, F66.")],
-        screens: &["CoreWallet", "Wallets", "WalletsStart", "Files", "Restore", "Create", "Tools", "Explore", "Silent", "VaultContents", "SeedCheck"],
+        screens: &["CoreWallet", "Wallets", "WalletsStart", "Files", "Restore", "Create", "Tools", "Explore", "Silent", "VaultContents", "SeedCheck", "MultisigCheck"],
     },
     Block {
         id: "recovery",
@@ -818,7 +818,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys and public text are read, except that an Electrum file is read to find whether it holds a secret."), p("An Electrum file's keystore is checked for a private key or seed without its values being kept; the file's own bytes are the caller's.")],
         limits: &[p("A file whose stated first address is not its wallet's is refused."), p("A key in a SLIP-132 version that disagrees with the script is refused."), p("A receive and a change descriptor are one wallet only when they are the same but for /0/* and /1/*, each with its checksum, if any, holding; otherwise the file is refused."), p("A file for Wasabi is written only for a native SegWit single-key wallet at 84h/0h/0h (mainnet) or 84h/1h/0h (test networks).")],
         own_calls: &[p("A SLIP-132 version is checked against the script and the path around the key. Conservative, F155."), p("A Caravan file whose startingAddressIndex is not 0, and an Electrum multisig keystore with no fingerprint, are refused. Conservative, F155.")],
-        screens: &["Files", "Restore", "WalletsStart", "SpendBackup"],
+        screens: &["Files", "Restore", "WalletsStart", "SpendBackup", "MultisigCheck"],
     },
     Block {
         id: "bsms",
@@ -1313,7 +1313,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public account keys are derived from a master key; the review compares public data. The library does not state the derivation's timing."), p("The review keeps public keys only; the derived private keys are dropped inside the master key's account_xpub.")],
         limits: &[p("Supported input scripts: p2pkh, p2sh-p2wpkh, p2wpkh, p2tr key path, and multi or sortedmulti in p2sh, p2wsh and p2sh-p2wsh, with miniscript and taproot trees through a registered wallet."), p("Multisig change is verified only by re-deriving it from a registered wallet."), p("A SegWit v0 input with no previous transaction in a transaction of several inputs is blocked."), p("Only a high fee and an absurd fee rate can be held past; every other danger and every block has no way past."), p("Another device's PSBT for another transaction, one that asks another sighash of an input and one with a signature that does not verify are refused, never merged."), p("An amount or a total over 21,000,000 BTC, in the outputs or the amounts the inputs state, blocks signing.")],
         own_calls: &[p("Change under an unloaded key, or at a path under no loaded account, counts as a payment to others. Conservative, F136."), p("A script of several keys is signed only for a registered wallet that holds a loaded key. Conservative, F135."), p("A miniscript or a taproot tree of one key is signed only through its registered wallet. Conservative, F141."), p("A SegWit v0 input with only a witness UTXO in a transaction of several inputs is refused, which BIP 174 allows. Conservative, F155."), p("The signed-amount memory refuses one transaction stated again with other amounts. Conservative, F155.")],
-        screens: &["Spend", "SpendBackup"],
+        screens: &["Spend", "SpendBackup", "MultisigCheck"],
     },
     Block {
         id: "sighash-review",

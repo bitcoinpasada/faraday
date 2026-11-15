@@ -155,6 +155,18 @@ file = "faraday/faraday-core/src/address_find/look.rs"
 reason = "Look further: each loaded wallet's policy parsed by faraday-bip and its addresses derived through address_find's one-index derivation, which the stamp covers; no secret."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/address_find/accounts.rs"
+reason = "Check an address's unmade accounts: asks faraday-keys for each loaded key's standard account key and faraday-bip to parse its policy, which the stamp covers; it derives nothing itself."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/multisig_check/mod.rs"
+reason = "Check a multisig setup: reads a descriptor with faraday-bip and asks faraday-keys for the loaded key's xpub at a cosigner's path to compare, which the stamp covers; it derives nothing itself and holds no secret."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/scan_key.rs"
+reason = "A scanned key or address's card: reads it with faraday-bip's and faraday-codec's readers and hands an address to Check an address, which the stamp covers; computes nothing cryptographic itself."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/explore/addresses.rs"
 reason = "Explore's address pages: keys and addresses derived by faraday-keys and faraday-bip, which the stamp covers, over rust-bitcoin's types."
 

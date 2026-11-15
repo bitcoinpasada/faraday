@@ -2177,6 +2177,7 @@ screens = [
   "SpendBackup",
   "Tools",
   "SeedCheck",
+  "MultisigCheck",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
@@ -2192,6 +2193,11 @@ functions = [
   "faraday/faraday-core/src/explore/addresses.rs::Kept::page",
   "faraday/faraday-core/src/explore/addresses.rs::ExploreArea::tick",
   "faraday/faraday-core/src/address_find/look.rs::Look::tick",
+  "faraday/faraday-core/src/address_find/look.rs::Look::new",
+  "faraday/faraday-core/src/address_find/look.rs::Look::accounts_find",
+  "faraday/faraday-core/src/address_find/look.rs::full_path",
+  "faraday/faraday-core/src/address_find/accounts.rs::unmade",
+  "faraday/faraday-core/src/lib.rs::Faraday::address_check",
   "faraday/faraday-core/src/wallet.rs::Wallet::script_at",
   "faraday/faraday-core/src/drawing/kept.rs::View::script_at",
   "faraday/faraday-core/src/seed_check/compare.rs::as_address",
@@ -2284,9 +2290,12 @@ screens = [
   "Silent",
   "VaultContents",
   "SeedCheck",
+  "MultisigCheck",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse",
+  "faraday/faraday-core/src/multisig_check/mod.rs::mark_of",
+  "faraday/faraday-core/src/multisig_check/mod.rs::path_is_single_account",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_parts",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_descriptor",
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse_any",
@@ -2555,6 +2564,7 @@ screens = [
   "Restore",
   "WalletsStart",
   "SpendBackup",
+  "MultisigCheck",
 ]
 functions = [
   "core/faraday-bip/src/coldcard.rs::looks_like_export",
@@ -3010,7 +3020,8 @@ functions = [
   "core/faraday-bip/src/address.rs::is_address_prefix",
   "core/faraday-bip/src/address.rs::parses",
   "core/faraday-bip/src/address.rs::parse",
-  "faraday/faraday-core/src/lib.rs::Faraday::address_note",
+  "faraday/faraday-core/src/lib.rs::Faraday::address_read",
+  "faraday/faraday-core/src/scan_key.rs::Faraday::address_card_put",
 ]
 code = [
   "core/faraday-bip/src/address.rs::parse",
@@ -5131,7 +5142,7 @@ standards = [
   "BIP 173",
   "BIP 350",
 ]
-screens = ["Spend", "SpendBackup"]
+screens = ["Spend", "SpendBackup", "MultisigCheck"]
 functions = [
   "core/faraday-psbt/src/inspect.rs::inspect",
   "core/faraday-psbt/src/inspect.rs::Inspection::dangers",
