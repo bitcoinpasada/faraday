@@ -122,3 +122,33 @@ fn a_script_whose_ways_cannot_be_worked_out_asks_for_every_seed() {
     let (m, n) = Session::quorum(&app.session.wallets[i]);
     assert_eq!((m, n), (2, 2), "{d}");
 }
+
+#[test]
+fn one_seed_at_two_keys_does_not_make_a_wallet_ready_to_sign_beside_another_seed() {
+    let d = a_policy(|a0, a1, b, _| format!("wsh(and_v(v:pk({a0}),and_v(v:pk({a1}),pk({b}))))"));
+    let mut app = crate::common::device(Vec::new());
+    let i = added(&mut app, &d);
+    crate::common::add_key(&mut app, testkit::TEST_SEEDS[0].0);
+    let w = &app.session.wallets[i];
+    // Two seeds sign; seed A holds two key slots but is one seed.
+    assert_eq!(faraday_core::wallet::needed(w), 2);
+    assert_eq!(app.session.held_toward_quorum(w), 1);
+    assert!(!app.can_spend(i));
+    crate::common::add_key(&mut app, testkit::TEST_SEEDS[1].0);
+    assert!(app.can_spend(i));
+}
+
+#[test]
+fn a_musig_wallet_needs_every_seed_before_it_reads_as_ready() {
+    let c = testkit::compute();
+    let mut app = crate::common::device(Vec::new());
+    let i = app
+        .session
+        .add_wallet(&c, "Test", &musig(), "Test wallet", Origin::Named)
+        .expect("reads");
+    assert_eq!(faraday_core::wallet::needed(&app.session.wallets[i]), 3);
+    for seed in [0, 1] {
+        crate::common::add_key(&mut app, testkit::TEST_SEEDS[seed].0);
+        assert!(!app.can_spend(i));
+    }
+}

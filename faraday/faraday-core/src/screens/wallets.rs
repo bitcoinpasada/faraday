@@ -686,8 +686,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     cy += slot_marks(app, ui, (ix, cy, iw), &slots);
     // Where the keys still missing may be.
-    let quorum_here =
-        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
+    let quorum_here = app.session.held_toward_quorum(wlt) >= crate::wallet::needed(wlt);
     if !quorum_here {
         cy += 4.0;
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, ix, cy, iw);

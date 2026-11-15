@@ -775,13 +775,7 @@ impl Faraday {
                 self.screen = Screen::SpendBackup;
                 // A wallet made here with its keys still here came from its
                 // seeds, not from paper: it has no seeds to add.
-                let keys_here = self
-                    .session
-                    .slots(w)
-                    .iter()
-                    .filter(|s| s.held_by.is_some())
-                    .count()
-                    >= crate::wallet::needed(w);
+                let keys_here = self.session.held_toward_quorum(w) >= crate::wallet::needed(w);
                 self.spend_backup.state.route = Some(match w.origin {
                     crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds => {
                         Route::Words

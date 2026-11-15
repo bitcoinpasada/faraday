@@ -720,8 +720,7 @@ fn build(
             .is_some_and(|f| in_vault.contains(&fp_text(f)))
     };
     let any_here = slots.iter().any(|s| s.held_by.is_some() || kept(s));
-    let quorum_here =
-        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wallet);
+    let quorum_here = app.session.held_toward_quorum(wallet) >= crate::wallet::needed(wallet);
     let may = app.may_load_keys();
     // Asked once for the chart (F62).
     let loaded_w = match press {

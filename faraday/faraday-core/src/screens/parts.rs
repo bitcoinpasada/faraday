@@ -106,12 +106,7 @@ pub(crate) fn never_real_seed_if(
 /// Whether the seeds loaded here sign for `w` on their own (2), some of
 /// its seeds are here (1), or none (0).
 pub(crate) fn sign_readiness(app: &Faraday, w: &crate::wallet::Wallet) -> u8 {
-    let here = app
-        .session
-        .slots(w)
-        .iter()
-        .filter(|s| s.held_by.is_some())
-        .count();
+    let here = app.session.held_toward_quorum(w);
     if here >= crate::wallet::needed(w) {
         2
     } else if here > 0 {

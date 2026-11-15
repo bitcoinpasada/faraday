@@ -394,12 +394,7 @@ impl Faraday {
         let Some(wl) = self.session.wallets.get(w) else {
             return 0;
         };
-        let here = self
-            .session
-            .slots(wl)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .count();
+        let here = self.session.held_toward_quorum(wl);
         crate::wallet::needed(wl).saturating_sub(here)
     }
 

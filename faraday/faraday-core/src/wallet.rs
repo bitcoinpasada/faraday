@@ -1772,20 +1772,12 @@ pub(crate) fn txid_known(psbt: &Psbt) -> bool {
         })
 }
 
-/// Signatures a spend from this wallet needs: the quorum of a multisig,
-/// one for any other kind. A miniscript or a tree may want more on some
-/// paths; for those the finish step says whether the script is satisfied.
+/// Seeds a spend from this wallet needs, the unit
+/// [`Session::held_toward_quorum`] counts in: the quorum the script
+/// states, else the fewest seeds of any way to spend (every seed for a
+/// MuSig2 wallet).
 pub fn needed(wallet: &Wallet) -> usize {
-    if Kind::of(&wallet.policy) == Kind::MuSig {
-        return wallet.policy.keys().len();
-    }
-    wallet
-        .policy
-        .quorum()
-        .or_else(|| wallet.policy.tapscript_quorum())
-        .or_else(|| another_key_spends(wallet).then(|| wallet.policy.leaf_quorum())?)
-        .map(|(m, _)| m)
-        .unwrap_or(1)
+    Session::quorum(wallet).0
 }
 
 /// A wallet's descriptor, the form the same wallet read from a

@@ -65,13 +65,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // A wallet of several keys with fewer here than sign, and its PSBT.
     let short = (0..t.app.session.wallets.len()).find(|&w| {
         let wl = &t.app.session.wallets[w];
-        let here = t
-            .app
-            .session
-            .slots(wl)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .count();
+        let here = t.app.session.held_toward_quorum(wl);
         here < faraday_core::wallet::needed(wl) && t.app.psbt_for(c, w).is_some()
     });
     let Some(short) = short else {

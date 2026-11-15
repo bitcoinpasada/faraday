@@ -317,8 +317,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ) + 4.0;
 
     // The wallet at a glance, as its own page: its keys and its backup.
-    let quorum_here =
-        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
+    let quorum_here = app.session.held_toward_quorum(wlt) >= crate::wallet::needed(wlt);
     if let Some(g) = app.glance_of(app.wallets.wallet()) {
         let sub = format!(
             "{} {} · {}",

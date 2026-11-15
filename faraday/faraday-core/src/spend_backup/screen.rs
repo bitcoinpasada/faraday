@@ -180,7 +180,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     }
     for (i, wl) in app.session.wallets.iter().enumerate() {
         let slots = app.session.slots(wl);
-        let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+        let here = app.session.held_toward_quorum(wl);
         let need = crate::wallet::needed(wl);
         let ready = here >= need;
         // What the name's and the marker's lines grow by at a larger
@@ -552,7 +552,7 @@ fn wallet_card_compact(
     use crate::compact::screen::measured;
     use crate::screens::missing_keys_line;
     let slots = app.session.slots(wl);
-    let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+    let here = app.session.held_toward_quorum(wl);
     let need = crate::wallet::needed(wl);
     let ready = here >= need;
     let (marker, tone) = keys_marker(here, need);
