@@ -167,6 +167,22 @@ impl Faraday {
         self.sheet = Some(Sheet::Delete);
     }
 
+    /// The visit's notice of secret files: Delete files with the files it
+    /// names chosen.
+    pub(crate) fn delete_unprotected(&mut self) {
+        let Some(id) = self.stick.get(self.visit.stick).map(|s| s.id.clone()) else {
+            return;
+        };
+        let names = self
+            .visit
+            .unprotected_of(&id)
+            .map(|(_, n)| n.iter().map(|t| t.to_string()).collect::<Vec<_>>());
+        self.delete_open();
+        if let (Some(d), Some(names)) = (self.stick.delete_ask.as_mut(), names) {
+            d.chosen = names;
+        }
+    }
+
     /// Whether the sheet's button is a hold: a vault is among the files
     /// chosen (`docs/FLOWS.md` decisions 4 and 61), or the free space or
     /// the whole partition is zeroed (F131).
@@ -280,6 +296,7 @@ impl Faraday {
             None => {
                 self.flow_copy_gone(stick, Some(name));
                 self.visit.inn_retain(|n| n != name);
+                self.visit.unprotected_gone(stick, name);
                 let said = if zeroed {
                     EN.stick_wipe_deleted
                 } else {
@@ -755,6 +772,7 @@ impl Faraday {
     pub(crate) fn wipe_act(&mut self, action: Action) {
         match action {
             Action::DeleteFiles => self.delete_open(),
+            Action::DeleteUnprotected => self.delete_unprotected(),
             Action::DeleteWhat(k) => self.delete_what(k),
             Action::DeletePick(k) => self.delete_pick(k),
             Action::DeletePasses(n) => self.delete_passes(n),

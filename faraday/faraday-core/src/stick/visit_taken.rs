@@ -483,6 +483,56 @@ impl VisitArea {
         self.visit.log.push(line);
     }
 
+    /// A secret file named `name` is on the stick `stick` (labelled
+    /// `label`): this session wrote it there or read it from there. The
+    /// notice's line is made now, not when it is drawn.
+    pub(crate) fn unprotected_add(&mut self, stick: &str, label: &str, name: &str) {
+        let at = match self.visit.unprotected.iter().position(|u| u.stick == stick) {
+            Some(at) => at,
+            None => {
+                self.visit.unprotected.push(Unprotected {
+                    stick: Text::of(stick),
+                    ..Default::default()
+                });
+                self.visit.unprotected.len() - 1
+            }
+        };
+        let u = &mut self.visit.unprotected[at];
+        u.label = Text::of(label);
+        u.names.insert(Text::of(name));
+        u.make_line();
+    }
+
+    /// The file `name` is gone from the stick `stick`.
+    pub(crate) fn unprotected_gone(&mut self, stick: &str, name: &str) {
+        for u in self
+            .visit
+            .unprotected
+            .iter_mut()
+            .filter(|u| u.stick == stick)
+        {
+            u.names.remove(name);
+            u.make_line();
+        }
+        self.visit.unprotected.retain(|u| !u.names.is_empty());
+    }
+
+    /// Only the sticks in `present` keep their notice.
+    pub(crate) fn unprotected_keep(&mut self, present: &[Text]) {
+        self.visit
+            .unprotected
+            .retain(|u| present.contains(&u.stick));
+    }
+
+    /// The notice of the stick `stick`: its line, and the names.
+    pub(crate) fn unprotected_of(&self, stick: &str) -> Option<(&Text, Vec<Text>)> {
+        self.visit
+            .unprotected
+            .iter()
+            .find(|u| u.stick == stick)
+            .map(|u| (&u.line, u.names.iter().cloned().collect()))
+    }
+
     /// The log is emptied.
     pub(crate) fn log_clear(&mut self) {
         self.visit.log.clear();
@@ -1595,6 +1645,9 @@ pub struct VisitState {
     /// The files the write would write whose names are taken on the
     /// stick, while the Already on the stick sheet asks.
     pub taken: Vec<Taken>,
+    /// The sticks this session wrote a secret file on, or read one from,
+    /// while they are in: names only, no content.
+    pub unprotected: Vec<Unprotected>,
 }
 
 impl VisitState {
@@ -1744,5 +1797,29 @@ impl Faraday {
             Column::Outbox => self.visit.set_out_offset(offset),
             Column::Stick => self.list_offset = offset,
         }
+    }
+}
+
+/// A stick holding secret files this session wrote or read: its notice on
+/// the visit. Names only (`keys.secret-files`).
+#[derive(Default)]
+pub struct Unprotected {
+    stick: Text,
+    label: Text,
+    names: std::collections::BTreeSet<Text>,
+    line: Text,
+}
+
+impl Unprotected {
+    fn make_line(&mut self) {
+        let names: Vec<&str> = self.names.iter().map(|n| &**n).collect();
+        let list = Text::joined(&names, ", ");
+        self.line = match self.names.len() {
+            1 => Text::fill(EN.unprotected_one, &[&self.label, &list]),
+            n => Text::fill(
+                EN.unprotected_many,
+                &[&self.label, &Text::num(n as u64), &list],
+            ),
+        };
     }
 }

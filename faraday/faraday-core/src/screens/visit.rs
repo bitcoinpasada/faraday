@@ -93,6 +93,21 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // What is left to do: pull the stick, and where the copied files went.
     y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
+    if let Some((line, _)) = app.visit.unprotected_of(&stick.id) {
+        y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GAP_SMALL;
+        y += wrap_buttons(
+            ui,
+            x,
+            y,
+            w,
+            BUTTON_H,
+            &[(
+                EN.unprotected_delete,
+                Style::Secondary,
+                Action::DeleteUnprotected,
+            )],
+        ) + GAP_SMALL;
+    }
     for (line, ok) in app.visit.log.iter().rev().take(2) {
         let c = if *ok { Role::Ok } else { Role::Error };
         y += ui.wrap_as((x, y, w), BODY_M, c, line) + 6.0;
@@ -461,7 +476,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return visit_compact(app, ui, x0, cw, h);
     }
-    use faraday_draw::tokens::{PAGE_INSET, READING_VISIT_W, VISIT_GAP};
+    use faraday_draw::tokens::{
+        PAGE_INSET, READING_VISIT_W, VISIT_GAP, VISIT_NOTICE_BUTTON_PAD, VISIT_NOTICE_GAP,
+        VISIT_NOTICE_H,
+    };
     // The two columns keep the width they read at, centred in Files' room.
     let cw_all = cw;
     let cw = cw.min(READING_VISIT_W);
@@ -533,7 +551,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let colw = (width - VISIT_GAP) / 2.0;
-    let colh = h - y - 32.0 - 108.0;
+    // A stick holding a secret file is named under the columns, in the
+    // error tone, with its button.
+    let notice = app
+        .visit
+        .unprotected_of(&stick.id)
+        .map(|(line, _)| line.clone());
+    let notice_h = if notice.is_some() {
+        VISIT_NOTICE_H
+    } else {
+        0.0
+    };
+    let colh = h - y - 32.0 - 108.0 - notice_h;
     // Rows between the heading and the buttons at the card's foot, and
     // over the stick's buttons a row for zeroing it.
     let list_top = y + 62.0;
@@ -933,6 +962,27 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         Action::VisitCopy,
     );
+
+    if let Some(line) = notice {
+        let label = EN.unprotected_delete;
+        let bw = ui.measure_as(TITLE_S, label) + VISIT_NOTICE_BUTTON_PAD;
+        let ny = y + colh + GAP_SMALL;
+        ui.wrap_as(
+            (x, ny, width - bw - VISIT_NOTICE_GAP),
+            BODY_M,
+            Role::Error,
+            &line,
+        );
+        ui.button(
+            x + width - bw,
+            ny,
+            Some(bw),
+            BUTTON_H,
+            label,
+            Style::Secondary,
+            Action::DeleteUnprotected,
+        );
+    }
 
     // What is left to do: pull the stick, and where the copied files went.
     let ay = h - 32.0 - 44.0 - 44.0;

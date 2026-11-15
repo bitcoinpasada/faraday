@@ -374,6 +374,9 @@ pub enum Action {
     Sweep(seeds::sweep::SweepAction),
     /// The stick visit's Delete files: the sheet that chooses what.
     DeleteFiles,
+    /// The visit's notice of secret files on the stick: Delete files with
+    /// them chosen.
+    DeleteUnprotected,
     /// The sheet's choice: chosen files, the free space, the whole
     /// partition, by place.
     DeleteWhat(u8),

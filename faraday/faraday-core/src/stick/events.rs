@@ -82,6 +82,15 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                     let label = s.label.clone();
                     app.vault_read_from(&item.name, &item.bytes, &label);
                 }
+                if item.kind.exposure() == secrets::Exposure::Secret
+                    && let Some(label) = app
+                        .stick
+                        .iter()
+                        .find(|s| s.id == stick)
+                        .map(|s| s.label.clone())
+                {
+                    app.visit.unprotected_add(&stick, &label, &name);
+                }
                 // The visit's rows say what came in; only a seed waiting
                 // for the stick's removal is worth a line.
                 let line = (item.kind == FileKind::Words
@@ -106,7 +115,30 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
             app.visit
                 .log_push((faraday_text::text!("{}: {}", &*name, &*reason), false));
         }
-        StorageEvent::Written { name, wrote_as, .. } => {
+        StorageEvent::Written {
+            stick,
+            name,
+            wrote_as,
+        } => {
+            // A secret file written unprotected: the visit says so
+            // while the stick is in (names only).
+            let from = if app.visit.writing_inbox.contains(&*name) {
+                &app.inbox
+            } else {
+                &app.outbox
+            };
+            let secret = from
+                .iter()
+                .any(|i| i.name == *name && i.kind.exposure() == secrets::Exposure::Secret);
+            if secret
+                && let Some(label) = app
+                    .stick
+                    .iter()
+                    .find(|s| s.id == stick)
+                    .map(|s| s.label.clone())
+            {
+                app.visit.unprotected_add(&stick, &label, &wrote_as);
+            }
             app.visit_written(&name, &wrote_as);
             // A rename is carried by one write, to the stick written:
             // another stick keeps its own name for the same vault.
@@ -323,6 +355,7 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
         .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
         .unwrap_or_default();
     app.visit.inn_retain(|n| names.contains(n));
+    app.visit.unprotected_keep(&ids_now);
     app.flow_sticks_changed();
     app.name_taken_pulled();
     if app.stick.is_empty() {

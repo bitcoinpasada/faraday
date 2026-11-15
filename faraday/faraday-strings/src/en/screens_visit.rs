@@ -69,6 +69,14 @@ macro_rules! words_screens_visit {
     visit_no_files: "No files on this {}",
     /// Button in `visit`.
     visit_delete_files: "Delete files",
+    /// Line in `visit`, error tone: the stick holds secret files this
+    /// session wrote or read. `{}`: the stick's label, the file names.
+    unprotected_one: "{} holds 1 unprotected secret: {}. Do not plug it into an online computer.",
+    /// Line in `visit`, error tone. `{}`: the stick's label, how many,
+    /// the file names.
+    unprotected_many: "{} holds {} unprotected secrets: {}. Do not plug it into an online computer.",
+    /// Button in `visit`: Delete files with those secrets chosen.
+    unprotected_delete: "Delete unprotected secrets",
     /// Text in `visit`.
     visit_import_and_load: "Import and load",
     /// Text in `visit`. `{}`: `nin`, `if nin == 1 { EN.visit_file } else { …`.

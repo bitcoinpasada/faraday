@@ -464,6 +464,8 @@ macro_rules! words_screens_sheets {
     /// Line in `plain_sheet`. `{}`: the medium's noun, or
     /// `plain_computer`.
     plain_as_safe: "That is as safe as writing it on paper: it is as safe as the place you keep the {}.",
+    /// Line in `plain_sheet`, a stick. `{}`: the medium's noun, twice.
+    plain_stick_exposed: "Any computer this {} is plugged into can read it. Keep this {} away from an online computer.",
     /// What Transfer's Receive saves into, in `plain_as_safe`.
     plain_computer: "computer",
     /// Where a plan's file goes, in `plain_goes_on`. `{}`: the medium's

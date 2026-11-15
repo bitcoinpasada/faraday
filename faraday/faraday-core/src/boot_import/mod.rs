@@ -1072,6 +1072,18 @@ impl Faraday {
         });
         let items = std::mem::take(&mut imp.items);
         let item_file = std::mem::take(&mut imp.item_file);
+        // Each item's file on the stick, for the notice of secrets left on it.
+        let stick_id = imp.stick.duplicate();
+        let origin: Vec<Text> = item_file
+            .iter()
+            .map(|&g| imp.files[g].name.duplicate())
+            .collect();
+        let secrets: Vec<Text> = items
+            .iter()
+            .zip(&origin)
+            .filter(|(i, _)| i.kind.exposure() == crate::secrets::Exposure::Secret)
+            .map(|(_, o)| o.duplicate())
+            .collect();
         let files: BTreeSet<usize> = item_file.iter().copied().collect();
         let mut vaults: Vec<Text> = Vec::new();
         let mut plain: Vec<Item> = Vec::new();
@@ -1121,6 +1133,9 @@ impl Faraday {
         if !self.may_load_keys() {
             self.import
                 .hold_for_pull(plain.iter().map(|i| Text::of(&i.name)));
+        }
+        for name in &secrets {
+            self.visit.unprotected_add(&stick_id, &label, name);
         }
         self.inbox.extend(
             plain

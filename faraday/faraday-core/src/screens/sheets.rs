@@ -2465,7 +2465,14 @@ fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secre
             &[&plain.name, &plain.on, app.medium.noun()],
         ),
     };
-    let second = Text::fill(EN.plain_as_safe, &[&plain.keep]);
+    let second = match plain.then {
+        #[cfg(feature = "demo")]
+        crate::secrets::PlainThen::Transfer(..) => Text::fill(EN.plain_as_safe, &[&plain.keep]),
+        _ => {
+            let noun = app.medium.noun();
+            Text::fill(EN.plain_stick_exposed, &[noun, noun])
+        }
+    };
     let to_vault = matches!(plain.then, crate::secrets::PlainThen::Secret)
         && app.vaults.open.get(app.vaults.current).is_some()
         && app

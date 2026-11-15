@@ -1048,6 +1048,13 @@ pub const TRANSFER_W: f32 = 1100.0;
 pub const READING_TRANSFER_W: f32 = TRANSFER_W + 2.0 * PAGE_INSET;
 /// The gap between a stick visit's two lists.
 pub const VISIT_GAP: f32 = 20.0;
+/// The band under a stick visit's lists that names the secret files the
+/// stick holds, with its button.
+pub const VISIT_NOTICE_H: f32 = 64.0;
+/// The room kept between that notice's words and its button.
+pub const VISIT_NOTICE_GAP: f32 = 16.0;
+/// The width a button takes beyond its label (each side's padding).
+pub const VISIT_NOTICE_BUTTON_PAD: f32 = 36.0;
 /// The room a file's name keeps in a stick pane's row before the row's
 /// main action is drawn: narrower columns (the Pi's) drop the action.
 pub const VISIT_NAME_MIN: f32 = 120.0;

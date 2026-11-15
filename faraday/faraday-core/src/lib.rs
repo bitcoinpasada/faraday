@@ -1920,6 +1920,7 @@ impl Faraday {
             Action::KefRead(a) => crate::seeds::kef::kef_act(self, a),
             Action::Sweep(a) => self.sweep_act(a),
             a @ (Action::DeleteFiles
+            | Action::DeleteUnprotected
             | Action::DeleteWhat(..)
             | Action::DeletePick(..)
             | Action::DeletePasses(..)

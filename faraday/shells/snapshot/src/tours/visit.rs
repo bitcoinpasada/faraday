@@ -1,7 +1,7 @@
 //! The tour of the stick's pane of Files.
 
-use crate::tour::{Tour, scroll};
-use faraday_core::{Action, Screen};
+use crate::tour::{Tour, scroll, scroll_to};
+use faraday_core::{Action, Screen, StorageEvent};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
@@ -80,6 +80,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             scroll(t, 500);
             t.shot(&format!("visit-page-outbox-{k}"))?;
         }
+        unprotected(t)?;
         return not_clean(t);
     }
     let _ = t.app.frame();
@@ -106,6 +107,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitOutAll);
     t.press(Action::VisitOutAll);
     t.shot("visit-outbox-none")?;
+    unprotected(t)?;
     not_clean(t)
 }
 
@@ -139,4 +141,39 @@ fn not_clean(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
     t.shot("visit-write-lock")
+}
+
+/// The stick's pane once a secret file written to the stick without
+/// encryption is on it: the notice naming the stick, with its Delete button.
+fn unprotected(t: &mut Tour) -> Result<(), String> {
+    let stick = t.sticks.first().ok_or("no stick")?.id.clone();
+    t.app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("backup-words.txt"),
+        kind: faraday_core::wallet::FileKind::Words,
+        bytes: b"words".to_vec().into(),
+        secret: true,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    t.app.storage(StorageEvent::Written {
+        stick,
+        name: faraday_text::Text::of("backup-words.txt"),
+        wrote_as: faraday_text::Text::of("backup-words.txt"),
+    });
+    t.press(Action::Nav(Screen::Files));
+    if t.app.is_compact() {
+        // The page is still scrolled to the Outbox's end: back to its top,
+        // where the notice is, then down to it.
+        for _ in 0..40 {
+            scroll(t, -500);
+            t.app.settle();
+        }
+        scroll_to(t, Action::DeleteUnprotected);
+    }
+    t.shot("visit-unprotected")
 }

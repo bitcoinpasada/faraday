@@ -845,3 +845,60 @@ fn pressing_copy_twice_on_an_own_ticked_secret_logs_nothing_dropped() {
         app.visit().log
     );
 }
+
+#[test]
+fn a_seed_written_to_a_stick_is_named_on_its_visit_until_it_is_deleted_there() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&a, &b]);
+    copy_in(&mut app, &[&a, &b], &[&words.0]);
+    app.press(Action::VisitStick(1));
+    let _ = app.frame();
+    app.press(row(&app, &words.0).expect("not offered"));
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+    write(&mut app, &[&a, &b]);
+
+    let notice = format!(
+        "B holds 1 unprotected secret: {}. Do not plug it into an online computer.",
+        words.0
+    );
+    let _ = app.frame();
+    assert!(
+        squeezed(&screen(&mut app)).contains(&squeezed(&notice)),
+        "no notice"
+    );
+    // The stick it was copied from holds it too, and is named for itself.
+    app.press(Action::VisitStick(0));
+    let _ = app.frame();
+    assert!(squeezed(&screen(&mut app)).contains("Aholds1unprotectedsecret"));
+    assert!(!squeezed(&screen(&mut app)).contains(&squeezed(&notice)));
+
+    // Its button is Delete files with the file chosen.
+    app.press(Action::VisitStick(1));
+    app.press(Action::DeleteUnprotected);
+    assert_eq!(app.sheet, Some(Sheet::Delete));
+    app.press(Action::DeleteGo);
+    app.storage(StorageEvent::Wiped {
+        stick: faraday_text::Text::of("b"),
+        name: faraday_text::Text::of(&words.0),
+    });
+    let _ = app.frame();
+    assert!(!screen(&mut app).contains("unprotected secret"));
+}
+
+/// Everything drawn, one line of words: a long line wraps into several texts.
+fn screen(app: &mut Faraday) -> String {
+    app.drawn_texts()
+        .iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A screen's words with no spaces: a long name wraps where it likes.
+fn squeezed(s: &str) -> String {
+    s.split_whitespace().collect()
+}
