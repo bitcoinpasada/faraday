@@ -3,7 +3,7 @@
 **Purpose.** BBQr's `Z` encoding is raw DEFLATE under base32, and it is
 the encoding Faraday OS and Coldcard use for anything of size, so reading
 their transfers (`faraday/faraday-qr`, `docs/QR.md` §4) needs an inflater.
-Only inflating for this use (the third edge below also compresses): Faraday writes BBQr in encoding `2`, so nothing it sends
+Only inflating: Faraday writes BBQr in encoding `2`, so nothing it sends
 needs a decompressor at the other end.
 
 **Why this crate.** It is already in the graph: `png`, which reads QR
@@ -24,10 +24,16 @@ length the gzip trailer states, which is bounded by the largest vault
 (4 MiB) before it is allocated, and the CRC-32 and the length are
 checked.
 
-**A third edge, built.** `faraday-kef` takes it to compress as well as inflate: Krux's
-compressed codes (versions 7, 12, 16 and 21, `docs/KEF.md` §4.1, §10) are written
-with `compress_to_vec` for up to 1,024 bytes of contents, and read with
-`decompress_to_vec_with_limit` at 100 KiB.
+**A third edge, built.** `faraday-kef` takes it to inflate only: Krux's
+compressed codes (versions 7, 12, 16 and 21, `docs/KEF.md` §4.1, §10) are
+read, never written, by `decompress` into one buffer of 100 KiB, wiped, and
+copied into one of the result's exact size, so the output does not grow
+and leave a freed copy of the contents.
+
+**What is wiped.** The decompressor (`DecompressorOxide`) holds only tables
+and a few bits of input, so it is dropped as it is. BBQr's compressed (`Z`)
+parts are still inflated with `decompress_to_vec_with_limit`, whose growing
+output frees smaller copies of the contents unwiped.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.

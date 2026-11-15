@@ -117,14 +117,19 @@ const KEF_PASSPHRASE: &str = "Cobalt-Meridian-Thistle-6290-Juniper-Lantern-Opal-
 
 /// A code Faraday seals around the test seed's words.
 fn kef_code() -> Vec<u8> {
+    kef_code_of(20, words())
+}
+
+/// A code of `version` Faraday seals around `contents`.
+fn kef_code_of(version: u8, contents: zeroize::Zeroizing<Vec<u8>>) -> Vec<u8> {
     let mut app = testkit::started();
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
     }
     app.kef_seal(
         zeroize::Zeroizing::new(KEF_PASSPHRASE.as_bytes().to_vec()),
-        zeroize::Zeroizing::new(PHRASE.as_bytes().to_vec()),
-        20,
+        contents,
+        version,
         faraday_core::worker::kef::KefId::Random(8),
         10_000,
         "Working",
@@ -135,9 +140,115 @@ fn kef_code() -> Vec<u8> {
     std::mem::take(&mut *sealed)
 }
 
+/// The seed words in a wiping buffer.
+fn words() -> zeroize::Zeroizing<Vec<u8>> {
+    let mut text = zeroize::Zeroizing::new(Vec::with_capacity(PHRASE.len()));
+    text.extend_from_slice(PHRASE.as_bytes());
+    text
+}
+
+/// A code of the compressed version 21 around the seed words and 775
+/// spaces, so it inflates to over twice its size. Faraday writes no
+/// compressed version, so the code is made as Krux makes it: the raw
+/// deflate stream sealed as version 20's plaintext, read as version 21
+/// (same key, same layout), the stream written here by hand.
+fn compressed_kef_code() -> Vec<u8> {
+    let mut stream = DeflateBits::default();
+    // One final block with the fixed codes.
+    stream.put(1, 1, false);
+    stream.put(1, 2, false);
+    for b in PHRASE.bytes().chain(*b" ") {
+        stream.literal(b);
+    }
+    // Three matches of 258 bytes, one byte back.
+    for _ in 0..3 {
+        stream.put(0xC5, 8, true);
+        stream.put(0, 5, true);
+    }
+    stream.put(0, 7, true);
+    let mut code = kef_code_of(20, zeroize::Zeroizing::new(stream.bytes));
+    // The version byte follows the id (8 bytes, after its length).
+    assert_eq!(code[9], 20);
+    code[9] = 21;
+    code
+}
+
+/// Bits of a deflate stream, filled from each byte's low end.
+#[derive(Default)]
+struct DeflateBits {
+    bytes: Vec<u8>,
+    used: usize,
+}
+
+impl DeflateBits {
+    /// `n` bits of `value`: a code most significant bit first, else the
+    /// value's low bit first.
+    fn put(&mut self, value: u32, n: usize, code: bool) {
+        for i in 0..n {
+            let bit = if code {
+                (value >> (n - 1 - i)) & 1
+            } else {
+                (value >> i) & 1
+            };
+            if self.used.is_multiple_of(8) {
+                self.bytes.push(0);
+            }
+            *self.bytes.last_mut().expect("a byte was pushed") |= (bit as u8) << (self.used % 8);
+            self.used += 1;
+        }
+    }
+
+    /// A literal below 144, which the fixed codes write as 8 bits.
+    fn literal(&mut self, byte: u8) {
+        assert!(byte < 144);
+        self.put(0x30 + u32::from(byte), 8, true);
+    }
+}
+
+#[test]
+fn a_krux_code_sealed_with_padding_leaves_no_copy() {
+    let mut forms = seed_forms("");
+    forms.push(Form::new(
+        "code passphrase",
+        KEF_PASSPHRASE.as_bytes().to_vec(),
+    ));
+    let armed = arm(&forms);
+    let code = kef_code_of(5, words());
+    assert!(!code.is_empty(), "the code was made");
+    finish("krux code sealed with padding", armed, false);
+}
+
+#[test]
+fn a_krux_code_sealed_leaves_no_copy() {
+    let mut forms = seed_forms("");
+    forms.push(Form::new(
+        "code passphrase",
+        KEF_PASSPHRASE.as_bytes().to_vec(),
+    ));
+    let armed = arm(&forms);
+    let code = kef_code();
+    assert!(!code.is_empty(), "the code was made");
+    finish("krux code sealed", armed, false);
+}
+
 #[test]
 fn a_krux_code_opened_leaves_no_copy_after_lock() {
-    let code = kef_code();
+    opened_leaves_no_copy(kef_code(), "krux code opened", |app| {
+        app.sheet == Some(Sheet::SeedRead)
+    });
+}
+
+#[test]
+fn a_compressed_krux_code_opened_leaves_no_copy_after_lock() {
+    // Inflates to over twice its compressed size.
+    opened_leaves_no_copy(
+        compressed_kef_code(),
+        "compressed krux code opened",
+        |app| app.sheet == Some(Sheet::SeedRead) || testkit::kef_shows_contents(app),
+    );
+}
+
+fn opened_leaves_no_copy(code: Vec<u8>, name: &str, opened: fn(&Faraday) -> bool) {
     let mut forms = seed_forms("");
     forms.push(Form::new(
         "code passphrase",
@@ -166,10 +277,10 @@ fn a_krux_code_opened_leaves_no_copy_after_lock() {
         }
     }
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::SeedRead), "the code did not open");
+    assert!(opened(&app), "the code did not open");
     app.press(Action::Cancel);
     crate::seed_load::lock(&mut app);
-    finish("krux code opened", armed, true);
+    finish(name, armed, true);
 }
 
 /// The key of `tools/vectors/paperkey/faraday-key.txt`: the seeds it was

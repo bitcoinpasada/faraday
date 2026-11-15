@@ -24,7 +24,7 @@ aes = { workspace = true }
 cbc = { version = "0.2", default-features = false }
 ctr = { workspace = true }
 aes-gcm = { workspace = true }
-# Raw deflate, written for the compressed versions and read with a limit.
+# Raw inflate, for the compressed versions Faraday reads and does not write.
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 # A passphrase read in NFC and NFD as well as as typed.
 unicode-normalization = { workspace = true }

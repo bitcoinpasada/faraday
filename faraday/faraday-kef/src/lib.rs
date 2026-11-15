@@ -22,6 +22,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -100,6 +101,18 @@ fn writable_passphrase_bytes(bytes: &[u8]) -> bool {
 )]
 fn wiped(bytes: &[u8]) -> Zeroizing<Vec<u8>> {
     Zeroizing::new(bytes.to_vec())
+}
+
+/// What [`prepare`] adds to a plaintext at most: version 5's zero padding,
+/// under a block. The buffer it writes in is sized for this once, so it
+/// never grows and leaves a freed copy of the plaintext.
+const ROOM: usize = 16;
+
+/// [`wiped`] with `room` more bytes of capacity.
+fn wiped_with_room(bytes: &[u8], room: usize) -> Zeroizing<Vec<u8>> {
+    let mut v = Vec::with_capacity(bytes.len() + room);
+    v.extend_from_slice(bytes);
+    Zeroizing::new(v)
 }
 
 /// The byte strings a typed passphrase is tried as when reading: as
@@ -247,11 +260,28 @@ fn ctr(key: &[u8; 32], iv: &[u8], data: &mut [u8]) {
 }
 
 /// Raw inflate of `data` to at most [`INFLATE_LIMIT`] bytes; any window up
-/// to 32 KiB (`docs/KEF.md` §7.1).
+/// to 32 KiB (`docs/KEF.md` §7.1). The output goes into one wiping buffer
+/// of the limit's size, so it never grows and leaves a freed copy, then
+/// copied into one of the result's exact size; the decompressor holds only
+/// tables and a few bits of input (`docs/deps/miniz_oxide.md`).
 fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
-    miniz_oxide::inflate::decompress_to_vec_with_limit(data, INFLATE_LIMIT)
-        .ok()
-        .map(Zeroizing::new)
+    use miniz_oxide::inflate::TINFLStatus;
+    use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
+    let mut out = Zeroizing::new(alloc::vec![0u8; INFLATE_LIMIT]);
+    let mut state = Box::<DecompressorOxide>::default();
+    let (status, _, written) = decompress(
+        &mut state,
+        data,
+        &mut out,
+        0,
+        inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
+    );
+    if status != TINFLStatus::Done {
+        return None;
+    }
+    // The result is copied into a buffer of its exact size and the 100 KiB
+    // one is wiped as it drops, so the contents do not keep that room.
+    Some(wiped(&out[..written]))
 }
 
 /// The spec of `version` if Faraday writes it; any other version, one of
@@ -269,7 +299,7 @@ fn written(version: u8) -> Result<&'static Spec, SealError> {
 /// needs no key is here; the version that works instead is always 20.
 fn prepare(s: &Spec, plaintext: &[u8]) -> Result<(Zeroizing<Vec<u8>>, usize), SealError> {
     let nul = s.padding == Padding::Nul;
-    let mut plain = wiped(plaintext);
+    let mut plain = wiped_with_room(plaintext, ROOM);
     if nul && plain.last() == Some(&0) {
         return Err(SealError::NulEnd {
             instead: DEFAULT_VERSION,
@@ -278,7 +308,6 @@ fn prepare(s: &Spec, plaintext: &[u8]) -> Result<(Zeroizing<Vec<u8>>, usize), Se
     let unpadded = plain.len();
     if nul {
         let pad = (16 - plain.len() % 16) % 16;
-        plain.reserve(pad);
         plain.extend(core::iter::repeat_n(0, pad));
     }
     if s.mode == Mode::Ecb {

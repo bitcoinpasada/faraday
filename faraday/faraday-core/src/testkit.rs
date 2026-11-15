@@ -2182,6 +2182,12 @@ pub fn secret_typed(app: &crate::Faraday) -> bool {
     app.secret_typed()
 }
 
+/// Whether the Krux code sheet shows a code's opened contents, as a note
+/// or as bytes.
+pub fn kef_shows_contents(app: &crate::Faraday) -> bool {
+    app.sheet == Some(crate::Sheet::KefRead) && crate::seeds::kef::kef_shows_contents(app)
+}
+
 /// The picture's PNG the Code card of seed `i`'s Krux code shows in the
 /// backup under way; `None` while the code is not made or fits no picture.
 pub fn kef_card_png(app: &crate::Faraday, i: usize) -> Option<Vec<u8>> {

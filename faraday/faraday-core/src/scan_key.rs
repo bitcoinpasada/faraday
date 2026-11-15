@@ -1141,14 +1141,19 @@ impl Faraday {
     /// or Paste gave (`docs/SCANNING.md` §4): the scanner on screen takes
     /// what it is for, and names anything else (§4.6).
     pub(crate) fn scanned(&mut self, bytes: Vec<u8>) {
+        self.scanned_wiped(zeroize::Zeroizing::new(bytes));
+    }
+
+    /// Costs what [`Faraday::scanned`] costs: a code already held in a
+    /// wiping buffer, which is handed on and not copied.
+    pub(crate) fn scanned_wiped(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         self.scanned_here(bytes);
         self.seed_carried_tidy();
     }
 
     /// Costs what [`Faraday::scanned`] costs: the same code, on the scanner
     /// on screen.
-    fn scanned_here(&mut self, bytes: Vec<u8>) {
-        let bytes = zeroize::Zeroizing::new(bytes);
+    fn scanned_here(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         if self.message_scanned(&bytes)
             || self.seed_scan_codex32(&bytes)
             || self.gpg_restore_scanned(&bytes)

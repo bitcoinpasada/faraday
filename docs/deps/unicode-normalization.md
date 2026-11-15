@@ -17,6 +17,11 @@ normalizes with it too.
 **Cost.** One crate and `tinyvec`, its small-vector buffer; both were
 already in the graph as test dependencies.
 
+**What is not wiped.** Its iterator and its small buffers, which see a
+typed passphrase, are its own and have no wipe. The code that takes the
+normalized forms collects them into wiping buffers sized once
+(`faraday-kef`); the library's state is not reachable.
+
 **Reopen when** the standard library offers normalization, or a word
 list is published that is not NFKD-invariant in a way this changes.
 

@@ -105,8 +105,9 @@ the planting of the secret to the end of the flow:
   and a MuSig2 key.
 - **Show and hide:** a seed's words, its SeedQR, a BIP-85 child, a vault
   key record, a paperkey and a TOTP code opened and hidden (F195).
-- **Seal and open:** a vault sealed and opened, the file vault and the
-  QR vault, with a Lock pressed while the seal runs.
+- **Seal and open:** a vault sealed and opened, a Krux code sealed and
+  opened, the file vault and the QR vault, with a Lock pressed while the
+  seal runs.
 - **Lock:** each of the above ended by Lock, with the scan of §1.2.
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.

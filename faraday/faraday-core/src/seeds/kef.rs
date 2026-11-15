@@ -517,7 +517,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         scan.ask = crate::Ask::Any;
         app.camera.open(scan);
         app.sheet = Some(Sheet::Scan);
-        return app.scanned(plain.to_vec());
+        return app.scanned_wiped(plain);
     }
     let shown = Text::of(text);
     drop(plain);
@@ -631,6 +631,14 @@ pub(crate) fn kef_read_key(app: &mut Faraday, key: KeyIn) -> bool {
 /// Whether typing goes to the sheet's field now.
 pub(crate) fn kef_typing(app: &Faraday) -> bool {
     app.sheet == Some(Sheet::KefRead) && app.seed_read.kef().is_some_and(|k| k.field().is_some())
+}
+
+/// Whether the sheet shows a code's opened contents as a note or as bytes.
+#[cfg(feature = "testkit")]
+pub(crate) fn kef_shows_contents(app: &Faraday) -> bool {
+    app.seed_read
+        .kef()
+        .is_some_and(|k| matches!(k.stage, Stage::Note | Stage::Bytes))
 }
 
 /// The sheet's field text, for the caret.
