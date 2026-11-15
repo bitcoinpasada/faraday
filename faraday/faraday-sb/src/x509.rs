@@ -98,9 +98,12 @@ pub fn read(cert: &[u8]) -> Option<Certificate> {
 
 /// Whether `sig` is the certificate's key's signature over `data`.
 pub fn verify(cert: &[u8], data: &[u8], sig: &[u8]) -> bool {
-    let Some(spki) =
-        read(cert).and_then(|c| c.tbs_certificate().subject_public_key_info().to_der().ok())
-    else {
+    read(cert).is_some_and(|c| verify_read(&c, data, sig))
+}
+
+/// [`verify`] for a certificate already read, so one read serves both.
+pub fn verify_read(cert: &Certificate, data: &[u8], sig: &[u8]) -> bool {
+    let Ok(spki) = cert.tbs_certificate().subject_public_key_info().to_der() else {
         return false;
     };
     let Ok(public) = rsa::RsaPublicKey::from_public_key_der(&spki) else {

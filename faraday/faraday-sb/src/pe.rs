@@ -416,7 +416,9 @@ pub fn check(pe: &[u8], cert: &[u8]) -> Result<Check, Error> {
 /// what is left is to check it against a certificate.
 struct Signature {
     info: SignerInfo,
-    info_der: Vec<u8>,
+    /// The signed attributes as they are signed, found once for every
+    /// certificate checked; `None` when they cannot be read.
+    attrs: Option<Vec<u8>>,
 }
 
 impl Signature {
@@ -424,13 +426,13 @@ impl Signature {
     /// the signer's, as the signature names it, and its key verifies;
     /// `None` when the signed attributes cannot be read.
     fn verify(&self, cert: &[u8]) -> Option<bool> {
-        let attrs = cms::signed_attrs_bytes(&self.info_der)?;
+        let attrs = self.attrs.as_ref()?;
         let Some(c) = x509::read(cert) else {
             return Some(false);
         };
         let named = c.tbs_certificate().issuer() == &self.info.sid.issuer
             && c.tbs_certificate().serial_number() == &self.info.sid.serial;
-        Some(named && x509::verify(cert, &attrs, self.info.signature.as_bytes()))
+        Some(named && x509::verify_read(&c, attrs, self.info.signature.as_bytes()))
     }
 }
 
@@ -501,5 +503,6 @@ fn read_signature(pe: &[u8], at: usize, size: usize) -> Option<Result<Signature,
     if !named_digest {
         return Some(Err(Check::Altered));
     }
-    Some(Ok(Signature { info, info_der }))
+    let attrs = cms::signed_attrs_bytes(&info_der);
+    Some(Ok(Signature { info, attrs }))
 }

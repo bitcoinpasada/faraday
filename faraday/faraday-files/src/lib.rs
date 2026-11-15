@@ -1245,6 +1245,19 @@ pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
     proto::Response::Qr { bytes, codes }
 }
 
+/// The width times the height a PNG's IHDR states, `None` when the bytes
+/// do not start as a PNG.
+fn png_header_pixels(bytes: &[u8]) -> Option<u64> {
+    let head = bytes.get(..24)?;
+    if head.get(..8)? != [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]
+        || head.get(12..16)? != b"IHDR"
+    {
+        return None;
+    }
+    let be = |x: &[u8]| x.iter().fold(0u64, |a, &b| (a << 8) | u64::from(b));
+    Some(be(head.get(16..20)?).saturating_mul(be(head.get(20..24)?)))
+}
+
 /// Costs a PNG decode and [`faraday_codec::decode::decode_picture`]: a
 /// third of a second for a 12-megapixel photograph, seconds on a Pi, so
 /// a shell reads pictures off its own thread. The QR codes in a PNG's
@@ -1252,6 +1265,11 @@ pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
 /// be a SeedQR.
 pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec<u8>>>, Text> {
     c.count(Work::PngDecode);
+    // The size is judged from the header first: the decoder's own buffer
+    // size overflows a 32-bit address space and would refuse it as unread.
+    if png_header_pixels(bytes).is_some_and(|n| n > MAX_PIXELS as u64) {
+        return Err(Text::of(EN.files_picture_large));
+    }
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder
