@@ -203,6 +203,8 @@ pub enum Action {
     DevicesHold,
     /// I understand, under the reminders before a secret.
     DevicesUnderstood,
+    /// The top bar's mark for an attached wireless receiver.
+    ReceiverMark,
     /// Power off.
     PowerOff,
     /// Restart the computer: Power off in everything but its end.

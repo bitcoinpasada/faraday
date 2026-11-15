@@ -188,6 +188,14 @@ pub fn tv_maker(edid: &[u8]) -> bool {
     edid_maker(edid).is_some_and(|m| TV_MAKERS.contains(&m.as_str()))
 }
 
+/// Whether the base block says the screen is fed over HDMI or DVI, as a
+/// TV or an external monitor is and a computer's own panel is not (byte
+/// 20: a digital input whose interface is DVI, HDMI-a or HDMI-b).
+pub fn hdmi_or_dvi(edid: &[u8]) -> bool {
+    edid.get(20)
+        .is_some_and(|b| b & 0x80 != 0 && (1..=3).contains(&(b & 0x0f)))
+}
+
 /// What an EDID base block says of a screen's size: the first detailed
 /// timing's active pixels, and how large the picture is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

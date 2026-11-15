@@ -373,8 +373,11 @@ impl DeviceCheck {
                 kind,
             });
         }
-        self.screen_settled =
-            kind.is_some() || !faraday_paper::edid::tv_maker(e) || !self.external_screen;
+        // The chassis alone does not settle it: a laptop's HDMI output
+        // may carry a TV, and its EDID then says HDMI.
+        self.screen_settled = kind.is_some()
+            || !faraday_paper::edid::tv_maker(e)
+            || (!self.external_screen && !faraday_paper::edid::hdmi_or_dvi(e));
     }
 
     /// Everything of concern now: the machine, the screen as its EDID
@@ -438,6 +441,13 @@ impl DeviceCheck {
         } else {
             None
         }
+    }
+
+    /// A wireless receiver other than Logitech's Bolt is attached now: the
+    /// top bar marks it for as long as it is, after the reminder is
+    /// understood too.
+    pub fn receiver_marked(&self) -> bool {
+        self.present.iter().any(|c| c.kind == Kind::Receiver)
     }
 
     /// The new device's sheet closed: whether this sheet waited under it
@@ -738,6 +748,7 @@ impl Faraday {
             Action::DevicesContinue => self.device_continue(),
             Action::DevicesHold => self.device_let_through(),
             Action::DevicesUnderstood => self.device_understood(),
+            Action::ReceiverMark => self.toast(EN.devices_receiver_notice),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }

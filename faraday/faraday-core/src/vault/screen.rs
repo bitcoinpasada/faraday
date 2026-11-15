@@ -1403,6 +1403,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     super::dice::foot(app, ui).is_some(),
                 );
             }
+            cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.vault_passphrase_no_reset) + tokens::GAP;
             cy += super::create_key::draw(app, ui, (x, cy, w)) + tokens::GAP;
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.

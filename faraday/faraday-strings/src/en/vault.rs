@@ -94,6 +94,8 @@ macro_rules! words_vault {
     vault_home: "Home",
     /// Text in `create`.
     vault_create_a_vault: "Create a vault",
+    /// Under Create a vault's passphrase fields.
+    vault_passphrase_no_reset: "A vault cannot be opened without this passphrase. Nobody can reset it.",
     /// Text in `create_summaries`.
     vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.

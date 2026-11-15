@@ -145,6 +145,13 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
         key(t, f.chars().next().unwrap_or('1'));
     }
     t.shot("codex32-enter-dice")?;
+    // A wireless receiver attached: its mark beside the keyboard and the
+    // eye on the page's full bar.
+    t.app.usb_devices(&[super::devices::receiver(false)]);
+    t.pump();
+    t.shot("codex32-receiver-mark")?;
+    t.app.usb_devices(&[]);
+    t.pump();
     c(t, C32::View(1));
     t.shot("codex32-enter-share-d")?;
     c(t, C32::View(0));

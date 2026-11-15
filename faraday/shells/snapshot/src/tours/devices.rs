@@ -64,7 +64,12 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.app.usb_devices(&[receiver(false)]);
     t.press(Action::Entry(None));
     t.shot("devices-receiver")?;
-    t.press(Action::Cancel);
+    // Understood, the page that takes the words: the receiver's mark
+    // beside the keyboard and the eye on its full bar, and on Home.
+    t.press(Action::DevicesUnderstood);
+    t.shot("devices-receiver-mark-entry")?;
+    t.press(Action::Nav(Screen::Home));
+    t.shot("devices-receiver-mark-home")?;
     t.app.usb_devices(&[receiver(true)]);
     t.press(Action::Entry(None));
     t.shot("devices-receiver-bolt")?;

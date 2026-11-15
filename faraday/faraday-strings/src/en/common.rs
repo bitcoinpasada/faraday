@@ -1427,6 +1427,8 @@ macro_rules! words_common {
     tip_lock: "Lock",
     /// Tooltip on the keyboard icon.
     tip_keyboard: "Keyboard",
+    /// The top bar's mark while a wireless receiver is attached.
+    tip_wireless_keyboard: "Wireless keyboard",
     /// Tooltip on the power icon.
     tip_power_off: "Power off",
     /// Tooltip on an eye that shows what is hidden.

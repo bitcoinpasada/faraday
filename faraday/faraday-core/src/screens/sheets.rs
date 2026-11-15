@@ -325,6 +325,12 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .into_iter()
             .map(|r| (Text::of(r), reminder_tone(r))),
     );
+    if d.held.is_empty() {
+        lines.push((
+            Text::of(s.devices_look_around),
+            Role::OnSurfaceVariant.paint(),
+        ));
+    }
     let title = if d.held.is_empty() {
         s.devices_before
     } else {

@@ -47,6 +47,8 @@ macro_rules! words_starter {
     devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
     /// Title of the sheet before a secret when it lists only reminders.
     devices_before: "Before a secret is shown",
+    /// The fixed line of the sheet before a secret: what no check can detect.
+    devices_look_around: "No camera or window behind you. No capture card or extender between this computer and its screen.",
     /// The button that goes on from the reminders.
     devices_understood: "I understand",
     /// The button that goes back from them.

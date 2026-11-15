@@ -2063,7 +2063,8 @@ impl Faraday {
             | Action::DevicesCheck
             | Action::DevicesContinue
             | Action::DevicesHold
-            | Action::DevicesUnderstood) => self.devices_act(a),
+            | Action::DevicesUnderstood
+            | Action::ReceiverMark) => self.devices_act(a),
             Action::PassChip(f) => self.demo_pass_chip(f),
             a @ (Action::Samples
             | Action::SampleTick(..)

@@ -193,6 +193,23 @@ pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
     }
 }
 
+/// The mark a wireless receiver leaves on every bar while it is attached
+/// (a warning icon, "Wireless keyboard"), its right edge at `right`.
+/// Returns where the next tool ends.
+pub(crate) fn receiver_mark(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    if !app.devices.receiver_marked() {
+        return right;
+    }
+    faraday_ui::nav::icon_action(
+        ui,
+        right,
+        Icon::Warning,
+        Action::ReceiverMark,
+        false,
+        EN.tip_wireless_keyboard,
+    )
+}
+
 /// Where the Back button's target ends: nothing else on the bar reaches
 /// left of it.
 fn back_end(ui: &Ui) -> f32 {
@@ -281,6 +298,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
             );
         }
     }
+    right = receiver_mark(app, ui, right);
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
     if let Some((action, shown)) = keyboard.filter(|_| !held.keyboard) {

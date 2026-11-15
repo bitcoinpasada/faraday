@@ -531,6 +531,60 @@ fn home_carries_no_reminder() {
     assert!(!says(&mut app, "Wireless receiver attached."));
 }
 
+/// Whether the bar of the frame now drawn carries the receiver's mark.
+fn marked(app: &mut Faraday) -> bool {
+    app.drawn_texts();
+    app.where_offered(Action::ReceiverMark).is_some()
+}
+
+#[test]
+fn a_receiver_leaves_a_mark_on_the_bar_on_every_screen_after_the_reminder_is_understood() {
+    let mut app = shown(laptop());
+    assert!(!marked(&mut app));
+    app.usb_devices(&[receiver()]);
+    // The mark is there before any secret.
+    assert!(marked(&mut app));
+    app.press(Action::Entry(None));
+    app.press(Action::DevicesUnderstood);
+    assert_eq!(app.screen, Screen::Entry);
+    assert!(marked(&mut app));
+    app.press(Action::Nav(Screen::Home));
+    assert!(marked(&mut app));
+    // Pulled, the mark goes.
+    app.usb_devices(&[]);
+    assert!(!marked(&mut app));
+}
+
+#[test]
+fn the_sheet_before_a_secret_says_what_no_check_can_see() {
+    let mut app = shown(desktop());
+    app.usb_devices(&[receiver()]);
+    app.press(Action::Entry(None));
+    assert!(says(&mut app, "No camera or window behind you."));
+}
+
+#[test]
+fn a_laptop_whose_hdmi_screen_is_a_tv_makers_still_gets_the_tv_reminder() {
+    // The chassis alone does not settle it: the EDID says HDMI.
+    let mut data = boot_params(Some(("SAM", Some("EXAMPLE 27"))));
+    data[0x140 + 20] = 0x82;
+    let machine =
+        DeviceCheck::machine(CPU, "LENOVO", "20XW", "10").with_edid(from_boot_params(&data));
+    let mut app = shown(machine);
+    app.usb_devices(&[]);
+    app.press(Action::Entry(None));
+    assert!(says(&mut app, TV_LINE));
+    // Its own panel, the same maker, is no reminder.
+    let mut data = boot_params(Some(("SAM", Some("EXAMPLE 27"))));
+    data[0x140 + 20] = 0xa5;
+    let machine =
+        DeviceCheck::machine(CPU, "LENOVO", "20XW", "10").with_edid(from_boot_params(&data));
+    let mut app = shown(machine);
+    app.usb_devices(&[]);
+    app.press(Action::Entry(None));
+    assert!(!says(&mut app, TV_LINE));
+}
+
 // ----- The screen's EDID, from the boot parameters -----
 
 /// The kernel's boot parameters as `/sys/kernel/boot_params/data` holds

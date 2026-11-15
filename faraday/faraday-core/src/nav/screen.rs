@@ -202,6 +202,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             crate::modes::screen::pill(app, ui, px, (APP_BAR_H - MODE_PILL_HEIGHT) / 2.0);
             *right = px - GAP;
         }
+        *right = crate::compact::receiver_mark(app, ui, *right);
         if let Some((action, shown)) = crate::compact::keyboard_action(app) {
             *right = faraday_ui::nav::icon_action(
                 ui,
