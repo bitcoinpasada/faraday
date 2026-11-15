@@ -1071,6 +1071,16 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
     ui.press_box(x, y, w, 52.0, a);
 }
 
+/// `v` as `width` binary digits, written by pushes: `{:b}` formats
+/// through core::fmt's own stack buffer, which is never wiped.
+fn binary(v: u32, width: usize) -> Text {
+    let mut t = Text::with_room(width);
+    for at in (0..width).rev() {
+        t.push(if (v >> at) & 1 == 1 { '1' } else { '0' });
+    }
+    t
+}
+
 /// An option's name on the Randomness card and in its summary.
 fn way_name(w: Way) -> Text {
     match w {
@@ -1653,7 +1663,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The last word: its own bits so far, then the checksum's.
     let made = k.checksum_word();
     let code = match made {
-        Some(i) if coins => text!("{i:011b}"),
+        Some(i) if coins => binary(u32::from(i), 11),
         _ if coins => {
             let have = entered.saturating_sub(last * 11).min(11 - checksum);
             text!(
@@ -1775,7 +1785,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let bits = |pos: usize, face: u8| -> Text {
         if pos < faces {
-            text!("{:02b}", face - 1)
+            binary(u32::from(face - 1), 2)
         } else {
             Text::of(if face >= 4 { "1" } else { "0" })
         }
@@ -1788,7 +1798,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         let cells: Vec<(Text, Text)> = (0..per)
             .map(|p| match got.get(p) {
-                Some(&f) => (text!("{f}"), bits(p, f)),
+                Some(&f) => (Text::of(&Text::num(u64::from(f))), bits(p, f)),
                 None => (Text::of("·"), Text::of(if p < faces { "··" } else { "·" })),
             })
             .collect();
@@ -1816,7 +1826,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Some(&f) => {
                     let all = bits(p, f);
                     (
-                        text!("{f}"),
+                        Text::of(&Text::num(u64::from(f))),
                         text!(
                             "{}{}",
                             &all[..keep],
@@ -1830,7 +1840,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .collect();
     let made = k.checksum_word();
     let sum = match made {
-        Some(i) => text!("{:0width$b}", i & ((1 << checksum) - 1), width = checksum),
+        Some(i) => binary(u32::from(i & ((1 << checksum) - 1)), checksum),
         None => Text::repeated("·", checksum),
     };
     row(
@@ -2004,7 +2014,12 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 &st.counts
                     .iter()
                     .enumerate()
-                    .map(|(i, c)| text!("{}:{c}", i + 1))
+                    .map(|(i, c)| {
+                        let mut t = Text::of(&Text::num(i as u64 + 1));
+                        t.push(':');
+                        t.push_str(&Text::num(u64::from(*c)));
+                        t
+                    })
                     .collect::<Vec<_>>(),
                 "  ",
             );
@@ -2063,7 +2078,13 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 &SUITS
                     .iter()
                     .zip(st.suits)
-                    .map(|(s, c)| text!("{s} {c}"))
+                    .map(|(s, c)| {
+                        let mut t = Text::new();
+                        t.push(*s);
+                        t.push(' ');
+                        t.push_str(&Text::num(u64::from(c)));
+                        t
+                    })
                     .collect::<Vec<_>>(),
                 "   ",
             );
