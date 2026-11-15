@@ -2,34 +2,20 @@
 # Secret-hygiene lint for the core crates and the secret state in
 # faraday/.
 #
-# Rules 1 and 2 are applied to every file under core/*/src/, to every
+# Rule 1 is applied to every file under core/*/src/, to every
 # file under faraday/faraday-core/src/, faraday/faraday-plan/src/,
 # faraday/faraday-paper/src/ and faraday/faraday-host/src/, to the Bitcoin Core wallet reader's
 # (faraday/faraday-core-wallet/src/, whose records carry a wallet's keys on
-# their way to faraday-keys); rule 2's
-# derives also to every other non-test source file under core/ and
-# faraday/ except the Starter's, the shells' and tools' (docs/SECRET-LEAKS.md
-# §6); rule 3 to the secret files listed below, which a file's use of a secret
-# type also selects:
+# their way to faraday-keys); rule 3 to the secret files listed below, which a
+# file's use of a secret type also selects:
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
 #      (integration tests), or use assert! only.
 #   2. A secret type derives none of Clone, PartialEq or Debug and has no
-#      Display impl. A secret type is a struct or enum whose body names a
-#      secret type (Secret, SecretText, Zeroizing, SeedBytes, MnemonicBytes,
-#      a faraday-keys Held*, rule 4a's key types) as a field's type, that derives
-#      Zeroize, or that has an `impl Drop`, `Zeroize` or `ZeroizeOnDrop`
-#      for it. A
-#      struct or enum of the same crate whose body names a secret type found
-#      this way, and that has no Drop of its own, is secret too, repeated
-#      until nothing new is found (a name the crate defines once). A copy is a function of the type (`duplicate`), a comparison
-#      one that does not branch on the bytes, a Debug one that prints a
-#      redaction. Types named Secret, Mnemonic, MnemonicBytes, Seed,
-#      Entropy, MasterKey, DerivedKey, PinEntry, Session, Key or Item
-#      derive no Debug either (checked on the item that follows the
-#      derive); those that hold no secret are excepted one by one in
-#      ALLOWED below, and a secret type that keeps a derive is excepted by
-#      file and name in ALLOWED_TYPES, each with its reason.
+#      Display impl: held by costs-lint's secret-types check
+#      (tools/costs-lint/src/secret_types.rs, docs/SECRET-LEAKS.md §6), which
+#      reads the secret type names from tools/secret-names.txt as this file
+#      does.
 # Applied to the files that handle secret material, currently
 # core/faraday-crypto/src/secret.rs (secrets, seeds and mnemonics),
 # core/faraday-bip/src/bip39.rs (mnemonics, entropy, seeds),
@@ -82,7 +68,7 @@
 #      public data and may use String freely. A file is a secret file when
 #      it names a secret type. SECRET_FILES is worked out below, not listed:
 #      the non-test source files under core/ and faraday/ (type_files) that
-#      name a secret type (the names of rule 2, 4a's key types, `zeroize`),
+#      name a secret type (the names in tools/secret-names.txt, 4a's key types, `zeroize`),
 #      less UNHELD, plus NAMELESS, so a new module is found without anyone
 #      adding it. The wiping text of faraday_text counts as a secret type: a
 #      file naming it is held or, with a reason that is true, on UNHELD
@@ -127,226 +113,21 @@ type_files() {
 }
 # A secret type, by name: the wiping types, faraday-keys' holders (Held,
 # HeldSet, HeldItem, HeldAezeed), rule 4a's key types and anything that
-# wipes itself.
-SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b|\bfaraday_text\b'
+# wipes itself. The type names are tools/secret-names.txt, which costs-lint's
+# secret-types check reads too: one list.
+SECRET_TYPES=$(grep -vE '^[[:space:]]*(#|$)' tools/secret-names.txt | sed -E 's/\*$/[A-Za-z]*/' | paste -sd'|')
+SECRET_NAMES="\\b(${SECRET_TYPES}|Zeroize|ZeroizeOnDrop)\\b|\\bzeroize\\b|\\bfaraday_text\\b"
 # The same without the wiping text: a file on UNHELD may name only that.
-OTHER_SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b'
+OTHER_SECRET_NAMES="\\b(${SECRET_TYPES}|Zeroize|ZeroizeOnDrop)\\b|\\bzeroize\\b"
 
 # Rule 1: output and logging macros.
 report "output/logging macro in core source (rule 1)" \
     "$(src_files | xargs grep -nE '\b(println|eprintln|print|eprint|dbg)!|\b(log|tracing)::')"
 
-# Rule 2: Debug derives on secret types. Pair each derive with the item that
-# follows it (skipping other attributes and doc comments).
-#
-# These types carry the name of a secret type and hold none; each is
-# public data, and the exception is that file and name alone:
-#   slip132.rs Key         an extended public key, decoded
-#   fonts/mod.rs Key       a glyph cache key (family, size, code point)
-#   shell-api Key          a physical keyboard key
-#   backup_flow Sealed     the hash and name of a sealed vault file
-#   plan Seed              a seed as the plan sees it: name and flags
-#   plan Item              one line of the checklist
-ALLOWED="core/faraday-bip/src/slip132.rs:Key core/faraday-draw/src/fonts/mod.rs:Key core/faraday-shell-api/src/lib.rs:Key faraday/faraday-core/src/backup_flow/mod.rs:Sealed faraday/faraday-plan/src/lib.rs:Seed faraday/faraday-plan/src/lib.rs:Item"
-rule2() {
-    for f in $(src_files); do
-        awk -v file="$f" -v allowed="$ALLOWED" '
-            /#\[derive\(/ { derive = $0; derive_line = NR; next }
-            derive != "" && /^[[:space:]]*(#\[|\/\/)/ { next }
-            derive != "" {
-                if (derive ~ /Debug/ && $0 ~ /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+(Secret|Mnemonic|MnemonicBytes|Seed|Entropy|MasterKey|DerivedKey|PinEntry|Session|Key|Item)([^A-Za-z0-9_]|$)/) {
-                    line = $0
-                    sub(/^.*(struct|enum)[[:space:]]+/, "", line)
-                    sub(/[^A-Za-z0-9_].*$/, "", line)
-                    if (index(" " allowed " ", " " file ":" line " ") == 0) {
-                        printf "%s:%d: %s\n", file, derive_line, derive
-                    }
-                }
-                derive = ""
-            }
-        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
-    done
-}
-report "Debug derived on a secret type (rule 2)" "$(rule2)"
-
-# Rule 2, by type: a struct or enum that holds a secret (its body names a
-# secret type as a field's type, it derives Zeroize, or it has an `impl Drop`,
-# `Zeroize` or `ZeroizeOnDrop`) derives none of Clone, PartialEq or Debug and
-# has no Display impl. The ones that keep a derive are named here by file and
-# type, then the derives it excepts (Clone, PartialEq, Debug, Display, comma
-# separated; only those, any other derive on it is still flagged), then the
-# reason ("fixed in a later change": the type's callers copy, compare or print
-# it and are not yet changed to a function of the type that does).
-ALLOWED_TYPES=$(cat <<'EOF'
-faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's two values, a Copy element of wiped buffers that the tour and the tests compare and print
-core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
-core/faraday-shell-api/src/lib.rs:Event Clone,PartialEq its only wiping part is EntropyBytes, which wipes on drop and compares without a branch on a byte, so the derived copy and comparison are its own; the snapshot and replay shells copy events and the tests compare them
-faraday/faraday-core/src/storage_api.rs:StorageEvent Clone,PartialEq,Debug its wiping parts are Zeroizing buffers (the files restored, a picture's bytes and codes), as Restored's files already were; the shells and tests copy, compare and print events (fixed in a later change: a function of the type that does)
-faraday/faraday-core/src/backup_flow/mod.rs:Live Debug holds Writing, whose Debug is its own and prints the names and sizes of what it holds; its copy is its own
-faraday/faraday-core/src/backup_flow/mod.rs:BackupFlow Clone,Debug holds Live, whose copy is its own and whose Debug is Writing's own
-faraday/faraday-core/src/dice_entry/screen.rs:Ask Clone,Copy for it is Copy: it borrows the dice entry and holds no copy of it
-faraday/faraday-core/src/transfer/mod.rs:TransferArea Debug holds SendText, whose Debug is its own and prints lengths only
-faraday/faraday-keys/src/vault/mod.rs:Records Clone,Copy for it is Copy: a view of an open vault's records that holds references, not bytes
-faraday/faraday-pgp/src/message.rs:Message Debug holds Body, whose Debug is its own and prints a length only
-faraday/faraday-vault/src/records.rs:Record Debug holds Field, whose Debug is its own and prints a number and a length only
-faraday/faraday-vault/src/contents.rs:Refusal Debug,PartialEq holds KeyName, whose Debug and PartialEq are its own, written by hand over the name as text, not derived over its bytes
-faraday/faraday-vault/src/qr.rs:Error Debug,PartialEq holds Refusal, whose Debug and PartialEq come from KeyName's own
-EOF
-)
-ALLOWED_TYPES_LIST=$(echo "$ALLOWED_TYPES" | awk '{print $1 "=" $2}' | tr '\n' ' ')
-rule2_types() {
-    for f in $(type_files); do
-        names=$(grep -ohE 'impl(<[^>]*>)? +(Drop|Zeroize|ZeroizeOnDrop|zeroize::Zeroize|zeroize::ZeroizeOnDrop) +for +[A-Za-z0-9_]+' "$f" | sed -E 's/.* for //' | sort -u | tr '\n' ' ')
-        awk -v file="$f" -v allowed="$ALLOWED_TYPES_LIST" -v names="$names" '
-            function inbody(b,   re) {
-                re = "([:(<,&[]|&mut)[[:space:]]*(pub(\\([a-z]+\\))?[[:space:]]+)?([a-z_]+::)*(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)([^A-Za-z0-9_(]|$)"
-                return b ~ re
-            }
-            BEGIN { OFS = "\t" }
-            # The line without its comments and with each string or char
-            # literal emptied, so that a bracket or a type name in one is
-            # not counted. A block comment or a string may run on to later
-            # lines (cdepth, instr); a lifetime is not a char literal.
-            function strip(s,   out, i, n, c, d, p, j) {
-                if (!cdepth && !instr && s !~ /["\047\/]/) return s
-                out = ""; n = length(s); i = 1
-                while (i <= n) {
-                    c = substr(s, i, 1); d = substr(s, i + 1, 1)
-                    if (cdepth) {
-                        if (c == "/" && d == "*") { cdepth++; i += 2 }
-                        else if (c == "*" && d == "/") { cdepth--; i += 2; if (!cdepth) out = out " " }
-                        else i++
-                        continue
-                    }
-                    if (instr == 1) {
-                        if (c == "\\") i += 2
-                        else if (c == "\"") { instr = 0; out = out "\"\""; i++ }
-                        else i++
-                        continue
-                    }
-                    if (instr == 2) {
-                        if (c == "\"" && substr(s, i + 1, length(rawh)) == rawh) { instr = 0; out = out "\"\""; i += 1 + length(rawh) }
-                        else i++
-                        continue
-                    }
-                    p = substr(s, i - 1, 1)
-                    if (c == "/" && d == "/") { sub(/[[:space:]]+$/, "", out); break }
-                    if (c == "/" && d == "*") { cdepth = 1; i += 2; continue }
-                    if (c == "\"") { instr = 1; i++; continue }
-                    if (c == "r" && (p !~ /[A-Za-z0-9_]/ || (p == "b" && substr(s, i - 2, 1) !~ /[A-Za-z0-9_]/)) && match(substr(s, i + 1), /^#*"/)) {
-                        instr = 2; rawh = substr(s, i + 1, RLENGTH - 1); i += 1 + RLENGTH; continue
-                    }
-                    if (c == "\047") {
-                        if (d == "\\") {
-                            j = index(substr(s, i + 3), "\047")
-                            if (j) { out = out "\047\047"; i += 3 + j; continue }
-                        } else if (substr(s, i + 2, 1) == "\047") { out = out "\047\047"; i += 3; continue }
-                        else if (d != "" && d !~ /[ -~]/) {
-                            j = index(substr(s, i + 1, 6), "\047")
-                            if (j > 1) { out = out "\047\047"; i += 1 + j; continue }
-                        }
-                    }
-                    out = out c; i++
-                }
-                return out
-            }
-            function flush(   toks, t, n, i) {
-                if (name != "") {
-                    # One record a type: what the final pass needs to follow
-                    # nesting. Its tokens are the words of its body.
-                    t = body; toks = ""
-                    while (match(t, /[A-Za-z_][A-Za-z0-9_]*/)) {
-                        if (substr(t, RSTART, 1) ~ /[A-Z]/) toks = toks " " substr(t, RSTART, RLENGTH)
-                        t = substr(t, RSTART + RLENGTH)
-                    }
-                    print "T", file, dline, name, derive, ((inbody(body) || derive ~ /Zeroize/) ? 1 : 0), (index(" " names, " " name " ") ? 1 : 0), toks
-                }
-                name = ""; body = ""
-            }
-            collecting { pend = pend " " $0; if ($0 ~ /\)\]/) collecting = 0; next }
-            /^[[:space:]]*#\[derive\(/ { pend = $0; pline = FNR; if ($0 !~ /\)\]/) collecting = 1; next }
-            pend != "" && inattr { if ($0 ~ /\][[:space:]]*$/) inattr = 0; next }
-            pend != "" && /^[[:space:]]*#\[/ { if ($0 !~ /\][[:space:]]*$/) inattr = 1; next }
-            pend != "" && /^[[:space:]]*\/\// { next }
-            /^[[:space:]]*impl(<[^>]*>)?[[:space:]]+([A-Za-z_:]*::)?Display[[:space:]]+for[[:space:]]+[A-Za-z_]/ {
-                l = $0; sub(/^.*Display[[:space:]]+for[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l)
-                disp[l] = FNR
-            }
-            { $0 = strip($0); if ($0 == "") $0 = "|" }
-            name != "" {
-                # The name of an enum variant is not a type it holds; a line
-                # inside the parentheses of a wrapped tuple variant is a type.
-                if (is_enum && depth == 1 && pdepth == 0) sub(/^[[:space:]]*[A-Z][A-Za-z0-9_]*/, " _")
-                body = body " " $0
-                pdepth += gsub(/\(/, "(") - gsub(/\)/, ")")
-                if (depth_open) { n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth += n - m; if (depth <= 0) flush() }
-                else if ($0 ~ /;/) flush()
-                next
-            }
-            /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+[A-Za-z_]/ && !/\/\// {
-                derive = pend; dline = pline; pend = ""
-                l = $0; sub(/^.*(struct|enum)[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l); name = l
-                is_enum = ($0 ~ /(^|[^A-Za-z0-9_])enum[[:space:]]/); pdepth = 0
-                body = $0
-                if ($0 ~ /\{/) { depth_open = 1; n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth = n - m; if (depth <= 0) flush() }
-                else { depth_open = 0; if ($0 ~ /;/) flush() }
-                next
-            }
-            { pend = "" }
-            END {
-                for (t in disp) print "D", file, disp[t], t
-                if (cdepth || instr) print file ": a string or block comment is not closed"
-            }
-        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
-    done | awk -F'\t' -v allowed="$ALLOWED_TYPES_LIST" '
-        # A type is secret when it holds a secret type directly, derives
-        # Zeroize or has a Drop of its own; and, repeated until nothing new is
-        # found, when its body names a type already found secret and it has no
-        # Drop of its own (the Drop is what wipes it). Types are matched by
-        # name within a crate, and only a name the crate defines once, since
-        # two types of one name cannot be told apart here.
-        function excepts(key,   i, n, a) {
-            n = split(allowed, a, " ")
-            for (i = 1; i <= n; i++)
-                if (index(a[i], key "=") == 1) return substr(a[i], length(key) + 2)
-            return ""
-        }
-        BEGIN { split_d[1] = "Clone"; split_d[2] = "PartialEq"; split_d[3] = "Debug" }
-        $1 == "T" {
-            n++; file[n] = $2; dline[n] = $3; name[n] = $4; derive[n] = $5; drop[n] = $7; toks[n] = $8
-            krate[n] = $2; sub(/\/src\/.*$/, "", krate[n])
-            defs[krate[n] SUBSEP $4]++
-            if ($6 == 1 || $7 == 1) { sec[n] = 1; secname[krate[n] SUBSEP $4] = 1 }
-            next
-        }
-        $1 == "D" { nd++; dfile[nd] = $2; dl[nd] = $3; dname[nd] = $4; next }
-        { print }
-        END {
-            do {
-                changed = 0
-                for (i = 1; i <= n; i++) {
-                    if (sec[i] || drop[i]) continue
-                    m = split(toks[i], w, " ")
-                    for (j = 1; j <= m; j++)
-                        if (((krate[i] SUBSEP w[j]) in secname) && defs[krate[i] SUBSEP w[j]] == 1 && w[j] != name[i]) { sec[i] = 1; secname[krate[i] SUBSEP name[i]] = 1; changed = 1; nested[i] = w[j]; break }
-                }
-            } while (changed)
-            for (i = 1; i <= n; i++) {
-                if (!sec[i]) continue
-                ex = excepts(file[i] ":" name[i])
-                for (k = 1; k <= 3; k++)
-                    if (derive[i] ~ ("(^|[^A-Za-z0-9_])" split_d[k] "([^A-Za-z0-9_]|$)") && index("," ex ",", "," split_d[k] ",") == 0) {
-                        printf "%s:%d: %s: %s%s\n", file[i], dline[i], name[i], derive[i], (i in nested ? " (holds " nested[i] ")" : "")
-                        break
-                    }
-                secfile[file[i] SUBSEP name[i]] = 1
-            }
-            for (i = 1; i <= nd; i++)
-                if (((dfile[i] SUBSEP dname[i]) in secfile) && index("," excepts(dfile[i] ":" dname[i]) ",", ",Display,") == 0)
-                    printf "%s:%d: %s: Display implemented\n", dfile[i], dl[i], dname[i]
-        }'
-}
-report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
+# Rule 2, a secret type derives no Clone, PartialEq or Debug and has no
+# Display impl, is held by costs-lint (tools/costs-lint/src/secret_types.rs),
+# which reads the secret type names from tools/secret-names.txt as this file
+# does.
 
 # Rule 3: no heap text in the files that hold secret material. A file holds
 # secret material when it names a secret type (SECRET_NAMES, the wiping text

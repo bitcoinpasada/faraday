@@ -3,5 +3,6 @@
 //! (`docs/CRYPTO-LEARN.md` §4, §5.1) with its SHA-256.
 
 pub mod inventory;
+pub mod secret_types;
 pub mod selftest;
 pub mod walk;

@@ -20,6 +20,10 @@
 //!    `&mut Ui`: drawing reaches the token only through `View`'s
 //!    accessors.
 //!
+//! 5. a type that holds a secret deriving `Clone`, `PartialEq` or `Debug`
+//!    or implementing `Display`, and a type named like a secret one
+//!    deriving `Debug` (`secret_types`, `docs/SECRET-LEAKS.md` §6).
+//!
 //! Each finding is printed as `path:line: rule: what`; the exit status is
 //! 1 when there is any.
 
@@ -69,6 +73,11 @@ fn main() -> ExitCode {
     // Rule 2: the feature in Faraday's manifests.
     for file in manifests(&root.join("faraday")) {
         check_manifest(&root, &file, &mut out);
+    }
+
+    // Rule 5: the secret types.
+    for (file, line, what) in costs_lint::secret_types::check(&root) {
+        out.add(&file, line, "rule 5", what);
     }
 
     if out.lines.is_empty() {

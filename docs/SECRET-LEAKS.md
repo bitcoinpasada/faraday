@@ -173,9 +173,9 @@ had to list one screen by hand.
 - **No derived `Clone`, `PartialEq`, `Debug` or `Display`** on a type
   that holds a secret. A copy is written where it is needed, and a
   comparison goes through a function of the type that does not branch on
-  the bytes. `lint-secrets` rule 2 holds this on every secret type and on
+  the bytes. costs-lint's secret-types check (`tools/costs-lint/src/secret_types.rs`) holds this on every secret type and on
   every type that holds one, through any depth of nesting; a type that
-  keeps a derive is named in its `ALLOWED_TYPES` with the reason it is
+  keeps a derive is named in its `KEPT` with the reason it is
   safe.
 - **`clippy::disallowed_methods`** in the crates that hold secrets
   refuses `to_vec`, `clone`, `to_owned` and `to_string` on a secret
