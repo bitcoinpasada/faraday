@@ -73,7 +73,11 @@
 #      are u16 indices; text is `&str` borrowed from the embedded lists.
 #      One exception, because it is not Rust's type at all: a byte-string
 #      literal holding the KDBX XML element `<String>`, which the vault's
-#      xml/mod.rs writes into a document.
+#      xml/mod.rs writes into a document. Another: in
+#      core/faraday-bip/src/json.rs, the name of the reader's variant
+#      `Value::String` (its declaration `String(Text),` and its uses as
+#      `Value::String(`), a name of the public API whose payload is wiping
+#      Text; a `String` type there is still a hit.
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
 #      public data and may use String freely. A file is a secret file when
 #      it is in SECRET_FILES below (paths are relative to the repository
@@ -344,7 +348,8 @@ rule2_types() {
 report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="faraday/faraday-vault/src/contents.rs
+SECRET_FILES="core/faraday-bip/src/json.rs
+faraday/faraday-vault/src/contents.rs
 faraday/faraday-vault/src/contents/tree.rs
 faraday/faraday-vault/src/kdbx/mod.rs
 faraday/faraday-vault/src/kdbx/keys.rs
@@ -861,7 +866,18 @@ builders=$(grep -nE "$BUILDERS" $SECRET_FILES | grep -v '// not text:' | grep -v
     done)
 report "heap text in secret-handling source (rule 3)" \
     "$( { grep -nE "$HEAP_TEXT" $SECRET_FILES \
-        | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$'; echo "$builders"; } | grep .)"
+        | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$' \
+        | grep -vE '^core/faraday-bip/src/json\.rs:[0-9]+: +String\(Text\),$' \
+        | while IFS= read -r hit; do
+            # json.rs names its own variant `Value::String(`: that token
+            # alone is no heap text (serde_json's, written with a path
+            # before it, is); a line still a hit without it stays one.
+            case "$hit" in
+                core/faraday-bip/src/json.rs:*)
+                    grep -qE "$HEAP_TEXT" <<< "$(sed -E 's/(^|[^:])Value::String\(/\1/g' <<< "${hit#*:*:}")" || continue ;;
+            esac
+            echo "$hit"
+        done; echo "$builders"; } | grep .)"
 
 # Rule 4: the key boundary (docs/KEYS.md, F70). Key material is used
 # only in faraday/faraday-keys. Everywhere else under faraday/ these are

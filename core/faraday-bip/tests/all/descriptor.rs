@@ -154,3 +154,14 @@ fn a_depth_zero_key_with_a_parent_or_an_index_has_no_origin() {
     }
     assert_eq!(seen, 2);
 }
+
+/// A wallet's descriptor whose checksum happens to start with the letters
+/// of a private key still reads: only its body is looked at for one.
+#[test]
+fn a_checksum_starting_like_a_private_key_still_reads() {
+    use faraday_bip::descriptor::reads_as_descriptor;
+    use faraday_crypto::work::Compute;
+    let body = "wpkh([73c5da0a/84h/0h/1256090h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";
+    assert_eq!(checksum(body), "tprvgjmv");
+    assert!(reads_as_descriptor(&Compute::unchecked(), &format!("{body}#tprvgjmv")));
+}

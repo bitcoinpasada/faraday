@@ -70,7 +70,7 @@ fn the_rfcs_examples_read_as_the_values_they_write() {
     let first = &v.as_array().unwrap()[0];
     assert_eq!(
         first.get("Longitude"),
-        Some(&Value::Number("-122.3959".into()))
+        Some(&Value::Number(faraday_text::Text::of("-122.3959")))
     );
     assert_eq!(first.get("Latitude").and_then(Value::as_u64), None);
 }
@@ -83,7 +83,7 @@ fn a_number_reads_as_the_decimal_text_of_its_value() {
         .unwrap()
         .iter()
         .map(|n| match n {
-            Value::Number(t) => t.as_str(),
+            Value::Number(t) => t.as_ref(),
             _ => "",
         })
         .collect();
@@ -95,8 +95,14 @@ fn a_number_reads_as_the_decimal_text_of_its_value() {
 #[test]
 fn a_large_number_reads_the_same_written_either_way() {
     let digits = format!("5{}", "0".repeat(111));
-    assert_eq!(json::parse("5e111"), Ok(Value::Number(digits.clone())));
-    assert_eq!(json::parse(&digits), Ok(Value::Number(digits)));
+    assert_eq!(
+        json::parse("5e111"),
+        Ok(Value::Number(faraday_text::Text::of(&digits)))
+    );
+    assert_eq!(
+        json::parse(&digits),
+        Ok(Value::Number(faraday_text::Text::of(&digits)))
+    );
 }
 
 #[test]
@@ -129,7 +135,7 @@ fn a_key_written_two_ways_is_still_named_twice() {
 fn every_escape_is_undone_and_quote_writes_it_back() {
     let v = json::parse(r#""a\"b\\c\/d\b\f\n\r\t\u00e9\ud83d\ude00""#).unwrap();
     let s = "a\"b\\c/d\u{8}\u{c}\n\r\té😀";
-    assert_eq!(v, Value::String(s.into()));
+    assert_eq!(v, Value::String(faraday_text::Text::of(s)));
     assert_eq!(json::parse(&json::quote(s)), Ok(v));
     assert_eq!(json::quote("x\u{1}"), "\"x\\u0001\"");
 }

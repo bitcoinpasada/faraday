@@ -93,13 +93,17 @@ fn value_of(v: &faraday_bip::json::Value) -> Value {
     match v {
         J::Null => Value::Null,
         J::Bool(b) => Value::Bool(*b),
-        J::Number(t) => json!(t.parse::<f64>().expect("a number of the reader is a float")),
-        J::String(s) => Value::String(s.clone()),
+        J::Number(t) => json!(
+            t.as_ref()
+                .parse::<f64>()
+                .expect("a number of the reader is a float")
+        ),
+        J::String(s) => Value::String(s.as_ref().to_string()),
         J::Array(items) => Value::Array(items.iter().map(value_of).collect()),
         J::Object(members) => Value::Object(
             members
                 .iter()
-                .map(|(k, x)| (k.clone(), value_of(x)))
+                .map(|(k, x)| (k.as_ref().to_string(), value_of(x)))
                 .collect(),
         ),
     }

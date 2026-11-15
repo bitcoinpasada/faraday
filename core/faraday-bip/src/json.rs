@@ -9,18 +9,18 @@
 //! `1000`), and the text kept reads back as the same value; a reader asks
 //! for the whole number it needs ([`Value::as_u64`]).
 //!
-//! The quotation mark is written `'\u{22}'` and `b'\x22'` here, so that
-//! `tools/lint-strings.sh` does not read it as the start of a string.
+//! Its strings, keys and numbers are wiping text ([`faraday_text::Text`]): a
+//! wallet file may hold a private key where only public keys belong.
 //!
 //! It replaced the
 //! scanners [`crate::coldcard`] and Faraday's readers used, which took
 //! the first `"key"` anywhere in the text and undid no escapes.
 
-use alloc::format;
-use alloc::string::{String, ToString};
+pub use crate::json_quote::quote;
 use alloc::vec::Vec;
 use core::cell::Cell;
 use core::fmt;
+use faraday_text::{Text, text};
 use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 
 /// The deepest nesting of arrays and objects read.
@@ -37,13 +37,14 @@ pub enum Value {
     /// `true` or `false`.
     Bool(bool),
     /// A number, as the decimal text of the `u64`, `i64` or `f64` read.
-    Number(String),
-    /// A string, its escapes undone.
-    String(String),
+    Number(Text),
+    /// A string, its escapes undone, in wiping text: a wallet file may
+    /// hold a private key where only public keys belong.
+    String(Text),
     /// An array.
     Array(Vec<Value>),
     /// An object, its members in the order written.
-    Object(Vec<(String, Value)>),
+    Object(Vec<(Text, Value)>),
 }
 
 /// Why a text is not read as JSON.
@@ -72,7 +73,7 @@ impl Value {
     /// The string this value is.
     pub fn as_str(&self) -> Option<&str> {
         match self {
-            Value::String(s) => Some(s),
+            Value::String(s) => Some(s.as_ref()),
             _ => None,
         }
     }
@@ -81,7 +82,7 @@ impl Value {
     /// or fraction.
     pub fn as_u64(&self) -> Option<u64> {
         match self {
-            Value::Number(n) if n.bytes().all(|b| b.is_ascii_digit()) => n.parse().ok(),
+            Value::Number(n) if n.as_bytes().iter().all(u8::is_ascii_digit) => n.parse().ok(),
             _ => None,
         }
     }
@@ -109,20 +110,20 @@ impl Value {
 
     /// Every string member named `key` at any depth, in the order the
     /// text writes them.
-    pub fn strings_named(&self, key: &str) -> Vec<String> {
+    pub fn strings_named(&self, key: &str) -> Vec<&str> {
         let mut out = Vec::new();
         self.collect_strings(key, &mut out);
         out
     }
 
-    fn collect_strings(&self, key: &str, out: &mut Vec<String>) {
+    fn collect_strings<'a>(&'a self, key: &str, out: &mut Vec<&'a str>) {
         match self {
             Value::Object(members) => {
                 for (k, v) in members {
                     if k == key
                         && let Value::String(s) = v
                     {
-                        out.push(s.clone());
+                        out.push(s);
                     }
                     v.collect_strings(key, out);
                 }
@@ -213,19 +214,19 @@ impl<'de> Visitor<'de> for Seed<'_> {
     }
 
     fn visit_u64<E: de::Error>(self, v: u64) -> Result<Value, E> {
-        Ok(Value::Number(v.to_string()))
+        Ok(Value::Number(text!("{}", v)))
     }
 
     fn visit_i64<E: de::Error>(self, v: i64) -> Result<Value, E> {
-        Ok(Value::Number(v.to_string()))
+        Ok(Value::Number(text!("{}", v)))
     }
 
     fn visit_f64<E: de::Error>(self, v: f64) -> Result<Value, E> {
-        Ok(Value::Number(v.to_string()))
+        Ok(Value::Number(text!("{}", v)))
     }
 
     fn visit_str<E: de::Error>(self, v: &str) -> Result<Value, E> {
-        Ok(Value::String(v.into()))
+        Ok(Value::String(Text::of(v)))
     }
 
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Value, A::Error> {
@@ -243,8 +244,8 @@ impl<'de> Visitor<'de> for Seed<'_> {
         if self.depth + 1 > MAX_DEPTH {
             return Err(self.refuse(Error::TooDeep));
         }
-        let mut members: Vec<(String, Value)> = Vec::new();
-        while let Some(key) = map.next_key::<String>()? {
+        let mut members: Vec<(Text, Value)> = Vec::new();
+        while let Some(key) = map.next_key_seed(KeyText)? {
             let v = map.next_value_seed(self.inside())?;
             if members.iter().any(|(k, _)| *k == key) {
                 return Err(self.refuse(Error::DuplicateKey));
@@ -255,21 +256,25 @@ impl<'de> Visitor<'de> for Seed<'_> {
     }
 }
 
-/// A string written as a JSON string, quotes and escapes included.
-pub fn quote(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('\u{22}');
-    for c in s.chars() {
-        match c {
-            '\u{22}' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
+/// Reads an object's key as wiping text.
+struct KeyText;
+
+impl<'de> DeserializeSeed<'de> for KeyText {
+    type Value = Text;
+
+    fn deserialize<D: Deserializer<'de>>(self, d: D) -> Result<Text, D::Error> {
+        d.deserialize_str(self)
     }
-    out.push('\u{22}');
-    out
+}
+
+impl Visitor<'_> for KeyText {
+    type Value = Text;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a key")
+    }
+
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Text, E> {
+        Ok(Text::of(v))
+    }
 }

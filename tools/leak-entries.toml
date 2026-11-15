@@ -17,17 +17,3 @@ form = "core master chain code"
 place = "parse_xkey_deriv"
 reason = "miniscript's parsing of a descriptor key (bitcoin's base58 decoding of the xpub, in a library) frees the decoded bytes, which hold the chain code, unwiped; the descriptor's text must reach miniscript as it is for the reader to accept what it accepts now, and miniscript decodes the key itself; the copy lives until the process restarts at every lock (F181 point 2)"
 fix = "none planned yet"
-
-[[entry]]
-flow = "xprv in a caravan file refused"
-form = "planted xprv text"
-place = "looks_like_export"
-reason = "the wallet reader parses the file as JSON to see whether it is a wallet export, and the parser's string for the xpub field (here a private key) is freed unwiped; the copy lives until the process restarts at every lock (F181 point 2)"
-fix = "none planned yet"
-
-[[entry]]
-flow = "xprv in a caravan file refused"
-form = "planted xprv text"
-place = "read_any"
-reason = "the wallet reader parses the file as JSON again to read it, and the parser's string for the xpub field (here a private key) is freed unwiped; the copy lives until the process restarts at every lock (F181 point 2)"
-fix = "none planned yet"

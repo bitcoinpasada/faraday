@@ -66,6 +66,7 @@ pub mod diceware;
 pub mod hangul;
 pub mod hashes;
 pub mod json;
+mod json_quote;
 pub mod kana;
 pub mod keys;
 pub mod multisig_config;

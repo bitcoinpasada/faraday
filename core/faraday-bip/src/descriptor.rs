@@ -144,6 +144,13 @@ pub(crate) fn tokens_fit(text: &str) -> bool {
     text.split(['(', ')', ',']).all(token_fits)
 }
 
+/// Whether `text` carries an `xprv` or a `tprv`: a run of letters and
+/// digits that starts with one.
+fn names_private_key(text: &str) -> bool {
+    text.split(|ch: char| !ch.is_ascii_alphanumeric())
+        .any(|word| word.starts_with("xprv") || word.starts_with("tprv"))
+}
+
 /// Costs a parse of the descriptor: whether `text` reads as one output
 /// descriptor of public keys, checksum and all, by `miniscript`'s own
 /// reader, whatever wallet it is or is not.
@@ -155,11 +162,18 @@ pub(crate) fn tokens_fit(text: &str) -> bool {
 pub fn reads_as_descriptor(c: &Compute, text: &str) -> bool {
     use core::str::FromStr;
     c.count(Work::DescriptorParse);
+    let body = text.split_once('#').map_or(text, |(body, _)| body);
+    // A private key is refused by the caller's own reading; `miniscript`
+    // would decode it into a plain buffer it frees unwiped, so it is
+    // never handed the text. Only the body is looked at: a checksum may
+    // start with the same letters.
+    if names_private_key(body) {
+        return false;
+    }
     let read = |t: &str| {
         tokens_fit(t)
             && miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(t).is_ok()
     };
-    let body = text.split_once('#').map_or(text, |(body, _)| body);
     match crate::tapmulti::unsorted_text(body) {
         Some(twin) => (body.len() == text.len() || verify_checksum(text)) && read(&twin),
         None => read(text),

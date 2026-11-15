@@ -13,7 +13,7 @@ fn write(v: &Value) -> String {
     match v {
         Value::Null => "null".into(),
         Value::Bool(b) => b.to_string(),
-        Value::Number(n) => n.clone(),
+        Value::Number(n) => n.as_ref().to_string(),
         Value::String(s) => json::quote(s),
         Value::Array(items) => {
             let items: Vec<String> = items.iter().map(write).collect();

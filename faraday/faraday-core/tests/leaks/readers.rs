@@ -497,3 +497,27 @@ fn a_seed_in_a_multi_part_ur_leaves_no_copy() {
     drop(decoder);
     finish("multi-part ur seed", armed, false);
 }
+
+#[test]
+fn an_xprv_in_a_listdescriptors_true_file_refused_leaves_no_copy() {
+    let file = format!(
+        r#"{{"wallet_name":"planted","descriptors":[{{"desc":"wpkh({PLANTED_XPRV}/84h/0h/0h/<0;1>/*)#xrfujdhd","timestamp":0,"active":true,"internal":false,"range":[0,999],"next":0}}]}}"#
+    );
+    let c = testkit::compute();
+    let forms = planted_xprv_forms();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::read_wallet(&c, &file);
+    // Its checksum holds and its derivation is a multipath one, so it is
+    // refused for the key: a private key is not a public one.
+    let refusal = read
+        .as_ref()
+        .expect_err("a private key is refused as not an xpub");
+    let shown = refusal.text();
+    let shown = shown.as_str();
+    assert!(
+        shown.contains(faraday_strings::EN.bip_key_not_xpub),
+        "not refused as a key that is not an xpub: {shown}"
+    );
+    drop(read);
+    finish("xprv in a listdescriptors true file refused", armed, false);
+}

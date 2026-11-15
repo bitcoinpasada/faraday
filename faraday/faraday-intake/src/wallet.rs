@@ -233,7 +233,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         all.extend(v.strings_named("desc"));
         let all = all
             .iter()
-            .map(|d| plain(d.as_str()))
+            .map(|d| plain(d))
             .collect::<Result<Vec<_>, _>>()?;
         if all.is_empty() {
             return Err(no_descriptor());

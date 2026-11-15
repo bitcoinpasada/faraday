@@ -112,8 +112,9 @@ the planting of the secret to the end of the flow:
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.
 - **The vault readers:** a vault's entries listed, opened and copied.
-- **Extended keys read:** an `xprv` in a Caravan file's xpub field and in a
-  wallet policy, refused.
+- **Extended keys read:** an `xprv` in a Caravan file's xpub field, in a
+  wallet policy and in the descriptor of a `listdescriptors true` file
+  (the JSON reader's strings), refused.
 - **The Starter's recovery-key sheet:** a BitLocker recovery key put on
   the sheet and the sheet dropped (`faraday-starter/tests/leak.rs`); no
   block freed holds the whole key. The sheet's writer frees line-sized
