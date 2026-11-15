@@ -108,15 +108,24 @@ impl Faraday {
             return Vec::new();
         };
         let mut out = Vec::new();
-        for (_, r, _) in self
+        for (_, r, d) in self
             .vaults
             .described_of(c, open.id, kind::PLAN)
             .filter(|(_, _, d)| d.same == *want)
         {
+            // A record the wallet's keys do not read is not read here.
+            if !crate::vault::plan_store::reads_for(d, r, wallet.policy()) {
+                continue;
+            }
             for b in r.public_all(field::PLAN_NOTE) {
                 // The seeds are counted only for a record that has notes.
                 let seeds = self.plan_shape_of(wallet).seeds.len();
-                out.extend(Note::from_text(&Text::from_utf8_lossy(b), seeds));
+                out.extend(crate::vault::plan_store::note_in_order(
+                    d,
+                    &Text::from_utf8_lossy(b),
+                    wallet.policy(),
+                    seeds,
+                ));
             }
         }
         out
@@ -198,14 +207,35 @@ impl Faraday {
         let mut notes = self.plan_notes(&c, wallet, Some(v));
         change(&mut notes);
         let want = wallet.same();
-        // This wallet's plan records, by place.
-        let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
-            self.vaults
-                .described_of(&c, o.id, kind::PLAN)
-                .filter(|(_, _, d)| d.same == want)
-                .map(|(i, _, _)| i)
-                .collect()
-        });
+        // This wallet's plan records, by place, each with the notes in its
+        // own seed numbers (its keys may be in another order); None for
+        // one that does not map onto the wallet's keys, or whose shares
+        // the other order would change.
+        let ours: Vec<(usize, Option<Vec<faraday_text::Text>>)> =
+            self.vaults.open.get(v).map_or_else(Vec::new, |o| {
+                self.vaults
+                    .described_of(&c, o.id, kind::PLAN)
+                    .filter(|(_, _, d)| d.same == want)
+                    .map(|(i, r, d)| {
+                        if !crate::vault::plan_store::reads_for(d, r, wallet.policy()) {
+                            return (i, None);
+                        }
+                        let map = crate::vault::plan_store::seed_map(wallet.policy(), &d.policy);
+                        let same = crate::vault::plan_store::same_keys(d, wallet.policy());
+                        let texts = match (&map, same) {
+                            (_, true) => Some(notes.iter().map(|n| n.to_text()).collect()),
+                            (Some(m), false) => Some(
+                                notes
+                                    .iter()
+                                    .filter_map(|n| Some(n.renumbered(m)?.to_text()))
+                                    .collect(),
+                            ),
+                            (None, false) => None,
+                        };
+                        (i, texts)
+                    })
+                    .collect()
+            });
         let has = !ours.is_empty();
         if !has {
             // No record of this plan here yet: the plan the chart shows,
@@ -220,10 +250,22 @@ impl Faraday {
             return false;
         };
         let c = self.compute();
-        let texts: Vec<faraday_text::Text> = notes.iter().map(Note::to_text).collect();
-        let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
+        // Each record's notes in its own seed numbers; one that does not
+        // map onto the wallet's keys is left as it is. The room is
+        // checked for every record before any is written.
+        let kept: Vec<(usize, Vec<&[u8]>)> = ours
+            .iter()
+            .filter_map(|(i, texts)| {
+                Some((*i, texts.as_ref()?.iter().map(|t| t.as_bytes()).collect()))
+            })
+            .collect();
+        let each: Vec<(usize, &[&[u8]])> = kept.iter().map(|(i, v)| (*i, v.as_slice())).collect();
+        // No record reads for this wallet: nothing is saved.
+        if each.is_empty() {
+            return false;
+        }
         if let Err(why) = self.vaults.edit(id, |s| {
-            s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
+            s.set_public_each_in(&c, id, field::PLAN_NOTE, &each)
         }) {
             let text = self.not_set_text(Some(id), why);
             self.toast(&text);

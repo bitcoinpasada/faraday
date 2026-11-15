@@ -698,7 +698,7 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
 
 impl What {
     /// The seed it is of, when it is of one.
-    pub(crate) fn seed_index(self) -> Option<usize> {
+    pub fn seed_index(self) -> Option<usize> {
         match self {
             What::Words(i)
             | What::SeedQr(i)
@@ -718,6 +718,111 @@ impl What {
             _ => None,
         }
     }
+}
+
+impl What {
+    /// The same thing of seed `map[i]` where it was of seed `i`; None
+    /// when `map` has no such seed. A thing not of a seed is itself. A
+    /// share of a split's keys is None: which keys it holds depends on
+    /// the keys' order, so it cannot be moved to another order.
+    pub(crate) fn renumbered(self, map: &[usize]) -> Option<What> {
+        if matches!(self, What::Share(_) | What::ShareFile(..)) {
+            return None;
+        }
+        let Some(i) = self.seed_index() else {
+            return Some(self);
+        };
+        let n = *map.get(i)?;
+        Some(match self {
+            What::Words(_) => What::Words(n),
+            What::SeedQr(_) => What::SeedQr(n),
+            What::Passphrase(_) => What::Passphrase(n),
+            What::Seed(_) => What::Seed(n),
+            What::SeedPassphrase(_) => What::SeedPassphrase(n),
+            What::PassphraseSealed(_) => What::PassphraseSealed(n),
+            What::SeedFile(_) => What::SeedFile(n),
+            What::SeedQrFile(_) => What::SeedQrFile(n),
+            What::PassphraseFile(_) => What::PassphraseFile(n),
+            What::Codex32Share(_, j) => What::Codex32Share(n, j),
+            What::Codex32QrPaper(_, j) => What::Codex32QrPaper(n, j),
+            What::Codex32ShareFile(_, j) => What::Codex32ShareFile(n, j),
+            What::Codex32QrFile(_, j) => What::Codex32QrFile(n, j),
+            What::KefCode(_) => What::KefCode(n),
+            What::KefCodePaper(_) => What::KefCodePaper(n),
+            other => other,
+        })
+    }
+}
+
+impl Note {
+    /// The note with the seed it is of numbered `map[i]` for seed `i`
+    /// (a plan's seeds are numbered by the wallet's key order). None when
+    /// `map` has no such seed.
+    pub fn renumbered(&self, map: &[usize]) -> Option<Note> {
+        Some(match self {
+            Note::Checked(at, w, d) => Note::Checked(*at, w.renumbered(map)?, d.clone()),
+            Note::Marked(at, w, m) => Note::Marked(*at, w.renumbered(map)?, *m),
+            other => other.clone(),
+        })
+    }
+}
+
+/// A plan's text with every seed number `i` written `map[i]` instead:
+/// the text of a plan saved for a wallet whose keys were in another
+/// order, read for the wallet in this one (`map` says where each seed
+/// went). None when a seed or a row has no place in `map`, and when the
+/// plan holds shares of a split (the `split` answer, a share on a spot):
+/// its shares depend on the keys' order, which this does not keep.
+pub fn renumber_seeds(text: &str, map: &[usize]) -> Option<Text> {
+    let seed = |s: &str| -> Option<usize> { map.get(s.parse::<usize>().ok()?).copied() };
+    let mut out = Text::new();
+    for line in text.lines() {
+        let (name, value) = line.split_once(' ')?;
+        let new: Text = match name {
+            "split" if value != "0" => return None,
+            // A flag per seed.
+            "vault" => {
+                let (v, row) = value.split_once(' ')?;
+                if row.len() != map.len() {
+                    return None;
+                }
+                let mut flags = vec!['0'; map.len()];
+                for (c, &to) in row.chars().zip(map) {
+                    *flags.get_mut(to)? = c;
+                }
+                text!("vault {v} {}", &*flags.into_iter().collect::<Text>())
+            }
+            // The seed, then what is not one.
+            "pass" | "codex32" | "rotated" => {
+                let (i, rest) = value.split_once(' ')?;
+                text!("{name} {} {rest}", seed(i)?)
+            }
+            "part" => {
+                let (p, i) = value.split_once(' ')?;
+                text!("part {p} {}", seed(i)?)
+            }
+            "spot" => {
+                let mut out = Text::of("spot");
+                for (n, t) in value.split(' ').enumerate() {
+                    out.push(' ');
+                    match what_read(t).filter(|_| n > 0) {
+                        Some(w)
+                            if w.seed_index().is_some()
+                                || matches!(w, What::Share(_) | What::ShareFile(..)) =>
+                        {
+                            out.push_str(&what_code(w.renumbered(map)?));
+                        }
+                        _ => out.push_str(t),
+                    }
+                }
+                out
+            }
+            _ => Text::of(line),
+        };
+        out.push_str(&new);
+        out.push('\n');
+    }
+    Some(out)
 }
 
 /// A fingerprint as a plan's note writes it: eight lower-case hex digits.

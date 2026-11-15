@@ -443,9 +443,24 @@ impl OpenVaults {
         number: u8,
         values: &[&[u8]],
     ) -> Result<(), NotSet> {
+        let each: Vec<(usize, &[&[u8]])> = at.iter().map(|&i| (i, values)).collect();
+        self.set_public_each_in(c, id, number, &each)
+    }
+
+    /// Costs what [`OpenVaults::fits`] costs. As
+    /// [`OpenVaults::set_public_all_in`], with its own values for each
+    /// record: the room is checked for all of them together, so all are
+    /// set or none ([`NotSet`]).
+    pub fn set_public_each_in(
+        &mut self,
+        c: &Compute,
+        id: VaultId,
+        number: u8,
+        each: &[(usize, &[&[u8]])],
+    ) -> Result<(), NotSet> {
         let s = self.slot(id).filter(|s| !s.locked()).ok_or(NotSet::Full)?;
         let mut grown: Vec<(usize, Record)> = Vec::new();
-        for &i in at {
+        for &(i, values) in each {
             if grown.iter().any(|(j, _)| *j == i) {
                 continue;
             }

@@ -1679,3 +1679,391 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
     let (text, _) = r.tag();
     assert!(text.contains("not worked out"), "{text}");
 }
+
+/// A 2-of-2 sortedmulti wallet read with its keys in the other order is
+/// one wallet: the plan saved for it opens with its places, notes and
+/// holdings on the same keys, and saving it again leaves one plan in the
+/// vault.
+#[test]
+fn a_plan_saved_for_a_wallet_opens_for_the_same_wallet_with_its_keys_in_the_other_order() {
+    use crate::chart_edit::{desktop, fresh_vault};
+    use crate::common::RecordsOf as _;
+    use faraday_core::glance::{Backup, BackupNode};
+    use faraday_core::plan::{Mark, Tag};
+    use faraday_core::{Action, testkit};
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let descriptor = |a: &str, b: &str| format!("wsh(sortedmulti(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    let mut app = desktop();
+    for n in 0..2 {
+        app.press(faraday_core::Action::Entry(None));
+        crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        app.press(faraday_core::Action::EntryAdd);
+    }
+    fresh_vault(&mut app);
+    let load = |app: &mut Faraday, text: String| {
+        app.session.wallets.clear();
+        app.session
+            .add_wallet(
+                &c,
+                "Pair",
+                &text,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap()
+    };
+    let xy_text = descriptor(&x, &y);
+    let w = load(&mut app, xy_text.clone());
+    let xy = app.session.wallets[w].policy().clone();
+    // The plan for X, Y: the words of Y (seed 1) at Place 1 marked lost,
+    // those of X (seed 0) at Place 2 checked.
+    let shape = app.plan_shape_now(w);
+    let mut answers = Answers::preset(&shape, Preset::Standard);
+    answers.places = 2;
+    answers.custom = true;
+    let spot = |p: usize, i: usize| Spot {
+        at: At::Place(p),
+        holds: vec![(What::Words(i), Tag::Secret)],
+    };
+    answers.map = Some(vec![spot(0, 1), spot(1, 0)]);
+    let mut record = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, xy.to_descriptor().as_bytes())
+        .with(field::PLAN_ANSWERS, answers.to_text().as_bytes());
+    for note in [
+        Note::Marked(At::Place(0), What::Words(1), Mark::Lost),
+        Note::Checked(
+            At::Place(1),
+            What::Words(0),
+            faraday_text::Text::of("2026-10-10"),
+        ),
+    ] {
+        record.push(field::PLAN_NOTE, note.to_text().as_bytes());
+    }
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.insert(id, record));
+    let node = |app: &Faraday, w: usize, name: &str| -> BackupNode {
+        let c = testkit::compute();
+        match faraday_core::glance::of_now(&c, app, w).unwrap().backup {
+            Backup::Plan { nodes, .. } => nodes
+                .into_iter()
+                .find(|n| n.name == name)
+                .unwrap_or_else(|| panic!("no {name} on the chart")),
+            other => panic!("no plan on the chart: {other:?}"),
+        }
+    };
+    // As saved: Y is key 2, X is key 1.
+    let first = node(&app, w, "Place 1");
+    assert_eq!(first.holds, ["Key 2 words"]);
+    assert_eq!(first.marks, [Some(Mark::Lost)]);
+    assert_eq!(node(&app, w, "Place 2").holds, ["Key 1 words"]);
+    assert_eq!(
+        node(&app, w, "Place 2").checked,
+        [Some(faraday_text::Text::of("2026-10-10"))]
+    );
+    // The same wallet with its keys the other way: Y is key 1 now, and
+    // the plan is on the same keys.
+    let w = load(&mut app, descriptor(&y, &x));
+    let place_1 = node(&app, w, "Place 1");
+    assert_eq!(place_1.holds, ["Key 1 words"]);
+    assert_eq!(place_1.marks, [Some(Mark::Lost)]);
+    let place_2 = node(&app, w, "Place 2");
+    assert_eq!(place_2.holds, ["Key 2 words"]);
+    assert_eq!(
+        place_2.checked,
+        [Some(faraday_text::Text::of("2026-10-10"))]
+    );
+    // Saved again, it is still the one plan.
+    app.press(Action::Backup(w));
+    let shape = app.plan_shape_now(w);
+    testkit::set_backup_answers(&mut app, Answers::preset(&shape, Preset::Standard));
+    app.press(Action::BChecklist);
+    let plans = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .of(kind::PLAN)
+        .count();
+    assert_eq!(plans, 1, "one plan record for the wallet");
+}
+
+/// A plan with a split saved for one key order does not open for the
+/// other: a share holds the keys of its window, so it is not moved; the
+/// same plan without a split still opens (the test above).
+#[test]
+fn a_plan_with_shares_saved_for_one_key_order_does_not_open_for_the_other() {
+    use crate::chart_edit::{desktop, fresh_vault};
+    use faraday_core::glance::Backup;
+    use faraday_core::plan::Tag;
+    use faraday_core::testkit;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let descriptor = |a: &str, b: &str| format!("wsh(sortedmulti(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    let mut app = desktop();
+    for n in 0..2 {
+        app.press(faraday_core::Action::Entry(None));
+        crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        app.press(faraday_core::Action::EntryAdd);
+    }
+    fresh_vault(&mut app);
+    let load = |app: &mut Faraday, text: String| {
+        app.session.wallets.clear();
+        app.session
+            .add_wallet(
+                &c,
+                "Pair",
+                &text,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap()
+    };
+    let w = load(&mut app, descriptor(&x, &y));
+    let xy = app.session.wallets[w].policy().clone();
+    let shape = app.plan_shape_now(w);
+    let mut answers = Answers::preset(&shape, Preset::Standard);
+    answers.places = 2;
+    answers.split = true;
+    answers.custom = true;
+    answers.map = Some(vec![
+        Spot {
+            at: At::Place(0),
+            holds: vec![(What::Share(0), Tag::Secret)],
+        },
+        Spot {
+            at: At::Place(1),
+            holds: vec![(What::Share(1), Tag::Secret)],
+        },
+    ]);
+    let record = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, xy.to_descriptor().as_bytes())
+        .with(field::PLAN_ANSWERS, answers.to_text().as_bytes());
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.insert(id, record));
+    let holds = |app: &Faraday, w: usize| -> Vec<String> {
+        match faraday_core::glance::of_now(&testkit::compute(), app, w)
+            .unwrap()
+            .backup
+        {
+            Backup::Plan { nodes, .. } => nodes
+                .into_iter()
+                .flat_map(|n| n.holds)
+                .map(|h| h.to_string())
+                .collect(),
+            _ => Vec::new(),
+        }
+    };
+    // For the keys as they were, the shares are on the chart.
+    assert!(
+        holds(&app, w).iter().any(|h| h.contains("hare")),
+        "{:?}",
+        holds(&app, w)
+    );
+    // For the keys the other way, the plan is not read.
+    let w = load(&mut app, descriptor(&y, &x));
+    assert!(
+        holds(&app, w).iter().all(|h| !h.contains("hare")),
+        "{:?}",
+        holds(&app, w)
+    );
+}
+
+/// An app holding seeds `seeds` and a vault with a plan with shares and
+/// `notes` saved for the sortedmulti wallet of keys `a`, `b`, loaded: the
+/// app and the vault's id.
+fn shares_plan_kept(
+    seeds: &[usize],
+    a: &str,
+    b: &str,
+    notes: &[Note],
+) -> (Faraday, faraday_keys::vault::VaultId) {
+    use crate::chart_edit::{desktop, fresh_vault};
+    use faraday_core::plan::Tag;
+    use faraday_core::testkit;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let mut app = desktop();
+    for &n in seeds {
+        app.press(faraday_core::Action::Entry(None));
+        crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        app.press(faraday_core::Action::EntryAdd);
+    }
+    fresh_vault(&mut app);
+    let text = format!("wsh(sortedmulti(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let policy = app.session.wallets[w].policy().clone();
+    let shape = app.plan_shape_now(w);
+    let mut answers = Answers::preset(&shape, Preset::Standard);
+    answers.places = 2;
+    answers.split = true;
+    answers.custom = true;
+    answers.map = Some(vec![
+        Spot {
+            at: At::Place(0),
+            holds: vec![(What::Share(0), Tag::Secret)],
+        },
+        Spot {
+            at: At::Place(1),
+            holds: vec![(What::Share(1), Tag::Secret)],
+        },
+    ]);
+    let mut record = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, policy.to_descriptor().as_bytes())
+        .with(field::PLAN_ANSWERS, answers.to_text().as_bytes());
+    for note in notes {
+        record.push(field::PLAN_NOTE, note.to_text().as_bytes());
+    }
+    let id = app.vaults().open[0].id;
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, record));
+    (app, id)
+}
+
+#[test]
+fn a_note_saved_from_the_other_key_orders_chart_leaves_the_shares_plans_notes_as_they_were() {
+    use crate::chart_edit::node_of;
+    use crate::common::RecordsOf;
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::ChartAction as C;
+    use faraday_core::plan::Mark;
+    use faraday_core::testkit;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let notes = [
+        Note::Marked(At::Place(0), What::Share(0), Mark::Lost),
+        Note::Checked(
+            At::Place(1),
+            What::Share(1),
+            faraday_text::Text::of("2026-10-10"),
+        ),
+    ];
+    let (mut app, id) = shares_plan_kept(&[0, 1], &x, &y, &notes);
+    let kept = |app: &Faraday| -> Vec<Vec<u8>> {
+        let all = app.vaults().store().contents_for_tests(id);
+        all.of(kind::PLAN)
+            .take(1)
+            .flat_map(|(_, r)| {
+                faraday_keys::vault::RecordView::of(r)
+                    .public_all(field::PLAN_NOTE)
+                    .map(<[u8]>::to_vec)
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
+    let before = kept(&app);
+    assert_eq!(before.len(), 2);
+    // The wallet with its keys the other way: a mark made on its chart.
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    // A plan of its own is kept beside it, which the chart shows.
+    let shape = app.plan_shape_now(w);
+    let own = faraday_vault::Record::new(kind::PLAN)
+        .with(
+            field::PLAN_WALLET,
+            app.session.wallets[w].policy().to_descriptor().as_bytes(),
+        )
+        .with(
+            field::PLAN_ANSWERS,
+            Answers::preset(&shape, Preset::Standard)
+                .to_text()
+                .as_bytes(),
+        );
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, own));
+    let press = Press::Loaded(w);
+    let (n, _) = node_of(&app, w, "Place 1");
+    app.press(faraday_core::Action::Chart(C::Mark(
+        press,
+        n,
+        None,
+        Mark::Exposed,
+    )));
+    assert_eq!(kept(&app), before);
+    // The press was not a no-op: the wallet's own plan, the second record,
+    // took the mark (written once for the wallet and once for its sheet).
+    let all = app.vaults().store().contents_for_tests(id);
+    let own_notes: Vec<String> = all
+        .of(kind::PLAN)
+        .nth(1)
+        .map(|(_, r)| {
+            faraday_keys::vault::RecordView::of(r)
+                .public_all(field::PLAN_NOTE)
+                .map(|n| String::from_utf8_lossy(n).into_owned())
+                .collect()
+        })
+        .unwrap();
+    assert_eq!(own_notes.len(), 2);
+    assert!(own_notes.iter().all(|n| n.starts_with("exposed place0 ")));
+}
+
+#[test]
+fn a_plan_with_shares_for_two_keys_of_one_seed_does_not_open_with_the_keys_swapped() {
+    use faraday_core::glance::Backup;
+    use faraday_core::testkit;
+    let c = testkit::compute();
+    let (p, q) = ("m/48'/1'/0'/2'", "m/48'/1'/1'/2'");
+    let (a, b) = (testkit::key(0, p), testkit::key(0, q));
+    let (mut app, _) = shares_plan_kept(&[0], &a, &b, &[]);
+    let holds = |app: &Faraday, w: usize| -> Vec<String> {
+        match faraday_core::glance::of_now(&testkit::compute(), app, w)
+            .unwrap()
+            .backup
+        {
+            Backup::Plan { nodes, .. } => nodes
+                .into_iter()
+                .flat_map(|n| n.holds)
+                .map(|h| h.to_string())
+                .collect(),
+            _ => Vec::new(),
+        }
+    };
+    let w = app.session.wallets.len() - 1;
+    assert!(
+        holds(&app, w).iter().any(|h| h.contains("hare")),
+        "{:?}",
+        holds(&app, w)
+    );
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{b}/<0;1>/*,{a}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    assert!(
+        holds(&app, w).iter().all(|h| !h.contains("hare")),
+        "{:?}",
+        holds(&app, w)
+    );
+}

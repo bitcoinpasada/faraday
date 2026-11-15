@@ -67,6 +67,52 @@ fn caravans_wallet_and_its_coldcard_setup_file_read_as_one_two_of_two_wallet() {
 }
 
 #[test]
+fn a_caravan_wallet_loaded_is_seen_as_loaded_when_its_coldcard_setup_file_comes_in() {
+    use faraday_core::{Faraday, StorageEvent};
+    let c = faraday_core::testkit::compute();
+    for (caravan, coldcard, _) in FORMATS {
+        let caravan_path =
+            format!("caravan/fixtures/caravan/bitcoin-2-of-2-{caravan}_TESTNET.json");
+        let coldcard_path = format!("caravan/fixtures/coldcard/wc-{coldcard}_t.txt");
+        let mut app = Faraday::new();
+        faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+        app.session
+            .add_policy(
+                &c,
+                "Caravan",
+                wallet(&caravan_path),
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        app.storage(StorageEvent::Restored {
+            inbox: faraday_core::files_from(vec![(
+                "setup.txt".to_string(),
+                file(&coldcard_path).into_bytes(),
+            )]),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        let found = app.inbox_found_now(&c);
+        assert_eq!(found.wallets.len(), 1, "{caravan}");
+        assert!(found.wallets[0].loaded, "{caravan}");
+    }
+}
+
+#[test]
+fn two_multi_wallets_with_the_same_keys_in_another_order_are_not_the_same_wallet() {
+    let c = faraday_core::testkit::compute();
+    let a = wallet("caravan/fixtures/coldcard/wc-p2wsh_t.txt");
+    let keys: Vec<String> = a.keys().iter().map(|k| k.key_text().to_string()).collect();
+    let [k0, k1] = [&keys[0], &keys[1]];
+    let build = |x: &str, y: &str| {
+        WalletPolicy::parse(&c, &format!("wsh(multi(2,@0/**,@1/**))\n{x}\n{y}\n")).unwrap()
+    };
+    assert!(!same(&build(k0, k1), &build(k1, k0)));
+    assert!(same(&build(k0, k1), &build(k0, k1)));
+}
+
+#[test]
 fn coldcards_two_of_four_wallet_reads_the_same_from_its_three_files() {
     let dir = "coldcard/testing/data/multisig";
     for (_, format, start) in FORMATS {

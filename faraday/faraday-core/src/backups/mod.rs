@@ -908,9 +908,15 @@ impl Faraday {
                 if d.same.as_str() != want.as_str() {
                     return None;
                 }
-                let text = r.public_text(field::PLAN_ANSWERS)?;
-                let shape = shape_for(&plan::Answers::pass_seeds(text));
-                let a = plan::Answers::from_text(&shape, text)?;
+                // In this wallet's seed numbers, whatever order its keys
+                // were in when the plan was kept.
+                let text = crate::vault::plan_store::answers_in_order(
+                    d,
+                    r.public_text(field::PLAN_ANSWERS)?,
+                    wallet.policy(),
+                )?;
+                let shape = shape_for(&plan::Answers::pass_seeds(&text));
+                let a = plan::Answers::from_text(&shape, &text)?;
                 let names = r
                     .public_all(field::PLAN_PLACE)
                     .map(Text::from_utf8_lossy)
@@ -1702,17 +1708,15 @@ impl Faraday {
         if !current {
             return none;
         }
-        let mut want = None;
-        let mut ours = Vec::new();
-        for (i, _, d) in self.vaults.described_of(c, id, kind::PLAN) {
-            if d.checksum == sum {
-                want.get_or_insert_with(|| d.same.clone());
-                ours.push(i);
-            }
-        }
-        let Some(want) = want else {
+        let ours: Vec<usize> = self
+            .vaults
+            .described_of(c, id, kind::PLAN)
+            .filter(|(_, _, d)| d.checksum == sum)
+            .map(|(i, _, _)| i)
+            .collect();
+        if ours.is_empty() {
             return none;
-        };
+        }
         // Each record's places, read as the vault's own records are read,
         // with the names it keeps.
         let kept: Vec<(Vec<plan::Spot>, Vec<Text>)> = ours
@@ -1745,7 +1749,7 @@ impl Faraday {
         let mut notes: Vec<Note> = self
             .vaults
             .described_of(c, id, kind::PLAN)
-            .filter(|(_, _, d)| d.same == want)
+            .filter(|(_, _, d)| d.checksum == sum)
             .flat_map(|(_, r, _)| {
                 r.public_all(field::PLAN_NOTE)
                     .filter_map(|b| Note::from_text(&Text::from_utf8_lossy(b), usize::MAX))

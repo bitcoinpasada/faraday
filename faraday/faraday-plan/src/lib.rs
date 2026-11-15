@@ -19,7 +19,7 @@ pub use groups::REACH_STEPS;
 pub mod text;
 use text::fp_code;
 
-pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
+pub use text::{at_code, at_read, held_in, renumber_seeds, tag_of, what_code, what_read};
 
 use faraday_crypto::work::Compute;
 

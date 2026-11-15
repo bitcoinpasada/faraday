@@ -11,6 +11,84 @@ use faraday_keys::vault::VaultId;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 
+/// Where each seed of a plan kept for the wallet `from` is in the wallet
+/// `to`, which has the same keys in another order: seeds are numbered by
+/// first appearance of a key's fingerprint, so the number of the seed
+/// of `from` that comes `i`th is the `i`th entry. None when the
+/// fingerprints do not map one-to-one.
+pub(crate) fn seed_map(
+    from: &faraday_bip::policy::WalletPolicy,
+    to: &faraday_bip::policy::WalletPolicy,
+) -> Option<Vec<usize>> {
+    let fps = |p: &faraday_bip::policy::WalletPolicy| {
+        let mut v: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
+        for f in p.keys().iter().filter_map(|k| k.fingerprint()) {
+            if !v.contains(&f) {
+                v.push(f);
+            }
+        }
+        v
+    };
+    let (a, b) = (fps(from), fps(to));
+    if a.len() != b.len() {
+        return None;
+    }
+    a.iter()
+        .map(|f| b.iter().position(|g| g == f))
+        .collect::<Option<Vec<usize>>>()
+        .filter(|m| (0..b.len()).all(|j| m.contains(&j)))
+}
+
+/// A plan record's answers text, for the wallet `wallet` it was kept for
+/// (`d`) in whichever order its keys were then: read in `wallet`'s seed
+/// numbers. None for a record that does not map onto the wallet's keys.
+pub(crate) fn answers_in_order(
+    d: &super::Described,
+    text: &str,
+    wallet: &faraday_bip::policy::WalletPolicy,
+) -> Option<faraday_text::Text> {
+    if same_keys(d, wallet) {
+        return Some(faraday_text::Text::of(text));
+    }
+    plan::text::renumber_seeds(text, &seed_map(&d.policy, wallet)?)
+}
+
+/// Whether `d`'s keys are the same keys in the same places as `wallet`'s,
+/// which a plan's shares need (a share holds the keys of its window).
+pub(crate) fn same_keys(d: &super::Described, wallet: &faraday_bip::policy::WalletPolicy) -> bool {
+    d.policy.keys() == wallet.keys()
+}
+
+/// Whether plan record `r`, kept for `d`, reads for `wallet`: its answers
+/// are there and come out in the wallet's seed numbers.
+pub(crate) fn reads_for(
+    d: &super::Described,
+    r: faraday_keys::vault::RecordView<'_>,
+    wallet: &faraday_bip::policy::WalletPolicy,
+) -> bool {
+    r.public_text(faraday_vault::records::field::PLAN_ANSWERS)
+        .is_some_and(|t| answers_in_order(d, t, wallet).is_some())
+}
+
+/// A note line of a plan record kept for `d`, read for `wallet` of
+/// `seeds` seeds, in its seed numbers. None for a note that does not
+/// read, is of a seed it does not have or a record that does not map.
+pub(crate) fn note_in_order(
+    d: &super::Described,
+    line: &str,
+    wallet: &faraday_bip::policy::WalletPolicy,
+    seeds: usize,
+) -> Option<plan::Note> {
+    let note = plan::Note::from_text(line, usize::MAX)?;
+    let note = if same_keys(d, wallet) {
+        note
+    } else {
+        note.renumbered(&seed_map(&d.policy, wallet)?)?
+    };
+    let on_seed = note.on().and_then(|(_, w)| w.seed_index());
+    on_seed.is_none_or(|i| i < seeds).then_some(note)
+}
+
 /// What a plan is written from.
 pub(crate) struct PlanSource<'a> {
     /// The wallet the plan is for.
@@ -102,13 +180,20 @@ impl VaultArea {
         // The notes on the map: those given, else those the record kept.
         let kept: Vec<faraday_text::Text> = match src.notes {
             Some(n) => n.iter().map(plan::Note::to_text).collect(),
+            // In this wallet's seed numbers, whatever order the key was
+            // in when they were kept.
             None => self
-                .records(open.id)
-                .iter()
-                .filter(|(i, _)| ours.contains(i))
-                .flat_map(|(_, r)| {
+                .described_of(c, open.id, kind::PLAN)
+                .filter(|(i, _, _)| ours.contains(i))
+                .flat_map(|(_, r, d)| {
                     r.public_all(field::PLAN_NOTE)
-                        .map(faraday_text::Text::from_utf8_lossy)
+                        .filter_map(|b| {
+                            let line = faraday_text::Text::from_utf8_lossy(b);
+                            if same_keys(d, w.policy()) {
+                                return Some(line);
+                            }
+                            note_in_order(d, &line, w.policy(), usize::MAX).map(|n| n.to_text())
+                        })
                         .collect::<Vec<_>>()
                 })
                 .collect(),

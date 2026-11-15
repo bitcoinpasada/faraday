@@ -4,7 +4,7 @@ refused Not a wallet: Caravan config: xpub6ERj…1zd6sJ has no bip32Path or xfp;
 rebuilt false
 == bluewallet/casa-descriptor.txt
 kind Wallet
-wallet sh(wsh(sortedmulti(3,[35282ae3]xpub6DRLRDFmCHQpBRHSivSwPeWFPPd8biU8LbrovwUtZ9uh48Djen32CAQWCuoQ1VVJ6L8fRyk9XuRnH1qbtjuJEFTvHQHeKWeyUsNk6oPUGxU/<0;1>/*,[1b373e31/49/0/5]xpub6CepEwSN4cye1ngNX2H4PZpPERM3uDRrq5sKsjpUJe7WwWTrZxGojiR4aB71BbeziStUVxGSa565ptAoqaW7dqF5DNo2ADCrJ6ck8gXjDkb/<0;1>/*,[0d7bb846/49/0/5]xpub6CDHZ3qe3Fc2nFcCCwzw5HpYHEKQNhbW84fYLkqF46LN4ymChY9z6X22Wwxg73CFrsHM647q6A7yVQs6jF62hNoB7fF2NybH4zeFFgTV45i/<0;1>/*,[faa45c74/49/0/5]xpub6CiMnr6Vjp8qpmu6yBgCfcZwn9WZh2Xhuy2Jb3w4dgEowaQP87NzLDGVuCPZHMLe7QcRiBNyAtqLyVzD1729oNGkjsDpNHkBvS8aHg41nVc/<0;1>/*,[0551354e/49/0/5]xpub6D6aKCuEVqRxau5NfwGpczD9aQJYne48SBMcrJGCcKaCS4zemqfCoNfUupbio7uneb8XFj558PkVLyT5smzsbK9ParYkKVD41jMmUdo2gXf/<0;1>/*)))
+wallet sh(wsh(sortedmulti(3,[0551354e/49/0/5]xpub6D6aKCuEVqRxau5NfwGpczD9aQJYne48SBMcrJGCcKaCS4zemqfCoNfUupbio7uneb8XFj558PkVLyT5smzsbK9ParYkKVD41jMmUdo2gXf/<0;1>/*,[0d7bb846/49/0/5]xpub6CDHZ3qe3Fc2nFcCCwzw5HpYHEKQNhbW84fYLkqF46LN4ymChY9z6X22Wwxg73CFrsHM647q6A7yVQs6jF62hNoB7fF2NybH4zeFFgTV45i/<0;1>/*,[1b373e31/49/0/5]xpub6CepEwSN4cye1ngNX2H4PZpPERM3uDRrq5sKsjpUJe7WwWTrZxGojiR4aB71BbeziStUVxGSa565ptAoqaW7dqF5DNo2ADCrJ6ck8gXjDkb/<0;1>/*,[35282ae3]xpub6DRLRDFmCHQpBRHSivSwPeWFPPd8biU8LbrovwUtZ9uh48Djen32CAQWCuoQ1VVJ6L8fRyk9XuRnH1qbtjuJEFTvHQHeKWeyUsNk6oPUGxU/<0;1>/*,[faa45c74/49/0/5]xpub6CiMnr6Vjp8qpmu6yBgCfcZwn9WZh2Xhuy2Jb3w4dgEowaQP87NzLDGVuCPZHMLe7QcRiBNyAtqLyVzD1729oNGkjsDpNHkBvS8aHg41nVc/<0;1>/*)))
 first 3HJiAohE25FFBLPLZGVDwv7ZbSXVsSiZH7 Mainnet
 rebuilt true
 == bluewallet/cobo-crypto-account.txt
@@ -59,7 +59,7 @@ slot NativeSegwit [086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfP
 rebuilt true
 == bluewallet/fromsparrow-coldcard.txt
 kind Wallet
-wallet wsh(sortedmulti(2,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
+wallet wsh(sortedmulti(2,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
 first bc1qtysquqsjqjfqvhd6l2h470hdgwhcahs4nq2ca49cyxftwjnjt9ssh8emel Mainnet
 config name name
 rebuilt true
@@ -69,13 +69,13 @@ refused Not a wallet: Electrum file: Zpub74sR…sT968p has no root_fingerprint a
 rebuilt false
 == bluewallet/fromsparrow-specter.json
 kind Wallet
-wallet wsh(sortedmulti(2,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
+wallet wsh(sortedmulti(2,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
 first bc1qtysquqsjqjfqvhd6l2h470hdgwhcahs4nq2ca49cyxftwjnjt9ssh8emel Mainnet
 label name
 rebuilt true
 == bluewallet/nunchuck-bsms.txt
 kind Wallet
-wallet wsh(sortedmulti(2,[3f5e4e09/48h/0h/0h]xpub6BtEVX9WezWA2EYa8Wf1rJTokXpF96Rmqr4JKoR3SbjGw1vCa3Qb91mKN1AqJnBzSpqy44tEMB27Khne6KBmNzurXigfis7F28X5dRLWGoY/<0;1>/*,[b96bc7c7/48h/0h/0h]xpub6CzCTuwFmAcBoxsfPLgiKfkJ2W3GbW1zxFKvCamZQ1J2XMobJR1gMNqP64pcFsy65ST4WcZtrCn99WXgLcWM6bqw6iFneAPTgJuLHggHD5S/<0;1>/*,[44437f41/48h/0h/0h]xpub6Cn4cYgRhXKnvNjE4ULP2mzWHFw4WtCyp1nBuE97SyZVTPwq5xWkKsTVe9c16XSTr6V9AKMDgizav7z69j4AREaMKoFzUDbdcZhVq5xaKMU/<0;1>/*))
+wallet wsh(sortedmulti(2,[3f5e4e09/48h/0h/0h]xpub6BtEVX9WezWA2EYa8Wf1rJTokXpF96Rmqr4JKoR3SbjGw1vCa3Qb91mKN1AqJnBzSpqy44tEMB27Khne6KBmNzurXigfis7F28X5dRLWGoY/<0;1>/*,[44437f41/48h/0h/0h]xpub6Cn4cYgRhXKnvNjE4ULP2mzWHFw4WtCyp1nBuE97SyZVTPwq5xWkKsTVe9c16XSTr6V9AKMDgizav7z69j4AREaMKoFzUDbdcZhVq5xaKMU/<0;1>/*,[b96bc7c7/48h/0h/0h]xpub6CzCTuwFmAcBoxsfPLgiKfkJ2W3GbW1zxFKvCamZQ1J2XMobJR1gMNqP64pcFsy65ST4WcZtrCn99WXgLcWM6bqw6iFneAPTgJuLHggHD5S/<0;1>/*))
 first bc1qjppd555998lvpgdew30kdrvu2qg90n5gg684khrc2u5g7kj8cnuqujvz3p Mainnet
 rebuilt true
 == bluewallet/nunchuk-export.json
@@ -150,7 +150,7 @@ first tb1qu3dn2tssv5yek9u2p3vhs88mag4gryh2yeddy3 Testnet
 rebuilt true
 == sparrow/bsms/multisig-1.bsms
 kind Wallet
-wallet wsh(sortedmulti(2,[8188029f/48h/0h/0h/2h]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*,[3bd5c9b0/48h/0h/0h/2h]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*))
+wallet wsh(sortedmulti(2,[3bd5c9b0/48h/0h/0h/2h]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*,[8188029f/48h/0h/0h/2h]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*))
 first bc1qfagqa83vrv9phj0886rlx6d68zzd7gejtr0ns8xxfeckve27397q6vq47w Mainnet
 rebuilt true
 == sparrow/bsms/multisig-10.bsms

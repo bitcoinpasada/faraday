@@ -1783,9 +1783,33 @@ pub fn needed(wallet: &Wallet) -> usize {
 /// A wallet's descriptor, the form the same wallet read from a
 /// descriptor, a wallet .json or a multisig config compares equal in:
 /// the policy writes every hardened step `h` however the file wrote it
-/// (F66). Writes the descriptor out.
+/// (F66). A `sortedmulti` sorts its keys whatever order they were
+/// written in, so its keys are put in text order here; `multi` keeps the
+/// order it was written in, which it pays to. Writes the descriptor out.
 pub fn same_wallet(policy: &WalletPolicy) -> Text {
-    Text::of(&policy.to_descriptor())
+    let descriptor = policy.to_descriptor();
+    const OPEN: &str = "sortedmulti(";
+    let mut out = Text::of("");
+    let mut rest: &str = &descriptor;
+    while let Some(at) = rest.find(OPEN) {
+        let args = &rest[at + OPEN.len()..];
+        let Some(end) = args.find(')') else { break };
+        let mut parts: Vec<&str> = args[..end].split(',').collect();
+        // The threshold stays first; only the keys after it are sorted.
+        if parts.len() > 1 {
+            parts[1..].sort_unstable();
+        }
+        out.push_str(&rest[..at + OPEN.len()]);
+        for (i, part) in parts.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(part);
+        }
+        rest = &args[end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 impl FileKind {
