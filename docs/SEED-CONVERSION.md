@@ -252,10 +252,11 @@ a Settings card between To and Result for Seed XOR and codex32 only:
 Parts (2 to 4), codex32's k (0, then 2 to 9) and n (k to 31, none while k
 is 0), the Fact "Fresh randomness: Faraday's" where a set draws
 randomness, and Make; with no randomness ready a toast says so and the
-card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is one Held value with one eye, the parts numbered (a
-set of one string, the codex32 secret, unnumbered); Check my copy compares
+card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is one Held value with one eye, showing one part at a time, numbered, with
+Previous share and Next share under it (a set of one string, the codex32 secret,
+unnumbered, has neither); Check my copy compares
 one typed string with every part and says which part matched or that it
-differs; Save as a file writes every part, one per line; all are dropped
+differs; Save as a file writes the part on show, one file a part; all are dropped
 when Result is left. In Practice Seed XOR and SLIP-39, k of n are dimmed and
 codex32's secret goes straight to Result. The codex32 length setting of item 3
 below is left out: a loaded key's seed fixes it. 
@@ -268,7 +269,7 @@ over one group or one share and never above its count. The result of one
 group is numbered "1:", "2:"; of several, "Group 1, share 2:", and Check my
 copy says "Your copy matches group 1, share 2". Standard: "SLIP-39, 2 of 3
 shares", or for groups "SLIP-39, 2 of 3 groups: 2 of 3, 3 of 5, 1 of 1". The
-file Save writes is every share, one a line, in group order; a line carries
+file Save writes is the share on show, named for its place in the set; it carries
 no group, since a reader of plain share lines would not take one. The
 identifier and shares come from the randomness drawn, the passphrase is
 empty, and the set is read back: every share is parsed, then a first and a
@@ -287,8 +288,8 @@ would otherwise combine into another seed with no error); the secret alone
 keeps `identifier_for`. A drawn identifier is also none that another set
 on this device carries (`docs/CODEX32.md` §6.4.5: the set of a loaded
 key, the plan in hand, the open vaults and Add a key's form): a draw that
-lands on one is stepped on until it does not. The shown set is joined and
-numbered once, by the press that opens the eye, and held while it shows
+lands on one is stepped on until it does not. The share shown is
+numbered once, by the press that opens the eye or steps to another, and held while it shows
 (F195).
 
 A new step flow, `Screen::Convert`, drawn as DESIGN §5's step flow, from

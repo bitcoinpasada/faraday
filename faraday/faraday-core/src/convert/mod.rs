@@ -96,6 +96,9 @@ pub enum ConvertAction {
     DestroyOthers,
     /// Make the result from the settings.
     Make,
+    /// The next (1) or previous (-1) share of a result of several, which
+    /// shows one at a time.
+    Part(i8),
     /// Show or hide the value.
     Show,
     /// Open or close Check my copy.
@@ -420,6 +423,8 @@ pub struct ConvertState {
     pub target: Option<Target>,
     /// Whether the value shows.
     pub shown: bool,
+    /// The share of a result of several that shows and is saved, from 0.
+    pub part: usize,
     /// Where Back and Done go.
     pub back: Screen,
     /// Whether the value has a Check my copy.
@@ -474,19 +479,17 @@ impl Value {
         }
     }
 
-    /// What the field shows: the text, or a set's strings a line each,
-    /// numbered when there are several, by group and place in it where
-    /// `groups` (each group's share count) has several. A copy, wiped on
-    /// drop; `None` for a code.
-    pub(crate) fn display(&self, groups: &[u8]) -> Option<Text> {
+    /// What the field shows: the text, or one string of a set, number
+    /// `at`, numbered when there are several, by group and place in it
+    /// where `groups` (each group's share count) has several; never
+    /// another string beside it. A copy, wiped on drop; `None` for a code.
+    pub(crate) fn display(&self, groups: &[u8], at: usize) -> Option<Text> {
         match self {
             Value::Text(t) => Some(t.duplicate()),
             Value::Set(parts) => {
                 let mut out = Text::new();
-                for (i, part) in parts.iter().enumerate() {
-                    if i > 0 {
-                        out.push('\n');
-                    }
+                let at = at.min(parts.len().saturating_sub(1));
+                for (i, part) in parts.iter().enumerate().filter(|&(i, _)| i == at) {
                     if groups.len() > 1 {
                         let (g, m) = place_in(groups, i);
                         out.push_str(&Text::fill(
@@ -504,6 +507,14 @@ impl Value {
                 Some(out)
             }
             Value::Code(..) => None,
+        }
+    }
+
+    /// How many strings a result of several has: 1 for any other.
+    pub(crate) fn count(&self) -> usize {
+        match self {
+            Value::Set(parts) => parts.len(),
+            Value::Text(_) | Value::Code(..) => 1,
         }
     }
 
@@ -600,6 +611,23 @@ impl ConvertArea {
     /// work. `None` with the eye closed or for a code.
     pub(crate) fn shown_text(&self) -> Option<&str> {
         self.shown_text.as_deref()
+    }
+
+    /// The share that shows and its count, for a result of several
+    /// shares, whether the eye is open or not.
+    pub(crate) fn part_of(&self) -> Option<(usize, usize)> {
+        let n = self.held.as_ref().map_or(0, Value::count);
+        let at = self.state.as_ref()?.part;
+        (n > 1).then_some((at.min(n - 1), n))
+    }
+
+    /// Works out what the open eye shows, or drops it when closed.
+    fn refresh_shown(&mut self) {
+        let shown = self.state.as_ref().is_some_and(|s| s.shown);
+        self.shown_text = match (shown, self.state.as_ref(), self.held.as_ref()) {
+            (true, Some(s), Some(v)) => v.display(&groups_made(s), s.part),
+            _ => None,
+        };
     }
 
     /// The flow's state, while it is open.
@@ -780,6 +808,7 @@ impl ConvertArea {
             set: None,
             target: None,
             shown: false,
+            part: 0,
             back,
             checkable: false,
             refused: None,
@@ -799,6 +828,7 @@ impl ConvertArea {
         self.drop_value();
         if let Some(s) = self.state.as_mut() {
             s.shown = false;
+            s.part = 0;
             s.checkable = false;
             s.refused = None;
             s.paths.clear();
@@ -1035,6 +1065,12 @@ pub fn state(app: &Faraday) -> Option<&ConvertState> {
 /// The value, while its eye is open and it is text: a borrow, no work.
 pub fn shown(app: &Faraday) -> Option<&str> {
     app.tools.convert.held().and_then(Value::text)
+}
+
+/// What the open eye shows of a result of several: one share, a borrow, no
+/// work.
+pub fn shown_text(app: &Faraday) -> Option<&str> {
+    app.tools.convert.shown_text()
 }
 
 /// The code, while its eye is open and it is one: a borrow, no work.
@@ -1444,16 +1480,19 @@ fn save(app: &mut Faraday) {
     let lower = Text::lowercase(&fp);
     let (name, bytes, keep) = match held {
         Value::Set(parts) => {
-            let mut all = Zeroizing::new(Vec::new());
-            for part in parts.iter() {
-                all.extend_from_slice(part.as_bytes());
-                all.push(b'\n');
+            // One file for the share on show, never the whole set.
+            let at = s.part.min(parts.len().saturating_sub(1));
+            let mut one = Zeroizing::new(Vec::new());
+            if let Some(part) = parts.get(at) {
+                one.extend_from_slice(part.as_bytes());
+                one.push(b'\n');
             }
-            (
-                text!("{}-{}.txt", &*lower, &*target.file_for(lang)),
-                all,
-                Keep::Note,
-            )
+            let name = if parts.len() > 1 {
+                text!("{}-{}-{}.txt", &*lower, &*target.file_for(lang), at + 1)
+            } else {
+                text!("{}-{}.txt", &*lower, &*target.file_for(lang))
+            };
+            (name, one, Keep::Note)
         }
         Value::Text(text) => (
             text!("{}-{}.txt", &*lower, &*target.file_for(lang)),
@@ -1569,12 +1608,21 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
                 && let Some(s) = area.state.as_mut()
             {
                 s.shown = !s.shown;
-                let groups = groups_made(s);
-                area.shown_text = if s.shown {
-                    area.held.as_ref().and_then(|v| v.display(&groups))
+                area.refresh_shown();
+            }
+        }
+        ConvertAction::Part(d) => {
+            let area = &mut app.tools.convert;
+            if let Some((at, n)) = area.part_of() {
+                let to = if d < 0 {
+                    at.saturating_sub(1)
                 } else {
-                    None
+                    (at + 1).min(n - 1)
                 };
+                if let Some(s) = area.state.as_mut() {
+                    s.part = to;
+                }
+                area.refresh_shown();
             }
         }
         ConvertAction::Check if checks_by_scan(app) => {

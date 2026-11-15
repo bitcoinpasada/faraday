@@ -51,6 +51,12 @@ impl View<'_> {
         self.app.tools.convert.held()
     }
 
+    /// The share of a result of several that shows and how many there
+    /// are, eye open or not: a borrow, nothing costs.
+    pub(crate) fn convert_part(&self) -> Option<(usize, usize)> {
+        self.app.tools.convert.part_of()
+    }
+
     /// The text Convert's open eye shows, held since the press that
     /// opened it: a borrow, nothing costs.
     pub(crate) fn convert_shown_text(&self) -> Option<&str> {

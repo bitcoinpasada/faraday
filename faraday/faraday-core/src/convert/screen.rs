@@ -449,6 +449,40 @@ fn set_settings(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32,
     cy - y + GAP_SMALL
 }
 
+/// Previous share and Next share under a result of several shares, which
+/// shows and saves one at a time (Material 3, Buttons: tonal). Nothing for
+/// any other result. Returns the height taken.
+fn part_buttons(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some((at, n)) = app.convert_part() else {
+        return 0.0;
+    };
+    let mut items = Vec::new();
+    if at > 0 {
+        items.push((
+            EN.convert_previous_share,
+            Style::Secondary,
+            Action::Convert(C::Part(-1)),
+        ));
+    }
+    if at + 1 < n {
+        items.push((
+            EN.convert_next_share,
+            Style::Secondary,
+            Action::Convert(C::Part(1)),
+        ));
+    }
+    button_rows(ui, x, y, w, &items) + GAP
+}
+
+/// Save's label: one share's file for a result of several, else the file.
+fn save_label(app: &View) -> &'static str {
+    if app.convert_part().is_some() {
+        EN.convert_save_share
+    } else {
+        EN.convert_save
+    }
+}
+
 /// Result for a share or a set made.
 fn set_result(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
@@ -460,6 +494,7 @@ fn set_result(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f
             let eye = (Action::Convert(C::Show), s.shown);
             let text = || app.convert_shown_text().unwrap_or_default();
             cy += crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye) + GAP;
+            cy += part_buttons(app, ui, (x, cy, w));
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {
                 cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
             };
@@ -480,7 +515,7 @@ fn set_result(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f
                 ));
             }
             actions.push((
-                EN.convert_save.to_string(),
+                save_label(app).to_string(),
                 Style::Secondary,
                 Action::Convert(C::Save),
             ));
@@ -788,6 +823,7 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
                 let text = || app.convert_shown_text().unwrap_or_default();
                 crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye)
             } + GAP;
+            cy += part_buttons(app, ui, (x, cy, w));
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {
                 cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
             };
@@ -835,7 +871,7 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
                 ));
             }
             actions.push((
-                EN.convert_save.to_string(),
+                save_label(app).to_string(),
                 Style::Secondary,
                 Action::Convert(C::Save),
             ));

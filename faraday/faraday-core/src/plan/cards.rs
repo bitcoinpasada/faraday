@@ -185,7 +185,9 @@ pub(crate) fn shares_lines(shape: &crate::plan::Shape) -> Vec<Text> {
 
 /// What holds The plan's way on (`docs/WALLETS.md` §13): a
 /// vault that holds nothing, a key made here kept nowhere
-/// (`kept_nowhere`, the caller's). A vault's stick at no place is a
+/// (`kept_nowhere`, the caller's), and a wallet of several keys whose
+/// description is kept nowhere (no copy of it and not every share), which
+/// the board's own line names. A vault's stick at no place is a
 /// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §17.16).
 pub(crate) fn held_line(_app: &View, ctx: &PlanCtx, kept_nowhere: Option<Text>) -> Option<Text> {
     if let Some(v) = ctx.answers.empty_vault() {
@@ -194,7 +196,17 @@ pub(crate) fn held_line(_app: &View, ctx: &PlanCtx, kept_nowhere: Option<Text>) 
             &[&Text::num(v as u64 + 1)],
         ));
     }
-    kept_nowhere
+    if let Some(line) = kept_nowhere {
+        return Some(line);
+    }
+    (ctx.shape.multi() && !plan::description_kept_on(&ctx.shape, &ctx.answers, &ctx.mapped)).then(
+        || {
+            Text::of(&crate::board::lines::description_line(
+                &ctx.shape,
+                &ctx.mapped,
+            ))
+        },
+    )
 }
 
 /// The open card of a plan (`docs/BACKUP-FLOW.md` §15.1): its lists, then

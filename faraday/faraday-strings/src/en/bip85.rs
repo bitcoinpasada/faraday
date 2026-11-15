@@ -104,6 +104,13 @@ macro_rules! words_bip85 {
     convert_scan_is_compact: "This is a CompactSeedQR, not a SeedQR",
     /// Result's button.
     convert_save: "Save as a file…",
+    /// Result's button, for a result of several shares, which shows and
+    /// saves one at a time.
+    convert_save_share: "Save this share as a file…",
+    /// Result's button, over a result of several shares.
+    convert_previous_share: "Previous share",
+    /// Result's button, over a result of several shares.
+    convert_next_share: "Next share",
     /// The label over the copy typed back. `{}`: how many characters.
     convert_your_copy: "Your copy, {} characters",
     /// Check my copy's button.

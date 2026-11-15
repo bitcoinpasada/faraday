@@ -506,7 +506,9 @@ pub(crate) fn save(app: &mut Faraday) {
     let mut bytes = Zeroizing::new(Vec::new());
     match held {
         Value::Set(parts) => {
-            for p in parts.iter() {
+            // One file for the share on show, never the whole set.
+            let at = s.part.min(parts.len().saturating_sub(1));
+            if let Some(p) = parts.get(at) {
                 bytes.extend_from_slice(p.as_bytes());
                 bytes.push(b'\n');
             }
@@ -514,14 +516,18 @@ pub(crate) fn save(app: &mut Faraday) {
         Value::Text(t) => bytes.extend_from_slice(t.as_str().as_bytes()),
         Value::Code(..) => return,
     }
+    let at = s.part.min(held.count().saturating_sub(1));
     let id = match held {
         Value::Set(parts) => parts
-            .first()
+            .get(at)
             .and_then(|p| faraday_bip::slip39::Share::parse(p.as_str()).ok())
             .map_or(f.identifier, |sh| sh.identifier()),
         _ => f.identifier,
     };
-    let name = file(id, x);
+    let mut name = file(id, x);
+    if held.count() > 1 {
+        name = text!("{}-share-{}.txt", name.trim_end_matches(".txt"), at + 1);
+    }
     let mut out = crate::secrets::SecretOut::new(
         name,
         bytes,

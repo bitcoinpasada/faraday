@@ -1469,7 +1469,9 @@ that a passphrase is not kept where its words are) is a line under the
 board, current on every drop, and a placed chip that a check names
 carries a warning mark (in `WARN`, as a held address is drawn). Examples:
 "Seed B is kept nowhere", "Losing Home loses the wallet", "Home keeps
-Seed A's words with its passphrase".
+Seed A's words with its passphrase". One is held: a wallet of several keys whose
+description is kept nowhere (no copy and not every share) does not offer Make the
+checklist, and the plan's way on shows the board's line saying so.
 
 **A drop that lets a place see the balance** (owner, 2026-10-19). When a
 drop, or a tap-place, makes a place able to see the balance that could

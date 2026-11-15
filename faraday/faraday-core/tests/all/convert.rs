@@ -1398,9 +1398,9 @@ fn a_small_panel_shows_which_part_a_copy_matched() {
 }
 
 /// Check my copy takes one part and says which it matched, or that it
-/// differs; Save writes every part; leaving drops them all.
+/// differs; Save writes the part on show; leaving drops them all.
 #[test]
-fn a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving() {
+fn a_set_is_checked_part_by_part_saved_one_part_a_file_and_dropped_on_leaving() {
     let mut app = opened(mainnet(), LEGAL);
     feed(&mut app);
     let set = make_set(&mut app, "Seed XOR parts").unwrap();
@@ -1431,8 +1431,8 @@ fn a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving() {
     assert!(opened_up(&mut app).iter().any(|t| t == "Your copy differs"));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("seed-xor.txt"), "{}", &*out.name);
-    assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
+    assert!(out.name.ends_with("seed-xor-1.txt"), "{}", &*out.name);
+    assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
     app.press(Action::Convert(C::Step(cstep::TO)));
     app.press(Action::Convert(C::Show));
     assert_eq!(convert::shown_parts(&app), None);
@@ -1540,17 +1540,26 @@ fn a_slip39_set_of_groups_recovers_the_secret_and_names_each_shares_group() {
     for at in [[0, 1, 3, 4], [1, 2, 4, 5], [0, 2, 3, 5], [2, 0, 5, 3]] {
         assert_eq!(slip_back(&set, &at), seed, "{at:?}");
     }
-    let shown = opened_up(&mut app);
-    for line in [
+    // One share shows at a time, named by its group and place in it.
+    for (at, line) in [
         "Group 1, share 1:",
+        "Group 1, share 2:",
         "Group 1, share 3:",
+        "Group 2, share 1:",
         "Group 2, share 2:",
-    ] {
-        assert!(
-            shown.iter().any(|t| t.contains(line)),
-            "{line} in {shown:?}"
-        );
+        "Group 2, share 3:",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let shown = opened_up(&mut app).join(" ");
+        assert!(shown.contains(line), "{line} in {shown:?}");
+        assert!(shown.contains(&set[at]), "share {} in {shown:?}", at + 1);
+        let on = set.iter().filter(|o| shown.contains(o.as_str())).count();
+        assert_eq!(on, 1, "one share only");
+        app.press(Action::Convert(C::Part(1)));
     }
+    let shown = opened_up(&mut app);
     assert!(
         shown
             .iter()
@@ -1565,6 +1574,7 @@ fn one_slip39_group_is_numbered_plainly_and_names_its_shape() {
     let mut app = slip_opened(&unhex(SEED_1));
     let set = make_set(&mut app, SLIP_SET).unwrap();
     assert_eq!(set.len(), 3);
+    app.press(Action::Convert(C::Part(1)));
     let shown = opened_up(&mut app);
     assert!(shown.iter().any(|t| t.contains("2: ")), "{shown:?}");
     assert!(!shown.iter().any(|t| t.contains("Group 1, share")));
@@ -1765,9 +1775,9 @@ fn a_slip39_set_with_a_group_of_one_share_recovers() {
 }
 
 /// Check my copy takes one share of a set of groups and says its group and
-/// place; Save writes every share, in group order, one a line.
+/// place; Save writes the share on show, one file a share.
 #[test]
-fn a_slip39_copy_is_checked_by_group_and_the_file_has_every_share() {
+fn a_slip39_copy_is_checked_by_group_and_the_file_has_one_share() {
     let mut app = slip_opened(&unhex(SEED_1));
     app.press(Action::Convert(C::To(place(SLIP_SET))));
     app.press(Action::Convert(C::SlipGroups(1)));
@@ -1798,8 +1808,53 @@ fn a_slip39_copy_is_checked_by_group_and_the_file_has_every_share() {
     );
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("slip39-set.txt"), "{}", &*out.name);
-    assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
+    assert!(out.name.ends_with("slip39-set-1.txt"), "{}", &*out.name);
+    assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
+}
+
+/// A 2 of 3 SLIP-39 result shows one share at a time, however it is
+/// stepped: what shows at any moment parses as exactly one share, Save
+/// writes that share alone, and Check my copy still takes any share of
+/// the whole set.
+#[test]
+fn a_slip39_result_shows_and_saves_one_share_at_a_time() {
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set: Vec<String> = convert::shown_parts(&app)
+        .unwrap()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(set.len(), 3);
+    let one = |app: &Faraday, at: usize| {
+        let shown = convert::shown_text(app).unwrap();
+        let (number, share) = shown.split_once(": ").expect("a numbered share");
+        assert_eq!(number, (at + 1).to_string());
+        faraday_bip::slip39::Share::parse(share).expect("the shown text is exactly one share");
+        assert_eq!(share, set[at]);
+    };
+    one(&app, 0);
+    for at in [1, 2] {
+        app.press(Action::Convert(C::Part(1)));
+        let _ = app.frame();
+        one(&app, at);
+    }
+    app.press(Action::Convert(C::Part(1)));
+    one(&app, 2);
+    app.press(Action::Convert(C::Part(-1)));
+    one(&app, 1);
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[2]);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(true));
+    assert_eq!(convert::found_part(&app), Some(3));
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert_eq!(out.bytes.to_vec(), (set[1].clone() + "\n").into_bytes());
 }
 
 /// With no randomness answered, no SLIP-39 set is made and the card stays;
@@ -2596,7 +2651,7 @@ fn a_rotated_sets_file_is_named_for_the_new_set() {
     assert_ne!(old, new);
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert_eq!(&*out.name, format!("{new:04x}-slip39-set.txt"));
+    assert_eq!(&*out.name, format!("{new:04x}-slip39-set-share-1.txt"));
 }
 
 /// Another source chosen wipes the share being typed.
@@ -2948,6 +3003,10 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     assert_eq!(convert::found(&app), Some(true));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("slip39-set.txt"), "{}", &*out.name);
-    assert_eq!(out.bytes.to_vec(), (lines.join("\n") + "\n").into_bytes());
+    assert!(
+        out.name.ends_with("slip39-set-share-1.txt"),
+        "{}",
+        &*out.name
+    );
+    assert_eq!(out.bytes.to_vec(), (lines[0].clone() + "\n").into_bytes());
 }

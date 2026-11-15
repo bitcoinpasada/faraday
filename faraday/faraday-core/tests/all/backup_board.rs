@@ -1372,6 +1372,27 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     expect_down_part(&mut app, "The description cannot be put back together");
 }
 
+/// A 2 of 3 whose description is kept nowhere (no copy of it, no share)
+/// does not offer Make the checklist: the plan's way on says why, as the
+/// board's own line, until a place keeps the description again.
+#[test]
+fn a_plan_that_keeps_the_description_nowhere_does_not_offer_the_checklist() {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    let _ = app.frame();
+    app.press(Action::Board(BP::Partials));
+    app.press(Action::Board(BP::PartialsWholeOff));
+    app.press(Action::Board(BP::Partials));
+    let a = app.backup().unwrap().answers.clone();
+    let shape = backup_shape(&app);
+    assert!((0..3).all(|p| a.shares_at(&shape, p).is_empty() && !a.sheet_at(&shape, p)));
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    let _ = app.frame();
+    assert!(!app.offers(Action::BChecklist));
+    expect_down_part(&mut app, "The description cannot be put back together");
+    assert!(!app.offers(Action::BChecklist));
+}
+
 /// A single key's one place: "Any one place lost" reads "No: a single
 /// place", muted, not as a warning (`docs/BACKUP-FLOW.md` §17.19).
 #[test]

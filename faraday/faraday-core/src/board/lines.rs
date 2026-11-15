@@ -88,7 +88,7 @@ pub(super) fn sees_line(held: &[What]) -> String {
 /// The line under the board when nothing kept puts the description back
 /// together (`docs/BACKUP-FLOW.md` §17.19 item 5): what is kept, and what
 /// would complete it.
-pub(super) fn description_line(shape: &Shape, m: &plan::Mapped) -> String {
+pub(crate) fn description_line(shape: &Shape, m: &plan::Mapped) -> String {
     let kept = plan::shares_kept_on(shape, m);
     if kept.is_empty() {
         return EN.board_desc_nothing.to_string();
