@@ -4442,6 +4442,8 @@ strings! {
     /// Text in `storage_event`. `{}`: `name`, `self.medium.noun()`.
     storage_event_copied_words: "Copied {}: a key's words, loaded when the {} is removed",
     /// Text in `storage_event`. `{}`: `name`.
+    storage_event_seed_not_copied: "{}: reads as a secret, not copied",
+    /// Text in `storage_event`. `{}`: `name`.
     storage_event_wrote_read: "Wrote {}, read back and matched",
     /// Text in `storage_event`. `{}`: `name`, `wrote_as`.
     storage_event_wrote: "Wrote {} as {}, read back and matched",

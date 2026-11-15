@@ -20,9 +20,29 @@ fn attach(app: &mut Faraday) {
         id: faraday_text::Text::of(STICK),
         label: faraday_text::Text::of("TESTSTICK"),
         boot: false,
-        files: vec![(faraday_text::Text::of(FILE), words().len() as u64)],
+        files: vec![
+            (faraday_text::Text::of(FILE), words().len() as u64),
+            (faraday_text::Text::of("key-1-seedqr.png"), 9),
+            (faraday_text::Text::of("note.png"), 9),
+        ],
         vaults: Vec::new(),
     }]));
+}
+
+/// The person ticks the stick file `name` themselves, if it is listed.
+fn own_tick(app: &mut Faraday, name: &str) {
+    let Some(k) = app
+        .sticks()
+        .first()
+        .and_then(|s| s.files.iter().position(|(f, _)| f == name))
+    else {
+        return;
+    };
+    // A default tick is first taken off: the tick is the person's own.
+    if app.visit().inn.contains(name) {
+        app.press(Action::VisitIn(k));
+    }
+    app.press(Action::VisitIn(k));
 }
 
 fn detach(app: &mut Faraday) {
@@ -164,6 +184,7 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     let mut app = faraday_core::testkit::started();
     attach(&mut app);
     app.press(Action::Nav(Screen::Files));
+    own_tick(&mut app, "key-1-seedqr.png");
     app.storage(StorageEvent::QrRead {
         name: faraday_text::Text::of("key-1-seedqr.png"),
         bytes: b"a picture".to_vec(),
@@ -231,6 +252,7 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
 const TEXT_SEEDQR: &[u8; 16] = b"a short note 123";
 
 fn read_text_picture(app: &mut faraday_core::Faraday, payload: Vec<u8>) {
+    own_tick(app, "note.png");
     app.storage(StorageEvent::QrRead {
         name: faraday_text::Text::of("note.png"),
         bytes: b"a picture".to_vec(),
@@ -281,7 +303,7 @@ fn declining_the_ask_loads_nothing_and_keeps_the_picture_a_file() {
 }
 
 #[test]
-fn a_binary_compact_seedqr_picture_loads_with_no_ask() {
+fn a_binary_compact_seedqr_picture_the_person_ticked_loads_with_no_ask() {
     let mut app = faraday_core::testkit::started();
     attach(&mut app);
     app.press(Action::Nav(Screen::Files));

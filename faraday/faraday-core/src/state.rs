@@ -1133,6 +1133,10 @@ pub struct VisitState {
     pub out: BTreeSet<faraday_text::Text>,
     /// Stick files chosen to copy, by name.
     pub inn: BTreeSet<faraday_text::Text>,
+    /// The stick files the person ticked themselves, as opposed to the
+    /// visit's defaults: a file that turns out to hold a seed is kept
+    /// only when its tick is here (`Faraday::visit_read_in`).
+    pub inn_own: BTreeSet<faraday_text::Text>,
     /// Stick files asked for and not yet answered, by name: a picture's
     /// codes are read off the shell's thread, one picture at a time.
     pub reading: BTreeSet<faraday_text::Text>,

@@ -1240,31 +1240,46 @@ impl Faraday {
             StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
                 // a File: to sign, or to send as codes.
-                let kept = self.inbox_name_for(&name, &bytes);
-                let item = Item::new(&c, &kept, bytes);
-                if item.kind == FileKind::Vault
-                    && let Some(s) = self.stick.iter().find(|s| s.id == stick)
+                let mut item = Item::new(&c, &name, bytes);
+                // A secret (seed, TOTP entries, wallet) the person did not
+                // tick is not kept (its bytes wipe as they drop): the file
+                // stays listed, unticked, as a secret named as one is.
+                if !self.visit.inn_is_own(&name)
+                    && item.kind.exposure() == secrets::Exposure::Secret
                 {
-                    let label = s.label.clone();
-                    self.vault_read_from(&item.name, &item.bytes, &label);
+                    self.visit.inn_unchoose(&name);
+                    self.visit.load_after_remove(&name);
+                    self.visit.reading_done(&name);
+                    self.visit.log_push((
+                        faraday_text::Text::fill(EN.storage_event_seed_not_copied, &[&*name]),
+                        true,
+                    ));
+                } else {
+                    item.name = self.inbox_name_for(&name, &item.bytes);
+                    if item.kind == FileKind::Vault
+                        && let Some(s) = self.stick.iter().find(|s| s.id == stick)
+                    {
+                        let label = s.label.clone();
+                        self.vault_read_from(&item.name, &item.bytes, &label);
+                    }
+                    // The visit's rows say what came in; only a seed waiting
+                    // for the stick's removal is worth a line.
+                    let line = (item.kind == FileKind::Words
+                        && self.visit.load_after.contains(&*item.name))
+                    .then(|| {
+                        faraday_text::Text::fill(
+                            EN.storage_event_copied_words,
+                            &[&item.name, self.medium.noun()],
+                        )
+                    });
+                    self.inbox.push(item);
+                    if let Some(line) = line {
+                        self.visit.log_push((line, true));
+                    }
+                    self.visit.inn_unchoose(&name);
+                    self.visit.reading_done(&name);
+                    self.save_boxes();
                 }
-                // The visit's rows say what came in; only a seed waiting
-                // for the stick's removal is worth a line.
-                let line = (item.kind == FileKind::Words
-                    && self.visit.load_after.contains(&*item.name))
-                .then(|| {
-                    faraday_text::Text::fill(
-                        EN.storage_event_copied_words,
-                        &[&item.name, self.medium.noun()],
-                    )
-                });
-                self.inbox.push(item);
-                if let Some(line) = line {
-                    self.visit.log_push((line, true));
-                }
-                self.visit.inn_unchoose(&name);
-                self.visit.reading_done(&name);
-                self.save_boxes();
             }
             StorageEvent::ReadFailed { name, reason, .. } => {
                 self.visit.reading_done(&name);
@@ -1374,25 +1389,40 @@ impl Faraday {
                 bytes,
                 payloads,
             } => {
+                // A picture holding a SeedQR comes in only on the
+                // person's own tick: another is dropped, left listed.
+                let own = self.visit.inn_is_own(&name);
                 self.visit.inn_unchoose(&name);
                 self.visit.reading_done(&name);
-                // The picture itself comes in as it is, beside what its
-                // codes hold, to be written to another stick; it takes
-                // the exposure of what they hold.
-                let before = self.inbox.len();
-                self.qr_read(&name, payloads);
-                let holds = self.picture_holds(before);
-                // Under its own name, unless what its codes held took it.
-                let got = if self.inbox.iter().skip(before).any(|i| i.name == *name) {
-                    self.free_inbox_name(&name)
+                let dropped = !own
+                    && payloads.iter().any(|p| {
+                        !crate::scan_read::is_compact_text(p) && seedqr_words(p).is_some()
+                    });
+                if dropped {
+                    self.visit.load_after_remove(&name);
+                    self.visit.log_push((
+                        faraday_text::Text::fill(EN.storage_event_seed_not_copied, &[&*name]),
+                        true,
+                    ));
                 } else {
-                    self.inbox.retain(|i| i.name != *name);
-                    faraday_text::Text::of(&name)
-                };
-                let mut item = Item::new(&c, &got, bytes);
-                item.picture = Some(holds);
-                self.inbox.push(item);
-                self.save_boxes();
+                    // The picture itself comes in as it is, beside what its
+                    // codes hold, to be written to another stick; it takes
+                    // the exposure of what they hold.
+                    let before = self.inbox.len();
+                    self.qr_read(&name, payloads);
+                    let holds = self.picture_holds(before);
+                    // Under its own name, unless what its codes held took it.
+                    let got = if self.inbox.iter().skip(before).any(|i| i.name == *name) {
+                        self.free_inbox_name(&name)
+                    } else {
+                        self.inbox.retain(|i| i.name != *name);
+                        faraday_text::Text::of(&name)
+                    };
+                    let mut item = Item::new(&c, &got, bytes);
+                    item.picture = Some(holds);
+                    self.inbox.push(item);
+                    self.save_boxes();
+                }
             }
             StorageEvent::PrintFailed { reason } => self.toast(&faraday_text::Text::fill(
                 EN.storage_event_not_printed,
@@ -2638,7 +2668,7 @@ impl Faraday {
                     }
                     {
                         let v = self.visit_default_in();
-                        self.visit.set_inn(v);
+                        self.visit.set_inn_keeping_reads(v);
                     }
                     self.visit.inbox_pick_none();
                     self.visit.set_out_offset(0.0);
@@ -3524,6 +3554,9 @@ impl Faraday {
                 }
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
+                if self.visit.reading_has(&name) {
+                    continue;
+                }
                 self.visit.reading_add(name.clone());
                 self.out.storage_out.push_back(
                     if faraday_text::Text::ascii_lowercase(&name).ends_with(".png") {

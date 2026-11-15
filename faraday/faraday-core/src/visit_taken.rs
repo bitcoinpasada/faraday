@@ -541,38 +541,70 @@ impl VisitArea {
         }
     }
 
-    /// The stick files chosen to copy are `chosen`.
+    /// The stick files chosen to copy are `chosen`, all by the visit's
+    /// default and none by the person.
     pub(crate) fn set_inn(&mut self, chosen: impl IntoIterator<Item = impl AsRef<str>>) {
         self.visit.inn = chosen.into_iter().map(|n| Text::of(n.as_ref())).collect();
+        self.visit.inn_own.clear();
+    }
+
+    /// As `set_inn`, but the person's own ticks of files still being read
+    /// stay, so a read answered after the screen changed still sees them.
+    pub(crate) fn set_inn_keeping_reads(
+        &mut self,
+        chosen: impl IntoIterator<Item = impl AsRef<str>>,
+    ) {
+        let reading = &self.visit.reading;
+        self.visit.inn_own.retain(|n| reading.contains(n));
+        self.visit.inn = chosen.into_iter().map(|n| Text::of(n.as_ref())).collect();
+    }
+
+    /// The stick file `name` is asked for and not yet answered.
+    pub(crate) fn reading_has(&self, name: &str) -> bool {
+        self.visit.reading.contains(name)
+    }
+
+    /// The person ticked the stick file `name` themselves.
+    pub(crate) fn inn_is_own(&self, name: &str) -> bool {
+        self.visit.inn_own.contains(name)
     }
 
     /// The stick file `name` is no longer chosen.
     pub(crate) fn inn_unchoose(&mut self, name: &str) {
         self.visit.inn.remove(name);
+        self.visit.inn_own.remove(name);
     }
 
-    /// Choosing the stick file `name` flipped.
+    /// Choosing the stick file `name` flipped by the person.
     pub(crate) fn inn_toggle(&mut self, name: impl AsRef<str>) {
         let name = name.as_ref();
-        if !self.visit.inn.remove(name) {
+        if self.visit.inn.remove(name) {
+            self.visit.inn_own.remove(name);
+        } else {
             self.visit.inn.insert(Text::of(name));
+            self.visit.inn_own.insert(Text::of(name));
         }
     }
 
     /// No stick file is chosen.
     pub(crate) fn inn_clear(&mut self) {
         self.visit.inn.clear();
+        self.visit.inn_own.clear();
     }
 
     /// Only the chosen stick files that `keep` says are kept.
     pub(crate) fn inn_retain(&mut self, keep: impl Fn(&str) -> bool) {
         self.visit.inn.retain(|n| keep(n));
+        self.visit.inn_own.retain(|n| keep(n));
     }
 
     /// The chosen stick file `from` was renamed `to`, and stays chosen.
     pub(crate) fn inn_renamed(&mut self, from: &str, to: &str) {
         if self.visit.inn.remove(from) {
             self.visit.inn.insert(Text::of(to));
+        }
+        if self.visit.inn_own.remove(from) {
+            self.visit.inn_own.insert(Text::of(to));
         }
     }
 
@@ -596,6 +628,11 @@ impl VisitArea {
         self.visit
             .load_after
             .extend(names.into_iter().map(|n| Text::of(n.as_ref())));
+    }
+
+    /// `name` is no longer loaded as keys when the stick is pulled.
+    pub(crate) fn load_after_remove(&mut self, name: &str) {
+        self.visit.load_after.remove(name);
     }
 
     /// The copy of `name` kept as `kept` is loaded in its place.

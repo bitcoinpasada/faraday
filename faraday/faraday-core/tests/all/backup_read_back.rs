@@ -181,6 +181,29 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
     let mut pictures: Vec<&(String, Vec<u8>)> =
         files.iter().filter(|(n, _)| n.ends_with(".png")).collect();
     pictures.sort_by(|a, b| a.0.cmp(&b.0));
+    if pictures.is_empty() {
+        return app;
+    }
+    // A picture comes in from a stick the person ticked it on.
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("BACK"),
+        label: faraday_text::Text::of("BACK"),
+        boot: false,
+        files: pictures
+            .iter()
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
+            .collect(),
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::Nav(Screen::Files));
+    for (k, (name, _)) in pictures.iter().enumerate() {
+        if app.visit().inn.contains(name.as_str()) {
+            app.press(Action::VisitIn(k));
+        }
+        app.press(Action::VisitIn(k));
+    }
     for (name, bytes) in pictures {
         let payloads = faraday_files::qr_in_png(&c, bytes)
             .unwrap_or_default()
@@ -192,6 +215,7 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
             payloads,
         });
     }
+    app.storage(StorageEvent::Sticks(Vec::new()));
     app
 }
 

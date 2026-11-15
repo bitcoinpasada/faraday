@@ -612,3 +612,230 @@ fn a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret() 
     let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);
 }
+
+/// Copies what the visit has ticked as it stands, the defaults as they
+/// came, and answers the reads.
+fn copy_ticked(app: &mut Faraday, sticks: &[&Stick]) {
+    app.press(Action::VisitCopy);
+    pump(app, sticks);
+}
+
+/// A visit's row `name` ticks, by the position it is listed at.
+fn tick(app: &mut Faraday, name: &str) {
+    let k = app.sticks()[app.visit().stick]
+        .files
+        .iter()
+        .position(|(f, _)| f == name)
+        .expect("on the stick");
+    app.press(Action::VisitIn(k));
+}
+
+#[test]
+fn a_seed_under_another_name_stays_out_of_a_plain_copy_until_it_is_ticked() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let notes = ("notes.txt".to_string(), words.1.clone());
+    let a = Stick::new("a", std::slice::from_ref(&notes));
+    attach(&mut app, &[&a]);
+    assert!(app.visit().inn.contains("notes.txt"), "ticked by default");
+
+    copy_ticked(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "the seed came in unasked");
+    assert!(!app.visit().inn.contains("notes.txt"), "still ticked");
+    assert!(
+        app.sticks()[0].files.iter().any(|(f, _)| f == "notes.txt"),
+        "no longer listed"
+    );
+
+    tick(&mut app, "notes.txt");
+    copy_ticked(&mut app, &[&a]);
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, FileKind::Words);
+    assert_eq!(app.inbox()[0].name, "notes.txt");
+}
+
+#[test]
+fn a_seed_named_as_one_is_unticked_and_comes_in_when_ticked() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    attach(&mut app, &[&a]);
+    assert!(!app.visit().inn.contains(words.0.as_str()));
+    copy_ticked(&mut app, &[&a]);
+    assert!(app.inbox().is_empty());
+    tick(&mut app, &words.0);
+    copy_ticked(&mut app, &[&a]);
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, FileKind::Words);
+}
+
+#[test]
+fn a_file_that_is_no_seed_still_comes_in_on_its_default_tick() {
+    let mut app = testkit::started();
+    let a = Stick::new("a", &[("hello.txt".to_string(), b"hello there\n".to_vec())]);
+    attach(&mut app, &[&a]);
+    assert!(app.visit().inn.contains("hello.txt"));
+    copy_ticked(&mut app, &[&a]);
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].name, "hello.txt");
+}
+
+fn seed_on_stick_as_notes() -> Stick {
+    let words = kit_ending("-words.txt");
+    Stick::new("a", &[("notes.txt".to_string(), words.1)])
+}
+
+#[test]
+fn copy_and_load_leaves_a_default_ticked_seed_out_and_loads_nothing() {
+    let mut app = testkit::started();
+    let a = seed_on_stick_as_notes();
+    attach(&mut app, &[&a]);
+    app.press(Action::VisitCopyAndLoad);
+    pump(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "the seed came in unasked");
+    assert!(app.visit().load_after.is_empty(), "set to load");
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.as_str() == "notes.txt: reads as a secret, not copied"),
+        "{:?}",
+        app.visit().log
+    );
+}
+
+#[test]
+fn pressing_copy_twice_before_the_read_answers_keeps_the_seed_out() {
+    let mut app = testkit::started();
+    let a = seed_on_stick_as_notes();
+    attach(&mut app, &[&a]);
+    app.press(Action::VisitCopy);
+    app.press(Action::VisitCopy);
+    pump(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "the seed came in on the second");
+    assert!(!app.visit().inn.contains("notes.txt"));
+}
+
+#[test]
+fn unticking_a_seed_while_it_is_being_read_keeps_it_out() {
+    let mut app = testkit::started();
+    let a = seed_on_stick_as_notes();
+    attach(&mut app, &[&a]);
+    // Off, then on again: the person's own tick.
+    tick(&mut app, "notes.txt");
+    tick(&mut app, "notes.txt");
+    assert!(app.visit().inn.contains("notes.txt"));
+    app.press(Action::VisitCopy);
+    tick(&mut app, "notes.txt");
+    assert!(!app.visit().inn.contains("notes.txt"));
+    pump(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "the unticked seed came in");
+}
+
+#[test]
+fn a_seedqr_picture_under_another_name_comes_in_only_when_ticked() {
+    let mut app = testkit::started();
+    let qr = kit_ending("-seedqr.png");
+    let photo = ("photo.png".to_string(), qr.1);
+    let a = Stick::new("a", std::slice::from_ref(&photo));
+    attach(&mut app, &[&a]);
+    assert!(app.visit().inn.contains("photo.png"), "ticked by default");
+
+    app.press(Action::VisitCopyAndLoad);
+    pump(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "the SeedQR came in unasked");
+    assert!(app.visit().load_after.is_empty(), "set to load");
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.as_str() == "photo.png: reads as a secret, not copied"),
+        "{:?}",
+        app.visit().log
+    );
+
+    tick(&mut app, "photo.png");
+    copy_ticked(&mut app, &[&a]);
+    assert!(!app.inbox().is_empty(), "ticked, and still left out");
+}
+
+/// A stick file `name` holding `bytes` stays out of a plain copy on its
+/// default tick, with a line saying so, and comes in once ticked.
+fn secret_needs_its_own_tick(name: &str, bytes: Vec<u8>, kind: FileKind) {
+    let mut app = testkit::started();
+    let a = Stick::new("a", &[(name.to_string(), bytes)]);
+    attach(&mut app, &[&a]);
+    assert!(app.visit().inn.contains(name), "ticked by default");
+    copy_ticked(&mut app, &[&a]);
+    assert!(app.inbox().is_empty(), "{name} came in unasked");
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| **l == *format!("{name}: reads as a secret, not copied")),
+        "{:?}",
+        app.visit().log
+    );
+    tick(&mut app, name);
+    copy_ticked(&mut app, &[&a]);
+    assert_eq!(app.inbox().len(), 1);
+    assert_eq!(app.inbox()[0].kind, kind);
+}
+
+#[test]
+fn authenticator_entries_under_a_neutral_name_come_in_only_when_ticked() {
+    secret_needs_its_own_tick(
+        "list.txt",
+        testkit::ENTRIES_FILE.as_bytes().to_vec(),
+        FileKind::Entries,
+    );
+}
+
+#[test]
+fn a_bitcoin_core_wallet_under_a_neutral_name_comes_in_only_when_ticked() {
+    let bytes = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/vectors/core-wallet/plain.dat"
+    ))
+    .expect("the wallet vector");
+    secret_needs_its_own_tick("data.db", bytes, FileKind::CoreWallet);
+}
+
+#[test]
+fn copy_and_load_brings_in_a_secret_the_person_ticked_and_loads_it_on_pulling_the_stick() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    attach(&mut app, &[&a]);
+    tick(&mut app, &words.0);
+    app.press(Action::VisitCopyAndLoad);
+    pump(&mut app, &[&a]);
+    assert!(
+        app.inbox().iter().any(|i| *i.name == *words.0),
+        "the ticked words did not come in"
+    );
+    assert!(app.session.keys.is_empty(), "loaded before the stick left");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the key did not load");
+}
+
+#[test]
+fn pressing_copy_twice_on_an_own_ticked_secret_logs_nothing_dropped() {
+    let mut app = testkit::started();
+    let words = kit_ending("-words.txt");
+    let a = Stick::new("a", std::slice::from_ref(&words));
+    attach(&mut app, &[&a]);
+    tick(&mut app, &words.0);
+    app.press(Action::VisitCopy);
+    app.press(Action::VisitCopy);
+    pump(&mut app, &[&a]);
+    assert_eq!(app.inbox().len(), 1);
+    assert!(
+        !app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.contains("not copied")),
+        "{:?}",
+        app.visit().log
+    );
+}
