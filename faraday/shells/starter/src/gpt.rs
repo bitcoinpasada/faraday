@@ -243,6 +243,26 @@ fn read_with(
         .checked_add(1)
         .and_then(|s| s.checked_mul(sector))
         .ok_or(StickFault::HeaderDamaged)?;
+    // The table's own sectors must lie outside every partition: the
+    // entries end before the first usable sector, and the last usable
+    // sector leaves the backup's room at the disk's end. Refused before
+    // anything is read beyond the header, so a Keep data write can never
+    // land on the table, nor a region reach across the disk.
+    let first_usable = le64(&header, 40);
+    let last_usable = le64(&header, 48);
+    let disk_sectors = len / sector;
+    let entries_end = entries_lba
+        .checked_add(entry_sectors)
+        .ok_or(StickFault::EntriesPastEnd)?;
+    if entries_lba < 2
+        || first_usable < entries_end
+        || last_usable < first_usable
+        || last_usable
+            .checked_add(entry_sectors)
+            .is_none_or(|end| end >= disk_sectors.saturating_sub(1))
+    {
+        return Err(StickFault::EntriesDamaged);
+    }
     let mut entries = vec![0u8; entries_len];
     read_at(entries_at, &mut entries).map_err(|e| StickFault::Reading(e.to_string()))?;
     if crc32(&entries) != le32(&header, 88) {
@@ -258,11 +278,15 @@ fn read_with(
             .map(|c| u16::from_le_bytes([c[0], c[1]]))
             .take_while(|&u| u != 0)
             .collect();
+        let (first, last) = (le64(e, 32), le64(e, 40));
+        if first < first_usable || last < first || last > last_usable {
+            return Err(StickFault::EntriesDamaged);
+        }
         parts.push(Part {
             type_guid: guid(&e[..16]),
             guid: guid(&e[16..32]),
-            first: le64(e, 32),
-            last: le64(e, 40),
+            first,
+            last,
             name: String::from_utf16_lossy(&units),
         });
     }
@@ -274,7 +298,7 @@ fn read_with(
     Ok(Table {
         sector,
         disk_guid: guid(&header[56..72]),
-        last_usable: le64(&header, 48),
+        last_usable,
         header_len: size,
         entries_lba,
         entry_count: count,

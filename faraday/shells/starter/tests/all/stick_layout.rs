@@ -100,8 +100,10 @@ fn fixtures() -> Vec<(&'static str, Sparse, bool)> {
 #[test]
 fn a_stick_made_for_its_size_is_known_and_another_layout_is_not() {
     for (name, disk, known) in fixtures() {
-        let table = read_table(&disk).expect(name);
-        assert_eq!(gpt::faraday_boot(&table, 0).is_ok(), known, "{name}");
+        // A table the reader refuses (a partition outside the usable
+        // area) is no Faraday stick either.
+        let is_stick = read_table(&disk).is_ok_and(|t| gpt::faraday_boot(&t, 0).is_ok());
+        assert_eq!(is_stick, known, "{name}");
     }
 }
 
@@ -239,4 +241,56 @@ fn the_developers_keep_data_knows_the_same_sticks() {
     if let Some(knew) = script_knows("windows rewrote", &disk) {
         assert!(knew, "a stick Windows rewrote");
     }
+}
+
+/// A Faraday stick whose primary header says its entries are at
+/// `entries_lba` (copied there), with `count` entries, checksum worked
+/// out again.
+fn entries_moved(entries_lba: u64, count: u32) -> Sparse {
+    let mut s = stick_of(BOOT, &[(DATA_FIRST, DATA_FIRST + 262_143)]);
+    let entries = s.bytes(2 * SECTOR, 128 * 128);
+    let mut h = s.bytes(SECTOR, 92);
+    h[72..80].copy_from_slice(&entries_lba.to_le_bytes());
+    h[80..84].copy_from_slice(&count.to_le_bytes());
+    h[16..20].fill(0);
+    let crc = faraday_crypto::crc32(&h);
+    h[16..20].copy_from_slice(&crc.to_le_bytes());
+    s.put(SECTOR, &h);
+    s.put(entries_lba * SECTOR, &entries);
+    s
+}
+
+#[test]
+fn a_table_with_its_entries_inside_the_boot_partition_is_refused() {
+    let disk = entries_moved(BOOT_FIRST + 100, 128);
+    assert_eq!(read_table(&disk).err(), Some(StickFault::EntriesDamaged));
+}
+
+#[test]
+fn a_table_with_its_entries_at_the_disks_end_is_refused() {
+    let disk = entries_moved(STICK / SECTOR - 40, 128);
+    assert_eq!(read_table(&disk).err(), Some(StickFault::EntriesDamaged));
+}
+
+#[test]
+fn a_header_with_a_huge_entry_count_is_refused_before_its_entries_are_read() {
+    let disk = entries_moved(2, u32::MAX);
+    let mut reads = 0;
+    let got = gpt::read(
+        &mut |at, buf| {
+            reads += 1;
+            assert!(buf.len() <= 4096, "a read of {} bytes", buf.len());
+            disk.read_at(at, buf);
+            Ok(())
+        },
+        disk.len,
+    );
+    assert_eq!(got.err(), Some(StickFault::EntriesDamaged));
+    assert!(reads <= 2, "{reads} reads");
+}
+
+#[test]
+fn a_table_with_a_partition_outside_the_usable_area_is_refused() {
+    let disk = stick_of(BOOT, &[(DATA_FIRST, STICK / SECTOR - 1)]);
+    assert_eq!(read_table(&disk).err(), Some(StickFault::EntriesDamaged));
 }

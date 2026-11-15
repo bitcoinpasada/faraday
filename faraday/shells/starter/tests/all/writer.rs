@@ -513,7 +513,15 @@ fn a_found_file_whose_inside_is_not_the_listed_size_fails_the_write() {
         let order = disk.order(source, Mode::Whole);
         let (r, _) = run(&order, &job, &mut disk);
         if longer {
-            assert!(matches!(r, Err(Reason::Longer(_))), "{r:?}");
+            // The claimed size is a sector short at the end: the image's
+            // table no longer leaves its backup room, which is refused too.
+            assert!(
+                matches!(
+                    r,
+                    Err(Reason::Longer(_) | Reason::NotStickImage(StickFault::EntriesDamaged))
+                ),
+                "{r:?}"
+            );
         } else {
             assert!(matches!(r, Err(Reason::Shorter { .. })), "{r:?}");
         }
