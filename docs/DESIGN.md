@@ -835,7 +835,10 @@ timestamp or a Lightning invoice.
 
 **Check an address** (the row 2 tool, also in Tools; Material 3 Text
 fields, Buttons, Menus and Cards, checked against those pages). Today it
-opens the scanner; it is to be a page of its own, under the top app bar
+opens the scanner, or with no wallet loaded Restore an existing wallet,
+which takes the descriptor, wallet file or xpub as it always does and
+comes back to the scanner with the wallet loaded (the way back there is
+**Tools**); it is to be a page of its own, under the top app bar
 titled **Check an address**, in the reading column. At its top an outlined
 text field labelled **Address** (the address keyboard of Explore's Find an
 address, `faraday/faraday-core/src/explore/addresses.rs`, `KeyboardKind`,

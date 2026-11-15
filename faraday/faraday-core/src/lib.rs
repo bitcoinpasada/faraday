@@ -2792,6 +2792,7 @@ impl Faraday {
             | Action::SamplePsbt) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet
+            | Action::RestoreFor(..)
             | Action::RStep(..)
             | Action::RVaults(..)
             | Action::RVaultN(..)

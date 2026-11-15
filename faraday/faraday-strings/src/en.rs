@@ -6037,6 +6037,8 @@ strings! {
     /// Text in `decode_screen`.
     decode_hide_the_hex: "Hide the hex",
     /// Text in `decode_screen`.
+    decode_load_a_wallet: "Load a wallet",
+    /// Text in `decode_screen`.
     decode_show_the_hex: "Show the hex",
     /// Text in `decode_screen`.
     decode_show_as_qr: "Show as QR",
@@ -7309,6 +7311,12 @@ strings! {
     restore_of_filled: "{} of {} filled",
     /// Text in `restore_screen`.
     restore_home: "Home",
+    /// Text in `restore_screen`.
+    restore_tools: "Tools",
+    /// Text in `restore_screen`.
+    restore_decode: "Decode a transaction",
+    /// Text in `restore_screen`.
+    restore_back: "Back",
     /// Text in `restore_screen`.
     restore_title: "Restore an existing wallet",
     /// Text in `restore_body`.

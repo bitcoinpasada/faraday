@@ -513,7 +513,6 @@ impl Faraday {
             Go::Backup if self.session.wallets.get(self.wallets.wallet()).is_none() => {
                 EN.catalog_load_a_wallet
             }
-            Go::CheckAddress if self.session.wallets.is_empty() => EN.catalog_load_a_wallet,
             Go::Sweep if !self.makes_secrets() => EN.sweep_practice,
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
@@ -648,6 +647,10 @@ impl Faraday {
                 None => self.act(Action::ScanFor(crate::Ask::Decode)),
             },
             Go::Invoice => crate::invoice::open(self),
+            // No wallet loaded: Restore, which comes back here.
+            Go::CheckAddress if self.session.wallets.is_empty() => {
+                self.act(Action::RestoreFor(crate::restore::Check::Address));
+            }
             Go::CheckAddress => self.act(Action::ScanFor(crate::Ask::Address)),
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),

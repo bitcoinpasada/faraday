@@ -233,26 +233,30 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .outside_check()
             .is_some_and(|o| o.check.refused(o.hex.is_some())))
         || app.decode_from_spend_held();
+    let mut buttons = Vec::new();
     if !refused {
-        y += wrap_buttons(
-            ui,
-            x,
-            y,
-            w,
-            BUTTON_H,
-            &[
-                (
-                    if d.show_hex {
-                        EN.decode_hide_the_hex
-                    } else {
-                        EN.decode_show_the_hex
-                    },
-                    Style::Secondary,
-                    Action::DecodeHex,
-                ),
-                (EN.decode_show_as_qr, Style::Secondary, Action::QrDecoded),
-            ],
-        ) + 4.0;
+        buttons.push((
+            if d.show_hex {
+                EN.decode_hide_the_hex
+            } else {
+                EN.decode_show_the_hex
+            },
+            Style::Secondary,
+            Action::DecodeHex,
+        ));
+        buttons.push((EN.decode_show_as_qr, Style::Secondary, Action::QrDecoded));
+    }
+    // With no wallet loaded no output can be checked as change: the way
+    // to load one, which comes back here.
+    if app.session.wallets.is_empty() {
+        buttons.push((
+            EN.decode_load_a_wallet,
+            Style::Secondary,
+            Action::RestoreFor(crate::restore::Check::Decode),
+        ));
+    }
+    if !buttons.is_empty() {
+        y += wrap_buttons(ui, x, y, w, BUTTON_H, &buttons) + 4.0;
     }
     if d.show_hex && !refused {
         let th = ui.wrap_as(

@@ -375,6 +375,19 @@ pub struct RestoreState {
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
+    /// Opened by a check that found no wallet loaded: the check, and the
+    /// screen it was opened from. The wallet read here returns to it.
+    pub then: Option<(Check, Screen)>,
+}
+
+/// A check that leads into loading a wallet when none is loaded, and
+/// takes the person back to itself with the wallet in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Check {
+    /// Check an address: back to its scanner.
+    Address,
+    /// Decode a transaction: back to the decoded transaction.
+    Decode,
 }
 
 impl RestoreState {
@@ -588,6 +601,17 @@ impl Faraday {
                     self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
                 }) =>
             {
+                self.screen = Screen::Restore;
+            }
+            // A check with no wallet loaded: the same Restore, and the
+            // wallet read in it goes back to the check.
+            Action::RestoreFor(check) => {
+                let owner = self.fresh_owner();
+                self.restore.state = Some(RestoreState {
+                    owner,
+                    then: Some((check, self.screen)),
+                    ..RestoreState::new()
+                });
                 self.screen = Screen::Restore;
             }
             Action::RestoreWallet => {
@@ -1281,11 +1305,33 @@ impl Faraday {
                     // (`docs/history/NEW-WALLET.md` §12.3 item 4).
                     r.next(rstep::DESCRIPTION);
                 }
+                if origin != wallet::Origin::TypedSeeds
+                    && let Some(then) = self.restore.state().and_then(|r| r.then)
+                {
+                    self.restore_return(then);
+                }
             }
             Err(e) => {
                 if let Some(r) = self.restore.state.as_mut() {
                     r.error = Some(e.text());
                 }
+            }
+        }
+    }
+
+    /// Costs what the check costs. A wallet is loaded for a check: Restore
+    /// ends and the check is shown again with it.
+    fn restore_return(&mut self, (check, from): (Check, Screen)) {
+        let Some(r) = self.restore.take() else {
+            return;
+        };
+        self.flow_drop_unmade(self.wallet_flow_of_owner(r.owner));
+        self.screen = from;
+        match check {
+            Check::Address => self.act(Action::ScanFor(crate::Ask::Address)),
+            Check::Decode => {
+                let c = self.compute();
+                self.decode.reread_ours(&c, &self.session);
             }
         }
     }

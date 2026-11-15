@@ -556,7 +556,9 @@ impl Faraday {
                     return;
                 };
                 self.flow_drop_unmade(self.wallet_flow_of_owner(r.owner));
-                if r.from_home {
+                if let Some((_, from)) = r.then {
+                    Action::Nav(from)
+                } else if r.from_home {
                     Action::Nav(Screen::Home)
                 } else {
                     Action::Nav(Screen::WalletsStart)
@@ -623,7 +625,7 @@ impl Faraday {
     }
 
     /// [`Self::flow_drop`] of backup flow `i`, unless its key is made.
-    fn flow_drop_unmade(&mut self, i: Option<usize>) {
+    pub(crate) fn flow_drop_unmade(&mut self, i: Option<usize>) {
         if let Some(i) = i
             && self.flows.get(i).is_some_and(|f| !f.made)
         {

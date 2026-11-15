@@ -37,7 +37,7 @@ A tile that cannot open yet shows in its own line what it needs first; one that 
 
 **Sign a transaction** takes a PSBT from Files or a QR code. **Nonce check** recomputes and checks every signature. **Check a signer** compares the sent and returned PSBTs. **Compare two PSBTs** puts two side by side. **Decode a transaction** shows what it spends and pays, field by field. **Decode a Lightning invoice** shows what it asks to be paid, and by whom.
 
-**Check an address** takes a scanned address and searches the first 100 of each chain of the loaded wallets, then further to 1,000 or 10,000, and reads **Load a wallet first** until one is loaded.
+**Check an address** takes a scanned address and searches the first 100 of each chain of the loaded wallets, then further to 1,000 or 10,000. With no wallet loaded it opens **Restore an existing wallet** first and comes back to the check once one is loaded.
 
 ## Messages
 

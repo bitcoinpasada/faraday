@@ -827,6 +827,9 @@ pub enum Action {
     CBackup,
     /// Start restoring a wallet.
     RestoreWallet,
+    /// Start restoring a wallet for a check that found none loaded: the
+    /// wallet read goes back to the check.
+    RestoreFor(crate::restore::Check),
     /// Open or close a restore card.
     RStep(u8),
     /// Close a restore card as done and open the next.

@@ -14,7 +14,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
-use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
+use faraday_bip::bitcoin::{Address, Amount, Script, ScriptBuf, Transaction, TxOut};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_psbt::transaction::money_total;
@@ -52,6 +52,9 @@ pub struct DecodedOutput {
     pub kind: &'static str,
     /// The loaded wallet it pays: its name, change or receive, index.
     pub ours: Option<(Text, bool, u32)>,
+    /// Its script, to name the address and the wallet again when a wallet
+    /// is loaded after the decoding.
+    pub script: ScriptBuf,
 }
 
 /// A transaction taken apart.
@@ -163,6 +166,17 @@ pub(crate) fn locktime_text(n: u32) -> Text {
     }
 }
 
+/// Costs an address derivation: the loaded wallet `address` pays, its
+/// name, whether it is change and its index.
+fn ours_of(c: &Compute, session: &Session, address: &Address) -> Option<(Text, bool, u32)> {
+    let network: Network = session.network();
+    session.wallets.iter().find_map(|w| {
+        w.policy()
+            .find_address(c, network, address, 100)
+            .map(|(change, index)| (Text::of(&w.name), change, index))
+    })
+}
+
 /// Costs an address derivation (through `find_address`). Takes `tx`
 /// apart. `prevouts` are the outputs its inputs spend, in order, where
 /// the source states them; the session marks the outputs that come back
@@ -216,13 +230,7 @@ pub fn decode(
                 &o.script_pubkey,
                 faraday_bip::bitcoin::Network::from(network),
             );
-            let ours = address.as_ref().ok().and_then(|a| {
-                session.wallets.iter().find_map(|w| {
-                    w.policy()
-                        .find_address(c, network, a, 100)
-                        .map(|(change, index)| (Text::of(&w.name), change, index))
-                })
-            });
+            let ours = address.as_ref().ok().and_then(|a| ours_of(c, session, a));
             DecodedOutput {
                 amount: o.value.to_sat(),
                 address: address
@@ -230,6 +238,7 @@ pub fn decode(
                     .unwrap_or_else(|_| hex(o.script_pubkey.as_bytes())),
                 kind: script_kind(&o.script_pubkey),
                 ours,
+                script: o.script_pubkey.clone(),
             }
         })
         .collect();
@@ -404,6 +413,22 @@ impl DecodeArea {
             show_hex: false,
         });
         *screen = Screen::Decode;
+    }
+
+    /// Costs an address derivation per output. The outputs named again
+    /// after a wallet was loaded: its network's address and whose it is.
+    pub(crate) fn reread_ours(&mut self, c: &Compute, session: &Session) {
+        let network: Network = session.network();
+        let Some(d) = self.state.as_mut() else {
+            return;
+        };
+        for o in &mut d.decoded.outputs {
+            let net = faraday_bip::bitcoin::Network::from(network);
+            if let Ok(a) = Address::from_script(&o.script, net) {
+                o.address = text!("{a}");
+                o.ours = ours_of(c, session, &a);
+            }
+        }
     }
 
     /// The whole transaction in hex.

@@ -40,6 +40,7 @@ mod caret;
 mod catalog;
 mod chart_edit;
 mod check_copy;
+mod check_needs_wallet;
 mod checklist_next_frame;
 mod clock;
 mod codes;

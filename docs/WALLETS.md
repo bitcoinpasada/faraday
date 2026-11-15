@@ -697,6 +697,16 @@ first"). The groups and their tiles:
 | Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
 | QR | Scan a QR code |
 
+A check that needs a wallet and finds none loaded leads into Restore an
+existing wallet rather than ending at a line: Tools' **Check an address**
+opens it with **Tools** as its way back, and Decode's **Load a wallet**
+(drawn while none is loaded) opens it with **Decode a transaction** as its
+way back. The wallet is read through Restore's own description card, with
+no new way in, and the moment it is loaded Restore ends and the check is
+shown again: the scanner of Check an address, the decoded transaction with
+its outputs named again against the wallet. Back leaves Restore for the
+check with nothing loaded. The seeds are not asked for here.
+
 The Descriptor checksum tool reads what is typed and shows its checksum,
 the checksum given with it and whether it holds, the text with its
 checksum, and whether this device loads it as a wallet. When the
