@@ -12,7 +12,8 @@ use faraday_starter_shell::writer::{self, Device, Identity, Job};
 
 use crate::sticks::{
     self, BASIC, BOOT_FIRST, DATA_FIRST, DATA_SECTORS, ESP, FILES, IDS, IMAGE, NAMES, SECTOR,
-    STICK, Sparse, boot_range, read, stick, stick_image, stick_with, unchanged, untouched_outside,
+    STICK, Sparse, boot_range, card_image, read, stick, stick_image, stick_with, unchanged,
+    untouched_outside,
 };
 
 const XZ: &[u8] = include_bytes!("../../../../faraday-payload/tests/vectors/fixture.img.xz");
@@ -513,19 +514,42 @@ fn a_found_file_whose_inside_is_not_the_listed_size_fails_the_write() {
         let order = disk.order(source, Mode::Whole);
         let (r, _) = run(&order, &job, &mut disk);
         if longer {
-            // The claimed size is a sector short at the end: the image's
-            // table no longer leaves its backup room, which is refused too.
+            // The listed size is one byte short, so the image's last byte
+            // is cut and its table no longer leaves the backup's room.
+            // The table is checked from the first bytes of the stream,
+            // before its end shows it longer.
             assert!(
-                matches!(
-                    r,
-                    Err(Reason::Longer(_) | Reason::NotStickImage(StickFault::EntriesDamaged))
-                ),
+                matches!(r, Err(Reason::NotStickImage(StickFault::EntriesDamaged))),
                 "{r:?}"
             );
         } else {
             assert!(matches!(r, Err(Reason::Shorter { .. })), "{r:?}");
         }
     }
+}
+
+#[test]
+fn a_found_card_image_longer_than_listed_fails_the_write() {
+    // A whole image that is no stick has no table checked on the way, so
+    // the stream's end is what shows it longer.
+    let image = card_image(0x5A5A_0001);
+    let (job, source, _) = found_job("found-card-size", &image);
+    let Job::Found {
+        mut file,
+        path: found,
+    } = job
+    else {
+        unreachable!()
+    };
+    // The release's list names no boot partition checksum for a card.
+    file.boot_sha256 = None;
+    file.inner_size -= 1;
+    let job = Job::Found { file, path: found };
+    let (path, _) = blank("found-card-size-disk");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::Longer(_))), "{r:?}");
 }
 
 #[test]
@@ -1166,17 +1190,14 @@ fn read_table(image: &Sparse) -> Result<gpt::Table, StickFault> {
 }
 
 /// A header whose backup or entries sit at a sector no disk can address
-/// is refused rather than wrapped round to a small offset; one at the
-/// last sector a disk can address is read.
+/// is refused rather than wrapped round to a small offset.
 #[test]
 fn a_partition_table_whose_sectors_run_past_what_a_disk_addresses_is_refused() {
     let past = u64::MAX / SECTOR;
     // The backup header at the last addressable sector: past this stick's
-    // end, so no backup region, but the table reads.
+    // end, so the table is refused.
     let image = with_header_field(stick(), 32, past - 1);
-    let table = read_table(&image).expect("a header whose backup is past the end reads");
-    assert_eq!(table.regions.len(), 1);
-    assert!(gpt::faraday_boot(&table, 0).is_ok());
+    assert_eq!(read_table(&image).err(), Some(StickFault::EntriesDamaged));
     // One sector further, its end is past what 64 bits hold.
     let image = with_header_field(stick(), 32, past);
     assert!(read_table(&image).is_err());

@@ -100,10 +100,15 @@ fn fixtures() -> Vec<(&'static str, Sparse, bool)> {
 #[test]
 fn a_stick_made_for_its_size_is_known_and_another_layout_is_not() {
     for (name, disk, known) in fixtures() {
-        // A table the reader refuses (a partition outside the usable
-        // area) is no Faraday stick either.
-        let is_stick = read_table(&disk).is_ok_and(|t| gpt::faraday_boot(&t, 0).is_ok());
-        assert_eq!(is_stick, known, "{name}");
+        let table = read_table(&disk);
+        if name == "a data partition past the last usable sector" {
+            // A partition outside the usable area is no stick: the
+            // table itself is refused.
+            assert_eq!(table.err(), Some(StickFault::EntriesDamaged), "{name}");
+        } else {
+            let table = table.unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            assert_eq!(gpt::faraday_boot(&table, 0).is_ok(), known, "{name}");
+        }
     }
 }
 
@@ -272,21 +277,85 @@ fn a_table_with_its_entries_at_the_disks_end_is_refused() {
     assert_eq!(read_table(&disk).err(), Some(StickFault::EntriesDamaged));
 }
 
+/// `disk`'s primary header after `edit`, its checksum worked out again.
+fn header_edited(mut disk: Sparse, edit: impl FnOnce(&mut [u8])) -> Sparse {
+    let mut h = disk.bytes(SECTOR, 92);
+    edit(&mut h);
+    h[16..20].fill(0);
+    let crc = faraday_crypto::crc32(&h);
+    h[16..20].copy_from_slice(&crc.to_le_bytes());
+    disk.put(SECTOR, &h);
+    disk
+}
+
 #[test]
-fn a_header_with_a_huge_entry_count_is_refused_before_its_entries_are_read() {
-    let disk = entries_moved(2, u32::MAX);
-    let mut reads = 0;
+fn a_header_whose_entries_run_nearly_to_the_disks_end_is_refused_before_they_are_read() {
+    // 1024 entries of 4096 bytes at the last 8200 sectors: the old
+    // reader took this table and read the whole disk but its last sectors.
+    let lba = STICK / SECTOR - 8200;
+    let sums = faraday_crypto::crc32(&vec![0u8; 1024 * 4096]);
+    let disk = header_edited(stick_of(BOOT, &[(DATA_FIRST, DATA_FIRST + 262_143)]), |h| {
+        h[72..80].copy_from_slice(&lba.to_le_bytes());
+        h[80..84].copy_from_slice(&1024u32.to_le_bytes());
+        h[84..88].copy_from_slice(&4096u32.to_le_bytes());
+        h[88..92].copy_from_slice(&sums.to_le_bytes());
+    });
+    let mut most = 0;
     let got = gpt::read(
         &mut |at, buf| {
-            reads += 1;
-            assert!(buf.len() <= 4096, "a read of {} bytes", buf.len());
+            most = most.max(buf.len());
             disk.read_at(at, buf);
             Ok(())
         },
         disk.len,
     );
     assert_eq!(got.err(), Some(StickFault::EntriesDamaged));
-    assert!(reads <= 2, "{reads} reads");
+    assert!(most <= 1 << 20, "a read of {most} bytes");
+}
+
+#[test]
+fn a_table_whose_backup_header_lies_inside_a_partition_is_refused() {
+    for alternate in [
+        BOOT_FIRST + 100,
+        DATA_FIRST + 5,
+        LAST_USABLE + 32,
+        STICK / SECTOR,
+    ] {
+        let disk = header_edited(stick_of(BOOT, &[(DATA_FIRST, LAST_USABLE)]), |h| {
+            h[32..40].copy_from_slice(&alternate.to_le_bytes());
+        });
+        assert_eq!(
+            read_table(&disk).err(),
+            Some(StickFault::EntriesDamaged),
+            "backup header at {alternate}"
+        );
+    }
+}
+
+#[test]
+fn a_table_leaves_the_backups_room_at_the_disks_end_exactly() {
+    // 128 entries of 128 bytes are 32 sectors: the last usable sector
+    // may be the 34th from the end and no later.
+    let end = STICK / SECTOR;
+    for (last_usable, ok) in [(end - 34, true), (end - 33, false)] {
+        let disk = header_edited(stick_of(BOOT, &[(DATA_FIRST, DATA_FIRST + 262_143)]), |h| {
+            h[48..56].copy_from_slice(&last_usable.to_le_bytes());
+        });
+        let got = read_table(&disk);
+        if ok {
+            assert!(got.is_ok(), "last usable {last_usable}: {:?}", got.err());
+        } else {
+            assert_eq!(got.err(), Some(StickFault::EntriesDamaged));
+        }
+    }
+}
+
+#[test]
+fn a_table_with_a_partition_before_the_first_usable_sector_is_refused() {
+    let disk = header_edited(stick_of(BOOT, &[(DATA_FIRST, LAST_USABLE)]), |h| {
+        h[40..48].copy_from_slice(&(BOOT_FIRST + 1).to_le_bytes());
+    });
+    assert_eq!(read_table(&disk).err(), Some(StickFault::EntriesDamaged));
 }
 
 #[test]

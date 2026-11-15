@@ -245,7 +245,8 @@ fn read_with(
         .ok_or(StickFault::HeaderDamaged)?;
     // The table's own sectors must lie outside every partition: the
     // entries end before the first usable sector, and the last usable
-    // sector leaves the backup's room at the disk's end. Refused before
+    // sector leaves the backup's room at the disk's end, and the backup
+    // header itself lies past that room, inside the disk. Refused before
     // anything is read beyond the header, so a Keep data write can never
     // land on the table, nor a region reach across the disk.
     let first_usable = le64(&header, 40);
@@ -259,7 +260,8 @@ fn read_with(
         || last_usable < first_usable
         || last_usable
             .checked_add(entry_sectors)
-            .is_none_or(|end| end >= disk_sectors.saturating_sub(1))
+            .is_none_or(|end| end >= disk_sectors.saturating_sub(1) || alternate <= end)
+        || alternate >= disk_sectors
     {
         return Err(StickFault::EntriesDamaged);
     }
