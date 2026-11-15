@@ -47,7 +47,7 @@ One item per seed. The words are copied onto a template in order, then typed bac
 
 For a key made as codex32 shares or loaded from strings. Each string is copied by hand, with its place, and checked.
 
-**Check my copy** compares the copy with the string. The item reads **Checked** once it matches.
+**Check my copy** compares the copy with the string. A string made here reads **Checked** once it matches. A string of a set that already exists reads **Checked** once enough strings, the number the set needs, have been typed and together make the key; until then it reads **Not checked**. A string you skip reads **Skipped**. If fewer than that number of strings are on paper, they can only be skipped.
 
 ## Passphrase on paper
 

@@ -1631,9 +1631,26 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
         Item::Codex32(i) => {
             let shape = app.plan_shape(b.wallet);
             let mapped = app.plan_mapped(&shape, &b.answers);
-            let first = crate::plan::codex32::paper_strings(&b.answers, &mapped, i)
-                .into_iter()
-                .find(|&j| !b.c32_checked.contains(&(i, j)))
+            let paper = crate::plan::codex32::paper_strings(&b.answers, &mapped, i);
+            // A string typed and waiting for others to prove it is not
+            // opened again: the next not checked is.
+            let waiting: Vec<usize> = b
+                .c32
+                .as_ref()
+                .filter(|st| st.seed == i)
+                .map(|st| {
+                    st.held
+                        .iter()
+                        .filter_map(|h| crate::plan::codex32::index_of(*h.as_bytes().get(8)?))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let open = |j: &usize| !b.c32_checked.contains(&(i, *j));
+            let first = paper
+                .iter()
+                .copied()
+                .find(|j| open(j) && !waiting.contains(j))
+                .or_else(|| paper.iter().copied().find(open))
                 .unwrap_or(0);
             (
                 EN.item_action_check_my.to_string(),

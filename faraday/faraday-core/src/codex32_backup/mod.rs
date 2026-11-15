@@ -152,6 +152,13 @@ pub struct Strings {
     pub held: Vec<Text>,
     /// Whether the strings typed back rebuild this seed, once enough are.
     pub rebuilds: Option<bool>,
+    /// The indices of the strings held that count as proved: made here,
+    /// or part of a proof that rebuilt the key. Only those are the base
+    /// a string typed after is tested with.
+    pub proven: Vec<usize>,
+    /// The proved strings set aside while a set action is under way, by
+    /// index: put back when it is left or the share is made.
+    aside: Vec<(usize, Text)>,
     /// A set action under way.
     pub set: SetStep,
     /// A line said under the item.
@@ -165,6 +172,69 @@ impl Strings {
             seed,
             ..Strings::default()
         }
+    }
+
+    /// The strings typed back that were proved, as (seed, index, text),
+    /// one for each index.
+    pub fn proved_strings(&self) -> Vec<(usize, usize, Text)> {
+        let mut out: Vec<(usize, usize, Text)> = Vec::new();
+        for (j, t) in &self.aside {
+            out.push((self.seed, *j, t.clone()));
+        }
+        for h in &self.held {
+            let Some(j) = h
+                .as_bytes()
+                .get(8)
+                .and_then(|&c| crate::plan::codex32::index_of(c))
+            else {
+                continue;
+            };
+            if self.proven.contains(&j) && !out.iter().any(|o| o.1 == j) {
+                out.push((self.seed, j, h.clone()));
+            }
+        }
+        out
+    }
+
+    /// A string proved earlier, typed back at index `j`, held again as
+    /// part of the base.
+    pub fn restore(&mut self, j: usize, text: Text) {
+        if !self.held.contains(&text) {
+            self.held.push(text);
+        }
+        if !self.proven.contains(&j) {
+            self.proven.push(j);
+        }
+    }
+
+    /// Forgets the strings typed back and what was proved of them.
+    pub fn forget_typed(&mut self) {
+        self.held.clear();
+        self.proven.clear();
+        self.rebuilds = None;
+    }
+
+    /// A set action starts: what was proved is set aside, and what was
+    /// typed is forgotten.
+    pub fn set_aside(&mut self) {
+        let proved = self.proved_strings();
+        self.aside = proved.into_iter().map(|(_, j, t)| (j, t)).collect();
+        self.forget_typed();
+    }
+
+    /// The set action is over: the proved strings set aside count again,
+    /// but for the one at `changed`, which a Replace made new.
+    pub fn put_back(&mut self, changed: Option<usize>) {
+        for (j, t) in std::mem::take(&mut self.aside) {
+            if Some(j) != changed {
+                self.restore(j, t);
+            }
+        }
+    }
+
+    /// The strings made here, each with its index.
+    pub fn made_all(&self) -> Vec<(usize, Text)> {
+        self.made.clone()
     }
 
     /// The string made here at index `j`, while the backup is open.
@@ -427,16 +497,105 @@ impl crate::wallet_backup::WalletBackupArea {
     /// string typed back whole, kept towards the rebuild and the string
     /// marked checked once it holds. What it was found to be.
     pub(crate) fn c32_scanned(&mut self, text: &str) -> Option<Found> {
+        let mut skipped = None;
         let (st, form, checked) = self.c32_parts()?;
         let j = st.at?;
         if let Some(whole) = st.scanned(form, text) {
             if !st.held.contains(&whole) {
                 st.held.push(whole);
             }
-            mark_checked(checked, st.seed, j);
+            // Only a string made here is compared whole; any other waits
+            // for the strings that prove it.
+            if st.made(j).is_some() {
+                mark_checked(checked, st.seed, j);
+                if !st.proven.contains(&j) {
+                    st.proven.push(j);
+                }
+                skipped = Some((st.seed, j));
+            }
         }
-        st.found.clone()
+        let out = st.found.clone();
+        if let Some(x) = skipped {
+            self.c32_unskip(x.0, x.1);
+        }
+        out
     }
+}
+
+/// What typing back strings of a set the device does not hold proved.
+pub struct Proof {
+    /// The places in `pending` of the strings that now count as checked.
+    pub proved: Vec<usize>,
+    /// Some string typed does not rebuild the key with the others.
+    pub failed: bool,
+}
+
+/// Whether string `s` is the set's secret (its index is `s`).
+fn is_secret(s: &str) -> bool {
+    s.as_bytes()
+        .get(8)
+        .is_some_and(|b| b.eq_ignore_ascii_case(&b's'))
+}
+
+/// Which of the `pending` strings, typed back and not held here, count as
+/// checked (`docs/CODEX32.md` §9.4): `good` are the strings already
+/// proved. A secret counts when it makes the key's fingerprint; shares
+/// count once `need` of them, with those proved, make it, and each share
+/// typed after is tested with `need - 1` proved ones. `rebuilds` says
+/// whether the strings given make the key: `None` when they are not of
+/// one set. A share is never proved by the secret, which would make the
+/// key with any share beside it.
+pub fn prove(
+    need: usize,
+    good: &[&str],
+    pending: &[&str],
+    rebuilds: impl Fn(&[&str]) -> Option<bool>,
+) -> Proof {
+    let mut out = Proof {
+        proved: Vec::new(),
+        failed: false,
+    };
+    let mut base: Vec<&str> = good.iter().copied().filter(|s| !is_secret(s)).collect();
+    let mut rest: Vec<(usize, &str)> = Vec::new();
+    for (n, &p) in pending.iter().enumerate() {
+        if is_secret(p) {
+            match rebuilds(&[p]) {
+                Some(true) => out.proved.push(n),
+                _ => out.failed = true,
+            }
+        } else {
+            rest.push((n, p));
+        }
+    }
+    if need < 2 {
+        out.failed |= !rest.is_empty();
+        return out;
+    }
+    if base.len() < need {
+        let take = need - base.len();
+        if rest.len() < take {
+            return out;
+        }
+        let first: Vec<(usize, &str)> = rest.drain(..take).collect();
+        let mut joint = base.clone();
+        joint.extend(first.iter().map(|x| x.1));
+        if rebuilds(&joint) != Some(true) {
+            out.failed = true;
+            return out;
+        }
+        out.proved.extend(first.iter().map(|x| x.0));
+        base = joint;
+    }
+    for (n, p) in rest {
+        let mut test = vec![p];
+        test.extend(base.iter().take(need - 1));
+        if rebuilds(&test) == Some(true) {
+            out.proved.push(n);
+        } else {
+            out.failed = true;
+        }
+    }
+    out
 }
 
 /// The side of a Codex32QR in squares: version 3 (`docs/CODEX32.md`

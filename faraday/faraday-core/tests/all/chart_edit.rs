@@ -1179,9 +1179,128 @@ fn a_codex32_string_checked_in_the_checklist_is_dated_at_its_place() {
         );
     }
     c32(&mut app, faraday_core::codex32_backup::Press::Next);
+    // A string the device does not hold counts once two rebuild the key.
+    for ch in "2namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn".chars() {
+        c32(
+            &mut app,
+            faraday_core::codex32_backup::Press::Key(faraday_ui::keyboard::OskPress::Char(ch)),
+        );
+    }
+    c32(&mut app, faraday_core::codex32_backup::Press::Next);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
+}
+
+#[test]
+fn a_codex32_string_skipped_then_proved_is_dated_only_once_proved() {
+    use crate::codex32_backup::{c32, checklist_at_codex32, on_unseeded, with_set_on};
+    use faraday_core::codex32_backup::Press;
+    let mut app = on_unseeded();
+    fresh_vault(&mut app);
+    let mut app = with_set_on(app);
+    app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    clock_kept(&mut app);
+    checklist_at_codex32(&mut app);
+    app.press(Action::BVaultSave(0));
+    let a = faraday_core::plan::codex32::index_of(b'a').unwrap();
+    c32(&mut app, Press::Open(a as u8));
+    c32(&mut app, Press::Skip);
+    c32(&mut app, Press::Skip);
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    assert_eq!(node.checked[j], None, "a skipped string is not dated");
+    app.press(Action::Backup(0));
+    checklist_at_codex32(&mut app);
+    for (j, s) in [
+        ('c', "2namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn"),
+        ('d', "2namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg"),
+        ('a', "2namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm"),
+    ] {
+        let at = faraday_core::plan::codex32::index_of(j as u8).unwrap();
+        c32(&mut app, Press::Open(at as u8));
+        for ch in s.chars() {
+            c32(
+                &mut app,
+                Press::Key(faraday_ui::keyboard::OskPress::Char(ch)),
+            );
+        }
+        c32(&mut app, Press::Next);
+    }
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, a));
+    assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
+}
+
+#[test]
+fn a_string_made_here_skipped_then_typed_back_reads_checked_and_is_dated() {
+    made_string_skipped_then_back(false);
+}
+
+#[test]
+fn a_string_made_here_skipped_then_scanned_back_reads_checked_and_is_dated() {
+    made_string_skipped_then_back(true);
+}
+
+fn made_string_skipped_then_back(scan: bool) {
+    use crate::codex32_backup::{c32, checklist_at_codex32, on_unseeded, with_set_on};
+    use faraday_core::codex32_backup::{Press, SetPress};
+    use faraday_ui::keyboard::OskPress;
+    let mut app = on_unseeded();
+    fresh_vault(&mut app);
+    let mut app = with_set_on(app);
+    app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    clock_kept(&mut app);
+    checklist_at_codex32(&mut app);
+    app.press(Action::BVaultSave(0));
+    let ix = |c: char| faraday_core::plan::codex32::index_of(c as u8).unwrap();
+    let type_in = |app: &mut Faraday, s: &str| {
+        for ch in s[3..].chars() {
+            c32(app, Press::Key(OskPress::Char(ch)));
+        }
+    };
+    // A lost share replaced: D is made here, and opened.
+    c32(&mut app, Press::Set(SetPress::Replace(ix('d') as u8)));
+    type_in(&mut app, "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm");
+    type_in(&mut app, "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn");
+    c32(&mut app, Press::Set(SetPress::MakeNew));
+    let d = app
+        .backup()
+        .unwrap()
+        .c32
+        .as_ref()
+        .unwrap()
+        .made(ix('d'))
+        .expect("share D")
+        .to_string();
+    c32(&mut app, Press::Open(ix('d') as u8));
+    c32(&mut app, Press::Skip);
+    c32(&mut app, Press::Skip);
+    assert_eq!(app.backup().unwrap().c32_skipped, vec![(0, ix('d'))]);
+    c32(&mut app, Press::Open(ix('d') as u8));
+    if scan {
+        c32(&mut app, Press::ScanCopy);
+        app.event(Event::Scanned {
+            bytes: d.to_uppercase().into_bytes(),
+        });
+    } else {
+        type_in(&mut app, &d);
+        c32(&mut app, Press::Next);
+    }
+    assert!(
+        app.backup().unwrap().c32_skipped.is_empty(),
+        "reads Checked"
+    );
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let (node, j) = line_holding(&app, 0, What::Codex32Share(0, ix('d')));
     assert_eq!(node.checked[j].as_deref(), Some("2026-10-03"), "{node:?}");
 }
 

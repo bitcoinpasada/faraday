@@ -626,6 +626,16 @@ pub struct BackupState {
     /// The codex32 strings typed back the same, or skipped, in this
     /// backup: each seed and index.
     pub c32_checked: Vec<(usize, usize)>,
+    /// Those of them skipped past with nothing typed back, by seed and
+    /// index: they read "Skipped", not "Checked", and are not dated.
+    pub c32_skipped: Vec<(usize, usize)>,
+    /// The strings of each other seed that were proved, as typed back, by
+    /// seed and index: kept while another seed's item is open, so what was
+    /// proved still counts towards proving the rest. Only proved strings.
+    pub c32_base: Vec<(usize, usize, Text)>,
+    /// The strings made here for each other seed, by seed and index: kept
+    /// the same way, so those not yet written are shown on return.
+    pub c32_made: Vec<(usize, usize, Text)>,
     /// The open item, and whether it was done when last looked at: an
     /// item that becomes done moves on to the next.
     pub seen: Option<(u8, bool)>,
@@ -976,9 +986,19 @@ impl WalletBackupArea {
             return true;
         };
         if let Some(whole) = st.key(form, press) {
-            st.held.push(whole);
-            if !b.c32_checked.contains(&(seed, j)) {
-                b.c32_checked.push((seed, j));
+            if !st.held.contains(&whole) {
+                st.held.push(whole);
+            }
+            // A string made here is compared whole; any other is checked
+            // once the strings typed rebuild the key.
+            if st.made(j).is_some() {
+                if !st.proven.contains(&j) {
+                    st.proven.push(j);
+                }
+                if !b.c32_checked.contains(&(seed, j)) {
+                    b.c32_checked.push((seed, j));
+                }
+                b.c32_skipped.retain(|&x| x != (seed, j));
             }
         }
         true
@@ -1001,7 +1021,41 @@ impl WalletBackupArea {
     pub(crate) fn c32_unchecked(&mut self, i: usize, j: usize) {
         if let Some(b) = self.state.as_mut() {
             b.c32_checked.retain(|&x| x != (i, j));
+            b.c32_skipped.retain(|&x| x != (i, j));
+            b.c32_base.retain(|(x, y, _)| (*x, *y) != (i, j));
         }
+    }
+
+    /// Codex32 string `j` of seed `i` no longer read as skipped.
+    pub(crate) fn c32_unskip(&mut self, i: usize, j: usize) {
+        if let Some(b) = self.state.as_mut() {
+            b.c32_skipped.retain(|&x| x != (i, j));
+        }
+    }
+
+    /// Codex32 string `j` of seed `i` skipped past: checked as far as the
+    /// item goes, read as skipped, and not dated.
+    pub(crate) fn c32_skip(&mut self, i: usize, j: usize) {
+        if let Some(b) = self.state.as_mut() {
+            if !b.c32_checked.contains(&(i, j)) && !b.c32_skipped.contains(&(i, j)) {
+                b.c32_skipped.push((i, j));
+            }
+            crate::codex32_backup::mark_checked(&mut b.c32_checked, i, j);
+        }
+    }
+
+    /// The strings checked and not skipped: what dating compares with.
+    pub(crate) fn c32_proved(&self) -> Vec<(usize, usize)> {
+        self.state
+            .as_ref()
+            .map(|b| {
+                b.c32_checked
+                    .iter()
+                    .copied()
+                    .filter(|x| !b.c32_skipped.contains(x))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Seed `i`'s set replaced: none of its strings checked, nothing kept
@@ -1009,6 +1063,9 @@ impl WalletBackupArea {
     pub(crate) fn c32_reset(&mut self, i: usize, checked: Vec<(usize, usize)>) {
         if let Some(b) = self.state.as_mut() {
             b.c32_checked = checked;
+            b.c32_skipped.retain(|&(x, _)| x != i);
+            b.c32_base.retain(|(x, _, _)| *x != i);
+            b.c32_made.retain(|(x, _, _)| *x != i);
             if let Some(st) = b.c32.as_mut().filter(|st| st.seed == i) {
                 *st = crate::codex32_backup::Strings::new(i);
             }
@@ -1156,7 +1213,35 @@ impl WalletBackupArea {
             }) {
                 match b.c32.as_mut() {
                     Some(st) if st.seed == i => st.list(),
-                    _ => b.c32 = Some(crate::codex32_backup::Strings::new(i)),
+                    _ => {
+                        // What the seed left proved is kept; what it
+                        // held and not proved is dropped.
+                        if let Some(old) = b.c32.take() {
+                            b.c32_base.retain(|(x, _, _)| *x != old.seed);
+                            b.c32_base.extend(old.proved_strings());
+                            b.c32_made.retain(|(x, _, _)| *x != old.seed);
+                            let seed = old.seed;
+                            b.c32_made
+                                .extend(old.made_all().into_iter().map(|(j, t)| (seed, j, t)));
+                        }
+                        let mut st = crate::codex32_backup::Strings::new(i);
+                        for (x, j, t) in std::mem::take(&mut b.c32_base) {
+                            if x == i {
+                                st.restore(j, t);
+                            } else {
+                                b.c32_base.push((x, j, t));
+                            }
+                        }
+                        let mine: Vec<(usize, Text)> = b
+                            .c32_made
+                            .iter()
+                            .filter(|(x, _, _)| *x == i)
+                            .map(|(_, j, t)| (*j, t.clone()))
+                            .collect();
+                        b.c32_made.retain(|(x, _, _)| *x != i);
+                        st.keep(mine);
+                        b.c32 = Some(st);
+                    }
                 }
             }
             b.scroll.follow = true;

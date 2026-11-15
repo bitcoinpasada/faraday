@@ -1194,7 +1194,7 @@ impl Faraday {
                 b.c32_checked
                     .iter()
                     .copied()
-                    .filter(|x| !was.contains(x))
+                    .filter(|x| !was.contains(x) && !b.c32_skipped.contains(x))
                     .collect()
             })
             .unwrap_or_default();
@@ -2441,9 +2441,9 @@ impl Faraday {
                 self.c32_show_drawn(c, i);
             }
             Press::Key(k) => {
-                let was = self.backup.state().map(|b| b.c32_checked.clone());
+                let was = self.backup.c32_proved();
                 self.backup.c32_key(k);
-                self.c32_dating(c, &was.unwrap_or_default());
+                self.c32_dating(c, &was);
                 self.c32_keep_held(key);
                 // A string of a set that exists, typed from its paper:
                 // its Codex32QR to draw, where the plan draws one.
@@ -2462,9 +2462,9 @@ impl Faraday {
             }
             Press::ScanCopy => self.c32_scan_open(),
             Press::Next => {
-                let was = self.backup.state().map(|b| b.c32_checked.clone());
+                let was = self.backup.c32_proved();
                 self.c32_next(c, i, key);
-                self.c32_dating(c, &was.unwrap_or_default());
+                self.c32_dating(c, &was);
                 self.c32_show_drawn(c, i);
             }
             Press::Skip => {
@@ -2475,10 +2475,13 @@ impl Faraday {
                     return;
                 };
                 if st.skip_ask {
-                    if let Some((_, _, checked)) = self.backup.c32_parts() {
-                        crate::codex32_backup::mark_checked(checked, i, j);
-                    }
+                    // Skipped, not checked: it reads so on the list.
+                    self.backup.c32_skip(i, j);
+                    // A skipped string is not dated; one proved by this
+                    // press is.
+                    let was = self.backup.c32_proved();
                     self.c32_next(c, i, key);
+                    self.c32_dating(c, &was);
                     self.c32_show_drawn(c, i);
                 } else {
                     st.skip_ask = true;
@@ -2711,10 +2714,10 @@ impl Faraday {
             let i = b.c32.as_ref()?.seed;
             self.backup_seed_list_now(b.wallet).get(i).and_then(|x| x.1)
         });
-        let was = self.backup.state().map(|b| b.c32_checked.clone());
+        let was = self.backup.c32_proved();
         let found = self.backup.c32_scanned(&text);
         let c = self.compute();
-        self.c32_dating(&c, &was.unwrap_or_default());
+        self.c32_dating(&c, &was);
         if let Some(key) = key {
             self.c32_keep_held(key);
         }
@@ -2733,12 +2736,16 @@ impl Faraday {
         }
     }
 
-    /// Costs an interpolation of the strings typed, once enough are.
+    /// Costs, once enough strings are typed, one rebuild (an interpolation,
+    /// an HMAC-SHA512 and an EC multiplication) for each string waiting.
     /// **Continue** on a string: it must be typed back the same, or
-    /// skipped; then, for a set that exists, whether the strings typed so
-    /// far rebuild this seed, once enough are; then the next string on
-    /// paper not yet checked, or the list once every one is.
+    /// skipped. A string the device does not hold counts as checked only
+    /// once it rebuilds this seed with the strings already proved
+    /// (`docs/CODEX32.md` §9.4); one that does not stops the item. Then
+    /// the next string on paper not yet checked, or the list once every
+    /// one is.
     fn c32_next(&mut self, c: &Compute, i: usize, key: usize) {
+        use faraday_bip::codex32::Codex32;
         // The strings typed on a keyboard, or by the item's keys, kept
         // with the key before the item moves on.
         self.c32_keep_held(key);
@@ -2748,7 +2755,6 @@ impl Faraday {
         let Some(form) = b.answers.c32(i).cloned() else {
             return;
         };
-        let checked = b.c32_checked.clone();
         let shape = self.plan_shape_now(b.wallet);
         let mapped = self.kept.plan_mapped(c, &shape, &b.answers);
         let paper = plan::codex32::paper_strings(&b.answers, &mapped, i);
@@ -2758,30 +2764,107 @@ impl Faraday {
         let Some(j) = st.at else {
             return;
         };
-        if !checked.contains(&(i, j)) {
+        // Each string typed back, by its index; those proved and those
+        // waiting for the strings that prove them.
+        let held: Vec<(usize, faraday_text::Text)> = st
+            .held
+            .iter()
+            .filter_map(|h| Some((plan::codex32::index_of(*h.as_bytes().get(8)?)?, h.clone())))
+            .collect();
+        // The base is one string for each index proved by this item; any
+        // other string typed, even at a proved index, is tested itself.
+        let mut base_at: Vec<usize> = Vec::new();
+        let mut good: Vec<&str> = Vec::new();
+        let mut pending: Vec<(usize, &str)> = Vec::new();
+        for (x, h) in &held {
+            if st.proven.contains(x) && !base_at.contains(x) {
+                base_at.push(*x);
+                good.push(h.as_str());
+            } else if !pending.iter().any(|(y, _)| y == x) {
+                pending.push((*x, h.as_str()));
+            }
+        }
+        let keys = &self.session.keys;
+        let makes = |texts: &[&str]| {
+            // Sized once and wiped on drop: the shares' symbols are never
+            // copied by a regrowth into a buffer left unwiped.
+            let mut parts = zeroize::Zeroizing::new(Vec::<Codex32>::with_capacity(texts.len()));
+            for t in texts {
+                if let Ok(share) = Codex32::parse(t) {
+                    parts.push(share);
+                }
+            }
+            (parts.len() == texts.len())
+                .then(|| keys.codex32_rebuilds(c, key, &parts))
+                .flatten()
+        };
+        let proof = crate::codex32_backup::prove(
+            form.need(),
+            &good,
+            &pending.iter().map(|p| p.1).collect::<Vec<_>>(),
+            makes,
+        );
+        let rebuilds =
+            (st.rebuilds.is_none() && proof.proved.is_empty() && !proof.failed).then(|| {
+                let held: Vec<&str> = st.held.iter().map(|h| h.as_str()).collect();
+                (held.len() >= form.need()).then(|| makes(&held)).flatten()
+            });
+        let now_proved: Vec<usize> = proof.proved.iter().map(|&n| pending[n].0).collect();
+        let left: Vec<(usize, faraday_text::Text)> = pending
+            .iter()
+            .enumerate()
+            .filter(|(n, _)| !proof.proved.contains(n))
+            .map(|(_, p)| (p.0, faraday_text::Text::of(p.1)))
+            .collect();
+        let rebuilds = rebuilds.flatten();
+        let failed = proof.failed;
+        for &x in &now_proved {
+            self.backup.c32_unskip(i, x);
+        }
+        if let Some((st, _, checked)) = self.backup.c32_parts() {
+            for &x in &now_proved {
+                crate::codex32_backup::mark_checked(checked, i, x);
+                if !st.proven.contains(&x) {
+                    st.proven.push(x);
+                }
+            }
+            if failed {
+                // What was typed does not rebuild this key: none of the
+                // strings waiting counts, and each is typed again.
+                st.held.retain(|h| !left.iter().any(|(_, l)| l == h));
+                st.rebuilds = Some(false);
+                st.list();
+                return;
+            }
+            if !now_proved.is_empty() {
+                st.rebuilds = Some(true);
+            } else if let Some(r) = rebuilds {
+                st.rebuilds = Some(r);
+            }
+        }
+        let waiting: Vec<usize> = left.iter().map(|l| l.0).collect();
+        self.c32_go_on(i, j, &paper, &waiting);
+    }
+
+    /// Past string `j` of seed `i` once it is typed back: on to the next
+    /// string on paper not yet checked nor waiting for the strings that
+    /// prove it, or the list; or a note where nothing was typed.
+    fn c32_go_on(&mut self, i: usize, j: usize, paper: &[usize], waiting: &[usize]) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let checked = b.c32_checked.clone();
+        if !checked.contains(&(i, j)) && !waiting.contains(&j) {
             if let Some(st) = self.backup.c32_mut() {
                 st.note = Some(faraday_text::Text::of(EN.codex32_type_it_back));
             }
             return;
         }
-        let rebuilds = (st.rebuilds.is_none() && st.held.len() >= form.need()).then(|| {
-            // Sized once and wiped on drop: the shares' symbols are never
-            // copied by a regrowth into a buffer left unwiped.
-            let mut parts = zeroize::Zeroizing::new(
-                Vec::<faraday_bip::codex32::Codex32>::with_capacity(st.held.len()),
-            );
-            for s in &st.held {
-                if let Ok(share) = faraday_bip::codex32::Codex32::parse(s) {
-                    parts.push(share);
-                }
-            }
-            self.session.keys.codex32_rebuilds(c, key, &parts)
-        });
-        let next = paper.iter().copied().find(|x| !checked.contains(&(i, *x)));
+        let next = paper
+            .iter()
+            .copied()
+            .find(|x| !checked.contains(&(i, *x)) && !waiting.contains(x));
         if let Some(st) = self.backup.c32_mut() {
-            if let Some(r) = rebuilds.flatten() {
-                st.rebuilds = Some(r);
-            }
             match next {
                 Some(x) => st.open(x),
                 None => st.list(),
@@ -2818,7 +2901,8 @@ impl Faraday {
         match p {
             SetPress::Leave => {
                 st.set = SetStep::None;
-                st.held.clear();
+                st.forget_typed();
+                st.put_back(None);
                 st.typed.clear();
                 st.shut = false;
                 st.found = None;
@@ -2834,12 +2918,13 @@ impl Faraday {
                     return;
                 }
                 st.list();
-                st.held.clear();
+                st.set_aside();
                 st.note = None;
                 st.set = SetStep::Typing { index };
             }
             SetPress::Rotate => {
                 st.list();
+                st.set_aside();
                 st.note = None;
                 st.set = SetStep::Marking(form.indices.iter().map(|&j| (j, 0)).collect());
             }
@@ -3099,7 +3184,8 @@ impl Faraday {
         if let Some(st) = self.backup.c32_mut() {
             st.keep(vec![(j, faraday_text::Text::of(&s))]);
             st.set = crate::codex32_backup::SetStep::None;
-            st.held.clear();
+            st.forget_typed();
+            st.put_back(Some(j));
             st.open(j);
         }
         self.backup.c32_unchecked(i, j);

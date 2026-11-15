@@ -216,10 +216,11 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
             .into_iter()
             .map(place)
             .collect();
-        let done = b.c32_checked.contains(&(i, j));
+        let skipped = b.c32_skipped.contains(&(i, j));
+        let done = b.c32_checked.contains(&(i, j)) && !skipped;
         let line = fill(EN.c32_string_at, &[&name(j), &places.join(", ")]);
         let press = Some(a(Press::Open(u8::try_from(j).unwrap_or(0))));
-        string_row(ui, (x, cy, w), &line, done, press);
+        string_row(ui, (x, cy, w), &line, (done, skipped), press);
         cy += t::TOUCH;
     }
     // How many strings of a set that exists there are (§9.4).
@@ -435,13 +436,13 @@ fn set_step(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), form: &C32, st:
     cy - y
 }
 
-/// A string on paper in the item's list, its places, and Checked or Not
-/// checked; `press` opens it.
+/// A string on paper in the item's list, its places, and Checked, Skipped
+/// or Not checked; `press` opens it.
 fn string_row(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     line: &str,
-    done: bool,
+    (done, skipped): (bool, bool),
     press: Option<Action>,
 ) {
     ui.dot(
@@ -454,7 +455,9 @@ fn string_row(
             Role::OnSurfaceVariant
         },
     );
-    let state = if done {
+    let state = if skipped {
+        EN.c32_skipped
+    } else if done {
         EN.c32_checked
     } else {
         EN.c32_not_checked

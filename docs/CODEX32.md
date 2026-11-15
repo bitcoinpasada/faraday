@@ -1626,9 +1626,18 @@ same seed, and the plan would not know about the first.
   threshold, an index of the set), which catches any copying error of up
   to 8 characters ("C · checksum holds, a string of w0za" / "Box 17
   differs" where the string was just made and is still in the session);
-  once k strings of the set are typed, also that they rebuild this seed.
-  Or skipped behind the quiz's caution. Done when every string placed is
-  checked or skipped.
+  a string the device does not hold counts as checked only once it
+  rebuilds this seed: k strings typed together make the key's
+  fingerprint, and each string typed after is tested with k - 1 of those;
+  strings that do not rebuild it count for none and the item stops. A
+  set action (Add, Replace) sets the proved strings aside and puts them
+  back when it is left or the share is made, but for the index a Replace
+  changed; opening another seed's item keeps them too. A
+  string typed while fewer than k are typed keeps reading "Not checked";
+  with fewer than k strings of an existing set on paper, they can only be
+  skipped, since the set cannot be made again from the seed alone. Or
+  skipped behind the quiz's caution, and then it reads "Skipped", not
+  "Checked". Done when every string placed is checked or skipped.
 - **More copies later.** **Add a share** (§8.2) extends the same set at
   an unused index, with the same identifier, and its chip is placed like
   the others.

@@ -15,7 +15,9 @@ use faraday_core::codex32_backup::{Found, Press, SetPress, SetStep};
 use faraday_core::plan::{self, At, What};
 use faraday_core::{Action, Faraday, StorageEvent, testkit};
 use faraday_keys::texts::Spec;
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+};
 use faraday_ui::keyboard::OskPress;
 use faraday_vault::codex32::{SetFacts, State};
 
@@ -29,6 +31,13 @@ const D: &str = "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg";
 const FP: [u8; 4] = [0xfa, 0xb6, 0x86, 0x8a];
 /// Vector 3's A: a string of another set, threshold 3.
 const OTHER: &str = "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t";
+
+/// Vector 3's shares, threshold 3, and its secret.
+const A3: &str = "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t";
+const C3: &str = "ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr";
+const D3: &str = "ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm";
+const E3: &str = "ms13casheekgpemxzshcrmqhaydlp6yhms3ws7320xyxsar9";
+const F3: &str = "ms13cashf8jh6sdrkpyrsp5ut94pj8ktehhw2hfvyrj48704";
 
 const BIP93: &str = include_str!("../../../../tools/vectors/bip93/vectors.json");
 
@@ -98,11 +107,30 @@ fn with_set() -> Faraday {
 }
 
 /// [`with_set`] on `app`, which may not have its seed yet.
-pub(crate) fn with_set_on(mut app: Faraday) -> Faraday {
+pub(crate) fn with_set_on(app: Faraday) -> Faraday {
     assert!(BIP93.contains("MS12NAMEDLL4F8JLH4E5VDVULDLFXU2JHDNLSM97XVENRXEG"));
+    let facts = SetFacts {
+        threshold: 2,
+        identifier: *b"name",
+        length: 48,
+        unknown: 0,
+        strings: vec![
+            (b'a', State::Made),
+            (b'c', State::Made),
+            (b'd', State::Made),
+        ],
+    };
+    let app = with_strings_on(app, &[A, C], facts);
+    assert_eq!(app.session.keys[0].fingerprint.0, FP, "vector 2's key");
+    app
+}
+
+/// A key loaded from the codex32 `strings` typed in, its set known as
+/// `facts`, and Back up opened on a single-key wallet over it.
+fn with_strings_on(mut app: Faraday, strings: &[&str], facts: SetFacts) -> Faraday {
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(2));
-    for s in [A, C] {
+    for s in strings {
         typed(&mut app, s);
         app.event(Event::Key(Key::Enter));
     }
@@ -114,23 +142,21 @@ pub(crate) fn with_set_on(mut app: Faraday) -> Faraday {
         "{:?}",
         testkit::entry(&app).error
     );
-    assert_eq!(app.session.keys[0].fingerprint.0, FP, "vector 2's key");
-    app.session.keys.set_codex32(
-        0,
-        Some(SetFacts {
-            threshold: 2,
-            identifier: *b"name",
-            length: 48,
-            unknown: 0,
-            strings: vec![
-                (b'a', State::Made),
-                (b'c', State::Made),
-                (b'd', State::Made),
-            ],
-        }),
-    );
+    app.session.keys.set_codex32(0, Some(facts));
     wallet_and_backup(&mut app);
     app
+}
+
+/// Vector 3's set: 3 of 5, `cash`, strings A, C, D, E and F.
+fn with_three_of_five() -> Faraday {
+    let facts = SetFacts {
+        threshold: 3,
+        identifier: *b"cash",
+        length: 48,
+        unknown: 0,
+        strings: b"acdef".iter().copied().map(|j| (j, State::Made)).collect(),
+    };
+    with_strings_on(on(), &[A3, C3, D3], facts)
 }
 
 pub(crate) fn c32(app: &mut Faraday, p: Press) {
@@ -619,4 +645,405 @@ fn a_string_typed_back_short_or_long_is_not_the_one_made() {
         check(&form, ix('a'), &longer, Some(A)),
         Found::Differs(_)
     ));
+}
+
+/// Strings of another 2-of-3 set with vector 2's header, their checksums
+/// holding: made on another device.
+const FOREIGN_C: &str = "ms12namec9ptn2r8ckcgunuyzs6w7xdq0q0lzskhv4xh9xtz";
+const FOREIGN_D: &str = "ms12named9ptn2r8ckcgunuyzs6w7xdq0q0fm5juw03ls5xu";
+
+fn typed_next(app: &mut Faraday, j: char, s: &str) {
+    c32(app, Press::Open(ix(j) as u8));
+    type_in(app, s);
+    c32(app, Press::Next);
+}
+
+#[test]
+fn a_string_of_another_set_with_the_same_header_is_not_counted_checked() {
+    let mut app = with_set();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A);
+    typed_next(&mut app, 'c', C);
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('c'))));
+    // The header and checksum hold, but it is not of this key's set.
+    typed_next(&mut app, 'd', FOREIGN_D);
+    let b = app.backup().unwrap();
+    assert!(!b.c32_checked.contains(&(0, ix('d'))));
+    assert_eq!(b.c32.as_ref().unwrap().rebuilds, Some(false));
+    let c = testkit::compute();
+    assert!(!app.backup_item_done_now(&c, plan::Item::Codex32(0)));
+}
+
+#[test]
+fn strings_that_do_not_rebuild_the_key_are_none_of_them_counted() {
+    let mut app = with_set();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A);
+    typed_next(&mut app, 'c', FOREIGN_C);
+    let b = app.backup().unwrap();
+    assert!(b.c32_checked.is_empty(), "{:?}", b.c32_checked);
+    assert_eq!(b.c32.as_ref().unwrap().rebuilds, Some(false));
+    // Typed again right, the two are counted.
+    typed_next(&mut app, 'a', A);
+    typed_next(&mut app, 'c', C);
+    let b = app.backup().unwrap();
+    assert!(b.c32_checked.contains(&(0, ix('a'))));
+    assert!(b.c32_checked.contains(&(0, ix('c'))));
+    assert_eq!(b.c32.as_ref().unwrap().rebuilds, Some(true));
+}
+
+fn skipped(app: &Faraday) -> Vec<(usize, usize)> {
+    app.backup().unwrap().c32_skipped.clone()
+}
+
+/// The string the foot's Check my copy opens, once pressed where it is
+/// drawn.
+fn check_my_copy_opens(app: &mut Faraday) -> Option<usize> {
+    c32(app, Press::List);
+    // The foot may be below the fold: scrolled down to.
+    let mut found = None;
+    for _ in 0..30 {
+        let _ = app.frame();
+        found = app
+            .drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t == "Check my copy");
+        if found.is_some() {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 120,
+        });
+    }
+    let (_, r) = found.expect("Check my copy is drawn");
+    let (x, y) = (
+        u16::try_from(r.0 + r.2 / 2).ok()?,
+        u16::try_from(r.1 + r.3 / 2).ok()?,
+    );
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    app.settle();
+    let at = app.backup()?.c32.as_ref()?.at;
+    let c = app.hit_box(Action::BC32(Press::Open(ix('c') as u8)));
+    assert!(at.is_some(), "tapped {x},{y} on {r:?}; Open(c) is at {c:?}");
+    at
+}
+
+#[test]
+fn a_string_skipped_twice_reads_skipped_and_one_typed_after_reads_checked() {
+    let mut app = with_set();
+    checklist_at_codex32(&mut app);
+    c32(&mut app, Press::Open(ix('a') as u8));
+    c32(&mut app, Press::Skip);
+    c32(&mut app, Press::Skip);
+    assert_eq!(skipped(&app), vec![(0, ix('a'))]);
+    c32(&mut app, Press::List);
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Skipped"));
+    assert!(!app.backup().unwrap().c32_skipped.is_empty());
+    typed_next(&mut app, 'c', C);
+    typed_next(&mut app, 'd', D);
+    typed_next(&mut app, 'a', A);
+    assert!(skipped(&app).is_empty());
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('a'))));
+    c32(&mut app, Press::List);
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Skipped"));
+}
+
+#[test]
+fn a_string_typed_twice_still_counts_with_the_ones_after_it() {
+    let mut app = with_three_of_five();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A3);
+    typed_next(&mut app, 'a', A3);
+    for (j, s) in [('c', C3), ('d', D3), ('e', E3)] {
+        typed_next(&mut app, j, s);
+    }
+    let b = app.backup().unwrap();
+    for j in ['a', 'c', 'd', 'e'] {
+        assert!(b.c32_checked.contains(&(0, ix(j))), "{j} not checked");
+    }
+    assert_eq!(b.c32.as_ref().unwrap().rebuilds, Some(true));
+}
+
+#[test]
+fn check_my_copy_does_not_open_a_string_waiting_for_others() {
+    let mut app = with_three_of_five();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A3);
+    let opens = check_my_copy_opens(&mut app);
+    assert_eq!(
+        opens,
+        Some(ix('c')),
+        "the string typed waits; the next opens"
+    );
+}
+
+#[test]
+fn leaving_a_set_action_keeps_what_was_proved_and_a_foreign_string_does_not_spoil_it() {
+    let mut app = with_set();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A);
+    typed_next(&mut app, 'c', C);
+    c32(&mut app, Press::Set(SetPress::Add));
+    c32(&mut app, Press::Set(SetPress::Leave));
+    // A string of another set does not rebuild the key and is not kept.
+    typed_next(&mut app, 'c', FOREIGN_C);
+    assert_eq!(
+        app.backup().unwrap().c32.as_ref().unwrap().rebuilds,
+        Some(false)
+    );
+    // The strings proved before the action still prove the next.
+    typed_next(&mut app, 'd', D);
+    let b = app.backup().unwrap();
+    assert!(b.c32_checked.contains(&(0, ix('d'))));
+    assert_eq!(b.c32.as_ref().unwrap().rebuilds, Some(true));
+}
+
+/// What the list reads for the strings of the open seed.
+fn list_reads(app: &mut Faraday) -> String {
+    c32(app, Press::List);
+    let _ = app.frame();
+    app.drawn_texts().join(" ")
+}
+
+#[test]
+fn a_share_added_after_three_strings_were_checked_leaves_the_fourth_to_read_checked() {
+    let mut app = with_three_of_five();
+    checklist_at_codex32(&mut app);
+    for (j, s) in [('a', A3), ('c', C3), ('d', D3)] {
+        typed_next(&mut app, j, s);
+    }
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('d'))));
+    // Add a share, made from three strings and typed back.
+    c32(&mut app, Press::List);
+    c32(&mut app, Press::Set(SetPress::Add));
+    for s in [A3, C3, D3] {
+        type_in(&mut app, s);
+    }
+    c32(&mut app, Press::Set(SetPress::MakeNew));
+    let at = app
+        .backup()
+        .unwrap()
+        .c32
+        .as_ref()
+        .unwrap()
+        .at
+        .expect("opened");
+    let made = app
+        .backup()
+        .unwrap()
+        .c32
+        .as_ref()
+        .unwrap()
+        .made(at)
+        .unwrap()
+        .to_string();
+    c32(&mut app, Press::Open(at as u8));
+    type_in(&mut app, &made);
+    c32(&mut app, Press::Next);
+    // The string typed next reads Checked at once.
+    typed_next(&mut app, 'e', E3);
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('e'))));
+}
+
+#[test]
+fn leaving_a_set_action_with_nothing_done_keeps_what_was_checked() {
+    let mut app = with_three_of_five();
+    checklist_at_codex32(&mut app);
+    for (j, s) in [('a', A3), ('c', C3), ('d', D3)] {
+        typed_next(&mut app, j, s);
+    }
+    c32(&mut app, Press::List);
+    c32(&mut app, Press::Set(SetPress::Add));
+    c32(&mut app, Press::Set(SetPress::Leave));
+    typed_next(&mut app, 'e', E3);
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('e'))));
+}
+
+/// A 16-byte master seed of its own, not a public vector's.
+const OWN: [u8; 16] = [
+    0x5a, 0x17, 0x93, 0x0c, 0xe2, 0x41, 0xb8, 0x6d, 0x24, 0xf1, 0x0e, 0x9b, 0x73, 0xc6, 0x38, 0xad,
+];
+
+/// The strings of the 2-of-3 set of [`OWN`], by index.
+fn own_set() -> Vec<(char, String)> {
+    let own = faraday_bip::codex32::Codex32::from_seed(2, *b"tree", &OWN).unwrap();
+    own.split(2, 3, &[0x37; 64])
+        .unwrap()
+        .iter()
+        .map(|x| x.encode().as_str().to_string())
+        .map(|s| (s.as_bytes()[8] as char, s))
+        .collect()
+}
+
+/// A wallet of two codex32 seeds: a 2-of-3 set of a seed of its own,
+/// then vector 3's 3-of-5 set, both typed in, over a 2-of-2, Back up
+/// open.
+fn with_two_seeds() -> Faraday {
+    let mut app = on();
+    let own = own_set();
+    for strings in [vec![own[0].1.as_str(), own[1].1.as_str()], vec![A3, C3, D3]] {
+        app.press(Action::Entry(None));
+        app.press(Action::EntryForm(2));
+        for s in strings {
+            typed(&mut app, s);
+            app.event(Event::Key(Key::Enter));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(
+        app.session.keys.len(),
+        2,
+        "{:?}",
+        testkit::entry(&app).error
+    );
+    app.session.keys.set_codex32(
+        1,
+        Some(SetFacts {
+            threshold: 3,
+            identifier: *b"cash",
+            length: 48,
+            unknown: 0,
+            strings: b"acdef".iter().copied().map(|j| (j, State::Made)).collect(),
+        }),
+    );
+    app.session.keys.set_codex32(
+        0,
+        Some(SetFacts {
+            threshold: 2,
+            identifier: *b"tree",
+            length: 48,
+            unknown: 0,
+            strings: b"acd".iter().copied().map(|j| (j, State::Made)).collect(),
+        }),
+    );
+    let c = testkit::compute();
+    let key = |i| {
+        app.session
+            .keys
+            .key_text(
+                &c,
+                i,
+                &Spec::Multisig(faraday_bip::keys::MultisigScriptType::NativeSegwit, 0),
+            )
+            .unwrap()
+            .unwrap()
+    };
+    let descriptor = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        &*key(0),
+        &*key(1)
+    );
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("two-seeds.txt"),
+            descriptor.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::LoadWallet(0));
+    app.press(Action::Backup(0));
+    app
+}
+
+/// Seed `i`'s codex32 item open, the checklist made.
+fn open_seed(app: &mut Faraday, i: usize) {
+    let n = bstep::of(plan::Item::Codex32(i));
+    let c = testkit::compute();
+    assert!(
+        app.backup_items_now(&c).contains(&n),
+        "the codex32 item {i}"
+    );
+    if app.backup().unwrap().open == Some(bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    if app.backup().unwrap().open != Some(n) {
+        app.press(Action::BStep(n));
+    }
+    assert_eq!(app.backup().unwrap().open, Some(n));
+}
+
+/// Seed 0, a 2-of-3 set, done: its three strings typed back.
+fn first_seed_done(app: &mut Faraday) {
+    app.press(Action::BChecklist);
+    open_seed(app, 0);
+    for (j, s) in own_set() {
+        typed_next(app, j, &s);
+    }
+}
+
+#[test]
+fn strings_checked_on_one_seed_still_count_after_another_seed_is_opened() {
+    let mut app = with_two_seeds();
+    first_seed_done(&mut app);
+    open_seed(&mut app, 1);
+    for (j, s) in [('a', A3), ('c', C3), ('d', D3)] {
+        typed_next(&mut app, j, s);
+    }
+    open_seed(&mut app, 0);
+    open_seed(&mut app, 1);
+    typed_next(&mut app, 'e', E3);
+    typed_next(&mut app, 'f', F3);
+    let b = app.backup().unwrap();
+    for j in ['a', 'c', 'd', 'e', 'f'] {
+        assert!(b.c32_checked.contains(&(1, ix(j))), "{j} not checked");
+    }
+    assert!(list_reads(&mut app).contains("Checked"));
+    let c = testkit::compute();
+    assert!(app.backup_item_done_now(&c, plan::Item::Codex32(1)));
+}
+
+#[test]
+fn a_string_skipped_on_one_seed_still_reads_skipped_after_another_seed_is_opened() {
+    let mut app = with_two_seeds();
+    first_seed_done(&mut app);
+    open_seed(&mut app, 1);
+    c32(&mut app, Press::Open(ix('a') as u8));
+    c32(&mut app, Press::Skip);
+    c32(&mut app, Press::Skip);
+    open_seed(&mut app, 0);
+    open_seed(&mut app, 1);
+    assert!(list_reads(&mut app).contains("Skipped"));
+}
+
+#[test]
+fn a_replaced_share_reads_not_checked_until_typed_back_and_the_others_stay_checked() {
+    let mut app = with_set();
+    checklist_at_codex32(&mut app);
+    typed_next(&mut app, 'a', A);
+    typed_next(&mut app, 'c', C);
+    c32(&mut app, Press::Set(SetPress::Replace(ix('d') as u8)));
+    type_in(&mut app, A);
+    type_in(&mut app, C);
+    c32(&mut app, Press::Set(SetPress::MakeNew));
+    let b = app.backup().unwrap();
+    assert!(b.c32_checked.contains(&(0, ix('a'))));
+    assert!(b.c32_checked.contains(&(0, ix('c'))));
+    assert!(
+        !b.c32_checked.contains(&(0, ix('d'))),
+        "D reads Not checked"
+    );
+    typed_next(&mut app, 'd', D);
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('d'))));
+}
+
+#[test]
+fn a_set_action_rotated_then_left_keeps_what_was_proved_for_the_next_string() {
+    let mut app = with_three_of_five();
+    checklist_at_codex32(&mut app);
+    for (j, s) in [('a', A3), ('c', C3), ('d', D3)] {
+        typed_next(&mut app, j, s);
+    }
+    c32(&mut app, Press::List);
+    c32(&mut app, Press::Set(SetPress::Rotate));
+    c32(&mut app, Press::Set(SetPress::Leave));
+    typed_next(&mut app, 'e', E3);
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('e'))));
 }

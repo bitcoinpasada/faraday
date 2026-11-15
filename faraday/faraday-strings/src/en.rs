@@ -12719,8 +12719,10 @@ strings! {
     c32_holds_the_seed: "Holds · the seed, not the words. Not for checking by hand.",
     /// A string and where it is kept. `{}`: the index, the places.
     c32_string_at: "{} · {}",
-    /// A string typed back the same, or skipped.
+    /// A string typed back the same, or one that rebuilds the key.
     c32_checked: "Checked",
+    /// A string skipped past with nothing typed back.
+    c32_skipped: "Skipped",
     /// A string not yet typed back.
     c32_not_checked: "Not checked",
     /// Strings of the set whose index is not known. `{}`: how many.

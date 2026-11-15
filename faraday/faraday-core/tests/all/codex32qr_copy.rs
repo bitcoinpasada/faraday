@@ -329,11 +329,23 @@ fn a_copy_drawn_on_the_sheet_scanned_back_is_checked() {
         bytes: found[0].bytes.to_vec(),
     });
     assert!(app.scan().is_none(), "the camera closes");
-    assert!(app.backup().unwrap().c32_checked.contains(&(0, j)));
     assert!(matches!(
         app.backup().unwrap().c32.as_ref().unwrap().found,
         Some(Found::Holds(_))
     ));
+    // One string of a set that exists proves nothing alone; with a second
+    // typed back, both rebuild the key and count.
+    assert!(!app.backup().unwrap().c32_checked.contains(&(0, j)));
+    app.press(Action::BC32(Press::Next));
+    let other = set().into_iter().find(|s| *s != string_at(j)).unwrap();
+    let k = plan::codex32::index_of(other.as_bytes()[8]).unwrap();
+    app.press(Action::BC32(Press::Open(u8::try_from(k).unwrap())));
+    for ch in other[3..].chars() {
+        app.press(Action::BC32(Press::Key(OskPress::Char(ch))));
+    }
+    app.press(Action::BC32(Press::Next));
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, j)));
+    assert!(app.backup().unwrap().c32_checked.contains(&(0, k)));
     // Nothing scanned was loaded.
     assert_eq!(app.session.keys.len(), 1);
 }
