@@ -37,6 +37,12 @@
 //! [`Frame`], [`spawn`] — is entirely safe: no raw pointer, no file
 //! descriptor and no mapped buffer crosses it.
 //!
+//! The capture buffers hold the camera's last pictures, so `Camera`'s
+//! `Drop` writes zeros over each mapping (`wipe`, volatile writes the
+//! optimiser cannot drop) after the stream is off and before it unmaps
+//! it: one more `unsafe` block, a `slice::from_raw_parts_mut` over the
+//! `PROT_WRITE` mapping.
+//!
 //! The same crate holds one more call that is not the camera's:
 //! [`wait_vblank`], the framebuffer's `FBIO_WAITFORVSYNC`, which the
 //! stick shell's writer thread uses to write a frame just after a
@@ -544,6 +550,12 @@ impl Drop for Camera {
             let _ = ioctl(self.file.as_raw_fd(), abi::VIDIOC_STREAMOFF, &raw mut type_);
         }
         for b in self.buffers.drain(..) {
+            // SAFETY: `b.ptr` and `b.len` are the address and length of
+            // one live `mmap` made with `PROT_READ | PROT_WRITE`, so the
+            // whole range is valid for writes; the stream is off (or was
+            // never on), so the driver no longer writes it, and `drain`
+            // leaves no other reference to the mapping.
+            wipe(unsafe { std::slice::from_raw_parts_mut(b.ptr.cast::<u8>(), b.len) });
             // SAFETY: `b.ptr` and `b.len` are the address and length one
             // `mmap` in `map_buffers` returned, this is the only place
             // they are unmapped, and `drain` means no other copy of them
@@ -554,6 +566,16 @@ impl Drop for Camera {
         }
         // `self.file` closes the device as it drops, after the unmaps.
     }
+}
+
+/// Overwrites `buf` with zeros by volatile writes, so the optimiser
+/// cannot drop them before the memory is unmapped.
+fn wipe(buf: &mut [u8]) {
+    for byte in buf.iter_mut() {
+        // SAFETY: `byte` is a valid, aligned `&mut u8`.
+        unsafe { ptr::write_volatile(byte, 0) };
+    }
+    std::sync::atomic::compiler_fence(Ordering::SeqCst);
 }
 
 impl Mapped {
@@ -784,6 +806,14 @@ fn negotiate_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A buffer's pictures are gone after the wipe, every byte.
+    #[test]
+    fn wipe_zeroes_every_byte() {
+        let mut buf = vec![0xA5u8; 4099];
+        wipe(&mut buf);
+        assert!(buf.iter().all(|&b| b == 0));
+    }
 
     /// `find` must not panic or hang on a box with no camera at all;
     /// whether it returns one depends on the box.
