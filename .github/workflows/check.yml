@@ -41,6 +41,10 @@ on:
         description: Run lint-repo (false when it already passed on this tree, commit range and trailers)
         type: boolean
         default: true
+      warm_commands:
+        description: Run the commands the push-to-main warm job runs, saving nothing (false when they already ran on this check.yml)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -138,27 +142,37 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           deps: ${{ matrix.job }}
-      # Each is the compile of that job's command (below), without its run:
-      # doc-tests: cargo refuses --doc with --no-run; --list builds the libraries
-      # and dev-dependencies the doc tests link against and runs none of them.
-      # lint-clippy's deps are cargo check's, as clippy builds a dependency with
-      # plain rustc; lint-deps compiles nothing in target/ (the fuzz crates have
-      # their own folders), so its cache is only saved.
       - name: Compile this job's dependencies
         env:
           JOB: ${{ matrix.job }}
-        run: |
-          case "$JOB" in
-            build-tests)        cargo nextest archive --locked --workspace --archive-file "$RUNNER_TEMP/warm.tar.zst" ;;
-            doc-tests)          cargo test --locked --workspace --doc -- --list ;;
-            lint-clippy)        cargo check --locked --workspace --all-targets ;;
-            lint-deps)          ;;
-            lint-repo)          cargo build --locked -p costs-lint ;;
-            lint-touch-targets) cargo nextest archive --locked -p faraday-snapshot -p faraday-starter --archive-file "$RUNNER_TEMP/warm.tar.zst" ;;
-            lint-op-cost)       cargo build --locked --release -p op-cost ;;
-            *) echo "unknown job $JOB"; exit 1 ;;
-          esac
+        run: tools/warm-compile.sh "$JOB"
       - uses: ./.github/actions/save-deps
+
+  # Every run by hand (the push train's, a batch's): the commands `warm` runs on
+  # main, run here with nothing saved, so a command cargo refuses fails before
+  # main does (F265). The jobs `warm` has no cache to restore for compile in full.
+  warm-commands:
+    name: warm command ${{ matrix.job }}
+    needs: gate
+    if: github.event_name == 'workflow_dispatch' && inputs.warm_commands
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [build-tests, doc-tests, lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          deps: ${{ matrix.job }}
+          valgrind: ${{ matrix.job == 'lint-op-cost' }}
+      - name: Run this job's warm command
+        env:
+          JOB: ${{ matrix.job }}
+        run: tools/warm-compile.sh "$JOB"
 
   build-tests:
     name: build tests
@@ -263,7 +277,7 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [gate, build-tests, tests, doc-tests, lint, warm]
+    needs: [gate, build-tests, tests, doc-tests, lint, warm, warm-commands]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
