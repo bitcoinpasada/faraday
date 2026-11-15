@@ -163,6 +163,9 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f
         );
         return cy + BUTTON_H - y;
     }
+    if app.seed_sample_shown() {
+        ui.demo_offer(EN.scan_sample_seed, act(S::Sample));
+    }
     let mut rows: Vec<(Text, Style, Action)> = vec![
         (Text::of(EN.seed_check_type), Style::Secondary, act(S::Type)),
         (
@@ -423,6 +426,9 @@ fn compare_block(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f
         Role::OnSurfaceVariant,
         EN.seed_check_compare_field,
     ) + GAP_SMALL;
+    if app.seed_compare_sample_shown() {
+        crate::samples::put::offer(ui, act(S::CompareSample));
+    }
     let focus = act(S::CompareField);
     ui.field_box((x, y + cy, w), cmp.focus, None);
     ui.typed(

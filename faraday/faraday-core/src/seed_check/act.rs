@@ -181,6 +181,8 @@ pub(crate) fn act(app: &mut Faraday, action: A) {
         A::CompareScan => compare::scan(app),
         A::CompareFile(i) => compare_file(app, i),
         A::CompareGo => compare::run(app),
+        A::Sample => app.seed_use_sample(),
+        A::CompareSample => app.seed_compare_use_sample(),
         A::Keep => keep(app),
         A::Done | A::Cancel => leave(app),
     }
@@ -683,5 +685,50 @@ pub(crate) fn fill_demo_pass(app: &mut Faraday) {
         s.pass.set(crate::demo::PASSPHRASE);
         s.pass2.set(crate::demo::PASSPHRASE);
         s.error = None;
+    }
+}
+
+/// Whether the Seed card shows its list of ways in, where Practice's
+/// sample seed is offered (the words form has its own field's chip).
+pub(crate) fn seed_sample_open(app: &Faraday) -> bool {
+    app.tools
+        .seed_check
+        .state()
+        .is_some_and(|s| s.open == Some(step::SEED) && !s.typing && s.source.is_none())
+}
+
+/// Practice's sample seed `words` taken as typed words: the Passphrase
+/// card opens, as after Continue.
+pub(crate) fn put_sample_words(app: &mut Faraday, words: &str) {
+    reset_from(app, step::PASSPHRASE);
+    if let Some(s) = st(app) {
+        s.words = SecretText::of(words);
+        s.typing = false;
+        s.error = None;
+        s.open = Some(step::PASSPHRASE);
+    }
+}
+
+/// What a wallet app shows of the account picked, for Practice's sample
+/// in the comparison's field: its key with the origin. `None` unless the
+/// Result is open with the field empty.
+pub(crate) fn compare_sample_text(app: &Faraday) -> Option<Text> {
+    let s = app.tools.seed_check.state()?;
+    let made = s.made()?;
+    let cmp = s.compare()?;
+    (s.open == Some(step::RESULT) && cmp.text.is_empty() && cmp.answer.is_none()).then(|| {
+        Text::formatted(format_args!(
+            "{}{}",
+            made.origin.as_str(),
+            made.plain.as_str()
+        ))
+    })
+}
+
+/// Practice's sample put in the comparison's field as typed.
+pub(crate) fn put_compare_sample(app: &mut Faraday, text: Text) {
+    if let Some(c) = st(app).and_then(|s| s.compare_mut()) {
+        c.text = text;
+        c.answer = None;
     }
 }

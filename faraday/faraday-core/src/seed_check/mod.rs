@@ -270,8 +270,8 @@ mod compare;
 pub(crate) mod screen;
 
 pub(crate) use act::{
-    SEED_STEPS, act, enter_is_slow, field, fill_demo_pass, key, not_a_seed, scanned,
-    stick_attached, tidy,
+    SEED_STEPS, act, compare_sample_text, enter_is_slow, field, fill_demo_pass, key, not_a_seed,
+    put_compare_sample, put_sample_words, scanned, seed_sample_open, stick_attached, tidy,
 };
 pub(crate) use area::SeedState;
 pub use area::{SeedArea, step};
@@ -330,6 +330,10 @@ pub enum SeedAction {
     CompareFile(usize),
     /// Compare the value typed with the account picked.
     CompareGo,
+    /// Practice's sample seed, taken as typed words.
+    Sample,
+    /// Practice's sample for the comparison's field.
+    CompareSample,
     /// Keep this key.
     Keep,
     /// Done: the key is dropped.

@@ -741,6 +741,55 @@ impl Faraday {
     }
 }
 
+// My seed makes my wallet.
+
+impl Faraday {
+    /// The words Practice's sample seed gives My seed makes my wallet's
+    /// Seed card: the first English words sample not loaded. A lookup.
+    fn seed_sample_words(&self) -> Option<&'static str> {
+        let set = self.put_on()?;
+        let cands: Vec<usize> = english_keys(set).map(|(i, _)| i).collect();
+        let (i, _) = self.sample_choose(set, &cands, 0)?;
+        set.keys[i].parts.first().copied()
+    }
+
+    /// Whether the Seed card draws its sample: Practice with samples set,
+    /// the list of ways in open, a seed able to be read. A lookup.
+    pub(crate) fn seed_sample_shown(&self) -> bool {
+        crate::seed_check::seed_sample_open(self)
+            && self.may_load_keys()
+            && self.seed_sample_words().is_some()
+    }
+
+    /// Handles `SeedAction::Sample`: the sample seed's words are taken as
+    /// typed, and the Passphrase card opens.
+    pub(crate) fn seed_use_sample(&mut self) {
+        if !self.seed_sample_shown() {
+            return;
+        }
+        if let Some(words) = self.seed_sample_words() {
+            crate::seed_check::put_sample_words(self, words);
+        }
+    }
+
+    /// Whether Compare's field draws its sample: Practice with samples
+    /// set, the field empty. A lookup.
+    pub(crate) fn seed_compare_sample_shown(&self) -> bool {
+        self.put_on().is_some() && crate::seed_check::compare_sample_text(self).is_some()
+    }
+
+    /// Handles `SeedAction::CompareSample`: the key of the account picked,
+    /// with its origin, is put in the field as typed.
+    pub(crate) fn seed_compare_use_sample(&mut self) {
+        if self.put_on().is_none() {
+            return;
+        }
+        if let Some(text) = crate::seed_check::compare_sample_text(self) {
+            crate::seed_check::put_compare_sample(self, text);
+        }
+    }
+}
+
 // Check my copy (the backup flow's typed words check).
 
 impl Faraday {

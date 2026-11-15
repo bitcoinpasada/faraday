@@ -942,3 +942,72 @@ fn an_answer_for_one_passphrase_is_not_shown_after_retaking_it() {
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     assert!(!shows_down(&mut app, "Matches"), "{:?}", texts(&mut app));
 }
+
+/// Practice with the public samples set, My seed makes my wallet open.
+fn practice_check(practice: bool) -> Faraday {
+    let mut app = testkit::started();
+    if practice {
+        app.online = true;
+        app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Testnet);
+        app.session.set_demo(testkit::demo_samples());
+        app.set_modes(faraday_core::DESKTOP_MODES);
+        app.samples = Some(testkit::demo_samples());
+        app.set_hosted(true);
+    }
+    app.press(Action::Nav(faraday_core::Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app
+}
+
+/// Whether the host strip is handed a button pressing `action`.
+fn strip_offers(app: &mut Faraday, action: Action) -> bool {
+    let _ = app.frame();
+    app.sample_area()
+        .aids()
+        .iter()
+        .any(|i| matches!(i, faraday_ui::demo::DemoItem::Button(_, a) if *a == action))
+}
+
+#[test]
+fn in_practice_the_seed_card_offers_a_sample_seed_and_it_fills_the_seed() {
+    let mut app = practice_check(true);
+    assert!(strip_offers(&mut app, Action::SeedCheck(S::Sample)));
+    app.press(Action::SeedCheck(S::Sample));
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    assert!(shows_down(&mut app, "Fingerprint"));
+    assert!(!strip_offers(&mut app, Action::SeedCheck(S::Sample)));
+}
+
+#[test]
+fn in_practice_the_compare_sample_answers_matches() {
+    let mut app = practice_check(true);
+    app.press(Action::SeedCheck(S::Sample));
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    app.press(Action::SeedCheck(S::Compare));
+    assert!(strip_offers(&mut app, Action::SeedCheck(S::CompareSample)));
+    app.press(Action::SeedCheck(S::CompareSample));
+    assert!(!strip_offers(&mut app, Action::SeedCheck(S::CompareSample)));
+    app.press(Action::SeedCheck(S::CompareGo));
+    testkit::settle(&mut app);
+    assert!(shows_down(&mut app, "Matches"));
+    assert!(!shows(&mut app, "Doesnotmatch"));
+}
+
+#[test]
+fn outside_practice_no_sample_is_offered() {
+    let mut app = practice_check(false);
+    assert!(!strip_offers(&mut app, Action::SeedCheck(S::Sample)));
+    app.press(Action::SeedCheck(S::Sample));
+    assert!(shows(&mut app, "Typethewords"));
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
+    app.press(Action::SeedCheck(S::Compare));
+    assert!(!strip_offers(&mut app, Action::SeedCheck(S::CompareSample)));
+}
