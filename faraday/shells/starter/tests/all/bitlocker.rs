@@ -69,12 +69,49 @@ fn every_recovery_password_is_read_each_with_its_id_and_all_reach_the_window() {
     ));
     let reply = bitlocker::reply(&mut Cursor::new(wire)).expect("a reply");
     assert_eq!(reply.keys, [key(), second]);
-    // One of them not read is none read.
-    let text = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/windows/two-passwords.wmi"))
-        .expect("a recorded answer");
-    let cut: String = text.lines().filter(|l| !l.contains(KEY2)).map(|l| format!("{l}\n")).collect();
-    let mut wmi = Recorded::parse(&cut).expect("a well-formed recording");
-    assert!(bitlocker::read_key(&mut wmi, "C:").is_err());
+    // One of them not read is none read: the second one's recorded read is
+    // missing, refused with a nonzero return, or its password malformed.
+    let text = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/windows/two-passwords.wmi"),
+    )
+    .expect("a recorded answer");
+    let read_of_second =
+        |l: &str| l.contains("GetKeyProtectorNumericalPassword") && l.contains(ID2);
+    let edited = |edit: &dyn Fn(&str) -> Option<String>| {
+        let text: String = text
+            .lines()
+            .filter_map(|l| {
+                if read_of_second(l) {
+                    edit(l)
+                } else {
+                    Some(l.to_string())
+                }
+            })
+            .map(|l| format!("{l}\n"))
+            .collect();
+        Recorded::parse(&text).expect("a well-formed recording")
+    };
+    let read_of = |code: u32| Reason::BitLocker {
+        call: "GetKeyProtectorNumericalPassword".to_string(),
+        code,
+    };
+    // No recording of it: Windows answers WBEM_E_NOT_FOUND.
+    assert_eq!(
+        bitlocker::read_key(&mut edited(&|_| None), "C:"),
+        Err(read_of(0x8004_1002))
+    );
+    // A nonzero return, 0x80310000.
+    let refused = |l: &str| Some(l.replace("-> 0 ", "-> 2150694912 "));
+    assert_eq!(
+        bitlocker::read_key(&mut edited(&refused), "C:"),
+        Err(read_of(0x8031_0000))
+    );
+    // A NumericalPassword that is not eight groups of six digits.
+    let malformed = |l: &str| Some(l.replace(KEY2, "111111-222222"));
+    assert_eq!(
+        bitlocker::read_key(&mut edited(&malformed), "C:"),
+        Err(read_of(0))
+    );
 }
 
 #[test]

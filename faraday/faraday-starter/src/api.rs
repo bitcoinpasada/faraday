@@ -83,8 +83,8 @@ pub struct BitLocker {
 
 /// A BitLocker recovery key, eight groups of six digits, with the drive
 /// it opens and the ID of its key protector (§3.4, F49): read by the
-/// elevated copy for the sheet, and held only until the sheet is made. `Debug` prints none of the key,
-/// and it is wiped when dropped.
+/// elevated copy for the sheet, and held only until the sheet is made.
+/// `Debug` prints none of the key, and it is wiped when dropped.
 #[derive(Clone, PartialEq, Eq)]
 pub struct RecoveryKey {
     drive: String,
@@ -792,7 +792,7 @@ pub enum StarterEvent {
         /// Done, or why not.
         result: Result<(), Reason>,
     },
-    /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
+    /// [`StarterCommand::ReadRecoveryKey`] ended: the keys, or why not.
     RecoveryKey(Result<Vec<RecoveryKey>, Reason>),
     /// [`StarterCommand::ReadVersion`] ended: the release string on the
     /// stick's boot partition (`None` for a stick made before Faraday put one

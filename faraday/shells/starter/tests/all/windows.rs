@@ -73,7 +73,10 @@ fn the_after_exit_command_turns_delayed_expansion_off_and_keeps_a_path_with_a_ba
     let c = install::after_exit_command(odd).expect("a command");
     assert!(c.contains(&format!("rmdir \"{}\"", odd.display())), "{c}");
     assert!(
-        c.contains(&format!("del /f /q \"{}\\Faraday Starter.exe\"", odd.display())),
+        c.contains(&format!(
+            "del /f /q \"{}\\Faraday Starter.exe\"",
+            odd.display()
+        )),
         "{c}"
     );
 }

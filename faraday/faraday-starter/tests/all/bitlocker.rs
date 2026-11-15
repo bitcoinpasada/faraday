@@ -391,4 +391,28 @@ fn a_drive_with_two_recovery_passwords_has_both_on_the_sheet_each_with_its_id() 
     ] {
         assert!(pdf_has(&pdf, text), "{text}");
     }
+    // Each key is followed by its own ID: key 1, ID 1, key 2, ID 2.
+    let at = |text: &str| {
+        pdf.windows(text.len())
+            .position(|w| w == text.as_bytes())
+            .unwrap_or_else(|| panic!("{text} not on the sheet"))
+    };
+    let order = [
+        at("205568-492019"),
+        at("6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B"),
+        at("111111-222222"),
+        at("0F1E2D3C-4B5A-4968-8776-655443322110"),
+    ];
+    assert!(order.windows(2).all(|w| w[0] < w[1]), "{order:?}");
+}
+
+#[test]
+fn a_key_read_that_is_empty_says_no_recovery_key_and_prints_nothing() {
+    let mut s = start_page(Os::Windows, drive(Protection::On, None));
+    s.press(StarterAction::IncludeKey);
+    s.press(StarterAction::PrintNotes);
+    let _ = commands(&mut s);
+    s.starter_event(StarterEvent::RecoveryKey(Ok(Vec::new())));
+    assert!(commands(&mut s).is_empty());
+    assert!(shows(&mut s, "The drive has no BitLocker recovery key."));
 }

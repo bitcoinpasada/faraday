@@ -522,8 +522,11 @@ fn bitlocker_shots(s: &Snap) -> Result<(), String> {
     ] {
         let notes = Notes::for_computer(&c).ok_or("notes")?;
         let path = s.out.join(format!("{name}.pdf"));
-        std::fs::write(&path, notes.pdf_with_key(&compute(), std::slice::from_ref(&key)))
-            .map_err(|e| format!("{}: {e}", path.display()))?;
+        std::fs::write(
+            &path,
+            notes.pdf_with_key(&compute(), std::slice::from_ref(&key)),
+        )
+        .map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }
     h.press(StarterAction::Start);

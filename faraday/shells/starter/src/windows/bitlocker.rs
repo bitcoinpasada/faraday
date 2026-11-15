@@ -365,7 +365,7 @@ pub fn read_key(wmi: &mut dyn Wmi, drive: &str) -> Result<Vec<RecoveryKey>, Reas
     }
     let call = "GetKeyProtectorNumericalPassword";
     let mut keys = Vec::with_capacity(ids.len());
-    for id in &ids {
+    for id in ids {
         let o = wmi.call(
             &v.device,
             call,
