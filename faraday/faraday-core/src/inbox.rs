@@ -30,6 +30,7 @@ use zeroize::Zeroizing;
 use crate::create::NewKind;
 use crate::wallet::{FileKind, Refusal, Session, Wallet, fp_text};
 use crate::{Action, Faraday, Item, Sheet, forms, inbox};
+use crate::{screens, secrets};
 
 /// Where a seed found in the Inbox comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1786,4 +1787,83 @@ pub(crate) fn result_stem(source: &str) -> Text {
         .iter()
         .find_map(|end| s.strip_suffix(end))
         .map_or_else(|| s.duplicate(), Text::of)
+}
+
+impl Faraday {
+    /// An Inbox file's row on a visit, pressed: unticked, or ticked when
+    /// it is public or sealed. One that may be a secret goes to the secret
+    /// sheet, and is ticked only once the person says they understand.
+    pub(crate) fn visit_inbox(&mut self, i: usize) {
+        if !self.visit_inbox_rows().contains(&i) {
+            return;
+        }
+        let Some(item) = self.inbox.get(i) else {
+            return;
+        };
+        let name = item.name.clone();
+        if self.visit.inbox_unpick(&name) {
+            return;
+        }
+        let Some(ack) = item.copy_ack() else {
+            self.visit.inbox_pick(name);
+            return;
+        };
+        let holds = item.holds();
+        let what = match (item.picture, holds) {
+            (Some(FileKind::Other), _) => faraday_text::Text::of(EN.visit_inbox_png_no_qr),
+            (Some(k), _) => faraday_text::Text::fill(
+                EN.visit_inbox_png_kind,
+                &[&screens::kind_name(k)
+                    .chars()
+                    .flat_map(char::to_lowercase)
+                    .collect::<faraday_text::Text>()],
+            ),
+            (None, FileKind::Other) => faraday_text::Text::of(EN.visit_inbox_a_file),
+            (None, k) => faraday_text::Text::of(screens::kind_name(k)),
+        };
+        let gives = match holds {
+            FileKind::Words => EN.visit_inbox_whoever_has_it_holds,
+            FileKind::SeedPart => EN.visit_inbox_whoever_has_enough,
+            FileKind::Entries => EN.visit_inbox_vault_warning,
+            _ => EN.visit_inbox_whoever,
+        };
+        // Text goes into a vault as a note; a picture or a file Faraday
+        // does not read only to a stick.
+        let keep = if item.picture.is_none()
+            && matches!(
+                holds,
+                FileKind::Words | FileKind::SeedPart | FileKind::Entries | FileKind::Text
+            ) {
+            secrets::Keep::Note
+        } else {
+            secrets::Keep::None
+        };
+        let mut out = secrets::SecretOut::new(name, item.bytes.clone(), &what, gives);
+        out.keep = keep;
+        out.ack = ack;
+        out.to_visit = true;
+        self.offer_secret(out);
+    }
+
+    /// Loads every key an "Import and load" copy asked for, now the stick
+    /// that copy needed gone is gone. Returns how many loaded.
+    pub(crate) fn load_after_pull(&mut self) -> usize {
+        if self.visit.load_after.is_empty() {
+            return 0;
+        }
+        let names = self.visit.take_load_after();
+        let indices: Vec<usize> = self
+            .inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| names.contains(i.name.as_str()) && i.kind == FileKind::Words)
+            .map(|(k, _)| k)
+            .collect();
+        let n = indices.into_iter().filter(|&i| self.load_key(i)).count();
+        // A wallet in the Inbox that names a seed just loaded loads too.
+        if n > 0 {
+            self.inbox_load_named();
+        }
+        n
+    }
 }

@@ -6,6 +6,7 @@
 use crate::modes::Mode;
 use crate::strings::EN;
 use crate::{Action, Faraday, Screen, Sheet, spend_backup, wallet};
+use crate::{WalletKey, create};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
@@ -4145,6 +4146,94 @@ impl Wallet {
     /// the caches.
     pub(crate) fn kept(&self) -> (usize, usize) {
         (self.addresses.borrow().len(), self.scripts.borrow().len())
+    }
+}
+
+impl Faraday {
+    /// Costs what `account_text` costs. The account key in slot `slot` of
+    /// wallet `i`, when this session holds its seed: for the cosigners of a
+    /// wallet of more than one key. `None` for a silent payments wallet,
+    /// whose slot is not an account key.
+    pub fn wallet_key(
+        &self,
+        c: &Compute,
+        i: usize,
+        slot: u8,
+    ) -> Result<WalletKey, faraday_text::Text> {
+        let w = self
+            .session
+            .wallets
+            .get(i)
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_wallet))?;
+        if w.policy().silent().is_some() {
+            return Err(faraday_text::Text::of(EN.wallet_key_this_wallet_s));
+        }
+        let pk = w
+            .policy()
+            .keys()
+            .get(usize::from(slot))
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_this_wallet))?;
+        let fp = pk
+            .fingerprint()
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_key_names))?;
+        let key = self
+            .session
+            .keys
+            .position(fp)
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_that_key))?;
+        let kind = create::NewKind::of(w.policy());
+        let bip87 = create::bip87_key(pk);
+        let standard = kind.filter(|&k| create::at_own_account(c, &self.session.keys, key, k, pk));
+        Ok(WalletKey {
+            fp: fp_text(fp),
+            text: faraday_text::Text::of(&pk.key_text()),
+            kind: kind.map_or_else(|| Session::shape(w), |k| faraday_text::Text::of(k.name())),
+            standard,
+            bip87,
+            key,
+        })
+    }
+
+    /// The slots of wallet `i` whose seeds are held here, one a key, as
+    /// its public files list them: none for a wallet of one key.
+    pub(crate) fn wallet_keys_here(&self, i: usize) -> Vec<u8> {
+        let Some(w) = self.session.wallets.get(i) else {
+            return Vec::new();
+        };
+        let mut seen = Vec::new();
+        let mut out = Vec::new();
+        if self.session.slots(w).len() < 2 {
+            return out;
+        }
+        for slot in 0..w.policy().keys().len().min(usize::from(u8::MAX)) {
+            let slot = slot as u8;
+            if let Some(fp) = self.wallet_key_here(i, slot)
+                && !seen.contains(&fp)
+            {
+                seen.push(fp);
+                out.push(slot);
+            }
+        }
+        out
+    }
+
+    /// Costs what `wallet_key` and `bsms_record` cost. A wallet key's BIP
+    /// 129 key record, signed by the key: for a `wsh` or `sh(wsh)` multisig
+    /// key at Create's own account.
+    pub(crate) fn wallet_key_record(
+        &self,
+        c: &Compute,
+        i: usize,
+        slot: u8,
+    ) -> Result<(faraday_text::Text, faraday_text::Text), faraday_text::Text> {
+        let k = self.wallet_key(c, i, slot)?;
+        k.standard
+            .and_then(|kind| {
+                let bip87 = kind.has_bip87() && k.bip87;
+                kind.bsms_record(c, &self.session.keys, k.key, 0, bip87, &k.fp)
+            })
+            .map(|r| (k.fp.clone(), faraday_text::Text::of(r.as_str())))
+            .ok_or_else(|| faraday_text::Text::of(EN.wallet_key_record_bip))
     }
 }
 

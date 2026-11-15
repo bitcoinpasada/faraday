@@ -3,9 +3,14 @@
 
 use std::collections::BTreeSet;
 
+use crate::Item;
+use crate::ReceiptFile;
+use crate::StorageCommand;
 use crate::codex32_correct::{Offered, typable};
 use crate::forms::{Form, completion, slip39_completion};
+use crate::seed_by_name;
 use crate::strings::EN;
+use crate::wallet::FileKind;
 use crate::wallet::fp_text;
 use crate::{
     Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
@@ -1700,6 +1705,146 @@ impl Faraday {
                 }),
             // Words are loaded as words (`Faraday::typed_load`), never here.
             Form::Words => Err(faraday_text::Text::default()),
+        }
+    }
+}
+
+impl Faraday {
+    /// A write's answer onto the receipt: the first answer of a write
+    /// replaces the last receipt with a new one.
+    pub(crate) fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {
+        let c = self.compute();
+        let now = self.clock_now();
+        let Some((name, hash, opened)) = self.visit.writing_answered(name, now) else {
+            return;
+        };
+        if let Some(r) = opened {
+            self.visit.set_receipt(Some(r));
+        }
+        let hash = self.hash_to_keep(&c, hash);
+        self.visit.receipt_push(ReceiptFile {
+            name: name.as_str().into(),
+            hash,
+            verified: failure.is_none(),
+            failure: failure.map(|f| f.as_str().into()),
+        });
+    }
+
+    /// Costs a read of the free memory (one small file). What a visit ticks to come in: every file
+    /// on the stick shown that Faraday reads, but a seed's by its name
+    /// (which comes in through its own tick), one over 18 MiB, and one
+    /// From the stick already by name and size.
+    pub(crate) fn visit_default_in(&mut self) -> std::collections::BTreeSet<faraday_text::Text> {
+        // Which vault files fit is by what is free now.
+        self.vaults.read_free();
+        let Some(stick) = self.stick.get(self.visit.stick) else {
+            return Default::default();
+        };
+        stick
+            .files
+            .iter()
+            .filter(|(n, size)| {
+                stick.kind_of(n).is_some()
+                    && stick.unread_why(&self.vaults, n, *size).is_none()
+                    && !seed_by_name(n)
+                    && !self
+                        .inbox
+                        .iter()
+                        .any(|i| i.name == **n && i.bytes.len() as u64 == *size)
+            })
+            .map(|(n, _)| faraday_text::Text::of(n))
+            .collect()
+    }
+
+    /// Costs a hash of a whole file (through `hash`).
+    /// [`Faraday::visit_all_out`], but with more than one vault file
+    /// waiting, one vault for this stick: the
+    /// first the last write did not write. The rest wait for the next
+    /// stick.
+    pub(crate) fn visit_default_out(
+        &self,
+        c: &Compute,
+    ) -> std::collections::BTreeSet<faraday_text::Text> {
+        let mut out = self.visit_all_out();
+        let vaults: Vec<&Item> = self
+            .outbox
+            .iter()
+            .filter(|i| i.kind == FileKind::Vault)
+            .collect();
+        if vaults.len() > 1 {
+            let written = |i: &Item| {
+                self.visit
+                    .receipt()
+                    .as_ref()
+                    .is_some_and(|r| r.holds(&i.name, &i.hash(c)))
+            };
+            let one = vaults
+                .iter()
+                .find(|i| !written(i))
+                .or(vaults.first())
+                .map(|i| i.name.clone());
+            for i in &vaults {
+                if Some(&i.name) != one.as_ref() {
+                    out.remove(&*i.name);
+                }
+            }
+        }
+        out
+    }
+
+    /// Reads every chosen stick file into the Inbox.
+    pub(crate) fn visit_copy(&mut self) {
+        if let Some(stick) = self.stick.get(self.visit.stick) {
+            let id = stick.id.clone();
+            self.visit.log_clear();
+            self.vaults.read_free();
+            for name in self.visit.inn.clone() {
+                // A vault file this computer has not the memory for now is
+                // not read; the row says what it needs.
+                let size = stick
+                    .files
+                    .iter()
+                    .find(|(n, _)| **n == *name)
+                    .map_or(0, |(_, size)| *size);
+                if stick.unread_why(&self.vaults, &name, size).is_some() {
+                    self.visit.inn_unchoose(&name);
+                    continue;
+                }
+                // A picture's QR codes are read, not its bytes.
+                let stick = id.clone();
+                if self.visit.reading_has(&name) {
+                    continue;
+                }
+                self.visit.reading_add(name.clone());
+                self.out.storage_out.push_back(
+                    if faraday_text::Text::ascii_lowercase(&name).ends_with(".png") {
+                        StorageCommand::ReadQr {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
+                    } else {
+                        StorageCommand::Read {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
+                    },
+                );
+            }
+        }
+    }
+
+    /// A stick visit column's list scrolled to where its scrollbar is
+    /// held, at pixel row `y`: the thumb's middle under the finger.
+    pub(crate) fn visit_drag(&mut self, column: Column, y: i32) {
+        let Some((top, h, thumb, max)) = self.visit.bar(column).get() else {
+            return;
+        };
+        let room = (h - thumb).max(1) as f32;
+        let at = ((y - top) as f32 - thumb as f32 / 2.0).clamp(0.0, room);
+        let offset = at / room * max;
+        match column {
+            Column::Outbox => self.visit.set_out_offset(offset),
+            Column::Stick => self.list_offset = offset,
         }
     }
 }

@@ -1523,3 +1523,33 @@ impl<S: AsRef<str>> From<S> for Why {
         Why(Text::of(line.as_ref()))
     }
 }
+
+impl Faraday {
+    /// A view's code as a labelled picture to the Outbox, when it is one
+    /// code of public content.
+    pub(crate) fn code_png(&mut self, view: Result<&QrView, &impl AsRef<str>>) {
+        let c = self.compute();
+        let v = match view {
+            Ok(v) => v,
+            Err(e) => {
+                return self.toast(&faraday_text::Text::fill(
+                    EN.code_png_cannot_make,
+                    &[e.as_ref()],
+                ));
+            }
+        };
+        match v.png(&c) {
+            Some((name, bytes)) => {
+                self.put_outbox(&name, bytes);
+                self.toast_out(&name);
+            }
+            None if v.public && v.frames.len() > 1 => {
+                self.toast(&faraday_text::Text::fill(
+                    EN.code_png_is_more_than,
+                    &[&v.title],
+                ));
+            }
+            None => {}
+        }
+    }
+}
