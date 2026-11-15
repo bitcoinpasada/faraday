@@ -183,7 +183,7 @@ fn sheets() -> Vec<Sheet> {
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,
-        Sweep, KeyFile, OutboxDelete, Published);
+        Sweep, KeyFile, OutboxDelete, Published, MadeWallet);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
         own: true,

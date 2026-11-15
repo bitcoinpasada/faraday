@@ -12,7 +12,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Code};
 use faraday_draw::tokens::{self as T, COLUMN_MAX, EXPLORE_INSET, PATH_FIELD_W};
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD, LABEL_L};
 use faraday_keys::Reveal;
 use faraday_text::{Text, text};
 
@@ -198,7 +198,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // The account the path is in: its addresses, and a search of them.
     if app.explore_account().is_some_and(|of| of.4) {
-        let more = [
+        let mut more = vec![
             (
                 EN.explore_addresses,
                 Style::Secondary,
@@ -210,12 +210,44 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Action::X(XAction::Page(Page::Find)),
             ),
         ];
-        y += button_rows(ui, x, y, width, &more);
+        y += make_buttons(app, ui, (x, y, width), &mut more);
     }
     if compact {
         y += crate::compact::screen::about(ui, x, y, width, guide);
     }
     crate::compact::screen::finish(app, ui, h, y - top + 16.0);
+}
+
+/// The account's row of buttons with **Make a wallet** (or **Open the
+/// wallet**) after them where the account is a standard one, and under
+/// it the line a refused press left. Returns the height used.
+pub(super) fn make_buttons(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    row: &mut Vec<(&'static str, Style, Action)>,
+) -> f32 {
+    match app.explore_make_offer() {
+        Some(super::make::Offer::Make) => row.push((
+            EN.explore_make_wallet,
+            Style::Secondary,
+            Action::X(XAction::Make),
+        )),
+        Some(super::make::Offer::Open(_)) => row.push((
+            EN.explore_open_wallet,
+            Style::Secondary,
+            Action::X(XAction::Make),
+        )),
+        None => {}
+    }
+    let mut cy = y;
+    if !row.is_empty() {
+        cy += button_rows(ui, x, y, width, row);
+    }
+    if let Some(e) = app.explore.state().and_then(|e| e.make_error.as_ref()) {
+        cy += ui.wrap_as((x, cy, width), LABEL_L, Role::Error, e.as_str()) + T::GAP;
+    }
+    cy - y
 }
 
 /// Where the path page's rows go: the column's left edge, the values'

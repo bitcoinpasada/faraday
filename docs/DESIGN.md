@@ -1010,7 +1010,7 @@ pasted on Faraday Demo or read from a text file in Files, and a `bitcoin:`
 link the same way, and searches the loaded wallets and keys; it reads **Load a
 key or a wallet first** until one is loaded."
 
-**Make a wallet** (not built; Explore's path page and Find an address,
+**Make a wallet** (built for Explore's path page and Find an address, not yet for the address check's find;
 at a BIP-44, BIP-49, BIP-84 or BIP-86 path on the network's coin type,
 and the address check's find in a loaded key's account; Material 3
 Buttons, "Common buttons", and Dialogs, the basic dialog, checked
@@ -1042,7 +1042,7 @@ the first-address check and what is refused are `docs/FLOWS.md`
 - **Wallet made.** The Dialog (§4.13, `faraday_ui::sheet::dialog`):
   its head the wallet's name; its body the descriptor row
   (`descriptor_row`, opening the wallet's code) and the first addresses
-  under "{name} · first addresses" (`first_addresses`, each whole in
+  under the part's own heading (`first_addresses`, each whole in
   groups of four, §4.5, the first receive address opening its QR sheet);
   its actions **Done** (a text button) then **Open the wallet**
   (filled), dismissive first. A press beside it is Done.
@@ -1050,7 +1050,7 @@ the first-address check and what is refused are `docs/FLOWS.md`
   under the button that was pressed, the way a step card's error line
   is drawn, and no dialog.
 
-Strings (`faraday/faraday-strings/src/en.rs`, when built):
+Strings (`faraday/faraday-strings/src/en.rs`; the two `read_go_` ones are for the address check, not built):
 
 - `explore_make_wallet`: "Make a wallet"
 - `explore_open_wallet`: "Open the wallet"

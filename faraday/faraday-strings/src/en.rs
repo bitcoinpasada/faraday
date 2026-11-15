@@ -11982,6 +11982,18 @@ strings! {
     explore_addresses: "Addresses",
     /// Button and title: look for an address among the account's.
     explore_find: "Find an address",
+    /// Button: make the wallet of the account explored.
+    explore_make_wallet: "Make a wallet",
+    /// Button: open the wallet already made for the account explored.
+    explore_open_wallet: "Open the wallet",
+    /// A wallet made at a path: `{}` the key's name, `{}` the account's path.
+    made_wallet_name: "{} · {}",
+    /// Under the button: the wallet's first address is not the key's; `{}` the account's path.
+    made_wallet_differs: "Its first address is not the one this key gives at {}: not added",
+    /// Button on the made wallet's dialog: back to the page.
+    made_wallet_done: "Done",
+    /// Button on the made wallet's dialog: the wallet's card.
+    made_wallet_open: "Open the wallet",
     /// Label: the account the addresses are of.
     explore_account: "Account",
     /// The account: `{}` its path without `m/`, `{}` its script.

@@ -77,6 +77,7 @@ mod dice_input_panel;
 mod drop_target;
 mod explore;
 mod explore_addresses;
+mod explore_make;
 mod fee_bump_review;
 mod file_menu;
 mod files_scroll;

@@ -572,6 +572,8 @@ pub enum Sheet {
     KefOptions,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
     ChildNotice,
+    /// **Make a wallet** at an Explore path made one: its descriptor and first addresses (`explore/made.rs`).
+    MadeWallet,
     /// **Seeds with no passphrase stored**, from a wallet short of a key: one to
     /// load with a passphrase typed now, checked against it (`vault_load`, F62).
     PassphraseSeeds,

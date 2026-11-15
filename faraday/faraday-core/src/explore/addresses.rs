@@ -70,6 +70,13 @@ pub enum XAction {
     Paste,
     /// A press on an eye ([`super::Eye`]).
     Eye(super::Eye),
+    /// **Make a wallet** at the account, or **Open the wallet** where one
+    /// is loaded.
+    Make,
+    /// **Done** on the made wallet's dialog.
+    MadeDone,
+    /// **Open the wallet** on the made wallet's dialog.
+    MadeOpen,
 }
 
 /// What an account's addresses are worked out from: the key, the
@@ -406,7 +413,7 @@ impl ExploreArea {
             XAction::Search => self.search(of, now),
             XAction::Paste => effect.paste = clipboard,
             // Faraday::explore_act opens and closes the eyes.
-            XAction::Eye(_) => {}
+            XAction::Eye(_) | XAction::Make | XAction::MadeDone | XAction::MadeOpen => {}
         }
         effect
     }
@@ -626,6 +633,12 @@ impl Faraday {
 
     /// A press on the address list or the search.
     pub(crate) fn explore_x(&mut self, a: XAction) {
+        match a {
+            XAction::Make => return self.explore_make(),
+            XAction::MadeDone => return self.explore_made_done(),
+            XAction::MadeOpen => return self.explore_made_open(),
+            _ => {}
+        }
         let of = if a == XAction::Search {
             self.explore_account()
         } else {

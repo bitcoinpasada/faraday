@@ -259,6 +259,9 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let of = app.explore_account();
     if let Some(s) = e.search.as_ref().filter(|s| Some(&s.of) == of.as_ref()) {
         y += result(ui, x, y, width, s);
+        if !s.running() && s.matched > 0 {
+            y += super::screen::make_buttons(app, ui, (x, y, width), &mut Vec::new());
+        }
     }
     crate::compact::screen::finish(app, ui, h, y - start + T::PAD);
 }

@@ -23,6 +23,8 @@ One button per loaded key chooses the key. **Write it in another form** opens Co
 
 **Addresses** and **Find an address** are offered when the path is in a single-key account; a multisig purpose (BIP-45, BIP-48) has none.
 
+**Make a wallet** is offered beside them at a standard account of BIP-44, BIP-49, BIP-84 or BIP-86. It makes the wallet of this account and shows its first addresses; where it is already loaded it reads **Open the wallet**.
+
 ## Addresses
 
 **Key:** explore.addresses

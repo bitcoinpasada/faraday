@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Compare with the wallet app's, its Check row and its Practice sample for the Seed card, Make a wallet at a path from Explore and from an address check's find (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Compare with the wallet app's, its Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1172,7 +1172,8 @@ the code, no PNG) → **Wallets**.
 
 ### Make a wallet at the path
 
-Not built. Finding a person's address at a path of their key means a
+Built from Explore; the address check's way in and the BIP-85 child
+seed notice after a wallet made from Explore are not. Finding a person's address at a path of their key means a
 wallet is there, so Faraday makes that wallet from where the person
 found it, without Create's or Restore's cards. Two ways in, one
 action:
@@ -1187,7 +1188,9 @@ action:
   (the path without its chain and index), at any account number, and
   its script always the one the purpose names (BIP-44 legacy, BIP-49
   wrapped segwit, BIP-84 native segwit, BIP-86 Taproot), whatever the
-  path page's script shows.
+  path page's script shows. An account is a standard one when its path is
+  three hardened levels: the purpose, the network's coin type and the
+  account number.
 - **Check an address**, when its answer is a find in a loaded key's
   standard account that no loaded wallet is (`docs/QR.md` §2: BIP-84,
   BIP-86, BIP-49 or BIP-44, account 0): the read card's way over, and
@@ -1233,8 +1236,8 @@ fingerprint and the account's path as its origin, and whose script is
 the script, whatever its name and wherever it came from (made here, a
 file, a vault). The action then reads **Open the wallet** in place of
 **Make a wallet** and opens that wallet's card, no dialog; which wallet
-it is is looked up when the account, the key or the loaded wallets
-change, never while drawing.
+it is is found by comparing each loaded wallet's key origin and script,
+with no key derived.
 
 A wallet made here is one more wallet added in the session: its card
 offers **Save to vault** and **Back up**, and a lock lists it if it was
@@ -1265,9 +1268,9 @@ the descriptor holds the account's extended public key. The press leaves
 Explore's eyes as they are while the dialog is over it; **Open the
 wallet** leaves Explore, which hides them all as leaving does (F125).
 
-Guide, when this is built (`docs/guide/explore.md`, Addresses): "**Make
-a wallet** makes the wallet of this account and shows its first
-addresses; where it is already loaded it reads **Open the wallet**."
+Guide (`docs/guide/explore.md`, Explore): "**Make a wallet** makes the
+wallet of this account and shows its first addresses; where it is
+already loaded it reads **Open the wallet**."
 
 ## Lightning node key
 

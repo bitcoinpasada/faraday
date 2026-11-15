@@ -7,6 +7,8 @@
 //! searched for one typed, in [`addresses`] (F76).
 
 pub mod addresses;
+pub(crate) mod made;
+mod make;
 mod pages;
 pub(crate) mod screen;
 pub mod shown;
@@ -20,8 +22,11 @@ use faraday_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
 use faraday_bip::keys::ScriptType;
 use faraday_crypto::work::Compute;
 
-use crate::wallet::Session;
-use crate::{Faraday, Screen};
+use crate::wallet::{self, Session};
+use crate::{Action, Faraday, Screen, Sheet};
+use faraday_bip::policy::WalletPolicy;
+use faraday_text::{Text, text};
+use make::{Offer, kind_of};
 
 /// The presets, by purpose: BIP-84, 86, 49 and 44 receive address 0,
 /// and BIP-48's multisig account.
@@ -62,6 +67,12 @@ pub struct ExploreState {
     pub(crate) sample: crate::samples::put::Use,
     /// What the eyes show, hidden when Explore opens ([`Shown`]).
     shown: Shown,
+    /// The wallet last made at a path here, whose dialog is open
+    /// ([`make`]).
+    pub(crate) made: Option<usize>,
+    /// What a press of **Make a wallet** refused, under that button
+    /// until the next press ([`make`]).
+    pub(crate) make_error: Option<faraday_text::Text>,
     /// The account's addresses worked out, kept by the account they are
     /// of ([`addresses::Kept`]). Public.
     kept: std::cell::RefCell<addresses::Kept>,
@@ -80,6 +91,22 @@ type ReadingOf = (
     faraday_bip::keys::Network,
     bool,
 );
+
+/// The address of `pk` as `script` pays to it on `net`.
+fn address_of(
+    pk: &CompressedPublicKey,
+    script: ScriptType,
+    net: faraday_bip::bitcoin::Network,
+) -> Address {
+    let kind = NetworkKind::from(net);
+    let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::verification_only();
+    match script {
+        ScriptType::NativeSegwit => Address::p2wpkh(pk, net),
+        ScriptType::NestedSegwit => Address::p2shwpkh(pk, kind),
+        ScriptType::Legacy => Address::p2pkh(*pk, kind),
+        ScriptType::Taproot => Address::p2tr(&secp, pk.0.x_only_public_key().0, None, net),
+    }
+}
 
 /// What a path gives: the extended public key, the public key and, at a
 /// leaf, the address.
@@ -145,6 +172,8 @@ impl ExploreArea {
             search: None,
             note: None,
             sample: Default::default(),
+            made: None,
+            make_error: None,
             kept: Default::default(),
             shown: Shown::default(),
         });
@@ -188,15 +217,8 @@ impl ExploreArea {
         let xpub = session.keys.xpub_at(c, place, &path)?;
         let pk = CompressedPublicKey(xpub.public_key);
         let net: faraday_bip::bitcoin::Network = session.network().into();
-        let kind = NetworkKind::from(net);
         let script = implied_script(&path).unwrap_or(e.script);
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::verification_only();
-        let address = match script {
-            ScriptType::NativeSegwit => Address::p2wpkh(&pk, net),
-            ScriptType::NestedSegwit => Address::p2shwpkh(&pk, kind),
-            ScriptType::Legacy => Address::p2pkh(pk, kind),
-            ScriptType::Taproot => Address::p2tr(&secp, pk.0.x_only_public_key().0, None, net),
-        };
+        let address = address_of(&pk, script, net);
         Some(Reading {
             xpub: xpub.to_string(),
             public_key: pk.to_string(),
@@ -326,6 +348,7 @@ impl Faraday {
     /// off screen is dropped after it ([`ExploreArea::prune`]).
     pub(crate) fn explore_act(&mut self, action: crate::Action) {
         use crate::Action as A;
+        self.explore.clear_make_error();
         match action {
             A::Explore => return self.explore_open(),
             A::X(XAction::Eye(eye)) => {
@@ -458,6 +481,117 @@ pub fn implied_script(path: &DerivationPath) -> Option<ScriptType> {
             .copied()
             .find(|s| s.purpose() == *index),
         ChildNumber::Normal { .. } => None,
+    }
+}
+
+impl Faraday {
+    /// What the explored path's account is offered as (`Offer`), for the
+    /// pages to draw.
+    pub(crate) fn explore_make_offer(&self) -> Option<Offer> {
+        self.explore.make_offer(&self.session)
+    }
+
+    /// A press of **Make a wallet** or **Open the wallet** on Explore.
+    pub(crate) fn explore_make(&mut self) {
+        let Some(offer) = self.explore_make_offer() else {
+            return;
+        };
+        let Some((Some(fp), account, script, ..)) = self.explore_account() else {
+            return;
+        };
+        match offer {
+            Offer::Open(i) => self.act(Action::OpenWallet(i)),
+            Offer::Make => {
+                let c = self.compute();
+                let made = self.make_wallet_at(&c, fp, &account, script);
+                if made.is_ok() {
+                    self.sheet = Some(Sheet::MadeWallet);
+                }
+                self.explore.set_made(made);
+            }
+        }
+    }
+
+    /// **Done** on the made wallet's dialog.
+    pub(crate) fn explore_made_done(&mut self) {
+        if self.sheet == Some(Sheet::MadeWallet) {
+            self.sheet = None;
+        }
+    }
+
+    /// **Open the wallet** on the made wallet's dialog.
+    pub(crate) fn explore_made_open(&mut self) {
+        let made = self.explore.state().and_then(|e| e.made);
+        self.explore_made_done();
+        if let Some(i) = made {
+            self.act(Action::OpenWallet(i));
+        }
+    }
+
+    /// Costs a key derivation for each step of the account's path, a
+    /// descriptor parse and two address derivations. Makes the wallet
+    /// Create makes for the loaded key `fp` at `account` under `script`
+    /// (a standard single-key account), named after the key and the
+    /// account, once its first address is the one the key gives at
+    /// `account/0/0`; the wallet's place, or why none was made. The
+    /// address check's result card calls it for the account it found.
+    pub(crate) fn make_wallet_at(
+        &mut self,
+        c: &Compute,
+        fp: [u8; 4],
+        account: &DerivationPath,
+        script: ScriptType,
+    ) -> Result<usize, Text> {
+        let not_loaded = || Text::of(EN.explore_load_a_key);
+        let place = self.session.keys.position_of(fp).ok_or_else(not_loaded)?;
+        let key_name = self
+            .session
+            .keys
+            .info(place)
+            .map(|k| match k.label.trim() {
+                // A child seed's mark stays in the vault (F166): the
+                // name is the label, or the fingerprint.
+                "" => wallet::fp_text(k.fingerprint),
+                l => Text::of(l),
+            })
+            .unwrap_or_default();
+        let net = self.session.network();
+        let key = self
+            .session
+            .keys
+            .key_text(c, place, &faraday_keys::Spec::Path(account.clone()))
+            .ok_or_else(not_loaded)??;
+        let descriptor = kind_of(script).descriptor(1, &[key.as_str()]);
+        let path = Text::replaced(&text!("m/{account}"), "'", "h");
+        // The first address is checked before the wallet is kept.
+        let policy = WalletPolicy::parse_any(c, descriptor.as_str())
+            .map_err(|e| faraday_strings::bip::policy_error(&e))?;
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::verification_only();
+        let made = crate::address_find::address(c, &secp, &policy, net, false, 0);
+        let mut leaf: Vec<ChildNumber> = account.as_ref().to_vec();
+        leaf.extend([ChildNumber::Normal { index: 0 }; 2]);
+        let gives = self
+            .session
+            .keys
+            .xpub_at(c, place, &DerivationPath::from(leaf))
+            .map(|x| address_of(&CompressedPublicKey(x.public_key), script, net.into()));
+        if made.is_none() || made != gives {
+            return Err(Text::fill(EN.made_wallet_differs, &[&path]));
+        }
+        let name = Text::fill(EN.made_wallet_name, &[&key_name, &path]);
+        let i = self
+            .session
+            .add_wallet(
+                c,
+                &name,
+                &descriptor,
+                EN.create_make_made_here,
+                wallet::Origin::Statement,
+            )
+            .map_err(|e| e.text())?;
+        self.glance.moved_to(&self.session, i);
+        self.wallets.set_wallet(i);
+        Ok(i)
     }
 }
 
