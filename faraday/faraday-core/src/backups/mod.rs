@@ -3001,10 +3001,16 @@ impl Faraday {
         match set {
             SetStep::Typing { index } => {
                 let j = index.map(usize::from).ok_or(None)?;
-                let parts: Vec<faraday_bip::codex32::Codex32> = held
-                    .iter()
-                    .filter_map(|s| faraday_bip::codex32::Codex32::parse(s).ok())
-                    .collect();
+                // Sized once and wiped on drop: a regrowth never leaves a
+                // copy of a share's symbols in a freed, unwiped buffer.
+                let mut parts = zeroize::Zeroizing::new(
+                    Vec::<faraday_bip::codex32::Codex32>::with_capacity(held.len()),
+                );
+                for s in held.iter() {
+                    if let Ok(share) = faraday_bip::codex32::Codex32::parse(s) {
+                        parts.push(share);
+                    }
+                }
                 if parts.len() < form.need() {
                     return Err(Some(Text::fill(
                         EN.c32_set_type_more,
