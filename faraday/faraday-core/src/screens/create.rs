@@ -276,408 +276,520 @@ fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyF
     tokens::REFUSED_FILE_REASON_Y + h + tokens::REFUSED_FILE_GAP
 }
 
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "draws every step of Create: the kind, the quorum, the keys, where, how many, the sticks and the check"
-)]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
-    use crate::create::Source;
+    use crate::backup_flow::{Step, wallet_screen};
     use crate::cstep;
     let c = app.create.state().expect("create");
+    let at = (x, y, w);
+    match n {
+        cstep::KIND => create_kind(app, ui, c, at),
+        cstep::BACKUP_FORM => create_backup_form(ui, c, at),
+        cstep::QUORUM => create_quorum(ui, c, n, at),
+        cstep::KEYS => create_keys(app, ui, c, n, at),
+        cstep::WHERE => wallet_screen::create_where(app, ui, x, y, w).unwrap_or(0.0),
+        cstep::HOW_MANY => wallet_screen::create_count(app, ui, x, y, w).unwrap_or(0.0),
+        cstep::STICKS => {
+            wallet_screen::create_flow_card(app, ui, Step::Sticks, x, y, w).unwrap_or(0.0)
+        }
+        cstep::VAULTS => {
+            wallet_screen::create_flow_card(app, ui, Step::Vaults, x, y, w).unwrap_or(0.0)
+        }
+        cstep::CHECK => create_check(app, ui, c, n, at),
+        _ => 0.0,
+    }
+}
+
+/// The kind step: the kinds to choose from, and Start over once a wallet is
+/// begun.
+fn create_kind(app: &View, ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32, f32)) -> f32 {
     let locked = c.built.is_some();
     let mut cy = y;
-    match n {
-        cstep::KIND => {
-            // A row pressed moves on, the ticked one too: no Continue.
-            let shown = crate::create::NewKind::create_rows(c.more_kinds);
-            let lines: Vec<(usize, String)> = shown
-                .into_iter()
-                .map(|i| {
-                    (
-                        i,
-                        crate::create::NewKind::ALL[i]
-                            .create_line((c.m, c.n))
-                            .as_str()
-                            .into(),
-                    )
-                })
-                .collect();
-            let rows: Vec<(usize, &str)> = lines.iter().map(|(i, l)| (*i, l.as_str())).collect();
-            let more = (!c.more_kinds).then_some(Action::CMoreKinds);
-            // From Move money no kind is ticked: the person chooses
-            // (owner, 2026-10-24).
-            let chosen = (!c.kind_unchosen).then_some(c.kind);
-            cy += kind_list(ui, (x, cy, w), &rows, chosen, more, !locked, Action::CKind);
-            if app.create_unfinished() {
-                cy += tokens::GAP_SMALL;
-                let over = [(EN.create_start_over, Style::Ghost, Action::CreateOver)];
-                cy += buttons_and_next(ui, x, cy, w, &over, None);
-            }
-        }
-        // A single key's backup: a row pressed moves on, the ticked one
-        // too (F103); "codex32" in the Shares row's name carries the one
-        // tooltip on a working screen (F112, F240).
-        cstep::BACKUP_FORM => {
-            let rows: Vec<OptionRow> = crate::create::BackupForm::offered()
-                .into_iter()
-                .map(|f| OptionRow {
-                    name: f.name(),
-                    line: f.line(),
-                    on: c.backup == Some(f),
-                    action: Action::CBackupForm(f.index()),
-                    tip: f == crate::create::BackupForm::Codex32,
-                })
-                .collect();
-            cy += option_list(ui, (x, cy, w), &rows, None, !locked);
-        }
-        cstep::QUORUM => {
-            // MuSig2 is every key: only the count is chosen.
-            let rows: &[(&str, usize, Action, Action)] = if c.kind.all_sign() {
-                &[(EN.create_keys, c.n, Action::CN(-1), Action::CN(1))]
-            } else {
-                &[
-                    (
-                        EN.create_signatures_needed,
-                        c.m,
-                        Action::CM(-1),
-                        Action::CM(1),
-                    ),
-                    (EN.create_keys, c.n, Action::CN(-1), Action::CN(1)),
-                ]
-            };
-            for &(label, value, minus, plus) in rows {
-                stepper(ui, x, cy, w, label, value, minus, plus, !locked);
-                cy += tokens::STEPPER_ROW;
-            }
-            let sentence = if c.kind.all_sign() {
-                fill(EN.create_all_keys_sign, &[&c.n.to_string()])
-            } else {
-                fill(
-                    EN.create_any_of_the_keys,
-                    &[
-                        &c.m.to_string(),
-                        &c.n.to_string(),
-                        &(c.n - c.m).to_string(),
-                        (if c.n - c.m == 1 {
-                            EN.create_key_inline
-                        } else {
-                            EN.create_keys_inline
-                        }),
-                        &c.m.to_string(),
-                    ],
-                )
-            };
-            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &sentence) + 14.0;
-            // The path choice and the account, below the quorum (F98).
-            if c.kind.has_bip87() {
-                cy += path_choice(ui, x, cy, w, c);
-            }
-            if c.account_card() == Some(n) {
-                cy += account_row(ui, x, cy, w, c);
-            }
-            if next_button(ui, x, cy, w, EN.create_continue, Action::CNext(n)) {
-                cy += 48.0;
-            }
-        }
-        cstep::KEYS => {
-            // The account, at the head of Keys for a kind with no Quorum
-            // card (F98).
-            if c.account_card() == Some(n) {
-                cy += account_row(ui, x, cy, w, c);
-            }
-            // The Inbox's key and wallet files, from the drawing memo:
-            // those with a key for this kind are offered, the others
-            // listed after the slots with why.
-            let all_files = app.create_key_files();
-            let key_files: Vec<(usize, &str, &str)> = all_files
-                .iter()
-                .filter_map(|f| Some((f.at, f.name.as_str(), f.key.as_deref().ok()?)))
-                .collect();
-            // The way on leads: New key on the first slot still empty,
-            // Continue once every slot is filled.
-            let first_empty = c.slots.iter().position(|s| *s == Source::Empty);
-            // The open vaults' keys and the locked vaults, from the
-            // drawing memo (`docs/history/NEW-WALLET.md` §16.1).
-            let vaults = app.create_vaults();
-            for (slot, src) in c.slots.iter().enumerate() {
-                let label = format!("{} {}", EN.create_key, slot + 1);
-                ui.text_as(x, cy + 4.0, LABEL_L, Role::OnSurface, &label);
-                // A key locked in with a passphrase here says so
-                // (`docs/history/NEW-WALLET.md` §3.6).
-                if let Source::Here(fp) = src
-                    && c.pass_locked.contains(fp)
-                {
-                    let tw = ui.measure_as(LABEL_M, EN.create_locked_line) + 40.0;
-                    locked_tag(ui, x + w - tw, cy);
-                }
-                let (state, color) = match src {
-                    Source::Empty => (EN.create_not_chosen.to_string(), Role::OnSurfaceVariant),
-                    Source::Here(fp) => {
-                        let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
-                        let name = app
-                            .session
-                            .keys
-                            .key_label(faraday_bip::keys::Fingerprint(*fp))
-                            .unwrap_or("");
-                        (fill(EN.create_loaded_here, &[&fpt, name]), Role::Ok)
-                    }
-                    Source::Cosigner(t) => (
-                        fill(EN.create_a_cosigner_s, &[&t[1..9.min(t.len())]]),
-                        Role::OnSurfaceVariant,
-                    ),
-                    Source::Later => (
-                        app.create_slot_needs(slot)
-                            .unwrap_or_else(|| EN.create_a_cosigner_adds.to_string()),
-                        Role::Warning,
-                    ),
-                };
-                let indent = if ui.compact {
-                    cy += 22.0;
-                    let state = ui.fit_as(BODY_M, &state, w);
-                    ui.text_as(x, cy + 4.0, BODY_M, color, &state);
-                    0.0
+    // A row pressed moves on, the ticked one too: no Continue.
+    let shown = crate::create::NewKind::create_rows(c.more_kinds);
+    let lines: Vec<(usize, String)> = shown
+        .into_iter()
+        .map(|i| {
+            (
+                i,
+                crate::create::NewKind::ALL[i]
+                    .create_line((c.m, c.n))
+                    .as_str()
+                    .into(),
+            )
+        })
+        .collect();
+    let rows: Vec<(usize, &str)> = lines.iter().map(|(i, l)| (*i, l.as_str())).collect();
+    let more = (!c.more_kinds).then_some(Action::CMoreKinds);
+    // From Move money no kind is ticked: the person chooses
+    // (owner, 2026-10-24).
+    let chosen = (!c.kind_unchosen).then_some(c.kind);
+    cy += kind_list(ui, (x, cy, w), &rows, chosen, more, !locked, Action::CKind);
+    if app.create_unfinished() {
+        cy += tokens::GAP_SMALL;
+        let over = [(EN.create_start_over, Style::Ghost, Action::CreateOver)];
+        cy += buttons_and_next(ui, x, cy, w, &over, None);
+    }
+    cy - y
+}
+
+/// A single key's backup: a row pressed moves on, the ticked one too
+/// (F103); "codex32" in the Shares row's name carries the one tooltip on a
+/// working screen (F112, F240).
+fn create_backup_form(ui: &mut Ui, c: &crate::CreateState, (x, y, w): (f32, f32, f32)) -> f32 {
+    let locked = c.built.is_some();
+    let mut cy = y;
+    let rows: Vec<OptionRow> = crate::create::BackupForm::offered()
+        .into_iter()
+        .map(|f| OptionRow {
+            name: f.name(),
+            line: f.line(),
+            on: c.backup == Some(f),
+            action: Action::CBackupForm(f.index()),
+            tip: f == crate::create::BackupForm::Codex32,
+        })
+        .collect();
+    cy += option_list(ui, (x, cy, w), &rows, None, !locked);
+    cy - y
+}
+
+/// The quorum step: signatures needed and keys, the sentence saying what
+/// they mean, the path and account rows and Continue.
+fn create_quorum(ui: &mut Ui, c: &crate::CreateState, n: u8, (x, y, w): (f32, f32, f32)) -> f32 {
+    let locked = c.built.is_some();
+    let mut cy = y;
+    // MuSig2 is every key: only the count is chosen.
+    let rows: &[(&str, usize, Action, Action)] = if c.kind.all_sign() {
+        &[(EN.create_keys, c.n, Action::CN(-1), Action::CN(1))]
+    } else {
+        &[
+            (
+                EN.create_signatures_needed,
+                c.m,
+                Action::CM(-1),
+                Action::CM(1),
+            ),
+            (EN.create_keys, c.n, Action::CN(-1), Action::CN(1)),
+        ]
+    };
+    for &(label, value, minus, plus) in rows {
+        stepper(ui, x, cy, w, label, value, minus, plus, !locked);
+        cy += tokens::STEPPER_ROW;
+    }
+    let sentence = if c.kind.all_sign() {
+        fill(EN.create_all_keys_sign, &[&c.n.to_string()])
+    } else {
+        fill(
+            EN.create_any_of_the_keys,
+            &[
+                &c.m.to_string(),
+                &c.n.to_string(),
+                &(c.n - c.m).to_string(),
+                (if c.n - c.m == 1 {
+                    EN.create_key_inline
                 } else {
-                    ui.text_as(x + 70.0, cy + 4.0, BODY_M, color, &state);
-                    70.0
+                    EN.create_keys_inline
+                }),
+                &c.m.to_string(),
+            ],
+        )
+    };
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &sentence) + 14.0;
+    // The path choice and the account, below the quorum (F98).
+    if c.kind.has_bip87() {
+        cy += path_choice(ui, x, cy, w, c);
+    }
+    if c.account_card() == Some(n) {
+        cy += account_row(ui, x, cy, w, c);
+    }
+    if next_button(ui, x, cy, w, EN.create_continue, Action::CNext(n)) {
+        cy += 48.0;
+    }
+    cy - y
+}
+
+/// What every slot of Keys draws from, read once for the step.
+struct KeySlots<'a> {
+    /// The Inbox's files with a key for this kind: position, name, key text.
+    key_files: Vec<(usize, &'a str, &'a str)>,
+    /// The first slot still empty, where New key leads.
+    first_empty: Option<usize>,
+    vaults: &'a crate::create_from::CreateVaults,
+}
+
+/// The keys step: the account row where there is no Quorum card, every slot,
+/// the files refused and the foot.
+fn create_keys(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    n: u8,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    use crate::create::Source;
+    let locked = c.built.is_some();
+    let mut cy = y;
+    // The account, at the head of Keys for a kind with no Quorum
+    // card (F98).
+    if c.account_card() == Some(n) {
+        cy += account_row(ui, x, cy, w, c);
+    }
+    // The Inbox's key and wallet files, from the drawing memo:
+    // those with a key for this kind are offered, the others
+    // listed after the slots with why.
+    let all_files = app.create_key_files();
+    let key_files: Vec<(usize, &str, &str)> = all_files
+        .iter()
+        .filter_map(|f| Some((f.at, f.name.as_str(), f.key.as_deref().ok()?)))
+        .collect();
+    // The way on leads: New key on the first slot still empty,
+    // Continue once every slot is filled.
+    let first_empty = c.slots.iter().position(|s| *s == Source::Empty);
+    // The open vaults' keys and the locked vaults, from the
+    // drawing memo (`docs/history/NEW-WALLET.md` §16.1).
+    let vaults = app.create_vaults();
+    let slots = KeySlots {
+        key_files,
+        first_empty,
+        vaults: &vaults,
+    };
+    for (slot, src) in c.slots.iter().enumerate() {
+        cy += key_slot(app, ui, c, &slots, (slot, src), (x, cy, w));
+    }
+    if !locked {
+        for f in all_files.iter().filter(|f| f.key.is_err()) {
+            cy += refused_file_row(ui, x, cy, w, f);
+        }
+    }
+    if let Some(e) = &c.error {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
+    }
+    // The foot shows once every slot is filled: Make the wallet,
+    // which makes it; the slot's own New key leads until then.
+    // Once made, Continue goes on to Check.
+    let label = match first_empty {
+        Some(_) if !locked => None,
+        _ if locked => Some(EN.create_continue),
+        _ => Some(EN.create_make_the_wallet_button),
+    };
+    if let Some(label) = label
+        && next_button(ui, x, cy, w, label, Action::CNext(n))
+    {
+        cy += tokens::TOUCH;
+    }
+    cy - y
+}
+
+/// One slot of Keys: its label and state, then, until the wallet is made,
+/// the choices for it, its xpub outputs and its passphrase fields.
+fn key_slot(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    slots: &KeySlots,
+    (slot, src): (usize, &crate::create::Source),
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    use crate::create::Source;
+    let mut cy = y;
+    let label = format!("{} {}", EN.create_key, slot + 1);
+    ui.text_as(x, cy + 4.0, LABEL_L, Role::OnSurface, &label);
+    // A key locked in with a passphrase here says so
+    // (`docs/history/NEW-WALLET.md` §3.6).
+    if let Source::Here(fp) = src
+        && c.pass_locked.contains(fp)
+    {
+        let tw = ui.measure_as(LABEL_M, EN.create_locked_line) + 40.0;
+        locked_tag(ui, x + w - tw, cy);
+    }
+    let (state, color) = match src {
+        Source::Empty => (EN.create_not_chosen.to_string(), Role::OnSurfaceVariant),
+        Source::Here(fp) => {
+            let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
+            let name = app
+                .session
+                .keys
+                .key_label(faraday_bip::keys::Fingerprint(*fp))
+                .unwrap_or("");
+            (fill(EN.create_loaded_here, &[&fpt, name]), Role::Ok)
+        }
+        Source::Cosigner(t) => (
+            fill(EN.create_a_cosigner_s, &[&t[1..9.min(t.len())]]),
+            Role::OnSurfaceVariant,
+        ),
+        Source::Later => (
+            app.create_slot_needs(slot)
+                .unwrap_or_else(|| EN.create_a_cosigner_adds.to_string()),
+            Role::Warning,
+        ),
+    };
+    let indent = if ui.compact {
+        cy += 22.0;
+        let state = ui.fit_as(BODY_M, &state, w);
+        ui.text_as(x, cy + 4.0, BODY_M, color, &state);
+        0.0
+    } else {
+        ui.text_as(x + 70.0, cy + 4.0, BODY_M, color, &state);
+        70.0
+    };
+    cy += 28.0;
+    if c.built.is_none() {
+        let pass_offered = app.create_pass_offered(slot);
+        let at = (x + indent, cy, w - indent);
+        cy += slot_choices(app, ui, c, slots, (slot, src), pass_offered, at);
+        let at = (x + indent, cy, w - indent);
+        cy += slot_xpub_outputs(app, ui, c, (slot, src), pass_offered, at);
+        let at = (x + indent, cy, w - indent);
+        cy += slot_passphrase(app, ui, c, slot, pass_offered, at);
+    }
+    ui.rule(x, cy, w, Role::OutlineVariant);
+    cy += 10.0;
+    cy - y
+}
+
+/// The choices for one slot, wrapped to the card: the keys held here, New
+/// key, the Inbox's files, scan, someone else, a passphrase and Clear, then
+/// the open vaults' keys.
+fn slot_choices(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    slots: &KeySlots,
+    (slot, src): (usize, &crate::create::Source),
+    pass_offered: bool,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    use crate::create::Source;
+    let KeySlots {
+        key_files,
+        first_empty,
+        vaults,
+    } = slots;
+    let mut cy = y;
+    // A key chosen for one slot is offered in no other
+    // (`docs/history/NEW-WALLET.md` §2.2): clearing the slot
+    // offers it again.
+    let used_elsewhere_here = |fp: [u8; 4]| {
+        c.slots
+            .iter()
+            .enumerate()
+            .any(|(i, s)| i != slot && *s == Source::Here(fp))
+    };
+    let used_elsewhere_cosigner = |text: &str| {
+        c.slots
+            .iter()
+            .enumerate()
+            .any(|(i, s)| i != slot && matches!(s, Source::Cosigner(t) if t == text))
+    };
+    // The choices for the slot, wrapped to the card.
+    let mut row: Vec<(String, Style, Action)> = Vec::new();
+    for k in &app.session.keys {
+        let fp = k.fingerprint;
+        if used_elsewhere_here(fp.0) {
+            continue;
+        }
+        let on = *src == Source::Here(fp.0);
+        row.push((
+            String::from(&*key_line(fp, &k.label)),
+            Style::chosen(on),
+            Action::CSlotHere(slot as u8, fp.0),
+        ));
+    }
+    row.push((
+        EN.create_new_key.to_string(),
+        if *first_empty == Some(slot) {
+            Style::Primary
+        } else {
+            Style::Secondary
+        },
+        Action::KeyGen(Some(slot as u8)),
+    ));
+    for (i, name, text) in key_files {
+        if used_elsewhere_cosigner(text) {
+            continue;
+        }
+        row.push((
+            fill(EN.create_slot_source, &[name]),
+            Style::Secondary,
+            Action::CSlotFile(slot as u8, *i),
+        ));
+    }
+    if c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
+        row.push((
+            EN.create_scan_its_xpub.to_string(),
+            Style::Secondary,
+            Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
+        ));
+    }
+    if c.kind.multi() && *src == Source::Empty {
+        row.push((
+            EN.create_someone_else.to_string(),
+            Style::Secondary,
+            Action::CSlotLater(slot as u8),
+        ));
+    }
+    // A key from BIP-39 words with no passphrase can take
+    // one here: on the slot's own row on a single-key
+    // wallet, beside Show xpub QR on a multisig.
+    if pass_offered && !c.kind.multi() {
+        row.push((
+            EN.create_add_a_passphrase.to_string(),
+            Style::chosen(c.pass_slot == Some(slot as u8)),
+            Action::CPassOpen(slot as u8),
+        ));
+    }
+    if *src != Source::Empty {
+        row.push((
+            EN.create_clear.to_string(),
+            Style::Ghost,
+            Action::CSlotClear(slot as u8),
+        ));
+    }
+    cy += button_rows(ui, x, cy, w, &row) - 44.0;
+    cy += 44.0;
+    cy += create_vault_rows(app, ui, vaults, slot, x, cy, w);
+    cy - y
+}
+
+/// A key held here goes out to the cosigners, who need it to make the same
+/// wallet: its xpub as a code, a PNG and a file. Nothing for another source.
+fn slot_xpub_outputs(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    (slot, src): (usize, &crate::create::Source),
+    pass_offered: bool,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    use crate::create::Source;
+    let mut cy = y;
+    // A key held here goes out to the cosigners, who need
+    // it to make the same wallet.
+    if c.kind.multi() && matches!(src, Source::Here(_)) {
+        let k = slot as u8;
+        let mut row = vec![
+            (
+                EN.create_show_xpub_qr.to_string(),
+                Style::Secondary,
+                Action::CKeyQr(k),
+            ),
+            (
+                fill(EN.create_xpub_png, &[app.medium.for_the()]),
+                Style::Secondary,
+                Action::CodePng(Code::Key(k)),
+            ),
+            (
+                fill(EN.create_xpub_file, &[app.medium.for_the()]),
+                Style::Secondary,
+                Action::CKeyOut(k),
+            ),
+        ];
+        if pass_offered {
+            row.insert(
+                1,
+                (
+                    EN.create_add_a_passphrase.to_string(),
+                    Style::chosen(c.pass_slot == Some(k)),
+                    Action::CPassOpen(k),
+                ),
+            );
+        }
+        cy += button_rows(ui, x, cy, w, &row);
+    }
+    cy - y
+}
+
+/// The passphrase fields, under the slot they are for. Nothing for another
+/// slot.
+fn slot_passphrase(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    slot: usize,
+    pass_offered: bool,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let mut cy = y;
+    // The passphrase fields, under the slot they are for.
+    if c.pass_slot == Some(slot as u8) && pass_offered {
+        let (px, pw) = (x, w);
+        cy += pass_pair(
+            ui,
+            (px, cy, pw),
+            (c.pass.as_str(), c.pass2.as_str()),
+            |ui, n, fy| {
+                let (label, text) = if n == 0 {
+                    (EN.create_passphrase, &c.pass)
+                } else {
+                    (EN.create_passphrase_again, &c.pass2)
                 };
-                cy += 28.0;
-                if !locked {
-                    // A key chosen for one slot is offered in no other
-                    // (`docs/history/NEW-WALLET.md` §2.2): clearing the slot
-                    // offers it again.
-                    let used_elsewhere_here = |fp: [u8; 4]| {
-                        c.slots
-                            .iter()
-                            .enumerate()
-                            .any(|(i, s)| i != slot && *s == Source::Here(fp))
-                    };
-                    let used_elsewhere_cosigner = |text: &str| {
-                        c.slots.iter().enumerate().any(|(i, s)| {
-                            i != slot && matches!(s, Source::Cosigner(t) if t == text)
-                        })
-                    };
-                    // The choices for the slot, wrapped to the card.
-                    let mut row: Vec<(String, Style, Action)> = Vec::new();
-                    for k in &app.session.keys {
-                        let fp = k.fingerprint;
-                        if used_elsewhere_here(fp.0) {
-                            continue;
-                        }
-                        let on = *src == Source::Here(fp.0);
-                        row.push((
-                            String::from(&*key_line(fp, &k.label)),
-                            Style::chosen(on),
-                            Action::CSlotHere(slot as u8, fp.0),
-                        ));
-                    }
-                    row.push((
-                        EN.create_new_key.to_string(),
-                        if first_empty == Some(slot) {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        },
-                        Action::KeyGen(Some(slot as u8)),
-                    ));
-                    for (i, name, text) in &key_files {
-                        if used_elsewhere_cosigner(text) {
-                            continue;
-                        }
-                        row.push((
-                            fill(EN.create_slot_source, &[name]),
-                            Style::Secondary,
-                            Action::CSlotFile(slot as u8, *i),
-                        ));
-                    }
-                    if c.kind.multi() && matches!(src, Source::Empty | Source::Later) {
-                        row.push((
-                            EN.create_scan_its_xpub.to_string(),
-                            Style::Secondary,
-                            Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
-                        ));
-                    }
-                    if c.kind.multi() && *src == Source::Empty {
-                        row.push((
-                            EN.create_someone_else.to_string(),
-                            Style::Secondary,
-                            Action::CSlotLater(slot as u8),
-                        ));
-                    }
-                    // A key from BIP-39 words with no passphrase can take
-                    // one here: on the slot's own row on a single-key
-                    // wallet, beside Show xpub QR on a multisig.
-                    let pass_offered = app.create_pass_offered(slot);
-                    if pass_offered && !c.kind.multi() {
-                        row.push((
-                            EN.create_add_a_passphrase.to_string(),
-                            Style::chosen(c.pass_slot == Some(slot as u8)),
-                            Action::CPassOpen(slot as u8),
-                        ));
-                    }
-                    if *src != Source::Empty {
-                        row.push((
-                            EN.create_clear.to_string(),
-                            Style::Ghost,
-                            Action::CSlotClear(slot as u8),
-                        ));
-                    }
-                    cy += button_rows(ui, x + indent, cy, w - indent, &row) - 44.0;
-                    cy += 44.0;
-                    cy += create_vault_rows(app, ui, &vaults, slot, x + indent, cy, w - indent);
-                    // A key held here goes out to the cosigners, who need
-                    // it to make the same wallet.
-                    if c.kind.multi() && matches!(src, Source::Here(_)) {
-                        let k = slot as u8;
-                        let mut row = vec![
-                            (
-                                EN.create_show_xpub_qr.to_string(),
-                                Style::Secondary,
-                                Action::CKeyQr(k),
-                            ),
-                            (
-                                fill(EN.create_xpub_png, &[app.medium.for_the()]),
-                                Style::Secondary,
-                                Action::CodePng(Code::Key(k)),
-                            ),
-                            (
-                                fill(EN.create_xpub_file, &[app.medium.for_the()]),
-                                Style::Secondary,
-                                Action::CKeyOut(k),
-                            ),
-                        ];
-                        if pass_offered {
-                            row.insert(
-                                1,
-                                (
-                                    EN.create_add_a_passphrase.to_string(),
-                                    Style::chosen(c.pass_slot == Some(k)),
-                                    Action::CPassOpen(k),
-                                ),
-                            );
-                        }
-                        cy += button_rows(ui, x + indent, cy, w - indent, &row);
-                    }
-                    // The passphrase fields, under the slot they are for.
-                    if c.pass_slot == Some(slot as u8) && pass_offered {
-                        let (px, pw) = (x + indent, w - indent);
-                        cy += pass_pair(
-                            ui,
-                            (px, cy, pw),
-                            (c.pass.as_str(), c.pass2.as_str()),
-                            |ui, n, fy| {
-                                let (label, text) = if n == 0 {
-                                    (EN.create_passphrase, &c.pass)
-                                } else {
-                                    (EN.create_passphrase_again, &c.pass2)
-                                };
-                                pass_field(
-                                    ui,
-                                    px,
-                                    fy,
-                                    pw,
-                                    label,
-                                    text,
-                                    (
-                                        c.pass_focus == Some(n),
-                                        app.pass_chip(crate::demo::PassField::Slot(n)),
-                                    ),
-                                    Action::CPassField(n),
-                                )
-                            },
-                        );
-                        cy += never_real_seed(app, ui, px, cy, pw);
-                        if let Some(n) = &c.pass_note {
-                            cy += ui.wrap_as((px, cy, pw), BODY_M, Role::Error, n) + 6.0;
-                        }
-                        let bw = ui.measure_as(TITLE_S, EN.create_lock_button) + 36.0;
-                        ui.button(
-                            px + pw - bw,
-                            cy,
-                            Some(bw),
-                            BUTTON_H,
-                            EN.create_lock_button,
-                            Style::Primary
-                                .when(!pass_pair::differ(c.pass.as_str(), c.pass2.as_str())),
-                            Action::CPassLock,
-                        );
-                        cy += 52.0;
-                    }
-                }
-                ui.rule(x, cy, w, Role::OutlineVariant);
-                cy += 10.0;
-            }
-            if !locked {
-                for f in all_files.iter().filter(|f| f.key.is_err()) {
-                    cy += refused_file_row(ui, x, cy, w, f);
-                }
-            }
-            if let Some(e) = &c.error {
-                cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
-            }
-            // The foot shows once every slot is filled: Make the wallet,
-            // which makes it; the slot's own New key leads until then.
-            // Once made, Continue goes on to Check.
-            let label = match first_empty {
-                Some(_) if !locked => None,
-                _ if locked => Some(EN.create_continue),
-                _ => Some(EN.create_make_the_wallet_button),
-            };
-            if let Some(label) = label
-                && next_button(ui, x, cy, w, label, Action::CNext(n))
-            {
-                cy += tokens::TOUCH;
-            }
+                pass_field(
+                    ui,
+                    px,
+                    fy,
+                    pw,
+                    label,
+                    text,
+                    (
+                        c.pass_focus == Some(n),
+                        app.pass_chip(crate::demo::PassField::Slot(n)),
+                    ),
+                    Action::CPassField(n),
+                )
+            },
+        );
+        cy += never_real_seed(app, ui, px, cy, pw);
+        if let Some(n) = &c.pass_note {
+            cy += ui.wrap_as((px, cy, pw), BODY_M, Role::Error, n) + 6.0;
         }
-        cstep::WHERE => {
-            if let Some(h) = crate::backup_flow::wallet_screen::create_where(app, ui, x, cy, w) {
-                cy += h;
-            }
+        let bw = ui.measure_as(TITLE_S, EN.create_lock_button) + 36.0;
+        ui.button(
+            px + pw - bw,
+            cy,
+            Some(bw),
+            BUTTON_H,
+            EN.create_lock_button,
+            Style::Primary.when(!pass_pair::differ(c.pass.as_str(), c.pass2.as_str())),
+            Action::CPassLock,
+        );
+        cy += 52.0;
+    }
+    cy - y
+}
+
+/// The check step: the made wallet's descriptor, paths and first addresses,
+/// or what is still to do.
+fn create_check(
+    app: &View,
+    ui: &mut Ui,
+    c: &crate::CreateState,
+    n: u8,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let mut cy = y;
+    if let Some(wl) = c.built.and_then(|i| app.session.wallets.get(i)) {
+        // The descriptor as a summary row: tapping it opens the
+        // wallet's code with the descriptor's full text under it.
+        cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
+        cy += path_row(ui, x, cy, w, &c.path, app.create_can_take_back());
+        cy += super::parts::key_path_line(app, ui, (x, cy, w), wl.policy());
+        // A single key made here as codex32 shares, whatever its
+        // address type: the set it was made as (F240,
+        // `docs/CODEX32.md` §6.9).
+        if let Some(set) = c.built.and_then(|i| app.create_shares_set(i)) {
+            cy += change_row(ui, x, cy, w, EN.create_backup, &set.line(), None);
         }
-        cstep::HOW_MANY => {
-            if let Some(h) = crate::backup_flow::wallet_screen::create_count(app, ui, x, cy, w) {
-                cy += h;
-            }
-        }
-        cstep::STICKS | cstep::VAULTS => {
-            let step = if n == cstep::STICKS {
-                crate::backup_flow::Step::Sticks
-            } else {
-                crate::backup_flow::Step::Vaults
-            };
-            if let Some(h) =
-                crate::backup_flow::wallet_screen::create_flow_card(app, ui, step, x, cy, w)
-            {
-                cy += h;
-            }
-        }
-        cstep::CHECK => {
-            if let Some(wl) = c.built.and_then(|i| app.session.wallets.get(i)) {
-                // The descriptor as a summary row: tapping it opens the
-                // wallet's code with the descriptor's full text under it.
-                cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
-                cy += path_row(ui, x, cy, w, &c.path, app.create_can_take_back());
-                cy += super::parts::key_path_line(app, ui, (x, cy, w), wl.policy());
-                // A single key made here as codex32 shares, whatever its
-                // address type: the set it was made as (F240,
-                // `docs/CODEX32.md` §6.9).
-                if let Some(set) = c.built.and_then(|i| app.create_shares_set(i)) {
-                    cy += change_row(ui, x, cy, w, EN.create_backup, &set.line(), None);
-                }
-                cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
-                cy += 6.0;
-                cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);
-            } else {
-                ui.text_as(
-                    x,
-                    cy,
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    EN.create_make_the_wallet,
-                );
-                cy += ui.advance_as(BODY_S, 30.0);
-            }
-        }
-        _ => {}
+        cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
+        cy += 6.0;
+        cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);
+    } else {
+        ui.text_as(
+            x,
+            cy,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.create_make_the_wallet,
+        );
+        cy += ui.advance_as(BODY_S, 30.0);
     }
     cy - y
 }
