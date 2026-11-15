@@ -684,15 +684,17 @@ on one page, by what it works on, each tile with its line and the
 standards it follows; **Find a tool** narrows the page to the tiles whose
 name, line, group or standards hold what is typed. A tile opens its
 flow, or names what it needs first ("Load a key first", "Make a vault
-first"). The groups and their tiles:
+first"). Every feature has a tile here: the Check place's rows are a
+second way into flows that also have one (`tools/lint-check-tiles.py`). The
+groups and their tiles:
 
 | Group | Tiles |
 |---|---|
-| Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
-| Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
-| Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address · Compare two PSBTs |
-| Messages | Sign a message · Check a signed message |
-| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |
+| Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · My seed makes my wallet · Sweep a private key · Convert a seed · Krux code · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
+| Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · Miniscript and inheritance · Restore an existing wallet · Back up a wallet · Read a Bitcoin Core wallet · Check a multisig setup |
+| Transactions | Sign a transaction · Nonce check · Check a signer · Compare two PSBTs · Decode a transaction · Decode a Lightning invoice · Check an address |
+| Messages | Sign a message · Check a signed message · Check a timestamp |
+| Vaults and other keys | Vaults · QR vault · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
 | Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
 | QR | Scan a QR code |

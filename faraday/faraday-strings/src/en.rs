@@ -13621,6 +13621,8 @@ strings! {
     sample_ots_header_file: "sample-block-header",
     /// Check a multisig setup: the screen's title and the Files menu's entry.
     mscheck_title: "Check a multisig setup",
+    /// The Tools tile's line of Check a multisig setup.
+    mscheck_line: "A setup's quorum and which key is yours",
     /// Check a multisig setup: a file row's menu entry.
     files_check_setup: "Check this setup",
     /// Check a multisig setup: the first card.

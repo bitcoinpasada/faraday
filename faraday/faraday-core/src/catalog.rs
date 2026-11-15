@@ -37,6 +37,8 @@ pub enum Go {
     CheckTimestamp,
     /// Read a Bitcoin Core wallet.
     ReadCoreWallet,
+    /// Check a multisig setup.
+    MultisigCheck,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -275,6 +277,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_read_core_wallet_line,
         tags: &["BIP-380", "SQLite"],
         go: Go::ReadCoreWallet,
+    },
+    Tile {
+        group: EN.catalog_wallets,
+        name: EN.mscheck_title,
+        line: EN.mscheck_line,
+        tags: &["BIP-380", "BIP-388"],
+        go: Go::MultisigCheck,
     },
     Tile {
         group: EN.catalog_transactions,
@@ -662,6 +671,7 @@ impl Faraday {
             },
             Go::CheckTimestamp => crate::ots_check::open_tile(self),
             Go::ReadCoreWallet => crate::core_wallet::tool::open_tile(self),
+            Go::MultisigCheck => crate::multisig_check::open(self),
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
             // The keys the backup flow makes: the flow, when none is open

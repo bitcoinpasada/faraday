@@ -169,7 +169,8 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
                 Row::Signatures => Go::NonceCheck,
                 Row::Message => Go::CheckMessage,
                 Row::Child => Go::Bip85,
-                _ => Go::Calculator(3),
+                Row::Xpub => Go::Calculator(3),
+                Row::Dice | Row::Backup => return,
             },
         ),
         Press::Form(f) => {

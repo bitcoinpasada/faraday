@@ -95,6 +95,8 @@ lint-repo:
     # Each fuzz crate's README table lists exactly its targets.
     python3 -I -B tools/lint-fuzz-parsers.py
     python3 -I -B tools/lint-builds.py
+    # Every Check row's flow has a Tools tile.
+    python3 -I -B tools/lint-check-tiles.py
     cargo run -q -p costs-lint
     # STANDARDS §0 held: crypto the cross-check's stamp misses is listed with
     # its reason, the work kept out of the app is reached by no app code,
