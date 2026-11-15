@@ -101,6 +101,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::NonceCheck => EN.compact_nonce_check,
         Screen::SignerCheck => EN.catalog_check_a_signer,
         Screen::Compare => EN.catalog_compare_two_psbts,
+        #[cfg(feature = "demo")]
         Screen::Transfer => EN.compact_transfer,
         Screen::BackupFlow => EN.backup_flow_heading,
     }
@@ -1092,6 +1093,7 @@ fn tiles(app: &View) -> Vec<Tile> {
         true,
     ));
     // The online app is the device's QR link.
+    #[cfg(feature = "demo")]
     if app.online {
         t.push((
             Icon::Qr.into(),
@@ -1444,24 +1446,32 @@ impl Faraday {
             }),
             // Send text's field takes typing at once, with the keyboard
             // brought up by hand: the page's buttons stay in reach.
+            #[cfg(feature = "demo")]
             Screen::Transfer => false,
             _ => self.typing_field(),
         }
+    }
+
+    /// Transfer is the page shown (Faraday Demo and the Starter only).
+    fn on_transfer(&self) -> bool {
+        #[cfg(feature = "demo")]
+        return self.screen == Screen::Transfer;
+        #[cfg(not(feature = "demo"))]
+        false
     }
 
     /// A page that takes typing with no field to focus: its bar offers
     /// the keyboard.
     pub(crate) fn osk_offered(&self) -> bool {
         self.sheet.is_none()
-            && matches!(
+            && (matches!(
                 self.screen,
                 Screen::Explore
                     | Screen::Bip85
                     | Screen::Catalog
                     | Screen::Tools
                     | Screen::Lightning
-                    | Screen::Transfer
-            )
+            ) || self.on_transfer())
     }
 
     /// Whether the keyboard is up. On a small panel it rises by itself

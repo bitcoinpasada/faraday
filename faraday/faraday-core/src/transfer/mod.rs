@@ -15,6 +15,7 @@ mod text;
 
 pub use text::{MAX_TEXT, SendText, TextCheck, TextPress};
 
+use crate::qr_view::qr_source;
 use crate::strings::EN;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
@@ -25,9 +26,9 @@ use faraday_shell_api::Command;
 use crate::medium::Medium;
 use crate::out::Out;
 use crate::secrets::Exposure;
-use crate::wallet::{self, FileKind};
+use crate::wallet;
 use crate::{
-    Action, Faraday, QR_PARTS, QrFormat, QrSource, QrView, ScanPurpose, ScanState, Screen, Sheet,
+    Action, Faraday, QR_PARTS, QrFormat, QrView, ScanPurpose, ScanState, Screen, Sheet,
     StorageCommand, StorageEvent,
 };
 
@@ -75,18 +76,6 @@ pub struct TransferArea {
 /// The last part of a path.
 fn base_name(path: &str) -> &str {
     path.rsplit(['/', '\\']).next().unwrap_or(path)
-}
-
-/// The code a file goes as: what a wallet reads as itself, anything
-/// else in the Faraday file envelope (as Files' Show as QR sends it).
-pub(crate) fn qr_source(name: &str, bytes: &[u8], kind: FileKind) -> QrSource {
-    match kind {
-        FileKind::Psbt => QrSource::Psbt(bytes.to_vec()),
-        FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
-            QrSource::Text(faraday_text::Text::from_utf8_lossy(bytes))
-        }
-        _ => QrSource::File(faraday_text::Text::of(name), bytes.to_vec()),
-    }
 }
 
 /// A whole transfer as Receive saves it: a name when it brought one, the

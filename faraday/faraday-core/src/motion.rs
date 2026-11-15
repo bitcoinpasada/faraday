@@ -1269,7 +1269,6 @@ impl Faraday {
             | Screen::Invoice
             | Screen::NonceCheck
             | Screen::Catalog
-            | Screen::Transfer
             | Screen::Backups
             | Screen::Settings
             | Screen::SetTime
@@ -1279,6 +1278,8 @@ impl Faraday {
             // Entry scrolls on the wide layout too, not only compact: the
             // word grid can run to 24 cells, taller than the window.
             | Screen::Entry => Place::Screen,
+            #[cfg(feature = "demo")]
+            Screen::Transfer => Place::Screen,
             Screen::Home
             | Screen::CheckMessage
             | Screen::Vaults

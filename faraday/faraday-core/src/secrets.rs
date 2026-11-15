@@ -196,6 +196,7 @@ pub(crate) enum PlainThen {
     /// a place: held for, the lock goes on (or asks for the next file).
     Lock(Text),
     /// Transfer's Receive saves this file into the folder.
+    #[cfg(feature = "demo")]
     Transfer(Text, zeroize::Zeroizing<Vec<u8>>),
     /// A vault record's **Save to a stick** writes its ticked files, a
     /// key's words or SeedQR among them.
@@ -502,6 +503,7 @@ impl Faraday {
                 self.backup.files_warned(Text::of(&name));
                 self.wallet_lock_write();
             }
+            #[cfg(feature = "demo")]
             PlainThen::Transfer(name, bytes) => self.transfer_save(name, bytes),
             PlainThen::VaultSave => self.vault_stick_save_write(),
         }
@@ -687,6 +689,7 @@ impl Faraday {
     pub(crate) fn secret_cancel(&mut self) {
         match self.secrets.plain.take().map(|p| p.then) {
             Some(PlainThen::Plan(before, ..)) => self.board_undo(*before),
+            #[cfg(feature = "demo")]
             Some(PlainThen::Transfer(..)) => self.transfer_skip(),
             Some(PlainThen::VaultSave) => self.sheet = Some(Sheet::VaultSave),
             Some(PlainThen::Secret | PlainThen::Lock(_)) | None => {}

@@ -328,8 +328,9 @@ impl Faraday {
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
             ScanPurpose::OtsHeader => !set.inputs.timestamp_header.is_empty(),
             ScanPurpose::OtsFileHash => !set.inputs.timestamp_hash.is_empty(),
-            ScanPurpose::Transfer
-            | ScanPurpose::CheckCodex32
+            #[cfg(feature = "demo")]
+            ScanPurpose::Transfer => false,
+            ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText
@@ -506,8 +507,9 @@ impl Faraday {
                 Some(set.inputs.address.as_bytes().to_vec())
             }
             ScanPurpose::Files => self.sample_spend(c, set).map(<[u8]>::to_vec),
-            ScanPurpose::Transfer
-            | ScanPurpose::CheckCodex32
+            #[cfg(feature = "demo")]
+            ScanPurpose::Transfer => None,
+            ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
             | ScanPurpose::MessageText

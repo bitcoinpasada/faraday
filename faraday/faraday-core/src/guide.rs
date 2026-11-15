@@ -106,6 +106,7 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::SignerCheck => "signer-check",
         Screen::Compare => "compare",
         Screen::Catalog => "catalog",
+        #[cfg(feature = "demo")]
         Screen::Transfer => "transfer",
         Screen::BackupFlow => flow_key(at),
     }

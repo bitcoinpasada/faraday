@@ -16,7 +16,7 @@ faraday-codec = { path = "../../core/faraday-codec" }
 faraday-bip = { path = "../../core/faraday-bip" }
 # The desktop app's own Transfer and Learn, held in online mode
 # (docs/STARTER.md §2), and the drawing every Faraday screen uses.
-faraday-core = { path = "../faraday-core" }
+faraday-core = { path = "../faraday-core", features = ["demo"] }
 # The printed sheets, the EDID rules and the build ID.
 faraday-paper = { path = "../faraday-paper" }
 # Faraday Demo's host, which the Starter's demo window holds the app in.

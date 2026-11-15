@@ -240,7 +240,8 @@ def code_keys(root):
     if start < 0:
         return None
     end = text.find("pub enum GuideAim", start)
-    return KEY_LITERAL.findall(text[start:end])
+    body = re.sub(r"#\[cfg[^\n]*\]", "", text[start:end])  # a feature name is no key
+    return KEY_LITERAL.findall(body)
 
 
 def page_keys(root):

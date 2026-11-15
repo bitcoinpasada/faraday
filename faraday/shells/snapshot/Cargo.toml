@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-core = { path = "../../faraday-core", features = ["testkit", "demo"] }
 faraday-text = { path = "../../../core/faraday-text" }
 faraday-host = { path = "../../faraday-host" }
 faraday-storage = { path = "../../faraday-storage" }

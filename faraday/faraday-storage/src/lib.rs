@@ -738,7 +738,7 @@ pub fn read_host(path: &Path) -> Result<Vec<u8>, Text> {
     use std::io::Read;
     let f = fs::File::open(path).map_err(|e| text!("{e}"))?;
     let mut bytes = Vec::new();
-    f.take(faraday_core::transfer::MAX_SEND + 1)
+    f.take(faraday_qr::envelope::MAX_FILE as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| text!("{e}"))?;
     Ok(bytes)

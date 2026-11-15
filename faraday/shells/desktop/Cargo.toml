@@ -13,7 +13,7 @@ name = "faraday"
 path = "src/main.rs"
 
 [dependencies]
-faraday-core = { path = "../../faraday-core" }
+faraday-core = { path = "../../faraday-core", features = ["demo"] }
 faraday-text = { path = "../../../core/faraday-text" }
 # Faraday Demo's host, which holds the app (docs/DESKTOP-HOST.md).
 faraday-host = { path = "../../faraday-host" }
@@ -36,4 +36,4 @@ workspace = true
 [dev-dependencies]
 # The tests' keys and wallets; never in the shipped app
 # (tools/lint-keys-tests.sh).
-faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-core = { path = "../../faraday-core", features = ["testkit", "demo"] }

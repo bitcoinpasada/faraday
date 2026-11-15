@@ -45,6 +45,9 @@ subtle.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]
+# The online app's Transfer (files and text over QR codes), which only
+# Faraday Demo and the Starter hold. The stick image's app is built without it.
+demo = []
 # The test wallets and the files a test stick carries. The stick image's
 # app is built without it.
 testkit = []
@@ -53,7 +56,7 @@ testkit = []
 sample-how = ["faraday-guide/sample-how"]
 
 [dev-dependencies]
-faraday-core = { path = ".", features = ["testkit", "sample-how"] }
+faraday-core = { path = ".", features = ["testkit", "sample-how", "demo"] }
 # `Keys::master_for_tests`, for tests that derive a public result themselves.
 faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
 # The disk process's picture reader: what a PNG on a stick reads as.

@@ -2,8 +2,8 @@
 
 use crate::file_stem;
 use crate::strings::EN;
-use crate::wallet::{Session, fp_text};
-use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
+use crate::wallet::{FileKind, Session, fp_text};
+use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, wallet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
@@ -64,6 +64,7 @@ pub enum ScanPurpose {
     OtsFileHash,
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
+    #[cfg(feature = "demo")]
     Transfer,
     /// Any missing key of loaded wallet n, which Faraday works out from
     /// the seed read (`docs/history/SCAN-TO-SIGN.md` §2.1).
@@ -536,6 +537,28 @@ fn envelope_text(e: faraday_qr::envelope::Error) -> &'static str {
     }
 }
 
+/// The code a file goes as: what a wallet reads as itself, anything
+/// else in the Faraday file envelope (as Files' Show as QR sends it).
+pub(crate) fn qr_source(name: &str, bytes: &[u8], kind: FileKind) -> QrSource {
+    match kind {
+        FileKind::Psbt => QrSource::Psbt(bytes.to_vec()),
+        FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
+            QrSource::Text(faraday_text::Text::from_utf8_lossy(bytes))
+        }
+        _ => QrSource::File(faraday_text::Text::of(name), bytes.to_vec()),
+    }
+}
+
+impl ScanPurpose {
+    /// Transfer's Receive (Faraday Demo and the Starter only).
+    pub(crate) fn is_transfer(&self) -> bool {
+        #[cfg(feature = "demo")]
+        return matches!(self, Self::Transfer);
+        #[cfg(not(feature = "demo"))]
+        false
+    }
+}
+
 /// What a part's line calls a transfer of numbered parts or BBQr.
 pub(crate) fn transfer_name(what: faraday_qr::Transfer) -> &'static str {
     match what {
@@ -898,7 +921,7 @@ impl Faraday {
                 if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
                     // What a wallet reads goes as itself; any other file in
                     // the Faraday file envelope.
-                    let source = transfer::qr_source(&item.name, &item.bytes, item.kind);
+                    let source = qr_source(&item.name, &item.bytes, item.kind);
                     let secret = item.secret;
                     let view = QrView::of(c, &item.name, source, QrFormat::Ur, QR_PARTS[1]).map(
                         |mut v| {

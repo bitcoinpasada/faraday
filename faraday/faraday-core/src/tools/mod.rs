@@ -453,6 +453,7 @@ impl Faraday {
         crate::seed_check::tidy(self);
         crate::core_wallet::tool::tidy(self);
         // Leaving Transfer wipes the text typed or pasted for Send text.
+        #[cfg(feature = "demo")]
         if self.screen != Screen::Transfer {
             self.transfer.clear_text();
         }
@@ -468,6 +469,7 @@ impl Faraday {
 
     /// Typing into the field. Returns whether the key was taken.
     pub(crate) fn tools_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        #[cfg(feature = "demo")]
         if self.transfer_key(key) {
             return true;
         }

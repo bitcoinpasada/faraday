@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
+faraday-qr = { path = "../faraday-qr" }
 faraday-strings = { path = "../faraday-strings" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-text = { path = "../../core/faraday-text" }
@@ -19,8 +20,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 [dev-dependencies]
 # Transfer's tests: the desktop app and the device's app on either side
 # of the codes, as the test wallets make them.
-faraday-core = { path = "../faraday-core", features = ["testkit"] }
-faraday-qr = { path = "../faraday-qr" }
+faraday-core = { path = "../faraday-core", features = ["testkit", "demo"] }
 faraday-codec = { path = "../../core/faraday-codec" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }

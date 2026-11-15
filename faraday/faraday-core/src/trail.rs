@@ -369,6 +369,7 @@ impl Faraday {
     /// blank page with no way back.
     pub(crate) fn nav_open(&mut self, s: Screen) {
         match s {
+            #[cfg(feature = "demo")]
             Screen::Transfer => self.transfer_open(),
             Screen::Randomness => self.own_act(crate::fresh::page::Act::Open),
             _ => {}

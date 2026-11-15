@@ -350,12 +350,16 @@ pub enum Action {
     /// Show an Outbox file as a QR code.
     QrOutbox(usize),
     /// Transfer: send file n of the Downloads list as codes.
+    #[cfg(feature = "demo")]
     TransferSend(usize),
     /// Transfer: receive by camera into Downloads.
+    #[cfg(feature = "demo")]
     TransferReceive,
     /// Transfer: open Downloads in the file manager.
+    #[cfg(feature = "demo")]
     TransferOpenFolder,
     /// Transfer: a press on the Send text card.
+    #[cfg(feature = "demo")]
     TransferText(crate::transfer::TextPress),
     /// About: open nakamotoinstitute.org in this computer's browser; the
     /// online app only.

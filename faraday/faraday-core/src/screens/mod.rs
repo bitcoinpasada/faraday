@@ -141,6 +141,7 @@ fn area_of(screen: Screen) -> Area {
         // the tools' catalogue is a grid of tiles, wide content
         // (`docs/LAYOUT.md` §14, §17).
         Screen::Tools => Area::Reading(faraday_draw::tokens::READING_TOOLS_W),
+        #[cfg(feature = "demo")]
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         Screen::Catalog => Area::Work,
         // New key, which holds Make codex32 shares and its supporting
@@ -650,6 +651,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
         Screen::Compare => crate::compare::screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
+        #[cfg(feature = "demo")]
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),
     }

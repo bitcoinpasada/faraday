@@ -839,6 +839,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             | crate::ScanPurpose::CheckKef(_),
             _,
         ) => EN.scan_scan_your_copy,
+        #[cfg(feature = "demo")]
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads,
         (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan,
         (crate::ScanPurpose::GpgPaperkey, _) => EN.gpg_restore_scan_paperkey,
@@ -2456,6 +2457,7 @@ fn secret_keeps(
 /// secret can go into the open vault, else **Cancel**.
 fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secrets::Plain) {
     let first = match plain.then {
+        #[cfg(feature = "demo")]
         crate::secrets::PlainThen::Transfer(..) => {
             Text::fill(EN.plain_goes_into, &[&plain.name, &plain.on])
         }

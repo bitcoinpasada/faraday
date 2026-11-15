@@ -235,6 +235,7 @@ pub mod codes;
 
 // Sticks, boot and files.
 pub mod names;
+#[cfg(feature = "demo")]
 pub mod transfer;
 
 // Support: word lists, the guide pages, the tools page, test data.
@@ -393,7 +394,8 @@ pub enum Screen {
     Compare,
     /// Tools: every flow on one page, with its standards.
     Catalog,
-    /// The online app's QR link ([`transfer`]): files and text out, camera in. Online only.
+    /// The online app's QR link (`transfer`): files and text out, camera in. Online only.
+    #[cfg(feature = "demo")]
     Transfer,
     /// The shared backup flow: where a key will be kept, its sticks, its
     /// vaults, the key, the lock and the writes (`docs/BACKUP-FLOW.md`).
@@ -945,6 +947,7 @@ pub struct Faraday {
     /// chosen.
     camera: scan_key::Camera,
     /// Transfer, in the online app.
+    #[cfg(feature = "demo")]
     transfer: transfer::TransferArea,
     /// The caret, the selection, Shift, where the last frame drew the
     /// fields' characters and the caret's blink.
@@ -1089,6 +1092,7 @@ impl Faraday {
             tools: tools::ToolsArea::default(),
             secrets: secrets::SecretsArea::default(),
             camera: scan_key::Camera::default(),
+            #[cfg(feature = "demo")]
             transfer: transfer::TransferArea::default(),
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
@@ -1390,17 +1394,29 @@ impl Faraday {
                 EN.storage_event_not_printed,
                 &[&*reason],
             )),
+            #[cfg(feature = "demo")]
             StorageEvent::HostFiles { dir, files, opens } => {
                 if !self.transfer_listed(dir, files, opens) {
                     return;
                 }
             }
+            #[cfg(feature = "demo")]
             e @ (StorageEvent::Hovered(_)
             | StorageEvent::Dropped { .. }
             | StorageEvent::HostRead { .. }
             | StorageEvent::HostReadFailed { .. }
             | StorageEvent::Saved { .. }
             | StorageEvent::SaveFailed { .. }) => self.transfer_event(e),
+            // Only Faraday Demo and the Starter hold Transfer, which these
+            // events are for; the stick's shell never sends them.
+            #[cfg(not(feature = "demo"))]
+            StorageEvent::HostFiles { .. }
+            | StorageEvent::Hovered(_)
+            | StorageEvent::Dropped { .. }
+            | StorageEvent::HostRead { .. }
+            | StorageEvent::HostReadFailed { .. }
+            | StorageEvent::Saved { .. }
+            | StorageEvent::SaveFailed { .. } => {}
             e @ (StorageEvent::NewInput { .. }
             | StorageEvent::InputTyped { .. }
             | StorageEvent::InputTapped { .. }
@@ -1460,10 +1476,13 @@ impl Faraday {
     /// Transfer's Receive, in the online app, does not count: that app is
     /// never clean of the network, and no stick waits on its camera.
     fn camera_on(&self) -> bool {
+        #[cfg(feature = "demo")]
         let transfer = self
             .camera
             .scan()
             .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
+        #[cfg(not(feature = "demo"))]
+        let transfer = false;
         (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen.camera_on()
     }
 
@@ -2563,12 +2582,16 @@ impl Faraday {
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Codex32(p) => self.keygen_codex32(p),
+            #[cfg(feature = "demo")]
             Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),
+            #[cfg(not(feature = "demo"))]
+            Action::Nav(s @ Screen::Randomness) => self.nav_open(s),
             Action::Back => self.back(),
             Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),
             Action::CancelFlow => self.flow_cancel(),
             Action::CancelFlowNow => self.flow_cancel_now(),
+            #[cfg(feature = "demo")]
             a @ (Action::TransferSend(..)
             | Action::TransferReceive
             | Action::TransferOpenFolder

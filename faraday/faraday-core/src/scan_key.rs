@@ -265,7 +265,7 @@ impl Camera {
     pub(crate) fn keep_parts(&mut self) {
         if let Some(s) = self.scan.as_mut()
             && s.in_parts()
-            && s.purpose != ScanPurpose::Transfer
+            && !s.purpose.is_transfer()
         {
             self.parts = Some((
                 std::mem::take(&mut s.decoder),
@@ -852,7 +852,6 @@ impl Faraday {
             && self.sheet == Some(Sheet::Scan)
             && self.camera.scan().is_some_and(|s| match s.purpose {
                 ScanPurpose::Files
-                | ScanPurpose::Transfer
                 | ScanPurpose::Intake
                 | ScanPurpose::Seed
                 | ScanPurpose::KeyPart
@@ -866,6 +865,8 @@ impl Faraday {
                 | ScanPurpose::Sweep
                 | ScanPurpose::OtsHeader
                 | ScanPurpose::OtsFileHash => true,
+                #[cfg(feature = "demo")]
+                ScanPurpose::Transfer => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
                 | ScanPurpose::CheckConvert(..)
@@ -893,12 +894,33 @@ impl Faraday {
             })
     }
 
+    /// The Send text card takes typing (Transfer: Faraday Demo and the
+    /// Starter only).
+    fn on_transfer_text(&self) -> bool {
+        #[cfg(feature = "demo")]
+        return self.transfer_text_here();
+        #[cfg(not(feature = "demo"))]
+        false
+    }
+
+    /// The clipboard's text went into the Send text card.
+    fn transfer_took(&mut self, text: &str) -> bool {
+        #[cfg(feature = "demo")]
+        return self.transfer_pasted(text);
+        #[cfg(not(feature = "demo"))]
+        {
+            let _ = text;
+            false
+        }
+    }
+
     /// Ctrl+V: the scanner's Paste where a scanner is up, else Paste words
     /// where the words form has the keyboard (not its passphrase).
     pub(crate) fn paste(&mut self) {
         if self.scan_pastes() {
             self.scan_paste();
-        } else if self.transfer_text_here() {
+        } else if self.on_transfer_text() {
+            #[cfg(feature = "demo")]
             self.transfer_paste();
         } else if !self.entry.state().on_passphrase {
             self.entry_paste();
@@ -925,7 +947,7 @@ impl Faraday {
     pub(crate) fn pasted(&mut self, text: Text) {
         if self.entry_pasted(&text)
             || self.explore_pasted(&text)
-            || (!self.scan_pastes() && self.transfer_pasted(&text))
+            || (!self.scan_pastes() && self.transfer_took(&text))
             || !self.scan_pastes()
         {
             return;
@@ -1142,6 +1164,7 @@ impl Faraday {
             return;
         };
         // Transfer's Receive takes anything and files nothing.
+        #[cfg(feature = "demo")]
         if purpose == ScanPurpose::Transfer {
             return self.transfer_scanned(bytes);
         }

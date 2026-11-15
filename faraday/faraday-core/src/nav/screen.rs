@@ -85,7 +85,9 @@ fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Actio
             Action::Nav(Screen::Catalog),
         ),
     ];
+    #[cfg_attr(not(feature = "demo"), allow(unused_mut))]
     let mut more = Vec::new();
+    #[cfg(feature = "demo")]
     if app.online {
         more.push(dest(
             app,
