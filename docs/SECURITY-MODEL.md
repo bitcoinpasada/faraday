@@ -401,6 +401,12 @@ file goes wrong are absent by construction, not patched after the fact.
 - A malicious Faraday binary. The defence is reproducible builds, checked
   by people other than the author (below).
 - Compromised firmware, hardware implants, and cold-boot attacks on RAM.
+  A session ended by a hard reset, a halted panic or a power cut skips
+  the wipe at lock and power-off, so RAM can keep what it held for a
+  while. Faraday does not set the firmware's memory-overwrite request,
+  which asks the firmware to clear RAM at the next boot: it needs the
+  firmware-variable filesystem in the kernel, and Faraday keeps no
+  access to firmware variables (Stateless, above).
 - The management processors under the operating system: Intel's
   Management Engine (CSME) with its remote management, AMT, and AMD's
   Platform Security Processor (PSP). They run below Faraday's kernel, so
