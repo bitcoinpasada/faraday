@@ -721,6 +721,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       a loaded key's name, fingerprint and standard account paths, public text
 #   faraday/faraday-core/src/address_find/card.rs
 #       how far a search looked, in how many wallets, and a found wallet's name, chain and index
+#   faraday/faraday-core/src/address_find/look.rs
+#       a found wallet's name, as it was at the find
 #   faraday/faraday-core/src/codes/screen.rs
 #       the seconds left on a code, never the code
 #   faraday/faraday-core/src/work/kept.rs
@@ -782,6 +784,7 @@ faraday/faraday-core/src/vanity/mod.rs
 faraday/faraday-core/src/explore/addresses.rs
 faraday/faraday-core/src/address_find/accounts.rs
 faraday/faraday-core/src/address_find/card.rs
+faraday/faraday-core/src/address_find/look.rs
 faraday/faraday-core/src/codes/screen.rs
 faraday/faraday-core/src/work/kept.rs
 faraday/faraday-core/src/work/budget/scaling.rs
