@@ -475,7 +475,7 @@ checked as a FAT32 volume labelled `EFI` where it was `FARADAYBOOT`
 (`writer.rs`).
 
 `faraday/image/stick-boot.sh`, the developer's keep data, checks the
-same layout.
+same layout and refuses the GPT headers the Starter refuses.
 
 ### 5.4 Sticks made before
 

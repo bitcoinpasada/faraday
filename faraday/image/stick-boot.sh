@@ -18,6 +18,14 @@
 #     large as the .vfat, the second a basic data partition at sector
 #     133120 of at least 128 MiB, ending at or before the disk's last
 #     usable sector (F182). Names, IDs and labels play no part (F174);
+#   - its primary GPT header and entries are ones the Starter's Keep data
+#     reads (faraday/shells/starter/src/gpt.rs): the signature, a header
+#     size of 92 to a sector and its CRC, entries of 128 to 4096 bytes,
+#     1 to 1024 of them, with their CRC, starting at sector 2 or later,
+#     inside the disk and before the first usable sector; a last usable
+#     sector that leaves the backup entries' room before the disk's last
+#     sector; a backup header past that room and inside the disk; every
+#     used entry inside the usable sectors; and no number that overflows;
 #   - the .vfat is a FAT32 filesystem labelled EFI, as the image's is;
 #   - the target's path is typed back.
 # It then writes at the partition's offset, reads back and compares, and
@@ -124,12 +132,76 @@ if data["start"] + data["size"] - 1 > t["lastlba"]:
 size = boot["size"] * ss
 if size < int(vfat_size):
     refuse("its boot partition (%d bytes) is smaller than the image (%s bytes)" % (size, vfat_size))
-print("ok %d %d" % (boot["start"] * ss, size))
+print("ok %d %d %d" % (boot["start"] * ss, size, ss))
 ' "$esp_type" "$data_type" "$layout_sectors" "$vfat_size")"
 case "$check" in
-    "ok "*) read -r _ offset part_size <<<"$check" ;;
+    "ok "*) read -r _ offset part_size ss <<<"$check" ;;
     "refuse "*) die "$target is not a Faraday stick: ${check#refuse }" ;;
     *) die "$target: could not read its partition table" ;;
+esac
+
+# The primary GPT header (the sector after the first) and its entries, read
+# from the target as they are, must be ones the Starter's Keep data reads
+# (faraday/shells/starter/src/gpt.rs, read_with), numbers checked and never
+# wrapped. "ok" or "refuse <reason>".
+case "$check" in "ok "*)
+gpt="$($sudo python3 -I -B -c '
+import struct, sys, zlib
+path, ss = sys.argv[1], int(sys.argv[2])
+M = (1 << 64) - 1
+def refuse(why):
+    print("refuse " + why)
+    sys.exit(0)
+with open(path, "rb") as f:
+    f.seek(0, 2)
+    length = f.tell()
+    f.seek(ss)
+    h = f.read(ss)
+    if len(h) != ss:
+        refuse("its disk is too short for a GPT header")
+    if h[:8] != b"EFI PART":
+        refuse("its GPT header has no EFI PART signature")
+    size = struct.unpack_from("<I", h, 12)[0]
+    if not 92 <= size <= ss:
+        refuse("its GPT header size is not 92 to a sector")
+    c = bytearray(h[:size])
+    c[16:20] = bytes(4)
+    if zlib.crc32(bytes(c)) != struct.unpack_from("<I", h, 16)[0]:
+        refuse("its GPT header checksum is wrong")
+    alt, first, last, elba, count, esize, ecrc = (
+        struct.unpack_from("<Q", h, 32)[0], struct.unpack_from("<Q", h, 40)[0],
+        struct.unpack_from("<Q", h, 48)[0], struct.unpack_from("<Q", h, 72)[0],
+        struct.unpack_from("<I", h, 80)[0], struct.unpack_from("<I", h, 84)[0],
+        struct.unpack_from("<I", h, 88)[0])
+    if not 128 <= esize <= 4096 or count == 0 or count > 1024:
+        refuse("its GPT entries are not 1 to 1024 of 128 to 4096 bytes")
+    elen = count * esize
+    esec = -(-elen // ss)
+    if elba * ss > M or (elba + esec) * ss > M or (alt + 1) * ss > M:
+        refuse("its GPT header has numbers past what a disk can address")
+    if elba * ss + elen > length:
+        refuse("its GPT entries run past the end of the disk")
+    dsec = length // ss
+    if elba < 2 or first < elba + esec or last < first:
+        refuse("its GPT entries are not between the header and the first usable sector")
+    if last + esec >= max(dsec - 1, 0) or alt <= last + esec or alt >= dsec:
+        refuse("its GPT backup header and entries do not fit past the last usable sector, inside the disk")
+    f.seek(elba * ss)
+    e = f.read(elen)
+    if len(e) != elen:
+        refuse("its GPT entries could not be read")
+    if zlib.crc32(e) != ecrc:
+        refuse("its GPT entries checksum is wrong")
+    for i in range(0, elen, esize):
+        en = e[i:i + esize]
+        if not any(en[:16]):
+            continue
+        a, b = struct.unpack_from("<QQ", en, 32)
+        if a < first or b < a or b > last:
+            refuse("a GPT entry lies outside the usable sectors")
+print("ok")
+' "$target" "$ss")" || die "$target: could not read its GPT header"
+    [ "$gpt" = "ok" ] || die "$target is not a Faraday stick: ${gpt#refuse }" ;;
 esac
 
 echo "Target : $target ($what)"
