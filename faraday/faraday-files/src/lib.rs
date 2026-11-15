@@ -920,52 +920,8 @@ pub fn write_vault_over(
             if a && b {
                 // A retry cut after its remove of the original, or after
                 // its rename, leaves two files of exactly these bytes:
-                // the one under the other's free name goes, so nothing
-                // can be lost.
-                let (first, second) = (same.remove(0), same.remove(0));
-                if renamed {
-                    // A renamed retry keeps the copy under the asked name
-                    // (or its free form); where neither has it, the one
-                    // the other is a free form of takes a free form of it.
-                    let asked = checked_for_write(name)?;
-                    let exact = |n: &str| n.eq_ignore_ascii_case(asked);
-                    let near = |n: &str| free_form_of(n, asked);
-                    let keep_first = if exact(&first) || (!exact(&second) && near(&first)) {
-                        Some(true)
-                    } else if exact(&second) || near(&second) {
-                        Some(false)
-                    } else if is_free_form(&second, &first) {
-                        Some(true)
-                    } else if is_free_form(&first, &second) {
-                        Some(false)
-                    } else {
-                        None
-                    };
-                    if let Some(keep_first) = keep_first {
-                        let (kept, gone) = if keep_first {
-                            (first, second)
-                        } else {
-                            (second, first)
-                        };
-                        place.remove(&gone)?;
-                        if exact(&kept) || near(&kept) {
-                            return Ok(kept);
-                        }
-                        let to = free_name(place, asked)?;
-                        place.rename(&kept, &to)?;
-                        return Ok(to);
-                    }
-                    return Err(Text::fill(EN.files_vault_twice, &[&first, &second]).into());
-                }
-                if is_free_form(&second, &first) {
-                    place.remove(&second)?;
-                    return Ok(first);
-                }
-                if is_free_form(&first, &second) {
-                    place.remove(&first)?;
-                    return Ok(second);
-                }
-                return Err(Text::fill(EN.files_vault_twice, &[&first, &second]).into());
+                // one stays and the other goes, so nothing can be lost.
+                return one_copy(place, &same, name, renamed);
             }
             if a == b {
                 return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
@@ -998,10 +954,82 @@ pub fn write_vault_over(
             return Ok(to);
         }
         _ => {
+            // A renamed retry pulled at its rename can leave a third file
+            // of exactly these bytes beside two: where every copy holds
+            // them, one stays by the two-copy rules and the rest go.
+            if over && place_holds_all(place, &same, bytes) {
+                return one_copy(place, &same, name, renamed);
+            }
             return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
         }
     };
     Ok(replace_file(place, &original, name, bytes, renamed)?)
+}
+
+/// Costs a read of each file named, up to `MAX_VAULT_READ` each: whether
+/// every one holds exactly `bytes`.
+fn place_holds_all(place: &mut dyn Place, names: &[Text], bytes: &[u8]) -> bool {
+    names
+        .iter()
+        .all(|n| place.read(n, MAX_VAULT_READ).is_ok_and(|b| b == bytes))
+}
+
+/// Which of several identical copies stays: for a renamed write the one
+/// under the asked name or its free form, otherwise (and for a renamed
+/// write with neither) the one every other is a free form of. `None`
+/// where there is none, or where the one chosen has a chain that does not
+/// end where its size says: it is not kept, so no copy is removed.
+fn keeper(
+    place: &mut dyn Place,
+    same: &[Text],
+    name: &str,
+    renamed: bool,
+) -> Result<Option<Text>, Text> {
+    let mut pick = None;
+    if renamed {
+        let asked = checked_for_write(name)?;
+        pick = same
+            .iter()
+            .find(|n| n.eq_ignore_ascii_case(asked))
+            .or_else(|| same.iter().find(|n| free_form_of(n, asked)));
+    }
+    let pick = pick.or_else(|| {
+        same.iter()
+            .find(|k| same.iter().all(|o| o == *k || is_free_form(o, k)))
+    });
+    Ok(match pick {
+        Some(k) if place.chain_ends(k) == Ok(true) => Some(k.clone()),
+        _ => None,
+    })
+}
+
+/// Costs a keeper's chain check, and for a renamed write the free-name
+/// search. Reduces two or more copies of exactly the vault's bytes to the
+/// one [`keeper`] names: the others are removed, and a renamed write whose
+/// keeper is not under the asked name (or its free form) moves it to a
+/// free form of that name. Refused with nothing removed where no copy is
+/// the keeper.
+fn one_copy(
+    place: &mut dyn Place,
+    same: &[Text],
+    name: &str,
+    renamed: bool,
+) -> Result<Text, WriteRefused> {
+    let Some(kept) = keeper(place, same, name, renamed)? else {
+        return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
+    };
+    for gone in same.iter().filter(|n| **n != kept) {
+        place.remove(gone)?;
+    }
+    if renamed {
+        let asked = checked_for_write(name)?;
+        if !(kept.eq_ignore_ascii_case(asked) || free_form_of(&kept, asked)) {
+            let to = free_name(place, asked)?;
+            place.rename(&kept, &to)?;
+            return Ok(to);
+        }
+    }
+    Ok(kept)
 }
 
 /// Costs a read and a SHA-256 pass over the file of the vault's name.
@@ -1317,7 +1345,24 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             if !faraday_fat::name_allowed(&target) {
                 let _ = place.remove(n);
             } else if !taken {
-                let _ = place.rename(n, &target);
+                // Another file of exactly the part's bytes under a name
+                // that is not a free form of the original's is a torn
+                // rename's other name: the part goes alone. A free form
+                // is a kept copy, which a write-back reduces with the part.
+                let twin = files.iter().any(|(o, l)| {
+                    o != n
+                        && !is_free_form(o, &target)
+                        && *l == *len
+                        && place
+                            .read(o, MAX_VAULT_READ)
+                            .map(zeroize::Zeroizing::new)
+                            .is_ok_and(|b| part.as_ref().is_some_and(|p| p[..] == b[..]))
+                });
+                if twin {
+                    let _ = place.remove(n);
+                } else {
+                    let _ = place.rename(n, &target);
+                }
             }
         } else if checked_for_write(&target).is_ok() {
             if !taken {

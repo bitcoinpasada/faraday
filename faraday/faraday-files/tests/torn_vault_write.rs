@@ -1029,3 +1029,103 @@ fn a_retry_of_a_vault_not_named_kdbx_cut_after_its_remove_leaves_no_hidden_copy(
     assert_eq!(names_of(&mut place), ["family.kdbx"]);
     assert_eq!(place.read("family.kdbx", u64::MAX).unwrap(), new);
 }
+
+/// A renamed retry (mine.kdbx to ours.kdbx) pulled during its rename, which
+/// leaves the part and ours.kdbx on one chain beside the kept second copy:
+/// the next retry ends with one copy under the asked name, not refused.
+#[test]
+fn a_renamed_retry_torn_at_its_rename_beside_a_second_copy_ends_under_the_new_name() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["mine-2.kdbx", "mine.kdbx"]);
+    place.create("ours.kdbx", &[1]).unwrap();
+    place.create(PART, &new).unwrap();
+    place.remove("mine.kdbx").unwrap();
+    place.0.flush().unwrap();
+    let mut img = place.0.into_disk();
+    // The torn rename: ours.kdbx's entry points at the part's chain.
+    let (part, first) = entry_of(&img, 2);
+    let (ours, _) = entry_of(&img, 0);
+    let src = img[part + 20..part + 22].to_vec();
+    img[ours + 20..ours + 22].copy_from_slice(&src);
+    img[ours + 26..ours + 28].copy_from_slice(&(first as u16).to_le_bytes());
+    let size = img[part + 28..part + 32].to_vec();
+    img[ours + 28..ours + 32].copy_from_slice(&size);
+    let mut place = Fat(Volume::open(img).unwrap());
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+    assert_eq!(retry(&mut place, "ours.kdbx", &new, true), "ours.kdbx");
+    assert_eq!(names_of(&mut place), ["ours.kdbx"]);
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// Copies of one vault, the one that would stay having a chain that does not
+/// end where its size says: the write is refused and no file is removed.
+fn copies_with_an_unsound_keeper(extra: &[&str]) {
+    let new = vault(2);
+    let mut place = Fat(Volume::open(stick_named("mine.kdbx", &new, &new)).unwrap());
+    place.remove(PART).unwrap();
+    place.create("mine-2.kdbx", &new).unwrap();
+    for n in extra {
+        place.create(n, &new).unwrap();
+    }
+    place.0.flush().unwrap();
+    let mut img = place.0.into_disk();
+    let reserved = img[14] as usize | (img[15] as usize) << 8;
+    let (_, mut c) = entry_of(&img, 0);
+    let mut last = c;
+    while (2..0x0FFF_FFF8).contains(&c) {
+        last = c;
+        c = u32_at(&img, reserved * 512 + c * 4) & 0x0FFF_FFFF;
+    }
+    // The chain runs on past where its size ends, into a free cluster:
+    // it reads, but does not end where its size says.
+    let reserved = img[14] as usize | (img[15] as usize) << 8;
+    let free = (2..)
+        .find(|c| u32_at(&img, reserved * 512 + c * 4) & 0x0FFF_FFFF == 0)
+        .unwrap();
+    set_fat(&mut img, last, free as u32);
+    set_fat(&mut img, free, 0x0FFF_FFFF);
+    let mut place = Fat(Volume::open(img).unwrap());
+    assert!(place.read("mine.kdbx", u64::MAX).is_ok());
+    assert_eq!(place.chain_ends("mine.kdbx"), Ok(false));
+    let copies = [faraday_crypto::sha256(&new)];
+    let done = write_vault_over(
+        &compute(),
+        &mut place,
+        "mine.kdbx",
+        &new,
+        &copies,
+        true,
+        false,
+        OnTaken::Ask,
+    );
+    assert!(done.is_err());
+    let mut want = vec![Text::of("mine-2.kdbx"), Text::of("mine.kdbx")];
+    want.extend(extra.iter().map(|n| Text::of(n)));
+    want.sort();
+    assert_eq!(names_of(&mut place), want);
+}
+
+#[test]
+fn two_copies_whose_kept_one_has_a_chain_past_its_size_are_not_reduced() {
+    copies_with_an_unsound_keeper(&[]);
+}
+
+#[test]
+fn three_copies_whose_kept_one_has_a_chain_past_its_size_are_not_reduced() {
+    copies_with_an_unsound_keeper(&["mine-3.kdbx"]);
+}
+
+/// A part file whose original is gone, beside another file of exactly its
+/// bytes (a torn rename): the visit ends with that one file.
+#[test]
+fn a_part_file_beside_a_renamed_copy_of_its_bytes_with_no_original_goes_alone() {
+    let new = vault(2);
+    let mut place = Fat(Volume::open(stick(&vault(1), &new)).unwrap());
+    place.remove("mine.kdbx").unwrap();
+    place.create("ours.kdbx", &new).unwrap();
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["ours.kdbx"]);
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+}

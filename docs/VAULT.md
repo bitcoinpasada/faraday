@@ -741,8 +741,8 @@ of that name. Writing back replaces that copy; no older copy is kept, except whe
 
 1. Find the file on the visited stick whose SHA-256 is one of the sealed
    vault's copies. None: write it as a new file. More than one: refuse
-   and name both, except two copies of which one is exactly the sealed
-   bytes (step 4). None, and a file has the name asked for, ignoring case:
+   and name both, except copies of which one is exactly the sealed
+   bytes, and copies that are all exactly the sealed bytes (step 4). None, and a file has the name asked for, ignoring case:
    nothing is written until the person answers (F203): **Overwrite**, by a
    hold, naming the SHA-256 of the file shown, which the disk process
    refuses if the file has changed since; or **Save beside**, as
@@ -775,9 +775,16 @@ of that name. Writing back replaces that copy; no older copy is kept, except whe
    sealed bytes on the stick whose name is the original's with `-2`, `-3`
    and so on before the extension (for an original not named `.kdbx`, its
    name with `.kdbx` after it, and that name's `-2`, `-3` and so on),
-   puts the seal over the original and removes that file. Two files of
-   exactly the sealed bytes, one under the other's such name, are one
-   copy: the one under the such name is removed. With a file of exactly the sealed bytes under any
+   puts the seal over the original and removes that file. Any number of
+   files of exactly the sealed bytes are one copy, reduced to one. A write
+   under the same name keeps the one every other is a free form of; a
+   renamed write keeps the one under the asked name, else its `-2`, `-3`
+   form, else the one every other is a free form of, which then takes a
+   free form of the asked name. The one kept must have its chain ending
+   where its size says; otherwise the write is refused and nothing is
+   removed. A part file left where the original is gone, beside a file of exactly its
+   bytes under a name that is not a free form of the original's, loses
+   only its name. With a file of exactly the sealed bytes under any
    other name, the write is done: nothing is written or removed, and the
    file only takes a new name the person asked for.
    If the original does not, the new file is the vault: the original's
