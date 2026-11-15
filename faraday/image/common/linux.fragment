@@ -38,7 +38,8 @@ CONFIG_RD_GZIP=y
 CONFIG_INITRAMFS_COMPRESSION_GZIP=y
 
 # ---- console ----
-# The kernel console is a serial port and nothing else; which port is the
+# The release image's console is the null one (ttynull, named on each board's
+# command line); a serial port is a console only in the dev variant, whose port is the
 # board's business. No kernel text ever reaches the panel.
 CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y

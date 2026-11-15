@@ -68,3 +68,6 @@ CHR_DEV_SG              raw SCSI commands from a process to any disk
 USB_UAS                 a second USB storage protocol with its own parser; usb-storage reads every stick
 USB_SERIAL              a serial adapter is a way in, not a device this signs with
 USB_ACM                 as USB_SERIAL
+
+LDISC_AUTOLOAD          a terminal line discipline loaded because a process asked for it
+DEVPORT                 /dev/port, DEVMEM's sibling for I/O ports

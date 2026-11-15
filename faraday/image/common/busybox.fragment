@@ -34,6 +34,10 @@ CONFIG_FEATURE_READLINK_FOLLOW=y
 # itself; it is here for --nnp, which makes the setuid bit and file
 # capabilities unusable for everything the app execs (nothing, today).
 CONFIG_SETPRIV=y
+# `setsid` starts the app in a session of its own, with no controlling
+# terminal, so a signal character typed on a serial port cannot reach it
+# (etc/inittab).
+CONFIG_SETSID=y
 CONFIG_SETUIDGID=y
 
 # No login path: no getty in the inittab, and no applet that could grant a

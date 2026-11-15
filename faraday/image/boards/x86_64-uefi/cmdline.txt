@@ -17,6 +17,12 @@
 # screen before the kernel starts. The release image names no console, so
 # the higher level prints nothing anywhere; the dev variant removes it.
 #
+# console=ttynull: the kernel's console is the null one, so no kernel line
+# (a panic's message included) is written to any port. Without a console=
+# word the kernel takes the first console that registers, which is the
+# 16550 serial port (CONFIG_SERIAL_8250_CONSOLE), COM1. The dev variant
+# removes this word and names its own consoles.
+#
 # random.trust_cpu=off random.trust_bootloader=off: neither the CPU's
 # RDRAND nor the firmware's seed is credited as entropy (they are still
 # mixed in). Linux 6.2 removed the Kconfig options for this; these two
@@ -26,6 +32,7 @@ faraday.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
 random.trust_cpu=off random.trust_bootloader=off
 fbcon=logo-pos:center
 loglevel=5
+console=ttynull
 # efi=disable_early_pci_dma keeps the firmware from leaving PCI devices able
 # to write to memory before the kernel's IOMMU is set up (docs/IMAGES.md §1).
 efi=disable_early_pci_dma

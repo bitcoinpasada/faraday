@@ -66,3 +66,6 @@ CRASH_DUMP          a crash kernel, which cannot exist without KEXEC
 GPIO_CDEV           /dev/gpiochip*; the touch controller is a kernel driver and nothing reads a pin from userspace
 GPIO_SYSFS          /sys/class/gpio, the older way to drive a pin from userspace, which selects GPIO_CDEV
 COREDUMP            a core dump is the app's memory written to a file, and the only writable filesystem is the exchange partition
+
+PSTORE              a panic's message and the console log kept in RAM or firmware storage, which outlives power-off on a machine that has such a store, and is a place a secret in a message would stay
+BLK_DEV_BSG         raw SCSI commands through the block layer, the same reach as CHR_DEV_SG by another node

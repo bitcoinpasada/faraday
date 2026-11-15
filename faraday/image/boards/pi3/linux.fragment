@@ -2,8 +2,8 @@
 # its serial port, and the legacy camera stack.
 
 # ---- console ----
-# The kernel console is the PL011 on the GPIO header, which disable-bt in
-# config.txt frees for serial0.
+# The PL011 on the GPIO header, which disable-bt in
+# config.txt frees for serial0; the dev variant's console. The release one is null.
 CONFIG_SERIAL_AMBA_PL011=y
 CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
 
@@ -314,3 +314,14 @@ CONFIG_TOUCHSCREEN_GOODIX=y
 # DRM's framebuffer emulation is /dev/fb0 on every screen; the firmware's
 # driver would compete with it, and the DPI panel is vc4's now.
 # CONFIG_FB_BCM2708 is not set
+
+# ---- interfaces no process here uses ----
+# The null console the release command line names, the RAM store for panic
+# and console logs, line disciplines loaded on request, /dev/port and raw
+# SCSI through bsg; see kernel.forbidden for each reason. SOUND and KCMP stay:
+# vc4 and DRM select them.
+CONFIG_NULL_TTY=y
+# CONFIG_PSTORE is not set
+# CONFIG_LDISC_AUTOLOAD is not set
+# CONFIG_DEVPORT is not set
+# CONFIG_BLK_DEV_BSG is not set

@@ -11,6 +11,7 @@
 # as /dev/console: that is the port QEMU gives the machine, it is where
 # the dev getty runs (board.conf's CONSOLE_TTY), and it is what
 # faraday/tools' QEMU checks read.
+-console=ttynull
 console=tty0
 console=ttyS0,115200
 

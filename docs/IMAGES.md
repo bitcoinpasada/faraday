@@ -1325,8 +1325,11 @@ shell's `--verbose` output are on the terminal.
 image headless and saves the screen as a PNG under `OUT_DIR` at each
 stage: the first screen, with the boot stick in; after the boot stick is
 pulled; with a test stick holding `TESTKIT_DIR`'s files plugged in; and
-after that stick is pulled. It checks nothing on its own: the frames are
-for a person to look at. `--no-kvm` emulates the CPU for a machine
+after that stick is pulled. It also reads the serial port and fails
+(exit 1) when a kernel line arrives on it, or when the screen does not
+change on plugging the test stick in after Ctrl-Z and Ctrl-C were sent on
+the port; the frames are for a person to look at. Run it on the release
+image: the dev image's console is on that port. `--no-kvm` emulates the CPU for a machine
 without `/dev/kvm`, and every wait is four times as long.
 
 A webcam cannot be emulated: QEMU has no UVC device, so the scanner in a
@@ -1396,14 +1399,18 @@ the wrong disk.
 
 ### 10.22 The serial console
 
-On the stick the release image names no console at all, so the kernel
-prints nowhere; the dev variant's is `ttyS0` at 115200, which is what
-QEMU gives it and the header a laptop hides under its bottom cover.
-
-On a Pi the kernel console is `serial0` at 115200 baud, 8N1, and in the
-release image nothing else. It is never `tty0`, so no kernel message can
-appear on the panel. `disable-bt` in `config.txt` gives `serial0` back to
-the PL011 UART on the GPIO header:
+The release image's kernel console is `ttynull` on both boards, so no
+kernel line, a panic's message included, leaves on any port or reaches the
+panel. On the stick the kernel has no `console=` word otherwise and would
+take the first 16550 serial port (COM1). The dev variant removes
+`console=ttynull` and names its own: `ttyS0` at 115200 on the stick, which
+is what QEMU gives it and the header a laptop hides under its bottom cover;
+on a Pi `serial0` at 115200 baud, 8N1, and `tty1`. It is never `tty0` in the
+release image. The app starts in a session of its own with its input from
+`/dev/null` (`setsid` in `etc/inittab`), so a Ctrl-Z or Ctrl-C arriving on a
+serial port reaches none of its process group. `disable-bt` in `config.txt`
+gives `serial0` back to the PL011 UART on the GPIO header, which the dev
+variant uses as its console:
 
 | Pin | Signal |
 |---|---|

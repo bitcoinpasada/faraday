@@ -136,7 +136,12 @@ internal error rather than carrying on.
     application has published that it holds no secret. With a vault
     open, the partition device stays root's and mode `0600`, and no
     Faraday process can open it. If the application stops being clean,
-    every partition already handed out is taken back.
+    every partition already handed out is taken back. Taking back
+    changes who may open the partition and closes no handle: a
+    `faraday-disk` that a hostile stick's filesystem has taken over, and
+    that already holds a partition open, keeps reading and writing it
+    after the application stops being clean. The other part still
+    holds for what the process has not opened.
   - The application shows **A stick is attached · nothing has been read
     from it** with two choices: **Not now**, which leaves the stick
     untouched, and **Lock and use stick**, which locks (below) before

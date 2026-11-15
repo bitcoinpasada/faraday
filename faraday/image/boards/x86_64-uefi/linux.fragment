@@ -238,13 +238,16 @@ CONFIG_MEDIA_USB_SUPPORT=y
 CONFIG_USB_VIDEO_CLASS=y
 
 # ---- console ----
-# The first 16550 serial port. The release image's command line names no
-# console at all, so nothing is printed anywhere; the dev variant's names
+# The first 16550 serial port. The release image's command line names
+# console=ttynull, so nothing is printed on it; the dev variant's names
 # ttyS0, which is the port QEMU gives it and the header a laptop hides
-# under its bottom cover.
+# under its bottom cover. Without a console= word the kernel would take this
+# port as its console.
 CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_SERIAL_8250_PNP=y
+# The null console, which the release command line names (cmdline.txt).
+CONFIG_NULL_TTY=y
 
 # ---- the IOMMU is on before anything is plugged in ----
 # A PCIe device can read all of memory unless something stops it, and a
@@ -452,3 +455,12 @@ CONFIG_LEGACY_VSYSCALL_NONE=y
 # common/kernel.forbidden refuses. No laptop has an Exar card; the
 # console is the first 16550 port above.
 # CONFIG_SERIAL_8250_EXAR is not set
+
+# ---- interfaces no process here uses ----
+# Raw SCSI commands (sg and bsg), /dev/nvram and CardBus (docs/IMAGES.md §1);
+# see kernel.forbidden for each reason.
+# CONFIG_CHR_DEV_SG is not set
+# CONFIG_BLK_DEV_BSG is not set
+# CONFIG_NVRAM is not set
+# CONFIG_PCCARD is not set
+# CONFIG_PSTORE is not set

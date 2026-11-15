@@ -6,7 +6,11 @@
 # and Outbox between processes, readable by the app's user alone. rcS
 # runs the screen script (what it found is in /run/faraday-screen/args,
 # read after /etc/faraday/args), starts the grant helper and the disk process (docs/SECURITY-MODEL.md "When root is used").
+# The app starts in a session of its own with its input from /dev/null, so it
+# has no controlling terminal: a Ctrl-Z or Ctrl-C arriving on a serial port
+# (the console's line discipline turns it into a signal for the terminal's
+# foreground group) reaches nothing of the app's.
 ::sysinit:/etc/init.d/rcS
 ::sysinit:/bin/sh -c 'mkdir -p /run/faraday && chown faraday:faraday /run/faraday && chmod 0700 /run/faraday'
-::wait:/bin/sh -c 'while /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null); code=$?; [ $code -eq 75 ]; do :; done; : > /run/faraday-disk-stop; /usr/bin/killall faraday-disk 2>/dev/null; sync; echo 3 > /proc/sys/vm/drop_caches; if [ $code -eq 76 ]; then /sbin/reboot -f; else /sbin/poweroff -f; fi'
+::wait:/bin/sh -c 'while /usr/bin/setsid /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null) </dev/null; code=$?; [ $code -eq 75 ]; do :; done; : > /run/faraday-disk-stop; /usr/bin/killall faraday-disk 2>/dev/null; sync; echo 3 > /proc/sys/vm/drop_caches; if [ $code -eq 76 ]; then /sbin/reboot -f; else /sbin/poweroff -f; fi'
 ::wait:/sbin/poweroff -f

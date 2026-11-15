@@ -14,6 +14,11 @@ or the system's.
 
 --no-kvm emulates the CPU instead of using /dev/kvm, for a machine without
 it; every wait is then four times as long.
+
+The serial port is read as well (the release image's kernel has no console on
+it, so no kernel line may arrive), and the app is sent Ctrl-Z and Ctrl-C on
+it, after which it must still answer: plugging the test stick in changes its
+screen. The check fails (exit 1) when either does not hold.
 """
 
 import argparse
@@ -21,7 +26,9 @@ import glob
 
 import importlib.util
 import os
+import re
 import shutil
+import socket
 import struct
 import subprocess
 import sys
@@ -82,6 +89,19 @@ def bg_share(pixels):
     return hits / max(1, n // 97)
 
 
+def listen(port):
+    """What the serial port has said since the last look."""
+    got = b""
+    while True:
+        try:
+            chunk = port.recv(65536)
+        except socket.timeout:
+            return got
+        if not chunk:
+            return got
+        got += chunk
+
+
 def settle(monitor, scratch, seconds):
     """The screen once it shows Faraday's background and stops changing."""
     last = None
@@ -122,34 +142,61 @@ def main():
     stick = test_stick(os.path.join(work, "teststick.img"),
                        sorted(os.path.join(kit, n) for n in os.listdir(kit)))
     sock = os.path.join(work, "qmp.sock")
-    serial = os.path.join(work, "serial.txt")
+    serial = os.path.join(work, "serial.sock")
+    if os.path.exists(serial):
+        os.remove(serial)
     argv = qemu.command(boot, vars_fd=qemu.vars_copy(work),
-                        serial=f"file:{serial}", qmp=sock, vnc=19, kvm=not args.no_kvm)
+                        serial=f"unix:{serial},server=on,wait=off", qmp=sock, vnc=19, kvm=not args.no_kvm)
     proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     scratch = os.path.join(work, "screen.ppm")
+    failures = []
     try:
         for _ in range(100):
-            if os.path.exists(sock):
+            if os.path.exists(sock) and os.path.exists(serial):
                 break
             time.sleep(0.1)
         monitor = st.Qmp(sock)
+        port = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        port.connect(serial)
+        port.settimeout(0.2)
+        heard = b""
         settle(monitor, scratch, 90)
+        heard += listen(port)
         shot(monitor, scratch, out, "01-booted.png")
         st.pull_boot_stick(monitor)
         time.sleep(4 * SLOW)
-        settle(monitor, scratch, 15)
+        _, _, before = settle(monitor, scratch, 15)
         shot(monitor, scratch, out, "02-boot-stick-pulled.png")
+        # A byte on the serial pins is no key for the app: Ctrl-Z and Ctrl-C
+        # leave it running and drawing.
+        port.sendall(b"\x1a\x03")
+        time.sleep(2 * SLOW)
+        heard += listen(port)
         st.plug_in(monitor, stick)
         time.sleep(6 * SLOW)
-        settle(monitor, scratch, 15)
+        _, _, after = settle(monitor, scratch, 15)
+        heard += listen(port)
+        if st.differs(before, after) == 0:
+            failures.append("the screen did not change when the test stick was "
+                            "plugged in after Ctrl-Z and Ctrl-C on the serial port")
         shot(monitor, scratch, out, "03-test-stick-in.png")
         st.unplug(monitor)
         time.sleep(4 * SLOW)
         settle(monitor, scratch, 15)
         shot(monitor, scratch, out, "04-test-stick-pulled.png")
+        heard += listen(port)
+        # OVMF prints its own lines before the kernel starts; a kernel line
+        # carries a [seconds] stamp, and the app's own output is not on this port.
+        kernel = [l for l in heard.decode("utf-8", "replace").splitlines()
+                  if re.match(r"\s*\[\s*\d+\.\d+\]", l)]
+        if kernel:
+            failures.append("kernel lines on the serial port: " + repr(kernel[:3]))
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+    for f in failures:
+        print("FAIL:", f)
+    sys.exit(1 if failures else 0)
 
 
 if __name__ == "__main__":

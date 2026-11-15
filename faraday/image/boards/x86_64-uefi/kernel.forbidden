@@ -81,3 +81,8 @@ EFI_RUNTIME_MAP         the EFI memory map in sysfs, which exists for kexec
 # Faraday (docs/DECISIONS.md F5): the release string is the Faraday version and
 # commit run-build.sh puts in CONFIG_LOCALVERSION, which the Starter reads.
 LOCALVERSION_AUTO  a suffix from the kernel tree's own version control, which would make the release string depend on where the tree was unpacked
+
+CHR_DEV_SG              raw SCSI commands from a process to any disk
+NVRAM                   /dev/nvram, the real-time clock's battery-backed memory, a byte store no process here reads or writes
+PCCARD                  CardBus and PC Card sockets, a bus whose cards can read memory, on a laptop with no such socket
+YENTA                   the CardBus bridge driver, which follows PCCARD
