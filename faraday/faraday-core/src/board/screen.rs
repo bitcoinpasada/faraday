@@ -1078,6 +1078,18 @@ fn place_box(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
     (x + stripe, w - stripe - e)
 }
 
+/// The height of the ask under place `cv`'s header, `w` wide: what it
+/// holds and **Take off**; nothing while its × has not asked.
+fn ask_h(ui: &Ui, cv: &CardView, w: f32) -> f32 {
+    let Some(line) = &cv.holds else {
+        return 0.0;
+    };
+    let gap = tokens::BOARD_CHIP_GAP;
+    ui.wrap_height_as(BODY_S, line, w)
+        + 2.0 * gap
+        + faraday_ui::parts::wrap_buttons_height(ui, w, chip_h(ui), &[EN.board_take_off])
+}
+
 /// Place `cv`'s parts laid out at (x, y), `w` wide, the place at least
 /// `min_h` tall: where they go, and the place's height.
 fn place_lay(
@@ -1091,7 +1103,7 @@ fn place_lay(
     let e = tokens::BOARD_BOX_EDGE;
     let stripe = tokens::BOARD_PLACE_STRIPE;
     let (ix, iw) = (x + stripe + pad, w - stripe - e - 2.0 * pad);
-    let top = y + e + tokens::BOARD_HEAD + pad;
+    let top = y + e + tokens::BOARD_HEAD + pad + ask_h(ui, cv, iw);
     let lay = row(
         &|i, sw| stick_h(ui, &cv.sticks[i], sw),
         &|pw| paper_h(ui, &cv.paper.chips, pw),
@@ -1152,6 +1164,24 @@ fn place(
         name_press,
         removable.then_some(Action::Board(BoardPress::RemovePlace(cv.p))),
     );
+    if let Some(line) = &cv.holds {
+        let (pad, gap) = (tokens::BOARD_PAD, tokens::BOARD_CHIP_GAP);
+        let (ix, iw) = (bx + pad, bw - 2.0 * pad);
+        let mut cy = y + e + tokens::BOARD_HEAD + gap;
+        cy += ui.wrap_as((ix, cy, iw), BODY_S, Role::Warning, line) + gap;
+        faraday_ui::parts::wrap_buttons(
+            ui,
+            ix,
+            cy,
+            iw,
+            chip_h(ui),
+            &[(
+                EN.board_take_off,
+                Style::Secondary,
+                Action::Board(BoardPress::RemovePlaceSure(cv.p)),
+            )],
+        );
+    }
     for (st, r) in cv.sticks.iter().zip(&lay.sticks) {
         stick(ui, fr, st, *r, v.custom);
     }

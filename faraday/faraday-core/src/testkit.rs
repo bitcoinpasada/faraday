@@ -1891,6 +1891,10 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     while plan::places_of(&now(app)) > plan::places_of(&want) {
         let last = plan::places_of(&now(app)) - 1;
         press(app, P::RemovePlace(last));
+        // A place that holds something asks first.
+        if plan::places_of(&now(app)) > last {
+            press(app, P::RemovePlaceSure(last));
+        }
     }
     // A passphrase that went with its seed out of a vault goes where the
     // preset keeps it.

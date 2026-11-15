@@ -443,11 +443,11 @@ fn plan_holds(app: &Faraday) -> Vec<Vec<String>> {
 }
 
 #[test]
-fn a_chart_change_confirmed_before_its_seeds_are_loaded_is_made_when_they_are() {
+fn a_change_in_the_plan_asked_before_its_seeds_are_loaded_opens_the_board_when_they_are() {
     use crate::chart_edit::{clock_kept, single_key_with_vault};
     use faraday_core::glance::Press;
-    use faraday_core::glance::sheet::{ChartAction as C, Target};
-    use faraday_core::plan::{At, Edit, What};
+    use faraday_core::glance::sheet::{ChartAction as C, Step};
+    use faraday_core::plan::{At, What};
     let (mut app, _) = single_key_with_vault();
     clock_kept(&mut app);
     let before = plan_holds(&app);
@@ -457,29 +457,23 @@ fn a_chart_change_confirmed_before_its_seeds_are_loaded_is_made_when_they_are() 
     let _ = app.frame();
     let r = app.vault_selected_index().expect("a wallet is chosen");
     let press = Press::Vault(0, r);
-    let edit = Edit::Move(At::Place(0), What::Words(0), At::Place(2));
-    let forget = |app: &mut Faraday| {
-        while !app.session.keys.is_empty() {
-            app.session.keys.remove(0);
-        }
-    };
-    // Asked with the seeds not loaded: the ask is made once they are.
-    forget(&mut app);
-    testkit::press_on_worker(&mut app, Action::Chart(C::Edit(press, edit)));
+    while !app.session.keys.is_empty() {
+        app.session.keys.remove(0);
+    }
+    let sel = Some((At::Place(0), Some(What::Words(0))));
+    testkit::press_on_worker(&mut app, Action::Chart(C::Do(press, Step::Change(sel))));
     assert!(app.busy().is_some(), "the seeds are loading");
-    testkit::settle(&mut app);
-    assert_eq!(app.chart(), Some((press, Target::Confirm)));
-    // Confirmed with them not loaded: the ask waits for the answer.
-    forget(&mut app);
-    testkit::press_on_worker(&mut app, Action::Chart(C::Confirm(press)));
-    assert!(app.busy().is_some(), "the seeds are loading");
-    assert!(
-        app.chart().is_some(),
-        "the change asked for waits for the answer"
-    );
     testkit::settle(&mut app);
     assert!(!app.session.keys.is_empty());
-    assert_eq!(app.chart(), None, "the change was confirmed");
+    assert_eq!(app.screen, faraday_core::Screen::Backup, "the board opens");
+    crate::common::board(&mut app, faraday_core::board::BoardPress::AddPlace);
+    crate::common::move_to(
+        &mut app,
+        faraday_core::board::Zone::Paper(0),
+        faraday_core::board::Thing::Seed(0),
+        faraday_core::board::Zone::Paper(2),
+    );
+    app.press(Action::BChecklist);
     assert_ne!(plan_holds(&app), before, "the change was made");
 }
 
@@ -707,7 +701,6 @@ fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
     use crate::chart_edit::single_key_with_vault_pass;
     use faraday_core::glance::Press;
     use faraday_core::glance::sheet::{ChartAction as C, Target};
-    use faraday_core::plan::{At, Edit, What};
     const PASS: &str = "lantern-orchid-41";
     let (mut app, _) = single_key_with_vault_pass(PASS);
     crate::chart_edit::clock_kept(&mut app);
@@ -717,20 +710,12 @@ fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
     let _ = app.frame();
     let r = app.vault_selected_index().expect("a wallet is chosen");
     let press = Press::Vault(0, r);
-    app.press(Action::Chart(C::Open(
-        press,
-        Target::CopyTo(What::Passphrase(0)),
-    )));
-    let _ = app.frame();
-    app.press(Action::Chart(C::Edit(
-        press,
-        Edit::Add(At::Place(2), What::Passphrase(0)),
-    )));
-    app.press(Action::Chart(C::Confirm(press)));
-    let Some((_, Target::PassShow(k, n, j))) = app.chart() else {
-        panic!("the passphrase is not shown: {:?}", app.chart());
-    };
-    app.press(Action::Chart(C::Open(press, Target::PassCheck(k, n, j))));
+    crate::chart_edit::passphrase_copied(&mut app, press);
+    let r = app.vault_selected_index().expect("a wallet is chosen");
+    let g = faraday_core::glance::of_vault_now(&testkit::compute(), &app, 0, r)
+        .expect("the vault's chart");
+    let (n, j) = crate::chart_edit::passphrase_line(&g);
+    app.press(Action::Chart(C::Open(press, Target::PassCheck(0, n, j))));
     while !app.session.keys.is_empty() {
         app.session.keys.remove(0);
     }

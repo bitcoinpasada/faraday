@@ -631,6 +631,13 @@ pub struct BackupState {
     /// in order: the notes on the map follow them when it is saved
     /// ([`plan::notes_after`]).
     pub edits: Vec<plan::Edit>,
+    /// The last thing the board added to the map since the plan was last
+    /// saved, and where.
+    pub added: Option<(plan::At, plan::What)>,
+    /// A plan that was already made, saved with a thing added on the
+    /// board: the checklist opens at the item that makes it, by
+    /// [`bstep`], and no other.
+    pub then_item: Option<u8>,
     /// The plan's vaults, by number, whose record of the wallet is set
     /// not to load at unlock: the vault item's **Load at unlock** turned
     /// off (F62). Every other starts on.
@@ -1333,20 +1340,6 @@ impl WalletBackupArea {
         }
     }
 
-    /// The plan's answers and the places' names, as a chart's edit left
-    /// them. Returns the work a later plan dropped.
-    pub(crate) fn chart_edit(&mut self, answers: &plan::Answers, names: &[Text]) -> Vec<Text> {
-        let Some(b) = self.state.as_mut() else {
-            return Vec::new();
-        };
-        b.answers = answers.clone();
-        b.names = names.to_vec();
-        // A question or a place from the plan before is not for this one.
-        b.which = None;
-        b.check_at = None;
-        b.extras.clone()
-    }
-
     /// Keep the words only: the plan's answers as it leaves them, the
     /// scan and the check gone.
     pub(crate) fn keep_words(&mut self, answers: plan::Answers) {
@@ -1395,6 +1388,18 @@ impl WalletBackupArea {
         }
     }
 
+    /// The checklist item to open once the plan is saved, or none.
+    pub(crate) fn then_item_set(&mut self, n: Option<u8>) {
+        if let Some(b) = self.state.as_mut() {
+            b.then_item = n;
+        }
+    }
+
+    /// The checklist item to open, taken: it is used once.
+    pub(crate) fn then_item_take(&mut self) -> Option<u8> {
+        self.state.as_mut().and_then(|b| b.then_item.take())
+    }
+
     /// An edit the board made to the map, kept for the notes to follow at
     /// the next save.
     pub(crate) fn edited(&mut self, edit: plan::Edit) {
@@ -1403,11 +1408,20 @@ impl WalletBackupArea {
         }
     }
 
+    /// A thing the board added to the map at `at`, kept for the next
+    /// save.
+    pub(crate) fn added_set(&mut self, at: plan::At, what: plan::What) {
+        if let Some(b) = self.state.as_mut() {
+            b.added = Some((at, what));
+        }
+    }
+
     /// The edits kept since the last save, taken.
     pub(crate) fn edits_take(&mut self) -> Vec<plan::Edit> {
-        self.state
-            .as_mut()
-            .map_or_else(Vec::new, |b| std::mem::take(&mut b.edits))
+        self.state.as_mut().map_or_else(Vec::new, |b| {
+            b.added = None;
+            std::mem::take(&mut b.edits)
+        })
     }
 
     /// Seed `fp`'s files on a stick let out unprotected past the secret
@@ -1827,7 +1841,9 @@ impl Faraday {
                 }
                 self.backup_extras();
                 kef::plan_made(self);
+                let then = self.plan_added_item(c);
                 self.plan_save();
+                self.backup.then_item_set(then);
                 // The files are made on the worker; the checklist opens with
                 // the answer.
                 public_files::checklist_start(self);
@@ -3408,6 +3424,26 @@ impl Faraday {
                 self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
             }
         }
+    }
+
+    /// Costs what `plan_vault_of` costs. For a plan that was already made
+    /// (a vault keeps its record) and is saved with a thing added on the
+    /// board: the checklist item that makes the last thing added, where a
+    /// checklist item makes it; no other item is opened.
+    fn plan_added_item(&self, c: &Compute) -> Option<u8> {
+        let b = self.backup.state()?;
+        let wallet = self.session.wallets.get(b.wallet)?;
+        self.plan_vault_of(c, wallet)?;
+        let (at, what) = b.added?;
+        let item = match (at, what) {
+            (plan::At::Place(_), plan::What::Words(i) | plan::What::SeedQr(i)) => {
+                plan::Item::Copy(i)
+            }
+            (plan::At::Vault(v), _) => plan::Item::Vault(v),
+            (plan::At::Files, plan::What::SeedFile(_)) => plan::Item::SeedFiles,
+            _ => return None,
+        };
+        Some(crate::bstep::of(item))
     }
 
     /// Costs what `described_of` costs. The open vault that keeps a plan

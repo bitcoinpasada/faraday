@@ -2034,7 +2034,6 @@ fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
 fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     let c = testkit::compute();
     use faraday_core::glance::Press;
-    use faraday_core::glance::sheet::ChartAction as C;
     use faraday_vault::Record;
     use faraday_vault::records::{self, field};
     let mut shell = Shell::new();
@@ -2079,11 +2078,12 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     app.press(Action::Backup(w));
     // A chart edit: the description's files at Place 1.
     let press = Press::Loaded(w);
-    app.press(Action::Chart(C::Edit(
-        press,
-        plan::Edit::Add(At::Place(0), What::WalletFile(plan::form::QR)),
-    )));
-    app.press(Action::Chart(C::Confirm(press)));
+    crate::chart_edit::change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    crate::common::put(
+        &mut app,
+        faraday_core::board::Thing::Whole,
+        faraday_core::board::Zone::Paper(0),
+    );
     app.press(Action::BChecklist);
     shell.flow(&mut app, F::WalletLock);
     let f = app.flow().unwrap();

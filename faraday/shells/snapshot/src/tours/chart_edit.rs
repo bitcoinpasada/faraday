@@ -7,19 +7,16 @@ use faraday_core::{Action, Screen, StorageEvent};
 use faraday_crypto::work::Compute;
 
 /// Costs what `key_text`, `add_wallet`, `of_now` and the rest it calls
-/// cost. The chart's changes (`docs/history/NEW-WALLET.md` §9.5–§9.7), on a
-/// one-key wallet with a vault open and the Paper and vault plan made
-/// with it: the vault's stick moved to Place 1, asked with the check
-/// before and after, and the chart once moved; the words at Place 2
-/// destroyed, asked, a line made worse; a line marked lost and a place
-/// marked exposed, with what follows; the vault copied to a stick at a
-/// new place; and on a 2-of-3, the cosigner's holder typed and the card
-/// with it.
+/// cost. The chart's marks and names (`docs/history/NEW-WALLET.md`
+/// §9.5–§9.7), on a one-key wallet with a vault open and the Paper and
+/// vault plan made with it: a line marked lost and a place marked
+/// exposed, with what follows; and on a 2-of-3, the cosigner's holder
+/// typed and the card with it.
 pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::sheet::{ChartAction as C, Target};
     use faraday_core::glance::{Backup, Press};
-    use faraday_core::plan::{At, Edit, Mark, What};
+    use faraday_core::plan::{At, Mark, What};
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -91,19 +88,6 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         }
         Ok(())
     };
-    // A move: the vault's stick to Place 1, asked, then made.
-    let stick = Edit::Move(At::Place(1), What::VaultStick(0), At::Place(0));
-    t.press(Action::Chart(C::Edit(press, stick)));
-    t.shot("chart-move-ask")?;
-    t.press(Action::Chart(C::Confirm(press)));
-    shot_chart(t, one, "chart-moved")?;
-    // The words at Place 1 destroyed: asked, a line worse.
-    t.press(Action::Chart(C::Edit(
-        press,
-        Edit::Drop(At::Place(0), What::Words(0)),
-    )));
-    t.shot("chart-drop-ask")?;
-    t.press(Action::Cancel);
     let node = |t: &Tour, at: At| -> Option<(u8, Vec<What>)> {
         let g = faraday_core::glance::of_now(c, &t.app, one)?;
         let Backup::Plan { nodes, .. } = g.backup else {
@@ -129,20 +113,6 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::Cancel);
     }
     shot_chart(t, one, "chart-marked")?;
-    // The vault copied to a stick at a new place.
-    t.press(Action::Chart(C::Open(
-        press,
-        Target::CopyTo(What::VaultStick(0)),
-    )));
-    t.shot("chart-vault-copy-to")?;
-    t.press(Action::Chart(C::Edit(
-        press,
-        Edit::Add(At::Place(2), What::VaultStick(0)),
-    )));
-    t.shot("chart-vault-copy-ask")?;
-    t.press(Action::Chart(C::Confirm(press)));
-    t.press(Action::Cancel);
-    shot_chart(t, one, "chart-vault-copy")?;
     // A 2-of-3 with test key 3 a cosigner's: its holder named.
     t.press(Action::Entry(None));
     t.type_key(1);

@@ -1840,7 +1840,6 @@ fn lone_passphrase_round(
 ) -> (Faraday, usize, [u8; 4]) {
     let c = faraday_core::testkit::compute();
     use faraday_core::glance::Press;
-    use faraday_core::glance::sheet::ChartAction as C;
     let mut shell = Shell::new();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
@@ -1891,12 +1890,9 @@ fn lone_passphrase_round(
     faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Backup(w));
     let press = Press::Loaded(w);
-    app.press(Action::Chart(C::Edit(
-        press,
-        plan::Edit::Add(At::Vault(v), What::Passphrase(0)),
-    )));
-    assert!(app.chart_work().ask.is_some(), "the chart asks to confirm");
-    app.press(Action::Chart(C::Confirm(press)));
+    crate::chart_edit::change_in_plan(&mut app, press, Some((At::Vault(v), None)));
+    let zone = crate::common::vault_zone(&app, v);
+    crate::common::put(&mut app, faraday_core::board::Thing::Pass(0), zone);
     {
         let f = app.flow().unwrap();
         let wf = f.wallet.as_ref().unwrap();

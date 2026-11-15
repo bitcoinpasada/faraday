@@ -112,7 +112,7 @@ pub(crate) fn lock_pending(app: &Faraday) -> bool {
 /// an entry's TOTP secret, `docs/QR.md` §7.1), an open entry's revealed
 /// fields, a key's SeedQR and words on the item page, Create a vault's
 /// passphrases, the backup checklist's seed and codex32
-/// string with its QR, the backup chart's passphrase sheet, New key's
+/// string with its QR, New key's
 /// words and codex32 strings, the child of
 /// BIP-85, Explore's words and passphrase, the Convert result, the QR,
 /// Krux code and core wallet tools, a Krux code's contents, Lightning's
@@ -143,7 +143,6 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
     app.keygen.hide_secrets();
     app.bip85.hide_secrets();
     app.seed_read.hide_secrets();
-    app.glance.set_reveal(false);
 }
 
 /// What a lock takes off the screen: [`secrets_off_screen`] and the

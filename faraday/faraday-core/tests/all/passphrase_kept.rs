@@ -167,7 +167,6 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_core::glance::sheet::{ChartAction as C, Target};
     use faraday_core::glance::{Backup, Press};
-    use faraday_core::plan::{At, Edit, What};
 
     let mut app = device();
     let m = Mnemonic::parse(
@@ -197,24 +196,17 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     preset_saved(&mut app, 1);
     app.press(Action::BChecklist);
     app.press(Action::OpenWallet(w));
+    // The sheet comes in over the chart at once, not over several frames.
+    app.press(Action::ReduceMotion(true));
     let _ = app.frame();
     let press = Press::Loaded(w);
-    // Another copy of the passphrase, at a new place: it is shown to be
-    // copied, then checked.
-    app.press(Action::Chart(C::Open(
-        press,
-        Target::CopyTo(What::Passphrase(0)),
-    )));
-    crate::common::a_moment(&mut app);
-    app.press(Action::Chart(C::Edit(
-        press,
-        Edit::Add(At::Place(2), What::Passphrase(0)),
-    )));
-    app.press(Action::Chart(C::Confirm(press)));
-    let Some((_, Target::PassShow(k, n, j))) = app.chart() else {
-        panic!("the passphrase is not shown to copy: {:?}", app.chart());
-    };
-    app.press(Action::Chart(C::Open(press, Target::PassCheck(k, n, j))));
+    // Another copy of the passphrase, at a new place, then checked.
+    crate::chart_edit::passphrase_copied(&mut app, press);
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    let g = crate::chart_edit::chart(&app, w);
+    let (n, j) = crate::chart_edit::passphrase_line(&g);
+    app.press(Action::Chart(C::Open(press, Target::PassCheck(0, n, j))));
     type_text(&mut app, "not-the-passphrase");
     app.press(Action::Chart(C::PassTry(press)));
     assert_eq!(app.chart_work().result, Some(false));
@@ -225,8 +217,9 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         app.chart_work().secret.is_empty(),
         "the typed passphrase is kept"
     );
-    let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t.starts_with("Matches")), "{texts:?}");
+    let _ = app.frame();
+    let texts = app.drawn_texts().join(" | ");
+    assert!(texts.contains("Matches"), "{texts}");
     let g = faraday_core::glance::of_now(&c, &app, w).unwrap();
     let Backup::Plan { nodes, .. } = &g.backup else {
         panic!("no plan");

@@ -8,10 +8,12 @@
 //! here can be given its holder's name and the date its backup was
 //! confirmed.
 
+use crate::common::{move_to as board_move, put, take_off};
 use crate::common::{shown, type_text};
+use faraday_core::board::{BoardPress as BP, Thing, Zone};
 use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::glance::{Backup, BackupNode, Glance, Press};
-use faraday_core::plan::{At, Edit, Found, Lost, Mark, What};
+use faraday_core::plan::{At, Found, Lost, Mark, What};
 use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
@@ -217,20 +219,59 @@ pub(crate) fn open(app: &mut Faraday, press: Press, t: Target) {
     assert_eq!(app.sheet, Some(Sheet::Chart), "{t:?} opened no sheet");
 }
 
-/// Asks for `edit` as its row does, and confirms it once the check
-/// before and after is on the sheet.
-pub(crate) fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
-    app.press(Action::Chart(C::Edit(press, edit)));
-    crate::common::a_moment(app);
-    assert_eq!(
-        app.chart(),
-        Some((press, Target::Confirm)),
-        "{edit:?} asked nothing"
-    );
-    let confirm = Action::Chart(C::Confirm(press));
-    assert!(app.offers(confirm), "{edit:?} offers no Confirm");
-    app.press(confirm);
+/// The chart's **Change in the plan** pressed for `sel`: Back up's board,
+/// open for changes, with that place or thing selected.
+pub(crate) fn change_in_plan(app: &mut Faraday, press: Press, sel: Option<(At, Option<What>)>) {
+    app.press(Action::Chart(C::Do(press, Step::Change(sel))));
+    app.settle();
     let _ = app.frame();
+    assert_eq!(app.screen, Screen::Backup, "{sel:?} opened no board");
+    assert!(
+        app.board_plan().is_some_and(|(_, a)| a.custom),
+        "the board is not open for changes"
+    );
+}
+
+/// What was changed on the board kept: the checklist, which saves the
+/// plan.
+pub(crate) fn keep_changes(app: &mut Faraday) {
+    app.press(Action::BChecklist);
+    let _ = app.frame();
+}
+
+/// Thing `thing` taken from place `from` to place `to`
+/// on the board opened from the chart, and the change kept.
+pub(crate) fn move_on_board(app: &mut Faraday, press: Press, from: usize, thing: Thing, to: usize) {
+    // The place is selected, not the chip: a press on a held chip lets it go.
+    change_in_plan(app, press, Some((At::Place(from), None)));
+    board_move(app, Zone::Paper(from), thing, Zone::Paper(to));
+    keep_changes(app);
+}
+
+/// The line of key 1's passphrase on the chart, kept at Place 3: its
+/// node's and line's places.
+pub(crate) fn passphrase_line(g: &Glance) -> (u8, u8) {
+    let Backup::Plan { nodes, .. } = &g.backup else {
+        panic!("no plan on the chart");
+    };
+    nodes
+        .iter()
+        .enumerate()
+        .find_map(|(n, node)| {
+            let j = (node.at == At::Place(2))
+                .then(|| node.whats.iter().position(|w| *w == What::Passphrase(0)))
+                .flatten()?;
+            Some((n as u8, j as u8))
+        })
+        .expect("the passphrase is not at Place 3")
+}
+
+/// A copy of key 1's passphrase put at Place 3 on the board opened from
+/// the chart, and the change kept.
+pub(crate) fn passphrase_copied(app: &mut Faraday, press: Press) {
+    change_in_plan(app, press, None);
+    crate::common::put(app, Thing::Pass(0), Zone::Paper(2));
+    keep_changes(app);
 }
 
 /// What the lock saved: For the stick, and the kept state.
@@ -292,35 +333,23 @@ fn vault_wallet(pass: &str, blocks: Option<u32>) -> (Faraday, usize) {
 }
 
 #[test]
-fn a_move_shows_the_check_before_and_after_and_is_made_only_once_confirmed() {
+fn a_move_on_the_board_from_the_chart_is_made_once_the_changes_are_kept() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
     // Place 2 keeps the seed's words, the sheet and the vault's stick;
     // Place 1 the words and the sheet.
     let (n, j) = line_of(&app, w, "Place 2", "Vault 1 stick");
     open(&mut app, press, Target::Line(n, j));
-    let move_to = Action::Chart(C::Open(press, Target::MoveTo(n, j)));
-    assert!(app.offers(move_to), "the stick's line offers no Move");
-    app.press(move_to);
-    let _ = app.frame();
-    assert!(shown(&mut app, "Place 1"));
-    assert!(shown(&mut app, "A new place"));
-    // Asked: the check before and after, nothing changed yet.
-    let edit = Edit::Move(At::Place(1), What::VaultStick(0), At::Place(0));
-    app.press(Action::Chart(C::Edit(press, edit)));
-    let _ = app.frame();
-    let ask = app.chart_work().ask.as_ref().expect("the move is asked");
-    assert_eq!((ask.before.lost, ask.after.lost), (Lost::Yes, Lost::Yes));
-    assert!(shown(
-        &mut app,
-        "Any one place lost: the rest rebuild the wallet"
-    ));
-    assert!(holds(&app, w, "Place 2").contains(&"Vault 1 stick".to_string()));
-    // Closed: nothing moves.
-    app.press(Action::Cancel);
-    assert!(holds(&app, w, "Place 2").contains(&"Vault 1 stick".to_string()));
-    // Confirmed: the stick is at Place 1, and the map is the plan.
-    edit_and_confirm(&mut app, press, edit);
+    let sel = Some((At::Place(1), Some(What::VaultStick(0))));
+    let change = Action::Chart(C::Do(press, Step::Change(sel)));
+    assert!(app.offers(change), "the stick's line offers no change");
+    assert!(shown(&mut app, "Change in the plan"));
+    app.press(change);
+    app.settle();
+    assert_eq!(app.screen, Screen::Backup, "no board");
+    // The stick is held, where it is: the drop is the one press.
+    crate::common::board(&mut app, BP::Zone(Zone::Card(0)));
+    keep_changes(&mut app);
     assert!(holds(&app, w, "Place 1").contains(&"Vault 1 stick".to_string()));
     assert!(!holds(&app, w, "Place 2").contains(&"Vault 1 stick".to_string()));
     assert!(matches!(
@@ -332,39 +361,33 @@ fn a_move_shows_the_check_before_and_after_and_is_made_only_once_confirmed() {
 }
 
 #[test]
-fn a_change_that_makes_a_check_line_worse_says_so_before_it_is_made() {
+fn a_change_that_makes_a_check_line_worse_is_seen_on_the_chart_once_kept() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
+    let lost = |app: &Faraday| match chart(app, w).backup {
+        Backup::Plan { check, .. } => check.lost,
+        _ => unreachable!(),
+    };
+    assert_eq!(lost(&app), Lost::Yes);
     // The words at Place 1 destroyed: the seed is left at Place 2 and in
     // the vault whose stick is there too.
-    app.press(Action::Chart(C::Edit(
-        press,
-        Edit::Drop(At::Place(0), What::Words(0)),
-    )));
-    crate::common::a_moment(&mut app);
-    let ask = app.chart_work().ask.as_ref().expect("asked");
-    assert_eq!(ask.before.lost, Lost::Yes);
-    assert_eq!(ask.after.lost, Lost::No);
-    assert!(shown(&mut app, "Yes → No"), "{:?}", app.drawn_texts());
-    assert!(shown(&mut app, "Destroy what goes off the plan by hand"));
+    change_in_plan(&mut app, press, Some((At::Place(0), Some(What::Words(0)))));
+    take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
+    keep_changes(&mut app);
+    assert_eq!(lost(&app), Lost::No);
 }
 
 #[test]
-fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
+fn a_plan_edited_on_the_board_loads_back_the_same_from_the_vault() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
     // The words at Place 1 move to a new place, and a copy of the vault's
     // stick goes to Place 1.
-    edit_and_confirm(
-        &mut app,
-        press,
-        Edit::Move(At::Place(0), What::Words(0), At::Place(2)),
-    );
-    edit_and_confirm(
-        &mut app,
-        press,
-        Edit::Add(At::Place(0), What::VaultStick(0)),
-    );
+    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    crate::common::board(&mut app, BP::AddPlace);
+    board_move(&mut app, Zone::Paper(0), Thing::Seed(0), Zone::Paper(2));
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
+    keep_changes(&mut app);
     let before = chart(&app, w);
     assert_eq!(names(&before), ["Place 1", "Place 2", "Place 3", "Vault 1"]);
     assert!(holds(&app, w, "Place 3").contains(&"Key 1 words".to_string()));
@@ -402,55 +425,45 @@ fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
 fn a_copy_of_the_vault_on_another_stick_is_its_own_line_and_counts_in_the_check() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
-    // The words destroyed at both places: the seed is only in the vault,
-    // whose one stick is at Place 2.
-    edit_and_confirm(&mut app, press, Edit::Drop(At::Place(0), What::Words(0)));
-    edit_and_confirm(&mut app, press, Edit::Drop(At::Place(1), What::Words(0)));
     let lost = |app: &Faraday| match chart(app, w).backup {
         Backup::Plan { check, .. } => check.lost,
         _ => unreachable!(),
     };
+    // The words destroyed at both places: the seed is only in the vault,
+    // whose one stick is at Place 2.
+    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    take_off(&mut app, Zone::Paper(0), Thing::Seed(0));
+    take_off(&mut app, Zone::Paper(1), Thing::Seed(0));
+    keep_changes(&mut app);
     assert_eq!(lost(&app), Lost::No);
     // The vault copied to a stick at Place 1, from the vault's node.
     let (n, _) = node_of(&app, w, "Vault 1");
     open(&mut app, press, Target::Node(n));
-    let copy = Action::Chart(C::Open(press, Target::CopyTo(What::VaultStick(0))));
-    assert!(
-        app.offers(copy),
-        "the vault offers no copy to another stick"
-    );
-    app.press(copy);
-    let _ = app.frame();
-    edit_and_confirm(
-        &mut app,
-        press,
-        Edit::Add(At::Place(0), What::VaultStick(0)),
-    );
+    let change = Action::Chart(C::Do(press, Step::Change(Some((At::Vault(0), None)))));
+    assert!(app.offers(change), "the vault offers no change");
+    app.press(change);
+    app.settle();
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
+    keep_changes(&mut app);
     assert!(holds(&app, w, "Place 1").contains(&"Vault 1 · copy".to_string()));
     assert_eq!(lost(&app), Lost::WithVault);
 }
 
 #[test]
-fn removing_a_place_asks_where_each_thing_in_it_goes_first() {
+fn removing_a_place_that_holds_something_asks_on_the_board_and_goes_on_take_off() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
     let (n, node) = node_of(&app, w, "Place 1");
+    assert!(!node.whats.is_empty());
     open(&mut app, press, Target::Node(n));
-    let remove = Action::Chart(C::Open(press, Target::Remove(n)));
-    assert!(app.offers(remove));
-    app.press(remove);
+    assert!(shown(&mut app, "Change in the plan"));
+    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    app.press(Action::Board(BP::RemovePlace(0)));
     let _ = app.frame();
-    let go = Action::Chart(C::Edit(press, Edit::RemovePlace(0)));
-    assert!(
-        !app.offers(go),
-        "the place goes before each thing has a place"
-    );
-    for j in 0..node.whats.len() as u8 {
-        app.press(Action::Chart(C::Dest(j, faraday_core::chart_edit::OFF)));
-    }
-    let _ = app.frame();
-    assert!(app.offers(go));
-    edit_and_confirm(&mut app, press, Edit::RemovePlace(0));
+    assert_eq!(app.board_plan().unwrap().1.places, 2, "asked first");
+    assert!(app.offers(Action::Board(BP::RemovePlaceSure(0))));
+    app.press(Action::Board(BP::RemovePlaceSure(0)));
+    keep_changes(&mut app);
     assert_eq!(names(&chart(&app, w)), ["Place 1", "Vault 1"]);
 }
 
@@ -458,16 +471,16 @@ fn removing_a_place_asks_where_each_thing_in_it_goes_first() {
 fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
-    edit_and_confirm(
-        &mut app,
-        press,
-        Edit::Move(At::Place(0), What::Words(0), At::Place(2)),
-    );
+    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    crate::common::board(&mut app, BP::AddPlace);
+    board_move(&mut app, Zone::Paper(0), Thing::Seed(0), Zone::Paper(2));
+    keep_changes(&mut app);
     let edited = app.backup().unwrap().answers.map.clone();
     assert!(edited.is_some());
     // The plan's cards show the map as it is: nothing is replaced, so
     // nothing is asked (`docs/BACKUP-FLOW.md` §15.2).
     // The chart's Change the plan goes straight to the plan.
+    app.press(Action::OpenWallet(w));
     open(&mut app, press, Target::Wallet);
     let go = Action::Chart(C::Do(press, Step::Plan));
     assert!(app.offers(go), "Change the plan asks nothing first");
@@ -481,7 +494,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup().unwrap();
     assert_eq!(b.stage, BStage::Plan);
-    assert_eq!(b.answers.map, edited, "the chart's edit is the plan");
+    assert_eq!(b.answers.map, edited, "the board's edit is the plan");
 }
 
 #[test]
@@ -617,10 +630,7 @@ fn a_copy_marked_lost_says_whether_anything_is_lost_that_is_not_elsewhere() {
     app.press(Action::Chart(C::Mark(press, n, Some(j), Mark::Lost)));
     crate::common::a_moment(&mut app);
     assert!(shown(&mut app, "Nothing lost that is not elsewhere"));
-    assert!(app.offers(Action::Chart(C::Open(
-        press,
-        Target::CopyTo(What::Words(0))
-    ))));
+    assert!(shown(&mut app, "Change in the plan"));
     // Place 2 lost as well: the seed is left only in the vault, whose
     // stick was there.
     let (n2, _) = node_of(&app, w, "Place 2");
@@ -636,7 +646,7 @@ fn a_copy_marked_lost_says_whether_anything_is_lost_that_is_not_elsewhere() {
     // A lost thing stays on the chart until it is taken off the plan.
     let (_, j) = line_of(&app, w, "Place 1", "Key 1 words");
     open(&mut app, press, Target::Line(n, j));
-    assert!(shown(&mut app, "Remove from the plan"));
+    assert!(shown(&mut app, "Change in the plan"));
 }
 
 #[test]
@@ -649,10 +659,13 @@ fn a_seed_saved_into_another_vault_is_a_change_to_the_plan() {
     let (n, node) = node_of(&app, w, "Vault 1");
     assert!(!node.holds.iter().any(|h| *h == "Key 2 seed"));
     open(&mut app, press, Target::Node(n));
-    assert!(shown(&mut app, "Save more into it"));
-    let save = Edit::Add(At::Vault(0), What::Seed(1));
-    assert!(app.offers(Action::Chart(C::Edit(press, save))));
-    edit_and_confirm(&mut app, press, save);
+    let change = Action::Chart(C::Do(press, Step::Change(Some((At::Vault(0), None)))));
+    assert!(app.offers(change), "the vault offers no change");
+    app.press(change);
+    app.settle();
+    let zone = crate::common::vault_zone(&app, 0);
+    put(&mut app, Thing::Seed(1), zone);
+    keep_changes(&mut app);
     // Then the vault's item, which saves it.
     assert_eq!(app.screen, Screen::Backup);
     assert!(holds(&app, w, "Vault 1").contains(&"Key 2 seed".to_string()));
@@ -776,11 +789,10 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
         .position(|n| n.name == "Place 1")
         .unwrap() as u8;
     app.press(Action::Chart(C::Checked(press, at)));
-    edit_and_confirm(
-        &mut app,
-        press,
-        Edit::Move(At::Place(0), What::Words(0), At::Place(2)),
-    );
+    change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    crate::common::board(&mut app, BP::AddPlace);
+    board_move(&mut app, Zone::Paper(0), Thing::Seed(0), Zone::Paper(2));
+    keep_changes(&mut app);
     let g = vault_chart(&app);
     assert_eq!(names(&g), ["Place 1", "Place 2", "Place 3", "Vault 1"]);
     let all = nodes(&g);

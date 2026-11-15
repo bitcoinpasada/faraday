@@ -1431,7 +1431,7 @@ fn no_preset_makes_more_than_one_place_per_key() {
     assert!(!shows(&mut app, Action::Board(BoardPress::AddPlace)));
     app.press(Action::Board(BoardPress::AddPlace));
     assert_eq!(app.backup().unwrap().answers.places, 3, "none added");
-    app.press(Action::Board(BoardPress::RemovePlace(2)));
+    board(&mut app, BoardPress::RemovePlace(2));
     assert!(shows(&mut app, Action::Board(BoardPress::AddPlace)));
 }
 

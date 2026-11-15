@@ -3,14 +3,15 @@
 //! with the clock not checked no age or due mark is shown.
 
 use crate::chart_edit::{
-    clock_kept, edit_and_confirm, fresh_vault, line_holding, node_of, one_key_wait, open, planned,
+    clock_kept, fresh_vault, line_holding, move_on_board, node_of, one_key_wait, open, planned,
     recovery_with_vault, saved_at_lock, settle, single_key_with_vault, unlocked_again, vault_file,
 };
 use crate::common::type_text;
+use faraday_core::board::Thing;
 use faraday_core::glance::age::{Interval, NodeAge, is_due};
 use faraday_core::glance::sheet::{ChartAction as C, Target};
 use faraday_core::glance::{Press, age_text};
-use faraday_core::plan::{At, Edit, What};
+use faraday_core::plan::{At, What};
 use faraday_core::set_time::Focus;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet_backup::Tone;
@@ -328,18 +329,12 @@ fn a_place_holding_only_the_vault_stick_read_from_an_older_copy_reads_older_copy
     let mut app = older_stick_read();
     // The paper copies at the stick's place move to the other place.
     let (stick_at, _) = line_holding(&app, 0, What::VaultStick(0));
-    let other = At::Place(
-        1 - match stick_at.at {
-            At::Place(p) => p,
-            at => panic!("the stick is at {at:?}"),
-        },
-    );
-    for what in [What::Words(0), What::Sheet] {
-        edit_and_confirm(
-            &mut app,
-            Press::Loaded(0),
-            Edit::Move(stick_at.at, what, other),
-        );
+    let from = match stick_at.at {
+        At::Place(p) => p,
+        at => panic!("the stick is at {at:?}"),
+    };
+    for thing in [Thing::Seed(0), Thing::Whole] {
+        move_on_board(&mut app, Press::Loaded(0), from, thing, 1 - from);
     }
     let (node, _) = line_holding(&app, 0, What::VaultStick(0));
     assert_eq!(node.whats, vec![What::VaultStick(0)], "a stick-only place");

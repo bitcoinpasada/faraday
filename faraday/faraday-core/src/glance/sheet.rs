@@ -7,11 +7,11 @@
 //! scan, the vault way. Opening a sheet changes nothing and puts nothing
 //! For the stick.
 //!
-//! A change to where something is kept (a move, another copy, a thing
-//! added, destroyed or a place removed) is asked first, with the check's
-//! three lines before and after, and once made the map is the plan
-//! (§9.7, [`crate::chart_edit`]). Names, dates and marks are kept in the
-//! vault alone (§9.5); with none open, those rows lead to one. A thing
+//! A change to where something is kept is made on the backup's board:
+//! the chart's one row for it, **Change in the plan**, opens Back up
+//! there with the place or thing selected (§9.7). Names, dates and marks
+//! are kept in the vault alone (§9.5); with none open, those rows lead
+//! to one. A thing
 //! marked lost or exposed says what follows, in order (§9.6).
 //!
 //! In an open vault's view (§7.2) the wallet may not be loaded: an
@@ -26,15 +26,13 @@ use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
 
-use crate::chart_edit::OFF;
 use crate::glance::{self, Backup, BackupNode, Glance, Press};
-use crate::plan::{self, At, Edit, Item, Mark, What};
+use crate::plan::{self, At, Item, Mark, What};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen, Sheet, bstep};
 use faraday_draw::tokens::{BODY_L, BODY_S, FIELD_GAP, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M};
-use faraday_keys::Reveal;
 
 /// What on the chart a sheet is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,18 +45,8 @@ pub enum Target {
     Node(u8),
     /// Line j of backup node n: one thing it holds.
     Line(u8, u8),
-    /// Where line j of backup node n moves to: a place.
-    MoveTo(u8, u8),
-    /// Where another copy of a thing goes: a place.
-    CopyTo(What),
-    /// What can be added at place node n.
-    AddAt(u8),
-    /// A change asked for: the check before and after, and Confirm.
-    Confirm,
     /// What follows from the mark on line j of node n, or on the node.
     Marked(u8, Option<u8>),
-    /// Removing place node n: where each thing in it goes.
-    Remove(u8),
     /// The name of key k's holder, typed.
     Holder(u8),
     /// The name of vault node n, typed.
@@ -66,8 +54,6 @@ pub enum Target {
     /// Key k's passphrase, typed to be checked; from line j of node n, or
     /// from the key ([`NO_LINE`]).
     PassCheck(u8, u8, u8),
-    /// Key k's passphrase shown, to copy at line j of node n.
-    PassShow(u8, u8, u8),
     /// The wallet's first addresses, as Create's Check shows them.
     Addresses,
 }
@@ -100,6 +86,9 @@ pub enum Step {
     Plan,
     /// Type a new name for place p: the plan's Places question.
     RenamePlace(u8),
+    /// Change the plan on the board, with this place or thing selected:
+    /// the spot, and one of its lines; none selected for a key.
+    Change(Option<(At, Option<What>)>),
     /// Type a new name for the wallet, on its card.
     Rename,
     /// The wallet's first addresses, as Create's Check shows them.
@@ -120,11 +109,6 @@ pub enum ChartAction {
     Do(Press, Step),
     /// Draw key k's lines bold and the rest dimmed: **Where it is**.
     Where(Press, u8),
-    /// Ask for a change to where something is kept: its check before and
-    /// after.
-    Edit(Press, Edit),
-    /// Make the change asked for.
-    Confirm(Press),
     /// Mark line j of node n, or the whole node, lost or exposed.
     Mark(Press, u8, Option<u8>, Mark),
     /// Every thing in node n checked here today.
@@ -133,14 +117,10 @@ pub enum ChartAction {
     KeyChecked(Press, u8),
     /// Every coin of the wallet moved today.
     Moved(Press),
-    /// Thing j of the place being removed goes to place p, or [`OFF`].
-    Dest(u8, u8),
     /// Keep the name typed.
     Save(Press),
     /// Compare the passphrase typed.
     PassTry(Press),
-    /// Show the passphrase to copy.
-    Reveal,
     /// Move the money to a new wallet.
     MoveMoney(Press),
 }
@@ -161,9 +141,6 @@ pub(crate) struct View {
     pub title: Text,
     pub facts: Vec<(&'static str, Text, Paint)>,
     pub lines: Vec<(Text, Paint)>,
-    /// Lines that are a secret shown (a passphrase), wiped on drop,
-    /// drawn after `lines`.
-    pub secret_lines: Vec<(Text, Paint)>,
     pub groups: Vec<(Text, Vec<Row>)>,
     /// A field: its label, what it shows, and whether that is a hint.
     pub field: Option<(&'static str, Text, bool)>,
@@ -183,7 +160,6 @@ impl View {
             title: title.into_text(),
             facts: Vec::new(),
             lines: Vec::new(),
-            secret_lines: Vec::new(),
             groups: Vec::new(),
             field: None,
             go: None,
@@ -243,47 +219,6 @@ pub(crate) fn node_at_now(c: &Compute, app: &Faraday, press: Press, n: u8) -> Op
     }
 }
 
-/// How a check line reads before and after a change, and its tone: a
-/// line made worse in `warning`.
-fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, Text, Paint)> {
-    let lines = [
-        (
-            before.lost.text(),
-            after.lost.text(),
-            after.lost < before.lost,
-        ),
-        (
-            before.spend.text(),
-            after.spend.text(),
-            after.spend > before.spend,
-        ),
-        (
-            before.balance.text(),
-            after.balance.text(),
-            after.balance > before.balance,
-        ),
-    ];
-    plan::CHECK_LINES
-        .iter()
-        .zip(lines)
-        .map(|(label, (b, a, worse))| {
-            (
-                *label,
-                if a == b {
-                    Text::of(a)
-                } else {
-                    text!("{b} → {a}")
-                },
-                if worse {
-                    Role::Warning.paint()
-                } else {
-                    Role::OnSurface.paint()
-                },
-            )
-        })
-        .collect()
-}
-
 /// The sheet for `target` on the chart of `press`; `None` when it is no
 /// longer there. Drawing's form: the chart through the memo and the kept
 /// values. Only drawing asks for it.
@@ -299,9 +234,6 @@ struct Ctx<'a> {
     split: bool,
     back: Screen,
     vault_open: bool,
-    /// The places, by node: their number and name.
-    places: Vec<(usize, &'a BackupNode)>,
-    new_place: usize,
     marks: Vec<(At, What, Mark)>,
 }
 
@@ -318,8 +250,14 @@ impl Ctx<'_> {
         self.chart_do(ChartAction::Open(self.press, t))
     }
 
-    fn edit(&self, e: Edit) -> Option<Action> {
-        self.chart_do(ChartAction::Edit(self.press, e))
+    /// The one row that changes the map: the board, with what it is for
+    /// selected.
+    fn change(&self, sel: Option<(At, Option<What>)>) -> Row {
+        row(
+            EN.glance_sheet_change_in_plan,
+            "",
+            self.doing(Step::Change(sel)),
+        )
     }
 
     /// The checklist item that makes `it`, where the plan has one.
@@ -395,9 +333,8 @@ impl Ctx<'_> {
         self.g.keys.iter().position(|k| k.seed == Some(s))
     }
 
-    /// Change the plan: the plan's cards show the map as it is, the
-    /// chart's edits included, so nothing is replaced and nothing is asked
-    /// (`docs/BACKUP-FLOW.md` §15.2).
+    /// Change the plan: the plan's cards show the map as it is, so nothing
+    /// is replaced and nothing is asked (`docs/BACKUP-FLOW.md` §15.2).
     fn change_plan(&self) -> Option<Action> {
         self.doing(Step::Plan)
     }
@@ -416,13 +353,6 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Backup::Plan { interval, .. } => *interval,
         _ => glance::age::Interval::default(),
     };
-    let places: Vec<(usize, &BackupNode)> = nodes
-        .iter()
-        .filter_map(|n| match n.at {
-            At::Place(p) => Some((p, n)),
-            _ => None,
-        })
-        .collect();
     let marks = nodes
         .iter()
         .flat_map(|n| {
@@ -445,8 +375,6 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             Press::Vault(..) => Screen::VaultContents,
         },
         vault_open: app.vaults.open.get(app.vaults.current).is_some(),
-        new_place: places.len(),
-        places,
         marks,
     };
     c.split = c.holds(&|w| matches!(w, What::Share(_)));
@@ -455,16 +383,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Target::Key(k) => key(&c, k),
         Target::Node(n) => node(&c, n),
         Target::Line(n, j) => line(&c, n, j),
-        Target::MoveTo(n, j) => move_to(&c, n, j),
-        Target::CopyTo(what) => copy_to(&c, what),
-        Target::AddAt(n) => add_at(&c, n),
-        Target::Confirm => confirm(&c),
         Target::Marked(n, line) => marked(&c, n, line),
-        Target::Remove(n) => remove(&c, n),
         Target::Holder(k) => holder(&c, k),
         Target::VaultName(n) => vault_name(&c, n),
         Target::PassCheck(k, ..) => pass_check(&c, k),
-        Target::PassShow(k, n, j) => pass_show(&c, k, n, j),
         Target::Addresses => addresses(&c),
     }
 }
@@ -658,18 +580,9 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
         groups.push((Text::new(), public));
         let mut make = Vec::new();
         if let Some(s) = seed {
-            // By hand, at a place: the plan gains the copy, and
-            // the copy's flow makes and checks it.
-            make.push(row(
-                EN.glance_sheet_words,
-                EN.glance_sheet_then_place,
-                ctx.open(Target::CopyTo(What::Words(s))),
-            ));
-            make.push(row(
-                EN.glance_sheet_seedqr,
-                EN.glance_sheet_then_place,
-                ctx.open(Target::CopyTo(What::SeedQr(s))),
-            ));
+            // By hand, at a place: the plan gains the copy on the
+            // board, and the copy's flow makes and checks it.
+            make.push(ctx.change(None));
             if let Some(a) = ctx.item(Item::Copy(s)) {
                 // Seed XOR's parts are fresh randomness: dimmed
                 // in the demo (`docs/DEMO.md` §4).
@@ -679,33 +592,27 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
                     app.makes_secrets().then_some(a),
                 ));
             }
-            let sealed = if key.passphrase {
-                What::SeedPassphrase(s)
-            } else {
-                What::Seed(s)
-            };
             for n in nodes {
-                if let At::Vault(v) = n.at {
-                    let a = if n.whats.iter().any(|w| of_seed(*w)) {
-                        ctx.item(Item::Vault(v))
-                    } else {
-                        ctx.edit(Edit::Add(n.at, sealed))
-                    };
-                    if a.is_some() {
-                        make.push(row(Text::fill(EN.glance_sheet_into, &[&n.name]), "", a));
-                    }
+                if let At::Vault(v) = n.at
+                    && n.whats.iter().any(|w| of_seed(*w))
+                    && let Some(a) = ctx.item(Item::Vault(v))
+                {
+                    make.push(row(
+                        Text::fill(EN.glance_sheet_into, &[&n.name]),
+                        "",
+                        Some(a),
+                    ));
                 }
             }
-            let a = if ctx.holds(&|w| w == What::SeedFile(s)) {
-                ctx.item(Item::SeedFiles)
-            } else {
-                ctx.edit(Edit::Add(At::Files, What::SeedFile(s)))
-            };
-            make.push(row(
-                EN.glance_sheet_as_a_file,
-                EN.glance_sheet_stick_detail,
-                a,
-            ));
+            if ctx.holds(&|w| w == What::SeedFile(s))
+                && let Some(a) = ctx.item(Item::SeedFiles)
+            {
+                make.push(row(
+                    EN.glance_sheet_as_a_file,
+                    EN.glance_sheet_stick_detail,
+                    Some(a),
+                ));
+            }
         }
         if !make.is_empty() {
             groups.push((Text::of(EN.glance_sheet_make_another_backup), make));
@@ -725,10 +632,7 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
         if !check.is_empty() {
             groups.push((Text::of(EN.glance_sheet_check_seed_copy), check));
         }
-        if key.passphrase
-            && key.held
-            && let Some(s) = seed
-        {
+        if key.passphrase && key.held && seed.is_some() {
             groups.push((
                 Text::of(EN.glance_sheet_its_passphrase),
                 vec![
@@ -737,11 +641,7 @@ fn key(ctx: &Ctx<'_>, k: u8) -> Option<View> {
                         EN.glance_sheet_by_derived_key,
                         ctx.open(Target::PassCheck(k, NO_LINE, NO_LINE)),
                     ),
-                    row(
-                        EN.glance_sheet_another_copy,
-                        EN.glance_sheet_then_place,
-                        ctx.open(Target::CopyTo(What::Passphrase(s))),
-                    ),
+                    ctx.change(None),
                 ],
             ));
         }
@@ -786,12 +686,10 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
         nodes,
         back,
         vault_open,
-        g,
         press,
         app,
         ..
     } = *ctx;
-    let places = &ctx.places;
     let node = nodes.get(usize::from(n))?;
     let mut facts = Vec::new();
     if let Some(s) = &node.stick {
@@ -861,11 +759,7 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
                 EN.glance_sheet_envelope_pdf,
                 ctx.doing(Step::Envelopes),
             ));
-            rows.push(row(
-                EN.glance_sheet_add_here,
-                "",
-                ctx.open(Target::AddAt(n)),
-            ));
+            rows.push(ctx.change(Some((node.at, None))));
             if !node.whats.is_empty() {
                 rows.push(ctx.keeping(
                     EN.glance_sheet_mark_lost,
@@ -876,13 +770,6 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
                     ctx.chart_do(ChartAction::Mark(press, n, None, Mark::Exposed)),
                 ));
             }
-            if places.len() > 1 {
-                rows.push(row(
-                    EN.glance_sheet_remove_place,
-                    "",
-                    ctx.open(Target::Remove(n)),
-                ));
-            }
             Icon::House
         }
         At::Vault(v) => {
@@ -891,11 +778,7 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
             if let Some(a) = ctx.item(Item::Vault(v)) {
                 rows.push(row(EN.glance_sheet_save_seeds, "", Some(a)));
             }
-            rows.push(row(
-                EN.glance_sheet_copy_to_stick,
-                EN.glance_sheet_then_place,
-                ctx.open(Target::CopyTo(What::VaultStick(v))),
-            ));
+            rows.push(ctx.change(Some((node.at, None))));
             Icon::Lock
         }
         At::Files => {
@@ -909,11 +792,7 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
             {
                 rows.push(row(EN.glance_sheet_rewrite_public, "", Some(a)));
             }
-            rows.push(row(
-                EN.glance_sheet_remove_from_plan,
-                EN.glance_sheet_destroy_copies,
-                ctx.edit(Edit::Clear(At::Files)),
-            ));
+            rows.push(ctx.change(Some((At::Files, None))));
             Icon::File
         }
         At::Software => {
@@ -935,43 +814,6 @@ fn node(ctx: &Ctx<'_>, n: u8) -> Option<View> {
     }
     if !rows.is_empty() {
         groups.push((Text::new(), rows));
-    }
-    // A vault takes more of what is held here (§9.4).
-    if let At::Vault(_) = node.at {
-        let mut more = Vec::new();
-        for key in g.keys.iter().filter(|k| k.here) {
-            let Some(s) = key.seed else {
-                continue;
-            };
-            let what = if key.passphrase {
-                What::SeedPassphrase(s)
-            } else {
-                What::Seed(s)
-            };
-            if !node.whats.contains(&What::Seed(s))
-                && !node.whats.contains(&What::SeedPassphrase(s))
-            {
-                more.push(row(
-                    Text::fill(EN.glance_sheet_key_seed, &[&Text::num(key.number as u64)]),
-                    if key.passphrase {
-                        EN.glance_sheet_with_passphrase
-                    } else {
-                        ""
-                    },
-                    ctx.edit(Edit::Add(node.at, what)),
-                ));
-            }
-        }
-        if !node.whats.contains(&What::Wallet) {
-            more.push(row(
-                EN.glance_sheet_the_description,
-                "",
-                ctx.edit(Edit::Add(node.at, What::Wallet)),
-            ));
-        }
-        if !more.is_empty() {
-            groups.push((Text::of(EN.glance_sheet_save_more), more));
-        }
     }
     let mut v = View::new(icon, node.name.clone());
     v.facts = facts;
@@ -1027,14 +869,7 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
     if mark == Some(Mark::Part) {
         let mut v = View::new(Icon::Keys, label);
         v.facts = facts;
-        v.groups = vec![(
-            Text::new(),
-            vec![row(
-                EN.glance_sheet_i_destroyed,
-                "",
-                ctx.edit(Edit::Drop(node.at, what)),
-            )],
-        )];
+        v.groups = vec![(Text::new(), vec![ctx.change(Some((node.at, Some(what))))])];
         return Some(v);
     }
     // A secret's actions, with its seed here; else the way to it.
@@ -1066,11 +901,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
             for (label, a) in ctx.check_rows(forms, s, fp, Some(node.at)) {
                 rows.push(row(label, EN.glance_sheet_check_copy, a));
             }
-            rows.push(row(
-                EN.glance_sheet_make_another,
-                EN.glance_sheet_elsewhere,
-                ctx.open(Target::CopyTo(what)),
-            ));
         }),
         What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
         // A passphrase record in a vault: nothing to do from here.
@@ -1108,11 +938,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                     ctx.open(Target::PassCheck(k as u8, n, j)),
                 ));
             }
-            rows.push(row(
-                EN.glance_sheet_another_copy,
-                EN.glance_sheet_elsewhere,
-                ctx.open(Target::CopyTo(what)),
-            ));
         }
         // A codex32 string: its checklist item checks it, and
         // holds the set's actions (`docs/CODEX32.md` §9.7).
@@ -1136,11 +961,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
                 EN.glance_sheet_the_descriptor,
                 ctx.doing(Step::Out(1)),
             ));
-            rows.push(row(
-                EN.glance_sheet_another_copy,
-                EN.glance_sheet_elsewhere,
-                ctx.open(Target::CopyTo(what)),
-            ));
         }
         What::Share(_) => {
             rows.push(row(
@@ -1154,11 +974,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
         }
         What::VaultStick(_) => {
             rows.extend(ctx.vault_way());
-            rows.push(row(
-                EN.glance_sheet_copy_vault,
-                EN.glance_sheet_then_place,
-                ctx.open(Target::CopyTo(what)),
-            ));
             if app.vault_changed().is_some() {
                 rows.push(row(
                     EN.glance_sheet_write,
@@ -1173,25 +988,9 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
             ctx.doing(Step::Qr),
         )),
     }
-    // Where it is kept: moved, destroyed, lost or exposed.
+    // Where it is kept: changed on the board; lost or exposed here.
     if at_place {
-        rows.push(row(
-            EN.glance_sheet_move,
-            EN.glance_sheet_to_another,
-            ctx.open(Target::MoveTo(n, j)),
-        ));
-        rows.push(match mark {
-            Some(_) => row(
-                EN.glance_sheet_remove_from_plan,
-                "",
-                ctx.edit(Edit::Drop(node.at, what)),
-            ),
-            None => row(
-                EN.glance_sheet_i_destroyed,
-                "",
-                ctx.edit(Edit::Drop(node.at, what)),
-            ),
-        });
+        rows.push(ctx.change(Some((node.at, Some(what)))));
         if mark.is_none() {
             rows.push(ctx.keeping(
                 EN.glance_sheet_lost,
@@ -1214,156 +1013,6 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
     );
     v.facts = facts;
     v.groups = vec![(Text::new(), rows)];
-    Some(v)
-}
-
-/// The sheet for target `Target::MoveTo(n, j)`.
-fn move_to(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
-    let Ctx {
-        nodes, new_place, ..
-    } = *ctx;
-    let places = &ctx.places;
-    let node = nodes.get(usize::from(n))?;
-    let what = *node.whats.get(usize::from(j))?;
-    let label = node.holds.get(usize::from(j))?.clone();
-    let mut rows: Vec<Row> = places
-        .iter()
-        .filter(|(_, x)| x.at != node.at && !x.whats.contains(&what))
-        .map(|(p, x)| {
-            row(
-                x.name.clone(),
-                "",
-                ctx.edit(Edit::Move(node.at, what, At::Place(*p))),
-            )
-        })
-        .collect();
-    rows.push(row(
-        EN.glance_sheet_a_new,
-        "",
-        ctx.edit(Edit::Move(node.at, what, At::Place(new_place))),
-    ));
-    let mut v = View::new(
-        Icon::House,
-        Text::fill(EN.glance_sheet_move_title, &[&label]),
-    );
-    v.groups = vec![(Text::new(), rows)];
-    Some(v)
-}
-
-/// The sheet for target `Target::CopyTo(what)`.
-fn copy_to(ctx: &Ctx<'_>, what: What) -> Option<View> {
-    let Ctx { new_place, g, .. } = *ctx;
-    let places = &ctx.places;
-    let mut rows: Vec<Row> = places
-        .iter()
-        .filter(|(_, x)| !x.whats.contains(&what) && fits_with(x, what))
-        .map(|(p, x)| row(x.name.clone(), "", ctx.edit(Edit::Add(At::Place(*p), what))))
-        .collect();
-    rows.push(row(
-        EN.glance_sheet_a_new,
-        "",
-        ctx.edit(Edit::Add(At::Place(new_place), what)),
-    ));
-    let mut v = View::new(
-        Icon::House,
-        Text::fill(
-            EN.glance_sheet_another,
-            &[&glance::thing_label(Some(g), what)],
-        ),
-    );
-    v.groups = vec![(Text::new(), rows)];
-    Some(v)
-}
-
-/// The sheet for target `Target::AddAt(n)`.
-fn add_at(ctx: &Ctx<'_>, n: u8) -> Option<View> {
-    let Ctx {
-        nodes, split, g, ..
-    } = *ctx;
-    let node = nodes.get(usize::from(n))?;
-    let mut rows = Vec::new();
-    for key in g.keys.iter().filter(|k| k.here) {
-        let Some(s) = key.seed else {
-            continue;
-        };
-        for (what, label) in [
-            (
-                What::Words(s),
-                Text::fill(EN.glance_sheet_key_words, &[&Text::num(key.number as u64)]),
-            ),
-            (
-                What::SeedQr(s),
-                Text::fill(EN.glance_sheet_key_seedqr, &[&Text::num(key.number as u64)]),
-            ),
-            (
-                What::Passphrase(s),
-                Text::fill(
-                    EN.glance_sheet_passphrase_n,
-                    &[&Text::num(key.number as u64)],
-                ),
-            ),
-        ] {
-            if matches!(what, What::Passphrase(_)) && !(key.passphrase && key.held) {
-                continue;
-            }
-            if !node.whats.contains(&what) && fits_with(node, what) {
-                rows.push(row(label, "", ctx.edit(Edit::Add(node.at, what))));
-            }
-        }
-    }
-    if split {
-        for j in 0..g.keys.len() {
-            let what = What::Share(j);
-            if !node.whats.contains(&what) {
-                rows.push(row(
-                    Text::fill(EN.glance_sheet_share, &[&Text::num(j as u64 + 1)]),
-                    "",
-                    ctx.edit(Edit::Add(node.at, what)),
-                ));
-            }
-        }
-    } else if !node.whats.contains(&What::Sheet) {
-        rows.push(row(
-            EN.glance_sheet_wallet,
-            "",
-            ctx.edit(Edit::Add(node.at, What::Sheet)),
-        ));
-    }
-    for x in nodes {
-        if let At::Vault(v) = x.at
-            && !node.whats.contains(&What::VaultStick(v))
-        {
-            rows.push(row(
-                Text::fill(EN.glance_sheet_stick_n, &[&x.name]),
-                EN.glance_sheet_a_copy,
-                ctx.edit(Edit::Add(node.at, What::VaultStick(v))),
-            ));
-        }
-    }
-    let mut v = View::new(
-        Icon::House,
-        Text::fill(EN.glance_sheet_add_title, &[&node.name]),
-    );
-    v.groups = vec![(Text::new(), rows)];
-    Some(v)
-}
-
-/// The sheet for target `Target::Confirm`.
-fn confirm(ctx: &Ctx<'_>) -> Option<View> {
-    let Ctx { press, app, .. } = *ctx;
-    let ask = app.glance.work().ask.as_ref()?;
-    let mut v = View::new(Icon::House, Text::of(&ask.title));
-    v.facts = check_facts(ask.before, ask.after);
-    if let Edit::Drop(..) | Edit::Clear(_) | Edit::RemovePlace(_) = ask.edit {
-        v.lines.push((
-            Text::of(EN.glance_sheet_destroy),
-            Role::OnSurfaceVariant.paint(),
-        ));
-    }
-    v.go = Some((
-        Text::of(EN.glance_sheet_confirm),
-        ctx.chart_do(ChartAction::Confirm(press)),
-    ));
     Some(v)
 }
 
@@ -1439,75 +1088,13 @@ fn marked(ctx: &Ctx<'_>, n: u8, line: Option<u8>) -> Option<View> {
     if f.any_lost && f.elsewhere {
         v.lines
             .push((Text::of(EN.glance_sheet_nothing_lost), Role::Ok.paint()));
-        let what = here.iter().find(|(_, m)| *m == Mark::Lost).map(|(w, _)| *w);
-        if let Some(what) = what {
-            rows.push(row(
-                EN.glance_sheet_make_replacement,
-                "",
-                ctx.open(Target::CopyTo(what)),
-            ));
-        }
+        rows.push(ctx.change(Some((node.at, None))));
     }
     if v.lines.is_empty() && exposed {
         v.lines
             .push((Text::of(EN.glance_sheet_nothing), Role::Ok.paint()));
     }
     v.groups = vec![(Text::new(), rows)];
-    Some(v)
-}
-
-/// The sheet for target `Target::Remove(n)`.
-fn remove(ctx: &Ctx<'_>, n: u8) -> Option<View> {
-    let Ctx {
-        nodes, press, app, ..
-    } = *ctx;
-    let places = &ctx.places;
-    let node = nodes.get(usize::from(n))?;
-    let At::Place(p) = node.at else {
-        return None;
-    };
-    let mut v = View::new(
-        Icon::House,
-        Text::fill(EN.glance_sheet_remove, &[&node.name]),
-    );
-    for (j, label) in node.holds.iter().enumerate().take(node.whats.len()) {
-        let chosen = app.glance.work().dest.get(j).copied().flatten();
-        let mut rows: Vec<Row> = places
-            .iter()
-            .filter(|(q, _)| *q != p)
-            .map(|(q, x)| {
-                row(
-                    x.name.clone(),
-                    if chosen == Some(*q as u8) {
-                        EN.glance_sheet_chosen
-                    } else {
-                        ""
-                    },
-                    ctx.chart_do(ChartAction::Dest(j as u8, *q as u8)),
-                )
-            })
-            .collect();
-        rows.push(row(
-            EN.glance_sheet_nowhere,
-            if chosen == Some(OFF) {
-                EN.glance_sheet_chosen
-            } else {
-                EN.glance_sheet_destroyed
-            },
-            ctx.chart_do(ChartAction::Dest(j as u8, OFF)),
-        ));
-        v.groups
-            .push((Text::fill(EN.glance_sheet_goes_to_group, &[label]), rows));
-    }
-    let all =
-        (0..node.whats.len()).all(|j| app.glance.work().dest.get(j).copied().flatten().is_some());
-    v.go = Some((
-        Text::fill(EN.glance_sheet_remove, &[&node.name]),
-        all.then_some(Action::Chart(ChartAction::Edit(
-            press,
-            Edit::RemovePlace(p),
-        ))),
-    ));
     Some(v)
 }
 
@@ -1601,48 +1188,6 @@ fn pass_check(ctx: &Ctx<'_>, k: u8) -> Option<View> {
     Some(v)
 }
 
-/// The sheet for target `Target::PassShow(k, n, j)`.
-fn pass_show(ctx: &Ctx<'_>, k: u8, n: u8, j: u8) -> Option<View> {
-    let Ctx { g, app, .. } = *ctx;
-    let key = g.keys.get(usize::from(k))?;
-    let mut v = View::new(
-        Icon::Passphrase,
-        Text::fill(
-            EN.glance_sheet_passphrase_n,
-            &[&Text::num(key.number as u64)],
-        ),
-    );
-    let shown = key.fp.and_then(|fp| {
-        app.session
-            .keys
-            .position_of(fp)
-            .filter(|&x| app.session.keys[x].has_passphrase)
-    });
-    match (shown, app.glance.work().reveal) {
-        (Some(x), true) => v.secret_lines.push((
-            Text::of(&app.reveal(x, Reveal::Passphrase)),
-            Role::OnSurface.paint(),
-        )),
-        (Some(_), false) => v.groups.push((
-            Text::new(),
-            vec![row(
-                EN.glance_sheet_show_row,
-                EN.glance_sheet_to_copy,
-                ctx.chart_do(ChartAction::Reveal),
-            )],
-        )),
-        (None, _) => v.lines.push((
-            Text::of(EN.glance_sheet_load_with_passphrase),
-            Role::OnSurfaceVariant.paint(),
-        )),
-    }
-    v.go = Some((
-        Text::of(EN.glance_sheet_check),
-        ctx.open(Target::PassCheck(k, n, j)),
-    ));
-    Some(v)
-}
-
 /// The sheet for target `Target::Addresses`.
 fn addresses(ctx: &Ctx<'_>) -> Option<View> {
     let Ctx { g, press, .. } = *ctx;
@@ -1652,19 +1197,6 @@ fn addresses(ctx: &Ctx<'_>) -> Option<View> {
     let mut v = View::new(Icon::Wallet, g.name.clone());
     v.addresses = Some(w);
     Some(v)
-}
-
-/// Whether `what` may go at place node `node`: a passphrase never shares
-/// a place with its words, nor its words with it.
-fn fits_with(node: &BackupNode, what: What) -> bool {
-    match what {
-        What::Passphrase(i) => !node
-            .whats
-            .iter()
-            .any(|w| *w == What::Words(i) || *w == What::SeedQr(i)),
-        What::Words(i) | What::SeedQr(i) => !node.whats.contains(&What::Passphrase(i)),
-        _ => true,
-    }
 }
 
 fn tone_color(t: crate::wallet_backup::Tone) -> Paint {
@@ -1817,9 +1349,6 @@ fn body(
         }
     }
     for (line, tone) in &v.lines {
-        cy += ui.wrap_as((x, cy, iw), LABEL_L, *tone, line) + tokens::GAP_SMALL;
-    }
-    for (line, tone) in &v.secret_lines {
         cy += ui.wrap_as((x, cy, iw), LABEL_L, *tone, line) + tokens::GAP_SMALL;
     }
     if let Some((label, text, hint)) = &v.field {
@@ -1988,17 +1517,6 @@ impl Faraday {
             ChartAction::Open(press, target) => {
                 // A sheet that types or chooses starts from what is kept.
                 match target {
-                    Target::Remove(n) => {
-                        let things = chart(&glance::Now { app: self, c: &c }, press)
-                            .and_then(|g| match g.backup {
-                                Backup::Plan { nodes, .. } => {
-                                    nodes.get(usize::from(n)).map(|x| x.whats.len())
-                                }
-                                _ => None,
-                            })
-                            .unwrap_or(0);
-                        self.glance.work.dest = vec![None; things];
-                    }
                     Target::Holder(k) => {
                         self.glance.work.text = chart(&glance::Now { app: self, c: &c }, press)
                             .and_then(|g| {
@@ -2027,11 +1545,7 @@ impl Faraday {
                         self.glance.work.secret.clear();
                         self.glance.work.result = None;
                     }
-                    Target::PassShow(..) => self.glance.work.reveal = false,
                     _ => {}
-                }
-                if target != Target::Confirm {
-                    self.glance.work.ask = None;
                 }
                 // Beside the chart, a sheet newly open slides in from now;
                 // another node's replaces it where it stands.
@@ -2054,22 +1568,12 @@ impl Faraday {
                 }
                 self.glance.set_focus(Some((press, usize::from(k))));
             }
-            ChartAction::Edit(press, e) => self.chart_ask(press, e),
-            ChartAction::Confirm(_) => self.chart_confirm(),
             ChartAction::Mark(press, n, j, m) => self.chart_mark(press, n, j, m),
             ChartAction::Checked(press, n) => self.chart_checked(press, n),
             ChartAction::KeyChecked(press, k) => self.chart_key_checked(press, k),
             ChartAction::Moved(press) => self.chart_moved(press),
-            ChartAction::Dest(j, p) => {
-                let j = usize::from(j);
-                if self.glance.work.dest.len() <= j {
-                    self.glance.work.dest.resize(j + 1, None);
-                }
-                self.glance.work.dest[j] = Some(p);
-            }
             ChartAction::Save(press) => self.chart_save_name(press),
             ChartAction::PassTry(press) => self.chart_pass_try(press),
-            ChartAction::Reveal => self.glance.work.reveal = true,
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
             ChartAction::Do(press, step) => {
                 self.close_chart();
@@ -2117,6 +1621,10 @@ impl Faraday {
                         }
                     }
                     Step::Plan => self.chart_plan(w, from_vault, None),
+                    Step::Change(sel) => {
+                        self.chart_plan(w, from_vault, Some(crate::qstep::BOARD));
+                        self.board_select(sel);
+                    }
                     Step::RenamePlace(p) => {
                         self.chart_plan(w, from_vault, Some(crate::qstep::BOARD));
                         self.act(Action::BName(p));

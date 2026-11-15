@@ -799,8 +799,8 @@ pub(crate) fn three_on_an_empty_board() -> Faraday {
     app.press(Action::Backup(w));
     open_board(&mut app);
     app.press(Action::Board(BP::Customize));
-    app.press(Action::Board(BP::RemovePlace(2)));
-    app.press(Action::Board(BP::RemovePlace(1)));
+    board(&mut app, BP::RemovePlace(2));
+    board(&mut app, BP::RemovePlace(1));
     app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Seed(0))));
     app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Whole)));
     app.settle();
@@ -929,6 +929,44 @@ fn expect_down(app: &mut Faraday, want: &str) {
     expect(app, want);
 }
 
+/// A place that holds something asks before it goes, listing what it
+/// holds, and goes on **Take off**; an empty place goes at once.
+#[test]
+fn a_place_holding_something_asks_before_it_goes_and_goes_on_take_off() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddPlace);
+    // Place 3 is empty: its × takes it off at once.
+    tap(&mut app, BP::RemovePlace(2));
+    assert_eq!(backup_places(&app), 2);
+    // Place 2 keeps Seed A's words: its × asks first.
+    tap(&mut app, list(Thing::Seed(0)));
+    tap(&mut app, BP::Zone(Zone::Paper(1)));
+    tap(&mut app, BP::RemovePlace(1));
+    assert_eq!(backup_places(&app), 2, "asked first");
+    let seed = String::from(&*backup_shape(&app).seeds[0].name);
+    expect_down_part(&mut app, &format!("Place 2 holds {seed}"));
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    tap(&mut app, BP::RemovePlaceSure(1));
+    assert_eq!(backup_places(&app), 1);
+    assert!(
+        the_map(&app)
+            .iter()
+            .all(|s| s.holds.iter().all(|(w, _)| *w != What::Words(0))),
+        "what it kept went with it"
+    );
+}
+
+/// A tap on place `p`'s ×, and on **Take off** when the place held
+/// something and asked first.
+fn tap_remove_place(app: &mut Faraday, p: usize) {
+    let places = backup_places(app);
+    tap(app, BP::RemovePlace(p));
+    if backup_places(app) == places {
+        tap(app, BP::RemovePlaceSure(p));
+    }
+}
+
 /// A tap on board press `p`: down and up where it is.
 fn tap(app: &mut Faraday, p: BP) {
     let at = on_board(app, p);
@@ -985,7 +1023,7 @@ fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() 
     tap(&mut app, list(Thing::Seed(0)));
     tap(&mut app, BP::Zone(Zone::Paper(1)));
     assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
-    tap(&mut app, BP::RemovePlace(1));
+    tap_remove_place(&mut app, 1);
     assert_eq!(backup_places(&app), 1);
     assert!(
         the_map(&app)
@@ -1316,7 +1354,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     }
     assert_eq!(plan::check(&c, &shape, &a).lost, plan::Lost::Yes);
     // A place taken off and one added: every place has its share.
-    app.press(Action::Board(BP::RemovePlace(2)));
+    board(&mut app, BP::RemovePlace(2));
     app.press(Action::Board(BP::AddPlace));
     let a = app.backup().unwrap().answers.clone();
     assert_eq!(a.places, 3);
@@ -1674,7 +1712,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
     let a = on_board(&mut app, BP::RemovePlace(0));
     let b = on_board(&mut app, BP::RemovePlace(1));
     assert_eq!(a.0, b.0, "one column");
-    tap(&mut app, BP::RemovePlace(1));
+    tap_remove_place(&mut app, 1);
     // The list is not on the page: Add opens it.
     assert!(!offered(&mut app, Action::Board(list(Thing::Seed(0)))));
     tap(&mut app, BP::OpenList);
@@ -1924,7 +1962,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
         &mut app,
         Action::Board(BP::Zone(Zone::Empty(1, 0)))
     ));
-    tap(&mut app, BP::RemovePlace(1));
+    tap_remove_place(&mut app, 1);
     tap(&mut app, BP::AddPlace);
     assert!(!offered_on_page(
         &mut app,
@@ -1954,8 +1992,8 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     put(&mut app, Thing::Seed(0), Zone::Vault(0, 0, 0));
     put(&mut app, Thing::Seed(1), Zone::Vault(1, 0, 1));
     put(&mut app, Thing::Seed(2), Zone::Vault(2, 0, 2));
-    tap(&mut app, BP::RemovePlace(2));
-    tap(&mut app, BP::RemovePlace(1));
+    tap_remove_place(&mut app, 2);
+    tap_remove_place(&mut app, 1);
     let shape = backup_shape(&app);
     let a = app.backup().unwrap().answers.clone();
     let m = the_map(&app);
@@ -2952,7 +2990,7 @@ fn a_date_follows_its_place_when_an_earlier_place_is_removed_on_the_board() {
     let (mut app, w) = board_after_checks(&["Place 2"]);
     let was = dates_at(&app, w, "Place 2");
     assert!(was.iter().all(|(_, d)| d.is_some()), "{was:?}");
-    app.press(Action::Board(BP::RemovePlace(0)));
+    board(&mut app, BP::RemovePlace(0));
     app.press(Action::BChecklist);
     let now = dates_at(&app, w, "Place 1");
     assert_eq!(now, was, "the old Place 2 keeps its dates as Place 1");

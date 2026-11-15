@@ -717,10 +717,11 @@ pub(crate) fn checklist_start(app: &mut Faraday) {
 /// done is open.
 fn checklist_opened(app: &mut Faraday) {
     let c = app.compute();
-    let first = app
-        .backup_items_now(&c)
-        .into_iter()
-        .find(|&n| bstep::item(n).is_some_and(|it| !app.backup_item_done_now(&c, it)));
+    let first = app.backup.then_item_take().or_else(|| {
+        app.backup_items_now(&c)
+            .into_iter()
+            .find(|&n| bstep::item(n).is_some_and(|it| !app.backup_item_done_now(&c, it)))
+    });
     app.backup.checklist();
     app.backup_item_open(first);
     app.backups_sync();

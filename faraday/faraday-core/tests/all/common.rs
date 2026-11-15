@@ -1159,7 +1159,14 @@ pub fn board(app: &mut Faraday, p: BoardPress) {
     if app.board_plan().is_some_and(|(_, a)| !a.custom) {
         app.press(Action::Board(BoardPress::Customize));
     }
+    let places = app.board_plan().map_or(0, |(_, a)| a.places);
     app.press(Action::Board(p));
+    // A place that holds something asks before it goes: taken off.
+    if let BoardPress::RemovePlace(q) = p
+        && app.board_plan().is_some_and(|(_, a)| a.places == places)
+    {
+        app.press(Action::Board(BoardPress::RemovePlaceSure(q)));
+    }
     // A secret kept as a plain file on a stick asks for the hold (F129):
     // held.
     if testkit::plain_asked(app).is_some() {
@@ -1220,7 +1227,19 @@ pub fn backup_held(app: &Faraday, at: At) -> Vec<What> {
 /// The stick at place `p` that carries vault `v`.
 pub fn vault_stick(app: &Faraday, p: usize, v: usize) -> Option<usize> {
     let m = backup_map(app);
-    (0..plan::sticks_at(&m, p)).find(|&s| plan::stick_vault(&m, p, s) == Some(v))
+    (0..plan::sticks_at(&m, p)).find(|&s| plan::stick_vaults(&m, p, s).contains(&v))
+}
+
+/// The zone of vault `v` on the first stick that carries it.
+pub fn vault_zone(app: &Faraday, v: usize) -> Zone {
+    let m = backup_map(app);
+    (0..plan::places_of(&m))
+        .find_map(|p| {
+            (0..plan::sticks_at(&m, p))
+                .find(|&s| plan::stick_vaults(&m, p, s).contains(&v))
+                .map(|s| Zone::Vault(p, s, v))
+        })
+        .unwrap_or_else(|| panic!("vault {v} is on no stick"))
 }
 
 /// Place `p`'s first stick with no vault: its stick of files.

@@ -119,8 +119,11 @@ pub enum BoardPress {
     LetGo,
     /// The **+** card: a place more.
     AddPlace,
-    /// The × on place `p`'s card.
+    /// The × on place `p`'s card: taken off when it holds nothing, else
+    /// asked.
     RemovePlace(usize),
+    /// **Take off** under a place that holds something.
+    RemovePlaceSure(usize),
     /// **+ vault**.
     AddVault,
     /// The × on vault `v`'s list chip: taken off when it holds nothing,
@@ -297,6 +300,8 @@ pub struct BoardState {
     pub drag: Option<(i32, i32)>,
     /// The vault whose × asked first, it holding something.
     pub removing: Option<usize>,
+    /// The place whose × asked first, it holding something.
+    pub removing_place: Option<usize>,
     /// The empty sticks each place has, by place, added by a press on
     /// **+ stick** (`docs/BACKUP-FLOW.md` §17.16 item 1): never on the
     /// map, and gone when the board is left.
@@ -716,6 +721,9 @@ pub(crate) struct CardView {
     /// balance, then how near it brings a spend, where it keeps a seed
     /// (`docs/BACKUP-FLOW.md` §17.22).
     pub facts: Vec<(String, plan::AloneKind)>,
+    /// What it holds, as the ask under its header says it, while its ×
+    /// has asked first.
+    pub holds: Option<String>,
 }
 
 /// The software place's card.
@@ -880,6 +888,7 @@ impl Faraday {
         self.board_edit(|st| {
             st.held = None;
             st.removing = None;
+            st.removing_place = None;
         });
     }
 
@@ -1196,7 +1205,15 @@ impl Faraday {
         let chip = |z: Zone, t: Thing, held: &[What], p: Option<usize>| -> ChipView {
             let all = codex32::forms_shown(&a, z, t);
             let k = kind(z);
-            let on = k.map_or_else(Vec::new, |k| held_forms(held, k, t));
+            let mut on = k.map_or_else(Vec::new, |k| held_forms(held, k, t));
+            // A SeedQR drawn in part is the answers' alone, not the map's:
+            // its toggle reads on, and turns it off by destroying it.
+            if let (Zone::Paper(p), Thing::Seed(i)) = (z, t)
+                && plan::is_part(&a, At::Place(p), What::SeedQr(i))
+                && !on.contains(&What::SeedQr(i))
+            {
+                on.push(What::SeedQr(i));
+            }
             let labels: Vec<Option<String>> =
                 all.iter().map(|w| form_label(*w, &software_name)).collect();
             let marks: Vec<String> = all
@@ -1339,6 +1356,10 @@ impl Faraday {
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
                     facts: codex32::facts(&shape, &a, &mapped, p, alone),
+                    holds: (state.removing_place == Some(p) && !things[p].is_empty()).then(|| {
+                        let held: Vec<String> = things[p].iter().map(|&t| name_of(t)).collect();
+                        fill(EN.board_place_holds, &[&place_name(p), &held.join(", ")])
+                    }),
                 }
             })
             .collect();
@@ -1636,6 +1657,34 @@ impl Faraday {
             .map(|(shape, a)| plan::stored_map(&shape, &a))
     }
 
+    /// The board just opened from the chart's **Change in the plan**, made
+    /// editable, with the thing `sel` names selected where it is: its chip
+    /// held. A place, a vault or a key selects no chip.
+    pub(crate) fn board_select(&mut self, sel: Option<(At, Option<What>)>) {
+        if self.board_plan().is_some_and(|(_, a)| !a.custom) {
+            self.board_change(&|a, _| a.custom = true);
+        }
+        let (Some((at, Some(what))), Some(m)) = (sel, self.board_map()) else {
+            return;
+        };
+        let (At::Place(p) | At::Stick(p, _)) = at else {
+            return;
+        };
+        let zone = m.iter().find_map(|s| {
+            if !s.holds.iter().any(|(w, _)| *w == what) {
+                return None;
+            }
+            match s.at {
+                At::Place(q) if q == p => Some(Zone::Paper(p)),
+                At::Stick(q, k) if q == p => Some(Zone::Files(p, k)),
+                _ => None,
+            }
+        });
+        if let (Some(zone), Some(&t)) = (zone, things_of(what).first()) {
+            self.board_edit(|st| st.held = Some(Chip::Placed(zone, t)));
+        }
+    }
+
     /// Records, for the notes to follow, what a press took from `from`:
     /// each thing that left it and is now at `to` moved there, each other
     /// dropped. `before` is the map before the press.
@@ -1662,6 +1711,26 @@ impl Faraday {
                 _ => Edit::Drop(at_from, w),
             };
             self.backup.edited(edit);
+        }
+    }
+
+    /// Records the thing a drop from the list added to zone `to`, for the
+    /// checklist to open at its item once the plan is saved. `before` is
+    /// the map before the press.
+    fn board_added(&mut self, before: Option<Vec<Spot>>, to: Zone) {
+        let (Some(before), Some(after)) = (before, self.board_map()) else {
+            return;
+        };
+        let Some(at) = at_of(&before, to) else {
+            return;
+        };
+        let was = plan::holds_at(&before, at);
+        if let Some(w) = plan::holds_at(&after, at)
+            .into_iter()
+            .rev()
+            .find(|w| !was.contains(w))
+        {
+            self.backup.added_set(at, w);
         }
     }
 
@@ -1714,6 +1783,7 @@ impl Faraday {
             app.board_edit(|st| {
                 st.held = held;
                 st.removing = None;
+                st.removing_place = None;
             });
         };
         // Until Customize backup the board shows the placement and takes
@@ -1948,6 +2018,17 @@ impl Faraday {
                     return self.toast(EN.backup_flow_files_after_lock);
                 }
                 self.board_change(&|a, shape| {
+                    // A SeedQR drawn in part is destroyed by its toggle: it
+                    // goes from the answers, and the map stays as it was.
+                    if let (Zone::Paper(p), Thing::Seed(i)) = (z, t)
+                        && forms_in(Kind::Paper, t).get(usize::from(k)) == Some(&What::SeedQr(i))
+                        && plan::is_part(a, At::Place(p), What::SeedQr(i))
+                        && !plan::holds_at(&plan::stored_map(shape, a), At::Place(p))
+                            .contains(&What::SeedQr(i))
+                    {
+                        a.part.retain(|&x| x != (p, i));
+                        return;
+                    }
                     map_edit(a, shape, |m| form_toggled(m, z, t, usize::from(k)))
                 });
             }
@@ -1969,6 +2050,25 @@ impl Faraday {
                 set(self, None);
                 // After the lock only the last place goes (§17.8): a place
                 // before another would renumber sticks already named.
+                let places = self.board_plan().map_or(0, |(_, a)| a.places);
+                if locked && p + 1 != places {
+                    return;
+                }
+                // A place that holds something asks first, with what it
+                // holds, as a vault does (§19.12 item 7).
+                let holds = self
+                    .board_map()
+                    .is_some_and(|m| !things_at(&m, p).is_empty());
+                if holds && state.removing_place != Some(p) {
+                    self.board_edit(|st| {
+                        st.removing_place = Some(p);
+                    });
+                    return;
+                }
+                self.board_act(BoardPress::RemovePlaceSure(p));
+            }
+            BoardPress::RemovePlaceSure(p) => {
+                set(self, None);
                 let places = self.board_plan().map_or(0, |(_, a)| a.places);
                 if locked && p + 1 != places {
                     return;
@@ -2083,6 +2183,7 @@ impl Faraday {
         self.board_edit(|st| {
             st.held = None;
             st.removing = None;
+            st.removing_place = None;
             st.menu = Some(Menu {
                 chip: c,
                 verb,
@@ -2464,6 +2565,7 @@ impl Faraday {
         match c {
             Chip::List(_) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| added(m, to, t)));
+                self.board_added(before.clone(), to);
             }
             Chip::Placed(from, _) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| moved(m, from, t, to)));
@@ -2680,6 +2782,7 @@ impl Faraday {
                     }
                     b.held = Some(c);
                     b.removing = None;
+                    b.removing_place = None;
                 }
                 b.drag = Some((x, y));
                 true

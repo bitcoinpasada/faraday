@@ -1794,28 +1794,6 @@ strings! {
     /// Text in `tile_need`.
     catalog_unlock_a_vault: "Unlock a vault first",
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
-    /// Text in `edit_title`.
-    chart_edit_a_new_place: "a new place",
-    /// Text in `edit_title`. `{}`: `p + 1`.
-    chart_edit_place: "Place {}",
-    /// Text in `edit_title`. `{}`: `v + 1`.
-    chart_edit_vault: "Vault {}",
-    /// Text in `edit_title`. `{}`: `self.medium.cap()`.
-    chart_edit_of_files: "{} of files",
-    /// Text in `edit_title`.
-    chart_edit_watch_only: "Watch-only software",
-    /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`, `spot(at)`.
-    chart_edit_save_into: "Save {} into {}",
-    /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`.
-    chart_edit_as_a_file: "{} as a file",
-    /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`, `spot(at)`.
-    chart_edit_place_title: "{} at {}",
-    /// Text in `edit_title`. `{}`: `label(from, what)`, `spot(to)`.
-    chart_edit_move_title: "Move {} to {}",
-    /// Text in `edit_title`. `{}`: `place(p)`.
-    chart_edit_remove: "Remove {}",
-    /// Text in `edit_title`. `{}`: `spot(at)`.
-    chart_edit_off_plan: "{} off the plan",
     /// Toast in `chart_key_checked`.
     chart_edit_checked: "Checked today",
     /// Toast in `chart_checked`.
@@ -3080,10 +3058,6 @@ strings! {
     /// Row in `view`.
     glance_sheet_where: "Where it is",
     /// Row in `view`.
-    glance_sheet_words: "Words, by hand",
-    /// Row in `view`.
-    glance_sheet_seedqr: "SeedQR, by hand",
-    /// Row in `view`.
     glance_sheet_seed_xor: "Seed XOR or codex32",
     /// Row in `view`.
     glance_sheet_by_hand: "By hand",
@@ -3115,40 +3089,26 @@ strings! {
     glance_sheet_the_envelope: "The envelope list",
     /// Row in `view`.
     glance_sheet_envelope_pdf: "PDF, for the stick",
-    /// Row in `view`.
-    glance_sheet_add_here: "Add here",
     /// Text in `view`.
     glance_sheet_mark_lost: "Mark lost",
     /// Text in `view`.
     glance_sheet_mark_exposed: "Mark exposed",
     /// Row in `view`.
-    glance_sheet_remove_place: "Remove the place",
+    glance_sheet_change_in_plan: "Change in the plan",
     /// Text in `view`.
     glance_sheet_rename: "Rename",
     /// Row in `view`.
     glance_sheet_save_seeds: "Save its seeds into it",
     /// Row in `view`.
-    glance_sheet_copy_to_stick: "Copy to another stick",
-    /// Row in `view`.
     glance_sheet_write_the_seed: "Write the seed files again",
     /// Row in `view`.
     glance_sheet_rewrite_public: "Write the public files again",
-    /// Row in `view`.
-    glance_sheet_destroy_copies: "Destroy its copies by hand",
     /// Row in `view`.
     glance_sheet_reshow_descriptor_qr: "Show the descriptor QR again",
     /// Row in `view`.
     glance_sheet_public: "Public files for this software",
     /// Text in `view`.
     glance_sheet_contents_group: "In it",
-    /// Text in `view`. `{}`: `key.number`.
-    glance_sheet_key_seed: "Key {} seed",
-    /// Text in `view`.
-    glance_sheet_with_passphrase: "With its passphrase",
-    /// Row in `view`.
-    glance_sheet_the_description: "The description",
-    /// Text in `view`.
-    glance_sheet_save_more: "Save more into it",
     /// Text in `view`.
     glance_sheet_kept_at_label: "Kept at",
     /// Text in `view`.
@@ -3168,8 +3128,6 @@ strings! {
     /// Row in `view`.
     glance_sheet_check_copy: "Check this copy",
     /// Row in `view`.
-    glance_sheet_make_another: "Make another copy",
-    /// Row in `view`.
     glance_sheet_rewrite: "Write it again",
     /// Row in `view`.
     glance_sheet_stick_detail: "For the stick",
@@ -3184,19 +3142,11 @@ strings! {
     /// Row in `view`.
     glance_sheet_as_text: "As text",
     /// Row in `view`.
-    glance_sheet_another_copy: "Another copy",
-    /// Row in `view`.
-    glance_sheet_elsewhere: "Elsewhere",
-    /// Row in `view`.
     glance_sheet_print: "Print the shares again",
     /// Row in `view`.
     glance_sheet_pdfs_text: "PDFs, text and pictures",
     /// Row in `view`.
     glance_sheet_keys_left: "Keys left off each share",
-    /// Row in `view`.
-    glance_sheet_copy_vault: "Copy the vault to another stick",
-    /// Row in `view`.
-    glance_sheet_then_place: "Then a place",
     /// Row in `view`.
     glance_sheet_write: "Write it out again",
     /// Row in `view`.
@@ -3205,44 +3155,12 @@ strings! {
     glance_sheet_show_wallet: "Show wallet QR",
     /// Row in `view`.
     glance_sheet_the_descriptor: "The descriptor",
-    /// Row in `view`.
-    glance_sheet_move: "Move",
-    /// Row in `view`.
-    glance_sheet_to_another: "To another place",
-    /// Row in `view`.
-    glance_sheet_remove_from_plan: "Remove from the plan",
-    /// Row in `view`.
-    glance_sheet_i_destroyed: "I destroyed this copy",
     /// Text in `view`.
     glance_sheet_lost: "Lost",
     /// Text in `view`.
     glance_sheet_exposed: "Exposed",
     /// A line's mark on its sheet: a SeedQR dropped for the words.
     glance_sheet_drawn_in_part: "Drawn in part",
-    /// Text in `view`. `{}`: `label`.
-    glance_sheet_move_title: "Move {} to",
-    /// Row in `view`.
-    glance_sheet_a_new: "A new place",
-    /// Text in `view`. `{}`: `glance::thing_label(Some(&g), what)`.
-    glance_sheet_another: "Another copy of {}",
-    /// Text in `view`. `{}`: `key.number`.
-    glance_sheet_key_words: "Key {} words",
-    /// Text in `view`. `{}`: `key.number`.
-    glance_sheet_key_seedqr: "Key {} SeedQR",
-    /// Text in `view`. `{}`: `j + 1`.
-    glance_sheet_share: "Share {}",
-    /// Row in `view`.
-    glance_sheet_wallet: "Wallet sheet",
-    /// Text in `view`. `{}`: `x.name`.
-    glance_sheet_stick_n: "{} stick",
-    /// Row in `view`.
-    glance_sheet_a_copy: "A copy of the vault",
-    /// Text in `view`. `{}`: `node.name`.
-    glance_sheet_add_title: "Add at {}",
-    /// Text in `view`.
-    glance_sheet_destroy: "Destroy what goes off the plan by hand",
-    /// Text in `view`.
-    glance_sheet_confirm: "Confirm",
     /// Text in `view`.
     glance_sheet_someone_can: "Someone can now spend",
     /// Text in `view`.
@@ -3259,20 +3177,8 @@ strings! {
     glance_sheet_someone: "Someone can see the balance",
     /// Text in `view`.
     glance_sheet_nothing_lost: "Nothing lost that is not elsewhere",
-    /// Row in `view`.
-    glance_sheet_make_replacement: "Make a replacement copy",
     /// Text in `view`.
     glance_sheet_nothing: "Nothing it holds spends or shows the balance",
-    /// Row in `view`.
-    glance_sheet_nowhere: "Nowhere",
-    /// Text in `view`.
-    glance_sheet_chosen: "Chosen",
-    /// Text in `view`.
-    glance_sheet_destroyed: "Destroyed",
-    /// Text in `view`. `{}`: `label`.
-    glance_sheet_goes_to_group: "{} goes to",
-    /// Text in `view`. `{}`: `node.name`.
-    glance_sheet_remove: "Remove {}",
     /// Text in `view`. `{}`: `key.number`, `key.fingerprint`.
     glance_sheet_key: "Key {} · {}",
     /// Text in `view`.
@@ -3293,12 +3199,6 @@ strings! {
     glance_sheet_check_button: "Check",
     /// Text in `view`. `{}`: `key.number`.
     glance_sheet_passphrase_n: "Passphrase {}",
-    /// Row in `view`.
-    glance_sheet_show_row: "Show it",
-    /// Row in `view`.
-    glance_sheet_to_copy: "To copy by hand",
-    /// Text in `view`.
-    glance_sheet_load_with_passphrase: "Load this key with its passphrase",
     /// Text in `view`.
     glance_sheet_check: "Check my copy",
     /// Text in `view`.
@@ -11788,6 +11688,9 @@ strings! {
     /// Under a vault's chip, before it is taken off: what it holds. The
     /// vault, what it holds.
     board_vault_holds: "{} holds {}",
+    /// Under a place's header, before it is taken off: what it holds. The
+    /// place, what it holds.
+    board_place_holds: "{} holds {}",
     /// Takes a vault that holds something off the plan.
     board_take_off: "Take off",
     /// The narrow column's button that opens the board's list as a sheet

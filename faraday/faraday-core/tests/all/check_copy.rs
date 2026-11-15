@@ -1062,7 +1062,7 @@ fn a_lock_drops_the_count_of_scans_without_a_match() {
 #[test]
 fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed() {
     use faraday_core::glance::{self, Backup};
-    use faraday_core::plan::{Edit, Mark, What};
+    use faraday_core::plan::{At, Mark, What};
     let c = testkit::compute();
     let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
     let fp = app.session.keys[0].fingerprint.to_string();
@@ -1099,13 +1099,23 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
     app.press(Action::Chart(C::Open(press, Target::Line(n, j))));
     crate::common::a_moment(&mut app);
     assert!(shown(&mut app, "Drawn in part"));
-    let destroy = Action::Chart(C::Edit(press, Edit::Drop(at, What::SeedQr(0))));
-    assert!(app.offers(destroy), "no I destroyed this copy");
-    app.press(destroy);
-    let _ = app.frame();
-    let confirm = Action::Chart(C::Confirm(press));
-    assert!(app.offers(confirm), "no Confirm");
-    app.press(confirm);
+    let change = Action::Chart(C::Do(
+        press,
+        Step::Change(Some((at, Some(What::SeedQr(0))))),
+    ));
+    assert!(app.offers(change), "no Change in the plan");
+    app.press(change);
+    app.settle();
+    let At::Place(p) = at else {
+        panic!("the SeedQR is at {at:?}");
+    };
+    crate::common::form(
+        &mut app,
+        faraday_core::board::Zone::Paper(p),
+        faraday_core::board::Thing::Seed(0),
+        1,
+    );
+    app.press(Action::BChecklist);
     let _ = app.frame();
     assert!(part_line(&app).is_none(), "the line stayed once destroyed");
     assert!(app.backup().unwrap().answers.part.is_empty());

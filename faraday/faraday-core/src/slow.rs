@@ -122,9 +122,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
                     | crate::convert::ConvertAction::Make
                     | crate::convert::ConvertAction::Save
             )
-            | Action::Chart(
-                C::Checked(..) | C::Confirm(_) | C::Do(..) | C::Edit(..) | C::PassTry(_)
-            )
+            | Action::Chart(C::Checked(..) | C::Do(..) | C::PassTry(_))
             | Action::Vault(
                 V::AddFile(_)
                     | V::AddKind(_)

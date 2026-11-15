@@ -65,7 +65,6 @@ fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
 fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held() {
     use crate::backup_flow_wallet::load_first_vault;
     use faraday_core::glance::Press;
-    use faraday_core::glance::sheet::ChartAction as C;
     use faraday_core::plan::{self, At, What};
     let c = testkit::compute();
     let mut shell = Shell::new();
@@ -127,11 +126,14 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
     let press = Press::Loaded(w);
     // Vault 2's stick moves to Place 2: Place 1 keeps a stick, but not the
     // vaults it was written with.
-    app.press(Action::Chart(C::Edit(
-        press,
-        plan::Edit::Move(At::Place(0), What::VaultStick(1), At::Place(1)),
-    )));
-    app.press(Action::Chart(C::Confirm(press)));
+    crate::chart_edit::change_in_plan(&mut app, press, Some((At::Place(0), None)));
+    let stick = crate::common::vault_stick(&app, 0, 1).expect("Vault 2's stick at Place 1");
+    crate::common::move_to(
+        &mut app,
+        faraday_core::board::Zone::Files(0, stick),
+        faraday_core::board::Thing::Vault(1),
+        faraday_core::board::Zone::NewStick(1),
+    );
     expect(&mut app, "A stick already written stays on the plan");
     let f = app.flow().unwrap();
     assert_eq!(f.wallet.as_ref().unwrap().answers, before, "the plan stays");

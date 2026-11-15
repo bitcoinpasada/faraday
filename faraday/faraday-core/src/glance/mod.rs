@@ -338,21 +338,6 @@ impl GlanceArea {
         &self.work
     }
 
-    /// Asks for a change, to be confirmed.
-    pub(crate) fn set_ask(&mut self, ask: crate::chart_edit::Ask) {
-        self.work.ask = Some(ask);
-    }
-
-    /// Takes the change asked for, to make it.
-    pub(crate) fn take_ask(&mut self) -> Option<crate::chart_edit::Ask> {
-        self.work.ask.take()
-    }
-
-    /// Shows or hides a passphrase on its sheet.
-    pub(crate) fn set_reveal(&mut self, reveal: bool) {
-        self.work.reveal = reveal;
-    }
-
     /// Forgets the name typed.
     pub(crate) fn clear_text(&mut self) {
         self.work.text.clear();
@@ -377,10 +362,9 @@ impl GlanceArea {
     }
 
     /// Drops what a chart's sheet was asking: the typed passphrase is
-    /// wiped and the change asked for is forgotten.
+    /// wiped.
     pub(crate) fn cancel_work(&mut self) {
         self.work.secret.clear();
-        self.work.ask = None;
     }
 
     /// Types `c` into the passphrase to check: its last result and
@@ -2326,17 +2310,6 @@ pub(crate) fn draw_column_with(
         cy += tokens::GAP;
     }
     cy - y
-}
-
-/// The line of the chart `g` that says what `what` is at `at`: "Key 1
-/// words", "Vault 1 · copy".
-pub(crate) fn label_of(g: &Glance, at: At, what: What) -> Option<Text> {
-    let Backup::Plan { nodes, .. } = &g.backup else {
-        return None;
-    };
-    let node = nodes.iter().find(|n| n.at == at)?;
-    let j = node.whats.iter().position(|w| *w == what)?;
-    node.holds.get(j).cloned()
 }
 
 /// A thing as the chart names it, wherever it is: "Key 1 words", "Wallet

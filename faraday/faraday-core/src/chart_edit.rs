@@ -1,14 +1,12 @@
-//! Changing the backup on the wallet's chart (`docs/history/NEW-WALLET.md`
-//! §9.5–§9.7): a thing moved, copied, added, destroyed or a place
-//! removed, each shown first as the check's three lines before and after
-//! and made only once confirmed; from the first such change the map is
-//! the plan. Dates checked, marks (lost, exposed), a key's holder and a
+//! What the wallet's chart keeps (`docs/history/NEW-WALLET.md` §9.5,
+//! §9.6): dates checked, marks (lost, exposed), a key's holder and a
 //! vault's name are notes the plan's vault record keeps (type 11, field
-//! 5), in the vault alone.
+//! 5), in the vault alone, and moving the money to a new wallet. The map
+//! is changed on the backup's board.
 
 use crate::glance::sheet::Target;
 use crate::glance::{self, Press};
-use crate::plan::{self, At, Edit, Mark, Note, What};
+use crate::plan::{At, Mark, Note, What};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::{Action, Faraday, Sheet};
@@ -18,8 +16,6 @@ use faraday_text::{Text, text};
 /// What the chart's sheets hold between presses.
 #[derive(Default)]
 pub struct Work {
-    /// The change asked for, waiting to be confirmed.
-    pub ask: Option<Ask>,
     /// The name typed: a key's holder, a vault's.
     pub text: Text,
     /// A passphrase typed to be checked, wiped once compared.
@@ -28,11 +24,6 @@ pub struct Work {
     pub result: Option<bool>,
     /// A letter typed was refused: a passphrase here is printable ASCII.
     pub refused: bool,
-    /// Where each thing of a place being removed goes, by its line: a
-    /// place by number, [`OFF`] off the map, `None` not chosen yet.
-    pub dest: Vec<Option<u8>>,
-    /// A passphrase is shown, to be copied.
-    pub reveal: bool,
     /// The wallet whose money is moving to a new wallet, by checksum
     /// (`docs/history/NEW-WALLET.md` §9.6).
     pub moving: Option<Text>,
@@ -50,9 +41,6 @@ impl Work {
     }
 }
 
-/// A destination of [`Work::dest`]: off the map, the copy destroyed.
-pub const OFF: u8 = u8::MAX;
-
 /// What [`Faraday::press_wallet_wait`] found.
 pub(crate) enum PressWallet {
     /// The loaded wallet's place.
@@ -61,26 +49,6 @@ pub(crate) enum PressWallet {
     Loading,
     /// No wallet.
     None,
-}
-
-/// A change to where things are kept, asked for and not yet made.
-pub struct Ask {
-    /// The chart it was asked on.
-    pub press: Press,
-    /// The change.
-    pub edit: Edit,
-    /// What it does, as the sheet's title says it.
-    pub title: Text,
-    /// The check now.
-    pub before: plan::Check,
-    /// The check once it is made.
-    pub after: plan::Check,
-    /// The plan once it is made.
-    answers: plan::Answers,
-    /// The places' names once it is made.
-    names: Vec<Text>,
-    /// For a place removed: where each thing goes.
-    dest: Vec<(What, Option<usize>)>,
 }
 
 impl Faraday {
@@ -273,309 +241,6 @@ impl Faraday {
         }
         self.vaults.changed(id);
         true
-    }
-
-    /// Asks for `edit` on the chart of `press`: the sheet shows the check
-    /// before and after, and Confirm makes it.
-    pub(crate) fn chart_ask(&mut self, press: Press, edit: Edit) {
-        let c = self.compute();
-        let Some(w) = self.press_wallet(press) else {
-            return;
-        };
-        let Some((answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
-            return;
-        };
-        let shape = self.plan_shape_now(w);
-        let boxes = plan::map(&c, &shape, &answers);
-        let dest: Vec<(What, Option<usize>)> = match edit {
-            // Each thing the place keeps, its sticks' too, as the chart
-            // lists them.
-            Edit::RemovePlace(p) => plan::by_place(&boxes)
-                .iter()
-                .filter(|s| s.at == At::Place(p))
-                .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
-                .enumerate()
-                .map(|(j, what)| {
-                    let to = self.glance.work().dest.get(j).copied().flatten();
-                    (what, to.filter(|&t| t != OFF).map(usize::from))
-                })
-                .collect(),
-            _ => Vec::new(),
-        };
-        let places = plan::places_of(&boxes);
-        let mut after = answers.clone();
-        match edit {
-            // A SeedQR drawn in part is the plan's answers' alone, not its
-            // map's (`docs/history/NEW-WALLET.md` §14.7 item 3): destroyed, it goes
-            // from them, and the plan stays what it was.
-            Edit::Drop(at @ At::Place(p), What::SeedQr(i))
-                if plan::is_part(&answers, at, What::SeedQr(i))
-                    && !plan::holds_at(&boxes, at).contains(&What::SeedQr(i)) =>
-            {
-                after.part.retain(|&x| x != (p, i));
-            }
-            _ => {
-                if let Edit::RemovePlace(p) = edit {
-                    after.part.retain(|&(q, _)| q != p);
-                    for (q, _) in &mut after.part {
-                        if *q > p {
-                            *q -= 1;
-                        }
-                    }
-                }
-                after.set_map(plan::edited(&boxes, edit, &dest));
-            }
-        }
-        let mut new_names: Vec<Text> = names.iter().map(|n| Text::of(n)).collect();
-        new_names.resize(places, Text::new());
-        match edit {
-            Edit::RemovePlace(p) if p < new_names.len() => {
-                new_names.remove(p);
-            }
-            Edit::Add(At::Place(p), _) | Edit::Move(_, _, At::Place(p)) if p >= places => {
-                new_names.push(Text::new());
-            }
-            _ => {}
-        }
-        let title = self.edit_title(&c, press, w, edit, &names);
-        self.glance.set_ask(Ask {
-            press,
-            edit,
-            title,
-            before: plan::check(&c, &shape, &answers),
-            after: plan::check(&c, &shape, &after),
-            answers: after,
-            names: new_names,
-            dest,
-        });
-        self.glance.set_chart(Some((press, Target::Confirm)));
-        self.sheet = Some(Sheet::Chart);
-        self.scroll.reset_sheet();
-    }
-
-    /// Costs what `of_now` and `of_vault_now` cost. What an edit does, in
-    /// words: "Move Key 1 words to Place 3".
-    fn edit_title(
-        &self,
-        c: &Compute,
-        press: Press,
-        w: usize,
-        edit: Edit,
-        names: &[impl AsRef<str>],
-    ) -> Text {
-        let g = match press {
-            Press::Loaded(_) => glance::of_now(c, self, w),
-            Press::Vault(v, r) => glance::of_vault_now(c, self, v, r),
-        };
-        let place = |p: usize| {
-            let places = g.as_ref().map_or(0, |g| match &g.backup {
-                glance::Backup::Plan { nodes, .. } => nodes
-                    .iter()
-                    .filter(|n| matches!(n.at, At::Place(_)))
-                    .count(),
-                _ => 0,
-            });
-            if p >= places {
-                Text::of(EN.chart_edit_a_new_place)
-            } else {
-                names
-                    .get(p)
-                    .map(|n| n.as_ref().trim())
-                    .filter(|n| !n.is_empty())
-                    .map_or_else(
-                        || Text::fill(EN.chart_edit_place, &[&Text::num(p as u64 + 1)]),
-                        Text::of,
-                    )
-            }
-        };
-        let spot = |at: At| match at {
-            At::Place(p) => place(p),
-            other => g
-                .as_ref()
-                .and_then(|g| match &g.backup {
-                    glance::Backup::Plan { nodes, .. } => nodes
-                        .iter()
-                        .find(|n| n.at == other)
-                        .map(|n| n.name.duplicate()),
-                    _ => None,
-                })
-                .unwrap_or_else(|| match other {
-                    At::Vault(v) => Text::fill(EN.chart_edit_vault, &[&Text::num(v as u64 + 1)]),
-                    At::Files => Text::fill(EN.chart_edit_of_files, &[self.medium.cap()]),
-                    _ => Text::of(EN.chart_edit_watch_only),
-                }),
-        };
-        let label = |at: At, what: What| {
-            g.as_ref()
-                .and_then(|g| glance::label_of(g, at, what))
-                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium.cap()))
-        };
-        let thing = |what: What| glance::thing_label(g.as_ref(), what);
-        match edit {
-            Edit::Add(at @ At::Vault(_), what) => {
-                Text::fill(EN.chart_edit_save_into, &[&thing(what), &spot(at)])
-            }
-            Edit::Add(At::Files, what) => Text::fill(EN.chart_edit_as_a_file, &[&thing(what)]),
-            Edit::Add(at, what) => {
-                Text::fill(EN.chart_edit_place_title, &[&thing(what), &spot(at)])
-            }
-            Edit::Move(from, what, to) => {
-                Text::fill(EN.chart_edit_move_title, &[&label(from, what), &spot(to)])
-            }
-            Edit::Drop(at, what) => Text::fill(EN.chart_edit_off_plan, &[&label(at, what)]),
-            Edit::RemovePlace(p) => Text::fill(EN.chart_edit_remove, &[&place(p)]),
-            Edit::Clear(at) => Text::fill(EN.chart_edit_off_plan, &[&spot(at)]),
-        }
-    }
-
-    /// Makes the change asked for: the map is the plan from now on, kept
-    /// as the backup's record and in the vault that keeps the plan, with
-    /// its notes following what moved; then the flow that makes a new
-    /// copy, where it makes one.
-    pub(crate) fn chart_confirm(&mut self) {
-        let c = self.compute();
-        let Some(press) = self.glance.work().ask.as_ref().map(|a| a.press) else {
-            return;
-        };
-        // The change asked for stays until the seeds are loaded and the
-        // press is run again.
-        let w = match self.press_wallet_wait(press) {
-            PressWallet::Ready(w) => Some(w),
-            PressWallet::Loading => return,
-            PressWallet::None => None,
-        };
-        let Some(ask) = self.glance.take_ask() else {
-            return;
-        };
-        self.glance.set_chart(None);
-        if self.sheet == Some(Sheet::Chart) {
-            self.sheet = None;
-        }
-        let Some(w) = w else {
-            return;
-        };
-        let from_vault = matches!(ask.press, Press::Vault(..));
-        let screen = self.screen;
-        if !self.chart_backup(w, from_vault) {
-            return;
-        }
-        self.screen = screen;
-        // A backup past its lock: the change goes through its flow, with
-        // its refusals, and is kept only where the flow takes it
-        // (`docs/BACKUP-FLOW.md` §15.8).
-        if let Some(i) = self.backup_locked_flow() {
-            let before = self.flows[i].wallet.as_ref().map(|w| w.answers.clone());
-            let new = ask.answers.clone();
-            self.flow_wallet_edit(i, &|a, _| *a = new.clone());
-            let after = self.flows[i].wallet.as_ref().map(|w| w.answers.clone());
-            if after == before {
-                return;
-            }
-        }
-        let mut extras = self.backup.chart_edit(
-            &ask.answers,
-            &ask.names.iter().map(|n| Text::of(n)).collect::<Vec<_>>(),
-        );
-        self.backups_sync();
-        if let Some(v) = self.notes_vault(&c, ask.press, w)
-            && let Some(wallet) = self.session.wallets.get(w)
-        {
-            for line in self.plan_extras(&c, wallet, v) {
-                if !extras.iter().any(|e| *e == *line) {
-                    extras.push(Text::of(&line));
-                }
-            }
-            let notes =
-                plan::notes_after(&self.plan_notes(&c, wallet, Some(v)), ask.edit, &ask.dest);
-            self.plan_store(
-                v,
-                w,
-                &ask.answers,
-                &ask.names.iter().map(|n| Text::of(n)).collect::<Vec<_>>(),
-                &extras,
-                Some(&notes),
-            );
-            self.vault_summaries_refresh();
-        }
-        self.chart_then(ask.press, w, ask.edit);
-    }
-
-    /// Costs what `described_of` costs. The lines of work a later plan
-    /// dropped that open vault `v`'s record keeps for `wallet` ("vault.kdbx
-    /// holds seed 9A6A2580").
-    fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<Text> {
-        use faraday_vault::records::{field, kind};
-        let want = wallet.same();
-        // What stands between the vault and the seed in such a line.
-        let holds_seed = EN
-            .held_holds_seed
-            .trim_start_matches("{}")
-            .trim_end_matches("{}");
-        let Some(open) = self.vaults.open.get(v) else {
-            return Vec::new();
-        };
-        self.vaults
-            .described_of(c, open.id, kind::PLAN)
-            .filter(|(_, _, d)| d.same == want)
-            .flat_map(|(_, r, _)| {
-                r.public_all(field::PLAN_HOLDS)
-                    .map(Text::from_utf8_lossy)
-                    .filter(|l| l.contains(holds_seed) && !l.contains(": "))
-                    .collect::<Vec<_>>()
-            })
-            .collect()
-    }
-
-    /// After an edit is made: the flow that makes what it added, each by
-    /// the flows that exist (§9.1): a copy by hand with its check, a vault
-    /// item, a file, a sheet, the stick visit for a vault's stick, a
-    /// passphrase shown to be copied.
-    fn chart_then(&mut self, press: Press, w: usize, edit: Edit) {
-        let c = self.compute();
-        use crate::glance::sheet::{ChartAction as C, Step};
-        let item = |it: plan::Item| {
-            Action::Chart(C::Do(Press::Loaded(w), Step::Item(crate::bstep::of(it))))
-        };
-        let Edit::Add(at, what) = edit else {
-            return;
-        };
-        match (at, what) {
-            (At::Place(_), What::Words(i) | What::SeedQr(i)) => self.act(item(plan::Item::Copy(i))),
-            (At::Place(_), What::Sheet) => self.public_out(w, 3),
-            (At::Place(_), What::Share(_)) => self.public_out(w, 4),
-            (At::Place(_), What::VaultStick(_)) => self.act(Action::WriteAsk),
-            (At::Place(_), What::Passphrase(i)) => {
-                // The new line, and its key: the passphrase shown to copy.
-                let g = match press {
-                    Press::Loaded(_) => glance::of_now(&c, self, w),
-                    Press::Vault(v, r) => glance::of_vault_now(&c, self, v, r),
-                };
-                let Some(g) = g else {
-                    return;
-                };
-                let k = g.keys.iter().position(|k| k.seed == Some(i));
-                let line = match &g.backup {
-                    glance::Backup::Plan { nodes, .. } => {
-                        nodes.iter().enumerate().find_map(|(n, node)| {
-                            let j = (node.at == at)
-                                .then(|| node.whats.iter().position(|x| *x == what))
-                                .flatten()?;
-                            Some((n as u8, j as u8))
-                        })
-                    }
-                    _ => None,
-                };
-                if let (Some(k), Some((n, j))) = (k, line) {
-                    self.glance.set_reveal(false);
-                    self.glance
-                        .set_chart(Some((press, Target::PassShow(k as u8, n, j))));
-                    self.sheet = Some(Sheet::Chart);
-                }
-            }
-            (At::Vault(v), _) => self.act(item(plan::Item::Vault(v))),
-            (At::Files, What::SeedFile(_)) => self.act(item(plan::Item::SeedFiles)),
-            _ => {}
-        }
     }
 
     /// Marks the thing at line `line` of backup node `n` (or every thing
