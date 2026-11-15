@@ -567,3 +567,107 @@ fn an_xprv_in_a_listdescriptors_true_file_refused_leaves_no_copy() {
     drop(read);
     finish("xprv in a listdescriptors true file refused", armed, false);
 }
+
+/// Raw DEFLATE (one fixed-Huffman block) of `text` followed by `copies`
+/// copies of its own 258 bytes, so a few bytes inflate to many and a
+/// growing output buffer has to be grown.
+fn deflate_repeating(text: &[u8], copies: usize) -> Vec<u8> {
+    const DIST_BASE: [usize; 30] = [
+        1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537,
+        2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577,
+    ];
+    const DIST_EXTRA: [u32; 30] = [
+        0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12,
+        13, 13,
+    ];
+    let mut bits: Vec<bool> = Vec::new();
+    // Written low bit first (header, extra bits) or high bit first (codes).
+    let low = |bits: &mut Vec<bool>, v: u32, n: u32| bits.extend((0..n).map(|i| v >> i & 1 == 1));
+    let high =
+        |bits: &mut Vec<bool>, v: u32, n: u32| bits.extend((0..n).rev().map(|i| v >> i & 1 == 1));
+    low(&mut bits, 1, 1); // the last block
+    low(&mut bits, 1, 2); // fixed Huffman codes
+    for &b in text {
+        if b < 144 {
+            high(&mut bits, 0x30 + u32::from(b), 8);
+        } else {
+            high(&mut bits, 0x190 + u32::from(b) - 144, 9);
+        }
+    }
+    let sym = DIST_BASE.iter().rposition(|&b| b <= text.len()).unwrap();
+    for _ in 0..copies {
+        high(&mut bits, 0xC5, 8); // length 258
+        high(&mut bits, sym as u32, 5);
+        low(
+            &mut bits,
+            (text.len() - DIST_BASE[sym]) as u32,
+            DIST_EXTRA[sym],
+        );
+    }
+    high(&mut bits, 0, 7); // the end of the block
+    bits.chunks(8)
+        .map(|c| {
+            c.iter()
+                .enumerate()
+                .fold(0u8, |a, (i, &b)| a | u8::from(b) << i)
+        })
+        .collect()
+}
+
+/// A BBQr of `file_type` carrying `data`, in encoding `2`, or in `Z` when
+/// `data` is already raw DEFLATE.
+fn bbqr_parts(file_type: char, data: &[u8], z: bool) -> Vec<std::mem::ManuallyDrop<String>> {
+    faraday_qr::bbqr::encode(file_type, data, 100)
+        .expect("parts")
+        .iter()
+        .map(|p| {
+            let text = if z {
+                format!("B$Z{}", &p.as_str()[3..])
+            } else {
+                String::from(p.as_str())
+            };
+            std::mem::ManuallyDrop::new(text)
+        })
+        .collect()
+}
+
+/// Feeds every part to an assembler and keeps what arrived unfreed: what
+/// is looked at is what the joining and inflating free.
+fn scan_bbqr(parts: &[std::mem::ManuallyDrop<String>]) {
+    let mut assembler = faraday_qr::Assembler::default();
+    let mut last = None;
+    for p in parts {
+        last = Some(assembler.feed(p));
+    }
+    assert!(
+        matches!(last, Some(faraday_qr::Step::Done(_))),
+        "the parts did not complete"
+    );
+    std::mem::forget(last);
+}
+
+#[test]
+fn a_seed_in_a_compressed_bbqr_leaves_no_freed_copy() {
+    let text = PHRASE.as_bytes();
+    let deflated = deflate_repeating(text, 40);
+    let parts = bbqr_parts('U', &deflated, true);
+    let forms = seed_forms("");
+    let armed = arm(&forms);
+    scan_bbqr(&parts);
+    finish("compressed bbqr seed", armed, false);
+}
+
+#[test]
+fn a_seed_in_a_bbqr_file_envelope_leaves_no_freed_copy() {
+    let mut forms = seed_forms("");
+    forms.push(Form::new(
+        "phrase as base64",
+        faraday_bip::base64::encode(PHRASE.as_bytes()).into_bytes(),
+    ));
+    let envelope = faraday_qr::envelope::pack("seed-words.txt", PHRASE.as_bytes(), "file")
+        .expect("an envelope");
+    let parts = bbqr_parts('J', &envelope, false);
+    let armed = arm(&forms);
+    scan_bbqr(&parts);
+    finish("bbqr envelope seed", armed, false);
+}

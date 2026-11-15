@@ -28,6 +28,11 @@ pub fn encode_into(bytes: &[u8], out: &mut [u8]) -> usize {
 /// left over in the last sextet is an error: an encoding has one
 /// spelling.
 pub fn decode(text: &str) -> Result<Vec<u8>, DecodeError> {
+    // Text with no whitespace is decoded as it is: a copy of it would be
+    // freed unwiped, and the text may spell a secret.
+    if !text.bytes().any(|b| b.is_ascii_whitespace()) {
+        return Base64::decode_vec(text).map_err(|_| DecodeError);
+    }
     let squeezed: Vec<u8> = text.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     Base64::decode_vec(core::str::from_utf8(&squeezed).map_err(|_| DecodeError)?)
         .map_err(|_| DecodeError)

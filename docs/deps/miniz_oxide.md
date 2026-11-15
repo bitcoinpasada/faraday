@@ -10,8 +10,11 @@ needs a decompressor at the other end.
 codes from PNG files in `faraday-files`, inflates its image data with
 `miniz_oxide` 0.8. Taking the same version adds no crate to the build.
 It is pure Rust, `#![forbid(unsafe_code)]`, and
-`decompress_to_vec_with_limit` stops at a bound, which is how the 360 KiB
-limit on a transfer is kept against a compression bomb.
+the 360 KiB limit on a transfer is kept against a compression bomb by
+inflating into one wiping buffer of that size with `decompress` (anything
+but a finished stream is refused) and copying the result once, exact size,
+into another: `decompress_to_vec_with_limit` grows its output and frees the
+smaller blocks unwiped, which a seed sent as BBQr must not leave.
 
 **Cost.** None beyond the edge: `miniz_oxide` 0.8 with
 `default-features = false, features = ["with-alloc"]`, the version `png`
@@ -31,9 +34,7 @@ copied into one of the result's exact size, so the output does not grow
 and leave a freed copy of the contents.
 
 **What is wiped.** The decompressor (`DecompressorOxide`) holds only tables
-and a few bits of input, so it is dropped as it is. BBQr's compressed (`Z`)
-parts are still inflated with `decompress_to_vec_with_limit`, whose growing
-output frees smaller copies of the contents unwiped.
+and a few bits of input, so it is dropped as it is.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.

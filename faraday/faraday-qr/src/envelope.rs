@@ -4,6 +4,7 @@
 //! SHA-256 and base64 data. A SHA-256 match shows the file arrived whole,
 //! not who sent it.
 
+use crate::wiping;
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
 
 /// The largest file an envelope carries.
@@ -54,6 +55,11 @@ fn hex(b: &[u8]) -> String {
 
 /// A file in an envelope, as Faraday OS writes one.
 pub fn pack(name: &str, data: &[u8], kind: &str) -> Result<Vec<u8>, Error> {
+    packed(name, data, kind).map(|mut p| wiping::take(&mut p))
+}
+
+/// [`pack`], in a wiping buffer.
+fn packed(name: &str, data: &[u8], kind: &str) -> Result<wiping::Bytes, Error> {
     if data.is_empty() || data.len() > MAX_FILE {
         return Err(Error::Size);
     }
@@ -64,13 +70,7 @@ pub fn pack(name: &str, data: &[u8], kind: &str) -> Result<Vec<u8>, Error> {
         return Err(Error::Name);
     }
     let digest = sha256::Hash::hash(data).to_byte_array();
-    Ok(format!(
-        "{{\"data\":\"{}\",\"format\":\"faraday-file-v1\",\"kind\":\"{kind}\",\"name\":\"{name}\",\"sha256\":\"{}\",\"size\":{}}}",
-        faraday_bip::base64::encode(data),
-        hex(&digest),
-        data.len()
-    )
-    .into_bytes())
+    wiping::envelope(data, kind, name, &hex(&digest)).ok_or(Error::Size)
 }
 
 /// Whether bytes are offered as an envelope.
@@ -105,8 +105,8 @@ pub fn unpack(raw: &[u8]) -> Result<(String, Vec<u8>, String), Error> {
     let kind = field(text, "kind").ok_or(Error::NoKind)?;
     let data = faraday_bip::base64::decode(field(text, "data").ok_or(Error::NoData)?)
         .map_err(|_| Error::NotBase64)?;
-    let again = pack(name, &data, kind)?;
-    if again != raw {
+    let again = packed(name, &data, kind)?;
+    if again.as_slice() != raw {
         return Err(Error::Mismatch);
     }
     Ok((name.to_string(), data, kind.to_string()))

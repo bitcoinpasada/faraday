@@ -112,6 +112,9 @@ the planting of the secret to the end of the flow:
 - **Backup:** a codex32 set, SLIP-39 shares and a SeedQR written and
   checked.
 - **The vault readers:** a vault's entries listed, opened and copied.
+- **BBQr read:** a seed in a compressed BBQr and in a BBQr file envelope,
+  scanned part by part; the parts, the joined bytes, the inflated bytes and
+  the envelope's re-packed copy are wiping buffers sized once.
 - **Extended keys read:** an `xprv` in a Caravan file's xpub field, in a
   wallet policy and in the descriptor of a `listdescriptors true` file
   (the JSON reader's strings), refused.

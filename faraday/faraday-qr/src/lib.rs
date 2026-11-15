@@ -17,6 +17,7 @@ pub mod envelope;
 pub mod registry;
 pub mod send;
 pub mod specter;
+mod wiping;
 
 /// What a whole transfer turned out to be.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,17 +175,23 @@ impl Assembler {
     }
 }
 
-fn bbqr_arrived(file_type: char, data: Vec<u8>) -> Result<Arrived, Refusal> {
+fn bbqr_arrived(file_type: char, mut data: wiping::Bytes) -> Result<Arrived, Refusal> {
+    // What is handed on is moved out of the wiping buffer, not copied; a
+    // text that is refused is checked first so its bytes stay in it.
+    let text = |d: &mut wiping::Bytes, why: Refusal| {
+        let bytes = wiping::take_utf8(d).ok_or(why)?;
+        String::from_utf8(bytes).map_err(|_| why)
+    };
     Ok(match file_type {
-        'P' => Arrived::Psbt(data),
-        'T' => Arrived::Transaction(data),
-        'U' => Arrived::Text(String::from_utf8(data).map_err(|_| Refusal::BbqrText)?),
+        'P' => Arrived::Psbt(wiping::take(&mut data)),
+        'T' => Arrived::Transaction(wiping::take(&mut data)),
+        'U' => Arrived::Text(text(&mut data, Refusal::BbqrText)?),
         _ => {
             if envelope::looks_like(&data) {
                 let (name, file, kind) = envelope::unpack(&data).map_err(Refusal::Envelope)?;
                 Arrived::File(name, file, kind)
             } else {
-                Arrived::Text(String::from_utf8(data).map_err(|_| Refusal::BbqrJson)?)
+                Arrived::Text(text(&mut data, Refusal::BbqrJson)?)
             }
         }
     })

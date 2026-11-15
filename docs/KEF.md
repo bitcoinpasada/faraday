@@ -257,9 +257,10 @@ it still only probably the person's.
 
 Contents decompress to at most **100 KiB (102,400 bytes)**, Krux's own
 limit (`DEFLATEIO_MAX_DECOMPRESSED_SIZE`), so whatever Krux can open is
-opened here; through `miniz_oxide`'s
-`decompress_to_vec_with_limit`, as BBQr does. Reading takes any window up
-to 32 KiB, which the specification allows.
+opened here: `miniz_oxide`'s `decompress` inflates them into one wiping
+buffer of that size, copied once into one of the result's exact size
+(`docs/deps/miniz_oxide.md`). Reading takes any window up to 32 KiB, which
+the specification allows.
 
 A scanned text in base43 of more than **8,192 characters** is not taken for a
 code and is not decoded: base43 is worked out digit by digit, its time grows

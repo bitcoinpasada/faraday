@@ -17,6 +17,7 @@
 
 use faraday_text::{Text, text};
 use std::collections::BTreeMap;
+use zeroize::Zeroizing;
 
 /// The longest frame read.
 pub const MAX_FRAME: usize = 4096;
@@ -56,20 +57,18 @@ pub fn base32(bytes: &[u8]) -> Text {
     out
 }
 
-/// The bytes of unpadded base32; `None` when it is not exactly that.
-fn unbase32(text: &str) -> Option<Vec<u8>> {
-    let vals: Vec<u8> = text
-        .bytes()
-        .map(|c| B32.iter().position(|&x| x == c).map(|p| p as u8))
-        .collect::<Option<_>>()?;
+/// The bytes of unpadded base32, in a wiping buffer sized once; `None`
+/// when it is not exactly that.
+fn unbase32(text: &str) -> Option<Zeroizing<Vec<u8>>> {
     // A length a whole number of bytes cannot leave is not base32.
-    if matches!(vals.len() % 8, 1 | 3 | 6) {
+    if matches!(text.len() % 8, 1 | 3 | 6) {
         return None;
     }
-    let mut out = Vec::with_capacity(vals.len() * 5 / 8);
+    let mut out = Zeroizing::new(Vec::with_capacity(text.len() * 5 / 8));
     let (mut acc, mut bits) = (0u32, 0u32);
-    for v in vals {
-        acc = (acc << 5) | u32::from(v);
+    for c in text.bytes() {
+        let v = B32.iter().position(|&x| x == c)?;
+        acc = (acc << 5) | v as u32;
         bits += 5;
         if bits >= 8 {
             bits -= 8;
@@ -84,15 +83,39 @@ fn unbase32(text: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn unhex(text: &str) -> Option<Vec<u8>> {
+/// The bytes of upper-case hex, in a wiping buffer sized once.
+fn unhex(text: &str) -> Option<Zeroizing<Vec<u8>>> {
     // BBQr writes hex in upper case, and only that is read.
-    if text
-        .bytes()
-        .any(|c| !matches!(c, b'0'..=b'9' | b'A'..=b'F'))
-    {
+    if !text.bytes().all(|c| matches!(c, b'0'..=b'9' | b'A'..=b'F')) {
         return None;
     }
-    faraday_crypto::hex::decode_vec(text)
+    let mut out = Zeroizing::new(vec![0u8; text.len() / 2]);
+    let n = faraday_crypto::hex::decode_into(text, &mut out)?;
+    (n == out.len()).then_some(out)
+}
+
+/// Raw inflate of `data` to at most [`MAX_DATA`] bytes. The output is
+/// written into one wiping buffer of that size by one `decompress` call
+/// and copied once, exact size, into another: a growing output would free
+/// its smaller blocks unwiped. Anything but a finished stream is refused.
+fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
+    use miniz_oxide::inflate::TINFLStatus;
+    use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
+    let mut out = Zeroizing::new(vec![0u8; MAX_DATA]);
+    let mut state = Box::new(DecompressorOxide::new());
+    let (status, _, written) = decompress(
+        &mut state,
+        data,
+        &mut out,
+        0,
+        inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
+    );
+    if status != TINFLStatus::Done {
+        return None;
+    }
+    let mut exact = Zeroizing::new(Vec::with_capacity(written));
+    exact.extend_from_slice(&out[..written]);
+    Some(exact)
 }
 
 /// Why a part or a transfer was refused: a kind, which the app words.
@@ -130,7 +153,6 @@ pub enum Malformed {
 }
 
 /// Where a transfer stands after a part.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Got {
     /// Parts still missing, numbered from 1.
     Part {
@@ -146,31 +168,22 @@ pub enum Got {
         /// `P`, `T`, `U` or `J`.
         file_type: char,
         /// Its bytes.
-        data: Vec<u8>,
+        data: Zeroizing<Vec<u8>>,
     },
 }
 
-/// A transfer being put together. The parts read are wiped when it is
-/// dropped: a transfer may be a secret.
+/// A transfer being put together. The parts read are wiping buffers: a
+/// transfer may be a secret.
 #[derive(Default)]
 pub struct Collector {
     header: Option<(u8, u8, usize)>,
-    parts: BTreeMap<usize, Vec<u8>>,
+    parts: BTreeMap<usize, Zeroizing<Vec<u8>>>,
     bytes: usize,
 }
 
 impl std::fmt::Debug for Collector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Collector(..)")
-    }
-}
-
-impl Drop for Collector {
-    fn drop(&mut self) {
-        use zeroize::Zeroize;
-        for v in self.parts.values_mut() {
-            v.zeroize();
-        }
     }
 }
 
@@ -218,7 +231,7 @@ impl Collector {
         .filter(|p| !p.is_empty())
         .ok_or(Error::Malformed(Malformed::Data))?;
         if let Some(seen) = self.parts.get(&index) {
-            if *seen != part {
+            if **seen != *part {
                 return Err(Error::Conflict);
             }
         } else {
@@ -241,21 +254,21 @@ impl Collector {
         }
         // Every part but the last is the same length, and the last is no
         // longer: anything else was not cut from one file.
-        let lens: Vec<usize> = self.parts.values().map(Vec::len).collect();
+        let lens: Vec<usize> = self.parts.values().map(|p| p.len()).collect();
         if lens.len() > 1
             && (lens[..lens.len() - 1].iter().any(|&l| l != lens[0])
                 || lens[lens.len() - 1] > lens[0])
         {
             return Err(Error::Malformed(Malformed::Uneven));
         }
-        // Wiped when dropped: what is handed on is moved out, not copied.
-        let mut joined =
-            zeroize::Zeroizing::new(self.parts.values().flatten().copied().collect::<Vec<u8>>());
+        let mut joined = Zeroizing::new(Vec::with_capacity(self.bytes));
+        for part in self.parts.values() {
+            joined.extend_from_slice(part);
+        }
         let data = if encoding == b'Z' {
-            miniz_oxide::inflate::decompress_to_vec_with_limit(&joined, MAX_DATA)
-                .map_err(|_| Error::Malformed(Malformed::Inflate))?
+            inflate(&joined).ok_or(Error::Malformed(Malformed::Inflate))?
         } else {
-            std::mem::take(&mut *joined)
+            joined
         };
         Ok(Got::Done {
             file_type: char::from(file_type),

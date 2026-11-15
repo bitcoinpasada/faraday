@@ -529,6 +529,7 @@ faraday/faraday-core/src/forms.rs
 faraday/faraday-core/src/stick/pills.rs
 faraday/faraday-core/src/bip85/mod.rs
 faraday/faraday-qr/src/bbqr.rs
+faraday/faraday-qr/src/wiping.rs
 faraday/faraday-qr/src/send.rs
 faraday/faraday-intake/src/lib.rs
 faraday/faraday-intake/src/wallet.rs
