@@ -33,8 +33,10 @@ read, never written, by `decompress` into one buffer of 100 KiB, wiped, and
 copied into one of the result's exact size, so the output does not grow
 and leave a freed copy of the contents.
 
-**What is wiped.** The decompressor (`DecompressorOxide`) holds only tables
-and a few bits of input, so it is dropped as it is.
+**What is wiped.** The decompressor (`DecompressorOxide`) holds up to 64 bits
+of the compressed stream and, for a dynamic-Huffman block, its code lengths.
+`faraday-kef` overwrites it with a fresh one as it drops; the BBQr and KDBX
+gzip inflaters drop theirs as it is.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.

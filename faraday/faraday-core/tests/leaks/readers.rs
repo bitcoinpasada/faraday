@@ -172,11 +172,57 @@ fn compressed_kef_code() -> Vec<u8> {
         stream.put(0, 5, true);
     }
     stream.put(0, 7, true);
+    as_version_21(stream)
+}
+
+/// Seals a hand-made deflate stream as Krux does and reads it as version 21.
+fn as_version_21(stream: DeflateBits) -> Vec<u8> {
     let mut code = kef_code_of(20, zeroize::Zeroizing::new(stream.bytes));
     // The version byte follows the id (8 bytes, after its length).
     assert_eq!(code[9], 20);
     code[9] = 21;
     code
+}
+
+/// A code of version 21 like [`compressed_kef_code`] whose one block has
+/// dynamic Huffman codes, so the dynamic path's output and the app's copies
+/// are scanned (the decompressor's own contents are no form the scan looks
+/// for): every literal 0..=253 is 8 bits, 254, 255, the end and the length 258
+/// are 9 bits, and the two distance codes are 1 bit each.
+fn dynamic_kef_code() -> Vec<u8> {
+    let mut stream = DeflateBits::default();
+    stream.put(1, 1, false); // the last block
+    stream.put(2, 2, false); // dynamic codes
+    stream.put(29, 5, false); // 286 literal and length codes
+    stream.put(1, 5, false); // 2 distance codes
+    stream.put(14, 4, false); // 18 code length code lengths
+    // In the order 16 17 18 0 8 7 9 6 10 5 11 4 12 3 13 2 14 1: the
+    // code lengths 8 is 1 bit, 0 is 2 bits, 9 and 1 are 3 bits.
+    for len in [0, 0, 0, 2, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3] {
+        stream.put(len, 3, false);
+    }
+    // Their codes: 8 is 0, 0 is 10, 1 is 110, 9 is 111.
+    for _ in 0..254 {
+        stream.put(0, 1, true); // literals 0..=253 are 8 bits
+    }
+    for _ in 0..3 {
+        stream.put(0b111, 3, true); // 254, 255 and the end are 9 bits
+    }
+    for _ in 0..28 {
+        stream.put(0b10, 2, true); // 257..=284 are unused
+    }
+    stream.put(0b111, 3, true); // 285, the length 258
+    stream.put(0b110, 3, true);
+    stream.put(0b110, 3, true);
+    for b in PHRASE.bytes().chain(*b" ") {
+        stream.put(u32::from(b), 8, true);
+    }
+    for _ in 0..3 {
+        stream.put(511, 9, true); // a match of 258 bytes
+        stream.put(0, 1, true); // one byte back
+    }
+    stream.put(510, 9, true); // the end of the block
+    as_version_21(stream)
 }
 
 /// Bits of a deflate stream, filled from each byte's low end.
@@ -250,6 +296,16 @@ fn a_compressed_krux_code_opened_leaves_no_copy_after_lock() {
     opened_leaves_no_copy(
         compressed_kef_code(),
         "compressed krux code opened",
+        |app| app.sheet == Some(Sheet::SeedRead) || testkit::kef_shows_contents(app),
+    );
+}
+
+#[test]
+fn a_dynamic_huffman_krux_code_opened_leaves_no_copy_after_lock() {
+    // Inflates to several times its compressed size.
+    opened_leaves_no_copy(
+        dynamic_kef_code(),
+        "dynamic huffman krux code opened",
         |app| app.sheet == Some(Sheet::SeedRead) || testkit::kef_shows_contents(app),
     );
 }

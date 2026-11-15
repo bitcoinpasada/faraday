@@ -261,18 +261,35 @@ fn ctr(key: &[u8; 32], iv: &[u8], data: &mut [u8]) {
         .apply_keystream(data);
 }
 
+/// The inflate state, overwritten with a fresh one as it drops: it holds up
+/// to 64 bits of the stream and a dynamic block's code lengths, and
+/// `DecompressorOxide` is not `Zeroize`.
+struct WipedState(Box<miniz_oxide::inflate::core::DecompressorOxide>);
+
+impl Drop for WipedState {
+    fn drop(&mut self) {
+        // Assigned, then handed to `black_box`, which the compiler must
+        // assume reads it, so the store is not removed as dead before the
+        // free (the crate forbids `unsafe`, so no volatile write).
+        *self.0 = miniz_oxide::inflate::core::DecompressorOxide::new();
+        core::hint::black_box(&*self.0);
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Raw inflate of `data` to at most [`INFLATE_LIMIT`] bytes; any window up
 /// to 32 KiB (`docs/KEF.md` §7.1). The output goes into one wiping buffer
 /// of the limit's size, so it never grows and leaves a freed copy, then
-/// copied into one of the result's exact size; the decompressor holds only
-/// tables and a few bits of input (`docs/deps/miniz_oxide.md`).
+/// copied into one of the result's exact size; the decompressor, which holds
+/// stream bits and code lengths, is overwritten as it drops
+/// (`docs/deps/miniz_oxide.md`).
 fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
     use miniz_oxide::inflate::TINFLStatus;
     use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
     let mut out = Zeroizing::new(alloc::vec![0u8; INFLATE_LIMIT]);
-    let mut state = Box::<DecompressorOxide>::default();
+    let mut state = WipedState(Box::<DecompressorOxide>::default());
     let (status, _, written) = decompress(
-        &mut state,
+        &mut state.0,
         data,
         &mut out,
         0,
