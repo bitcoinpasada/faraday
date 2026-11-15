@@ -286,6 +286,7 @@ impl Faraday {
                         Action::Compare(crate::compare::ComparePress::File(false, k)),
                     ));
                 }
+                out.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }
@@ -314,6 +315,7 @@ impl Faraday {
                         Action::Compare(crate::compare::ComparePress::File(true, k)),
                     ));
                 }
+                out.extend(crate::multisig_check::menu_line(item.wallet(), true, k));
                 out.push((
                     EN.file_menu_rename.to_string(),
                     Action::File(FilePress::Rename(row)),

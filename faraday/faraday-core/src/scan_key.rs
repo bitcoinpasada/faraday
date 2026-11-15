@@ -860,7 +860,8 @@ impl Faraday {
                 | ScanPurpose::SeedCompare
                 | ScanPurpose::Sweep
                 | ScanPurpose::OtsHeader
-                | ScanPurpose::OtsFileHash => true,
+                | ScanPurpose::OtsFileHash
+                | ScanPurpose::MultisigSetup => true,
                 #[cfg(feature = "demo")]
                 ScanPurpose::Transfer => true,
                 ScanPurpose::VaultEntry
@@ -1158,6 +1159,7 @@ impl Faraday {
             || self.compare_scanned(&bytes)
             || crate::seed_check::compare_scanned(self, &bytes)
             || crate::ots_check::scanned(self, &bytes)
+            || crate::multisig_check::scanned(self, &bytes)
         {
             return;
         }

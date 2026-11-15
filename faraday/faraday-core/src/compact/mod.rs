@@ -51,6 +51,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
         | Screen::QrTool
         | Screen::OtsCheck
         | Screen::SeedCheck
+        | Screen::MultisigCheck
         | Screen::CoreWallet
         | Screen::Silent
         | Screen::Vanity
@@ -112,6 +113,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::QrTool => EN.qr_tool_title,
         Screen::OtsCheck => EN.ots_title,
         Screen::SeedCheck => EN.seed_check_title,
+        Screen::MultisigCheck => EN.mscheck_title,
         Screen::CoreWallet => EN.core_wallet_title,
         Screen::Silent => EN.compact_silent_payments,
         Screen::Explore => EN.compact_explore_a_key,
@@ -1529,6 +1531,7 @@ impl Faraday {
                 | Screen::NonceCheck
                 | Screen::SignerCheck
                 | Screen::Compare
+                | Screen::MultisigCheck
                 | Screen::BackupFlow => false,
                 #[cfg(feature = "demo")]
                 Screen::Transfer => true,

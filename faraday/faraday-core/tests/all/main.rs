@@ -132,6 +132,7 @@ mod message_scan;
 mod mode_files;
 mod modes;
 mod mouse_buttons;
+mod multisig_check;
 mod names_kept;
 mod navigation;
 mod network;

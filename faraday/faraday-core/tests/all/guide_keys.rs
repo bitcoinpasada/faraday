@@ -27,7 +27,7 @@ fn screens() -> Vec<Screen> {
         Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, SeedCheck, CoreWallet,
         Silent, Explore, Lightning, Tools, Unlock, VaultContents, Codes, SpendBackup, Vanity,
         Decode, Invoice, NonceCheck, SignerCheck, Compare, Catalog, Transfer, BackupFlow,
-        Check)
+        Check, MultisigCheck)
 }
 
 /// The cards each flow screen has, by the number its step module gives.

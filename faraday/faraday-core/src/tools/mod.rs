@@ -182,6 +182,8 @@ pub struct ToolsArea {
     pub(crate) ots: crate::ots_check::OtsArea,
     /// My seed makes my wallet.
     pub(crate) seed_check: crate::seed_check::SeedArea,
+    /// Check a multisig setup.
+    pub(crate) mscheck: crate::multisig_check::MsArea,
     /// Read a Bitcoin Core wallet.
     pub(crate) core_wallet: crate::core_wallet::tool::CoreWalletArea,
     /// Decode a Lightning invoice.
@@ -451,6 +453,7 @@ impl Faraday {
         crate::qr_tool::tidy(self);
         crate::ots_check::tidy(self);
         crate::seed_check::tidy(self);
+        crate::multisig_check::tidy(self);
         crate::core_wallet::tool::tidy(self);
         // Leaving Transfer wipes the text typed or pasted for Send text.
         #[cfg(feature = "demo")]

@@ -11,7 +11,7 @@
 //! the keys loaded and what the state keeps; a press that derives
 //! (a cosigner's account key) does it with the handler's `Compute`.
 
-use super::{SampleForm, SampleKey, Samples};
+use super::{SampleForm, SampleKey, SampleKind, Samples};
 use crate::forms::{self, Form};
 use crate::strings::EN;
 use crate::ui::Ui;
@@ -328,6 +328,7 @@ impl Faraday {
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
             ScanPurpose::OtsHeader => !set.inputs.timestamp_header.is_empty(),
             ScanPurpose::OtsFileHash => !set.inputs.timestamp_hash.is_empty(),
+            ScanPurpose::MultisigSetup => !setup_samples(set).is_empty(),
             #[cfg(feature = "demo")]
             ScanPurpose::Transfer => false,
             ScanPurpose::CheckCodex32
@@ -372,6 +373,7 @@ impl Faraday {
             Some(ScanPurpose::CheckKef(_)) => EN.scan_sample_krux,
             Some(ScanPurpose::OtsHeader) => EN.scan_sample_header,
             Some(ScanPurpose::OtsFileHash) => EN.scan_sample_hash,
+            Some(ScanPurpose::MultisigSetup) => EN.scan_sample_setup,
             Some(ScanPurpose::VaultEntry) => EN.scan_sample_code,
             Some(ScanPurpose::Files) if self.screen == Screen::Restore => EN.scan_sample_wallet,
             Some(ScanPurpose::Files) if self.screen == Screen::Catalog => EN.scan_sample_address,
@@ -489,6 +491,14 @@ impl Faraday {
             }
             ScanPurpose::OtsHeader => Some(set.inputs.timestamp_header.as_bytes().to_vec()),
             ScanPurpose::OtsFileHash => Some(set.inputs.timestamp_hash.as_bytes().to_vec()),
+            // Check a multisig setup: each sample wallet of several
+            // keys in turn, then the first with its checksum changed.
+            ScanPurpose::MultisigSetup => {
+                let list = setup_samples(set);
+                let at = usize::from(cursor) % list.len().max(1);
+                self.camera.set_sample(((at + 1) % list.len().max(1)) as u8);
+                list.get(at).map(|t| t.as_bytes().to_vec())
+            }
             ScanPurpose::VaultEntry => Some(set.inputs.totp.as_bytes().to_vec()),
             ScanPurpose::Intake => self.sample_spend(c, set).map(<[u8]>::to_vec),
             ScanPurpose::Files if self.screen == Screen::Restore => {
@@ -781,4 +791,27 @@ impl Faraday {
             self.copy_check_key(faraday_shell_api::Key::Char(' '));
         }
     }
+}
+
+/// The setups Check a multisig setup's scanner hands out: the sample
+/// wallets of several keys, then the first of them with its checksum
+/// changed, so the refusal is seen.
+fn setup_samples(set: &Samples) -> Vec<String> {
+    let mut list: Vec<String> = set
+        .wallets
+        .iter()
+        .filter(|w| !matches!(w.kind, SampleKind::Single))
+        .map(|w| w.text.to_string())
+        .collect();
+    let broken = list.first().and_then(|t| {
+        let body = t.split('#').next()?;
+        let sum = faraday_bip::descriptor::descriptor_checksum(body)?;
+        let mut sum = String::from_utf8(sum.to_vec()).ok()?;
+        let last = if sum.ends_with('q') { 'p' } else { 'q' };
+        sum.pop();
+        sum.push(last);
+        Some(format!("{body}#{sum}"))
+    });
+    list.extend(broken);
+    list
 }

@@ -49,6 +49,7 @@ need. Each document's header says what kind it is:
 | What does Check a signer show, and how does it open? | `docs/SIGNER-CHECK.md` (§3, the flow), `docs/guide/signer-check.md` |
 | How does a person check that a seed makes their wallet (My seed makes my wallet)? | `docs/FLOWS.md` (My seed makes my wallet), `docs/DESIGN.md` §5 |
 | How does a person make a wallet at a path they found in Explore, or from an address the address check found in a key's account? | `docs/FLOWS.md` (Explore, Make a wallet at the path), `docs/DESIGN.md` §5 (Make a wallet) |
+| How does a person check a multisig setup (its quorum, checksum and cosigners, and which cosigner a seed is)? | `docs/FLOWS.md` (Check a multisig setup), `docs/DESIGN.md` §5 (`MultisigCheck`) |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
@@ -262,7 +263,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built: the Nostr key's part is open.
-- `docs/DESIGN.md`: Design system. Built but for the Check place (§5, F255), My seed makes my wallet's screen among it.
+- `docs/DESIGN.md`: Design system. Built but for the Check place (§5, F255), My seed makes my wallet's screen and Check a multisig setup's row and Tools tile among it.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F185, F186); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.

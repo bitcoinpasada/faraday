@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255) is built but for its row A multisig setup, still to be designed and not drawn, Check a signer taking Compare two PSBTs into it and its shield-with-tick icon (the checklist icon stands in); Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, and its result card (a find's wallet or key account, place, full path or each cosigner's, and the whole address in groups of four; a miss's address and how far it looked), still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
+**Open:** the Check place (§5, `Check`; F255) is built but for its row A multisig setup, not drawn until the row opens Check a multisig setup (§5, `MultisigCheck`), and that tool's Tools tile; Check a signer taking Compare two PSBTs into it and its shield-with-tick icon (the checklist icon stands in); Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, and its result card (a find's wallet or key account, place, full path or each cosigner's, and the whole address in groups of four; a miss's address and how far it looked), still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -809,8 +809,9 @@ scrolls. Rows, in order (label, then its line, then what a press opens):
   6. **A seed made from dice rolls**, "The rolls and the words made from
      them": New key at its dice source, the method (Coldcard, SeedSigner,
      Keystone, BitBox) chosen there.
-  7. **A multisig setup**, "The wallet's descriptor or setup file": the
-     multisig check, its quorum, checksum and cosigners (its own design).
+  7. **A multisig setup**, "The wallet's descriptor or setup file": Check
+     a multisig setup, its quorum, checksum and cosigners
+     (`MultisigCheck` below).
   8. **A backup in another form**, "Shares, parts, a SeedQR, codex32 or a
      Krux code": a menu (Material 3 Menus) of **SLIP-39 shares**, **Seed
      XOR parts**, **SeedQR**, **codex32** and **Krux code**, each opening
@@ -1159,6 +1160,46 @@ as two-line items and the fact rows), Text fields (outlined, the
 passphrase and the compared value), Segmented buttons (the xpub's
 spelling), Buttons (filled, outlined and text, one filled action per
 card) and Progress indicators (linear, determinate) pages.
+
+### A multisig setup (`MultisigCheck`)
+
+Built, but for what its **Open:** line below says. A wallet of several keys, read from its descriptor, a BIP-388
+policy, a multisig setup file or a BIP 129 record, shown as its quorum,
+its descriptor checksum and each cosigner, for the person to hold against
+every other signer's device and the coordinator; with a key loaded here
+or a seed given, which cosigner that key is. Opened from the Check
+screen's row 7, from its Tools tile and from the ⋮ menu of a wallet file's row in Files (**Check this setup**, on a file Files reads as a wallet of more than one key, never on a single-key wallet file), which opens it on that file with the Setup card closed and the Result, or the refusal line, shown. Its steps, what it reads and what
+it refuses are `docs/FLOWS.md`, Check a multisig setup.
+
+**Open:** its row on the Check place and its Tools tile (the screen opens from Files' ⋮ menu and from a scanner only); **Check a seed against it** with a seed typed or scanned (a key loaded here is marked on its cosigner already); **Add this wallet**, which waits for the one confirmation sheet every wallet of several keys comes in through; the Check against Core's own `deriveaddresses` for the first address; Faraday Demo's Paste.
+
+| `Screen` | What it holds | Drawn as |
+|---|---|---|
+| `MultisigCheck` | Check a multisig setup: the cards **Setup** and **Result**, under a top app bar titled "Check a multisig setup" with its way back and **Cancel**. | Step flow |
+
+| Card | Open | Closed |
+|---|---|---|
+| Setup | The ways in, a list row each (§4.1): **Scan** (the scanner titled "Scan the wallet's setup"), **From Files**, which opens the files Files reads as a wallet, a row each with its name and the shape it reads as ("2 of 3 · native SegWit multisig"), and **A wallet loaded here** where any of several keys is, its wallets as rows by name and shape. On Faraday Demo, **Paste** as well (a text button). A refusal stands under the rows as a result line (§4.11) in `ERR`. Opened from a file's ⋮ in Files it is closed from the start, on that file's name and shape. | The file's name ("Scanned" for a code, the wallet's name for a loaded one) and its shape, and **Change**. |
+| Result | The rows of the wallet confirmation sheet (F254), drawn by the same code: the shape and the name the setup gives; then per cosigner, in the descriptor's order, **Key 1**, **Key 2**, … with the fingerprint (§4.4), the path (§4.6), "Yours" where a key loaded here gives that extended key at that path ("Yours · your single-key account" at a single-key account path), and the extended public key whole in groups of four (§4.5); then the **Descriptor checksum**, and a `tr()` tree's key path line (`docs/WALLETS.md` §3.4). Under them, the page's own fact rows (§4.11): **Quorum** where the shape does not state it, **Ways to spend** for a script tree or a miniscript, and **First receive address**, whole, opening its QR sheet with a chevron. **Check a seed against it**, a text button, opens under the rows the Seed and Passphrase steps of My seed makes my wallet (`SeedCheck` above) and its answer as a result line: "This seed is key 2 of this wallet" in `OK`, the matched cosigner's row marked "This seed"; or Restore's "Not a key of this wallet: check the words or the passphrase" in `ERR`, with the warning glyph and its line where the fingerprint is a cosigner's and the key is not. The actions: **Another setup** (a text button), **Add this wallet** (outlined; where the wallet is not loaded) and **Done** (filled). | — |
+
+The Result's top rows are the confirmation sheet's body (F254, the
+sheet's Dialog in §4.13), so a person who has checked a setup here sees
+the same rows in the same order when the wallet is added, and the other
+way round. The sheet's last line, saying to compare with every other
+signer, is left out here: comparing is what the page is for, and its
+title says so. **Add this wallet** never adds the wallet from the page:
+it opens that sheet over the page, and only the sheet's **Hold to add
+this wallet** adds it, as every wallet of more than one key comes in;
+the Result then reads "Loaded here as {name}" in place of the button. A
+wallet already loaded (the same descriptor checksum) reads "Loaded here
+as {name}" from the start. A refusal in the Setup card's place draws no
+Result at all: nothing of a setup refused is shown as if it held. In
+Practice the Setup card and the seed's steps hand their samples to the
+host strip (§4.19). Checked against Material 3's Lists (the ways in, the
+file and wallet rows, the cosigner and fact rows), Cards, Buttons
+(filled, outlined and text, one filled action per card), Text fields
+(the seed's steps, as `SeedCheck` uses them) and Dialogs (the
+confirmation sheet Add this wallet opens) pages.
 
 ## 9. Checklist for a change
 

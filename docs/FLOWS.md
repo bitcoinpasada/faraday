@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Check a seed against it for a seed typed or scanned, Add this wallet, and Faraday Demo's Paste)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -279,7 +279,9 @@ menu.
    ⋮ holds, in this order and only where the row has them: **Add to
    vault** (where it is not the visible one), **Show as QR**, **Make
    PDF** (For the stick), **Check a signer** (a PSBT's row, after
-   **Show as QR** where it has one), **Compare** (a PSBT's row and a
+   **Show as QR** where it has one), **Check this setup** (a wallet
+   file of more than one key, after **Show as QR** where it has one;
+   `Screen::MultisigCheck`, Check a multisig setup), **Compare** (a PSBT's row and a
    finished transaction's row, after **Check a signer** where the row
    has it; `docs/COMPARE.md` §2.1), **Rename** (For the stick only),
    **Details**, **Remove**. There is no visible **Remove** button. A row with no main
@@ -2070,3 +2072,301 @@ wallet app's hands, in turn, Spending's descriptor, its xpub with its
 origin, the same xpub bare, Spending's receive address 0, and a value of
 another sample, so that a miss is seen too. Keep this key keeps the
 sample key as Add a key does. Its ? opens Learn at Verifying and Tools.
+
+## Check a multisig setup
+
+**Faraday shows what a wallet of several keys is, and the person checks
+it.** A person who has a multisig wallet's descriptor, a multisig setup
+file or a BIP 129 record (from a coordinator, a hardware wallet's
+export, a backup sheet's code) brings it in, and Faraday shows its
+quorum, its descriptor checksum and whether the checksum holds, and
+each cosigner's fingerprint, path and whole extended public key, the
+same rows, in the same order, as the confirmation sheet every wallet of
+more than one key comes in through (F254). With a key loaded here, or a
+seed given to the check, it says which cosigner that key is. The person
+holds the rows against every other signer's device and the coordinator.
+Nothing is added to the session unless the person asks, and then only
+through that sheet. Built, but for the rows said in this page's **Open:** line. Its screen is
+`docs/DESIGN.md` §5, A multisig setup.
+
+| From | What opens it |
+|---|---|
+| Check | its row 7, **A multisig setup**: the Setup card open |
+| Tools | the tile **Check a multisig setup** in Wallets, after **Restore an existing wallet**, its line "Its quorum, checksum and cosigners", tags BIP-380, BIP-388, BIP-129: the same. Tools stays the list of every flow; Check is a second way in |
+| Files | a wallet file's row's ⋮, **Check this setup**, From the stick and For the stick alike, on a file Files reads as a wallet of more than one key; not offered on a file of one key or one that does not read as a wallet. That file is the setup, the Setup card closed on its name and shape with **Change**, and the Result (or the refusal line, where the file is refused) shown at once. Back from it lands on Files as it was left |
+
+It opens with nothing needed first, no key and no wallet. The screen is
+a step flow (`Screen::MultisigCheck`) of two cards, **Setup** and
+**Result**. Restore an existing wallet and the Descriptor checksum tool
+stay as they are: Restore still makes a wallet from seeds, and the tool
+still takes any descriptor typed; this check is where a setup of several
+keys is read and shown whole without making anything.
+
+1. **Setup.** The ways in, a row each:
+   - **Scan**: the scanner titled "Scan the wallet's setup", taking a
+     descriptor, a BIP-388 policy or a setup file as a static or
+     animated code, `ur:crypto-output` included (`docs/QR.md`); a
+     code read here goes to this card, named "Scanned", and is not put
+     in Files;
+   - **From Files**: the files Files reads as a wallet (Files' reader,
+     `read_wallet`), a row each by name with the shape it reads as,
+     newest first; files of one key are listed dimmed with "One key",
+     and files that do not read are not listed;
+   - **A wallet loaded here**, where a wallet of several keys is
+     loaded: its wallets by name and shape, to be checked again against
+     a device (a loaded wallet was confirmed when it came in);
+   - **Paste**, on Faraday Demo only, as the scanner's Paste: the text
+     goes through the pasted-text classifier (`docs/SCANNING.md` §4.6)
+     and, where it is a wallet description, to the same reader.
+
+   A setup read closes the card on its name and shape with **Change**,
+   and works out the Result on that press.
+2. **Result.** The confirmation sheet's rows, then the page's own rows
+   and actions (below).
+
+**What each kind of input does.** Every way in reaches one reader,
+Files' `read_wallet` (`faraday/faraday-intake/src/wallet.rs`), so the
+check reads exactly what loading would read:
+
+- **A descriptor** (`wsh(sortedmulti(…))`, `sh(wsh(…))`, `sh(…)`,
+  `tr(…)` with `sortedmulti_a`, `multi_a` or a tree, `musig(…)`, a
+  miniscript) with its checksum or without: read whole and kept as it
+  arrived, never written out again from its keys (`docs/WALLETS.md`
+  §3.2).
+- **A BIP-388 policy**: its template and keys, read as a descriptor.
+- **A multisig setup file** (Coldcard's, Sparrow's, Nunchuk's,
+  Specter's, Caravan's, a Sparrow or Specter wallet `.json`): read as
+  Files reads it; such a file carries no descriptor checksum, so the
+  checksum row is worked out here and says so.
+- **A BIP 129 record** (its descriptor record, `faraday_bip::bsms`):
+  read whole, its first address checked against the wallet it states,
+  as Files checks it; a record whose address is not the wallet's is
+  refused. A BIP 129 signer's record (one key) is not a setup.
+- **A loaded wallet**: its own descriptor, as kept on it.
+
+**What it refuses**, each as one result line in `ERR` in the Setup
+card's place, with no Result drawn (nothing of a refused setup is shown
+as if it held), the line coming from the reader where it has one:
+
+- **A file or text that does not read as a wallet**: the reader's own
+  line ("Not a wallet: {why}", `wallet_not_a_wallet`, naming a JSON file too
+  deep or too long, an encrypted Electrum wallet, a SLIP-132 key of
+  another script than the file's).
+- **A checksum that does not hold**: "The descriptor checksum does not
+  hold: given {given}, the descriptor gives {worked out}". A checksum
+  that fails says the text was mistyped or changed, so the keys it
+  carries are not shown.
+- **A key without its origin** (a bare xpub, or one with no fingerprint
+  and derivation path): "A key of this wallet has no fingerprint and
+  derivation path", Files' line. It stays refused: without its origin
+  no key here or seed can be matched to it, and a guessed path is never
+  taken.
+- **A private key or a seed** (a descriptor holding an xprv or a WIF, a
+  file with words): "A private key: not taken here", nothing of it kept
+  or drawn, as My seed makes my wallet refuses it; a paste of one is
+  refused as the scanner's Paste refuses it (`pasted_secret`) and
+  cleared.
+- **A wallet of one key**: "One key: not a multisig setup". My seed
+  makes my wallet checks a single-key account.
+- **A wallet of another network** than the one in use: the reader's
+  line, as Files gives it.
+- **A wallet whose keys repeat** is not refused, as Restore does not
+  refuse it: each repeat has the warning line the Descriptor checksum
+  tool gives ("Key 2 is the same as key 1", `docs/WALLETS.md` §7), above
+  the cosigner rows.
+
+**The Result.** First the rows of the confirmation sheet (F254), drawn
+by the same code as the sheet's body, so that the person learns one
+layout:
+
+- the **shape** in the wallet's own words (`Session::shape`): "2 of 3 ·
+  native SegWit multisig", "2 of 3 · Taproot multisig", "3 of 3 ·
+  MuSig2", "4 keys · Taproot key and leaves", "3 keys · miniscript with
+  conditions"; and the name, where the setup gives one;
+- per cosigner, in the descriptor's order: **Key 1**, **Key 2** and on,
+  its fingerprint, its path from its origin (`m/48h/0h/0h/2h`), and its
+  extended public key whole, mono, in groups of four, wrapped and never
+  cut, in the spelling the setup gives (an xpub, or the Zpub a setup
+  file carries); "Yours" after the path where a key loaded here gives
+  that same extended key (public key and chain code) at that path, and
+  "Yours · your single-key account" where that path is a single-key
+  account's (BIP 44, 49, 84, 86), as the sheet marks it;
+- the **Descriptor checksum**, its eight characters, then "holds" in
+  `OK` where the setup gave one and it held, or "worked out here, none
+  given" for a setup file that carries none;
+- for a `tr()` wallet with a script tree, the key path line
+  (`docs/WALLETS.md` §3.4): "Key path: none (unspendable)", "Key path:
+  {key} alone", or the danger line for a key not of the wallet, in the
+  error colour.
+
+Then the page's own rows:
+
+- **Quorum**, where the shape does not state one, as the wallet's
+  quorum is worked out everywhere (`Session::quorum`, from
+  `Session::spend_ways`): a script that states m of n is that; a MuSig2
+  wallet is n of n, every key; a script tree or a miniscript reads "{m}
+  of {n} seeds", m the fewest seeds of any way to spend and n the
+  distinct seeds, and every seed where the ways cannot be worked out.
+  Such a wallet is never read as 1 of n.
+- **Ways to spend**, for a script tree or a miniscript: one line per way
+  the script can be satisfied (`WalletPolicy::spend_paths`), the keys it
+  needs by number and its wait, as the wallet card's Spend paths read
+  ("Key 1 and key 2 · any time", "Key 3 · 52 560 blocks after each coin
+  arrives · about 365 days"), the key path first for a `tr()` wallet. A
+  script with more ways than the list holds reads "More ways to spend
+  than are listed here" and lists none. A wallet that states its quorum
+  in its script has no such row.
+- **First receive address**: address 0 of the wallet's receive chain,
+  whole, opening its QR sheet; for a BIP 129 record, with " · as the
+  record states". It is the one address every coordinator shows when a
+  wallet is set up.
+
+**Which cosigner a key is** (its origin matching). For every key loaded
+here, its extended key is worked out at each cosigner's own origin path
+whose fingerprint is the key's, and public key and chain code compared,
+as Restore matches a seed to a described wallet (`restore_refusal`) and
+as the register sheet marks "Yours". A match marks that cosigner's row
+"Yours". A fingerprint that is a loaded key's whose extended key at that
+path is not marks the row with the warning glyph and "The fingerprint
+is {fp}'s; the key at {path} is not": the setup is wrong or was
+changed. A key matching no cosigner is not named.
+
+**Check a seed against it** (a text button on the Result), for a seed
+not loaded here, such as a hardware wallet's own: the Seed and
+Passphrase steps of My seed makes my wallet open under the rows (**Type
+the words**, **Scan a SeedQR**; **No passphrase** or the passphrase
+typed twice), and the seed is matched as a loaded key is. Its answer is
+one result line: "This seed is key 2 of this wallet" in `OK`, that row
+marked "This seed"; "Not a key of this wallet: check the words or the
+passphrase" in `ERR`, with "It matches without the passphrase" under it
+where the same words with no passphrase make a cosigner (a passphrase
+not given is never searched for), or the warning line above where the
+fingerprint is a cosigner's and its key is not. The seed is held in
+`faraday-keys` for the check alone, as My seed makes my wallet holds
+it, and dropped, wiped as any key is (`docs/KEYS.md`), on **Done**,
+**Another setup**, **Check a seed against it** pressed again, leaving
+the screen, the idle lock and a lock; it is never loaded from here, so
+the Result has no Keep this key (Add a key loads a seed). Decisions 8 and
+9 hold: with a stick in, Type the words and Scan a SeedQR open the sheet
+that asks for it to be pulled.
+
+**Add this wallet** (decided here: offered, through the sheet). A person
+checking a setup they are about to use often wants it loaded next, so
+the Result offers **Add this wallet** (outlined) while the wallet is not
+loaded. It never adds the wallet itself: it opens the confirmation sheet
+(F254) over the page, with its rows, its compare line and **Hold to add
+this wallet**, and only the hold adds it, as every wallet of more than
+one key comes in; Cancel on the sheet leaves the page as it was. Once
+added, the button gives way to "Loaded here as {name}", and a wallet
+already loaded (the same descriptor checksum) reads so from the start.
+The page leaves out the sheet's compare line: comparing is what the page
+is for.
+
+The Result's actions: **Another setup** (a text button, opening Setup),
+**Check a seed against it** (a text button), **Add this wallet**
+(outlined) and **Done** (filled), which goes back where the flow was
+opened (Check or Tools).
+
+What the flow keeps is public (the setup read, the rows worked out)
+until it is left or a lock, but for a seed given to Check a seed against
+it, which is a secret held as above. It keeps nothing once its screen is
+left, so it has no row in Flows in progress. The reading, the
+derivations for "Yours" and the seed's match take `c: &Compute` and run
+on the press that completes a card or gives the seed, so drawing only
+reads.
+
+**What it is built from**, so that nothing is written twice:
+
+- the reader: Files' `read_wallet` and the pasted-text classifier
+  (`faraday/faraday-intake/src/wallet.rs`,
+  `core/faraday-codec/src/classify.rs`), BIP 129's
+  `faraday_bip::bsms::DescriptorRecord`;
+- the checksum: `faraday_bip::descriptor`'s `verify_checksum` and
+  `checksum_facts`, as the Descriptor checksum tool reads it, and its
+  repeated-key lines;
+- the top rows: the confirmation sheet's body (F254), one piece of code
+  for the sheet and the page;
+- the quorum and the ways to spend: `Session::shape`, `Session::quorum`
+  and `Session::spend_ways` (`faraday/faraday-core/src/wallet.rs`),
+  `WalletPolicy::spend_paths`, the key path line of `docs/WALLETS.md`
+  §3.4, read from the wallet as read, without adding it to the session;
+- "Yours" and the seed's match: Restore's origin match
+  (`faraday/faraday-core/src/restore.rs`, `restore_refusal`) and
+  `faraday-keys`' `xpub_at`; the seed's steps and its holding: My seed
+  makes my wallet's;
+- the first receive address: `WalletPolicy::address_at`.
+
+**Tested against** published vectors and an implementation Faraday did
+not write (`docs/STANDARDS.md` §0): BIP 380's checksum vectors, each
+valid one read as holding and each changed one refused, and every
+checksum shown against Bitcoin Core's `descriptors.py` (the
+cross-check's `addr` area); BIP 129's test vectors
+(`tools/vectors/bip129/`), its descriptor record read with its first
+address; BIP 388's policies; the first receive address of each kind
+against Bitcoin Core's `deriveaddresses`; the other wallets' setup
+files Files' tests already read (`docs/WALLETS.md` §8). A test for each
+refusal (a text that does not read, a checksum that fails, a key without
+its origin, a private key, one key), for the quorum of a sorted
+multisig, a Taproot multisig, a MuSig2 wallet (n of n), a script tree
+and a miniscript (never 1 of n), for "Yours" and for the warning line
+of a fingerprint whose key is not, for Check a seed against it (a match,
+a miss, "It matches without the passphrase", the seed gone after Done
+and a lock), and for Add this wallet reaching the session only after
+the sheet's hold.
+
+**Practice** (`docs/MODES.md` §6; when built, its §5.3 and §6.1 list
+these). The Setup card's scanner and host strip hand, in turn, as a
+scan of each: sample Savings' descriptor (2 of 3 · native SegWit
+multisig over test keys 1, 2 and 3, its checksum holding); Savings as
+a BIP 129 descriptor record, so the record's first address line shows;
+sample MuSig2's descriptor (3 of 3 · MuSig2); sample Taproot tree's
+descriptor, so the Quorum, Ways to spend and key path rows show; and
+Savings' descriptor with one character of its second key changed and
+its checksum kept, so the refusal "The descriptor checksum does not
+hold" is seen. With test key 1 loaded (Load samples), Savings' key 1
+row reads "Yours". Check a seed against it hands test key 2's words
+(bacon's, zebra's and summer's are test keys 1, 2 and 3), so the answer
+reads "This seed is key 2 of this wallet", and next a word sample of no
+sample wallet, so the miss is seen; the passphrase fields offer
+`faraday` (MODES §6.2), which no sample cosigner uses, so the line "It
+matches without the passphrase" is seen too. Add this wallet adds the
+sample through the sheet's hold, as a real one is added. The samples
+are literal text in `faraday-samples` (MODES §5.4: it parses nothing),
+and its test checks that each equals what the testkit makes
+(`testkit::kits`, `testkit::musig_policy`), that the BIP 129 record
+reads to Savings, and that the changed one's checksum fails. Its ?
+opens Learn at Verifying and Tools.
+
+**Its strings** (`faraday/faraday-strings/src/en.rs`, when built; the
+confirmation sheet's own are `wallet_confirm_*`, F254, and the reader's,
+Restore's and My seed makes my wallet's are reused):
+
+- `check_row_multisig`: "A multisig setup"; `check_row_multisig_line`:
+  "The wallet's descriptor or setup file" (Check's row 7, F255);
+- `catalog_check_multisig`: "Check a multisig setup";
+  `catalog_check_multisig_line`: "Its quorum, checksum and cosigners";
+- `mscheck_title`: "Check a multisig setup";
+- `files_check_setup`: "Check this setup" (the file row's ⋮ entry);
+- `mscheck_setup`: "Setup"; `mscheck_result`: "Result";
+- `mscheck_scan`: "Scan"; `mscheck_scan_title`: "Scan the wallet's
+  setup"; `mscheck_from_files`: "From Files"; `mscheck_loaded`: "A
+  wallet loaded here"; `mscheck_paste`: "Paste"; `mscheck_scanned`:
+  "Scanned";
+- `mscheck_one_key`: "One key"; `mscheck_refused_one_key`: "One key:
+  not a multisig setup";
+- `mscheck_checksum_fails`: "The descriptor checksum does not hold:
+  given {}, the descriptor gives {}";
+- `mscheck_checksum_holds`: "holds"; `mscheck_checksum_worked_out`:
+  "worked out here, none given";
+- `mscheck_quorum`: "Quorum"; `mscheck_quorum_seeds`: "{} of {} seeds";
+- `mscheck_ways`: "Ways to spend"; `mscheck_ways_too_many`: "More ways
+  to spend than are listed here";
+- `mscheck_first_receive`: "First receive address";
+  `mscheck_as_record_states`: " · as the record states";
+- `mscheck_key_n`: "Key {}";
+- `mscheck_key_not`: "The fingerprint is {}'s; the key at {} is not";
+- `mscheck_check_seed`: "Check a seed against it";
+  `mscheck_seed_is_key`: "This seed is key {} of this wallet";
+  `mscheck_this_seed`: "This seed";
+- `mscheck_another`: "Another setup"; `mscheck_add`: "Add this wallet";
+  `mscheck_loaded_as`: "Loaded here as {}"; `mscheck_done`: "Done".

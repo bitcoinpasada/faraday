@@ -47,6 +47,7 @@ pub(crate) mod keys;
 pub(crate) mod lightning_cln;
 pub(crate) mod m3;
 pub(crate) mod menu;
+pub(crate) mod multisig_check;
 pub(crate) mod nonce;
 pub(crate) mod ots_check;
 pub(crate) mod panes;
@@ -132,6 +133,10 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ("silent", TourFn::Costly(silent::silent_tour)),
     ("keypath", TourFn::Plain(key_path::key_path_tour)),
     ("register", TourFn::Plain(register::register_tour)),
+    (
+        "multisig-check",
+        TourFn::Plain(multisig_check::multisig_check_tour),
+    ),
     ("nonce", TourFn::Plain(nonce::nonce_tour)),
     ("signer", TourFn::Plain(signer::signer_tour)),
     ("transfer", TourFn::Plain(transfer::transfer_tour)),

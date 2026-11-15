@@ -86,6 +86,7 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::QrTool => qr_tool_key(at, step),
         Screen::OtsCheck => "ots-check",
         Screen::SeedCheck => "seed-check",
+        Screen::MultisigCheck => "multisig-check",
         Screen::CoreWallet => match step {
             Some(crate::core_wallet::tool::cstep::FILE) => "core-wallet.file",
             Some(crate::core_wallet::tool::cstep::RESULT) => "core-wallet.result",

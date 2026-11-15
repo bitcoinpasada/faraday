@@ -62,6 +62,8 @@ pub enum ScanPurpose {
     OtsHeader,
     /// Check a timestamp's file hash: 64 hex characters, taken by the tool.
     OtsFileHash,
+    /// Check a multisig setup: a descriptor, a policy or a setup file, taken by the check.
+    MultisigSetup,
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     #[cfg(feature = "demo")]

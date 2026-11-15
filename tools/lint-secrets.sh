@@ -723,6 +723,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       key lines, vault names and wallet checksums
 #   faraday/faraday-core/src/decode/check_screen.rs
 #       Check a signer's card titles, file names and txids
+#   faraday/faraday-core/src/multisig_check/mod.rs
+#       a setup's public descriptor text, its cosigners' fingerprints, paths and keys, and refusals; a private key is refused before it is read
 #   faraday/faraday-core/src/compare/screen.rs
 #       Compare's card titles and file names
 #   faraday/faraday-core/src/wallet/nonce.rs
@@ -801,6 +803,7 @@ faraday/faraday-core/src/secure_boot/mod.rs
 faraday/faraday-core/src/register.rs
 faraday/faraday-core/src/create_from.rs
 faraday/faraday-core/src/decode/check_screen.rs
+faraday/faraday-core/src/multisig_check/mod.rs
 faraday/faraday-core/src/compare/screen.rs
 faraday/faraday-core/src/wallet/nonce.rs
 faraday/faraday-core/src/wallet/account.rs

@@ -108,6 +108,7 @@
 //! | `QrTool` | `qr_tool/screen.rs` |
 //! | `OtsCheck` | `ots_check/screen.rs` |
 //! | `SeedCheck` | `seed_check/screen.rs` |
+//! | `MultisigCheck` | `multisig_check/screen.rs` |
 //! | `CoreWallet` | `core_wallet/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
@@ -199,6 +200,7 @@ pub mod kef_form;
 pub mod kef_tool;
 pub mod keygen;
 pub mod lightning;
+pub mod multisig_check;
 pub mod ots_check;
 pub mod qr_tool;
 pub mod quiz;
@@ -366,6 +368,8 @@ pub enum Screen {
     OtsCheck,
     /// Tools' My seed makes my wallet: a seed's xpub and addresses.
     SeedCheck,
+    /// Check a multisig setup: its quorum, checksum and cosigners.
+    MultisigCheck,
     /// Tools' Read a Bitcoin Core wallet: a `wallet.dat` read and checked.
     CoreWallet,
     /// Silent payments: a loaded key's address and scan key.
@@ -2512,6 +2516,7 @@ impl Faraday {
                 self.tool_act(action)
             }
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
+            Action::MultisigCheck(k) => crate::multisig_check::act(self, k),
             Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
             Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
             Action::NavMenu(to) => self.nav_menu(to),

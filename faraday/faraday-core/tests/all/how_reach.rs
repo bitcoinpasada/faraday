@@ -53,6 +53,7 @@ fn screen(name: &str) -> Screen {
         "Catalog" => S::Catalog,
         "Transfer" => S::Transfer,
         "BackupFlow" => S::BackupFlow,
+        "MultisigCheck" => S::MultisigCheck,
         "KefTool" => S::KefTool,
         "QrTool" => S::QrTool,
         "OtsCheck" => S::OtsCheck,

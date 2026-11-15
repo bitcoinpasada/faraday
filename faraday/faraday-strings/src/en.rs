@@ -13573,6 +13573,82 @@ strings! {
     sample_ots_proof_file: "sample-timestamp.ots",
     /// Check a timestamp: the sample header's name.
     sample_ots_header_file: "sample-block-header",
+    /// Check a multisig setup: the screen's title and the Files menu's entry.
+    mscheck_title: "Check a multisig setup",
+    /// Check a multisig setup: a file row's menu entry.
+    files_check_setup: "Check this setup",
+    /// Check a multisig setup: the first card.
+    mscheck_setup: "Setup",
+    /// Check a multisig setup: the second card.
+    mscheck_result: "Result",
+    /// Check a multisig setup: the scanner's row.
+    mscheck_scan: "Scan",
+    /// The scanner's title in Check a multisig setup.
+    mscheck_scan_title: "Scan the wallet's setup",
+    /// Check a multisig setup: the heading over the files of Files that read as wallets.
+    mscheck_from_files: "From Files",
+    /// Check a multisig setup: the heading over the wallets loaded here.
+    mscheck_loaded: "A wallet loaded here",
+    /// Check a multisig setup: the name of a setup read from a code.
+    mscheck_scanned: "Scanned",
+    /// Check a multisig setup: a file of one key, listed dimmed.
+    mscheck_one_key: "One key",
+    /// Check a multisig setup: the line for a wallet of one key.
+    mscheck_refused_one_key: "One key: not a multisig setup",
+    /// Check a multisig setup: the line for a descriptor that holds a private key.
+    mscheck_private: "A private key: not taken here",
+    /// Check a multisig setup: the line for a descriptor whose checksum fails. `{}`: the checksum given, then the checksum the descriptor gives.
+    mscheck_checksum_fails: "The descriptor checksum does not hold: given {}, the descriptor gives {}",
+    /// Check a multisig setup: the checksum's label.
+    mscheck_checksum: "Descriptor checksum",
+    /// Check a multisig setup: a checksum given and held. `{}`: the checksum.
+    mscheck_checksum_holds: "{} · holds",
+    /// Check a multisig setup: a setup with no checksum. `{}`: the checksum worked out.
+    mscheck_checksum_worked_out: "{} · worked out here, none given",
+    /// Check a multisig setup: a cosigner's label. `{}`: its number.
+    mscheck_key: "Key {}",
+    /// Check a multisig setup: a cosigner a key loaded here is.
+    mscheck_yours: "Yours",
+    /// Check a multisig setup: a cosigner that is a single-key account of a key loaded here.
+    mscheck_yours_single: "Yours · your single-key account",
+    /// Check a multisig setup: a cosigner under a loaded key's fingerprint that is not that key. `{}`: the fingerprint, then the path.
+    mscheck_wrong_key: "The fingerprint is {}'s; the key at {} is not",
+    /// Check a multisig setup: the quorum's label.
+    mscheck_quorum: "Quorum",
+    /// Check a multisig setup: a quorum counted in seeds. `{}`: the fewest seeds, then every seed.
+    mscheck_quorum_seeds: "{} of {} seeds",
+    /// Check a multisig setup: the label over the ways a script is spent.
+    mscheck_ways: "Ways to spend",
+    /// Check a multisig setup: a script with more ways to spend than are listed.
+    mscheck_ways_too_many: "More ways to spend than are listed here",
+    /// Check a multisig setup: two keys of a way to spend. `{}`: the keys so far, then the next key.
+    mscheck_keys_and: "{} and {}",
+    /// Check a multisig setup: one way to spend, no wait.
+    mscheck_way_any_time: "{} · any time",
+    /// Check a multisig setup: one way to spend with a wait. `{}`: the keys, then the wait.
+    mscheck_way_wait: "{} · {}",
+    /// Check a multisig setup: a wait in blocks. `{}`: the blocks.
+    mscheck_wait_blocks: "{} blocks after each coin arrives",
+    /// Check a multisig setup: a wait in time units. `{}`: the seconds.
+    mscheck_wait_seconds: "{} seconds after each coin arrives",
+    /// Check a multisig setup: a wait for a block height. `{}`: the height.
+    mscheck_wait_height: "block {}",
+    /// Check a multisig setup: a wait for a time. `{}`: the Unix time.
+    mscheck_wait_time: "Unix time {}",
+    /// Check a multisig setup: a way that needs a hash's preimage.
+    mscheck_wait_preimage: "a hash's preimage",
+    /// Check a multisig setup: the first receive address's label.
+    mscheck_first_receive: "First receive address",
+    /// Check a multisig setup: no file of Files reads as a wallet.
+    mscheck_none_in_files: "No wallet in Files",
+    /// Check a multisig setup: the Result's text button.
+    mscheck_another: "Another setup",
+    /// Check a multisig setup: leaves the screen.
+    mscheck_done: "Done",
+    /// Check a multisig setup: the Result before a setup is read.
+    mscheck_result_waits: "Not checked yet",
+    /// The scanner's tile that hands over a sample wallet setup.
+    scan_sample_setup: "Load sample setup",
     /// The scanner's tile that hands over a sample block header.
     scan_sample_header: "Load sample block header",
     /// The scanner's tile that hands over a sample file hash.

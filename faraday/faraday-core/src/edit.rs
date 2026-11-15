@@ -1176,6 +1176,7 @@ impl Faraday {
             Screen::QrTool => self.tools.qr_tool.state().is_some(),
             Screen::OtsCheck => self.tools.ots.state().is_some(),
             Screen::SeedCheck => self.tools.seed_check.state().is_some(),
+            Screen::MultisigCheck => self.tools.mscheck.state().is_some(),
             Screen::CoreWallet => self.tools.core_wallet.state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),

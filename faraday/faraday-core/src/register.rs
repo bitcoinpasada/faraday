@@ -146,7 +146,7 @@ pub(crate) fn shape_line(r: &Registration, reading: usize) -> String {
 }
 
 /// A path as a descriptor writes it, hardened steps with `h`, no `m/`.
-fn path_text(path: &faraday_psbt::bitcoin::bip32::DerivationPath) -> String {
+pub(crate) fn path_text(path: &faraday_psbt::bitcoin::bip32::DerivationPath) -> String {
     path.into_iter()
         .map(|c| match c {
             faraday_psbt::bitcoin::bip32::ChildNumber::Hardened { index } => format!("{index}h"),
