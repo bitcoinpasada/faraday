@@ -100,16 +100,23 @@ fn trailing_text_is_refused() {
     assert!(read(&format!("{}\n", saved())).is_none());
 }
 
+fn without(text: &str, names: &[&str]) -> String {
+    text.lines()
+        .filter(|l| !names.contains(&l.split(' ').next().unwrap_or("")))
+        .map(|l| format!("{l}\n"))
+        .collect()
+}
+
 #[test]
-fn a_plan_missing_a_line_is_refused() {
+fn a_plan_needs_eight_answer_lines() {
     let text = saved();
-    for name in ["seeds", "wallet", "software", "form", "omit", "split", "sticks", "vault"] {
-        let cut: String = text
-            .lines()
-            .filter(|l| l.split(' ').next() != Some(name))
-            .map(|l| format!("{l}\n"))
-            .collect();
-        assert!(read(&cut).is_none(), "without {name}");
+    for name in [
+        "seeds", "places", "split", "wallet", "software", "form", "omit", "sticks", "vault",
+    ] {
+        assert!(read(&without(&text, &[name])).is_some(), "without {name}");
+    }
+    for pair in [["seeds", "wallet"], ["places", "omit"], ["vault", "sticks"]] {
+        assert!(read(&without(&text, &pair)).is_none(), "without {pair:?}");
     }
     assert!(read("").is_none());
 }

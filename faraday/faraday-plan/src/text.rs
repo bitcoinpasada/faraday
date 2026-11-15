@@ -315,269 +315,21 @@ impl Answers {
     /// for a wallet of this shape. A plan saved before vaults were one per
     /// seed, with one `sticks` line and no `vault` line, reads as one
     /// vault holding every seed here, its stick at the places ticked.
-    #[expect(
-        clippy::cognitive_complexity,
-        reason = "reads each answer line, the places and the lines it reads past, in one pass over the text"
-    )]
     pub fn from_text(shape: &Shape, text: &str) -> Option<Answers> {
-        fn bits<const N: usize>(s: &str) -> Option<[bool; N]> {
-            let v = flags(s)?;
-            v.try_into().ok()
-        }
-        fn flags(s: &str) -> Option<Vec<bool>> {
-            s.chars()
-                .map(|c| match c {
-                    '1' => Some(true),
-                    '0' => Some(false),
-                    _ => None,
-                })
-                .collect()
-        }
         let mut a = Answers::defaults(shape);
         a.bare = Vec::new();
         let mut seen = 0;
-        let mut one_stick: Option<Vec<bool>> = None;
-        let mut sticks: Vec<(usize, Vec<bool>)> = Vec::new();
-        let mut vaults: Vec<(usize, Vec<bool>)> = Vec::new();
-        // Each `spot` line's place and things, read once every answer is:
-        // a thing written before the forms takes the `form` answers'.
-        let mut lines: Vec<(At, Vec<&str>)> = Vec::new();
-        let mut unmade: Vec<usize> = Vec::new();
-        let numbered = |value: &str| -> Option<(usize, Vec<bool>)> {
-            let (v, row) = value.split_once(' ')?;
-            Some((v.parse().ok()?, flags(row)?))
-        };
+        let mut got = Lines::default();
         for line in text.lines() {
             let (name, value) = line.split_once(' ')?;
-            match name {
-                "seeds" => a.seeds = bits(value)?,
-                "places" => {
-                    // More than the places a person could ever add (rows
-                    // above are held to the same 1024) is not a plan.
-                    a.places = value.parse().ok().filter(|&n| n <= 1024)?;
-                }
-                "split" => a.split = value == "1",
-                "sticks" if value.contains(' ') => sticks.push(numbered(value)?),
-                "sticks" => one_stick = Some(flags(value)?),
-                "vault" => vaults.push(numbered(value)?),
-                "wallet" => a.wallet = bits(value)?,
-                "software" => a.software = bits(value)?,
-                "form" => a.form = bits(value)?,
-                "omit" => a.omit = value.parse().ok()?,
-                "bare" => {
-                    a.bare = value
-                        .split(',')
-                        .map(|p| p.parse().ok())
-                        .collect::<Option<Vec<usize>>>()?;
-                }
-                "pass" => {
-                    let (i, row) = value.split_once(' ')?;
-                    let i: usize = i.parse().ok()?;
-                    *a.pass.get_mut(i)? = flags(row)?;
-                }
-                // A key made here whose backup is pending: read by the
-                // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
-                "held" => continue,
-                // The seal counts of the other vaults this plan places
-                // (`docs/VAULT.md` §7): read by the plan
-                // area ([`SealLine`]), not an answer.
-                "seals" => continue,
-                // The access layers' count and routes, written only by test
-                // builds before the layers were withdrawn (F38, F46): read
-                // past, never refused.
-                "layers" | "route" => continue,
-                // The preset a plan saved before F53 started from: read,
-                // never refused, and no longer written. A plan from Paper
-                // only, Paper and vault, or Paper, vault and watch-only
-                // software reopens as it was, customisable
-                // (`docs/BACKUP-FLOW.md` §17.21 item 7).
-                "preset" => {
-                    if value != "0" {
-                        a.custom = true;
-                    }
-                    continue;
-                }
-                "custom" => {
-                    a.custom = value == "1";
-                    continue;
-                }
-                // A seed's codex32 form (`docs/CODEX32.md` §9.2).
-                "codex32" => {
-                    // A split the plan was to make (identifier `-`), saved
-                    // when it made one: dropped, below.
-                    if value.split(' ').nth(4) == Some("-") {
-                        let seed: usize = value.split(' ').next()?.parse().ok()?;
-                        if seed >= shape.seeds.len() {
-                            return None;
-                        }
-                        unmade.push(seed);
-                        continue;
-                    }
-                    let f = codex32::C32::from_value(value, shape.seeds.len())?;
-                    if a.c32(f.seed).is_some() {
-                        return None;
-                    }
-                    a.codex32.push(f);
-                    continue;
-                }
-                // A set of a seed rotated away (`docs/CODEX32.md` §9.7).
-                "rotated" => {
-                    let mut parts = value.split(' ');
-                    let seed: usize = parts.next()?.parse().ok()?;
-                    let k: u8 = parts.next()?.parse().ok()?;
-                    let id = <[u8; 4]>::try_from(parts.next()?.as_bytes()).ok()?;
-                    if seed >= shape.seeds.len() || k == 1 || k > 9 || parts.next().is_some() {
-                        return None;
-                    }
-                    if !a.rotated.contains(&(seed, k, id)) {
-                        a.rotated.push((seed, k, id));
-                    }
-                    continue;
-                }
-                // A SeedQR drawn in part (§14.7 item 3).
-                "part" => {
-                    let (p, i) = value.split_once(' ')?;
-                    let pi: (usize, usize) = (p.parse().ok()?, i.parse().ok()?);
-                    if pi.1 >= shape.seeds.len() {
-                        return None;
-                    }
-                    if !a.part.contains(&pi) {
-                        a.part.push(pi);
-                    }
-                    continue;
-                }
-                // The map edited on the chart (§9.7).
-                "spot" => {
-                    let mut parts = value.split(' ');
-                    let at = at_read(parts.next()?)?;
-                    lines.push((at, parts.filter(|p| !p.is_empty()).collect()));
-                    continue;
-                }
-                _ => return None,
-            }
-            seen += 1;
-        }
-        // A plan kept for more vaults than this shape has rows for (the
-        // vaults set up before the keys) reads with all of them.
-        // A row numbered past what a count can hold is not a plan.
-        let seen_rows = |l: &[(usize, Vec<bool>)]| -> Option<usize> {
-            l.iter()
-                .try_fold(0, |most: usize, (v, _)| Some(most.max(v.checked_add(1)?)))
-        };
-        let (vault_rows, stick_rows) = (seen_rows(&vaults)?, seen_rows(&sticks)?);
-        if vault_rows.max(stick_rows) > 1024 {
-            return None;
-        }
-        if vault_rows > a.vaults.len() {
-            a.vaults
-                .resize_with(vault_rows, || vec![false; shape.seeds.len()]);
-        }
-        let rows = shape.vault_rows().max(stick_rows);
-        a.sticks = vec![vec![false; a.places]; rows];
-        match one_stick {
-            // Saved with one vault: it holds every seed here.
-            Some(row) if vaults.is_empty() && sticks.is_empty() => {
-                for (v, r) in a.vaults.iter_mut().enumerate() {
-                    r.iter_mut()
-                        .enumerate()
-                        .for_each(|(i, s)| *s = v == 0 && shape.seeds[i].here);
-                }
-                a.sticks[0] = row;
-            }
-            Some(_) => return None,
-            None => {
-                for (v, row) in sticks {
-                    *a.sticks.get_mut(v)? = row;
-                }
-                for (v, row) in vaults {
-                    *a.vaults.get_mut(v)? = row;
-                }
+            if answer_line(&mut a, name, value, &mut got)? {
+                seen += 1;
+            } else if !skipped_line(&mut a, name, value) {
+                place_line(&mut a, shape, name, value, &mut got)?;
             }
         }
-        let mut edited: Vec<Spot> = Vec::new();
-        for (at, parts) in lines {
-            let mut holds: Vec<(What, Tag)> = Vec::new();
-            for part in parts {
-                // A vault's password on paper, placed only by those same
-                // test builds: read past.
-                if part.starts_with("vpw") {
-                    continue;
-                }
-                // The description's or a share's files saved before the
-                // forms: every form the `form` answers had on
-                // (`docs/BACKUP-FLOW.md` §17.3).
-                let whats: Vec<What> = match part {
-                    "walletfile" => a.file_forms().into_iter().map(What::WalletFile).collect(),
-                    _ if part.starts_with("sharefile") => {
-                        let j: usize = part.strip_prefix("sharefile")?.parse().ok()?;
-                        a.file_forms()
-                            .into_iter()
-                            .map(|f| What::ShareFile(j, f))
-                            .collect()
-                    }
-                    _ => vec![what_read(part)?],
-                };
-                for w in whats {
-                    if !holds.iter().any(|(x, _)| *x == w) {
-                        holds.push((w, tag_of(at, w)));
-                    }
-                }
-            }
-            edited.push(Spot { at, holds });
-        }
-        if !edited.is_empty() {
-            // Its places numbered in order, each stick at one of them with
-            // at most one vault on it and nothing but stick forms, and
-            // nothing in it a seed, a share or a key the wallet does not
-            // have.
-            let places: Vec<usize> = edited
-                .iter()
-                .filter_map(|s| match s.at {
-                    At::Place(p) => Some(p),
-                    _ => None,
-                })
-                .collect();
-            let fits_shape = |w: What| match w {
-                What::Words(i)
-                | What::SeedQr(i)
-                | What::Passphrase(i)
-                | What::Seed(i)
-                | What::SeedPassphrase(i)
-                | What::PassphraseSealed(i)
-                | What::SeedFile(i)
-                | What::SeedQrFile(i)
-                | What::PassphraseFile(i) => i < shape.seeds.len(),
-                What::Share(j) => j < shape.keys.max(1),
-                What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
-                What::WalletFile(f) => f <= form::TEXT,
-                What::VaultStick(v) => v < 1024,
-                What::Codex32Share(i, _)
-                | What::Codex32QrPaper(i, _)
-                | What::Codex32ShareFile(i, _)
-                | What::Codex32QrFile(i, _)
-                | What::KefCode(i)
-                | What::KefCodePaper(i) => i < shape.seeds.len(),
-                _ => true,
-            };
-            let sticks_ok = edited.iter().all(|s| match s.at {
-                At::Stick(p, k) => {
-                    p < places.len() && k < 1024 && s.holds.iter().all(|(w, _)| on_stick(*w))
-                }
-                _ => true,
-            });
-            let ok = places.iter().enumerate().all(|(n, &p)| n == p)
-                && sticks_ok
-                && edited
-                    .iter()
-                    .all(|s| !matches!(s.at, At::Vault(v) if v >= 1024))
-                && edited
-                    .iter()
-                    .all(|s| s.holds.iter().all(|(w, _)| fits_shape(*w)));
-            if !ok {
-                return None;
-            }
-            a.set_map(edited);
-        }
+        place_rows(&mut a, shape, got.one_stick, got.sticks, got.vaults)?;
+        read_map(&mut a, shape, got.lines)?;
         let fits = seen >= 8
             && a.places >= 1
             && a.sticks.iter().all(|r| r.len() == a.places)
@@ -595,7 +347,7 @@ impl Answers {
         // strings it was to make: that form and its strings are dropped,
         // the rest of the plan read as written (`docs/CODEX32.md` §9.2).
         // A set that exists stays.
-        for i in unmade {
+        for i in got.unmade {
             a.set_c32(shape, i, None);
         }
         // A set rotated away is a real identifier and not the plan's own
@@ -610,6 +362,308 @@ impl Answers {
         }
         Some(a)
     }
+}
+
+/// A string of `1` and `0`, as the bools it ticks.
+fn flags(s: &str) -> Option<Vec<bool>> {
+    s.chars()
+        .map(|c| match c {
+            '1' => Some(true),
+            '0' => Some(false),
+            _ => None,
+        })
+        .collect()
+}
+
+/// [`flags`] of exactly `N` of them.
+fn bits<const N: usize>(s: &str) -> Option<[bool; N]> {
+    let v = flags(s)?;
+    v.try_into().ok()
+}
+
+/// A row's number and its ticks, `1 0110`.
+fn numbered(value: &str) -> Option<(usize, Vec<bool>)> {
+    let (v, row) = value.split_once(' ')?;
+    Some((v.parse().ok()?, flags(row)?))
+}
+
+/// What the lines of a plan give that is read once all of them are.
+#[derive(Default)]
+struct Lines<'a> {
+    one_stick: Option<Vec<bool>>,
+    sticks: Vec<(usize, Vec<bool>)>,
+    vaults: Vec<(usize, Vec<bool>)>,
+    /// Each `spot` line's place and things, read once every answer is:
+    /// a thing written before the forms takes the `form` answers'.
+    lines: Vec<(At, Vec<&'a str>)>,
+    unmade: Vec<usize>,
+}
+
+/// An answer line, read into `a` or `got`: whether it was one, None when
+/// it is malformed. Another line is not an answer.
+fn answer_line(a: &mut Answers, name: &str, value: &str, got: &mut Lines) -> Option<bool> {
+    match name {
+        "seeds" => a.seeds = bits(value)?,
+        "places" => {
+            // More than the places a person could ever add (rows
+            // above are held to the same 1024) is not a plan.
+            a.places = value.parse().ok().filter(|&n| n <= 1024)?;
+        }
+        "split" => a.split = value == "1",
+        "sticks" if value.contains(' ') => got.sticks.push(numbered(value)?),
+        "sticks" => got.one_stick = Some(flags(value)?),
+        "vault" => got.vaults.push(numbered(value)?),
+        "wallet" => a.wallet = bits(value)?,
+        "software" => a.software = bits(value)?,
+        "form" => a.form = bits(value)?,
+        "omit" => a.omit = value.parse().ok()?,
+        "bare" => {
+            a.bare = value
+                .split(',')
+                .map(|p| p.parse().ok())
+                .collect::<Option<Vec<usize>>>()?;
+        }
+        "pass" => {
+            let (i, row) = value.split_once(' ')?;
+            let i: usize = i.parse().ok()?;
+            *a.pass.get_mut(i)? = flags(row)?;
+        }
+        _ => return Some(false),
+    }
+    Some(true)
+}
+
+/// A line that is not an answer and is read past (or into the board's
+/// switch), never refused: whether `name` is one.
+fn skipped_line(a: &mut Answers, name: &str, value: &str) -> bool {
+    match name {
+        // A key made here whose backup is pending: read by the
+        // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
+        "held" => {}
+        // The seal counts of the other vaults this plan places
+        // (`docs/VAULT.md` §7): read by the plan
+        // area ([`SealLine`]), not an answer.
+        "seals" => {}
+        // The access layers' count and routes, written only by test
+        // builds before the layers were withdrawn (F38, F46): read
+        // past, never refused.
+        "layers" | "route" => {}
+        // The preset a plan saved before F53 started from: read,
+        // never refused, and no longer written. A plan from Paper
+        // only, Paper and vault, or Paper, vault and watch-only
+        // software reopens as it was, customisable
+        // (`docs/BACKUP-FLOW.md` §17.21 item 7).
+        "preset" => {
+            if value != "0" {
+                a.custom = true;
+            }
+        }
+        "custom" => a.custom = value == "1",
+        _ => return false,
+    }
+    true
+}
+
+/// A line of the places and what they keep, read into `a` or `got`: None
+/// when it is malformed or not a line of a plan.
+fn place_line<'a>(
+    a: &mut Answers,
+    shape: &Shape,
+    name: &str,
+    value: &'a str,
+    got: &mut Lines<'a>,
+) -> Option<()> {
+    match name {
+        // A seed's codex32 form (`docs/CODEX32.md` §9.2).
+        "codex32" => {
+            // A split the plan was to make (identifier `-`), saved
+            // when it made one: dropped, below.
+            if value.split(' ').nth(4) == Some("-") {
+                let seed: usize = value.split(' ').next()?.parse().ok()?;
+                if seed >= shape.seeds.len() {
+                    return None;
+                }
+                got.unmade.push(seed);
+                return Some(());
+            }
+            let f = codex32::C32::from_value(value, shape.seeds.len())?;
+            if a.c32(f.seed).is_some() {
+                return None;
+            }
+            a.codex32.push(f);
+        }
+        // A set of a seed rotated away (`docs/CODEX32.md` §9.7).
+        "rotated" => {
+            let mut parts = value.split(' ');
+            let seed: usize = parts.next()?.parse().ok()?;
+            let k: u8 = parts.next()?.parse().ok()?;
+            let id = <[u8; 4]>::try_from(parts.next()?.as_bytes()).ok()?;
+            if seed >= shape.seeds.len() || k == 1 || k > 9 || parts.next().is_some() {
+                return None;
+            }
+            if !a.rotated.contains(&(seed, k, id)) {
+                a.rotated.push((seed, k, id));
+            }
+        }
+        // A SeedQR drawn in part (§14.7 item 3).
+        "part" => {
+            let (p, i) = value.split_once(' ')?;
+            let pi: (usize, usize) = (p.parse().ok()?, i.parse().ok()?);
+            if pi.1 >= shape.seeds.len() {
+                return None;
+            }
+            if !a.part.contains(&pi) {
+                a.part.push(pi);
+            }
+        }
+        // The map edited on the chart (§9.7).
+        "spot" => {
+            let mut parts = value.split(' ');
+            let at = at_read(parts.next()?)?;
+            got.lines
+                .push((at, parts.filter(|p| !p.is_empty()).collect()));
+        }
+        _ => return None,
+    }
+    Some(())
+}
+
+/// The vault and stick rows read, set into `a`.
+fn place_rows(
+    a: &mut Answers,
+    shape: &Shape,
+    one_stick: Option<Vec<bool>>,
+    sticks: Vec<(usize, Vec<bool>)>,
+    vaults: Vec<(usize, Vec<bool>)>,
+) -> Option<()> {
+    // A plan kept for more vaults than this shape has rows for (the
+    // vaults set up before the keys) reads with all of them.
+    // A row numbered past what a count can hold is not a plan.
+    let seen_rows = |l: &[(usize, Vec<bool>)]| -> Option<usize> {
+        l.iter()
+            .try_fold(0, |most: usize, (v, _)| Some(most.max(v.checked_add(1)?)))
+    };
+    let (vault_rows, stick_rows) = (seen_rows(&vaults)?, seen_rows(&sticks)?);
+    if vault_rows.max(stick_rows) > 1024 {
+        return None;
+    }
+    if vault_rows > a.vaults.len() {
+        a.vaults
+            .resize_with(vault_rows, || vec![false; shape.seeds.len()]);
+    }
+    let rows = shape.vault_rows().max(stick_rows);
+    a.sticks = vec![vec![false; a.places]; rows];
+    match one_stick {
+        // Saved with one vault: it holds every seed here.
+        Some(row) if vaults.is_empty() && sticks.is_empty() => {
+            for (v, r) in a.vaults.iter_mut().enumerate() {
+                r.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, s)| *s = v == 0 && shape.seeds[i].here);
+            }
+            a.sticks[0] = row;
+        }
+        Some(_) => return None,
+        None => {
+            for (v, row) in sticks {
+                *a.sticks.get_mut(v)? = row;
+            }
+            for (v, row) in vaults {
+                *a.vaults.get_mut(v)? = row;
+            }
+        }
+    }
+    Some(())
+}
+
+/// The map edited on the chart, its spots read from their `spot` lines and
+/// set into `a`; None when it is not for a wallet of this shape.
+fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Option<()> {
+    let mut edited: Vec<Spot> = Vec::new();
+    for (at, parts) in lines {
+        let mut holds: Vec<(What, Tag)> = Vec::new();
+        for part in parts {
+            // A vault's password on paper, placed only by those same
+            // test builds: read past.
+            if part.starts_with("vpw") {
+                continue;
+            }
+            // The description's or a share's files saved before the
+            // forms: every form the `form` answers had on
+            // (`docs/BACKUP-FLOW.md` §17.3).
+            let whats: Vec<What> = match part {
+                "walletfile" => a.file_forms().into_iter().map(What::WalletFile).collect(),
+                _ if part.starts_with("sharefile") => {
+                    let j: usize = part.strip_prefix("sharefile")?.parse().ok()?;
+                    a.file_forms()
+                        .into_iter()
+                        .map(|f| What::ShareFile(j, f))
+                        .collect()
+                }
+                _ => vec![what_read(part)?],
+            };
+            for w in whats {
+                if !holds.iter().any(|(x, _)| *x == w) {
+                    holds.push((w, tag_of(at, w)));
+                }
+            }
+        }
+        edited.push(Spot { at, holds });
+    }
+    if !edited.is_empty() {
+        // Its places numbered in order, each stick at one of them with
+        // at most one vault on it and nothing but stick forms, and
+        // nothing in it a seed, a share or a key the wallet does not
+        // have.
+        let places: Vec<usize> = edited
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p) => Some(p),
+                _ => None,
+            })
+            .collect();
+        let fits_shape = |w: What| match w {
+            What::Words(i)
+            | What::SeedQr(i)
+            | What::Passphrase(i)
+            | What::Seed(i)
+            | What::SeedPassphrase(i)
+            | What::PassphraseSealed(i)
+            | What::SeedFile(i)
+            | What::SeedQrFile(i)
+            | What::PassphraseFile(i) => i < shape.seeds.len(),
+            What::Share(j) => j < shape.keys.max(1),
+            What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
+            What::WalletFile(f) => f <= form::TEXT,
+            What::VaultStick(v) => v < 1024,
+            What::Codex32Share(i, _)
+            | What::Codex32QrPaper(i, _)
+            | What::Codex32ShareFile(i, _)
+            | What::Codex32QrFile(i, _)
+            | What::KefCode(i)
+            | What::KefCodePaper(i) => i < shape.seeds.len(),
+            _ => true,
+        };
+        let sticks_ok = edited.iter().all(|s| match s.at {
+            At::Stick(p, k) => {
+                p < places.len() && k < 1024 && s.holds.iter().all(|(w, _)| on_stick(*w))
+            }
+            _ => true,
+        });
+        let ok = places.iter().enumerate().all(|(n, &p)| n == p)
+            && sticks_ok
+            && edited
+                .iter()
+                .all(|s| !matches!(s.at, At::Vault(v) if v >= 1024))
+            && edited
+                .iter()
+                .all(|s| s.holds.iter().all(|(w, _)| fits_shape(*w)));
+        if !ok {
+            return None;
+        }
+        a.set_map(edited);
+    }
+    Some(())
 }
 
 /// [`Note::to_text`] read back, whatever seed it names.
