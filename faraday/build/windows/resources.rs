@@ -165,4 +165,63 @@ END
     assert!(status.success(), "{windres} failed: {status}");
     let object = out.join("app-res.o");
     println!("cargo:rustc-link-arg-bins={}", object.display());
+    let load_config = out.join("load-config.o");
+    std::fs::write(&load_config, load_config_object()).expect("OUT_DIR is writable");
+    println!("cargo:rustc-link-arg-bins={}", load_config.display());
+    // The section is not referenced by any code: the linker keeps it
+    // because its symbol is asked for.
+    println!("cargo:rustc-link-arg-bins=-Wl,-u,{LOAD_CONFIG_SYMBOL}");
+}
+
+/// The symbol of the load configuration's section.
+const LOAD_CONFIG_SYMBOL: &str = "faraday_load_config";
+
+/// A COFF object (x86-64) holding a section `.lcfg` with the `.exe`'s load
+/// configuration, `IMAGE_LOAD_CONFIG_DIRECTORY64` up to and including
+/// `DependentLoadFlags` (offset 0x4E), its `Size` the 0x50 bytes written.
+/// The flags are `LOAD_LIBRARY_SEARCH_SYSTEM32`: Windows then resolves
+/// every library the program imports from System32 only, never from the
+/// folder the program was started from (a download folder holds files
+/// from anywhere); the elevated copy is this same file. mingw-w64's
+/// linker does not point the image's load configuration directory at it:
+/// `build.sh` does, after the link, and fails the build when the flag is
+/// not in the finished `.exe`. The object is written here as bytes, so no
+/// compiler or `unsafe` is needed and the same bytes come out every time.
+fn load_config_object() -> Vec<u8> {
+    const SIZE: usize = 0x50;
+    let name = format!("{LOAD_CONFIG_SYMBOL}\0");
+    let name = name.as_bytes();
+    let mut data = vec![0u8; SIZE];
+    data[0..4].copy_from_slice(&(SIZE as u32).to_le_bytes());
+    data[0x4E..0x50].copy_from_slice(&0x0800u16.to_le_bytes());
+
+    let symbols_at = 20 + 40 + SIZE;
+    let mut o = Vec::new();
+    // File header: AMD64, one section, the symbol table after the data.
+    o.extend(0x8664u16.to_le_bytes());
+    o.extend(1u16.to_le_bytes());
+    o.extend(0u32.to_le_bytes());
+    o.extend((symbols_at as u32).to_le_bytes());
+    o.extend(1u32.to_le_bytes());
+    o.extend(0u16.to_le_bytes());
+    o.extend(0u16.to_le_bytes());
+    // `.lcfg`: initialised data, 8-byte aligned, readable.
+    o.extend(b".lcfg\0\0\0");
+    o.extend(0u32.to_le_bytes());
+    o.extend(0u32.to_le_bytes());
+    o.extend((SIZE as u32).to_le_bytes());
+    o.extend(60u32.to_le_bytes());
+    o.extend([0u8; 12]);
+    o.extend(0x4040_0040u32.to_le_bytes());
+    o.extend(&data);
+    // The one symbol, external, in section 1, its name in the string table.
+    o.extend(0u32.to_le_bytes());
+    o.extend(4u32.to_le_bytes());
+    o.extend(0u32.to_le_bytes());
+    o.extend(1u16.to_le_bytes());
+    o.extend(0u16.to_le_bytes());
+    o.extend([2u8, 0u8]);
+    o.extend(((4 + name.len()) as u32).to_le_bytes());
+    o.extend(name);
+    o
 }

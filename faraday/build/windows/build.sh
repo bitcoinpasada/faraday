@@ -50,12 +50,54 @@ cargo build --release --locked --target "$target" -p "$package" --bin "$bin"
 install -m 0644 "$CARGO_TARGET_DIR/$target/release/$bin.exe" "/out/$bin.exe"
 exe="/out/$bin.exe"
 
-# Only Windows' own libraries: nothing of mingw-w64's (libgcc_s,
-# libwinpthread, libstdc++) may be needed beside it.
-dlls="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^\s*DLL Name: //p' | sort -u)"
+# The load configuration (faraday/build/windows/resources.rs) is in the
+# .exe as the section .lcfg; mingw-w64's linker does not point the image's
+# load configuration directory (entry 10 of the data directory, in the
+# optional header after the PE signature and the file header) at it, so
+# this does: the section's RVA and size, eight bytes. The same bytes every
+# time; the check below reads the result back.
+le32() { printf "$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' $(($1 & 255)) $((($1 >> 8) & 255)) $((($1 >> 16) & 255)) $((($1 >> 24) & 255)))"; }
+sections="$(x86_64-w64-mingw32-objdump -h "$exe")"
+base="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^ImageBase\s*//p')"
+size="$(printf '%s\n' "$sections" | awk '$2 == ".lcfg" { print $3 }')"
+vma="$(printf '%s\n' "$sections" | awk '$2 == ".lcfg" { print $4 }')"
+[ -n "$base" ] && [ -n "$vma" ] || die "$bin.exe has no .lcfg section"
+nt="$(od -An -tu4 -j60 -N4 "$exe" | tr -d ' ')"
+{ le32 $((16#$vma - 16#$base)); le32 $((16#$size)); } \
+    | dd of="$exe" bs=1 seek=$((nt + 24 + 112 + 10 * 8)) conv=notrunc status=none
+
+# Only Windows' own libraries, from a fixed list: nothing of mingw-w64's
+# (libgcc_s, libwinpthread, libstdc++) may be needed beside it, and a new
+# import is a decision, made here. Windows looks for a library that is not
+# one of its KnownDLLs in the program's own folder first, and a folder
+# such as Downloads holds files from anywhere. The load configuration set
+# above makes Windows look in System32 only for every library below, and
+# the check after the list reads that back.
+allowed='advapi32 api-ms-win-core-synch-l1-2-0 bcryptprimitives dwmapi gdi32 imm32 kernel32 msvcrt ntdll ole32 oleaut32 propsys setupapi shell32 user32 uxtheme'
+dumped="$(x86_64-w64-mingw32-objdump -p "$exe")"
+dlls="$(printf '%s\n' "$dumped" | sed -n 's/^\s*DLL Name: //p' | sort -u)"
 echo "$bin.exe imports: $(echo "$dlls" | tr '\n' ' ')"
 bad="$(echo "$dlls" | grep -iE '^(lib|mingw)' || true)"
 [ -z "$bad" ] || die "$bin.exe needs a library Windows does not have: $bad"
+for dll in $dlls; do
+    name="$(echo "${dll%.dll}" | tr 'A-Z' 'a-z')"
+    case " $allowed " in *" $name "*) ;; *) die "$bin.exe imports $dll, which is not in the list of allowed libraries" ;; esac
+done
+# A delay-loaded library is searched for when first used, not by the
+# list above: none is allowed. (grep -c, not -q, for the pipefail reason
+# below.)
+[ "$(printf '%s\n' "$dumped" | grep -c '^Entry d 0000000000000000 00000000 ' || true)" -eq 1 ] \
+    || die "$bin.exe delay-loads a library"
+
+# DependentLoadFlags is LOAD_LIBRARY_SEARCH_SYSTEM32 (0x800): read from
+# the load configuration (the flags at offset 0x4e).
+cfg="$(printf '%s\n' "$dumped" | sed -n 's/^Entry a \([0-9a-f]*\) .*Load Configuration.*/\1/p')"
+[ -n "$cfg" ] && [ "$((16#$cfg))" -ne 0 ] || die "$bin.exe has no load configuration"
+at=$((16#$base + 16#$cfg + 16#4e))
+flags="$(x86_64-w64-mingw32-objdump -s --start-address="$at" --stop-address=$((at + 2)) "$exe" \
+    | sed -n 's/^ *[0-9a-f]* \([0-9a-f]\{4\}\) .*/\1/p')"
+[ "$flags" = 0008 ] || die "$bin.exe's DependentLoadFlags is not LOAD_LIBRARY_SEARCH_SYSTEM32 (found: ${flags:-none})"
+echo "$bin.exe: libraries are loaded from System32 only"
 
 # Its resources: the manifest asks for no elevation.
 # (Not grep -q: it would end the pipe early, and pipefail would take that
