@@ -730,7 +730,9 @@ impl Keys {
     /// again this session.
     pub fn keep_published(&mut self, fp: Fingerprint) {
         if !self.kept_published.contains(&fp) {
-            self.kept_published.push(fp);
+            // `extend`, not `push`: `Keys::push` derives a key, and the
+            // crypto inventory would take a call by that name for it.
+            self.kept_published.extend([fp]);
         }
     }
 

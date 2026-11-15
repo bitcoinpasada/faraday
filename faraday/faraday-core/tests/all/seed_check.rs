@@ -562,6 +562,7 @@ fn back_to_passphrase_for_a_loaded_key_opens_seed() {
     app.press(Action::SeedCheck(S::NoPass));
     app.press(Action::SeedCheck(S::Pick(Account::NativeSegwit)));
     app.press(Action::SeedCheck(S::Keep));
+    faraday_core::testkit::keep_published(&mut app);
     app.press(Action::Nav(faraday_core::Screen::Catalog));
     let tile = faraday_core::catalog::TILES
         .iter()

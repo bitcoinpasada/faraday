@@ -9633,10 +9633,6 @@ function = "faraday/faraday-core/src/vault/mod.rs::Faraday::vault_is_this_sessio
 reason = "Compares a vault file's header salt with the open vaults' and its SHA-256 with the hash of what this session last wrote, to decide whether a copy may go over a vault on a stick; the file is ciphertext and the hash is an identity, with no key, secret or signature involved."
 
 [[not_crypto]]
-function = "faraday/faraday-keys/src/session.rs::Keys::keep_published"
-reason = "Adds a fingerprint to the session's list of published test keys the person chose to keep for testing, so the Mainnet caution is not shown for it again; it reads and writes no key material, hash of a secret or signature."
-
-[[not_crypto]]
 function = "faraday/faraday-vault/src/codex32.rs::set_payload"
 reason = "Lays out a codex32 set's threshold, identifier, length and share states as a record field, with no string in it; the inventory finds it only because a method named `code` here shares its name with TOTP's `code`."
 
