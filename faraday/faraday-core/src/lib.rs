@@ -36,7 +36,7 @@
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
 //!   the selection), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
-//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `item` (an Inbox or Outbox file), `compare` (Compare two PSBTs and the fee bump: `words.rs`, `others.rs`), `worker` (the one thread costly work runs on), `fade` (a
+//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `item` (an Inbox or Outbox file), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
 //!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
 //!   `compact` (the small panel), `panes` (list and detail), `medium`
@@ -123,7 +123,6 @@
 //! | `Invoice` | `invoice/screen.rs` |
 //! | `NonceCheck` | `screens/nonce_check.rs` |
 //! | `SignerCheck` | `decode/check_screen.rs` |
-//! | `Compare` | `compare/screen.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
 //! | `Transfer` | `transfer/screen.rs` |
 //! | `BackupFlow` | `backup_flow/screen.rs` |
@@ -139,7 +138,6 @@ mod version;
 
 // State and actions: the app's state, its events and what a press does.
 mod compact;
-pub mod compare;
 mod compute;
 pub mod copy_check;
 pub mod edit;
@@ -402,8 +400,6 @@ pub enum Screen {
     NonceCheck,
     /// Check a signer: the PSBT sent and the one returned, compared.
     SignerCheck,
-    /// Compare two PSBTs.
-    Compare,
     /// Tools: every flow on one page, with its standards.
     Catalog,
     /// The online app's QR link (`transfer`): files and text out, camera in. Online only.
@@ -2890,9 +2886,7 @@ impl Faraday {
             | Action::QrDecoded
             | Action::DecodeHex
             | Action::SpendHex) => self.decode_act(a, &c),
-            a @ (Action::NonceCheck(..) | Action::SignerCheck(..) | Action::Compare(..)) => {
-                self.decode_act(a, &c)
-            }
+            a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
             Action::Invoice(p) => invoice::act(self, p),
             a @ (Action::SignMessage
             | Action::MStep(..)

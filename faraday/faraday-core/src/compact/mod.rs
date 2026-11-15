@@ -58,8 +58,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
         | Screen::CreateVault
         | Screen::BackupFlow
         | Screen::SpendBackup
-        | Screen::SignerCheck
-        | Screen::Compare => true,
+        | Screen::SignerCheck => true,
         Screen::Check
         | Screen::WalletsStart
         | Screen::Wallets
@@ -125,7 +124,6 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::Invoice => EN.compact_invoice,
         Screen::NonceCheck => EN.compact_nonce_check,
         Screen::SignerCheck => EN.catalog_check_a_signer,
-        Screen::Compare => EN.catalog_compare_two_psbts,
         #[cfg(feature = "demo")]
         Screen::Transfer => EN.compact_transfer,
         Screen::BackupFlow => EN.backup_flow_heading,
@@ -619,14 +617,6 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
             Some(s) => (
                 crate::screens::decode_back(s.back),
                 Action::SignerCheck(crate::decode::check::SignerPress::Back),
-            ),
-            None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
-        },
-        // Compare goes back where it was opened from.
-        Screen::Compare => match app.decode.compare() {
-            Some(s) => (
-                crate::screens::decode_back(s.back),
-                Action::Compare(crate::compare::ComparePress::Back),
             ),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
@@ -1530,7 +1520,6 @@ impl Faraday {
                 | Screen::Invoice
                 | Screen::NonceCheck
                 | Screen::SignerCheck
-                | Screen::Compare
                 | Screen::MultisigCheck
                 | Screen::BackupFlow => false,
                 #[cfg(feature = "demo")]

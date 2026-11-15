@@ -683,7 +683,6 @@ impl Faraday {
             Screen::Create => &crate::create::CREATE_STEPS,
             Screen::Backup => &crate::wallet_backup::BACKUP_STEPS,
             Screen::BackupFlow => &crate::backup_flow::steps::FLOW_STEPS,
-            Screen::Compare => &crate::compare::COMPARE_STEPS,
             Screen::SignerCheck => &crate::decode::check::SIGNER_STEPS,
             Screen::WalletsStart
             | Screen::Wallets

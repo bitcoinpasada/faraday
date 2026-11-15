@@ -354,13 +354,12 @@ fn keys_do_not_reach_the_message_while_the_scanner_is_open() {
 #[test]
 fn every_scan_that_opens_the_camera_waits_for_the_stick() {
     use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
-    use faraday_core::compare::ComparePress;
-    use faraday_core::decode::check::{self, SignerPress, Slot};
+    use faraday_core::decode::check::{SignerPress, Slot};
     let presses = [
         Action::MScan,
         Action::ReadAgain,
-        Action::Compare(ComparePress::Scan(Slot::Sent)),
-        Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
+        Action::SignerCheck(SignerPress::Scan(Slot::Sent)),
+        Action::SignerCheck(SignerPress::Scan(Slot::Returned)),
         Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
         Action::BC32(faraday_core::codex32_backup::Press::ScanCopy),
         Action::KefTool(faraday_core::kef_tool::KefToolAction::Backup(

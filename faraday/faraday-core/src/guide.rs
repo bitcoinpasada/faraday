@@ -105,7 +105,6 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
         Screen::Invoice => "invoice",
         Screen::NonceCheck => "nonce-check",
         Screen::SignerCheck => "signer-check",
-        Screen::Compare => "compare",
         Screen::Catalog => "catalog",
         Screen::Check => "check",
         #[cfg(feature = "demo")]

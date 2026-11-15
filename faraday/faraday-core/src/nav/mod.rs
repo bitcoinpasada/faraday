@@ -160,7 +160,6 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Invoice
         | Screen::NonceCheck
         | Screen::SignerCheck
-        | Screen::Compare
         | Screen::Catalog
         | Screen::BackupFlow => s,
         #[cfg(feature = "demo")]

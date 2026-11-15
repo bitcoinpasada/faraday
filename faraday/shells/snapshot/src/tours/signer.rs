@@ -37,6 +37,18 @@ pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
                 "random-nonce.psbt".to_string(),
                 vector("signer-random-nonce.psbt")?,
             ),
+            (
+                "bump-original.psbt".to_string(),
+                vector("bump-core-original.psbt")?,
+            ),
+            (
+                "bump-replacement.psbt".to_string(),
+                vector("bump-core-replacement.psbt")?,
+            ),
+            (
+                "bump-original.tx".to_string(),
+                vector("bump-core-original.tx")?,
+            ),
         ]),
         outbox: Vec::new(),
         kept: Vec::new(),
@@ -96,6 +108,30 @@ pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("signer-not-loaded-facts")?;
     scroll_to(t, Action::SignerCheck(SignerPress::Load(0)));
     t.shot("signer-not-loaded-end")?;
+    // A fee bump: the replacement spends the original's inputs, and the
+    // fee-bump verdict stands with the signer check.
+    t.press(Action::SignerCheck(SignerPress::Card(0)));
+    t.press(Action::SignerCheck(SignerPress::Pick(
+        Slot::Sent,
+        at(t, "bump-original.psbt")?,
+    )));
+    t.press(Action::SignerCheck(SignerPress::Pick(
+        Slot::Returned,
+        at(t, "bump-replacement.psbt")?,
+    )));
+    t.shot("signer-fee-bump")?;
+    scroll_to(t, Action::SignerCheck(SignerPress::Again));
+    t.shot("signer-fee-bump-end")?;
+    // A finished transaction as Returned: the facts and the differences,
+    // and no verdict.
+    t.press(Action::SignerCheck(SignerPress::Card(1)));
+    t.press(Action::SignerCheck(SignerPress::Pick(
+        Slot::Returned,
+        at(t, "bump-original.tx")?,
+    )));
+    t.shot("signer-finished")?;
+    scroll_to(t, Action::SignerCheck(SignerPress::Again));
+    t.shot("signer-finished-end")?;
     // The Sent file replaced in Files by another under the same name:
     // its closed card says so, on its one line.
     t.app.storage(StorageEvent::Restored {

@@ -172,7 +172,7 @@ fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
         Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, CoreWallet, SeedCheck, Silent, Explore, Lightning, Tools, Unlock,
-        VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Compare, Catalog, Transfer, BackupFlow, Check, MultisigCheck)
+        VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow, Check, MultisigCheck)
 }
 
 fn sheets() -> Vec<Sheet> {

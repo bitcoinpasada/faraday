@@ -13221,8 +13221,6 @@ strings! {
     signer_scan_returned: "Scan the PSBT returned",
     /// The button that opens the scanner on a card.
     signer_scan: "Scan",
-    /// The Sent card's empty state.
-    signer_no_psbt: "No PSBT in Files",
     /// The Returned card's label over the PSBTs of other transactions.
     signer_other_transactions: "Other transactions",
     /// A PSBT row's line. `{}`: its signatures, its transaction's short id.
@@ -13429,6 +13427,8 @@ strings! {
     signer_no_findings: "No findings",
     /// The Result's label over what is stated and is no finding.
     signer_stated_label: "Stated",
+    /// Check a signer's Result, where a side is a finished transaction.
+    signer_needs_two_psbts: "The signer check needs two PSBTs",
     /// The Result's button that swaps the two PSBTs and checks again.
     signer_swap: "Swap",
     /// The Result's button that opens the Returned card.
@@ -14090,45 +14090,45 @@ strings! {
     qr_tool_item_pass_kept: "Its passphrase is not in this code.",
     /// Make, the item's vault locked, closed or changed since the press.
     qr_tool_item_gone: "The vault was locked or changed. Nothing was sealed.",
-    // ----- Compare two PSBTs and the fee bump (docs/COMPARE.md), faraday-core/src/compare -----
+    // ----- Compare two PSBTs and the fee bump (docs/COMPARE.md), faraday-core/src/decode -----
     /// Text in `words::difference`. `{}`: the two versions.
-    compare_version: "Version: {} first, {} second",
+    compare_version: "Version: {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the two locktimes.
-    compare_locktime: "Locktime: {} first, {} second",
+    compare_locktime: "Locktime: {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the two PSBT versions.
-    compare_psbt_version: "PSBT version: {} first, {} second",
+    compare_psbt_version: "PSBT version: {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the input's outpoint.
-    compare_input_first_only: "Input {}: first only",
+    compare_input_sent_only: "Input {}: in the sent only",
     /// Text in `words::difference`. `{}`: the input's outpoint.
-    compare_input_second_only: "Input {}: second only",
+    compare_input_returned_only: "Input {}: in the returned only",
     /// Text in `words::difference`. `{}`: the outpoint, the two sequences.
-    compare_sequence: "Input {}: sequence {} first, {} second",
+    compare_sequence: "Input {}: sequence {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the outpoint, the two amounts.
-    compare_spends: "Input {}: spends {} first, {} second",
+    compare_spends: "Input {}: spends {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_amount_first_only: "Input {}: amount stated first only",
+    compare_amount_sent_only: "Input {}: amount stated in the sent only",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_amount_second_only: "Input {}: amount stated second only",
+    compare_amount_returned_only: "Input {}: amount stated in the returned only",
     /// Text in `words::difference`. `{}`: the outpoint, the two counts.
-    compare_signatures: "Input {}: {} signatures first, {} second",
+    compare_signatures: "Input {}: {} signatures sent, {} returned",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_final_first_only: "Input {}: final first only",
+    compare_final_sent_only: "Input {}: final in the sent only",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_final_second_only: "Input {}: final second only",
+    compare_final_returned_only: "Input {}: final in the returned only",
     /// Text in `words::difference`. `{}`: the output, its amount.
-    compare_output_first_only: "Output to {}: {}, first only",
+    compare_output_sent_only: "Output to {}: {}, in the sent only",
     /// Text in `words::difference`. `{}`: the output, its amount.
-    compare_output_second_only: "Output to {}: {}, second only",
+    compare_output_returned_only: "Output to {}: {}, in the returned only",
     /// Text in `words::difference`. `{}`: the output, the two amounts.
-    compare_output_amount: "Output to {}: {} first, {} second",
+    compare_output_amount: "Output to {}: {} sent, {} returned",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_spent_twice_first: "Input {}: spent twice in the first",
+    compare_spent_twice_sent: "Input {}: spent twice in the sent",
     /// Text in `words::difference`. `{}`: the outpoint.
-    compare_spent_twice_second: "Input {}: spent twice in the second",
+    compare_spent_twice_returned: "Input {}: spent twice in the returned",
     /// Text in `words::difference`. `{}`: the output.
-    compare_yours_first_only: "Output to {}: yours in the first only",
+    compare_yours_sent_only: "Output to {}: yours in the sent only",
     /// Text in `words::difference`. `{}`: the output.
-    compare_yours_second_only: "Output to {}: yours in the second only",
+    compare_yours_returned_only: "Output to {}: yours in the returned only",
     /// Text in `words::output`, an output with no address. `{}`: the script's length.
     compare_script_bytes: "script {} bytes",
     /// Text in `words::differences`, where there are none.
@@ -14181,10 +14181,6 @@ strings! {
     bump_not_stated_yours: "Output to {}: in the original only, and not stated to be yours",
     /// Text in `words::compare_facts`, a fact's label.
     compare_fact_transaction: "Transaction",
-    /// Text in `words::compare_facts`, a value's label.
-    compare_fact_first: "First",
-    /// Text in `words::compare_facts`, a value's label.
-    compare_fact_second: "Second",
     /// Text in `words::compare_facts` and `words::bump_facts`, a fact's label.
     compare_fact_fee: "Fee",
     /// Text in `words::compare_facts`, a fact's label.
@@ -14194,9 +14190,9 @@ strings! {
     /// Text in `words::compare_facts`. `{}`: how many.
     compare_fact_in_both: "{} in both",
     /// Text in `words::compare_facts`. `{}`: how many.
-    compare_fact_first_only: "{} first only",
+    compare_fact_sent_only: "{} in the sent only",
     /// Text in `words::compare_facts`. `{}`: how many.
-    compare_fact_second_only: "{} second only",
+    compare_fact_returned_only: "{} in the returned only",
     /// Text in `words::fee_value`, a fee that cannot be worked out.
     compare_fee_not_known: "Not known",
     /// Text in `words::fee_value`. `{}`: the fee in sat, its rate in sat/vB.
@@ -14213,16 +14209,6 @@ strings! {
     bump_signalled: "Signalled by the original",
     /// Text in `words::bump_facts`.
     bump_not_signalled: "Not signalled by the original",
-    /// The Tools tile's name for comparing two PSBTs.
-    catalog_compare_two_psbts: "Compare two PSBTs",
-    /// The Compare two PSBTs tile's line.
-    catalog_two_psbts_side_by_side: "Two PSBTs side by side",
-    /// Compare's last card, the facts and the differences.
-    compare_result: "Result",
-    /// Compare's scanner on the first card.
-    compare_scan_first: "Scan the first PSBT",
-    /// Compare's scanner on the second card.
-    compare_scan_second: "Scan the second PSBT",
     /// Compare's card with no PSBT or finished transaction in Files.
     compare_no_files: "No PSBT or transaction in Files",
     /// What a scan and a card say of bytes that are neither a PSBT nor a finished transaction.
@@ -14236,6 +14222,4 @@ strings! {
     compare_from_review: "Compare",
     /// Compare's Result: the section label of the differences.
     compare_differences_label: "Differences",
-    /// A file's ⋮ menu: compare this PSBT or transaction with another.
-    file_menu_compare: "Compare",
 }

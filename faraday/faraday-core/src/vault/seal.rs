@@ -861,7 +861,6 @@ fn lock_finish(app: &mut Faraday) {
     app.wallets.clear_spend();
     app.seed_read.clear();
     app.decode.clear_check();
-    app.decode.clear_compare();
     app.backup.close();
     app.message.clear();
     app.create.clear();

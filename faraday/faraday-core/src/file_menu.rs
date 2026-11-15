@@ -242,8 +242,8 @@ impl Faraday {
 
     /// The row's ⋮ menu's choices, in decision 61's order and only those
     /// the row has (a map read): From the stick, Add to vault where it is
-    /// not the row's button, Check a signer on a PSBT, Compare on a PSBT or a finished transaction, Details and Remove;
-    /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT, Compare on a PSBT or a finished transaction, Rename, Details and Remove; on the stick, Rename,
+    /// not the row's button, Check a signer on a PSBT or a finished transaction, Details and Remove;
+    /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT or a finished transaction, Rename, Details and Remove; on the stick, Rename,
     /// Delete from the stick and Details.
     pub(crate) fn file_menu_lines(&mut self, row: Row) -> Vec<(String, Action)> {
         let mut out: Vec<(String, Action)> = Vec::new();
@@ -274,16 +274,10 @@ impl Faraday {
                         Action::Flow(FlowAction::Restore(RestorePress::From(k))),
                     ));
                 }
-                if item.psbt().is_some() {
+                if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
                     out.push((
                         EN.catalog_check_a_signer.to_string(),
                         Action::SignerCheck(crate::decode::check::SignerPress::File(false, k)),
-                    ));
-                }
-                if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
-                    out.push((
-                        EN.file_menu_compare.to_string(),
-                        Action::Compare(crate::compare::ComparePress::File(false, k)),
                     ));
                 }
                 out.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
@@ -303,16 +297,10 @@ impl Faraday {
                 if crate::qr_fits(item) {
                     out.push((EN.files_show_as_qr.to_string(), Action::QrOutbox(k)));
                 }
-                if item.psbt().is_some() {
+                if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
                     out.push((
                         EN.catalog_check_a_signer.to_string(),
                         Action::SignerCheck(crate::decode::check::SignerPress::File(true, k)),
-                    ));
-                }
-                if matches!(item.kind, FileKind::Psbt | FileKind::Transaction) {
-                    out.push((
-                        EN.file_menu_compare.to_string(),
-                        Action::Compare(crate::compare::ComparePress::File(true, k)),
                     ));
                 }
                 out.extend(crate::multisig_check::menu_line(item.wallet(), true, k));

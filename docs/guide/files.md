@@ -80,7 +80,7 @@ The button follows the kind of file.
 
 **Key:** files.inbox-menu
 
-The card's menu has the choices the file has: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Check a signer** and **Compare** for a PSBT, **Details** and **Remove**.
+The card's menu has the choices the file has: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Check a signer** for a PSBT, **Details** and **Remove**.
 
 ## Outbox
 
@@ -88,4 +88,4 @@ The card's menu has the choices the file has: **Add to vault** for a wallet or w
 
 The files waiting to be written to the stick, headed **For the stick** with the count, grouped by who may read them. Each card has its name, its state and a menu.
 
-**Public** files may be read by anyone. **Written sealed** files are sealed under their passphrases before they reach the stick. **Unprotected secrets** may be used by anyone who has the stick; their state reads **Unprotected**. An unprotected secret stays in memory until it is sent or removed, or until power-off; Lock does not drop it. A file's state reads **Ready**, or **Written after Lock** for an open vault. The card's menu has the choices the file has: **Make PDF** for a sheet, online only, **Show as QR** where the file fits one, **Check a signer** and **Compare** for a PSBT, **Rename**, **Details** and **Remove**, which reads **Delete**, held, for a file no stick holds.
+**Public** files may be read by anyone. **Written sealed** files are sealed under their passphrases before they reach the stick. **Unprotected secrets** may be used by anyone who has the stick; their state reads **Unprotected**. An unprotected secret stays in memory until it is sent or removed, or until power-off; Lock does not drop it. A file's state reads **Ready**, or **Written after Lock** for an open vault. The card's menu has the choices the file has: **Make PDF** for a sheet, online only, **Show as QR** where the file fits one, **Check a signer** for a PSBT, **Rename**, **Details** and **Remove**, which reads **Delete**, held, for a file no stick holds.

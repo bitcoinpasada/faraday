@@ -13,7 +13,6 @@ mod accessors;
 mod ages;
 mod caches;
 mod codex32;
-mod compare;
 mod fades;
 mod fee_bump;
 mod identities;

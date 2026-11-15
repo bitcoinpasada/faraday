@@ -27,7 +27,7 @@ Shown only for a wallet with several ways to spend. Each path lists its keys, ta
 
 The transaction as rows. **Sends** gives each recipient and amount; **Change** is shown only for an output derived from the loaded wallet, marked **Verified**. **Fee** gives the amount and its rate. **Spends** gives the total and the number of inputs, with **Amount unchecked** where an input's amount is not stated. **Txid** gives the id, **Unchanged by signing**, when every input is native SegWit or Taproot, and **Not known until signed** otherwise.
 
-**Show the table** and **Hide the table** list each input and output. **No warnings** appears when none apply. **Register this wallet** appears for a wallet not yet registered. **Compare** sets a fee-bump copy beside this transaction. **Continue** is absent while the review stops the spend.
+**Show the table** and **Hide the table** list each input and output. **No warnings** appears when none apply. **Register this wallet** appears for a wallet not yet registered. **Compare** opens Check a signer with this transaction as the first, to set a fee-bump copy beside it. **Continue** is absent while the review stops the spend.
 
 ## Check
 

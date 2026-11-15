@@ -276,8 +276,6 @@ pub(crate) enum Scrolled {
     Bip85,
     /// Check a signer.
     SignerCheck,
-    /// Compare two PSBTs.
-    Compare,
     /// Convert a seed.
     Convert,
     /// The Krux code tool.
@@ -468,9 +466,6 @@ impl Faraday {
                 }
                 Scrolled::SignerCheck => {
                     self.decode.set_check_scroll(to);
-                }
-                Scrolled::Compare => {
-                    self.decode.set_compare_scroll(to);
                 }
                 Scrolled::Bip85 => {
                     self.bip85.set_scroll(to);

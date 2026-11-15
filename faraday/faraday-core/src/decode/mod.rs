@@ -8,8 +8,10 @@
 //! module only arranges what it read.
 
 pub mod check;
+pub(crate) mod check_others;
 pub(crate) mod check_screen;
 pub(crate) mod check_words;
+pub(crate) mod diff_words;
 pub(crate) mod screen;
 
 use crate::strings::EN;
@@ -22,7 +24,6 @@ use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 use crate::Screen;
-use crate::compare::{self, ComparePress, CompareState};
 use crate::wallet::Session;
 use crate::{Action, Faraday, Item, QrView, decode, wallet};
 
@@ -390,12 +391,9 @@ pub(crate) struct DecodeArea {
     /// Boxed: it holds a PSBT and its check, and `Faraday` is built on
     /// the stack.
     outside: Option<Box<OutsideCheck>>,
-    /// Check a signer's flow: two PSBTs and the report on them, public,
-    /// kept until a lock or power-off. Boxed as `outside` is.
+    /// Check a signer's flow: two PSBTs or transactions, their comparison
+    /// and the report on them, public, kept until a lock or power-off. Boxed as `outside` is.
     check: Option<Box<check::CheckState>>,
-    /// Compare two PSBTs' flow: two files and the comparison of them,
-    /// public, kept until a lock or power-off. Boxed as `check` is.
-    compare: Option<Box<crate::compare::CompareState>>,
 }
 
 impl DecodeArea {
@@ -460,7 +458,7 @@ impl DecodeArea {
         }
     }
 
-    /// Forgets Check a signer's flow: its two PSBTs and the report.
+    /// Forgets Check a signer's flow: its two sides and the result.
     pub(crate) fn clear_check(&mut self) {
         self.check = None;
     }
@@ -468,35 +466,6 @@ impl DecodeArea {
     /// Takes the column's scroll as the drawing pass left it.
     pub(crate) fn set_check_scroll(&mut self, to: crate::flow::Scroll) {
         if let Some(c) = self.check.as_mut() {
-            c.scroll = to;
-        }
-    }
-
-    /// Compare's state, while the flow is kept.
-    pub(crate) fn compare(&self) -> Option<&crate::compare::CompareState> {
-        self.compare.as_deref()
-    }
-
-    /// How far Compare's column is scrolled, units, while the flow is open.
-    pub(crate) fn compare_scroll_y(&self) -> Option<f32> {
-        self.compare.as_ref().map(|x| x.scroll.y)
-    }
-
-    /// Compare's column scrolled to `y` units, while the flow is open.
-    pub(crate) fn set_compare_scroll_y(&mut self, y: f32) {
-        if let Some(x) = self.compare.as_mut() {
-            x.scroll.y = y;
-        }
-    }
-
-    /// Forgets Compare's flow: its two files and the comparison.
-    pub(crate) fn clear_compare(&mut self) {
-        self.compare = None;
-    }
-
-    /// Takes the column's scroll as the drawing pass left it.
-    pub(crate) fn set_compare_scroll(&mut self, to: crate::flow::Scroll) {
-        if let Some(c) = self.compare.as_mut() {
             c.scroll = to;
         }
     }
@@ -873,7 +842,6 @@ impl Faraday {
         match action {
             Action::NonceCheck(p) => self.nonce_check_act(p, c),
             Action::SignerCheck(p) => self.signer_check_act(p, c),
-            Action::Compare(p) => self.compare_act(p, c),
             Action::DecodeFinished => {
                 if let Some(s) = self.wallets.spend()
                     && let Some(tx) = s.spend.finished.as_ref()
@@ -970,14 +938,14 @@ impl Faraday {
         self.decode.check()
     }
 
-    /// Costs what reading a PSBT and the check cost, when a press
-    /// completes the second card. Does what the press does.
+    /// Costs what reading a file and the run cost, when a press completes
+    /// the second card. Does what the press does.
     pub(crate) fn signer_check_act(&mut self, press: check::SignerPress, c: &Compute) {
         use check::SignerPress as P;
         match press {
             P::Open => self.signer_check_open(c),
             P::Card(n) => {
-                let ready = self.decode.check().is_some_and(|s| s.report.is_some());
+                let ready = self.decode.check().is_some_and(|s| s.shown.is_some());
                 if let Some(s) = self.decode.check.as_mut()
                     && (n < check::RESULT || ready)
                 {
@@ -987,21 +955,9 @@ impl Faraday {
             P::Pick(slot, k) => {
                 let picked = {
                     let all = check::files(&self.inbox, &self.outbox);
-                    all.get(k).map(|(out, _, item)| {
-                        (
-                            item.bytes.clone(),
-                            check::Origin::File {
-                                outbox: *out,
-                                name: Text::of(&item.name),
-                            },
-                        )
-                    })
+                    (k < all.len()).then(|| Self::check_file_at(&all, k))
                 };
-                if let Some((bytes, origin)) = picked {
-                    let name = match &origin {
-                        check::Origin::File { name, .. } => name.clone(),
-                        check::Origin::Scanned => Text::of(EN.signer_scanned),
-                    };
+                if let Some((bytes, name, origin)) = picked {
                     self.signer_check_take(c, slot, &bytes, name, origin);
                 }
             }
@@ -1028,6 +984,7 @@ impl Faraday {
                     .decode
                     .check()
                     .and_then(|s| s.returned.as_ref())
+                    .filter(|r| r.version.is_some())
                     .map(|r| r.bytes.clone());
                 if let Some(bytes) = returned {
                     self.open_qr(QrView::psbt(c, EN.signer_returned, &bytes));
@@ -1045,19 +1002,20 @@ impl Faraday {
                 }
             }
             // Add a key opens with this screen as its way back; the key
-            // loaded makes the check again (`signer_check_sync`).
+            // loaded makes the result again (`signer_check_sync`).
             P::Load(_) => self.keygen_open(None),
             P::File(outbox, k) => self.signer_check_file(c, outbox, k),
+            P::FromReview(outbox, k) => self.signer_check_from_review(c, outbox, k),
         }
     }
 
-    /// Costs what the default's reading of two files and the check cost.
+    /// Costs what the default's reading of two files and the run cost.
     /// Opens the flow, closed on the default pair where Files has one.
     fn signer_check_open(&mut self, c: &Compute) {
-        // A flow kept opens as it was (its report is the check against the
-        // keys loaded now: `signer_check_sync`), with the way back set anew.
-        // An empty one (no side chosen) is not one to keep: the default is
-        // worked out anew.
+        // A flow kept opens as it was (its result is the one against the
+        // keys loaded now: `signer_check_sync`), with the way back set
+        // anew. An empty one (no side chosen) is not one to keep: the
+        // default is worked out anew.
         if let Some(s) = self.decode.check.as_mut()
             && (s.sent.is_some() || s.returned.is_some())
         {
@@ -1080,16 +1038,19 @@ impl Faraday {
     }
 
     /// Costs what [`Faraday::signer_check_open`] costs. Files' ⋮ **Check a
-    /// signer** on a PSBT: the file is Returned; the one other PSBT of
-    /// its transaction with fewer signatures, where there is exactly one,
-    /// is Sent and the check has run.
+    /// signer** on a PSBT or a finished transaction: the file is
+    /// Returned; Sent is the one other PSBT of its transaction with fewer
+    /// signatures, where there is exactly one, else the one file of
+    /// another transaction that spends an input of it (SIGNER-CHECK
+    /// §11.2); the result has run when Sent is found.
     fn signer_check_file(&mut self, c: &Compute, outbox: bool, k: usize) {
         let picked = {
             let all = check::files(&self.inbox, &self.outbox);
             all.iter()
                 .position(|(o, i, _)| *o == outbox && *i == k)
                 .map(|n| {
-                    let mine = all[n].2.psbt();
+                    let item = all[n].2;
+                    let mine = item.psbt();
                     // Exactly one other file of its transaction with fewer
                     // signatures is Sent.
                     let fewer: Vec<usize> = (0..all.len())
@@ -1105,7 +1066,18 @@ impl Faraday {
                         .collect();
                     let sent = match fewer.as_slice() {
                         [m] => Some(Self::check_file_at(&all, *m)),
-                        _ => None,
+                        // Else the one file of another unsigned
+                        // transaction that spends an input of it.
+                        _ => item.unsigned_txid.and_then(|txid| {
+                            let files = self.inbox.iter().chain(self.outbox.iter());
+                            match check_others::counting(files, txid, &item.outpoints).as_slice() {
+                                [(one, _)] => all
+                                    .iter()
+                                    .position(|(_, _, i)| std::ptr::eq(*i, *one))
+                                    .map(|m| Self::check_file_at(&all, m)),
+                                _ => None,
+                            }
+                        }),
                     };
                     (sent, Self::check_file_at(&all, n))
                 })
@@ -1113,6 +1085,58 @@ impl Faraday {
         if let Some((sent, returned)) = picked {
             self.signer_check_start(c, sent, Some(returned));
         }
+    }
+
+    /// Costs what [`Faraday::signer_check_open`] costs. The review's
+    /// **Compare**: the file is Sent and the PSBT under review, named by
+    /// its source, is Returned; the result has run.
+    fn signer_check_from_review(&mut self, c: &Compute, outbox: bool, k: usize) {
+        let item = if outbox {
+            self.outbox.get(k)
+        } else {
+            self.inbox.get(k)
+        };
+        let Some(item) = item.filter(|i| {
+            matches!(
+                i.kind,
+                wallet::FileKind::Psbt | wallet::FileKind::Transaction
+            )
+        }) else {
+            return;
+        };
+        let sent = (
+            item.bytes.clone(),
+            Text::of(&item.name),
+            check::Origin::File {
+                outbox,
+                name: Text::of(&item.name),
+            },
+        );
+        // The file at this place is the one the result was made from.
+        let held = self.wallets.spend().is_some_and(|s| {
+            s.others_from.as_ref().is_some_and(|from| {
+                from.iter().any(|(name, txid, place)| {
+                    *place == (outbox, k)
+                        && item.name == name.as_str()
+                        && item.unsigned_txid == Some(*txid)
+                })
+            })
+        });
+        if !held {
+            return;
+        }
+        let returned = self.wallets.spend().map(|s| {
+            let bytes = s
+                .spend
+                .out_bytes()
+                .unwrap_or_else(|_| s.spend.psbt.to_bytes());
+            (
+                Zeroizing::new(bytes),
+                Text::of(&s.spend.source),
+                check::Origin::Scanned,
+            )
+        });
+        self.signer_check_start(c, Some(sent), returned);
     }
 
     /// The file at this place of [`check::files`]: its bytes, name and
@@ -1132,7 +1156,7 @@ impl Faraday {
         )
     }
 
-    /// Costs what two reads and the check cost. Opens the flow from the
+    /// Costs what two reads and the run cost. Opens the flow from the
     /// screen on show, with these two (either may be left out).
     fn signer_check_start(
         &mut self,
@@ -1147,6 +1171,7 @@ impl Faraday {
         self.decode.check = Some(Box::new(check::CheckState::new(back)));
         self.screen = Screen::SignerCheck;
         self.list_offset = 0.0;
+        self.signer_check_sync();
         for (slot, file) in [(check::Slot::Sent, sent), (check::Slot::Returned, returned)] {
             if let Some((bytes, name, origin)) = file {
                 self.signer_check_take(c, slot, &bytes, name, origin);
@@ -1154,9 +1179,10 @@ impl Faraday {
         }
     }
 
-    /// Costs a PSBT parse, and the check when this completes the second
-    /// card. Reads `bytes` as the PSBT of `slot`, or says on the card
-    /// why not. Returns whether it was one.
+    /// Costs a read of the file (a PSBT parse, or a transaction's) and the
+    /// run when this completes the second card. Reads `bytes` as the file
+    /// of `slot` (SIGNER-CHECK §11.1), or says on the card why not.
+    /// Returns whether it was one.
     pub(crate) fn signer_check_take(
         &mut self,
         c: &Compute,
@@ -1165,17 +1191,27 @@ impl Faraday {
         name: Text,
         origin: check::Origin,
     ) -> bool {
-        let Some((psbt, v2)) = wallet::read_psbt_kept(c, bytes) else {
+        // A PSBT is kept as `check::raw_bytes` has it; a finished
+        // transaction as Files holds it, never through `raw_bytes`, since
+        // hex text can also decode as base64.
+        let read = match wallet::read_psbt_kept(c, bytes) {
+            Some((psbt, v2)) => Some((
+                psbt,
+                Some(if v2.is_some() { 2 } else { 0 }),
+                Zeroizing::new(check::raw_bytes(bytes)),
+            )),
+            None => decode::raw_as_psbt(c, bytes, &[])
+                .map(|(psbt, _)| (psbt, None, Zeroizing::new(bytes.to_vec()))),
+        };
+        let Some((psbt, version, kept)) = read else {
             if let Some(s) = self.decode.check.as_mut() {
-                s.refused[usize::from(slot.card())] = Some(Text::of(EN.wallet_not_a_psbt));
+                s.refused[usize::from(slot.card())] = Some(Text::of(EN.compare_not_a_transaction));
             }
             return false;
         };
-        let txid = psbt.inner().unsigned_tx.compute_txid();
         let outpoints = {
             let mut spent: Vec<_> = psbt
-                .inner()
-                .unsigned_tx
+                .unsigned_tx()
                 .input
                 .iter()
                 .map(|i| i.previous_output)
@@ -1183,14 +1219,15 @@ impl Faraday {
             spent.sort();
             spent
         };
+        let txid = psbt.unsigned_tx().compute_txid();
         let side = check::Side {
-            bytes: Zeroizing::new(check::raw_bytes(bytes)),
+            bytes: kept,
             psbt,
             name,
             origin,
             differs: false,
             txid,
-            version: Some(if v2.is_some() { 2 } else { 0 }),
+            version,
             outpoints,
         };
         let Some(s) = self.decode.check.as_mut() else {
@@ -1202,66 +1239,119 @@ impl Faraday {
         true
     }
 
-    /// Costs what `faraday_psbt::signer::check` costs: a parse-free
-    /// reading of both PSBTs, a signature verification per signature and
-    /// a finalization per finalized input. Checks the two PSBTs kept and
-    /// keeps the report.
+    /// Costs what `amounts_in` costs for a finished transaction, an
+    /// `inspect` of each side, and where both are PSBTs what
+    /// `faraday_psbt::signer::check` costs: a signature verification per
+    /// signature and a finalization per finalized input. Makes the
+    /// comparison and the fee bump of the two sides kept against the keys
+    /// and wallets loaded, and where both are PSBTs the check, and keeps
+    /// them in words.
     fn signer_check_run(&mut self, c: &Compute) {
         let refs = self.session.key_refs(c);
         let policies = self.session.policies();
         let network = self.session.network();
         let ctx = wallet::context(network, &refs, &policies);
         let made_with = self.session.inspect_inputs();
-        if let Some(s) = self.decode.check.as_mut()
-            && let (Some(sent), Some(returned)) = (&s.sent, &s.returned)
-        {
-            let report = faraday_psbt::signer::check(
-                c,
-                &sent.psbt,
-                &returned.psbt,
-                &sent.bytes,
-                &returned.bytes,
-                &ctx,
+        let loaded: Vec<_> = refs.iter().map(|r| r.fingerprint).collect();
+        let made = {
+            let Some(s) = self.decode.check() else {
+                return;
+            };
+            let (Some(a), Some(b)) = (&s.sent, &s.returned) else {
+                return;
+            };
+            // A finished transaction takes the amounts it spends from the
+            // PSBTs of its unsigned transaction in Files, and for an input
+            // still without one from the other card's PSBT (rule I4).
+            let finished = |side: &check::Side| {
+                if side.version.is_some() {
+                    return None;
+                }
+                let tx = faraday_psbt::transaction::read_raw(&side.bytes);
+                let prevouts = tx.map(|t| self.amounts_in(c, &t).0).unwrap_or_default();
+                Some(
+                    decode::raw_as_psbt(c, &side.bytes, &prevouts)
+                        .map_or_else(|| side.psbt.clone(), |(p, _)| p),
+                )
+            };
+            let (mut oa, mut ob) = (finished(a), finished(b));
+            if let Some(pa) = oa.as_mut()
+                && b.version.is_some()
+            {
+                faraday_psbt::bump::fill_amounts(pa, &b.psbt);
+            }
+            if let Some(pb) = ob.as_mut()
+                && a.version.is_some()
+            {
+                faraday_psbt::bump::fill_amounts(pb, &a.psbt);
+            }
+            let (pa, pb) = (
+                oa.as_ref().unwrap_or(&a.psbt),
+                ob.as_ref().unwrap_or(&b.psbt),
             );
-            // The nonce lines: every added signature recomputed with the
-            // keys loaded, through the session (no key leaves it).
-            let view = faraday_psbt::signer::nonce_view(&sent.psbt, &returned.psbt);
-            let found = self.session.recompute_all(c, &view);
-            let report = faraday_psbt::signer::with_nonces(
-                report,
-                &found,
-                &refs.iter().map(|r| r.fingerprint).collect::<Vec<_>>(),
+            let inspect = |p: &faraday_psbt::Psbt| {
+                crate::review::name_scripts(faraday_psbt::inspect(c, p, &ctx))
+            };
+            let (ia, ib) = (inspect(pa), inspect(pb));
+            let (sa, sb) = (
+                faraday_psbt::diff::Side {
+                    psbt: pa,
+                    inspection: &ia,
+                    psbt_version: a.version,
+                },
+                faraday_psbt::diff::Side {
+                    psbt: pb,
+                    inspection: &ib,
+                    psbt_version: b.version,
+                },
             );
+            let d = faraday_psbt::diff::list(sa, sb);
+            let bump = faraday_psbt::bump::judge(sa, sb, &loaded);
+            // The signer check only where both are PSBTs.
+            let report = (a.version.is_some() && b.version.is_some()).then(|| {
+                let report =
+                    faraday_psbt::signer::check(c, &a.psbt, &b.psbt, &a.bytes, &b.bytes, &ctx);
+                // The nonce lines: every added signature recomputed with
+                // the keys loaded, through the session (no key leaves it).
+                let view = faraday_psbt::signer::nonce_view(&a.psbt, &b.psbt);
+                let found = self.session.recompute_all(c, &view);
+                faraday_psbt::signer::with_nonces(report, &found, &loaded)
+            });
             // What the Result shows of the Returned PSBT against the
             // wallets loaded, worked out here and not while drawing.
-            let inspection = faraday_psbt::inspect(c, &returned.psbt, &ctx);
-            s.shown = Some(check::shown(
-                &report,
-                (&sent.txid, &returned.txid),
-                &inspection,
+            let shown = check::shown(
+                &d,
+                bump.as_ref(),
+                report.as_ref().map(|r| (r, &ib)),
                 network,
-            ));
-            s.report = Some(report);
+                b.version.is_some(),
+            );
+            (shown, report)
+        };
+        if let Some(s) = self.decode.check.as_mut() {
+            s.shown = Some(made.0);
+            s.report = made.1;
             s.made_with = Some(made_with);
         }
     }
 
     /// Costs a read of every PSBT file in Files (a base64 decode of each
-    /// text one), the PSBT's parse-free reading and what
+    /// text one), the PSBT's parse-free reading, a transaction id for each
+    /// finished transaction in Files not seen yet and what
     /// [`Faraday::signer_check_run`] costs when the keys or wallets
     /// changed. The one place every load and drop of a key
     /// reaches: `act` calls it after each press, the event loop after each
     /// input and `take_answer` after each worker answer, whichever flow
-    /// loaded or forgot the key, so a kept report is the check against the
+    /// loaded or forgot the key, so a kept result is the one against the
     /// keys loaded now (SIGNER-CHECK §8.2). It also marks a side whose file
-    /// was replaced or taken out of Files, keeping its copy and report.
+    /// was replaced or taken out of Files, keeping its copy and result.
     /// Work with its token; drawing never calls it.
     pub(crate) fn signer_check_sync(&mut self) {
         if self.decode.check().is_none() {
             return;
         }
-        // Only the flow drawn needs the marks, and one arriving works them
-        // out through its open.
+        // Only the flow drawn needs the marks and the ids, and one
+        // arriving works them out through its open.
         if self.screen != Screen::SignerCheck {
             self.signer_check_stale();
             return;
@@ -1280,6 +1370,24 @@ impl Faraday {
             .decode
             .check()
             .map(|s| (differs(&s.sent), differs(&s.returned)));
+        // The ids of the finished transactions the lists show.
+        let ids: Vec<(Zeroizing<Vec<u8>>, faraday_bip::bitcoin::Txid)> = {
+            let kept = self.decode.check().map(|s| &s.ids[..]).unwrap_or(&[]);
+            self.inbox
+                .iter()
+                .chain(self.outbox.iter())
+                .filter(|i| i.kind == wallet::FileKind::Transaction)
+                .filter_map(|i| {
+                    kept.iter()
+                        .find(|(b, _)| *b == i.bytes)
+                        .cloned()
+                        .or_else(|| {
+                            faraday_psbt::transaction::read_raw(&i.bytes)
+                                .map(|t| (i.bytes.clone(), t.compute_txid()))
+                        })
+                })
+                .collect()
+        };
         if let (Some((a, b)), Some(s)) = (marks, self.decode.check.as_mut()) {
             if let Some(side) = s.sent.as_mut() {
                 side.differs = a;
@@ -1287,15 +1395,16 @@ impl Faraday {
             if let Some(side) = s.returned.as_mut() {
                 side.differs = b;
             }
+            s.ids = ids;
         }
         self.signer_check_stale();
     }
 
     /// Costs what [`Faraday::signer_check_run`] costs when the keys or
-    /// wallets changed since the report was made.
+    /// wallets changed since the result was made.
     fn signer_check_stale(&mut self) {
         let stale = self.decode.check().is_some_and(|s| {
-            s.report.is_some() && s.made_with.as_ref() != Some(&self.session.inspect_inputs())
+            s.shown.is_some() && s.made_with.as_ref() != Some(&self.session.inspect_inputs())
         });
         if stale {
             let c = self.compute();
@@ -1304,9 +1413,10 @@ impl Faraday {
     }
 
     /// Costs what [`Faraday::signer_check_take`] costs. A code the
-    /// Check a signer scanners read: a PSBT goes to that card as
-    /// "Scanned" and nowhere else; anything else is named on the
-    /// scanner. Returns whether the scanner on screen is one of them.
+    /// Check a signer scanners read: a PSBT or a finished transaction goes
+    /// to that card as "Scanned" and nowhere else; anything else is named
+    /// on the scanner. Returns whether the scanner on screen is one of
+    /// them.
     pub(crate) fn signer_check_scanned(&mut self, bytes: &[u8]) -> bool {
         let slot = match self.camera.scan().map(|s| s.purpose) {
             Some(crate::ScanPurpose::CheckSent) => check::Slot::Sent,
@@ -1322,7 +1432,7 @@ impl Faraday {
             if let Some(s) = self.decode.check.as_mut() {
                 s.refused[usize::from(slot.card())] = None;
             }
-            self.scan_say(EN.wallet_not_a_psbt);
+            self.scan_say(EN.compare_not_a_transaction);
         }
         true
     }
@@ -1341,456 +1451,5 @@ impl Faraday {
         let c = self.compute();
         self.refresh_others(&c);
         self.signer_check_sync();
-        self.compare_sync();
-    }
-}
-
-/// Compare two PSBTs: the presses of `Screen::Compare`
-/// (`docs/COMPARE.md` §2).
-impl Faraday {
-    /// Costs what `act` costs. The Tools tile opens the flow.
-    pub(crate) fn compare_tile(&mut self) {
-        self.act(Action::Compare(ComparePress::Open));
-    }
-
-    /// Compare's state, while the flow is kept.
-    pub(crate) fn compare(&self) -> Option<&CompareState> {
-        self.decode.compare()
-    }
-
-    /// Costs what reading a file and the comparison cost, when a press
-    /// completes the second card. Does what the press does.
-    pub(crate) fn compare_act(&mut self, press: ComparePress, c: &Compute) {
-        use ComparePress as P;
-        match press {
-            P::Open => self.compare_open(),
-            P::Card(n) => {
-                let ready = self.decode.compare().is_some_and(|s| s.shown.is_some());
-                if let Some(s) = self.decode.compare.as_mut()
-                    && (n < compare::RESULT || ready)
-                {
-                    s.open_card(n);
-                }
-            }
-            P::Pick(slot, k) => {
-                let picked = {
-                    let all = compare::files(&self.inbox, &self.outbox);
-                    all.get(k)
-                        .map(|(_, _, item)| Self::compare_file_at(&all, item))
-                };
-                if let Some((bytes, name, origin)) = picked {
-                    self.compare_take(c, slot, &bytes, name, origin);
-                }
-            }
-            P::Scan(slot) => {
-                let mut scan = crate::qr_view::ScanState::default();
-                scan.purpose = match slot {
-                    check::Slot::Sent => crate::ScanPurpose::CompareFirst,
-                    check::Slot::Returned => crate::ScanPurpose::CompareSecond,
-                };
-                self.camera.open(scan);
-                self.sheet = Some(crate::Sheet::Scan);
-                self.out
-                    .commands
-                    .push_back(faraday_shell_api::Command::CameraOn);
-            }
-            P::Back => {
-                if let Some(s) = self.decode.compare() {
-                    self.screen = s.back;
-                    self.list_offset = 0.0;
-                }
-            }
-            P::Swap => {
-                if let Some(s) = self.decode.compare.as_mut() {
-                    s.swap();
-                    self.compare_run(c);
-                }
-            }
-            P::Again => {
-                if let Some(s) = self.decode.compare.as_mut() {
-                    s.open_card(check::Slot::Returned.card());
-                }
-            }
-            P::CheckSigner => {
-                let both = self.decode.compare().and_then(|s| {
-                    let one =
-                        |d: &check::Side| (d.bytes.clone(), Text::of(&d.name), d.origin.clone());
-                    Some((one(s.first.as_ref()?), one(s.second.as_ref()?)))
-                });
-                if let Some((first, second)) = both {
-                    self.signer_check_start(c, Some(first), Some(second));
-                }
-            }
-            // Add a key opens with this screen as its way back; the key
-            // loaded makes the comparison again (`compare_sync`).
-            P::Load(_) => self.keygen_open(None),
-            P::File(outbox, k) => self.compare_file(c, outbox, k),
-            P::FromReview(outbox, k) => self.compare_from_review(c, outbox, k),
-        }
-    }
-
-    /// Opens the flow: as it was where one is kept (its result is the
-    /// comparison against the keys loaded now: `compare_sync`), with the
-    /// way back set anew, else empty on the First card.
-    fn compare_open(&mut self) {
-        let back = self.screen;
-        match self.decode.compare.as_mut() {
-            Some(s) if s.first.is_some() || s.second.is_some() => {
-                s.back = back;
-                s.refused = [None, None];
-            }
-            _ => self.decode.compare = Some(Box::new(CompareState::new(back))),
-        }
-        self.screen = Screen::Compare;
-        self.list_offset = 0.0;
-        self.compare_sync();
-    }
-
-    /// The file's bytes, name and origin, taken from the list [`compare::files`] made.
-    fn compare_file_at(
-        all: &[(bool, usize, &Item)],
-        item: &Item,
-    ) -> (Zeroizing<Vec<u8>>, Text, check::Origin) {
-        let outbox = all.iter().any(|(o, _, i)| *o && std::ptr::eq(*i, item));
-        (
-            item.bytes.clone(),
-            Text::of(&item.name),
-            check::Origin::File {
-                outbox,
-                name: Text::of(&item.name),
-            },
-        )
-    }
-
-    /// The file at this place of Files: its bytes, name and origin.
-    fn compare_item(
-        &self,
-        outbox: bool,
-        k: usize,
-    ) -> Option<(Zeroizing<Vec<u8>>, Text, check::Origin)> {
-        let item = if outbox {
-            self.outbox.get(k)
-        } else {
-            self.inbox.get(k)
-        }?;
-        matches!(
-            item.kind,
-            wallet::FileKind::Psbt | wallet::FileKind::Transaction
-        )
-        .then(|| {
-            (
-                item.bytes.clone(),
-                Text::of(&item.name),
-                check::Origin::File {
-                    outbox,
-                    name: Text::of(&item.name),
-                },
-            )
-        })
-    }
-
-    /// Costs what [`Faraday::compare_start`] costs. Files' ⋮ **Compare**:
-    /// the file is Second; the one other transaction in Files that spends
-    /// an input of it, where there is exactly one, is First and the
-    /// comparison has run.
-    fn compare_file(&mut self, c: &Compute, outbox: bool, k: usize) {
-        let Some(second) = self.compare_item(outbox, k) else {
-            return;
-        };
-        let first = {
-            let item = if outbox {
-                &self.outbox[k]
-            } else {
-                &self.inbox[k]
-            };
-            item.unsigned_txid.and_then(|txid| {
-                let files = self.inbox.iter().chain(self.outbox.iter());
-                match compare::others::counting(files, txid, &item.outpoints).as_slice() {
-                    [(one, _)] => {
-                        let in_outbox = self.outbox.iter().any(|i| std::ptr::eq(i, *one));
-                        Some((
-                            one.bytes.clone(),
-                            Text::of(&one.name),
-                            check::Origin::File {
-                                outbox: in_outbox,
-                                name: Text::of(&one.name),
-                            },
-                        ))
-                    }
-                    _ => None,
-                }
-            })
-        };
-        self.compare_start(c, first, Some(second));
-    }
-
-    /// Costs what [`Faraday::compare_start`] costs. The review's
-    /// **Compare**: the file is First and the PSBT under review, named by
-    /// its source, is Second; the comparison has run.
-    fn compare_from_review(&mut self, c: &Compute, outbox: bool, k: usize) {
-        let Some(first) = self.compare_item(outbox, k) else {
-            return;
-        };
-        // The file at this place is the one the result was made from.
-        let item = if outbox {
-            self.outbox.get(k)
-        } else {
-            self.inbox.get(k)
-        };
-        let held = self.wallets.spend().is_some_and(|s| {
-            s.others_from.as_ref().is_some_and(|from| {
-                from.iter().any(|(name, txid, place)| {
-                    *place == (outbox, k)
-                        && item.is_some_and(|i| {
-                            i.name == name.as_str() && i.unsigned_txid == Some(*txid)
-                        })
-                })
-            })
-        });
-        if !held {
-            return;
-        }
-        let second = self.wallets.spend().map(|s| {
-            let bytes = s
-                .spend
-                .out_bytes()
-                .unwrap_or_else(|_| s.spend.psbt.to_bytes());
-            (
-                Zeroizing::new(bytes),
-                Text::of(&s.spend.source),
-                check::Origin::Scanned,
-            )
-        });
-        self.compare_start(c, Some(first), second);
-    }
-
-    /// Costs what two reads and the comparison cost. Opens the flow from
-    /// the screen on show, with these two (either may be left out).
-    fn compare_start(
-        &mut self,
-        c: &Compute,
-        first: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
-        second: Option<(Zeroizing<Vec<u8>>, Text, check::Origin)>,
-    ) {
-        let back = match (self.screen, self.decode.compare()) {
-            (Screen::Compare, Some(s)) => s.back,
-            (s, _) => s,
-        };
-        self.decode.compare = Some(Box::new(CompareState::new(back)));
-        self.screen = Screen::Compare;
-        self.list_offset = 0.0;
-        self.compare_sync();
-        for (slot, file) in [(check::Slot::Sent, first), (check::Slot::Returned, second)] {
-            if let Some((bytes, name, origin)) = file {
-                self.compare_take(c, slot, &bytes, name, origin);
-            }
-        }
-    }
-
-    /// Costs a read of the file (a PSBT parse, or a transaction's) and the
-    /// comparison when this completes the second card. Reads `bytes` as
-    /// the file of `slot`, or says on the card why not. Returns whether
-    /// it was one.
-    pub(crate) fn compare_take(
-        &mut self,
-        c: &Compute,
-        slot: check::Slot,
-        bytes: &[u8],
-        name: Text,
-        origin: check::Origin,
-    ) -> bool {
-        let read = match wallet::read_psbt_kept(c, bytes) {
-            Some((psbt, v2)) => Some((psbt, Some(if v2.is_some() { 2 } else { 0 }))),
-            None => decode::raw_as_psbt(c, bytes, &[]).map(|(psbt, _)| (psbt, None)),
-        };
-        let Some((psbt, version)) = read else {
-            if let Some(s) = self.decode.compare.as_mut() {
-                s.refused[usize::from(slot.card())] = Some(Text::of(EN.compare_not_a_transaction));
-            }
-            return false;
-        };
-        let outpoints = {
-            let mut spent: Vec<_> = psbt
-                .unsigned_tx()
-                .input
-                .iter()
-                .map(|i| i.previous_output)
-                .collect();
-            spent.sort();
-            spent
-        };
-        let txid = psbt.unsigned_tx().compute_txid();
-        let side = check::Side {
-            bytes: Zeroizing::new(bytes.to_vec()),
-            psbt,
-            version,
-            outpoints,
-            name: Text::of(name.as_str()),
-            origin,
-            differs: false,
-            txid,
-        };
-        let Some(s) = self.decode.compare.as_mut() else {
-            return false;
-        };
-        if s.put(slot, side) {
-            self.compare_run(c);
-        }
-        true
-    }
-
-    /// Costs what `amounts_in` costs for a finished transaction and an
-    /// `inspect` of each file. Compares the two files kept against the
-    /// keys and wallets loaded and keeps the result in words.
-    fn compare_run(&mut self, c: &Compute) {
-        let made_with = self.session.inspect_inputs();
-        let loaded: Vec<_> = self.session.keys.all().map(|k| k.fingerprint).collect();
-        let made = {
-            let Some(s) = self.decode.compare() else {
-                return;
-            };
-            let (Some(a), Some(b)) = (&s.first, &s.second) else {
-                return;
-            };
-            // A finished transaction takes the amounts it spends from the
-            // PSBTs of its unsigned transaction in Files, and for an input
-            // still without one from the other card's PSBT (rule I4).
-            let as_psbt = |side: &check::Side| {
-                if side.version.is_some() {
-                    return side.psbt.clone();
-                }
-                let tx = faraday_psbt::transaction::read_raw(&side.bytes);
-                let prevouts = tx.map(|t| self.amounts_in(c, &t).0).unwrap_or_default();
-                decode::raw_as_psbt(c, &side.bytes, &prevouts)
-                    .map_or_else(|| side.psbt.clone(), |(p, _)| p)
-            };
-            let (mut pa, mut pb) = (as_psbt(a), as_psbt(b));
-            match (a.version, b.version) {
-                (None, Some(_)) => faraday_psbt::bump::fill_amounts(&mut pa, &pb),
-                (Some(_), None) => faraday_psbt::bump::fill_amounts(&mut pb, &pa),
-                _ => {}
-            }
-            let (ia, ib) = (self.session.inspect(c, &pa), self.session.inspect(c, &pb));
-            let (sa, sb) = (
-                faraday_psbt::diff::Side {
-                    psbt: &pa,
-                    inspection: &ia,
-                    psbt_version: a.version,
-                },
-                faraday_psbt::diff::Side {
-                    psbt: &pb,
-                    inspection: &ib,
-                    psbt_version: b.version,
-                },
-            );
-            let d = faraday_psbt::diff::list(sa, sb);
-            let bump = faraday_psbt::bump::judge(sa, sb, &loaded);
-            compare::shown(
-                &d,
-                bump.as_ref(),
-                a.version.is_some() && b.version.is_some(),
-            )
-        };
-        if let Some(s) = self.decode.compare.as_mut() {
-            s.shown = Some(made);
-            s.made_with = Some(made_with);
-        }
-    }
-
-    /// Costs what [`Faraday::compare_run`] costs when the keys or wallets
-    /// changed, and a transaction id for each finished transaction in
-    /// Files not seen yet. The one place every load and drop of a key
-    /// reaches (as [`Faraday::signer_check_sync`] is): a kept result is
-    /// the comparison against the keys loaded now. It also marks a side
-    /// whose file was replaced or taken out of Files, keeping its copy
-    /// and result. Work with its token; drawing never calls it.
-    pub(crate) fn compare_sync(&mut self) {
-        if self.decode.compare().is_none() {
-            return;
-        }
-        // Only the flow drawn needs the marks and the ids, and one
-        // arriving works them out through its open.
-        if self.screen != Screen::Compare {
-            self.compare_stale();
-            return;
-        }
-        let differs =
-            |side: &Option<check::Side>| match side.as_ref().map(|s| (&s.origin, &s.bytes)) {
-                // The same name and bytes in either box is the file.
-                Some((check::Origin::File { name, .. }, bytes)) => !self
-                    .inbox
-                    .iter()
-                    .chain(self.outbox.iter())
-                    .any(|i| i.name == name.as_str() && i.bytes == *bytes),
-                _ => false,
-            };
-        let marks = self
-            .decode
-            .compare()
-            .map(|s| (differs(&s.first), differs(&s.second)));
-        // The ids of the finished transactions the lists show.
-        let ids: Vec<(Zeroizing<Vec<u8>>, faraday_bip::bitcoin::Txid)> = {
-            let kept = self.decode.compare().map(|s| &s.ids[..]).unwrap_or(&[]);
-            self.inbox
-                .iter()
-                .chain(self.outbox.iter())
-                .filter(|i| i.kind == wallet::FileKind::Transaction)
-                .filter_map(|i| {
-                    kept.iter()
-                        .find(|(b, _)| *b == i.bytes)
-                        .cloned()
-                        .or_else(|| {
-                            faraday_psbt::transaction::read_raw(&i.bytes)
-                                .map(|t| (i.bytes.clone(), t.compute_txid()))
-                        })
-                })
-                .collect()
-        };
-        if let (Some((a, b)), Some(s)) = (marks, self.decode.compare.as_mut()) {
-            if let Some(side) = s.first.as_mut() {
-                side.differs = a;
-            }
-            if let Some(side) = s.second.as_mut() {
-                side.differs = b;
-            }
-            s.ids = ids;
-        }
-        self.compare_stale();
-    }
-
-    /// Costs what [`Faraday::compare_run`] costs when the keys or wallets
-    /// changed since the result was made.
-    fn compare_stale(&mut self) {
-        let stale = self.decode.compare().is_some_and(|s| {
-            s.shown.is_some() && s.made_with.as_ref() != Some(&self.session.inspect_inputs())
-        });
-        if stale {
-            let c = self.compute();
-            self.compare_run(&c);
-        }
-    }
-
-    /// Costs what [`Faraday::compare_take`] costs. A code the Compare
-    /// scanners read: a PSBT or a finished transaction goes to that card
-    /// as "Scanned" and nowhere else; anything else is named on the
-    /// scanner. Returns whether the scanner on screen is one of them.
-    pub(crate) fn compare_scanned(&mut self, bytes: &[u8]) -> bool {
-        let slot = match self.camera.scan().map(|s| s.purpose) {
-            Some(crate::ScanPurpose::CompareFirst) => check::Slot::Sent,
-            Some(crate::ScanPurpose::CompareSecond) => check::Slot::Returned,
-            _ => return false,
-        };
-        let c = self.compute();
-        let name = Text::of(EN.signer_scanned);
-        if self.compare_take(&c, slot, bytes, name, check::Origin::Scanned) {
-            self.scan_close();
-        } else {
-            // The scanner says it; the card says nothing of it after.
-            if let Some(s) = self.decode.compare.as_mut() {
-                s.refused[usize::from(slot.card())] = None;
-            }
-            self.scan_say(EN.compare_not_a_transaction);
-        }
-        true
     }
 }

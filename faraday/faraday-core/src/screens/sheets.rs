@@ -837,8 +837,6 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::Sweep, _) => EN.catalog_sweep_key,
         (crate::ScanPurpose::CheckSent, _) => EN.signer_scan_sent,
         (crate::ScanPurpose::CheckReturned, _) => EN.signer_scan_returned,
-        (crate::ScanPurpose::CompareFirst, _) => EN.compare_scan_first,
-        (crate::ScanPurpose::CompareSecond, _) => EN.compare_scan_second,
         (crate::ScanPurpose::MessageText, _) => EN.message_scan_title,
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr,
         (crate::ScanPurpose::OtsHeader, _) => EN.ots_scan_title,

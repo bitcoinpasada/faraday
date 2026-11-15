@@ -1283,7 +1283,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("No secret is handled."), p("Nothing secret is held.")],
         limits: &[p("Version 0 here; a version 2 file is read by psbt-v2 and signed as its version 0 form."), p("Version 2 fields in a version 0 file are refused."), p("A 65-byte taproot signature whose sighash byte is 0 is refused."), p("A key origin of more than 16 steps is refused.")],
         own_calls: &[p("A key origin of more than 16 steps anywhere in a PSBT is refused when it is parsed. Conservative, F155.")],
-        screens: &["Spend", "Files", "Decode", "Compare", "SpendBackup"],
+        screens: &["Spend", "Files", "Decode", "SignerCheck", "SpendBackup"],
     },
     Block {
         id: "psbt-v2",
@@ -1418,7 +1418,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Private keys are used only to recompute this device's signatures; what comes back is a verdict. The library does not state the recomputation's timing."), p("The keypairs made to recompute a signature are overwritten with secp256k1's non_secure_erase, which the library calls best effort.")],
         limits: &[p("A signature with no previous output to check against is not checked."), p("A signature under a sighash type that was not asked for is flagged."), p("A signature of another device is not recomputed."), p("A finalized taproot signature of 65 bytes with hash type 0x00 is reported invalid, key path and script path alike (BIP 341): it is a danger card, and the PSBT is not refused.")],
         own_calls: &[p("The nonce check is run on signatures a device writes, comparing them with the RFC 6979 or BIP 340 nonce rule. Neutral."), w("no decision")],
-        screens: &["Spend", "NonceCheck", "SignerCheck", "Decode", "Compare"],
+        screens: &["Spend", "NonceCheck", "SignerCheck", "Decode"],
     },
     Block {
         id: "fee-bump",
@@ -1433,7 +1433,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Public transaction data only; no secret is used."), p("No secret is held.")],
         limits: &[p("BIP 125's relay rules are stated or left to the node, not checked."), p("A case the rules do not know is Cannot tell, not a yes.")],
         own_calls: &[p("Whether a replacement only raises the fee is Faraday's own rule; fails closed, a case it does not know is Cannot tell. Neutral, F233.")],
-        screens: &["Compare", "Spend", "Files", "Decode"],
+        screens: &["SignerCheck", "Spend", "Files", "Decode"],
     },
     Block {
         id: "finalize",
@@ -1493,7 +1493,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("No secret is handled."), p("Nothing secret is held.")],
         limits: &[p("A raw transaction is read only when its bytes are exactly the serialisation of what was read."), p("A previous transaction with another id does not state the spent output."), p("Amounts that two PSBTs state differently for an input are not used."), p("A transaction with an amount or a total over 21,000,000 BTC, in its outputs or the amounts its inputs are stated to spend, is not decoded.")],
         own_calls: &[p("A previous transaction is attached to an input only when its id is the spent one. Conservative."), w("no decision")],
-        screens: &["Decode", "Compare", "Silent"],
+        screens: &["Decode", "SignerCheck", "Silent"],
     },
     Block {
         id: "qr",

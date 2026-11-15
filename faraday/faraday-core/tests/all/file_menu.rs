@@ -403,7 +403,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     assert!(app.drawn_texts().iter().any(|t| t == "Sign"));
     assert_eq!(
         menu_of(&mut app, Row::In(0)),
-        ["Compare", "Details", "Remove"]
+        ["Check a signer", "Details", "Remove"]
     );
     choose(&mut app, "Remove");
     assert_eq!(app.sheet, None, "a choice closes the menu");
@@ -570,4 +570,29 @@ fn a_public_file_for_the_stick_is_removed_by_a_press() {
     choose(&mut app, "Remove");
     assert_eq!(app.sheet, None);
     assert!(app.outbox.is_empty(), "a press removes it");
+}
+
+#[test]
+fn check_a_signer_is_offered_on_a_psbt_row_only() {
+    let psbt = std::fs::read(format!(
+        "{}/../../tools/vectors/psbt/bump-core-original.psbt",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    let menu = |row: usize| {
+        let mut app = faraday_core::testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: faraday_core::files_from(vec![
+                ("spend.psbt".to_string(), psbt.clone()),
+                ("notes.txt".to_string(), b"hello".to_vec()),
+            ]),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app.press(Action::Nav(Screen::Files));
+        menu_of(&mut app, Row::In(row))
+    };
+    assert!(menu(0).contains(&"Check a signer".to_string()));
+    let other = menu(1);
+    assert!(!other.contains(&"Check a signer".to_string()), "{other:?}");
 }

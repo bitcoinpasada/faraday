@@ -1,8 +1,9 @@
 //! `Screen::SignerCheck`: the cards of Check a signer
-//! (`docs/SIGNER-CHECK.md` §4). Drawing reads the state, the Inbox
-//! items' `PsbtSeen` and the report kept; it works nothing out.
+//! (`docs/SIGNER-CHECK.md` §4, §11.5). Drawing reads the state, the
+//! items' `PsbtSeen` and the words kept; it works nothing out.
 
-use super::check::{self, CheckState, Origin, RESULT, SignerPress, Slot, Tone};
+use super::check::{self, CheckState, Facts, Origin, RESULT, SignerPress, Slot, Tone};
+use super::diff_words::Fact;
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -41,7 +42,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }),
                 mono: false,
                 done: if n == RESULT {
-                    s.report.is_some()
+                    s.shown.is_some()
                 } else {
                     side.is_some()
                 },
@@ -95,25 +96,26 @@ fn card(app: &View, s: &CheckState, ui: &mut Ui, n: u8, at: (f32, f32, f32)) -> 
     }
 }
 
-/// The Sent or Returned card: a row per PSBT in Files, Scan under them.
+/// The Sent or Returned card: a row per PSBT or finished transaction in
+/// Files, Scan under them.
 fn choose(app: &View, s: &CheckState, ui: &mut Ui, slot: Slot, (x, y, w): (f32, f32, f32)) -> f32 {
     let all = check::files(&app.inbox, &app.outbox);
     let (same, other) = check::rows(&all, slot, (s.sent.as_ref(), s.returned.as_ref()));
     let mut cy = y;
     if all.is_empty() {
-        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.signer_no_psbt);
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.compare_no_files);
         cy += ui.line_as(BODY_S) + PAD;
     }
     // A copy whose file was replaced is no row's file: any can be picked.
     let chosen = s.side(slot).filter(|d| !d.differs).map(|d| &d.origin);
     for n in &same {
-        cy += row(ui, (x, cy, w), &all[*n], chosen, slot, *n);
+        cy += row(ui, s, (x, cy, w), &all[*n], chosen, slot, *n);
     }
     if !other.is_empty() {
         section_label(ui, x, cy, EN.signer_other_transactions);
         cy += ui.line_as(TITLE_S) + GAP;
         for n in &other {
-            cy += row(ui, (x, cy, w), &all[*n], chosen, slot, *n);
+            cy += row(ui, s, (x, cy, w), &all[*n], chosen, slot, *n);
         }
     }
     if let Some(why) = &s.refused[usize::from(slot.card())] {
@@ -133,9 +135,11 @@ fn choose(app: &View, s: &CheckState, ui: &mut Ui, slot: Slot, (x, y, w): (f32, 
 }
 
 /// One option row (DESIGN §4.2): the file's name and its line, the
-/// chosen one selected. The line is read from the item's `PsbtSeen`.
+/// chosen one selected. The line is read from the item's `PsbtSeen` or
+/// the id `signer_check_sync` kept.
 fn row(
     ui: &mut Ui,
+    s: &CheckState,
     (x, y, w): (f32, f32, f32),
     file: &(bool, usize, &crate::Item),
     chosen: Option<&Origin>,
@@ -148,14 +152,7 @@ fn row(
             outbox: *outbox,
             name: faraday_text::Text::of(&item.name),
         });
-    let line = item.psbt().map_or_else(String::new, |p| {
-        let id = faraday_ui::short(&p.txid.to_string());
-        if p.sigs == 1 {
-            fill(EN.signer_row_one, &[&id])
-        } else {
-            fill(EN.signer_row, &[&p.sigs.to_string(), &id])
-        }
-    });
+    let line = s.line(item);
     let size = TITLE_S;
     let (name_h, line_h) = (ui.line_as(size), ui.line_as(BODY_S));
     let h = if ui.compact {
@@ -197,42 +194,99 @@ fn row(
     h + GAP
 }
 
-/// The Result card, top down (SIGNER-CHECK §4): the verdict in its tone,
-/// the facts, the findings, what is stated, the actions. The words were
-/// made with the report; this reads them.
-fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let (Some(report), Some(shown)) = (&s.report, &s.shown) else {
-        return 0.0;
-    };
-    let (line, tone) = check::verdict_line(report);
+/// A fact (DESIGN §4.11): its label over its value, or over a line per
+/// labelled value. Returns the height.
+fn fact(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &Fact) -> f32 {
+    let mut cy = y + ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, f.label) + GAP_SMALL;
+    let room = f
+        .values
+        .iter()
+        .filter_map(|v| v.label)
+        .map(|l| ui.measure_as(BODY_S, l) + PAD)
+        .fold(0.0, f32::max);
+    for v in &f.values {
+        if let Some(l) = v.label {
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, l);
+        }
+        cy += ui.wrap_as((x + room, cy, w - room), BODY_M, Role::OnSurface, &v.text) + GAP_SMALL;
+    }
+    ui.rule(x, cy, w, Role::OutlineVariant);
+    cy + GAP - y
+}
+
+/// A result card: the line in its tone, with its icon. Returns the
+/// height with the gap under it.
+fn tone_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), line: &str, tone: Tone) -> f32 {
     let (role, icon) = match tone {
         Tone::Ok => (Role::Ok, Icon::Success),
         Tone::Warn => (Role::Warning, Icon::Warning),
         Tone::Err => (Role::Error, Icon::Error),
     };
-    let mut cy = y;
     let text_x = x + PAD + ICON_GLYPH + PAD;
     let text_w = x + w - PAD - text_x;
-    let text_h = ui.wrap_height_as(TITLE_M, &line, text_w);
+    let text_h = ui.wrap_height_as(TITLE_M, line, text_w);
     let card_h = (text_h + PAD + PAD).max(TOUCH + PAD);
-    ui.card(x, cy, w, card_h, Role::OutlineVariant);
+    ui.card(x, y, w, card_h, Role::OutlineVariant);
     ui.icon(
         x + PAD,
-        cy + (card_h - ICON_GLYPH) / 2.0,
+        y + (card_h - ICON_GLYPH) / 2.0,
         ICON_GLYPH,
         icon,
         PAD,
         role,
     );
     ui.wrap_as(
-        (text_x, cy + (card_h - text_h) / 2.0, text_w),
+        (text_x, y + (card_h - text_h) / 2.0, text_w),
         TITLE_M,
         role,
-        &line,
+        line,
     );
-    cy += card_h + PAD;
-    for (label, value) in &shown.facts {
-        cy += kv(ui, x, cy, w, label, value, Role::OnSurface);
+    card_h + PAD
+}
+
+/// The Result card, top down (SIGNER-CHECK §11.5): the fee bump, the
+/// verdict in its tone, the facts, the findings, what is stated, the
+/// differences, the actions. The words were made with the result; this
+/// reads them.
+fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some(shown) = &s.shown else {
+        return 0.0;
+    };
+    let mut cy = y;
+    if let Some(b) = &shown.bump {
+        section_label(ui, x, cy, EN.compare_fee_bump_label);
+        cy += ui.line_as(TITLE_S) + GAP;
+        cy += tone_card(ui, (x, cy, w), b.result, b.tone());
+        for line in &b.lines {
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
+        }
+        // The last fact's rule is the divider under the section.
+        for f in &b.facts {
+            cy += fact(ui, (x, cy, w), f);
+        }
+    }
+    match &shown.verdict {
+        Some((line, tone)) => cy += tone_card(ui, (x, cy, w), line, *tone),
+        None => {
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_M,
+                Role::OnSurfaceVariant,
+                EN.signer_needs_two_psbts,
+            ) + PAD;
+        }
+    }
+    match &shown.facts {
+        Facts::Check(facts) => {
+            for (label, value) in facts {
+                cy += kv(ui, x, cy, w, label, value, Role::OnSurface);
+            }
+        }
+        Facts::Compare(facts) => {
+            for f in facts {
+                cy += fact(ui, (x, cy, w), f);
+            }
+        }
     }
     if shown.has_findings {
         section_label(ui, x, cy, EN.signer_findings_label);
@@ -261,19 +315,27 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         }
     }
     cy += GAP_SMALL;
-    let mut actions = vec![
-        (
+    section_label(ui, x, cy, EN.compare_differences_label);
+    cy += ui.line_as(TITLE_S) + GAP;
+    for line in &shown.differences {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
+    }
+    cy += GAP_SMALL;
+    let mut actions = Vec::new();
+    if shown.qr {
+        actions.push((
             EN.decode_show_as_qr.to_string(),
             Style::Secondary,
             Action::SignerCheck(SignerPress::Qr),
-        ),
-        (
-            EN.signer_swap.to_string(),
-            Style::Secondary,
-            Action::SignerCheck(SignerPress::Swap),
-        ),
-    ];
-    // A key that signed and is not loaded: Add a key, then back here.
+        ));
+    }
+    actions.push((
+        EN.signer_swap.to_string(),
+        Style::Secondary,
+        Action::SignerCheck(SignerPress::Swap),
+    ));
+    // A key the result names and that is not loaded: Add a key, then back
+    // here.
     for (n, fp) in shown.load.iter().enumerate() {
         actions.push((
             fill(EN.signer_load, &[&fp.to_string()]),

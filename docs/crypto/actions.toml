@@ -4962,7 +4962,7 @@ screens = [
   "Spend",
   "Files",
   "Decode",
-  "Compare",
+  "SignerCheck",
   "SpendBackup",
 ]
 functions = [
@@ -5680,7 +5680,7 @@ standards = [
   "BIP 174",
   "BIP 373",
 ]
-screens = ["Spend", "NonceCheck", "SignerCheck", "Decode", "Compare"]
+screens = ["Spend", "NonceCheck", "SignerCheck", "Decode"]
 functions = [
   "core/faraday-psbt/src/verify.rs::compare",
   "core/faraday-psbt/src/verify.rs::count_signatures",
@@ -5794,19 +5794,19 @@ name = "Compare PSBTs and the fee bump"
 action = "Compares two PSBTs side by side and says whether a replacement only raises the fee of an original: the same inputs, the same payments, a higher fee."
 row = "fee-bump"
 standards = ["BIP 174", "BIP 125"]
-screens = ["Compare", "Spend", "Files", "Decode"]
+screens = ["SignerCheck", "Spend", "Files", "Decode"]
 functions = [
   "core/faraday-psbt/src/bump.rs::fee_of",
   "core/faraday-psbt/src/bump.rs::fill_amounts",
   "core/faraday-psbt/src/bump.rs::judge",
   "core/faraday-psbt/src/bump.rs::locks",
   "core/faraday-psbt/src/bump.rs::shared_input_lines",
-  "faraday/faraday-core/src/compare/mod.rs::CompareState::id_of",
-  "faraday/faraday-core/src/compare/others.rs::counting",
-  "faraday/faraday-core/src/compare/others.rs::make",
-  "faraday/faraday-core/src/compare/others.rs::shares",
-  "faraday/faraday-core/src/compare/words.rs::compare_facts",
-  "faraday/faraday-core/src/decode/mod.rs::Faraday::compare_sync",
+  "faraday/faraday-core/src/decode/check.rs::CheckState::id_of",
+  "faraday/faraday-core/src/decode/check_others.rs::counting",
+  "faraday/faraday-core/src/decode/check_others.rs::make",
+  "faraday/faraday-core/src/decode/check_others.rs::shares",
+  "faraday/faraday-core/src/decode/diff_words.rs::compare_facts",
+  "faraday/faraday-core/src/decode/mod.rs::Faraday::signer_check_sync",
 ]
 code = ["core/faraday-psbt/src/bump.rs::judge", "core/faraday-psbt/src/bump.rs::fee_of"]
 
@@ -6040,7 +6040,7 @@ row = "decode-tx"
 standards = ["BIP 141", "BIP 144"]
 screens = [
   "Decode",
-  "Compare",
+  "SignerCheck",
   "Silent",
 ]
 functions = [

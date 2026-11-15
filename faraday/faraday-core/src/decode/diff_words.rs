@@ -1,4 +1,4 @@
-//! The words of Compare and the fee bump: every difference's, line's,
+//! The words of the comparison and the fee bump: every difference's, line's,
 //! result's and fact's text, made from the typed values of
 //! `faraday_psbt::diff` and `faraday_psbt::bump` (`docs/COMPARE.md` §2.5,
 //! §2.7, §3.4). Each match is exhaustive, with no `_` arm, so a variant
@@ -74,7 +74,7 @@ fn op(o: &OutPoint) -> String {
     outpoint(o)
 }
 
-/// One difference of Compare as a line.
+/// One difference of the comparison as a line.
 pub(crate) fn difference(d: &Difference) -> String {
     match d {
         Difference::Version { first, second } => fill(
@@ -90,8 +90,8 @@ pub(crate) fn difference(d: &Difference) -> String {
         ),
         Difference::InputOnly { outpoint, side } => fill(
             match side {
-                Which::First => EN.compare_input_first_only,
-                Which::Second => EN.compare_input_second_only,
+                Which::First => EN.compare_input_sent_only,
+                Which::Second => EN.compare_input_returned_only,
             },
             &[&op(outpoint)],
         ),
@@ -113,8 +113,8 @@ pub(crate) fn difference(d: &Difference) -> String {
         ),
         Difference::AmountStatedOnly { outpoint, side } => fill(
             match side {
-                Which::First => EN.compare_amount_first_only,
-                Which::Second => EN.compare_amount_second_only,
+                Which::First => EN.compare_amount_sent_only,
+                Which::Second => EN.compare_amount_returned_only,
             },
             &[&op(outpoint)],
         ),
@@ -128,8 +128,8 @@ pub(crate) fn difference(d: &Difference) -> String {
         ),
         Difference::FinalOnly { outpoint, side } => fill(
             match side {
-                Which::First => EN.compare_final_first_only,
-                Which::Second => EN.compare_final_second_only,
+                Which::First => EN.compare_final_sent_only,
+                Which::Second => EN.compare_final_returned_only,
             },
             &[&op(outpoint)],
         ),
@@ -139,8 +139,8 @@ pub(crate) fn difference(d: &Difference) -> String {
             side,
         } => fill(
             match side {
-                Which::First => EN.compare_output_first_only,
-                Which::Second => EN.compare_output_second_only,
+                Which::First => EN.compare_output_sent_only,
+                Which::Second => EN.compare_output_returned_only,
             },
             &[&output(o), &amount(*a)],
         ),
@@ -154,15 +154,15 @@ pub(crate) fn difference(d: &Difference) -> String {
         ),
         Difference::SpentTwice { outpoint, side } => fill(
             match side {
-                Which::First => EN.compare_spent_twice_first,
-                Which::Second => EN.compare_spent_twice_second,
+                Which::First => EN.compare_spent_twice_sent,
+                Which::Second => EN.compare_spent_twice_returned,
             },
             &[&op(outpoint)],
         ),
         Difference::YoursOnly { output: o, side } => fill(
             match side {
-                Which::First => EN.compare_yours_first_only,
-                Which::Second => EN.compare_yours_second_only,
+                Which::First => EN.compare_yours_sent_only,
+                Which::Second => EN.compare_yours_returned_only,
             },
             &[&output(o)],
         ),
@@ -179,7 +179,7 @@ pub(crate) fn differences(d: &Differences) -> Vec<String> {
     }
 }
 
-/// A fee bump's result line in Compare.
+/// A fee bump's result line in Check a signer.
 pub(crate) fn result(o: Outcome) -> &'static str {
     match o {
         Outcome::OnlyFee => EN.bump_only_fee,
@@ -330,19 +330,19 @@ fn counted(both: usize, first: usize, second: usize) -> Vec<Value> {
     if first > 0 {
         v.push(value(
             None,
-            fill(EN.compare_fact_first_only, &[&first.to_string()]),
+            fill(EN.compare_fact_sent_only, &[&first.to_string()]),
         ));
     }
     if second > 0 {
         v.push(value(
             None,
-            fill(EN.compare_fact_second_only, &[&second.to_string()]),
+            fill(EN.compare_fact_returned_only, &[&second.to_string()]),
         ));
     }
     v
 }
 
-/// The facts of Compare's Result card: the transaction (one id where the
+/// The facts of Check a signer's Result card where it did not run the check: the transaction (one id where the
 /// two are one unsigned transaction, else both), the fees, and the counts
 /// of inputs and outputs.
 pub(crate) fn compare_facts(d: &Differences) -> Vec<Fact> {
@@ -351,8 +351,8 @@ pub(crate) fn compare_facts(d: &Differences) -> Vec<Fact> {
         vec![value(None, id(d.first_txid))]
     } else {
         vec![
-            value(Some(EN.compare_fact_first), id(d.first_txid)),
-            value(Some(EN.compare_fact_second), id(d.second_txid)),
+            value(Some(EN.signer_sent), id(d.first_txid)),
+            value(Some(EN.signer_returned), id(d.second_txid)),
         ]
     };
     let side = |f: &faraday_psbt::diff::Facts| {
@@ -370,8 +370,8 @@ pub(crate) fn compare_facts(d: &Differences) -> Vec<Fact> {
         Fact {
             label: EN.compare_fact_fee,
             values: vec![
-                value(Some(EN.compare_fact_first), side(&d.first)),
-                value(Some(EN.compare_fact_second), side(&d.second)),
+                value(Some(EN.signer_sent), side(&d.first)),
+                value(Some(EN.signer_returned), side(&d.second)),
             ],
         },
         Fact {

@@ -1,7 +1,7 @@
 //! `Screen::Spend`: signing a transaction.
 
 use super::parts::{made_place, side_panel_w, spaced};
-use crate::compare::ComparePress;
+use crate::decode::check::SignerPress;
 use crate::drawing::{Scrolled, View};
 use crate::memory::nonces::History;
 use crate::review::unchecked_text;
@@ -1063,7 +1063,7 @@ impl StepView<'_> {
                     BUTTON_H,
                     EN.compare_from_review,
                     Style::Secondary,
-                    Action::Compare(ComparePress::FromReview(o.place.0, o.place.1)),
+                    Action::SignerCheck(SignerPress::FromReview(o.place.0, o.place.1)),
                 );
                 cy += BUTTON_H + GAP_SMALL;
             }

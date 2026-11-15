@@ -3673,7 +3673,7 @@ impl Faraday {
         self.spend_files_out();
     }
 
-    /// Costs what `compare::others::make` costs (an inspection of each
+    /// Costs what `check_others::make` costs (an inspection of each
     /// other transaction's file), only when the spend was inspected again
     /// or the files that count are not the ones the results were made
     /// from (`docs/COMPARE.md` §4.3); a lookup over Files otherwise.
@@ -3690,7 +3690,7 @@ impl Faraday {
             .map(|i| i.previous_output)
             .collect();
         spent.sort();
-        let now: Vec<_> = crate::compare::others::counting(
+        let now: Vec<_> = crate::decode::check_others::counting(
             self.inbox().iter().chain(self.outbox.iter()),
             s.spend.txid,
             &spent,
@@ -3700,7 +3700,7 @@ impl Faraday {
             Some((
                 Text::of(&i.name),
                 t,
-                crate::compare::others::place_of(self, i)?,
+                crate::decode::check_others::place_of(self, i)?,
             ))
         })
         .collect();
@@ -3710,7 +3710,7 @@ impl Faraday {
         let made = if now.is_empty() {
             Vec::new()
         } else {
-            crate::compare::others::make(
+            crate::decode::check_others::make(
                 c,
                 self,
                 &s.spend.psbt,

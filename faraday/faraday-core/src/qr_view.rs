@@ -83,16 +83,11 @@ pub enum ScanPurpose {
     /// The Sweep sheet's: a private key, then the sweep's PSBT
     /// (`seeds::sweep`, F171).
     Sweep,
-    /// Check a signer's **Scan** on the Sent card: a PSBT for that card,
-    /// never filed.
+    /// Check a signer's **Scan** on the Sent card: a PSBT or a finished
+    /// transaction for that card, never filed.
     CheckSent,
     /// Check a signer's **Scan** on the Returned card.
     CheckReturned,
-    /// Compare's **Scan** on the First card: a PSBT or a finished
-    /// transaction for that card, never filed.
-    CompareFirst,
-    /// Compare's **Scan** on the Second card.
-    CompareSecond,
     /// Sign a message's **Scan**: plain text for the message, never
     /// filed; any other kind is named and refused.
     MessageText,

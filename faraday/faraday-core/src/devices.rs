@@ -456,7 +456,7 @@ impl DeviceCheck {
 /// attached or a held device makes wait ([`Faraday::pull_what`]).
 pub(crate) fn camera_press(action: Action) -> bool {
     use crate::backup_flow::steps::{FlowAction as F, RestorePress as R};
-    use crate::{codex32_backup, compare, decode, kef_form, kef_tool, seeds, spend_backup, vault};
+    use crate::{codex32_backup, decode, kef_form, kef_tool, seeds, spend_backup, vault};
     matches!(
         action,
         Action::Scan
@@ -464,7 +464,6 @@ pub(crate) fn camera_press(action: Action) -> bool {
             | Action::BScan
             | Action::MScan
             | Action::ReadAgain
-            | Action::Compare(compare::ComparePress::Scan(_))
             | Action::SignerCheck(decode::check::SignerPress::Scan(_))
             | Action::Sweep(seeds::sweep::SweepAction::Scan)
             | Action::BC32(codex32_backup::Press::ScanCopy)

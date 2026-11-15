@@ -576,7 +576,6 @@ faraday/faraday-core/src/backup_flow/steps.rs
 faraday/faraday-core/src/backup_flow/gpg_restore.rs
 faraday/faraday-core/src/wallet_backup.rs
 faraday/faraday-core/src/wallet_backup/kef.rs
-faraday/faraday-core/src/compare/mod.rs
 faraday/faraday-core/src/tools/mod.rs
 faraday/faraday-core/src/codes/mod.rs
 faraday/faraday-core/src/copy_check.rs
@@ -728,8 +727,6 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       Check a signer's card titles, file names and txids
 #   faraday/faraday-core/src/multisig_check/mod.rs
 #       a setup's public descriptor text, its cosigners' fingerprints, paths and keys, and refusals; a private key is refused before it is read
-#   faraday/faraday-core/src/compare/screen.rs
-#       Compare's card titles and file names
 #   faraday/faraday-core/src/wallet/nonce.rs
 #       the nonce check's counts and headlines
 #   faraday/faraday-core/src/wallet/account.rs
@@ -768,7 +765,6 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       test code, test file names
 #   faraday/faraday-core/src/work/budget/signer.rs
 #       test code, test file names
-#   faraday/faraday-core/src/work/budget/compare.rs
 #       test code, test file names
 #   faraday/faraday-ui/src/lib.rs
 #       SVG path data and test lines
@@ -809,7 +805,6 @@ faraday/faraday-core/src/register.rs
 faraday/faraday-core/src/create_from.rs
 faraday/faraday-core/src/decode/check_screen.rs
 faraday/faraday-core/src/multisig_check/mod.rs
-faraday/faraday-core/src/compare/screen.rs
 faraday/faraday-core/src/wallet/nonce.rs
 faraday/faraday-core/src/wallet/account.rs
 faraday/faraday-core/src/screens/wallets.rs
@@ -829,7 +824,6 @@ faraday/faraday-core/src/work/kept.rs
 faraday/faraday-core/src/work/budget/scaling.rs
 faraday/faraday-core/src/work/budget/fee_bump.rs
 faraday/faraday-core/src/work/budget/signer.rs
-faraday/faraday-core/src/work/budget/compare.rs
 faraday/faraday-ui/src/lib.rs
 faraday/faraday-ui/src/nav/app_bar.rs
 faraday/faraday-ui/src/sheet.rs

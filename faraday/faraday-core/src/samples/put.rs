@@ -337,10 +337,7 @@ impl Faraday {
             | ScanPurpose::MessageText
             | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => false,
-            ScanPurpose::CheckSent
-            | ScanPurpose::CheckReturned
-            | ScanPurpose::CompareFirst
-            | ScanPurpose::CompareSecond => true,
+            ScanPurpose::CheckSent | ScanPurpose::CheckReturned => true,
         }
     }
 
@@ -527,9 +524,6 @@ impl Faraday {
             | ScanPurpose::SeedCompare
             | ScanPurpose::Sweep => None,
             ScanPurpose::CheckSent => Some(set.inputs.signer_sent.to_vec()),
-            // Core's fee bump pair: the original, then its replacement.
-            ScanPurpose::CompareFirst => Some(set.inputs.compare_first.to_vec()),
-            ScanPurpose::CompareSecond => Some(set.inputs.compare_second.to_vec()),
             // The clean Returned, and the one with a pair added when the
             // card already holds the clean one: two presses show both.
             ScanPurpose::CheckReturned => {

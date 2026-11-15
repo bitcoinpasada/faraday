@@ -74,7 +74,7 @@ fn the_tile_opens_with_no_key_or_wallet() {
     open(&mut app);
     assert_eq!(app.screen, Screen::SignerCheck);
     assert!(shows(&mut app, EN.signer_sent));
-    assert!(shows(&mut app, EN.signer_no_psbt));
+    assert!(shows(&mut app, EN.compare_no_files));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn something_else_scanned_is_not_a_psbt() {
         .scan()
         .and_then(|s| s.note.as_ref().map(|n| String::from(n.as_str())))
         .unwrap_or_default();
-    assert_eq!(note, "Not a PSBT");
+    assert_eq!(note, EN.compare_not_a_transaction);
     assert!(app.inbox().is_empty());
 }
 
@@ -465,7 +465,15 @@ fn a_taproot_pair_defaults_and_reads_clean() {
         "{:?}",
         texts(&mut app)
     );
-    assert!(holding(&mut app, "0 signatures").is_empty());
+    // A count of zero is only the difference line "{a} signatures sent,
+    // {b} returned" (SIGNER-CHECK §11.5, Differences), never a finding.
+    assert!(
+        holding(&mut app, "0 signatures")
+            .iter()
+            .all(|l| l.contains(" sent, ")),
+        "{:?}",
+        texts(&mut app)
+    );
     assert!(
         holding(&mut app, "Danger").is_empty(),
         "{:?}",
@@ -594,7 +602,7 @@ fn a_signature_in_two_places_gives_no_invented_order() {
         "{:?}",
         texts(&mut app)
     );
-    assert!(shows(&mut app, EN.signer_no_psbt) || shows(&mut app, EN.signer_scan));
+    assert!(shows(&mut app, EN.compare_no_files) || shows(&mut app, EN.signer_scan));
     assert!(!shows(&mut app, EN.signer_only_signatures));
 }
 
@@ -609,7 +617,7 @@ fn the_flow_listing_a_scanned_junk_leaves_no_refusal_after_a_reopen() {
     read(&mut app, &sent());
     assert_eq!(app.sheet, None);
     assert!(
-        !shows(&mut app, EN.wallet_not_a_psbt),
+        !shows(&mut app, EN.compare_not_a_transaction),
         "{:?}",
         texts(&mut app)
     );
@@ -816,5 +824,5 @@ fn a_returned_card_with_only_the_sent_file_offers_scan_and_no_empty_line() {
     open(&mut app);
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
     assert!(shows(&mut app, EN.signer_scan));
-    assert!(!shows(&mut app, EN.signer_no_psbt));
+    assert!(!shows(&mut app, EN.compare_no_files));
 }

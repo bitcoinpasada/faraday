@@ -10,7 +10,7 @@ use faraday_strings::EN;
 
 /// The included pages, by place: the one list of files. A page is added
 /// by a line here.
-const PAGES: [(&str, &str); 55] = [
+const PAGES: [(&str, &str); 54] = [
     ("backup", include_str!("../../../docs/guide/backup.md")),
     (
         "backup-flow",
@@ -25,7 +25,6 @@ const PAGES: [(&str, &str); 55] = [
         include_str!("../../../docs/guide/check-message.md"),
     ),
     ("codes", include_str!("../../../docs/guide/codes.md")),
-    ("compare", include_str!("../../../docs/guide/compare.md")),
     ("convert", include_str!("../../../docs/guide/convert.md")),
     (
         "core-wallet",
@@ -376,7 +375,6 @@ const ORDER: [&[&str]; 10] = [
         "message",
         "check-message",
         "decode",
-        "compare",
         "signer-check",
         "nonce-check",
         "transfer",

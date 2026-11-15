@@ -55,10 +55,8 @@ pub enum Go {
     Sign,
     /// The nonce check, at the end of signing.
     NonceCheck,
-    /// Check a signer: the PSBT sent and the one returned.
+    /// Check a signer: the PSBT sent and the one returned, or any two.
     SignerCheck,
-    /// Compare two PSBTs: any two, side by side.
-    Compare,
     /// Decode a transaction.
     Decode,
     /// Decode a Lightning invoice.
@@ -303,15 +301,8 @@ pub const TILES: &[Tile] = &[
         group: EN.catalog_transactions,
         name: EN.catalog_check_a_signer,
         line: EN.catalog_sent_and_returned,
-        tags: &["BIP-174", "BIP-373"],
+        tags: &["BIP-174", "BIP-373", "BIP-125"],
         go: Go::SignerCheck,
-    },
-    Tile {
-        group: EN.catalog_transactions,
-        name: EN.catalog_compare_two_psbts,
-        line: EN.catalog_two_psbts_side_by_side,
-        tags: &["BIP-174", "BIP-125"],
-        go: Go::Compare,
     },
     Tile {
         group: EN.catalog_transactions,
@@ -646,7 +637,6 @@ impl Faraday {
             }
             Go::NonceCheck => self.nonce_check_tile(),
             Go::SignerCheck => self.signer_check_tile(),
-            Go::Compare => self.compare_tile(),
             Go::Decode => match self
                 .inbox
                 .iter()

@@ -2,7 +2,7 @@
 //! transaction's review (`docs/COMPARE.md` §4): which files count, and
 //! each one's fee bump result in words.
 
-use super::words::{self, Fact};
+use super::diff_words::{self, Fact};
 use crate::Faraday;
 use crate::decode::raw_as_psbt;
 use crate::item::Item;
@@ -20,7 +20,7 @@ pub(crate) struct Other {
     /// The original's file name.
     pub name: String,
     /// Where the file is in Files when the result was made: whether in
-    /// the Outbox, and its place there (the press on **Compare** names
+    /// the Outbox, and its place there (the press on **Compare** in Sign's review names
     /// it; a change of Files makes the results again).
     pub place: (bool, usize),
     /// The original's unsigned transaction id.
@@ -143,9 +143,9 @@ pub(crate) fn make(
             place,
             txid: id,
             outcome: b.result,
-            result: words::result_from(b.result, &item.name),
-            lines: b.lines.iter().map(words::line).collect(),
-            facts: words::bump_facts(&b),
+            result: diff_words::result_from(b.result, &item.name),
+            lines: b.lines.iter().map(diff_words::line).collect(),
+            facts: diff_words::bump_facts(&b),
         });
     }
     out

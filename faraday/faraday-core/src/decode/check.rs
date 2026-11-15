@@ -1,22 +1,26 @@
 //! Check a signer: the flow's state and what it decides without the app
-//! (`docs/SIGNER-CHECK.md` §3, §8). The presses that need the app are in
-//! the area's `mod.rs`; the cards are drawn by `check_screen.rs`.
+//! (`docs/SIGNER-CHECK.md` §3, §8, §11). The presses that need the app are
+//! in the area's `mod.rs`; the cards are drawn by `check_screen.rs`.
 //!
-//! Everything kept here is public data (two PSBTs and the report on
-//! them), kept until a lock or power-off as Decode's state is.
+//! Everything kept here is public data (two PSBTs or transactions, the
+//! comparison and the report on them), kept until a lock or power-off as
+//! Decode's state is.
 
+use crate::decode::{check_others, diff_words};
 use crate::strings::EN;
 use crate::wallet::{InspectInputs, PsbtSeen};
 use crate::{Item, Screen, flow};
 use faraday_bip::base64;
 use faraday_bip::bitcoin::{OutPoint, Txid};
 use faraday_bip::keys::{Fingerprint, Network};
+use faraday_psbt::bump::{Bump, Line, Outcome};
+use faraday_psbt::diff::Differences;
 use faraday_psbt::signer::{Report, Verdict};
 use faraday_psbt::{Inspection, Level, OutputKind, Psbt};
 use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
-/// The two cards that choose a PSBT.
+/// The two cards that choose a PSBT or a finished transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Slot {
     /// The PSBT that went to the device.
@@ -62,10 +66,15 @@ pub enum SignerPress {
     /// The Result's **Load {fp}** for the key in this place of
     /// [`Shown::load`]: Add a key opens, and its end comes back here.
     Load(usize),
-    /// Files' ⋮ **Check a signer** on this PSBT (From the stick, or For
-    /// the stick when the first is true; its place in that list): the
-    /// flow opens with it as Returned.
+    /// Files' ⋮ **Check a signer** on this PSBT or finished transaction
+    /// (From the stick, or For the stick when the first is true; its
+    /// place in that list): the flow opens with it as Returned.
     File(bool, usize),
+    /// Sign a transaction's review **Compare** on the other transaction
+    /// in this file (as [`SignerPress::File`] names one): the flow opens
+    /// with that file as Sent and the PSBT under review as Returned, and
+    /// has run.
+    FromReview(bool, usize),
 }
 
 /// Where a PSBT came from: a file in Files (From the stick, or For the
@@ -79,10 +88,12 @@ pub(crate) enum Origin {
 /// One side of the check: the file as the person has it, its version 0
 /// form and its name.
 pub(crate) struct Side {
-    /// The file's bytes as the person has them: raw, base64 decoded
-    /// where the file is text.
+    /// The file's bytes: for a PSBT as the person has them (raw, base64
+    /// decoded where the file is text, [`raw_bytes`]), for a finished
+    /// transaction as Files holds them (raw or hex).
     pub bytes: Zeroizing<Vec<u8>>,
-    /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`).
+    /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`; for a
+    /// finished transaction, the PSBT form of what it carries).
     pub psbt: Psbt,
     /// What the closed card shows: the file's name, or "Scanned".
     pub name: Text,
@@ -108,19 +119,24 @@ pub(crate) struct CheckState {
     pub sent: Option<Side>,
     /// The PSBT that came back.
     pub returned: Option<Side>,
-    /// The check of the two PSBTs kept above, against the keys loaded.
-    /// Invariant: `report` is `Some` only for the very `sent` and
-    /// `returned` held now; it is replaced (or dropped) whenever either
-    /// PSBT changes (a pick, a scan) and whenever a key is loaded or
-    /// dropped (SIGNER-CHECK §8.2).
+    /// The check of the two PSBTs kept above, against the keys loaded:
+    /// `Some` where both are PSBTs. Invariant: `report` and `shown` are
+    /// `Some` only for the very `sent` and `returned` held now; they are
+    /// replaced (or dropped) whenever either side changes (a pick, a scan,
+    /// a swap) and whenever a key or wallet is loaded or dropped
+    /// (SIGNER-CHECK §8.2).
     pub report: Option<Report>,
-    /// The report in words, worked out with it and kept beside it, so
-    /// drawing reads text and works nothing out. `Some` exactly where
-    /// `report` is.
+    /// The whole Result in words (the comparison, the fee bump and the
+    /// report), worked out with the report and kept beside it, so drawing
+    /// reads text and works nothing out. `Some` once both sides are in.
     pub shown: Option<Shown>,
-    /// The keys and wallets the report was made with: a press that leaves
+    /// The keys and wallets the result was made with: a press that leaves
     /// others makes it again (`Faraday::signer_check_sync`).
     pub made_with: Option<InspectInputs>,
+    /// The ids of the finished transactions in Files that the lists show,
+    /// worked out beside the file's bytes by `Faraday::signer_check_sync`,
+    /// so drawing reads them.
+    pub ids: Vec<(Zeroizing<Vec<u8>>, Txid)>,
     /// The card open.
     pub open: u8,
     /// Why a card refused what was given it.
@@ -139,6 +155,7 @@ impl CheckState {
             report: None,
             shown: None,
             made_with: None,
+            ids: Vec::new(),
             open: 0,
             refused: [None, None],
             scroll: flow::Scroll {
@@ -208,16 +225,49 @@ impl CheckState {
             self.scroll.follow = true;
         }
     }
+
+    /// A finished transaction's id as `signer_check_sync` kept it.
+    fn id_of(&self, bytes: &[u8]) -> Option<Txid> {
+        self.ids
+            .iter()
+            .find(|(b, _)| b.as_slice() == bytes)
+            .map(|(_, t)| *t)
+    }
+
+    /// A file's line in the lists: "{n} signatures · {id}" for a PSBT,
+    /// "Finished · {id}" for a finished transaction. Reads what the file
+    /// and `signer_check_sync` kept.
+    pub(crate) fn line(&self, item: &Item) -> Text {
+        if let Some(p) = item.psbt() {
+            let id = faraday_ui::short(&text!("{}", p.txid));
+            return if p.sigs == 1 {
+                Text::fill(EN.signer_row_one, &[&id])
+            } else {
+                Text::fill(EN.signer_row, &[&Text::num(p.sigs as u64), &id])
+            };
+        }
+        self.id_of(&item.bytes).map_or_else(Text::new, |t| {
+            Text::fill(
+                EN.compare_row_finished,
+                &[&faraday_ui::short(&text!("{t}"))],
+            )
+        })
+    }
 }
 
-/// A PSBT's files as the card lists them: every PSBT in Files, From the
-/// stick then For the stick, as (outbox, place, item).
+/// The files the cards list: every PSBT and every finished transaction
+/// in Files, From the stick then For the stick, as (outbox, place, item).
 pub(crate) fn files<'a>(inbox: &'a [Item], outbox: &'a [Item]) -> Vec<(bool, usize, &'a Item)> {
     let of = |items: &'a [Item], out: bool| {
         items
             .iter()
             .enumerate()
-            .filter(|(_, i)| i.psbt().is_some())
+            .filter(|(_, i)| {
+                matches!(
+                    i.kind,
+                    crate::wallet::FileKind::Psbt | crate::wallet::FileKind::Transaction
+                )
+            })
             .map(|(k, i)| (out, k, i))
             .collect::<Vec<_>>()
     };
@@ -226,46 +276,46 @@ pub(crate) fn files<'a>(inbox: &'a [Item], outbox: &'a [Item]) -> Vec<(bool, usi
     all
 }
 
-/// The rows of one card: the file's place in [`files`] for each, the
-/// other side's transaction first and then the rest, the file chosen as
-/// the other side not listed. The Sent card follows the Returned file
-/// the same way, as where Files opened the flow on one. The split is
-/// where the "Other transactions" label goes.
+/// The rows of one card: the place in [`files`] of each. First the files
+/// that spend an input of the other card's file, those of its own
+/// unsigned transaction first; then the rest, under "Other
+/// transactions". The file chosen as the other card is not listed. The
+/// split is where the label goes.
 pub(crate) fn rows(
     all: &[(bool, usize, &Item)],
     slot: Slot,
     (sent, returned): (Option<&Side>, Option<&Side>),
 ) -> (Vec<usize>, Vec<usize>) {
-    let (mut same, mut other) = (Vec::new(), Vec::new());
     let beside = match slot {
         Slot::Returned => sent,
         Slot::Sent => returned,
     };
-    // A file of the other side's name that is not that copy is a file of
-    // its own, listed.
-    let kept = |s: &Side| !s.differs;
+    let Some(s) = beside else {
+        return ((0..all.len()).collect(), Vec::new());
+    };
+    let (mut own, mut spends, mut other) = (Vec::new(), Vec::new(), Vec::new());
     for (n, (outbox, _, item)) in all.iter().enumerate() {
-        match beside {
-            Some(s) => {
-                if kept(s)
-                    && s.origin
-                        == (Origin::File {
-                            outbox: *outbox,
-                            name: Text::of(&item.name),
-                        })
-                {
-                    continue;
-                }
-                if item.psbt().is_some_and(|p| p.txid == s.txid) {
-                    same.push(n);
-                } else {
-                    other.push(n);
-                }
-            }
-            None => same.push(n),
+        // A file of the other side's name that is not that copy is a file
+        // of its own, listed.
+        if !s.differs
+            && s.origin
+                == (Origin::File {
+                    outbox: *outbox,
+                    name: Text::of(&item.name),
+                })
+        {
+            continue;
+        }
+        if item.unsigned_txid == Some(s.txid) {
+            own.push(n);
+        } else if check_others::shares(&item.outpoints, &s.outpoints) {
+            spends.push(n);
+        } else {
+            other.push(n);
         }
     }
-    (same, other)
+    own.extend(spends);
+    (own, other)
 }
 
 /// The default of SIGNER-CHECK §3, "Which is which": exactly two PSBTs
@@ -276,7 +326,9 @@ pub(crate) fn default_pair(all: &[(bool, usize, &Item)]) -> Option<(usize, usize
     let seen = |n: usize| -> Option<&PsbtSeen> { all[n].2.psbt() };
     let mut found: Option<(usize, usize)> = None;
     for a in 0..all.len() {
-        let ta = seen(a)?.txid;
+        let Some(ta) = seen(a).map(|p| p.txid) else {
+            continue;
+        };
         let group: Vec<usize> = (0..all.len())
             .filter(|n| seen(*n).is_some_and(|p| p.txid == ta))
             .collect();
@@ -368,19 +420,61 @@ pub(crate) fn verdict_line(report: &Report) -> (Text, Tone) {
     }
 }
 
-/// The Result card's text, in the order it is drawn.
+impl BumpShown {
+    /// The result's tone: Only the fee is raised in `OK`, More than the
+    /// fee changed in `ERR`, Cannot tell in `WARN` (COMPARE §3.3).
+    pub(crate) fn tone(&self) -> Tone {
+        match self.outcome {
+            Outcome::OnlyFee => Tone::Ok,
+            Outcome::MoreChanged => Tone::Err,
+            Outcome::CannotTell => Tone::Warn,
+        }
+    }
+}
+
+/// The fee bump result in words.
+pub(crate) struct BumpShown {
+    /// What it came to; the screen tones it.
+    pub outcome: Outcome,
+    /// The result line.
+    pub result: &'static str,
+    /// The lines, in the rules' order.
+    pub lines: Vec<Text>,
+    /// The facts under them.
+    pub facts: Vec<diff_words::Fact>,
+}
+
+/// The facts of the Result: the check's where it ran on one unsigned
+/// transaction, else the comparison's.
+pub(crate) enum Facts {
+    /// Label and value, one fact each (SIGNER-CHECK §4).
+    Check(Vec<(Text, Text)>),
+    /// The comparison's: the transaction, the fees, the counts.
+    Compare(Vec<diff_words::Fact>),
+}
+
+/// The Result card's text, in the order it is drawn (SIGNER-CHECK §11.5).
 pub(crate) struct Shown {
-    /// Label and value, one fact each.
-    pub facts: Vec<(Text, Text)>,
+    /// The fee bump result, where it applies.
+    pub bump: Option<BumpShown>,
+    /// The verdict line and its tone; `None` where a side is a finished
+    /// transaction ("The signer check needs two PSBTs").
+    pub verdict: Option<(Text, Tone)>,
+    /// The facts.
+    pub facts: Facts,
     /// A line per finding in the report's order, with its level.
     pub findings: Vec<(Level, Text)>,
     /// The lines stated, which are no finding.
     pub stated: Vec<Text>,
-    /// Whether the findings section is drawn: not where the two PSBTs
-    /// share no input.
+    /// Whether the findings section is drawn: where the check ran, not
+    /// where the two PSBTs share no input.
     pub has_findings: bool,
-    /// The keys that signed and whose seed is not loaded, one **Load**
-    /// each.
+    /// A line per difference, or "No differences".
+    pub differences: Vec<Text>,
+    /// Whether **Show as QR** is offered: the Returned side is a PSBT.
+    pub qr: bool,
+    /// The keys the result says are not loaded, one **Load** each: the
+    /// check's, then the fee bump's.
     pub load: Vec<Fingerprint>,
 }
 
@@ -409,78 +503,98 @@ fn nonce_facts(facts: &mut Vec<(Text, Text)>, r: &faraday_psbt::signer::Recomput
     }
 }
 
+/// The facts of the check where the two are one unsigned transaction,
+/// `txid`, with the Returned PSBT's `inspection` for what it sends, its
+/// fee and its change (SIGNER-CHECK §4).
+fn check_facts(report: &Report, txid: &Txid, inspection: &Inspection) -> Vec<(Text, Text)> {
+    let mut facts = vec![(
+        Text::of(EN.signer_transaction),
+        faraday_ui::grouped(&text!("{txid}")),
+    )];
+    let f = &report.facts;
+    facts.push((
+        Text::of(EN.signer_signatures_added),
+        text!("{}", f.added.len() + f.partial_sigs_added),
+    ));
+    if !f.finalized.is_empty() {
+        facts.push((
+            Text::of(EN.signer_inputs_finalized),
+            text!("{}", f.finalized.len()),
+        ));
+    }
+    if let Some(r) = &f.recomputed
+        && (r.of > 0 || !r.not_loaded.is_empty())
+    {
+        nonce_facts(&mut facts, r);
+    }
+    facts.push((
+        Text::of(EN.step_sends),
+        super::btc(inspection.amount_to_others.to_sat()),
+    ));
+    facts.push((
+        Text::of(EN.step_fee),
+        if inspection.fee_rate_sat_vb.is_some() {
+            super::btc(inspection.fee.to_sat())
+        } else {
+            Text::of(EN.step_fee_not_known)
+        },
+    ));
+    // Verified where an output is change on the change chain and none
+    // claims a key it could not verify.
+    let verified = inspection.outputs.iter().any(|o| {
+        matches!(
+            o.kind,
+            OutputKind::Change { change: true, .. } | OutputKind::WalletChange { change: true, .. }
+        )
+    }) && !inspection
+        .outputs
+        .iter()
+        .any(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }));
+    facts.push((
+        Text::of(EN.step_change),
+        Text::of(if verified {
+            EN.signer_change_verified
+        } else {
+            EN.signer_change_not_verified
+        }),
+    ));
+    facts
+}
+
 /// Costs the text and nothing beyond it; the inspection is the caller's.
-/// The report in words, with the Returned PSBT's `inspection` for what it
-/// sends, its fee and its change (SIGNER-CHECK §4).
+/// The comparison `d`, the fee bump where it applies and, where both
+/// sides are PSBTs, the check's `report` with the Returned PSBT's
+/// `inspection`, in words (SIGNER-CHECK §11.5). `qr` is whether the
+/// Returned side is a PSBT.
 pub(crate) fn shown(
-    report: &Report,
-    (sent, returned): (&Txid, &Txid),
-    inspection: &Inspection,
+    d: &Differences,
+    bump: Option<&Bump>,
+    checked: Option<(&Report, &Inspection)>,
     network: Network,
+    qr: bool,
 ) -> Shown {
     use super::check_words as words;
-    let id = |t: &Txid| faraday_ui::grouped(&text!("{t}"));
-    let mut facts = Vec::new();
-    let same = report.verdict != Verdict::NotSameTransaction;
-    if sent == returned {
-        facts.push((Text::of(EN.signer_transaction), id(sent)));
-    } else {
-        facts.push((Text::of(EN.signer_sent), id(sent)));
-        facts.push((Text::of(EN.signer_returned), id(returned)));
-    }
-    if same {
-        let f = &report.facts;
-        facts.push((
-            Text::of(EN.signer_signatures_added),
-            text!("{}", f.added.len() + f.partial_sigs_added),
-        ));
-        if !f.finalized.is_empty() {
-            facts.push((
-                Text::of(EN.signer_inputs_finalized),
-                text!("{}", f.finalized.len()),
-            ));
-        }
-        if let Some(r) = &f.recomputed
-            && (r.of > 0 || !r.not_loaded.is_empty())
+    let mut load: Vec<Fingerprint> = checked
+        .and_then(|(r, _)| r.facts.recomputed.as_ref())
+        .map_or_else(Vec::new, |r| r.not_loaded.clone());
+    for l in bump.map_or(&[][..], |b| &b.lines[..]) {
+        if let Line::ChangeNotLoaded { key, .. } | Line::InputNotLoaded { key, .. } = l
+            && !load.contains(key)
         {
-            nonce_facts(&mut facts, r);
+            load.push(*key);
         }
-        facts.push((
-            Text::of(EN.step_sends),
-            super::btc(inspection.amount_to_others.to_sat()),
-        ));
-        facts.push((
-            Text::of(EN.step_fee),
-            if inspection.fee_rate_sat_vb.is_some() {
-                super::btc(inspection.fee.to_sat())
-            } else {
-                Text::of(EN.step_fee_not_known)
-            },
-        ));
-        // Verified where an output is change on the change chain and none
-        // claims a key it could not verify.
-        let verified = inspection.outputs.iter().any(|o| {
-            matches!(
-                o.kind,
-                OutputKind::Change { change: true, .. }
-                    | OutputKind::WalletChange { change: true, .. }
-            )
-        }) && !inspection
-            .outputs
-            .iter()
-            .any(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }));
-        facts.push((
-            Text::of(EN.step_change),
-            Text::of(if verified {
-                EN.signer_change_verified
-            } else {
-                EN.signer_change_not_verified
-            }),
-        ));
     }
-    Shown {
-        facts,
-        findings: report
+    let facts = match checked {
+        Some((report, inspection)) if d.same_transaction() => {
+            Facts::Check(check_facts(report, &d.first_txid, inspection))
+        }
+        _ => Facts::Compare(diff_words::compare_facts(d)),
+    };
+    let mut findings = Vec::new();
+    let mut stated = Vec::new();
+    let mut has_findings = false;
+    if let Some((report, _)) = checked {
+        findings = report
             .findings
             .iter()
             .map(|f| {
@@ -490,18 +604,36 @@ pub(crate) fn shown(
                     Text::fill(EN.signer_finding_line, &[words::level_word(f.level), &line]),
                 )
             })
-            .collect(),
-        stated: report
+            .collect();
+        stated = report
             .info
             .iter()
             .map(|i| Text::of(&words::stated(i)))
+            .collect();
+        has_findings = report.verdict != Verdict::NotSameTransaction;
+    }
+    Shown {
+        bump: bump.map(|b| BumpShown {
+            outcome: b.result,
+            result: diff_words::result(b.result),
+            lines: b
+                .lines
+                .iter()
+                .map(|l| Text::of(&diff_words::line(l)))
+                .collect(),
+            facts: diff_words::bump_facts(b),
+        }),
+        verdict: checked.map(|(r, _)| verdict_line(r)),
+        facts,
+        findings,
+        stated,
+        has_findings,
+        differences: diff_words::differences(d)
+            .iter()
+            .map(|l| Text::of(l))
             .collect(),
-        has_findings: same,
-        load: report
-            .facts
-            .recomputed
-            .as_ref()
-            .map_or_else(Vec::new, |r| r.not_loaded.clone()),
+        qr,
+        load,
     }
 }
 

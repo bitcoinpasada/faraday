@@ -330,15 +330,14 @@ fn nothing_that_shows_a_secret_is_offered_while_held() {
 #[test]
 fn no_scan_turns_the_camera_on_while_a_device_is_held() {
     use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
-    use faraday_core::compare::ComparePress;
-    use faraday_core::decode::check::{self, SignerPress, Slot};
+    use faraday_core::decode::check::{SignerPress, Slot};
     let presses = [
         Action::Scan,
         Action::BScan,
         Action::MScan,
         Action::ReadAgain,
-        Action::Compare(ComparePress::Scan(Slot::Sent)),
-        Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
+        Action::SignerCheck(SignerPress::Scan(Slot::Sent)),
+        Action::SignerCheck(SignerPress::Scan(Slot::Returned)),
         Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
         Action::BC32(faraday_core::codex32_backup::Press::ScanCopy),
         Action::Flow(F::Restore(R::Scan)),

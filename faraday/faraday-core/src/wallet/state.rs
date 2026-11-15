@@ -84,7 +84,7 @@ pub struct SpendState {
     /// The other transactions spending what this one spends, with their
     /// fee bump results in words (`docs/COMPARE.md` §4.3), made with the
     /// inspection and read when drawing.
-    pub(crate) others: Vec<crate::compare::others::Other>,
+    pub(crate) others: Vec<crate::decode::check_others::Other>,
     /// What [`SpendState::others`] were made from: each other file's name,
     /// unsigned transaction id and place in Files. `None` until made.
     pub(crate) others_from: Option<Vec<OtherFrom>>,
@@ -777,7 +777,7 @@ impl WalletsArea {
     /// `from` counts.
     pub(crate) fn keep_others(
         &mut self,
-        made: Vec<crate::compare::others::Other>,
+        made: Vec<crate::decode::check_others::Other>,
         from: Vec<OtherFrom>,
     ) {
         if let Some(s) = self.spend.as_mut() {

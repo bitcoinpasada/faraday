@@ -8,7 +8,7 @@
 //! `bump-core-*` files).
 
 use crate::common::texts;
-use faraday_core::compare::ComparePress;
+use faraday_core::decode::check::SignerPress;
 use faraday_core::strings::{EN, fill};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
@@ -122,16 +122,16 @@ fn compare_on_the_review_opens_the_comparison_with_the_original_first_and_done_r
     let press = app
         .drawn_actions()
         .into_iter()
-        .find(|a| matches!(a, Action::Compare(ComparePress::FromReview(..))))
+        .find(|a| matches!(a, Action::SignerCheck(SignerPress::FromReview(..))))
         .expect("the review draws a Compare button");
     app.press(press);
-    assert_eq!(app.screen, Screen::Compare);
-    assert!(shows(&mut app, EN.compare_result), "{:?}", texts(&mut app));
+    assert_eq!(app.screen, Screen::SignerCheck);
+    assert!(shows(&mut app, EN.signer_result), "{:?}", texts(&mut app));
     // The original is the one the replacement is judged against.
     assert!(shows(&mut app, EN.bump_only_fee), "{:?}", texts(&mut app));
     assert!(has_part(&mut app, "bump-core-original.psbt"));
     assert!(has_part(&mut app, "bump-core-replacement.psbt"));
-    app.press(Action::Compare(ComparePress::Back));
+    app.press(Action::SignerCheck(SignerPress::Back));
     assert_eq!(app.screen, Screen::Spend);
     assert!(shows(&mut app, EN.compare_fee_bump_label));
 }
