@@ -271,7 +271,7 @@ impl Visitor<'_> for KeyText {
     type Value = Text;
 
     fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("a key")
+        f.write_str("key")
     }
 
     fn visit_str<E: de::Error>(self, v: &str) -> Result<Text, E> {
