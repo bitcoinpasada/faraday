@@ -806,3 +806,86 @@ fn a_seed_and_an_xprv_received_and_saved_leave_no_freed_copy() {
     received_and_saved(PLANTED_XPRV);
     finish("received seed and xprv saved", armed, false);
 }
+
+/// The forms a words file's text takes on its way through a visit's file
+/// parsers: its words run together, and that read back as base64.
+fn words_file_forms() -> Vec<Form> {
+    let mut forms = seed_forms("");
+    let run_together: String = PHRASE.split(' ').collect();
+    if let Ok(decoded) = faraday_bip::base64::decode(&run_together) {
+        forms.push(Form::new("phrase's decoding as base64", decoded.to_vec()));
+    }
+    forms.push(Form::new(
+        "phrase with its spaces taken out",
+        run_together.into_bytes(),
+    ));
+    forms
+}
+
+#[test]
+fn a_words_file_classified_leaves_no_freed_copy_of_its_text() {
+    let forms = words_file_forms();
+    let bytes = std::mem::ManuallyDrop::new(PHRASE.as_bytes().to_vec());
+    let c = testkit::compute();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::classify_read(&c, "seed.txt", &bytes);
+    assert_eq!(read.kind, faraday_core::wallet::FileKind::Words);
+    drop(read);
+    finish("words file classified", armed, false);
+}
+
+#[test]
+fn a_words_file_one_word_to_a_line_classified_leaves_no_freed_copy() {
+    let forms = words_file_forms();
+    let lines = PHRASE.replace(' ', "\n");
+    let bytes = std::mem::ManuallyDrop::new(lines.into_bytes());
+    let c = testkit::compute();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::classify_read(&c, "seed.txt", &bytes);
+    assert_eq!(read.kind, faraday_core::wallet::FileKind::Words);
+    drop(read);
+    finish("words file by lines classified", armed, false);
+}
+
+#[test]
+fn entropy_written_as_hex_classified_leaves_no_freed_copy() {
+    let mut forms = seed_forms("");
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, PHRASE).expect("the vector's words");
+    let entropy = m.entropy().expose().as_bytes().to_vec();
+    forms.push(Form::new("entropy, first half", entropy[..16].to_vec()));
+    let hex: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
+    let bytes = std::mem::ManuallyDrop::new(hex.into_bytes());
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::classify_read(&c, "entropy.txt", &bytes);
+    drop(read);
+    finish("entropy hex classified", armed, false);
+}
+
+#[test]
+fn an_xprv_in_an_electrum_keystores_xpub_refused_leaves_no_copy() {
+    let file = format!(
+        r#"{{"keystore": {{"type": "bip32", "xpub": "{PLANTED_XPRV}"}}, "wallet_type": "standard", "use_encryption": false, "seed_version": 17}}"#
+    );
+    let c = testkit::compute();
+    let forms = planted_xprv_forms();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::read_wallet(&c, &file);
+    assert!(read.is_err(), "a private key is refused");
+    drop(read);
+    finish("xprv in an electrum keystore refused", armed, false);
+}
+
+#[test]
+fn an_xprv_in_a_coldcard_exports_account_refused_leaves_no_copy() {
+    let file = format!(
+        r#"{{"chain": "BTC", "xfp": "0F056943", "bip84": {{"name": "p2wpkh", "xfp": "0F056943", "deriv": "m/84'/0'/0'", "xpub": "{PLANTED_XPRV}", "first": "bc1q"}}}}"#
+    );
+    let c = testkit::compute();
+    let forms = planted_xprv_forms();
+    let armed = arm(&forms);
+    let read = faraday_core::wallet::read_wallet(&c, &file);
+    assert!(read.is_err(), "a private key is refused");
+    drop(read);
+    finish("xprv in a coldcard export refused", armed, false);
+}

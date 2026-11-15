@@ -260,6 +260,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       the enrolment files' names and certificate common names
 #   core/faraday-psbt/src/psbt.rs
 #       a PSBT's parse refusals and its base64
+#   core/faraday-bip/src/coldcard.rs, faraday/faraday-intake/src/electrum.rs
+#       the import's own messages and public fields; only a key line is wiping text
 UNHELD="faraday/faraday-core/src/testkit/plain.rs
 faraday/faraday-core/src/screens/backup.rs
 faraday/faraday-core/src/compact/screen.rs
@@ -316,7 +318,9 @@ faraday/faraday-ui/src/nav/app_bar.rs
 faraday/faraday-ui/src/sheet.rs
 faraday/faraday-host/src/labels.rs
 faraday/faraday-sb/src/lib.rs
-core/faraday-psbt/src/psbt.rs"
+core/faraday-psbt/src/psbt.rs
+core/faraday-bip/src/coldcard.rs
+faraday/faraday-intake/src/electrum.rs"
 UNHELD=$(echo $UNHELD)
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
 SECRET_FILES=$({ for f in $(type_files); do

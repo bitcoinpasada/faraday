@@ -38,7 +38,9 @@ fn ten_bbqr_parts_are_the_psbt_in_any_order() {
     lines
         .find(|l| l.starts_with("3-OF-5, FIVE INPUTS"))
         .unwrap();
-    let whole = faraday_bip::base64::decode(lines.next().unwrap().trim()).unwrap();
+    let whole = faraday_bip::base64::decode(lines.next().unwrap().trim())
+        .unwrap()
+        .to_vec();
     let parts: Vec<String> = (1..=10)
         .map(|n| code(&format!("wallets/multisig-6-psbt-bbqr-part-{n}-of-10.png")))
         .collect();

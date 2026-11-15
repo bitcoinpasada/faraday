@@ -89,6 +89,46 @@ fn bip174_role_vectors_round_trip() {
     assert_eq!(n, 10);
 }
 
+/// The first six characters of a base64 PSBT are fixed by the magic; the
+/// seventh follows the first global key's length. A PSBT whose first
+/// global pair is an xpub (key length 0x4f) starts `cHNidP9` and reads.
+#[test]
+fn base64_psbt_starting_with_a_global_xpub_reads() {
+    let c = Compute::unchecked();
+    let recs = records("tools/vectors/psbt/bip174.txt");
+    let rec = recs
+        .iter()
+        .find(|r| r.get("case").contains("PSBT_GLOBAL_XPUB"))
+        .expect("the vector with a global xpub");
+    let bytes = unhex(rec.get("hex"));
+    // Split the global map into its pairs and put the xpub's first.
+    let (mut pairs, mut at) = (Vec::new(), 5);
+    while bytes[at] != 0 {
+        let start = at;
+        let key_len = bytes[at] as usize;
+        at += 1 + key_len;
+        let val_len = bytes[at] as usize;
+        at += 1 + val_len;
+        pairs.push(&bytes[start..at]);
+    }
+    let xpub = pairs
+        .iter()
+        .position(|p| p[0] == 0x4f && p[1] == 0x01)
+        .expect("a global xpub pair");
+    let mut moved = bytes[..5].to_vec();
+    moved.extend_from_slice(pairs[xpub]);
+    for (i, p) in pairs.iter().enumerate() {
+        if i != xpub {
+            moved.extend_from_slice(p);
+        }
+    }
+    moved.extend_from_slice(&bytes[at..]);
+    let text = faraday_bip::base64::encode(&moved);
+    assert!(text.starts_with("cHNidP9"), "{text}");
+    assert!(Psbt::parse_base64(&c, &text).is_ok());
+    assert!(Psbt::parse_bytes(&c, &moved).is_ok());
+}
+
 #[test]
 fn parse_errors() {
     let c = Compute::unchecked();

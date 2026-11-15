@@ -35,6 +35,7 @@ use crate::keys::{MultisigScriptType, Network, ScriptType};
 use crate::policy::{DESCRIPTOR_SUFFIX, Error, PolicyKey, WalletPolicy};
 use crate::slip132::{self, Script};
 use faraday_crypto::work::Compute;
+use faraday_text::text;
 
 /// The four single-sig standards, in the order [`parse`] prefers them,
 /// with the field each is written under.
@@ -100,12 +101,12 @@ pub fn read(c: &Compute, text: &str) -> Result<(WalletPolicy, &'static str), Rea
         };
         let deriv = string_field(account, "deriv").ok_or(ReadError::NoDeriv(name))?;
         let origin = origin(xfp, deriv).ok_or(ReadError::NoDeriv(name))?;
-        let key = alloc::format!("[{origin}]{xpub}{DESCRIPTOR_SUFFIX}");
+        let key = text!("[{origin}]{xpub}{DESCRIPTOR_SUFFIX}");
         let template = match script {
-            ScriptType::Legacy => alloc::format!("pkh({key})"),
-            ScriptType::NestedSegwit => alloc::format!("sh(wpkh({key}))"),
-            ScriptType::NativeSegwit => alloc::format!("wpkh({key})"),
-            ScriptType::Taproot => alloc::format!("tr({key})"),
+            ScriptType::Legacy => text!("pkh({})", &*key),
+            ScriptType::NestedSegwit => text!("sh(wpkh({}))", &*key),
+            ScriptType::NativeSegwit => text!("wpkh({})", &*key),
+            ScriptType::Taproot => text!("tr({})", &*key),
         };
         let policy = WalletPolicy::from_descriptor(c, &template).map_err(ReadError::Policy)?;
         if let Some(first) = string_field(account, "first") {

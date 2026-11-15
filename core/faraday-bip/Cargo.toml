@@ -14,7 +14,7 @@ faraday-text = { path = "../faraday-text" }
 subtle.workspace = true
 # AES's round function for AEZ (docs/deps/aes.md).
 aes.workspace = true
-zeroize.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
 bitcoin.workspace = true
 base64ct.workspace = true
 miniscript.workspace = true

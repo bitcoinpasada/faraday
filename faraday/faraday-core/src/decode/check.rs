@@ -380,19 +380,19 @@ pub(crate) fn same_bytes(item: &[u8], kept: &[u8]) -> bool {
     if kept.len() > n / 4 * 3 || kept.len() + 2 < n / 4 * 3 {
         return false;
     }
-    raw_bytes(item) == kept
+    *raw_bytes(item) == kept
 }
 
 /// Costs a base64 decode for a text file. The file's bytes as the
 /// person has them: raw, base64 decoded where the file is text.
-pub(crate) fn raw_bytes(bytes: &[u8]) -> Vec<u8> {
+pub(crate) fn raw_bytes(bytes: &[u8]) -> Zeroizing<Vec<u8>> {
     if bytes.starts_with(b"psbt\xff") {
-        return bytes.to_vec();
+        return Zeroizing::new(bytes.to_vec());
     }
     std::str::from_utf8(bytes)
         .ok()
         .and_then(|t| base64::decode(t.trim()).ok())
-        .unwrap_or_else(|| bytes.to_vec())
+        .unwrap_or_else(|| Zeroizing::new(bytes.to_vec()))
 }
 
 /// What the verdict line says, and in which tone.

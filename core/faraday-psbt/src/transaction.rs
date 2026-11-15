@@ -11,20 +11,23 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use bitcoin::hex::FromHex;
 use bitcoin::psbt::Psbt;
 use bitcoin::{Amount, ScriptBuf, Transaction, Txid, Witness, consensus};
+use zeroize::Zeroizing;
 
 /// A raw transaction, in hex text or in bytes, with whatever signature
 /// data it carries.
 pub fn read_raw(bytes: &[u8]) -> Option<Transaction> {
     let trimmed = bytes.trim_ascii();
-    let raw = match core::str::from_utf8(trimmed)
-        .ok()
-        .and_then(|t| Vec::<u8>::from_hex(t.trim()).ok())
-    {
+    let raw = match core::str::from_utf8(trimmed).ok().and_then(|t| {
+        let t = t.trim();
+        let mut buf = Zeroizing::new(vec![0u8; t.len() / 2]);
+        let n = faraday_crypto::hex::decode_into(t, &mut buf)?;
+        buf.truncate(n);
+        Some(buf)
+    }) {
         Some(decoded) => decoded,
-        None => trimmed.to_vec(),
+        None => Zeroizing::new(trimmed.to_vec()),
     };
     decode(&raw)
 }

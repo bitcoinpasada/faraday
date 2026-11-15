@@ -161,7 +161,7 @@ pub fn is_compact_seedqr(bytes: &[u8]) -> bool {
         return false;
     }
     let head = bytes.trim_ascii_start();
-    if head.starts_with(b"psbt\xff") || head.starts_with(b"cHNidP8") {
+    if head.starts_with(b"psbt\xff") || faraday_bip::base64::starts_like_psbt(head) {
         return false;
     }
     let Ok(text) = core::str::from_utf8(bytes) else {
@@ -190,7 +190,7 @@ pub fn classify(bytes: &[u8]) -> PayloadKind {
             words: (trimmed.len() / 4) as u8,
         };
     }
-    if trimmed.starts_with(b"psbt\xff") || trimmed.starts_with(b"cHNidP8") {
+    if trimmed.starts_with(b"psbt\xff") || faraday_bip::base64::starts_like_psbt(trimmed) {
         return PayloadKind::Psbt;
     }
     if let Ok(text) = core::str::from_utf8(trimmed)
@@ -437,6 +437,9 @@ mod tests {
         );
         assert_eq!(classify(b"psbt\xff\x01\x00"), PayloadKind::Psbt);
         assert_eq!(classify(b"cHNidP8BAHECAAAA\n"), PayloadKind::Psbt);
+        // The seventh character follows the first global key's length: an
+        // xpub first gives `9`.
+        assert_eq!(classify(b"cHNidP9PAQQ1h888\n"), PayloadKind::Psbt);
         assert_eq!(
             classify(b"UR:CRYPTO-PSBT/HDCX"),
             PayloadKind::Ur {

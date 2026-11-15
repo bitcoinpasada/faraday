@@ -109,5 +109,5 @@ pub fn unpack(raw: &[u8]) -> Result<(String, Vec<u8>, String), Error> {
     if again.as_slice() != raw {
         return Err(Error::Mismatch);
     }
-    Ok((name.to_string(), data, kind.to_string()))
+    Ok((name.to_string(), data.to_vec(), kind.to_string()))
 }

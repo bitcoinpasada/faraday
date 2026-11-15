@@ -1148,6 +1148,7 @@ dependencies = [
  "faraday-text",
  "miniscript",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

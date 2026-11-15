@@ -47,6 +47,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 use faraday_text::{Text, text};
+use zeroize::Zeroizing;
 
 use bitcoin::address::{Address, AddressType};
 use bitcoin::hashes::{Hash, HashEngine, sha256};
@@ -217,7 +218,7 @@ pub fn verify(address: &Address, message: &str, signature: &str) -> Result<Check
 /// witness alone, so a prefix is read where there is one and [`sign`]
 /// writes the plain form. Without a prefix, 65 bytes is BIP-137's
 /// compact signature and anything else is a witness.
-fn decode(signature: &str) -> Result<(Format, Vec<u8>), Error> {
+fn decode(signature: &str) -> Result<(Format, Zeroizing<Vec<u8>>), Error> {
     let text = signature.trim();
     let (prefixed, body) = match text.get(..3) {
         Some("smp") => (true, &text[3..]),

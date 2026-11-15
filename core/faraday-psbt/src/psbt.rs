@@ -163,8 +163,16 @@ impl Psbt {
     }
 
     /// Costs a base64 decode and what [`Psbt::parse_bytes`] costs: parses
-    /// the base64 text encoding. Surrounding whitespace is ignored.
+    /// the base64 text encoding. Surrounding whitespace is ignored, and
+    /// white space inside the text too, after its first seven characters,
+    /// which must be the magic's (`cHNidP` and one of `8 9 + /`) with
+    /// nothing between them.
     pub fn parse_base64(c: &Compute, text: &str) -> Result<Self, Error> {
+        // Only a PSBT's own magic is decoded: any other text, a seed's
+        // words run together included, is refused before a decode.
+        if !base64::starts_like_psbt(text.as_bytes()) {
+            return Err(Error::NotPsbt);
+        }
         let bytes = base64::decode(text).map_err(|_| Error::Base64)?;
         Self::parse_bytes(c, &bytes)
     }

@@ -27,6 +27,7 @@ use faraday_bip::json::{self, Value};
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
 use faraday_bip::slip132::{self, Script};
 use faraday_strings::{EN, fill};
+use faraday_text::text;
 
 /// The most keys a multisig script holds, and so the most keystores read.
 const MAX_KEYS: usize = 15;
@@ -353,8 +354,8 @@ fn key(k: &Value) -> Result<(slip132::KeyLine, bool), String> {
         _ => None,
     };
     let line = match &origin {
-        Some(o) => format!("[{o}]{}", xpub.trim()),
-        None => xpub.trim().to_string(),
+        Some(o) => text!("[{o}]{}", xpub.trim()),
+        None => text!("{}", xpub.trim()),
     };
     let read = slip132::key_line(&line)
         .ok_or_else(|| bad(EN.wallet_electrum_no_key))?

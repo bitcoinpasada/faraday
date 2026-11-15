@@ -636,8 +636,15 @@ impl PsbtV2 {
 
     /// Costs a base64 decode and what [`PsbtV2::parse_bytes`] costs:
     /// reads the base64 text encoding. Surrounding whitespace is
-    /// ignored.
+    /// ignored, and white space inside the text too, after its first
+    /// seven characters, which must be the magic's with nothing between
+    /// them.
     pub fn parse_base64(c: &Compute, text: &str) -> Result<Self, Error> {
+        // Only a PSBT's own magic is decoded: any other text, a seed's
+        // words run together included, is refused before a decode.
+        if !base64::starts_like_psbt(text.as_bytes()) {
+            return Err(Error::NotPsbt);
+        }
         let bytes = base64::decode(text).map_err(|_| Error::Base64)?;
         Self::parse_bytes(c, &bytes)
     }

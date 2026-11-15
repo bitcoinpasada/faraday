@@ -2115,7 +2115,13 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         {
             return FileKind::Gpg.into();
         }
+        // An address is at least 14 characters and has no white space; a
+        // shorter first line (a word of a seed written one to a line) is
+        // not handed to bitcoin's address parser, which would decode it
+        // into a buffer of its own.
         if let Some(m) = faraday_psbt::message::parse_signed(text)
+            && m.address.len() >= 14
+            && !m.address.contains(char::is_whitespace)
             && m.address
                 .parse::<faraday_bip::bitcoin::Address<_>>()
                 .is_ok()

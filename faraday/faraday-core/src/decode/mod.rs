@@ -1247,7 +1247,7 @@ impl Faraday {
             Some((psbt, v2)) => Some((
                 psbt,
                 Some(if v2.is_some() { 2 } else { 0 }),
-                Zeroizing::new(check::raw_bytes(bytes)),
+                check::raw_bytes(bytes),
             )),
             None => decode::raw_as_psbt(c, bytes, &[])
                 .map(|(psbt, _)| (psbt, None, Zeroizing::new(bytes.to_vec()))),

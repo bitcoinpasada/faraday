@@ -193,8 +193,11 @@ fn two_transactions_are_not_the_same_and_choose_again_reopens_returned() {
 
 #[test]
 fn show_as_qr_carries_the_returned_psbt_and_after_swap_the_other() {
-    let raw =
-        |v: Vec<u8>| faraday_psbt::base64::decode(std::str::from_utf8(&v).unwrap().trim()).unwrap();
+    let raw = |v: Vec<u8>| {
+        faraday_psbt::base64::decode(std::str::from_utf8(&v).unwrap().trim())
+            .unwrap()
+            .to_vec()
+    };
     let carried = |app: &Faraday| match &app.qr().expect("the sheet's code").source {
         faraday_qr::send::Source::Psbt(b) => b.to_vec(),
         _ => panic!("not a PSBT"),

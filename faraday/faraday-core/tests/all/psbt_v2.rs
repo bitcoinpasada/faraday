@@ -184,7 +184,7 @@ fn a_psbt_with_bip375_silent_payment_fields_is_refused() {
     for case in valid {
         let text = case["psbt"].as_str().unwrap();
         let bytes = faraday_bip::base64::decode(text).unwrap();
-        for form in [bytes.clone(), text.as_bytes().to_vec()] {
+        for form in [bytes.to_vec(), text.as_bytes().to_vec()] {
             assert!(
                 faraday_core::wallet::read_psbt_kept(&c, &form).is_none(),
                 "{}: read",

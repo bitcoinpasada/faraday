@@ -14,6 +14,7 @@ faraday-crypto = { path = "../faraday-crypto" }
 faraday-text = { path = "../faraday-text" }
 bitcoin.workspace = true
 miniscript.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 # A token that counts nothing, for the tests (docs/COMPUTE.md §3).
