@@ -500,10 +500,10 @@ pub struct MusigSession {
 impl MusigSession {
     /// An empty session for the unsigned transaction `txid`, whose
     /// nonces are drawn from `seed`.
-    pub fn new(txid: bitcoin::Txid, seed: [u8; 32]) -> Self {
+    pub fn new(txid: bitcoin::Txid, seed: &[u8; 32]) -> Self {
         MusigSession {
             txid,
-            seed,
+            seed: *seed,
             draws: 0,
             held: Vec::new(),
         }
@@ -556,15 +556,19 @@ impl MusigSession {
     /// every draw, so no two calls of a session share a `rand'`, even for
     /// the same input and participant. `None`, with nothing drawn, when
     /// the counter has no next value: the session refuses and never wraps.
-    pub(crate) fn draw(&mut self, input: usize, participant: &PublicKey) -> Option<[u8; 32]> {
+    pub(crate) fn draw(
+        &mut self,
+        input: usize,
+        participant: &PublicKey,
+    ) -> Option<faraday_crypto::Zeroizing<[u8; 32]>> {
         let next = self.draws.checked_add(1)?;
         let mut info = Vec::with_capacity(RAND_LABEL.len() + 4 + 4 + 33);
         info.extend_from_slice(RAND_LABEL);
         info.extend_from_slice(&self.draws.to_le_bytes());
         info.extend_from_slice(&(input as u32).to_le_bytes());
         info.extend_from_slice(&participant.serialize());
-        let mut rand = [0u8; 32];
-        faraday_crypto::hkdf_sha256_expand(&self.seed, &info, &mut rand)?;
+        let mut rand = faraday_crypto::Zeroizing::new([0u8; 32]);
+        faraday_crypto::hkdf_sha256_expand(&self.seed, &info, &mut *rand)?;
         self.draws = next;
         Some(rand)
     }

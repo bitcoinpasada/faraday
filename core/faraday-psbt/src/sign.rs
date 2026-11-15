@@ -1084,7 +1084,7 @@ fn sign_musig(
                 // are dropped and wiped with it.
                 if session.as_ref().is_none_or(|s| s.txid() != txid) {
                     let seed = seed.ok_or(Error::NoNonceSeed)?;
-                    *session = Some(MusigSession::new(txid, *seed));
+                    *session = Some(MusigSession::new(txid, seed));
                 }
                 let open = session.as_mut().expect("just set");
                 let rand = open
