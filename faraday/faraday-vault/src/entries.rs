@@ -94,8 +94,6 @@ pub fn otpauth_names(uri: &str) -> Option<(Text, Text)> {
     Some((title, account))
 }
 
-pub use faraday_intake::looks_like_entries;
-
 /// `s` in wiping text sized to it, so it never grows and leaves a block
 /// behind.
 fn wiped(s: &str) -> Text {

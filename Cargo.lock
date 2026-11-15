@@ -1172,6 +1172,7 @@ version = "0.2.0"
 dependencies = [
  "bip39",
  "faraday-bip",
+ "faraday-codec",
  "faraday-core",
  "faraday-crypto",
  "faraday-host",

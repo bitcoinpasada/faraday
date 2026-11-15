@@ -16,6 +16,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 faraday-fat = { path = "../faraday-fat" }
+faraday-codec = { path = "../../core/faraday-codec" }
 faraday-intake = { path = "../faraday-intake" }
 # The app, with the test kit (the scan sheet opened for a purpose,
 # `testkit::open_scan`): `classify_file`, `inbox_found`, `app_scanned`,

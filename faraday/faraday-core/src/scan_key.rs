@@ -2475,7 +2475,7 @@ impl Faraday {
                 // A Krux encrypted code read as raw bytes keeps its bytes:
                 // the text above would change each one that is no UTF-8.
                 if std::str::from_utf8(&bytes).is_err()
-                    && scan_read::recognize_kef(&bytes).is_some()
+                    && faraday_codec::kef::recognize(&bytes).is_some()
                 {
                     (None, "txt", bytes.to_vec())
                 } else if scan_read::is_qr_vault(&bytes) {

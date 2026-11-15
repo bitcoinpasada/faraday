@@ -12,7 +12,7 @@ fuzz_target!(|data: &[u8]| {
     let Ok(text) = std::str::from_utf8(data) else {
         return;
     };
-    let _ = entries::looks_like_entries(text);
+    let _ = faraday_codec::classify::looks_like_entries(text);
     let _ = entries::parse(text);
     let _ = totp::parse(text);
     for line in text.lines().take(256) {

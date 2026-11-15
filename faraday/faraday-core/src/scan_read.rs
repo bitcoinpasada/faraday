@@ -262,7 +262,7 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
     if faraday_intake::is_otpauth_migration(t) {
         return Some(Kind::Totp);
     }
-    if faraday_intake::looks_like_entries(t) {
+    if faraday_codec::classify::looks_like_entries(t) {
         let one = t.lines().filter(|l| !l.trim().is_empty()).count() == 1;
         return Some(if one && faraday_intake::is_otpauth(t) {
             Kind::Totp
@@ -364,18 +364,12 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         | FileKind::CoreWallet
         | FileKind::Pdf => Kind::File,
         FileKind::Text | FileKind::Other => match text_kind(text, kind == FileKind::Text) {
-            Kind::Text | Kind::Unreadable if recognize_kef(data).is_some() => Kind::Kef,
+            Kind::Text | Kind::Unreadable if faraday_codec::kef::recognize(data).is_some() => {
+                Kind::Kef
+            }
             other => other,
         },
     }
-}
-
-/// Costs, for base43 text, a base43 decoding of up to 8,192 characters.
-/// The Krux encrypted code `data` is, if it is one: the classifier's last
-/// arm (`docs/KEF.md` §8). Raw 16 or 32 bytes are a CompactSeedQR before
-/// this is asked.
-pub(crate) fn recognize_kef(data: &[u8]) -> Option<faraday_codec::kef::Recognized> {
-    faraday_codec::kef::recognize(data)
 }
 
 /// Whether `bytes` are a QR vault's packets (`docs/VAULT.md` §1.2): a

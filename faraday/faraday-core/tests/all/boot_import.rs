@@ -90,7 +90,7 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
         // and its length, whatever its name.
         vaults: files
             .iter()
-            .filter(|(_, b)| faraday_intake::is_vault(b))
+            .filter(|(_, b)| faraday_codec::vault_file::is_vault_file(b))
             .map(|(n, _)| faraday_text::Text::of(n))
             .collect(),
     }

@@ -926,7 +926,7 @@ impl Faraday {
             self.screen = back;
             return Ok(());
         }
-        if fv::entries::looks_like_entries(t) {
+        if faraday_codec::classify::looks_like_entries(t) {
             let records = fv::entries::parse(t);
             if let Some(id) = self.vaults.current_id() {
                 let n = records.len();

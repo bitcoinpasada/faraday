@@ -1935,7 +1935,7 @@ fn sorted_outpoints(tx: &Transaction) -> Vec<OutPoint> {
 /// tell: a PSBT is parsed once and a wallet file read once when a file
 /// comes in.
 pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
-    if faraday_intake::is_vault(bytes) {
+    if faraday_codec::vault_file::is_vault_file(bytes) {
         return FileKind::Vault.into();
     }
     if bytes.starts_with(b"%PDF-") {
@@ -2005,7 +2005,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         }
         // Google Authenticator's export holds every TOTP secret of the
         // account: kept as entries are, never filed as text.
-        if faraday_vault::entries::looks_like_entries(text)
+        if faraday_codec::classify::looks_like_entries(text)
             || faraday_intake::is_otpauth_migration(text)
         {
             return FileKind::Entries.into();

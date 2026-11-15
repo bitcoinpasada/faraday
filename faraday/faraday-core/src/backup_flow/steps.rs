@@ -3066,7 +3066,7 @@ impl Faraday {
             }
         }
         let copies = self.vault_copies(&c, &bytes);
-        let on_taken = if crate::visit_taken::is_vault(&bytes) {
+        let on_taken = if faraday_codec::vault_file::is_vault_file(&bytes) {
             crate::storage_api::OnTaken::Ask
         } else {
             crate::storage_api::OnTaken::Beside

@@ -62,12 +62,6 @@ pub(crate) struct NameTaken {
     pub(crate) sent: Option<[u8; 32]>,
 }
 
-/// Whether these bytes are a vault, whatever the file is named: the
-/// magic and a vault length (`docs/VAULT.md` §1.1).
-pub(crate) fn is_vault(bytes: &[u8]) -> bool {
-    faraday_intake::is_vault(bytes)
-}
-
 /// `name` for suffix 1, else `stem-n.ext`.
 fn suffixed(name: &str, n: u32) -> Text {
     if n <= 1 {
@@ -876,7 +870,7 @@ impl Faraday {
                 continue;
             };
             // A vault is asked by the disk process, which reads the file.
-            if is_vault(&bytes) {
+            if faraday_codec::vault_file::is_vault_file(&bytes) {
                 continue;
             }
             let keep_as = free_name(&names, &name);
@@ -953,7 +947,7 @@ impl Faraday {
             // length, decided where the stick is read) only when this
             // session unlocked or wrote it: a copy from Files that it did
             // not could be older than what the stick holds.
-            let over = if is_vault(&bytes) {
+            let over = if faraday_codec::vault_file::is_vault_file(&bytes) {
                 !from_inbox || self.vault_is_this_sessions(&c, &bytes)
             } else {
                 replace && taken.contains(&name)
@@ -966,7 +960,7 @@ impl Faraday {
             .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         for (name, bytes, replace) in sends {
-            let vault = is_vault(&bytes);
+            let vault = faraday_codec::vault_file::is_vault_file(&bytes);
             let renamed = self.visit.files_menu().renamed.contains(&*name);
             let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {

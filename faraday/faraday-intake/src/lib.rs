@@ -191,18 +191,11 @@ pub fn part_of(text: &str) -> Option<Part> {
     Codex32::parse(text.trim()).ok().map(Part::Codex32)
 }
 
-/// Whether a whole file is a vault, whatever its name: it begins with
-/// KDBX's signatures and major version 4, and its length is one a vault
-/// can have (`docs/VAULT.md` §1.1). Says
-/// nothing of whether the rest is sound.
-pub fn is_vault(bytes: &[u8]) -> bool {
-    faraday_codec::vault_file::is_vault_file(bytes)
-}
-
 /// Whether the bytes begin as a KeePass database (KDBX) does but are not
 /// a vault: a file of another version, or one of a length no vault has.
 pub fn is_kdbx(bytes: &[u8]) -> bool {
-    bytes.starts_with(&faraday_codec::vault_file::SIGNATURE) && !is_vault(bytes)
+    bytes.starts_with(&faraday_codec::vault_file::SIGNATURE)
+        && !faraday_codec::vault_file::is_vault_file(bytes)
 }
 
 /// Whether the bytes begin as a KeePass database of version 3 or older,
@@ -228,10 +221,4 @@ pub fn is_otpauth_migration(text: &str) -> bool {
     text.trim()
         .get(..OTPAUTH_MIGRATION.len())
         .is_some_and(|p| p.eq_ignore_ascii_case(OTPAUTH_MIGRATION))
-}
-
-/// Whether text looks like entries for a vault: an `otpauth://` line, or
-/// a `title:` line.
-pub fn looks_like_entries(text: &str) -> bool {
-    faraday_codec::classify::looks_like_entries(text)
 }

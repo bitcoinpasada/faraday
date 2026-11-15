@@ -3,7 +3,9 @@
 
 use crate::common::{parse, tools_vector};
 use faraday_bip::json::Value;
-use faraday_intake::{Part, file_words, is_kdbx, is_vault, looks_like_entries, part_of};
+use faraday_codec::classify::looks_like_entries;
+use faraday_codec::vault_file::is_vault_file as is_vault;
+use faraday_intake::{Part, file_words, is_kdbx, part_of};
 
 fn strings(v: &Value, key: &str) -> Vec<String> {
     v.get(key)

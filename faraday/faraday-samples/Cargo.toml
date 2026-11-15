@@ -22,6 +22,7 @@ faraday-host = { path = "../faraday-host" }
 faraday-keys = { path = "../faraday-keys" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-codec = { path = "../../core/faraday-codec" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-ots = { path = "../faraday-ots" }

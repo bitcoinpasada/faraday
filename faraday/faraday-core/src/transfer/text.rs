@@ -257,11 +257,6 @@ fn digits(t: &str) -> Option<Kind> {
 /// The signs that join a value to its name or are put round it.
 const JOINS: &str = ",;=()[]{}<>\"'|";
 
-/// Whether `part` begins a `ur:` string.
-fn is_ur(part: &str) -> bool {
-    part.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ur:"))
-}
-
 /// The types of UR known to be public: a PSBT. Parts of any other type
 /// are not shown until the message is whole and read.
 fn ur_is_public(ur_type: &str) -> bool {
@@ -343,7 +338,7 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
                 continue;
             }
             seen.push(part);
-            if part.len() < 26 && !part.contains("://") && !is_ur(part) {
+            if part.len() < 26 && !part.contains("://") && !faraday_codec::ur::is_ur(part) {
                 continue;
             }
             if seed_hex(part) {

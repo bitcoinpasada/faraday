@@ -255,6 +255,19 @@ the same things. The read card's facts are worked out once, at the
 read (§5.2). It costs what its parsers cost (a mnemonic's checksum, a
 PSBT read, a wallet read) and says so in its first line.
 
+A vault file, a list of entries, a KEF envelope and a UR are each
+recognised in one place, `faraday-codec`'s classifier (`classify`,
+`vault_file`, `ur`, `kef`), and every other crate calls that
+definition. Four still have a reading of their own, since each gives
+another verdict for some input: the raw transaction (`faraday-qr`'s
+`transaction_hex` takes a transaction with no inputs, which
+`wallet.rs`'s reader refuses, and refuses one under 120 hex digits),
+the address and silent-address kinds in `scan_read::text_kind` (a
+prefix test, so an address with a bad checksum is still an address),
+`faraday-intake`'s `is_older_kdbx` (forwarding to the codec's) and its
+`is_otpauth_migration` (trimming Unicode space where the codec trims
+ASCII).
+
 ## 5. The read card
 
 ### 5.1 Where it shows
