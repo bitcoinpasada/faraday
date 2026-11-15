@@ -141,9 +141,10 @@ shows it. Beside that, `faraday/clippy.toml` disallows
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
 governs every crate under `faraday/` that has none of its own; `faraday-keys`,
-`faraday-vault`, `faraday-pgp` and `faraday-kef` each have one that repeats every
-entry of `faraday/clippy.toml` and adds the refusals of `docs/SECRET-LEAKS.md` §6,
-and a change to an entry is made in all five); and the costs lint
+`faraday-vault`, `faraday-pgp` and `faraday-kef` each have one, the same four
+files, that repeats every entry of `faraday/clippy.toml` and adds the refusals
+of `docs/SECRET-LEAKS.md` §6; `tools/clippy.py` fails when they differ or lack
+an entry, and a change to an entry is made in all five); and the costs lint
 rejects `unchecked` under `faraday/`, a mint outside its list,
 and the `unchecked` feature in any `faraday/**/Cargo.toml`. `faraday/fuzz/`,
 a workspace of its own with no app guarantee, is exempt from both:
@@ -236,7 +237,12 @@ resolve through the `faraday_bip::bitcoin`/`miniscript` re-exports.
 The `clippy.toml` of `faraday-keys`, `faraday-vault`, `faraday-pgp` and
 `faraday-kef` repeats these entries beside its refusal of copies; each of those
 crates turns `disallowed-methods` on in every source file outside test code, so
-in their tests only the costs lint holds the mints.
+in their tests only the costs lint holds the mints. Those four are not
+folded into `faraday/clippy.toml`: `disallowed_methods` is on or off per source
+file, so the secret refusal there would warn on every `clone` in every crate,
+and the crate-wide allow that silences it would silence the mint refusal too.
+Under `core/` the same holds for the three identical files of `faraday-bip`,
+`faraday-crypto` and `faraday-entropy` against `core/clippy.toml`.
 
 A path that names nothing (mistyped, or moved in a dependency) does not
 fail `-D warnings`: clippy prints a warning about its configuration and

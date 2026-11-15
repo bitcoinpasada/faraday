@@ -1,9 +1,18 @@
-# Clippy reads the nearest clippy.toml, so this file stands in for
-# ../clippy.toml in this crate: the first group repeats that file's entries
-# (see it for why each is there) and the second is the secret refusal that
-# core/faraday-bip/clippy.toml explains. A file that holds a secret turns the
-# refusal on with `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`;
-# a legitimate use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+# One clippy.toml cannot serve a whole tree, so this file is one of four
+# byte-identical copies: faraday-keys, faraday-vault, faraday-pgp and
+# faraday-kef (tools/clippy.py fails when they differ, or lack an entry of
+# faraday/clippy.toml). Clippy reads the nearest clippy.toml, and
+# `disallowed_methods` is on or off per source file, not per config: the
+# Compute mint entries must stay on in every crate under faraday/, while the
+# secret refusal below (docs/SECRET-LEAKS.md section 6) is turned on only in
+# the files that hold a secret, with
+# `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`. Put in
+# faraday/clippy.toml it would warn on every `clone` in every crate, and a
+# crate-wide allow to silence that would also silence the mint refusal. A
+# legitimate use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+# The first group repeats faraday/clippy.toml (see it for why each entry is
+# there); the second is the secret refusal that core/faraday-bip/clippy.toml
+# explains.
 disallowed-methods = [
     { path = "faraday_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
     { path = "faraday_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)", allow-invalid = true },
@@ -25,6 +34,6 @@ disallowed-types = [
 ]
 
 # A function over this cognitive complexity carries an expect with its reason
-# (docs/STRUCTURE-PASS.md §7.2); the same number is in core/clippy.toml and
-# faraday/clippy.toml, which this file shadows for its crate.
+# (docs/STRUCTURE-PASS.md section 7.2); the same number is in core/clippy.toml
+# and faraday/clippy.toml, which this file shadows for its crate.
 cognitive-complexity-threshold = 40

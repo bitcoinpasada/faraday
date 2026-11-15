@@ -16,11 +16,46 @@ Run from the repository root; `just lint` and tools/check-macos.sh do:
 """
 
 import json
+import re
 import subprocess
 import sys
+from pathlib import Path
+
+# Clippy reads the nearest clippy.toml, and `disallowed_methods` is on or off
+# per source file, so the crates that hold secrets each carry a copy of one
+# file (docs/COMPUTE.md section 7). The copies of a group must be identical,
+# and under faraday/ each must hold every path of faraday/clippy.toml.
+COPIES = [
+    ["core/faraday-bip", "core/faraday-crypto", "core/faraday-entropy"],
+    ["faraday/faraday-keys", "faraday/faraday-vault", "faraday/faraday-pgp", "faraday/faraday-kef"],
+]
+
+
+def copies_differ() -> list[str]:
+    root = Path(__file__).resolve().parent.parent
+    problems = []
+    for group in COPIES:
+        texts = {c: (root / c / "clippy.toml").read_text() for c in group}
+        first = texts[group[0]]
+        for c, t in texts.items():
+            if t != first:
+                problems.append(f"{c}/clippy.toml differs from {group[0]}/clippy.toml")
+    paths = re.compile(r'path = "[^"]+"')
+    wanted = set(paths.findall((root / "faraday/clippy.toml").read_text()))
+    for c in COPIES[1]:
+        missing = wanted - set(paths.findall((root / c / "clippy.toml").read_text()))
+        for m in sorted(missing):
+            problems.append(f"{c}/clippy.toml lacks faraday/clippy.toml's {m}")
+    return problems
 
 
 def main() -> int:
+    problems = copies_differ()
+    if problems:
+        print("clippy: the per-crate clippy.toml copies drifted:", file=sys.stderr)
+        for p in problems:
+            print(f"  {p}", file=sys.stderr)
+        return 1
     cmd = [
         "cargo",
         "clippy",
