@@ -354,12 +354,13 @@ boot entry names the boot partition by its GUID, so an entry labelled
 `Faraday stick` starts only the stick it was made for. The Starter
 runs `efibootmgr` through `pkexec` (polkit asks for the password; the
 Starter itself stays unprivileged, D13), from the system's own folders
-only: it reads the entries, and when none names the attached stick's
-boot partition it creates one with `--create-only`, so it is never
-added to `BootOrder`, pointing at `\EFI\BOOT\BOOTX64.EFI` on that
-partition, and deletes the stale ones; it sets `BootNext` to the entry
-and then runs
-`systemctl reboot`. Uninstall removes the entry. Where `efibootmgr` or
+only: it reads the entries (`efibootmgr -v`), and when none names the
+attached stick's boot partition it creates one with `--create-only`, so
+it is never added to `BootOrder`, pointing at `\EFI\BOOT\BOOTX64.EFI`
+on that partition; it sets `BootNext` to the entry, in the same run as
+the creation, so the password is asked once, and then runs
+`systemctl reboot`. An entry for another stick is left, as it starts
+nothing; Uninstall removes every one. Where `efibootmgr` or
 `pkexec` is missing, or the password is declined, the button falls
 back to **Restart into the BIOS** with one line saying why.
 The stick cannot start with Secure Boot on, which is why that state

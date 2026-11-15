@@ -13,9 +13,10 @@
 //! once, through `pkexec`, for the one `efibootmgr` that sets `BootNext`
 //! to it. When none does, a new entry is created (`--create-only`, so it
 //! is never put in `BootOrder`) at a number chosen from the listing and
-//! `BootNext` set to it in the same run, and the stale entries are
-//! deleted after it. Then `systemctl reboot`, which logind allows the
-//! person at the computer.
+//! `BootNext` set to it in the same run. Entries naming other sticks are
+//! left (they start nothing; Uninstall removes every one), so a restart
+//! asks for the password once. Then `systemctl reboot`, which logind
+//! allows the person at the computer.
 //!
 //! The listing is read by [`entries`], a pure function the tests feed
 //! recorded outputs. The programs run, `pkexec` as root included, are
@@ -109,22 +110,12 @@ pub fn free_number(listing: &str) -> Option<u16> {
     (0..=u16::MAX).find(|n| !used.contains(n))
 }
 
-/// What Restart from the stick runs through `pkexec`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Plan {
-    /// The arguments of the run that sets `BootNext`.
-    pub set: Vec<String>,
-    /// The numbers of the `Faraday stick` entries that name another
-    /// partition, deleted after `BootNext` is set.
-    pub stale: Vec<u16>,
-}
-
 /// What `pkexec efibootmgr` is given to start the stick once: `BootNext`
 /// set to the `Faraday stick` entry that names the boot partition `guid`
 /// (any case), or, when none does, a new entry created at a free number
-/// and `BootNext` set to it in one run, the entries naming other
-/// partitions being stale.
-pub fn plan(listing: &str, device: &str, guid: &str) -> Result<Plan, Reason> {
+/// and `BootNext` set to it in one run. Entries naming other partitions
+/// are left.
+pub fn plan(listing: &str, device: &str, guid: &str) -> Result<Vec<String>, Reason> {
     let hex = |n: u16| format!("{n:04X}");
     let guid = guid.trim().to_ascii_lowercase();
     if guid.is_empty() {
@@ -138,30 +129,24 @@ pub fn plan(listing: &str, device: &str, guid: &str) -> Result<Plan, Reason> {
         .iter()
         .find(|e| e.guid.as_deref() == Some(guid.as_str()))
     {
-        return Ok(Plan {
-            set: vec!["--bootnext".into(), hex(e.num)],
-            stale: Vec::new(),
-        });
+        return Ok(vec!["--bootnext".into(), hex(e.num)]);
     }
     let n = free_number(listing).ok_or_else(|| Reason::BootEntry("no free entry".into()))?;
-    Ok(Plan {
-        set: vec![
-            "--create-only".into(),
-            "--bootnum".into(),
-            hex(n),
-            "--disk".into(),
-            device.into(),
-            "--part".into(),
-            BOOT_PART.to_string(),
-            "--loader".into(),
-            LOADER.into(),
-            "--label".into(),
-            LABEL.into(),
-            "--bootnext".into(),
-            hex(n),
-        ],
-        stale: faraday.iter().map(|e| e.num).collect(),
-    })
+    Ok(vec![
+        "--create-only".into(),
+        "--bootnum".into(),
+        hex(n),
+        "--disk".into(),
+        device.into(),
+        "--part".into(),
+        BOOT_PART.to_string(),
+        "--loader".into(),
+        LOADER.into(),
+        "--label".into(),
+        LABEL.into(),
+        "--bootnext".into(),
+        hex(n),
+    ])
 }
 
 /// A device as udisks2 names a whole disk: `/dev/` and letters and
@@ -247,9 +232,10 @@ fn said(out: &Output) -> String {
     }
 }
 
-/// `efibootmgr`'s listing, read as the person.
+/// `efibootmgr -v`'s listing (older versions print the device paths only
+/// with `-v`), read as the person.
 pub fn listing(efibootmgr: &Path) -> Result<String, Reason> {
-    let out = run(efibootmgr, &[]).map_err(|e| Reason::BootEntry(e.to_string()))?;
+    let out = run(efibootmgr, &["-v".to_string()]).map_err(|e| Reason::BootEntry(e.to_string()))?;
     if !out.status.success() {
         return Err(Reason::BootEntry(said(&out)));
     }
@@ -280,22 +266,15 @@ fn privileged(pkexec: &Path, efibootmgr: &Path, args: Vec<String>) -> Result<(),
 
 /// Restart from the stick (§3.1): the stick at `device`, whose boot
 /// partition has the GUID `guid`, once at the next start, then the
-/// restart. Nothing restarts unless `BootNext` was set. Stale entries
-/// are deleted after it; one that cannot be is left (it names a
-/// partition that is not attached and starts nothing).
+/// restart. Nothing restarts unless `BootNext` was set. One password
+/// prompt; entries naming other sticks are left.
 pub fn restart_from_stick(tools: &Tools, device: &str, guid: &str) -> Result<(), Reason> {
     if !plain_device(device) {
         return Err(Reason::NoStick);
     }
     let list = listing(&tools.efibootmgr)?;
     let plan = plan(&list, device, guid)?;
-    privileged(&tools.pkexec, &tools.efibootmgr, plan.set)?;
-    for n in plan.stale {
-        match privileged(&tools.pkexec, &tools.efibootmgr, delete_args(n)) {
-            Ok(()) | Err(Reason::BootEntry(_)) => {}
-            Err(other) => return Err(other),
-        }
-    }
+    privileged(&tools.pkexec, &tools.efibootmgr, plan)?;
     let out = run(&tools.systemctl, &["reboot".to_string()])
         .map_err(|e| Reason::Restart(format!("systemctl: {e}")))?;
     if out.status.success() {

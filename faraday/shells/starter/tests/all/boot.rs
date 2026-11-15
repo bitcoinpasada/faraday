@@ -37,10 +37,12 @@ exec "$@"
 "#;
 
 const EFIBOOTMGR: &str = r#"if [ $# -eq 0 ]; then
+  cat "$d/plain-listing.txt"; exit 0
+fi
+if [ "$1" = "-v" ]; then
   [ -f "$d/list-fails" ] && { echo "EFI variables are not supported on this system." >&2; exit 2; }
   cat "$d/listing.txt"; exit 0
 fi
-[ -f "$d/delete-fails" ] && [ "$1" = "--delete-bootnum" ] && { echo "Could not delete" >&2; exit 5; }
 [ -f "$d/write-fails" ] && { echo "Could not set BootNext: Invalid argument" >&2; exit 5; }
 exit 0
 "#;
@@ -51,6 +53,12 @@ fn fakes(name: &str, listing: &str, programs: &[&str]) -> PathBuf {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).expect("folder");
     fs::write(dir.join("listing.txt"), listing).expect("listing");
+    // Without `-v` only the labels are listed, as efibootmgr 17 does.
+    fs::write(
+        dir.join("plain-listing.txt"),
+        "BootOrder: 0000\nBoot0000* Windows Boot Manager\n",
+    )
+    .expect("plain listing");
     for p in programs {
         let body = match *p {
             "pkexec" => PKEXEC,
@@ -132,17 +140,15 @@ fn an_entry_names_its_partition_guid_in_lower_case() {
 }
 
 #[test]
-fn an_entry_for_another_stick_is_replaced_and_one_for_this_stick_is_kept() {
+fn an_entry_for_another_stick_is_not_used_and_one_for_this_stick_is() {
     let kept = plan(FARADAY, "/dev/sdc", GUID).expect("plan");
-    assert_eq!(kept.set, vec!["--bootnext", "0004"]);
-    assert!(kept.stale.is_empty());
+    assert_eq!(kept, vec!["--bootnext", "0004"]);
     // Any case of the same GUID is the same partition.
     let upper = plan(FARADAY, "/dev/sdc", &GUID.to_ascii_uppercase()).expect("plan");
-    assert_eq!(upper.set, vec!["--bootnext", "0004"]);
+    assert_eq!(upper, vec!["--bootnext", "0004"]);
 
     let other = plan(FARADAY, "/dev/sdc", OTHER_GUID).expect("plan");
-    assert_eq!(other.set[..3], ["--create-only", "--bootnum", "0002"]);
-    assert_eq!(other.stale, vec![4]);
+    assert_eq!(other[..3], ["--create-only", "--bootnum", "0002"]);
 
     // The one that matches is used; the other is left alone.
     let two = plan(
@@ -151,7 +157,7 @@ fn an_entry_for_another_stick_is_replaced_and_one_for_this_stick_is_kept() {
         "46617261-6461-792d-5374-69636b000002",
     )
     .expect("plan");
-    assert_eq!(two.set, vec!["--bootnext", "0005"]);
+    assert_eq!(two, vec!["--bootnext", "0005"]);
 
     assert_eq!(plan(FARADAY, "/dev/sdc", ""), Err(Reason::NoStick));
 }
@@ -174,29 +180,17 @@ fn with_no_entry_one_pkexec_creates_it_sets_bootnext_and_the_computer_restarts()
 }
 
 #[test]
-fn an_entry_naming_another_stick_is_replaced_in_the_same_restart() {
+fn an_entry_naming_another_stick_is_left_and_one_pkexec_creates_the_new_one() {
     let dir = fakes("stale", TWO_STALE, &ALL);
     assert_eq!(restart_with(&dir, "/dev/sdc", OTHER_GUID), Ok(()));
     let e = efibootmgr(&dir);
     assert_eq!(
         log(&dir, "pkexec"),
-        vec![
-            format!(
-                "[{e}][--create-only][--bootnum][0002][--disk][/dev/sdc][--part][1]\
-                 [--loader][\\EFI\\BOOT\\BOOTX64.EFI][--label][Faraday stick][--bootnext][0002]"
-            ),
-            format!("[{e}][--delete-bootnum][--bootnum][0004]"),
-            format!("[{e}][--delete-bootnum][--bootnum][0005]"),
-        ]
+        vec![format!(
+            "[{e}][--create-only][--bootnum][0002][--disk][/dev/sdc][--part][1]\
+             [--loader][\\EFI\\BOOT\\BOOTX64.EFI][--label][Faraday stick][--bootnext][0002]"
+        )]
     );
-    assert_eq!(log(&dir, "systemctl"), vec!["[reboot]"]);
-}
-
-#[test]
-fn a_stale_entry_that_cannot_be_deleted_does_not_stop_the_restart() {
-    let dir = fakes("stale-delete-fails", FARADAY, &ALL);
-    fs::write(dir.join("delete-fails"), "").expect("flag");
-    assert_eq!(restart_with(&dir, "/dev/sdc", OTHER_GUID), Ok(()));
     assert_eq!(log(&dir, "systemctl"), vec!["[reboot]"]);
 }
 
@@ -224,21 +218,17 @@ fn a_program_not_owned_by_the_trusted_owner_or_writable_by_others_is_not_run() {
 }
 
 #[test]
-fn the_system_lookup_is_root_owned_files_in_the_system_folders_only() {
-    let system = Trusted::system();
-    assert_eq!(system.uid, 0);
-    assert_eq!(
-        system.dirs,
-        ["/usr/sbin", "/usr/bin", "/sbin", "/bin"].map(PathBuf::from)
-    );
-    // A fake in a folder of the person's is in none of them.
+#[allow(unsafe_code)]
+fn a_fake_earlier_on_the_path_is_not_taken_by_the_system_lookup() {
     let dir = fakes("home-folder", SEVERAL, &ALL);
-    assert!(system.dirs.iter().all(|d| !d.starts_with(&dir)));
-    assert!(
-        system
-            .which("efibootmgr")
-            .is_none_or(|p| !p.starts_with(&dir))
-    );
+    // Each test is its own process, so the path is this test's.
+    // SAFETY: nothing else in this process reads or writes the environment.
+    unsafe { std::env::set_var("PATH", &dir) };
+    if let Ok(found) = Tools::find(&Trusted::system()) {
+        for p in [found.pkexec, found.efibootmgr, found.systemctl] {
+            assert!(!p.starts_with(&dir), "{}", p.display());
+        }
+    }
 }
 
 #[test]
@@ -277,7 +267,7 @@ fn a_declined_password_restarts_nothing() {
         assert_eq!(restart(&dir, "/dev/sdb"), Err(Reason::Declined));
         assert_eq!(log(&dir, "pkexec").len(), 1);
         // Only the listing ran; nothing was written.
-        assert_eq!(log(&dir, "efibootmgr"), vec![""]);
+        assert_eq!(log(&dir, "efibootmgr"), vec!["[-v]"]);
         assert!(log(&dir, "systemctl").is_empty());
     }
 }
@@ -342,7 +332,7 @@ fn uninstall_declined_leaves_the_entry_and_says_why() {
     let dir = fakes("uninstall-declined", FARADAY, &ALL);
     fs::write(dir.join("pkexec-exit"), "126").expect("exit code");
     assert_eq!(remove_entry(&trusted(&dir)), Err(Reason::Declined));
-    assert_eq!(log(&dir, "efibootmgr"), vec![""]);
+    assert_eq!(log(&dir, "efibootmgr"), vec!["[-v]"]);
 }
 
 #[test]
