@@ -344,7 +344,7 @@ impl Camera {
             width,
             height,
             stride,
-            factor: faraday_camera::scale::scale_factor(width, convert::MAX_WIDTH),
+            factor: faraday_camera::scale::scale_factor(width, height, convert::MAX_WIDTH),
             max_fps: MAX_FPS,
             buffers: Vec::new(),
             streaming: false,
@@ -791,6 +791,35 @@ mod tests {
     fn find_answers_without_a_camera() {
         let _ = find();
         let _ = find_or_failure();
+    }
+
+    /// A camera that reports a tall frame comes out no larger than the
+    /// limit on either side, and the usual sizes pass whole.
+    #[test]
+    fn a_tall_frame_is_shrunk_to_the_limit() {
+        let camera = |width: usize, height: usize| Camera {
+            file: File::open("/dev/null").unwrap(),
+            format: abi::PIX_FMT_GREY,
+            step: 1,
+            width,
+            height,
+            stride: width,
+            factor: faraday_camera::scale::scale_factor(width, height, convert::MAX_WIDTH),
+            max_fps: MAX_FPS,
+            buffers: Vec::new(),
+            streaming: false,
+            stats: Stats::default(),
+        };
+        for (w, h, whole) in [(1920, 8700, false), (1920, 1080, true), (1296, 972, true)] {
+            let bytes = vec![128u8; w * h];
+            let frame = camera(w, h).convert(&bytes).unwrap();
+            let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
+            assert!(
+                fw <= convert::MAX_WIDTH && fh <= convert::MAX_WIDTH,
+                "{fw}x{fh}"
+            );
+            assert_eq!((fw, fh) == (w, h), whole, "{w}x{h} came out {fw}x{fh}");
+        }
     }
 
     /// The errors a person meets: no device, a device another program

@@ -8,13 +8,11 @@ pub fn chroma_size(width: usize, height: usize) -> (usize, usize) {
     (width.div_ceil(2), height.div_ceil(2))
 }
 
-/// The integer factor that brings `width` down to at most `max_width`.
-/// Always at least 1, so the usual 640 × 480 frame is untouched.
-pub fn scale_factor(width: usize, max_width: usize) -> usize {
-    if width <= max_width {
-        return 1;
-    }
-    width.div_ceil(max_width)
+/// The integer factor that brings both `width` and `height` down to at
+/// most `max_side`. Always at least 1, so the usual 640 × 480 frame is
+/// untouched; a frame that is tall rather than wide is shrunk too.
+pub fn scale_factor(width: usize, height: usize, max_side: usize) -> usize {
+    width.max(height).div_ceil(max_side.max(1)).max(1)
 }
 
 /// Shrinks a packed luma buffer by an integer factor, averaging each
@@ -112,15 +110,17 @@ mod tests {
 
     #[test]
     fn scale_factor_only_shrinks_what_is_too_wide() {
-        assert_eq!(scale_factor(640, MAX_WIDTH), 1);
-        assert_eq!(scale_factor(MAX_WIDTH, MAX_WIDTH), 1);
-        assert_eq!(scale_factor(MAX_WIDTH + 1, MAX_WIDTH), 2);
+        assert_eq!(scale_factor(640, 480, MAX_WIDTH), 1);
+        assert_eq!(scale_factor(MAX_WIDTH, 1080, MAX_WIDTH), 1);
+        assert_eq!(scale_factor(MAX_WIDTH + 1, 1080, MAX_WIDTH), 2);
         // A 1080p frame and the Pi camera's 1296x972 mode pass whole.
-        assert_eq!(scale_factor(1920, MAX_WIDTH), 1);
-        assert_eq!(scale_factor(1296, MAX_WIDTH), 1);
+        assert_eq!(scale_factor(1920, 1080, MAX_WIDTH), 1);
+        assert_eq!(scale_factor(1296, 972, MAX_WIDTH), 1);
         // A 2592-wide still mode halves to 1296.
-        assert_eq!(scale_factor(2592, MAX_WIDTH), 2);
-        assert!(2592 / scale_factor(2592, MAX_WIDTH) <= MAX_WIDTH);
+        assert_eq!(scale_factor(2592, 1944, MAX_WIDTH), 2);
+        assert!(2592 / scale_factor(2592, 1944, MAX_WIDTH) <= MAX_WIDTH);
+        // A tall frame is shrunk by its height.
+        assert_eq!(scale_factor(1920, 8700, MAX_WIDTH), 5);
     }
 
     #[test]

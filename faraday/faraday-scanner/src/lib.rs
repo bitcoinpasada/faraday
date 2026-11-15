@@ -103,6 +103,9 @@ struct Pending {
 pub struct Scanner {
     pending: Arc<(Mutex<Pending>, Condvar)>,
     ended: Arc<AtomicBool>,
+    /// Set by `stop`: the worker's search of a frame ends at its next
+    /// budget check.
+    halt: Arc<AtomicBool>,
     found: Receiver<Found>,
     codes: std::cell::RefCell<Vec<Vec<u8>>>,
     seen: std::cell::Cell<Option<Seen>>,
@@ -116,18 +119,21 @@ impl Scanner {
     pub fn new(mode: ReadMode) -> Scanner {
         let pending = Arc::new((Mutex::new(Pending::default()), Condvar::new()));
         let ended = Arc::new(AtomicBool::new(false));
+        let halt = Arc::new(AtomicBool::new(false));
         let (tx, found) = channel();
         let thread = {
             let pending = Arc::clone(&pending);
             let ended = Arc::clone(&ended);
+            let halt = Arc::clone(&halt);
             std::thread::spawn(move || {
-                work(&pending, &tx, mode);
+                work(&pending, &tx, mode, &halt);
                 ended.store(true, Ordering::Relaxed);
             })
         };
         Scanner {
             pending,
             ended,
+            halt,
             found,
             codes: std::cell::RefCell::new(Vec::new()),
             seen: std::cell::Cell::new(None),
@@ -195,6 +201,7 @@ impl Scanner {
 
     /// Ends the worker and wipes what it still held.
     pub fn stop(&mut self) {
+        self.halt.store(true, Ordering::Relaxed);
         {
             let (lock, wake) = &*self.pending;
             if let Ok(mut pending) = lock.lock() {
@@ -230,7 +237,12 @@ impl Drop for Scanner {
     }
 }
 
-fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode) {
+fn work(
+    pending: &(Mutex<Pending>, Condvar),
+    tx: &Sender<Found>,
+    mode: ReadMode,
+    halt: &Arc<AtomicBool>,
+) {
     let (lock, wake) = pending;
     let mut reading = Reading::default();
     let mut inverted = false;
@@ -268,7 +280,7 @@ fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode)
         last = inverted;
         inverted = !inverted;
         let began = Instant::now();
-        let (code, seen) = read(&job, mode, &mut reading);
+        let (code, seen) = read(&job, mode, &mut reading, halt);
         if tx.send(Found::Took(began.elapsed())).is_err() {
             return;
         }
@@ -294,11 +306,27 @@ pub fn look(
     scale: usize,
     frame: (u16, u16),
 ) -> (Option<Vec<u8>>, Option<Seen>) {
+    look_until(width, height, luma, scale, frame, None)
+}
+
+/// [`look`], ending with no read at the search's next budget check once
+/// `halt` is set. Costs a decode of the frame.
+fn look_until(
+    width: usize,
+    height: usize,
+    luma: &[u8],
+    scale: usize,
+    frame: (u16, u16),
+    halt: Option<&Arc<AtomicBool>>,
+) -> (Option<Vec<u8>>, Option<Seen>) {
     if width == 0 || height == 0 || luma.len() < width * height {
         return (None, None);
     }
     let mut image =
         rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
+    if let Some(halt) = halt {
+        image.set_stop(Arc::clone(halt));
+    }
     let mut seen = None;
     for grid in image.detect_grids() {
         let b = grid.bounds;
@@ -358,21 +386,33 @@ struct Reading {
 
 /// One frame, read as `mode` says. Costs a decode of the frame: a
 /// reduced copy and, now and then, the full frame, or the full frame.
-fn read(job: &Job, mode: ReadMode, st: &mut Reading) -> (Option<Vec<u8>>, Option<Seen>) {
+fn read(
+    job: &Job,
+    mode: ReadMode,
+    st: &mut Reading,
+    halt: &Arc<AtomicBool>,
+) -> (Option<Vec<u8>>, Option<Seen>) {
     let (w, h) = (job.width, job.height);
     let frame = (w as u16, h as u16);
     if mode == ReadMode::Full {
-        return look(w, h, &job.luma, 1, frame);
+        return look_until(w, h, &job.luma, 1, frame, Some(halt));
     }
     if std::mem::take(&mut st.whole_next) {
-        let (code, whole) = look(w, h, &job.luma, 1, frame);
+        let (code, whole) = look_until(w, h, &job.luma, 1, frame, Some(halt));
         st.misses = if code.is_some() { 0 } else { st.misses + 1 };
         return (code, whole);
     }
     let factor = scan::reduce_factor(w, h);
     let (rw, rh, reduced) = scan::reduce(w, h, &job.luma);
     let reduced = Zeroizing::new(reduced);
-    let (code, seen) = look(usize::from(rw), usize::from(rh), &reduced, factor, frame);
+    let (code, seen) = look_until(
+        usize::from(rw),
+        usize::from(rh),
+        &reduced,
+        factor,
+        frame,
+        Some(halt),
+    );
     if code.is_some() {
         st.misses = 0;
         return (code, seen);
@@ -388,7 +428,7 @@ fn read(job: &Job, mode: ReadMode, st: &mut Reading) -> (Option<Vec<u8>>, Option
     if !st.misses.is_multiple_of(FULL_FRAME_EVERY) {
         return (None, seen);
     }
-    let (code, full) = look(w, h, &job.luma, 1, frame);
+    let (code, full) = look_until(w, h, &job.luma, 1, frame, Some(halt));
     if code.is_some() {
         st.misses = 0;
     }
@@ -467,6 +507,38 @@ mod tests {
             let took = began.elapsed();
             assert!(took < Duration::from_secs(5), "{mode:?}: {took:?}");
         }
+    }
+
+    /// A stop set during a crafted frame's search ends it at its next
+    /// budget check: counted in the search's own work, a frame that costs
+    /// the search work costs less once stopped.
+    #[test]
+    fn a_stop_ends_the_search_of_a_crafted_frame_at_its_next_check() {
+        const W: usize = 640;
+        let runs = [1, 1, 3, 1, 1, 1];
+        let mut row = Vec::with_capacity(W);
+        for (i, run) in runs.iter().cycle().enumerate() {
+            if row.len() >= W {
+                break;
+            }
+            row.extend(std::iter::repeat_n(
+                if i % 2 == 0 { 25u8 } else { 235 },
+                *run,
+            ));
+        }
+        row.truncate(W);
+        let luma = row.repeat(480); // not text: pixel bytes
+        let spent = |stopped: bool| {
+            let mut image =
+                rqrr::PreparedImage::prepare_from_greyscale(W, 480, |x, y| luma[y * W + x]);
+            image.set_stop(Arc::new(AtomicBool::new(stopped)));
+            let _ = image.detect_grids();
+            image.work()
+        };
+        let (free, _) = spent(false);
+        let (halted, _) = spent(true);
+        assert!(free > 0, "the frame costs the search work: {free}");
+        assert!(halted < free, "{halted} against {free}");
     }
 
     #[test]
@@ -629,10 +701,20 @@ mod tests {
             luma: Zeroizing::new(px),
         };
         let mut st = Reading::default();
-        let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
+        let (code, seen) = read(
+            &job,
+            ReadMode::Reduced,
+            &mut st,
+            &Arc::new(AtomicBool::new(false)),
+        );
         if let (None, Some(seen)) = (code, seen) {
             assert!(!seen.whole, "the copy gives no verdict");
-            let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
+            let (code, seen) = read(
+                &job,
+                ReadMode::Reduced,
+                &mut st,
+                &Arc::new(AtomicBool::new(false)),
+            );
             assert!(seen.is_none_or(|s| s.whole));
             assert!(code.is_none_or(|c| c == payload));
         }

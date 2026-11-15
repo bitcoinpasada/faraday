@@ -35,7 +35,7 @@ fuzz_target!(|data: &[u8]| {
     };
     let luma = convert::luma(buffer, width, height, stride, step);
     let chroma = convert::chroma(format, buffer, width, height, stride);
-    let factor = scale::scale_factor(width, convert::MAX_WIDTH);
+    let factor = scale::scale_factor(width, height, convert::MAX_WIDTH);
     if let Some(luma) = luma {
         let _ = scale::downscale(luma, width, height, factor);
     }

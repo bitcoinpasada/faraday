@@ -26,6 +26,8 @@ pub struct PreparedImage<S> {
     regions: Box<RegionTable>,
     /// What this frame's search has spent so far ([`WORK_PER_PIXEL`]).
     work: u64,
+    /// Set by the caller to end the search at the next budget check.
+    stop: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 /// The regions coloured so far, indexed by region index, least recently
@@ -150,6 +152,7 @@ where
             buffer: self.buffer.clone(),
             regions: self.regions.clone(),
             work: self.work,
+            stop: self.stop.clone(),
         }
     }
 }
@@ -343,6 +346,7 @@ where
             buffer: buf,
             regions: RegionTable::new(),
             work: 0,
+            stop: None,
         }
     }
 
@@ -458,6 +462,7 @@ where
             buffer: buf,
             regions: RegionTable::new(),
             work: 0,
+            stop: None,
         }
     }
 
@@ -472,10 +477,20 @@ where
         !self.out_of_work()
     }
 
-    /// Whether the search has spent the frame's budget: the frame gives no
-    /// read.
+    /// Makes the search end, with no read, at its next budget check once
+    /// `stop` is set.
+    pub fn set_stop(&mut self, stop: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+        self.stop = Some(stop);
+    }
+
+    /// Whether the search has spent the frame's budget, or was told to
+    /// stop: the frame gives no read.
     pub fn out_of_work(&self) -> bool {
         self.work > self.work_allowed()
+            || self
+                .stop
+                .as_ref()
+                .is_some_and(|s| s.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     /// The most this frame's search may spend.
@@ -759,6 +774,7 @@ mod tests {
             buffer,
             regions: RegionTable::new(),
             work: 0,
+            stop: None,
         }
     }
 

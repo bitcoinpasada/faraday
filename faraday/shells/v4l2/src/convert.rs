@@ -17,7 +17,7 @@
 use crate::abi;
 use faraday_camera::scale::chroma_size;
 
-/// The widest frame we hand the core. Above this a frame is shrunk by an
+/// The longest side of a frame we hand the core. Above this a frame is shrunk by an
 /// integer factor: a dense code needs the camera's own pixels, so the
 /// 1920 × 1080 the shells ask for passes whole, and so does a 1296 × 972
 /// sensor mode. A 2592-wide still mode is halved.

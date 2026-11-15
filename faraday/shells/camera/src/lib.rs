@@ -49,7 +49,7 @@ impl Frame {
         max_width: usize,
     ) -> Option<Frame> {
         let luma = nv12::luma(plane, width, height, stride)?;
-        let factor = scale::scale_factor(width, max_width);
+        let factor = scale::scale_factor(width, height, max_width);
         let uv = chroma
             .and_then(|(plane, stride)| nv12::chroma(plane, width, height, stride))
             .map(|uv| scale::downscale_chroma(uv, width, height, factor));

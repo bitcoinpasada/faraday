@@ -280,3 +280,9 @@ through `tiny-skia`.
 What that section asked for and this copy still does not have: zeroizing
 scratch buffers. The prepared image, the corrected data stream and the
 decoded payload are ordinary allocations. That is an accepted gap.
+
+**`PreparedImage::set_stop`** (`src/prepare.rs`). The caller hands over a
+flag; `out_of_work` also reports true once it is set, so a search the
+caller no longer wants ends at its next budget check instead of spending the
+rest of the frame's budget. The scanner's worker sets it when the scan
+sheet closes.
