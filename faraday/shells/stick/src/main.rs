@@ -2614,29 +2614,17 @@ fn screen_label(app: &Faraday) -> String {
         .join(" / ")
 }
 
-/// Waits to be woken, folds in the newest camera frame, ticks when
-/// nothing wakes it, and stops when the core exits or `--frames` is
-/// satisfied.
-///
-/// A touch and a frame wake the same wait, so a frame that arrives at
-/// the start of a wait is drawn then and not up to a tick later: the
-/// preview runs at the rate it costs. The frame itself is still taken
-/// from the camera's channel, one per pass and the newest one, so a
-/// board that decodes slower than it captures still ticks and still
-/// feels a finger.
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "waits for the next wake, paces frames on the grid, takes in the controller's reports and draws"
-)]
-fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
+/// What the loop carries from one pass to the next: whether anything can
+/// still wake it, the frame grid it paces on and the clock it raises.
+struct Loop {
     // Set once nothing can wake the loop again: there is nothing to wait
     // on, so the pass sleeps out the tick interval instead of spinning on
     // an instantly-failing receive.
-    let mut unwoken = false;
+    unwoken: bool,
     // Set between a contact's Down and its Up: the pass waits for the
     // next move rather than for the tick, so a drag moves with the
     // finger.
-    let mut contact = false;
+    contact: bool,
     // The next frame's deadline while the loop is on the frame grid: a
     // finger is down, or the last pass drew. While a finger is on the
     // panel, or the last pass drew (something is moving), the loop runs
@@ -2645,29 +2633,39 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // even step (`docs/MOTION.md` §3.2). The grid's step is one frame at
     // 60 Hz on a machine that keeps up, and whole frames more on one
     // that does not (`pace.rs`).
-    let mut next_frame: Option<Instant> = None;
-    let mut pace = Pace::new();
+    next_frame: Option<Instant>,
+    pace: Pace,
     // The screen's refresh as the writer thread measures it, where it
     // waits for one: the grid is tied to it (`refresh.rs`).
-    let beat = shell.presenter.beat();
-    let mut boost = clock::Boost::new(shell.timings.is_some());
+    beat: Option<Arc<refresh::Beat>>,
+    boost: clock::Boost,
     // When the last pass that drew began, if its frame was a fade's step.
-    let mut last_fade_step: Option<Instant> = None;
+    last_fade_step: Option<Instant>,
     // The screen the last pass that drew showed, kept only with `--timings`.
-    let mut last_screen = String::new();
-    while !shell.done && !shell.enough() {
-        // Everything the controller has reported since the last pass
-        // goes in now. It reports a moving finger a hundred times a
-        // second; only the newest position of a run of moves matters, so
-        // the rest are dropped and a flick is a handful of events, not a
-        // queue that replays for seconds after the finger lifts.
-        let mut batch: Vec<Wake> = Vec::new();
-        // The readers whose devices went away during this wait.
-        let mut ended: Vec<u32> = Vec::new();
+    last_screen: String,
+}
+
+impl Loop {
+    fn new(shell: &Shell) -> Self {
+        Self {
+            unwoken: false,
+            contact: false,
+            next_frame: None,
+            pace: Pace::new(),
+            beat: shell.presenter.beat(),
+            boost: clock::Boost::new(shell.timings.is_some()),
+            last_fade_step: None,
+            last_screen: String::new(),
+        }
+    }
+
+    /// Waits for the next wake, on the grid up to its deadline, at rest
+    /// for the first thing to arrive, and returns what arrived.
+    fn wait(&mut self, rx: &Receiver<Wake>) -> Vec<Wake> {
         let mut wakes: Vec<Wake> = Vec::new();
-        if unwoken {
+        if self.unwoken {
             std::thread::sleep(TICK);
-        } else if let Some(deadline) = next_frame {
+        } else if let Some(deadline) = self.next_frame {
             // On the grid: whatever arrives before the deadline goes in
             // together at it.
             loop {
@@ -2675,7 +2673,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                     Ok(w) => wakes.push(w),
                     Err(RecvTimeoutError::Timeout) => break,
                     Err(RecvTimeoutError::Disconnected) => {
-                        unwoken = true;
+                        self.unwoken = true;
                         break;
                     }
                 }
@@ -2690,35 +2688,15 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                     }
                 }
                 Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => unwoken = true,
+                Err(RecvTimeoutError::Disconnected) => self.unwoken = true,
             }
         }
-        // What this pass costs, should it draw: everything from here to
-        // the frame written.
-        let began = Instant::now();
-        if let Some(t) = shell.timings.as_mut() {
-            t.begin_pass();
-        }
-        for wake in wakes {
-            match wake {
-                // The frame is taken below, from the camera's channel;
-                // the note only ended the wait.
-                Wake::Frame | Wake::Work => {}
-                Wake::InputEnded(id) => ended.push(id),
-                Wake::Held(id, input) => shell.held_wake(id, input, &mut batch),
-                other => batch.push(other),
-            }
-        }
-        for id in ended {
-            shell.input_ended(id);
-        }
-        // Whatever has been plugged in since the last look, at most once
-        // every couple of seconds.
-        let at = timings::start(&shell.timings);
-        shell.rescan_inputs();
-        timings::stop(&mut shell.timings, Part::Rescan, at);
-        shell.start_window_tick();
-        collapse_moves(&mut batch);
+        wakes
+    }
+
+    /// Handles the input of a pass: raises the clock for it, applies each
+    /// event, and releases a tap's click whose wait for a drag is over.
+    fn handle_input(&mut self, shell: &mut Shell, batch: Vec<Wake>, began: Instant) {
         // Input raises the CPU's lowest clock before it is handled, so
         // the frame it changes and a fade after it are drawn at speed.
         if batch.iter().any(|w| {
@@ -2727,7 +2705,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 Wake::Touch(_) | Wake::Pointer(_) | Wake::Key(_) | Wake::KeyUp(_)
             )
         }) {
-            boost.moving(began);
+            self.boost.moving(began);
         }
         for wake in batch {
             match wake {
@@ -2744,12 +2722,12 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                             shell.send_timed(Bucket::Touch, Event::HoverEnd);
                         }
                     }
-                    contact = t.phase != TouchPhase::Up;
+                    self.contact = t.phase != TouchPhase::Up;
                     shell.touch(t);
                 }
                 // A move the input thread applied as it read it
                 // (`Arrow::moved`); this is what it meant.
-                Wake::Pointed(pointed) => deliver(shell, pointed, &mut contact),
+                Wake::Pointed(pointed) => deliver(shell, pointed, &mut self.contact),
                 // Everything else a pointing device does goes through the
                 // cursor here; a device still held back is dealt with in
                 // `held_wake`.
@@ -2759,7 +2737,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                     };
                     let pointed = lock(&c).apply(motion);
                     shell.move_arrow();
-                    deliver(shell, pointed, &mut contact);
+                    deliver(shell, pointed, &mut self.contact);
                 }
                 Wake::Key(key) => shell.send_timed(Bucket::Touch, Event::Key(key)),
                 Wake::KeyUp(key) => shell.send_timed(Bucket::Touch, Event::KeyUp(key)),
@@ -2775,96 +2753,13 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // frame grid, so this is at most a frame late.
         if let Some(c) = shell.cursor.clone() {
             let released = lock(&c).due(Instant::now());
-            deliver(shell, released, &mut contact);
+            deliver(shell, released, &mut self.contact);
         }
-        // The panic chord held long enough: nothing more is drawn, asked
-        // or saved.
-        if shell.panic_timer.due(Instant::now()) {
-            shell.panic = true;
-            shell.done = true;
-            break;
-        }
-        if shell.done {
-            break;
-        }
-        // One frame per pass, and the newest one. Decoding a frame costs
-        // the core longer than the tenth of a second between captures on
-        // a 3B+, so a loop that sent every waiting frame would never
-        // empty the channel and never reach the tick, the touches or the
-        // flush: the Scan screen froze while QR codes still decoded. The
-        // frames behind the newest are stale by definition.
-        let mut newest = None;
-        // A camera that would not open, which the capture thread
-        // reports once. It is not a frame and is not dropped for a
-        // newer one.
-        let mut unavailable = None;
-        while let Some(capture) = shell.camera.poll() {
-            match capture {
-                Capture::Frame(shot) => newest = Some(shot),
-                Capture::Unavailable(why) => unavailable = Some(why),
-            }
-        }
-        if let Some(why) = unavailable {
-            if let Some(reason) = shell.camera.take_reason() {
-                shell.say(&format!("camera unavailable: {reason}"));
-            }
-            shell.scanner = None;
-            shell.send(match why {
-                Some(why) => Event::CameraFailed(why),
-                None => Event::CameraUnavailable,
-            });
-        }
-        if let Some(shot) = newest {
-            // The capture thread reduced the frame once, so each half
-            // goes where it is wanted and nothing is copied: the
-            // captured luma to the scanner, which reads the codes in
-            // it, and the reduced frame to the core, which draws it.
-            if let Some(scanner) = shell.scanner.as_ref() {
-                // The scanner reads every other frame inverted, so a code
-                // printed light on dark reads too (`docs/QR.md` §1).
-                scanner.offer(shot.full_width, shot.full_height, shot.full_luma);
-            }
-            shell.send_timed(
-                Bucket::Camera,
-                Event::CameraFrame {
-                    width: shot.width,
-                    height: shot.height,
-                    luma: shot.luma,
-                    chroma: shot.chroma,
-                },
-            );
-        }
-        // Whatever the worker read since the last pass. The core routes
-        // each code as it routes one from a file.
-        while let Some(bytes) = shell.scanner.as_ref().and_then(Scanner::poll) {
-            shell.send_timed(Bucket::Scanned, Event::Scanned { bytes });
-        }
-        // How long the worker's passes over the frames took.
-        if let (Some(s), Some(t)) = (shell.scanner.as_ref(), shell.timings.as_mut()) {
-            costly::camera_passes(t, s.take_pass_times());
-        }
-        // What the scanner saw of a code, for the outline and for "too
-        // fine for this camera".
-        if let Some(seen) = shell.scanner.as_ref().and_then(Scanner::poll_seen)
-            && let Some(app) = shell.app.as_mut()
-        {
-            app.storage(StorageEvent::QrSeen {
-                width: seen.width,
-                height: seen.height,
-                corners: seen.corners,
-                module_tenths: (seen.module_px * 10.0).clamp(0.0, 65535.0) as u16,
-                read: seen.read,
-                whole: seen.whole,
-            });
-        }
-        // A camera the person chose on the scan sheet.
-        if let Some(id) = shell
-            .app
-            .as_mut()
-            .and_then(faraday_core::Faraday::take_camera)
-        {
-            shell.camera.choose(std::path::PathBuf::from(&*id));
-        }
+    }
+
+    /// Writes the frame of a pass, then tells the timings and the pacing
+    /// of it. Returns whether the pass drew.
+    fn draw(&mut self, shell: &mut Shell, began: Instant) -> bool {
         if !shell.done {
             let now_ms = shell.now_ms();
             shell.send_timed(Bucket::Tick, Event::Tick { now_ms });
@@ -2874,100 +2769,288 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         if shell.drawn != drawn && shell.timings.is_some() {
             shell.readback_after = Some(Instant::now());
         }
-        shell.read_back(&last_screen);
+        shell.read_back(&self.last_screen);
+        let drew = shell.drawn != drawn;
         // Drawing, or a finger down, keeps the loop on the grid: the
         // next deadline is a step after this one, or a step from now
         // when this pass ran past it.
-        if shell.drawn != drawn {
-            // With the wait measured, lateness is the vblank's: a frame
-            // shown a refresh after the one its step allowed.
-            let waits = beat.as_ref().is_some_and(|b| b.measured());
-            pace.set_wait(waits);
-            if let Some(b) = beat.as_ref().filter(|_| waits) {
-                pace.saw(b.take_late() > 0);
-            }
-            if shell.last_blend {
-                pace.stepped_fade(began.elapsed());
-            } else {
-                pace.drew(began.elapsed());
-            }
-            if let Some(timings) = shell.timings.as_mut() {
-                timings.stepped(pace.frames(), pace.cost());
-                timings.paced(pace.take_events());
-                timings.sample_clock(boost.raised());
-                timings.clock_writes(boost.take_writes());
-                let screen = shell.app.as_ref().map(screen_label).unwrap_or_default();
-                let frame = if shell.last_blend {
-                    timings::Frame::Fade
-                } else if shell.last_moved {
-                    timings::Frame::Moved
-                } else {
-                    timings::Frame::Whole
-                };
-                let changed = screen != last_screen;
-                timings.drawn_pass(began.elapsed(), frame, changed, || screen.clone());
-                last_screen = screen;
-                if let (true, Some(last)) = (shell.last_blend, last_fade_step) {
-                    timings.fade_step(began.duration_since(last), began.elapsed(), pace.step());
-                }
-            }
-            last_fade_step = shell.last_blend.then_some(began);
+        if drew {
+            self.record_drawn(shell, began);
         }
+        drew
+    }
+
+    /// What a pass that drew tells the pacing and the timings.
+    fn record_drawn(&mut self, shell: &mut Shell, began: Instant) {
+        // With the wait measured, lateness is the vblank's: a frame
+        // shown a refresh after the one its step allowed.
+        let waits = self.beat.as_ref().is_some_and(|b| b.measured());
+        self.pace.set_wait(waits);
+        if let Some(b) = self.beat.as_ref().filter(|_| waits) {
+            self.pace.saw(b.take_late() > 0);
+        }
+        if shell.last_blend {
+            self.pace.stepped_fade(began.elapsed());
+        } else {
+            self.pace.drew(began.elapsed());
+        }
+        if let Some(timings) = shell.timings.as_mut() {
+            timings.stepped(self.pace.frames(), self.pace.cost());
+            timings.paced(self.pace.take_events());
+            timings.sample_clock(self.boost.raised());
+            timings.clock_writes(self.boost.take_writes());
+            let screen = shell.app.as_ref().map(screen_label).unwrap_or_default();
+            let frame = if shell.last_blend {
+                timings::Frame::Fade
+            } else if shell.last_moved {
+                timings::Frame::Moved
+            } else {
+                timings::Frame::Whole
+            };
+            let changed = screen != self.last_screen;
+            timings.drawn_pass(began.elapsed(), frame, changed, || screen.clone());
+            self.last_screen = screen;
+            if let (true, Some(last)) = (shell.last_blend, self.last_fade_step) {
+                timings.fade_step(
+                    began.duration_since(last),
+                    began.elapsed(),
+                    self.pace.step(),
+                );
+            }
+        }
+        self.last_fade_step = shell.last_blend.then_some(began);
+    }
+
+    /// Sets the next frame's deadline when frames are still wanted, and
+    /// raises or lowers the clock to match.
+    fn schedule(&mut self, shell: &mut Shell, drew: bool) {
         // A job on the worker keeps the frames coming (WORKERS §7.1).
         let working = work::running(shell.app.as_ref());
-        next_frame = (contact || working || shell.drawn != drawn).then(|| {
-            let now = Instant::now();
-            let grid = beat.as_ref().and_then(|b| {
-                b.set_step(pace.frames());
-                let grid = b.grid(now);
-                match grid {
-                    Some(g) => pace.set_refresh(g.refresh),
-                    None if !b.on() => pace.set_refresh(pace::FRAME),
-                    None => {}
-                }
-                grid
-            });
-            let step = pace.step();
-            let due = next_frame
-                .map(|d| d + step)
-                .filter(|d| *d > now)
-                .unwrap_or(now + step);
-            // Tied to the screen: the pass starts early enough to end
-            // just before a vblank, so its frame is written after it.
-            match grid {
-                Some(g) => g.align(due, (pace.cost() + VBLANK_MARGIN).min(step), now),
-                None => due,
-            }
-        });
+        self.next_frame = (self.contact || working || drew).then(|| self.deadline());
         // The clock stays raised while frames are drawn on the grid, and
         // comes down a while after.
-        if next_frame.is_some() {
-            boost.moving(Instant::now());
+        if self.next_frame.is_some() {
+            self.boost.moving(Instant::now());
         } else {
-            boost.still(Instant::now());
+            self.boost.still(Instant::now());
         }
         if let Some(timings) = shell.timings.as_mut() {
             timings.pass();
-            timings.clock_writes(boost.take_writes());
+            timings.clock_writes(self.boost.take_writes());
         }
-        // The first page the kernel would not pin, said once and only
-        // with --verbose: it is a machine configuration a developer can
-        // act on and the person using the device cannot (§16.49). The
-        // release image has no swap and no console, so on a card this
-        // line is neither needed nor seen.
-        if faraday_crypto::pin_failure_to_report() {
-            shell.say("the kernel would not lock secret pages into RAM (RLIMIT_MEMLOCK)");
+    }
+
+    /// The next frame's deadline: a step after the last one, or a step
+    /// from now when the pass ran past it, tied to the screen's vblank
+    /// where it is known.
+    fn deadline(&mut self) -> Instant {
+        let now = Instant::now();
+        let pace = &mut self.pace;
+        let grid = self.beat.as_ref().and_then(|b| {
+            b.set_step(pace.frames());
+            let grid = b.grid(now);
+            match grid {
+                Some(g) => pace.set_refresh(g.refresh),
+                None if !b.on() => pace.set_refresh(pace::FRAME),
+                None => {}
+            }
+            grid
+        });
+        let step = pace.step();
+        let due = self
+            .next_frame
+            .map(|d| d + step)
+            .filter(|d| *d > now)
+            .unwrap_or(now + step);
+        // Tied to the screen: the pass starts early enough to end
+        // just before a vblank, so its frame is written after it.
+        match grid {
+            Some(g) => g.align(due, (pace.cost() + VBLANK_MARGIN).min(step), now),
+            None => due,
         }
-        let at = timings::start(&shell.timings);
-        shell.report(false);
-        timings::stop(&mut shell.timings, Part::Report, at);
-        let at = timings::start(&shell.timings);
-        shell.write_boot_report(false);
-        timings::stop(&mut shell.timings, Part::BootReport, at);
-        shell.expire_notice();
-        let at = timings::start(&shell.timings);
-        shell.scan_sticks(false);
-        timings::stop(&mut shell.timings, Part::Sticks, at);
+    }
+}
+
+/// Folds what woke a pass into the shell: the readers that went away, a
+/// held device's reports, a look at what was plugged in. Returns the
+/// input events left to handle.
+fn take_in_wakes(shell: &mut Shell, wakes: Vec<Wake>) -> Vec<Wake> {
+    // Everything the controller has reported since the last pass
+    // goes in now. It reports a moving finger a hundred times a
+    // second; only the newest position of a run of moves matters, so
+    // the rest are dropped and a flick is a handful of events, not a
+    // queue that replays for seconds after the finger lifts.
+    let mut batch: Vec<Wake> = Vec::new();
+    // The readers whose devices went away during this wait.
+    let mut ended: Vec<u32> = Vec::new();
+    for wake in wakes {
+        match wake {
+            // The frame is taken below, from the camera's channel;
+            // the note only ended the wait.
+            Wake::Frame | Wake::Work => {}
+            Wake::InputEnded(id) => ended.push(id),
+            Wake::Held(id, input) => shell.held_wake(id, input, &mut batch),
+            other => batch.push(other),
+        }
+    }
+    for id in ended {
+        shell.input_ended(id);
+    }
+    // Whatever has been plugged in since the last look, at most once
+    // every couple of seconds.
+    let at = timings::start(&shell.timings);
+    shell.rescan_inputs();
+    timings::stop(&mut shell.timings, Part::Rescan, at);
+    shell.start_window_tick();
+    collapse_moves(&mut batch);
+    batch
+}
+
+/// Whether the pass is the last: the panic chord held long enough, from
+/// which nothing more is drawn, asked or saved, or the core is done.
+fn stop_after_input(shell: &mut Shell) -> bool {
+    if shell.panic_timer.due(Instant::now()) {
+        shell.panic = true;
+        shell.done = true;
+        return true;
+    }
+    shell.done
+}
+
+/// Takes in what the camera and the scanner reported since the last
+/// pass.
+fn take_in_camera(shell: &mut Shell) {
+    // One frame per pass, and the newest one. Decoding a frame costs
+    // the core longer than the tenth of a second between captures on
+    // a 3B+, so a loop that sent every waiting frame would never
+    // empty the channel and never reach the tick, the touches or the
+    // flush: the Scan screen froze while QR codes still decoded. The
+    // frames behind the newest are stale by definition.
+    let mut newest = None;
+    // A camera that would not open, which the capture thread
+    // reports once. It is not a frame and is not dropped for a
+    // newer one.
+    let mut unavailable = None;
+    while let Some(capture) = shell.camera.poll() {
+        match capture {
+            Capture::Frame(shot) => newest = Some(shot),
+            Capture::Unavailable(why) => unavailable = Some(why),
+        }
+    }
+    if let Some(why) = unavailable {
+        if let Some(reason) = shell.camera.take_reason() {
+            shell.say(&format!("camera unavailable: {reason}"));
+        }
+        shell.scanner = None;
+        shell.send(match why {
+            Some(why) => Event::CameraFailed(why),
+            None => Event::CameraUnavailable,
+        });
+    }
+    if let Some(shot) = newest {
+        // The capture thread reduced the frame once, so each half
+        // goes where it is wanted and nothing is copied: the
+        // captured luma to the scanner, which reads the codes in
+        // it, and the reduced frame to the core, which draws it.
+        if let Some(scanner) = shell.scanner.as_ref() {
+            // The scanner reads every other frame inverted, so a code
+            // printed light on dark reads too (`docs/QR.md` §1).
+            scanner.offer(shot.full_width, shot.full_height, shot.full_luma);
+        }
+        shell.send_timed(
+            Bucket::Camera,
+            Event::CameraFrame {
+                width: shot.width,
+                height: shot.height,
+                luma: shot.luma,
+                chroma: shot.chroma,
+            },
+        );
+    }
+    // Whatever the worker read since the last pass. The core routes
+    // each code as it routes one from a file.
+    while let Some(bytes) = shell.scanner.as_ref().and_then(Scanner::poll) {
+        shell.send_timed(Bucket::Scanned, Event::Scanned { bytes });
+    }
+    // How long the worker's passes over the frames took.
+    if let (Some(s), Some(t)) = (shell.scanner.as_ref(), shell.timings.as_mut()) {
+        costly::camera_passes(t, s.take_pass_times());
+    }
+    // What the scanner saw of a code, for the outline and for "too
+    // fine for this camera".
+    if let Some(seen) = shell.scanner.as_ref().and_then(Scanner::poll_seen)
+        && let Some(app) = shell.app.as_mut()
+    {
+        app.storage(StorageEvent::QrSeen {
+            width: seen.width,
+            height: seen.height,
+            corners: seen.corners,
+            module_tenths: (seen.module_px * 10.0).clamp(0.0, 65535.0) as u16,
+            read: seen.read,
+            whole: seen.whole,
+        });
+    }
+    // A camera the person chose on the scan sheet.
+    if let Some(id) = shell
+        .app
+        .as_mut()
+        .and_then(faraday_core::Faraday::take_camera)
+    {
+        shell.camera.choose(std::path::PathBuf::from(&*id));
+    }
+}
+
+/// What every pass ends with: the reports, the notice and the sticks.
+fn housekeeping(shell: &mut Shell) {
+    // The first page the kernel would not pin, said once and only
+    // with --verbose: it is a machine configuration a developer can
+    // act on and the person using the device cannot (§16.49). The
+    // release image has no swap and no console, so on a card this
+    // line is neither needed nor seen.
+    if faraday_crypto::pin_failure_to_report() {
+        shell.say("the kernel would not lock secret pages into RAM (RLIMIT_MEMLOCK)");
+    }
+    let at = timings::start(&shell.timings);
+    shell.report(false);
+    timings::stop(&mut shell.timings, Part::Report, at);
+    let at = timings::start(&shell.timings);
+    shell.write_boot_report(false);
+    timings::stop(&mut shell.timings, Part::BootReport, at);
+    shell.expire_notice();
+    let at = timings::start(&shell.timings);
+    shell.scan_sticks(false);
+    timings::stop(&mut shell.timings, Part::Sticks, at);
+}
+
+/// Waits to be woken, folds in the newest camera frame, ticks when
+/// nothing wakes it, and stops when the core exits or `--frames` is
+/// satisfied.
+///
+/// A touch and a frame wake the same wait, so a frame that arrives at
+/// the start of a wait is drawn then and not up to a tick later: the
+/// preview runs at the rate it costs. The frame itself is still taken
+/// from the camera's channel, one per pass and the newest one, so a
+/// board that decodes slower than it captures still ticks and still
+/// feels a finger.
+fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
+    let mut state = Loop::new(shell);
+    while !shell.done && !shell.enough() {
+        let wakes = state.wait(rx);
+        // What this pass costs, should it draw: everything from here to
+        // the frame written.
+        let began = Instant::now();
+        if let Some(t) = shell.timings.as_mut() {
+            t.begin_pass();
+        }
+        let batch = take_in_wakes(shell, wakes);
+        state.handle_input(shell, batch, began);
+        if stop_after_input(shell) {
+            break;
+        }
+        take_in_camera(shell);
+        let drew = state.draw(shell, began);
+        state.schedule(shell, drew);
+        housekeeping(shell);
     }
 }
 
