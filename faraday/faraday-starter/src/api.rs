@@ -625,6 +625,8 @@ pub enum Reason {
     BootFileUnsigned,
     /// Its signature does not hold over it.
     BootFileBroken,
+    /// Its signature is made in a way the check does not read.
+    BootFileNotRead,
     /// It holds more than the release's program and one signature alone
     /// at its end.
     BootFileLayout,

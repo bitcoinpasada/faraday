@@ -1366,14 +1366,17 @@ partition (F128).
   certificate-table entry and certificate table
   (`faraday_sb::pe::transplant`), so every byte the signature does not
   cover is the release's by construction. The signature must hold over
-  what is built, by a certificate it carries (`faraday_sb::pe::signer`).
+  what is built, by a certificate it carries, the one its signer names by issuer and
+  serial number (`faraday_sb::pe::signer`).
 - **Refused by name** otherwise: "This is not this release's boot file"
   (a file that is no EFI program, another program, the release's program
   with one byte changed, another release's, a table not where the
   program ends), "This boot file holds more than the release's program
   and one signature" (bytes after the table, two signatures), "This boot
   file is not signed" (no table), "This boot file has no signature that
-  holds". Which key signed it is not judged here: the computer's db
+  holds", "This boot file is signed in a way this check does not read"
+  (SHA-384 or SHA-1, another signature algorithm, more than one signer:
+  as firmware may read them, so not called a change). Which key signed it is not judged here: the computer's db
   decides that when it starts the stick. A file larger than a boot
   partition is refused before it is read whole.
 - **What is shown**, on What to write and on Confirm: the certificate's

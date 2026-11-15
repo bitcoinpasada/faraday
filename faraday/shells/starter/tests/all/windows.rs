@@ -811,6 +811,7 @@ fn every_reason() -> Vec<Reason> {
         Reason::BootFileOther,
         Reason::BootFileUnsigned,
         Reason::BootFileBroken,
+        Reason::BootFileNotRead,
         Reason::BootFileLayout,
         Reason::BootFileRead(s()),
         Reason::BootFileChanged(s()),

@@ -27,6 +27,8 @@ struct Layout {
     cert_dir: usize,
     size_of_headers: usize,
     sections: Vec<(usize, usize)>,
+    /// Where the last section ends (the headers' end when there is none).
+    sections_end: usize,
     /// The certificate table's offset and size, when there is one.
     certs: Option<(usize, usize)>,
 }
@@ -115,14 +117,42 @@ fn layout(pe: &[u8]) -> Result<Layout, Error> {
         cert_dir,
         size_of_headers,
         sections: secs,
+        sections_end: end,
         certs,
     })
 }
 
+impl Layout {
+    /// Whether the certificate table is where firmware hashes an image
+    /// with one: after the last section, on an 8-byte boundary, and
+    /// ending the file, so that no byte after the sections goes
+    /// unhashed. True when there is no table.
+    fn table_ends_file(&self, len: usize) -> bool {
+        match self.certs {
+            None => true,
+            Some((at, size)) => {
+                at >= self.sections_end && at.is_multiple_of(8) && at.checked_add(size) == Some(len)
+            }
+        }
+    }
+}
+
 /// The Authenticode SHA-256 of an image: everything but its checksum, its
 /// certificate-table entry and the certificate table.
+///
+/// An image whose certificate table does not end the file, start on an
+/// 8-byte boundary or follow the last section is refused: firmware hashes
+/// the bytes after such a table, which this hash leaves out.
 pub fn image_hash(pe: &[u8]) -> Result<[u8; 32], Error> {
     let l = layout(pe)?;
+    if !l.table_ends_file(pe.len()) {
+        return Err(Error::Image);
+    }
+    hash(pe, &l)
+}
+
+/// [`image_hash`] of an image laid out as `l`, wherever its table is.
+fn hash(pe: &[u8], l: &Layout) -> Result<[u8; 32], Error> {
     let bad = Error::Image;
     let part = |from: usize, to: usize| pe.get(from..to).ok_or(bad);
     let mut h = Sha256::new();
@@ -239,6 +269,10 @@ pub enum Check {
     Altered,
     /// The signature could not be read.
     Unreadable,
+    /// Signed in a way firmware may read and this check does not: another
+    /// digest or signature algorithm than SHA-256 and RSA PKCS #1 v1.5,
+    /// or more than one signer.
+    NotRead,
 }
 
 /// Why [`transplant`] took no signature from a signed copy.
@@ -268,7 +302,7 @@ pub fn transplant(release: &[u8], signed: &[u8]) -> Result<Vec<u8>, Transplant> 
     let (l, mut image) = unsigned(release).map_err(|_| Transplant::Release)?;
     let s = layout(signed).map_err(|_| Transplant::Other)?;
     let ours = image_hash(&image).map_err(|_| Transplant::Release)?;
-    if image_hash(signed).map_err(|_| Transplant::Other)? != ours
+    if hash(signed, &s).map_err(|_| Transplant::Other)? != ours
         || s.checksum != l.checksum
         || s.cert_dir != l.cert_dir
     {
@@ -287,7 +321,7 @@ pub fn transplant(release: &[u8], signed: &[u8]) -> Result<Vec<u8>, Transplant> 
     {
         return Err(Transplant::Layout);
     }
-    // Both layouts passed `image_hash`, so these ranges lie inside each image.
+    // Both layouts passed `layout`, so these ranges lie inside each image.
     let copy = |image: &mut Vec<u8>, to: usize, from: usize, n: usize| -> Option<()> {
         let src = signed.get(from..from.checked_add(n)?)?;
         image.get_mut(to..to.checked_add(n)?)?.copy_from_slice(src);
@@ -305,8 +339,12 @@ pub enum Signer {
     /// No signature.
     Unsigned,
     /// A signature that no certificate it carries checks: unreadable,
-    /// over another image, or by a key it does not carry.
+    /// over another image, or by a key it does not carry or name.
     Broken,
+    /// Signed in a way this crate does not read: another digest or
+    /// signature algorithm than SHA-256 and RSA PKCS #1 v1.5, or more than
+    /// one signer.
+    NotRead,
     /// Signed over this image by the key of this certificate (DER),
     /// which the signature carries.
     By(Vec<u8>),
@@ -324,8 +362,10 @@ pub fn signer(pe: &[u8]) -> Result<Signer, Error> {
     let carried = carried_certs(pe, at, size).unwrap_or_default();
     // The signature is decoded and the image hashed once, however many
     // certificates it carries.
-    let Some(Ok(signature)) = read_signature(pe, at, size) else {
-        return Ok(Signer::Broken);
+    let signature = match read_signature(pe, at, size) {
+        Some(Ok(signature)) => signature,
+        Some(Err(Check::NotRead)) => return Ok(Signer::NotRead),
+        _ => return Ok(Signer::Broken),
     };
     for cert in carried {
         if signature.verify(&cert) == Some(true) {
@@ -380,30 +420,69 @@ struct Signature {
 }
 
 impl Signature {
-    /// Whether `cert`'s key made the signature; `None` when the signed
-    /// attributes cannot be read.
+    /// Whether `cert` made the signature: its issuer and serial number are
+    /// the signer's, as the signature names it, and its key verifies;
+    /// `None` when the signed attributes cannot be read.
     fn verify(&self, cert: &[u8]) -> Option<bool> {
-        Some(x509::verify(
-            cert,
-            &cms::signed_attrs_bytes(&self.info_der)?,
-            self.info.signature.as_bytes(),
-        ))
+        let attrs = cms::signed_attrs_bytes(&self.info_der)?;
+        let Some(c) = x509::read(cert) else {
+            return Some(false);
+        };
+        let named = c.tbs_certificate().issuer() == &self.info.sid.issuer
+            && c.tbs_certificate().serial_number() == &self.info.sid.serial;
+        Some(named && x509::verify(cert, &attrs, self.info.signature.as_bytes()))
     }
 }
 
 /// Reads the first signature: `Err` is the check's answer when it is known
-/// without a certificate.
+/// without a certificate. As firmware reads one: exactly one signer, the
+/// content type SPC_INDIRECT_DATA in the content and in the signed
+/// attributes, SHA-256 and RSA PKCS #1 v1.5 throughout; another algorithm
+/// is [`Check::NotRead`], not a change to the file.
 fn read_signature(pe: &[u8], at: usize, size: usize) -> Option<Result<Signature, Check>> {
     let sd = signed_data(pe, at, size)?;
+    if sd.content_type != cms::SPC_INDIRECT_DATA {
+        return None;
+    }
     // The content is Authenticode's SpcIndirectDataContent.
     let spc = sd.content.as_ref()?;
     let content: cms::SpcIndirectData = Decode::from_der(&spc.to_der().ok()?).ok()?;
-    if content.message_digest.digest.as_bytes() != image_hash(pe).ok()? {
+    // Firmware hashes the image with the content's own algorithm and
+    // refuses a different hash whatever the signers say, so a changed
+    // image is one however the signers are written.
+    if content.message_digest.algorithm.oid == cms::SHA256
+        && content.message_digest.digest.as_bytes() != image_hash(pe).ok()?
+    {
         return Some(Err(Check::Altered));
     }
-    let info_der = sd.signer_infos.first()?.to_der().ok()?;
+    // No signer is no signature; two are ones firmware judges too.
+    let signer = match sd.signer_infos.as_slice() {
+        [] => return None,
+        [signer] => signer,
+        _ => return Some(Err(Check::NotRead)),
+    };
+    let info_der = signer.to_der().ok()?;
     let info = SignerInfo::from_der(&info_der).ok()?;
+    if content.message_digest.algorithm.oid != cms::SHA256
+        || info.digest_algorithm != cms::SHA256
+        || !matches!(info.signature_algorithm, cms::RSA | cms::SHA256_WITH_RSA)
+    {
+        return Some(Err(Check::NotRead));
+    }
     let attrs = info.signed_attrs.as_ref()?;
+    // RFC 5652 11.1: exactly one content type attribute, with one value,
+    // and it is the content's type.
+    let mut types = attrs.iter().filter(|a| a.oid == cms::CONTENT_TYPE);
+    let (Some(kind), None) = (types.next(), types.next()) else {
+        return None;
+    };
+    let mut values = kind.values.iter();
+    match (values.next(), values.next()) {
+        (Some(v), None)
+            if v.header().tag() == der::Tag::ObjectIdentifier
+                && v.value() == cms::SPC_INDIRECT_DATA.as_bytes() => {}
+        _ => return None,
+    }
     // RFC 5652 11.2: exactly one message digest attribute, with one value,
     // and it must name the content.
     let content_digest: [u8; 32] = Sha256::digest(spc.value()).into();

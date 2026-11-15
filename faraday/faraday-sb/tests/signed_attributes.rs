@@ -1,6 +1,6 @@
 //! An image's signature is checked over the signed attributes as they are
-//! written in the file (RFC 5652 5.4), and the first signer is the first
-//! one written, whatever order DER would put them in.
+//! written in the file (RFC 5652 5.4), whatever order DER would put them
+//! in; an image with two signers is not read.
 
 use faraday_sb::{Check, make, pe, rng, x509};
 
@@ -141,9 +141,8 @@ fn a_signature_over_attributes_written_out_of_der_order_is_valid() {
 }
 
 #[test]
-fn the_first_signer_is_the_first_one_written() {
-    // A second signer that DER order would put first: the same
-    // SignerInfo with another signature, one that sorts lower.
+fn an_image_with_a_second_signer_is_not_read() {
+    // Firmware judges every signer: with two, this check does not say.
     let (image, cert) = rewritten(false, |good| {
         let mut other = good.to_vec();
         let last = other.len() - 1;
@@ -154,7 +153,31 @@ fn the_first_signer_is_the_first_one_written() {
         assert!(other.as_slice() < good);
         vec![good.to_vec(), other]
     });
-    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid);
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::NotRead);
+}
+
+#[test]
+fn a_signature_whose_content_type_attribute_is_another_type_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let oid = [
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03,
+            ];
+            let at = attrs
+                .iter()
+                .position(|a| inside(a).starts_with(&oid))
+                .expect("a content type attribute");
+            // id-data in place of SPC_INDIRECT_DATA.
+            let data = [
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01,
+            ];
+            attrs[at] = tlv(0x30, &[&oid[..], &tlv(0x31, &data[..])].concat());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
 }
 
 /// The index of the message digest attribute in `attrs`.

@@ -253,7 +253,9 @@ pub fn signer_info(
             issuer: c.tbs_certificate().issuer().clone(),
             serial: c.tbs_certificate().serial_number().clone(),
         },
+        digest_algorithm: crate::cms::SHA256,
         signed_attrs,
+        signature_algorithm: crate::cms::RSA,
         signature: OctetString::new(signature.to_vec()).map_err(|_| Error::Key)?,
     })
 }

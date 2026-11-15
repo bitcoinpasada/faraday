@@ -147,6 +147,7 @@ pub fn build(release: &[u8], signed: &[u8]) -> Result<(Vec<u8>, BootSigner), Rea
         }
         Ok(Signer::Unsigned) => Err(Reason::BootFileUnsigned),
         Ok(Signer::Broken) => Err(Reason::BootFileBroken),
+        Ok(Signer::NotRead) => Err(Reason::BootFileNotRead),
         Err(_) => Err(Reason::BootFileOther),
     }
 }

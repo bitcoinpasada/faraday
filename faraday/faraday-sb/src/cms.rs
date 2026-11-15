@@ -23,6 +23,8 @@ pub const SIGNED_DATA: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.
 pub const SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.1");
 /// rsaEncryption.
 pub const RSA: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.1");
+/// sha256WithRSAEncryption.
+pub const SHA256_WITH_RSA: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.11");
 /// id-contentType.
 pub const CONTENT_TYPE: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.9.3");
 /// id-messageDigest.
@@ -194,8 +196,12 @@ pub fn image_attributes(content_digest: &[u8; 32]) -> der::Result<SetOfVec<Attri
 pub struct SignerInfo {
     /// The signer's certificate, by issuer and serial.
     pub sid: IssuerAndSerial,
+    /// The digest algorithm the signer names.
+    pub digest_algorithm: ObjectIdentifier,
     /// `[0]` the signed attributes.
     pub signed_attrs: Option<SetOfVec<Attribute>>,
+    /// The signature algorithm the signer names.
+    pub signature_algorithm: ObjectIdentifier,
     /// The signature.
     pub signature: OctetString,
 }
@@ -215,18 +221,18 @@ impl EncodeValue for SignerInfo {
     fn value_len(&self) -> der::Result<Length> {
         let mut n = 1u8.encoded_len()?;
         n = (n + self.sid.encoded_len()?)?;
-        n = (n + alg(SHA256).encoded_len()?)?;
+        n = (n + alg(self.digest_algorithm).encoded_len()?)?;
         n = (n + self.attrs().encoded_len()?)?;
-        n = (n + alg(RSA).encoded_len()?)?;
+        n = (n + alg(self.signature_algorithm).encoded_len()?)?;
         n + self.signature.encoded_len()?
     }
 
     fn encode_value(&self, writer: &mut impl Writer) -> der::Result<()> {
         1u8.encode(writer)?;
         self.sid.encode(writer)?;
-        alg(SHA256).encode(writer)?;
+        alg(self.digest_algorithm).encode(writer)?;
         self.attrs().encode(writer)?;
-        alg(RSA).encode(writer)?;
+        alg(self.signature_algorithm).encode(writer)?;
         self.signature.encode(writer)
     }
 }
@@ -239,11 +245,11 @@ impl<'a> DecodeValue<'a> for SignerInfo {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let _version: u8 = reader.decode()?;
         let sid = reader.decode()?;
-        let _digest: AlgorithmIdentifierOwned = reader.decode()?;
+        let digest: AlgorithmIdentifierOwned = reader.decode()?;
         let signed_attrs =
             ContextSpecific::<SetOfVec<Attribute>>::decode_implicit(reader, TagNumber(0))?
                 .map(|a| a.value);
-        let _signature_alg: AlgorithmIdentifierOwned = reader.decode()?;
+        let signature_alg: AlgorithmIdentifierOwned = reader.decode()?;
         let signature = reader.decode()?;
         // Unsigned attributes, if any, are not read.
         while !reader.is_finished() {
@@ -251,7 +257,9 @@ impl<'a> DecodeValue<'a> for SignerInfo {
         }
         Ok(Self {
             sid,
+            digest_algorithm: digest.oid,
             signed_attrs,
+            signature_algorithm: signature_alg.oid,
             signature,
         })
     }

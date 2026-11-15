@@ -231,6 +231,7 @@ fn a_refused_boot_file_says_why_by_name_and_nothing_goes_on() {
         (Reason::BootFileOther, EN.starter_why_boot_file_other),
         (Reason::BootFileUnsigned, EN.starter_why_boot_file_unsigned),
         (Reason::BootFileBroken, EN.starter_why_boot_file_broken),
+        (Reason::BootFileNotRead, EN.starter_why_boot_file_not_read),
         (Reason::BootFileLayout, EN.starter_why_boot_file_layout),
     ] {
         let mut s = starter();

@@ -34,3 +34,14 @@ sbsign --version || true
 osslsigncode --version 2>&1 | head -1 || true
 sha256sum tiny.efi tiny.sbsign.efi tiny.osslsigncode.efi cert.der
 rm -f key.pem
+# Added 2026-11-14 (osslsigncode 2.13, sbsigntool 0.9.4): the same image
+# signed by osslsigncode with SHA-384 and with SHA-1 under a second
+# throwaway key, whose certificate is cert.sha.der. sbverify refuses both.
+openssl req -new -x509 -newkey rsa:2048 -nodes -sha256 -days 36500 \
+    -subj "/CN=Test sbsign db/" -keyout key.pem -out cert.pem 2>/dev/null
+openssl x509 -in cert.pem -outform DER -out cert.sha.der
+for h in sha384 sha1; do
+    osslsigncode sign -h $h -certs cert.pem -key key.pem -in tiny.efi -out tiny.$h.efi
+done
+sha256sum tiny.sha384.efi tiny.sha1.efi cert.sha.der
+rm -f key.pem

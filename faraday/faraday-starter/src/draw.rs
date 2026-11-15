@@ -764,6 +764,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::BootFileOther => S.starter_why_boot_file_other.to_string(),
         Reason::BootFileUnsigned => S.starter_why_boot_file_unsigned.to_string(),
         Reason::BootFileBroken => S.starter_why_boot_file_broken.to_string(),
+        Reason::BootFileNotRead => S.starter_why_boot_file_not_read.to_string(),
         Reason::BootFileLayout => S.starter_why_boot_file_layout.to_string(),
         Reason::BootFileRead(p) => fill(S.starter_why_boot_file_read, &[p]),
         Reason::BootFileChanged(p) => fill(S.starter_why_boot_file_changed, &[p]),

@@ -309,6 +309,7 @@ impl Faraday {
             Ok(Check::Altered) => EN.secureboot_changed,
             Ok(Check::Unsigned) => EN.secureboot_not_signed,
             Ok(Check::Unreadable) => EN.secureboot_its_signature,
+            Ok(Check::NotRead) => EN.secureboot_signed_not_read,
             Err(e) => error_text(e),
         };
         let line = format!("{}: {said}", item.name.as_str());

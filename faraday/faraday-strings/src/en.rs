@@ -810,6 +810,8 @@ strings! {
     starter_why_boot_file_unsigned: "This boot file is not signed",
     /// Reason: a signature that does not hold over the file.
     starter_why_boot_file_broken: "This boot file has no signature that holds",
+    /// Reason: a signature by an algorithm or with signers the Starter does not read.
+    starter_why_boot_file_not_read: "This boot file is signed in a way this check does not read",
     /// Reason: bytes after the signature, or more than one signature.
     starter_why_boot_file_layout: "This boot file holds more than the release's program and one signature",
     /// Reason: `{}` the file.
@@ -8709,6 +8711,8 @@ strings! {
     secureboot_not_signed: "Not signed",
     /// Text in `sb_check`.
     secureboot_its_signature: "Its signature could not be read",
+    /// Text in `sb_check`: a signature by an algorithm or with signers this check does not read.
+    secureboot_signed_not_read: "Signed in a way this check does not read",
     /// Line in `images_panel` and toast in `sb_sign`: the release's `SHA256SUMS` or `SHA256SUMS.asc` is not in the Inbox (F134).
     secureboot_no_release_sums: "No signed sums from a Faraday release are beside this file",
     /// Line in `images_panel` and toast in `sb_sign`: the sums' signature does not verify with a release key (F134).
