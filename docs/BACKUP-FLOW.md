@@ -706,8 +706,7 @@ and matched. A write made on the stick visit page does not count
   for each of the three keys, and `savings-backup.pdf`.
 - **Which stick the public files share is the person's choice**
   (owner, 2026-10-14), short of a secret file. Where the plan's map puts
-  them on a stick that also keeps a vault copy (a chart edit,
-  NEW-WALLET §9.7), the flow writes them there, with no warning and
+  them on a stick that also keeps a vault copy (a board edit), the flow writes them there, with no warning and
   nothing blocked. A secret file never shares their stick, so a plan
   accepted at the lock can be written: the stick is chosen as above,
   and **Lock and write** refuses a plan that would still put a secret
@@ -1191,7 +1190,7 @@ software or the form, or Whole / In shares and the keys left off each
 share while any of the description is on paper or in a file, is refused
 with "Files and paper stay as made after the lock; finish the writes,
 then Back up again to change them", by every route: the flow's cards,
-Back up's cards, presets and the wallet's chart, with a vault open or
+Back up's cards, presets and the board, with a vault open or
 not. To change them the person finishes this backup's writes and runs
 **Back up** again on the wallet, a backup of its own (owner,
 2026-10-15). While a backup of the wallet is past its lock and not done,
@@ -1285,7 +1284,15 @@ divided into where a thing can be at that place (on a stick, inside a
 vault on a stick, on paper), and beside the cards a list of everything
 the backup can keep. The person drags a thing from the list into a
 place, or from one place to another. The plan underneath is the map of
-§15.2, unchanged in kind: each drop is a map edit (`plan::Edit`).
+§15.2, unchanged in kind: each drop is a map edit (`plan::Edit`). The board is
+the one editor of the plan's map: the wallet's chart edits nothing itself,
+and each of its key, place, line and mark sheets, and a SeedQR drawn in
+part, has one **Change in the plan** row that opens the board with that
+place or thing selected. A place that holds something asks on its ×,
+listing what it holds, and goes on **Take off**. A SeedQR drawn in part
+has its toggle on the paper chip: it reads on, and pressing it destroys
+the grid, the plan's map as it was. After a save, a plan already made
+opens only the item for what was added.
 
 Scope: Faraday Demo and the PC stick, at any window width (§17.12
 item 3 for a narrow window). The Pi is not considered here.

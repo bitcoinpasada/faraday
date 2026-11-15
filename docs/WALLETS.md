@@ -1125,7 +1125,8 @@ rule of its flow.
   items each offer what they make. The wallet: **Open in Wallets** (in a
   vault), **Show wallet QR**, **Public files** (the checklist's item),
   **Print the wallet sheet again** (or the shares), **Rename the wallet**
-  (its card's name field), **Change the plan**, **Check addresses** (the
+  (its card's name field), **Change the plan** (the wallet's card flow),
+  **Check addresses** (the
   descriptor row and the first addresses, as Create's Check). A key held
   here, or kept in the open vault: **Show xpub QR**, **Xpub file**,
   **Explore this key**, **Where it is** (its lines bold, the rest dimmed,
@@ -1137,12 +1138,11 @@ rule of its flow.
   SeedQR copy with a camera, which leaves the chart under the camera. A
   key not here: **Load this key** with its way in, where the quorum needs
   it; **Show its xpub**, from the wallet's descriptor. A place: its
-  lines, each opening its own sheet; **Rename**; **What goes in its
-  envelope**; **The envelope list** (a PDF For the stick, places by
+  lines, each opening its own sheet; **Rename**; **Change in the plan**;
+  **What goes in its envelope**; **The envelope list** (a PDF For the stick, places by
   number, never by the names the vault keeps). A vault: the vault way or
-  **Open the vault**, **Save its seeds into it**, **Copy to another
-  stick** (the stick visit), **Write it out again** while it has changed
-  since it was written. Files: **Write the seed files again**, **Write
+  **Open the vault**, **Save its seeds into it**, **Change in the plan**,
+  **Write it out again** while it has changed since it was written. Files: **Write the seed files again**, **Write
   the public files again**. Software: **Show the descriptor QR again**,
   **Public files for this software**. Lines: words, **Type my copy**;
   SeedQR, **Scan my copy** (**Type my copy** with no camera); **Make
@@ -1150,32 +1150,26 @@ rule of its flow.
   picture**, **As text**; a share, **Print the shares again**, **Keys
   left off each share**; a vault's stick, the vault way and **Copy the
   vault to another stick**; a seed file, **Write it again**; the
-  description, **Show wallet QR**. A flow on Back up comes back to the
-  card, or to the vault opened from.
-- **The chart changes the plan** (decision 49). A change to where
-  something is kept is asked on a sheet first: its title says the change
-  ("Move Vault 1 stick to Place 1"), the plan's three check lines read
-  before → after, a line made worse in `WARN`, and **Confirm** makes it;
-  Close leaves the plan as it was. The changes: **Move** (a line at a
-  place, to another place or **A new place**); **Another copy** (words
-  or SeedQR by hand, a passphrase, the wallet sheet, a vault's stick, at
-  a place not holding it, a passphrase never with its own words); **Add
-  here** (a place: what is held here and is not there yet); **Into Vault
-  n** and the vault's **Save more into it** (a seed held here, with its
-  passphrase where it was loaded with one, the description); **As a
-  file**; **I destroyed this copy**, and **Remove from the plan** for a
-  marked line or the stick of files ("Destroy what goes off the plan by
-  hand"); **Remove the place**, which first asks where each thing in it
-  goes (another place, or **Nowhere**) and is pressable once each has
-  one. Once confirmed, the flow that makes what was added follows: the
-  copy by hand with its check, the vault's item, the seed files, the
-  sheet For the stick, the stick visit for a vault's stick ("Vault 1 ·
-  copy", its own line, counted by the check), a passphrase shown to copy
-  (**Show it**) and then **Check my copy**. From the first change the
-  map is the plan: the backup's record and the vault's plan record keep
-  it, the chart and the checklist read it, and it loads back the same on
-  another power-on. **Change the plan** (the wallet's sheet, the
-  checklist's foot) then asks first, "Your changes on the chart are
+  description, **Show wallet QR**. Every key, place, line and mark sheet,
+  and a SeedQR drawn in part, has one **Change in the plan** row, which
+  opens the backup board (`docs/BACKUP-FLOW.md` §17) with that place or
+  thing selected; the sheet itself moves, copies, adds and removes
+  nothing. A flow on Back up comes back to the card, or to the vault
+  opened from.
+- **The board changes the plan** (decision 49). The backup board
+  (`docs/BACKUP-FLOW.md` §17) is the one editor of the plan's map: a
+  move, another copy, a thing added at a place, **Into Vault n**, **As a
+  file**, a place removed and a line taken off the plan are made there,
+  and the chart's sheets offer only **Change in the plan**. A place that
+  holds something asks on its × and lists what it holds; it goes on
+  **Take off**. A SeedQR drawn in part has its toggle on the paper chip:
+  it reads on, and pressing it destroys the grid, the plan's map as it
+  was. After a save, a plan already made opens only the item for what
+  was added, and the flow that makes it follows. From the first change
+  the map is the plan: the backup's record and the vault's plan record
+  keep it, the chart and the checklist read it, and it loads back the
+  same on another power-on. **Change the plan** (the wallet's sheet, the
+  checklist's foot) asks first, "Your changes on the chart are
   replaced". In the vault alone, never in the kept state or on disk
   outside the vault: the date each
   thing of a place was checked (a place's **Mark checked**; a passphrase
@@ -1194,7 +1188,7 @@ rule of its flow.
   to {new wallet}" and its first address on Write the payment); "The
   wallet can no longer be rebuilt from what is left" with **Back up again
   now**; "Someone can see the balance"; "Nothing lost that is not
-  elsewhere" with **Make a replacement copy**. **Check it** on a
+  elsewhere". **Check it** on a
   passphrase line (or the key's **Its passphrase**): typed into a masked
   field, the key it makes with the seed here compared by fingerprint, the
   typed text wiped at once; "Matches: it makes key {fp}" or "Does not
