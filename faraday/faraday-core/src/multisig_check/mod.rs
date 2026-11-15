@@ -123,6 +123,8 @@ pub struct MsState {
     /// What the seed given to Check a seed against it is; the seed itself
     /// is the one `faraday-keys` holds for My seed makes my wallet's flow.
     pub(crate) seed: Option<SeedAnswer>,
+    /// Which sample setup Use a sample gives next.
+    pub(crate) sample: u8,
 }
 
 impl MsState {
@@ -135,6 +137,7 @@ impl MsState {
             refused: None,
             shown: None,
             seed: None,
+            sample: 0,
         }
     }
 
@@ -590,6 +593,27 @@ pub(crate) fn scanned(app: &mut Faraday, bytes: &[u8]) -> bool {
         Err(why) => app.scan_say(&why),
     }
     true
+}
+
+/// Costs what [`check_text`] costs. Practice's Use a sample on the Setup
+/// card: the next sample setup is taken as if scanned, and the cursor
+/// moves on.
+pub(crate) fn use_sample(app: &mut Faraday) {
+    let Some(set) = app.put_on() else { return };
+    let list = crate::samples::put::setup_samples(set);
+    let Some(s) = st(app) else { return };
+    let at = usize::from(s.sample) % list.len().max(1);
+    s.sample = ((at + 1) % list.len().max(1)) as u8;
+    let Some(text) = list.get(at) else { return };
+    let c = app.compute();
+    let result = check_text(app, &c, text);
+    take(app, Text::of(EN.mscheck_scanned), result);
+}
+
+/// Whether the Setup card hands out Use a sample: Practice with samples
+/// set, the card open. A lookup.
+pub(crate) fn sample_shown(app: &Faraday) -> bool {
+    app.put_on().is_some() && state(app).is_some_and(|s| s.open == Some(mstep::SETUP))
 }
 
 /// The wallets of the session that are of more than one key, by place.

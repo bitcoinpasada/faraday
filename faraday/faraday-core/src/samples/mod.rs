@@ -216,6 +216,10 @@ pub struct SampleInputs {
     /// The SHA-256 of the file that proof stamps, in hex: the file is not
     /// kept, the tile takes its hash.
     pub timestamp_hash: &'static str,
+    /// New key's dice entry: the rolls of the guide's key, as direct word
+    /// selection takes them at twelve words (`tools/vectors/entropy/dice.json`).
+    /// Empty where a set has none.
+    pub dice_rolls: &'static str,
     /// The 80-byte header of the block the proof's Bitcoin attestation
     /// names, in hex.
     pub timestamp_header: &'static str,

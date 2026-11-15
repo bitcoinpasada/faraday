@@ -234,6 +234,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 qr_vault: &[],
                 timestamp_proof: &[],
                 timestamp_hash: "",
+                dice_rolls: "",
                 timestamp_header: "",
                 core_wallet: &[],
                 hsm: &[],

@@ -649,6 +649,9 @@ impl Faraday {
             Screen::Lightning => self.lightning_use_sample(),
             Screen::Explore => self.explore_use_sample(),
             Screen::Backup => self.copy_check_use_sample(),
+            Screen::KeyGen if self.dice_sample_shown() => self.dice_use_sample(),
+            Screen::MultisigCheck => crate::multisig_check::use_sample(self),
+            Screen::Tools if self.tools_sample_shown() => self.tools_use_sample(),
             _ => self.entry_use_sample(),
         }
     }
@@ -665,6 +668,57 @@ impl Faraday {
         let c = self.compute();
         let item = crate::Item::new(&c, EN.sample_vault_file, set.inputs.vault.to_vec());
         self.inbox.push(item);
+    }
+
+    /// Whether the xpub calculator draws Use a sample: Practice with
+    /// samples set, nothing typed. A lookup.
+    pub(crate) fn tools_sample_shown(&self) -> bool {
+        self.put_on().is_some() && self.tools.xpub_empty()
+    }
+
+    /// Handles `UseSample` on the xpub calculator: the account key of
+    /// the first sample single-key wallet is typed in.
+    fn tools_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        let key = set
+            .wallets
+            .iter()
+            .filter(|w| matches!(w.kind, SampleKind::Single))
+            .find_map(|w| {
+                let rest = w.text.split_once(']')?.1;
+                rest.split(['/', ')']).next().map(str::to_string)
+            });
+        if let Some(k) = key {
+            self.tools.type_sample(&k);
+        }
+    }
+
+    /// Whether New key's dice entry draws Use a sample: Practice with
+    /// samples set, twelve words named directly by the rolls, no roll
+    /// taken yet. A lookup.
+    pub(crate) fn dice_sample_shown(&self) -> bool {
+        let Some(set) = self.put_on() else {
+            return false;
+        };
+        !set.inputs.dice_rolls.is_empty()
+            && self.keygen.state().is_some_and(|k| {
+                k.open == Some(crate::keygen::kstep::ENTER)
+                    && k.active() == Some(crate::keygen::Source::Dice)
+                    && !k.locked
+                    && !k.by_die
+                    && k.procedure() == faraday_entropy::DiceProcedure::Words
+                    && k.words == 12
+                    && k.dice.is_empty()
+            })
+    }
+
+    /// Handles `UseSample` on New key's dice entry: the sample rolls are
+    /// pressed on the pad one by one, as a person would roll them.
+    fn dice_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        for c in set.inputs.dice_rolls.bytes() {
+            self.act(Action::KRoll(c - b'0'));
+        }
     }
 
     /// Costs what `Item::new` costs. Check a signed message with no
@@ -839,7 +893,7 @@ impl Faraday {
 /// The setups Check a multisig setup's scanner hands out: the sample
 /// wallets of several keys, then the first of them with its checksum
 /// changed, so the refusal is seen.
-fn setup_samples(set: &Samples) -> Vec<String> {
+pub(crate) fn setup_samples(set: &Samples) -> Vec<String> {
     let mut list: Vec<String> = set
         .wallets
         .iter()

@@ -655,6 +655,14 @@ fn main() {
     signer_pair(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");
 
+    // The rolls the guide's key takes at twelve words: the words vector's,
+    // but for the two the last word does not take.
+    let dice_rolls = json("entropy/dice.json")["vectors"]
+        .as_array()
+        .and_then(|v| v.iter().find(|x| x["procedure"] == "words"))
+        .and_then(|x| x["rolls"].as_str())
+        .map(|r| r[..70].to_string())
+        .expect("a words vector");
     let hsm = hsm_samples(&c);
     let words_nodes = hsm_words_nodes(&c, &keys);
     let mut out = String::from(
@@ -672,7 +680,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    timestamp_proof: include_bytes!(\"../data/timestamp.ots\"),\n    timestamp_hash: {TIMESTAMP_HASH:?},\n    timestamp_header: include_str!(\"../data/timestamp-header.hex\"),\n    core_wallet: &[\n        include_bytes!(\"../data/core-wallet-plain.dat\"),\n        include_bytes!(\"../data/core-wallet-encrypted.dat\"),\n    ],\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    timestamp_proof: include_bytes!(\"../data/timestamp.ots\"),\n    timestamp_hash: {TIMESTAMP_HASH:?},\n    dice_rolls: {dice_rolls:?},\n    timestamp_header: include_str!(\"../data/timestamp-header.hex\"),\n    core_wallet: &[\n        include_bytes!(\"../data/core-wallet-plain.dat\"),\n        include_bytes!(\"../data/core-wallet-encrypted.dat\"),\n    ],\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

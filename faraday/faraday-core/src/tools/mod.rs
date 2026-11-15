@@ -207,6 +207,24 @@ impl ToolsArea {
         }
     }
 
+    /// Whether the xpub calculator is open with nothing typed: where
+    /// Practice's Use a sample is drawn. A lookup.
+    pub(crate) fn xpub_empty(&self) -> bool {
+        self.tools
+            .as_ref()
+            .is_some_and(|t| t.tool == Tool::ConvertKey && t.typed.is_empty())
+    }
+
+    /// Types `text` into the field, as a person would.
+    pub(crate) fn type_sample(&mut self, text: &str) {
+        if let Some(t) = self.tools.as_mut() {
+            t.typed.clear();
+            for ch in text.chars() {
+                t.typed.push(ch);
+            }
+        }
+    }
+
     /// What is typed in Find a tool.
     pub fn find(&self) -> &str {
         &self.catalog_find

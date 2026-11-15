@@ -131,6 +131,10 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Tool::Units => EN.tools_an_amount,
         Tool::Miniscript => EN.tools_a_policy_e_g,
     };
+    // Use a sample goes in the "Demo only" card (`docs/DEMO.md` §14).
+    if app.tools_sample_shown() {
+        crate::samples::put::offer(ui, Action::UseSample);
+    }
     ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(x, y, width, 44.0, 8.0, Role::Primary);
     // A press places the caret (`docs/TEXT-CURSOR.md` §3).

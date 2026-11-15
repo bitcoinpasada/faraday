@@ -401,11 +401,14 @@ and what a press puts in, stands.
 | The Vaults screen with no vault | `Screen::Vaults` | the sample vault, into the Inbox as an item of the session, not written to disk |
 | Lightning node key, An LND cipher seed | `faraday/faraday-core/src/lightning/mod.rs`, `lightning/screen.rs` | the sample cipher seed's 24 words |
 | Check a signed message; Check an address | `faraday/faraday-core/src/screens/check_message.rs` | §5.3's message; §5.3's address |
+| Check a multisig setup, the Setup card | `faraday/faraday-core/src/multisig_check/mod.rs` `use_sample` | the next of the sample wallets of several keys, taken as if scanned, then the first with its checksum changed so the refusal is seen |
+| Tools: Convert an xpub, empty | `faraday/faraday-core/src/samples/put.rs` `tools_use_sample` | the account key of the first sample single-key wallet, typed in |
+| New key, the dice entry, twelve words named directly by the rolls | `faraday/faraday-core/src/samples/put.rs` `dice_use_sample` | the guide's rolls (`tools/vectors/entropy/dice.json`), pressed one by one; they make Guide key · 3dca6805 |
 
-Not offered, decided: New key's sources (dice, coins, cards, hex,
-camera): the person makes the entropy and §7 replaces the result;
+Not offered, decided: New key's sources (dice but for the guide's rolls
+above, coins, cards, hex, camera): the person makes the entropy and §7 replaces the result;
 Sign a message's text, a wallet's name, a vault entry's title and
-notes, Set the time, the calculators: free input, not a sample; Silent
+notes, Set the time, the calculators but Convert an xpub: free input, not a sample; Silent
 payments' Check a payment: no sample transaction pays a silent
 address; every passphrase and password: §6.2.
 

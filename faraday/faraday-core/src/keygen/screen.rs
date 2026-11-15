@@ -1292,6 +1292,10 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The input panel at the window's foot, where it stands, holds the
     // progress line and the pad (`docs/LAYOUT.md` §16.3).
     let foot = super::dice_panel::place(app, k);
+    // Use a sample goes in the "Demo only" card (`docs/DEMO.md` §14).
+    if app.dice_sample_shown() {
+        crate::samples::put::offer(ui, Action::UseSample);
+    }
     if active != Some(Source::Device) && foot.is_none() {
         cy += super::dice_panel::progress(k, ui, x, cy, w);
     }

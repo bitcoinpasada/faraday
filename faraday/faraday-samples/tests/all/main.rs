@@ -2,6 +2,7 @@
 //! data is checked against the key store, the testkit, the published
 //! vectors and another implementation of BIP-39 and BIP-32.
 
+mod check_samples;
 mod chip_caret;
 mod common;
 mod core_wallet_sample;

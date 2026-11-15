@@ -76,6 +76,10 @@ fn card(app: &View, s: &MsState, ui: &mut Ui, step: u8, at: (f32, f32, f32)) -> 
 
 fn setup(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = 0.0;
+    // Use a sample goes in the "Demo only" card (`docs/DEMO.md` §14).
+    if super::sample_shown(app) {
+        crate::samples::put::offer(ui, Action::UseSample);
+    }
     ui.button(
         x,
         y,
