@@ -31,7 +31,7 @@ For a set source the rows are **Add a share**, **Replace a lost share** and **Ro
 
 Shown for Seed XOR parts, codex32, SLIP-39 sets and the actions on a set. **Make** makes the result.
 
-**Parts** is 2 to 4. For codex32, **Shares needed (0: the secret alone)** is 0 or 2 to 9 and **Shares made** is up to 31. For SLIP-39 sets, **Groups**, **Groups needed**, and per group **Shares needed** and **Shares made**. A form that uses randomness says **Fresh randomness**; it is not offered in Practice. For a set, **Group** and **Share number** pick the share to add or replace; Rotating asks how many shares of each group were lost and which shares are **Destroyed**.
+**Parts** is 2 to 4. For codex32, **Shares needed (0: the secret alone)** is 0 or 2 to 9 and **Shares made** is up to 31. For SLIP-39 sets, **Groups**, **Groups needed**, and per group **Shares needed** and **Shares made**. A form that uses randomness says **Fresh randomness**; it is not offered in Practice. For a set, **Group** and **Share number** pick the share to add or replace; Rotating asks how many shares of each group were lost and which shares were destroyed.
 
 ## Result
 
