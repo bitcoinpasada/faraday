@@ -63,6 +63,12 @@ const NAMED_OK: &[(&str, &str)] = &[
 /// of the type that does.
 const KEPT: &[(&str, &str, &str, &str)] = &[
     (
+        "faraday/faraday-qr/src/send.rs",
+        "Source",
+        "Clone",
+        "what a QR view shows, held in wiping buffers: a copy is a wiping copy, made when the view's redo shows it in another format",
+    ),
+    (
         "faraday/faraday-core/src/codex32/mod.rs",
         "DieRow",
         "Clone,PartialEq,Debug",

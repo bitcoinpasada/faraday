@@ -636,7 +636,10 @@ fn view(c: &Compute, made: &Made) -> Result<QrView, Text> {
         frames: vec![code],
         frame: 0,
         next_ms: 0,
-        source: QrSource::File(text!("{}.pgp", made.stem.as_str()), made.bytes.clone()),
+        source: QrSource::File(
+            text!("{}.pgp", made.stem.as_str()),
+            zeroize::Zeroizing::new(made.bytes.to_vec()),
+        ),
         format: QrFormat::Ur,
         part: crate::QR_PARTS[1],
         secret: false,
@@ -673,7 +676,10 @@ fn file(app: &mut Faraday) {
     let Some(made) = state(app).and_then(|s| s.made.as_ref()) else {
         return;
     };
-    let (name, bytes) = (text!("{}.pgp", made.stem.as_str()), made.bytes.clone());
+    let (name, bytes) = (
+        text!("{}.pgp", made.stem.as_str()),
+        zeroize::Zeroizing::new(made.bytes.to_vec()),
+    );
     let put = app.put_outbox_beside(&name, bytes);
     app.toast(&Text::fill(EN.qr_tool_saved, &[&put]));
 }

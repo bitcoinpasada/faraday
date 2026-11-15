@@ -14,11 +14,12 @@ use faraday_crypto::work::Compute;
 use faraday_text::Text;
 use zeroize::Zeroizing;
 
-/// What a QR view shows.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What a QR view shows. No Debug or PartialEq: a file's or PSBT's
+/// bytes would be printed or compared.
+#[derive(Clone)]
 pub enum Source {
     /// A PSBT: `ur:crypto-psbt`, or BBQr `P`.
-    Psbt(Vec<u8>),
+    Psbt(Zeroizing<Vec<u8>>),
     /// Text a wallet reads (a descriptor, a key): one code while it fits,
     /// else `ur:bytes`, or BBQr `U`.
     Text(Text),
@@ -28,7 +29,7 @@ pub enum Source {
     Key(Text, Option<Text>),
     /// Any other file, in the Faraday file envelope (`docs/QR.md`):
     /// `ur:bytes`, or BBQr `J`, as Faraday OS reads them.
-    File(Text, Vec<u8>),
+    File(Text, Zeroizing<Vec<u8>>),
 }
 
 impl Source {

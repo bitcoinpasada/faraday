@@ -76,3 +76,39 @@ fn a_camera_frame_with_no_scan_open_leaves_no_freed_copy() {
     });
     finish("a camera frame with no scan open", armed, false);
 }
+
+/// A seed file in the Outbox shown as a QR code (in the Faraday file
+/// envelope), shown in another format and closed leaves no freed copy of its words.
+#[test]
+fn an_outbox_seed_file_shown_as_a_qr_code_leaves_no_freed_copy() {
+    use crate::forms::{PHRASE, seed_forms};
+    use faraday_core::{Action, StorageEvent};
+    let file = zeroize::Zeroizing::new(PHRASE.as_bytes().to_vec());
+    let mut forms = seed_forms("");
+    forms.push(Form::new(
+        "phrase as base64, as the envelope holds it",
+        faraday_bip::base64::encode(PHRASE.as_bytes()).into_bytes(),
+    ));
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: faraday_core::files_from(vec![("seed.dat", file)]),
+        kept: Vec::new(),
+    });
+    app.press(Action::QrOutbox(0));
+    let shown = app.qr().expect("the code is shown");
+    assert!(
+        matches!(shown.source, faraday_qr::send::Source::File(..)),
+        "the file goes as a file"
+    );
+    app.press(Action::QrFormat(1));
+    assert!(
+        app.qr()
+            .is_some_and(|q| q.format == faraday_core::QrFormat::ALL[1]),
+        "the code is shown in another format"
+    );
+    app.press(Action::Cancel);
+    assert!(app.qr().is_none(), "the sheet closed");
+    finish("an Outbox seed file shown as a QR code", armed, false);
+}

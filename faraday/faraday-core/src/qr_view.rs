@@ -543,11 +543,14 @@ fn envelope_text(e: faraday_qr::envelope::Error) -> &'static str {
 /// else in the Faraday file envelope (as Files' Show as QR sends it).
 pub(crate) fn qr_source(name: &str, bytes: &[u8], kind: FileKind) -> QrSource {
     match kind {
-        FileKind::Psbt => QrSource::Psbt(bytes.to_vec()),
+        FileKind::Psbt => QrSource::Psbt(zeroize::Zeroizing::new(bytes.to_vec())),
         FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
             QrSource::Text(faraday_text::Text::from_utf8_lossy(bytes))
         }
-        _ => QrSource::File(faraday_text::Text::of(name), bytes.to_vec()),
+        _ => QrSource::File(
+            faraday_text::Text::of(name),
+            zeroize::Zeroizing::new(bytes.to_vec()),
+        ),
     }
 }
 
@@ -629,7 +632,7 @@ impl QrView {
         QrView::of(
             c,
             title,
-            QrSource::Psbt(bytes.to_vec()),
+            QrSource::Psbt(zeroize::Zeroizing::new(bytes.to_vec())),
             QrFormat::Ur,
             QR_PARTS[1],
         )
