@@ -4138,6 +4138,24 @@ impl Faraday {
             _ => unreachable!(),
         }
     }
+
+    /// Finish makes both results For the stick the moment the transaction is
+    /// finished: the signed PSBT and the finished transaction. One the person
+    /// removed is not made again unless they ask; neither is made where a
+    /// version 2 PSBT cannot take the signatures back (`Spend::out_bytes`).
+    fn spend_files_out(&mut self) {
+        let Ok(made) = self.wallets.take_result_files() else {
+            return self.toast(EN.spend_v2_not_written);
+        };
+        for (signed, name, bytes) in made {
+            let name = self.put_outbox_beside(&name, bytes);
+            if signed {
+                self.wallets.set_signed_name(faraday_text::Text::of(&name));
+            } else {
+                self.wallets.set_tx_name(faraday_text::Text::of(&name));
+            }
+        }
+    }
 }
 
 #[cfg(test)]

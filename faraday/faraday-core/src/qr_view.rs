@@ -1,6 +1,8 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
+use crate::StorageCommand;
 use crate::file_stem;
+use crate::stem;
 use crate::strings::EN;
 use crate::wallet::{FileKind, Session, fp_text};
 use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, wallet};
@@ -1059,6 +1061,23 @@ impl Faraday {
             }
         }
         self.out.redraw();
+    }
+
+    fn make_pdf(&mut self, name: &str, bytes: &[u8]) {
+        let c = self.compute();
+        if !self.online {
+            return;
+        }
+        match faraday_paper::pdf::sheet(&c, &faraday_text::Text::from_utf8_lossy(bytes)) {
+            Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
+                name: faraday_text::Text::fill(EN.make_pdf_pdf, &[&stem(name)]),
+                bytes: pdf,
+            }),
+            Err(e) => self.toast(&faraday_text::Text::fill(
+                EN.make_pdf_not_printed,
+                &[&faraday_text::text!("{e}")],
+            )),
+        }
     }
 }
 

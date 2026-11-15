@@ -1,5 +1,6 @@
 //! The state of screens that belong to no area folder: seed entry, signing a
-//! message and the stick visit.
+//! message, the stick visit, and the lock, power and idle-warning sheets with
+//! their timers.
 
 use std::collections::BTreeSet;
 
@@ -8,13 +9,14 @@ use crate::ReceiptFile;
 use crate::StorageCommand;
 use crate::codex32_correct::{Offered, typable};
 use crate::forms::{Form, completion, slip39_completion};
+use crate::idle;
 use crate::seed_by_name;
 use crate::strings::EN;
 use crate::wallet::FileKind;
 use crate::wallet::fp_text;
 use crate::{
-    Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
-    visit_taken,
+    Action, Code, Column, Faraday, Screen, Sheet, VisitBarAt, Writing, flow, forms, mstep,
+    secret_text, visit_taken,
 };
 use faraday_bip::bip39::Language;
 use faraday_bip::codex32::Codex32;
@@ -1846,5 +1848,150 @@ impl Faraday {
             Column::Outbox => self.visit.set_out_offset(offset),
             Column::Stick => self.list_offset = offset,
         }
+    }
+
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Hold*`, `Idle*`).
+    pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::Lock => self.lock(),
+            Action::LockUnsealed => self.lock_now(true),
+            Action::LockAsk => self.lock_ask(false),
+            Action::NotNow => {
+                self.next_mode.clear();
+                self.sheet = None;
+                self.stick.set_not_now(true);
+            }
+            Action::PowerAsk => {
+                // An open vault's changes are never sealed at power-off:
+                // the sheet says they are lost.
+                let changed = self.vaults.open.iter().any(|v| v.changes > 0);
+                if self.outbox.is_empty()
+                    && !self.secure_boot_reminder()
+                    && !changed
+                    && !self.offers_restart()
+                    && !self.lock_held(c)
+                {
+                    self.exit_forgetting();
+                } else {
+                    self.sheet = Some(Sheet::Power);
+                }
+            }
+            Action::KeyPathHold => self.key_path_act(action),
+            Action::PowerOff | Action::HoldPowerOff => {
+                self.sheet = None;
+                self.exit_forgetting();
+            }
+            Action::Restart | Action::HoldRestart => {
+                self.sheet = None;
+                self.restart_computer = self.offers_restart();
+                self.exit_forgetting();
+            }
+            Action::IdleLock(m) => {
+                self.settings.set_idle_lock_min(m);
+                self.save_boxes();
+            }
+            Action::IdleOff(m) => {
+                self.settings.set_idle_off_min(m);
+                self.save_boxes();
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+
+    /// The idle timers. Returns whether the screen
+    /// changed.
+    pub(crate) fn idle_tick(&mut self, now_ms: u64) -> bool {
+        if self.hold_idle(now_ms) {
+            return false;
+        }
+        let c = self.compute();
+        let idle = self.idle.ms_starting(now_ms);
+        let min = 60_000u64;
+        // The warning, with its countdown, before the lock.
+        // Make a new wallet before its keys are kept anywhere: no idle
+        // lock at all.
+        let held = self.lock_held(&c);
+        // Held: no warning and no lock, but words on show are put away
+        // once at the warning time; the flow, its key and the Seed XOR
+        // parts stay.
+        if held
+            && let Some((warn, _)) = idle::lock_at(self.idle_lock_min())
+            && idle >= warn
+            && self.idle.mask_held_once()
+        {
+            self.secrets_off_screen();
+            return true;
+        }
+        if let Some((warn, lock)) = idle::lock_at(self.idle_lock_min())
+            && idle >= warn
+            && idle < lock
+            && self.lockable()
+            && self.idle.locking().is_none()
+            && !held
+        {
+            let changed = self.sheet != Some(Sheet::IdleWarn);
+            // Over any sheet but a lock's own: a code on the QR sheet
+            // goes too, and the warning counts down over it.
+            if changed
+                && !matches!(
+                    self.sheet,
+                    Some(Sheet::Lock | Sheet::LockAsk | Sheet::Locked)
+                )
+            {
+                self.idle.set_under(self.sheet);
+                self.sheet = Some(Sheet::IdleWarn);
+                self.idle.set_warn_min(idle / min);
+                self.secrets_off_screen();
+            }
+            let left = (lock - idle).div_ceil(1000);
+            if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
+                self.idle.set_shown(Some(left));
+                return true;
+            }
+            return false;
+        }
+        // The Locked sheet counts down to power-off.
+        if self.sheet == Some(Sheet::Locked)
+            && let Some(off) = self.idle_off_at()
+        {
+            let left = off.saturating_sub(idle).div_ceil(1000);
+            if self.idle.shown() != Some(left) {
+                self.idle.set_shown(Some(left));
+                if idle < off {
+                    return true;
+                }
+            }
+        }
+        if self.idle_lock_min() > 0
+            && idle >= u64::from(self.idle_lock_min()) * min
+            && self.lockable()
+            && self.idle.locking().is_none()
+            && !held
+        {
+            self.idle.set_locking(Some(idle));
+            // No one is there to ask: the lock goes ahead, and an open
+            // vault's changes with no seed to seal them are lost, as the
+            // warning before it said.
+            self.lock_now(true);
+            return true;
+        }
+        if self.idle_off_min() > 0
+            && idle >= u64::from(self.idle_off_min()) * min
+            && !self.online
+            && !self.lockable()
+            && !self.flow_screen()
+        {
+            if self.outbox.is_empty() {
+                self.exit_forgetting();
+            } else if self.sheet.is_none() {
+                // Powering off would lose what waits: the lock screen
+                // stays, saying what it is.
+                self.sheet = Some(Sheet::Locked);
+                return true;
+            }
+        }
+        false
     }
 }

@@ -29,7 +29,8 @@ use crate::public_files;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
 use crate::{
     Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
-    board, bstep, copy_check, file_stem, flow, plan, plan_cards_on, qrow, qstep, ui, vault,
+    board, bstep, copy_check, file_stem, flow, picture, plan, plan_cards_on, qrow, qstep, ui,
+    vault,
 };
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
@@ -2873,6 +2874,59 @@ impl Faraday {
             .into_iter()
             .map(|(n, b)| (Text::of(&n), b))
             .collect()
+    }
+
+    /// Costs a QR encoding (through `picture_codes`). The labelled pictures
+    /// among a wallet's public files `what` (as [`Faraday::public_out`]
+    /// numbers them): for 8, the descriptor's code, in parts past one code;
+    /// for 4, each split share's code, one beside each share's sheet and
+    /// text. None for any other file.
+    pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
+        match self.public_inputs(c, wallet) {
+            Some(inputs) => public_files::pictures(c, &inputs, what),
+            None => Vec::new(),
+        }
+    }
+
+    /// Costs what `public_files::files` costs. [`Faraday::public_made`], its
+    /// pictures and PDFs made only when `bytes`, else named with no bytes.
+    pub(crate) fn public_files(
+        &mut self,
+        wallet: usize,
+        what: u8,
+        bytes: bool,
+    ) -> Vec<(faraday_text::Text, Vec<u8>)> {
+        let c = self.compute();
+        let Some(inputs) = self.public_inputs(&c, wallet) else {
+            return Vec::new();
+        };
+        let made = public_files::files(&c, &inputs, what, bytes);
+        if let Some(t) = &made.toast {
+            self.toast(t);
+        }
+        made.files
+            .into_iter()
+            .map(|(n, b)| (faraday_text::Text::of(&n), b))
+            .collect()
+    }
+
+    /// Costs what `put_outbox` costs. Files made, For the stick: the toast
+    /// the making said, the files, the backup under way told, and what
+    /// they are called.
+    pub(crate) fn put_public(&mut self, wallet: usize, made: public_files::Made) {
+        if let Some(t) = &made.toast {
+            self.toast(t);
+        }
+        let names: Vec<faraday_text::Text> = made
+            .files
+            .iter()
+            .map(|(n, _)| faraday_text::Text::of(n))
+            .collect();
+        for (name, bytes) in made.files {
+            self.put_outbox(&name, bytes);
+        }
+        self.backup_sent(wallet, &names);
+        self.toast_out_files(&names);
     }
 
     /// Files of wallet `wallet` just put in the Outbox, for the summary

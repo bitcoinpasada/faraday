@@ -4490,7 +4490,7 @@ strings! {
     create_child_body: "Faraday records that {} is a BIP-85 child seed only inside a vault. Nothing written for its backup says where it came from. To remember that, write it down yourself.",
     /// Action in `child_notice`.
     create_child_ok: "OK",
-    // ----- make_pdf (faraday-core/src/lib.rs) -----
+    // ----- make_pdf (faraday-core/src/qr_view.rs) -----
     /// Text in `make_pdf`. `{}`: `stem(name)`.
     make_pdf_pdf: "{}.pdf",
     /// Toast in `make_pdf`. `{}`: `e`.

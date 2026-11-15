@@ -1275,101 +1275,6 @@ impl Faraday {
             .filter(|s| *s != Sheet::Qr || self.qr().is_some());
     }
 
-    /// The idle timers. Returns whether the screen
-    /// changed.
-    fn idle_tick(&mut self, now_ms: u64) -> bool {
-        if self.hold_idle(now_ms) {
-            return false;
-        }
-        let c = self.compute();
-        let idle = self.idle.ms_starting(now_ms);
-        let min = 60_000u64;
-        // The warning, with its countdown, before the lock.
-        // Make a new wallet before its keys are kept anywhere: no idle
-        // lock at all.
-        let held = self.lock_held(&c);
-        // Held: no warning and no lock, but words on show are put away
-        // once at the warning time; the flow, its key and the Seed XOR
-        // parts stay.
-        if held
-            && let Some((warn, _)) = idle::lock_at(self.idle_lock_min())
-            && idle >= warn
-            && self.idle.mask_held_once()
-        {
-            self.secrets_off_screen();
-            return true;
-        }
-        if let Some((warn, lock)) = idle::lock_at(self.idle_lock_min())
-            && idle >= warn
-            && idle < lock
-            && self.lockable()
-            && self.idle.locking().is_none()
-            && !held
-        {
-            let changed = self.sheet != Some(Sheet::IdleWarn);
-            // Over any sheet but a lock's own: a code on the QR sheet
-            // goes too, and the warning counts down over it.
-            if changed
-                && !matches!(
-                    self.sheet,
-                    Some(Sheet::Lock | Sheet::LockAsk | Sheet::Locked)
-                )
-            {
-                self.idle.set_under(self.sheet);
-                self.sheet = Some(Sheet::IdleWarn);
-                self.idle.set_warn_min(idle / min);
-                self.secrets_off_screen();
-            }
-            let left = (lock - idle).div_ceil(1000);
-            if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
-                self.idle.set_shown(Some(left));
-                return true;
-            }
-            return false;
-        }
-        // The Locked sheet counts down to power-off.
-        if self.sheet == Some(Sheet::Locked)
-            && let Some(off) = self.idle_off_at()
-        {
-            let left = off.saturating_sub(idle).div_ceil(1000);
-            if self.idle.shown() != Some(left) {
-                self.idle.set_shown(Some(left));
-                if idle < off {
-                    return true;
-                }
-            }
-        }
-        if self.idle_lock_min() > 0
-            && idle >= u64::from(self.idle_lock_min()) * min
-            && self.lockable()
-            && self.idle.locking().is_none()
-            && !held
-        {
-            self.idle.set_locking(Some(idle));
-            // No one is there to ask: the lock goes ahead, and an open
-            // vault's changes with no seed to seal them are lost, as the
-            // warning before it said.
-            self.lock_now(true);
-            return true;
-        }
-        if self.idle_off_min() > 0
-            && idle >= u64::from(self.idle_off_min()) * min
-            && !self.online
-            && !self.lockable()
-            && !self.flow_screen()
-        {
-            if self.outbox.is_empty() {
-                self.exit_forgetting();
-            } else if self.sheet.is_none() {
-                // Powering off would lose what waits: the lock screen
-                // stays, saying what it is.
-                self.sheet = Some(Sheet::Locked);
-                return true;
-            }
-        }
-        false
-    }
-
     /// The kernel shows storage attached or not: with none listed, it
     /// stops what a stick stops, as a listed stick does.
     fn storage_attached(&mut self, attached: bool) {
@@ -1662,24 +1567,6 @@ impl Faraday {
         self.vault_seal_all(may_lose);
     }
 
-    /// Finish makes both results For the stick the moment the transaction is
-    /// finished: the signed PSBT and the finished transaction. One the person
-    /// removed is not made again unless they ask; neither is made where a
-    /// version 2 PSBT cannot take the signatures back (`Spend::out_bytes`).
-    fn spend_files_out(&mut self) {
-        let Ok(made) = self.wallets.take_result_files() else {
-            return self.toast(EN.spend_v2_not_written);
-        };
-        for (signed, name, bytes) in made {
-            let name = self.put_outbox_beside(&name, bytes);
-            if signed {
-                self.wallets.set_signed_name(faraday_text::Text::of(&name));
-            } else {
-                self.wallets.set_tx_name(faraday_text::Text::of(&name));
-            }
-        }
-    }
-
     /// Costs a hash of a whole file (through `vault_changed`). The session
     /// strip's stage, computed, never stored (`docs/FLOWS.md`, Sidebar).
     pub fn session_stage(&self, c: &Compute) -> &'static str {
@@ -1725,56 +1612,6 @@ impl Faraday {
         self.published_sheet_open();
         self.account_after(account_asked, action);
         self.osk_after(action);
-    }
-
-    /// Costs what the actions below cost, the keys' and wallets' work among
-    /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Hold*`, `Idle*`).
-    pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
-        match action {
-            Action::Lock => self.lock(),
-            Action::LockUnsealed => self.lock_now(true),
-            Action::LockAsk => self.lock_ask(false),
-            Action::NotNow => {
-                self.next_mode.clear();
-                self.sheet = None;
-                self.stick.set_not_now(true);
-            }
-            Action::PowerAsk => {
-                // An open vault's changes are never sealed at power-off:
-                // the sheet says they are lost.
-                let changed = self.vaults.open.iter().any(|v| v.changes > 0);
-                if self.outbox.is_empty()
-                    && !self.secure_boot_reminder()
-                    && !changed
-                    && !self.offers_restart()
-                    && !self.lock_held(c)
-                {
-                    self.exit_forgetting();
-                } else {
-                    self.sheet = Some(Sheet::Power);
-                }
-            }
-            Action::KeyPathHold => self.key_path_act(action),
-            Action::PowerOff | Action::HoldPowerOff => {
-                self.sheet = None;
-                self.exit_forgetting();
-            }
-            Action::Restart | Action::HoldRestart => {
-                self.sheet = None;
-                self.restart_computer = self.offers_restart();
-                self.exit_forgetting();
-            }
-            Action::IdleLock(m) => {
-                self.settings.set_idle_lock_min(m);
-                self.save_boxes();
-            }
-            Action::IdleOff(m) => {
-                self.settings.set_idle_off_min(m);
-                self.save_boxes();
-            }
-            // `act_inner` passes only the actions matched above.
-            _ => unreachable!(),
-        }
     }
 
     /// Ends the app for a power-off or a restart: what a lock drops without
@@ -2370,18 +2207,6 @@ impl Faraday {
         }
     }
 
-    /// Costs a QR encoding (through `picture_codes`). The labelled pictures
-    /// among a wallet's public files `what` (as [`Faraday::public_out`]
-    /// numbers them): for 8, the descriptor's code, in parts past one code;
-    /// for 4, each split share's code, one beside each share's sheet and
-    /// text. None for any other file.
-    pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
-        match self.public_inputs(c, wallet) {
-            Some(inputs) => public_files::pictures(c, &inputs, what),
-            None => Vec::new(),
-        }
-    }
-
     /// One of a wallet's public files to the Outbox: 0 the blank
     /// template, 1 the descriptor, 2 the multisig config, 3 the backup
     /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
@@ -2442,28 +2267,6 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs what `public_files::files` costs. [`Faraday::public_made`], its
-    /// pictures and PDFs made only when `bytes`, else named with no bytes.
-    fn public_files(
-        &mut self,
-        wallet: usize,
-        what: u8,
-        bytes: bool,
-    ) -> Vec<(faraday_text::Text, Vec<u8>)> {
-        let c = self.compute();
-        let Some(inputs) = self.public_inputs(&c, wallet) else {
-            return Vec::new();
-        };
-        let made = public_files::files(&c, &inputs, what, bytes);
-        if let Some(t) = &made.toast {
-            self.toast(t);
-        }
-        made.files
-            .into_iter()
-            .map(|(n, b)| (faraday_text::Text::of(&n), b))
-            .collect()
-    }
-
     /// Costs two key derivations for a silent payments wallet, nothing for
     /// another. What wallet `wallet`'s public files are made from, owned:
     /// `None` where the session has no such wallet.
@@ -2472,25 +2275,6 @@ impl Faraday {
         let blank = self.public_wallet(c, wallet).is_none();
         let omit = self.backup.state().map(|b| b.answers.omit);
         Some(public_files::Inputs::of(&self.session, w, omit, blank))
-    }
-
-    /// Costs what `put_outbox` costs. Files made, For the stick: the toast
-    /// the making said, the files, the backup under way told, and what
-    /// they are called.
-    pub(crate) fn put_public(&mut self, wallet: usize, made: public_files::Made) {
-        if let Some(t) = &made.toast {
-            self.toast(t);
-        }
-        let names: Vec<faraday_text::Text> = made
-            .files
-            .iter()
-            .map(|(n, _)| faraday_text::Text::of(n))
-            .collect();
-        for (name, bytes) in made.files {
-            self.put_outbox(&name, bytes);
-        }
-        self.backup_sent(wallet, &names);
-        self.toast_out_files(&names);
     }
 
     /// The master fingerprint of slot `slot` of wallet `i` when
@@ -2535,23 +2319,6 @@ impl Faraday {
                 self.toast_out(&name);
             }
             Err(e) => self.toast(&e),
-        }
-    }
-
-    fn make_pdf(&mut self, name: &str, bytes: &[u8]) {
-        let c = self.compute();
-        if !self.online {
-            return;
-        }
-        match faraday_paper::pdf::sheet(&c, &faraday_text::Text::from_utf8_lossy(bytes)) {
-            Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
-                name: faraday_text::Text::fill(EN.make_pdf_pdf, &[&stem(name)]),
-                bytes: pdf,
-            }),
-            Err(e) => self.toast(&faraday_text::Text::fill(
-                EN.make_pdf_not_printed,
-                &[&faraday_text::text!("{e}")],
-            )),
         }
     }
 
