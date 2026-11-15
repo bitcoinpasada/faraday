@@ -444,12 +444,12 @@ impl Camera {
             });
         let (w, h, luma) =
             faraday_camera::scale::downscale(luma, self.width, self.height, self.factor);
-        Some(Frame {
-            width: u16::try_from(w).ok()?,
-            height: u16::try_from(h).ok()?,
+        Some(Frame::new(
+            u16::try_from(w).ok()?,
+            u16::try_from(h).ok()?,
             luma,
             chroma,
-        })
+        ))
     }
 
     /// `poll` for readability; `true` when a buffer is ready.

@@ -1,5 +1,7 @@
 use std::cmp;
 
+use zeroize::Zeroize;
+
 use crate::identify::match_capstones::CapStoneGroup;
 use crate::identify::Point;
 
@@ -195,6 +197,13 @@ pub struct BasicImageBuffer {
     w: usize,
     h: usize,
     pixels: Box<[u8]>,
+}
+
+/// The picture is wiped when the buffer is dropped.
+impl Drop for BasicImageBuffer {
+    fn drop(&mut self) {
+        self.pixels[..].zeroize();
+    }
 }
 
 impl ImageBuffer for BasicImageBuffer {

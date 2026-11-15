@@ -510,7 +510,7 @@ fn prepare(frame: Frame) -> Queued {
         chroma,
         full_width: frame.width,
         full_height: frame.height,
-        full_luma: Zeroizing::new(frame.luma),
+        full_luma: frame.luma,
     }
 }
 
@@ -528,12 +528,12 @@ mod tests {
     use super::*;
 
     fn frame(size: Size) -> Frame {
-        Frame {
-            width: size.width,
-            height: size.height,
-            luma: vec![0; usize::from(size.width) * usize::from(size.height)],
-            chroma: None,
-        }
+        Frame::new(
+            size.width,
+            size.height,
+            vec![0; usize::from(size.width) * usize::from(size.height)],
+            None,
+        )
     }
 
     /// A camera that streams only at `works`, noting each size asked.

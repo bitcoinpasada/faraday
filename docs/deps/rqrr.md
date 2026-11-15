@@ -13,8 +13,8 @@ binary CompactSeedQR payloads need (a NUL byte or a line feed must
 survive).
 
 **Cost.** Version 0.11 with `default-features = false` (no `image`), and
-since the trim below no dependencies at all: the copy in the tree
-compiles against `std` and nothing else. It needs `std`
+since the trim below one dependency, `zeroize` (below): the copy in the tree
+compiles against `std` and that crate. It needs `std`
 (`std::io::Write`, `std::error::Error`), so `faraday-codec` enables it only
 behind its `decode` feature and is the one core crate that is not
 `no_std` in that configuration. The Pi and desktop shells run with `std`, so
@@ -27,6 +27,11 @@ proc-macro that generated its tables at build time, and `g2poly`) and
 behind it). `g2gen` was the only proc-macro in a device graph, and with
 it went `syn 2`, `quote` and `proc-macro2` from the core, FFI and Pi
 graphs.
+
+**One dependency again.** The copy depends on `zeroize`, the one the rest
+of the workspace uses, to wipe the buffers that hold a scanned code (the raw
+bits, the corrected data stream and the searched picture) when they drop. It
+adds no crate to any graph and no `unsafe`.
 
 **Vendored.** Since 2026-09-11 the crate is a copy in the tree,
 `third_party/rqrr`, reached through a path in the root manifest's

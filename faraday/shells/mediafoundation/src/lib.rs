@@ -461,12 +461,12 @@ mod tests {
         let frame = from_plane(&plane, 4, 4, 6, Some((&uv, 6))).expect("the plane is long enough");
         assert_eq!((frame.width, frame.height), (4, 4));
         assert_eq!(
-            frame.luma,
+            *frame.luma,
             vec![0, 1, 2, 3, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20, 21]
         );
         assert_eq!(
-            frame.chroma,
-            Some(vec![10, 20, 11, 21, 12, 22, 13, 23]),
+            frame.chroma.as_deref(),
+            Some(&vec![10, 20, 11, 21, 12, 22, 13, 23]),
             "the pairs, without the row padding"
         );
         // A plane one byte short of its last row is refused rather than
@@ -487,8 +487,8 @@ mod tests {
         let frame =
             from_plane(&plane, width, height, width, Some((&uv, width))).expect("long enough");
         assert_eq!((frame.width, frame.height), (640, 480));
-        assert_eq!(frame.luma, plane);
-        assert_eq!(frame.chroma, Some(uv));
+        assert_eq!(*frame.luma, plane);
+        assert_eq!(frame.chroma.as_deref(), Some(&uv));
     }
 
     /// NV12 has no odd sizes; a frame claiming one is refused rather

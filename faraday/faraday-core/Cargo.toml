@@ -63,6 +63,8 @@ faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
 faraday-files = { path = "../faraday-files" }
 # The camera shells' scanner: what a camera frame is seen to hold.
 faraday-scanner = { path = "../faraday-scanner" }
+# The camera shells' shrink of a frame, which the leak tests look at.
+faraday-camera = { path = "../shells/camera" }
 # The test binary's allocator, counting each thread's allocations for the
 # frame budgets (`src/work/budget.rs`).
 faraday-alloc-count = { path = "../tools/alloc-count" }

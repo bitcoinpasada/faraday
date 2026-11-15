@@ -21,6 +21,7 @@ mod entries;
 mod forms;
 mod planted;
 mod readers;
+mod scan;
 mod seed_load;
 mod sign;
 mod stick_visit;

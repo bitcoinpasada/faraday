@@ -13,6 +13,8 @@
 pub mod nv12;
 pub mod scale;
 
+use zeroize::Zeroizing;
+
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
 /// and the NV12 chroma plane for it where the device gave colour, which
 /// is exactly the payload of `faraday_shell_api::Event::CameraFrame`.
@@ -23,13 +25,25 @@ pub struct Frame {
     /// Frame height in pixels.
     pub height: u16,
     /// The pixels, black 0 to white 255.
-    pub luma: Vec<u8>,
+    pub luma: Zeroizing<Vec<u8>>,
     /// `⌈width / 2⌉ × ⌈height / 2⌉` pairs of interleaved Cb and Cr (U
     /// and V), or `None` when the device gave no colour.
-    pub chroma: Option<Vec<u8>>,
+    pub chroma: Option<Zeroizing<Vec<u8>>>,
 }
 
 impl Frame {
+    /// A frame from plain vectors, which it takes over and wipes when it
+    /// is dropped.
+    #[must_use]
+    pub fn new(width: u16, height: u16, luma: Vec<u8>, chroma: Option<Vec<u8>>) -> Frame {
+        Frame {
+            width,
+            height,
+            luma: Zeroizing::new(luma),
+            chroma: chroma.map(Zeroizing::new),
+        }
+    }
+
     /// Copies an NV12 buffer's two planes into a frame: the `stride` the
     /// device lays each one's rows out at is honoured, and a frame wider
     /// than `max_width` pixels is shrunk by an integer factor.
@@ -54,12 +68,12 @@ impl Frame {
             .and_then(|(plane, stride)| nv12::chroma(plane, width, height, stride))
             .map(|uv| scale::downscale_chroma(uv, width, height, factor));
         let (width, height, luma) = scale::downscale(luma, width, height, factor);
-        Some(Frame {
-            width: u16::try_from(width).ok()?,
-            height: u16::try_from(height).ok()?,
+        Some(Frame::new(
+            u16::try_from(width).ok()?,
+            u16::try_from(height).ok()?,
             luma,
-            chroma: uv,
-        })
+            uv,
+        ))
     }
 }
 

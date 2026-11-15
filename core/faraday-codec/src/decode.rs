@@ -85,7 +85,8 @@ fn read<G: rqrr::BitGrid>(grids: Vec<rqrr::Grid<G>>) -> Vec<Decoded> {
     let mut out = Vec::new();
     for grid in grids {
         // What a grid decodes to is wiped, whole or not.
-        let mut bytes = Zeroizing::new(Vec::new());
+        // Presized so it never grows, which would free shorter copies.
+        let mut bytes = Zeroizing::new(Vec::with_capacity(rqrr::MAX_PAYLOAD_SIZE));
         if grid.decode_to(&mut *bytes).is_err() {
             continue;
         }

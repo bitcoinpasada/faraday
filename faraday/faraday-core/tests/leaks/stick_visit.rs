@@ -10,7 +10,7 @@ use faraday_leak_scan::Form;
 use faraday_shell_api::App;
 
 /// The SeedQR digits of `PHRASE`: each word's index as four digits.
-fn digits() -> Vec<u8> {
+pub fn digits() -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, PHRASE).expect("the vector's words");
     m.indices()

@@ -1,6 +1,8 @@
 use std::io::Write;
 use std::mem;
 
+use zeroize::Zeroize;
+
 use crate::galois::GF256;
 use crate::version_db::{RSParameters, VERSION_DATA_BASE};
 use crate::{BitGrid, DeQRError, DeQRResult};
@@ -52,6 +54,13 @@ pub struct RawData {
     pub len: usize,
 }
 
+/// The bits read off the grid are wiped when the buffer is dropped.
+impl Drop for RawData {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
+}
+
 impl RawData {
     /// Push a new bit into the bit stream
     /// A bit past the buffer is dropped. The largest symbol, version 40,
@@ -77,6 +86,13 @@ pub struct CorrectedDataStream {
     data: [u8; MAX_PAYLOAD_SIZE],
     ptr: usize,
     bit_len: usize,
+}
+
+/// What a code's data codewords were is wiped when the stream is dropped.
+impl Drop for CorrectedDataStream {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 impl CorrectedDataStream {

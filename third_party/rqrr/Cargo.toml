@@ -8,6 +8,8 @@
 # workspace lock file without adding anything to it; and the `g2p` and
 # `lru` dependencies are gone with the code that used them, which leaves
 # the crate with no dependencies at all. `image` stays optional and off.
+# `zeroize`, the workspace's own, was added back to wipe the buffers that
+# hold a code's data.
 
 [package]
 edition = "2021"
@@ -50,6 +52,10 @@ img = ["image"]
 [lib]
 name = "rqrr"
 path = "src/lib.rs"
+
+[dependencies.zeroize]
+version = "1.8"
+default-features = false
 
 [dependencies.image]
 version = ">= 0.24, <= 0.25"

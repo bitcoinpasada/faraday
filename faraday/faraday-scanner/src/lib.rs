@@ -334,7 +334,8 @@ fn look_until(
         let edge = (side(0, 1) + side(1, 2) + side(2, 3) + side(3, 0)) / 4.0;
         let modules = rqrr::BitGrid::size(&grid.grid).max(1) as f64;
         let corner = |i: usize| corner_in(b[i], scale, frame);
-        let mut bytes = Vec::new();
+        // Presized so it never grows, which would free shorter copies.
+        let mut bytes = Vec::with_capacity(rqrr::MAX_PAYLOAD_SIZE);
         let read = grid.decode_to(&mut bytes).is_ok();
         let here = Seen {
             width: frame.0,

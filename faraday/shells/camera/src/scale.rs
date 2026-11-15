@@ -1,6 +1,9 @@
 //! Shrinking a captured frame's luma and chroma by an integer factor
 //! when a device hands over more pixels than QR detection needs. Each
-//! shell passes the widest frame it hands the core.
+//! shell passes the widest frame it hands the core. The frame shrunk is
+//! wiped.
+
+use zeroize::Zeroize;
 
 /// The size of the NV12 chroma plane for a `width` by `height` frame:
 /// one U and V pair per 2 x 2 block of luma.
@@ -23,7 +26,7 @@ pub fn scale_factor(width: usize, height: usize, max_side: usize) -> usize {
 /// untouched. Rows and columns that do not fill a whole block are
 /// dropped, so the result is `width / factor` by `height / factor`.
 pub fn downscale(
-    luma: Vec<u8>,
+    mut luma: Vec<u8>,
     width: usize,
     height: usize,
     factor: usize,
@@ -47,6 +50,8 @@ pub fn downscale(
             out[y * w + x] = (sum / area) as u8;
         }
     }
+    // The full-size frame may hold a code: it is wiped.
+    luma.zeroize();
     (w, h, out)
 }
 
@@ -57,7 +62,12 @@ pub fn downscale(
 /// `width` and `height` are the luma's, before the shrink; the result is
 /// the chroma plane for the shrunk luma. A factor of 1 hands the plane
 /// back untouched.
-pub fn downscale_chroma(chroma: Vec<u8>, width: usize, height: usize, factor: usize) -> Vec<u8> {
+pub fn downscale_chroma(
+    mut chroma: Vec<u8>,
+    width: usize,
+    height: usize,
+    factor: usize,
+) -> Vec<u8> {
     let (cw, ch) = chroma_size(width, height);
     let (w, h) = (width / factor.max(1), height / factor.max(1));
     if factor <= 1 || w == 0 || h == 0 || chroma.len() < cw * ch * 2 {
@@ -90,6 +100,7 @@ pub fn downscale_chroma(chroma: Vec<u8>, width: usize, height: usize, factor: us
             out[at + 1] = (v / n.max(1)) as u8;
         }
     }
+    chroma.zeroize();
     out
 }
 

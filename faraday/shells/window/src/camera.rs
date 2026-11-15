@@ -232,11 +232,13 @@ mod linux {
         pub fn poll(&mut self) -> Option<Event> {
             let session = self.session.as_ref()?;
             match session.frames.try_recv() {
-                Ok(f) => Some(Event::CameraFrame {
+                Ok(mut f) => Some(Event::CameraFrame {
                     width: f.width,
                     height: f.height,
-                    luma: f.luma,
-                    chroma: f.chroma,
+                    // Taken out of the wiping wrapper, not copied: the
+                    // bytes go on to the core, which wipes them.
+                    luma: std::mem::take(&mut *f.luma),
+                    chroma: f.chroma.as_mut().map(|uv| std::mem::take(&mut **uv)),
                 }),
                 Err(TryRecvError::Empty) => None,
                 // The capture thread ended on its own: the device failed
@@ -347,11 +349,13 @@ mod windows {
         pub fn poll(&mut self) -> Option<Event> {
             let (_, frames) = self.session.as_ref()?;
             match frames.try_recv() {
-                Ok(Message::Frame(f)) => Some(Event::CameraFrame {
+                Ok(Message::Frame(mut f)) => Some(Event::CameraFrame {
                     width: f.width,
                     height: f.height,
-                    luma: f.luma,
-                    chroma: f.chroma,
+                    // Taken out of the wiping wrapper, not copied: the
+                    // bytes go on to the core, which wipes them.
+                    luma: std::mem::take(&mut *f.luma),
+                    chroma: f.chroma.as_mut().map(|uv| std::mem::take(&mut **uv)),
                 }),
                 // No camera, the chosen one gone, the privacy setting,
                 // or a device that failed; or the capture thread ended

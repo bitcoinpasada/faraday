@@ -15,7 +15,8 @@ Faraday's crate-reduction plan wants the crate in the tree anyway:
 trimmed of `lru` and `g2p` it takes twelve crates and about 100,000 lines
 off the device dependency graphs.
 
-The copy now has no dependencies at all. `image` is still in the manifest
+The copy now has one dependency, `zeroize` (its buffers are wiped when
+dropped; below). `image` is still in the manifest
 behind the `img` feature, still optional and still off.
 
 ## What was changed
@@ -101,6 +102,14 @@ two fields with the `g2gen` proc-macro.
   port of, does. `format_syndromes` is gone with it, and
   `berlekamp_massey`, `poly_eval` and `poly_add` are no longer generic
   over a field.
+
+**Buffers that hold a code are wiped when dropped.** `RawData` and
+`CorrectedDataStream` (`src/decode.rs`), each an array of the code's data
+codewords, and `BasicImageBuffer` (`src/prepare.rs`), the picture being
+searched, have a `Drop` that zeroes them with the `zeroize` crate, which is
+the crate's one dependency. No `unsafe` is added. Copies a move leaves on
+the stack are not reached. A caller that gives `decode_to` a vector
+presized to `MAX_PAYLOAD_SIZE` leaves no shorter copy of the payload behind.
 
 **`#![forbid(unsafe_code)]`** is on `src/lib.rs`. The crate had no
 `unsafe` and now cannot gain any.
@@ -277,9 +286,9 @@ That plan's §5.1 asked for three removals. `lru` and
 is not a dependency of this crate and never was — it is in the graph
 through `tiny-skia`.
 
-What that section asked for and this copy still does not have: zeroizing
-scratch buffers. The prepared image, the corrected data stream and the
-decoded payload are ordinary allocations. That is an accepted gap.
+What that section asked for and this copy has only in part: zeroizing
+scratch buffers. The prepared image, the raw bits and the corrected data
+stream are wiped when dropped. The decoded payload is the caller's vector.
 
 **`PreparedImage::set_stop`** (`src/prepare.rs`). The caller hands over a
 flag; `out_of_work` also reports true once it is set, so a search the

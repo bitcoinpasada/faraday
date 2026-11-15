@@ -777,6 +777,9 @@ version = "0.2.0"
 [[package]]
 name = "faraday-camera"
 version = "0.1.0"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "faraday-codec"
@@ -800,6 +803,7 @@ dependencies = [
  "faraday-alloc-count",
  "faraday-bip",
  "faraday-boot",
+ "faraday-camera",
  "faraday-codec",
  "faraday-core",
  "faraday-core-wallet",
@@ -2479,6 +2483,9 @@ dependencies = [
 [[package]]
 name = "rqrr"
 version = "0.11.0"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "rsa"
