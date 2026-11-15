@@ -217,18 +217,48 @@ fn a_program_not_owned_by_the_trusted_owner_or_writable_by_others_is_not_run() {
     }
 }
 
+const PATH_CHILD: &str = "FARADAY_TEST_PATH_CHILD";
+
+/// Runs only as the child of the test below, with `PATH` set to the folder of fakes.
 #[test]
-#[allow(unsafe_code)]
-fn a_fake_earlier_on_the_path_is_not_taken_by_the_system_lookup() {
-    let dir = fakes("home-folder", SEVERAL, &ALL);
-    // Each test is its own process, so the path is this test's.
-    // SAFETY: nothing else in this process reads or writes the environment.
-    unsafe { std::env::set_var("PATH", &dir) };
+#[ignore = "run by a_fake_earlier_on_the_path_is_not_taken_by_the_system_lookup"]
+fn path_child_finds_nothing_in_the_fakes_folder() {
+    assert!(
+        std::env::var_os(PATH_CHILD).is_some(),
+        "not run as the child"
+    );
+    let dir = PathBuf::from(std::env::var_os("PATH").expect("PATH"));
     if let Ok(found) = Tools::find(&Trusted::system()) {
         for p in [found.pkexec, found.efibootmgr, found.systemctl] {
             assert!(!p.starts_with(&dir), "{}", p.display());
         }
     }
+}
+
+#[test]
+fn a_fake_earlier_on_the_path_is_not_taken_by_the_system_lookup() {
+    let dir = fakes("home-folder", SEVERAL, &ALL);
+    // The path is set on a child process: this one's environment is left alone.
+    let inner = format!(
+        "{}::path_child_finds_nothing_in_the_fakes_folder",
+        module_path!().split_once("::").map_or("", |(_, rest)| rest)
+    );
+    let out = std::process::Command::new(std::env::current_exe().expect("test binary"))
+        .args(["--ignored", "--exact", &inner, "--test-threads=1"])
+        .env("PATH", &dir)
+        .env(PATH_CHILD, "1")
+        .output()
+        .expect("run the test binary");
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(out.status.success(), "{text}");
+    assert!(
+        text.contains("1 passed"),
+        "the inner test did not run: {text}"
+    );
 }
 
 #[test]
