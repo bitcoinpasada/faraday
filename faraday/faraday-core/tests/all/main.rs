@@ -69,6 +69,7 @@ mod common;
 mod compare;
 mod convert;
 mod core_wallet;
+mod core_wallet_pinned;
 mod core_wallet_tool;
 mod create_musig;
 mod create_shares;
