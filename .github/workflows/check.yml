@@ -13,9 +13,9 @@
 # compiles the dependencies of each job whose cache main lacks, without running
 # any test or lint (docs/decisions/F265.md).
 #
-# `just` is spread over twenty-four jobs: gate, then one compiles the tests once and
-# archives them, fourteen each run a fourteenth of them, and the doc tests
-# and the five parts of `just lint` run beside them. The last job, check,
+# `just` is spread over twenty-five jobs: gate, then one compiles the tests once and
+# archives them, fourteen each run a fourteenth of them, and the doc tests,
+# the parser crates' tests on a 32-bit target (tests-i686) and the five parts of `just lint` run beside them. The last job, check,
 # passes when every part passed.
 #
 # A run started by hand with `lints` false (for a tree whose other lints
@@ -246,6 +246,22 @@ jobs:
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: ./.github/actions/save-deps
 
+  # The parser crates' tests as a 32-bit program, `just test-i686`: the Pi is 32-bit.
+  tests-i686:
+    name: tests 32-bit
+    needs: gate
+    if: needs.gate.outputs.pass != 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: A 32-bit C compiler and libc
+        run: .github/actions/setup/apt-install.sh gcc-multilib
+      - run: just test-i686
+
   lint:
     name: ${{ matrix.part }}
     needs: gate
@@ -287,7 +303,7 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [gate, build-tests, tests, doc-tests, lint, warm, warm-commands]
+    needs: [gate, build-tests, tests, doc-tests, tests-i686, lint, warm, warm-commands]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:

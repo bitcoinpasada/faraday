@@ -2,7 +2,7 @@
 # (.github/workflows/check.yml).
 
 [group('test')]
-default: test lint-all
+default: test test-i686 lint-all
 
 # Run every unit, integration and doc test in the workspace. nextest runs
 # the test binaries in parallel where `cargo test` runs them one after
@@ -16,6 +16,17 @@ test: && test-doc
 [group('test')]
 test-doc:
     cargo test --locked --workspace --doc
+
+# The tests of the crates that read what the device did not write (a file
+# system, a disk, a PSBT, a payload) on a 32-bit target, since the Pi runs
+# 32-bit ARM and a usize that wraps there is a crash or a wrong bound on
+# the Pi only. i686 is the 32-bit target a 64-bit PC runs: it needs the
+# target (rust-toolchain.toml lists it) and a 32-bit C compiler and libc
+# (`gcc-multilib` on Debian and Ubuntu), since libsecp256k1 builds from
+# source. Doc tests are left out: cargo runs them only for the host.
+[group('test')]
+test-i686:
+    cargo nextest run --locked --target i686-unknown-linux-gnu -p faraday-sb -p faraday-fat -p faraday-files -p faraday-disk -p faraday-codec -p faraday-psbt -p faraday-bip
 
 # Clippy with warnings as errors, and failing on a warning about its own
 # configuration (tools/clippy.py), formatting check, the secret-hygiene

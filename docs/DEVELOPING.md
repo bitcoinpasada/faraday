@@ -23,6 +23,12 @@ recipe (F243), nothing else.
   `pgp` crate, pinned by its own `Cargo.lock`, outside the workspace), also
   with `--frozen`; that one has crates to fetch, once beforehand:
   `cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml`.
+- **A 32-bit target**, for `just test-i686`: the Pi runs 32-bit ARM, and a
+  length that wraps in a `usize` there is a crash or a wrong bound on the Pi
+  only, so the parser crates' tests also run as an i686 program.
+  `rust-toolchain.toml` lists `i686-unknown-linux-gnu` (rustup installs it
+  with the toolchain); the C compiler needs its 32-bit libc, `gcc-multilib`
+  on Debian and Ubuntu (`sudo apt-get install gcc-multilib`).
 - **just** (the task runner) and, for the check, `cargo install --locked
   cargo-nextest cargo-deny cargo-vet`.
 - **Node 22 or later**, for the colour tables' lint
@@ -123,6 +129,7 @@ recipe (F243), nothing else.
 just                      the tests, then every lint run to the end (lint-all)
 just test                 the tests alone (nextest, then the doc tests)
 just test-doc             the doc tests alone
+just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip) as a 32-bit program, as the Pi runs them
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
 just lint-clippy          clippy over every target
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
@@ -142,10 +149,11 @@ rules a change follows. Builds and checks pass `--locked`.
 
 GitHub Actions runs `just` on every push to main and every pull
 request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
-the tools above at the versions it names, spread over twenty-two jobs:
+the tools above at the versions it names, spread over twenty-five jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`), fourteen each run a fourteenth of them (`--partition
-hash:k/14`), and the doc tests and the five parts of `just lint` run
+hash:k/14`), and the doc tests, the parser crates' tests on a 32-bit
+target and the five parts of `just lint` run
 beside them, after a first job that does nothing on a pull request or a run
 by hand. Its result is shown on the commit and the pull request. A push to
 main whose head commit already passed this check (a run of it started by hand
