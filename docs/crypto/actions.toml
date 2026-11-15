@@ -6315,6 +6315,11 @@ text = "A part of another message, and an empty message to animate, are refused.
 kind = "Conservative"
 decision = "no decision"
 
+[[action.own]]
+text = "A CBOR message of more than 32,768 items is refused; RFC 8949 sets no such limit."
+kind = "Conservative"
+decision = "no decision"
+
 [action.review]
 places = ["docs/QR.md"]
 

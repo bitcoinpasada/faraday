@@ -157,18 +157,102 @@ const MAX_PARTS_PER_FRAGMENT: usize = 4;
 /// Distinct parts a decoder keeps beyond that, for short messages.
 const PARTS_SLACK: usize = 64;
 
+/// Buffer entries one `receive` may visit in its subset and superset
+/// scans (each scan counts the whole buffer, an upper bound) before the
+/// decoder gives up and drops what it holds. One visit compares at most 32
+/// words. Chosen from measurement on a 2048-fragment message: a stream
+/// that loses a tenth of its plain parts peaks at 1.2 million visits in one
+/// part, a quarter at 12.5 million, a third at 40 million, half at 150
+/// million; the budget sits above a third lost and bounds the one part a
+/// crafted stream can make costly to about two seconds on a Pi 3B+.
+const WORK_BUDGET: usize = 1 << 26;
+
+/// A set of fragment indexes as a fixed bit set: one bit per fragment,
+/// so a held part costs the same few words however many fragments it
+/// mixes, and the tests the decoder makes against the held parts are a
+/// word at a time.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct Set(Vec<u64>);
+
+impl Set {
+    fn from_indexes(words: usize, indexes: &[usize]) -> Self {
+        let mut set = Self(alloc::vec![0; words]);
+        for &i in indexes {
+            set.0[i / 64] |= 1 << (i % 64);
+        }
+        set
+    }
+
+    fn len(&self) -> usize {
+        self.0.iter().map(|w| w.count_ones() as usize).sum()
+    }
+
+    fn contains(&self, index: usize) -> bool {
+        self.0
+            .get(index / 64)
+            .is_some_and(|w| w >> (index % 64) & 1 == 1)
+    }
+
+    fn remove(&mut self, index: usize) {
+        self.0[index / 64] &= !(1 << (index % 64));
+    }
+
+    /// Whether every index here is also in `other`.
+    fn is_subset_of(&self, other: &Self) -> bool {
+        self.0.iter().zip(&other.0).all(|(a, b)| a & !b == 0)
+    }
+
+    /// Takes every index of `other` out.
+    fn subtract(&mut self, other: &Self) {
+        for (a, b) in self.0.iter_mut().zip(&other.0) {
+            *a &= !b;
+        }
+    }
+
+    /// The index, when exactly one is here.
+    fn single(&self) -> Option<usize> {
+        let mut found = None;
+        for (n, &w) in self.0.iter().enumerate() {
+            if w == 0 {
+                continue;
+            }
+            if found.is_some() || !w.is_power_of_two() {
+                return None;
+            }
+            found = Some(n * 64 + w.trailing_zeros() as usize);
+        }
+        found
+    }
+
+    fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.0.iter().enumerate().flat_map(|(n, &w)| {
+            (0..64)
+                .filter(move |b| w >> b & 1 == 1)
+                .map(move |b| n * 64 + b)
+        })
+    }
+}
+
 /// Accumulates parts until every fragment is resolved. What it has read
 /// is wiped when it is dropped: a code read by the camera may be a seed.
 #[derive(Default)]
 pub struct Decoder {
     decoded: BTreeMap<usize, Wiped>,
-    received: BTreeSet<Vec<usize>>,
-    buffer: BTreeMap<Vec<usize>, Wiped>,
+    received: BTreeSet<Set>,
+    buffer: BTreeMap<Set, Wiped>,
     queue: Vec<(usize, Wiped)>,
     sequence_count: usize,
     message_length: usize,
     checksum: u32,
     fragment_length: usize,
+    /// Buffer entries visited by the part being received.
+    work: usize,
+    /// The most any single `receive` visited so far (for the tests).
+    #[cfg(test)]
+    peak_work: usize,
+    /// A smaller budget for a test to hit; 0 keeps `WORK_BUDGET`.
+    #[cfg(test)]
+    test_budget: usize,
 }
 
 impl Decoder {
@@ -192,7 +276,7 @@ impl Decoder {
         } else if !self.validate(&part) {
             return Err(Fault::InconsistentPart);
         }
-        let indexes = part.indexes();
+        let indexes = Set::from_indexes(self.words(), &part.indexes());
         if self.received.contains(&indexes) {
             return Ok(false);
         }
@@ -204,9 +288,10 @@ impl Decoder {
             return Err(Fault::TooManyParts);
         }
         self.received.insert(indexes.clone());
-        if indexes.len() == 1 {
-            self.decoded.insert(indexes[0], part.data.clone());
-            self.queue.push((indexes[0], part.data));
+        self.work = 0;
+        if let Some(index) = indexes.single() {
+            self.decoded.insert(index, part.data.clone());
+            self.queue.push((index, part.data));
             self.process_queue();
         } else {
             self.process_complex(part.data, indexes);
@@ -214,25 +299,68 @@ impl Decoder {
             // fragment reduces the mixes waiting for it.
             self.process_queue();
         }
+        #[cfg(test)]
+        {
+            self.peak_work = self.peak_work.max(self.work);
+        }
+        if self.work > self.budget() {
+            #[cfg(test)]
+            let (peak, budget) = (self.peak_work, self.test_budget);
+            *self = Decoder::default();
+            #[cfg(test)]
+            {
+                self.peak_work = peak;
+                self.test_budget = budget;
+            }
+            return Err(Fault::TooManyParts);
+        }
         Ok(true)
+    }
+
+    /// Counts a scan of the whole buffer against the work budget; false
+    /// once the budget is spent.
+    fn spend(&mut self) -> bool {
+        self.work = self.work.saturating_add(self.buffer.len());
+        self.work <= self.budget()
+    }
+
+    fn budget(&self) -> usize {
+        #[cfg(test)]
+        if self.test_budget != 0 {
+            return self.test_budget;
+        }
+        WORK_BUDGET
+    }
+
+    /// Words of a fragment set for this message.
+    fn words(&self) -> usize {
+        self.sequence_count.div_ceil(64)
     }
 
     /// Reduces every buffered mix against a freshly resolved fragment,
     /// which may resolve further fragments in turn.
     fn process_queue(&mut self) {
         while let Some((index, simple)) = self.queue.pop() {
-            let mixes: Vec<Vec<usize>> = self
+            if !self.spend() {
+                self.queue.clear();
+                return;
+            }
+            let mixes: Vec<Set> = self
                 .buffer
                 .keys()
-                .filter(|indexes| indexes.contains(&index))
+                .filter(|indexes| indexes.contains(index))
                 .cloned()
                 .collect();
             for indexes in mixes {
+                if self.work > self.budget() {
+                    self.queue.clear();
+                    return;
+                }
                 let Some(mut data) = self.buffer.remove(&indexes) else {
                     continue;
                 };
                 let mut rest = indexes;
-                rest.retain(|&x| x != index);
+                rest.remove(index);
                 xor(&mut data, &simple);
                 self.settle(data, rest);
             }
@@ -241,17 +369,16 @@ impl Decoder {
 
     /// Reduces a mix against everything already resolved, then either
     /// resolves a fragment or buffers what is left.
-    fn process_complex(&mut self, mut data: Wiped, mut indexes: Vec<usize>) {
+    fn process_complex(&mut self, mut data: Wiped, mut indexes: Set) {
         let known: Vec<usize> = indexes
             .iter()
-            .copied()
             .filter(|index| self.decoded.contains_key(index))
             .collect();
         if indexes.len() == known.len() {
             return;
         }
         for index in known {
-            indexes.retain(|&x| x != index);
+            indexes.remove(index);
             if let Some(fragment) = self.decoded.get(&index) {
                 xor(&mut data, fragment);
             }
@@ -263,52 +390,65 @@ impl Decoder {
     /// does: a mix is reduced by every buffered mix whose fragments are a
     /// strict subset of its own, and once buffered it reduces every mix
     /// whose fragments are a strict superset of its own. One fragment
-    /// left resolves it.
-    fn settle(&mut self, mut data: Wiped, mut indexes: Vec<usize>) {
-        indexes.sort_unstable();
-        if indexes.len() > 1 {
-            for index in indexes.clone() {
-                if let Some(fragment) = self.decoded.get(&index) {
-                    xor(&mut data, fragment);
-                    indexes.retain(|&x| x != index);
+    /// left resolves it. The mixes a buffered one reduces wait on a work
+    /// list, so the depth does not grow with what is held.
+    fn settle(&mut self, data: Wiped, indexes: Set) {
+        let mut work = alloc::vec![(data, indexes)];
+        while let Some((mut data, mut indexes)) = work.pop() {
+            if !self.spend() {
+                self.queue.clear();
+                return;
+            }
+            if indexes.len() > 1 {
+                for index in indexes.clone().iter() {
+                    if let Some(fragment) = self.decoded.get(&index) {
+                        xor(&mut data, fragment);
+                        indexes.remove(index);
+                    }
                 }
             }
-        }
-        while indexes.len() > 1 {
-            let subset = self
-                .buffer
-                .iter()
-                .find(|(k, _)| k.len() < indexes.len() && k.iter().all(|x| indexes.contains(x)));
-            let Some((k, v)) = subset else { break };
-            xor(&mut data, v);
-            indexes.retain(|x| !k.contains(x));
-        }
-        match indexes[..] {
-            [] => {}
-            [index] => {
-                self.decoded.insert(index, data.clone());
-                self.queue.push((index, data));
-            }
-            _ => {
-                if self.buffer.contains_key(&indexes) {
+            while indexes.len() > 1 {
+                if !self.spend() {
+                    self.queue.clear();
                     return;
                 }
-                let supersets: Vec<Vec<usize>> = self
+                let size = indexes.len();
+                let subset = self
                     .buffer
-                    .keys()
-                    .filter(|k| k.len() > indexes.len() && indexes.iter().all(|x| k.contains(x)))
-                    .cloned()
-                    .collect();
-                self.buffer.insert(indexes.clone(), data.clone());
-                for k in supersets {
-                    let Some(mut d) = self.buffer.remove(&k) else {
-                        continue;
-                    };
-                    xor(&mut d, &data);
-                    let rest = k.into_iter().filter(|x| !indexes.contains(x)).collect();
-                    self.settle(d, rest);
-                }
+                    .iter()
+                    .find(|(k, _)| k.len() < size && k.is_subset_of(&indexes));
+                let Some((k, v)) = subset else { break };
+                xor(&mut data, v);
+                indexes.subtract(k);
             }
+            let size = indexes.len();
+            if size == 0 {
+                continue;
+            }
+            if let Some(index) = indexes.single() {
+                self.decoded.insert(index, data.clone());
+                self.queue.push((index, data));
+                continue;
+            }
+            if self.buffer.contains_key(&indexes) {
+                continue;
+            }
+            let supersets: Vec<Set> = self
+                .buffer
+                .keys()
+                .filter(|k| k.len() > size && indexes.is_subset_of(k))
+                .cloned()
+                .collect();
+            for k in supersets {
+                let Some(mut d) = self.buffer.remove(&k) else {
+                    continue;
+                };
+                xor(&mut d, &data);
+                let mut rest = k;
+                rest.subtract(&indexes);
+                work.push((d, rest));
+            }
+            self.buffer.insert(indexes, data);
         }
     }
 
@@ -421,6 +561,106 @@ fn xor(target: &mut [u8], other: &[u8]) {
 mod tests {
     use super::*;
     use crate::ur::xoshiro::test_utils::make_message;
+
+    fn crafted(sequence: usize, count: usize, checksum: u32) -> Part {
+        Part {
+            sequence,
+            sequence_count: count,
+            message_length: count * 16,
+            checksum,
+            data: Wiped::new(alloc::vec![sequence as u8; 16]),
+        }
+    }
+
+    /// The crafted stream: many fragments, parts that mix half of them or
+    /// more (which resolve nothing), then parts that mix two, each a
+    /// subset of a quarter of the held ones. Returns the decoder and
+    /// whether a part was refused.
+    fn wide_then_pairs(count: usize, wide_parts: usize, budget: usize) -> (Decoder, bool) {
+        let checksum = 0x1234_5678;
+        let mut decoder = Decoder::default();
+        let (mut wide, mut sequence) = (0, count);
+        while wide < wide_parts {
+            sequence += 1;
+            let part = crafted(sequence, count, checksum);
+            if part.indexes().len() > count / 2 {
+                // Parts that mix every fragment are one set: a repeat is
+                // told nothing new.
+                if decoder.receive(part).unwrap() {
+                    wide += 1;
+                }
+            }
+        }
+        decoder.test_budget = budget;
+        decoder.peak_work = 0;
+        for _ in 0..(count / 4) {
+            loop {
+                sequence += 1;
+                let part = crafted(sequence, count, checksum);
+                if part.indexes().len() == 2 {
+                    match decoder.receive(part) {
+                        Ok(_) => break,
+                        Err(Fault::TooManyParts) => return (decoder, true),
+                        Err(e) => panic!("{e:?}"),
+                    }
+                }
+            }
+        }
+        (decoder, false)
+    }
+
+    #[test]
+    fn wide_mixes_followed_by_pairs_cost_no_part_more_than_the_work_budget() {
+        let (decoder, refused) = wide_then_pairs(512, 1500, 0);
+        assert!(!refused, "an honest-sized stream was refused");
+        assert!(
+            decoder.peak_work <= WORK_BUDGET,
+            "one part visited {} entries",
+            decoder.peak_work
+        );
+        // What the counter measures: more than the held parts, so the
+        // pairs did scan them.
+        assert!(decoder.peak_work > 1500);
+    }
+
+    #[test]
+    fn a_part_that_would_visit_more_than_the_work_budget_is_refused_and_the_decoder_starts_clean() {
+        let budget = 5_000;
+        let (decoder, refused) = wide_then_pairs(512, 1500, budget);
+        assert!(refused, "peak {}", decoder.peak_work);
+        // The budget and one more scan of what was held, at most.
+        assert!(
+            decoder.peak_work <= budget + 4 * 512 + PARTS_SLACK,
+            "peak {}",
+            decoder.peak_work
+        );
+        assert!(decoder.received.is_empty() && decoder.buffer.is_empty());
+    }
+
+    #[test]
+    fn a_message_of_2048_fragments_that_lost_a_quarter_of_its_plain_parts_decodes_within_the_work_budget()
+     {
+        let message = make_message("Wolf", 2048 * 8);
+        let mut encoder = Encoder::new(&message, 8).unwrap();
+        assert_eq!(encoder.fragment_count(), 2048);
+        let mut decoder = Decoder::default();
+        loop {
+            let part = encoder.next_part();
+            if part.sequence <= 2048 && part.sequence.is_multiple_of(4) {
+                continue;
+            }
+            decoder.receive(part).unwrap();
+            if decoder.complete() {
+                break;
+            }
+        }
+        assert_eq!(decoder.message().unwrap().unwrap().as_slice(), &message[..]);
+        assert!(
+            decoder.peak_work <= WORK_BUDGET,
+            "an honest stream visited {} entries in one part",
+            decoder.peak_work
+        );
+    }
 
     fn hex(bytes: &[u8]) -> faraday_text::Text {
         use core::fmt::Write as _;

@@ -37,11 +37,21 @@ pub struct Malformed;
 
 const MAX_DEPTH: usize = 16;
 
+/// The most items one decode builds. Every item takes a byte of input
+/// but a built one many times that, so the input's length alone does not
+/// bound the memory; honest UR payloads hold a few hundred.
+const MAX_ITEMS: usize = 1 << 15;
+
+/// The most elements reserved for before they are read; a longer array
+/// or map grows as its items arrive.
+const MAX_RESERVED: usize = 64;
+
 impl Value {
     /// The one item `bytes` holds, with nothing after it.
     pub fn decode(bytes: &[u8]) -> Result<Value, Malformed> {
         let mut at = 0;
-        let v = item(bytes, &mut at, 0)?;
+        let mut items = 0;
+        let v = item(bytes, &mut at, 0, &mut items)?;
         if at != bytes.len() {
             return Err(Malformed);
         }
@@ -97,8 +107,12 @@ fn arg(b: &[u8], at: &mut usize, info: u8) -> Result<u64, Malformed> {
     })
 }
 
-fn item(b: &[u8], at: &mut usize, depth: usize) -> Result<Value, Malformed> {
+fn item(b: &[u8], at: &mut usize, depth: usize, items: &mut usize) -> Result<Value, Malformed> {
     if depth > MAX_DEPTH {
+        return Err(Malformed);
+    }
+    *items += 1;
+    if *items > MAX_ITEMS {
         return Err(Malformed);
     }
     let head = take(b, at, 1)?[0];
@@ -132,19 +146,20 @@ fn item(b: &[u8], at: &mut usize, depth: usize) -> Result<Value, Malformed> {
             if n > left {
                 return Err(Malformed);
             }
-            (0..n)
-                .map(|_| item(b, at, depth + 1))
-                .collect::<Result<_, _>>()
-                .map(Value::Array)
+            let mut a = Vec::with_capacity((n as usize).min(MAX_RESERVED));
+            for _ in 0..n {
+                a.push(item(b, at, depth + 1, items)?);
+            }
+            Ok(Value::Array(a))
         }
         5 => {
             if n.saturating_mul(2) > left {
                 return Err(Malformed);
             }
-            let mut m = Vec::with_capacity(n as usize);
+            let mut m = Vec::with_capacity((n as usize).min(MAX_RESERVED));
             for _ in 0..n {
-                let k = item(b, at, depth + 1)?;
-                let v = item(b, at, depth + 1)?;
+                let k = item(b, at, depth + 1, items)?;
+                let v = item(b, at, depth + 1, items)?;
                 m.push((k, v));
             }
             // RFC 8949 §5.6: a map with a key twice is not valid, and two
@@ -156,7 +171,7 @@ fn item(b: &[u8], at: &mut usize, depth: usize) -> Result<Value, Malformed> {
             }
             Ok(Value::Map(m))
         }
-        6 => Ok(Value::Tag(n, Box::new(item(b, at, depth + 1)?))),
+        6 => Ok(Value::Tag(n, Box::new(item(b, at, depth + 1, items)?))),
         _ => Err(Malformed),
     }
 }

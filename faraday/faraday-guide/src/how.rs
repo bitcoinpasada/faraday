@@ -1522,7 +1522,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("core/faraday-codec/src/ur/mod.rs", "encode_single"), c("core/faraday-codec/src/ur/mod.rs", "decode_single"), c("faraday/faraday-qr/src/send.rs", "ur_psbt_frames")],
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; the code is table and bit arithmetic over public parts."), p("An encoder and the QR matrix of a part wipe on drop.")],
         limits: &[p("A multi-part UR may claim at most 2048 fragments."), p("Only the minimal bytewords style is read and written."), p("crypto-output is read and never written."), p("A seed or a private key by UR is refused, saying what it is.")],
-        own_calls: &[p("Every part is written as ur:<type>/<seq>-<count>/..., a message of one fragment included. Neutral."), w("no decision"), p("There is no minimum fragment length; a fragment is ceil(length / ceil(length / max)) bytes. Neutral."), w("no decision"), p("A part of another message, and an empty message to animate, are refused. Conservative."), w("no decision")],
+        own_calls: &[p("Every part is written as ur:<type>/<seq>-<count>/..., a message of one fragment included. Neutral."), w("no decision"), p("There is no minimum fragment length; a fragment is ceil(length / ceil(length / max)) bytes. Neutral."), w("no decision"), p("A part of another message, and an empty message to animate, are refused. Conservative."), w("no decision"), p("A CBOR message of more than 32,768 items is refused; RFC 8949 sets no such limit. Conservative."), w("no decision")],
         screens: &["Transfer", "Spend", "SpendBackup", "Decode", "Create", "Tools"],
     },
     Block {

@@ -137,8 +137,12 @@ every kind as Home's Scan does.
 ## 3. Limits
 
 From Faraday, which fails closed on each: 256 KiB file, 360 KiB envelope or
-decompressed data, 4,096 characters per frame, 1,295 source fragments,
-128 unresolved fountain equations. Inconsistent headers, conflicting
+decompressed data, 4,096 characters per frame, 32,768 CBOR items in one
+decoded message (counted over the whole message, nested containers
+included). The UR decoder takes at most 2,048 fragments, holds at most 4n+64
+parts for n fragments, and visits at most 1,048,576 held entries in the
+scans one part causes; a stream past any of these is dropped with the
+parts it left. Inconsistent headers, conflicting
 duplicates, malformed encodings, bad lengths or hashes, and parts from two
 different transfers all refuse. A SHA-256 match shows a file arrived
 intact, not who sent it.

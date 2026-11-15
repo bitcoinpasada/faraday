@@ -27,6 +27,9 @@ zeroize = { workspace = true, features = ["alloc"] }
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }
 faraday-codec = { path = "../../core/faraday-codec" }
+# The memory a hostile CBOR message or animated code makes the decoder
+# hold (tests/cbor_declared_counts.rs).
+faraday-alloc-count = { path = "../tools/alloc-count" }
 
 [lints]
 workspace = true

@@ -1153,6 +1153,7 @@ dependencies = [
 name = "faraday-qr"
 version = "0.2.0"
 dependencies = [
+ "faraday-alloc-count",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
