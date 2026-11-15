@@ -764,6 +764,12 @@ const HELP: &str = "faraday-starter [--image FILE] [--downloads DIR] [--size WxH
   --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)";
 
 fn main() -> ExitCode {
+    // First of all, before any library is loaded: libraries come from
+    // System32 only (faraday/shells/window/src/system32.rs).
+    if let Err(code) = faraday_window::system32::system32_only() {
+        eprintln!("cannot restrict library loading (error {code})");
+        return ExitCode::FAILURE;
+    }
     // The elevated writer on Windows, `--write`, runs before anything
     // else is initialised (docs/STARTER.md §2).
     let given: Vec<String> = std::env::args().skip(1).collect();

@@ -3,10 +3,11 @@
 //! alike: the frame pacing ([`pace`]), the input ([`input`]), the copy of
 //! a frame into the window ([`view`]), and the camera with the scanner
 //! that reads its frames ([`camera`], [`lens`]), the clipboard's text
-//! for Paste ([`clipboard`]), and moving the window by its top strip
-//! ([`drag`]), and the loop itself ([`run`]). Each shell keeps what only
-//! it does (the desktop's stick folders, the Starter's disks) and hands
-//! it to the loop as a [`run::Program`].
+//! for Paste ([`clipboard`]), the library search path ([`system32`]), and
+//! moving the window by its top strip ([`drag`]), and the loop itself
+//! ([`run`]). Each shell keeps what only it does (the desktop's stick
+//! folders, the Starter's disks) and hands it to the loop as a
+//! [`run::Program`].
 
 #[cfg(feature = "faraday")]
 pub mod camera;
@@ -18,6 +19,7 @@ pub mod lens;
 pub mod pace;
 #[cfg(feature = "faraday")]
 pub mod run;
+pub mod system32;
 pub mod view;
 
 use faraday_shell_api::{EntropyBytes, Event};

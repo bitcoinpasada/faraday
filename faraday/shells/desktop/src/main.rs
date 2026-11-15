@@ -644,6 +644,12 @@ fn options() -> Result<Options, ExitCode> {
 }
 
 fn main() -> ExitCode {
+    // First of all, before any library is loaded: libraries come from
+    // System32 only (faraday/shells/window/src/system32.rs).
+    if let Err(code) = faraday_window::system32::system32_only() {
+        eprintln!("cannot restrict library loading (error {code})");
+        return ExitCode::FAILURE;
+    }
     // `--version` answers before anything else is initialised: the
     // Starter asks an earlier install's copy this (docs/STARTER.md §5.2).
     if std::env::args().nth(1).as_deref() == Some("--version") {

@@ -15,7 +15,9 @@ writer's pipe (`CreateNamedPipeW` with a DACL from
 `ConnectNamedPipe`, `GetNamedPipeClientProcessId`), the account's SID
 (`OpenProcessToken`, `GetTokenInformation`, `ConvertSidToStringSidW`),
 known folders (`SHGetKnownFolderPath`) and the waits on a started
-process. `faraday/shells/starter/src/windows/sys.rs` is the only code that
+process. Both Windows programs also call `SetDefaultDllDirectories`
+(`faraday/shells/window/src/system32.rs`, the one call there) first in
+`main`, so every library loads from System32 only. `faraday/shells/starter/src/windows/sys.rs` is the only code that
 calls them, and every `unsafe` block is there, each with its `SAFETY`
 note; what the answers mean is read in modules with no Win32 call in
 them, tested on Linux with recorded answers.

@@ -46,6 +46,7 @@ version = "=0.52.0"
 features = [
     "Win32_Foundation",
     "Win32_System_DataExchange",
+    "Win32_System_LibraryLoader",
     "Win32_System_Memory",
     "Win32_System_Ole",
 ]
@@ -55,8 +56,9 @@ features = [
 faraday-host = { path = "../../faraday-host" }
 
 [lints.rust]
-# Not `workspace = true`: on Windows the clipboard's four Win32 calls need
-# `unsafe` (clipboard.rs, `windows` alone). `deny`, not `forbid`, so that
+# Not `workspace = true`: on Windows the clipboard's four Win32 calls and
+# the library search path's one need `unsafe` (clipboard.rs, system32.rs,
+# `windows` alone). `deny`, not `forbid`, so that
 # module alone can allow it; the other workspace lint is repeated by hand.
 unsafe_code = "deny"
 missing_docs = "warn"

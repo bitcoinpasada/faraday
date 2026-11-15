@@ -180,9 +180,11 @@ const LOAD_CONFIG_SYMBOL: &str = "faraday_load_config";
 /// configuration, `IMAGE_LOAD_CONFIG_DIRECTORY64` up to and including
 /// `DependentLoadFlags` (offset 0x4E), its `Size` the 0x50 bytes written.
 /// The flags are `LOAD_LIBRARY_SEARCH_SYSTEM32`: Windows then resolves
-/// every library the program imports from System32 only, never from the
-/// folder the program was started from (a download folder holds files
-/// from anywhere); the elevated copy is this same file. mingw-w64's
+/// every library the `.exe` itself imports from System32 only, never from
+/// the folder the program was started from (a download folder holds files
+/// from anywhere); the elevated copy is this same file. They do not cover
+/// what those libraries load in turn: `main` calls
+/// `SetDefaultDllDirectories` for that (`faraday-window`'s `system32`). mingw-w64's
 /// linker does not point the image's load configuration directory at it:
 /// `build.sh` does, after the link, and fails the build when the flag is
 /// not in the finished `.exe`. The object is written here as bytes, so no
