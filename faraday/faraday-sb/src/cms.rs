@@ -57,6 +57,7 @@ macro_rules! sequence {
         }
 
         impl EncodeValue for $name {
+            #[allow(clippy::arithmetic_side_effects, reason = "Length addition returns a Result that is propagated")]
             fn value_len(&self) -> der::Result<Length> {
                 let mut n = Length::ZERO;
                 $(n = (n + self.$f.encoded_len()?)?;)*
@@ -218,6 +219,10 @@ impl SignerInfo {
 }
 
 impl EncodeValue for SignerInfo {
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "Length addition returns a Result that is propagated"
+    )]
     fn value_len(&self) -> der::Result<Length> {
         let mut n = 1u8.encoded_len()?;
         n = (n + self.sid.encoded_len()?)?;
@@ -343,6 +348,10 @@ impl<'a> DecodeValue<'a> for ContentPair {
 }
 
 impl EncodeValue for SignedData {
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "Length addition returns a Result that is propagated"
+    )]
     fn value_len(&self) -> der::Result<Length> {
         let digests = SetOfVec::try_from(alloc::vec![alg(SHA256)])?;
         let mut n = 1u8.encoded_len()?;
@@ -426,6 +435,10 @@ pub fn signed_attrs_bytes(info: &[u8]) -> Option<Vec<u8>> {
 pub struct ContentInfo(pub SignedData);
 
 impl EncodeValue for ContentInfo {
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "Length addition returns a Result that is propagated"
+    )]
     fn value_len(&self) -> der::Result<Length> {
         SIGNED_DATA.encoded_len()? + self.explicit().encoded_len()?
     }

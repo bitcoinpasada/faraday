@@ -17,6 +17,8 @@
 //!
 //! [`proto`] is how the app's shell and the disk process talk.
 
+#![warn(clippy::arithmetic_side_effects)]
+
 pub mod proto;
 
 use std::fs;
@@ -251,7 +253,7 @@ impl Place for Dir {
         while left > 0 {
             let n = left.min(zeros.len() as u64) as usize;
             f.write_all(&zeros[..n]).map_err(io_text)?;
-            left -= n as u64;
+            left = left.saturating_sub(n as u64);
         }
         f.sync_all().map_err(io_text)?;
         f.seek(SeekFrom::Start(0)).map_err(io_text)?;
@@ -1273,6 +1275,7 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
         .next_frame(&mut buf)
         .map_err(|_| Text::of(EN.files_picture_unread))?;
     let px = &buf[..info.buffer_size()];
+    #[allow(clippy::arithmetic_side_effects, reason = "at most 255 * 10")]
     let luma_of =
         |r: u8, g: u8, b: u8| ((u32::from(r) * 3 + u32::from(g) * 6 + u32::from(b)) / 10) as u8;
     let luma: zeroize::Zeroizing<Vec<u8>> = zeroize::Zeroizing::new(match info.color_type {
@@ -1288,7 +1291,10 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
             .collect(),
         png::ColorType::Indexed => return Err(Text::of(EN.files_picture_unread)),
     });
-    if luma.len() != w * h {
+    // w * h was held under MAX_PIXELS above, so it does not wrap.
+    #[allow(clippy::arithmetic_side_effects, reason = "w * h is under MAX_PIXELS")]
+    let wrong = luma.len() != w * h;
+    if wrong {
         return Err(Text::of(EN.files_picture_unread));
     }
     // A code printed light on dark is read too.

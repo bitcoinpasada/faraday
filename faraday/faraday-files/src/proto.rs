@@ -485,6 +485,12 @@ pub struct Malformed;
 
 struct Out(Vec<u8>);
 
+/// The sum of lengths for a buffer's room; it saturates, as it is only a
+/// hint of how much will be written.
+fn cap(parts: &[usize]) -> usize {
+    parts.iter().fold(0, |a, p| a.saturating_add(*p))
+}
+
 impl Out {
     fn tag(t: u8) -> Out {
         Out::sized(t, 0)
@@ -492,7 +498,7 @@ impl Out {
     /// A frame with room for `more` bytes after its tag, so that it never
     /// moves, and leaves a copy, as it fills.
     fn sized(t: u8, more: usize) -> Out {
-        let mut v = Vec::with_capacity(more + 1);
+        let mut v = Vec::with_capacity(more.saturating_add(1));
         v.push(t);
         Out(v)
     }
@@ -500,7 +506,7 @@ impl Out {
         // A string longer than a 2-byte length is cut at a character.
         let mut end = s.len().min(u16::MAX as usize);
         while !s.is_char_boundary(end) {
-            end -= 1;
+            end = end.saturating_sub(1);
         }
         self.0.extend_from_slice(&(end as u16).to_le_bytes());
         self.0.extend_from_slice(&s.as_bytes()[..end]);
@@ -612,16 +618,18 @@ impl Request {
                 total,
                 bytes,
             } => {
-                let more = 4
-                    + stick.len()
-                    + name.len()
-                    + 2
-                    + 32 * copies.len()
-                    + 2
-                    + 33
-                    + 8
-                    + 4
-                    + bytes.len();
+                let more = cap(&[
+                    4,
+                    stick.len(),
+                    name.len(),
+                    2,
+                    copies.len().saturating_mul(32),
+                    2,
+                    33,
+                    8,
+                    4,
+                    bytes.len(),
+                ]);
                 let mut o = Out::sized(3, more);
                 o.str(stick);
                 o.str(name);
@@ -710,7 +718,7 @@ impl Request {
                 total,
                 bytes,
             } => {
-                let mut o = Out::sized(12, 4 + stick.len() + name.len() + 16 + 4 + bytes.len());
+                let mut o = Out::sized(12, cap(&[4, stick.len(), name.len(), 16, 4, bytes.len()]));
                 o.str(stick);
                 o.str(name);
                 o.0.extend_from_slice(&at.to_le_bytes());
@@ -884,12 +892,12 @@ impl Response {
                 o
             }
             Response::Bytes(b) => {
-                let mut o = Out::sized(0x82, 4 + b.len());
+                let mut o = Out::sized(0x82, cap(&[4, b.len()]));
                 o.bytes(b);
                 o
             }
             Response::Part { total, bytes } => {
-                let mut o = Out::sized(0x8B, 8 + 4 + bytes.len());
+                let mut o = Out::sized(0x8B, cap(&[12, bytes.len()]));
                 o.0.extend_from_slice(&total.to_le_bytes());
                 o.bytes(bytes);
                 o
@@ -905,8 +913,8 @@ impl Response {
                 o
             }
             Response::Qr { bytes, codes } => {
-                let size = codes.iter().map(|c| 4 + c.len()).sum::<usize>();
-                let mut o = Out::sized(0x84, 4 + bytes.len() + 2 + size);
+                let size = codes.iter().fold(0usize, |a, c| cap(&[a, 4, c.len()]));
+                let mut o = Out::sized(0x84, cap(&[4, bytes.len(), 2, size]));
                 o.bytes(bytes);
                 o.count(codes.len());
                 for c in codes.iter().take(u16::MAX as usize) {
@@ -1056,7 +1064,7 @@ pub fn send(w: &mut dyn Write, seq: u32, payload: &[u8]) -> std::io::Result<()> 
         .filter(|n| *n <= MAX_FRAME)
         // not wording: the pipe's own error; faraday-storage says what it shows
         .ok_or_else(|| std::io::Error::other("frame too large"))?;
-    let mut frame = Vec::with_capacity(payload.len() + 8);
+    let mut frame = Vec::with_capacity(cap(&[payload.len(), 8]));
     frame.extend_from_slice(&len.to_le_bytes());
     frame.extend_from_slice(&seq.to_le_bytes());
     frame.extend_from_slice(payload);

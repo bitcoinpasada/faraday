@@ -63,6 +63,8 @@
 //! # Ok::<(), std::io::Error>(())
 //! ```
 
+#![warn(clippy::arithmetic_side_effects)]
+
 mod abi;
 mod convert;
 
@@ -321,7 +323,8 @@ impl Camera {
         })?;
         let width = pix.width as usize;
         let height = pix.height as usize;
-        let packed = convert::packed_stride(pix.pixelformat, width).unwrap_or(width * step);
+        let packed =
+            convert::packed_stride(pix.pixelformat, width).unwrap_or(width.saturating_mul(step));
         let stride = if pix.bytesperline as usize >= packed {
             pix.bytesperline as usize
         } else {
@@ -406,7 +409,7 @@ impl Camera {
             Err(e) => return Err(e),
         }
 
-        self.stats.dequeued += 1;
+        self.stats.dequeued = self.stats.dequeued.saturating_add(1);
         let index = buf.index as usize;
         let Some(mapped) = self.buffers.get(index) else {
             return Err(io::Error::other(format!(
@@ -417,11 +420,11 @@ impl Camera {
             let used = (buf.bytesused as usize).min(mapped.len);
             let frame = self.convert(mapped.as_slice(used));
             if frame.is_none() {
-                self.stats.short += 1;
+                self.stats.short = self.stats.short.saturating_add(1);
             }
             frame
         } else {
-            self.stats.flagged += 1;
+            self.stats.flagged = self.stats.flagged.saturating_add(1);
             None
         };
 
@@ -604,7 +607,11 @@ pub fn spawn_reporting(
     std::thread::spawn(move || {
         let begun = Instant::now();
         let mut report = Some(report);
-        let interval = Duration::from_millis(1000 / u64::from(camera.max_fps()));
+        let interval = Duration::from_millis(
+            1000u64
+                .checked_div(u64::from(camera.max_fps()))
+                .unwrap_or(1000),
+        );
         // A deadline that advances by the interval, not by the time of
         // the last send. Comparing against the last send beats against a
         // driver whose own period is a shade under the interval — one
@@ -623,7 +630,7 @@ pub fn spawn_reporting(
                     // A full channel means the core is still on the last
                     // frame; this one is stale already.
                     if now >= next && tx.try_send(frame).is_ok() {
-                        next += interval;
+                        next = next.checked_add(interval).unwrap_or(now);
                         // More than an interval behind (a stalled
                         // device, a slow decode): start again from now
                         // rather than bursting to catch up.

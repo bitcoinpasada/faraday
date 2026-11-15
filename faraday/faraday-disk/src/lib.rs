@@ -22,6 +22,8 @@
 //! Where `/sys` and `/dev` are is a parameter, so the tests can stand a
 //! directory tree and image files in for them.
 
+#![warn(clippy::arithmetic_side_effects)]
+
 use faraday_crypto::work::Compute;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
@@ -63,11 +65,15 @@ struct Aligned {
 
 impl Aligned {
     fn new(len: usize) -> Self {
-        let raw = vec![0u8; len + ALIGN];
+        let raw = vec![0u8; len.saturating_add(ALIGN)];
         let off = raw.as_ptr().align_offset(ALIGN);
         Aligned { raw, off, len }
     }
 
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "off is under ALIGN and len + ALIGN is the size of raw"
+    )]
     fn bytes(&mut self) -> &mut [u8] {
         &mut self.raw[self.off..self.off + self.len]
     }
@@ -110,23 +116,27 @@ impl Node {
 
     /// Fills `buf` from the medium through aligned blocks.
     fn read_direct(direct: &File, offset: u64, buf: &mut [u8]) -> std::io::Result<()> {
-        let start = offset - offset % ALIGN as u64;
-        let skip = (offset - start) as usize;
-        let want = (skip + buf.len()).div_ceil(ALIGN) * ALIGN;
+        let too_far = || std::io::Error::from(std::io::ErrorKind::InvalidInput);
+        // A read that does not fit in a position is refused, never wrapped.
+        let start = offset.saturating_sub(offset.checked_rem(ALIGN as u64).unwrap_or(0));
+        let skip = usize::try_from(offset.saturating_sub(start)).map_err(|_| too_far())?;
+        let end = skip.checked_add(buf.len()).ok_or_else(too_far)?;
+        let want = end.div_ceil(ALIGN).checked_mul(ALIGN).ok_or_else(too_far)?;
         let mut raw = Aligned::new(want);
-        let mut got = 0;
+        let mut got = 0usize;
         while got < want {
-            match direct.read_at(&mut raw.bytes()[got..], start + got as u64) {
+            let at = start.checked_add(got as u64).ok_or_else(too_far)?;
+            match direct.read_at(&mut raw.bytes()[got..], at) {
                 Ok(0) => break,
-                Ok(n) => got += n,
+                Ok(n) => got = got.saturating_add(n).min(want),
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
-        if got < skip + buf.len() {
+        if got < end {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
-        buf.copy_from_slice(&raw.bytes()[skip..skip + buf.len()]);
+        buf.copy_from_slice(&raw.bytes()[skip..end]);
         Ok(())
     }
 }
@@ -749,7 +759,7 @@ impl Disks {
                     }
                     Some(mut h) => {
                         let fits = h.total == total
-                            && h.bytes.len() as u64 + last.len() as u64 == total
+                            && (h.bytes.len() as u64).checked_add(last.len() as u64) == Some(total)
                             && h.bytes.try_reserve_exact(last.len()).is_ok();
                         if !fits {
                             zeroize::Zeroize::zeroize(&mut h.bytes);

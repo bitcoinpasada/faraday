@@ -202,7 +202,7 @@ pub fn generate(
     let mut serial = *serial;
     serial[0] &= 0x7f;
     let until = match profile {
-        Profile::Ca { years } => time(now + u64::from(years) * 31_557_600)?,
+        Profile::Ca { years } => time(now.saturating_add(u64::from(years) * 31_557_600))?,
     };
     let validity = Validity::new(time(now)?, until);
     let builder = CertificateBuilder::new(

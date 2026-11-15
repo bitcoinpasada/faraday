@@ -12,6 +12,7 @@
 //! `no_std` + `alloc`.
 
 #![no_std]
+#![warn(clippy::arithmetic_side_effects)]
 
 extern crate alloc;
 

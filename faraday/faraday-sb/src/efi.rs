@@ -68,9 +68,9 @@ const ATTRIBUTES: u32 = 0x01 | 0x02 | 0x04 | 0x20;
 pub fn signature_lists(certs: &[([u8; 16], &[u8])]) -> Vec<u8> {
     let mut out = Vec::new();
     for (owner, cert) in certs {
-        let size = 16 + cert.len();
+        let size = cert.len().saturating_add(16);
         out.extend_from_slice(&CERT_X509);
-        out.extend_from_slice(&((28 + size) as u32).to_le_bytes());
+        out.extend_from_slice(&(size.saturating_add(28) as u32).to_le_bytes());
         out.extend_from_slice(&0u32.to_le_bytes());
         out.extend_from_slice(&(size as u32).to_le_bytes());
         out.extend_from_slice(owner);
@@ -120,7 +120,7 @@ pub fn auth(
     let signed_data = SignedData::new(cms::DATA, None, &signer.cert, &info)?.to_der()?;
     let mut out = Vec::new();
     out.extend_from_slice(&time);
-    out.extend_from_slice(&((24 + signed_data.len()) as u32).to_le_bytes());
+    out.extend_from_slice(&(signed_data.len().saturating_add(24) as u32).to_le_bytes());
     out.extend_from_slice(&0x0200u16.to_le_bytes());
     out.extend_from_slice(&0x0EF1u16.to_le_bytes());
     out.extend_from_slice(&CERT_PKCS7);

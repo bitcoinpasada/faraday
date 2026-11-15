@@ -36,7 +36,7 @@ pub fn luma_step(format: u32) -> Option<usize> {
 /// The packed row length for a format, used when the driver reports a
 /// `bytesperline` of zero.
 pub fn packed_stride(format: u32, width: usize) -> Option<usize> {
-    luma_step(format).map(|step| width * step)
+    luma_step(format).map(|step| width.saturating_mul(step))
 }
 
 /// Copies the luma plane out of `src` into a packed `width × height`
@@ -53,15 +53,27 @@ pub fn luma(
     stride: usize,
     step: usize,
 ) -> Option<Vec<u8>> {
-    if width == 0 || height == 0 || step == 0 || stride < width * step {
+    if width == 0 || height == 0 || step == 0 {
+        return None;
+    }
+    // A driver's sizes are its word: a product that does not fit in a
+    // `usize` (a 32-bit build) is a buffer too short for it, not a wrap.
+    let row_len = width.checked_mul(step)?;
+    if stride < row_len {
         return None;
     }
     // The last row needs only its own pixels, not a whole stride.
-    let needed = stride * (height - 1) + width * step;
+    let needed = stride
+        .checked_mul(height.checked_sub(1)?)?
+        .checked_add(row_len)?;
     if src.len() < needed {
         return None;
     }
-    let mut out = vec![0u8; width * height];
+    let mut out = vec![0u8; width.checked_mul(height)?];
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "every index is inside `needed` and `out`, which fit as checked above"
+    )]
     for y in 0..height {
         let row = &src[y * stride..];
         let dst = &mut out[y * width..(y + 1) * width];
@@ -96,10 +108,13 @@ pub fn chroma(
     height: usize,
     stride: usize,
 ) -> Option<Vec<u8>> {
-    let (cw, ch) = chroma_size(width, height);
     if width == 0 || height == 0 {
         return None;
     }
+    let (cw, ch) = chroma_size(width, height);
+    // The size of the pairs; a product that does not fit is a buffer too
+    // short for it.
+    let out_len = cw.checked_mul(ch)?.checked_mul(2)?;
     // Allocated once the buffer is known to hold the planes: a driver's
     // width and height are its word, and a buffer that is too short must
     // not cost the allocation they ask for.
@@ -108,10 +123,18 @@ pub fn chroma(
         // Packed 4:2:2: Y U Y V, so every second row of pixel pairs
         // gives the pair a 4:2:0 block wants.
         abi::PIX_FMT_YUYV => {
-            if stride < width * 2 || src.len() < stride * (height - 1) + width * 2 {
+            let row_len = width.checked_mul(2)?;
+            let needed = stride
+                .checked_mul(height.checked_sub(1)?)?
+                .checked_add(row_len)?;
+            if stride < row_len || src.len() < needed {
                 return None;
             }
-            out = vec![0u8; cw * ch * 2];
+            out = vec![0u8; out_len];
+            #[allow(
+                clippy::arithmetic_side_effects,
+                reason = "indexes are inside `needed` and `out_len`, which fit as checked above"
+            )]
             for y in 0..ch {
                 let row = &src[(y * 2) * stride..];
                 for x in 0..cw {
@@ -126,11 +149,19 @@ pub fn chroma(
         // order the core wants, less any row padding.
         abi::PIX_FMT_NV12 => {
             let c_stride = stride.max(width);
-            let plane = src.get(c_stride * height..)?;
-            if c_stride < cw * 2 || plane.len() < c_stride * (ch - 1) + cw * 2 {
+            let plane = src.get(c_stride.checked_mul(height)?..)?;
+            let pair_row = cw.checked_mul(2)?;
+            let needed = c_stride
+                .checked_mul(ch.checked_sub(1)?)?
+                .checked_add(pair_row)?;
+            if c_stride < pair_row || plane.len() < needed {
                 return None;
             }
-            out = vec![0u8; cw * ch * 2];
+            out = vec![0u8; out_len];
+            #[allow(
+                clippy::arithmetic_side_effects,
+                reason = "indexes are inside `needed` and `out_len`, which fit as checked above"
+            )]
             for y in 0..ch {
                 let row = &plane[y * c_stride..];
                 out[y * cw * 2..(y + 1) * cw * 2].copy_from_slice(&row[..cw * 2]);
@@ -141,13 +172,17 @@ pub fn chroma(
         abi::PIX_FMT_YU12 => {
             let y_stride = stride.max(width);
             let c_stride = y_stride.div_ceil(2).max(cw);
-            let planes = src.get(y_stride * height..)?;
-            let plane_len = c_stride * ch;
-            if planes.len() < plane_len * 2 {
+            let planes = src.get(y_stride.checked_mul(height)?..)?;
+            let plane_len = c_stride.checked_mul(ch)?;
+            if planes.len() < plane_len.checked_mul(2)? {
                 return None;
             }
-            out = vec![0u8; cw * ch * 2];
+            out = vec![0u8; out_len];
             let (u, v) = planes.split_at(plane_len);
+            #[allow(
+                clippy::arithmetic_side_effects,
+                reason = "indexes are inside the planes and `out_len`, which fit as checked above"
+            )]
             for y in 0..ch {
                 for x in 0..cw {
                     let from = y * c_stride + x;
@@ -165,6 +200,16 @@ pub fn chroma(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_frame_size_too_large_for_the_address_space_is_a_short_buffer() {
+        let big = usize::MAX / 2 + 1;
+        assert_eq!(luma(&[0; 16], big, 2, big, 2), None);
+        assert_eq!(luma(&[0; 16], 4, big, 4, 1), None);
+        assert_eq!(chroma(abi::PIX_FMT_YUYV, &[0; 16], big, 2, big), None);
+        assert_eq!(chroma(abi::PIX_FMT_NV12, &[0; 16], 4, big, 4), None);
+        assert_eq!(chroma(abi::PIX_FMT_YU12, &[0; 16], 4, big, 4), None);
+    }
 
     #[test]
     fn steps_match_the_four_formats() {
