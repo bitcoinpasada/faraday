@@ -3200,8 +3200,6 @@ strings! {
     /// Text in `view`. `{}`: `key.number`.
     glance_sheet_passphrase_n: "Passphrase {}",
     /// Text in `view`.
-    glance_sheet_check: "Check my copy",
-    /// Text in `view`.
     glance_sheet_change: "Change the plan",
     /// Text in `draw`.
     glance_sheet_back: "Back",
