@@ -4,8 +4,8 @@
 //! the libraries the program itself imports. The libraries those load in
 //! turn by name (`version.dll`, `userenv.dll`, `cryptbase.dll`) would still
 //! be searched for in the program's own folder first, such as Downloads,
-//! which holds files from anywhere; this call makes every later load of the
-//! process look in System32 only.
+//! which holds files from anywhere; this call makes every later load by name
+//! of the process look in System32 only.
 
 /// Makes every library the process loads from now on come from System32.
 /// Called as the first statement of a Windows program's `main`, before

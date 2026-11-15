@@ -244,9 +244,9 @@ samples compiled in (F126, §5.3).
   (the default arguments build the Starter). Both programs load libraries
   from System32 only: the `.exe` carries a load configuration with
   `LOAD_LIBRARY_SEARCH_SYSTEM32` (written by `resources.rs`, pointed at by
-  `build.sh`, which fails the build when the flag, the structure's size or
-  an allowed import is wrong or anything is delay-loaded), and `main`
-  calls `SetDefaultDllDirectories` first for the libraries those load in
+  `build.sh`, which fails the build when the flag or the structure's size is
+  wrong, an import is not on the list or anything is delay-loaded), and
+  `main` calls `SetDefaultDllDirectories` first for the libraries those load in
   turn, stopping the program if it fails. The computer's free memory
   is read only on Linux; elsewhere the vault offers its largest unlock
   memory and checks none against this computer. The camera module the

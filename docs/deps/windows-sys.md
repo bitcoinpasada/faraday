@@ -15,12 +15,17 @@ writer's pipe (`CreateNamedPipeW` with a DACL from
 `ConnectNamedPipe`, `GetNamedPipeClientProcessId`), the account's SID
 (`OpenProcessToken`, `GetTokenInformation`, `ConvertSidToStringSidW`),
 known folders (`SHGetKnownFolderPath`) and the waits on a started
-process. Both Windows programs also call `SetDefaultDllDirectories`
-(`faraday/shells/window/src/system32.rs`, the one call there) first in
-`main`, so every library loads from System32 only. `faraday/shells/starter/src/windows/sys.rs` is the only code that
-calls them, and every `unsafe` block is there, each with its `SAFETY`
-note; what the answers mean is read in modules with no Win32 call in
-them, tested on Linux with recorded answers.
+process. `faraday/shells/starter/src/windows/sys.rs` is the only
+Starter code that calls them, and every `unsafe` block of the Starter is
+there, each with its `SAFETY` note; what the answers mean is read in
+modules with no Win32 call in them, tested on Linux with recorded
+answers. The shared window crate holds its own calls, each `unsafe`
+block with its `SAFETY` note: the clipboard
+(`faraday/shells/window/src/clipboard.rs`), and
+`SetDefaultDllDirectories` with `GetLastError`
+(`faraday/shells/window/src/system32.rs`), which both Windows programs
+call first in `main`, so every library loaded by name afterwards comes
+from System32 only.
 
 **Why this crate.** It is already in the build: winit 0.30 depends on
 `windows-sys` 0.52.0 on Windows. The Starter names the same release,
