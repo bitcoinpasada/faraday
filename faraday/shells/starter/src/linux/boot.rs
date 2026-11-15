@@ -2,24 +2,29 @@
 //! Faraday stick starts once, at the next start, through one firmware
 //! boot entry labelled `Faraday stick`.
 //!
-//! Every Faraday stick's boot partition carries the same partition GUID
-//! and is the first partition (`faraday/image/boards/x86_64-uefi/
-//! genimage.cfg`), so one entry starts any of them. The Starter stays
-//! unprivileged (D13): it reads the entries with `efibootmgr` as itself
-//! (the firmware's variables are readable by everyone), then asks polkit
-//! once, through `pkexec`, for the one `efibootmgr` that writes: setting
-//! `BootNext` to the entry, or creating it (`--create-only`, so it is
-//! never put in `BootOrder`) at a number chosen from the listing and
-//! setting `BootNext` to it in the same run. Then `systemctl reboot`,
-//! which logind allows the person at the computer.
+//! Every Faraday stick has its own disk and partition GUIDs
+//! (`docs/STICK-IDENTITY.md`), and a firmware entry made by `efibootmgr
+//! --disk --part` names the boot partition by its GUID, so an entry
+//! starts only the stick it was made for. The Starter stays unprivileged
+//! (D13): it reads the entries with `efibootmgr -v` as itself (the
+//! firmware's variables are readable by everyone) and takes each
+//! `Faraday stick` entry's partition GUID. When one names the attached
+//! stick's boot partition (udisks2's `Partition.UUID`), polkit is asked
+//! once, through `pkexec`, for the one `efibootmgr` that sets `BootNext`
+//! to it. When none does, a new entry is created (`--create-only`, so it
+//! is never put in `BootOrder`) at a number chosen from the listing and
+//! `BootNext` set to it in the same run, and the stale entries are
+//! deleted after it. Then `systemctl reboot`, which logind allows the
+//! person at the computer.
 //!
 //! The listing is read by [`entries`], a pure function the tests feed
-//! recorded outputs; [`Tools`] holds the programs' absolute paths, found
-//! on a `PATH` given to it, so the tests run fakes and never a real
-//! `efibootmgr`.
+//! recorded outputs. The programs run, `pkexec` as root included, are
+//! only ever the ones in the system's own folders, owned by root and not
+//! writable by anyone else ([`Trusted`]); the person's `PATH` is never
+//! read, so a file in a folder the person can write is never run as
+//! root. The tests give [`Trusted`] a folder and an owner of their own.
 
-use std::ffi::OsStr;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -40,6 +45,9 @@ pub struct Entry {
     pub num: u16,
     /// Its label.
     pub label: String,
+    /// The GUID of the GPT partition its device path names (`-v`'s
+    /// `HD(1,GPT,<guid>,…)`), lower case, when it names one.
+    pub guid: Option<String>,
 }
 
 /// The `Boot####` entries of `efibootmgr`'s or `efibootmgr -v`'s
@@ -61,13 +69,29 @@ pub fn entries(listing: &str) -> Vec<Entry> {
             let after = after
                 .strip_prefix('*')
                 .or_else(|| after.strip_prefix(' '))?;
-            let label = after.split('\t').next().unwrap_or("").trim();
+            let mut parts = after.splitn(2, '\t');
+            let label = parts.next().unwrap_or("").trim();
+            let guid = parts.next().and_then(partition_guid);
             Some(Entry {
                 num,
                 label: label.to_string(),
+                guid,
             })
         })
         .collect()
+}
+
+/// The GUID in the first `HD(<n>,GPT,<guid>,…)` of a device path, lower
+/// case.
+fn partition_guid(path: &str) -> Option<String> {
+    let rest = &path[path.find("HD(")? + 3..];
+    let mut fields = rest.split(',');
+    let _number = fields.next()?;
+    if fields.next()? != "GPT" {
+        return None;
+    }
+    let guid = fields.next()?.trim();
+    (!guid.is_empty()).then(|| guid.to_ascii_lowercase())
 }
 
 /// The numbers of the entries labelled `Faraday stick`.
@@ -85,30 +109,59 @@ pub fn free_number(listing: &str) -> Option<u16> {
     (0..=u16::MAX).find(|n| !used.contains(n))
 }
 
+/// What Restart from the stick runs through `pkexec`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Plan {
+    /// The arguments of the run that sets `BootNext`.
+    pub set: Vec<String>,
+    /// The numbers of the `Faraday stick` entries that name another
+    /// partition, deleted after `BootNext` is set.
+    pub stale: Vec<u16>,
+}
+
 /// What `pkexec efibootmgr` is given to start the stick once: `BootNext`
-/// set to the existing `Faraday stick` entry, or the entry created at a
-/// free number and `BootNext` set to it, in one run.
-pub fn next_args(listing: &str, device: &str) -> Result<Vec<String>, Reason> {
+/// set to the `Faraday stick` entry that names the boot partition `guid`
+/// (any case), or, when none does, a new entry created at a free number
+/// and `BootNext` set to it in one run, the entries naming other
+/// partitions being stale.
+pub fn plan(listing: &str, device: &str, guid: &str) -> Result<Plan, Reason> {
     let hex = |n: u16| format!("{n:04X}");
-    if let Some(n) = faraday_entries(listing).first() {
-        return Ok(vec!["--bootnext".into(), hex(*n)]);
+    let guid = guid.trim().to_ascii_lowercase();
+    if guid.is_empty() {
+        return Err(Reason::NoStick);
+    }
+    let faraday: Vec<Entry> = entries(listing)
+        .into_iter()
+        .filter(|e| e.label == LABEL)
+        .collect();
+    if let Some(e) = faraday
+        .iter()
+        .find(|e| e.guid.as_deref() == Some(guid.as_str()))
+    {
+        return Ok(Plan {
+            set: vec!["--bootnext".into(), hex(e.num)],
+            stale: Vec::new(),
+        });
     }
     let n = free_number(listing).ok_or_else(|| Reason::BootEntry("no free entry".into()))?;
-    Ok(vec![
-        "--create-only".into(),
-        "--bootnum".into(),
-        hex(n),
-        "--disk".into(),
-        device.into(),
-        "--part".into(),
-        BOOT_PART.to_string(),
-        "--loader".into(),
-        LOADER.into(),
-        "--label".into(),
-        LABEL.into(),
-        "--bootnext".into(),
-        hex(n),
-    ])
+    Ok(Plan {
+        set: vec![
+            "--create-only".into(),
+            "--bootnum".into(),
+            hex(n),
+            "--disk".into(),
+            device.into(),
+            "--part".into(),
+            BOOT_PART.to_string(),
+            "--loader".into(),
+            LOADER.into(),
+            "--label".into(),
+            LABEL.into(),
+            "--bootnext".into(),
+            hex(n),
+        ],
+        stale: faraday.iter().map(|e| e.num).collect(),
+    })
 }
 
 /// A device as udisks2 names a whole disk: `/dev/` and letters and
@@ -119,15 +172,39 @@ pub fn plain_device(device: &str) -> bool {
         .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_alphanumeric()))
 }
 
-/// The absolute path of `name` in the first absolute directory of
-/// `path` that holds it as an executable file.
-pub fn which(name: &str, path: &OsStr) -> Option<PathBuf> {
-    std::env::split_paths(path)
-        .filter(|d| d.is_absolute())
-        .map(|d| d.join(name))
-        .find(|p| {
-            std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+/// The system's own program folders, the only ones looked in.
+pub const SYSTEM_DIRS: [&str; 4] = ["/usr/sbin", "/usr/bin", "/sbin", "/bin"];
+
+/// Where programs run as root may come from: folders, and the user that
+/// must own the file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Trusted {
+    /// The folders, in order.
+    pub dirs: Vec<PathBuf>,
+    /// The owner the file must have: root (0) on a real system.
+    pub uid: u32,
+}
+
+impl Trusted {
+    /// The system's folders and root.
+    pub fn system() -> Trusted {
+        Trusted {
+            dirs: SYSTEM_DIRS.iter().map(PathBuf::from).collect(),
+            uid: 0,
+        }
+    }
+
+    /// The absolute path of `name` in the first folder that holds it as
+    /// an executable file owned by [`Trusted::uid`] and writable by no
+    /// one else. The person's `PATH` is never consulted.
+    pub fn which(&self, name: &str) -> Option<PathBuf> {
+        self.dirs.iter().map(|d| d.join(name)).find(|p| {
+            std::fs::metadata(p).is_ok_and(|m| {
+                let mode = m.permissions().mode();
+                m.is_file() && mode & 0o111 != 0 && m.uid() == self.uid && mode & 0o022 == 0
+            })
         })
+    }
 }
 
 /// The programs Restart from the stick runs, by absolute path.
@@ -142,9 +219,9 @@ pub struct Tools {
 }
 
 impl Tools {
-    /// The three found on `path`, or the first that is missing.
-    pub fn find(path: &OsStr) -> Result<Tools, Reason> {
-        let need = |name: &str| which(name, path).ok_or_else(|| Reason::Missing(name.into()));
+    /// The three found in `from`, or the first that is missing.
+    pub fn find(from: &Trusted) -> Result<Tools, Reason> {
+        let need = |name: &str| from.which(name).ok_or_else(|| Reason::Missing(name.into()));
         Ok(Tools {
             efibootmgr: need("efibootmgr")?,
             pkexec: need("pkexec")?,
@@ -179,6 +256,15 @@ pub fn listing(efibootmgr: &Path) -> Result<String, Reason> {
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+/// What deletes the entry `n`.
+fn delete_args(n: u16) -> Vec<String> {
+    vec![
+        "--delete-bootnum".into(),
+        "--bootnum".into(),
+        format!("{n:04X}"),
+    ]
+}
+
 /// `pkexec efibootmgr ARGS`: polkit's password declined or dismissed
 /// (`pkexec` exits 126 or 127) is [`Reason::Declined`].
 fn privileged(pkexec: &Path, efibootmgr: &Path, args: Vec<String>) -> Result<(), Reason> {
@@ -192,15 +278,24 @@ fn privileged(pkexec: &Path, efibootmgr: &Path, args: Vec<String>) -> Result<(),
     }
 }
 
-/// Restart from the stick (§3.1): the stick at `device` once at the
-/// next start, then the restart. Nothing restarts unless `BootNext` was
-/// set.
-pub fn restart_from_stick(tools: &Tools, device: &str) -> Result<(), Reason> {
+/// Restart from the stick (§3.1): the stick at `device`, whose boot
+/// partition has the GUID `guid`, once at the next start, then the
+/// restart. Nothing restarts unless `BootNext` was set. Stale entries
+/// are deleted after it; one that cannot be is left (it names a
+/// partition that is not attached and starts nothing).
+pub fn restart_from_stick(tools: &Tools, device: &str, guid: &str) -> Result<(), Reason> {
     if !plain_device(device) {
         return Err(Reason::NoStick);
     }
     let list = listing(&tools.efibootmgr)?;
-    privileged(&tools.pkexec, &tools.efibootmgr, next_args(&list, device)?)?;
+    let plan = plan(&list, device, guid)?;
+    privileged(&tools.pkexec, &tools.efibootmgr, plan.set)?;
+    for n in plan.stale {
+        match privileged(&tools.pkexec, &tools.efibootmgr, delete_args(n)) {
+            Ok(()) | Err(Reason::BootEntry(_)) => {}
+            Err(other) => return Err(other),
+        }
+    }
     let out = run(&tools.systemctl, &["reboot".to_string()])
         .map_err(|e| Reason::Restart(format!("systemctl: {e}")))?;
     if out.status.success() {
@@ -213,8 +308,8 @@ pub fn restart_from_stick(tools: &Tools, device: &str) -> Result<(), Reason> {
 /// Whether the firmware has a `Faraday stick` entry (§3.1c), from the
 /// listing read as the person. Without `efibootmgr`, or when it cannot
 /// list, none is known.
-pub fn entry_exists(path: &OsStr) -> bool {
-    which("efibootmgr", path)
+pub fn entry_exists(from: &Trusted) -> bool {
+    from.which("efibootmgr")
         .and_then(|e| listing(&e).ok())
         .is_some_and(|l| !faraday_entries(&l).is_empty())
 }
@@ -223,25 +318,19 @@ pub fn entry_exists(path: &OsStr) -> bool {
 /// entry (§3.1c): removes the `Faraday stick` entries,
 /// when there are any, and nothing else. Without `efibootmgr` there can
 /// be none.
-pub fn remove_entry(path: &OsStr) -> Result<(), Reason> {
-    let Some(efibootmgr) = which("efibootmgr", path) else {
+pub fn remove_entry(from: &Trusted) -> Result<(), Reason> {
+    let Some(efibootmgr) = from.which("efibootmgr") else {
         return Ok(());
     };
     let found = faraday_entries(&listing(&efibootmgr)?);
     if found.is_empty() {
         return Ok(());
     }
-    let pkexec = which("pkexec", path).ok_or_else(|| Reason::Missing("pkexec".into()))?;
+    let pkexec = from
+        .which("pkexec")
+        .ok_or_else(|| Reason::Missing("pkexec".into()))?;
     for n in found {
-        privileged(
-            &pkexec,
-            &efibootmgr,
-            vec![
-                "--delete-bootnum".into(),
-                "--bootnum".into(),
-                format!("{n:04X}"),
-            ],
-        )?;
+        privileged(&pkexec, &efibootmgr, delete_args(n))?;
     }
     Ok(())
 }

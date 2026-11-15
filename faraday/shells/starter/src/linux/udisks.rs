@@ -61,6 +61,8 @@ pub struct BootPart {
     pub object: String,
     /// Where the desktop mounted it, when it did.
     pub mounted: Option<PathBuf>,
+    /// Its partition GUID (`Partition.UUID`), as udisks2 writes it.
+    pub guid: String,
 }
 
 /// A disk as read, and what reading its version needs.
@@ -376,6 +378,7 @@ impl Objects {
             let boot = stick.then(|| BootPart {
                 object: parts[0].to_string(),
                 mounted: self.mount_points(parts[0]).first().map(PathBuf::from),
+                guid: self.str(parts[0], "Partition", "UUID"),
             });
             let vendor = self.str(drive, "Drive", "Vendor");
             out.push(Found {

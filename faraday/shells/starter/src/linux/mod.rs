@@ -102,16 +102,18 @@ impl Platform for Linux {
     }
 
     fn restart_from_stick(&self, device: &str) -> Result<(), Reason> {
-        let path = std::env::var_os("PATH").unwrap_or_default();
-        boot::restart_from_stick(&boot::Tools::find(&path)?, device)
+        let tools = boot::Tools::find(&boot::Trusted::system())?;
+        let mut bus = bus::Bus::connect().map_err(Reason::Bus)?;
+        let guid = boot_guid(&mut bus, device).ok_or(Reason::NoStick)?;
+        boot::restart_from_stick(&tools, device, &guid)
     }
 
     fn remove_stick_entry(&self) -> Result<(), Reason> {
-        boot::remove_entry(&std::env::var_os("PATH").unwrap_or_default())
+        boot::remove_entry(&boot::Trusted::system())
     }
 
     fn boot_entry(&self) -> bool {
-        boot::entry_exists(&std::env::var_os("PATH").unwrap_or_default())
+        boot::entry_exists(&boot::Trusted::system())
     }
 
     fn concerns(&self) -> Vec<Concern> {
@@ -195,6 +197,19 @@ pub fn follow<U: Udisks>(mut bus: U, out: &Sender<StarterEvent>, forget: &Receiv
             std::thread::sleep(Duration::from_secs(2));
         }
     }
+}
+
+/// The partition GUID of the boot partition of the Faraday stick at
+/// `device`, as udisks2 says it now.
+fn boot_guid<U: Udisks + ?Sized>(bus: &mut U, device: &str) -> Option<String> {
+    let objects = bus.objects().ok()?;
+    objects
+        .disks()
+        .into_iter()
+        .find(|f| f.disk.device == device)
+        .and_then(|f| f.boot)
+        .map(|b| b.guid)
+        .filter(|g| !g.is_empty())
 }
 
 /// The versions read from Faraday sticks' boot partitions, by disk, so a

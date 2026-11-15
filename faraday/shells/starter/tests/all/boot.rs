@@ -8,17 +8,23 @@
 #![cfg(target_os = "linux")]
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use faraday_starter::api::Reason;
 use faraday_starter_shell::linux::boot::{
-    self, Entry, Tools, entries, entry_exists, faraday_entries, free_number, remove_entry,
+    self, Entry, Tools, Trusted, entries, entry_exists, faraday_entries, free_number, plan,
+    remove_entry,
 };
 
 const SEVERAL: &str = include_str!("../efibootmgr/several.txt");
 const FARADAY: &str = include_str!("../efibootmgr/faraday-verbose.txt");
 const ONE: &str = include_str!("../efibootmgr/one.txt");
+const TWO_STALE: &str = include_str!("../efibootmgr/faraday-two-stale.txt");
+
+/// The boot partition GUID `FARADAY`'s entry names, and one it does not.
+const GUID: &str = "46617261-6461-792d-5374-69636b000001";
+const OTHER_GUID: &str = "46617261-6461-792d-5374-69636b0000ff";
 
 /// Writes its arguments to `<name>.log`, then does what the files
 /// beside it say.
@@ -34,6 +40,7 @@ const EFIBOOTMGR: &str = r#"if [ $# -eq 0 ]; then
   [ -f "$d/list-fails" ] && { echo "EFI variables are not supported on this system." >&2; exit 2; }
   cat "$d/listing.txt"; exit 0
 fi
+[ -f "$d/delete-fails" ] && [ "$1" = "--delete-bootnum" ] && { echo "Could not delete" >&2; exit 5; }
 [ -f "$d/write-fails" ] && { echo "Could not set BootNext: Invalid argument" >&2; exit 5; }
 exit 0
 "#;
@@ -66,8 +73,20 @@ fn log(dir: &Path, program: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Only `dir`, and the user who made it (the fakes' owner).
+fn trusted(dir: &Path) -> Trusted {
+    Trusted {
+        dirs: vec![dir.to_path_buf()],
+        uid: fs::metadata(dir).expect("folder").uid(),
+    }
+}
+
+fn restart_with(dir: &Path, device: &str, guid: &str) -> Result<(), Reason> {
+    boot::restart_from_stick(&Tools::find(&trusted(dir))?, device, guid)
+}
+
 fn restart(dir: &Path, device: &str) -> Result<(), Reason> {
-    boot::restart_from_stick(&Tools::find(dir.as_os_str())?, device)
+    restart_with(dir, device, GUID)
 }
 
 fn efibootmgr(dir: &Path) -> String {
@@ -85,7 +104,8 @@ fn the_listing_gives_each_entry_and_ignores_the_other_lines() {
         found[0],
         Entry {
             num: 0,
-            label: "Windows Boot Manager".into()
+            label: "Windows Boot Manager".into(),
+            guid: None,
         }
     );
     // BootNext names 0003, which is not an entry: it is free.
@@ -103,6 +123,40 @@ fn an_existing_faraday_stick_entry_is_found_by_its_label() {
 }
 
 #[test]
+fn an_entry_names_its_partition_guid_in_lower_case() {
+    assert_eq!(entries(FARADAY)[2].guid.as_deref(), Some(GUID));
+    // The plain listing has no device paths.
+    assert!(entries(SEVERAL).iter().all(|e| e.guid.is_none()));
+    let upper = "Boot0004  Faraday stick\tHD(1,GPT,46617261-6461-792D-5374-69636B000001,0x800,0x1)/File(x)\n";
+    assert_eq!(entries(upper)[0].guid.as_deref(), Some(GUID));
+}
+
+#[test]
+fn an_entry_for_another_stick_is_replaced_and_one_for_this_stick_is_kept() {
+    let kept = plan(FARADAY, "/dev/sdc", GUID).expect("plan");
+    assert_eq!(kept.set, vec!["--bootnext", "0004"]);
+    assert!(kept.stale.is_empty());
+    // Any case of the same GUID is the same partition.
+    let upper = plan(FARADAY, "/dev/sdc", &GUID.to_ascii_uppercase()).expect("plan");
+    assert_eq!(upper.set, vec!["--bootnext", "0004"]);
+
+    let other = plan(FARADAY, "/dev/sdc", OTHER_GUID).expect("plan");
+    assert_eq!(other.set[..3], ["--create-only", "--bootnum", "0002"]);
+    assert_eq!(other.stale, vec![4]);
+
+    // The one that matches is used; the other is left alone.
+    let two = plan(
+        TWO_STALE,
+        "/dev/sdc",
+        "46617261-6461-792d-5374-69636b000002",
+    )
+    .expect("plan");
+    assert_eq!(two.set, vec!["--bootnext", "0005"]);
+
+    assert_eq!(plan(FARADAY, "/dev/sdc", ""), Err(Reason::NoStick));
+}
+
+#[test]
 fn with_no_entry_one_pkexec_creates_it_sets_bootnext_and_the_computer_restarts() {
     let dir = fakes("create", SEVERAL, &ALL);
     assert_eq!(restart(&dir, "/dev/sdb"), Ok(()));
@@ -117,6 +171,74 @@ fn with_no_entry_one_pkexec_creates_it_sets_bootnext_and_the_computer_restarts()
     // Read as the person, then written through pkexec.
     assert_eq!(log(&dir, "efibootmgr").len(), 2);
     assert_eq!(log(&dir, "systemctl"), vec!["[reboot]"]);
+}
+
+#[test]
+fn an_entry_naming_another_stick_is_replaced_in_the_same_restart() {
+    let dir = fakes("stale", TWO_STALE, &ALL);
+    assert_eq!(restart_with(&dir, "/dev/sdc", OTHER_GUID), Ok(()));
+    let e = efibootmgr(&dir);
+    assert_eq!(
+        log(&dir, "pkexec"),
+        vec![
+            format!(
+                "[{e}][--create-only][--bootnum][0002][--disk][/dev/sdc][--part][1]\
+                 [--loader][\\EFI\\BOOT\\BOOTX64.EFI][--label][Faraday stick][--bootnext][0002]"
+            ),
+            format!("[{e}][--delete-bootnum][--bootnum][0004]"),
+            format!("[{e}][--delete-bootnum][--bootnum][0005]"),
+        ]
+    );
+    assert_eq!(log(&dir, "systemctl"), vec!["[reboot]"]);
+}
+
+#[test]
+fn a_stale_entry_that_cannot_be_deleted_does_not_stop_the_restart() {
+    let dir = fakes("stale-delete-fails", FARADAY, &ALL);
+    fs::write(dir.join("delete-fails"), "").expect("flag");
+    assert_eq!(restart_with(&dir, "/dev/sdc", OTHER_GUID), Ok(()));
+    assert_eq!(log(&dir, "systemctl"), vec!["[reboot]"]);
+}
+
+#[test]
+fn a_program_not_owned_by_the_trusted_owner_or_writable_by_others_is_not_run() {
+    let dir = fakes("untrusted", SEVERAL, &ALL);
+    let mine = trusted(&dir);
+    assert!(Tools::find(&mine).is_ok());
+    let not_mine = Trusted {
+        uid: mine.uid + 1,
+        ..mine.clone()
+    };
+    assert_eq!(
+        Tools::find(&not_mine),
+        Err(Reason::Missing("efibootmgr".into()))
+    );
+    for mode in [0o775, 0o757] {
+        fs::set_permissions(dir.join("efibootmgr"), fs::Permissions::from_mode(mode))
+            .expect("mode");
+        assert_eq!(
+            Tools::find(&mine),
+            Err(Reason::Missing("efibootmgr".into()))
+        );
+    }
+}
+
+#[test]
+fn the_system_lookup_is_root_owned_files_in_the_system_folders_only() {
+    let system = Trusted::system();
+    assert_eq!(system.uid, 0);
+    assert_eq!(
+        system.dirs,
+        ["/usr/sbin", "/usr/bin", "/sbin", "/bin"].map(PathBuf::from)
+    );
+    // A fake in a folder of the person's is in none of them.
+    let dir = fakes("home-folder", SEVERAL, &ALL);
+    assert!(system.dirs.iter().all(|d| !d.starts_with(&dir)));
+    assert!(
+        system
+            .which("efibootmgr")
+            .is_none_or(|p| !p.starts_with(&dir))
+    );
 }
 
 #[test]
@@ -197,7 +319,7 @@ fn only_a_plain_device_name_reaches_the_command_line() {
 #[test]
 fn uninstall_removes_the_faraday_stick_entry_and_nothing_else() {
     let dir = fakes("uninstall", FARADAY, &ALL);
-    assert_eq!(remove_entry(dir.as_os_str()), Ok(()));
+    assert_eq!(remove_entry(&trusted(&dir)), Ok(()));
     let e = efibootmgr(&dir);
     assert_eq!(
         log(&dir, "pkexec"),
@@ -206,12 +328,12 @@ fn uninstall_removes_the_faraday_stick_entry_and_nothing_else() {
 
     // No entry: no password asked.
     let dir = fakes("uninstall-none", SEVERAL, &ALL);
-    assert_eq!(remove_entry(dir.as_os_str()), Ok(()));
+    assert_eq!(remove_entry(&trusted(&dir)), Ok(()));
     assert!(log(&dir, "pkexec").is_empty());
 
     // No efibootmgr: there can be no entry.
     let dir = fakes("uninstall-no-efibootmgr", FARADAY, &["pkexec"]);
-    assert_eq!(remove_entry(dir.as_os_str()), Ok(()));
+    assert_eq!(remove_entry(&trusted(&dir)), Ok(()));
     assert!(log(&dir, "pkexec").is_empty());
 }
 
@@ -219,34 +341,38 @@ fn uninstall_removes_the_faraday_stick_entry_and_nothing_else() {
 fn uninstall_declined_leaves_the_entry_and_says_why() {
     let dir = fakes("uninstall-declined", FARADAY, &ALL);
     fs::write(dir.join("pkexec-exit"), "126").expect("exit code");
-    assert_eq!(remove_entry(dir.as_os_str()), Err(Reason::Declined));
+    assert_eq!(remove_entry(&trusted(&dir)), Err(Reason::Declined));
     assert_eq!(log(&dir, "efibootmgr"), vec![""]);
 }
 
 #[test]
 fn home_knows_the_entry_from_the_listing_read_as_the_person() {
     let dir = fakes("exists", FARADAY, &ALL);
-    assert!(entry_exists(dir.as_os_str()));
+    assert!(entry_exists(&trusted(&dir)));
     // Read without a password: pkexec never ran.
     assert!(log(&dir, "pkexec").is_empty());
-    assert!(!entry_exists(
-        fakes("exists-none", SEVERAL, &ALL).as_os_str()
-    ));
-    assert!(!entry_exists(
-        fakes("exists-no-efibootmgr", FARADAY, &["pkexec"]).as_os_str()
-    ));
+    assert!(!entry_exists(&trusted(&fakes(
+        "exists-none",
+        SEVERAL,
+        &ALL
+    ))));
+    assert!(!entry_exists(&trusted(&fakes(
+        "exists-no-efibootmgr",
+        FARADAY,
+        &["pkexec"]
+    ))));
     let dir = fakes("exists-list-fails", FARADAY, &ALL);
     fs::write(dir.join("list-fails"), "").expect("flag");
-    assert!(!entry_exists(dir.as_os_str()));
+    assert!(!entry_exists(&trusted(&dir)));
 }
 
 #[test]
 fn removing_the_entry_from_home_asks_once_and_declined_keeps_it() {
     let dir = fakes("home-remove", FARADAY, &ALL);
-    assert_eq!(remove_entry(dir.as_os_str()), Ok(()));
+    assert_eq!(remove_entry(&trusted(&dir)), Ok(()));
     assert_eq!(log(&dir, "pkexec").len(), 1);
     let dir = fakes("home-remove-declined", FARADAY, &ALL);
     fs::write(dir.join("pkexec-exit"), "127").expect("exit code");
-    assert_eq!(remove_entry(dir.as_os_str()), Err(Reason::Declined));
-    assert!(entry_exists(dir.as_os_str()));
+    assert_eq!(remove_entry(&trusted(&dir)), Err(Reason::Declined));
+    assert!(entry_exists(&trusted(&dir)));
 }

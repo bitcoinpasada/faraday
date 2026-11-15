@@ -349,14 +349,16 @@ Faraday stick**, for another computer.
 
 **Restart from the stick on Linux** starts the attached Faraday stick
 at the next start, once, so the person presses nothing at power-on.
-Every Faraday stick's boot partition carries the same partition GUID
-and lies at the same place (the image's genimage.cfg), so one firmware
-boot entry, labelled `Faraday stick`, starts any of them. The Starter
+Every Faraday stick has its own partition GUIDs (§4.1) and a firmware
+boot entry names the boot partition by its GUID, so an entry labelled
+`Faraday stick` starts only the stick it was made for. The Starter
 runs `efibootmgr` through `pkexec` (polkit asks for the password; the
-Starter itself stays unprivileged, D13): it creates that entry once
-with `--create-only`, so it is never added to `BootOrder`, pointing at
-`\EFI\BOOT\BOOTX64.EFI` on the attached stick's boot partition, reuses
-it when it already exists, sets `BootNext` to it, and then runs
+Starter itself stays unprivileged, D13), from the system's own folders
+only: it reads the entries, and when none names the attached stick's
+boot partition it creates one with `--create-only`, so it is never
+added to `BootOrder`, pointing at `\EFI\BOOT\BOOTX64.EFI` on that
+partition, and deletes the stale ones; it sets `BootNext` to the entry
+and then runs
 `systemctl reboot`. Uninstall removes the entry. Where `efibootmgr` or
 `pkexec` is missing, or the password is declined, the button falls
 back to **Restart into the BIOS** with one line saying why.
