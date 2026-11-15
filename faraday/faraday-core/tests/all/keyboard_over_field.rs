@@ -286,3 +286,53 @@ fn a_bad_dns_domain_s_error_line_stands_above_the_keyboard_with_its_field() {
         );
     }
 }
+
+#[test]
+fn a_long_message_typed_in_sign_a_message_keeps_its_caret_line_above_the_keyboard() {
+    use faraday_core::testkit;
+    for size in PANELS {
+        let mut app = panel(size);
+        let c = testkit::compute();
+        app.session = testkit::session();
+        app.session
+            .keys
+            .add_words(
+                &c,
+                &testkit::test_words(testkit::TEST_SEEDS[0].0),
+                "Bacon",
+                None,
+            )
+            .expect("the key");
+        let kit = testkit::kits()
+            .into_iter()
+            .find(|k| k.id == "spending")
+            .unwrap();
+        app.session
+            .add_wallet(
+                &c,
+                kit.name,
+                &kit.descriptor,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .expect("the wallet");
+        press(&mut app, Action::SignMessage);
+        press(&mut app, Action::MWallet(0));
+        press(&mut app, Action::MNext(0));
+        press(
+            &mut app,
+            Action::TypeHere(faraday_core::edit::Here::Message),
+        );
+        for i in 0..60 {
+            for ch in "a line of the message, kept long ".chars() {
+                app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+            }
+            if i % 10 == 0 {
+                app.event(Event::Key(faraday_shell_api::Key::Enter));
+            }
+            let _ = app.frame();
+            let _ = app.frame();
+        }
+        above_keyboard(&mut app, &format!("{size:?} a long message's caret"));
+    }
+}

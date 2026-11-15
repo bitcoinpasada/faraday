@@ -856,6 +856,16 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         t.app.event(Event::Key(Key::Char(c)));
     }
     t.shot("message-text")?;
+    // A message longer than the space above the keyboard on a small
+    // panel: the line being typed stays in view.
+    let more = " It holds the keys of the wallet named Spending, and these words are the rest of what is to be signed.".repeat(6);
+    for c in more.chars() {
+        t.app.event(Event::Key(Key::Char(c)));
+    }
+    t.shot("message-long-text")?;
+    for _ in more.chars() {
+        t.app.event(Event::Key(Key::Backspace));
+    }
     t.press(Action::MNext(1));
     t.press(Action::MNext(2));
     t.press(Action::MSign);

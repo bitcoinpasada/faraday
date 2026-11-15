@@ -562,10 +562,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             byte = end;
         }
         if focused {
-            self.note_focus(x, y, width, lines.len() as f32 * line);
+            // The line the caret stands on is what is kept in view above
+            // the keyboard, not the whole text: a text taller than the
+            // space above the keyboard shows the line being typed.
+            let (cx, cy) = caret_at.unwrap_or((x, y));
+            self.note_focus(x, cy, width, line);
             self.focus_action = Some(action);
             if selected.is_none() {
-                let (cx, cy) = caret_at.unwrap_or((x, y));
                 let h = role.size * self.text_factor();
                 self.caret(cx, cy + (line - h) / 2.0, h);
             }
