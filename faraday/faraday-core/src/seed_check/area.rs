@@ -118,6 +118,23 @@ impl SeedState {
         matches!(self.source, Some(Source::Loaded(_)))
     }
 
+    /// Whether the flow is Check a multisig setup's Check a seed against it:
+    /// only the Seed and Passphrase cards are used, and the screen is
+    /// that page's.
+    pub(crate) fn for_check(&self) -> bool {
+        self.back == Screen::MultisigCheck
+    }
+
+    /// The card open.
+    pub(crate) fn open_card(&self) -> Option<u8> {
+        self.open
+    }
+
+    /// The line under the card that refused.
+    pub(crate) fn error(&self) -> Option<&Text> {
+        self.error.as_ref()
+    }
+
     /// Where the Result is, once worked out.
     pub(crate) fn made(&self) -> Option<&Made> {
         self.made.as_ref()

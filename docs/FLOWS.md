@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Check a seed against it for a seed typed or scanned, Add this wallet, and Faraday Demo's Paste)
+**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Add this wallet, and Faraday Demo's Paste)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -2198,15 +2198,17 @@ Passphrase steps of My seed makes my wallet open under the rows (**Type
 the words**, **Scan a SeedQR**; **No passphrase** or the passphrase
 typed twice), and the seed is matched as a loaded key is. Its answer is
 one result line: "This seed is key 2 of this wallet" in `OK`, that row
-marked "This seed"; "Not a key of this wallet: check the words or the
+marked "This seed" (a seed that is several cosigners reads "This seed is
+keys 1, 3 of this wallet", each row marked); "Not a key of this wallet: check the words or the
 passphrase" in `ERR`, with "It matches without the passphrase" under it
 where the same words with no passphrase make a cosigner (a passphrase
 not given is never searched for), or the warning line above where the
-fingerprint is a cosigner's and its key is not. The seed is held in
+fingerprint is a cosigner's and its key is not (under the key line, where
+the seed is another cosigner's key). The seed is held in
 `faraday-keys` for the check alone, as My seed makes my wallet holds
 it, and dropped, wiped as any key is (`docs/KEYS.md`), on **Done**,
-**Another setup**, **Check a seed against it** pressed again, leaving
-the screen, the idle lock and a lock; it is never loaded from here, so
+**Another setup**, **Check a seed against it** pressed again, the Result
+card closed or the Setup card opened, leaving the screen, the idle lock and a lock; it is never loaded from here, so
 the Result has no Keep this key (Add a key loads a seed). Decisions 8 and
 9 hold: with a stick in, Type the words and Scan a SeedQR open the sheet
 that asks for it to be pulled.
@@ -2251,10 +2253,10 @@ reads.
   and `Session::spend_ways` (`faraday/faraday-core/src/wallet.rs`),
   `WalletPolicy::spend_paths`, the key path line of `docs/WALLETS.md`
   §3.4, read from the wallet as read, without adding it to the session;
-- "Yours" and the seed's match: Restore's origin match
-  (`faraday/faraday-core/src/restore.rs`, `restore_refusal`) and
-  `faraday-keys`' `xpub_at`; the seed's steps and its holding: My seed
-  makes my wallet's;
+- "Yours" and the seed's match: Compare's judgement of a wallet's keys
+  (`faraday/faraday-core/src/seed_check/compare.rs`, `judge_all` for every
+  cosigner and `held_in` for the seed the check holds) and `faraday-keys`'
+  `xpub_at`; the seed's steps and its holding: My seed makes my wallet's;
 - the first receive address: `WalletPolicy::address_at`.
 
 **Tested against** published vectors and an implementation Faraday did

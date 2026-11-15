@@ -1,14 +1,16 @@
 //! Check a multisig setup's screen: the step-card column over
 //! [`crate::multisig_check`].
 
-use super::{Mark, MsAction as M, MsState, Shown, mstep, state};
+use super::{Mark, MsAction as M, MsState, SeedAnswer, Shown, mstep, state};
 use crate::Action;
 use crate::drawing::{Scrolled, View};
 use crate::flow;
 use crate::strings::EN;
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, GAP};
+use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, GAP, ICON_GLYPH, PAD};
+use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 
 pub(crate) const TITLES: [&str; mstep::COUNT] = [EN.mscheck_setup, EN.mscheck_result];
 
@@ -70,7 +72,7 @@ fn summary(s: &MsState, step: u8) -> String {
 fn card(app: &View, s: &MsState, ui: &mut Ui, step: u8, at: (f32, f32, f32)) -> f32 {
     match step {
         mstep::SETUP => setup(app, s, ui, at),
-        _ => result(s, ui, at),
+        _ => result(app, s, ui, at),
     }
 }
 
@@ -153,7 +155,8 @@ fn setup(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
     cy - GAP
 }
 
-fn result(s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    let (x, y, w) = at;
     let Some(r) = &s.shown else {
         return ui.wrap_as(
             (x, y, w),
@@ -162,8 +165,19 @@ fn result(s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
             EN.mscheck_result_waits,
         );
     };
-    let mut cy = rows(r, ui, (x, y, w));
+    let mut cy = rows(r, s.seed.as_ref(), ui, (x, y, w));
     cy += GAP;
+    ui.button(
+        x,
+        y + cy,
+        None,
+        BUTTON_H,
+        EN.mscheck_check_seed,
+        Style::Ghost,
+        Action::MultisigCheck(M::CheckSeed),
+    );
+    cy += BUTTON_H + GAP;
+    cy += seed(app, s, ui, (x, y + cy, w));
     ui.button(
         x,
         y + cy,
@@ -187,13 +201,13 @@ fn result(s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
 }
 
 /// The Result's rows: the confirmation sheet's, then the page's own.
-fn rows(r: &Shown, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn rows(r: &Shown, seed: Option<&SeedAnswer>, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     use faraday_ui::sheet::kv;
     let mut cy = ui.wrap_as((x, y, w), BODY_M, Role::OnSurface, &r.shape) + GAP;
     for line in &r.repeats {
         cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line) + GAP;
     }
-    for k in &r.keys {
+    for (i, k) in r.keys.iter().enumerate() {
         let head = format!("{} · {}", &*k.fingerprint, &*k.path);
         cy += kv(ui, x, y + cy, w, &k.number, &head, Role::OnSurface);
         cy += ui.wrap_as((x, y + cy, w), BODY_M.mono(), Role::OnSurface, &k.xpub);
@@ -210,6 +224,9 @@ fn rows(r: &Shown, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
             Mark::Wrong(line) => {
                 cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line);
             }
+        }
+        if matches!(seed, Some(SeedAnswer::Key(ours, _)) if ours.contains(&i)) {
+            cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Ok, EN.mscheck_this_seed);
         }
         cy += GAP;
     }
@@ -261,6 +278,61 @@ fn rows(r: &Shown, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
             a,
             Role::OnSurface,
         );
+    }
+    cy
+}
+
+/// The seed given to Check a seed against it: its steps while it is being
+/// taken, then its answer as one result line. The height used, with the
+/// gap after it.
+fn seed(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some(flow) = app.tools.seed_check.state().filter(|f| f.for_check()) else {
+        return 0.0;
+    };
+    let line = |ui: &mut Ui, cy: &mut f32, role: Role, text: &str| {
+        *cy += ui.wrap_as((x, y + *cy, w), BODY_M, role, text) + GAP;
+    };
+    let warn = |ui: &mut Ui, why: &str, at: f32| {
+        ui.icon(x, at, ICON_GLYPH, Icon::Warning, PAD, Role::Warning);
+        let tw = w - ICON_GLYPH - PAD;
+        ui.wrap_as((x + ICON_GLYPH + PAD, at, tw), BODY_M, Role::Warning, why) + GAP
+    };
+    let mut cy = 0.0;
+    match &s.seed {
+        None => {
+            cy += crate::seed_check::screen::check_step(app, flow, ui, (x, y, w)) + GAP;
+            if let Some(e) = flow.error() {
+                line(ui, &mut cy, Role::Error, e);
+            }
+        }
+        Some(SeedAnswer::Key(ours, warning)) => {
+            let at: Vec<String> = ours.iter().map(|i| (i + 1).to_string()).collect();
+            let at = Text::formatted(format_args!("{}", at.join(", ")));
+            let line_text = if ours.len() == 1 {
+                EN.mscheck_seed_is_key
+            } else {
+                EN.mscheck_seed_is_keys
+            };
+            line(ui, &mut cy, Role::Ok, &Text::fill(line_text, &[&at]));
+            if let Some(why) = warning {
+                cy += warn(ui, why, y + cy);
+            }
+        }
+        Some(answer) => {
+            line(ui, &mut cy, Role::Error, EN.app_not_wallet_key);
+            match answer {
+                SeedAnswer::Not(true) => {
+                    line(
+                        ui,
+                        &mut cy,
+                        Role::OnSurfaceVariant,
+                        EN.seed_check_without_pass,
+                    );
+                }
+                SeedAnswer::Changed(why) => cy += warn(ui, why, y + cy),
+                _ => {}
+            }
+        }
     }
     cy
 }

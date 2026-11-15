@@ -13704,6 +13704,18 @@ strings! {
     mscheck_none_in_files: "No wallet in Files",
     /// Check a multisig setup: the Result's text button.
     mscheck_another: "Another setup",
+    /// Check a multisig setup: the Result's text button, which opens the
+    /// seed's steps under the rows.
+    mscheck_check_seed: "Check a seed against it",
+    /// Check a multisig setup: the answer for a seed that is a cosigner's
+    /// key, `{}` its number.
+    mscheck_seed_is_key: "This seed is key {} of this wallet",
+    /// Check a multisig setup: the answer for a seed that is several
+    /// cosigners' key, `{}` their numbers.
+    mscheck_seed_is_keys: "This seed is keys {} of this wallet",
+    /// Check a multisig setup: the mark on the cosigner's row that the
+    /// seed given is.
+    mscheck_this_seed: "This seed",
     /// Check a multisig setup: leaves the screen.
     mscheck_done: "Done",
     /// Check a multisig setup: the Result before a setup is read.

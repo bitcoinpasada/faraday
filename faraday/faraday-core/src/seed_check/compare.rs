@@ -64,7 +64,12 @@ struct Seed<'a> {
     c: &'a Compute,
     keys: &'a Keys,
     source: Source,
-    made: &'a Made,
+    /// The seed's fingerprint, the passphrase applied.
+    fingerprint: Fingerprint,
+    /// The same words' fingerprint with no passphrase, where one was given.
+    without: Option<Fingerprint>,
+    /// The account picked, where a comparison is held to one.
+    account: Option<&'a DerivationPath>,
 }
 
 impl Seed<'_> {
@@ -81,7 +86,7 @@ impl Seed<'_> {
     /// multiplication. The extended public key at `path` of the same words
     /// with no passphrase, where a passphrase was given.
     fn xpub_without_at(&self, path: &DerivationPath) -> Option<Xpub> {
-        self.made.without?;
+        self.without?;
         match self.source {
             Source::Held => self.keys.check_xpub_without_passphrase_at(self.c, path),
             Source::Loaded(i) => self.keys.xpub_without_passphrase_at(self.c, i, path),
@@ -101,14 +106,14 @@ impl Seed<'_> {
             a.is_some_and(|a| a.public_key == xpub.public_key && a.chain_code == xpub.chain_code)
         };
         match fingerprint {
-            Some(f) if f == self.made.fingerprint => {
+            Some(f) if f == self.fingerprint => {
                 if same(self.xpub_at(path)) {
                     Verdict::Ours
                 } else {
                     Verdict::Fingerprint
                 }
             }
-            Some(f) if Some(f) == self.made.without => {
+            Some(f) if Some(f) == self.without => {
                 if same(self.xpub_without_at(path)) {
                     Verdict::Without
                 } else {
@@ -160,7 +165,7 @@ fn as_key(seed: &Seed<'_>, network: Network, text: &str) -> Option<Answer> {
     if !network_is(xpub.network, network) {
         return Some(Answer::Refused(Text::of(EN.seed_check_compare_network)));
     }
-    if path != &seed.made.derivation {
+    if seed.account.is_some_and(|a| path != a) {
         return Some(Answer::Differs(
             Some(Text::fill(EN.seed_check_other_path, &[&path_text(path)])),
             false,
@@ -239,53 +244,112 @@ fn as_wallet(seed: &Seed<'_>, network: Network, text: &str) -> Answer {
     {
         return Answer::Refused(Text::of(EN.seed_check_compare_network));
     }
-    let mut without = false;
-    let mut ours: Option<Answer> = None;
-    let mut finger: Option<&DerivationPath> = None;
-    for (k, key) in policy.keys().iter().enumerate() {
-        let Some(path) = key.path() else { continue };
-        match seed.judge(key.fingerprint(), path, key.xpub()) {
-            Verdict::Ours => {
-                let n = Text::num(k as u64 + 1);
-                let line = match (policy.quorum(), policy.keys().len()) {
-                    (Some((m, total)), _) => Some(Text::fill(
-                        EN.seed_check_key_of,
-                        &[&n, &Text::num(m as u64), &Text::num(total as u64)],
-                    )),
-                    (None, 1) => None,
-                    (None, _) => Some(Text::fill(EN.seed_check_key_of_wallet, &[&n])),
-                };
-                // The account picked is one path; a key of the wallet at
-                // another is named, so no answer passes it for this one.
-                let line = if path == &seed.made.derivation {
-                    line
-                } else {
-                    let at = path_text(path);
-                    Some(match line {
-                        Some(l) => {
-                            Text::formatted(format_args!("{} · {}", l.as_str(), at.as_str()))
-                        }
-                        None => Text::fill(EN.seed_check_matches_at, &[&at]),
-                    })
-                };
-                ours = ours.or(Some(Answer::Matches(line)));
-            }
-            Verdict::Without => without = true,
-            Verdict::Fingerprint => finger = finger.or(Some(path)),
-            Verdict::Other => {}
-        }
-    }
+    let judged = judge_all(seed, &policy);
     // Every key is judged first: this seed's fingerprint on a key that is
     // not this seed's is a changed file, whether or not another key matches.
-    if let Some(path) = finger {
+    if let Some(path) = judged.finger.and_then(|k| policy.keys()[k].path()) {
         finger_only(path)
-    } else if let Some(a) = ours {
-        a
-    } else if without {
+    } else if let Some((k, path)) = judged
+        .ours
+        .first()
+        .copied()
+        .and_then(|k| policy.keys()[k].path().map(|p| (k, p)))
+    {
+        let n = Text::num(k as u64 + 1);
+        let line = match (policy.quorum(), policy.keys().len()) {
+            (Some((m, total)), _) => Some(Text::fill(
+                EN.seed_check_key_of,
+                &[&n, &Text::num(m as u64), &Text::num(total as u64)],
+            )),
+            (None, 1) => None,
+            (None, _) => Some(Text::fill(EN.seed_check_key_of_wallet, &[&n])),
+        };
+        // The account picked is one path; a key of the wallet at
+        // another is named, so no answer passes it for this one.
+        let line = if seed.account.is_none_or(|a| path == a) {
+            line
+        } else {
+            let at = path_text(path);
+            Some(match line {
+                Some(l) => Text::formatted(format_args!("{} · {}", l.as_str(), at.as_str())),
+                None => Text::fill(EN.seed_check_matches_at, &[&at]),
+            })
+        };
+        Answer::Matches(line)
+    } else if judged.without {
         Answer::Differs(Some(Text::of(EN.seed_check_without_pass)), false)
     } else {
         Answer::Differs(None, false)
     }
+}
+
+/// What each cosigner of a wallet is to a seed, by its place.
+struct Judged {
+    /// Every key that is the seed's own, by its place.
+    ours: Vec<usize>,
+    /// A key is the one the same words make with no passphrase.
+    without: bool,
+    /// The first key whose origin names the seed and which is not its key.
+    finger: Option<usize>,
+}
+
+/// Costs what [`Seed::judge`] costs for each key with an origin.
+fn judge_all(seed: &Seed<'_>, policy: &WalletPolicy) -> Judged {
+    let mut judged = Judged {
+        ours: Vec::new(),
+        without: false,
+        finger: None,
+    };
+    for (k, key) in policy.keys().iter().enumerate() {
+        let Some(path) = key.path() else { continue };
+        match seed.judge(key.fingerprint(), path, key.xpub()) {
+            Verdict::Ours => judged.ours.push(k),
+            Verdict::Without => judged.without = true,
+            Verdict::Fingerprint => judged.finger = judged.finger.or(Some(k)),
+            Verdict::Other => {}
+        }
+    }
+    judged
+}
+
+/// What the seed the check holds is to a setup's cosigners.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SeedIs {
+    /// The seed is these cosigners' key, by their places; the first
+    /// cosigner whose origin names the seed with another key, if one does.
+    Key(Vec<usize>, Option<usize>),
+    /// An origin names the seed and this cosigner's key is not its key.
+    Fingerprint(usize),
+    /// No key is the seed's, but one is what the same words make with no
+    /// passphrase.
+    Without,
+    /// No key is the seed's.
+    Neither,
+}
+
+/// Costs what [`judge_all`] costs. What the seed the check holds
+/// ([`Keys::check_facts`]) is to the cosigners of `policy`, as Compare
+/// with the wallet app's judges a wallet; `None` where it holds none.
+pub(crate) fn held_in(c: &Compute, keys: &Keys, policy: &WalletPolicy) -> Option<SeedIs> {
+    let facts = keys.check_facts()?;
+    let seed = Seed {
+        c,
+        keys,
+        source: Source::Held,
+        fingerprint: facts.fingerprint,
+        without: facts.without,
+        account: None,
+    };
+    let j = judge_all(&seed, policy);
+    Some(if !j.ours.is_empty() {
+        SeedIs::Key(j.ours, j.finger)
+    } else if let Some(k) = j.finger {
+        SeedIs::Fingerprint(k)
+    } else if j.without {
+        SeedIs::Without
+    } else {
+        SeedIs::Neither
+    })
 }
 
 /// Costs what [`as_key`], [`as_address`] and [`as_wallet`] cost, and what
@@ -310,7 +374,9 @@ pub(super) fn compare(
         c,
         keys,
         source,
-        made,
+        fingerprint: made.fingerprint,
+        without: made.without,
+        account: Some(&made.derivation),
     };
     if let Some(a) = as_key(&seed, network, text) {
         return a;

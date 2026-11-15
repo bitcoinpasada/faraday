@@ -1170,7 +1170,7 @@ or a seed given, which cosigner that key is. Opened from the Check
 screen's row 7, from its Tools tile and from the ⋮ menu of a wallet file's row in Files (**Check this setup**, on a file Files reads as a wallet of more than one key, never on a single-key wallet file), which opens it on that file with the Setup card closed and the Result, or the refusal line, shown. Its steps, what it reads and what
 it refuses are `docs/FLOWS.md`, Check a multisig setup.
 
-**Open:** its row on the Check place and its Tools tile (the screen opens from Files' ⋮ menu and from a scanner only); **Check a seed against it** with a seed typed or scanned (a key loaded here is marked on its cosigner already); **Add this wallet**, which waits for the one confirmation sheet every wallet of several keys comes in through; the Check against Core's own `deriveaddresses` for the first address; Faraday Demo's Paste.
+**Open:** its row on the Check place and its Tools tile (the screen opens from Files' ⋮ menu and from a scanner only); **Add this wallet**, which waits for the one confirmation sheet every wallet of several keys comes in through; the Check against Core's own `deriveaddresses` for the first address; Faraday Demo's Paste.
 
 | `Screen` | What it holds | Drawn as |
 |---|---|---|

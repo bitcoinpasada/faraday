@@ -270,12 +270,15 @@ mod compare;
 pub(crate) mod screen;
 
 pub(crate) use act::{
-    SEED_STEPS, act, compare_sample_text, enter_is_slow, field, fill_demo_pass, key, not_a_seed,
-    put_compare_sample, put_sample_words, scanned, seed_sample_open, stick_attached, tidy,
+    SEED_STEPS, act, compare_sample_text, drop_for_check, enter_is_slow, field, fill_demo_pass,
+    here, key, not_a_seed, open_for_check, put_compare_sample, put_sample_words, scanned,
+    seed_sample_open, stick_attached, tidy,
 };
 pub(crate) use area::SeedState;
 pub use area::{SeedArea, step};
-pub(crate) use compare::{Answer, CompareDone, CompareWork, compare_scanned, done as compare_done};
+pub(crate) use compare::{
+    Answer, CompareDone, CompareWork, SeedIs, compare_scanned, done as compare_done, held_in,
+};
 
 /// A press in the flow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

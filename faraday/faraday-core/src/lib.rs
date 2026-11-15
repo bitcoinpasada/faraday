@@ -4663,7 +4663,7 @@ impl App for Faraday {
                     self.later_now();
                     self.later = Some(Later::Key(k));
                     self.worker.set_drawn(false);
-                    let line = if self.screen == Screen::SeedCheck {
+                    let line = if crate::seed_check::here(self) {
                         working_text(Action::SeedCheck(seed_check::SeedAction::UsePass))
                             .unwrap_or(EN.working_node_key)
                     } else {

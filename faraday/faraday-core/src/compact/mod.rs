@@ -1455,7 +1455,7 @@ impl Faraday {
             // The Key card's passphrase, and the Words card of a key typed
             // as Add a key's form docks it; the box of rolls has buttons
             // of its own on a small panel.
-            Screen::SeedCheck => {
+            Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
                 self.seed_words_typing()
                     && (self.entry.state().form != crate::forms::Form::Words
                         || self.entry.state().keys.is_none())

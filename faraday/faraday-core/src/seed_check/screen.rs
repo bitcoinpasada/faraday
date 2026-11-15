@@ -137,14 +137,26 @@ fn summary(s: &SeedState, k: u8) -> Text {
 
 fn card(app: &View, s: &SeedState, ui: &mut Ui, k: u8, at: (f32, f32, f32)) -> f32 {
     match k {
-        step::SEED => seed(app, s, ui, at),
+        step::SEED => seed(app, s, ui, at, true),
         step::PASSPHRASE => passphrase(app, s, ui, at),
         step::ACCOUNT => account(app, s, ui, at),
         _ => result(app, s, ui, at),
     }
 }
 
-fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+/// The Seed card, or the Passphrase card once the words are taken, as
+/// Check a multisig setup's Check a seed against it shows them under its
+/// rows: no key loaded here is offered, and the Account card is never
+/// reached.
+pub(crate) fn check_step(app: &View, s: &SeedState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    if s.open_card() == Some(step::PASSPHRASE) {
+        passphrase(app, s, ui, at)
+    } else {
+        seed(app, s, ui, at, false)
+    }
+}
+
+fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32), loaded: bool) -> f32 {
     if s.typing_words() {
         let end = if ui.compact {
             crate::compact::screen::entry_words(app, ui, x, y, w, false)
@@ -174,7 +186,7 @@ fn seed(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f
             Action::ScanSeed,
         ),
     ];
-    for (i, key) in app.session.keys.all().enumerate() {
+    for (i, key) in app.session.keys.all().enumerate().filter(|_| loaded) {
         let line = crate::wallet::key_line(key.fingerprint, &crate::bip85::key_name(key));
         let label = if key.has_passphrase {
             Text::formatted(format_args!(

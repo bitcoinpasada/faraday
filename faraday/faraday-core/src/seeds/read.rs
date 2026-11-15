@@ -446,7 +446,7 @@ impl Faraday {
             return;
         }
         // My seed makes my wallet reads the words as its own key.
-        if self.screen == Screen::SeedCheck
+        if crate::seed_check::here(self)
             && s.loaded.is_none()
             && let Source::Words(w) = &s.source
         {

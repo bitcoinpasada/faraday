@@ -41,6 +41,56 @@ pub(crate) fn open(app: &mut Faraday) {
     app.screen = Screen::SeedCheck;
 }
 
+/// Check a multisig setup's Check a seed against it: the flow begins
+/// with nothing taken, for that page's screen, which stays on show.
+pub(crate) fn open_for_check(app: &mut Faraday) {
+    app.session.keys.check_forget();
+    app.entry.reset();
+    app.tools.seed_check.begin(Screen::MultisigCheck);
+}
+
+/// What Check a seed against it held is wiped.
+pub(crate) fn drop_for_check(app: &mut Faraday) {
+    if app
+        .tools
+        .seed_check
+        .state()
+        .is_some_and(SeedState::for_check)
+    {
+        drop_all(app);
+    }
+}
+
+/// Whether the flow's cards are on show: its own screen, or Check a
+/// multisig setup's with the flow open.
+pub(crate) fn here(app: &Faraday) -> bool {
+    match app.screen {
+        Screen::SeedCheck => true,
+        Screen::MultisigCheck => {
+            crate::multisig_check::state(app)
+                .is_some_and(|m| m.open == Some(crate::multisig_check::mstep::RESULT))
+                && app
+                    .tools
+                    .seed_check
+                    .state()
+                    .is_some_and(SeedState::for_check)
+        }
+        _ => false,
+    }
+}
+
+/// A seed read for Check a seed against it is matched to the setup.
+fn read_for_check(app: &mut Faraday) {
+    if app
+        .tools
+        .seed_check
+        .state()
+        .is_some_and(|s| s.for_check() && s.facts.is_some())
+    {
+        crate::multisig_check::seed_given(app);
+    }
+}
+
 /// Leaves the flow for where it was opened: everything it held is wiped.
 fn leave(app: &mut Faraday) {
     let back = app.tools.seed_check.state().map(|s| s.back);
@@ -277,6 +327,7 @@ fn read(app: &mut Faraday, with: bool) {
         },
     );
     let got = app.session.keys.check_read(&c, &words, &pass);
+    let ok = got.is_ok();
     if got.is_ok() {
         reset_from(app, step::ACCOUNT);
     }
@@ -298,6 +349,9 @@ fn read(app: &mut Faraday, with: bool) {
         }
         Err(e) => s.error = Some(e.text()),
     }
+    if ok {
+        read_for_check(app);
+    }
 }
 
 /// Costs what `Keys::check_read` costs. A SeedQR's words and the passphrase the sheet asked for are read as
@@ -305,6 +359,7 @@ fn read(app: &mut Faraday, with: bool) {
 pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
     let c = app.compute();
     let got = app.session.keys.check_read(&c, words, pass);
+    let ok = got.is_ok();
     if got.is_ok() {
         // The key just read is the one the check holds: only what hung on
         // the key before is dropped.
@@ -332,6 +387,9 @@ pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
             s.error = Some(e.text());
             s.open = Some(step::SEED);
         }
+    }
+    if ok {
+        read_for_check(app);
     }
 }
 
@@ -482,7 +540,7 @@ fn keep(app: &mut Faraday) {
 
 /// The field typing goes to, with what is typed in it.
 pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
-    if app.screen != Screen::SeedCheck {
+    if !here(app) {
         return None;
     }
     let (a, text) = app.tools.seed_check.state()?.field()?;
@@ -504,7 +562,7 @@ pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
 /// Whether Enter now ends the passphrase fields with two PBKDF2, so the
 /// key is left for the tick after a frame (`Faraday::key_slow`).
 pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
-    if app.screen != Screen::SeedCheck || app.sheet.is_some() {
+    if !here(app) || app.sheet.is_some() {
         return false;
     }
     let Some(s) = app.tools.seed_check.state() else {
@@ -517,7 +575,7 @@ pub(crate) fn enter_is_slow(app: &Faraday) -> bool {
 
 /// Typing into the passphrase fields and the path field.
 pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
-    if app.screen != Screen::SeedCheck || app.sheet.is_some() {
+    if !here(app) || app.sheet.is_some() {
         return false;
     }
     let Some(s) = st(app) else { return false };
@@ -626,7 +684,7 @@ fn compare_key(app: &mut Faraday, key: Key) -> bool {
 /// After a press: the flow ends, its key dropped, unless it is on show;
 /// and a key that went with a lock starts it over.
 pub(crate) fn tidy(app: &mut Faraday) {
-    if app.screen != Screen::SeedCheck {
+    if !here(app) {
         if app.tools.seed_check.state().is_some() {
             drop_all(app);
         }

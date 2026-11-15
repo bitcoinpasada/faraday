@@ -485,7 +485,7 @@ impl Faraday {
             Screen::KefTool => crate::kef_tool::field(self).is_some(),
             Screen::QrTool => crate::qr_tool::field(self).is_some(),
             Screen::OtsCheck => crate::ots_check::field(self).is_some(),
-            Screen::SeedCheck => {
+            Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
                 crate::seed_check::field(self).is_some() || self.seed_words_typing()
             }
             Screen::CoreWallet => crate::core_wallet::tool::field(self).is_some(),
@@ -581,11 +581,13 @@ impl Faraday {
             Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
             Screen::QrTool => crate::qr_tool::field(self).map(|(a, _)| a),
             Screen::OtsCheck => crate::ots_check::field(self).map(|(a, _)| a),
-            Screen::SeedCheck => crate::seed_check::field(self).map(|(a, _)| a).or_else(|| {
-                self.seed_words_typing()
-                    .then(|| self.entry_target())
-                    .flatten()
-            }),
+            Screen::SeedCheck | Screen::MultisigCheck if crate::seed_check::here(self) => {
+                crate::seed_check::field(self).map(|(a, _)| a).or_else(|| {
+                    self.seed_words_typing()
+                        .then(|| self.entry_target())
+                        .flatten()
+                })
+            }
             Screen::CoreWallet => crate::core_wallet::tool::field(self).map(|(a, _)| a),
             Screen::Backup if crate::wallet_backup::kef::field(self).is_some() => {
                 crate::wallet_backup::kef::field(self).map(|(a, _)| a)

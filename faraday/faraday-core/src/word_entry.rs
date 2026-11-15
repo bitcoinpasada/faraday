@@ -1017,7 +1017,7 @@ impl Faraday {
     /// Enter on the words form: Add a key adds the key; New key's Words
     /// card goes on to Key.
     pub(crate) fn entry_enter(&mut self) {
-        if self.screen == Screen::SeedCheck {
+        if crate::seed_check::here(self) {
             crate::seed_check::act(self, crate::seed_check::SeedAction::Words);
         } else if self.screen == Screen::KeyGen {
             self.keygen_act(Action::KNext);

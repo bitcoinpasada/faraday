@@ -50,6 +50,9 @@ pub enum MsAction {
     FromFile(bool, usize),
     /// The Result's **Another setup**.
     Another,
+    /// The Result's **Check a seed against it**: the Seed and Passphrase
+    /// steps of My seed makes my wallet open under the rows.
+    CheckSeed,
 }
 
 /// What a cosigner's row says of the keys loaded here.
@@ -64,6 +67,21 @@ pub(crate) enum Mark {
     Wrong(Text),
 }
 
+/// What the seed given to Check a seed against it is to the setup.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SeedAnswer {
+    /// The seed is these cosigners' key, by their places, and the warning
+    /// line where another cosigner's fingerprint is the seed's with a key
+    /// that is not.
+    Key(Vec<usize>, Option<Text>),
+    /// Not a key of the wallet; `true` where the same words with no
+    /// passphrase make a cosigner.
+    Not(bool),
+    /// A cosigner's fingerprint is the seed's and its key is not: the
+    /// warning line.
+    Changed(Text),
+}
+
 /// One cosigner's row.
 pub(crate) struct KeyRow {
     pub(crate) number: Text,
@@ -76,6 +94,8 @@ pub(crate) struct KeyRow {
 
 /// The Result card's rows, worked out once.
 pub(crate) struct Shown {
+    /// The wallet read, for the seed given against it.
+    pub(crate) policy: WalletPolicy,
     pub(crate) shape: Text,
     pub(crate) keys: Vec<KeyRow>,
     /// Keys the descriptor uses twice, as lines.
@@ -100,6 +120,9 @@ pub struct MsState {
     /// Why the last setup was refused.
     pub(crate) refused: Option<Text>,
     pub(crate) shown: Option<Shown>,
+    /// What the seed given to Check a seed against it is; the seed itself
+    /// is the one `faraday-keys` holds for My seed makes my wallet's flow.
+    pub(crate) seed: Option<SeedAnswer>,
 }
 
 impl MsState {
@@ -111,6 +134,7 @@ impl MsState {
             source: None,
             refused: None,
             shown: None,
+            seed: None,
         }
     }
 
@@ -172,6 +196,52 @@ pub(crate) fn open(app: &mut Faraday) {
 pub(crate) fn tidy(app: &mut Faraday) {
     if app.screen != Screen::MultisigCheck {
         app.tools.mscheck.clear();
+        return;
+    }
+    // The seed went (a lock): its answer goes with it.
+    if app.session.keys.check_facts().is_none()
+        && let Some(s) = st(app)
+    {
+        s.seed = None;
+    }
+}
+
+/// Costs what [`crate::seed_check::held_in`] costs. The seed the check
+/// holds was read: its answer against the setup on show.
+pub(crate) fn seed_given(app: &mut Faraday) {
+    let c = app.compute();
+    let Some(policy) = state(app)
+        .and_then(|s| s.shown.as_ref())
+        .map(|r| r.policy.clone())
+    else {
+        return;
+    };
+    let warning = |k: usize| {
+        let key = &policy.keys()[k];
+        match (key.fingerprint(), key.path()) {
+            (Some(fp), Some(path)) => Some(Text::fill(
+                EN.mscheck_wrong_key,
+                &[
+                    &crate::wallet::fp_text(fp),
+                    &crate::register::path_text(path),
+                ],
+            )),
+            _ => None,
+        }
+    };
+    let answer = match crate::seed_check::held_in(&c, &app.session.keys, &policy) {
+        Some(crate::seed_check::SeedIs::Key(ours, finger)) => {
+            SeedAnswer::Key(ours, finger.and_then(warning))
+        }
+        Some(crate::seed_check::SeedIs::Fingerprint(k)) => {
+            warning(k).map_or(SeedAnswer::Not(false), SeedAnswer::Changed)
+        }
+        Some(crate::seed_check::SeedIs::Without) => SeedAnswer::Not(true),
+        Some(crate::seed_check::SeedIs::Neither) | None => SeedAnswer::Not(false),
+    };
+    if let Some(s) = st(app) {
+        s.seed = Some(answer);
+        s.scroll.follow = true;
     }
 }
 
@@ -318,6 +388,7 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         .ok()
         .map(|a| Text::of(&a.to_string()));
     Shown {
+        policy,
         shape,
         keys,
         repeats,
@@ -408,7 +479,9 @@ fn item_text(app: &Faraday, out: bool, k: usize) -> Option<(Text, Text)> {
 
 /// Takes the setup: the Result worked out, or the refusal kept.
 fn take(app: &mut Faraday, source: Text, result: Result<Shown, Text>) {
+    crate::seed_check::drop_for_check(app);
     let Some(s) = st(app) else { return };
+    s.seed = None;
     match result {
         Ok(shown) => {
             s.source = Some(source);
@@ -430,8 +503,21 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
     match action {
         MsAction::Open => open(app),
         MsAction::Step(k) => {
+            let open = if state(app).is_some_and(|s| s.open == Some(k)) {
+                None
+            } else {
+                Some(k)
+            };
+            // The seed flow's steps are under the Result: a Result no longer
+            // open is the flow left, and the seed it held is wiped.
+            if open != Some(mstep::RESULT) {
+                crate::seed_check::drop_for_check(app);
+                if let Some(s) = st(app) {
+                    s.seed = None;
+                }
+            }
             if let Some(s) = st(app) {
-                s.open = if s.open == Some(k) { None } else { Some(k) };
+                s.open = open;
                 s.scroll.follow = true;
             }
         }
@@ -462,8 +548,17 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
             take(app, name, result);
         }
         MsAction::Another => {
+            crate::seed_check::drop_for_check(app);
             if let Some(s) = st(app) {
                 s.open = Some(mstep::SETUP);
+                s.seed = None;
+                s.scroll.follow = true;
+            }
+        }
+        MsAction::CheckSeed => {
+            crate::seed_check::open_for_check(app);
+            if let Some(s) = st(app) {
+                s.seed = None;
                 s.scroll.follow = true;
             }
         }

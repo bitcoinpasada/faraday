@@ -1522,7 +1522,7 @@ impl Faraday {
     /// or on My seed makes my wallet's Seed card.
     pub(crate) fn entry_typing_here(&self) -> bool {
         self.screen == Screen::Entry
-            || (self.screen == Screen::SeedCheck && self.seed_words_typing())
+            || (crate::seed_check::here(self) && self.seed_words_typing())
             || (self.screen == Screen::KeyGen
                 && self
                     .keygen

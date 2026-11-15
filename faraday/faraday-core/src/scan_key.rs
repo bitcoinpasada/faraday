@@ -1688,7 +1688,7 @@ impl Faraday {
                     if let Some(found) = also {
                         self.seed_read_offer_kef(found.envelope);
                     }
-                } else if self.screen == crate::Screen::SeedCheck {
+                } else if crate::seed_check::here(self) {
                     // A code that holds no seed is said on the Seed card.
                     crate::seed_check::not_a_seed(self);
                 }
@@ -2368,7 +2368,7 @@ impl Faraday {
         }
         // My seed makes my wallet: words that are no seed are said on its
         // Seed card; the rest go to the sheet that asks the passphrase.
-        if self.screen == crate::Screen::SeedCheck {
+        if crate::seed_check::here(self) {
             let c = self.compute();
             if crate::wallet::parse_words(&c, faraday_bip::bip39::Language::English, words).is_err()
             {
