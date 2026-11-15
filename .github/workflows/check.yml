@@ -139,6 +139,8 @@ jobs:
         with:
           deps: ${{ matrix.job }}
       # Each is the compile of that job's command (below), without its run:
+      # doc-tests: cargo refuses --doc with --no-run; --list builds the libraries
+      # and dev-dependencies the doc tests link against and runs none of them.
       # lint-clippy's deps are cargo check's, as clippy builds a dependency with
       # plain rustc; lint-deps compiles nothing in target/ (the fuzz crates have
       # their own folders), so its cache is only saved.
@@ -148,7 +150,7 @@ jobs:
         run: |
           case "$JOB" in
             build-tests)        cargo nextest archive --locked --workspace --archive-file "$RUNNER_TEMP/warm.tar.zst" ;;
-            doc-tests)          cargo test --locked --workspace --doc --no-run ;;
+            doc-tests)          cargo test --locked --workspace --doc -- --list ;;
             lint-clippy)        cargo check --locked --workspace --all-targets ;;
             lint-deps)          ;;
             lint-repo)          cargo build --locked -p costs-lint ;;
