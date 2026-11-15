@@ -797,6 +797,15 @@ fn has_vault_head(place: &mut dyn Place, name: &str) -> bool {
         .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
 }
 
+/// The most files that begin as a vault does a save reads and hashes: a
+/// stick with more is refused.
+const MAX_VAULT_LEN_FILES: usize = 64;
+
+/// The most part files one [`finish_vault_writes`] deals with, and the
+/// most files it reads to find a part's twin; a real interruption leaves
+/// one or two.
+const MAX_PART_WORK: usize = 8;
+
 /// Costs a read and a SHA-256 pass over each file that begins as a vault
 /// does on the stick. The names of the files on the stick whose SHA-256 is among
 /// `copies`, the SHA-256 of whole files (`docs/VAULT.md` §6).
@@ -805,14 +814,31 @@ fn copies_on(c: &Compute, place: &mut dyn Place, copies: &[[u8; 32]]) -> Result<
     if copies.is_empty() {
         return Ok(found);
     }
-    for (n, len) in place.files()? {
-        if n.starts_with('.') || !vault_file::is_vault_len(len) || len > MAX_VAULT_READ {
+    let files = place.files()?;
+    let sized = |n: &str, len: u64| {
+        !n.starts_with('.') && vault_file::is_vault_len(len) && len <= MAX_VAULT_READ
+    };
+    // One pass over the root reads the head of each file of a vault's
+    // length; only those that begin as a vault does are read whole. A
+    // crafted stick can hold thousands of them, and every one would be
+    // read and hashed: past a plain count the save is refused instead.
+    let mut pick = |n: &str, len: u64| sized(n, len);
+    let vaults: Vec<Text> = place
+        .heads(&mut pick, vault_file::HEAD_LEN, MAX_VAULT_READ)
+        .into_iter()
+        .filter(|(_, head)| {
+            head.as_ref()
+                .is_ok_and(|b| vault_file::kdbx_major(b) == Some(4))
+        })
+        .map(|(n, _)| n)
+        .collect();
+    if vaults.len() > MAX_VAULT_LEN_FILES {
+        return Err(Text::of(EN.files_too_many_vault_len));
+    }
+    for n in vaults {
+        let Some(len) = files.iter().find(|(f, _)| *f == n).map(|f| f.1) else {
             continue;
-        }
-        // Only a file that begins as a vault does is read whole.
-        if !has_vault_head(place, &n) {
-            continue;
-        }
+        };
         if let Ok(b) = place.read(&n, len).map(zeroize::Zeroizing::new)
             && copies.contains(&faraday_crypto::sha256_whole(c, &b))
         {
@@ -1248,6 +1274,7 @@ fn whole_vault(b: &[u8]) -> bool {
 /// as either may be the newer; a part file that is not whole goes.
 pub fn finish_vault_writes(place: &mut dyn Place) {
     let Ok(files) = place.files() else { return };
+    let mut parts: usize = 0;
     for (n, len) in &files {
         let Some(name) = n
             .strip_prefix(".faraday-")
@@ -1255,6 +1282,13 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         else {
             continue;
         };
+        // More part files than any interruption leaves are a crafted
+        // stick's: the rest stay as they are, and a write is refused
+        // where one is in its way.
+        parts = parts.saturating_add(1);
+        if parts > MAX_PART_WORK {
+            break;
+        }
         // A part file of a vault under another name is told by its
         // contents; a part file of any other file is not this function's.
         let named = is_kdbx_name(name);
@@ -1298,15 +1332,16 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             // is a torn rename of it: its second name goes alone.
             // Worked out only where the original is whole and differs.
             let mut twin = || {
-                files.iter().any(|(o, l)| {
-                    o != n
-                        && o != original
-                        && *l == *len
-                        && place
+                files
+                    .iter()
+                    .filter(|(o, l)| o != n && o != original && *l == *len)
+                    .take(MAX_PART_WORK)
+                    .any(|(o, _)| {
+                        place
                             .read(o, MAX_VAULT_READ)
                             .map(zeroize::Zeroizing::new)
                             .is_ok_and(|b| Some(&b) == part.as_ref())
-                })
+                    })
             };
             if kept && (held == part || twin()) {
                 // The same bytes, or one chain under two names after a
@@ -1358,15 +1393,16 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
                 // that is not a free form of the original's is a torn
                 // rename's other name: the part goes alone. A free form
                 // is a kept copy, which a write-back reduces with the part.
-                let twin = files.iter().any(|(o, l)| {
-                    o != n
-                        && !is_free_form(o, &target)
-                        && *l == *len
-                        && place
+                let twin = files
+                    .iter()
+                    .filter(|(o, l)| o != n && !is_free_form(o, &target) && *l == *len)
+                    .take(MAX_PART_WORK)
+                    .any(|(o, _)| {
+                        place
                             .read(o, MAX_VAULT_READ)
                             .map(zeroize::Zeroizing::new)
                             .is_ok_and(|b| part.as_ref().is_some_and(|p| p[..] == b[..]))
-                });
+                    });
                 if twin {
                     let _ = place.remove(n);
                 } else {

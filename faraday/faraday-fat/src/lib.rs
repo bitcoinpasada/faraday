@@ -798,11 +798,23 @@ impl<D: Disk> Volume<D> {
     /// none of them twice. What follows them, if anything, is not
     /// followed.
     fn chain_start(&mut self, first: u32, n: usize) -> Result<Vec<u32>, Error> {
+        // No chain has more clusters than the volume: a longer one only
+        // loops, and is refused before it is walked.
+        if n > self.clusters as usize {
+            return Err(Error::Corrupt(Fault::Loop));
+        }
         let mut out = Vec::with_capacity(n);
+        let mut seen = Bits::new(self.clusters + 2);
         let mut c = first;
         while out.len() < n {
             if !self.valid(c) {
                 return Err(Error::Corrupt(Fault::ClusterOutside));
+            }
+            // A cluster twice: the chain loops back on itself, and is
+            // refused at the second visit, so the walk is never longer
+            // than the volume's clusters.
+            if !seen.insert(c) {
+                return Err(Error::Corrupt(Fault::Loop));
             }
             out.push(c);
             if out.len() == n {
@@ -813,12 +825,6 @@ impl<D: Disk> Volume<D> {
                 return Err(Error::Corrupt(Fault::FileLonger));
             }
             c = next;
-        }
-        // A cluster twice among them: the chain loops back on itself.
-        let mut sorted = out.clone();
-        sorted.sort_unstable();
-        if sorted.windows(2).any(|w| w[0] == w[1]) {
-            return Err(Error::Corrupt(Fault::Loop));
         }
         Ok(out)
     }
@@ -1946,9 +1952,10 @@ fn parse_dir(bytes: &[u8]) -> Vec<Entry> {
 
 /// Text a person reads: control characters and the characters that
 /// reorder or hide others (direction marks and overrides, zero-width
-/// and joining marks, the byte order mark, the soft hyphen) become
-/// U+FFFD, so a name cannot look like another.
-fn printable(s: &str) -> Text {
+/// and joining marks, the byte order mark, the soft hyphen, tag
+/// characters, variation selectors, Hangul fillers) become U+FFFD, so a
+/// name cannot look like another.
+pub fn printable(s: &str) -> Text {
     s.chars()
         .map(|c| {
             let hidden = c.is_control()
@@ -1962,6 +1969,13 @@ fn printable(s: &str) -> Text {
                         | '\u{2060}'..='\u{206F}'
                         | '\u{FEFF}'
                         | '\u{FFF9}'..='\u{FFFB}'
+                        | '\u{115F}'
+                        | '\u{1160}'
+                        | '\u{3164}'
+                        | '\u{FFA0}'
+                        | '\u{FE00}'..='\u{FE0F}'
+                        | '\u{E0000}'..='\u{E007F}'
+                        | '\u{E0100}'..='\u{E01EF}'
                 );
             if hidden {
                 char::REPLACEMENT_CHARACTER

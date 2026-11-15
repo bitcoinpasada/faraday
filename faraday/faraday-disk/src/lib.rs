@@ -520,10 +520,12 @@ impl Disks {
     /// partition not listed before: one partition, as the app sees it.
     fn stick(&mut self, c: &Compute, f: &Found) -> Option<Stick> {
         let named = |f: &Found| {
-            f.partname
+            let n = f
+                .partname
                 .clone()
                 .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| Text::of(f.id.split('@').next().unwrap_or("")))
+                .unwrap_or_else(|| Text::of(f.id.split('@').next().unwrap_or("")));
+            faraday_fat::printable(&n)
         };
         if !f.open {
             // Not handed out yet: nothing on it can be read or written. It

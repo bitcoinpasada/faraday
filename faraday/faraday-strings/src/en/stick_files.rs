@@ -67,7 +67,7 @@ macro_rules! words_stick_files {
     /// A stick's filesystem contradicts itself: a file's last cluster is free.
     fat_fault_free_end: "a file's last cluster is marked free",
     /// A stick's filesystem hides entries: some follow the end of the folder.
-    fat_fault_hidden_entries: "entries follow the end of the top folder",
+    fat_fault_hidden_entries: "entries follow the end of the top folder; Zero the free space removes them",
     /// A file name FAT cannot hold.
     fat_name_empty: "an empty name",
     /// A file name FAT cannot hold.
@@ -104,6 +104,9 @@ macro_rules! words_stick_files {
     files_newer_waiting: "{} holds another copy of this vault",
     /// Why a vault was not written: two files hold it. `{}`: the files.
     files_vault_twice: "{} and {} are the same vault; remove one",
+    /// Why a vault was not written: the stick holds too many files of a
+    /// vault's length to check them all.
+    files_too_many_vault_len: "The stick holds too many files the size of a vault to check them all",
     /// Why a rename was refused. `{}`: the file.
     files_not_on_stick: "{} is not on the stick",
     /// Why a picture was not read for codes: it is over the largest.
