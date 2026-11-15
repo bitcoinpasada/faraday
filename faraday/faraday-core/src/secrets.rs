@@ -180,7 +180,9 @@ pub(crate) struct Plain {
     pub name: Text,
     /// Where it goes, as the sheet's first line names it.
     pub on: Text,
-    /// What keeps it, as the sheet's second line names it.
+    /// What keeps it, as the sheet's second line names it (only Faraday
+    /// Demo's Transfer names it; a stick's sheet names the stick).
+    #[cfg_attr(not(feature = "demo"), expect(dead_code))]
     pub keep: Text,
     /// What the hold does.
     pub then: PlainThen,
