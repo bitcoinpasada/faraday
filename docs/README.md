@@ -115,7 +115,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/SECRET-LEAKS.md`: Secret leaks: tests that fail on a secret left in memory or on screen. Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built.
-- `docs/SIGNER-CHECK.md`: Check a signer. Built; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/STICK-SETUP.md`: Sticks and vaults, laid out together. Built (F175; `faraday/faraday-core/src/backup_flow/`, `faraday/faraday-disk/src/lib.rs`).
@@ -144,6 +143,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/MAC.md`: Faraday on Macs. Paused until a Mac is available to test on.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
+- `docs/SIGNER-CHECK.md`: Check a signer. Built but for §11; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1).
