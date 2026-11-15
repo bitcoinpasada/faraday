@@ -79,17 +79,20 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         ),
         (Glyph::Icon(Icon::Tools), EN.sidebar_tools, Screen::Catalog),
     ];
-    let mut tail = Vec::new();
-    // The online app is the device's QR link.
-    #[cfg(feature = "demo")]
-    if app.online {
-        tail.push((Glyph::Icon(Icon::Qr), EN.sidebar_transfer, Screen::Transfer));
-    }
-    tail.push((
+    #[cfg_attr(not(feature = "demo"), expect(unused_mut))]
+    let mut tail = vec![(
         Glyph::Icon(Icon::Settings),
         EN.sidebar_settings,
         Screen::Settings,
-    ));
+    )];
+    // The online app is the device's QR link, above Settings.
+    #[cfg(feature = "demo")]
+    if app.online {
+        tail.insert(
+            0,
+            (Glyph::Icon(Icon::Qr), EN.sidebar_transfer, Screen::Transfer),
+        );
+    }
     // The tabs are a touch target tall each, from just under the name.
     let mut y = 64.0;
     let flows = app.flows_in_progress();

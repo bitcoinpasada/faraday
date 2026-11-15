@@ -116,11 +116,13 @@ impl Camera {
 
     /// Runs `f` on the open sheet's state, for the Receive tab's reads,
     /// which hand the state to their own helpers; `None` when closed.
+    #[cfg(feature = "demo")]
     pub(crate) fn with_scan<R>(&mut self, f: impl FnOnce(&mut ScanState) -> R) -> Option<R> {
         self.scan.as_mut().map(f)
     }
 
     /// Runs `f` on the sheet's state, or on `None` when it is closed.
+    #[cfg(feature = "demo")]
     pub(crate) fn with_scan_or_none<R>(
         &mut self,
         f: impl FnOnce(Option<&mut ScanState>) -> R,

@@ -46,10 +46,13 @@ test-i686:
 [group('lint')]
 lint: lint-clippy lint-deps lint-repo lint-touch-targets lint-op-cost
 
-# Clippy over the workspace, every target (the costliest part of the lint).
+# Clippy over the workspace, every target (the costliest part of the lint),
+# then over the stick's app alone: the workspace turns on faraday-core's demo
+# feature for Faraday Demo, and the stick's app is built without it.
 [group('lint')]
 lint-clippy:
     python3 tools/clippy.py --locked --workspace --all-targets
+    python3 tools/clippy.py --locked -p faraday-stick
 
 # The dependencies: cargo deny and cargo vet, and the fuzz crates built.
 [group('lint')]

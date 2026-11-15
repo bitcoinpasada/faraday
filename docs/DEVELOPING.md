@@ -131,7 +131,7 @@ just test                 the tests alone (nextest, then the doc tests)
 just test-doc             the doc tests alone
 just test-i686            the tests of the parser crates (sb, fat, files, disk, codec, psbt, bip) as a 32-bit program, as the Pi runs them
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
-just lint-clippy          clippy over every target
+just lint-clippy          clippy over every target, then the stick's app as its image builds it
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
 just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes

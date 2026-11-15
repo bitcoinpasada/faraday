@@ -177,8 +177,8 @@ pub mod glance;
 pub mod picture;
 mod scan_key;
 pub mod scan_read;
-pub(crate) mod text_check;
 mod screens;
+pub(crate) mod text_check;
 mod visible;
 mod walkthrough;
 
@@ -293,7 +293,9 @@ pub use wallet::SpendState;
 pub use wallet_backup::BackupState;
 
 use crate::strings::EN;
-use faraday_intake::{arrival, seed_in_code, seedqr_words};
+use faraday_intake::seedqr_words;
+#[cfg(feature = "demo")]
+use faraday_intake::{arrival, seed_in_code};
 use std::collections::BTreeSet;
 
 use faraday_crypto::work::Compute;
