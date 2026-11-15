@@ -102,9 +102,102 @@ fn every_slip39_vector_that_recovers_is_in_the_table_with_trezor_and_with_no_pas
     assert_eq!(seen, 15);
 }
 
+/// The fingerprint of the master key of an xpub a BIP-32 vector states.
+fn stated_xpub(xpub: &str) -> [u8; 4] {
+    faraday_bip::bitcoin::bip32::Xpub::from_str(xpub)
+        .expect("an extended public key")
+        .fingerprint()
+        .to_bytes()
+}
+
+/// Every codex32 master seed BIP-93 publishes, as its vectors state it.
+fn codex32_seeds() -> Vec<(String, Vec<u8>, Option<String>)> {
+    let all = json("bip93/vectors.json");
+    let mut out = Vec::new();
+    for kind in ["secrets", "sets", "alternates"] {
+        for v in all[kind].as_array().expect(kind) {
+            out.push((
+                format!("codex32 vector {}", v["vector"]),
+                unhex(v["seed"].as_str().expect("seed")),
+                v["xprv"].as_str().map(str::to_owned),
+            ));
+        }
+    }
+    out
+}
+
+#[test]
+fn every_codex32_master_seed_is_in_the_table_as_the_standard_states_it() {
+    let seeds = codex32_seeds();
+    assert_eq!(seeds.len(), 10);
+    for (name, seed, xprv) in seeds {
+        let fp = fingerprint_of_seed(&seed);
+        if let Some(xprv) = xprv {
+            assert_eq!(fp, stated(&xprv), "{name}");
+        }
+        assert!(is_published(fp), "{name}");
+    }
+}
+
+#[test]
+fn every_bip32_vector_seed_is_in_the_table_as_the_standard_states_it() {
+    let mut seen = 0;
+    for v in json("bip32/vectors.json").as_array().expect("vectors") {
+        let seed = unhex(v["seed"].as_str().expect("seed"));
+        let master = &v["chains"][0];
+        assert_eq!(master["path"], "m");
+        let fp = fingerprint_of_seed(&seed);
+        assert_eq!(fp, stated_xpub(master["xpub"].as_str().expect("xpub")));
+        assert!(is_published(fp), "{}", v["seed"]);
+        seen += 1;
+    }
+    assert_eq!(seen, 4);
+}
+
+/// The fingerprints BIP-85's vectors give: the master key, the child words
+/// of each length, the child xprv and the child hex as a seed.
+fn bip85_fingerprints() -> Vec<[u8; 4]> {
+    let all = json("bip85/vectors.json");
+    let apps = &all["applications"];
+    let mut out = vec![stated(all["master"].as_str().expect("master"))];
+    for w in apps["bip39"].as_array().expect("words") {
+        let words = w["mnemonic"].as_str().expect("mnemonic");
+        out.push(reference_fingerprint(bip39::Language::English, words, ""));
+    }
+    for x in apps["xprv"].as_array().expect("xprv") {
+        out.push(stated(x["xprv"].as_str().expect("xprv")));
+    }
+    for h in apps["hex"].as_array().expect("hex") {
+        out.push(fingerprint_of_seed(&unhex(
+            h["entropy"].as_str().expect("hex"),
+        )));
+    }
+    out
+}
+
+#[test]
+fn every_bip85_vector_key_is_in_the_table_as_the_standard_states_it() {
+    let fps = bip85_fingerprints();
+    assert_eq!(fps.len(), 1 + 3 + 1 + 1);
+    for fp in fps {
+        assert!(is_published(fp), "{fp:02x?}");
+    }
+}
+
 #[test]
 fn every_entry_of_the_table_is_a_vectors_or_a_samples() {
     let mut known: Vec<[u8; 4]> = SLIP39_PLAIN.to_vec();
+    known.extend(bip85_fingerprints());
+    known.extend(
+        codex32_seeds()
+            .iter()
+            .map(|(_, s, _)| fingerprint_of_seed(s)),
+    );
+    for v in json("bip32/vectors.json").as_array().expect("vectors") {
+        known.push(fingerprint_of_seed(&unhex(
+            v["seed"].as_str().expect("seed"),
+        )));
+    }
     for (name, cases) in json("bip39/vectors.json").as_object().expect("languages") {
         let Some(lang) = language(name) else {
             continue;

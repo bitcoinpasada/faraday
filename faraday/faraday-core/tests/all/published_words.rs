@@ -59,6 +59,119 @@ fn the_abandon_words_on_mainnet_bring_the_caution_before_anything_else() {
 }
 
 #[test]
+fn typing_a_codex32_vector_on_mainnet_brings_the_caution() {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    let codex32 = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap() as u8;
+    app.press(Action::EntryForm(codex32));
+    // BIP-93's vector 4, a 256-bit master seed.
+    for c in "ms10leetsllhdmn9m42vcsamx24zrxgs3qrl7ahwvhw4fnzrhve25gvezzyqqtum9pgv99ycma".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.event(Event::Key(Key::Enter));
+    testkit::pause(&mut app);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        testkit::entry(&app).error
+    );
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
+
+#[test]
+fn typing_a_bip85_vectors_child_words_on_mainnet_brings_the_caution() {
+    let mut app = testkit::started();
+    typed(
+        &mut app,
+        "girl mad pet galaxy egg matter matrix prison refuse sense ordinary nose",
+    );
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        testkit::entry(&app).error
+    );
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
+
+/// A codex32 string typed on the Codex32 form of Entry, as a person does.
+fn typed_codex32(app: &mut Faraday, string: &str) {
+    app.press(Action::Entry(None));
+    let codex32 = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap() as u8;
+    app.press(Action::EntryForm(codex32));
+    for c in string.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.event(Event::Key(Key::Enter));
+    testkit::pause(app);
+}
+
+#[test]
+fn typing_a_bip85_vectors_hex_or_a_bip32_vectors_seed_as_codex32_on_mainnet_brings_the_caution() {
+    use faraday_bip::codex32::Codex32;
+    for seed in [
+        // BIP-32's test vector 1, 16 bytes.
+        "000102030405060708090a0b0c0d0e0f",
+        // BIP-85's hex vector, 64 bytes.
+        "492db4698cf3b73a5a24998aa3e9d7fa96275d85724a91e71aa2d645442f878555d078fd1f1f67e368976f04137b1f7a0d19232136ca50c44614af72b5582a5c",
+    ] {
+        let bytes: Vec<u8> = (0..seed.len() / 2)
+            .map(|i| u8::from_str_radix(&seed[2 * i..2 * i + 2], 16).unwrap())
+            .collect();
+        let string = Codex32::from_seed(0, *b"test", &bytes).unwrap().encode();
+        let mut app = testkit::started();
+        typed_codex32(&mut app, string.as_str());
+        assert_eq!(
+            app.session.keys.len(),
+            1,
+            "{seed}: {:?}",
+            testkit::entry(&app).error
+        );
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::Published), "{seed}");
+    }
+}
+
+#[test]
+fn a_bip85_child_of_a_published_key_kept_for_testing_brings_the_caution_too() {
+    let mut app = testkit::started();
+    typed(&mut app, ABANDON);
+    app.press(Action::PublishedKeep);
+    assert_eq!(app.sheet, None);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PLoad);
+    app.press(Action::PRecord(false));
+    assert_eq!(app.session.keys.len(), 2);
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
+
+#[test]
+fn a_bip85_child_of_a_key_nobody_published_brings_no_caution() {
+    let mut app = testkit::started();
+    typed(&mut app, &fresh_words());
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PLoad);
+    app.press(Action::PRecord(false));
+    assert_eq!(app.session.keys.len(), 2);
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
 fn remove_drops_the_key_and_keep_for_testing_leaves_it_alone() {
     let mut app = testkit::started();
     typed(&mut app, ABANDON);

@@ -615,6 +615,11 @@ impl Faraday {
         };
         match self.session.keys.add_words(&c, &value, "", None) {
             Ok(fp) => {
+                if let Some(parent) = self.bip85.state().and_then(|b| b.key) {
+                    self.session
+                        .keys
+                        .note_child(faraday_bip::keys::Fingerprint(parent), fp);
+                }
                 if record && let Some(i) = self.session.keys.position_of(fp.0) {
                     self.session.keys.set_child_of(i, self.bip85.child_of());
                 }

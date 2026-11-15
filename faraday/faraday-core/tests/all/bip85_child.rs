@@ -130,6 +130,10 @@ fn sealed_and_opened(record: bool) -> (Faraday, String, Vec<u8>) {
 #[test]
 fn a_child_seed_recorded_in_a_vault_keeps_its_mark_across_a_seal_and_shows_on_keys() {
     let (mut app, parent, _) = sealed_and_opened(true);
+    // The parent's words are published, so the child is too: kept for testing.
+    if app.sheet == Some(Sheet::Published) {
+        app.press(Action::PublishedKeep);
+    }
     let key = app
         .session
         .keys
@@ -151,6 +155,18 @@ fn a_child_seed_recorded_in_a_vault_keeps_its_mark_across_a_seal_and_shows_on_ke
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t.contains(&mark)), "{texts:?}");
+}
+
+#[test]
+fn a_recorded_child_of_a_published_key_loaded_from_a_vault_on_mainnet_brings_the_caution() {
+    // The parent's words are published and were kept for testing before the
+    // child was saved; after a Lock and an unlock the parent is not in the
+    // session, only the child loaded from the vault.
+    let (mut app, _, _) = sealed_and_opened(true);
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.session.keys[0].child_of.is_some());
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Published));
 }
 
 #[test]
@@ -224,6 +240,7 @@ fn a_wallet_made_with_a_recorded_child_seed_says_so_once_and_an_ordinary_one_doe
     add_parent(&mut app);
     child_words(&mut app, Action::PLoad);
     app.press(Action::PRecord(true));
+    faraday_core::testkit::keep_published(&mut app);
     make_wallet(&mut app, 1);
     assert_eq!(app.sheet, Some(Sheet::ChildNotice));
     let _ = app.frame();
@@ -242,6 +259,7 @@ fn a_wallet_made_with_a_recorded_child_seed_says_so_once_and_an_ordinary_one_doe
     add_parent(&mut app);
     child_words(&mut app, Action::PLoad);
     app.press(Action::PRecord(false));
+    faraday_core::testkit::keep_published(&mut app);
     make_wallet(&mut app, 1);
     assert_ne!(app.sheet, Some(Sheet::ChildNotice));
 }
@@ -260,6 +278,7 @@ fn nothing_written_for_a_recorded_child_seeds_backup_names_its_parent() {
     let parent = add_parent(&mut app);
     child_words(&mut app, Action::PLoad);
     app.press(Action::PRecord(true));
+    faraday_core::testkit::keep_published(&mut app);
     // Its words out unprotected: a seed's words file, named by its own
     // fingerprint, holding the words alone.
     app.press(Action::POut);

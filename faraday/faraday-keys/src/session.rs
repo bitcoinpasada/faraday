@@ -407,6 +407,8 @@ pub struct Keys {
     /// Published keys the person chose to keep for testing
     /// ([`Keys::keep_published`]): public fingerprints.
     kept_published: Vec<Fingerprint>,
+    /// Keys derived from a published one (`Keys::note_child`).
+    published_children: Vec<Fingerprint>,
 }
 
 impl Default for Keys {
@@ -430,6 +432,7 @@ impl Keys {
             slip39_set: None,
             qr_item: None,
             kept_published: Vec::new(),
+            published_children: Vec::new(),
         }
     }
 
@@ -723,7 +726,24 @@ impl Keys {
         self.entries
             .iter()
             .map(|e| e.info.fingerprint)
-            .find(|fp| crate::published::is_published(fp.0) && !self.kept_published.contains(fp))
+            .find(|fp| self.is_published(*fp) && !self.kept_published.contains(fp))
+    }
+
+    /// Whether the key `fp` has published words: its master fingerprint is
+    /// in the table, or it was derived from a key that has.
+    fn is_published(&self, fp: Fingerprint) -> bool {
+        crate::published::is_published(fp.0) || self.published_children.contains(&fp)
+    }
+
+    /// Notes that the key `child` was derived from the key `parent` (a
+    /// BIP-85 child's words loaded as a key): anyone who has the parent's
+    /// words has the child, so a published parent, kept for testing or not,
+    /// makes the child published too.
+    pub fn note_child(&mut self, parent: Fingerprint, child: Fingerprint) {
+        if self.is_published(parent) && !self.published_children.contains(&child) {
+            // `extend`, not `push`: see `keep_published`.
+            self.published_children.extend([child]);
+        }
     }
 
     /// Keeps the published key `fp` for testing: it is not warned about
@@ -904,6 +924,11 @@ impl Keys {
                 refused.push(e);
                 continue;
             }
+            // A child a vault names the parent of: its words are as public
+            // as the parent's, however it came to be loaded.
+            if let Some(of) = item.child {
+                self.note_child(Fingerprint(of.parent), fp);
+            }
             if self.position(fp).is_some() {
                 refused.push(Refusal::Duplicate(fp));
                 continue;
@@ -999,6 +1024,7 @@ impl Keys {
         self.slip39_set = None;
         self.qr_item = None;
         self.kept_published.clear();
+        self.published_children.clear();
     }
 
     /// Sets key `i`'s label.
