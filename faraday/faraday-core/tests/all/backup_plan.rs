@@ -2069,3 +2069,120 @@ fn a_plan_with_shares_for_two_keys_of_one_seed_does_not_open_with_the_keys_swapp
         holds(&app, w)
     );
 }
+
+/// The plan records of vault `id`: each one's wallet, answers and notes.
+type KeptPlan = (Vec<u8>, Vec<u8>, Vec<Vec<u8>>);
+
+fn kept_plans(app: &Faraday, id: faraday_keys::vault::VaultId) -> Vec<KeptPlan> {
+    use crate::common::RecordsOf;
+    use faraday_vault::records::{field, kind};
+    let all = app.vaults().store().contents_for_tests(id);
+    all.of(kind::PLAN)
+        .map(|(_, r)| {
+            let r = faraday_keys::vault::RecordView::of(r);
+            (
+                r.public_text(field::PLAN_WALLET)
+                    .unwrap_or_default()
+                    .as_bytes()
+                    .to_vec(),
+                r.public_text(field::PLAN_ANSWERS)
+                    .unwrap_or_default()
+                    .as_bytes()
+                    .to_vec(),
+                r.public_all(field::PLAN_NOTE).map(<[u8]>::to_vec).collect(),
+            )
+        })
+        .collect()
+}
+
+/// Loads the pair's wallet with its keys `y` then `x`, opens its backup and
+/// saves the Standard plan; returns the toast the save left.
+fn save_swapped_standard(app: &mut Faraday, x: &str, y: &str) -> Option<String> {
+    use faraday_core::Action;
+    use faraday_core::testkit;
+    let c = testkit::compute();
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Backup(w));
+    let shape = app.plan_shape_now(w);
+    testkit::set_backup_answers(app, Answers::preset(&shape, Preset::Standard));
+    testkit::backup_plan_save(app);
+    app.toast_text().map(str::to_string)
+}
+
+#[test]
+fn saving_the_backup_flow_with_the_keys_swapped_is_refused_over_a_shares_plan_of_the_other_order() {
+    use faraday_core::plan::Mark;
+    use faraday_core::testkit;
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let notes = [
+        Note::Marked(At::Place(0), What::Share(0), Mark::Lost),
+        Note::Checked(
+            At::Place(1),
+            What::Share(1),
+            faraday_text::Text::of("2026-10-10"),
+        ),
+    ];
+    let (mut app, id) = shares_plan_kept(&[0, 1], &x, &y, &notes);
+    let before = kept_plans(&app, id);
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].2.len(), 2);
+    let toast = save_swapped_standard(&mut app, &x, &y);
+    assert_eq!(kept_plans(&app, id), before);
+    assert_eq!(
+        toast.as_deref(),
+        Some(
+            "The shares plan kept for this wallet has its keys in another order. \
+             Load the wallet with its keys in that order to change the plan."
+        )
+    );
+}
+
+#[test]
+fn saving_the_backup_flow_with_the_keys_swapped_replaces_a_standard_plan_and_keeps_its_notes() {
+    use faraday_core::testkit;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let (mut app, id) = shares_plan_kept(&[0, 1], &x, &y, &[]);
+    // Replace the shares plan with a Standard one kept for the first order.
+    let policy = app.session.wallets[0].policy().clone();
+    let shape = app.plan_shape_now(0);
+    let answers = Answers::preset(&shape, Preset::Standard);
+    let note = Note::Checked(
+        At::Place(0),
+        What::Words(0),
+        faraday_text::Text::of("2026-10-10"),
+    );
+    let record = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, policy.to_descriptor().as_bytes())
+        .with(field::PLAN_ANSWERS, answers.to_text().as_bytes())
+        .with(field::PLAN_NOTE, note.to_text().as_bytes());
+    testkit::vault_edit(&mut app, id, |s| {
+        s.remove_where(id, |r| r.public_text(field::PLAN_WALLET).is_some());
+        s.insert(id, record);
+    });
+    let before = kept_plans(&app, id);
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].2.len(), 1);
+    let toast = save_swapped_standard(&mut app, &x, &y);
+    assert_ne!(
+        toast.as_deref().map(|t| t.contains("another order")),
+        Some(true)
+    );
+    let after = kept_plans(&app, id);
+    assert_eq!(after.len(), 1, "the one record is replaced");
+    assert_eq!(after[0].2.len(), 1, "its note is kept");
+}

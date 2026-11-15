@@ -116,6 +116,9 @@ pub(crate) struct PlanRecord {
     pub record: Record,
     /// The places of the plan records the wallet already has there.
     pub ours: Vec<usize>,
+    /// A record among `ours` is kept for the other key order and does not
+    /// read for the wallet: nothing is written over it.
+    pub refused: bool,
 }
 
 impl VaultArea {
@@ -134,11 +137,17 @@ impl VaultArea {
         for fp in &src.held {
             text.push_str(&format!("held {}\n", &*fp_text(*fp)));
         }
-        let ours: Vec<usize> = self
-            .described_of(c, open.id, kind::PLAN)
-            .filter(|(_, _, d)| *d.same == *wallet::same_wallet(w.policy()))
-            .map(|(i, _, _)| i)
-            .collect();
+        let mut refused = false;
+        let mut ours: Vec<usize> = Vec::new();
+        for (i, r, d) in self.described_of(c, open.id, kind::PLAN) {
+            if *d.same != *wallet::same_wallet(w.policy()) {
+                continue;
+            }
+            // A record for the other key order that this wallet does not
+            // read (its shares hold the other order's keys) is not replaced.
+            refused |= !same_keys(d, w.policy()) && !reads_for(d, r, w.policy());
+            ours.push(i);
+        }
         let text = plan::text::with_seals(&text, &self.plan_seals_kept(open.id, &ours));
         let mut record = Record::new(kind::PLAN)
             .with(
@@ -209,7 +218,11 @@ impl VaultArea {
         if unchanged {
             return None;
         }
-        Some(PlanRecord { record, ours })
+        Some(PlanRecord {
+            record,
+            ours,
+            refused,
+        })
     }
 
     /// Takes the plan records at `ours` out of vault `id`, returning them to

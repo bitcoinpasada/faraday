@@ -3556,6 +3556,10 @@ impl Faraday {
         let Some(made) = self.vaults.plan_record(&c, v, &src) else {
             return;
         };
+        if made.refused {
+            self.toast(EN.plan_store_other_key_order);
+            return;
+        }
         let old = self.vaults.plan_take(id, &made.ours);
         let said = Text::fill(EN.plan_store_the_plan, &[&name]);
         let fitted = self.vault_push_in(v, made.record, &said);

@@ -2196,6 +2196,11 @@ pub fn set_backup_answers(app: &mut crate::Faraday, answers: crate::plan::Answer
     app.backup.set_answers(answers);
 }
 
+/// Saves Back up's plan into the vault as the checklist does.
+pub fn backup_plan_save(app: &mut crate::Faraday) {
+    app.plan_save();
+}
+
 /// Opens Back up's question `q`, or none.
 pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
     app.backup.set_question(q);

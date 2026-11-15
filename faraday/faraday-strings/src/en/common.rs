@@ -259,6 +259,8 @@ macro_rules! words_common {
     plan_store_on_its_own: "On its own device",
     /// Text in `plan_store`. `{}`: `name`.
     plan_store_the_plan: "The plan is in {}",
+    /// Text in `plan_store`.
+    plan_store_other_key_order: "The shares plan kept for this wallet has its keys in another order. Load the wallet with its keys in that order to change the plan.",
     // ----- public_pictures (faraday-core/src/lib.rs) -----
     /// Text in `public_pictures`. `{}`: `j + 1`, `k`.
     public_pictures_part: "Part {} of {}",
