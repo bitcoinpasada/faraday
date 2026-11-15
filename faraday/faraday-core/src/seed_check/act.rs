@@ -415,8 +415,8 @@ fn work(app: &mut Faraday, path: &str, asked: ScriptType) {
     }
 }
 
-/// The file at `i` in Files, a wallet description or a key, is the value
-/// compared, and is compared.
+/// Costs what [`compare::put`] costs. The file at `i` in Files, a wallet
+/// description or a key, is the value compared, and is compared.
 fn compare_file(app: &mut Faraday, i: usize) {
     use crate::wallet::FileKind;
     let Some(item) = app.inbox.get(i) else { return };
@@ -583,10 +583,20 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
 
 /// Typing into the comparison's field.
 fn compare_key(app: &mut Faraday, key: Key) -> bool {
+    // A line break typed back after an edit in the middle of a value is a
+    // character of it, not Compare.
+    let editing = app.typing.editing();
     let Some(c) = st(app).and_then(|s| s.compare_mut()) else {
         return false;
     };
     match key {
+        Key::Enter if editing => {
+            if c.text.len() < compare::FIELD_CHARS {
+                c.text.push('\n');
+            }
+            c.answer = None;
+            true
+        }
         Key::Enter => {
             act(app, A::CompareGo);
             true

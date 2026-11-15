@@ -1957,8 +1957,10 @@ not given is never searched for), or "The fingerprint is this seed's;
 the xpub at {path} is not" with the warning glyph (an origin naming this
 seed whose key is not, so the file is wrong or was changed). An
 extended private key, a seed, or a file holding a seed or a private key, is
-refused ("A private key: not taken here") as it is typed, pasted or
-scanned, and the field is emptied; a value of
+refused ("A private key: not taken here") when Compare or Enter is
+pressed, or as it is scanned or taken from Files, and the field is
+emptied; a value over 16 KiB is refused the same way with its size ("Over
+16.4 KB: not taken here"); a value of
 another network, or one none of the readers takes, is refused with the
 reader's own line. Why kept: a person with the wallet app's file or QR
 code gets a match without reading 111 characters, and a multisig's

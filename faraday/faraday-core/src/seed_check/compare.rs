@@ -240,6 +240,7 @@ fn as_wallet(seed: &Seed<'_>, network: Network, text: &str) -> Answer {
         return Answer::Refused(Text::of(EN.seed_check_compare_network));
     }
     let mut without = false;
+    let mut ours: Option<Answer> = None;
     let mut finger: Option<&DerivationPath> = None;
     for (k, key) in policy.keys().iter().enumerate() {
         let Some(path) = key.path() else { continue };
@@ -267,17 +268,21 @@ fn as_wallet(seed: &Seed<'_>, network: Network, text: &str) -> Answer {
                         None => Text::fill(EN.seed_check_matches_at, &[&at]),
                     })
                 };
-                return Answer::Matches(line);
+                ours = ours.or(Some(Answer::Matches(line)));
             }
             Verdict::Without => without = true,
             Verdict::Fingerprint => finger = finger.or(Some(path)),
             Verdict::Other => {}
         }
     }
-    if without {
-        Answer::Differs(Some(Text::of(EN.seed_check_without_pass)), false)
-    } else if let Some(path) = finger {
+    // Every key is judged first: this seed's fingerprint on a key that is
+    // not this seed's is a changed file, whether or not another key matches.
+    if let Some(path) = finger {
         finger_only(path)
+    } else if let Some(a) = ours {
+        a
+    } else if without {
+        Answer::Differs(Some(Text::of(EN.seed_check_without_pass)), false)
     } else {
         Answer::Differs(None, false)
     }
@@ -358,24 +363,29 @@ impl CompareWork {
     }
 }
 
-/// Whether the field holds a secret: a private key, a seed, a secret file
-/// or a part of one, as Transfer's Send field refuses them. Costs what
-/// `transfer::check` costs.
-fn holds_secret(c: &Compute, network: Network, text: &str) -> bool {
+/// Costs what `transfer::check` costs. The refusal for a value that may not
+/// be compared: a private key, a seed, a secret file or a part of one, as
+/// Transfer's Send field refuses them, or a value too long to check.
+fn refusal(c: &Compute, network: Network, text: &str) -> Option<Text> {
     use crate::transfer::TextCheck;
-    let found = match crate::transfer::check(c, text) {
+    let private = match crate::transfer::check(c, text) {
+        TextCheck::TooLong => {
+            let size = crate::screens::size_text(crate::transfer::MAX_TEXT as u64);
+            return Some(Text::fill(EN.seed_check_compare_too_long, &[&size]));
+        }
         TextCheck::Secret(_) | TextCheck::Inside(_) | TextCheck::Partial | TextCheck::SeedHex => {
             true
         }
-        TextCheck::Fine | TextCheck::TooLong => false,
+        TextCheck::Fine => false,
     };
-    found || slip132::key_facts(text.trim(), network) == slip132::KeyReading::Private
+    (private || slip132::key_facts(text.trim(), network) == slip132::KeyReading::Private)
+        .then(|| Text::of(EN.seed_check_compare_private))
 }
 
-/// Costs what [`holds_secret`] costs. A secret in the field is refused when
-/// the whole value is taken (Compare, Enter, a code, a file): the field is
-/// emptied, wiped, and the refusal is the answer. Returns whether it was
-/// refused.
+/// Costs what [`refusal`] costs. A secret or too long a value in the field is
+/// refused when the whole value is taken (Compare, Enter, a code, a file): the
+/// field is emptied, wiped, and the refusal is the answer. Returns whether it
+/// was refused.
 pub(super) fn refuse_secret(app: &mut Faraday) -> bool {
     let c = app.compute();
     let network = app.session.keys.network();
@@ -387,11 +397,11 @@ pub(super) fn refuse_secret(app: &mut Faraday) -> bool {
     else {
         return false;
     };
-    if !holds_secret(&c, network, cmp.text.as_str()) {
+    let Some(refusal) = refusal(&c, network, cmp.text.as_str()) else {
         return false;
-    }
+    };
     cmp.text.clear();
-    cmp.answer = Some(Answer::Refused(Text::of(EN.seed_check_compare_private)));
+    cmp.answer = Some(Answer::Refused(refusal));
     true
 }
 
@@ -448,12 +458,17 @@ pub(crate) fn done(app: &mut Faraday, done: CompareDone) {
     if let Some(cmp) = s.compare_mut()
         && cmp.text.as_str() == done.text.as_str()
     {
+        // The job's own check found a secret: the field is emptied too.
+        if matches!(&done.answer, Answer::Refused(t) if t.as_str() == EN.seed_check_compare_private)
+        {
+            cmp.text.clear();
+        }
         cmp.answer = Some(done.answer);
     }
 }
 
-/// A value from a scan or a file is put in the field and compared; a secret
-/// is refused and gone.
+/// Costs what [`run`] costs. A value from a scan or a file is put in the
+/// field and compared; a secret is refused and gone.
 pub(super) fn put(app: &mut Faraday, text: Text) {
     if let Some(cmp) = app
         .tools

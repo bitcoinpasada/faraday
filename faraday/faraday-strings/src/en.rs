@@ -2239,6 +2239,8 @@ strings! {
     seed_check_not_found: "Not among the first {} addresses of each chain",
     /// The comparison's refusal: an extended private key, a seed or a private key.
     seed_check_compare_private: "A private key: not taken here",
+    /// The comparison's refusal: a value over the size taken.
+    seed_check_compare_too_long: "Over {}: not taken here",
     /// The comparison's refusal: a key or a wallet of another network.
     seed_check_compare_network: "That is of another network",
     /// The comparison's refusal: an address while the account is a multisig cosigner's.

@@ -732,6 +732,87 @@ fn a_two_of_three_wallet_file_names_which_key_this_seed_is() {
 }
 
 #[test]
+fn a_key_with_this_seeds_fingerprint_and_another_key_warns_though_another_key_matches() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    // The first key carries this seed's fingerprint on a foreign key; the
+    // second is this seed's own.
+    let wallet = v["wallet"]
+        .as_str()
+        .unwrap()
+        .replace("b8688df1", "73c5da0a");
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Pick(Account::Multisig)));
+    app.press(Action::SeedCheck(S::Compare));
+    testkit::inbox_file_at(&mut app, 0, "wallet.txt", wallet.into_bytes());
+    app.press(Action::SeedCheck(S::CompareFile(0)));
+    testkit::settle(&mut app);
+    assert!(
+        shows_down(&mut app, "Thefingerprintisthisseed's"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(!shows(&mut app, "Matches"));
+}
+
+#[test]
+fn a_value_over_the_size_limit_from_files_is_refused_and_gone() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let mut file = v["wallet"].as_str().unwrap().to_string();
+    file.push('\n');
+    file.push_str(&"#".repeat(20 * 1024));
+    let mut app = at_compare(false);
+    testkit::inbox_file_at(&mut app, 0, "wallet.txt", file.into_bytes());
+    app.press(Action::SeedCheck(S::CompareFile(0)));
+    testkit::settle(&mut app);
+    assert!(
+        shows_down(&mut app, "Over16.4KB:nottakenhere"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(!shows(&mut app, "wsh(sortedmulti"), "the field is empty");
+}
+
+#[test]
+fn an_edit_in_the_middle_of_a_value_with_line_breaks_keeps_the_rest_and_runs_nothing() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let file = v["wallet"].as_str().unwrap().replace("/*,", "/*,\n");
+    let mut app = at_compare(false);
+    testkit::inbox_file_at(&mut app, 0, "wallet.txt", file.into_bytes());
+    app.press(Action::SeedCheck(S::CompareFile(0)));
+    testkit::settle(&mut app);
+    let asked = testkit::jobs_asked(&app);
+    app.press(Action::SeedCheck(S::CompareField));
+    for _ in 0..200 {
+        app.event(Event::Key(Key::Left));
+    }
+    app.event(Event::Key(Key::Backspace));
+    assert!(shows_down(&mut app, "28645006"), "{:?}", texts(&mut app));
+    assert_eq!(testkit::jobs_asked(&app), asked, "no comparison started");
+}
+
+#[test]
+fn back_while_the_comparison_runs_drops_its_answer() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    app.press(Action::SeedCheck(S::CompareField));
+    type_chars(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}"));
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::SeedCheck(S::CompareGo));
+    app.press(Action::Back);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    app.event(Event::Forward);
+    assert!(
+        shows_down(&mut app, &format!("[73c5da0a/84h/0h/0h]{zpub}")),
+        "the field keeps what was typed: {:?}",
+        texts(&mut app)
+    );
+    assert!(!shows(&mut app, "Matches"), "{:?}", texts(&mut app));
+}
+
+#[test]
 fn a_wallet_key_at_the_account_picked_names_no_path() {
     let v: Value = serde_json::from_str(COMPARE).unwrap();
     let mut app = with_words(ABOUT);
