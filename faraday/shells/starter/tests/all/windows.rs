@@ -224,6 +224,24 @@ fn the_writer_checks_the_same_disk_it_was_shown() {
 }
 
 #[test]
+fn a_disks_sector_size_is_the_one_its_geometry_gave_and_none_when_it_gave_nothing() {
+    let mut s = laptop();
+    assert_eq!(s.sector(1), Some(512));
+    // A 4096-byte-sector disk's BytesPerSector sits at byte 20.
+    let disk = s.disks.iter_mut().find(|d| d.number == 1).expect("disk 1");
+    disk.geometry[20..24].copy_from_slice(&4096u32.to_le_bytes());
+    assert_eq!(s.sector(1), Some(4096));
+    s.disks
+        .iter_mut()
+        .find(|d| d.number == 1)
+        .expect("disk 1")
+        .geometry
+        .clear();
+    assert_eq!(s.sector(1), None);
+    assert_eq!(s.sector(99), None);
+}
+
+#[test]
 fn a_recording_reads_back_as_it_was_written() {
     let s = laptop();
     assert_eq!(Snapshot::parse(&s.record()), Ok(s));
@@ -674,6 +692,10 @@ fn id_reasons() -> Vec<Reason> {
         sha256: SUM.into(),
     });
     v.push(Reason::BootSum { sha256: SUM.into() });
+    v.push(Reason::SectorSize {
+        device: "Disk 2".into(),
+        sector: 4096,
+    });
     v
 }
 

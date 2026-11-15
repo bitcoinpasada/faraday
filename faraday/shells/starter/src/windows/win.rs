@@ -916,6 +916,12 @@ impl Device for PhysicalDrive {
         Ok(identity)
     }
 
+    /// The geometry's `BytesPerSector`; 0 (so refused) when it did not
+    /// answer.
+    fn sector(&mut self) -> u64 {
+        snapshot().sector(self.n).map_or(0, u64::from)
+    }
+
     fn unmount(&mut self) -> Result<(), Reason> {
         let s = snapshot();
         for v in s.volumes_on(self.n) {

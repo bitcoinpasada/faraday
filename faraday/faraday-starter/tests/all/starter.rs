@@ -314,7 +314,7 @@ fn confirm_writes_the_disk_confirmed_with_its_serial_and_size() {
         "/dev/sdb",
         "SN-sdb",
         "16\u{a0}GB",
-        "Erase and write",
+        "Write Faraday",
     ] {
         assert!(shows(&mut starter, s), "{s}");
     }

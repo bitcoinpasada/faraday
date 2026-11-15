@@ -21,8 +21,8 @@ use rustbus::wire::{ObjectPath, UnixFd};
 use rustbus::{MessageBuilder, MessageType, RpcConn};
 
 use super::udisks::{
-    HOLDERS, HOLDERS_NAMES, Objects, Props, SYSFS, SYSFS_REMOVABLE, SYSFS_TYPE, Value, kernel_name,
-    short,
+    HOLDERS, HOLDERS_NAMES, Objects, Props, SYSFS, SYSFS_REMOVABLE, SYSFS_SECTOR, SYSFS_TYPE,
+    Value, kernel_name, short,
 };
 use super::{Open, Udisks};
 
@@ -185,6 +185,9 @@ pub fn record_holders(objects: &mut Objects, sys_block: &Path) {
         }
         if let Some(r) = read("removable") {
             sys.insert(SYSFS_REMOVABLE.to_string(), Value::Str(r));
+        }
+        if let Some(n) = read("queue/logical_block_size") {
+            sys.insert(SYSFS_SECTOR.to_string(), Value::Str(n));
         }
         if !sys.is_empty() {
             ifaces.insert(SYSFS.to_string(), sys);

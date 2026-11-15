@@ -335,7 +335,7 @@ pub enum StarterAction {
     Mode(Mode),
     /// Continue past What to write.
     Continue,
-    /// Confirm's action: Erase and write, or Write.
+    /// Confirm's action: Write Faraday, or Write.
     Write,
     /// Make another, or try again: the disk list.
     Again,

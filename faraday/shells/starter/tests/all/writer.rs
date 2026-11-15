@@ -47,6 +47,8 @@ pub(crate) struct FileDisk {
     /// then it is written straight to the disk too (`O_DIRECT`), which
     /// refuses an unaligned offset or length.
     raw: Option<u64>,
+    /// Its logical sector size.
+    sector: u64,
     /// What the disk is once it is open, when it is not what it was:
     /// another stick swapped in between the check and the open.
     after_open: Option<Identity>,
@@ -75,6 +77,7 @@ impl FileDisk {
             },
             calls: Vec::new(),
             raw: None,
+            sector: 512,
             after_open: None,
             flip_on_read: None,
             table_last: false,
@@ -129,6 +132,9 @@ impl Device for FileDisk {
     }
     fn block(&mut self) -> u64 {
         self.raw.unwrap_or(512)
+    }
+    fn sector(&mut self) -> u64 {
+        self.sector
     }
     fn table_last(&mut self) -> bool {
         self.table_last
@@ -311,6 +317,43 @@ fn a_whole_write_from_a_found_image_makes_a_stick_for_the_disk() {
             "rescan"
         ]
     );
+}
+
+#[test]
+fn a_whole_write_over_a_hybrid_iso_stick_leaves_no_iso_volume_marker() {
+    // An old Linux installer's volume descriptor at 32 KiB, and bytes up
+    // to the boot partition's start: none is left, so no desktop reads
+    // the stick as that ISO.
+    let image = stick_image();
+    let (job, source) = release_image(&image);
+    let mut old = Sparse::new(STICK);
+    old.put(32 * 1024, b"\x01CD001\x01");
+    old.put(34 * SECTOR, &[0xEE; 4096]);
+    old.put(BOOT_FIRST * SECTOR - SECTOR, &[0xEE; 512]);
+    let path = disk_file("hybrid-iso", &old);
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    let gap = read(&path, 34 * SECTOR, ((BOOT_FIRST - 34) * SECTOR) as usize);
+    assert!(gap.iter().all(|&b| b == 0));
+    made_from(&path, &image, STICK);
+}
+
+#[test]
+fn a_disk_with_4096_byte_sectors_is_refused_with_nothing_written() {
+    let image = stick_image();
+    let (job, source) = release_image(&image);
+    let (path, _) = blank("sector-4096");
+    let mut disk = FileDisk::new(&path);
+    disk.sector = 4096;
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(
+        matches!(r, Err(Reason::SectorSize { sector: 4096, .. })),
+        "{r:?}"
+    );
+    assert!(!disk.calls.contains(&"open_write"));
 }
 
 #[test]

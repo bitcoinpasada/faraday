@@ -481,6 +481,14 @@ pub enum Reason {
     BootLabel,
     /// The boot partition image is shorter than one sector.
     BootShort,
+    /// The disk's logical sectors are not 512 bytes, which a stick is
+    /// made for.
+    SectorSize {
+        /// The device.
+        device: String,
+        /// Its sector size in bytes.
+        sector: u64,
+    },
     /// The partition table changed during the write.
     TableChanged(String),
     /// Reading the partition table failed.

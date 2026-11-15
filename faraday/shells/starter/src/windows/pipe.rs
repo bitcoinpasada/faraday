@@ -106,6 +106,7 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::BootLarger { image, stick } => ("BootLarger", vec![n(*image), n(*stick)]),
         Reason::BootLabel => ("BootLabel", vec![]),
         Reason::BootShort => ("BootShort", vec![]),
+        Reason::SectorSize { device, sector } => ("SectorSize", vec![s(device), n(*sector)]),
         Reason::TableChanged(d) => ("TableChanged", vec![s(d)]),
         Reason::ReadingTable(d) => ("ReadingTable", vec![s(d)]),
         Reason::BackEnds { device, at } => ("BackEnds", vec![s(device), n(*at)]),
@@ -407,6 +408,10 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "BootLarger" => Reason::BootLarger {
             image: f.n()?,
             stick: f.n()?,
+        },
+        "SectorSize" => Reason::SectorSize {
+            device: f.s()?,
+            sector: f.n()?,
         },
         "TableChanged" => Reason::TableChanged(f.s()?),
         "ReadingTable" => Reason::ReadingTable(f.s()?),

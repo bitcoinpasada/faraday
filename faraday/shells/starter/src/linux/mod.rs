@@ -308,6 +308,16 @@ impl<U: Udisks> Device for Target<U> {
             .ok_or(Reason::Gone)
     }
 
+    /// The kernel's logical block size for the disk; 0 (so refused) when
+    /// it cannot be read.
+    fn sector(&mut self) -> u64 {
+        self.bus
+            .objects()
+            .ok()
+            .and_then(|o| o.logical_sector(&self.block))
+            .unwrap_or(0)
+    }
+
     fn unmount(&mut self) -> Result<(), Reason> {
         let objects = self.bus.objects().map_err(Reason::Bus)?;
         for fs in objects.desktop_mounted(&self.block) {

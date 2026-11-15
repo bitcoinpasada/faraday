@@ -880,8 +880,8 @@ Downloads.
    SHA-256, §4.5), the name where one is written, "Before
    writing: Clears the whole stick, about N min" where Clear the whole
    stick first is ticked, the warning
-   from step 2 if there is one, and the action button: *Erase and
-   write* or *Write*. Then the system's own prompt where there is one
+   from step 2 if there is one, and the action button: *Write
+   Faraday* or *Write*. Then the system's own prompt where there is one
    (§2).
 4. **Writing** (Progress): where Clear the whole stick first is ticked,
    *Clearing* first (cleared of the stick's size, and "About N min

@@ -22,7 +22,7 @@
 
 use std::io::{self, Write};
 
-use faraday_boot::layout::{BOOT_SECTORS, DATA_SECTORS, DATA_START, SECTOR};
+use faraday_boot::layout::{BOOT_SECTORS, BOOT_START, DATA_SECTORS, DATA_START, SECTOR};
 use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
@@ -295,6 +295,7 @@ impl Capture {
             h[16..20].copy_from_slice(&crc);
             h
         };
+        let entries_end = 2 + entry_sectors;
         let backup_entries = last - entry_sectors;
         let mut out = vec![
             Region::Bytes { at: 0, data: mbr },
@@ -307,6 +308,13 @@ impl Capture {
                 data: new_list.clone(),
             },
         ];
+        // Sectors 34 to the boot partition's start are no one's: zeros,
+        // so nothing an earlier use of the stick left there (a hybrid
+        // ISO's volume descriptor at 32 KiB) is read as what it holds.
+        out.push(Region::Zeros {
+            at: (entries_end) * S,
+            len: (BOOT_START - entries_end) * S,
+        });
         out.extend(data_volume(last_usable + 1 - data_first, label, random)?);
         out.push(Region::Bytes {
             at: backup_entries * S,

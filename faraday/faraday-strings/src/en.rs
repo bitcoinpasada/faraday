@@ -437,7 +437,7 @@ strings! {
     /// Button on Confirm when the disk is no longer the one confirmed.
     starter_choose_again: "Choose again",
     /// Button.
-    starter_erase_and_write: "Erase and write",
+    starter_write_faraday: "Write Faraday",
     /// Button.
     starter_write: "Write",
     /// Title.
@@ -729,6 +729,8 @@ strings! {
     starter_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
     /// Reason.
     starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled EFI",
+    /// Reason. `{}` device, `{}` its sector size in bytes.
+    starter_why_sector_size: "{} has {}-byte sectors; a Faraday stick is made for 512-byte sectors. Nothing was written.",
     /// Reason.
     starter_why_boot_short: "The boot partition image is shorter than one sector",
     /// Reason. `{}` device.

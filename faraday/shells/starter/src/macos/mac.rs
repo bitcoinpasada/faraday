@@ -372,6 +372,10 @@ impl Device for Raw {
         self.block
     }
 
+    fn sector(&mut self) -> u64 {
+        self.block
+    }
+
     fn rescan(&mut self) -> Result<(), Reason> {
         self.file = None;
         self.unmount()

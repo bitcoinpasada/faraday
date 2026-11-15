@@ -91,6 +91,10 @@ pub const SYSFS_TYPE: &str = "DeviceType";
 /// Its property: `<name>/removable`, `1` or `0`.
 pub const SYSFS_REMOVABLE: &str = "Removable";
 
+/// Its property: `<name>/queue/logical_block_size`, the disk's logical
+/// sector size in bytes.
+pub const SYSFS_SECTOR: &str = "LogicalBlockSize";
+
 /// A block's kernel name (`sdb1`, from `Block.Device` = `/dev/sdb1`),
 /// which names its directory in `/sys/class/block`.
 pub fn kernel_name(device: &str) -> Option<&str> {
@@ -115,6 +119,15 @@ impl Objects {
             Some(Value::Str(s)) => s.trim().to_string(),
             _ => String::new(),
         }
+    }
+
+    /// The logical sector size sysfs gave for block `whole`; `None` when
+    /// it was not read or is not a number above 0.
+    pub fn logical_sector(&self, whole: &str) -> Option<u64> {
+        self.str(whole, SYSFS, SYSFS_SECTOR)
+            .parse()
+            .ok()
+            .filter(|&n| n > 0)
     }
 
     fn bool(&self, path: &str, iface: &str, prop: &str) -> bool {

@@ -370,9 +370,11 @@ fn holders_are_read_from_the_kernel_and_a_block_it_does_not_list_is_not_checked(
     let sys = Path::new(env!("CARGO_TARGET_TMPDIR")).join("starter-disks-sys-block");
     let _ = std::fs::remove_dir_all(&sys);
     // sdh and sdh1 are in sysfs, sdh1 held by dm-0; the rest are not.
-    for dir in ["sdh/holders", "sdh1/holders/dm-0"] {
+    for dir in ["sdh/holders", "sdh1/holders/dm-0", "sdh/queue", "sdi/queue"] {
         std::fs::create_dir_all(sys.join(dir)).expect("a folder");
     }
+    std::fs::write(sys.join("sdh/queue/logical_block_size"), "4096\n").expect("a file");
+    std::fs::write(sys.join("sdi/queue/logical_block_size"), "unknown\n").expect("a file");
     let mut recording = objects(&recorded("in-use.txt"));
     // What the recording stated is replaced by what the kernel says.
     for ifaces in recording.0.values_mut() {
@@ -385,6 +387,11 @@ fn holders_are_read_from_the_kernel_and_a_block_it_does_not_list_is_not_checked(
         Some(InUse::Mounted("/mnt/backup".into()))
     );
     assert_eq!(recording.in_use(&block("sdi")), Some(InUse::Unchecked));
+    // The logical sector size is the kernel's; a value that is not a
+    // number, or none, is not a size.
+    assert_eq!(recording.logical_sector(&block("sdh")), Some(4096));
+    assert_eq!(recording.logical_sector(&block("sdi")), None);
+    assert_eq!(recording.logical_sector(&block("sdk")), None);
     // Without the mount, sdh1's dm-0 holds the disk.
     recording
         .0

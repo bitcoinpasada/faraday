@@ -53,7 +53,7 @@ A stick that already holds this build is refused as **Already this build**. A st
 
 Lists the **Stick** (**Card** for a Pi card) with its **Size**, **Device** and **Serial**, **On it**, what **Writes**, the **Boot file** for a stick, the **Name** and **Before writing** where chosen, the **Build** and the **SHA-256 of the image**.
 
-**Erase and write** writes the whole disk; **Write** writes the boot partition under keep data. When the disk is no longer the one confirmed, **Choose again** returns to the disks.
+**Write Faraday** writes the whole disk; **Write** writes the boot partition under keep data. When the disk is no longer the one confirmed, **Choose again** returns to the disks.
 
 ## Writing
 

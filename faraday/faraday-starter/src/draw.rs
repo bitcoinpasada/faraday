@@ -720,6 +720,9 @@ pub(crate) fn reason_text(r: &Reason) -> String {
             fill(S.starter_why_boot_larger, &[&bytes(*image), &bytes(*stick)])
         }
         Reason::BootLabel => S.starter_why_boot_label.to_string(),
+        Reason::SectorSize { device, sector } => {
+            fill(S.starter_why_sector_size, &[device, &sector.to_string()])
+        }
         Reason::BootShort => S.starter_why_boot_short.to_string(),
         Reason::TableChanged(device) => fill(S.starter_why_table_changed, &[device]),
         Reason::ReadingTable(d) => fill(S.starter_why_reading_table, &[d]),
@@ -1258,7 +1261,7 @@ fn write_buttons(
     matches: bool,
 ) -> f32 {
     let label = match mode {
-        Mode::Whole => S.starter_erase_and_write,
+        Mode::Whole => S.starter_write_faraday,
         Mode::KeepData => S.starter_write,
     };
     let style = Style::Primary.when(matches && !starter.no_writer);

@@ -473,6 +473,13 @@ impl Snapshot {
         out
     }
 
+    /// Disk `n`'s logical sector size in bytes, from its geometry; `None`
+    /// when the disk is not there or its geometry did not answer.
+    pub fn sector(&self, n: u32) -> Option<u32> {
+        let raw = self.disks.iter().find(|d| d.number == n)?;
+        geometry(&raw.geometry).map(|g| g.sector).filter(|&s| s > 0)
+    }
+
     /// Disk `n` as it is now, for the writer's check that it is still
     /// the disk confirmed, with how it is attached.
     pub fn identity(&self, n: u32) -> Option<(Identity, Bus)> {

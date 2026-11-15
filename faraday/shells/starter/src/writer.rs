@@ -107,6 +107,13 @@ pub trait Device {
     fn block(&mut self) -> u64 {
         512
     }
+    /// The size in bytes of the disk's logical sectors, which a stick's
+    /// partition table counts in: a stick is made for 512 and a disk
+    /// with any other is refused, 0 (a size that could not be read)
+    /// included.
+    fn sector(&mut self) -> u64 {
+        512
+    }
     /// Whether a whole write's partition table goes on the disk after
     /// everything else has been read back, closing and opening it again:
     /// for a system that may mount a new table's volumes at once and write
@@ -532,6 +539,7 @@ pub fn write(
             detail: format!("block size {block}"),
         });
     }
+    check_sector(order, device, &captured)?;
     // 3. Unmounted, and opened.
     device.unmount()?;
     let mut disk = device.open_write()?;
@@ -798,6 +806,26 @@ fn place(
             };
             Ok((plan, Some((table, before)), Vec::new()))
         }
+    }
+}
+
+/// Refuses a disk whose logical sectors are not 512 bytes when a stick
+/// is to be made on it: its table counts in 512-byte sectors, which
+/// firmware and Linux would read as the disk's own.
+fn check_sector(
+    order: &WriteOrder,
+    device: &mut dyn Device,
+    captured: &Capture,
+) -> Result<(), Reason> {
+    if order.mode != Mode::Whole || !captured.is_stick() {
+        return Ok(());
+    }
+    match device.sector() {
+        512 => Ok(()),
+        sector => Err(Reason::SectorSize {
+            device: order.device.clone(),
+            sector,
+        }),
     }
 }
 
