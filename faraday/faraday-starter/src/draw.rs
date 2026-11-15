@@ -2171,6 +2171,8 @@ fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += mono_row(ui, x, y, w, S.starter_image_file, &d.path);
         y += mono_row(ui, x, y, w, S.starter_image_sha, &grouped(&d.sha256));
     }
+    y += faraday_draw::tokens::GAP;
+    y += line(ui, x, y, w, S.starter_own_risk, Role::OnSurface);
     y += 16.0;
     y += label(ui, x, y, S.starter_release_key);
     y += ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, FINGERPRINT) + 18.0;

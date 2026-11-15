@@ -6,9 +6,10 @@
 //! boot, from the boot stick, and is untrusted input (`docs/SECURITY-MODEL.md`): a
 //! line is taken only when its key is known and its value is one Settings
 //! itself offers, and nothing read from it makes a fresh boot less
-//! protected than the defaults. **Never** for the idle times, the
-//! signed-amount memory's seal and the network are not in the file; they
-//! are chosen on the device each session.
+//! protected than the defaults. The idle times are in the file, and a
+//! stick cannot turn either off (`never`); the signed-amount memory's
+//! seal and the network are not in the file and are chosen on the device
+//! each session.
 //!
 //! A stick visit offers the file as one more row to write, ticked on the
 //! boot stick when the settings differ from what the boot stick holds,

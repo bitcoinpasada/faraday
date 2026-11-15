@@ -411,6 +411,7 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let lines = [
         fill(EN.settings_faraday, &[&crate::version_label().to_string()]),
         EN.settings_keys_are_typed.to_string(),
+        EN.settings_own_risk.to_string(),
         fill(
             EN.settings_vaults_files,
             &[app.medium.noun(), app.medium.a()],

@@ -871,6 +871,8 @@ strings! {
     starter_release_key: "Release key",
     /// About label.
     starter_check_title: "Checking this file",
+    /// About: the own-risk statement.
+    starter_own_risk: "Pre-release, not reviewed by anyone outside the project. Keep a backup that does not depend on Faraday. No warranty of any kind.",
     /// About.
     starter_check_text: "Check this file against SHA256SUMS and its signature, SHA256SUMS.asc, from the release, with the release key above.",
     /// About: a command.
@@ -8055,6 +8057,8 @@ strings! {
     settings_about: "About",
     /// Text in `settings`. `{}`: `crate::version_label()`.
     settings_faraday: "Faraday {}",
+    /// Text in `settings`: the own-risk statement.
+    settings_own_risk: "Pre-release, not reviewed by anyone outside the project. Keep a backup that does not depend on Faraday. No warranty of any kind.",
     /// Text in `settings`.
     settings_keys_are_typed: "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only",
     /// Text in `settings`. `{}`: `app.medium.noun()`, `app.medium.a()`.

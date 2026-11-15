@@ -590,7 +590,7 @@ that misses a refresh shows a refresh late. On the Pi the framebuffer
 (vc4's fbdev) implements `FBIO_WAITFORVSYNC`: it waits for the next
 vertical blank of the first CRTC, gives up after 100 ms, and returns at
 once when the screen is off. The `fb-write` thread calls it
-(`faraday_v4l2::wait_vblank`, in the one crate that may use `unsafe`, on
+(`faraday_v4l2::wait_vblank`, in `faraday-v4l2`, a crate that may use `unsafe`, on
 a handle of its own from `try_clone`) before it writes a frame's bands,
 outside the panel's lock: the main loop keeps drawing, the arrow's
 thread is not held, and a blank, a lock, a power-off or an exit waits for

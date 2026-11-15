@@ -12,8 +12,8 @@
 //!
 //! # Why this crate may use `unsafe`
 //!
-//! The workspace sets `unsafe_code = "forbid"`. This crate is the one
-//! exception, and its `Cargo.toml` says so rather than inheriting the
+//! The workspace sets `unsafe_code = "forbid"`. This crate is one
+//! of the exceptions, and its `Cargo.toml` says so rather than inheriting the
 //! workspace lints. The reason:
 //!
 //! > **Linux desktop and the Pi share one V4L2 module.** Raw `ioctl`s
@@ -42,7 +42,7 @@
 //! stick shell's writer thread uses to write a frame just after a
 //! screen refresh (`docs/FRAMES.md` §6). It is an `ioctl` with a
 //! pointer argument, which `std` cannot make, and it lives here
-//! because this is the one crate that may; the shell keeps no `unsafe`
+//! because the stick shell has no `unsafe` of its own; the shell keeps no `unsafe`
 //! of its own. It takes a borrowed `File` and returns an `io::Result`.
 //!
 //! # Shape

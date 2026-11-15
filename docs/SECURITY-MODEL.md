@@ -24,7 +24,7 @@ boot script, and three Rust programs:
 |---|---|---|
 | `faraday` | its own unprivileged user | The application. Holds every secret. |
 | `faraday-disk` | a second unprivileged user | Reads and writes FAT on sticks and cards. Holds no key or passphrase: files pass through it to and from a stick, and are wiped once passed. Cannot read the application's memory or files. |
-| `faraday-grant` | its own user, with `CAP_CHOWN` only | Hands a stick's partitions to `faraday-disk` and authorises USB interfaces, deciding from `/sys` alone. Reads nothing from a stick, and hands no process a boot partition: Faraday writes none (F128); a stick is upgraded with Faraday Starter. |
+| `faraday-grant` | starts as root, then its own user with `CAP_CHOWN` only | Hands a stick's partitions to `faraday-disk` and authorises USB interfaces, deciding from `/sys`. Parses no file of a stick: to find a stick made for this build, its finder reads up to 64 MiB of the first partition, with every capability dropped, and searches it for the running build's release string. It hands no process a boot partition: Faraday writes none (F128); a stick is upgraded with Faraday Starter. |
 
 No process can trace another, and each user's processes are invisible
 to the others in `/proc`.

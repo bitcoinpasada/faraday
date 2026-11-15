@@ -69,9 +69,9 @@
 //! the codes in it and hands them back for the loop to send on as
 //! `Event::Scanned`. The
 //! `ioctl`, `mmap` and `poll` that needs live in `faraday-v4l2`, the
-//! one crate in the workspace allowed to use `unsafe`, and the reason
-//! for the exception is in its crate documentation; this shell still
-//! has no `unsafe` of its own. `--no-camera` refuses, which is how the
+//! one of the crates that use `unsafe` (README lists them), and the
+//! reason is in its crate documentation; this shell has no `unsafe` of
+//! its own. `--no-camera` refuses, which is how the
 //! file fallback is exercised on a build box that has a webcam.
 //!
 //! Files (§16.16): the boot medium's data partition is mounted at

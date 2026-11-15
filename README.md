@@ -10,12 +10,19 @@ Every document, and which one answers which question: `docs/README.md`.
 Building it, checking it, reproducing a release and trying it on your
 own hardware: `docs/DEVELOPING.md`.
 
-> **Use at your own risk.** 0.2.0 is a pre-release. One outside audit,
-> AI-assisted, has read its code; no person outside the project has
-> reviewed its code, its cryptography or its builds, and no second
-> builder has reproduced it. It comes with no warranty of any kind (see
-> `LICENSE`). Check a download as [Verifying a
-> release](#verifying-a-release) says before using it.
+> **Use at your own risk.** 0.2.0 is a pre-release and changes fast. No
+> person outside the project has reviewed its code, its cryptography or
+> its builds; one outside audit, AI-assisted, has read the code; no
+> second builder has reproduced a release. Most of the code was written
+> and reviewed with AI tools. A mistake in it could make a backup that
+> does not restore, an address that cannot be spent from, or a signature
+> for something other than what the screen showed. Until that changes:
+> try it on testnet first, keep a backup of every seed that Faraday did
+> not make or read (paper words checked in another wallet), and check
+> every receive address in a second wallet before sending money to it.
+> It comes with no warranty of any kind (see `LICENSE`). Check a
+> download as [Verifying a release](#verifying-a-release) says before
+> using it.
 
 **Audits.** The outside audits and Faraday's reply to each, finding by
 finding, are on the Audits page: <https://faradayoffline.app/audits/>.
@@ -145,16 +152,23 @@ especially.
 ## Security model
 
 - **One program, not a desktop.** The stick runs the Linux kernel,
-  BusyBox init and four Rust programs, each as its own unprivileged user.
+  BusyBox init and three Rust programs, each as its own account with no
+  login; the one that hands out the stick's partitions starts as root and
+  keeps only the right to change a file's owner.
   There is no window system, no network stack and no login.
-- **Nothing is kept.** The system runs from RAM and keeps nothing when it
-  powers off. A secret leaves only in a vault the person saves, or in a
-  file the person chooses to write unprotected.
+- **Almost nothing is kept.** The system runs from RAM and keeps nothing
+  when it powers off, except what is written to a stick: the vaults the
+  person saves, a settings file on the boot stick, and, inside an opened
+  vault, the nonce history (F227), which grows the vault by about 200
+  bytes a signature and names inputs of wallets not held there. A secret
+  leaves only in a vault the person saves, or in a file the person
+  chooses to write unprotected.
 - **The stick's files are kept apart.** A second process reads and writes
   sticks and cards and never holds a key or a passphrase, and it cannot
   read the application's memory or files.
 - **Not defended against:** a malicious Faraday binary (the defence is
-  reproducible builds, checked by others), compromised firmware or
+  reproducible builds, which will be checked by others once someone has
+  reproduced a release), compromised firmware or
   hardware, cold-boot attacks on RAM, and a weak passphrase.
 
 The whole model, with the kernel's configuration, the vault's
@@ -204,10 +218,12 @@ Why this is better than one repository and one application:
   randomness are of Faraday's own specification, not yet reviewed
   outside Faraday; `docs/CROSSCHECK.md` §10 says which (F160, F177).
 
-`unsafe` Rust is forbidden across the workspace. The exceptions in what
-Faraday builds are `faraday-crypto` (locking secret pages in RAM), the camera crate
-`faraday-v4l2` (its `ioctl`s), and `faraday-grant` (dropping
-privileges); each says why in its crate documentation.
+`unsafe` Rust is forbidden across the workspace. The exceptions on the
+device are three: `faraday-crypto` (locking secret pages in RAM and
+wiping), `faraday-v4l2` (the camera's and the framebuffer's `ioctl`s) and
+`faraday-grant` (dropping privileges). Off the device, Faraday Starter,
+the Windows camera and the Windows and macOS clipboard and memory code
+use it, as do two test tools; each says why in its crate documentation.
 
 ## Faraday Starter
 

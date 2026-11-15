@@ -1,7 +1,7 @@
 [package]
 name = "faraday-v4l2"
 version = "0.1.0"
-description = "Video4Linux2 capture through raw ioctls: the one crate in the workspace allowed to use unsafe"
+description = "Video4Linux2 capture through raw ioctls: one of the crates on the device that use unsafe"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -14,8 +14,8 @@ publish = false
 faraday-camera = { path = "../camera" }
 libc.workspace = true
 
-# The workspace lints are deliberately NOT inherited: this crate is the
-# single exception to `unsafe_code = "forbid"`.
+# The workspace lints are deliberately NOT inherited: this crate is one
+# of the exceptions to `unsafe_code = "forbid"` (README lists them).
 # Every other workspace lint that matters here is repeated by hand.
 [lints.rust]
 unsafe_code = "allow"
