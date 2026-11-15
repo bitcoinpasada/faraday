@@ -23,7 +23,7 @@ faraday/faraday-core/src/screens/entry.rs 79
 faraday/faraday-core/src/screens/files.rs 462
 faraday/faraday-core/src/screens/home.rs 22
 faraday/faraday-core/src/screens/message.rs 29
-faraday/faraday-core/src/screens/parts.rs 223
+faraday/faraday-core/src/screens/parts.rs 218
 faraday/faraday-core/src/screens/pass_pair.rs 1
 faraday/faraday-core/src/screens/randomness.rs 1
 faraday/faraday-core/src/screens/restore.rs 75
