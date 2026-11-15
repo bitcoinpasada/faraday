@@ -12,6 +12,7 @@ function and its callers, a line range. Use the Explore agent for a search
 across many files.
 
 Run only the checks of what you touched: CLAUDE.md ("`just` is the check") and CLAUDE.local.md ("Checks") say which, and never the full `just`.
+While you work, run the one test module you touched (`gh-check.py --crate C --filter 'test(/^module::/)'`) after each change that can break it, so a failing test shows in seconds. Before the commit, run `gh-check.py --precommit <base>` once; if it fails, fix and rerun only what failed (`--rerun-failed`).
 
 Every turn re-reads your whole context, so keep it small. Past about 150k
 tokens (or about 60 tool calls, if you cannot see the count), finish the
