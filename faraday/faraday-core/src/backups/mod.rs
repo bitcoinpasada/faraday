@@ -2773,11 +2773,16 @@ impl Faraday {
             return;
         }
         let rebuilds = (st.rebuilds.is_none() && st.held.len() >= form.need()).then(|| {
-            let parts: Vec<faraday_bip::codex32::Codex32> = st
-                .held
-                .iter()
-                .filter_map(|s| faraday_bip::codex32::Codex32::parse(s).ok())
-                .collect();
+            // Sized once and wiped on drop: the shares' symbols are never
+            // copied by a regrowth into a buffer left unwiped.
+            let mut parts = zeroize::Zeroizing::new(
+                Vec::<faraday_bip::codex32::Codex32>::with_capacity(st.held.len()),
+            );
+            for s in &st.held {
+                if let Ok(share) = faraday_bip::codex32::Codex32::parse(s) {
+                    parts.push(share);
+                }
+            }
             self.session.keys.codex32_rebuilds(c, key, &parts)
         });
         let next = paper.iter().copied().find(|x| !checked.contains(&(i, *x)));

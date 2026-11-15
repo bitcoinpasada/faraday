@@ -311,7 +311,8 @@ impl Strings {
         if self.typed.len() < room || matches!(self.set, SetStep::Scheme(..)) {
             return None;
         }
-        let mut whole = Text::of("ms1");
+        let mut whole = Text::with_room(3 + self.typed.len());
+        whole.push_str("ms1");
         whole.push_str(&self.typed);
         let index = Codex32::parse(&whole)
             .ok()
@@ -365,7 +366,8 @@ impl Strings {
             return None;
         }
         let j = self.at?;
-        let mut whole = Text::of("ms1");
+        let mut whole = Text::with_room(3 + self.typed.len());
+        whole.push_str("ms1");
         whole.push_str(&self.typed);
         let found = check(form, j, &whole, self.made(j));
         let holds = matches!(found, Found::Holds(_));

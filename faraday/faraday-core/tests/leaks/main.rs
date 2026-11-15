@@ -14,6 +14,7 @@ static ALLOC: faraday_leak_scan::LeakScan = faraday_leak_scan::LeakScan;
 
 mod backup;
 mod canvas_text;
+mod codex32;
 #[path = "../all/common.rs"]
 mod common;
 mod entries;
