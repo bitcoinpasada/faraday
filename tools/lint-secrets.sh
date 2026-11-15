@@ -740,6 +740,10 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       script names, a found address's head, fingerprints and refusals
 #   faraday/faraday-core/src/explore/addresses.rs
 #       addresses and the address searched for
+#   faraday/faraday-core/src/explore/make.rs
+#       the refusal line a Make a wallet press leaves
+#   faraday/faraday-core/src/explore/mod.rs
+#       a loaded key's name, the account path and the made wallet's name and refusals, public text
 #   faraday/faraday-core/src/address_find/accounts.rs
 #       a loaded key's name, fingerprint and standard account paths, public text
 #   faraday/faraday-core/src/address_find/card.rs
@@ -805,6 +809,8 @@ faraday/faraday-core/src/drawing/memo.rs
 faraday/faraday-core/src/samples/put.rs
 faraday/faraday-core/src/vanity/mod.rs
 faraday/faraday-core/src/explore/addresses.rs
+faraday/faraday-core/src/explore/make.rs
+faraday/faraday-core/src/explore/mod.rs
 faraday/faraday-core/src/address_find/accounts.rs
 faraday/faraday-core/src/address_find/card.rs
 faraday/faraday-core/src/address_find/look.rs
