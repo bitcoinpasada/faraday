@@ -283,7 +283,7 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
     let two = if cv.forms.is_empty() {
         chip_h(ui) + ui.line_as(BODY_S)
     } else {
-        chip_h(ui) + tokens::BOARD_TAG + (rows - 1.0) * (tokens::BOARD_TAG + tokens::BOARD_CHIP_GAP)
+        chip_h(ui) - tokens::BOARD_CHIP_GAP + rows * toggle_row_h(ui)
     };
     let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty();
     for role in [pick(LABEL_L), pick(LABEL_M)] {
@@ -327,6 +327,12 @@ fn toggles_w(ui: &Ui, cv: &ChipView) -> f32 {
         + n.saturating_sub(1) as f32 * tokens::BOARD_CHIP_GAP
 }
 
+/// The height of a row of form toggles under the name: the touch floor,
+/// so each pill's press reaches a full target.
+fn toggle_row_h(ui: &Ui) -> f32 {
+    chip_h(ui).max(tokens::BOARD_TAG)
+}
+
 /// How many rows a chip's form toggles take wrapped at `room`.
 fn toggle_rows(ui: &Ui, cv: &ChipView, room: f32) -> usize {
     let mut rows = usize::from(!cv.forms.is_empty());
@@ -362,7 +368,7 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
         let tw = toggle_w(ui, label);
         if tx > x && tx + tw > x + room {
             tx = x;
-            ty += th + tokens::BOARD_CHIP_GAP;
+            ty += line_h;
         }
         let action = Action::Board(BoardPress::Form(z, t, u8::try_from(k).unwrap_or(u8::MAX)));
         ui.fill(tx, ty, tw, th, th / 2.0, Role::Surface);
@@ -381,8 +387,11 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
         if hits {
             // Material's state layer and focus ring in the pill's shape,
             // between its container and its content.
-            ui.press(
+            // The pill's press reaches the height of its row.
+            let reach = line_h.max(th);
+            ui.press_to(
                 Shape::new(tx, ty, tw, th, th / 2.0),
+                (tx, ty - (reach - th) / 2.0, tw, reach),
                 Role::OnSurface.paint(),
                 action,
             );
@@ -603,11 +612,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         );
     }
     if let Some((tx, ty)) = toggles_at {
-        let th = if h > line_h {
-            tokens::BOARD_TAG
-        } else {
-            line_h
-        };
+        let th = if h > line_h { toggle_row_h(ui) } else { line_h };
         // Under the name they wrap at the chip's width; beside it they
         // fit (`chip_size`).
         let room = if h > line_h {
