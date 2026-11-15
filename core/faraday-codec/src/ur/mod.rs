@@ -237,8 +237,8 @@ fn validate_type(ur_type: &str) -> Result<(), Fault> {
 /// [`Decoder`] requires of what it reads.
 pub fn encode_single(ur_type: &str, cbor: &[u8]) -> Text {
     debug_assert!(validate_type(ur_type).is_ok(), "{ur_type}");
-    let words = zeroize::Zeroizing::new(bytewords::encode(cbor));
-    text!("ur:{ur_type}/{}", *words)
+    let words = bytewords::encode(cbor);
+    text!("ur:{ur_type}/{}", words.as_str())
 }
 
 /// The kind, type, payload and `<seq>-<count>` of one UR string.
@@ -369,12 +369,12 @@ impl Encoder {
     pub fn next_part(&mut self) -> Text {
         let mut part = self.inner.next_part();
         let cbor = zeroize::Zeroizing::new(part.cbor());
-        let words = zeroize::Zeroizing::new(bytewords::encode(&cbor));
+        let words = bytewords::encode(&cbor);
         let text = text!(
             "ur:{}/{}/{}",
             self.ur_type,
             part.sequence_id().as_str(),
-            *words
+            words.as_str()
         );
         zeroize::Zeroize::zeroize(&mut part.data);
         text
@@ -531,7 +531,7 @@ mod tests {
             checksum: 0,
             data: b"bad".to_vec().into(),
         };
-        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()));
+        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()).as_str());
         let mut decoder = Decoder::new();
         assert!(decoder.receive(&text).is_err());
         let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();
@@ -551,7 +551,7 @@ mod tests {
             checksum: faraday_crypto::crc32(&data),
             data: data.into(),
         };
-        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()));
+        let text = text!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()).as_str());
         let mut decoder = Decoder::new();
         assert_eq!(decoder.receive(&text), Err(Error::NotByteString));
         let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();

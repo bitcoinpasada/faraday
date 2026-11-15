@@ -466,6 +466,7 @@ core/faraday-codec/src/decode.rs
 core/faraday-codec/src/png.rs
 core/faraday-codec/src/classify.rs
 core/faraday-codec/src/qr.rs
+core/faraday-codec/src/ur/bytewords.rs
 core/faraday-codec/src/ur/fountain.rs
 core/faraday-codec/src/ur/mod.rs
 core/faraday-crypto/src/blake2b.rs

@@ -11,10 +11,10 @@
 //! separated by spaces or dashes) are part of BCR-2020-012 but no UR
 //! uses them, so they are not written.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_crypto::crc32;
+use faraday_text::Text;
 
 use super::Fault;
 
@@ -77,14 +77,15 @@ const BYTE_BY_HASH: [Option<u8>; HASH_SPAN] = {
     table
 };
 
-/// The minimal-style bytewords of `data` with its CRC-32 appended.
-pub fn encode(data: &[u8]) -> String {
-    let mut out = String::with_capacity(2 * (data.len() + 4));
+/// The minimal-style bytewords of `data` with its CRC-32 appended, in
+/// wiping text sized once.
+pub fn encode(data: &[u8]) -> Text {
+    let mut out = Text::with_room(2 * (data.len() + 4));
     let checksum = crc32(data).to_be_bytes();
     for &byte in data.iter().chain(checksum.iter()) {
-        let word = WORDS[byte as usize].as_bytes();
-        out.push(char::from(word[0]));
-        out.push(char::from(word[3]));
+        let word = WORDS[byte as usize];
+        out.push_str(&word[..1]);
+        out.push_str(&word[3..4]);
     }
     out
 }
@@ -129,10 +130,10 @@ mod tests {
     #[test]
     fn bytewords_round_trip() {
         let input = alloc::vec![0, 1, 2, 128, 255];
-        assert_eq!(encode(&input), "aeadaolazmjendeoti");
+        assert_eq!(encode(&input).as_str(), "aeadaolazmjendeoti");
         assert_eq!(*decode("aeadaolazmjendeoti").unwrap(), input);
         assert_eq!(*decode(&encode(&[0])).unwrap(), alloc::vec![0]);
-        assert_eq!(encode(&[0]), "aetdaowslg");
+        assert_eq!(encode(&[0]).as_str(), "aetdaowslg");
     }
 
     #[test]
@@ -151,7 +152,7 @@ mod tests {
                        ntctpadmadjksnfevymtfpwmftmhfpwtlpfejsyl\
                        fhecwzonnbmhcybtgwwelpflgmfezeonledtgocs\
                        fzhycypf";
-        assert_eq!(encode(&input), encoded);
+        assert_eq!(encode(&input).as_str(), encoded);
         assert_eq!(*decode(encoded).unwrap(), input.to_vec());
     }
 
