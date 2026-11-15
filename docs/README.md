@@ -109,7 +109,6 @@ need. Each document's header says what kind it is:
 - `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built (F88, F204): the conversions, the tool's flow with every target and way in, the SLIP-39 set actions, an aezeed as a source, Check my copy typed or scanned back, a codex32 set never taking an identifier another set on this device carries, Practice, Learn's section and the guide's picture.
-- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/STICK-SETUP.md`: Sticks and vaults, laid out together. Built (F175): the Sticks and vaults card, the sticks brought in and checked before the keys, Check it later, and a stick's sheet.
@@ -143,6 +142,7 @@ need. Each document's header says what kind it is:
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/SECRET-LEAKS.md`: Tests that fail on a secret left in memory or on screen: a test-only allocator that scans freed and live blocks for the test secrets' forms, the tours' check of the frame after Lock, a hide or leaving a page, the secret types' rules and the named entries that let a known copy through (F250). Built; the files that name a secret type and still build heap text are later work.
+- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included, but for the one flow for two PSBTs (§11), Compare two PSBTs folded into it.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
