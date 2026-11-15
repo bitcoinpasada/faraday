@@ -25,12 +25,13 @@
 //!
 //! A file with an unknown header field, a KDBX 3.1 file, AES-KDF,
 //! Twofish, Salsa20 as the inner stream, a cost outside the limits or any
-//! damage is refused, each as its own [`Error`]. A key file or a
-//! challenge-response key is not named anywhere in a KDBX 4 header, so a
-//! file under one cannot be told from a wrong passphrase
-//! ([`Error::Passphrase`]); the message for a KeePass file says that a file
-//! which also needs a key file or a security key cannot be opened here
-//! (owner, 2026-11-02; `docs/VAULT.md` §7.1).
+//! damage is refused, each as its own [`Error`]. A key file is not named
+//! anywhere in a KDBX 4 header, so a file under one cannot be told from a
+//! wrong passphrase ([`Error::Passphrase`]); the composite key is the
+//! passphrase and, when the file has one, the key file's key, and the
+//! message for a KeePass file says that a file may also need a key file
+//! (`docs/VAULT.md` §7.1). A file whose key includes a security key is
+//! not opened here and reads as a wrong passphrase.
 
 mod blocks;
 mod gzip;
@@ -132,9 +133,9 @@ pub enum Error {
     /// The Argon2 memory could not be allocated: the MiB it needs.
     Memory(u32),
     /// The header's authentication fails: the passphrase is wrong, or the
-    /// file also needs a key file or a challenge-response key, which this
-    /// reader does not take and a KDBX 4 header does not record, so the
-    /// two cannot be told apart.
+    /// file also needs a key file or a challenge-response key. A KDBX 4
+    /// header records neither, so a wrong passphrase, a missing key file and
+    /// a challenge-response file cannot be told apart.
     Passphrase,
     /// The passphrase is empty.
     EmptyPassphrase,
@@ -308,7 +309,7 @@ pub fn open_within(
 }
 
 /// Costs what [`open_within`] costs. [`open_within`] for a file that also
-/// needs a key file or a YubiKey's secret: `components` go into the
+/// needs a key file: `components` go into the
 /// composite key after the passphrase (`docs/VAULT.md` §3.2). A file that
 /// needs what is not given, or is given what it does not need, is
 /// [`Error::Passphrase`].
@@ -493,7 +494,7 @@ fn strip_padding(body: &[u8]) -> Result<usize, Error> {
 pub struct SealKeys {
     keys: keys::Keys,
     cost: Cost,
-    /// The salt the file carries: `random`'s, as the composite key fits it.
+    /// The salt the file carries: `random`'s.
     salt: [u8; 32],
 }
 
@@ -510,7 +511,7 @@ pub fn derive(
 }
 
 /// Costs what [`derive`] costs. [`derive`] for a file that also needs a key
-/// file or a YubiKey's secret (`docs/VAULT.md` §3.2): `components` go into
+/// file (`docs/VAULT.md` §3.2): `components` go into
 /// the composite key after the passphrase.
 pub fn derive_with(
     c: &Compute,
@@ -524,7 +525,6 @@ pub fn derive_with(
     let (master_seed, rest) = random.split_at(32);
     let mut salt = [0u8; 32];
     salt.copy_from_slice(&rest[12..44]);
-    components.fit_salt(&mut salt);
     let keys = keys::file_keys(
         c,
         &nfc,
@@ -560,10 +560,8 @@ pub fn seal(
 }
 
 /// Costs what [`seal`] costs. [`seal`] for a file that also needs a key
-/// file or a YubiKey's secret (`docs/VAULT.md` §3.2): `components` go into
-/// the composite key after the passphrase. With a secret, a salt that
-/// `random` gives ending `0x20` ends `0x21` in the file, so that no seal
-/// rests on the key's padding rule.
+/// file (`docs/VAULT.md` §3.2): `components` go into
+/// the composite key after the passphrase.
 pub fn seal_with(
     c: &Compute,
     passphrase: &str,

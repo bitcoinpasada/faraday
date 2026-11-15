@@ -5,7 +5,6 @@ use argon2::Algorithm;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize};
 use hmac::{Hmac, KeyInit, Mac};
-use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
 use zeroize::Zeroizing;
 
@@ -26,16 +25,14 @@ pub(super) struct Keys {
     pub hmac_base: Secret<[u8; 64]>,
 }
 
-/// What a file needs besides its passphrase (`docs/VAULT.md` §3.2, F208).
-/// Both are secret bytes and wipe as they drop; neither has a reveal
-/// outside this crate, and no second copy is kept; each seal makes a
-/// short-lived copy ([`Components::changed`]) that wipes as it drops.
+/// What a file needs besides its passphrase (`docs/VAULT.md` §3.2, F208):
+/// a key file's key. It is secret bytes and wipes as it drops; it has no
+/// reveal outside this crate, and no second copy is kept; each seal makes
+/// a short-lived copy ([`Components::changed`]) that wipes as it drops.
 #[derive(Default)]
 pub struct Components {
     /// A key file's 32-byte key ([`super::keyfile::read`]).
     key_file: Option<Zeroizing<[u8; 32]>>,
-    /// A YubiKey's 20-byte HMAC-SHA-1 secret ([`super::keyfile::secret`]).
-    yubikey: Option<Zeroizing<[u8; 20]>>,
 }
 
 impl Components {
@@ -44,22 +41,11 @@ impl Components {
         Self::default()
     }
 
-    /// A key file's key and, if there is one, a YubiKey's secret.
-    pub fn new(
-        key_file: Option<Zeroizing<[u8; 32]>>,
-        yubikey: Option<Zeroizing<[u8; 20]>>,
-    ) -> Self {
-        Self { key_file, yubikey }
-    }
-
     /// A key file's key alone.
     pub fn with_key_file(key: Zeroizing<[u8; 32]>) -> Self {
-        Self::new(Some(key), None)
-    }
-
-    /// A YubiKey's secret alone.
-    pub fn with_yubikey(secret: Zeroizing<[u8; 20]>) -> Self {
-        Self::new(None, Some(secret))
+        Self {
+            key_file: Some(key),
+        }
     }
 
     /// Whether a key file's key is held.
@@ -67,77 +53,26 @@ impl Components {
         self.key_file.is_some()
     }
 
-    /// Whether a YubiKey's secret is held.
-    pub fn has_yubikey(&self) -> bool {
-        self.yubikey.is_some()
-    }
-
     /// What these become at a seal that changes them: `key_file` is
     /// `Some(None)` to take the key file out, `Some(Some(key))` to add or
-    /// replace it and `None` to keep it; `drop_yubikey` takes the secret
-    /// out. A secret is never added (F208 point 5).
+    /// replace it and `None` to keep it.
     #[expect(
         clippy::disallowed_methods,
         reason = "the components are copies in wiping memory (`Zeroizing`)"
     )]
-    pub fn changed(&self, key_file: Option<Option<&[u8; 32]>>, drop_yubikey: bool) -> Components {
+    pub fn changed(&self, key_file: Option<Option<&[u8; 32]>>) -> Components {
         Components {
             key_file: match key_file {
                 None => self.key_file.clone(),
                 Some(k) => k.map(|k| Zeroizing::new(*k)),
             },
-            yubikey: if drop_yubikey {
-                None
-            } else {
-                self.yubikey.clone()
-            },
         }
     }
-
-    /// What `salt` is changed to at a seal: a salt ending `0x20` becomes
-    /// one ending `0x21` when a YubiKey secret is held, so no seal rests on
-    /// the key's padding rule (F208 point 6). The bytes are the file's own
-    /// otherwise.
-    pub(super) fn fit_salt(&self, salt: &mut [u8]) {
-        if self.yubikey.is_some()
-            && let Some(last) = salt.last_mut()
-            && *last == 0x20
-        {
-            *last = 0x21;
-        }
-    }
-}
-
-/// `HMAC-SHA-1(secret, message)` where the message is the challenge `salt`
-/// as a key programmed for variable-length input takes it: the salt padded
-/// to 64 bytes with `64 - len` bytes of that value, less its last byte and
-/// every equal byte before it (§3.2).
-fn yubikey_response(secret: &[u8; 20], salt: &[u8]) -> Zeroizing<[u8; 20]> {
-    let mut padded = Zeroizing::new([0u8; 64]);
-    let len = salt.len().min(64);
-    padded[..len].copy_from_slice(&salt[..len]);
-    padded[len..].fill((64 - len) as u8);
-    let last = padded[63];
-    let mut n = 64;
-    while n > 0 && padded[n - 1] == last {
-        n -= 1;
-    }
-    let mut mac =
-        <Hmac<Sha1> as KeyInit>::new_from_slice(secret).expect("HMAC takes any key length");
-    mac.update(&padded[..n]);
-    let mut out = Zeroizing::new([0u8; 20]);
-    hmac::digest::FixedOutput::finalize_into(mac, (&mut *out).into());
-    out
 }
 
 /// The composite key (§3.2), the one place it is made: the SHA-256 of
-/// `SHA-256(passphrase)`, then the key file's key if there is one, then
-/// `SHA-256(response)` if there is a secret, `salt` being the challenge.
-pub(super) fn composite_key(
-    passphrase: &[u8],
-    components: &Components,
-    salt: &[u8],
-) -> Secret<[u8; 32]> {
+/// `SHA-256(passphrase)`, then the key file's key if there is one.
+pub(super) fn composite_key(passphrase: &[u8], components: &Components) -> Secret<[u8; 32]> {
     let mut all = Sha256::new();
     let mut first = Zeroizing::new([0u8; 32]);
     let mut inner = Sha256::new();
@@ -146,14 +81,6 @@ pub(super) fn composite_key(
     all.update(first.as_slice());
     if let Some(key) = &components.key_file {
         all.update(key.as_slice());
-    }
-    if let Some(secret) = &components.yubikey {
-        let response = yubikey_response(secret, salt);
-        let mut hashed = Zeroizing::new([0u8; 32]);
-        let mut inner = Sha256::new();
-        inner.update(response.as_slice());
-        inner.finalize_into((&mut *hashed).into());
-        all.update(hashed.as_slice());
     }
     let mut out = Secret::new([0u8; 32]);
     all.finalize_into(out.expose_mut().into());
@@ -174,7 +101,7 @@ pub(super) fn file_keys(
     salt: &[u8],
 ) -> Result<Keys, Error> {
     cost_in_limits(cost)?;
-    let mut composite = composite_key(passphrase, components, salt);
+    let mut composite = composite_key(passphrase, components);
     let stretched = argon_run(c, kdf, cost, composite.expose(), salt);
     composite.zeroize();
     let mut t = stretched?;

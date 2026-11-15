@@ -1,52 +1,32 @@
 //! What a vault's open or make takes besides its passphrase, held here:
-//! a key file's key and a YubiKey's secret (`docs/VAULT.md` §3.2, F208).
-//! The bytes of a key file and the text of a secret go in; what comes out
-//! is [`UnlockParts`], which holds the key and the secret, wipes as it
-//! drops and is neither `Clone` nor `Debug`. A vault just made has its
+//! a key file's key (`docs/VAULT.md` §3.2, F208). The bytes of a key file
+//! go in; what comes out is [`UnlockParts`], which holds the key, wipes as
+//! it drops and is neither `Clone` nor `Debug`. A vault just made has its
 //! parts kept in [`OpenVaults`] until the unlock takes them or a lock
 //! clears them ([`OpenVaults::hold_made_parts`]).
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_vault as fv;
-use fv::kdbx::keyfile::{self, KeyFileError, SecretError};
+use fv::kdbx::keyfile::{self, KeyFileError};
 
 use crate::vault::OpenVaults;
 
-/// A key file's key and a YubiKey's secret, as an open or a make takes them.
+/// A key file's key, as an open or a make takes it.
 pub struct UnlockParts(pub(crate) fv::kdbx::Components);
-
-/// Why a key file or a typed secret is refused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PartsRefused {
-    /// The key file's bytes.
-    KeyFile(KeyFileError),
-    /// The typed secret.
-    Secret(SecretError),
-}
 
 impl UnlockParts {
     /// Costs a SHA-256 of the key file. The parts of the key file with
-    /// these `bytes`, if any, and the YubiKey secret `typed`, if any.
-    pub fn read(key_file: Option<&[u8]>, typed: Option<&str>) -> Result<Self, PartsRefused> {
-        let key = match key_file {
-            None => None,
-            Some(b) => Some(keyfile::read(b).map_err(PartsRefused::KeyFile)?),
-        };
-        let secret = match typed {
-            None => None,
-            Some(t) => Some(keyfile::secret(t).map_err(PartsRefused::Secret)?),
-        };
-        Ok(Self(fv::kdbx::Components::new(key, secret)))
+    /// these `bytes`, if any.
+    pub fn read(key_file: Option<&[u8]>) -> Result<Self, KeyFileError> {
+        Ok(Self(match key_file {
+            None => fv::kdbx::Components::none(),
+            Some(b) => fv::kdbx::Components::with_key_file(keyfile::read(b)?),
+        }))
     }
 
     /// Whether a key file's key is held.
     pub fn has_key_file(&self) -> bool {
         self.0.has_key_file()
-    }
-
-    /// Whether a YubiKey's secret is held.
-    pub fn has_yubikey(&self) -> bool {
-        self.0.has_yubikey()
     }
 }
 

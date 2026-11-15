@@ -160,18 +160,12 @@ fn unreadable_and_read_only(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// A vault that also needs a key file and a YubiKey's secret.
+/// A vault that also needs a key file.
 fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
-    // A vault that also needs a key file and a YubiKey's secret: the two
-    // buttons, the dialog, the chip and the field with a refusal, and what
-    // a wrong try says.
-    let keyed = testkit::kdbx_vault_keyed(
-        "Keyed",
-        testkit::VAULT_PASSPHRASE,
-        3,
-        (Some([7; 32]), Some([0xab; 20])),
-    )
-    .map_err(|e| String::from(&*e))?;
+    // A vault that also needs a key file: the button, the dialog, the chip
+    // and what a wrong try says.
+    let keyed = testkit::kdbx_vault_keyed("Keyed", testkit::VAULT_PASSPHRASE, 3, Some([7; 32]))
+        .map_err(|e| String::from(&*e))?;
     only(
         t,
         vec![
@@ -187,23 +181,8 @@ fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::KeyFileAsk));
     t.shot("unlock-key-file-dialog")?;
     t.press(Action::Vault(V::KeyFileChoose));
-    t.press(Action::Vault(V::YubiKeyAdd));
-    type_text(t, "abcd");
     t.press(Action::Vault(V::FocusPassphrase));
-    type_text(t, testkit::VAULT_PASSPHRASE);
-    t.press(Action::Vault(V::Unlock));
-    hide_keyboard(t);
-    scroll(t, 300);
-    t.shot("unlock-key-file-secret-refused")?;
-    t.press(Action::Vault(V::FocusYubiKey));
-    for _ in 0..4 {
-        t.app.event(faraday_shell_api::Event::Key(
-            faraday_shell_api::Key::Backspace,
-        ));
-    }
-    type_text(t, "0000000000000000000000000000000000000000");
-    t.press(Action::Vault(V::FocusPassphrase));
-    type_text(t, testkit::VAULT_PASSPHRASE);
+    type_text(t, "wrong");
     t.press(Action::Vault(V::Unlock));
     for _ in 0..30 {
         t.tick();
@@ -212,7 +191,7 @@ fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
         }
     }
     hide_keyboard(t);
-    t.shot("unlock-key-file-secret-wrong")?;
+    t.shot("unlock-key-file-wrong")?;
     Ok(())
 }
 

@@ -106,7 +106,6 @@ impl VaultArea {
     fn text_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
         match focus {
             Focus::Passphrase => Some(&mut self.state.passphrase),
-            Focus::YubiKey => self.state.yubikey.as_mut(),
             Focus::Phrase(i, second) => self
                 .state
                 .create
@@ -452,11 +451,9 @@ impl VaultArea {
         self.state.focus = focus;
     }
 
-    /// The key file chosen and the YubiKey secret typed, taken away.
+    /// The key file chosen, taken away.
     pub(crate) fn clear_unlock_parts(&mut self) {
         self.state.unlock_key = None;
-        self.state.yubikey = None;
-        self.state.secret_error = None;
         self.state.key_pick = 0;
         self.state.store.clear_made_parts();
     }
@@ -936,8 +933,6 @@ pub use crate::fresh::roller::{Act as RollerAct, PerClick as RollerPerClick};
 pub enum Focus {
     /// The unlock passphrase.
     Passphrase,
-    /// The unlock's YubiKey secret.
-    YubiKey,
     /// Create's passphrase n, first or second field.
     Phrase(usize, bool),
     /// The form's field n.
@@ -2167,10 +2162,6 @@ pub struct Vaults {
     /// The key file chosen to unlock with: its name in Files. Nothing of
     /// it is read until Unlock.
     pub unlock_key: Option<Text>,
-    /// The YubiKey secret field, while it is shown.
-    pub yubikey: Option<TextBox>,
-    /// What the YubiKey secret was refused for, under its field.
-    pub secret_error: Option<Text>,
     /// The file the key file dialog has marked, by its place in the list.
     pub key_pick: usize,
     /// The key file dialog is Create a vault's: its Choose sets the form's
@@ -2187,8 +2178,8 @@ pub struct Vaults {
     /// The Outbox name of the `.keyx` made for a vault's pending key file,
     /// until a seal writes that key or the key is replaced or taken back.
     pub key_outbox: Vec<(VaultId, Text)>,
-    /// Whether the unlock last tried used a key file and a YubiKey secret.
-    pub unlock_tried: (bool, bool),
+    /// Whether the unlock last tried used a key file.
+    pub unlock_tried: bool,
     /// The open vault on the contents screen.
     pub current: usize,
     /// The kind shown.
@@ -2739,7 +2730,6 @@ impl Vaults {
     pub(crate) fn focus_is_secret(&self, focus: Focus) -> bool {
         match focus {
             Focus::Passphrase
-            | Focus::YubiKey
             | Focus::Phrase(..)
             | Focus::Dice
             | Focus::Prompt
@@ -3795,8 +3785,6 @@ pub enum VaultAction {
     VKeyChoose,
     /// That dialog's **Remove key file**.
     VKeyRemove,
-    /// The ⋮'s **Remove YubiKey secret** (or **Keep** where a removal waits): the dialog.
-    YubiKeyRemoveAsk,
     /// Unlock's **Add a key file**, and the chip: the dialog of files.
     KeyFileAsk,
     /// That dialog's file n marked.
@@ -3807,12 +3795,6 @@ pub enum VaultAction {
     KeyFileCancel,
     /// The chip's ×: the key file taken back.
     KeyFileDrop,
-    /// Unlock's **Add a YubiKey secret**: its field.
-    YubiKeyAdd,
-    /// The field's ×: the secret taken away.
-    YubiKeyDrop,
-    /// The YubiKey secret field pressed.
-    FocusYubiKey,
     /// Create a vault's **Add a key file**, and its chip: the dialog.
     CKeyAsk,
     /// That dialog's **Make a key file**.

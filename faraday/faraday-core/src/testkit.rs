@@ -1467,19 +1467,18 @@ pub fn kdbx_vault(
     )
 }
 
-/// A vault file under `passphrase` that also needs a key file's key and
-/// a YubiKey's secret, at the test cost, holding nothing.
+/// A vault file under `passphrase` that also needs a key file's key, at
+/// the test cost, holding nothing.
 pub fn kdbx_vault_keyed(
     label: &str,
     passphrase: &str,
     id: u8,
-    (key_file, secret): (Option<[u8; 32]>, Option<[u8; 20]>),
+    key_file: Option<[u8; 32]>,
 ) -> Result<Vec<u8>, Text> {
     use zeroize::Zeroizing;
-    let components = faraday_vault::kdbx::Components::new(
-        key_file.map(Zeroizing::new),
-        secret.map(Zeroizing::new),
-    );
+    let components = key_file.map_or_else(faraday_vault::kdbx::Components::none, |k| {
+        faraday_vault::kdbx::Components::with_key_file(Zeroizing::new(k))
+    });
     let cost = faraday_vault::Cost {
         memory_kib: *faraday_vault::kdbx::MEMORY_KIB.start(),
         passes: 1,

@@ -41,9 +41,9 @@ impl OpenVaults {
     }
 
     /// Costs what [`OpenVaults::unlock`] costs. [`OpenVaults::unlock`] for a
-    /// vault that also needs a key file's key or a YubiKey's secret
-    /// (`docs/VAULT.md` §3.2, F208): the open vault keeps them for its
-    /// seals, wiped as it closes, and never shows them.
+    /// vault that also needs a key file's key
+    /// (`docs/VAULT.md` §3.2, F208): the open vault keeps it for its
+    /// seals, wiped as it closes, and never shows it.
     pub fn unlock_with(
         &mut self,
         c: &Compute,
@@ -136,7 +136,6 @@ impl OpenVaults {
             new_key_file: None,
             key_taken: false,
             key_made: false,
-            drop_yubikey: false,
         });
         (id, facts)
     }
@@ -241,14 +240,11 @@ impl OpenVaults {
             clippy::disallowed_methods,
             reason = "the key file copied is Zeroizing, wiped on drop"
         )]
-        let parts = (
-            if s.key_pending() {
-                None
-            } else {
-                s.new_key_file.clone()
-            },
-            s.drop_yubikey,
-        );
+        let parts = if s.key_pending() {
+            None
+        } else {
+            s.new_key_file.clone()
+        };
         // A change the seal cannot write is its refusal, not a change left out.
         let ops = ops.map_err(fv::file::Error::from);
         let s = &mut self.slots[at];
@@ -302,7 +298,7 @@ impl OpenVaults {
         }
         s.key_made = false;
         s.key_taken = false;
-        if key.is_none() && !s.opened.components_held().0 {
+        if key.is_none() && !s.opened.key_file_held() {
             // Nothing to take out: only a pending key file is taken back.
             if s.new_key_file.is_none() {
                 return false;
@@ -369,58 +365,16 @@ impl OpenVaults {
         true
     }
 
-    /// Leaves the YubiKey's secret out of the next seal of open vault `id`:
-    /// the file after it opens with the passphrase and any key file alone.
-    /// It counts as a change. Refused for an unknown vault, a read-only or
-    /// sealing one and one opened without a secret, which cannot be given
-    /// one.
-    pub fn remove_yubikey(&mut self, id: VaultId) -> bool {
-        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
-            return false;
-        };
-        if s.locked() || !s.opened.components_held().1 {
-            return false;
-        }
-        s.drop_yubikey = true;
-        s.changed();
-        true
-    }
-
-    /// Takes back [`OpenVaults::remove_yubikey`]: the next seal of open
-    /// vault `id` keeps the YubiKey's secret. It counts as a change. Same
-    /// refusals, and `false` where no removal is pending.
-    pub fn keep_yubikey(&mut self, id: VaultId) -> bool {
-        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
-            return false;
-        };
-        if s.locked() || !s.opened.components_held().1 || !s.drop_yubikey {
-            return false;
-        }
-        s.drop_yubikey = false;
-        s.changed();
-        true
-    }
-
-    /// A lookup. Whether open vault `id` has a Remove YubiKey secret
-    /// waiting for its seal ([`OpenVaults::remove_yubikey`]).
-    pub fn yubikey_removal_pending(&self, id: VaultId) -> bool {
-        self.slot(id).is_some_and(|s| s.drop_yubikey)
-    }
-
     /// A lookup. Whether the next seal of open vault `id` writes a file
-    /// that needs a key file and whether it needs a YubiKey's secret; `None`
-    /// for an id this store does not hold.
-    pub fn needs(&self, id: VaultId) -> Option<(bool, bool)> {
+    /// that needs a key file; `None` for an id this store does not hold.
+    pub fn needs(&self, id: VaultId) -> Option<bool> {
         let s = self.slot(id)?;
-        let (key_file, yubikey) = s.opened.components_held();
-        Some((
-            if s.key_pending() {
-                key_file
-            } else {
-                s.new_key_file.as_ref().map_or(key_file, Option::is_some)
-            },
-            yubikey && !s.drop_yubikey,
-        ))
+        let key_file = s.opened.key_file_held();
+        Some(if s.key_pending() {
+            key_file
+        } else {
+            s.new_key_file.as_ref().map_or(key_file, Option::is_some)
+        })
     }
 
     /// Reveal: the KeePass key file (`faraday_vault::kdbx::keyfile::write`)
@@ -518,7 +472,7 @@ impl OpenVaults {
     }
 
     /// A lookup. Whether open vault `id` has a new passphrase, a new
-    /// memory step or a change of its key file or YubiKey waiting for its
+    /// memory step or a change of its key file waiting for its
     /// seal: a change, so a lock seals it. A key file Faraday drew whose
     /// document is not yet taken is not one: no seal writes it.
     pub fn rekeyed(&self, id: VaultId) -> bool {
@@ -526,7 +480,6 @@ impl OpenVaults {
             s.new_passphrase.is_some()
                 || s.new_step.is_some()
                 || (s.new_key_file.is_some() && !s.key_pending())
-                || s.drop_yubikey
         })
     }
 

@@ -30,7 +30,6 @@ impl VaultArea {
                 self.state.focus = may_load.then_some(Focus::Passphrase);
             }
             V::FocusPassphrase => self.state.focus = may_load.then_some(Focus::Passphrase),
-            V::FocusYubiKey => self.state.focus = may_load.then_some(Focus::YubiKey),
             V::SaveTick(k) => {
                 if let Some(f) = self
                     .state

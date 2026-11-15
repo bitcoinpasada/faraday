@@ -1841,17 +1841,14 @@ fn seals_head(
             v.settings_text(),
         );
     }
-    // What the next seal writes: a key file or a YubiKey's secret needed
-    // to open it (a lookup).
-    if let Some((key, yubikey)) = app.vaults.store().needs(v.id) {
-        for (on, line) in [
-            (key, EN.vault_needs_key_file),
-            (yubikey, EN.vault_opens_with_yubikey),
-        ] {
-            if on {
-                used += ui.wrap_as((x, y + used, w), BODY_S, Role::OnSurfaceVariant, line);
-            }
-        }
+    // What the next seal writes: a key file needed to open it (a lookup).
+    if app.vaults.store().needs(v.id) == Some(true) {
+        used += ui.wrap_as(
+            (x, y + used, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.vault_needs_key_file,
+        );
     }
     if used > 0.0 {
         used += faraday_draw::tokens::GAP_SMALL;

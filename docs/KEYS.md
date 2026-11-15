@@ -114,19 +114,19 @@ Moved to `docs/history/KEYS-LOG.md`.
   `SecretText`, never read back, and replaced or wiped with the slot; a
   `SealJob` gets one copy that wipes with the job, so a seal that fails
   keeps the pending passphrase for a retry.
-  A vault's key file (32 bytes) and YubiKey secret (20 bytes) are held
+  A vault's key file (32 bytes) is held
   in the same way (`faraday_vault::kdbx::Components`, neither `Clone` nor
-  `Debug`, read from the key file's bytes and the typed secret by
+  `Debug`, read from the key file's bytes by
   `UnlockParts::read` and moved into `StretchJob::keyed`, then into
   `OpenVaults::unlock_with` and the opened file, wiped as it drops, never
   shown; no second copy is kept, and each seal makes a short-lived copy
-  of them (`Components::changed`) that wipes as it drops; a key file added
+  of it (`Components::changed`) that wipes as it drops; a key file added
   to an open vault is read in faraday-keys by `OpenVaults::set_key_file_from`,
   so faraday-core never holds its key; the `impl Into<UnlockParts>` argument
   of `StretchJob::keyed` and `From<Components> for UnlockParts` stay public
   only because faraday-keys/tests/vault_keyed.rs and
   `testkit::kdbx_vault_keyed` build a `Components` directly): every seal writes them back
-  unless `set_key_file` (add, replace or remove) or `remove_yubikey` is
+  unless `set_key_file` (add, replace or remove) is
   pending, and a `SealJob` gets one copy of a pending key file that wipes
   with the job. `OpenVaults::needs` says which the next seal writes. A
   key file leaves only if Faraday made it (`OpenVaults::make_key_file`, or
@@ -145,8 +145,7 @@ Moved to `docs/history/KEYS-LOG.md`.
   `OpenVaults` (`hold_made_parts`) as an opaque `UnlockParts`, taken once
   by the unlock (`take_made_parts`) and wiped by `clear_made_parts` or
   `OpenVaults::clear` at a lock; the screens keep none. A
-  key file chosen (`set_key_file`) or opened with has no way out. A make
-  never takes a YubiKey's secret (F208): `StretchJob::keyed` refuses it.
+  key file chosen (`set_key_file`) or opened with has no way out.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does
   not copy them. The store holds each master key behind an `Arc` that is
   never opened for change: a change of network makes a new key

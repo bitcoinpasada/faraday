@@ -217,17 +217,11 @@ pub(crate) fn vault_sheets_tour(c: &Compute, t: &mut Tour) -> Result<(), String>
     more_menu(t)
 }
 
-/// The open vault's ⋮ (`docs/VAULT.md` §3.2): the menu, Key file, Remove
-/// YubiKey secret and Keep where a removal waits, with the head line, for
-/// a vault opened with a key file and a YubiKey's secret.
+/// The open vault's ⋮ (`docs/VAULT.md` §3.2): the menu and Key file, with
+/// the head line, for a vault opened with a key file.
 fn more_menu(t: &mut Tour) -> Result<(), String> {
-    let keyed = testkit::kdbx_vault_keyed(
-        "Keyed",
-        testkit::VAULT_PASSPHRASE,
-        3,
-        (Some([7; 32]), Some([0xab; 20])),
-    )
-    .map_err(|e| String::from(&*e))?;
+    let keyed = testkit::kdbx_vault_keyed("Keyed", testkit::VAULT_PASSPHRASE, 3, Some([7; 32]))
+        .map_err(|e| String::from(&*e))?;
     t.restart();
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
@@ -246,8 +240,6 @@ fn more_menu(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::Open(0)));
     t.press(Action::Vault(V::KeyFileAsk));
     t.press(Action::Vault(V::KeyFileChoose));
-    t.press(Action::Vault(V::YubiKeyAdd));
-    type_text(t, "abababababababababababababababababababab");
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
@@ -268,15 +260,6 @@ fn more_menu(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::VKeyAsk));
     t.shot("vault-more-key-file")?;
     t.press(Action::Vault(V::KeyFileCancel));
-    t.press(Action::Vault(V::MoreAsk));
-    t.press(Action::Vault(V::YubiKeyRemoveAsk));
-    t.shot("vault-more-remove-yubikey")?;
-    t.press(Action::Vault(V::TrimGo));
-    t.shot("vault-more-removal-pending")?;
-    t.press(Action::Vault(V::MoreAsk));
-    t.press(Action::Vault(V::YubiKeyRemoveAsk));
-    t.shot("vault-more-keep-yubikey")?;
-    t.press(Action::Vault(V::TrimCancel));
     Ok(())
 }
 

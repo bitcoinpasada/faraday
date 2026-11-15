@@ -1,25 +1,22 @@
 //! What Unlock takes besides the passphrase (`docs/VAULT.md` §3.2, §4): a
-//! key file chosen from the files in Files that are not vaults, and a
-//! YubiKey's secret typed. Neither is read until **Unlock**; nothing is
-//! remembered once the vault opens, the person goes back or the device
-//! locks. A key file is wiped from Files and removed once a vault has
-//! opened with it.
+//! key file chosen from the files in Files that are not vaults. It is not
+//! read until **Unlock**; nothing is remembered once the vault opens, the
+//! person goes back or the device locks. A key file is wiped from Files
+//! and removed once a vault has opened with it.
 
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
-use crate::vault::screen::secret_box;
-use crate::vault::{Focus, TextBox};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Sheet};
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, DIALOG_MAX, FIELD_H, FILTER_CHIP_H, GAP, GAP_SMALL, GRID,
-    ICON_SMALL, LABEL_L, LIST_1, PAD, RADIUS_SMALL, TITLE_S, shape_full,
+    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, DIALOG_MAX, FILTER_CHIP_H, GAP, GAP_SMALL, GRID,
+    ICON_SMALL, LABEL_L, LIST_1, PAD, RADIUS_SMALL, shape_full,
 };
 use faraday_draw::widgets::Icon;
-use faraday_keys::{PartsRefused, UnlockParts};
+use faraday_keys::UnlockParts;
 use faraday_text::Text;
 use faraday_vault::kdbx::keyfile::KeyFileError;
 
@@ -30,12 +27,10 @@ fn va(a: V) -> Action {
     Action::Vault(a)
 }
 
-/// Why Unlock's key file or secret was refused before any run.
+/// Why Unlock's key file was refused before any run.
 pub(crate) enum Bad {
     /// The key file, said under the buttons.
     KeyFile(Text),
-    /// The secret, said under its field.
-    Secret(Text),
 }
 
 /// The files in Files that a key file can be chosen from: those that are
@@ -86,29 +81,19 @@ pub(crate) fn set_named(
 /// The key file `name` of Files alone as the make takes it (read in
 /// `faraday-keys`); why it is refused otherwise, naming the file.
 pub(crate) fn file_parts(app: &Faraday, name: &str) -> Result<UnlockParts, Bad> {
-    UnlockParts::read(Some(bytes_named(app, name)?), None).map_err(|e| match e {
-        PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, name)),
-        PartsRefused::Secret(_) => Bad::Secret(Text::new()),
-    })
+    UnlockParts::read(Some(bytes_named(app, name)?))
+        .map_err(|e| Bad::KeyFile(key_file_line(e, name)))
 }
 
-/// The key file and the secret Unlock has been given, as the open takes
-/// them (read in `faraday-keys`); why one is refused otherwise, naming the
-/// file.
+/// The key file Unlock has been given, as the open takes it (read in
+/// `faraday-keys`); why it is refused otherwise, naming the file.
 pub(crate) fn parts(app: &Faraday) -> Result<UnlockParts, Bad> {
     let named = match app.vaults.unlock_key.as_deref() {
         None => None,
         Some(name) => Some((name, bytes_named(app, name)?)),
     };
-    let typed = app.vaults.yubikey.as_ref().map(|b| b.text.as_str());
-    UnlockParts::read(named.map(|(_, b)| b), typed).map_err(|e| match e {
-        PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, named.map_or("", |n| n.0))),
-        PartsRefused::Secret(e) if e.stray => Bad::Secret(Text::of(EN.vault_secret_stray)),
-        PartsRefused::Secret(e) => Bad::Secret(Text::fill(
-            EN.vault_secret_digits,
-            &[&Text::num(e.digits as u64)],
-        )),
-    })
+    UnlockParts::read(named.map(|(_, b)| b))
+        .map_err(|e| Bad::KeyFile(key_file_line(e, named.map_or("", |n| n.0))))
 }
 
 /// A vault opened with the key file: it leaves Files, wiped as it drops.
@@ -178,22 +163,6 @@ pub(crate) fn drop_key(app: &mut Faraday) {
     app.vaults.state.unlock_error = None;
 }
 
-/// **Add a YubiKey secret**: its field, typed in at once.
-pub(crate) fn add_secret(app: &mut Faraday) {
-    app.vaults.state.yubikey = Some(TextBox::default());
-    app.vaults.state.focus = app.may_load_keys().then_some(Focus::YubiKey);
-}
-
-/// The field's ×: the secret is wiped.
-pub(crate) fn drop_secret(app: &mut Faraday) {
-    app.vaults.state.yubikey = None;
-    app.vaults.state.secret_error = None;
-    app.vaults.state.unlock_error = None;
-    if app.vaults.focus == Some(Focus::YubiKey) {
-        app.vaults.state.focus = Some(Focus::Passphrase);
-    }
-}
-
 /// **Add a key file**, or the input chip for the file chosen (its name and
 /// its ×), placed by `place`, which gives the corner a control `width` wide
 /// takes. `ask` is the button's and the name's action, `drop` the ×'s.
@@ -242,21 +211,10 @@ pub(crate) fn key_slot(
     }
 }
 
-/// The two text buttons or their chip and field, under the passphrase at
-/// (x, y), `w` wide. Returns the height they take.
+/// The text button or its chip, under the passphrase at (x, y), `w` wide.
+/// Returns the height they take.
 pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let muted = Role::OnSurfaceVariant;
-    let mut cx = x;
-    let mut cy = y;
-    let mut place = |width: f32| -> (f32, f32) {
-        if cx > x && cx + width > x + w {
-            cx = x;
-            cy += BUTTON_H + GAP_SMALL;
-        }
-        let at = (cx, cy);
-        cx += width + GAP_SMALL;
-        at
-    };
+    let mut place = |_: f32| -> (f32, f32) { (x, y) };
     key_slot(
         ui,
         app.vaults.unlock_key.as_deref(),
@@ -264,61 +222,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         &mut place,
         (V::KeyFileAsk, V::KeyFileDrop),
     );
-    if app.vaults.yubikey.is_none() {
-        let width = ui.button_width(EN.vault_add_yubikey, Style::Ghost);
-        let (bx, by) = place(width);
-        if bx == x {
-            ui.text_button(
-                bx,
-                by,
-                EN.vault_add_yubikey,
-                Style::Ghost,
-                va(V::YubiKeyAdd),
-            );
-        } else {
-            ui.button(
-                bx,
-                by,
-                None,
-                BUTTON_H,
-                EN.vault_add_yubikey,
-                Style::Ghost,
-                va(V::YubiKeyAdd),
-            );
-        }
-    }
-    let mut end = cy + BUTTON_H;
-    if let Some(b) = app.vaults.yubikey.as_ref() {
-        end += GAP_SMALL;
-        crate::screens::section_label(ui, x, end, EN.vault_yubikey_secret);
-        end += ui.line_as(TITLE_S) + GAP_SMALL;
-        let focused = app.vaults.focus == Some(Focus::YubiKey);
-        secret_box(
-            ui,
-            x,
-            end,
-            w - FIELD_H,
-            b,
-            app.pass_shows(app.vaults.typed_shown, &b.text),
-            focused,
-            va(V::FocusYubiKey),
-            va(V::ShowTyped),
-        );
-        let glyph = ui.measure_as(LABEL_L, TAKE_AWAY);
-        let gx = x + w - FIELD_H;
-        ui.text_mid_as(
-            (gx + (FIELD_H - glyph) / 2.0, end, FIELD_H),
-            LABEL_L,
-            muted,
-            TAKE_AWAY,
-        );
-        ui.press_box(gx, end, FIELD_H, FIELD_H, va(V::YubiKeyDrop));
-        end += FIELD_H + GAP_SMALL;
-        if let Some(e) = &app.vaults.secret_error {
-            end += ui.wrap_as((x, end, w), BODY_M, Role::Error, e) + GAP_SMALL;
-        }
-    }
-    end - y
+    BUTTON_H
 }
 
 /// **Choose a key file**: the files in Files that are not vaults, one

@@ -1,9 +1,7 @@
-//! The open vault's ⋮ (`docs/VAULT.md` §3.2, §8): **Key file** and
-//! **Remove YubiKey secret**. The ⋮ is a Material menu
-//! ([`crate::menu::draw`]); **Key file** is a basic dialog of three rows
-//! that each act at once, and **Remove YubiKey secret** the dialog of
-//! [`super::trim`]. Both are changes the next seal writes, counted for the
-//! lock as a new passphrase is.
+//! The open vault's ⋮ (`docs/VAULT.md` §3.2, §8): **Key file**. The ⋮ is
+//! a Material menu ([`crate::menu::draw`]); **Key file** is a basic dialog
+//! of three rows that each act at once. It is a change the next seal
+//! writes, counted for the lock as a new passphrase is.
 //!
 //! A key file made is drawn when **Make a key file** is pressed, and its
 //! `.keyx` goes to the Outbox then, under the vault's name, never over a
@@ -42,25 +40,17 @@ pub enum More {
     Pick,
 }
 
-/// What the ⋮ holds for the vault on the page: **Key file** and whether
-/// **Remove YubiKey secret** (or **Keep**, where a removal waits) is
-/// offered. A lookup.
-pub(crate) fn offered(app: &Faraday) -> (bool, bool) {
+/// Whether the ⋮ holds **Key file** for the vault on the page. A lookup.
+pub(crate) fn offered(app: &Faraday) -> bool {
     let Some(id) = app.vaults.current_id() else {
-        return (false, false);
+        return false;
     };
-    let store = app.vaults.store();
-    if store.read_only(id).is_some() {
-        return (false, false);
-    }
-    let yubikey = store.yubikey_removal_pending(id) || store.needs(id).is_some_and(|n| n.1);
-    (!super::screen::writing(app), yubikey)
+    app.vaults.store().read_only(id).is_none() && !super::screen::writing(app)
 }
 
 /// Whether the open vault has a ⋮ at all.
 pub(crate) fn shown(app: &Faraday) -> bool {
-    let (key, yubikey) = offered(app);
-    key || yubikey
+    offered(app)
 }
 
 /// The ⋮: its menu.
@@ -80,7 +70,7 @@ pub(crate) fn ask(app: &mut Faraday) {
 
 /// **Key file**: the dialog.
 pub(crate) fn key_ask(app: &mut Faraday) {
-    if !offered(app).0 {
+    if !offered(app) {
         return;
     }
     app.vaults.state.more = Some(More::Key);
@@ -341,7 +331,7 @@ pub(crate) fn chosen(app: &mut Faraday) {
                 app.toast(EN.vault_key_file_next_seal);
             }
         }
-        Err(Bad::KeyFile(e) | Bad::Secret(e)) => app.toast(&e),
+        Err(Bad::KeyFile(e)) => app.toast(&e),
     }
     done(app);
 }
@@ -389,18 +379,9 @@ fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, anchor: Option<(i32, i32,
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         return;
     };
-    let (key, yubikey) = offered(app);
     let mut lines = Vec::new();
-    if key {
+    if offered(app) {
         lines.push(Line::Item(EN.vault_key_file.into(), va(V::VKeyAsk)));
-    }
-    if yubikey {
-        let label = if app.vaults.store().yubikey_removal_pending(v.id) {
-            EN.vault_keep_yubikey
-        } else {
-            EN.vault_remove_yubikey
-        };
-        lines.push(Line::Item(label.into(), va(V::YubiKeyRemoveAsk)));
     }
     let title = v.label(app.vaults.store());
     menu::draw(
@@ -426,7 +407,7 @@ fn dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(id) = app.vaults.current_id() else {
         return;
     };
-    let has = app.vaults.store().needs(id).is_some_and(|n| n.0);
+    let has = app.vaults.store().needs(id) == Some(true);
     let next = fill(
         EN.vault_next_seal_key_file,
         &[if has {

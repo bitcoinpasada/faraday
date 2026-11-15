@@ -57,7 +57,7 @@
 # faraday/faraday-vault/src/contents.rs and contents/tree.rs (the TOML a vault
 # holds: seed words, passphrases and notes as wiped text, and its keys),
 # faraday/faraday-vault/src/qr.rs (a QR vault's item and its passphrase),
-# faraday/faraday-vault/src/kdbx/keyfile.rs (a key file's key and a YubiKey's secret),
+# faraday/faraday-vault/src/kdbx/keyfile.rs (a key file's key),
 # faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/secret.rs (a GPG key's paperkey read back: its
 #   lines, its data and the secret parts in it):
 #   3. No heap text: the tokens `String`, `Arc<str>`, `Box<str>`, `alloc::string`, `to_string`,
@@ -646,8 +646,9 @@ done
 # wiping text, each with why:
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
+#   keys/parts.rs      handles a key file's bytes and builds the Components that hold its key
 #   faraday-text lib   declares and documents the wiping text type of text.rs
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-keys/src/parts.rs core/faraday-text/src/lib.rs"
 # Files that name the wiping text or hold test text and are not in
 # SECRET_FILES (the unheld files), each with why. This list is the one place
 # such a file may stay out of SECRET_FILES; a file listed here that is also in

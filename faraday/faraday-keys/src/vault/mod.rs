@@ -1100,8 +1100,6 @@ struct Slot {
     /// ([`OpenVaults::key_file_document`]), which it is once only: until
     /// then no seal writes it.
     key_taken: bool,
-    /// Whether the next seal leaves the YubiKey's secret out.
-    drop_yubikey: bool,
 }
 
 impl Slot {

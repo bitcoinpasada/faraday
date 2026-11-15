@@ -65,7 +65,7 @@ pub use operations::{
     Convert, Dial, Paper, codex32_random_len, codex32_seed, seed_xor_random_len, slip39_random_len,
     slip39_seed,
 };
-pub use parts::{PartsRefused, UnlockParts};
+pub use parts::UnlockParts;
 pub use qr_vault::{
     QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrCost, QrError, QrFit, QrHolds, QrOpenJob, QrOpened,
     QrPassOffer, QrSealJob, QrUnsupported, qr_cost, qr_item_offered, qr_note_over,

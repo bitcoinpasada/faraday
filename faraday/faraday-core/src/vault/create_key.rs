@@ -70,7 +70,7 @@ pub(crate) fn chosen(app: &Faraday) -> Result<Option<(Text, UnlockParts)>, Text>
     };
     match unlock_keys::file_parts(app, name) {
         Ok(parts) => Ok(Some((Text::of(name), parts))),
-        Err(Bad::KeyFile(e) | Bad::Secret(e)) => Err(Text::of(&e)),
+        Err(Bad::KeyFile(e)) => Err(Text::of(&e)),
     }
 }
 

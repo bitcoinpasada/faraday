@@ -630,7 +630,6 @@ impl Faraday {
             V::VKeyMake => more::make(self),
             V::VKeyChoose => more::choose(self),
             V::VKeyRemove => more::remove(self),
-            V::YubiKeyRemoveAsk => trim::ask_yubikey(self),
             V::KeyFileAsk => unlock_keys::ask(self),
             V::KeyFilePick(n) => unlock_keys::pick(self, n),
             V::KeyFileChoose => unlock_keys::choose(self),
@@ -641,8 +640,6 @@ impl Faraday {
             V::CKeyChoose => create_key::choose(self),
             V::CKeyCancel => create_key::cancel(self),
             V::CKeyDrop => create_key::drop_key(self),
-            V::YubiKeyAdd => unlock_keys::add_secret(self),
-            V::YubiKeyDrop => unlock_keys::drop_secret(self),
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -1122,7 +1119,6 @@ impl Faraday {
         let Some(f) = files.get(self.vaults.pick) else {
             return;
         };
-        self.vaults.state.secret_error = None;
         let mut error = if !self.may_load_keys() {
             Some(Text::fill(
                 EN.vaults_remove_to_unlock,
@@ -1137,10 +1133,6 @@ impl Faraday {
             match unlock_keys::parts(self) {
                 Ok(_) => {}
                 Err(unlock_keys::Bad::KeyFile(e)) => error = Some(Text::of(&e)),
-                Err(unlock_keys::Bad::Secret(e)) => {
-                    self.vaults.state.secret_error = Some(Text::of(&e));
-                    error = Some(Text::new());
-                }
             }
         }
         if error.is_none() {
@@ -1148,12 +1140,11 @@ impl Faraday {
                 .vaults
                 .unlock_memory_refusal(f.facts.header.cost, f.facts.len);
         }
-        // A secret refused is said under its field alone.
         self.vaults.state.unlock_error = error.filter(|e| !e.is_empty());
         self.vaults
             .unlock_follow
-            .set(self.vaults.unlock_error.is_some() || self.vaults.secret_error.is_some());
-        if self.vaults.unlock_error.is_none() && self.vaults.secret_error.is_none() {
+            .set(self.vaults.unlock_error.is_some());
+        if self.vaults.unlock_error.is_none() {
             stretch::defer(self, Work::Unlock);
         }
     }
@@ -2384,11 +2375,6 @@ impl Faraday {
                 | Focus::Prompt
                 | Focus::PromptAgain
                 | Focus::Search(_) => {}
-                Focus::YubiKey => {
-                    if key == K::Enter {
-                        self.vault_act(VaultAction::Unlock);
-                    }
-                }
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);
@@ -2448,7 +2434,6 @@ impl Faraday {
             c.error = None;
         }
         self.vaults.state.unlock_error = None;
-        self.vaults.state.secret_error = None;
         true
     }
 }

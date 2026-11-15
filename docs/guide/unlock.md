@@ -23,10 +23,10 @@ A vault just made is chosen already and asks for its passphrase once more.
 
 **Unlock** runs the unlock; while it runs the screen says so, with the time it takes here. Beside it the memory free on this computer is shown, or **This computer: memory not reported**. A refused passphrase or key shows its reason under the field.
 
-## Key file and YubiKey secret
+## Key file
 
 **Key:** unlock.keys
 
-A vault made with either needs it as well as the passphrase.
+A vault made with a key file needs it as well as the passphrase.
 
-**Add a key file** opens **Choose a key file**, a list of the files in Files that are not vaults; with none, it reads **Files holds no file that is not a vault**. **Add a YubiKey secret** opens **YubiKey secret**, the 40 hexadecimal digits, spaces or colons allowed between them; a wrong count is refused with the count found.
+**Add a key file** opens **Choose a key file**, a list of the files in Files that are not vaults; with none, it reads **Files holds no file that is not a vault**.

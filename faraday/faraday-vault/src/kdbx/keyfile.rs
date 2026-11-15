@@ -1,5 +1,4 @@
-//! A KeePass key file and a YubiKey's secret, read into the bytes the
-//! composite key takes (`docs/VAULT.md` §3.2, F208).
+//! A KeePass key file, read into the bytes the composite key takes (`docs/VAULT.md` §3.2, F208).
 //!
 //! A key file is read in KeePass's order: XML version 1 or 2, a file of
 //! exactly 32 bytes, 64 hexadecimal characters, else the file's SHA-256.
@@ -63,7 +62,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 use super::xml::{MAX_DEPTH, valid_ref};
 
-/// Why a key file or a YubiKey secret was refused.
+/// Why a key file was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyFileError {
     /// The file is empty.
@@ -72,15 +71,6 @@ pub enum KeyFileError {
     Database,
     /// A `KeyFile` document that holds no key Faraday takes as stated.
     Damaged,
-}
-
-/// A secret that is not 40 hexadecimal digits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SecretError {
-    /// How many hexadecimal digits were typed.
-    pub digits: usize,
-    /// Whether anything but a digit, a space or a colon was typed.
-    pub stray: bool,
 }
 
 /// The first four bytes of every KDBX file.
@@ -159,35 +149,6 @@ fn push_hex(out: &mut Vec<u8>, b: u8) {
         // is 0xFF exactly when `9 - n` is negative.
         let over = ((9u8.wrapping_sub(n)) >> 7).wrapping_neg();
         out.push(n + b'0' + (over & 7));
-    }
-}
-
-/// The 20-byte secret `text` spells: 40 hexadecimal digits in either case,
-/// with spaces and colons between them ignored.
-pub fn secret(text: &str) -> Result<Zeroizing<[u8; 20]>, SecretError> {
-    let mut out = Zeroizing::new([0u8; 20]);
-    let mut digits = 0usize;
-    let mut stray = false;
-    for b in text.bytes() {
-        match b {
-            b' ' | b':' => {}
-            _ => {
-                let (n, valid) = nibble(b);
-                if valid != 0 {
-                    if let Some(slot) = out.get_mut(digits / 2) {
-                        *slot = (*slot << 4) | n;
-                    }
-                    digits += 1;
-                } else {
-                    stray = true;
-                }
-            }
-        }
-    }
-    if digits == 40 && !stray {
-        Ok(out)
-    } else {
-        Err(SecretError { digits, stray })
     }
 }
 

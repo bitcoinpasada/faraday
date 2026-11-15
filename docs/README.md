@@ -258,6 +258,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/TEXT-SIZE.md`: Text size. Built (F85): Standard, Large and Larger, in Faraday and the Starter.
 - `docs/THEMES.md`: Themes on Material 3's colour system. Built (F113); the website, the guide's pictures and the README's screenshots are not yet redrawn in the new colours.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
+- `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Built (F190; F208; F226; F227).
 - `docs/WALLETS.md`: The Wallets tab. Built.
 
 **Spec**
@@ -277,7 +278,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148); the manifest, its inventory lint and generator are built and held by `just lint`; the order of flow blocks, guide pictures, the website's rendering and a few tables are open.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Built (F174, F182), a stick Windows leaves whole included.
-- `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190; F226); the file vault and the QR vault tool are built; key files and a YubiKey's secret are built in part (its Open line).
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. The worker, the shells' wake, the busy screen, the vault stretches, PSBT signing and read, the backup checklist and more are built; the rest of the jobs (§9) are open.
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.

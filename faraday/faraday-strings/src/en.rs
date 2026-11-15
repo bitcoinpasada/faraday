@@ -9293,20 +9293,12 @@ strings! {
     vault_unlock: "Unlock",
     /// Text button under Unlock's passphrase.
     vault_add_key_file: "Add a key file",
-    /// Text button under Unlock's passphrase.
-    vault_add_yubikey: "Add a YubiKey secret",
-    /// Label of Unlock's YubiKey secret field.
-    vault_yubikey_secret: "YubiKey secret",
     /// Head of the dialog that lists the files a key file is chosen from.
     vault_choose_key_file: "Choose a key file",
     /// Button of that dialog.
     vault_choose: "Choose",
     /// That dialog when Files holds no file that is not a vault.
     vault_no_key_files: "Files holds no file that is not a vault",
-    /// Under Unlock's YubiKey secret field. `{}`: how many digits were typed.
-    vault_secret_digits: "A YubiKey secret is 40 hexadecimal digits. This has {}.",
-    /// Under Unlock's YubiKey secret field: something but a digit, a space or a colon was typed.
-    vault_secret_stray: "A YubiKey secret is 40 hexadecimal digits, with spaces or colons between them.",
     /// Row of that dialog: Faraday makes the key file at Create.
     vault_make_key_file: "Make a key file",
     /// Row of that dialog: a file in Files is the key file.
@@ -10037,13 +10029,9 @@ strings! {
     /// Under Unlock. `{}`: the MiB it needs.
     vault_error_memory: "Needs {} MiB, which this computer cannot spare",
     /// Under Unlock: the wrong passphrase, tried alone.
-    vault_error_wrong: "Wrong passphrase, or this file also needs a key file or a YubiKey secret.",
+    vault_error_wrong: "Wrong passphrase, or this file also needs a key file.",
     /// Under Unlock: the wrong passphrase or key file.
     vault_error_wrong_key_file: "Wrong passphrase or key file.",
-    /// Under Unlock: the wrong passphrase or YubiKey secret.
-    vault_error_wrong_yubikey: "Wrong passphrase or YubiKey secret.",
-    /// Under Unlock: the wrong passphrase, key file or YubiKey secret.
-    vault_error_wrong_both: "Wrong passphrase, key file or YubiKey secret.",
     /// Under Unlock and Create: an empty passphrase.
     vault_error_empty_passphrase: "The passphrase is empty",
     /// Under Unlock: damage found before any run.
@@ -10213,28 +10201,12 @@ strings! {
     vault_next_seal_none: "none",
     /// What the next seal writes when it writes a key file.
     vault_next_seal_a_key_file: "a key file",
-    /// Item of the open vault's ⋮ and head of its dialog.
-    vault_remove_yubikey: "Remove YubiKey secret",
-    /// Head of that dialog where a removal waits, and its button.
-    vault_keep_yubikey: "Keep YubiKey secret",
-    /// Button of that dialog where a removal waits.
-    vault_keep: "Keep",
-    /// Line of the dialog before the YubiKey secret is removed. `{}`: the vault.
-    vault_yubikey_remove_line: "The YubiKey secret is removed from {} at the next seal. Copies of {} sealed before still need it.",
-    /// Line of the same dialog where a removal waits. `{}`: the vault.
-    vault_yubikey_keep_line: "The YubiKey secret stays in {} at the next seal.",
-    /// Toast after Remove YubiKey secret.
-    vault_yubikey_removed: "Takes effect at the next seal. Copies sealed before still need the YubiKey secret.",
-    /// Toast after Keep YubiKey secret.
-    vault_yubikey_kept: "The next seal keeps the YubiKey secret.",
     /// Toast after a key file is made, chosen or removed on the open vault.
     vault_key_file_next_seal: "Takes effect at the next seal. Copies sealed before keep the key file they had.",
     /// The open vault's key file could not be put in the Outbox, so none was made.
     vault_key_file_not_kept_open: "The key file could not be put in the Outbox. The vault keeps the key file it had.",
     /// Line under the open vault's name: the next seal needs a key file.
     vault_needs_key_file: "Needs a key file",
-    /// Line under the open vault's name: the next seal needs a YubiKey's secret.
-    vault_opens_with_yubikey: "Opens with a YubiKey",
     /// Title of the dialog before a move.
     vault_move_head: "Move this item?",
     /// Line of that dialog. `{}`: the vault it goes to, the vault it is in,

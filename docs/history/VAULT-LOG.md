@@ -624,3 +624,12 @@ What each bar finds is kept on the open slot beside what is read of its
 records (`vault/search.rs`, `Found`), dropped by every change to the
 records and to a bar's text, and found again before the next frame, so
 drawing only looks it up. A lock empties both bars.
+
+## A YubiKey's typed secret (taken out, 2026-11)
+
+`docs/VAULT.md` §3.2 first had the file vault take a YubiKey's HMAC-SHA-1
+secret typed at Unlock, and `faraday-vault` made the response from the
+file's own salt and checked it against kdbxweb. No vault was ever sealed
+with one, so F257 took it out: the typed secret, its held copy in
+`faraday-keys` and the Remove YubiKey secret item are gone, and a file that
+needs a YubiKey's response is refused as wrong credentials.

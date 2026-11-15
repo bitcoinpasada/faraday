@@ -1,9 +1,8 @@
-//! A file vault that needs a key file or a YubiKey's secret
-//! (`docs/VAULT.md` §3.2, F208): the key file forms KeePass reads, the
-//! secret as typed, a vault made and sealed again with them, and pykeepass
-//! (`tools/vectors/kdbx/keyed.py`) opening a file Faraday sealed and the
-//! other way. The pykeepass checks are skipped, and said, where it is not
-//! installed.
+//! A file vault that needs a key file (`docs/VAULT.md` §3.2, F208): the
+//! key file forms KeePass reads, a vault made and sealed again with one,
+//! and pykeepass (`tools/vectors/kdbx/keyed.py`) opening a file Faraday
+//! sealed and the other way. The pykeepass checks are skipped, and said,
+//! where it is not installed.
 #![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
@@ -12,7 +11,7 @@ use std::process::Command;
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::Cost;
 use faraday_vault::file::{self, Error, Opened};
-use faraday_vault::kdbx::keyfile::{self, KeyFileError, SecretError};
+use faraday_vault::kdbx::keyfile::{self, KeyFileError};
 use faraday_vault::kdbx::{self, Components, RANDOM_LEN};
 
 const PASSPHRASE: &str = "keyed vector passphrase";
@@ -38,21 +37,8 @@ fn key() -> [u8; 32] {
     std::array::from_fn(|i| i as u8)
 }
 
-const SECRET_HEX: &str = "000102030405060708090a0b0c0d0e0f10111213";
-
 fn with_key() -> Components {
     Components::with_key_file(key().into())
-}
-
-fn with_secret() -> Components {
-    Components::with_yubikey(keyfile::secret(SECRET_HEX).expect("40 digits"))
-}
-
-fn with_both() -> Components {
-    Components::new(
-        Some(key().into()),
-        Some(keyfile::secret(SECRET_HEX).expect("40 digits")),
-    )
 }
 
 fn make(components: &Components, random: &[u8; RANDOM_LEN]) -> Vec<u8> {
@@ -765,51 +751,10 @@ fn only_the_versions_keepassxc_reads_are_taken() {
 }
 
 #[test]
-fn a_secret_is_forty_digits_however_a_tool_prints_them() {
-    let want = *keyfile::secret(SECRET_HEX).unwrap();
-    assert_eq!(want[0], 0x00);
-    assert_eq!(want[19], 0x13);
-    for form in [
-        SECRET_HEX.to_uppercase(),
-        "00010203 04050607 08090a0b 0c0d0e0f 10111213".to_string(),
-        "00:01:02:03:04:05:06:07:08:09:0a:0b:0c:0d:0e:0f:10:11:12:13".to_string(),
-    ] {
-        assert_eq!(*keyfile::secret(&form).unwrap(), want, "{form}");
-    }
-    assert_eq!(
-        keyfile::secret(&SECRET_HEX[..38]).err(),
-        Some(SecretError {
-            digits: 38,
-            stray: false
-        })
-    );
-    assert_eq!(
-        keyfile::secret(&format!("{SECRET_HEX}00")).err(),
-        Some(SecretError {
-            digits: 42,
-            stray: false
-        })
-    );
-    assert!(
-        keyfile::secret(&format!("{}g", &SECRET_HEX[..39]))
-            .unwrap_err()
-            .stray
-    );
-}
-
-#[test]
-fn a_vault_with_a_key_file_or_a_secret_opens_only_with_what_it_was_made_with() {
-    let kinds: [fn() -> Components; 3] = [with_key, with_secret, with_both];
-    for made_with in kinds {
-        let bytes = make(&made_with(), &random(2));
-        assert!(open(&bytes, made_with()).is_ok());
-        assert!(is_wrong_credentials(open(&bytes, Components::none())));
-        for other in kinds {
-            let (m, o) = (made_with(), other());
-            let same = o.has_key_file() == m.has_key_file() && o.has_yubikey() == m.has_yubikey();
-            assert_eq!(open(&bytes, o).is_ok(), same);
-        }
-    }
+fn a_vault_with_a_key_file_opens_only_with_it() {
+    let bytes = make(&with_key(), &random(2));
+    assert!(open(&bytes, with_key()).is_ok());
+    assert!(is_wrong_credentials(open(&bytes, Components::none())));
     // The same passphrase alone is a different vault.
     assert!(is_wrong_credentials(open(
         &make(&Components::none(), &random(2)),
@@ -819,33 +764,11 @@ fn a_vault_with_a_key_file_or_a_secret_opens_only_with_what_it_was_made_with() {
 
 #[test]
 fn a_seal_keeps_what_the_vault_was_opened_with() {
-    let kinds: [fn() -> Components; 3] = [with_key, with_secret, with_both];
-    for components in kinds {
-        let first = make(&components(), &random(3));
-        let opened = open(&first, components()).unwrap();
-        let second = file::seal(&compute(), &opened, &[], &random(4), Some(1_700_000_100)).unwrap();
-        assert!(open(&second, components()).is_ok());
-        assert!(is_wrong_credentials(open(&second, Components::none())));
-    }
-}
-
-#[test]
-fn a_salt_ending_0x20_is_changed_to_0x21_only_when_a_secret_is_held() {
-    let mut r = random(5);
-    r[44 + 31] = 0x20;
-    let salt = |bytes: &[u8]| {
-        let want = &r[44..44 + 31];
-        let at = bytes
-            .windows(31)
-            .position(|w| w == want)
-            .expect("the salt is in the header");
-        bytes[at + 31]
-    };
-    assert_eq!(salt(&make(&Components::none(), &r)), 0x20);
-    assert_eq!(salt(&make(&with_key(), &r)), 0x20);
-    let kept = make(&with_secret(), &r);
-    assert_eq!(salt(&kept), 0x21);
-    assert!(open(&kept, with_secret()).is_ok());
+    let first = make(&with_key(), &random(3));
+    let opened = open(&first, with_key()).unwrap();
+    let second = file::seal(&compute(), &opened, &[], &random(4), Some(1_700_000_100)).unwrap();
+    assert!(open(&second, with_key()).is_ok());
+    assert!(is_wrong_credentials(open(&second, Components::none())));
 }
 
 fn repo(path: &str) -> PathBuf {
@@ -932,60 +855,6 @@ fn pykeepass_opens_a_vault_faraday_sealed_with_a_key_file_and_the_other_way() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-#[test]
-fn pykeepass_opens_a_vault_faraday_sealed_under_a_secret_and_the_other_way() {
-    let dir = scratch("secret");
-    let sealed = dir.join("faraday.kdbx");
-    // The salts end in other bytes than the padding byte's 0x20, which no
-    // outside value covers: the padding strip is checked against keyed.py,
-    // Faraday's own script, only in a_salt_ending_0x20_is_changed_to_0x21.
-    for (n, both) in [(7u8, false), (8, true)] {
-        let components = if both { with_both() } else { with_secret() };
-        std::fs::write(&sealed, make(&components, &random(n))).unwrap();
-        let mut args = vec![
-            "read",
-            sealed.to_str().unwrap(),
-            PASSPHRASE,
-            "--secret",
-            SECRET_HEX,
-        ];
-        if both {
-            args.extend(["--key", KEY_HEX]);
-        }
-        let Some(out) = keyed_py(&args) else {
-            return;
-        };
-        assert!(
-            out.status.success(),
-            "{}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-    }
-    for (both, components) in [(false, with_secret()), (true, with_both())] {
-        let theirs = dir.join("pykeepass.kdbx");
-        let mut args = vec![
-            "make",
-            theirs.to_str().unwrap(),
-            PASSPHRASE,
-            "--secret",
-            SECRET_HEX,
-        ];
-        if both {
-            args.extend(["--key", KEY_HEX]);
-        }
-        let made = keyed_py(&args).unwrap();
-        assert!(
-            made.status.success(),
-            "{}",
-            String::from_utf8_lossy(&made.stderr)
-        );
-        let bytes = std::fs::read(&theirs).unwrap();
-        assert_eq!(open(&bytes, components).err(), None, "both {both}");
-        assert!(is_wrong_credentials(open(&bytes, Components::none())));
-    }
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
 fn vector(name: &str) -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tools/vectors/kdbx")
@@ -1048,13 +917,12 @@ fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passp
     )));
 }
 
-/// kdbxweb (KeeWeb's library) made it with a function standing in for the
-/// YubiKey: HMAC-SHA1 under `SECRET_HEX`. The file is as kdbxweb wrote it,
-/// its inner header ending in a field that holds four bytes.
+/// kdbxweb (KeeWeb's library) made it with a function standing in for a
+/// YubiKey's challenge-response. Faraday takes no such key: the file is
+/// refused as wrong credentials, whatever else is given with the passphrase.
 #[test]
-fn a_vault_kdbxweb_locked_with_a_passphrase_and_a_yubikey_opens_with_its_secret() {
+fn a_vault_locked_with_a_passphrase_and_a_yubikey_is_refused_as_wrong_credentials() {
     let bytes = vector("kdbxweb-yubikey-password.kdbx");
-    opens_to_example_and_other(&bytes, PASSPHRASE, with_secret());
     assert!(is_wrong_credentials(open_as(
         &bytes,
         PASSPHRASE,

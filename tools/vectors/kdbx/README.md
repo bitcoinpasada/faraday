@@ -22,7 +22,7 @@ passphrase`, at a low cost, Argon2 with 8 MiB of memory, 2 passes and 2 lanes.
 | `keepassxc-2.7-aes-argon2d-gzip-edited.kdbx` | AES-256 | Argon2d | gzip | 4.0, as KeePassXC 2.7.12 saved it after an edit: the `Example` entry's password changed twice (`hunter4`, with three earlier versions in its history), its `note.txt` attachment (`public attachment`), a group `Second` holding an entry `Other` (user `bob`, password `secret5`), and the database's custom data (`KPXC_DECRYPTION_TIME_PREFERENCE`, `KPXC_RANDOM_SLUG`, `_LAST_MODIFIED`); on `Example`, a tag (`sample`), icon number 5 and an item of custom data (`my.note`), set with pykeepass before `keepassxc-cli` saved the file, which kept all three |
 | `keepassxc-keyfile-password.kdbx` | AES-256 | Argon2d | gzip | 4.0, `pykeepass-aes-argon2d-gzip.kdbx` locked by `keepassxc-cli` with the key file `keepassxc.keyx` as well as its passphrase (`kdbx vector passphrase`), plus an entry `Other` (user `bob`, password `secret5`) |
 | `keepassxc-keyfile-only.kdbx` | AES-256 | Argon2d | gzip | 4.0, as above with the key file and no passphrase (refused: a vault has a passphrase) |
-| `kdbxweb-yubikey-password.kdbx` | AES-256 | Argon2d | gzip | 4.0, made by kdbxweb 2.1.1 (KeeWeb's library, MIT) under the passphrase `keyed vector passphrase` and a YubiKey's challenge-response function, HMAC-SHA1 under the secret `000102030405060708090a0b0c0d0e0f10111213`; entries `Example` and `Other` as above |
+| `kdbxweb-yubikey-password.kdbx` | AES-256 | Argon2d | gzip | 4.0, made by kdbxweb 2.1.1 (KeeWeb's library, MIT) under the passphrase `keyed vector passphrase` and a YubiKey's challenge-response function, HMAC-SHA1 under the secret `000102030405060708090a0b0c0d0e0f10111213`; entries `Example` and `Other` as above (refused as wrong credentials: Faraday takes no YubiKey) |
 | `keepassxc-3.1-aeskdf.kdbx` | AES-256 | AES-KDF | gzip | 3.1 (refused) |
 
 How they are made: `python3 -I -B tools/vectors/kdbx/make.py OUT_DIR [NAME...]`
@@ -45,8 +45,8 @@ again byte for byte by the same tests.
 
 `reread.py FILE PASSPHRASE` opens a file with pykeepass and prints its entries, for the test that reads back what `faraday-vault` wrote.
 
-`keyed.py` makes and reads, with pykeepass, a file that needs a key file or a
-YubiKey's secret (`docs/VAULT.md` §3.2); `faraday/faraday-vault/tests/keyed.rs`
+`keyed.py` makes and reads, with pykeepass, a file that needs a key file
+(`docs/VAULT.md` §3.2); `faraday/faraday-vault/tests/keyed.rs`
 runs it in both directions. It writes nothing into this folder.
 
 `keyfile_write.py OUT_DIR` makes `faraday-key-file.keyx` (a KeePass XML key
@@ -63,9 +63,4 @@ gives back unchanged. Same licence as the other made vectors.
 document). `make-keepassxc.sh OUT_DIR` makes it and the two `keepassxc-keyfile-*`
 files (keepassxc-cli 2.7.10; `db-create` writes KDBX 3.1, so they start as
 `pykeepass-aes-argon2d-gzip.kdbx`, which `db-edit` keeps as KDBX 4). Like the
-edited file they are not reproducible byte for byte. `make-yubikey.sh OUT_DIR`
-(with `make-yubikey.mjs`) makes the kdbxweb file, with `npm install` of kdbxweb
-2.1.1 and hash-wasm 4.13.0 (MIT, Argon2) into a scratch directory; kdbxweb takes
-the YubiKey as a function from the challenge to the 20-byte response, so no
-hardware is involved. kdbxweb ends the inner header with a 4-byte end field, where KeePass writes it empty; the file is as kdbxweb wrote it, and Faraday's reader ignores the end field's bytes, as KeePass and KeePassXC do. Faraday's reader computing the same composite key from the
-secret is the outside check of its YubiKey response.
+edited file they are not reproducible byte for byte. `kdbxweb-yubikey-password.kdbx` was made once by kdbxweb 2.1.1 with hash-wasm 4.13.0 (MIT, Argon2), the YubiKey a function from the challenge to the 20-byte response, so no hardware was involved; it is kept as a file Faraday refuses as wrong credentials, and no script makes it again.

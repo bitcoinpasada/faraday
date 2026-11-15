@@ -230,8 +230,8 @@ pub struct Opened {
     /// opened.
     document_len: usize,
     passphrase: Zeroizing<Vec<u8>>,
-    /// The key file's key and the YubiKey's secret the file was opened
-    /// with, which a seal puts back in the composite key (§3.2).
+    /// The key file's key the file was opened with, which a seal puts back
+    /// in the composite key (§3.2).
     components: Components,
 }
 
@@ -296,7 +296,7 @@ pub fn open_within(
 }
 
 /// Costs what [`open`] costs. [`open_within`] for a file that also needs a
-/// key file or a YubiKey's secret (§3.2, F208): `components`, which the
+/// key file (§3.2, F208): `components`, which the
 /// opened vault keeps for its seals (moved in: no second copy is made).
 pub fn open_with(
     c: &Compute,
@@ -463,13 +463,10 @@ impl Opened {
         self.doc.vault_id()
     }
 
-    /// A lookup. Whether the file was opened with a key file and with a
-    /// YubiKey's secret, which its seals write again.
-    pub fn components_held(&self) -> (bool, bool) {
-        (
-            self.components.has_key_file(),
-            self.components.has_yubikey(),
-        )
+    /// A lookup. Whether the file was opened with a key file, which its
+    /// seals write again.
+    pub fn key_file_held(&self) -> bool {
+        self.components.has_key_file()
     }
 
     /// Why the vault is not changed or sealed, if it is not.
@@ -617,8 +614,6 @@ pub struct Rekey<'a> {
     /// The key file's key the seal writes: `Some(None)` takes the key file
     /// out, `Some(Some(key))` adds or replaces it; none keeps the file's own.
     pub key_file: Option<Option<&'a [u8; 32]>>,
-    /// Takes the YubiKey's secret out of the seal.
-    pub drop_yubikey: bool,
 }
 
 /// Costs what [`seal_with`] costs. [`seal_with`] with no new passphrase and
@@ -670,9 +665,7 @@ pub fn seal_with(
         Some(p) => p,
         None => core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
     };
-    let components = opened
-        .components
-        .changed(rekey.key_file, rekey.drop_yubikey);
+    let components = opened.components.changed(rekey.key_file);
     let sealing = kdbx::derive_with(
         c,
         passphrase,

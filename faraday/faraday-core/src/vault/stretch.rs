@@ -197,21 +197,18 @@ fn unlock_start(app: &mut Faraday) -> bool {
     let cost = f.facts.header.cost;
     // Unlocked on the boot import's sheet: the unlock imports.
     let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
-    // The key file and the secret are read for this try and wiped as the
-    // job ends; the chip and the field stay for another.
+    // The key file is read for this try and wiped as the job ends; the
+    // chip stays for another.
     // A vault just made unlocks at once with the key file it was made with.
     let made = app.vaults.state.store.take_made_parts();
     let Ok(components) = made.map_or_else(|| super::unlock_keys::parts(app), Ok) else {
         return false;
     };
-    app.vaults.state.unlock_tried = (components.has_key_file(), components.has_yubikey());
+    app.vaults.state.unlock_tried = components.has_key_file();
     let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
     // The unlock and its parse check are held to what is free now.
     app.vaults.read_free();
-    // An open is never refused by `keyed`; if it were, nothing starts.
-    let Ok(job) = open_job(app, bytes, passphrase).keyed(components) else {
-        return false;
-    };
+    let job = open_job(app, bytes, passphrase).keyed(components);
     app.start(
         Job::Stretch(Box::new(StretchWork {
             job,
@@ -333,11 +330,7 @@ fn create_start(app: &mut Faraday) -> bool {
     let job = StretchJob::make(id16, Text::of(label), cost, phrase, seal, now);
     let (job, key) = match (drawn, chosen) {
         (Some(random), _) => (job.making_key_file(&random), Made::Drawn),
-        (None, Some((name, parts))) => match job.keyed(parts) {
-            Ok(job) => (job, Made::Chosen(name.duplicate())),
-            // Only a YubiKey's secret is refused, and Create offers none.
-            Err(_) => return false,
-        },
+        (None, Some((name, parts))) => (job.keyed(parts), Made::Chosen(name.duplicate())),
         (None, None) => (job, Made::No),
     };
     let typed = Text::of(&form.name.text);
@@ -456,11 +449,10 @@ fn unlocked(
             app.vaults.state.unlock_error = Some(match e {
                 // What was tried says what to try again.
                 faraday_vault::file::Error::Kdbx(faraday_vault::kdbx::Error::Passphrase) => {
-                    Text::of(match app.vaults.unlock_tried {
-                        (false, false) => EN.vault_error_wrong,
-                        (true, false) => EN.vault_error_wrong_key_file,
-                        (false, true) => EN.vault_error_wrong_yubikey,
-                        (true, true) => EN.vault_error_wrong_both,
+                    Text::of(if app.vaults.unlock_tried {
+                        EN.vault_error_wrong_key_file
+                    } else {
+                        EN.vault_error_wrong
                     })
                 }
                 e => Text::of(&errors::stopped_text(&e, &name, app.vaults.memory_free_mib)),
@@ -516,7 +508,7 @@ fn created(
             // waiting copy or backup flow does that.
             let mut parts = match (&key, &document) {
                 (Made::Chosen(f), _) => unlock_keys::file_parts(app, f).ok(),
-                (Made::Drawn, Some(d)) => UnlockParts::read(Some(d), None).ok(),
+                (Made::Drawn, Some(d)) => UnlockParts::read(Some(d)).ok(),
                 _ => None,
             };
             if matches!(key, Made::Drawn) {

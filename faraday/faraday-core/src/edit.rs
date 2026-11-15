@@ -601,7 +601,6 @@ impl Faraday {
             | Screen::SpendBackup
             | Screen::Codes => Some(Action::Vault(match self.vaults.focus? {
                 F::Passphrase => V::FocusPassphrase,
-                F::YubiKey => V::FocusYubiKey,
                 F::Phrase(i, second) => V::CFocus(i, second),
                 F::Field(k) => V::FocusField(k),
                 F::Dice => V::Dice(self.vaults.dice.open().map_or(0, |d| d.0)),
@@ -680,7 +679,6 @@ impl Faraday {
                 let v = &self.vaults;
                 match self.vaults.focus? {
                     F::Passphrase => &v.passphrase.text,
-                    F::YubiKey => &v.yubikey.as_ref()?.text,
                     F::Phrase(i, second) => {
                         let (a, b) = v.create.as_ref()?.phrases.get(i)?;
                         if second { &b.text } else { &a.text }
