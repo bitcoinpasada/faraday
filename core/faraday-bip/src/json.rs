@@ -264,10 +264,18 @@ impl<'de> Visitor<'de> for Seed<'_> {
         let mut members: Vec<(Text, Value)> = Vec::new();
         while let Some(key) = map.next_key_seed(KeyText)? {
             let v = map.next_value_seed(self.inside())?;
-            if members.iter().any(|(k, _)| *k == key) {
-                return Err(self.refuse(Error::DuplicateKey));
-            }
             members.push((key, v));
+        }
+        // Duplicates are found by sorting the positions by key and
+        // comparing neighbours, so the check costs n log n and keeps no
+        // second copy of a key.
+        let mut order: Vec<usize> = (0..members.len()).collect();
+        order.sort_unstable_by(|&a, &b| members[a].0.as_str().cmp(members[b].0.as_str()));
+        if order
+            .windows(2)
+            .any(|w| members[w[0]].0.as_str() == members[w[1]].0.as_str())
+        {
+            return Err(self.refuse(Error::DuplicateKey));
         }
         Ok(Value::Object(members))
     }

@@ -600,18 +600,20 @@ impl PsbtV2 {
         let n_in = count(GLOBAL_INPUT_COUNT, "PSBT_GLOBAL_INPUT_COUNT")?;
         let n_out = count(GLOBAL_OUTPUT_COUNT, "PSBT_GLOBAL_OUTPUT_COUNT")?;
         // Every map takes at least its terminating byte, so a count
-        // above what is left is refused before anything is allocated.
+        // above what is left is refused. The lists grow as maps are read:
+        // a map is far larger than its one byte, so nothing is reserved
+        // from a count the bytes have not yet backed.
         let left = (bytes.len() - r.at) as u64;
         if n_in.saturating_add(n_out) > left {
             return Err(Error::Truncated);
         }
-        let mut inputs = Vec::with_capacity(n_in as usize);
+        let mut inputs = Vec::new();
         for _ in 0..n_in {
             let map = r.map()?;
             check_input(&map)?;
             inputs.push(map);
         }
-        let mut outputs = Vec::with_capacity(n_out as usize);
+        let mut outputs = Vec::new();
         for _ in 0..n_out {
             let map = r.map()?;
             if map.get_type(OUT_AMOUNT).map(<[u8]>::len) != Some(8) {

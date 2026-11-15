@@ -219,3 +219,24 @@ fn other_wallets_files_read_as_json() {
         assert!(json::parse(text).is_ok());
     }
 }
+
+#[test]
+fn an_object_of_many_members_is_checked_for_repeats_in_little_time() {
+    let mut text = String::from("{");
+    for n in 0..70_000 {
+        if n > 0 {
+            text.push(',');
+        }
+        text.push_str(&format!("\"{n}\":0"));
+    }
+    text.push('}');
+    let start = std::time::Instant::now();
+    assert!(json::parse(&text).is_ok());
+    assert!(
+        start.elapsed().as_millis() < 1000,
+        "took {:?}",
+        start.elapsed()
+    );
+    let repeated = text.replacen("\"69999\"", "\"0\"", 1);
+    assert_eq!(json::parse(&repeated), Err(Error::DuplicateKey));
+}
