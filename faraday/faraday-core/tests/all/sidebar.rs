@@ -77,7 +77,7 @@ fn the_sidebar_offers_guide_and_opens_the_guide_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Guide));
 }
 
-/// Spend left the sidebar (`docs/history/SIMPLIFY.md` §6.2): the Wallets empty
+/// Spend left the sidebar: the Wallets empty
 /// state and the guide sheet are its ways in now.
 #[test]
 fn the_sidebar_has_no_spend_row() {

@@ -62,7 +62,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
-    // of them (`docs/history/SIMPLIFY.md` §2.4).
+    // of them.
     if app.entry.state().other_forms {
         let forms: Vec<(&str, Style, Action)> = crate::forms::Form::ALL
             .iter()
@@ -83,7 +83,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     // Scan leads, above the words: primary until a word is typed, when
-    // Add key is (`docs/history/SCAN-TO-SIGN.md` §2.5).
+    // Add key is.
     ui.button(
         x,
         y,
@@ -107,7 +107,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// status under them: the word count, the word fields or a list's own
 /// keyboard, the words the letters can still become, and the count and
 /// checksum. Add a key draws it, and so does New key's Words card for a
-/// key typed (`docs/history/NEW-WALLET.md` §15.2). `page`: on Add a key's own
+/// key typed. `page`: on Add a key's own
 /// page, whose row of lists offers Other forms too. Returns where the
 /// next row starts.
 pub(crate) fn entry_words(
@@ -591,7 +591,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
 /// (`entry`) knows how tall its content is.
 ///
 /// New key's Words card for a key typed in another form draws it too,
-/// with `flow` its Continue (`docs/history/NEW-WALLET.md` §15.2): no passphrase
+/// with `flow` its Continue: no passphrase
 /// (Key asks it), no way in from a stick, and Continue in place of Make
 /// the key, under what is above it.
 pub(crate) fn entry_form(

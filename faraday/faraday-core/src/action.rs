@@ -26,10 +26,10 @@ pub enum Action {
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
     /// Open Back up a wallet on loaded wallet `i` at its checklist, from
-    /// the plan its chart shows (`docs/history/NEW-WALLET.md` §6.2). Nothing is
+    /// the plan its chart shows. Nothing is
     /// made For the stick by opening it: each item offers what it makes.
     BackupChecklist(usize),
-    /// Finish the backup first (`docs/history/NEW-WALLET.md` §14.3): wallet `i`'s
+    /// Finish the backup first (`docs/WALLETS.md` §13): wallet `i`'s
     /// checklist, or its plan when none is made.
     BackupFirst(usize),
     /// Open, or close, the wallet's chart as its own page on a small
@@ -45,7 +45,7 @@ pub enum Action {
     /// menu, or a compact bar's overflow.
     NavMenu(nav::MenuPress),
     /// A press on the wallet's chart or one of its sheets
-    /// (`docs/history/NEW-WALLET.md` §9).
+    /// (`docs/WALLETS.md` §12).
     Chart(glance::sheet::ChartAction),
     /// A press in the backup flow (`docs/BACKUP-FLOW.md`).
     Flow(backup_flow::steps::FlowAction),
@@ -445,7 +445,7 @@ pub enum Action {
     /// Clear the typed digits.
     BCheckClear,
     /// Keep the words only: the open copy item's SeedQR copies become
-    /// copies of the words (`docs/history/NEW-WALLET.md` §14.7 item 3).
+    /// copies of the words (`docs/WALLETS.md` §13).
     BKeepWords,
     /// **Which copy was this?**: the place offered `n`th is the one a
     /// match dates (`docs/BACKUP-FLOW.md` §18.3).
@@ -534,10 +534,10 @@ pub enum Action {
     // NEW-WALLET §16 (F45): keys from a vault in Create; a new wallet
     // from one held.
     /// Fill slot s with key record r of open vault v, loading that key
-    /// (`docs/history/NEW-WALLET.md` §16.1).
+    /// (`docs/WALLETS.md` §14).
     CSlotVault(u8, usize, usize),
     /// The Account row (F98): 0 its **Change**, opening the stepper;
-    /// −1 and +1 the stepper (`docs/history/NEW-WALLET.md` §16.2, §17).
+    /// −1 and +1 the stepper (`docs/WALLETS.md` §14).
     CAccount(i8),
     /// The path choice beside the Account row of a multisig kind: true
     /// BIP-87's `m/87'/coin'/account'`, false the kind's own path.
@@ -549,7 +549,7 @@ pub enum Action {
     /// Account row's card open on its stepper (F98).
     CPathChange,
     /// A wallet card's **New wallet from this one**: Create filled from
-    /// wallet i (`docs/history/NEW-WALLET.md` §16.2).
+    /// wallet i (`docs/WALLETS.md` §14).
     NewWalletFrom(usize),
     /// The secret on its way out into the open vault.
     SecretVault,
@@ -692,13 +692,12 @@ pub enum Action {
     /// (`docs/CRYPTO-LEARN.md` §8.2).
     How,
     /// **What is a share?** beside the backup plan's In shares: the
-    /// The guide sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
+    /// The guide sheet on the page about shares.
     GuideShares,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the
-    /// session it is Add a key, opening on Start (`docs/history/NEW-WALLET.md`
-    /// §15.3).
+    /// session it is Add a key, opening on Start.
     KeyGen(Option<u8>),
     /// Open or close a new-key card.
     KStep(u8),
@@ -844,8 +843,7 @@ pub enum Action {
     /// have it** (several): the wallet is made from the
     /// seeds and the cosigners' xpubs at the kind's standard path.
     RSeeds,
-    /// Restore's Kind, by its place in `NewKind::ALL`
-    /// (`docs/history/NEW-WALLET.md` §12.1).
+    /// Restore's Kind, by its place in `NewKind::ALL`.
     RKind(u8),
     /// Restore's Kind card shows every kind.
     RMoreKinds,

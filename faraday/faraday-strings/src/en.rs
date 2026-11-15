@@ -3505,21 +3505,21 @@ strings! {
     keygen_make_a_new_wallet: "Make a new wallet",
     /// Text in `draw`.
     keygen_add_a_key: "Add a key",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_start: "Start",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_make_a_new_key: "Make a new key",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_type_the_words: "Type the words",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_scan_a_seedqr: "Scan a SeedQR",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_make_slip_39_shares: "Make SLIP-39 shares",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_type_slip_39_shares: "Type SLIP-39 shares",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_type_a_codex32: "Type codex32 strings",
-    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
+    /// New key's Start card.
     keygen_type_seed_xor: "Type Seed XOR parts",
     /// Text in `draw`.
     keygen_tools: "Tools",
@@ -7040,7 +7040,7 @@ strings! {
     /// line, the kind's or the wallet's name; the account.
     create_at_account: "{} · account {}",
     /// Label in `create_body`: Check's row of the made wallet's
-    /// derivation paths (`docs/history/NEW-WALLET.md` §17).
+    /// derivation paths (`docs/WALLETS.md` §14).
     create_path: "Path",
     /// Button in `create_body`: Check's Path row, back to the Account
     /// row (F98).
@@ -10259,7 +10259,7 @@ strings! {
     /// no randomness.
     vaults_changes_not_sealed: "Changes not sealed",
     /// The pill under Lock while Make a new wallet's keys are kept
-    /// nowhere yet (`docs/history/NEW-WALLET.md` §18).
+    /// nowhere yet.
     lock_held_pill: "Auto-lock off until backup complete",
     /// The lock and power sheets' wiped line then: the flow ends.
     lock_held_ends: "Make a new wallet · ends",

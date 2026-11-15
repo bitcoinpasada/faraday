@@ -56,8 +56,7 @@ fn home_job(app: &View) -> Option<Lead> {
 fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     use crate::vault::VaultAction as V;
     let mut v = Vec::new();
-    // Rule 1: a spend under way; of a wallet loaded, as its card says it
-    // (`docs/history/NEW-WALLET.md` §11.2).
+    // Rule 1: a spend under way; of a wallet loaded, as its card says it.
     if let Some(s) = app.wallets.spend()
         && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
     {

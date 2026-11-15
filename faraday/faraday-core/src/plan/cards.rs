@@ -172,7 +172,7 @@ pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<Text> {
     ))
 }
 
-/// What holds The plan's way on (`docs/history/NEW-WALLET.md` §14.2, §14.4): a
+/// What holds The plan's way on (`docs/WALLETS.md` §13): a
 /// vault that holds nothing, a key made here kept nowhere
 /// (`kept_nowhere`, the caller's). A vault's stick at no place is a
 /// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §17.16).
@@ -195,7 +195,7 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
     let act = |p: PlanPress| ctx.act(p);
     let mut cy = y;
     // F1's one line of fact, where a key made here waits for this backup
-    // (`docs/history/NEW-WALLET.md` §14.5): over the board too, which a new plan
+    // (`docs/WALLETS.md` §13): over the board too, which a new plan
     // opens on.
     let held = ctx.wallet.is_some_and(|wl| !app.wallet_held(wl).is_empty());
     if q == qstep::BOARD {
@@ -327,7 +327,7 @@ pub(crate) fn map_rows(
         cy += 8.0;
     }
     // Work an earlier plan did that this one dropped, as it is: the copy
-    // exists until it is destroyed (`docs/history/NEW-WALLET.md` §14.4).
+    // exists until it is destroyed (`docs/WALLETS.md` §13).
     for line in &ctx.extras {
         let top = cy;
         let (ix, iw) = if boxed { (x + 12.0, w - 24.0) } else { (x, w) };
@@ -360,7 +360,7 @@ pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32,
     let c = ctx.check;
     let name = |p: usize| faraday_text::Text::of(&ctx.name(p));
     let mut h = crate::glance::check_lines(ui, x, y, w, c, false, &name);
-    // Why "Any one place lost" reads No (`docs/history/NEW-WALLET.md` §14.2).
+    // Why "Any one place lost" reads No (`docs/WALLETS.md` §13).
     if let Some(why) = plan::lost_why_on(
         &ctx.shape,
         &ctx.answers,

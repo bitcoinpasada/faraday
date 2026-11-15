@@ -1956,7 +1956,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += seals_head(app, ui, v, (x, y, w), beside);
 
     // Three columns: kinds, items, the item. A wallet's chart takes the
-    // room the other two give up (`docs/history/NEW-WALLET.md` §7.2).
+    // room the other two give up.
     let chart_shown = app
         .vault_selected_index()
         .and_then(|i| app.vaults.records(v.id).get(i))
@@ -3100,8 +3100,8 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
 
 /// A wallet's chart, descriptor, load setting and actions.
 fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
-    // The wallet's chart the other way up (`docs/history/NEW-WALLET.md`
-    // §7.2): where each seed is kept, its keys, the wallet.
+    // The wallet's chart the other way up:
+    // where each seed is kept, its keys, the wallet.
     let up = crate::glance::Direction::BackupFirst;
     if let Some(g) = app
         .vault_selected_index()

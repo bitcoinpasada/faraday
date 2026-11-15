@@ -1,5 +1,5 @@
-//! A copy of a seed by hand is checked by its form (`docs/history/NEW-WALLET.md`
-//! §14.7): the words are typed back, a SeedQR is scanned. This is the
+//! A copy of a seed by hand is checked by its form (`docs/WALLETS.md` §13):
+//! the words are typed back, a SeedQR is scanned. This is the
 //! typed check, which types through the word entry Add a key uses
 //! ([`crate::forms::word_key`]), and the rules for which checks a copy
 //! item asks for. A passphrase on paper is checked the same way, typed
@@ -207,7 +207,7 @@ pub(crate) struct WordsUse<'a> {
 }
 
 /// The scans without a match after which **Keep the words only** moves
-/// to the item's foot (`docs/history/NEW-WALLET.md` §14.7 item 3).
+/// to the item's foot (`docs/WALLETS.md` §13).
 pub(crate) const MISSES: u8 = 3;
 
 impl BackupState {

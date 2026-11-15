@@ -1,4 +1,4 @@
-//! The Backups screen's content (`docs/history/SIMPLIFY.md` §5): every wallet the
+//! The Backups screen's content: every wallet the
 //! app knows, once each by descriptor checksum, and under each the backup
 //! map as the plan draws it, each place with what this device saw of it.
 //!
@@ -2336,7 +2336,7 @@ impl Faraday {
             || self.plan_load_of(c, w, &self.plan_shape_of(w)).is_some()
     }
 
-    /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2): "Backup:
+    /// The wallet card's backup line: "Backup:
     /// paper ×2 checked · vault.kdbx · for the stick", or "Not backed up",
     /// from the wallet's map ([`Faraday::backup_map_of`]). Cheap.
     pub(crate) fn backup_line_from(&self, map: Option<Vec<Line>>) -> Text {

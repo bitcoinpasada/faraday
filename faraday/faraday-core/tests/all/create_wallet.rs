@@ -2,7 +2,7 @@
 //! and the card after it open; a kind pressed moves on by itself, the
 //! ticked one too. Multisig and Single key, backup in shares are the
 //! other everyday choices, and the other eight kinds are behind More
-//! kinds. It ends in the backup plan (`docs/history/SIMPLIFY.md` §2.3):
+//! kinds. It ends in the backup plan:
 //! Keys' Make the wallet makes it, Check's It matches follows, and Back
 //! up offers the plan's presets.
 

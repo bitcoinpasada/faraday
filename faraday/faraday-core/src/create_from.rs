@@ -1,5 +1,5 @@
 //! Keys from a vault on Create's Keys card, and a new wallet made from
-//! one already held (`docs/history/NEW-WALLET.md` §16, F45).
+//! one already held (`docs/WALLETS.md` §14, F45).
 //!
 //! The Keys card offers, under each slot's session keys, the keys of
 //! every open vault that are not loaded, and one Unlock row for each
@@ -42,8 +42,8 @@ pub(crate) struct VaultKeys {
     pub keys: Vec<VaultKey>,
 }
 
-/// What the Keys card offers from the vaults (`docs/history/NEW-WALLET.md`
-/// §16.1): the open vaults' keys, and the locked vaults, each by its
+/// What the Keys card offers from the vaults (`docs/WALLETS.md` §14):
+/// the open vaults' keys, and the locked vaults, each by its
 /// place in [`Faraday::vault_files`] and its name.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CreateVaults {
@@ -112,8 +112,8 @@ impl Faraday {
         out
     }
 
-    /// The Keys card's press on a vault's key (`docs/history/NEW-WALLET.md`
-    /// §16.1): loads that one record into the session, with the
+    /// The Keys card's press on a vault's key (`docs/WALLETS.md` §14):
+    /// loads that one record into the session, with the
     /// passphrase the record stores, as Load into session does, and fills
     /// slot `slot` with it. The vault stays open and unchanged. Costs the
     /// key's seed and master key.
@@ -175,7 +175,7 @@ impl Faraday {
     }
 
     /// The lowest account no loaded wallet of `kind` over the keys `fps`
-    /// uses (`docs/history/NEW-WALLET.md` §16.2).
+    /// uses (`docs/WALLETS.md` §14).
     fn create_free_account(&self, kind: NewKind, fps: &[[u8; 4]]) -> u32 {
         let set = |list: Vec<[u8; 4]>| list.into_iter().collect::<BTreeSet<_>>();
         let want = set(fps.to_vec());
@@ -200,7 +200,7 @@ impl Faraday {
     }
 
     /// **New wallet from this one** on wallet `i`'s card
-    /// (`docs/history/NEW-WALLET.md` §16.2): Create filled from the wallet, its
+    /// (`docs/WALLETS.md` §14): Create filled from the wallet, its
     /// kind, quorum and keys, at the lowest account its keys and kind do
     /// not use, opened on the first card that needs something. A key the
     /// wallet has in an open vault is loaded from there. The wallet is
@@ -306,7 +306,7 @@ impl Faraday {
         self.create.refresh_from();
     }
 
-    /// The Account row (F98, `docs/history/NEW-WALLET.md` §16.2, §17): the
+    /// The Account row (F98, `docs/WALLETS.md` §14): the
     /// account every key of the creation is used at, for every kind that
     /// has one. `d` 0 is the row's **Change**, which opens its stepper;
     /// −1 and +1 step it.
@@ -356,7 +356,7 @@ impl Faraday {
     /// Whether Check's Path row offers **Change**: the kind has an
     /// account, and nothing has used the made wallet yet. Its backup has
     /// not started, and the flow that set up its vaults is where it was
-    /// when the wallet was made (`docs/history/NEW-WALLET.md` §17).
+    /// when the wallet was made (`docs/WALLETS.md` §14).
     pub(crate) fn create_can_take_back(&self) -> bool {
         let Some(c) = self.create.state() else {
             return false;

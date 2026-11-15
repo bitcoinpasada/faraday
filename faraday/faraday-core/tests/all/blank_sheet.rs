@@ -1,5 +1,5 @@
-//! The blank template follows its `copy:` line (`docs/history/NEW-WALLET.md`
-//! §14.7) and says to print at its true size on every page.
+//! The blank template follows its `copy:` line (`docs/WALLETS.md` §13)
+//! and says to print at its true size on every page.
 
 use faraday_bip::keys::Network;
 use faraday_core::wallet_backup::{BlankCopy, sheet_blank};

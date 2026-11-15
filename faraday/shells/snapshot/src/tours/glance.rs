@@ -34,7 +34,7 @@ pub(crate) fn pass_into_vault(c: &Compute, t: &mut Tour, i: usize) {
 /// here, key 2 with a passphrase, and test key 3 a cosigner, with Paper
 /// and vault and key 2's passphrase in its vault too. On a small panel,
 /// each card's At a glance row and the chart's page. The sheets a press
-/// on the chart opens (`docs/history/NEW-WALLET.md` §9): the wallet, a key
+/// on the chart opens (`docs/WALLETS.md` §12): the wallet, a key
 /// here, a cosigner's key, a place, a vault, a line inside a place;
 /// Where it is; and in the open vault's view, a place's.
 pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {

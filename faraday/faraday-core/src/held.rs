@@ -1,5 +1,5 @@
-//! The backup comes before spending (`docs/history/NEW-WALLET.md` §14,
-//! `docs/DECISIONS.md` F6): a key made here signs nothing until a backup
+//! The backup comes before spending (`docs/WALLETS.md` §13, `docs/DECISIONS.md` F6):
+//! a key made here signs nothing until a backup
 //! checklist that keeps its seed, and its passphrase, is complete.
 //!
 //! Which keys are held is known by fingerprint and never by a secret: in

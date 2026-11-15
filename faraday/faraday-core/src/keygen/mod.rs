@@ -151,8 +151,7 @@ impl Way {
 
 /// The cards of the flow, in order.
 pub mod kstep {
-    /// How the key comes in: made here, typed, or scanned
-    /// (`docs/history/NEW-WALLET.md` §15.1).
+    /// How the key comes in: made here, typed, or scanned.
     pub const START: u8 = 0;
     /// 12 or 24 words.
     pub const LENGTH: u8 = 1;
@@ -162,8 +161,8 @@ pub mod kstep {
     /// words the randomness check too, once the last entry is in.
     pub const ENTER: u8 = 3;
     /// The words, a passphrase for a Create slot or a key typed, and Lock
-    /// in, which adds the key; then its fingerprint and what it makes
-    /// (`docs/history/NEW-WALLET.md` §3.3, §15.2). Not for SLIP-39 shares made
+    /// in, which adds the key; then its fingerprint and what it makes.
+    /// Not for SLIP-39 shares made
     /// here.
     pub const KEY: u8 = 4;
     /// Counts, statistics and cautions: SLIP-39 shares only.
@@ -173,7 +172,7 @@ pub mod kstep {
     /// The backup quiz over them.
     pub const QUIZ: u8 = 7;
     /// The words, shares, codex32 strings or Seed XOR parts typed: Add a
-    /// key's form, drawn by the same code (`docs/history/NEW-WALLET.md` §15.2).
+    /// key's form, drawn by the same code.
     pub const TYPED: u8 = 8;
     /// Make codex32 shares' own cards (`docs/CODEX32.md` §6), drawn as
     /// a card each by [`crate::codex32`].
@@ -310,8 +309,7 @@ pub struct KeyGen {
     pub passphrase2: crate::secret_text::SecretText,
     /// Which of the two passphrase fields typing goes to, if either.
     pub focus: Option<u8>,
-    /// The key is added: nothing about it changes after this
-    /// (`docs/history/NEW-WALLET.md` §3.4).
+    /// The key is added: nothing about it changes after this.
     pub locked: bool,
     /// It was locked in with a passphrase.
     pub with_passphrase: bool,
@@ -324,7 +322,7 @@ pub struct KeyGen {
     /// The key as `[fingerprint/path]xpub` at the kind's path, once
     /// locked in: the Create kind's for a slot, native SegWit on its own.
     pub key_text: Option<Text>,
-    /// The Start card's choice (`docs/history/NEW-WALLET.md` §15.1).
+    /// The Start card's choice.
     pub start: Start,
     /// The choice the cards after Start were opened for: a different
     /// one chosen with Change starts them over.
@@ -374,9 +372,9 @@ impl KeyGen {
     /// A fresh flow.
     pub fn new(slot: Option<u8>, back: Screen) -> KeyGen {
         KeyGen {
-            // New key opens on Start, Make a new key ticked
-            // (`docs/history/NEW-WALLET.md` §15.3); its Continue opens Length
-            // (§2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for this flow). Length
+            // New key opens on Start, Make a new key ticked;
+            // its Continue opens Length
+            // (§2.1, reversed for this flow). Length
             // and Randomness still carry defaults and show Change once
             // closed (`DESIGN.md` §4.14), but nothing is done until its
             // own Continue is pressed.
@@ -493,7 +491,7 @@ impl KeyGen {
         }
     }
 
-    /// The cards this flow shows, in order (`docs/history/NEW-WALLET.md` §3.1):
+    /// The cards this flow shows, in order:
     /// BIP-39 words for a Create slot end on Key, since Back up shows
     /// and checks the words; on their own they go on to Words and the
     /// Quiz. SLIP-39 shares keep their Check card and add the key at the
@@ -1118,7 +1116,7 @@ impl crate::Faraday {
     /// Costs what `account_text` costs. The account key of the key just
     /// made, for the Key row: as the Create slot it was made for takes it
     /// (at BIP-87's path when that is chosen), else native SegWit's
-    /// account 0 (`docs/history/NEW-WALLET.md` §16.2).
+    /// account 0 (`docs/WALLETS.md` §14).
     fn made_key_text(
         &self,
         c: &Compute,
@@ -1510,8 +1508,7 @@ impl crate::Faraday {
             return;
         };
         // After lock-in nothing about the key changes: the cards before
-        // Key open to be read, and take no input (`docs/history/NEW-WALLET.md`
-        // §3.3).
+        // Key open to be read, and take no input.
         let inputs_closed = k.locked
             && match action {
                 A::KStep(_) | A::KShow | A::KQuiz(_) | A::KQuizRetry | A::KSkip => false,
@@ -1649,7 +1646,7 @@ impl crate::Faraday {
     /// Lock in, on the Key card: adds the key the words make, with the
     /// passphrase typed for a Create slot, under the self-test gate. For
     /// a slot it fills the slot, and on a single-key Create it makes the
-    /// wallet too (`docs/history/NEW-WALLET.md` §3.3).
+    /// wallet too.
     fn keygen_lock(&mut self) {
         let c = self.compute();
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
@@ -1716,8 +1713,7 @@ impl crate::Faraday {
                 return;
             }
         };
-        // Made here: it signs once its backup is done (`docs/history/NEW-WALLET.md`
-        // §14.3).
+        // Made here: it signs once its backup is done (`docs/WALLETS.md` §13).
         self.mark_made_here(fp);
         self.keygen.new_keys += 1;
         // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
@@ -1743,8 +1739,8 @@ impl crate::Faraday {
 
     /// A key locked in for Create slot `slot`, if any, fills it; on a
     /// single-key Create it makes the wallet too, as Keys' Continue
-    /// would, and Check is what the Key card shows (`docs/history/NEW-WALLET.md`
-    /// §3.3). `made`: the key was made here, not typed.
+    /// would, and Check is what the Key card shows.
+    /// `made`: the key was made here, not typed.
     fn keygen_fill(&mut self, slot: Option<u8>, fp: faraday_bip::keys::Fingerprint, made: bool) {
         let Some(slot) = slot else {
             return;
@@ -1842,7 +1838,7 @@ impl crate::Faraday {
     }
 
     /// Where Lock in goes on to: back to Create for a
-    /// slot, else on to Words (`docs/history/NEW-WALLET.md` §3.4).
+    /// slot, else on to Words.
     fn keygen_continue(&mut self) {
         let Some(k) = self.keygen.state.as_mut() else {
             return;

@@ -333,7 +333,7 @@ impl Pointer {
 }
 
 /// Whether a press on `a` is on a text field: the caret goes where it
-/// was pressed (`docs/history/NEW-WALLET.md` §13.2).
+/// was pressed.
 pub(crate) fn field_action(a: Action) -> bool {
     use crate::seeds;
     use crate::vault::VaultAction as V;

@@ -5,8 +5,8 @@ use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
-/// Add a key, which is New key opening on Start (`docs/history/NEW-WALLET.md`
-/// §15): the Start card, its Other forms, the Words card typed, the Key
+/// Add a key, which is New key opening on Start:
+/// the Start card, its Other forms, the Words card typed, the Key
 /// card for words typed, locked in; then the codex32 tile's Words card;
 /// then a PSBT read at Add a key's Scan a SeedQR, on the read card
 /// (`docs/SCANNING.md` §5).

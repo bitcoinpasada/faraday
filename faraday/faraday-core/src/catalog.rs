@@ -596,7 +596,7 @@ impl Faraday {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::NewShares => self.act(Action::KeyGenSlip39),
             // Add a key is New key opening on Start; a tile for one form
-            // opens it with that choice made (`docs/history/NEW-WALLET.md` §15.3).
+            // opens it with that choice made.
             Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::typing(form)),
             Go::SeedQr => {
                 self.act(Action::Entry(None));

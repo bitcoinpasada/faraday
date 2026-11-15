@@ -11,7 +11,7 @@
 //! is kept across a lock, so a lock for a stick or for idleness comes
 //! back to the same page.
 //!
-//! Its third page, What do you have? (`docs/history/SCAN-TO-SIGN.md` §4), asks
+//! Its third page, What do you have?, asks
 //! for data, not a classification: whatever is scanned or typed comes in,
 //! and the wallet is worked out from it, with only the next question
 //! asked. A wallet worked out from seeds alone is a guess, and Check the
@@ -71,8 +71,8 @@ pub mod page {
     pub const SAFE: u8 = 1;
     /// What do you have?: everything in the envelope comes in here.
     pub const HOLDING: u8 = 2;
-    /// Open the wallet: one card with What do you have? since
-    /// `docs/history/SCAN-TO-SIGN.md` §4, no longer in the column. A page kept
+    /// Open the wallet: one card with What do you have?
+    /// It is no longer in the column. A page kept
     /// open across a lock from before maps to [`HOLDING`].
     pub const OPEN: u8 = 3;
     /// Check the money is really there.
@@ -175,7 +175,7 @@ pub enum Came {
 }
 
 /// A wallet worked out from seeds alone, and the kinds tried on Check
-/// the money (`docs/history/SCAN-TO-SIGN.md` §5).
+/// the money.
 #[derive(Debug, Clone, Default)]
 pub struct Guess {
     /// Several keys: the multisig kinds, else the single-key ways.
@@ -246,8 +246,8 @@ pub struct SpendBackupState {
     /// The seeds typed on the words route, and the wallet of several
     /// keys they make (`seeds.rs`).
     pub seeds: crate::seeds::SeedsState,
-    /// Entered on a wallet already open, by Spend from this wallet
-    /// (`docs/history/NEW-WALLET.md` §11.2): the column starts at Load the
+    /// Entered on a wallet already open, by Spend from this wallet:
+    /// the column starts at Load the
     /// wallet in Sparrow, and Write the payment brings the PSBT itself.
     pub from_card: bool,
     /// Open from Home or from Wallets: Back goes there.
@@ -416,8 +416,8 @@ impl Faraday {
     }
 
     /// Costs what `wallet_held_on` and the Inbox's PSBTs cost (through
-    /// `spend_button_on`). The wallet card's first button
-    /// (`docs/history/NEW-WALLET.md` §11.2): finish the backup first while a key
+    /// `spend_button_on`). The wallet card's first button:
+    /// finish the backup first while a key
     /// made here waits for it (§14.3), else carry on this wallet's spend,
     /// sign its PSBT in Files, or spend from it.
     pub fn spend_button(&self, c: &Compute, w: usize) -> (Text, Action) {
@@ -429,7 +429,7 @@ impl Faraday {
 pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Text, Action) {
     let app = r.app();
     // A key made here signs once its backup is done
-    // (`docs/history/NEW-WALLET.md` §14.3).
+    // (`docs/WALLETS.md` §13).
     if !crate::held::wallet_held_on(r, w).is_empty() {
         return (
             Text::of(EN.spend_backup_finish_the_backup),
@@ -954,7 +954,7 @@ impl Faraday {
 
     /// A key typed or scanned from this tab: it fills the described
     /// wallet's slot; with no description it waits for the next
-    /// question (`docs/history/SCAN-TO-SIGN.md` §4.3).
+    /// question.
     pub(crate) fn spend_backup_key_added(&mut self) {
         self.refresh_spend();
         if self.spend_backup_described().is_some() {
@@ -1281,7 +1281,7 @@ impl Faraday {
     }
 
     /// The wallet just made from seeds alone is a guess: Check the money
-    /// tries the other kinds (`docs/history/SCAN-TO-SIGN.md` §5).
+    /// tries the other kinds.
     pub(crate) fn spend_backup_guess_start(&mut self, multi: bool) {
         let at = if multi {
             MULTI_ORDER
@@ -1930,8 +1930,7 @@ impl Faraday {
 
 impl Faraday {
     /// A seed typed on What do you have? with no wallet open yet: the
-    /// seeds the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md`
-    /// §4).
+    /// seeds the wallet is worked out from.
     pub(crate) fn spend_backup_seed_took(&mut self, fp: Fingerprint) {
         self.spend_backup_came(Came::Seed(fp.0));
         if self.spend_backup.state.route.is_none() {

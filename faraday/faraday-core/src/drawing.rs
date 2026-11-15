@@ -69,7 +69,7 @@ pub(crate) struct Drawing {
     /// ([`crate::Faraday::board_view_now`], `docs/BACKUP-FLOW.md` §17).
     pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,
     /// What Create's Keys card offers from the vaults
-    /// ([`View::create_vaults`], `docs/history/NEW-WALLET.md` §16.1).
+    /// ([`View::create_vaults`], `docs/WALLETS.md` §14).
     pub create_vaults: OnceCell<std::rc::Rc<crate::create_from::CreateVaults>>,
     /// The Inbox files Create's Keys card lists, offered or refused
     /// ([`crate::Faraday::create_key_files_now`]).

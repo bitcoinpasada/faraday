@@ -1,6 +1,6 @@
 //! The Spend tab (`docs/SPEND-FROM-BACKUP.md`): someone spending for the first time
 //! goes from what is in the envelope to a signed transaction on one tab.
-//! What do you have? (`docs/history/SCAN-TO-SIGN.md` §4) takes whatever is in
+//! What do you have? takes whatever is in
 //! the envelope, scanned or typed in any order (a vault, seeds, a
 //! description, split sheets, a transaction), works out the wallet and
 //! asks only the next question; a wallet worked out from seeds alone is
@@ -851,8 +851,8 @@ fn a_described_wallets_check_has_no_no_money_shows() {
     assert!(!text.contains("Trying:"), "{text}");
 }
 
-/// The Spend tab left the sidebar and the small Home grid
-/// (`docs/history/SIMPLIFY.md` §6.2); it is still reached from the Wallets empty
+/// The Spend tab left the sidebar and the small Home grid;
+/// it is still reached from the Wallets empty
 /// state's fourth way in.
 #[test]
 fn the_spend_tab_opens_from_the_wallets_empty_state() {

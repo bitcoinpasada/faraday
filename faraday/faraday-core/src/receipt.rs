@@ -4,7 +4,7 @@ use crate::strings::{EN, fill};
 use crate::vault;
 use faraday_crypto::work::Compute;
 
-/// What the last stick visit wrote (`docs/history/SIMPLIFY.md` §4.3): kept on
+/// What the last stick visit wrote: kept on
 /// [`Faraday`], across a lock in the kept state, gone at power-off, and
 /// replaced by the next write. Nothing on it is written again.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

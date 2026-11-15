@@ -339,7 +339,7 @@ fn choose(n: usize, k: usize) -> usize {
 /// BIP-341's unspendable internal key, a Taproot multisig's.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
-/// Restoring a wallet: the cards' state (`docs/history/NEW-WALLET.md` §12).
+/// Restoring a wallet: the cards' state.
 #[derive(Default)]
 pub struct RestoreState {
     /// The open card.
@@ -624,7 +624,7 @@ impl Faraday {
                 self.screen = Screen::Restore;
             }
             // The seeds wait for the question of vaults and for the
-            // setup it asked for (`docs/history/NEW-WALLET.md` §12.3 item 4).
+            // setup it asked for.
             Action::RStep(k)
                 if k == rstep::SEEDS
                     && self.restore.state.as_ref().is_some_and(|r| {
@@ -963,8 +963,7 @@ impl Faraday {
     }
 
     /// A seed for Restore's open slot, loaded: matched to the
-    /// description's keys or put in the slot (`docs/history/NEW-WALLET.md`
-    /// §12.1).
+    /// description's keys or put in the slot.
     pub(crate) fn restore_took(&mut self, fp: faraday_bip::keys::Fingerprint) {
         let c = self.compute();
         // The key is loaded, the last of its fingerprint: its whole key at
@@ -1305,8 +1304,7 @@ impl Faraday {
                     r.done[rstep::SEEDS as usize] = false;
                     r.done[rstep::CHECK as usize] = false;
                     // On to the next card not done: the question of vaults
-                    // when it is not answered yet, before the seeds
-                    // (`docs/history/NEW-WALLET.md` §12.3 item 4).
+                    // when it is not answered yet, before the seeds.
                     r.next(rstep::DESCRIPTION);
                 }
                 if origin != wallet::Origin::TypedSeeds

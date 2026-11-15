@@ -479,8 +479,7 @@ fn paged(
             // The title says where the page is; tapping it closes the
             // card, which leaves the list of steps, any of which opens.
             // The step count sits beside it, muted, so it is never read
-            // as a value next to the card's own numbers (`docs/history/SIMPLIFY.md`
-            // §2.6).
+            // as a value next to the card's own numbers.
             let card = &cards[i];
             let lead = heads(cards);
             let count = if i < lead {

@@ -53,7 +53,7 @@ pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
         }
     }
     // The randomness check, shown on the entry card once the last roll
-    // is in (`docs/history/NEW-WALLET.md` §3.2), before Continue moves on.
+    // is in, before Continue moves on.
     t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
     t.shot("keygen-slot-key")?;
@@ -168,8 +168,8 @@ pub(crate) fn rolled_words(t: &mut Tour) -> Result<(), String> {
     }
     t.shot("keygen-bitbox-made")?;
     // On its own, New key goes from Key to Words and the Quiz, the key
-    // added at Lock in and the Quiz's Done leaving the flow
-    // (`docs/history/NEW-WALLET.md` §3.4). The words made opened the Key
+    // added at Lock in and the Quiz's Done leaving the flow.
+    // The words made opened the Key
     // card already.
     t.shot("keygen-key-own")?;
     t.press(Action::KLock);
@@ -1029,7 +1029,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("unlock")?;
     t.press(Action::Vault(V::Unlock));
     t.tick();
-    // Unlocked from the Vaults list (`docs/history/NEW-WALLET.md` §11.1a): its
+    // Unlocked from the Vaults list: its
     // Load sheet (F62), every card ticked; Load ticked lands on Wallets.
     if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) || !t.app.session.keys.is_empty() {
         return Err("the unlock did not ask what to load".into());

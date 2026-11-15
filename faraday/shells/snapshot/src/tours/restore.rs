@@ -4,7 +4,7 @@ use crate::tour::{Tour, type_text};
 use faraday_core::Action;
 use faraday_core::testkit;
 
-/// Restore a wallet made elsewhere (`docs/history/NEW-WALLET.md` §12): Kind with
+/// Restore a wallet made elsewhere: Kind with
 /// the description shortcut (Scan it, From Files), Quorum at 2 of 3,
 /// Savings' description from Files, then Seeds with test key 1 matched
 /// to its key and a seed of no test wallet refused, the other two keys

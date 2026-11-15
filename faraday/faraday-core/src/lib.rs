@@ -351,7 +351,7 @@ pub enum Screen {
     Randomness,
     /// The vaults the Inbox and Outbox hold.
     Vaults,
-    /// Every wallet known and where its backup is (`docs/history/SIMPLIFY.md` §5.1).
+    /// Every wallet known and where its backup is.
     Backups,
     /// Making a vault.
     CreateVault,
@@ -494,7 +494,7 @@ pub enum Sheet {
     Import,
     /// A press that loads a key, a stick attached, carries on once it is pulled ([`Faraday::pull`]).
     Pull,
-    /// A node or line of the wallet's chart: what it is, where, its actions (`docs/history/NEW-WALLET.md` §9).
+    /// A node or line of the wallet's chart: what it is, where, its actions (`docs/WALLETS.md` §12).
     Chart,
     /// The backup board's list, opened by **Add** in the narrow column (§17.12 item 3).
     BoardList,
@@ -684,7 +684,7 @@ pub mod cstep;
 /// What Restore says of a seed that is not one of the description's keys.
 pub const NOT_A_KEY: &str = EN.app_not_wallet_key;
 
-/// The restore cards, in order (`docs/history/NEW-WALLET.md` §12.1).
+/// The restore cards, in order.
 pub mod rstep {
     /// What kind of wallet.
     pub const KIND: u8 = 0;
@@ -876,7 +876,7 @@ pub struct Faraday {
     /// whether they are sealed into a vault, the wallets checked.
     memory: memory::MemoryArea,
     /// The wallet the Backups screen is on, and what this power-on saw of
-    /// each wallet's backup (`docs/history/SIMPLIFY.md` §5): kept across a
+    /// each wallet's backup: kept across a
     /// lock, gone at power-off.
     backups_area: backups::BackupsArea,
     /// The session's seed and the pool of fresh answers (`fresh.rs`).
@@ -1576,7 +1576,7 @@ impl Faraday {
         let min = 60_000u64;
         // The warning, with its countdown, before the lock.
         // Make a new wallet before its keys are kept anywhere: no idle
-        // lock at all (`docs/history/NEW-WALLET.md` §18).
+        // lock at all.
         let held = self.lock_held(&c);
         // Held: no warning and no lock, but words on show are put away
         // once at the warning time; the flow, its key and the Seed XOR
@@ -2041,7 +2041,7 @@ impl Faraday {
     }
 
     /// A write's answer onto the receipt: the first answer of a write
-    /// replaces the last receipt with a new one (`docs/history/SIMPLIFY.md` §4.3).
+    /// replaces the last receipt with a new one.
     fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {
         let c = self.compute();
         let now = self.clock_now();
@@ -2075,7 +2075,7 @@ impl Faraday {
         })
     }
 
-    /// The stick visit's chip (`docs/history/SIMPLIFY.md` §4.7): where pulling
+    /// The stick visit's chip: where pulling
     /// the stick goes. Back to the flow the stick came in during, Unlock
     /// when a vault was sealed for the visit, else Home.
     pub fn visit_then(&self) -> faraday_text::Text {
@@ -2095,7 +2095,7 @@ impl Faraday {
         self.visit.vault_from_set(name, sha256_of(&c, bytes), label);
     }
 
-    /// Costs a read of the free memory (one small file). What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
+    /// Costs a read of the free memory (one small file). What a visit ticks to come in: every file
     /// on the stick shown that Faraday reads, but a seed's by its name
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.
@@ -2134,7 +2134,7 @@ impl Faraday {
 
     /// Costs a hash of a whole file (through `hash`).
     /// [`Faraday::visit_all_out`], but with more than one vault file
-    /// waiting, one vault for this stick (`docs/history/NEW-WALLET.md` §5.3): the
+    /// waiting, one vault for this stick: the
     /// first the last write did not write. The rest wait for the next
     /// stick.
     fn visit_default_out(&self, c: &Compute) -> std::collections::BTreeSet<faraday_text::Text> {
@@ -2167,8 +2167,8 @@ impl Faraday {
 
     /// Lock asked for: by the person (`for_flow` false), or by a step of
     /// a backup flow. Asks first when a vault is open with something
-    /// not in it, a seal waits, or the lock would end Make a new wallet
-    /// (`docs/history/NEW-WALLET.md` §18); else locks.
+    /// not in it, a seal waits, or the lock would end Make a new wallet;
+    /// else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         let c = self.compute();
         self.idle.set_lock_for_flow(for_flow);
@@ -3378,7 +3378,7 @@ impl Faraday {
     /// already loaded refused as a duplicate); `said` says so; then what
     /// the screen it returns to, `back`, does with it (`seeds_took`).
     /// Add a key's Add and New key's Lock in for a key typed both load
-    /// through here (`docs/history/NEW-WALLET.md` §15.2).
+    /// through here.
     pub(crate) fn typed_load(
         &mut self,
         m: &faraday_bip::bip39::Mnemonic,
@@ -4020,7 +4020,7 @@ impl Faraday {
                 {
                     // On a field: the caret where it was pressed, a
                     // second press selecting all of it, a drag what it
-                    // went over (`docs/history/NEW-WALLET.md` §13.2).
+                    // went over.
                     let double = self
                         .pointer
                         .last_tap()

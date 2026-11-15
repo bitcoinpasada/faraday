@@ -2,8 +2,7 @@
 //! at twenty-five minutes, with a countdown, and locks at thirty; a
 //! machine left alone with nothing held powers off at sixty, unless the
 //! Outbox still holds what would be lost. Make a new wallet holds the
-//! idle lock until its keys are kept somewhere (`docs/history/NEW-WALLET.md`
-//! §18).
+//! idle lock until its keys are kept somewhere.
 
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};

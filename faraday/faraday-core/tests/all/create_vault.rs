@@ -214,7 +214,7 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
 }
 
 // ---------------------------------------------------------------------
-// §3.1 (`docs/history/SIMPLIFY.md`): two sizes, then Customise.
+// §3.1: two sizes, then Customise.
 // ---------------------------------------------------------------------
 
 /// The app with nothing loaded, memory to spare and the system's

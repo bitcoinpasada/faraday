@@ -25,7 +25,7 @@ pub(crate) struct BackupFlowArea {
     /// The flow on screen.
     pub(super) on: Option<usize>,
     /// The keys made here whose backup is not yet done, by fingerprint
-    /// (`docs/history/NEW-WALLET.md` §14.3): they sign nothing until it
+    /// (`docs/WALLETS.md` §13): they sign nothing until it
     /// is. Never a secret; kept in a vault beside the seed and in the plan
     /// record.
     pub(super) made_here: Vec<Fingerprint>,

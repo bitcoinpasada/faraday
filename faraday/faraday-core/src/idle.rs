@@ -15,7 +15,7 @@ pub(crate) struct Idle {
     locking: Option<u64>,
     /// The lock asked for last is a step of a backup flow (bringing in
     /// the setup's sticks, Lock and write), not the person's own Lock:
-    /// it keeps Make a new wallet (`docs/history/NEW-WALLET.md` §18). Set by
+    /// it keeps Make a new wallet. Set by
     /// every way a lock is asked for.
     lock_for_flow: bool,
     /// The idle countdown's whole seconds last drawn, so a tick redraws

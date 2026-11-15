@@ -1047,8 +1047,7 @@ impl Faraday {
         // A SeedQR scanned over the Spend tab or Restore returns to it too.
         let on_tab = matches!(self.screen, Screen::SpendBackup | Screen::Restore);
         let back = self.entry.state().back.or(on_tab.then_some(self.screen));
-        // Add a key for a wallet takes only a key the wallet is missing
-        // (`docs/history/SCAN-TO-SIGN.md` §2.1).
+        // Add a key for a wallet takes only a key the wallet is missing.
         let mut for_wallet = None;
         if let Some(w) = self.entry.state().wallet {
             let fp = faraday_keys::identity::fingerprint_of_mnemonic(
@@ -1087,7 +1086,7 @@ impl Faraday {
             }
         }
         // Restore takes a seed only into a slot it fills: with the
-        // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
+        // description known, one of its keys.
         if back == Some(Screen::Restore)
             && let Some(why) = self.restore_refusal_typed(&c, &m)
         {
@@ -1118,7 +1117,7 @@ impl Faraday {
                 }
             }
             // A seed already loaded comes in on the Spend tab's What do
-            // you have? as it is (`docs/history/SCAN-TO-SIGN.md` §4).
+            // you have? as it is.
             Err(crate::wallet::Refusal::Duplicate(_)) if back == Some(Screen::SpendBackup) => {
                 if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
                     &c,

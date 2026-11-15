@@ -275,8 +275,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         _ => {
-            // Restore ends on a choice, none of them the one to take
-            // (`docs/history/NEW-WALLET.md` §12.3).
+            // Restore ends on a choice, none of them the one to take.
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize]) {
                 let (spend, spend_action) = app.spend_button(i);
                 let mut items = vec![

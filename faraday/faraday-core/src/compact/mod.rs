@@ -968,8 +968,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         y += lock_row(app, ui, y, inner, gap);
     }
-    // The idle lock waits for a new wallet's backup (`docs/history/NEW-WALLET.md`
-    // §18).
+    // The idle lock waits for a new wallet's backup.
     if app.lock_held() {
         y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
     }
@@ -1041,7 +1040,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
     // In two columns: wallets and keys first (every wallet flow,
-    // including spending: `docs/history/SIMPLIFY.md` §6.2 moves Spend to the
+    // including spending: Spend moves to the
     // Wallets empty state and the guide sheet), then the ways in and
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![

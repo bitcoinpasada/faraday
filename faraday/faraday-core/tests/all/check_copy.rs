@@ -1,5 +1,5 @@
-//! A copy of a seed by hand is checked by its form (`docs/history/NEW-WALLET.md`
-//! §14.7): a copy of the words is typed back, with a camera listed or
+//! A copy of a seed by hand is checked by its form (`docs/WALLETS.md` §13):
+//! a copy of the words is typed back, with a camera listed or
 //! not; a SeedQR is scanned when there is a camera, and typed as words
 //! when there is none; a seed copied both ways is checked both ways. The
 //! typed check hides the seed, masks the words taken, accepts words, four

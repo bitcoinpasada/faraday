@@ -1,4 +1,4 @@
-//! Acting on the chart (`docs/history/NEW-WALLET.md` §9): a press on a node of
+//! Acting on the chart (`docs/WALLETS.md` §12): a press on a node of
 //! the wallet at a glance, or on a line inside one, opens a sheet for it:
 //! what it is, where it is, what this device saw of it, when it was last
 //! checked here, and its actions. Each action leads into the flow that
@@ -273,7 +273,7 @@ impl Ctx<'_> {
     }
 
     /// What checking a copy of seed `s`, with fingerprint `fp`, in the
-    /// `forms` it takes asks for (`docs/history/NEW-WALLET.md` §14.7): the rows a
+    /// `forms` it takes asks for (`docs/WALLETS.md` §13): the rows a
     /// key or a line offers, one per check.
     fn check_rows(
         &self,
@@ -864,7 +864,7 @@ fn line(ctx: &Ctx<'_>, n: u8, j: u8) -> Option<View> {
         };
         facts.push((EN.glance_sheet_marked, Text::of(m), Role::Error.paint()));
     }
-    // A SeedQR drawn in part (`docs/history/NEW-WALLET.md` §14.7 item 3):
+    // A SeedQR drawn in part (`docs/WALLETS.md` §13):
     // nothing to check or copy; I destroyed this copy takes it off.
     if mark == Some(Mark::Part) {
         let mut v = View::new(Icon::Keys, label);

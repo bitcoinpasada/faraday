@@ -1,4 +1,4 @@
-//! The Backups screen (`docs/history/SIMPLIFY.md` §5.1): drawing only. What it
+//! The Backups screen: drawing only. What it
 //! lists is `backups.rs`.
 
 use crate::Action;
@@ -138,8 +138,7 @@ fn wide_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), e: &Entry) -> 
     ch
 }
 
-/// A wallet's Back up, or Continue the backup for one left part way
-/// (`docs/history/NEW-WALLET.md` §12.3).
+/// A wallet's Back up, or Continue the backup for one left part way.
 fn back_up_label(app: &View, i: usize) -> &'static str {
     if app.wallet_backup_unfinished(i) {
         EN.backup_flow_continue

@@ -1,4 +1,4 @@
-//! Scan a key (`docs/history/SCAN-TO-SIGN.md` §2): one way in for any key a
+//! Scan a key: one way in for any key a
 //! loaded wallet is short of. The camera takes any of the wallet's
 //! missing keys and Faraday works out which; a seed whose key with no
 //! passphrase is one of them loads at once, since the match proves it
@@ -2361,7 +2361,7 @@ impl Faraday {
         // status line's probe: it is worked out again for these.
         self.entry.state().forget_probe();
         // New key's Scan a SeedQR: its Key card takes the words and asks
-        // the passphrase there (`docs/history/NEW-WALLET.md` §15.2).
+        // the passphrase there.
         if self.keygen_scanned(words) {
             self.seed_carried_tidy();
             return;

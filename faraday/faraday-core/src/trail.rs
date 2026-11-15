@@ -52,8 +52,7 @@ pub(crate) struct Trail {
     /// The input being handled went back: the screen it left is not
     /// put on the trail.
     backing: bool,
-    /// Screens left by the mouse's back button, the last left last
-    /// (`docs/history/NEW-WALLET.md` §13.1).
+    /// Screens left by the mouse's back button, the last left last.
     forward: Vec<Screen>,
     /// The screen the last back or forward button landed on.
     landed: Option<Screen>,

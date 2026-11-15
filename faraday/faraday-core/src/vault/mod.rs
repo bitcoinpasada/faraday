@@ -124,7 +124,7 @@ impl Faraday {
 
     /// Costs what `lock_held`, `currency`, `words_id` and the rest it calls
     /// cost. What a lock, a write-out or a power-off keeps and what it
-    /// wipes (`docs/history/SIMPLIFY.md` §4.5): each vault with its currency, the
+    /// wipes: each vault with its currency, the
     /// files For the stick, and each seed and wallet in memory with where
     /// else it is. At `power_off` a vault not written as it stands and the
     /// files For the stick are lost, not kept. Reads each seed's words and
@@ -136,7 +136,7 @@ impl Faraday {
     pub fn kept_wiped_now(&self, c: &Compute, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         // Make a new wallet before its keys are kept anywhere ends with
-        // the lock or the power-off (`docs/history/NEW-WALLET.md` §18).
+        // the lock or the power-off.
         if self.lock_held(c) {
             out.wiped.push((Text::of(EN.lock_held_ends), true, None));
         }
@@ -1252,8 +1252,8 @@ impl Faraday {
             self.screen = Screen::SpendBackup;
             self.spend_backup_unlocked(v);
         } else if back.is_none() && !made {
-            // The Vaults list's Unlock (`docs/history/NEW-WALLET.md` §11.1a,
-            // F62): Files, where it landed before F62 when it loaded no
+            // The Vaults list's Unlock (F62):
+            // Files, where it landed before F62 when it loaded no
             // wallet, with the vault's Load sheet over it; a wallet loaded
             // lands on Wallets as the boot sheet's does. A vault opened from
             // inside a flow, or just made, keeps `back_to` or `made` and
@@ -1286,8 +1286,8 @@ impl Faraday {
     }
 
     /// After an unlock's Load sheet that loaded wallets
-    /// (`docs/history/NEW-WALLET.md` §11.1, §11.1a, F62: the boot sheet's Unlock or
-    /// the Vaults list's): Wallets, on
+    /// (F62: the boot sheet's Unlock or the Vaults list's):
+    /// Wallets, on
     /// the first loaded that can sign here, else the first loaded, and a
     /// toast naming what loaded from where. One that loaded none stays
     /// where it landed.
@@ -2461,7 +2461,7 @@ impl Faraday {
     }
 
     /// Costs a hash of a whole file (through `hash`). Where vault file `f`
-    /// stands against the last write (`docs/history/SIMPLIFY.md` §3.5). A vault
+    /// stands against the last write. A vault
     /// copied in from a stick, unchanged, that no receipt names is current
     /// on the stick it came from when that is known, else unchanged.
     pub fn currency(&self, c: &Compute, f: &VaultFile) -> Option<Currency> {

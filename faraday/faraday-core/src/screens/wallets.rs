@@ -59,7 +59,7 @@ pub(crate) fn slot_marks(
     h
 }
 
-/// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2) for loaded
+/// The wallet card's backup line for loaded
 /// wallet `i`, which opens Backups on it. Returns the height it took.
 pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
     let line = app.backup_line(i);
@@ -250,7 +250,7 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
     // The wallets lead the list unlabelled: the top app bar names the
     // page Wallets.
     for (i, wlt) in app.session.wallets.iter().enumerate() {
-        // Can spend at its end (`docs/history/SCAN-TO-SIGN.md` §2.4).
+        // Can spend at its end.
         let can = app.readiness(i) == 2;
         let differs = app.silent_differs(i);
         let (m, _) = Session::quorum(wlt);
@@ -328,7 +328,7 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
 }
 
 /// The list pane's last button: Scan a key for the wallet shown when it
-/// is short of keys (`docs/history/SCAN-TO-SIGN.md` §2.4), else Add a key.
+/// is short of keys, else Add a key.
 fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::ListPane) {
     use faraday_draw::tokens::{BUTTON_H, GAP, LIST_PAD};
     let (x, listw, _) = pane.at();
@@ -505,8 +505,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Style::Ghost,
                 Action::Rename,
             );
-            // Create filled from this wallet (`docs/history/NEW-WALLET.md`
-            // §16.2), beside Rename where it fits before the source's
+            // Create filled from this wallet (`docs/WALLETS.md` §14),
+            // beside Rename where it fits before the source's
             // pill, so the foot keeps its one row; else in the foot.
             let bx = ix + nw + 14.0 + rw + 6.0;
             let bw = ui.measure_as(LABEL_L, EN.wallets_new_wallet_button) + 32.0;
@@ -549,7 +549,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Actions: the first along the foot, Remove from session at the
     // end; a row more above when they do not fit the card's width.
-    // The first: from the vault to a spend (`docs/history/NEW-WALLET.md` §11.2).
+    // The first: from the vault to a spend.
     let (spend_label, spend_action) = app.spend_button(app.wallets.wallet());
     let mut items: Vec<(&str, Style, Action)> = vec![(&spend_label, Style::Primary, spend_action)];
     items.push((
@@ -557,8 +557,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::QrWallet(app.wallets.wallet()),
     ));
-    // A backup left part way is offered as such (`docs/history/NEW-WALLET.md`
-    // §12.3).
+    // A backup left part way is offered as such.
     let back_up = if app.wallet_backup_unfinished(app.wallets.wallet()) {
         EN.backup_flow_continue
     } else {
@@ -637,8 +636,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &[&here.to_string(), &m.to_string()],
         ),
     );
-    // Short: one Scan a key for any missing key; enough: Can spend
-    // (`docs/history/SCAN-TO-SIGN.md` §2.2).
+    // Short: one Scan a key for any missing key; enough: Can spend.
     if app.can_spend(app.wallets.wallet()) {
         // A key not of the wallet spends it alone: never the plain green.
         let (t, status) = if crate::wallet::another_key_spends(wlt) {
@@ -666,7 +664,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The spend paths and the margin, where a path has a wait.
     cy += spend_paths_rows(app, ui, ix, cy, iw, app.wallets.wallet(), wlt);
 
-    // The wallet at a glance (`docs/history/NEW-WALLET.md` §6): its keys and
+    // The wallet at a glance: its keys and
     // its backup, where each thing is and what each place gives.
     ui.text_as(
         ix,

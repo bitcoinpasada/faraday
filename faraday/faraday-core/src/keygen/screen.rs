@@ -41,8 +41,8 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
 
 /// The flow's name in the top app bar, its actions beginning at `right`:
 /// Add a key wherever the flow opens on Start; New key for a Create slot,
-/// and from Add a key's own Make a new key
-/// (`docs/history/NEW-WALLET.md` §15.3). While a share's codex32
+/// and from Add a key's own Make a new key.
+/// While a share's codex32
 /// characters are entered, where the entry stands, in its short form
 /// where the whole does not fit (the Pi's panel; F146); where neither
 /// fits beside the bar's tools, the step is returned second, for the
@@ -253,7 +253,7 @@ pub(super) fn card_name(k: &KeyGen, s: u8) -> &'static str {
     }
 }
 
-/// The Start card (`docs/history/NEW-WALLET.md` §15.1): Make a new key, Type the
+/// The Start card: Make a new key, Type the
 /// words, Scan a SeedQR, and under Other forms the other four.
 fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
@@ -333,7 +333,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The Words card for a key typed: Add a key's form, drawn by Add a
-/// key's own code, then Continue to Key (`docs/history/NEW-WALLET.md` §15.2).
+/// key's own code, then Continue to Key.
 fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The room a list's own keyboard is sized to: the card grows to it.
     let room = y + 2000.0;
@@ -555,7 +555,7 @@ fn card_body(app: &View, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
 }
 
 /// A card before Key once the key is locked in: what was chosen and
-/// entered, to read, with nothing to press (`docs/history/NEW-WALLET.md` §3.3).
+/// entered, to read, with nothing to press.
 fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let ink = Role::OnSurface;
     let mut cy = y;
@@ -650,7 +650,7 @@ fn word_grid(
     words.len().div_ceil(cols) as f32 * 46.0 + 8.0
 }
 
-/// The Key card (`docs/history/NEW-WALLET.md` §3.3): the words, a passphrase
+/// The Key card: the words, a passphrase
 /// for a Create slot, and Lock in; once locked in, the fingerprint and
 /// what the key makes, and Continue.
 fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -1389,8 +1389,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         _ => {}
     }
-    // Words for a Create slot are shown and checked again by Back up
-    // (`docs/history/NEW-WALLET.md` §3.2).
+    // Words for a Create slot are shown and checked again by Back up.
     if !k.slip39 && k.reveals() && k.slot.is_some() {
         cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.keygen_no_need_to_write) + 10.0;
     }
@@ -1531,7 +1530,7 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     ui.fill(x, y, w, 40.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(x, y, w, 40.0, 8.0, Role::Primary);
     // A press in the box places the caret, a drag selects rolls, and
-    // what is deleted there leaves the key (`docs/history/NEW-WALLET.md` §13.2).
+    // what is deleted there leaves the key.
     ui.typed(
         x + 12.0,
         y,
@@ -1911,7 +1910,7 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f
     y + 26.0
 }
 
-/// A stat row whose value is a pill (`docs/history/NEW-WALLET.md` §3.3), such as
+/// A stat row whose value is a pill, such as
 /// the locked Key card's Passphrase: "Set" or "Not set", never bare
 /// text, since bare text reads as the passphrase itself.
 fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {

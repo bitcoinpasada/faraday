@@ -316,7 +316,7 @@ impl Faraday {
         }];
         // SeedQR numbers the English list's words only, and a SeedQR
         // picture is offered only where the plan copies the seed as a
-        // SeedQR (`docs/history/NEW-WALLET.md` §14.7).
+        // SeedQR (`docs/WALLETS.md` §13).
         let seedqr = self
             .backup_seed_list_now(b.wallet)
             .iter()

@@ -134,7 +134,7 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
         _ => String::new(),
     };
     // A wallet made from another, or at an account other than 0, says
-    // its account (`docs/history/NEW-WALLET.md` §16.2, §17).
+    // its account (`docs/WALLETS.md` §14).
     if c.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
         return fill(EN.create_at_account, &[&line, &c.account.to_string()]);
     }
@@ -179,7 +179,7 @@ fn create_flow_summary(app: &View, k: u8) -> String {
 
 /// Under a Keys slot's session keys, each open vault's keys not loaded,
 /// under the vault's name, and an Unlock button for each locked vault
-/// (`docs/history/NEW-WALLET.md` §16.1). A key in another slot is not
+/// (`docs/WALLETS.md` §14). A key in another slot is not
 /// offered (§2.2). Returns the height used.
 #[allow(
     clippy::too_many_arguments,
@@ -430,7 +430,7 @@ fn create_keys(
     // Continue once every slot is filled.
     let first_empty = c.slots.iter().position(|s| *s == Source::Empty);
     // The open vaults' keys and the locked vaults, from the
-    // drawing memo (`docs/history/NEW-WALLET.md` §16.1).
+    // drawing memo (`docs/WALLETS.md` §14).
     let vaults = app.create_vaults();
     let slots = KeySlots {
         key_files,
@@ -478,8 +478,7 @@ fn key_slot(
     let mut cy = y;
     let label = format!("{} {}", EN.create_key, slot + 1);
     ui.text_as(x, cy + 4.0, LABEL_L, Role::OnSurface, &label);
-    // A key locked in with a passphrase here says so
-    // (`docs/history/NEW-WALLET.md` §3.6).
+    // A key locked in with a passphrase here says so.
     if let Source::Here(fp) = src
         && c.pass_locked.contains(fp)
     {
@@ -550,8 +549,8 @@ fn slot_choices(
         vaults,
     } = slots;
     let mut cy = y;
-    // A key chosen for one slot is offered in no other
-    // (`docs/history/NEW-WALLET.md` §2.2): clearing the slot
+    // A key chosen for one slot is offered in no other:
+    // clearing the slot
     // offers it again.
     let used_elsewhere_here = |fp: [u8; 4]| {
         c.slots
@@ -789,7 +788,7 @@ fn create_check(
 /// **Back up wallet**, which opens Back up on the wallet just made, the
 /// board open on The standard way (`docs/BACKUP-FLOW.md` §17.21 item 2),
 /// and beside it, for a wallet made to move another's money to
-/// (`docs/history/NEW-WALLET.md` §9.6), the spend of every coin from the
+/// (`docs/WALLETS.md` §12), the spend of every coin from the
 /// old one. Returns its height.
 fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) -> f32 {
     if !checked {
@@ -821,7 +820,7 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
 
 /// Check's Path row: the made wallet's derivation paths, worked out when
 /// it was made, with **Change** back to the Account row while the wallet
-/// can be taken back (F98, `docs/history/NEW-WALLET.md` §17). Nothing when
+/// can be taken back (F98, `docs/WALLETS.md` §14). Nothing when
 /// there is no path. Returns its height.
 fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f32 {
     if path.is_empty() {

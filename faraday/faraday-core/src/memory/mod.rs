@@ -466,7 +466,7 @@ impl Faraday {
             ));
         }
         // What was seen of each wallet's backup, for Backups and the
-        // wallet card (`docs/history/SIMPLIFY.md` §5).
+        // wallet card.
         if !self.backups_area.records().is_empty() {
             out.push((
                 "backups".to_string(),

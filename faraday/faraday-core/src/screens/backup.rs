@@ -287,8 +287,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         app.backup_questions()
     };
-    // The items after one not done wait for it (`docs/history/NEW-WALLET.md`
-    // §14.1): each says which.
+    // The items after one not done wait for it (`docs/WALLETS.md` §13):
+    // each says which.
     let waiting = if checklist {
         app.backup_waiting()
     } else {
@@ -605,7 +605,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
 }
 
 /// Under the backup's cards once every one is done
-/// (`docs/history/NEW-WALLET.md` §14.6): the plan's three checks as a strip, the
+/// (`docs/WALLETS.md` §13): the plan's three checks as a strip, the
 /// wallet's chart of the plan just completed, what waits for the stick,
 /// and Write to a stick, Open the wallet, Change the plan. Returns its
 /// height.
@@ -893,7 +893,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let key = &app.session.keys[b.key];
             let word_count = usize::from(key.word_count.unwrap_or(0));
             // The seed's copies and the forms they take: the grid is drawn
-            // for a SeedQR copy only (`docs/history/NEW-WALLET.md` §14.7).
+            // for a SeedQR copy only (`docs/WALLETS.md` §13).
             let forms = app.copy_forms(b, usize::from(n - bstep::COPY));
             let bw = ui.button(
                 x,
@@ -1219,7 +1219,7 @@ fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: 
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
 /// The copy of the seed checked: what scanning it found, and the typed
-/// check while it is open (`docs/history/NEW-WALLET.md` §14.7): the word being
+/// check while it is open (`docs/WALLETS.md` §13): the word being
 /// typed, the words taken masked, and how the last comparison went.
 /// Returns its height.
 fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -1473,7 +1473,7 @@ fn word_check(
     cy
 }
 
-/// A passphrase on paper's item (`docs/history/NEW-WALLET.md` §14.7 item 5):
+/// A passphrase on paper's item (`docs/WALLETS.md` §13):
 /// Show the passphrase, and the passphrase while shown and no check is
 /// open; then the check. Returns its height.
 fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -1541,7 +1541,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// A checklist item's next action (`docs/history/NEW-WALLET.md` §14.1): its own
+/// A checklist item's next action (`docs/WALLETS.md` §13): its own
 /// until it is done, then Continue. A vault item: Make a vault (or the
 /// way to one), then Save into the open vault, then Continue.
 fn item_action(app: &View, n: u8) -> (String, Action) {
@@ -1568,7 +1568,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             Action::Flow(crate::backup_flow::steps::FlowAction::WalletLock),
         ),
         // The words typed back first; then, for a SeedQR copy, the scan
-        // (`docs/history/NEW-WALLET.md` §14.7 item 1).
+        // (`docs/WALLETS.md` §13).
         Item::Copy(i) => {
             use crate::plan::CopyForm;
             let words_left = app.session.keys.info(b.key).is_none_or(|k| {
@@ -1658,7 +1658,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
 }
 
 /// Whether seed `i`'s copy item offers Keep the words only
-/// (`docs/history/NEW-WALLET.md` §14.7 item 3): the seed has a SeedQR copy and
+/// (`docs/WALLETS.md` §13): the seed has a SeedQR copy and
 /// the item is not done.
 fn keep_words_offered(app: &View, i: usize) -> bool {
     app.backup().is_some_and(|b| {
@@ -1667,8 +1667,8 @@ fn keep_words_offered(app: &View, i: usize) -> bool {
 }
 
 /// A copy item's foot: its next action, and after three scans without a
-/// match Keep the words only beside it (`docs/history/NEW-WALLET.md` §14.7 item
-/// 3). Returns the height used in the column.
+/// match Keep the words only beside it (`docs/WALLETS.md` §13).
+/// Returns the height used in the column.
 fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
     let i = usize::from(n - crate::bstep::COPY);
     let missed = app.backup().is_some_and(|b| {

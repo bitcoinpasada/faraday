@@ -3088,7 +3088,7 @@ pub struct KeptWiped {
     pub wiped: Vec<(Text, bool, Option<Action>)>,
 }
 
-/// A vault file's currency (`docs/history/SIMPLIFY.md` §3.5), computed from the
+/// A vault file's currency, computed from the
 /// receipt's hashes, never stored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Currency {
@@ -3303,7 +3303,7 @@ pub const PRESETS: [(&str, u32, u32); 4] = [
 /// The place after the presets that stands for a custom cost.
 pub const CUSTOM: usize = PRESETS.len();
 
-/// Create a vault's two sizes (`docs/history/SIMPLIFY.md` §3.1): the label, the
+/// Create a vault's two sizes: the label, the
 /// preset it takes, and the machines it is for besides this one, in
 /// `MACHINES` order. The second is the default.
 pub const SIZES: [(&str, usize, [bool; 5]); 2] = [

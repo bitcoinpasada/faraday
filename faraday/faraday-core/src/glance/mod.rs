@@ -1,4 +1,4 @@
-//! The wallet at a glance (`docs/history/NEW-WALLET.md` §6): one chart of a
+//! The wallet at a glance: one chart of a
 //! loaded wallet, its keys and its backup, on the wallet's card.
 //!
 //! [`of`] gathers what the chart shows from the wallet, the session's keys
@@ -225,10 +225,10 @@ pub struct Glance {
     /// Where the chart is drawn, which says what its presses do.
     pub press: Press,
     /// The key whose lines are drawn bold, the rest dimmed: **Where it
-    /// is** on its sheet (`docs/history/NEW-WALLET.md` §9.3).
+    /// is** on its sheet (`docs/WALLETS.md` §12).
     pub focus: Option<usize>,
     /// A key of it made here waits for its backup: the wallet node says
-    /// "Back up before you receive" (`docs/history/NEW-WALLET.md` §14.3).
+    /// "Back up before you receive" (`docs/WALLETS.md` §13).
     pub held: bool,
     /// A vault is open to keep names, dates and marks in (§9.5).
     pub keep: bool,
@@ -246,7 +246,7 @@ pub struct Glance {
 }
 
 /// What every address of a wallet with a key made here and waiting for
-/// its backup carries, in `warning` (`docs/history/NEW-WALLET.md` §14.3).
+/// its backup carries, in `warning` (`docs/WALLETS.md` §13).
 pub const RECEIVE_WARNING: &str = EN.glance_back_up_before;
 
 /// A key node's state while its key, made here, waits for its backup.
@@ -268,7 +268,7 @@ pub(crate) struct GlanceArea {
     /// **Where it is**.
     focus: Option<(Press, usize)>,
     /// What the chart's sheets hold between presses: a change asked for,
-    /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
+    /// a name or a passphrase typed (`docs/WALLETS.md` §12).
     work: crate::chart_edit::Work,
     /// The side sheet's coming and going on a wide window
     /// (`docs/DESIGN.md` §4.16), as the last tick saw it.
@@ -734,7 +734,7 @@ fn build(
                 .unwrap_or_else(|| Text::of(EN.glance_no_origin));
             let passphrase = seed_of(n, slot).is_some_and(|i| shape.seeds[i].passphrase);
             let held = slot.held_by.is_some();
-            // Made here, its backup not done (`docs/history/NEW-WALLET.md` §14.3).
+            // Made here, its backup not done (`docs/WALLETS.md` §13).
             let waits = held && slot.fingerprint.is_some_and(|f| held_keys.contains(&f));
             let state = match (held, kept(slot), passphrase, any_here) {
                 _ if waits => WAITING,
@@ -743,7 +743,7 @@ fn build(
                 (false, true, true, _) => EN.glance_in_this_vault_passphrase,
                 (false, true, false, _) => EN.glance_in_this_vault,
                 // Short of keys, one not here says so: the one Scan a key
-                // is the signatures bar's (`docs/history/SCAN-TO-SIGN.md` §2.3).
+                // is the signatures bar's.
                 (false, false, _, _) if !quorum_here && matches!(press, Press::Loaded(_)) => {
                     EN.glance_not_here
                 }
@@ -1040,7 +1040,7 @@ fn backup_nodes(
         .filter(|spot| !(spot.at == At::Away && any_here))
         .map(|spot| {
             // A place with its SeedQR copies drawn in part, which stay on
-            // the map until destroyed (`docs/history/NEW-WALLET.md` §14.7 item 3).
+            // the map until destroyed (`docs/WALLETS.md` §13).
             let parted = plan::with_parts(std::slice::from_ref(spot), a);
             let spot = &parted[0];
             let label = |w: What| match w {
@@ -1407,7 +1407,7 @@ pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
 }
 
 /// The three rows of nodes: the wallet, its keys, its backup. Each node
-/// pressed opens its sheet (`docs/history/NEW-WALLET.md` §9); on the wide chart
+/// pressed opens its sheet (`docs/WALLETS.md` §12); on the wide chart
 /// each line of what a backup node holds opens that line's, and a key's
 /// way in is its own line's press.
 fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
@@ -1876,7 +1876,7 @@ pub(crate) fn draw_with(
 ) -> f32 {
     let rows = rows(g, false);
     let mut top = y;
-    // The check leads, read either way (`docs/history/NEW-WALLET.md` §14.6).
+    // The check leads, read either way (`docs/WALLETS.md` §13).
     if check && let Backup::Plan { check, .. } = &g.backup {
         top += check_lines(ui, x, top, width, *check, true, &names_of(g));
         top += due_line(ui, g, x, top, width);
@@ -1994,7 +1994,7 @@ pub(crate) fn names_of(g: &Glance) -> impl Fn(usize) -> Text + '_ {
     }
 }
 
-/// The plan's three check lines as a strip (`docs/history/NEW-WALLET.md` §14.6):
+/// The plan's three check lines as a strip (`docs/WALLETS.md` §13):
 /// each line in a box with its value large in its colour, side by side
 /// with `beside` where the width allows, else one box under another. The
 /// wallet card, the open vault, the end of the backup and the backup's
@@ -2281,7 +2281,7 @@ pub(crate) fn draw_column_with(
         Backup::Plan { check, .. } if with_check => Some(*check),
         _ => None,
     };
-    // The check leads, as three rows (`docs/history/NEW-WALLET.md` §14.6).
+    // The check leads, as three rows (`docs/WALLETS.md` §13).
     if let Some(c) = check {
         cy += check_lines(ui, x, cy, width, c, false, &names_of(g));
         cy += due_line(ui, g, x, cy, width) + tokens::PAD;

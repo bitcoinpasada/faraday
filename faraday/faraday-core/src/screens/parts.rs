@@ -579,7 +579,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     };
     let mut cy = y;
     // So that a multisig's three rows do not read as one address per
-    // key (`docs/history/NEW-WALLET.md` §2.4). Each receive row opens its
+    // key. Each receive row opens its
     // code; the change row opens nothing (`docs/QR.md` §7.1).
     section_label(ui, x, cy, EN.first_addresses_heading);
     cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
@@ -919,8 +919,8 @@ pub(crate) fn pass_field(
 
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
 /// a dot for each character typed, with the selection and the caret
-/// while `on`, or the **No passphrase** pill while it is empty
-/// (`docs/history/NEW-WALLET.md` §13.4). In Practice (`chip`) the empty field
+/// while `on`, or the **No passphrase** pill while it is empty.
+/// In Practice (`chip`) the empty field
 /// offers the `faraday` chip, and `faraday` is drawn in its code box.
 pub(crate) fn dots_field(
     ui: &mut Ui,

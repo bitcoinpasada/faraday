@@ -132,7 +132,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         app.visit().log
     );
     // F4: the stick out leaves Files where it is; on Home the unsigned PSBT
-    // also copied in leads (`docs/history/SIMPLIFY.md` §1.2 rule 2); the
+    // also copied in leads; the
     // vault opens from Vaults.
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Files);

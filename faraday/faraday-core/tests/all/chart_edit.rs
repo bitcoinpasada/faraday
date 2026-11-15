@@ -1,5 +1,5 @@
-//! Changing the backup on the wallet's chart (`docs/history/NEW-WALLET.md`
-//! §9.5–§9.7): a move, another copy, a thing destroyed or a place removed
+//! Changing the backup on the wallet's chart (`docs/WALLETS.md` §12):
+//! a move, another copy, a thing destroyed or a place removed
 //! shows the check's three lines before and after and is made only once
 //! confirmed; from then the map is the plan, kept in the vault, and it
 //! loads back the same on another power-on. Names, dates and marks are

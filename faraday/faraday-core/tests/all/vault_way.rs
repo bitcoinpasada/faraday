@@ -454,7 +454,7 @@ fn an_entries_file_in_files_offers_import_once_a_vault_is_open() {
 }
 
 // ---------------------------------------------------------------------
-// §3.3 (`docs/history/SIMPLIFY.md`): after creation, once more to open it; an
+// §3.3: after creation, once more to open it; an
 // empty vault's next steps.
 // ---------------------------------------------------------------------
 

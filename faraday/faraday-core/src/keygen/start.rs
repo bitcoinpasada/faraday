@@ -2,7 +2,7 @@
 
 use crate::forms::Form;
 
-/// The choices on the Start card (`docs/history/NEW-WALLET.md` §15.1).
+/// The choices on the Start card.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Start {
     /// Make a new key from randomness, as BIP-39 words.

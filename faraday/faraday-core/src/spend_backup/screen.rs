@@ -880,7 +880,7 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 52.0 } else { 48.0 }) - y
 }
 
-/// What do you have? (`docs/history/SCAN-TO-SIGN.md` §4): a vault when one is
+/// What do you have?: a vault when one is
 /// found, the two ways in, what came in, the next question, and the
 /// wallet once it is worked out.
 fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -1153,7 +1153,7 @@ fn came_rows(app: &View) -> Vec<Text> {
     rows
 }
 
-/// The next question, by what came in (`docs/history/SCAN-TO-SIGN.md` §4.3).
+/// The next question, by what came in.
 fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let may = app.may_load_keys();
@@ -1588,7 +1588,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// Check the money: the wallet as a QR code, and its addresses. For a
 /// wallet worked out from seeds alone, the ways tried, the way tried
-/// now, and No money shows for the next (`docs/history/SCAN-TO-SIGN.md` §5).
+/// now, and No money shows for the next.
 fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(i) = app.spend_backup_wallet() else {
@@ -1802,7 +1802,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
     let card = app.spend_backup.state.from_card;
-    // The money moving to a new wallet (`docs/history/NEW-WALLET.md` §9.6): every
+    // The money moving to a new wallet (`docs/WALLETS.md` §12): every
     // coin, to its first address.
     if card && let Some((name, address)) = app.spend_backup_wallet().and_then(|i| app.moving_to(i))
     {
@@ -1943,8 +1943,7 @@ fn first_step(app: &View) -> u8 {
 
 /// Who signs: each of the wallet's keys, here or not, how many sign
 /// here, and while that is short of what the spend needs, Scan a key,
-/// the vaults to unlock and Collect a signature (`docs/history/SCAN-TO-SIGN.md`
-/// §3).
+/// the vaults to unlock and Collect a signature.
 fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(s) = app.wallets.spend() else {
@@ -1990,7 +1989,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy += 36.0;
                 }
                 // Made here, its backup not done: it waits
-                // (`docs/history/NEW-WALLET.md` §14.3).
+                // (`docs/WALLETS.md` §13).
                 let waits =
                     slot.held_by.is_some() && slot.fingerprint.is_some_and(|f| app.key_held(f));
                 let in_vault = slot
@@ -2091,7 +2090,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .filter(|fp| app.session.keys.key_label(**fp).is_some())
         .count();
     // Fewer keys here than sign: bring one here, or collect a signature
-    // from whoever holds one (`docs/history/NEW-WALLET.md` §11.2). A wallet whose
+    // from whoever holds one. A wallet whose
     // paths differ keeps them until the spend is signed, since a count
     // of keys does not settle which path signs.
     let paths = wallet

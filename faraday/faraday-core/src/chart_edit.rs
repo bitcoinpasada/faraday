@@ -1,5 +1,5 @@
-//! What the wallet's chart keeps (`docs/history/NEW-WALLET.md` §9.5,
-//! §9.6): dates checked, marks (lost, exposed), a key's holder and a
+//! What the wallet's chart keeps (`docs/WALLETS.md` §12):
+//! dates checked, marks (lost, exposed), a key's holder and a
 //! vault's name are notes the plan's vault record keeps (type 11, field
 //! 5), in the vault alone, and moving the money to a new wallet. The map
 //! is changed on the backup's board.
@@ -25,7 +25,7 @@ pub struct Work {
     /// A letter typed was refused: a passphrase here is printable ASCII.
     pub refused: bool,
     /// The wallet whose money is moving to a new wallet, by checksum
-    /// (`docs/history/NEW-WALLET.md` §9.6).
+    /// (`docs/WALLETS.md` §12).
     pub moving: Option<Text>,
     /// The new wallet it moves to, once Create has made it, by checksum.
     pub moving_to: Option<Text>,

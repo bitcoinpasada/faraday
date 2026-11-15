@@ -8,7 +8,7 @@ use faraday_crypto::work::Compute;
 
 /// Costs what `vault_place`, `backup_items_now` and
 /// `backup_item_done_now` cost. The backup before spending
-/// (`docs/history/NEW-WALLET.md` §14): a single-key wallet made here, its card
+/// (`docs/WALLETS.md` §13): a single-key wallet made here, its card
 /// with Finish the backup first and the receive warning; Places with
 /// Vault 1's stick unticked; the vault item with no vault open, with
 /// one made and open, and saved into; the templates marked printed, Write

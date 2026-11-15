@@ -1,5 +1,5 @@
 //! The caret and the selection in the field typing goes to, and the
-//! mouse's back and forward buttons (`docs/history/NEW-WALLET.md` §13.1, §13.2).
+//! mouse's back and forward buttons.
 //!
 //! An edit inside a field, rather than at its end, is made with the
 //! field's own keys: the characters after the edit are taken off with
@@ -29,7 +29,7 @@ use crate::{Action, Faraday, Screen, Sheet, keygen};
 /// the fields, which wipe what they drop.
 pub(crate) struct TypingArea {
     /// Where the caret and the selection are in the field typing goes
-    /// to (`docs/history/NEW-WALLET.md` §13.2).
+    /// to.
     edit: Edit,
     /// An edit inside a field is being typed through the field's own
     /// keys.

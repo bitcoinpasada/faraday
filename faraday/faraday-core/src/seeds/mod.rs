@@ -117,7 +117,7 @@ pub struct SeedsState {
     pub error: Option<Text>,
     /// The kind was chosen first (Restore's Kind card): the number of
     /// keys stays within it, and each slot is a seed or a cosigner's
-    /// box (`docs/history/NEW-WALLET.md` §12.1).
+    /// box.
     pub fixed: bool,
     /// Cosigner boxes whose Use a sample chip is gone this visit, one bit
     /// each: pressed in or typed in.
@@ -489,7 +489,7 @@ impl Faraday {
             Some(Screen::Restore) => self.restore_took(fp),
             Some(Screen::Create) => self.create_slot_took(fp),
             // On What do you have? with no wallet open yet: the seeds
-            // the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md` §4).
+            // the wallet is worked out from.
             // With a wallet open, a key fills its slot and no more.
             Some(Screen::SpendBackup) if !self.spend_backup_ready() => {
                 self.spend_backup_seed_took(fp)
@@ -823,7 +823,7 @@ impl Faraday {
                             .choose(faraday_text::Text::of(&self.session.wallets[i].name));
                         self.wallets.set_wallet(i);
                         // Made without its description: a guess, which Check
-                        // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
+                        // the money walks through.
                         self.spend_backup_guess_start(n > 1);
                         self.refresh_spend();
                         self.spend_backup_opened();

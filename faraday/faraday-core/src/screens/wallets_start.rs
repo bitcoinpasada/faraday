@@ -61,7 +61,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Wallets loaded: the list and the wallet card carry every job
     // (Sign a transaction, Back up, Show wallet QR, Sign a message) and
     // Tools has the rest; Add a key stays under the list.
-    // `docs/history/SIMPLIFY.md` §1.3.
     // Spend from a backup stays offered with wallets loaded: it is the
     // way back into a spend left for another tab, which lights Wallets.
     if !empty {
@@ -179,7 +178,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if empty {
         let gap = 16.0;
-        // Four ways in (`docs/history/SIMPLIFY.md` §6.2): Create, Load or
+        // Four ways in: Create, Load or
         // restore, Spend from a backup, and Add a key.
         let tw = (width - 3.0 * gap) / 4.0;
         let ways = [

@@ -112,7 +112,7 @@ fn home_offers_every_place_without_a_sidebar() {
     assert_eq!(app.screen, Screen::Home, "the bar goes back to Home");
 }
 
-/// Spend left the small Home grid (`docs/history/SIMPLIFY.md` §6.2): the
+/// Spend left the small Home grid: the
 /// Wallets empty state and the guide sheet reach it instead.
 #[test]
 fn homes_grid_has_no_spend_tile() {
@@ -397,7 +397,7 @@ fn scan_never_covers_a_tile() {
 /// A flow's page title is the card's name alone, never a count next to
 /// it that could be read as one of the card's own values; the step
 /// count is its own muted "Step N of M" text beside the title
-/// (`DESIGN.md` §4.1, `docs/history/SIMPLIFY.md` §2.6).
+/// (`DESIGN.md` §4.1).
 #[test]
 fn a_flow_s_page_title_carries_no_count() {
     let mut app = panel();
@@ -405,7 +405,7 @@ fn a_flow_s_page_title_carries_no_count() {
     tap(&mut app, Action::Vault(V::Create));
     let texts = app.drawn_texts();
     // Create a vault is two cards, and opens on the second: the size
-    // has its default (`docs/history/SIMPLIFY.md` §3.1). The title wraps onto
+    // has its default. The title wraps onto
     // its own line or lines, with no count joined onto it.
     assert!(
         texts

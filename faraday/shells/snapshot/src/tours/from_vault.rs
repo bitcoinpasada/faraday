@@ -8,7 +8,7 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
 /// Costs what `psbt_for`, `add_words` and `parse` cost. From the vault
-/// to a spend (`docs/history/NEW-WALLET.md` §11): the boot stick's vault
+/// to a spend: the boot stick's vault
 /// unlocked after the pull lands on Wallets with a toast; a wallet's
 /// card leads with Spend from this wallet, which opens the Spend tab on
 /// Load the wallet in Sparrow with the shortcut; a 2-of-3 with one key

@@ -1,5 +1,5 @@
 //! What a locked vault held is remembered across a lock
-//! (`docs/history/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11): the Vaults list names
+//! (`docs/VAULT.md` §11): the Vaults list names
 //! the wallet and key a vault held when last seen open, in the next
 //! process after a lock; after power-off, with no kept state, it says to
 //! unlock it to see. Each row reads its currency too (§3.5).
@@ -171,7 +171,7 @@ fn vaults_list(app: &mut Faraday) -> Vec<String> {
     app.drawn_texts().plain()
 }
 
-/// A vault's currency (`docs/history/SIMPLIFY.md` §3.5), on its Vaults list row:
+/// A vault's currency, on its Vaults list row:
 /// never written once made; current on the stick once a visit wrote it;
 /// changed once it is open with a change, and still after the lock that
 /// seals the change.

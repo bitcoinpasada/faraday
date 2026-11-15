@@ -87,8 +87,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
         kit_file("vault.kdbx"),
     ]);
     // Opened from a flow (the vault way), not the Vaults list: it shows
-    // what it holds without loading it until asked, as today
-    // (`docs/history/NEW-WALLET.md` §11.1a).
+    // what it holds without loading it until asked, as today.
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     assert!(app.session.keys.is_empty(), "unlocking loads nothing");
@@ -150,8 +149,8 @@ fn a_key_the_quorum_needs_is_asked_for() {
     app.press(Action::LoadWallet(w));
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    // One Scan a key takes whichever missing key comes
-    // (`docs/history/SCAN-TO-SIGN.md` §2), not a way in per key.
+    // One Scan a key takes whichever missing key comes,
+    // not a way in per key.
     assert!(app.offers(Action::ScanKey(0)));
     let slots = app.session.slots(&app.session.wallets[0]);
     let per_key = slots
@@ -167,8 +166,7 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.kdbx")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
-    // loads until `LoadWithKeys` is pressed, as today
-    // (`docs/history/NEW-WALLET.md` §11.1a).
+    // loads until `LoadWithKeys` is pressed, as today.
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(&c, 0);
@@ -189,7 +187,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
     let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.kdbx")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
-    // loads until chosen (`docs/history/NEW-WALLET.md` §11.1a).
+    // loads until chosen.
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(&c, 0);
@@ -204,7 +202,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
 }
 
 // ---------------------------------------------------------------------
-// §3.3 (`docs/history/SIMPLIFY.md`): Vault contents lists the kinds it holds,
+// §3.3: Vault contents lists the kinds it holds,
 // then Add….
 // ---------------------------------------------------------------------
 

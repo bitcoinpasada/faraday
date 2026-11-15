@@ -1305,7 +1305,7 @@ impl StepView<'_> {
                     let fp = slot.fingerprint.map(fp_label).unwrap_or_default();
                     ui.text_mid_as((x + 22.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
                     // A label that is its fingerprint is not drawn
-                    // twice (`docs/history/SCAN-TO-SIGN.md` §3.3).
+                    // twice.
                     let label = slot
                         .held_by
                         .as_deref()
@@ -1404,7 +1404,7 @@ impl StepView<'_> {
             .count();
         // Short of signers: Scan a key, the vaults to unlock and
         // Collect a signature; a wallet whose paths differ keeps them
-        // until the spend is signed (`docs/history/SCAN-TO-SIGN.md` §3.2).
+        // until the spend is signed.
         let paths = wl.is_some_and(|(_, wl)| {
             matches!(
                 crate::wallet::Kind::of(wl.policy()),
@@ -2221,7 +2221,7 @@ fn spend_panel(
     ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
 }
 
-/// Who signs' count (`docs/history/SCAN-TO-SIGN.md` §3.1): enough, the count and
+/// Who signs' count: enough, the count and
 /// a green Can spend beside it; short, the count and how many more are
 /// needed, in `warning`. Returns the y its step's Continue goes at: beside
 /// it, or under it where both do not fit.

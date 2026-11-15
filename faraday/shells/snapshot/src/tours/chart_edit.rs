@@ -7,8 +7,8 @@ use faraday_core::{Action, Screen, StorageEvent};
 use faraday_crypto::work::Compute;
 
 /// Costs what `key_text`, `add_wallet`, `of_now` and the rest it calls
-/// cost. The chart's marks and names (`docs/history/NEW-WALLET.md`
-/// §9.5–§9.7), on a one-key wallet with a vault open and the Paper and
+/// cost. The chart's marks and names (`docs/WALLETS.md` §12),
+/// on a one-key wallet with a vault open and the Paper and
 /// vault plan made with it: a line marked lost and a place marked
 /// exposed, with what follows; and on a 2-of-3, the cosigner's holder
 /// typed and the card with it.

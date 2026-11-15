@@ -341,7 +341,7 @@ impl NewKind {
     }
 
     /// Which key text this kind is at `account` on `network`: its script's
-    /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2).
+    /// account key, or its path (`docs/WALLETS.md` §14).
     pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, Text> {
         use faraday_keys::Spec;
         Ok(match self {
@@ -509,7 +509,7 @@ pub enum Source {
 }
 
 /// What a creation started from a loaded wallet keeps of that wallet
-/// (`docs/history/NEW-WALLET.md` §16.2): its name, kind and account, and, by
+/// (`docs/WALLETS.md` §14): its name, kind and account, and, by
 /// slot, the cosigners' keys it has only as xpubs.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FromWallet {
@@ -891,7 +891,7 @@ pub fn build(c: &Compute, kind: NewKind, m: usize, keys: &[Text]) -> Result<Wall
 }
 
 /// A wallet's derivation paths as Make a new wallet's Check shows them
-/// (`docs/history/NEW-WALLET.md` §17): the one path when every key has it, else
+/// (`docs/WALLETS.md` §14): the one path when every key has it, else
 /// each key's fingerprint and path. A key that came with no origin
 /// reads as such.
 pub(crate) fn paths_text(policy: &WalletPolicy) -> Text {
@@ -1003,8 +1003,7 @@ pub struct CreateState {
     pub more_kinds: bool,
     /// New keys made for this wallet.
     pub made: u32,
-    /// The slot whose passphrase fields are open (`docs/history/NEW-WALLET.md`
-    /// §3.6).
+    /// The slot whose passphrase fields are open.
     pub pass_slot: Option<u8>,
     /// The passphrase typed there.
     pub pass: secret_text::SecretText,
@@ -1022,7 +1021,7 @@ pub struct CreateState {
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
-    /// The account every key is used at (`docs/history/NEW-WALLET.md` §16.2): 0
+    /// The account every key is used at (`docs/WALLETS.md` §14): 0
     /// unless the creation was started from a wallet.
     pub account: u32,
     /// The Account row's − n + stepper is open, by its **Change** or by
@@ -1041,7 +1040,7 @@ pub struct CreateState {
     /// this one**.
     pub from: Option<FromWallet>,
     /// The made wallet's derivation paths as Check shows them, worked out
-    /// once when it is made (`docs/history/NEW-WALLET.md` §17).
+    /// once when it is made (`docs/WALLETS.md` §14).
     pub path: Text,
     /// The made wallet was added to the session by this creation, not
     /// found there already: taking it back removes it.
@@ -2120,8 +2119,7 @@ impl Faraday {
     }
 
     /// Whether the key in a Create slot can take a passphrase there: one
-    /// loaded here from BIP-39 words without one
-    /// (`docs/history/NEW-WALLET.md` §3.6).
+    /// loaded here from BIP-39 words without one.
     pub(crate) fn create_pass_offered(&self, slot: usize) -> bool {
         let Some(c) = self.create.state.as_ref() else {
             return false;
@@ -2140,7 +2138,7 @@ impl Faraday {
 
     /// Lock in under a Create slot: adds the key the slot's words and the
     /// passphrase typed make, and puts it in the slot in place of the
-    /// first, which stays loaded (`docs/history/NEW-WALLET.md` §3.6).
+    /// first, which stays loaded.
     pub(crate) fn create_pass_lock(&mut self) {
         let c = self.compute();
         if !self.selftest_passed() {
@@ -2193,7 +2191,7 @@ impl Faraday {
             Err(e) => (Err(e.text()), false),
         };
         // The passphrase exists nowhere else: the key is made here
-        // (`docs/history/NEW-WALLET.md` §14.3).
+        // (`docs/WALLETS.md` §13).
         if new && let Ok(fp) = &added {
             self.mark_made_here(*fp);
         }
@@ -2335,7 +2333,7 @@ impl Faraday {
         };
         let descriptor = c.kind.descriptor(c.m, &keys);
         // A wallet made from another is named after it, with the account
-        // (`docs/history/NEW-WALLET.md` §16.2).
+        // (`docs/WALLETS.md` §14).
         let name = match c.from.as_ref() {
             Some(f) => f.name_at(c.kind, c.account),
             None => Text::fill(

@@ -441,7 +441,7 @@ fn answer_line(a: &mut Answers, name: &str, value: &str, got: &mut Lines) -> Opt
 fn skipped_line(a: &mut Answers, name: &str, value: &str) -> bool {
     match name {
         // A key made here whose backup is pending: read by the
-        // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
+        // caller (`docs/WALLETS.md` §13), not an answer.
         "held" => {}
         // The seal counts of the other vaults this plan places
         // (`docs/VAULT.md` §7): read by the plan

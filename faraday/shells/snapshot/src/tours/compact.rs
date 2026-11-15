@@ -58,13 +58,12 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
         }
     }
     // The randomness check is on the entry card once the last roll is
-    // in; its Continue opens Key (`docs/history/NEW-WALLET.md` §3.2).
+    // in; its Continue opens Key.
     t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
     t.shot("keygen-key")?;
     t.press(Action::KPassField(0));
-    // Focused and empty: the No passphrase pill, the caret after it
-    // (`docs/history/NEW-WALLET.md` §13.4).
+    // Focused and empty: the No passphrase pill, the caret after it.
     t.shot("keygen-key-passphrase-empty")?;
     type_text(t, "Ride the 7 bus");
     t.shot("keygen-key-passphrase")?;

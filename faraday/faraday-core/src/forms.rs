@@ -559,7 +559,7 @@ pub(crate) fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
 }
 
 /// What a key did in the word entry that the screen it is on acts on
-/// (`docs/history/NEW-WALLET.md` §14.7 item 2).
+/// (`docs/WALLETS.md` §13).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WordKey {
     /// A word, or part of one, was typed or taken back.

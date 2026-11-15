@@ -150,7 +150,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let held = app.lock_held();
     // The Files row stands above the stick's row at the foot; the pill
     // under Lock while the idle lock waits for a new wallet's backup
-    // (`docs/history/NEW-WALLET.md` §18) takes its room from the lists.
+    // takes its room from the lists.
     let files_top = h - 172.0 - if held { LOCK_PILL_H + GRID } else { 0.0 };
     lists(app, ui, y + GRID, files_top);
     foot(app, ui, files_top, held);
@@ -468,7 +468,7 @@ fn files_row(app: &View, ui: &mut Ui, fy: f32) {
 pub(crate) const LOCK_PILL_H: f32 = 24.0;
 
 /// "Auto-lock off until backup complete" as an outlined pill at (x, y),
-/// `w` wide at most (`docs/history/NEW-WALLET.md` §18). Returns its height.
+/// `w` wide at most. Returns its height.
 pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (role, pad) = (LABEL_S.regular(), 8.0);
     let text = ui.fit_as(role, EN.lock_held_pill, w - 2.0 * pad);

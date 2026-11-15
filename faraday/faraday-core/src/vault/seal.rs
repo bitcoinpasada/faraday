@@ -180,7 +180,7 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
     // What each open vault holds, remembered across the lock.
     app.vault_summaries_refresh();
     // A held key's record says so before the vault goes
-    // (`docs/history/NEW-WALLET.md` §14.3).
+    // (`docs/WALLETS.md` §13).
     app.held_sweep();
     // An original after the target its item was moved to.
     let ids = app.vaults.open.iter().map(|o| o.id).collect();
@@ -603,7 +603,7 @@ fn seal_stopped(app: &mut Faraday, short: Option<(VaultId, faraday_vault::file::
 /// What a lock does to flows before the wipes, once every seal is done
 /// (the vaults are still open): a lock before Make a new wallet's keys are
 /// kept anywhere ends it, as its Cancel does: nothing is left to come back
-/// to (`docs/history/NEW-WALLET.md` §18); the flows keep where they are.
+/// to; the flows keep where they are.
 fn lock_flows(app: &mut Faraday) {
     let c = app.compute();
     if app.lock_ends_create(&c) {

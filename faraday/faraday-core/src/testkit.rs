@@ -1982,8 +1982,7 @@ pub fn type_words(app: &mut crate::Faraday, words: &str) {
 
 /// Checks every passphrase the backup's checklist keeps on paper, as a
 /// person with a right copy does: its item opened, Check my copy, the
-/// key's own passphrase typed back and Enter (`docs/history/NEW-WALLET.md`
-/// §14.7 item 5).
+/// key's own passphrase typed back and Enter (`docs/WALLETS.md` §13).
 pub fn type_passphrases(app: &mut crate::Faraday) {
     use crate::{Action, bstep};
     use faraday_shell_api::{App, Event, Key};

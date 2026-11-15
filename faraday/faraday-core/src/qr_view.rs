@@ -69,10 +69,10 @@ pub enum ScanPurpose {
     #[cfg(feature = "demo")]
     Transfer,
     /// Any missing key of loaded wallet n, which Faraday works out from
-    /// the seed read (`docs/history/SCAN-TO-SIGN.md` §2.1).
+    /// the seed read.
     WalletKey(usize),
     /// The Spend tab's What do you have?: anything in the envelope, one
-    /// code after another, until Done (`docs/history/SCAN-TO-SIGN.md` §4.2).
+    /// code after another, until Done.
     Intake,
     /// **Scan the public key** on Restore a GPG key: an armoured public
     /// key, filed in Files and restored from (`docs/GPG-PAPERKEY.md` §3).
@@ -410,7 +410,7 @@ pub enum Code {
     /// That key's signed BIP 129 key record.
     WalletKeyBsms(usize, u8),
     /// The account key in wallet n's slot k, held elsewhere, as the
-    /// wallet's descriptor writes it (`docs/history/NEW-WALLET.md` §9.3).
+    /// wallet's descriptor writes it (`docs/WALLETS.md` §12).
     CosignerKey(usize, u8),
     /// The silent payments address on show: as it is, or as a
     /// `bitcoin:` link.

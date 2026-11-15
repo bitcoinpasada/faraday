@@ -8,7 +8,7 @@ use faraday_crypto::work::Compute;
 
 /// Costs what `add_words`, `key_text` and `add_wallet` cost. Keys from
 /// a vault on Create's Keys card, and New wallet from this one
-/// (`docs/history/NEW-WALLET.md` §16): a 2-of-3's Keys with the test vault
+/// (`docs/WALLETS.md` §14): a 2-of-3's Keys with the test vault
 /// locked, then unlocked from there with test key 1 offered under its
 /// name; a 2-of-3 over the vault's key, test key 2 here and test key
 /// 3's xpub, its card with New wallet from this one, and Create filled

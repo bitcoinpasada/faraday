@@ -662,8 +662,8 @@ impl Faraday {
 
     /// Costs what the checklist's answers cost. Make a new wallet is under
     /// way and its keys are kept nowhere yet: begun, its backup not done,
-    /// and no backup flow of it has made its vaults (`docs/history/NEW-WALLET.md`
-    /// §18). The idle lock waits, a lock or a power-off ends it, and the
+    /// and no backup flow of it has made its vaults.
+    /// The idle lock waits, a lock or a power-off ends it, and the
     /// sidebar says so.
     pub fn lock_held(&self, c: &Compute) -> bool {
         lock_held_on(&Now { app: self, c })

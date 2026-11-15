@@ -160,8 +160,8 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     description_into_vault(c, t, 0);
     description_file_at(c, t, 0);
     t.press(Action::BChecklist);
-    // The items before the vault's wait for it (`docs/history/NEW-WALLET.md`
-    // §14.1): each copy by hand checked in turn, then the vault.
+    // The items before the vault's wait for it (`docs/WALLETS.md` §13):
+    // each copy by hand checked in turn, then the vault.
     items_before(c, t, faraday_core::bstep::VAULT)?;
     if t.app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
         t.press(Action::BStep(faraday_core::bstep::VAULT));
@@ -181,7 +181,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let wallets = count(t, kind::WALLET);
     t.shot("create-backup-vault")?;
     // One Save into the vault saves all the plan puts there
-    // (`docs/history/NEW-WALLET.md` §14.1): the two new keys and the wallet;
+    // (`docs/WALLETS.md` §13): the two new keys and the wallet;
     // test key 1 was there already. The plan record the checklist wrote
     // is kept as it is, one of it: nothing in it changed.
     t.press(Action::BVaultSave(0));
@@ -279,7 +279,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
     );
     t.shot("tools-convert")?;
-    // Restore begins with the kind of wallet (`docs/history/NEW-WALLET.md` §12).
+    // Restore begins with the kind of wallet.
     t.press(Action::Lock);
     t.press(Action::Nav(Screen::WalletsStart));
     t.shot("start-empty")?;
@@ -292,7 +292,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 
 /// Costs what `backup_waiting` costs. Does each checklist item before
 /// `target` in the checklist's order, as a person must
-/// (`docs/history/NEW-WALLET.md` §14.1): a copy by hand is checked by its words
+/// (`docs/WALLETS.md` §13): a copy by hand is checked by its words
 /// typed back, the envelopes by their Continue.
 pub(crate) fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
     use faraday_core::bstep;

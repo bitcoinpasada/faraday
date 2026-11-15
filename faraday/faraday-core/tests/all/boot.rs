@@ -1,7 +1,7 @@
 //! A session at boot: the boot stick's vault comes into the Inbox with
 //! the import over Home, pulling the stick leaves Home with the import,
 //! not the passphrase prompt, and a vault unlocked on its own
-//! (`docs/history/NEW-WALLET.md` §11.1a) asks what to load (F62), loads what is
+//! asks what to load (F62), loads what is
 //! ticked and lands on Wallets. Opened from inside a flow, it still shows
 //! what it holds without loading it until asked. An unlock is noted for
 //! the dev card's timings by its strength and memory, and by how it ended.
@@ -132,7 +132,7 @@ fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     // Opened from inside a flow (the vault way), not the Vaults list's
     // own Unlock: it still shows what it holds without loading it until
-    // asked (`docs/history/NEW-WALLET.md` §11.1a).
+    // asked.
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     unlock(&mut app);
     let rows = app.vault_rows_now(&c, 0);

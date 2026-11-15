@@ -62,8 +62,7 @@ pub struct EntryState {
     /// The lists other than English are shown to choose from.
     pub languages: bool,
     /// The chips for SLIP-39, codex32 and Seed XOR are shown: pressed
-    /// directly, or set already by a Tools tile for one of those forms
-    /// (`docs/history/SIMPLIFY.md` §2.4).
+    /// directly, or set already by a Tools tile for one of those forms.
     pub other_forms: bool,
     /// How many words were chosen, 0 until one is: 12 boxes.
     pub word_count: u8,
@@ -1518,7 +1517,7 @@ impl Faraday {
     }
 
     /// Whether Add a key's form takes the keys typed: on Add a key, on
-    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2)
+    /// New key's Words card for a key typed
     /// or on My seed makes my wallet's Seed card.
     pub(crate) fn entry_typing_here(&self) -> bool {
         self.screen == Screen::Entry
@@ -1628,7 +1627,7 @@ impl Faraday {
     /// Puts the parts typed together and loads the key they make, with
     /// the passphrase typed (not for codex32); what is wrong otherwise.
     /// Add a key's Make the key and New key's Lock in for a form other
-    /// than words both load through here (`docs/history/NEW-WALLET.md` §15.2).
+    /// than words both load through here.
     pub(crate) fn form_key(
         &mut self,
     ) -> Result<faraday_bip::keys::Fingerprint, faraday_text::Text> {

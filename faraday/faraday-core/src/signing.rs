@@ -143,7 +143,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
     }
     let c = app.compute();
     // A key made here signs nothing until its backup is done
-    // (`docs/history/NEW-WALLET.md` §14.3).
+    // (`docs/WALLETS.md` §13).
     let held = app.held_keys_now(&c);
     let waiting: Vec<Text> = app
         .wallets

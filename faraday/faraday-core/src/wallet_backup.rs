@@ -4,8 +4,8 @@
 //! - the seeds, copied by hand from the screen: words with their BIP-39
 //!   indices, and the SeedQR drawn as a ruled grid. A copy of the words is
 //!   checked by typing the words back, and a SeedQR by scanning the drawn
-//!   grid, each compared by [`compare_words`] (`docs/history/NEW-WALLET.md`
-//!   §14.7). Never a printer.
+//!   grid, each compared by [`compare_words`] (`docs/WALLETS.md` §13).
+//!   Never a printer.
 //!   After the copy by hand, a further copy: into the open vault as the
 //!   key record Vaults saves, or as a file only through the secret sheet
 //!   (`crate::secrets`), past a warning: the words or the SeedQR as a
@@ -360,7 +360,7 @@ pub(crate) fn sheet_wallet_on(
 }
 
 /// What the blank template has to copy a seed onto: the word lines, the
-/// SeedQR grid, or both (`docs/history/NEW-WALLET.md` §14.7).
+/// SeedQR grid, or both (`docs/WALLETS.md` §13).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlankCopy {
     /// The word lines.
@@ -563,7 +563,7 @@ pub struct BackupState {
     /// default).
     pub rows: bool,
     /// The typed check of a copy of the words, while it is open
-    /// (`docs/history/NEW-WALLET.md` §14.7 item 2).
+    /// (`docs/WALLETS.md` §13).
     pub check: Option<copy_check::WordCheck>,
     /// What scanning the copy of the seed on screen found.
     pub scanned: Option<CopyCheck>,
@@ -582,7 +582,7 @@ pub struct BackupState {
     pub undated: bool,
     /// The scans of each seed's SeedQR copy without a match in this
     /// backup, by fingerprint: each opening of the camera on the copy
-    /// that closed without one (`docs/history/NEW-WALLET.md` §14.7 item 3). Goes
+    /// that closed without one (`docs/WALLETS.md` §13). Goes
     /// with a lock, which drops the backup.
     pub misses: Vec<([u8; 4], u8)>,
     /// The reads of each seed's drawn Krux code that were not the code,
@@ -1822,7 +1822,7 @@ impl Faraday {
             Action::BChecklist => {
                 // A plan that keeps no copy of a key made here, or leaves
                 // a vault's stick at no place, is not made into a
-                // checklist (`docs/history/NEW-WALLET.md` §14.2, §14.4).
+                // checklist (`docs/WALLETS.md` §13).
                 // A backup past its lock keeps its plan until its writes
                 // are done (`docs/BACKUP-FLOW.md` §15.8).
                 if self.backup_locked_flow().is_some() {
@@ -1862,7 +1862,7 @@ impl Faraday {
             Action::BStep(n) => {
                 let open = self.backup.state().and_then(|b| b.open);
                 // An item opens once every item before it is done
-                // (`docs/history/NEW-WALLET.md` §14.1).
+                // (`docs/WALLETS.md` §13).
                 if open == Some(n) {
                     self.backup_item_open(None);
                 } else if self.backup_reachable(c, n) {

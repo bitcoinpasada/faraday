@@ -5,10 +5,10 @@
 //! bytes and the key is those bytes alone, a key made for a Create slot
 //! fills it, and leaving the screen forgets everything. The randomness
 //! check is on the entry card, Lock in adds the key, with a passphrase
-//! for a Create slot, and a Create slot's flow ends there
-//! (`docs/history/NEW-WALLET.md` §3). Add a key is the same flow opening on
+//! for a Create slot, and a Create slot's flow ends there.
+//! Add a key is the same flow opening on
 //! Start, where words already held are typed or scanned and loaded as
-//! Add a key loads them (§15).
+//! Add a key loads them.
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
@@ -45,7 +45,7 @@ fn pass_quiz(app: &mut Faraday) {
 
 /// The app on Add a key, with New key opened from there and carried past
 /// Length and Randomness to the entries, each on its default
-/// (`docs/history/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
+/// (New key opens on Length, not the entries).
 /// The system answers the quiz's request for bytes of its own.
 fn answered(app: &mut Faraday) {
     for i in 0..4u8 {
@@ -1175,7 +1175,7 @@ fn an_empty_key_card_passphrase_field_says_no_passphrase_until_a_character_is_ty
 }
 
 // ---------------------------------------------------------------------
-// Add a key is New key, opening on Start (`docs/history/NEW-WALLET.md` §15)
+// Add a key is New key, opening on Start
 // ---------------------------------------------------------------------
 
 use faraday_core::keygen::{Start, kstep};
