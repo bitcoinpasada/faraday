@@ -91,6 +91,14 @@ blocking = true
 site_with = ["tools/cryptography.py", "web/cryptography.html"]
 
 [[consumer]]
+id = "website.audits"
+name = "the website's Audits page"
+reads = ["docs/AUDIT-SUBMISSIONS.md", "docs/crypto/actions.toml", "SECURITY.md"]
+act = "the page's call for outside review and its timeline, written by hand from these, say what they now say"
+blocking = true
+site_with = ["web/audits.html"]
+
+[[consumer]]
 id = "website.vault"
 name = "the website's vault page"
 reads = ["docs/VAULT.md", "docs/KEF.md"]

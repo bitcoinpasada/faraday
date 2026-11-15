@@ -313,6 +313,7 @@ ratchet count has a decision naming it. The refusal: a decision or a
 | `website.roles` | `faraday/faraday-ui/src/pal/schemes.rs` | the site's colour roles written again | yes (its `site_check` exists) |
 | `website.wordmark` | `faraday/faraday-ui/assets/wordmark.txt` | the site's wordmark outlines copied again | yes |
 | `website.standards` | `docs/STANDARDS.md` | the standards page edited to match (rendered from the manifest once F148 is built) | yes |
+| `website.audits` | `docs/AUDIT-SUBMISSIONS.md`, `docs/crypto/actions.toml`, `SECURITY.md` | the Audits page, written by hand from these, says what they now say | yes |
 | `website.tour` | the screens the tour shows | the tour's pictures made again | no |
 | `website.demo` | `faraday/faraday-host/**`, `faraday/faraday-samples/**`, `Cargo.lock` | the demo built and its tests run | no; its own build refuses a break |
 
