@@ -42,7 +42,7 @@
 // A window program on Windows: no console opens beside it.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -62,17 +62,13 @@ use faraday_starter_shell::signed;
 use faraday_starter_shell::writer::Job;
 use faraday_storage::{Boxes, Dirs, Host, serve_with};
 use faraday_window::camera::{self, Camera};
-use faraday_window::drag::TitleDrag;
 use faraday_window::entropy;
-use faraday_window::input::Pointer;
-use faraday_window::lens::{Lens, LensHost};
-use faraday_window::pace::{Pacer, TICK};
-use faraday_window::view::{self, View};
-use winit::application::ApplicationHandler;
+use faraday_window::lens::Lens;
+use faraday_window::run::{Core, Program, run};
+use faraday_window::view;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::window::{Window, WindowId};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::window::{Window, WindowAttributes};
 
 /// How often the Downloads folder and the cameras are looked at again,
 /// on a thread of their own ([`watch_listing`]).
@@ -118,68 +114,54 @@ struct Shell {
     boxes: Boxes,
     /// The sticks' folders, their pictures read on a thread of their own.
     dirs: Dirs,
-    size: (u32, u32),
-    view: Option<View>,
-    shown: (u32, u32),
-    scale: f64,
-    pace: Pacer,
-    pointer: Pointer,
-    /// A press on the top bar's empty room that may move the window.
-    title: TitleDrag,
-    lens: Lens,
     /// Faraday Demo's side of the window while it is open (F126): its
     /// sticks, storage, clipboard and preview size.
     demo: Option<Demo>,
 }
 
 impl Shell {
-    fn window(&self) -> Option<&Window> {
-        self.view.as_ref().map(|v| &*v.window)
-    }
-
-    fn redraw(&self) {
-        if let Some(w) = self.window() {
-            w.request_redraw();
-        }
-    }
-
     /// Delivers one event, then answers what the Starter and the app it
     /// holds asked for.
-    fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
+    fn send_event(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, event: Event) {
         let ticked = matches!(event, Event::Tick { .. });
-        self.pace.before(&event);
+        core.pace.before(&event);
         let mut events = vec![event];
         let mut draw = false;
         while let Some(e) = events.pop() {
             self.starter.event(e);
-            draw |= self.answer(event_loop, &mut events);
+            draw |= self.answer(core, event_loop, &mut events);
         }
         if ticked {
             // A job on the held Demo's worker keeps the frames coming.
             let working = self.starter.demo().is_some_and(|h| h.app.busy().is_some());
-            self.pace.animating = draw || working;
+            core.pace.animating = draw || working;
         }
         if draw {
-            self.redraw();
+            core.redraw();
         }
     }
 
     /// Answers the Starter's commands and the held app's storage, and takes
     /// what the Starter asks of the system. Whether a frame was asked for.
-    fn answer(&mut self, event_loop: &ActiveEventLoop, events: &mut Vec<Event>) -> bool {
+    fn answer(
+        &mut self,
+        core: &mut Core,
+        event_loop: &ActiveEventLoop,
+        events: &mut Vec<Event>,
+    ) -> bool {
         let mut draw = false;
         while let Some(c) = self.starter.poll_command() {
             match c {
                 Command::Draw => draw = true,
                 Command::RequestEntropy => events.extend(entropy()),
-                Command::CameraOn => events.extend(self.lens.on(self.starter.held())),
-                Command::CameraOff => self.lens.off(),
+                Command::CameraOn => events.extend(core.lens.on(self.starter.held())),
+                Command::CameraOff => core.lens.off(),
                 Command::Exit if !self.starter.held().restart_requested() => event_loop.exit(),
                 _ => {}
             }
         }
         if !self.starter.showing_demo() {
-            self.lens.chosen(self.starter.held());
+            core.lens.chosen(self.starter.held());
         }
         for line in serve_with(
             self.starter.held(),
@@ -189,9 +171,9 @@ impl Shell {
         ) {
             eprintln!("{}", &*line);
         }
-        draw |= self.answer_demo(events);
+        draw |= self.answer_demo(core, events);
         while let Some(c) = self.starter.next_command() {
-            self.command(event_loop, c);
+            self.command(core, event_loop, c);
         }
         draw
     }
@@ -199,7 +181,7 @@ impl Shell {
     /// Answers Faraday Demo's commands and serves its sticks and storage
     /// while it is open (F126); a lock in it starts a fresh one, and its
     /// power off leaves it. Whether a frame was asked for.
-    fn answer_demo(&mut self, events: &mut Vec<Event>) -> bool {
+    fn answer_demo(&mut self, core: &mut Core, events: &mut Vec<Event>) -> bool {
         let mut draw = false;
         // A look at the sticks can ask for more: a few rounds at most.
         for _ in 0..4 {
@@ -213,8 +195,8 @@ impl Shell {
                 match c {
                     Command::Draw => draw = true,
                     Command::RequestEntropy => events.extend(entropy()),
-                    Command::CameraOn => events.extend(self.lens.on(&mut host.app)),
-                    Command::CameraOff => self.lens.off(),
+                    Command::CameraOn => events.extend(core.lens.on(&mut host.app)),
+                    Command::CameraOff => core.lens.off(),
                     other => match demo.command(&mut host.app, other) {
                         Asked::Nothing => {}
                         Asked::Event(e) => events.push(e),
@@ -222,7 +204,7 @@ impl Shell {
                     },
                 }
             }
-            self.lens.chosen(&mut host.app);
+            core.lens.chosen(&mut host.app);
             demo.took(&mut host.app);
             let looked = demo.settle(&mut host.app);
             match end {
@@ -231,7 +213,7 @@ impl Shell {
                     draw = true;
                 }
                 Asked::Exit => {
-                    self.lens.off();
+                    core.lens.off();
                     self.starter.close_demo();
                     return true;
                 }
@@ -244,7 +226,7 @@ impl Shell {
 
     /// Opens Faraday Demo in the window: its stick folders made the first
     /// time, its app in Practice, held by its host under the top app bar.
-    fn open_demo(&mut self) {
+    fn open_demo(&mut self, core: &Core) {
         let paths = Paths {
             sticks: Paths::in_home().sticks,
             downloads: self.host.downloads.clone(),
@@ -272,7 +254,7 @@ impl Shell {
         }
         self.demo = Some(demo);
         let _ = self.tx.send(StarterEvent::DesktopStarted(Ok(())));
-        self.redraw();
+        core.redraw();
     }
 
     /// A lock in Faraday Demo: a fresh app in its place, in the mode the
@@ -292,51 +274,51 @@ impl Shell {
 
     /// A file dragged over the window (`over`) while Faraday Demo is open,
     /// or the drag gone.
-    fn hovered(&mut self, over: bool) {
+    fn drag_over(&mut self, core: &Core, over: bool) {
         if let Some(host) = self.starter.demo() {
             host.app.storage(StorageEvent::Hovered(over));
-            self.redraw();
+            core.redraw();
         }
     }
 
     /// A file dropped on the window: while Faraday Demo is open, for its
     /// Transfer to send; otherwise for What to write's boot file (§4.5).
-    fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &std::path::Path) {
+    fn drop_file(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, path: &std::path::Path) {
         let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) else {
             if let Ok(full) = std::path::absolute(path) {
                 self.starter.file_dropped(full.display().to_string());
                 let mut events = Vec::new();
-                self.answer(event_loop, &mut events);
-                self.redraw();
+                self.answer(core, event_loop, &mut events);
+                core.redraw();
             }
             return;
         };
         demo.dropped(&mut host.app, path);
         let mut events = Vec::new();
-        self.answer(event_loop, &mut events);
+        self.answer(core, event_loop, &mut events);
         for e in events {
-            self.send(event_loop, e);
+            self.send_event(core, event_loop, e);
         }
-        self.redraw();
+        core.redraw();
     }
 
     /// The window's close, and the Starter's own close button's (F266):
     /// a write under way is not cut short, the window closes when it
     /// ends (`reported`); otherwise the Starter closes.
-    fn close_window(&mut self, event_loop: &ActiveEventLoop) {
+    fn close_window(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
         if self.writing.is_some() {
             self.starter.hold_close();
             self.close_held = true;
-            self.redraw();
+            core.redraw();
         } else {
             event_loop.exit();
         }
     }
 
     /// What the Starter asks of the system.
-    fn command(&mut self, event_loop: &ActiveEventLoop, c: StarterCommand) {
+    fn command(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, c: StarterCommand) {
         match c {
-            StarterCommand::Close => self.close_window(event_loop),
+            StarterCommand::Close => self.close_window(core, event_loop),
             StarterCommand::Write(order) => self.write(order),
             StarterCommand::RestartIntoFirmware => {
                 let system = Arc::clone(&self.system);
@@ -383,7 +365,7 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
                 });
             }
-            StarterCommand::OpenDemo => self.open_demo(),
+            StarterCommand::OpenDemo => self.open_demo(core),
             // Asked only while a Starter is installed; one that cannot
             // be written leaves the size for this run.
             StarterCommand::KeepTextSize(text) => {
@@ -394,7 +376,7 @@ impl Shell {
                 }
             }
             StarterCommand::DemoClosed => {
-                self.lens.off();
+                core.lens.off();
                 self.demo = None;
             }
             StarterCommand::CheckAgain => {
@@ -550,7 +532,7 @@ impl Shell {
     }
 
     /// Passes on what the system's threads reported.
-    fn reported(&mut self, event_loop: &ActiveEventLoop) {
+    fn reported(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
         let mut any = false;
         while let Ok(e) = self.events.try_recv() {
             if matches!(e, StarterEvent::Written(_))
@@ -568,13 +550,13 @@ impl Shell {
         }
         if any {
             let mut events = Vec::new();
-            let mut draw = self.answer(event_loop, &mut events);
+            let mut draw = self.answer(core, event_loop, &mut events);
             for e in events {
-                self.send(event_loop, e);
+                self.send_event(core, event_loop, e);
                 draw = true;
             }
             if draw {
-                self.redraw();
+                core.redraw();
             }
         }
     }
@@ -582,14 +564,14 @@ impl Shell {
     /// Tells the held app what Downloads holds and which cameras there
     /// are, when that changed: the newest of what [`watch_listing`] read.
     /// A lookup; the reading is done on that thread.
-    fn relist(&mut self) {
+    fn relist(&mut self, core: &Core) {
         let Some(now) = self.listing.try_iter().last() else {
             return;
         };
         if self.listed.as_ref() != Some(&now.files) {
             self.starter.held().storage(now.files.clone());
             self.listed = Some(now.files);
-            self.redraw();
+            core.redraw();
         }
         if self.cameras.as_ref() != Some(&now.cameras) {
             let cameras = now
@@ -599,14 +581,14 @@ impl Shell {
                 .collect();
             self.starter.held().storage(StorageEvent::Cameras(cameras));
             self.cameras = Some(now.cameras);
-            self.redraw();
+            core.redraw();
         }
     }
 
     /// Faraday Demo's Downloads listing and cameras, to its app, and its
     /// sticks looked at again when the timer says (F126). A lookup but
     /// for the look at the sticks, which is the Demo's own.
-    fn demo_due(&mut self, event_loop: &ActiveEventLoop, now: Instant) {
+    fn demo_due(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, now: Instant) {
         let (changed, looked) = match (self.demo.as_mut(), self.starter.demo()) {
             (Some(demo), Some(host)) => (
                 demo.relist(&mut host.app),
@@ -616,173 +598,98 @@ impl Shell {
         };
         if looked {
             let mut events = Vec::new();
-            self.answer(event_loop, &mut events);
+            self.answer(core, event_loop, &mut events);
             for e in events {
-                self.send(event_loop, e);
+                self.send_event(core, event_loop, e);
             }
         }
         if changed || looked {
-            self.redraw();
+            core.redraw();
         }
     }
-
-    fn display(&self) -> Event {
-        view::display(self.shown, self.scale, None)
-    }
 }
 
-/// The shell and its event loop, for the lens to deliver to.
-struct Pass<'a> {
-    shell: &'a mut Shell,
-    event_loop: &'a ActiveEventLoop,
-}
+impl Program for Shell {
+    const NAME: &'static str = "faraday-starter";
 
-impl LensHost for Pass<'_> {
-    fn lens(&mut self) -> &mut Lens {
-        &mut self.shell.lens
+    fn attributes(&self, core: &Core, _event_loop: &ActiveEventLoop) -> WindowAttributes {
+        let attributes = Window::default_attributes()
+            .with_title(TITLE)
+            .with_inner_size(LogicalSize::new(
+                f64::from(core.size.0),
+                f64::from(core.size.1),
+            ))
+            .with_min_inner_size(LogicalSize::new(640.0, 400.0));
+        view::identify(
+            attributes,
+            faraday_core::names::MENU_ID,
+            include_bytes!("../assets/icon.png"),
+        )
     }
 
-    fn send(&mut self, event: Event) {
-        self.shell.send(self.event_loop, event);
+    fn started(&mut self, core: &mut Core, _event_loop: &ActiveEventLoop) {
+        self.relist(core);
+    }
+
+    fn send(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, event: Event) {
+        self.send_event(core, event_loop, event);
     }
 
     fn faraday(&mut self) -> Option<&mut faraday_core::Faraday> {
         // Faraday Demo's app while it is open, the held app's otherwise.
-        if self.shell.starter.showing_demo() {
-            return self.shell.starter.demo().map(|h| &mut h.app);
+        if self.starter.showing_demo() {
+            return self.starter.demo().map(|h| &mut h.app);
         }
-        Some(self.shell.starter.held())
-    }
-}
-
-impl ApplicationHandler for Shell {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.view.is_some() {
-            return;
-        }
-        let attributes = Window::default_attributes()
-            .with_title(TITLE)
-            .with_inner_size(LogicalSize::new(
-                f64::from(self.size.0),
-                f64::from(self.size.1),
-            ))
-            .with_min_inner_size(LogicalSize::new(640.0, 400.0));
-        let attributes = view::identify(
-            attributes,
-            faraday_core::names::MENU_ID,
-            include_bytes!("../assets/icon.png"),
-        );
-        let view = match View::open(event_loop, attributes) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("faraday-starter: {e}");
-                event_loop.exit();
-                return;
-            }
-        };
-        let size = view.window.inner_size();
-        self.shown = (size.width, size.height);
-        self.scale = view.window.scale_factor();
-        self.pace.paced = view.paced();
-        self.view = Some(view);
-        let display = self.display();
-        self.send(event_loop, display);
-        self.relist();
-        self.pace.next_tick = Instant::now() + TICK;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
+        Some(self.starter.held())
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        match event {
+    fn close_requested(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
+        if self.starter.showing_demo() {
             // Closed while Faraday Demo is open, the window goes back to
             // Home (F126).
-            WindowEvent::CloseRequested if self.starter.showing_demo() => {
-                self.starter.close_demo();
-                let mut events = Vec::new();
-                self.answer(event_loop, &mut events);
-                self.redraw();
-            }
-            WindowEvent::CloseRequested => self.close_window(event_loop),
-            WindowEvent::DroppedFile(path) => {
-                self.dropped(event_loop, &path);
-            }
-            WindowEvent::HoveredFile(_) if self.starter.showing_demo() => self.hovered(true),
-            WindowEvent::HoveredFileCancelled if self.starter.showing_demo() => {
-                self.hovered(false);
-            }
-            WindowEvent::RedrawRequested => {
-                if self.pace.paced {
-                    let tick = self.pace.tick();
-                    self.send(event_loop, tick);
-                    self.pace.next_tick = Instant::now() + TICK;
-                }
-                if let Some(view) = self.view.as_mut() {
-                    view.draw(&mut self.starter, &mut self.pace);
-                }
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.scale = scale_factor;
-                let display = self.display();
-                self.send(event_loop, display);
-            }
-            WindowEvent::Resized(size) => {
-                if size.width > 0 && size.height > 0 && (size.width, size.height) != self.shown {
-                    self.shown = (size.width, size.height);
-                    let display = self.display();
-                    self.send(event_loop, display);
-                }
-                self.redraw();
-            }
-            other => {
-                // A press on the top bar's empty room and a drag move
-                // the window, a double-click maximises it; not the press
-                // the system makes of a finger's.
-                if let Some(view) = self.view.as_ref()
-                    && !self.pointer.is_echo(&other)
-                    && self
-                        .title
-                        .takes(&other, self.pointer.cursor, &view.window, |x, y| {
-                            self.starter.is_strip_room(x, y)
-                        })
-                {
-                    return;
-                }
-                for e in self.pointer.translate(&other) {
-                    self.send(event_loop, e);
-                }
-            }
+            self.starter.close_demo();
+            let mut events = Vec::new();
+            self.answer(core, event_loop, &mut events);
+            core.redraw();
+        } else {
+            self.close_window(core, event_loop);
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _work: ()) {
-        self.pace.woken();
+    fn dropped(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, path: &Path) {
+        self.drop_file(core, event_loop, path);
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.view.is_none() {
-            return;
+    fn hovered(&mut self, core: &mut Core, over: bool) -> bool {
+        let taken = self.starter.showing_demo();
+        if taken {
+            self.drag_over(core, over);
         }
-        self.reported(event_loop);
-        Lens::pump(&mut Pass {
-            shell: self,
-            event_loop,
-        });
-        let now = Instant::now();
-        if now >= self.pace.next_tick {
-            let tick = self.pace.tick();
-            self.send(event_loop, tick);
-            let refresh = view::refresh(self.window());
-            self.pace.ticked_at(now, refresh);
-        }
-        self.relist();
-        self.demo_due(event_loop, now);
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
+        taken
     }
 
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.lens.off();
+    fn draw(&mut self, core: &mut Core) {
+        if let Some(view) = core.view.as_mut() {
+            view.draw(&mut self.starter, &mut core.pace);
+        }
+    }
+
+    fn strip_room(&self, x: i32, y: i32) -> bool {
+        self.starter.is_strip_room(x, y)
+    }
+
+    fn polled(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
+        self.reported(core, event_loop);
+    }
+
+    fn ticked(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, now: Instant) {
+        self.relist(core);
+        self.demo_due(core, event_loop, now);
+    }
+
+    fn exiting(&mut self, core: &mut Core) {
         self.demo = None;
-        self.view = None;
+        core.view = None;
         faraday_starter_shell::pdf::remove_key_sheets(&self.key_sheets);
         self.key_sheets.clear();
         self.system.exiting();
@@ -997,11 +904,10 @@ fn main() -> ExitCode {
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(|h| PathBuf::from(h).join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
-    let pace = Pacer::new(timings);
     let opens = faraday_storage::can_open_folders();
     let (listed, listing) = channel();
     watch_listing(downloads.clone(), opens, listed);
-    let mut shell = Shell {
+    let shell = Shell {
         proxy: event_loop.create_proxy(),
         starter,
         system,
@@ -1028,17 +934,10 @@ fn main() -> ExitCode {
             kept: Vec::new(),
         },
         dirs: Dirs::default(),
-        size,
-        view: None,
-        shown: size,
-        scale: 1.0,
-        pace,
-        pointer: Pointer::new(),
-        title: TitleDrag::default(),
-        lens: Lens::new(Camera::new(None, false)),
         demo: None,
     };
-    let ran = event_loop.run_app(&mut shell);
+    let core = Core::new(size, timings, Lens::new(Camera::new(None, false)));
+    let (ran, shell) = run(event_loop, core, shell);
     // However the loop ended, the key's sheets go.
     faraday_starter_shell::pdf::remove_key_sheets(&shell.key_sheets);
     match ran {

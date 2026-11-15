@@ -93,17 +93,13 @@ use faraday_desktop::{Asked, Demo, Paths};
 use faraday_host::Host as AppHost;
 use faraday_shell_api::{App, Command, Event};
 use faraday_window::camera::Camera;
-use faraday_window::drag::TitleDrag;
 use faraday_window::entropy;
-use faraday_window::input::Pointer;
-use faraday_window::lens::{Lens, LensHost};
-use faraday_window::pace::{Pacer, TICK};
-use faraday_window::view::{self, View};
-use winit::application::ApplicationHandler;
+use faraday_window::lens::Lens;
+use faraday_window::run::{Core, Program, run};
+use faraday_window::view;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::window::{Window, WindowId};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::window::{Window, WindowAttributes};
 
 /// A frame or an event slower than this is reported in a test build.
 const SLOW: Duration = Duration::from_millis(50);
@@ -170,36 +166,19 @@ struct Shell {
     open_transfer: bool,
     /// The text size to start at, once the window is up.
     text: Option<faraday_core::ui::TextSize>,
-    size: (u32, u32),
     /// The app, held by Faraday Demo's host (`docs/DESKTOP-HOST.md`).
     app: Option<AppHost>,
-    /// The window and its surface (`faraday-window`).
-    view: Option<View>,
-    shown: (u32, u32),
     /// Whether the fade gate was on at the last line of `--timings`.
     gate: Option<bool>,
-    /// The window's scale factor.
-    scale: f64,
-    /// The ticks and the frames' pace (`faraday-window`).
-    pace: Pacer,
     /// When a slow frame or event was last printed.
     last_slow: Option<Instant>,
-    /// The mouse, a finger and the keyboard (`faraday-window`).
-    pointer: Pointer,
-    /// A press on the top strip's empty room that may move the window
-    /// (`faraday-window`).
-    title: TitleDrag,
-    /// The webcam, when the app asks for it, and the scanner that reads
-    /// its frames on its own thread (`faraday-window`).
-    lens: Lens,
 }
 
 impl Shell {
-    /// The window's own display: the host lays the app out in it.
-    fn display(&self) -> Event {
-        view::display(self.shown, self.scale, self.panel.map(|p| p.ppi))
+    /// The window's own display: the host lays the app in it.
+    fn display(&self, core: &Core) -> Event {
+        view::display(core.shown, core.scale, self.panel.map(|p| p.ppi))
     }
-
     /// What the app is told of the preview: the size shown, or nothing
     /// with `--panel`, where none is offered.
     fn offered(&self) -> Option<Event> {
@@ -217,23 +196,13 @@ impl Shell {
         }
     }
 
-    fn window(&self) -> Option<&Window> {
-        self.view.as_ref().map(|v| &*v.window)
-    }
-
-    fn redraw(&self) {
-        if let Some(w) = self.window() {
-            w.request_redraw();
-        }
-    }
-
     /// Delivers one event, then answers what the app asked for. A lock
     /// starts a fresh app, as the device's app loop does.
-    fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
+    fn send_event(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, event: Event) {
         let begun = Instant::now();
-        let storage = self.deliver(event_loop, event);
+        let storage = self.deliver(core, event_loop, event);
         let took = begun.elapsed();
-        self.pace.event_took(took.saturating_sub(storage));
+        core.pace.event_took(took.saturating_sub(storage));
         self.slow("event", took);
     }
 
@@ -262,10 +231,10 @@ impl Shell {
     }
 
     /// Delivers `event`; returns the time spent on storage.
-    fn deliver(&mut self, event_loop: &ActiveEventLoop, event: Event) -> Duration {
+    fn deliver(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, event: Event) -> Duration {
         let mut storage = Duration::ZERO;
         let ticked = matches!(event, Event::Tick { .. });
-        self.pace.before(&event);
+        core.pace.before(&event);
         let mut draw = false;
         let mut events = vec![event];
         while let Some(e) = events.pop() {
@@ -277,13 +246,13 @@ impl Shell {
                 match c {
                     Command::Draw => draw = true,
                     Command::RequestEntropy => events.extend(entropy()),
-                    Command::CameraOn => events.extend(self.lens.on(&mut app.app)),
-                    Command::CameraOff => self.lens.off(),
+                    Command::CameraOn => events.extend(core.lens.on(&mut app.app)),
+                    Command::CameraOff => core.lens.off(),
                     other => match self.demo.command(&mut app.app, other) {
                         Asked::Nothing => {}
                         Asked::Event(e) => events.push(e),
                         Asked::Restart => {
-                            self.restart(event_loop);
+                            self.restart(core, event_loop);
                             return Duration::ZERO;
                         }
                         Asked::Exit => {
@@ -294,13 +263,13 @@ impl Shell {
                 }
             }
             // A camera the person chose on the scan sheet.
-            self.lens.chosen(&mut app.app);
+            core.lens.chosen(&mut app.app);
             storage += self.demo.took(&mut app.app);
         }
         if ticked {
             // A job on the worker keeps the frames coming.
             let working = self.app.as_ref().is_some_and(|h| h.app.busy().is_some());
-            self.pace.animating = draw || working;
+            core.pace.animating = draw || working;
         }
         // A stick toggled or a storage command served changes a stick's
         // files: look again now. Otherwise the timer looks.
@@ -308,23 +277,23 @@ impl Shell {
         if let Some(app) = self.app.as_mut()
             && self.demo.settle(&mut app.app)
         {
-            self.after_rescan(event_loop);
+            self.after_rescan(core, event_loop);
         }
         storage += at.elapsed();
-        self.pace.storage_took(storage);
+        core.pace.storage_took(storage);
         if draw {
-            self.redraw();
+            core.redraw();
         }
         storage
     }
 
-    fn restart(&mut self, event_loop: &ActiveEventLoop) {
+    fn restart(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
         let Some(old) = self.app.as_ref() else {
             return;
         };
         let fresh = self.demo.restart(&old.app);
         self.app = Some(self.held(fresh));
-        let display = self.display();
+        let display = self.display(core);
         let offered = self.offered();
         if let Some(app) = self.app.as_mut() {
             app.event(display);
@@ -333,53 +302,53 @@ impl Shell {
             }
             self.demo.restarted(&mut app.app);
         }
-        let tick = self.pace.tick();
-        self.send(event_loop, tick);
-        self.after_rescan(event_loop);
+        let tick = core.pace.tick();
+        self.send_event(core, event_loop, tick);
+        self.after_rescan(core, event_loop);
     }
 
     /// After the sticks were looked at: a stick pulled lets what waited
     /// under the Pull sheet carry on, and a Scan turns the camera on here.
-    fn after_rescan(&mut self, event_loop: &ActiveEventLoop) {
+    fn after_rescan(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
         let mut events = Vec::new();
         while let Some(c) = app.poll_command() {
             match c {
-                Command::CameraOn => events.extend(self.lens.on(app)),
-                Command::CameraOff => self.lens.off(),
+                Command::CameraOn => events.extend(core.lens.on(app)),
+                Command::CameraOff => core.lens.off(),
                 Command::Exit if !app.restart_requested() => event_loop.exit(),
                 _ => {}
             }
         }
-        self.lens.chosen(app);
+        core.lens.chosen(app);
         for e in events {
-            self.send(event_loop, e);
+            self.send_event(core, event_loop, e);
         }
-        self.redraw();
+        core.redraw();
     }
 
     /// The newest Downloads listing and cameras, to the app.
-    fn relist(&mut self) {
+    fn relist(&mut self, core: &Core) {
         if let Some(app) = self.app.as_mut().map(|h| &mut h.app)
             && self.demo.relist(app)
         {
-            self.redraw();
+            core.redraw();
         }
     }
 
     /// A file dragged over the window (`over`), or the drag gone.
-    fn hovered(&mut self, over: bool) {
+    fn drag_over(&mut self, core: &Core, over: bool) {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
         app.storage(faraday_core::StorageEvent::Hovered(over));
-        self.redraw();
+        core.redraw();
     }
 
     /// A file dropped on the window, for Transfer to send.
-    fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &Path) {
+    fn drop_file(&mut self, core: &Core, event_loop: &ActiveEventLoop, path: &Path) {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
@@ -389,15 +358,15 @@ impl Shell {
                 event_loop.exit();
             }
         }
-        self.redraw();
+        core.redraw();
     }
 
-    fn draw(&mut self) {
-        let (Some(view), Some(app)) = (self.view.as_mut(), self.app.as_mut()) else {
+    fn draw_frame(&mut self, core: &mut Core) {
+        let (Some(view), Some(app)) = (core.view.as_mut(), self.app.as_mut()) else {
             return;
         };
         let begun = Instant::now();
-        if view.draw(app, &mut self.pace) {
+        if view.draw(app, &mut core.pace) {
             // With the frames' line, what the fades did over the same
             // second (`docs/MOTION.md` §3.2).
             let f = app.app.take_fade_counts();
@@ -421,49 +390,28 @@ impl Shell {
                     " (was {})",
                     if b { "on" } else { "off" }
                 )),
-                self.shown.0,
-                self.shown.1,
+                core.shown.0,
+                core.shown.1,
             );
         }
         self.slow("frame", begun.elapsed());
     }
 
     /// Presses `action` as the person would, and answers what it asks.
-    fn send_press(&mut self, event_loop: &ActiveEventLoop, action: Action) {
+    fn send_press(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, action: Action) {
         if let Some(app) = self.app.as_mut() {
             app.app.press(action);
         }
         // Any event carries what the press asked for to the shell.
-        let tick = self.pace.tick();
-        self.send(event_loop, tick);
+        let tick = core.pace.tick();
+        self.send_event(core, event_loop, tick);
     }
 }
 
-/// The shell and its event loop, for the lens to deliver to.
-struct Pass<'a> {
-    shell: &'a mut Shell,
-    event_loop: &'a ActiveEventLoop,
-}
+impl Program for Shell {
+    const NAME: &'static str = "faraday";
 
-impl LensHost for Pass<'_> {
-    fn lens(&mut self) -> &mut Lens {
-        &mut self.shell.lens
-    }
-
-    fn send(&mut self, event: Event) {
-        self.shell.send(self.event_loop, event);
-    }
-
-    fn faraday(&mut self) -> Option<&mut Faraday> {
-        self.shell.app.as_mut().map(|h| &mut h.app)
-    }
-}
-
-impl ApplicationHandler for Shell {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.view.is_some() {
-            return;
-        }
+    fn attributes(&self, core: &Core, event_loop: &ActiveEventLoop) -> WindowAttributes {
         let attributes = match self.panel {
             // A device's screen keeps its size: given in the compositor's
             // units, since a window is sized before it knows its scale.
@@ -488,158 +436,96 @@ impl ApplicationHandler for Shell {
             None => Window::default_attributes()
                 .with_title(TITLE)
                 .with_inner_size(LogicalSize::new(
-                    f64::from(self.size.0),
-                    f64::from(self.size.1),
+                    f64::from(core.size.0),
+                    f64::from(core.size.1),
                 ))
                 .with_min_inner_size(LogicalSize::new(640.0, 400.0)),
         };
-        let attributes = view::identify(
+        view::identify(
             attributes,
             faraday_core::names::MENU_DESKTOP_ID,
             include_bytes!("../../starter/assets/icon.png"),
-        );
-        let view = match View::open(event_loop, attributes) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("faraday: {e}");
-                event_loop.exit();
-                return;
-            }
-        };
-        let size = view.window.inner_size();
-        self.shown = (size.width, size.height);
-        self.scale = view.window.scale_factor();
-        self.pace.paced = view.paced();
-        self.view = Some(view);
-        let display = self.display();
-        self.send(event_loop, display);
+        )
+    }
+
+    fn ppi(&self) -> Option<f64> {
+        self.panel.map(|p| p.ppi)
+    }
+
+    fn started(&mut self, core: &mut Core, event_loop: &ActiveEventLoop) {
         if let Some(o) = self.offered() {
-            self.send(event_loop, o);
+            self.send_event(core, event_loop, o);
         }
         if let Some(app) = self.app.as_mut() {
             self.demo.rescan(&mut app.app, true);
         }
-        self.after_rescan(event_loop);
-        self.relist();
+        self.after_rescan(core, event_loop);
+        self.relist(core);
         if let Some(t) = self.text.take() {
-            self.send_press(event_loop, Action::TextSize(t));
+            self.send_press(core, event_loop, Action::TextSize(t));
         }
         if std::mem::take(&mut self.open_transfer) {
-            self.send_press(event_loop, Action::Nav(Screen::Transfer));
-        }
-        self.pace.next_tick = Instant::now() + TICK;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
-    }
-
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
-            // Only X11 reports a drop in winit 0.30; the list is the way
-            // on native Wayland.
-            WindowEvent::DroppedFile(path) => self.dropped(event_loop, &path),
-            // A file dragged over the window edges the page as the place
-            // it drops, until it is dropped or the drag leaves.
-            WindowEvent::HoveredFile(_) => self.hovered(true),
-            WindowEvent::HoveredFileCancelled => self.hovered(false),
-            WindowEvent::RedrawRequested => {
-                // With the compositor pacing the frames, this is the
-                // moment before the screen's next refresh: the tick moves
-                // whatever moves to now, and the frame is drawn for the
-                // moment it will be seen. A tick that asks for a frame
-                // asks for the next redraw, which comes with the refresh
-                // after; the timer stays as the idle tick, pushed back so
-                // it does not tick between two refreshes.
-                if self.pace.paced {
-                    let tick = self.pace.tick();
-                    self.send(event_loop, tick);
-                    self.pace.next_tick = Instant::now() + TICK;
-                }
-                self.draw();
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.scale = scale_factor;
-                // A device's screen stays the same size in this screen's
-                // pixels at any scale.
-                if let (Some(p), Some(w)) = (self.panel, self.window()) {
-                    let size = PhysicalSize::new(p.pixels().0, p.pixels().1);
-                    w.set_min_inner_size(Some(size));
-                    w.set_max_inner_size(Some(size));
-                    let _ = w.request_inner_size(size);
-                }
-                let display = self.display();
-                self.send(event_loop, display);
-            }
-            WindowEvent::Resized(size) => {
-                if size.width > 0 && size.height > 0 && (size.width, size.height) != self.shown {
-                    self.shown = (size.width, size.height);
-                    // The host lays the app out again, or moves a
-                    // preview's frame.
-                    let display = self.display();
-                    self.send(event_loop, display);
-                }
-                self.redraw();
-            }
-            // The mouse, a finger, the wheel and the keyboard, as the
-            // shell API's events (`faraday-window`).
-            // In a preview, carried into its frame.
-            other => {
-                // A press on the top strip's empty room and a drag move
-                // the window, a double-click maximises it; not in a
-                // preview, whose window is a frame for another size; nor
-                // the press the system makes of a finger's.
-                if self.demo.preview().is_none()
-                    && !self.pointer.is_echo(&other)
-                    && let (Some(view), Some(app)) = (self.view.as_ref(), self.app.as_ref())
-                    && self
-                        .title
-                        .takes(&other, self.pointer.cursor, &view.window, |x, y| {
-                            app.app.is_strip_room(x, y)
-                        })
-                {
-                    return;
-                }
-                // The host carries the pointer into the app's frame.
-                for e in self.pointer.translate(&other) {
-                    self.send(event_loop, e);
-                }
-            }
+            self.send_press(core, event_loop, Action::Nav(Screen::Transfer));
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _work: ()) {
-        self.pace.woken();
+    fn send(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, event: Event) {
+        self.send_event(core, event_loop, event);
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.view.is_none() {
-            return;
+    fn faraday(&mut self) -> Option<&mut Faraday> {
+        self.app.as_mut().map(|h| &mut h.app)
+    }
+
+    fn close_requested(&mut self, _core: &mut Core, event_loop: &ActiveEventLoop) {
+        event_loop.exit();
+    }
+
+    fn dropped(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, path: &Path) {
+        self.drop_file(core, event_loop, path);
+    }
+
+    fn hovered(&mut self, core: &mut Core, over: bool) -> bool {
+        self.drag_over(core, over);
+        true
+    }
+
+    fn scale_changed(&mut self, core: &mut Core) {
+        // A device's screen stays the same size in this screen's pixels
+        // at any scale.
+        if let (Some(p), Some(w)) = (self.panel, core.window()) {
+            let size = PhysicalSize::new(p.pixels().0, p.pixels().1);
+            w.set_min_inner_size(Some(size));
+            w.set_max_inner_size(Some(size));
+            let _ = w.request_inner_size(size);
         }
-        // The newest camera frame, to the app to draw and to the scanner
-        // to read; and whatever the scanner has read since.
-        Lens::pump(&mut Pass {
-            shell: self,
-            event_loop,
-        });
-        let now = Instant::now();
-        if now >= self.pace.next_tick {
-            let tick = self.pace.tick();
-            self.send(event_loop, tick);
-            let refresh = view::refresh(self.window());
-            self.pace.ticked_at(now, refresh);
-        }
-        self.relist();
+    }
+
+    fn draw(&mut self, core: &mut Core) {
+        self.draw_frame(core);
+    }
+
+    /// Not in a preview, whose window is a frame for another size.
+    fn moves_window(&self) -> bool {
+        self.demo.preview().is_none()
+    }
+
+    fn strip_room(&self, x: i32, y: i32) -> bool {
+        self.app.as_ref().is_some_and(|h| h.app.is_strip_room(x, y))
+    }
+
+    fn ticked(&mut self, core: &mut Core, event_loop: &ActiveEventLoop, now: Instant) {
+        self.relist(core);
         if self.demo.due(now)
             && let Some(app) = self.app.as_mut()
             && self.demo.rescan(&mut app.app, false)
         {
-            self.after_rescan(event_loop);
+            self.after_rescan(core, event_loop);
         }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
 
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.lens.off();
-        self.view = None;
+    fn exiting(&mut self, core: &mut Core) {
+        core.view = None;
         self.app = None;
     }
 }
@@ -793,29 +679,22 @@ fn main() -> ExitCode {
     let proxy = event_loop.create_proxy();
     let mut app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
     faraday_window::wake_on_work(&mut app, &proxy);
-    let mut shell = Shell {
+    let shell = Shell {
         proxy,
         panel: o.panel,
         demo,
         open_transfer: o.open_transfer,
         text: o.text,
-        size: o.size,
         app: Some(if o.panel.is_some() {
             AppHost::bare(app)
         } else {
             AppHost::new(app)
         }),
-        view: None,
-        shown: o.size,
         gate: None,
-        scale: 1.0,
-        pace: Pacer::new(o.timings),
         last_slow: None,
-        pointer: Pointer::new(),
-        title: TitleDrag::default(),
-        lens: Lens::new(Camera::new(None, false)),
     };
-    match event_loop.run_app(&mut shell) {
+    let core = Core::new(o.size, o.timings, Lens::new(Camera::new(None, false)));
+    match run(event_loop, core, shell).0 {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("faraday: {e}");
