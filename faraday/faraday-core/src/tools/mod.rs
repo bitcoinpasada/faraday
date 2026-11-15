@@ -16,6 +16,7 @@ use faraday_codec::encodings::ReadAs;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
 
+use crate::{Action, Later};
 use crate::{Faraday, Screen};
 
 /// The calculators, in the order Tools lists them.
@@ -536,5 +537,46 @@ fn refusal_text(r: &faraday_bip::compile::Refusal) -> Text {
         Refusal::Policy(m) => Text::fill(EN.tools_miniscript_not_policy, &[m]),
         Refusal::Script(m) => Text::fill(EN.tools_miniscript_no_script, &[m]),
         Refusal::LoneKeyTaproot => Text::of(EN.tools_miniscript_lone_key),
+    }
+}
+
+impl Faraday {
+    /// What the start-up self-test found, once it has run: how many
+    /// checks passed, or the name of the first that failed.
+    pub fn selftest(&self) -> Option<faraday_selftest::Outcome> {
+        self.selftest
+    }
+
+    /// Run again was pressed and its frame is drawn, the run waiting for
+    /// the tick after (`slow`).
+    pub(crate) fn selftest_running(&self) -> bool {
+        matches!(self.later, Some(Later::Press(Action::SelfTestRun)))
+    }
+
+    /// The self-test has run and every check passed.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn selftest_passed(&self) -> bool {
+        matches!(self.selftest, Some(Ok(_)))
+    }
+
+    /// The self-test has run and a check failed: the app is blocked.
+    pub(crate) fn selftest_failed(&self) -> bool {
+        matches!(self.selftest, Some(Err(_)))
+    }
+
+    /// Runs `checks` as the self-test, in place of
+    /// [`faraday_selftest::CHECKS`]: for a test that a failed check blocks the
+    /// app.
+    #[doc(hidden)]
+    #[cfg(feature = "testkit")]
+    pub fn run_selftest_with(&mut self, checks: &[faraday_selftest::Check]) {
+        let c = self.compute();
+        self.selftest = Some(faraday_selftest::run_checks(&c, checks));
+        if self.selftest_failed() {
+            self.sheet = None;
+        }
+        self.out.redraw();
     }
 }

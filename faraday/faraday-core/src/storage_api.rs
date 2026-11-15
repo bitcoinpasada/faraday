@@ -2,6 +2,8 @@
 //! about them, and what the app asks it to do.
 
 use crate::Unrenamed;
+use crate::{Faraday, Item, Sheet, stick, vault};
+use faraday_shell_api::Command;
 use faraday_text::Text;
 use zeroize::Zeroizing;
 
@@ -1037,5 +1039,97 @@ impl StorageEvent {
             },
             other => other,
         }
+    }
+}
+
+impl Faraday {
+    /// Whether a storage request is waiting for the shell (a lookup).
+    pub fn storage_pending(&self) -> bool {
+        !self.out.storage_out.is_empty()
+    }
+
+    /// The next storage request, or `None`.
+    pub fn poll_storage(&mut self) -> Option<StorageCommand> {
+        self.out.storage_out.pop_front()
+    }
+
+    /// Installs how free memory is read: a function that says what this
+    /// computer has free now, MiB, or `None` when it cannot. The app reads
+    /// it at each check a vault's size is held to (before a file is read,
+    /// an unlock, a seal), and every half second on the screens that show
+    /// the figure.
+    pub fn set_memory_reader(&mut self, read: fn() -> Option<u32>) {
+        self.vaults.set_memory_reader(read);
+    }
+
+    /// Delivers what the shell knows about storage.
+    pub fn storage(&mut self, event: StorageEvent) {
+        self.drain_jobs();
+        let screen = self.screen;
+        self.note_here();
+        stick::events::storage_event(self, event.in_own_words());
+        self.event_settled();
+        self.stick.note_visit(self.stick_pane());
+        self.storage_left(screen);
+        self.drop_forged_wallets();
+    }
+
+    /// A stick held back while the camera was on arrives once it is off.
+    pub(crate) fn release_held_stick(&mut self) {
+        if !self.stick.held() || self.camera_on() {
+            return;
+        }
+        self.stick.set_held(false);
+        if !self.stick.is_empty() {
+            stick::events::stick_arrived(self);
+            self.out.redraw();
+            self.out.commands.push_back(Command::Draw);
+        }
+    }
+
+    /// The kernel shows storage attached or not: with none listed, it
+    /// stops what a stick stops, as a listed stick does.
+    pub(crate) fn storage_attached(&mut self, attached: bool) {
+        if !self.stick.set_attached(attached) || !self.stick.is_empty() {
+            return;
+        }
+        let noun = attached.then(|| self.medium.noun());
+        self.session.keys.set_stick_attached(noun);
+        if attached {
+            if matches!(
+                self.vaults.focus,
+                Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
+            ) {
+                self.vaults.set_focus(None);
+            }
+            stick::tools_lose_secrets(self, false);
+        } else if self.sheet == Some(Sheet::Pull) {
+            self.sheet = None;
+            if let Some(a) = self.visit.take_pull() {
+                self.act(a);
+            }
+        }
+    }
+
+    pub(crate) fn save_boxes(&mut self) {
+        let pack = |v: &Vec<Item>| -> Files {
+            v.iter()
+                .map(|i| (faraday_text::Text::of(&i.name), i.bytes.clone()))
+                .collect()
+        };
+        let kept = self.kept();
+        self.out.storage_out.push_back(StorageCommand::SaveBoxes {
+            inbox: pack(&self.inbox),
+            outbox: pack(&self.outbox),
+            kept,
+        });
+    }
+
+    /// No stick is in.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn no_stick_in(&self) -> bool {
+        self.stick.is_empty()
     }
 }

@@ -1,6 +1,10 @@
 //! What the idle lock keeps: when input last came, the idle time carried
 //! over a lock, and what the warning has shown.
 
+use crate::strings::EN;
+use crate::{Faraday, Sheet};
+use faraday_crypto::work::Compute;
+
 /// The idle lock's state. One
 /// field on `Faraday`; the fields are read and written through these
 /// methods. The timers themselves are `Faraday::idle_tick`.
@@ -134,4 +138,152 @@ pub(crate) fn lock_at(lock_min: u16) -> Option<(u64, u64)> {
         let lock = u64::from(lock_min) * 60_000;
         (lock - crate::IDLE_WARN_MS.min(lock / 2), lock)
     })
+}
+
+impl Faraday {
+    pub(crate) fn note_secrets(&mut self) {
+        if self.holds_secret() || self.secret_typed() {
+            self.tainted = true;
+        }
+    }
+
+    /// The clean state (`docs/SECURITY-MODEL.md`): this process has never held or
+    /// typed a secret. Only then may a stick be handed to the disk
+    /// process; the shell publishes it for `faraday-grant`, and a lock is
+    /// the way back to it.
+    ///
+    /// While the camera is on the process is not clean either, since a
+    /// frame may picture a seed: no stick is handed out then, and one
+    /// plugged in waits until the camera is off.
+    pub fn clean(&mut self) -> bool {
+        self.note_secrets();
+        !self.tainted && !self.camera_on()
+    }
+
+    /// [`Faraday::clean`] without noting anything: whether this process has
+    /// held or typed no secret, as the screen draws it.
+    pub(crate) fn clean_now(&self) -> bool {
+        !self.tainted && !self.camera_on() && !self.holds_secret() && !self.secret_typed()
+    }
+
+    /// Whether locking would wipe anything: a key, a vault, a wallet or a
+    /// spend.
+    pub(crate) fn lockable(&self) -> bool {
+        self.holds_secret()
+            || !self.vaults.open.is_empty()
+            || !self.session.wallets.is_empty()
+            || self.wallets.spend().is_some()
+    }
+
+    /// Puts the idle warning away: the sheet it came over comes back,
+    /// unless the warning took its content away (a code on the QR sheet).
+    pub(crate) fn put_away_idle_warning(&mut self) {
+        self.sheet = self
+            .idle
+            .take_under()
+            .filter(|s| *s != Sheet::Qr || self.qr().is_some());
+    }
+
+    /// Lock asked for: by the person (`for_flow` false), or by a step of
+    /// a backup flow. Asks first when a vault is open with something
+    /// not in it, a seal waits, or the lock would end Make a new wallet;
+    /// else locks.
+    pub(crate) fn lock_ask(&mut self, for_flow: bool) {
+        let c = self.compute();
+        self.idle.set_lock_for_flow(for_flow);
+        let (keys, wallets) = self.unsaved_now(&c);
+        let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
+        if self.lock_ends_create(&c)
+            || self.lock_would_lose(&c)
+            || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
+        {
+            self.vaults.name_lock(&c);
+            self.sheet = Some(Sheet::LockAsk);
+        } else {
+            self.lock();
+        }
+    }
+
+    /// Costs what `lock_held` costs. A lock now would end Make a new
+    /// wallet: its keys are kept nowhere yet and the lock is the person's
+    /// own, not a flow's step.
+    pub(crate) fn lock_ends_create(&self, c: &Compute) -> bool {
+        self.lock_held(c) && !self.idle.lock_for_flow()
+    }
+
+    /// Lock, unless it would lose an open vault's changes: then nothing
+    /// is sealed or wiped, the vaults stay open with their changes, and
+    /// the Lock sheet says what a lock without sealing loses.
+    pub(crate) fn lock(&mut self) {
+        if self.sealing() {
+            self.lock_after_seal(false);
+            return;
+        }
+        let c = self.compute();
+        if self.lock_would_lose(&c) {
+            if self.seal_waits() {
+                self.lock_waits_for_seal();
+            }
+            self.vaults.name_lock(&c);
+            self.sheet = Some(Sheet::LockAsk);
+            return;
+        }
+        self.lock_now(false);
+    }
+
+    /// The lock a seal of one vault held back: the seal is over, so the
+    /// lock goes ahead as it would have.
+    pub(crate) fn lock_after_seal_ended(&mut self, may_lose: bool) {
+        if may_lose {
+            self.lock_now(true);
+        } else {
+            self.lock();
+        }
+    }
+
+    /// The state could not be kept. A lock that would lose the keys that
+    /// wait for their backup does not go ahead.
+    pub(crate) fn not_kept(&mut self) {
+        if self.restart && self.flows.iter().any(|f| f.waiting()) {
+            self.restart = false;
+            self.next_mode.clear();
+            self.toast(EN.toast_lock_not_kept);
+        }
+    }
+
+    /// Lock: what can be sealed is, and the session goes. With `may_lose`
+    /// a vault that cannot be sealed is let go, its changes lost (an idle
+    /// lock, Lock without sealing); without it the lock stops there with
+    /// that vault open and the Lock sheet shows. Only what the seals need
+    /// is done here; what ends flows waits for the last seal
+    /// (`vault::seal`).
+    pub(crate) fn lock_now(&mut self, may_lose: bool) {
+        if self.sealing() {
+            self.lock_after_seal(may_lose);
+            return;
+        }
+        self.job_locked();
+        // What is on show goes first, its text wiped.
+        self.lock_secrets_off_screen();
+        self.idle.set_under(None);
+        // The vaults seal on the worker; the lock goes on in
+        // `lock_finish` when the last is done.
+        self.vault_seal_all(may_lose);
+    }
+
+    /// Costs a hash of a whole file (through `vault_changed`). The session
+    /// strip's stage, computed, never stored (`docs/FLOWS.md`, Sidebar).
+    pub fn session_stage(&self, c: &Compute) -> &'static str {
+        if !self.stick.is_empty() || self.import.state().is_some() {
+            EN.session_stage_bring
+        } else if !self.outbox.is_empty() || self.vault_changed(c).is_some() {
+            EN.session_stage_write
+        } else if self.holds_secret() || !self.session.wallets.is_empty() {
+            EN.session_stage_work
+        } else if !self.inbox.is_empty() {
+            EN.session_stage_open
+        } else {
+            EN.session_stage_bring
+        }
+    }
 }

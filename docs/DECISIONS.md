@@ -284,3 +284,4 @@ Read this table, then only the decision you need.
 | [F268](decisions/F268.md) | Decisions that no longer bind move to history | 2026-11-14 | Active | repository |
 | [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
 | [F270](decisions/F270.md) | Check a signer takes in Compare two PSBTs: one tile and one Result for two PSBTs or finished transactions | 2026-11-15 | Active, built | signing |
+| [F272](decisions/F272.md) | An area's glue lives in that area's folder; lib.rs holds none | 2026-11-15 | Active | repository |

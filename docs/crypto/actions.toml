@@ -2177,7 +2177,7 @@ functions = [
   "faraday/faraday-core/src/address_find/look.rs::Look::accounts_find",
   "faraday/faraday-core/src/address_find/look.rs::full_path",
   "faraday/faraday-core/src/address_find/accounts.rs::unmade",
-  "faraday/faraday-core/src/lib.rs::Faraday::address_check",
+  "faraday/faraday-core/src/address_find/mod.rs::Faraday::address_check",
   "faraday/faraday-core/src/wallet.rs::Wallet::script_at",
   "faraday/faraday-core/src/drawing/kept.rs::View::script_at",
   "faraday/faraday-core/src/seed_check/compare.rs::as_address",
@@ -3006,7 +3006,7 @@ functions = [
   "core/faraday-codec/src/address_text.rs::address_of",
   "core/faraday-codec/src/address_text.rs::find",
   "faraday/faraday-core/src/address_check/file.rs::list",
-  "faraday/faraday-core/src/lib.rs::Faraday::address_read",
+  "faraday/faraday-core/src/address_find/mod.rs::Faraday::address_read",
   "faraday/faraday-core/src/scan_key.rs::Faraday::address_card_put",
 ]
 code = [

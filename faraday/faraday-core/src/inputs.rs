@@ -41,7 +41,9 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Action, Faraday, Sheet, StorageEvent};
+use crate::{Screen, forms, fp_text, motion, state, stem, wallet};
 use faraday_draw::tokens::TOUCH;
+use faraday_shell_api::Key as KeyIn;
 use faraday_text::Text;
 use std::collections::VecDeque;
 
@@ -987,4 +989,297 @@ fn input_code(
         );
     }
     Some((code, spots))
+}
+
+impl Faraday {
+    /// Input arrived: the idle timers start again.
+    pub(crate) fn input_now(&mut self) {
+        self.idle.input(self.now_ms);
+    }
+
+    /// Whether loading a key is allowed now: only once the self-test has
+    /// passed, and never with a stick attached.
+    pub fn may_load_keys(&self) -> bool {
+        self.selftest_passed() && !self.stick.in_the_way()
+    }
+
+    /// Where leaving Add a key goes: the Spend tab when it came from
+    /// there, else Wallets.
+    pub(crate) fn entry_leave(&self) -> Screen {
+        match self.entry.state().back {
+            Some(
+                s @ (Screen::SpendBackup | Screen::Spend | Screen::BackupFlow | Screen::Create),
+            ) => s,
+            Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
+                Screen::Restore
+            }
+            _ => Screen::Wallets,
+        }
+    }
+
+    /// Loads a key typed or scanned (not made here: no `mark_made_here`):
+    /// the words with `pass`, as the key `wanted` if one is (a key
+    /// already loaded refused as a duplicate); `said` says so; then what
+    /// the screen it returns to, `back`, does with it (`seeds_took`).
+    /// Add a key's Add and New key's Lock in for a key typed both load
+    /// through here.
+    pub(crate) fn typed_load(
+        &mut self,
+        m: &faraday_bip::bip39::Mnemonic,
+        pass: &str,
+        label: &str,
+        wanted: Option<faraday_bip::keys::Fingerprint>,
+        back: Option<Screen>,
+        said: impl FnOnce(&mut Self, faraday_bip::keys::Fingerprint),
+    ) -> Result<faraday_bip::keys::Fingerprint, wallet::Refusal> {
+        let c = self.compute();
+        let fp = self.session.keys.add_mnemonic(&c, m, pass, label, wanted)?;
+        said(self, fp);
+        self.seeds_took(fp, back);
+        Ok(fp)
+    }
+
+    /// Loads the key an Inbox file's words spell, the same as typing them
+    /// into Add a key. Refused with no stick attached.
+    pub(crate) fn load_key(&mut self, index: usize) -> bool {
+        let c = self.compute();
+        if !self.may_load_keys() {
+            return false;
+        }
+        let Some(item) = self.inbox.get(index) else {
+            return false;
+        };
+        let Ok(text) = std::str::from_utf8(&item.bytes) else {
+            return false;
+        };
+        let label = stem(&item.name);
+        let words = forms::file_words(text);
+        match self.session.keys.add_words(&c, &words, &label, None) {
+            Ok(fp) => {
+                self.toast(&faraday_text::Text::fill(
+                    EN.load_key_key_added,
+                    &[&fp_text(fp)],
+                ));
+                self.screen = Screen::Wallets;
+                self.refresh_spend();
+                true
+            }
+            Err(e) => {
+                self.toast(&e.text());
+                false
+            }
+        }
+    }
+
+    pub(crate) fn primary(&mut self) {
+        let Some(s) = self.wallets.spend() else {
+            return;
+        };
+        let complete = s.complete;
+        let can_sign_here = s
+            .inspection
+            .participating_keys
+            .iter()
+            .any(|fp| self.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
+        if s.spend.finished.is_some() && s.reviewed_now() {
+            // Both files went For the stick at Finish: Files writes them.
+            self.screen = Screen::Files;
+        } else if complete {
+            self.wallets.open_finish();
+        } else if can_sign_here {
+            crate::signing::sign_here(self);
+        } else {
+            self.wallets.open_step_followed(wallet::step::COLLECT);
+        }
+    }
+
+    /// Works out the key a passphrase typed makes, once typing has paused
+    /// for [`motion::TYPED_PAUSE_MS`]: the potential wallet's, or the
+    /// seed read's; or lets the next frame work out the key the words
+    /// typed into Add a key make ([`EntryState::probed`]). Returns whether
+    /// there is something new to show.
+    pub(crate) fn typed_tick(&mut self, now_ms: u64) -> bool {
+        let Some(at) = self.inbox.typed_at() else {
+            return false;
+        };
+        if now_ms < at + motion::TYPED_PAUSE_MS {
+            return false;
+        }
+        self.inbox.set_typed_at(None);
+        match self.sheet {
+            Some(Sheet::Potential) => self.potential_refresh(),
+            Some(Sheet::SeedRead) => self.seed_read_typed(),
+            _ => return self.entry_typing_here(),
+        }
+        true
+    }
+
+    /// Whether typing has not paused since the last character
+    /// ([`motion::TYPED_PAUSE_MS`]): a key the typing makes is not worked
+    /// out yet.
+    pub(crate) fn typing_now(&self) -> bool {
+        self.inbox.typed_at().is_some()
+    }
+
+    pub(crate) fn key(&mut self, key: KeyIn) {
+        if self.input_key(key) {
+            return;
+        }
+        if self.selftest_failed() || self.key_refused_busy(key) || self.input_sheet_key(key) {
+            return;
+        }
+        // Ctrl+V is the scanner's Paste, or Paste words on the words form.
+        if key == KeyIn::Paste {
+            return self.paste();
+        }
+        if self.guide_key(key) || self.scroll_key(key) {
+            return;
+        }
+        if self.board_key(key) || self.gpg_restore_key(key) || self.chart_key(key) {
+            return;
+        }
+        if self.potential_key(key) {
+            return;
+        }
+        if self.catalog_key(key) {
+            return;
+        }
+        // The caret moved, or an edit inside the field: what is selected
+        // goes with Backspace or Delete, and a character replaces it.
+        if self.edit_key(key) {
+            return;
+        }
+        // Delete in a field with no caret of its own takes the last
+        // character, as Backspace does.
+        let key = if key == KeyIn::Delete {
+            KeyIn::Backspace
+        } else {
+            key
+        };
+        if self.file_key(key) || self.vaults.search_key(self.screen, key) {
+            return;
+        }
+        if self.seed_read_key(key) || self.sweep_key(key) {
+            return;
+        }
+        if self.seeds_key(key) {
+            return;
+        }
+        if self.vault_key(key) {
+            return;
+        }
+        if self.vanity_key_in(key) {
+            return;
+        }
+        if self.tools_key(key) {
+            return;
+        }
+        if self.lightning_key(key) || self.tool_key(key) {
+            return;
+        }
+        if self.explore_key(key) || self.silent_key(key) {
+            return;
+        }
+        if self.bip85_key(key) || self.keygen_key(key) || self.create_pass_key(key) {
+            return;
+        }
+        if self.set_time_key(key) || self.own_key(key) {
+            return;
+        }
+        if self.screen == Screen::Entry && self.entry.state().on_passphrase {
+            match self.entry.passphrase_key(key) {
+                state::Keyed::Add => self.entry_add(),
+                state::Keyed::Recover => self.form_recover(),
+                _ => {}
+            }
+            self.entry.clear_error();
+            return;
+        }
+        let here = self.entry_typing_key();
+        if here && self.entry.state().form != forms::Form::Words {
+            match self.entry_part_key(key) {
+                state::Keyed::Recover => {
+                    if self.screen == Screen::KeyGen {
+                        self.keygen_act(Action::KNext);
+                    } else {
+                        self.form_recover();
+                    }
+                }
+                state::Keyed::AddPart => self.form_add_part(),
+                state::Keyed::Leave => {
+                    let to = self.entry_leave();
+                    self.back();
+                    if self.screen == Screen::Entry {
+                        self.screen = to;
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+        // The words of a key: a list with an on-screen keyboard takes what
+        // a physical one can type of it (pinyin's letters and tone digits,
+        // or the list's own characters from an input method); the rest are
+        // typed in Latin letters. Check my copy types through the same
+        // function (`forms::word_key`).
+        if here {
+            let typed = forms::word_key(self.entry.typing_words(false), key);
+            match typed {
+                forms::WordKey::Enter => self.entry_enter(),
+                forms::WordKey::Escape => self.screen = self.entry_leave(),
+                _ => {}
+            }
+            return;
+        }
+        if self.screen == Screen::Wallets
+            && let Some(name) = self.wallets.renaming()
+        {
+            match key {
+                KeyIn::Char(c) => self.wallets.rename_type(c),
+                KeyIn::Backspace => self.wallets.rename_backspace(),
+                KeyIn::Enter => {
+                    let n = wallet::wallet_name(name);
+                    if !n.is_empty()
+                        && let Some(w) = self.session.wallets.get_mut(self.wallets.wallet())
+                    {
+                        w.name = faraday_text::Text::of(&n);
+                    }
+                    self.wallets.set_renaming(None);
+                }
+                KeyIn::Escape => self.wallets.set_renaming(None),
+                _ => {}
+            }
+            return;
+        }
+        if self.screen == Screen::Message && self.message.key(key) {
+            return;
+        }
+        // The words of a copy, typed back for Check my copy.
+        if self.screen == Screen::Backup && self.backup.state().is_some_and(|b| b.check.is_some()) {
+            self.copy_check_key(key);
+            return;
+        }
+        // A place's name, a codex32 string, the copy grid's mark.
+        if self.backup_name_key(key) {
+            return;
+        }
+        match key {
+            KeyIn::Escape => {
+                // Escape is the sheet's Cancel: the scanner's camera goes
+                // off with it, as on Cancel.
+                if self.sheet.is_some() && self.sheet != Some(Sheet::Lock) {
+                    self.act(Action::Cancel);
+                }
+            }
+            KeyIn::Down => self.glide(motion::WHEEL_NOTCH),
+            KeyIn::Up => self.glide(-motion::WHEEL_NOTCH),
+            // What no screen took moves the keyboard's place, or presses
+            // the control it is on.
+            _ => self
+                .pointer
+                .focus_key(key)
+                .into_iter()
+                .for_each(|a| self.press_in(a)),
+        }
+    }
 }

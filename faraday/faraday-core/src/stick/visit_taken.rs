@@ -19,6 +19,7 @@ use faraday_text::{Text, text};
 use std::collections::BTreeSet;
 
 use crate::compact::{buttons, scroll_sheet};
+use crate::secrets;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Screen, Sheet, StorageCommand, sha256_of, stick};
@@ -1821,5 +1822,88 @@ impl Unprotected {
                 &[&self.label, &Text::num(n as u64), &list],
             ),
         };
+    }
+}
+
+impl Faraday {
+    /// The vault, by place in [`Faraday::vault_files`], a stick visit
+    /// unlocks once the stick is pulled: a locked one sealed for it, still
+    /// For the stick or written by the last write.
+    fn visit_unlocks(&self) -> Option<usize> {
+        self.vault_files().iter().position(|f| {
+            f.open.is_none()
+                && (f.in_outbox
+                    || self
+                        .visit
+                        .receipt()
+                        .as_ref()
+                        .is_some_and(|r| r.wrote(&f.name)))
+        })
+    }
+
+    /// The stick visit's chip: where pulling
+    /// the stick goes. Back to the flow the stick came in during, Unlock
+    /// when a vault was sealed for the visit, else Home.
+    pub fn visit_then(&self) -> faraday_text::Text {
+        match *self.visit.after_visit() {
+            Some(s) => faraday_text::Text::fill(EN.visit_then_then, &[self.back_name(s)]),
+            None if self.visit_unlocks().is_some() => {
+                faraday_text::Text::of(EN.visit_then_then_unlock)
+            }
+            None => faraday_text::Text::of(EN.visit_then_then_home),
+        }
+    }
+
+    /// Every Outbox file a visit may write unasked: all but an
+    /// unprotected secret.
+    fn visit_all_out(&self) -> std::collections::BTreeSet<faraday_text::Text> {
+        self.outbox
+            .iter()
+            .filter(|i| i.exposure() != secrets::Exposure::Secret)
+            .filter(|i| !self.in_the_backup(&i.name))
+            .map(|i| faraday_text::Text::of(&i.name))
+            .collect()
+    }
+
+    /// Whether the stick on show holds the Inbox file `item`, by name and
+    /// size.
+    fn visit_stick_holds(&self, item: &Item) -> bool {
+        self.stick.get(self.visit.stick).is_some_and(|s| {
+            s.files
+                .iter()
+                .any(|(n, len)| **n == *item.name && *len == item.bytes.len() as u64)
+        })
+    }
+
+    /// The Inbox files a stick visit's left column shows, by index, each
+    /// with whether the stick on show holds it already (by name and size):
+    /// those rows are drawn greyed and cannot be ticked.
+    pub(crate) fn visit_inbox_shown(&self) -> Vec<(usize, bool)> {
+        self.inbox
+            .iter()
+            .enumerate()
+            .map(|(k, i)| (k, self.visit_stick_holds(i)))
+            .collect()
+    }
+
+    /// The Inbox files a stick visit offers to write, by index: every one
+    /// but those the stick shown holds already, by name and size.
+    pub fn visit_inbox_rows(&self) -> Vec<usize> {
+        self.visit_inbox_shown()
+            .into_iter()
+            .filter(|&(_, held)| !held)
+            .map(|(k, _)| k)
+            .collect()
+    }
+
+    /// The Inbox files Select all chooses on a visit: the public and
+    /// sealed ones it lists, never one that may be a secret.
+    fn visit_inbox_plain(&self) -> BTreeSet<faraday_text::Text> {
+        self.visit_inbox_rows()
+            .into_iter()
+            .filter_map(|k| self.inbox.get(k))
+            .filter(|i| i.copy_ack().is_none())
+            .map(|i| faraday_text::Text::of(&i.name))
+            .collect()
     }
 }

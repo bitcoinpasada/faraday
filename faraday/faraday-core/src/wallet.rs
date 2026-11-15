@@ -60,6 +60,7 @@ pub fn parse_words(
     faraday_keys::words::parse(c, lang, text)
 }
 
+use crate::public_files;
 pub(crate) use faraday_intake::wallet::{carried_name, network_of_kind};
 
 /// Costs a text check of a name long enough to be secret text. The name a
@@ -4352,3 +4353,76 @@ impl Faraday {
 
 #[cfg(test)]
 mod partial_tests;
+
+impl Faraday {
+    /// The master fingerprint of slot `slot` of wallet `i` when
+    /// [`Faraday::wallet_key`] has that key: its seed is here and the
+    /// wallet is no silent payments wallet. A lookup; it
+    /// derives nothing.
+    fn wallet_key_here(&self, i: usize, slot: u8) -> Option<faraday_bip::keys::Fingerprint> {
+        let w = self.session.wallets.get(i)?;
+        if w.policy().silent().is_some() {
+            return None;
+        }
+        let fp = w.policy().keys().get(usize::from(slot))?.fingerprint()?;
+        self.session
+            .keys
+            .all()
+            .any(|k| k.fingerprint == fp)
+            .then_some(fp)
+    }
+
+    fn wallet_key_out(&mut self, i: usize, slot: u8) {
+        let c = self.compute();
+        match self.wallet_key(&c, i, slot) {
+            Ok(k) => {
+                let name = faraday_text::text!("xpub-{}.txt", &*k.fp);
+                let bytes =
+                    faraday_text::text!("# Account xpub {}, {}\n{}\n", &*k.fp, &*k.kind, &*k.text);
+                let name = self.put_outbox_beside(&name, bytes.as_bytes().to_vec());
+                self.backup_xpub_sent(i, slot, false, &name);
+                self.toast_out(&name);
+            }
+            Err(e) => self.toast(&e),
+        }
+    }
+
+    fn wallet_key_bsms(&mut self, i: usize, slot: u8) {
+        let c = self.compute();
+        match self.wallet_key_record(&c, i, slot) {
+            Ok((fp, text)) => {
+                let name = faraday_text::text!("xpub-{}-bsms.txt", &*fp);
+                let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
+                self.backup_xpub_sent(i, slot, true, &name);
+                self.toast_out(&name);
+            }
+            Err(e) => self.toast(&e),
+        }
+    }
+
+    /// Costs an address derivation (through `address_at`), or `checked_config`.
+    /// A wallet's public text file `what` (as [`Faraday::public_out`] numbers
+    /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
+    pub(crate) fn wallet_file_text(
+        &self,
+        c: &Compute,
+        wallet: usize,
+        what: u8,
+    ) -> Option<faraday_text::Text> {
+        let w = self.session.wallets.get(wallet)?;
+        public_files::file_text(c, self.session.network(), w, what)
+            .map(|t| faraday_text::Text::of(&t))
+    }
+
+    /// The keys loaded that no wallet uses, and the one of them the
+    /// Wallets card offers a wallet from: the one picked, else the first.
+    pub(crate) fn loose_keys(&self) -> (Vec<faraday_bip::keys::Fingerprint>, Option<[u8; 4]>) {
+        let loose = self.session.loose_keys();
+        let picked = self
+            .wallets
+            .loose_pick()
+            .filter(|p| loose.iter().any(|f| f.0 == *p))
+            .or_else(|| loose.first().map(|f| f.0));
+        (loose, picked)
+    }
+}

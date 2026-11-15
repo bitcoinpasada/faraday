@@ -1439,3 +1439,59 @@ enum Place {
     Create,
     Restore,
 }
+
+impl Faraday {
+    /// Which region scrolls now: the one the pointer last went to, while
+    /// it can be reached; else the screen's or the sheet's own.
+    pub(crate) fn slot(&self) -> ui::Slot {
+        self.scroll
+            .slot(self.screen, self.sheet.is_none(), self.compact, || {
+                self.board_shown()
+            })
+    }
+
+    /// The regions the last frame drew that can be reached now, last
+    /// drawn first: through a sheet that does not scroll, none.
+    pub(crate) fn regions(&self) -> std::vec::IntoIter<ui::Scrolled> {
+        let key = self.region_key();
+        self.scroll
+            .regions(key, self.sheet.is_none() || key.1.is_some())
+    }
+
+    /// What the region that scrolls now rounds an offset to: whole
+    /// pixels, and never past the end the last frame drew. Rounded up
+    /// past it, the page would clamp it back and ask for another frame,
+    /// for ever at a scale that is not whole.
+    pub(crate) fn whole_offset(&self) -> impl Fn(f32) -> f32 + use<> {
+        let f = self.f.max(0.1);
+        let end = self.region_now().map(|e| (e.max * f).floor().max(0.0));
+        move |o| {
+            let px = (o * f).round();
+            end.map_or(px, |end| px.min(end)) / f
+        }
+    }
+
+    /// The region that scrolls now, as the last frame drew it.
+    pub(crate) fn region_now(&self) -> Option<ui::Scrolled> {
+        self.scroll.region_now(self.region_key(), self.slot())
+    }
+
+    /// Which region scrolls now: the screen, or the sheet over it when
+    /// that sheet scrolls. A sheet that does not scroll leaves the screen
+    /// the region, so what moves on it carries on under the sheet.
+    pub(crate) fn region_key(&self) -> ScreenKey {
+        (self.screen, self.sheet)
+    }
+
+    /// The motion belongs to the region that scrolls now: what moved
+    /// another screen, sheet or region is stopped.
+    fn own_motion(&mut self) {
+        let key = (self.region_key(), self.slot());
+        self.scroll.own(key);
+    }
+
+    /// The time of the last tick, ms: what a test's next tick follows.
+    pub fn now_ms(&self) -> u64 {
+        self.now_ms
+    }
+}

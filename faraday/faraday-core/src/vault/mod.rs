@@ -74,6 +74,7 @@ use crate::Sheet;
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, FileKind, Item, Screen, gpg, share_record_is};
+use crate::{fresh, sha256_of};
 use faraday_bip::keys::Fingerprint;
 use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
 use faraday_pgp::{Armor, Reason, armor};
@@ -4363,5 +4364,22 @@ impl Faraday {
             Some(s) => Text::of(&s.to_text()),
             None => Text::of(&w.policy().to_descriptor_checksummed()),
         }
+    }
+}
+
+impl Faraday {
+    /// The dice entry's roller and whether it has room for more.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn vault_dice(&self) -> (&fresh::roller::Roller, bool) {
+        (self.vaults.dice.roller(), self.vaults.dice.room() > 0)
+    }
+
+    /// Remembers that vault file `name`, these bytes, was read from the
+    /// stick labelled `label`.
+    pub(crate) fn vault_read_from(&mut self, name: &str, bytes: &[u8], label: &str) {
+        let c = self.compute();
+        self.visit.vault_from_set(name, sha256_of(&c, bytes), label);
     }
 }

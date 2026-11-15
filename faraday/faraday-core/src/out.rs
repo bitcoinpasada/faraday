@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 
 use faraday_shell_api::Command;
 
+use crate::Faraday;
 use crate::storage_api::StorageCommand;
 
 /// What the core hands the shell:
@@ -102,5 +103,22 @@ impl Out {
     /// Queues `command` for the shell.
     pub(crate) fn command(&mut self, command: Command) {
         self.commands.push_back(command);
+    }
+}
+
+impl Faraday {
+    pub(crate) fn toast(&mut self, text: &str) {
+        self.out.toast(text, self.now_ms);
+    }
+
+    /// How much of the toast shows, 0 to 1, and how far below its place
+    /// it is, in units: it rises in, and fades as its time runs out.
+    pub(crate) fn toast_shown(&self) -> (f32, f32) {
+        self.out.toast_shown(self.now_ms, self.reduce_motion())
+    }
+
+    /// The toast shown, if one is current.
+    pub fn toast_text(&self) -> Option<&str> {
+        self.out.toast.as_ref().map(|(t, _)| t.as_str())
     }
 }

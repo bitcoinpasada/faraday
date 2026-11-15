@@ -4,8 +4,10 @@
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
 fields Faraday 82
 
-# Files under faraday/ with an inherent `impl Faraday {`: the list only
-# shrinks.
+# Files under faraday/ with an inherent `impl Faraday {`: an area's glue lives
+# in that area's folder and lib.rs holds none; one file per area.
+impl-faraday faraday/faraday-core/src/action.rs
+impl-faraday faraday/faraday-core/src/address_find/mod.rs
 impl-faraday faraday/faraday-core/src/backup_flow/steps.rs
 impl-faraday faraday/faraday-core/src/backup_flow/wallet.rs
 impl-faraday faraday/faraday-core/src/backups/mod.rs
@@ -26,6 +28,10 @@ impl-faraday faraday/faraday-core/src/edit.rs
 impl-faraday faraday/faraday-core/src/explore/addresses.rs
 impl-faraday faraday/faraday-core/src/explore/mod.rs
 impl-faraday faraday/faraday-core/src/fade.rs
+impl-faraday faraday/faraday-core/src/idle.rs
+impl-faraday faraday/faraday-core/src/out.rs
+impl-faraday faraday/faraday-core/src/pointer.rs
+impl-faraday faraday/faraday-core/src/public_files.rs
 impl-faraday faraday/faraday-core/src/spend_backup/mod.rs
 impl-faraday faraday/faraday-core/src/file_menu.rs
 impl-faraday faraday/faraday-core/src/fresh.rs
@@ -36,7 +42,6 @@ impl-faraday faraday/faraday-core/src/inbox.rs
 impl-faraday faraday/faraday-core/src/inputs.rs
 impl-faraday faraday/faraday-core/src/keygen/mod.rs
 impl-faraday faraday/faraday-core/src/guide.rs
-impl-faraday faraday/faraday-core/src/lib.rs
 impl-faraday faraday/faraday-core/src/lightning/mod.rs
 impl-faraday faraday/faraday-core/src/memory/mod.rs
 impl-faraday faraday/faraday-core/src/modes/mod.rs
@@ -57,6 +62,7 @@ impl-faraday faraday/faraday-core/src/state.rs
 impl-faraday faraday/faraday-core/src/stick/pills.rs
 impl-faraday faraday/faraday-core/src/stick/settings.rs
 impl-faraday faraday/faraday-core/src/stick/wipe.rs
+impl-faraday faraday/faraday-core/src/storage_api.rs
 impl-faraday faraday/faraday-core/src/tools/mod.rs
 impl-faraday faraday/faraday-core/src/trail.rs
 impl-faraday faraday/faraday-core/src/transfer/mod.rs

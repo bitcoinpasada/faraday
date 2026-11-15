@@ -23,9 +23,10 @@
 #
 # 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.2). The number of
 #    top-level fields of `pub struct Faraday` in lib.rs (`fields Faraday
-#    N`) only falls, and so does the list of files under faraday/ with an
-#    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed
-#    fails, and so does a listed file that has none.
+#    N`) only falls. The files under faraday/ with an inherent `impl Faraday {`
+#    (`impl-faraday PATH`) are one per area, in the area's folder, and
+#    never lib.rs: a file not listed fails, and so does a listed file that
+#    has none.
 #
 # 5. Dependency direction: core/ crates stay inside core/; the drawing and
 #    string crates do not depend on faraday-core or faraday-starter.
@@ -214,7 +215,7 @@ for path in files:
     found = [(m.start(), m.group(1)) for m in MUT_FN.finditer(text)]
     found += [(m.start(), "DerefMut") for m in DEREF_MUT.finditer(text)]
     for pos, name in found:
-        if (path, name) == (f"{CORE}/lib.rs", "canvas_mut"):
+        if (path, name) == (f"{CORE}/drawing.rs", "canvas_mut"):
             continue
         mut_seen.add((path, name))
         if (path, name) not in mut_listed:

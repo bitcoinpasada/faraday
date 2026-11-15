@@ -8,6 +8,11 @@ use faraday_shell_api::Key as KeyIn;
 use faraday_ui::tooltip::{TipAnchor, TipBy, Tips};
 
 use crate::Action;
+use crate::{
+    Faraday, Later, Screen, Sheet, drawn_first, motion, slow, ui, vault, work, working_text,
+};
+use faraday_shell_api::Command;
+use faraday_shell_api::TouchPhase;
 
 /// Where a control the last frame drew takes a press (`faraday_ui::Reach`).
 pub(crate) type Reach = faraday_ui::Reach<Action>;
@@ -368,4 +373,428 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::PotentialTypeAgain
             | Action::LPassphrase
     ) || a == crate::file_menu::FIELD
+}
+
+impl Faraday {
+    /// The wheel, a trackpad or a finger starts at (x, y): the region
+    /// under it is the one they move (the innermost, where one region
+    /// stands inside another), the page's when none is.
+    pub(crate) fn point_region(&mut self, x: i32, y: i32) {
+        let slot = self
+            .regions()
+            .filter(|e| e.view.contains(x, y))
+            .min_by_key(|e| i64::from(e.view.w) * i64::from(e.view.h))
+            .map_or(ui::Slot::Page, |e| e.slot);
+        self.scroll.went_to(slot);
+    }
+
+    /// Finds what can be pressed under the pointer in the frame on
+    /// screen. Returns whether that changed.
+    pub(crate) fn find_hovered(&mut self) -> bool {
+        self.pointer.find_hovered()
+    }
+
+    pub(crate) fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
+        let (x, y) = (i32::from(x), i32::from(y));
+        let found = self.pointer.hit_at(x, y);
+        match phase {
+            TouchPhase::Down => {
+                self.pointer.set_down_at((x, y));
+                self.pointer.tip_down((x, y), self.now_ms);
+                self.point_region(x, y);
+                // At the scrolled region's right edge a press takes the
+                // scrollbar: held on its thumb it follows from where it was
+                // taken, anywhere else on the track the thumb's middle
+                // comes to the press.
+                if let Some((e, g)) = self.bar_at(x, y) {
+                    let offset = self.scroll_offset().unwrap_or(0.0);
+                    let at = g.top
+                        + ((g.track - g.thumb) as f32 * (offset / e.max).clamp(0.0, 1.0)).round()
+                            as i32;
+                    let grab = if (at..at + g.thumb).contains(&y) {
+                        y - at
+                    } else {
+                        g.thumb / 2
+                    };
+                    self.pointer.set_bar_held(Some(grab));
+                    self.scroll.stop();
+                    self.pointer.set_pressed(None);
+                    self.pointer.set_drag(None);
+                    self.pointer.set_swallow(false);
+                    self.bar_drag(y);
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                    return;
+                }
+                // A finger on a scrolled region may be the start of a
+                // drag; it is a press until it moves. Not through a sheet
+                // that does not scroll: the page under it is out of reach.
+                let slot = self.slot();
+                let dragging = self
+                    .regions()
+                    .find(|e| e.slot == slot && e.view.contains(x, y))
+                    .map(|_| (y, false));
+                self.pointer.set_drag(dragging);
+                // A touch on content that is still flying only stops it.
+                self.pointer.set_swallow(self.scroll.flung(self.f));
+                if self.pointer.swallow() {
+                    self.scroll.stop();
+                    self.pointer.set_pressed(None);
+                    return;
+                }
+                self.pointer.set_pressed(found);
+                self.vaults.pressed(self.now_ms);
+                // A press on a board chip may be its drag: no scroll (§19.2).
+                if self.board_press_down(found.map(|f| f.0), x, y) {
+                    self.pointer.set_drag(None);
+                }
+                if let Some((Action::VisitBar(c), _)) = found {
+                    self.visit_drag(c, y);
+                }
+            }
+            TouchPhase::Move => {
+                self.pointer.tip_moved((x, y));
+                if self.pointer.bar_held().is_some() {
+                    self.bar_drag(y);
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                    return;
+                }
+                // A board chip past the slop follows the finger.
+                if self.board_press_move(x, y) {
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                    return;
+                }
+                let held_bar = match self.pointer.pressed() {
+                    Some((Action::VisitBar(c), _)) => Some(c),
+                    _ => None,
+                };
+                // A slider held follows the finger along its track.
+                if let Some((Action::Slide(id, _), r)) = self.pointer.pressed() {
+                    let row = r.y + r.h / 2;
+                    let under = self
+                        .pointer
+                        .hits()
+                        .iter()
+                        .rev()
+                        .find(|(h, a)| {
+                            matches!(a, Action::Slide(i, _) if *i == id) && h.contains(x, row)
+                        })
+                        .map(|(h, a)| (*a, *h));
+                    if let Some((a, h)) = under
+                        && Some(a) != self.pointer.pressed().map(|p| p.0)
+                    {
+                        self.pointer.set_pressed(Some((a, h)));
+                        self.act(a);
+                        self.out.redraw();
+                        self.out.commands.push_back(Command::Draw);
+                    }
+                    return;
+                }
+                if let Some((last, dragging)) = self.pointer.drag()
+                    && held_bar.is_none()
+                {
+                    let slop = motion::SLOP * self.f;
+                    let (dx, dy) = (x - self.pointer.down_at().0, y - self.pointer.down_at().1);
+                    let start = !dragging && self.drag_starts(dx, dy, slop);
+                    if dragging || start {
+                        // Past the slop the press is a drag: nothing
+                        // under the finger is pressed, the page follows.
+                        self.pointer.set_pressed(None);
+                        self.pointer.set_drag(Some((y, true)));
+                        self.pan_drag((x, y), last, start);
+                        self.out.moved();
+                        self.out.commands.push_back(Command::Draw);
+                        return;
+                    }
+                }
+                // The scrollbar follows the finger anywhere once held.
+                if let Some(c) = held_bar {
+                    self.visit_drag(c, y);
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                } else if let Some((_, r)) = self.pointer.pressed()
+                    && !r.contains(x, y)
+                {
+                    self.pointer.set_pressed(None);
+                }
+            }
+            TouchPhase::Up => {
+                self.pointer.tip_up();
+                if self.pointer.take_bar_held().is_some() {
+                    return;
+                }
+                // A board chip dragged is dropped where it is lifted.
+                if self.board_press_up(x, y) {
+                    self.pointer.set_drag(None);
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
+                    return;
+                }
+                let dragged = self.pointer.take_drag().is_some_and(|(_, d)| d);
+                if dragged {
+                    self.pointer.set_pressed(None);
+                    self.scroll.release(self.f);
+                }
+                if dragged || self.pointer.take_swallow() {
+                    return;
+                }
+                let pressed = self.pointer.take_pressed();
+                // A hold acts on the tick that completes it, never on release.
+                if let (Some((a, _)), Some((b, _))) = (pressed, found)
+                    && a == b
+                    && !vault::is_hold(a)
+                {
+                    // On a field: the caret where it was pressed, a
+                    // second press selecting all of it, a drag what it
+                    // went over.
+                    let double = self
+                        .pointer
+                        .last_tap()
+                        .is_some_and(|(l, t)| l == a && self.now_ms.saturating_sub(t) <= 450);
+                    if field_action(a)
+                        && let Some(dragged) =
+                            self.field_press(a, self.pointer.down_at(), (x, y), double)
+                    {
+                        self.pointer
+                            .set_last_tap((!double && !dragged).then_some((a, self.now_ms)));
+                        return;
+                    }
+                    self.pointer.set_last_tap(Some((a, self.now_ms)));
+                    // A press on the screen's way out is Back (F77).
+                    let a = self.as_back_at(a, found.map(|f| f.1));
+                    self.press_in(a);
+                    if field_action(a) && !matches!(a, Action::BName(_)) {
+                        self.field_press(a, (x, y), (x, y), false);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The overlay scrollbar a press at (x, y) would take: the scrolled
+    /// region's, when the press is within [`ui::BAR_GRAB`] of its right
+    /// edge and the region scrolls, with where its bar runs. A small
+    /// panel draws none, so a press there is on the content.
+    pub(crate) fn bar_at(&self, x: i32, y: i32) -> Option<(ui::Scrolled, ui::BarGeometry)> {
+        if self.compact {
+            return None;
+        }
+        // Not through a sheet that does not scroll.
+        let e = self.regions().find(|e| e.view.contains(x, y))?;
+        if e.own_bar || e.max <= 0.0 {
+            return None;
+        }
+        let f = self.f.max(0.1);
+        if x < e.view.right() - (ui::BAR_GRAB * f).round() as i32 {
+            return None;
+        }
+        let g = ui::BarGeometry::of(e.view, e.max, f);
+        (g.track > g.thumb).then_some((e, g))
+    }
+
+    /// The scrolled region moved to where its held scrollbar is, at pixel
+    /// row `y`.
+    fn bar_drag(&mut self, y: i32) {
+        let Some(grab) = self.pointer.bar_held() else {
+            return;
+        };
+        let Some(e) = self.region_now() else {
+            return;
+        };
+        let g = ui::BarGeometry::of(e.view, e.max, self.f.max(0.1));
+        let room = (g.track - g.thumb).max(1) as f32;
+        let at = ((y - g.top - grab) as f32).clamp(0.0, room);
+        self.set_scroll_offset(at / room * e.max);
+    }
+
+    /// Brings whatever is moving to rest at once: a glide lands, a
+    /// stretch ends, a toast is fully up, the overlay scrollbar is gone
+    /// and a text caret shows. For drivers that take pictures of the screens,
+    /// such as the snapshot tool, so a picture shows where things end up.
+    pub fn settle(&mut self) {
+        self.typing.blink_from(self.now_ms);
+        self.settle_regions();
+        self.scroll.stop();
+        self.pointer.set_scroll_at(None);
+        if let Some(d) = self.disclosed.as_mut() {
+            d.moving = false;
+        }
+        self.fresh.own_settle();
+        let whole = self.whole_offset();
+        let offset = self.scroll_offset().map_or(0.0, whole);
+        self.scroll
+            .set_bar_seen((self.region_key(), self.slot()), offset, 0);
+        if self.out.toast.is_some() {
+            self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
+        }
+        // The next frame is the screen at rest, not on the way from the last.
+        self.fade.restart();
+        self.out.redraw();
+    }
+
+    /// Acts as if `action` had been pressed: for drivers that script the
+    /// screens, such as the snapshot tool.
+    pub fn press(&mut self, action: Action) {
+        self.press_as(action, true);
+    }
+
+    /// [`Faraday::press`], its jobs run inline or, as a person's press
+    /// has them, on the worker.
+    pub(crate) fn press_as(&mut self, action: Action, inline: bool) {
+        // An action may change the words typed: the status line's key is
+        // worked out again, once typing pauses when the action is a
+        // character from the on-screen keyboard.
+        self.entry.state().forget_probe();
+        if matches!(
+            action,
+            Action::EntryKey(_) | Action::EntryKeyBack | Action::EntryCandidate(_)
+        ) && self.entry_typing_here()
+        {
+            self.inbox.set_typed_at(Some(self.now_ms));
+        }
+        self.note_secrets();
+        self.note_here();
+        // A script does not wait for the worker either: its jobs run here.
+        let was_inline = self.worker.set_inline(inline);
+        self.press_in(action);
+        // A script does not wait for frames: what a press leaves for the tick is done now.
+        self.later_all(inline);
+        self.worker.set_inline(was_inline);
+        self.backup_settle();
+        self.after_input();
+        self.out.redraw();
+        self.out.commands.push_back(Command::Draw);
+    }
+
+    /// A person's press: done now, or, when its work stretches a key or
+    /// makes pictures ([`drawn_first`]), drawn first and done on the tick after
+    /// (`docs/SPEED.md` §9). A press left waiting goes first.
+    pub(crate) fn press_in(&mut self, action: Action) {
+        // A slider moved again replaces the files it asked to be made.
+        if !(matches!(action, Action::Slide(..))
+            && matches!(self.later, Some(Later::Press(Action::PublicOut(..)))))
+        {
+            self.later_now();
+        }
+        if drawn_first(action) && !field_action(action) {
+            self.later = Some(Later::Press(action));
+            self.worker.set_drawn(false);
+            if let Some(text) = working_text(action) {
+                self.working(text);
+            }
+            self.out.redraw();
+            self.out.commands.push_back(Command::Draw);
+            return;
+        }
+        let before = work::snapshot();
+        self.act(action);
+        // The rule `slow` keeps, held in debug builds and every test: a
+        // press not left for the tick stretches no key and makes at most
+        // one picture.
+        let done = work::since(&before);
+        slow::guard(action, &done);
+    }
+
+    /// What every press does once it has acted, however it came (a tap,
+    /// a key, the mouse's back button, a scripted press): a screen left
+    /// drops what it held, a detour not taken ends, a spent round goes
+    /// from its vault, and a sheet waiting comes up. Lookups, unless
+    /// something is dropped.
+    pub(crate) fn after_input(&mut self) {
+        self.stick.note_visit(self.stick_pane());
+        vault::settle(self);
+        self.trail_note();
+        // A vault being made or unlocked for another flow: the way back
+        // ends when the person leaves for anything else, and a secret
+        // kept for it goes, wiped. While on the way, the flow keeps what
+        // it held.
+        let detour = matches!(
+            self.screen,
+            Screen::CreateVault | Screen::Vaults | Screen::Unlock | Screen::BackupFlow
+        );
+        if !detour {
+            self.vaults.set_back_to(None);
+        }
+        let waiting = detour && self.vaults.back_to.is_some();
+        if !waiting && !matches!(self.sheet, Some(Sheet::SecretOut | Sheet::Pull)) {
+            self.secret_cancel();
+        }
+        let kept = |s: Screen| self.screen == s || (waiting && self.vaults.back_to == Some(s));
+        let (bip85, lightning, silent) = (
+            kept(Screen::Bip85),
+            kept(Screen::Lightning),
+            kept(Screen::Silent),
+        );
+        // A vault's passphrase, typed or half typed, goes once nothing that
+        // takes it is up, however it was left; an unlock under way keeps it
+        // until it is done.
+        let typing = matches!(
+            self.screen,
+            Screen::Unlock | Screen::BackupFlow | Screen::SpendBackup
+        ) || self.sheet == Some(Sheet::Import);
+        if !typing && self.vaults.working != Some(vault::Work::Unlock) {
+            self.vaults.clear_unlock();
+        }
+        // Leaving New key drops what it held (Add randomness, opened from it, keeps it).
+        if !matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+            && self.keygen.state().is_some()
+        {
+            self.keygen_drop();
+        }
+        if !bip85 {
+            self.bip85.clear();
+        }
+        self.shown_tidy();
+        self.tool_tidy();
+        self.tools.tidy(self.screen);
+        if self.sheet != Some(Sheet::WordList) {
+            self.wordlist.clear();
+        }
+        // Leaving the vanity screen stops a search and drops a find.
+        if self.screen != Screen::Vanity {
+            self.vanity.clear();
+        }
+        if !lightning && self.sheet != Some(Sheet::SecretOut) {
+            self.lightning.clear();
+        }
+        if !silent && self.sheet != Some(Sheet::Qr) {
+            self.silent.clear();
+        }
+        self.cameras_noise();
+        self.keygen_device();
+        self.release_held_stick();
+        // A device still waiting comes back up once no other sheet is.
+        self.input_sheet();
+        self.device_sheet();
+        self.drop_forged_wallets();
+    }
+
+    /// Whether the last frame drawn offers `action` to a press: for
+    /// tests that a control is on screen.
+    pub fn offers(&self, action: Action) -> bool {
+        self.pointer.offers(action)
+    }
+
+    /// Where the last frame drawn offers `action`, in pixels: the middle
+    /// of where it can be pressed, for tests that touch it.
+    pub fn where_offered(&self, action: Action) -> Option<(u16, u16)> {
+        let r = self.pointer.rect_of(action)?;
+        Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
+    }
+
+    /// Every control the last frame drawn offers, for the tours' check of
+    /// what a press opened (`docs/SECRET-LEAKS.md` §5).
+    #[cfg(feature = "testkit")]
+    pub fn offered_actions(&self) -> Vec<Action> {
+        self.pointer.hits().iter().map(|(_, a)| *a).collect()
+    }
+
+    /// The box the last frame drawn offers `action` in, in pixels
+    /// (x, y, w, h): for a test that two controls do not overlap.
+    pub fn hit_box(&self, action: Action) -> Option<(u16, u16, u16, u16)> {
+        let r = self.pointer.rect_of(action)?;
+        Some((r.x as u16, r.y as u16, r.w as u16, r.h as u16))
+    }
 }

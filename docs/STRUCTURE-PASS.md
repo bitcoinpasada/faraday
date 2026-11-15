@@ -159,7 +159,9 @@ cannot quietly undo it:
     one thing and is as long as that takes; a reviewer reads a function
     that grew a second job (`structure.one-job`);
   - `Faraday`'s top-level field count, which only falls;
-  - the files allowed an inherent `impl Faraday`: the list only shrinks;
+  - the files allowed an inherent `impl Faraday`: an area's glue lives in
+    that area's folder, `lib.rs` holds none, and the list names one file
+    per area;
   - mutable accessors: in faraday-core a `pub` or `pub(crate)` `fn
     *_mut(` and an `impl DerefMut` are listed in `tools/lint-layout.counts`
     or fail; an area's state is reached through its own methods, and
@@ -207,12 +209,12 @@ this pass came from, is on the board.
   secret.
 - Flows that span areas are short `impl Faraday` functions that call
   each area in turn: explicit glue, in each area's own files, so the
-  list of files with `impl Faraday` only shrinks. The stricter design,
+  list of files with `impl Faraday` names one file per area and never
+  `lib.rs`. The stricter design,
   where areas only exchange messages, is not taken.
-- The measures are `Faraday`'s top-level field count and the number of
-  files with `impl Faraday`; both only fall, held by
-  `tools/lint-layout.counts`. the counts are held by
-  `tools/lint-layout.counts`. The
+- The measures are `Faraday`'s top-level field count, which only falls,
+  and the files with `impl Faraday`, one per area and none in `lib.rs`;
+  both are held by `tools/lint-layout.counts`. The
   queues to the shell are one `Out`, the pointer's ten fields one
   `Pointer` and the idle lock's six one `Idle`; the 13 fields the shells
   set stay separate public fields.

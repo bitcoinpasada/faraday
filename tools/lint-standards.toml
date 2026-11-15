@@ -144,7 +144,7 @@ reason = "Reads a wallet's script kept on the state; the script is computed by f
 
 [[uncovered]]
 file = "faraday/faraday-core/src/address_find/mod.rs"
-reason = "What Find an address and Look further share: an address at one index of a wallet, derived by faraday-bip's wallet policy, which the stamp covers, over rust-bitcoin's types."
+reason = "What Find an address and Look further share: an address at one index of a wallet, derived by faraday-bip's wallet policy, which the stamp covers, over rust-bitcoin's types. `Faraday::address_read` parses a typed address with rust-bitcoin to name its network; computes nothing on a secret."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/address_find/look.rs"
@@ -185,10 +185,6 @@ reason = "My seed makes my wallet's Compare with the wallet app's: reads a typed
 [[uncovered]]
 file = "faraday/faraday-core/src/inbox.rs"
 reason = "Reads a derivation path's steps to tell a wallet's kind; computes nothing."
-
-[[uncovered]]
-file = "faraday/faraday-core/src/lib.rs"
-reason = "`Faraday::address_note` parses a typed address with rust-bitcoin to name its network; computes nothing on a secret."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/memory/mod.rs"

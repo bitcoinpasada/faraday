@@ -641,6 +641,7 @@ fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
         .find_map(|lang| crate::wallet::parse_words(c, lang, &typed).ok())
 }
 
+use crate::sha256_of;
 pub(crate) use faraday_intake::{Part, part_of};
 
 impl Faraday {
@@ -1865,5 +1866,28 @@ impl Faraday {
             self.inbox_load_named();
         }
         n
+    }
+}
+
+impl Faraday {
+    /// A public or sealed file to the Outbox. A secret never comes this
+    /// way: it goes through [`Faraday::offer_secret`], which asks first.
+    pub(crate) fn put_outbox(&mut self, name: &str, bytes: impl Into<zeroize::Zeroizing<Vec<u8>>>) {
+        let c = self.compute();
+        self.put_item(Item::new(&c, name, bytes));
+    }
+
+    /// Costs a hash of a whole file (through `sha256_of`). What a write's
+    /// record keeps of a file written with this SHA-256: the hash, or
+    /// nothing (all zeros) for a secret waiting in the Outbox or the Inbox,
+    /// since a receipt and a flow's sticks are kept across a lock and a
+    /// hash of a seed's words or a passphrase is derived from it. Hashes
+    /// each file there that is a secret.
+    pub(crate) fn hash_to_keep(&self, c: &Compute, hash: [u8; 32]) -> [u8; 32] {
+        let secret =
+            self.outbox.iter().chain(self.inbox.iter()).any(|i| {
+                i.exposure() == secrets::Exposure::Secret && sha256_of(c, &i.bytes) == hash
+            });
+        if secret { [0; 32] } else { hash }
     }
 }

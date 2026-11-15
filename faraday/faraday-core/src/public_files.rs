@@ -16,6 +16,7 @@ use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
 
+use crate::public_files;
 use crate::strings::{EN, fill};
 use crate::wallet::{self, Origin, Session, Wallet, fp_text};
 use crate::worker::Job;
@@ -725,4 +726,76 @@ fn checklist_opened(app: &mut Faraday) {
     app.backup.checklist();
     app.backup_item_open(first);
     app.backups_sync();
+}
+
+impl Faraday {
+    /// One of a wallet's public files to the Outbox: 0 the blank
+    /// template, 1 the descriptor, 2 the multisig config, 3 the backup
+    /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
+    /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
+    /// descriptor's code as a labelled picture; under More options
+    /// ([`wallet_backup::public_more_files`]), 9 Bitcoin Core's import for Core before
+    /// 29, 10 the Electrum wallet file, 11 the Caravan config, 12 Specter
+    /// DIY's `addwallet` command, 13 the Wasabi file (`docs/INTEROP.md` §5
+    /// I4, I8); and 14 that command's codes as labelled pictures, in
+    /// Specter's numbered parts past one code. The multisig config, the
+    /// split shares and Specter's pictures are a job on the worker when a
+    /// person asks ([`Faraday::public_out_job`]).
+    pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
+        let files = self.public_made(wallet, what);
+        let names: Vec<faraday_text::Text> = files.iter().map(|(n, _)| n.duplicate()).collect();
+        for (name, bytes) in files {
+            self.put_outbox(&name, bytes);
+        }
+        self.backup_sent(wallet, &names);
+        self.toast_out_files(&names);
+    }
+
+    /// A person's press on a wallet's public files `what`: a job on the
+    /// worker for the kinds that rebuild a wallet to check it or make more
+    /// than one picture or PDF (2, 4, 14), else [`Faraday::public_out`]
+    /// as it always was.
+    pub(crate) fn public_out_job(&mut self, wallet: usize, what: u8) {
+        if matches!(what, 2 | 4 | 14) {
+            public_files::start(
+                self,
+                wallet,
+                vec![public_files::Part::Kind(what)],
+                public_files::Then::Out,
+            );
+        } else {
+            self.public_out(wallet, what);
+        }
+    }
+
+    /// Removes from For the stick what [`Faraday::public_out`] makes for
+    /// `wallet` and `what`.
+    pub(crate) fn public_remove(&mut self, wallet: usize, what: u8) {
+        let names = self.public_names(wallet, what);
+        let before = self.outbox.len();
+        self.outbox
+            .retain(|i| !names.iter().any(|n| i.name == n.as_str()));
+        if self.outbox.len() != before {
+            self.save_boxes();
+        }
+    }
+
+    /// The names of the files [`Faraday::public_made`] makes, with no
+    /// picture or PDF made: a PDF that cannot be made is named anyway.
+    pub(crate) fn public_names(&mut self, wallet: usize, what: u8) -> Vec<faraday_text::Text> {
+        self.public_files(wallet, what, false)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect()
+    }
+
+    /// Costs two key derivations for a silent payments wallet, nothing for
+    /// another. What wallet `wallet`'s public files are made from, owned:
+    /// `None` where the session has no such wallet.
+    pub(crate) fn public_inputs(&self, c: &Compute, wallet: usize) -> Option<public_files::Inputs> {
+        let w = self.session.wallets.get(wallet)?;
+        let blank = self.public_wallet(c, wallet).is_none();
+        let omit = self.backup.state().map(|b| b.answers.omit);
+        Some(public_files::Inputs::of(&self.session, w, omit, blank))
+    }
 }

@@ -15,6 +15,8 @@ pub(crate) use card::{Answer, answer};
 pub use look::LookWay;
 pub(crate) use look::{FoundIn, Look, SignAt};
 
+use crate::strings::EN;
+use crate::{Faraday, address_find, wallet};
 use faraday_bip::bitcoin::secp256k1::{Secp256k1, VerifyOnly};
 use faraday_bip::bitcoin::{Address, Network as BtcNetwork, ScriptBuf};
 use faraday_bip::keys::Network;
@@ -98,4 +100,101 @@ pub(crate) fn address(
 ) -> Option<Address> {
     let s = script(c, secp, policy, change, index)?;
     Address::from_script(&s, BtcNetwork::from(net)).ok()
+}
+
+impl Faraday {
+    /// What `text` is as an address (`docs/QR.md` §2): `None` when it is
+    /// not one; the line it is refused with (a payment link that needs
+    /// something this device does not read, a checksum that fails, another
+    /// network's address); or the address, from a `bitcoin:` link as well.
+    pub(crate) fn address_read(
+        &self,
+        text: &str,
+    ) -> Option<Result<faraday_bip::bitcoin::Address, faraday_text::Text>> {
+        let refused = |line: &'static str| Some(Err(faraday_text::Text::of(line)));
+        let t = text.trim();
+        let mut is_uri = false;
+        let t = match faraday_codec::bip21::parse(t) {
+            Ok(uri) => {
+                is_uri = true;
+                uri.address
+            }
+            Err(faraday_codec::bip21::Error::NotUri) => t,
+            Err(faraday_codec::bip21::Error::Required) => {
+                return refused(EN.address_note_uri_required);
+            }
+            Err(faraday_codec::bip21::Error::Malformed) => {
+                return refused(EN.address_note_uri_malformed);
+            }
+        };
+        let net = self.session.network();
+        let Ok(addr) =
+            t.parse::<faraday_bip::bitcoin::Address<faraday_bip::bitcoin::address::NetworkUnchecked>>()
+        else {
+            // An address's characters, as many as one has, that fail its
+            // checksum: one of them is wrong.
+            let whole = t.len() >= 26
+                && t.bytes().all(|b| b.is_ascii_alphanumeric())
+                && faraday_bip::keys::Network::ALL
+                    .iter()
+                    .any(|&n| faraday_bip::address::is_address_prefix(t, n));
+            if whole {
+                return refused(EN.address_note_that_address_fails);
+            }
+            // A link whose address is anything else (not empty: BIP 321
+            // links carry none) is not well formed.
+            return (is_uri && !t.is_empty())
+                .then(|| Err(faraday_text::Text::of(EN.address_note_uri_malformed)));
+        };
+        if addr.is_valid_for_network(net.into()) {
+            return Some(Ok(addr.assume_checked()));
+        }
+        // Testnet and signet write their addresses alike: the first
+        // network that takes it names it.
+        let of = faraday_bip::keys::Network::ALL
+            .iter()
+            .copied()
+            .find(|&n| addr.is_valid_for_network(n.into()))
+            .unwrap_or(net);
+        Some(Err(faraday_text::Text::fill(
+            EN.address_note_wrong_network,
+            &[
+                &faraday_text::Text::ascii_lowercase(wallet::network_name(of)),
+                &faraday_text::Text::ascii_lowercase(wallet::network_name(net)),
+            ],
+        )))
+    }
+
+    /// Costs an address derivation (through `find_address`), and a key
+    /// derivation for each standard account of a loaded key that has no
+    /// wallet. What an address is to the loaded wallets and those
+    /// accounts: one of a wallet's first hundred on either chain, or none
+    /// of them (`docs/QR.md` §2: "Is this address mine?"), and for none of
+    /// them the look further that is offered. `None` when no wallet and no
+    /// key is loaded.
+    pub(crate) fn address_check(
+        &self,
+        c: &Compute,
+        addr: &faraday_bip::bitcoin::Address,
+    ) -> Option<address_find::Look> {
+        let net = self.session.network();
+        let accounts = address_find::unmade(c, &self.session);
+        let wallets = &self.session.wallets;
+        if wallets.len() + accounts.len() == 0 {
+            return None;
+        }
+        let mut shown = faraday_text::Text::new();
+        let _ = std::fmt::Write::write_fmt(&mut shown, format_args!("{addr}"));
+        let mut look = address_find::Look::new((shown, addr.script_pubkey()), wallets, accounts);
+        let wallet_find = wallets
+            .iter()
+            .enumerate()
+            .find_map(|(w, wl)| Some((w, wl.policy().find_address(c, net, addr, 100)?)));
+        let found = wallet_find.or_else(|| look.accounts_find(c, net, addr, 100));
+        if let Some((place, (change, index))) = found {
+            look.found = Some((place, change, index));
+            look.settle(&self.session);
+        }
+        Some(look)
+    }
 }

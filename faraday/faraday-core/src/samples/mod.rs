@@ -17,6 +17,7 @@ pub(crate) mod put;
 pub(crate) mod screen;
 
 use crate::inbox::{Part, Secret, part_of};
+use crate::samples;
 use crate::strings::EN;
 use crate::wallet::{Origin, read_wallet, same_wallet};
 use crate::{Action, Faraday, Mode, Screen, Sheet};
@@ -976,5 +977,15 @@ impl Faraday {
             lines.push(Text::of(EN.vault_demo_uses_public));
         }
         lines
+    }
+}
+
+impl Faraday {
+    /// The Load samples sheet's state and the demo aids of the screen.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn sample_area(&self) -> &samples::SamplesArea {
+        &self.sample_area
     }
 }

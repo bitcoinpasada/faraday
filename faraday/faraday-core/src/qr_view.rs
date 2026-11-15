@@ -1572,3 +1572,36 @@ impl Faraday {
         }
     }
 }
+
+impl Faraday {
+    /// The camera the person chose since the last call, by the id
+    /// [`StorageEvent::Cameras`] gave it, for the shell to open.
+    pub fn take_camera(&mut self) -> Option<faraday_text::Text> {
+        self.camera.take_change()
+    }
+
+    /// The camera is on, reading codes.
+    ///
+    /// Transfer's Receive, in the online app, does not count: that app is
+    /// never clean of the network, and no stick waits on its camera.
+    pub(crate) fn camera_on(&self) -> bool {
+        #[cfg(feature = "demo")]
+        let transfer = self
+            .camera
+            .scan()
+            .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
+        #[cfg(not(feature = "demo"))]
+        let transfer = false;
+        (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen.camera_on()
+    }
+
+    pub(crate) fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {
+        match view {
+            Ok(v) => self.qr.open(v, &mut self.sheet),
+            Err(e) => self.toast(&faraday_text::Text::fill(
+                EN.open_qr_cannot_make,
+                &[e.as_ref()],
+            )),
+        }
+    }
+}

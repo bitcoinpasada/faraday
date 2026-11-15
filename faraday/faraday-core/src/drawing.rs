@@ -35,6 +35,10 @@ use crate::{Faraday, Screen, flow, plan, work};
 mod allowed;
 pub(crate) use allowed::Allowed;
 mod kept;
+use crate::{Disclosed, ScreenKey, Sheet, drawing, motion, screens, ui};
+use faraday_draw::Canvas;
+use faraday_shell_api::Command;
+use faraday_shell_api::DisplayInfo;
 pub(crate) use kept::Kept;
 mod memo;
 
@@ -697,5 +701,296 @@ impl Faraday {
         }
         self.out.redraw();
         ink
+    }
+}
+
+impl Faraday {
+    /// The frame last painted, if any.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn canvas(&self) -> Option<&Canvas> {
+        self.canvas.as_ref()
+    }
+
+    /// The frame last painted, to draw on.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn canvas_mut(&mut self) -> Option<&mut Canvas> {
+        self.canvas.as_mut()
+    }
+
+    /// Costs one HMAC for each shown TOTP code not held for its period
+    /// ([`Self::vault_code_refresh`], [`Self::vault_codes_refresh`]), and
+    /// for each vault changed since the last frame what [`Vaults::warm`]
+    /// costs: a read of the free memory and a copy of the document and a
+    /// count of it where it may be near the ceiling or past what is free:
+    /// what drawing looks up, in step (`docs/SPEED.md` §3.3).
+    pub(crate) fn before_frame(&mut self) {
+        let c = self.compute();
+        for o in &self.vaults.open {
+            self.vaults.warm(&c, o.id);
+        }
+        // The Lock sheet on show names what its Lock without saving lets go.
+        if self.sheet == Some(Sheet::LockAsk) {
+            self.vaults.name_lock_seen();
+        }
+        self.vault_code_refresh();
+        self.vault_codes_refresh();
+        self.codex32_refit();
+        self.guide_place();
+    }
+
+    fn render_frame(&mut self, only_moved: bool) {
+        let Some(mut canvas) = self.canvas.take() else {
+            return;
+        };
+        // A change of screen or sheet fades in from the frame before it.
+        self.fade_begin(&mut canvas);
+        // The keyboard's place, while the last frame offered it: read
+        // before its hits are taken for this one.
+        let focused = self.pointer.focused();
+        let mut hits = self.pointer.take_hits();
+        hits.clear();
+        // Offsets in whole pixels, whoever set them last, so a scrolled
+        // page moves as one.
+        let f = self.f.max(0.1);
+        let whole = self.whole_offset();
+        if let Some(offset) = self.scroll_offset() {
+            self.set_scroll_offset(whole(offset));
+        }
+        let stretch = (self.scroll.stretch() * f).round() as i32;
+        // A scroll step may move the rows already drawn
+        // (`docs/FRAMES.md` §3.3); drawn whole when the first pass does
+        // not suit.
+        let mut plan = self.moved_plan(&mut canvas, only_moved, stretch);
+        let mut layer = ui::Layer::default();
+        // The overlay scrollbar shows while the offset moves and fades
+        // once it has rested a moment.
+        let key = self.region_key();
+        let slot = self.slot();
+        let offset = self.scroll_offset().unwrap_or(0.0);
+        let page_offset = self.screen_offset().unwrap_or(0.0);
+        self.sheet_offset = self.page_offset().unwrap_or(0.0);
+        let (seen_key, seen_offset, moved_at) = self.scroll.bar_seen();
+        let moved_at = if seen_key != (key, slot) {
+            0
+        } else if seen_offset != offset || stretch != 0 {
+            self.now_ms.max(1)
+        } else {
+            moved_at
+        };
+        // Held, or with the pointer over it, it stays in full.
+        let hot = self.pointer.bar_held().is_some()
+            || self
+                .pointer
+                .hover()
+                .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+        let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
+        self.scroll.set_bar_seen((key, slot), offset, moved_at);
+        let bar = motion::bar_alpha(moved_at, self.now_ms);
+        // Drawn twice when a step card has just opened: the first time
+        // finds out, the second draws it growing from closed.
+        let mut follow_to = None;
+        let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
+        let mut tips = Vec::new();
+        let mut spoiled: bool;
+        // A field newly focused brings the keyboard up, worked out before
+        // drawing, which reads the keyboard as it now is; on a small panel
+        // the page scrolls the field into view above it (`osk_follow`).
+        self.osk_track();
+        for _ in 0..3 {
+            hits.clear();
+            let disclosure = self
+                .disclosed
+                .as_ref()
+                .filter(|d| d.key == key && d.moving)
+                .map(|d| ui::Disclosure {
+                    open: d.open,
+                    closing: d.closing,
+                    shown: motion::ease_open(motion::progress(
+                        d.at,
+                        self.now_ms,
+                        motion::DISCLOSE_MS,
+                    )),
+                });
+            let column = {
+                let mut ui = ui::Ui::new(
+                    &mut canvas,
+                    self.f,
+                    &mut hits,
+                    self.pointer.pressed().map(|p| p.0),
+                );
+                ui.set_text_size(self.text_size());
+                ui.edit = self.edit_now();
+                ui.theme = self.theme();
+                ui.hovered = self.pointer.hovered();
+                ui.focused = focused;
+                ui.tips.shown = self.pointer.tip_shown();
+                ui.dimmed = self.demo_dimmed();
+                ui.keep_live = self.keep_live();
+                ui.keep_content = true;
+                ui.moved = plan.take();
+                ui.stretch = stretch;
+                ui.bar = (bar > 0).then_some((bar, offset));
+                ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
+                    || (self.compact && self.sheet.is_some());
+                ui.disclosure = disclosure;
+                let frost_key = ((self.screen, self.sheet), self.theme());
+                ui.frost = self.fade.take_frost(&frost_key);
+                ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
+                ui.offset = self.screen_offset().unwrap_or(page_offset);
+                ui.active = slot;
+                (ui.compact, ui.touch) = (self.compact, self.touch_side());
+                ui.note_up = self.note_up();
+                ui.caret_on = self.caret_on();
+                let view = drawing::View::new(self);
+                screens::draw(&view, &mut ui);
+                ui.draw_tip();
+                tips = std::mem::take(&mut ui.tips.anchors);
+                self.apply_after(view.into_after());
+                caret = ui.caret_drawn.then_some(ui.caret_on);
+                self.osk_caret(ui.caret_foot);
+                self.typing.set_fields(std::mem::take(&mut ui.fields));
+                self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
+                scrolled = std::mem::take(&mut ui.scrolled);
+                reach = ui.take_presses();
+                self.pointer.set_cut(std::mem::take(&mut ui.cut));
+                follow_to = follow_to.or(ui.follow_to);
+                self.fade.keep_frost(frost_key, ui.frost.take());
+                layer = ui.content;
+                spoiled = ui.spoiled;
+                (ui.column, ui.focus_box, ui.focus_action)
+            };
+            if !(self.osk_follow(column.1, column.2, &scrolled) | self.disclose(key, column.0))
+                && !spoiled
+            {
+                break;
+            }
+        }
+        if let Some(want) = follow_to {
+            // A follow moves the page, whatever region the pointer was on.
+            self.scroll.went_to(ui::Slot::Page);
+            let now = self.scroll_offset().unwrap_or(want);
+            if self.reduce_motion() {
+                self.with_region(|m, r| m.jump(r, want - now));
+            } else {
+                self.scroll.glide_to(want - now);
+            }
+            self.out.redraw();
+            self.out.commands.push_back(Command::Draw);
+        }
+        let drew = self.region_key();
+        self.scroll.drew(drew, scrolled);
+        self.typing.set_caret_drawn(caret);
+        self.vaults.set_drawn();
+        self.worker.set_drawn(true);
+        self.pointer.set_hits(hits, reach);
+        self.pointer.set_tip_anchors(tips);
+        self.fade_end(&mut canvas);
+        self.canvas = Some(canvas);
+        self.moved_drew(&layer, stretch, caret.is_some());
+        // The frame moved things under a still pointer: the next frame
+        // shows what it is over now.
+        if self.find_hovered() {
+            self.out.redraw();
+            self.out.commands.push_back(Command::Draw);
+        }
+    }
+
+    /// Whether the text caret shows now: it blinks, on for a half period
+    /// and off for one, starting on at the last key or press. Steady with
+    /// reduce motion.
+    pub(crate) fn caret_on(&self) -> bool {
+        self.typing.caret_on(self.now_ms, self.reduce_motion())
+    }
+
+    /// Takes what the step column drew: which card is open, and its
+    /// body's height. Returns whether a card has just opened, so the
+    /// frame is drawn again with it growing.
+    fn disclose(&mut self, key: ScreenKey, column: Option<(Option<usize>, f32)>) -> bool {
+        let Some((open, body_h)) = column else {
+            self.disclosed = None;
+            return false;
+        };
+        let opened = match self.disclosed.as_mut() {
+            Some(d) if d.key == key && d.open != open && self.settings.reduce_motion() => {
+                d.open = open;
+                d.body_h = body_h;
+                false
+            }
+            Some(d) if d.key == key && d.open != open => {
+                let closing = d.open.map(|i| (i, d.body_h));
+                *d = Disclosed {
+                    key,
+                    open,
+                    body_h,
+                    closing,
+                    at: None,
+                    moving: true,
+                };
+                true
+            }
+            Some(d) if d.key == key => {
+                d.body_h = body_h;
+                false
+            }
+            _ => {
+                self.disclosed = Some(Disclosed {
+                    key,
+                    open,
+                    body_h,
+                    closing: None,
+                    at: None,
+                    moving: false,
+                });
+                false
+            }
+        };
+        if let Some(d) = self.disclosed.as_mut()
+            && d.moving
+            && !opened
+            && motion::progress(d.at, self.now_ms, motion::DISCLOSE_MS) >= 1.0
+        {
+            d.moving = false;
+        }
+        opened
+    }
+
+    /// The width and height of the layout, in design units.
+    pub fn size(&self) -> (f32, f32) {
+        (self.w, self.h)
+    }
+
+    pub(crate) fn display(&mut self, d: DisplayInfo) {
+        let c = self.compute();
+        self.last_display = Some(d);
+        // The self-test runs once, at start, before any input: a display
+        // comes before anything can be pressed.
+        if self.selftest.is_none() {
+            self.selftest = Some(faraday_selftest::run(&c));
+        }
+        self.fade.display_changed();
+        // Laid out at the screen's own density, never scaled to fit a page
+        // (`docs/LAYOUT.md` §7, F101); the person's Display scale
+        // multiplies it.
+        let f = self.pixels_per_unit_of(&d);
+        // One-column pages but beside the expanded rail (LAYOUT §3); held
+        // inside the Starter, under the wide layout's 1280 dp.
+        self.compact = self.one_column();
+        let scaled = DisplayInfo {
+            dpi: (160.0 * f).round().max(1.0) as u16,
+            ..d
+        };
+        self.f = f;
+        self.w = f32::from(d.width) / f;
+        self.h = f32::from(d.height) / f;
+        let mut canvas = Canvas::new(&scaled);
+        // The canvas notes its pixel work, a blur or a whole copy, with
+        // this crate's counter (`docs/COMPUTE.md` §2.2).
+        canvas.set_counter(work::core_count);
+        self.canvas = Some(canvas);
+        self.fresh_ask();
     }
 }

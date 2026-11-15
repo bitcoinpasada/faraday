@@ -8,6 +8,15 @@ use crate::idle;
 use crate::strings::EN;
 use crate::wallet::fp_text;
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, forms, mstep, secret_text};
+use crate::{
+    Medium, SecureBootAtStart, Session, backup_flow, backups, bip85, boot_import, compact, create,
+    decode, devices, drawing, edit, explore, fade, fresh, glance, guide, in_progress, inbox,
+    inputs, keygen, lightning, memory, modes, motion, out, pointer, qr_view, restore, samples,
+    scan_key, secrets, seeds, set_time, silent, spend_backup, state, stick, tools, trail,
+    vanity, vault, wallet, wallet_backup, wordlist, worker,
+};
+#[cfg(feature = "demo")]
+use crate::transfer;
 use faraday_bip::bip39::Language;
 use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
@@ -1845,5 +1854,96 @@ impl Faraday {
             }
         }
         false
+    }
+}
+
+impl Faraday {
+    /// A fresh app: no keys, empty boxes, Home.
+    pub fn new() -> Self {
+        Faraday {
+            canvas: None,
+            f: 1.0,
+            w: 1280.0,
+            h: 800.0,
+            compact: false,
+            pointer: pointer::Pointer::new(),
+            out: out::Out::new(),
+            clock_drawn: None,
+            restart: false,
+            restart_computer: false,
+            last_display: None,
+            settings: stick::settings::Settings::default(),
+            set_time: set_time::SetTimeArea::default(),
+            idle: idle::Idle::new(),
+            tainted: false,
+            inputs: inputs::InputsArea::default(),
+            drawing: drawing::Drawing::default(),
+            kept: drawing::Kept::default(),
+            vaults: vault::VaultArea::default(),
+            memory: memory::MemoryArea::default(),
+            backups_area: backups::BackupsArea::default(),
+            fresh: fresh::Fresh::default(),
+            now_ms: 0,
+            screen: Screen::Home,
+            sheet: None,
+            sheet_offset: 0.0,
+            panel: compact::CompactArea::default(),
+            session: Session::default(),
+            decode: decode::DecodeArea::default(),
+            inbox: inbox::InboxArea::default(),
+            stick: stick::StickArea::default(),
+            outbox: Vec::new(),
+            entry: state::EntryArea::default(),
+            wallets: wallet::WalletsArea::default(),
+            visit: stick::visit_taken::VisitArea::default(),
+            import: boot_import::BootImportArea::default(),
+            pin_h: std::cell::Cell::new(0.0),
+            list_offset: 0.0,
+            glance: glance::GlanceArea::default(),
+            scroll: motion::Scroll::default(),
+            qr: qr_view::QrArea::default(),
+            spend_backup: spend_backup::SpendBackupArea::default(),
+            vanity: vanity::VanityArea::default(),
+            backup: wallet_backup::WalletBackupArea::default(),
+            message: state::MessageArea::default(),
+            create: create::CreateArea::default(),
+            restore: restore::RestoreArea::default(),
+            keygen: keygen::KeyGenArea::default(),
+            guide: guide::GuideArea::default(),
+            wordlist: wordlist::WordListArea::default(),
+            bip85: bip85::Bip85Area::default(),
+            silent: silent::SilentArea::default(),
+            explore: explore::ExploreArea::default(),
+            lightning: lightning::LightningArea::default(),
+            tools: tools::ToolsArea::default(),
+            secrets: secrets::SecretsArea::default(),
+            camera: scan_key::Camera::default(),
+            #[cfg(feature = "demo")]
+            transfer: transfer::TransferArea::default(),
+            typing: edit::TypingArea::new(),
+            trail: trail::Trail::default(),
+            seed_read: seeds::SeedsArea::default(),
+            later: None,
+            worker: worker::Worker::new(),
+            disclosed: None,
+            fade: fade::Fade::default(),
+            selftest: None,
+            online: false,
+            seed_line: false,
+            held: false,
+            shell_sticks: false,
+            clipboard: false,
+            medium: Medium::Stick,
+            secure_boot: SecureBootAtStart::Unknown,
+            maker: faraday_text::Text::default(),
+            maker_family: faraday_text::Text::default(),
+            maker_model: faraday_text::Text::default(),
+            devices: devices::DeviceCheck::default(),
+            next_mode: modes::ModesArea::default(),
+            samples: None,
+            sample_area: samples::SamplesArea::default(),
+            flows: backup_flow::BackupFlowArea::default(),
+            in_progress: in_progress::InProgress::default(),
+        }
     }
 }

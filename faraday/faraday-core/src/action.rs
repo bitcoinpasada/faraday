@@ -1,9 +1,12 @@
 //! Everything a press can do.
 
+use crate::strings::EN;
 use crate::{
     Code, Column, Screen, backup_flow, board, boot_import, compact, explore, file_menu, glance,
     in_progress, nav, seeds, set_time, spend_backup, ui, vanity, vault, wordlist,
 };
+use crate::{Faraday, Sheet, StorageCommand, address_check, check, invoice, kef_tool, stick};
+use faraday_shell_api::Command;
 
 /// Everything a press can do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1004,4 +1007,664 @@ pub fn is_hold(a: Action) -> bool {
             | Action::DevicesHold
             | Action::NameTakenOverwrite
     )
+}
+
+impl Faraday {
+    /// Whether the last exit asked for a fresh process.
+    pub fn restart_requested(&self) -> bool {
+        self.restart
+    }
+
+    /// Whether the exit asks for the computer to restart rather than
+    /// power off (`docs/FLOWS.md`, Restart): the shell ends the app with
+    /// [`RESTART_COMPUTER_CODE`].
+    pub fn computer_restart_requested(&self) -> bool {
+        self.restart_computer
+    }
+
+    /// Whether the power sheet offers Restart: the PC stick and the Pi,
+    /// not Faraday Demo, an app on someone's own system.
+    pub(crate) fn offers_restart(&self) -> bool {
+        !self.shell_sticks
+    }
+
+    /// The screen's name, and the sheet's when one is up, for a shell's
+    /// slow-frame line: `Backup` or `Backup / Qr` (a small string).
+    pub fn screen_name(&self) -> faraday_text::Text {
+        match self.sheet {
+            Some(sheet) => faraday_text::text!("{:?} / {:?}", self.screen, sheet), // not shown: a log line
+            None => faraday_text::text!("{:?}", self.screen), // not shown: a log line
+        }
+    }
+
+    pub(crate) fn act(&mut self, action: Action) {
+        let outer = self.vaults.acting_swap(Some(action));
+        self.act_noted(action);
+        self.vaults.acting_swap(outer);
+    }
+
+    fn act_noted(&mut self, action: Action) {
+        if !self.taken_synced(action) || self.seed_gate(action) {
+            return;
+        }
+        let asked = self.session.key_path_asked().is_some();
+        let account_asked = self.session.account_asked().is_some();
+        // A choice in a file's ⋮ menu closes the menu first.
+        self.file_menu_chosen(action);
+        self.act_leaving_flow(action);
+        // A wallet's flow follows the plan and the keys the press left.
+        self.wallet_flow_sync();
+        // A board left takes its empty sticks with it.
+        self.board_tidy();
+        // The order the flows were begun in, and where each was left.
+        self.flows_note();
+        self.vault_shown_tidy();
+        self.sweep_tidy();
+        self.read_carried_tidy();
+        self.seed_carried_tidy();
+        self.key_path_after(asked, action);
+        self.published_sheet_open();
+        self.account_after(account_asked, action);
+        self.osk_after(action);
+    }
+
+    /// Ends the app for a power-off or a restart: what a lock drops without
+    /// a seal goes, what is on show is hidden, and the shell is told to
+    /// remove every file it keeps for the next process (a restart keeps
+    /// the memory powered, so nothing secret may wait in it).
+    pub(crate) fn exit_forgetting(&mut self) {
+        self.import.clear_all();
+        self.inbox.retain(|i| !i.dropped_at_lock());
+        self.session.wipe();
+        self.own_wipe();
+        self.lock_secrets_off_screen();
+        self.out.storage_out.push_back(StorageCommand::ForgetBoxes);
+        self.out.commands.push_back(Command::Exit);
+    }
+
+    /// Handles `Action::Cancel`, Back and Escape on a sheet: the sheet closes,
+    /// by the way out its own kind has, and what it held is let go.
+    pub(crate) fn cancel_act(&mut self, action: Action) {
+        match action {
+            // The ⋮ menu's way out: back to the Add sheet (`docs/BACKUP-FLOW.md` §17.20).
+            Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
+                self.board_press(board::BoardPress::MenuClose);
+            }
+            Action::Cancel
+                if matches!(
+                    self.sheet,
+                    Some(Sheet::FileMenu | Sheet::Rename | Sheet::Details)
+                ) =>
+            {
+                self.file_act(file_menu::FilePress::Close);
+            }
+            // Escape on the Load sheet is its Not now (F62).
+            Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
+                self.load_sheet_act(vault::VaultAction::LoadNotNow);
+            }
+            // Sign with {key}'s Cancel: nothing is signed (F63).
+            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
+            Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
+            Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
+            Action::Cancel if self.sheet == Some(Sheet::TextSeed) => {
+                self.text_seed_answer(boot_import::text_ask::TextSeedAnswer::Leave);
+            }
+            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
+            Action::Cancel if self.sweep_scanning() => self.sweep_back(),
+            Action::Cancel => {
+                self.read_again_cancel();
+                self.vault_rekey_cancel();
+                self.visit.clear_pull();
+                self.vaults.clear_stick_save();
+                self.devices.cancel();
+                // A seed read and not loaded is wiped.
+                kef_tool::cancel(self);
+                self.kef_job_drop();
+                self.seed_read.clear();
+                self.stick.clear_delete_ask();
+                self.visit.taken_clear();
+                self.next_mode.clear();
+                self.secret_cancel();
+                self.wordlist.clear();
+                self.inbox.clear_potential();
+                self.camera.keep_parts();
+                if let Some(scan) = self.camera.take() {
+                    self.out.commands.push_back(Command::CameraOff);
+                    // A copy's scan closed by the person: no match.
+                    self.backup.scan_closed(&scan.purpose);
+                }
+                self.guide_cancel();
+                self.qr.close();
+                self.glance.set_chart(None);
+                self.glance.cancel_work();
+                self.backup.close_pick();
+                self.input_sheet();
+            }
+            // `act_inner` passes only `Action::Cancel`.
+            _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn act_inner(&mut self, action: Action) {
+        let c = self.compute();
+        // A build whose vectors do not reproduce does nothing but exit.
+        if self.selftest_failed() {
+            if action == Action::PowerOff {
+                self.exit_forgetting();
+            }
+            return;
+        }
+        // In the demo an action that would make a secret does nothing:
+        // no sheet, no lead, no toast (`docs/DEMO.md` §2, §7).
+        if self.demo_refuses(action) {
+            return;
+        }
+        if self.stick_bar_press(action) {
+            return;
+        }
+        // A chip held on the backup board is let go by a press anywhere
+        // else (`docs/BACKUP-FLOW.md` §17.2).
+        if !matches!(action, Action::Board(_)) {
+            self.board_let_go();
+        }
+        // A chart's sheet leads into a flow: whatever its rows press, the
+        // sheet goes first.
+        if self.sheet == Some(Sheet::Chart) && !matches!(action, Action::Chart(_)) {
+            self.sheet = None;
+            self.glance.set_chart(None);
+        }
+        // While something that can capture the screen or the keys is
+        // attached and not let through, what shows a secret waits under
+        // its sheet (`docs/STARTER.md` §3.1a).
+        if self.device_holds(action) {
+            // Reminders alone ride on the sheet that asks for the stick
+            // to be pulled: one sheet, and pulling it is going on.
+            let pull = self.selftest_passed()
+                && self.stick.in_the_way()
+                && stick::pull_what(self, action).is_some();
+            if pull && self.devices.held.is_empty() {
+                self.visit.set_pull(action);
+                self.sheet = Some(Sheet::Pull);
+                return;
+            }
+            self.device_hold(action);
+            return;
+        }
+        // Keys load only with no stick attached: what loads one waits,
+        // under a sheet, for the stick to be pulled.
+        if self.selftest_passed()
+            && self.stick.in_the_way()
+            && stick::pull_what(self, action).is_some()
+        {
+            self.visit.set_pull(action);
+            self.sheet = Some(Sheet::Pull);
+            return;
+        }
+        match action {
+            Action::SelfTestRun => {
+                self.selftest = Some(faraday_selftest::run(&c));
+                if self.selftest_failed() {
+                    self.sheet = None;
+                }
+                let said = match self.selftest {
+                    Some(Ok(n)) => {
+                        let n = faraday_text::Text::num(n as u64);
+                        faraday_text::Text::fill(EN.settings_selftest_toast_passed, &[&n])
+                    }
+                    Some(Err(check)) => {
+                        faraday_text::Text::fill(EN.settings_selftest_toast_failed, &[check])
+                    }
+                    None => return,
+                };
+                self.toast(&said);
+            }
+            Action::Flow(a) => self.flow_act(a),
+            Action::Vault(v) => {
+                self.vault_act(v);
+                // What changed in an open vault is what a lock remembers.
+                self.vault_summaries_refresh();
+            }
+            Action::Import(a) => self.import_act(a),
+            Action::TextSeed(a) => self.text_seed_answer(a),
+            Action::Host(_) => {}
+            Action::SpendBackup(f) => self.spend_backup_act(f),
+            Action::Vanity(v) => self.vanity_act(v),
+            Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) | Action::SeedCheck(_) => {
+                self.tool_act(action)
+            }
+            Action::OtsCheck(k) => crate::ots_check::act(self, k),
+            Action::MultisigCheck(k) => crate::multisig_check::act(self, k),
+            Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
+            Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
+            Action::NavMenu(to) => self.nav_menu(to),
+            Action::GuideShares => self.guide_shares(),
+            Action::GuidePin => self.guide_button(action),
+            Action::Osk(p) => self.osk_press(p),
+            a @ (Action::ScanPaste
+            | Action::PasteWords
+            | Action::ScanCamera(..)
+            | Action::ScanPart
+            | Action::ScanSeed
+            | Action::ScanKey(..)
+            | Action::Scan
+            | Action::ScanFor(_)
+            | Action::ReadGo(_)
+            | Action::ReadAgain
+            | Action::ReadShow) => self.scan_act(a),
+            Action::Bip85
+            | Action::PStep(_)
+            | Action::PKey(_)
+            | Action::PApp(_)
+            | Action::PLength(_)
+            | Action::PIndex(_)
+            | Action::PNext
+            | Action::PShow
+            | Action::PVault
+            | Action::PLoad
+            | Action::PRecord(_)
+            | Action::POut => self.bip85_act(action),
+            Action::Silent
+            | Action::SStep(_)
+            | Action::SKey(_)
+            | Action::SLabel(_)
+            | Action::SQr(_)
+            | Action::SRecord
+            | Action::SScanVault
+            | Action::SScanOut
+            | Action::SDescriptorOut(_)
+            | Action::SNext
+            | Action::SAddWallet
+            | Action::SWallet(_)
+            | Action::SCheck(_) => self.silent_act(action),
+            Action::Explore
+            | Action::XKey(_)
+            | Action::XPreset(_)
+            | Action::XScript(_)
+            | Action::XIndex(_)
+            | Action::X(_) => self.explore_act(action),
+            Action::Lightning
+            | Action::LKey(_)
+            | Action::LAezeed
+            | Action::LCln(_)
+            | Action::LFile(_)
+            | Action::LPassphrase
+            | Action::LResolve
+            | Action::LShow
+            | Action::LVault
+            | Action::LOut => self.lightning_act(action),
+            Action::Tools | Action::TTool(_) | Action::TMode(_) | Action::TClear => {
+                self.tools_act(action)
+            }
+            Action::ExploreKey(fp) => {
+                self.explore_act(Action::Explore);
+                self.explore_act(Action::XKey(fp));
+            }
+            a @ (Action::SecretVault
+            | Action::SecretHold
+            | Action::SecretUnprotected
+            | Action::SecretForm(..)) => self.secret_act(a),
+            a @ (Action::GuidePage(_)
+            | Action::GuideTabHow
+            | Action::GuideTabGuide
+            | Action::GuideContents
+            | Action::GuideHere) => {
+                self.guide.show_page(a);
+                self.guide_bar_synced();
+            }
+            Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
+            Action::KeyGen(_)
+            | Action::KStep(_)
+            | Action::KStart(_)
+            | Action::KOthers
+            | Action::KWords(_)
+            | Action::KOtherLengths
+            | Action::KWay(_)
+            | Action::KGroup(_)
+            | Action::KMix(_)
+            | Action::KRoll(_)
+            | Action::KRoller(_)
+            | Action::KFlip(_)
+            | Action::KDie(_)
+            | Action::KByDie(_)
+            | Action::KTyping(_)
+            | Action::KRank(_)
+            | Action::KSuit(_)
+            | Action::KHex(_)
+            | Action::KFrame
+            | Action::KUndo
+            | Action::KClear
+            | Action::KNext
+            | Action::KShow
+            | Action::KAdd
+            | Action::KLock
+            | Action::KPassField(_)
+            | Action::KQuiz(_)
+            | Action::KQuizRetry
+            | Action::KSkip
+            | Action::KAgain
+            | Action::KSlipWords(_)
+            | Action::KSlipM(_)
+            | Action::KSlipN(_)
+            | Action::KShare(_)
+            | Action::KeyGenSlip39 => self.keygen_act(action),
+            Action::Codex32(p) => self.keygen_codex32(p),
+            #[cfg(feature = "demo")]
+            Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),
+            #[cfg(not(feature = "demo"))]
+            Action::Nav(s @ Screen::Randomness) => self.nav_open(s),
+            Action::Back => self.back(),
+            Action::Own(a) => self.own_press(a),
+            Action::Resume(g) => self.flow_resume(g),
+            Action::CancelFlow => self.flow_cancel(),
+            Action::CancelFlowNow => self.flow_cancel_now(),
+            #[cfg(feature = "demo")]
+            a @ (Action::TransferSend(..)
+            | Action::TransferReceive
+            | Action::TransferOpenFolder
+            | Action::TransferText(..)) => self.transfer_act(a),
+            Action::SeedRead(c) => self.seed_read_act(c),
+            Action::KefRead(a) => crate::seeds::kef::kef_act(self, a),
+            Action::Sweep(a) => self.sweep_act(a),
+            a @ (Action::DeleteFiles
+            | Action::DeleteUnprotected
+            | Action::DeleteWhat(..)
+            | Action::DeletePick(..)
+            | Action::DeletePasses(..)
+            | Action::DeleteGo
+            | Action::ZeroStop) => self.wipe_act(a),
+            Action::OpenInstitute => {
+                if self.online {
+                    self.out
+                        .storage_out
+                        .push_back(StorageCommand::OpenInstitute);
+                }
+            }
+            a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
+            Action::Nav(s) => {
+                self.glance.set_focus(None);
+                self.panes_nav(s);
+                // Spend's way back is to where it was opened from.
+                if s == Screen::SpendBackup && self.screen != Screen::SpendBackup {
+                    self.spend_backup.opened_from(self.screen);
+                }
+                self.screen = s;
+                self.osk_leave();
+                self.list_offset = 0.0;
+                self.wallets.set_card_offset(0.0);
+                self.visit.set_files_out_offset(0.0);
+                self.glance.set_open(false);
+                self.wallets.set_renaming(None);
+                if s == Screen::Files {
+                    {
+                        let v = self.visit_default_out(&c);
+                        self.visit.set_out(v);
+                    }
+                    {
+                        let v = self.visit_default_in();
+                        self.visit.set_inn_keeping_reads(v);
+                    }
+                    self.visit.inbox_pick_none();
+                    self.visit.set_out_offset(0.0);
+                }
+            }
+            a @ (Action::Entry(..)
+            | Action::EntryWordCount(..)
+            | Action::EntryClear
+            | Action::EntryAdd
+            | Action::EntryLanguages
+            | Action::EntryLanguage(..)
+            | Action::EntryKey(..)
+            | Action::EntryKeyBack
+            | Action::EntryShift
+            | Action::EntryCandidate(..)
+            | Action::EntryForm(..)
+            | Action::EntryOtherForms
+            | Action::EntryPart
+            | Action::EntryRecover
+            | Action::EntryPassphrase
+            | Action::EntryPassphraseAgain
+            | Action::EntryField
+            | Action::EntryWallet(..)
+            | Action::Codex32Correct(..)
+            | Action::Codex32Form(..)) => self.entry_act(a),
+            a @ (Action::PickWallet(..)
+            | Action::PickKey(..)
+            | Action::RemoveWallet(..)
+            | Action::RemoveKeys
+            | Action::RemoveKeysHold
+            | Action::StartSpend(..)
+            | Action::Step(..)
+            | Action::StepNext(..)
+            | Action::ReviewScroll(..)
+            | Action::ReviewHold
+            | Action::ToggleTable
+            | Action::SignHere
+            | Action::Collect(..)
+            | Action::SignedToOutbox
+            | Action::TxToOutbox
+            | Action::Primary
+            | Action::LoadWallet(..)
+            | Action::LoadKey(..)
+            | Action::PublicOut(..)
+            | Action::PublicMore(..)
+            | Action::PublicRemove(..)
+            | Action::WalletKeyOut(..)
+            | Action::WalletKeyBsms(..)
+            | Action::OpenWallet(..)
+            | Action::WriteAsk
+            | Action::Rename) => self.wallet_act(a),
+            a @ (Action::InboxRemove(..)
+            | Action::OutboxRemove(..)
+            | Action::OutboxDeleteHold
+            | Action::InboxLoad
+            | Action::InboxChoose(..)
+            | Action::PotentialOpen(..)
+            | Action::XpubOpen(..)
+            | Action::PotentialKind(..)
+            | Action::PotentialShow
+            | Action::PotentialType
+            | Action::PotentialTypeAgain
+            | Action::PotentialMake) => self.inbox_act(a, &c),
+            a @ (Action::VisitStick(..)
+            | Action::VisitSettings
+            | Action::VisitOut(..)
+            | Action::VisitIn(..)
+            | Action::VisitInAll
+            | Action::VisitOutAll
+            | Action::VisitInbox(..)
+            | Action::VisitBar(..)
+            | Action::VisitTab(..)
+            | Action::VisitWrite
+            | Action::VisitReplace
+            | Action::VisitKeepBoth
+            | Action::NameTakenBeside
+            | Action::NameTakenOverwrite
+            | Action::VisitCopy
+            | Action::VisitCopyAndLoad
+            | Action::VisitFrom(..)) => self.visit_act(a),
+            a @ (Action::Lock
+            | Action::LockUnsealed
+            | Action::LockAsk
+            | Action::NotNow
+            | Action::PowerAsk
+            | Action::PowerOff
+            | Action::Restart
+            | Action::HoldPowerOff
+            | Action::HoldRestart
+            | Action::IdleLock(..)
+            | Action::IdleOff(..)) => self.power_act(a, &c),
+            a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
+            a @ (Action::PublishedRemove | Action::PublishedKeep) => self.published_act(a),
+            Action::LoadAccount(a) => self.account_act(a),
+            a @ (Action::RegisterOpen
+            | Action::RegisterField
+            | Action::RegisterHold
+            | Action::RegisterCancel
+            | Action::RegisterReading(_)) => self.register_act(a),
+            a @ (Action::InputUse(..)
+            | Action::InputIgnore(..)
+            | Action::BootNoticeClose
+            | Action::InputTarget(..)
+            | Action::Mode(..)
+            | Action::ModeSheet
+            | Action::DevicesCheck
+            | Action::DevicesContinue
+            | Action::DevicesHold
+            | Action::DevicesUnderstood
+            | Action::ReceiverMark) => self.devices_act(a),
+            Action::PassChip(f) => self.demo_pass_chip(f),
+            a @ (Action::Samples
+            | Action::SampleTick(..)
+            | Action::SamplesAll
+            | Action::SamplesLoad
+            | Action::UseSample
+            | Action::ScanSample
+            | Action::SamplePsbt) => self.samples_act(a),
+            a @ (Action::RFromVault(..)
+            | Action::RestoreWallet
+            | Action::RestoreFor(..)
+            | Action::RStep(..)
+            | Action::RVaults(..)
+            | Action::RVaultN(..)
+            | Action::RSticks(..)
+            | Action::RNext(..)
+            | Action::RKind(..)
+            | Action::RMoreKinds
+            | Action::RFromFiles
+            | Action::RAbsent(..)
+            | Action::RSlotWords
+            | Action::RSlotScan
+            | Action::RUse(..)
+            | Action::RShare(..)
+            | Action::RRebuild
+            | Action::RSeeds
+            | Action::KeyWallet(..)
+            | Action::RestoreShares) => self.restore_act(a, &c),
+            a @ Action::Cancel => self.cancel_act(a),
+            Action::File(p) => self.file_act(p),
+            Action::About(k) => self.panel.toggle_about(self.screen, k),
+            a @ (Action::SealAmounts(_) | Action::NonceHistory(_)) => self.memory_press(a),
+            a @ (Action::TzStep(..)
+            | Action::OpenSetTime
+            | Action::SetTimeFocus(..)
+            | Action::SetTimeSet
+            | Action::SetTimeKeep
+            | Action::SetTimeBack) => self.time_act(a),
+            a @ (Action::OpenCodes | Action::CodesOpen(..) | Action::CodesAdd) => self.codes_act(a),
+            Action::Chart(c) => self.chart_act(c),
+            Action::TypeHere(h) => self.type_here(h),
+            Action::SpendPaths(open) => self.glance_page(open, true),
+            Action::Glance(open) => self.glance_page(open, false),
+            a @ (Action::BackupChecklist(..)
+            | Action::Backup(..)
+            | Action::BQ(..)
+            | Action::BQNext(..)
+            | Action::BAnswer(..)
+            | Action::BName(..)
+            | Action::BChecklist
+            | Action::BPlan
+            | Action::BWallets
+            | Action::BStep(..)
+            | Action::BNext(..)
+            | Action::BKey(..)
+            | Action::BReveal
+            | Action::BXor(..)
+            | Action::BPartCheck(..)
+            | Action::BPaperHide
+            | Action::BCompact(..)
+            | Action::BPin(..)
+            | Action::BRows(..)
+            | Action::BCheck
+            | Action::BScan
+            | Action::BCheckClear
+            | Action::BKeepWords
+            | Action::BWhich(..)
+            | Action::BVaultSave(..)
+            | Action::BVaultLoad(..)
+            | Action::BFilesMake
+            | Action::BackupFirst(..)
+            | Action::BNewVault(..)
+            | Action::BFile
+            | Action::BWords(..)
+            | Action::BOmit(..)
+            | Action::BOut(..)
+            | Action::BC32(..)) => self.backup_act(a, &c),
+            Action::Board(p) => self.board_press(p),
+            Action::Catalog(i) => self.catalog_go(usize::from(i)),
+            Action::Check(p) => check::press(self, p),
+            a @ (Action::DecodeFinished
+            | Action::DecodeInbox(..)
+            | Action::QrDecoded
+            | Action::DecodeHex
+            | Action::SpendHex) => self.decode_act(a, &c),
+            a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
+            Action::Invoice(p) => invoice::act(self, p),
+            Action::AddressCheck(p) => address_check::act(self, p),
+            a @ (Action::SignMessage
+            | Action::MStep(..)
+            | Action::MNext(..)
+            | Action::MWallet(..)
+            | Action::MIndex(..)
+            | Action::MType
+            | Action::MScan
+            | Action::MFormat(..)
+            | Action::MSign
+            | Action::MOut
+            | Action::MQr
+            | Action::CheckMessage(..)) => self.message_act(a, &c),
+            a @ (Action::CMultiPath(..) | Action::CMultiPathChange | Action::CPathChange) => {
+                self.create_act(a, &c)
+            }
+            a @ (Action::CreateWallet
+            | Action::CreateOver
+            | Action::CStep(..)
+            | Action::CNext(..)
+            | Action::CKind(..)
+            | Action::CBackup
+            | Action::CVaults(..)
+            | Action::CVaultN(..)
+            | Action::CSticks(..)
+            | Action::PlanAddPass
+            | Action::CMoreKinds
+            | Action::CBackupAbout
+            | Action::CBackupForm(..)
+            | Action::CM(..)
+            | Action::CN(..)
+            | Action::CSlotVault(..)
+            | Action::CAccount(..)
+            | Action::NewWalletFrom(..)
+            | Action::CSlotHere(..)
+            | Action::CSlotFile(..)
+            | Action::CSlotLater(..)
+            | Action::CKeyOut(..)
+            | Action::CKeyQr(..)
+            | Action::CKeyBsms(..)
+            | Action::CSlotClear(..)
+            | Action::CPassOpen(..)
+            | Action::CPassField(..)
+            | Action::CPassLock) => self.create_act(a, &c),
+            Action::Seeds(a) => self.seeds_act(a),
+            Action::Slide(id, v) => self.slide(id, v),
+            a @ (Action::PdfInbox(..)
+            | Action::PdfOutbox(..)
+            | Action::QrSigned
+            | Action::QrPart
+            | Action::QrWallet(..)
+            | Action::ShowCode(..)
+            | Action::CodePng(..)
+            | Action::QrPng
+            | Action::QrOutbox(..)
+            | Action::QrFormat(..)
+            | Action::QrPartSize(..)
+            | Action::QrSpeed(..)) => self.qr_act(a, &c),
+            a @ (Action::Scale(_)
+            | Action::Rotation(_)
+            | Action::TextSize(_)
+            | Action::ReduceMotion(_)
+            | Action::Theme(_)) => self.appearance_act(a),
+            Action::SettingsSection(k) => self.settings_section(k),
+            // Acted on before (`act_inner`), or never pressed (a mark).
+            Action::StickPill(_) | Action::Mark(..) => {}
+        }
+    }
 }
