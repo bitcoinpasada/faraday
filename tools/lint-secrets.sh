@@ -737,6 +737,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       vault names, fingerprints and counts
 #   faraday/faraday-core/src/screens/check_message.rs
 #       a signed message checked and its refusal
+#   faraday/faraday-core/src/visible.rs
+#       a message to sign, drawn with its hidden characters as marks
 #   faraday/faraday-core/src/drawing/memo.rs
 #       the memo's backup lines and button labels
 #   faraday/faraday-core/src/samples/put.rs
@@ -811,6 +813,7 @@ faraday/faraday-core/src/wallet/nonce.rs
 faraday/faraday-core/src/wallet/account.rs
 faraday/faraday-core/src/screens/wallets.rs
 faraday/faraday-core/src/screens/check_message.rs
+faraday/faraday-core/src/visible.rs
 faraday/faraday-core/src/drawing/memo.rs
 faraday/faraday-core/src/samples/put.rs
 faraday/faraday-core/src/vanity/mod.rs
