@@ -88,6 +88,8 @@ macro_rules! words_common {
     secret_text_those_are: "Those are a seed's words. Seeds go in through Add a key, not Files",
     /// Text in `secret_text`.
     secret_text_private_key: "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key",
+    /// Text in `secret_text`.
+    secret_text_file_holds: "That file holds a seed or a private key. Those go in through Add a key, not Files",
     /// Scanner note in `secret_text`: a Nostr secret key (`nsec1…`) read.
     secret_text_nostr: "That is a Nostr secret key. Faraday does not take one",
     /// Scanner note in `secret_text`: 12 to 24 words of a BIP-39 list that are no English BIP-39 seed.

@@ -561,6 +561,28 @@ fn homes_scan_of_an_account_key_is_filed_with_no_card() {
     assert_eq!(app.inbox().len(), 1);
 }
 
+#[test]
+fn a_key_file_or_wallet_file_with_seed_words_beside_it_is_not_filed_or_called_an_account_key() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    for code in [
+        format!("{key}\n# seed: {WORDS}\n"),
+        format!("# seed: {WORDS}\n{}\n", kit.descriptor),
+    ] {
+        let mut app = testkit::started();
+        open(&mut app, Opened::Home);
+        read(&mut app, code.as_bytes());
+        assert!(app.inbox().is_empty(), "filed: {code}");
+        if let Some((label, _, _)) = card(&app) {
+            assert_ne!(label, "Account key", "{code}");
+            assert_ne!(label, "Wallet", "{code}");
+        }
+    }
+}
+
 /// Each scanner is titled for what its opener asks for
 /// (`docs/SCANNING.md` §7.1).
 #[test]

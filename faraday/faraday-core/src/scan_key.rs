@@ -968,8 +968,9 @@ impl Faraday {
     /// Costs what adding entries to a vault costs. A code read as a file,
     /// kept from Files when it is a secret (F167): TOTP setup codes and
     /// vault entries go to the open vault (`scanned_entries`), and a
-    /// seed's words or a part of one that reach here (keys not taken now)
-    /// are named, their bytes wiped. A file sent in Faraday's envelope is
+    /// seed's words or a part of one that reach here (keys not taken now),
+    /// and a key file or wallet file with secret text beside it, are
+    /// named, their bytes wiped. A file sent in Faraday's envelope is
     /// filed as sent. Returns the item when it is to be filed.
     pub(crate) fn scanned_secret(
         &mut self,
@@ -983,7 +984,11 @@ impl Faraday {
             || enveloped
             || !matches!(
                 item.kind,
-                FileKind::Entries | FileKind::Words | FileKind::SeedPart
+                FileKind::Entries
+                    | FileKind::Words
+                    | FileKind::SeedPart
+                    | FileKind::SecretWallet
+                    | FileKind::KeyWithSecret
             )
         {
             return Some(item);
@@ -995,7 +1000,9 @@ impl Faraday {
             return None;
         }
         drop(text);
-        let why = if self.may_load_keys() {
+        let why = if matches!(item.kind, FileKind::SecretWallet | FileKind::KeyWithSecret) {
+            EN.secret_text_file_holds
+        } else if self.may_load_keys() {
             EN.secret_text_those_are
         } else {
             &crate::stick::keys_load(self.medium)
@@ -1294,11 +1301,19 @@ impl Faraday {
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
-        let kind = scan_read::public_kind(
-            crate::wallet::classify(&c, "", &data),
-            named.is_some(),
-            &data,
-        );
+        let filed_as = crate::wallet::classify(&c, "", &data);
+        if named.is_none()
+            && matches!(
+                filed_as,
+                crate::wallet::FileKind::SecretWallet | crate::wallet::FileKind::KeyWithSecret
+            )
+        {
+            // A file with secret text beside it is a secret scan: named,
+            // never carded as an account key or a wallet.
+            drop(data);
+            return self.camera.say(EN.secret_text_file_holds);
+        }
+        let kind = scan_read::public_kind(filed_as, named.is_some(), &data);
         self.read_card_show(&c, kind, (named, ext, data));
     }
 
