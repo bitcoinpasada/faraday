@@ -2,6 +2,11 @@
 //! (`docs/BACKUP-FLOW.md` §15, §17): the plan by place, the round taking
 //! out only what the flow put in, and what the lock leaves to change.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::backup_flow_wallet::{
     PHRASE, PHRASE_2, backup_places, backup_shape, bring_in_all, create_with_vaults, flow_board,
     flow_into_vault, flow_keep, flow_pass_in_vault, flow_place_of, flow_plan, flow_put,

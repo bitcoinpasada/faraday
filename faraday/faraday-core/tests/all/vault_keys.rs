@@ -4,6 +4,12 @@
 //! asked for, and a vault holding wallets with their seeds loads each
 //! with its seeds in one press.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::testkit::Plain;
 use faraday_core::vault::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};

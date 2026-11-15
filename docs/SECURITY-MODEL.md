@@ -313,7 +313,7 @@ screen, copied by hand, a SeedQR, a paper form, a file to the Outbox and
 the like), as a value that is never printed, never copied by `Clone`,
 and wiped when dropped. `just` fails if code outside the crate names a
 master key, a seed or a private key, makes seed words into a key, or
-calls a primitive that takes a secret (`tools/lint-secrets.sh`, rule 4),
+calls a primitive that takes a secret (clippy's key boundary entries in `faraday/clippy.toml`),
 or if a shipped binary carries the test helpers that can reach one
 (`tools/lint-keys-tests.sh`). This narrows what a bug in a screen or a
 flow can leak; it does not change what the process as a whole holds, and

@@ -191,7 +191,7 @@ had to list one screen by hand.
   `collect`, `extend_from_slice`) are held by review.
 - **`lint-secrets` finds a secret file by the types it uses**: a file
   that names a secret type (`Secret`, `SecretText`, `Zeroizing`, a
-  `faraday-keys` holder, `SeedBytes`, rule 4a's list, the wiping text) is
+  `faraday-keys` holder, `SeedBytes`, the key boundary's key types, the wiping text) is
   held by rule 3 (no heap text) with nobody listing it. The only hand
   lists are `UNHELD` (a file that names only the wiping text and is not
   held, with why) and `NAMELESS` (a held file that names no secret type,

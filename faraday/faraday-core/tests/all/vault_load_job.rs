@@ -2,6 +2,11 @@
 //! the seed out on the worker. Back, Cancel or Lock pressed before the
 //! answer leaves the key out; let to finish, the key is in as before.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::*;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::vault::VaultAction as V;

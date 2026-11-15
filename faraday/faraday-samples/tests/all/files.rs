@@ -2,6 +2,11 @@
 //! `faraday`, the signed message against its address, the setup code as
 //! the vault takes it.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{PASSPHRASE, key};
 use faraday_bip::keys::Network;
 use faraday_core::testkit::{self, compute};

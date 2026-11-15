@@ -1,3 +1,8 @@
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
 use super::*;
 use faraday_bip::bitcoin::hashes::{HashEngine, sha256};
 use faraday_bip::bitcoin::key::{Keypair, TapTweak};

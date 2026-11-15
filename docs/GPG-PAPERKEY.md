@@ -446,7 +446,7 @@ certificate. Restore does not ask for the time first (decision 58).
   lock, with every other secret. The flow's state keeps the certificate
   and the plan (public) across a lock; the lines typed are not kept,
   and a lock before **Restore the key** asks for them again.
-- `tools/lint-secrets.sh` rule 4(c) gains the new secret-taking
+- clippy's key boundary entries (`faraday/clippy.toml`) gain the new secret-taking
   functions of `faraday-pgp` (the paperkey reader and the restore) and
   the restore set, so that only faraday-keys calls them.
 

@@ -1,6 +1,12 @@
 //! Signing: a PSBT of a one-key wallet whose key is the test seed,
 //! reviewed and signed with the seed loaded, then Lock.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use crate::forms::{PHRASE, seed_forms};
 use crate::{arm, finish};

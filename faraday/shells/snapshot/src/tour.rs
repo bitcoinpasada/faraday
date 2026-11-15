@@ -1,6 +1,11 @@
 //! The tour driver: the state a tour carries, the pump that answers the
 //! app's commands, and the helpers several tours share.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the snapshot shell renders test data and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, Spot, What};
 use faraday_core::testkit;

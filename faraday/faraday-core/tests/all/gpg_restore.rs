@@ -11,6 +11,11 @@
 //! its paperkey as paperkey 1.6 printed it from the key's secret key,
 //! comment header and all.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};

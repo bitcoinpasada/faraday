@@ -4,6 +4,11 @@
 //! may be a secret is written only once the secret sheet's line is
 //! ticked; a file larger than the disk process reads is not read.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

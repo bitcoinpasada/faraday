@@ -1,6 +1,12 @@
 //! What Faraday writes reads back as what it was, and what does not hang
 //! together is refused, saying why.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use faraday_bip::keys::{MasterKey, Network};
 use faraday_crypto::work::Compute;

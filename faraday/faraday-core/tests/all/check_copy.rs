@@ -16,6 +16,11 @@
 //! (`docs/seed_qr/README.md`, "Test SeedQRs"), drawn by the repository's
 //! own encoder and read back by its own decoder, as a camera would.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::shown;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::board::{BoardPress as BP, Thing, Zone};

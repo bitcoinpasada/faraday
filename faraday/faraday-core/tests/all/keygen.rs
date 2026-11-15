@@ -10,6 +10,11 @@
 //! Start, where words already held are typed or scanned and loaded as
 //! Add a key loads them.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::keygen::{Group, Source, Way};

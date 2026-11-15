@@ -11,6 +11,12 @@
 //! run keep the first, the second file is refused, and Finish stays open on the
 //! one held, reading "a script was not run".
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use b::bip32::{DerivationPath, Fingerprint as BFp};
 use b::hashes::Hash;
 use b::key::TapTweak;

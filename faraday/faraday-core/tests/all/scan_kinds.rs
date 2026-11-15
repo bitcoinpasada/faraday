@@ -5,6 +5,11 @@
 //! here"), and an Add a key form's Scan sends the other share form's part
 //! to that form and keeps its own parser's line for a part of its own.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_core::forms::Form;
 use faraday_core::seeds::read::Choice;

@@ -6,6 +6,11 @@
 //! (Paste words in the strip in Practice, Ctrl+V), checked as typed words
 //! are, and the device takes none.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::str::FromStr;
 
 use crate::common::type_text;

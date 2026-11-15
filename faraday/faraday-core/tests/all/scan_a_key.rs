@@ -5,6 +5,11 @@
 //! for its passphrase; the words can be typed instead; and a wallet that
 //! can spend says so on its card and in the list.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Fingerprint;

@@ -6,6 +6,11 @@
 //! BIP-352's sending side made to it, to the address or to a label, and
 //! not one made to someone else.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use faraday_bip::bitcoin::key::TapTweak;
 use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};

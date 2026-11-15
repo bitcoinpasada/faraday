@@ -7,6 +7,12 @@
 //!
 //! The signer is rust-bitcoin's secp256k1 over rust-bitcoin's sighash.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bitcoin::bip32::{DerivationPath, Fingerprint as Fp};
 use faraday_bip::bitcoin::key::TapTweak;
 use faraday_bip::bitcoin::opcodes::all::{OP_CHECKSIG, OP_CHECKSIGADD, OP_NUMEQUAL};

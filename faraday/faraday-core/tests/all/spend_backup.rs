@@ -8,6 +8,11 @@
 //! survives a lock, and what it signs is byte for byte what Wallets ›
 //! Sign a transaction signs.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::seeds::read::Choice;

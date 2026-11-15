@@ -6,6 +6,12 @@
 //! Keys' Make the wallet makes it, Check's It matches follows, and Back
 //! up offers the plan's presets.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{add_key, type_text};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{Answers, Preset};

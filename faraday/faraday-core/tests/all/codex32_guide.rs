@@ -4,6 +4,11 @@
 //! and in the demo the codex32 form takes BIP 93's published set,
 //! refuses a set that is not public and checks any string.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Network;
 use faraday_core::forms::{C32Press, Form};

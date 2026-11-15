@@ -6,6 +6,11 @@
 //! offers adding a key and collecting a signature; and the spend resumes
 //! where it was.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::spend_backup::{CardId, Open, SpendBackupAction as F, page};
 use faraday_core::testkit;

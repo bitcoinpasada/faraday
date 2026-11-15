@@ -2,6 +2,11 @@
 //! for it, listed with the sealed files, and a KDBX 4 file that passphrase
 //! opens.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_core::secrets::Exposure;
 use faraday_core::testkit;

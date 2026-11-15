@@ -5,6 +5,11 @@
 //! a string typed back with a box changed names that box, and Lock in
 //! loads the key the strings carry.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::testkit::Plain;

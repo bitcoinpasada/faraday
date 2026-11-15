@@ -2,6 +2,11 @@
 //! device asks the shell to keep, and not in a file queued for the
 //! stick (the passphrase wording batch).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Way;

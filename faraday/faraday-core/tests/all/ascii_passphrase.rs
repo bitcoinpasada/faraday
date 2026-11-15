@@ -4,6 +4,11 @@
 //! letter of what is masked. Create's, New key's and Lightning's fields
 //! are tested beside their flows.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::seeds::read::Choice;

@@ -4,6 +4,11 @@
 //! the mouse's back button and a flow's Cancel all land there, and the
 //! way back is named after where it lands, "Back to Tools" (F146).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::catalog::{Go, TILES};
 use faraday_core::create::NewKind;

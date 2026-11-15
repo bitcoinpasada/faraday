@@ -1,5 +1,11 @@
 //! The pass_seeds tour.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "the snapshot shell renders test data and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, StorageEvent};

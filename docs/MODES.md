@@ -292,7 +292,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   `faraday_core::samples` defines (`SampleKey`, `SampleWallet`,
   `Samples`, plain structs of `&'static` fields). Its one item:
   `pub static SAMPLES: Samples`. It parses nothing and derives nothing,
-  so lint-secrets rule 4 has nothing to refuse there.
+  so the key boundary's clippy entries have nothing to refuse there.
 - Names on screen are not in the crate: each sample carries a key into
   `faraday/faraday-strings/src/en.rs` (§8).
 - `Faraday::samples: Option<&'static Samples>`, set by Faraday Demo (in

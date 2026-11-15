@@ -1,5 +1,10 @@
 //! The default tour.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the snapshot shell renders test data and is not shipped (docs/KEYS.md)"
+)]
+
 use super::boot::boot_tour;
 use super::devices::devices_tour;
 use super::seeds::seeds_tour;

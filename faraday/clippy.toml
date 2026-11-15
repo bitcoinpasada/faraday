@@ -30,6 +30,51 @@ disallowed-methods = [
     { path = "bitcoin::bip32::Xpub::derive_pub", reason = "a key derivation: a wallet's addresses through faraday_bip::policy::WalletPolicy, which takes the token" },
     { path = "secp256k1::PublicKey::from_secret_key", reason = "an elliptic-curve multiplication: DerivedKey::to_xpub, which takes the token" },
     { path = "bitcoin::psbt::Psbt::deserialize", reason = "a PSBT parse: faraday_psbt::Psbt::parse_bytes, which takes the token" },
+    # The key boundary (docs/KEYS.md): key material is made and used only in
+    # faraday-keys, which the crates that make it (faraday-keys, -vault, -pgp
+    # and -sb) are the only ones to call these in; a legitimate use elsewhere
+    # carries #[expect(clippy::disallowed_methods or _types, reason = "...")].
+    { path = "faraday_bip::bip39::Mnemonic::to_seed", reason = "key boundary (docs/KEYS.md): a seed in hand, which faraday-keys works out" },
+    { path = "faraday_bip::codex32::Codex32::to_seed", reason = "key boundary (docs/KEYS.md): a seed in hand, which faraday-keys works out" },
+    { path = "faraday_bip::bip39::Mnemonic::parse", reason = "key boundary (docs/KEYS.md): seed words made into a Mnemonic: faraday_keys::words does it" },
+    { path = "faraday_bip::bip39::Mnemonic::from_indices", reason = "key boundary (docs/KEYS.md): seed words made into a Mnemonic: faraday_keys::words does it" },
+    { path = "faraday_bip::bip39::Mnemonic::from_entropy", reason = "key boundary (docs/KEYS.md): seed words made into a Mnemonic: faraday_keys::words does it" },
+    { path = "faraday_codec::seedqr::from_digits", reason = "key boundary (docs/KEYS.md): a SeedQR decoded into a Mnemonic: faraday_keys::words does it" },
+    { path = "faraday_codec::seedqr::from_entropy", reason = "key boundary (docs/KEYS.md): a SeedQR decoded into a Mnemonic: faraday_keys::words does it" },
+    { path = "faraday_bip::slip39::split", reason = "key boundary (docs/KEYS.md): a SLIP-39 split: faraday-keys does it" },
+    { path = "faraday_vault::records::words_of", reason = "key boundary (docs/KEYS.md): a vault record's words read: faraday_keys::words does it" },
+    { path = "faraday_pgp::paperkey::line", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::read_text", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::read_raw", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::entries", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::check", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::certificate::restore", reason = "key boundary (docs/KEYS.md): a key restored from a paperkey: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_sb::make", reason = "key boundary (docs/KEYS.md): Secure Boot keys made, which faraday-keys does" },
+    { path = "faraday_sb::enrolment", reason = "key boundary (docs/KEYS.md): Secure Boot keys used, which faraday-keys does" },
+    { path = "faraday_sb::pe::sign", reason = "key boundary (docs/KEYS.md): Secure Boot keys used, which faraday-keys does", allow-invalid = true },
+    { path = "faraday_vault::file::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
+    { path = "faraday_vault::file::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
+    { path = "faraday_vault::file::create", reason = "key boundary (docs/KEYS.md): a vault created, which faraday-keys does" },
+    { path = "faraday_vault::file::measure", reason = "key boundary (docs/KEYS.md): a vault's slot key derived, which faraday-keys does" },
+    { path = "faraday_vault::kdbx::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
+    { path = "faraday_vault::kdbx::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
+    { path = "faraday_vault::qr::open", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
+    { path = "faraday_vault::qr::seal", reason = "key boundary (docs/KEYS.md): a vault sealed, which faraday-keys does" },
+    { path = "faraday_kef::open", reason = "key boundary (docs/KEYS.md): a KEF code opened, which faraday-keys does" },
+    { path = "faraday_kef::open_with_key", reason = "key boundary (docs/KEYS.md): a KEF code opened, which faraday-keys does" },
+    { path = "faraday_kef::seal", reason = "key boundary (docs/KEYS.md): a KEF code sealed, which faraday-keys does" },
+    { path = "faraday_kef::seal_with_key", reason = "key boundary (docs/KEYS.md): a KEF code sealed, which faraday-keys does" },
+    { path = "faraday_psbt::sign", reason = "key boundary (docs/KEYS.md): a PSBT signed, which faraday-keys does" },
+    { path = "faraday_psbt::sweep::sign", reason = "key boundary (docs/KEYS.md): a PSBT signed with a WIF key, which faraday-keys does" },
+    { path = "faraday_bip::aezeed::decode", reason = "key boundary (docs/KEYS.md): an aezeed decoded, which faraday-keys does" },
+    { path = "faraday_bip::aezeed::node_key", reason = "key boundary (docs/KEYS.md): an aezeed's node key, which faraday-keys works out" },
+    { path = "faraday_bip::codex32::fresh_set", reason = "key boundary (docs/KEYS.md): a codex32 set made: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::Codex32::from_seed", reason = "key boundary (docs/KEYS.md): a codex32 set made: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::Codex32::split", reason = "key boundary (docs/KEYS.md): a codex32 set split: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::Codex32::recover", reason = "key boundary (docs/KEYS.md): a codex32 set recovered: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::Codex32::derive_share", reason = "key boundary (docs/KEYS.md): a codex32 share derived: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_keys::Held::release", reason = "key boundary (docs/KEYS.md): a held secret leaves its guard only at a named site, under #[expect]" },
+    { path = "faraday_keys::vault::IntoRecord::into_record", reason = "key boundary (docs/KEYS.md): a held secret leaves its guard only at a named site, under #[expect]" },
 ]
 
 # A descriptor read by miniscript directly is a parse that counts
@@ -38,6 +83,30 @@ disallowed-methods = [
 # transactions with it, under #[expect].
 disallowed-types = [
     { path = "miniscript::Descriptor", reason = "a descriptor parse: faraday_bip::policy::WalletPolicy, which takes the token" },
+    # The key boundary (docs/KEYS.md): key material is made and used only in
+    # faraday-keys, which the crates that make it (faraday-keys, -vault, -pgp
+    # and -sb) are the only ones to call these in; a legitimate use elsewhere
+    # carries #[expect(clippy::disallowed_methods or _types, reason = "...")].
+    { path = "faraday_bip::keys::MasterKey", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "faraday_bip::keys::DerivedKey", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "secp256k1::SecretKey", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "bitcoin::bip32::Xpriv", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "secp256k1::Keypair", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "bitcoin::PrivateKey", reason = "key boundary (docs/KEYS.md): a key in hand, which faraday-keys holds" },
+    { path = "faraday_bip::musig::SecNonce", reason = "key boundary (docs/KEYS.md): a nonce in hand, which faraday-keys holds" },
+    { path = "faraday_bip::wif::SingleKey", reason = "key boundary (docs/KEYS.md): a WIF read into a key, which faraday-keys does" },
+    { path = "faraday_bip::silent::Receiver", reason = "key boundary (docs/KEYS.md): a silent-payments receiver holds the scan key, which faraday-keys keeps" },
+    { path = "faraday_bip::codex32::FreshSet", reason = "key boundary (docs/KEYS.md): a codex32 set made: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::ChecksumWorksheet", reason = "key boundary (docs/KEYS.md): a worksheet of a codex32 set's strings: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_bip::codex32::TranslationWorksheet", reason = "key boundary (docs/KEYS.md): a worksheet of a codex32 set's strings: faraday_keys::codex32::WorkSet does it" },
+    { path = "faraday_pgp::Key", reason = "key boundary (docs/KEYS.md): a GPG key, which faraday-keys holds" },
+    { path = "faraday_pgp::paperkey::Line", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::Entry", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::paperkey::Progress", reason = "key boundary (docs/KEYS.md): a paperkey read back: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_pgp::certificate::Restored", reason = "key boundary (docs/KEYS.md): a key restored from a paperkey: faraday_keys::gpg::Restore does it" },
+    { path = "faraday_sb::Keys", reason = "key boundary (docs/KEYS.md): Secure Boot keys, which faraday-keys makes and uses" },
+    { path = "faraday_sb::x509::Pair", reason = "key boundary (docs/KEYS.md): Secure Boot keys, which faraday-keys makes and uses" },
+    { path = "faraday_vault::file::Opened", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
 ]
 
 # A function over this cognitive complexity carries an expect with its reason

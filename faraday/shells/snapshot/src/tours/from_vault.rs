@@ -1,5 +1,10 @@
 //! The from_vault tour.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the snapshot shell renders test data and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;

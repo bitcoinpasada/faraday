@@ -6,6 +6,12 @@
 //! does not read back; a passphrase kept alone in a vault is a record of
 //! its own, and a key loaded from another open vault takes it.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::*;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{Fingerprint, MasterKey};

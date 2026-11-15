@@ -16,6 +16,12 @@
 //! seeds `examples/wallet_2of3_demo.rs` uses, at coin type 1 rather
 //! than that example's mainnet path; its spend's txid is [`SPEND_TXID`].
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "the test kit builds keys and seeds directly and stays out of every shipped binary (tools/lint-keys-tests.sh) (docs/KEYS.md)"
+)]
+
 pub use crate::fresh::roller::{Act as RollerAct, PerClick, Roller, five, five_screen};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::absolute::LockTime;

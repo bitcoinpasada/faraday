@@ -2,6 +2,12 @@
 //! BIP-39's and BIP-32's published vectors, a row not offered takes no
 //! press, and nothing stays once the flow is left.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
 use faraday_core::forms::Form;
 use faraday_core::testkit::Plain;

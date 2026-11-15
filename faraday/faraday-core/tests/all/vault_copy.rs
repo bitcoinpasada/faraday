@@ -2,6 +2,11 @@
 //! item's page: the sheet of the other open vaults, a row dimmed with its
 //! reason, the two dialogs, and what the other vault keeps after a seal.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::in_progress::Going;

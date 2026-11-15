@@ -7,6 +7,11 @@
 //! the vault holds the new set's string and not the old set's, and that
 //! string with the new set's paper strings gives the seed back.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::backup_flow_wallet::{
     PHRASE as FLOW_PHRASE, bring_in_all, create_with_vaults, flow_board, flow_into_vault,
     flow_vault_zone, kdbx, restart, save_vaults, step, sticks, write_sticks,

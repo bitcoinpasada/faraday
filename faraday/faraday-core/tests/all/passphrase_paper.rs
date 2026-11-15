@@ -4,6 +4,11 @@
 //! completes it, a wrong one does not. A plan with no passphrase on paper
 //! has no such item.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::create::NewKind;

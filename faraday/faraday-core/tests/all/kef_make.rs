@@ -3,6 +3,11 @@
 //! changes the code as it says, a refusal names a version that works, and
 //! the label says nothing of the contents.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_codec::kef::{base43_decode, spec_of};
 use faraday_core::worker::kef_make::{IdChoice, MakeStart, Options};
 use faraday_core::{Faraday, testkit};

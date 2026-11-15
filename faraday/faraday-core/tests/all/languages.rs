@@ -4,6 +4,11 @@
 //! Chinese lists are typed on keyboards of their own, and
 //! a word is taken by pressing it among those the keys can be.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::{Action, Faraday};
 use faraday_shell_api::{App, Event, Key};

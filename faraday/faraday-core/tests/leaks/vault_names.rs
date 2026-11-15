@@ -1,6 +1,11 @@
 //! A vault's group names are held as wiping text, so a vault with a named
 //! group, opened and then locked, leaves no copy of the name.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::device;
 use crate::forms::{VAULT_PASSPHRASE, vault_passphrase_forms};
 use crate::seed_load::{lock, unlock};

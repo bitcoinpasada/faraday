@@ -7,6 +7,12 @@
 //! at its foot, and a wallet checked once this power-on has Check closed
 //! on its next spend, across a lock, until the machine starts afresh.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::add_key;
 use faraday_core::testkit::Plain;
 use faraday_core::testkit::{self, Kit};

@@ -3,6 +3,12 @@
 //! for. Every secret here is a published test vector and long enough that
 //! no form of it matches by chance.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::str::FromStr;
 
 use faraday_bip::bip39::{Language, Mnemonic};

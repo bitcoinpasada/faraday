@@ -8,6 +8,11 @@
 //! held strings are destroyed; the checks count strings, and the
 //! templates name their sheet.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::keys::ScriptType;
 use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::bstep;

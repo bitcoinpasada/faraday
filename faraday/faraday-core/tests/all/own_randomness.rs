@@ -12,6 +12,11 @@
 //! SHA-256("faraday fresh" ‖ what ‖ answer ‖ acc), and a seed draw
 //! SHA-256(what ‖ seed ‖ count).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::rounds::{at, device as musig_device, our_nonce};
 use crate::vault_seal::{device as vault_device, open_and_change, sealed};
 use faraday_core::fresh::page::Act;

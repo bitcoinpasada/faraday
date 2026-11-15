@@ -4,6 +4,11 @@
 //! seed held for the check alone (kept as Add a key keeps a key, refused
 //! with a stick in, gone when dropped).
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_core::seed_check::{ACCOUNTS, Account, Source, make};

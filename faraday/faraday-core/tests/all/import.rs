@@ -2,6 +2,11 @@
 //! offers its own Load button (refused with the stick still attached);
 //! "Import and load" loads it on its own the moment the stick is pulled.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::boot_import::TextSeedAnswer;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};

@@ -1,6 +1,11 @@
 //! The test kit's key texts for a master key a test holds. Everything else
 //! the kit makes that is plain text is in `plain.rs`.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "the test kit builds keys and seeds directly and stays out of every shipped binary (tools/lint-keys-tests.sh) (docs/KEYS.md)"
+)]
+
 use faraday_bip::keys::MasterKey;
 use faraday_text::Text;
 

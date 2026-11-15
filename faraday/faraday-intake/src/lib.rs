@@ -45,6 +45,10 @@ pub fn room() -> Text {
 
 /// The words a SeedQR holds, standard (digits) or compact (entropy), in
 /// English; `None` for any other code.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "reads text as it arrives and keeps none of it (docs/KEYS.md section 2): faraday-keys depends on this crate"
+)]
 pub fn seedqr_words(payload: &[u8]) -> Option<Text> {
     let lang = Language::English;
     let digits = payload.iter().all(u8::is_ascii_digit);
@@ -69,6 +73,10 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Text> {
 /// Costs what `parse` costs. The seed a code holds: a SeedQR, a
 /// CompactSeedQR, or a seed's words in English, as words; `None` for
 /// anything else.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "reads text as it arrives and keeps none of it (docs/KEYS.md section 2): faraday-keys depends on this crate"
+)]
 pub fn seed_in_code(c: &Compute, payload: &[u8]) -> Option<Text> {
     if let Some(words) = seedqr_words(payload) {
         return Some(words);
@@ -130,6 +138,10 @@ fn holds_extended_private_key(text: &str) -> bool {
 /// the text's length (by its loop, not timed). Whether scanned text is a secret, and
 /// which: a seed's words, an extended private key, with or without its
 /// origin, or a silent payments spend key.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "reads text as it arrives and keeps none of it (docs/KEYS.md section 2): faraday-keys depends on this crate"
+)]
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();

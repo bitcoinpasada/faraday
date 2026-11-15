@@ -4,6 +4,11 @@
 //! Passphrase step with the item as its contents, a code that opens back to
 //! the item, and a dialog for an item too long. The item stays in the vault.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::qr_tool::{self, Pick, QrToolAction as Q};

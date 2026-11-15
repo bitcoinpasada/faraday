@@ -2,6 +2,11 @@
 //! wallet is not shown before a caution says anyone can spend from it,
 //! and the person removes the key or keeps it for testing.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::keys::Network;
 use faraday_core::seeds::read::Choice;
 use faraday_core::spend_backup::SpendBackupAction as F;

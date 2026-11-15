@@ -3,6 +3,11 @@
 //! to bring in each stick, make the key and write each stick
 //! (`docs/BACKUP-FLOW.md`).
 #![allow(dead_code)]
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
 
 use faraday_core::backup_flow::Kind;
 use faraday_core::backup_flow::steps::FlowAction as F;

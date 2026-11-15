@@ -4,6 +4,11 @@
 //! §12): what a person typing codex32 strings into Add a key, or making
 //! a set in Practice, would notice. On BIP 93's published vectors 2 and 3.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Network;
 use faraday_core::codex32::{C32, Card, Given, SPLITS, Split, WAYS, Way};

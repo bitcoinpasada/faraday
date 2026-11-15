@@ -92,7 +92,7 @@ Identity and account are each 1 to 2³¹ − 1 (`faraday_bip::bip85::MAX_INDEX`)
 *Superseded placement.* This section predates F70 and F72. F70 puts
 every key and every operation on one in `faraday-keys` (a BIP-85 child
 is derived in `faraday/faraday-keys/src/bip85.rs`, and leaves only
-through a named reveal), and `tools/lint-secrets.sh` rule 4 refuses a
+through a named reveal), and clippy's key boundary entries (`faraday/clippy.toml`) refuse a
 key or a secret-taking primitive outside it: `NostrKey` and its
 derivation belong there, not in `faraday-core/src/nostr.rs`. "Not an
 edit to `core/`" was F65's soft-fork rule, which F72 replaced: `core/`

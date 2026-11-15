@@ -68,7 +68,7 @@
 #      public data and may use String freely. A file is a secret file when
 #      it names a secret type. SECRET_FILES is worked out below, not listed:
 #      the non-test source files under core/ and faraday/ (type_files) that
-#      name a secret type (the names in tools/secret-names.txt, 4a's key types, `zeroize`),
+#      name a secret type (the names in tools/secret-names.txt, the key boundary's key types, `zeroize`),
 #      less UNHELD, plus NAMELESS, so a new module is found without anyone
 #      adding it. The wiping text of faraday_text counts as a secret type: a
 #      file naming it is held or, with a reason that is true, on UNHELD
@@ -79,7 +79,7 @@
 #      files type_files leaves out (the shells, tools, fuzz and the Starter)
 #      are not read by this check.
 #
-# Rule 4, the key boundary, rule 5, the dev card's reports, and rule 6, the
+# Rule 4, the key boundary (clippy's, below), rule 5, the dev card's reports, and rule 6, the
 # test allocator, are described where they are checked, below.
 #
 # Exits non-zero on any hit and prints each offending line. Run from the
@@ -112,7 +112,7 @@ type_files() {
         -not -path 'faraday/tools/*' -not -path 'faraday/fuzz/*' | sort
 }
 # A secret type, by name: the wiping types, faraday-keys' holders (Held,
-# HeldSet, HeldItem, HeldAezeed), rule 4a's key types and anything that
+# HeldSet, HeldItem, HeldAezeed), the key boundary's key types and anything that
 # wipes itself. The type names are tools/secret-names.txt, which costs-lint's
 # secret-types check reads too: one list.
 SECRET_TYPES=$(grep -vE '^[[:space:]]*(#|$)' tools/secret-names.txt | sed -E 's/\*$/[A-Za-z]*/' | paste -sd'|')
@@ -370,89 +370,21 @@ report "heap text in secret-handling source (rule 3)" \
             echo "$hit"
         done; echo "$builders"; } | grep .)"
 
-# Rule 4: the key boundary (docs/KEYS.md, F70). Key material is used
-# only in faraday/faraday-keys. Everywhere else under faraday/ these are
-# refused, in code (comments are skipped):
-#   4a. a key or a seed in hand: MasterKey, SecretKey, Xpriv, Keypair,
-#       PrivateKey, DerivedKey, SecNonce, SlotKey, to_seed;
-#   4b. seed words made into a Mnemonic (parse, from_indices,
-#       from_entropy), a SeedQR decoded into one, a SLIP-39 split, a
-#       vault record's words read (records::words_of): faraday_keys::words
-#       does these;
-#   4c. the primitive crates' secret-taking functions and types: a GPG
-#       key (faraday_pgp::Key), a paperkey read back or a key restored
-#       from one (faraday_pgp::paperkey, restore, Restored: the restore
-#       set, faraday_keys::gpg::Restore, does these), Secure Boot keys made or used
-#       (faraday_sb make, enrolment, Keys, Pair, pe::sign), a vault
-#       opened, sealed, created or its slot key derived (faraday_vault
-#       open, open_with, create, derive, seal, Opened; and the file API,
-#       file::open, seal, create, measure, Opened, kdbx::open, seal and
-#       the QR vault's qr::open, seal), a KEF code opened or sealed
-#       (faraday_kef open, seal, their _with_key forms, Opened), a PSBT signed
-#       (faraday_psbt::sign, and with a WIF key, faraday_psbt::sweep::sign),
-#       a WIF read into a key (faraday_bip::wif), BIP-352's receiver, an
-#       aezeed decoded;
-#   4d. a held secret taken out of its guard (Held::release, release(),
-#       into_record()), except at the sites in RELEASES;
-#   4e. a codex32 set made, split or recovered, or a worksheet of one's
-#       strings (fresh_set, FreshSet, ChecksumWorksheet,
-#       TranslationWorksheet, Codex32::from_seed, ::split, ::recover,
-#       ::derive_share): faraday_keys::codex32::WorkSet and
-#       Keys::codex32_shares do these, and lend their results only as a
-#       paper form.
-# Exempt, as they are not shipped or are the boundary's own: faraday-keys;
-# the primitive crates faraday-pgp, -sb and -vault; tests/,
-# examples/ and fuzz/; the snapshot shell and faraday/tools/ (test
-# renders and test data); faraday-core's testkit.rs and testkit/ (the `testkit`
-# feature, which tools/lint-keys-tests.sh keeps out of every shipped
-# binary); faraday-guide's how.rs, which the manifest generates and which
-# names the functions as text (docs/CRYPTO-LEARN.md §3.1) without calling any.
-# faraday-intake is exempt from 4b only: it reads text as it
-# arrives (transient input, KEYS §2) and keeps none of it, and
-# faraday-keys depends on it.
-#
-# The one place a held secret leaves its guard outside faraday-keys:
-#   vault/screen.rs   a GPG key's paperkey text, drawn while it is held
-#                     (Reveal::GpgPaperkey)
-RELEASES="faraday/faraday-core/src/vault/screen.rs"
-boundary_files() {
-    find faraday -name '*.rs' \
-        -not -path 'faraday/faraday-keys/*' \
-        -not -path 'faraday/faraday-pgp/*' -not -path 'faraday/faraday-sb/*' \
-        -not -path 'faraday/faraday-vault/*' \
-        -not -path '*/tests/*' -not -path '*/examples/*' -not -path 'faraday/fuzz/*' \
-        -not -path 'faraday/shells/snapshot/*' -not -path 'faraday/tools/*' \
-        -not -path 'faraday/faraday-core/src/testkit.rs' -not -path 'faraday/faraday-core/src/testkit/*' \
-        -not -path 'faraday/faraday-guide/src/how.rs' | sort
-}
+# Rule 4, the key boundary (docs/KEYS.md), is clippy's: the `disallowed-types`
+# and `disallowed-methods` entries marked "key boundary" in faraday/clippy.toml
+# (and faraday-kef's copy of them) refuse key material, seed words, the
+# primitive crates' secret-taking functions, codex32 sets and a held secret
+# taken out of its guard in every crate under faraday/ but the ones that make
+# them (faraday-keys, -vault, -pgp and -sb, whose own clippy.toml has none).
+# A legitimate use carries `#[expect(clippy::disallowed_types, reason = ...)]`
+# or `#[expect(clippy::disallowed_methods, reason = ...)]`; tools/clippy.py
+# fails when the copies of the entries differ.
 in_code() {
     # $1 = pattern; the files follow. Comment lines are skipped.
     local re=$1
     shift
     grep -nE "$re" "$@" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'
 }
-mapfile -t BOUNDARY < <(boundary_files)
-mapfile -t WORDS_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -v '^faraday/faraday-intake/')
-mapfile -t RELEASE_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -vxF -f <(tr ' ' '\n' <<< "$RELEASES"))
-secret_types='\b(MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bto_seed\b'
-# `Work::MasterKey` is a kind of costly work, not the type, and so is the
-# enum variant work.rs declares for it. faraday-strings' bip.rs words
-# MuSig2's error kind `SecNonce` (a nonce missing or used twice), which
-# names the error, not a nonce in hand.
-report "a key or seed outside faraday-keys (rule 4a)" \
-    "$(in_code "$secret_types" "${BOUNDARY[@]}" \
-        | sed -E 's/\b(Work|C)::MasterKey\b//g' \
-        | grep -E "$secret_types" \
-        | grep -vE '^faraday/faraday-core/src/work\.rs:[0-9]+:[[:space:]]*MasterKey,$' \
-        | grep -vE '^faraday/faraday-strings/src/bip\.rs:[0-9]+:[[:space:]]*E::SecNonce => EN\.bip_musig_sec_nonce,$')"
-report "seed words made outside faraday_keys::words (rule 4b)" \
-    "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
-report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \
-    "$(in_code 'faraday_pgp::(Key|paperkey|restore|Restored|certificate::(restore|Restored))\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|faraday_vault::file::(open|seal|create|measure|Opened)\b|faraday_vault::kdbx::(open|seal)\b|\b(fv|faraday_vault)::qr\b|use faraday_vault::\{[^}]*\bqr\b|use faraday_vault::file::(open|seal|create|measure|Opened)\b|use faraday_vault::kdbx::(open|seal)\b|use faraday_vault::qr::(open|seal)\b|faraday_kef::(open|open_with_key|seal|seal_with_key|Opened)\b|use faraday_kef::\{[^}]*\b(open|open_with_key|seal|seal_with_key|Opened)\b|use faraday_kef::(open|open_with_key|seal|seal_with_key|Opened)\b|faraday_psbt::sign\(|faraday_psbt::sweep::sign\(|faraday_bip::wif\b|faraday_bip::silent::Receiver|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|paperkey|restore|Restored|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
-report "a codex32 set made, split or recovered outside faraday-keys (rule 4e)" \
-    "$(in_code 'fresh_set|FreshSet|ChecksumWorksheet|TranslationWorksheet|Codex32::(from_seed|split|recover|derive_share)\b' "${BOUNDARY[@]}")"
-report "a held secret taken out of its guard outside the named sites (rule 4d)" \
-    "$(in_code 'Held::release|\.release\(\)|\.into_record\(\)' "${RELEASE_FILES[@]}")"
 
 # Rule 5: the dev card's reports. faraday-boot-report.txt and
 # faraday-timings.txt are written by the files below, and hold the kernel's

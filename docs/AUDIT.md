@@ -92,7 +92,7 @@ auditor can state from it:
   SeedQR, a vault passphrase while it is typed, dice and other entropy,
   an Inbox file that is a secret. It holds them in `Zeroizing` buffers
   and hands them to `Keys`; it can derive nothing from them.
-- **`just` holds it.** `tools/lint-secrets.sh` rule 4 refuses, under
+- **`just` holds it.** clippy's `disallowed-types` and `disallowed-methods` (`faraday/clippy.toml`, the entries marked "key boundary") refuse, under
   `faraday/` outside `faraday-keys`, a key or seed in hand (`MasterKey`,
   `SecretKey`, `Xpriv`, `to_seed` and the rest), seed words made into a
   `Mnemonic`, the primitive crates' secret-taking functions, and a held

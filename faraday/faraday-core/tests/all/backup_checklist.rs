@@ -5,6 +5,11 @@
 //! in the vault, where the next backup of the wallet finds the plan, and
 //! in no file. The blank template has a line per place and no name.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::{files_stick, form, no_words, put, type_text};
 use faraday_core::board::{Thing, Zone};

@@ -8,6 +8,11 @@
 //! goes no further back than the step after it. A single choice moves
 //! on by itself, and pressing the option already chosen moves on too.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{add_key, type_text};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::bip85::{Bip85App, pstep};

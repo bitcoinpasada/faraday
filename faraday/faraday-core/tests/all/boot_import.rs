@@ -7,6 +7,11 @@
 //! Cancel, an unlock followed by its Load sheet (F62); Later reads and
 //! brings in nothing, and Home leads with the import. A lock drops it.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::boot_import::{self, ImportAction as I};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;

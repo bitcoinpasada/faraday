@@ -2,6 +2,11 @@
 //! loaded with a passphrase, and loaded from a vault by the unlock's Load
 //! sheet (the unlock's passphrase typed on the way), each ended by Lock.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{device, type_text};
 use crate::forms::{PASSPHRASE, PHRASE, VAULT_PASSPHRASE, seed_forms, vault_passphrase_forms};
 use crate::{arm, finish};

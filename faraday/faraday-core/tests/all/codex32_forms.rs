@@ -7,6 +7,11 @@
 //! mark. On BIP 93's published strings and the Codex32QR profile's
 //! vectors (`tools/vectors/codex32qr/`).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::codex32::Codex32;
 use faraday_core::codex32_correct::{Mark, Press};
 use faraday_core::forms::{C32Press, Form};

@@ -2,6 +2,11 @@
 //! vault, as a person does it from the seed's page: the button while the
 //! entry has the data, the dialog, and what the file holds after a seal.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::strings::EN;

@@ -6,6 +6,11 @@
 //! are the ones the samples hold, which the samples' own tests check
 //! against their words. Every entry of the table is one of these.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{fingerprint_of_seed, json, reference_fingerprint, unhex};
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;

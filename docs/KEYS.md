@@ -543,27 +543,33 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   holds, and rule 3 holds a file that uses one; `clippy.toml` in the
   secret-holding `core/` crates refuses `clone`, `to_string` and `to_owned`
   where a file turns it on (SECRET-LEAKS §6).
-- **The lint.** `tools/lint-secrets.sh` rule 4 refuses, under faraday/
-  outside faraday-keys:
+- **The lint.** Clippy refuses, under faraday/ outside faraday-keys, with
+  the `disallowed-types` and `disallowed-methods` entries marked "key
+  boundary" in `faraday/clippy.toml` (each names the function or type by
+  its path, so a re-export or a `use` list is refused as the path is):
   - (a) a key or seed in hand: `MasterKey`, `SecretKey`, `Xpriv`,
-    `Keypair`, `PrivateKey`, `DerivedKey`, `SecNonce`,
-    `SlotKey`, `to_seed`;
+    `Keypair`, `PrivateKey`, `DerivedKey`, `SecNonce`, `Mnemonic::to_seed`
+    and the codex32 string's;
   - (b) seed words made into a `Mnemonic`, a SeedQR decoded, a SLIP-39
     split, a vault record's words read;
   - (c) the primitive crates' secret-taking functions and types: a GPG
-    key, Secure Boot keys made or used, a vault opened, sealed,
-    created or its slot key derived, a PSBT signed, BIP-352's receiver,
-    an aezeed
-    decoded, by path or in a `use` list;
-  - (d) `Held::release` and `into_record` outside the one named site, a
-    GPG paperkey drawn while it is held.
+    key, a paperkey read back or restored, Secure Boot keys made or used,
+    a vault opened, sealed, created or its slot key derived, a KEF code
+    opened or sealed, a PSBT signed, a WIF read into a key, BIP-352's
+    receiver, an aezeed decoded;
+  - (d) `Held::release` and `into_record`, which no site outside
+    faraday-keys uses now;
+  - (e) a codex32 set made, split or recovered, and a worksheet of its
+    strings.
 
-  Exempt: the primitive crates themselves; `tests/`, `examples/` and
-  `fuzz/`; the snapshot shell and `faraday/tools/` (test renders and test
-  data, never shipped); faraday-core's `testkit.rs`, which
-  `lint-keys-tests.sh` keeps out of shipped binaries. faraday-intake is
-  exempt from (b) only: it reads text as it arrives and keeps none of it,
-  and faraday-keys depends on it.
+  A legitimate use carries `#[expect(clippy::disallowed_methods, reason =
+  "...")]` (or `disallowed_types`): faraday-intake's reads of text as it
+  arrives (b; it keeps none of it, and faraday-keys depends on it), and,
+  at the top of the file, the tests, examples, the testkit and the
+  snapshot shell, which build keys directly and are never shipped. Clippy
+  reads only the nearest `clippy.toml`, so faraday-kef's own file repeats
+  the entries but its own; faraday-keys, -vault, -pgp and -sb, which make
+  the material, hold none (`tools/clippy.py` fails when the files drift).
 
 ### 4.1 Left after step 2, closed by step 4
 
@@ -621,7 +627,7 @@ its own frame, unwiped, under every one of these calls.
   public set Practice takes (keys in every form Faraday reads, the testkit's
   wallets, a vault, a signed message), as data only: strings, bytes and
   fingerprints in the shapes `faraday_core::samples` defines. It derives
-  nothing, so rule 4 has nothing to refuse there. The testkit and the
+  nothing, so the key boundary's clippy entries have nothing to refuse there. The testkit and the
   samples crate are the two bodies of dummy data, and neither is key
   code: the testkit stays out of every shipped binary by
   `lint-keys-tests.sh`'s first two checks, and the samples crate by its

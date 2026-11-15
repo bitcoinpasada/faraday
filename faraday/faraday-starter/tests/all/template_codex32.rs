@@ -2,6 +2,11 @@
 //! `docs/STARTER.md` §3.8): what a person offered the Form row gets, and
 //! that the worksheets print the booklet's tables.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_codec::qr::{Ecc, Payload, encode};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::StarterCommand;

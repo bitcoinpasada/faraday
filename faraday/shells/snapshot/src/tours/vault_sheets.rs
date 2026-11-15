@@ -2,6 +2,11 @@
 //! copied and moved to another vault, kept or left out at a save, and
 //! trimmed (`docs/VAULT.md` §7).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "the snapshot shell renders test data and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::tour::{Tour, not_now_load, type_text};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::testkit;

@@ -3,6 +3,11 @@
 //! seed, with a passphrase if it has one, or a cosigner's xpub; the
 //! wallet, its first addresses, and the backup or a spend after.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};

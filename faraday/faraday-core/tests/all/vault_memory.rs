@@ -4,6 +4,11 @@
 //! memory keeps the vault open with its changes and says why, an idle lock
 //! included.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::vault_seal::{device, open_and_change, sealed};
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;

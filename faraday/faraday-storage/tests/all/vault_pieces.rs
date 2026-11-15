@@ -2,6 +2,11 @@
 //! pieces, and the shell's thread is not held while it does (F206
 //! point 7): its answer comes on a later pass, byte for byte.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 

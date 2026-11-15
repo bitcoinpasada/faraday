@@ -4,6 +4,11 @@
 //! loaded wallets; and a seed's words are never filed, nor pasted here
 //! (a seed scanner takes them, `paste_a_seed`).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, StorageEvent};

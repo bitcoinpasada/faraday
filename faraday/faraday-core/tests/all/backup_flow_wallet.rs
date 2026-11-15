@@ -5,6 +5,11 @@
 //! up after them; the checklist's **Write to sticks**, and every stick
 //! written inside the flow.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::backup_flow::steps::FlowAction as F;

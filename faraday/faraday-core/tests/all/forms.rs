@@ -4,6 +4,11 @@
 //! XOR vector. In every form typed word by word, a word moves on to the
 //! next once its letters spell it and no other word starts with them.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::str::FromStr;
 
 use faraday_bip::bitcoin::bip32::Xpriv;

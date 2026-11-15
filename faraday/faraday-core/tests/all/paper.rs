@@ -2,6 +2,11 @@
 //! back into Add a key, gives the same key; codex32 strings are not
 //! offered for a key of words.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};

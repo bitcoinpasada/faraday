@@ -6,6 +6,11 @@
 //! request); and a copy drawn on the sheet's grid, scanned back, is
 //! checked against the string.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::codex32::Codex32;
 use faraday_core::board::{Thing, Zone};
 use faraday_core::bstep;

@@ -8,6 +8,11 @@
 //! share of the set or a set of another seed is refused by name and
 //! nothing is written.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::backup_flow_wallet::{
     PHRASE as FLOW_PHRASE, flow_into_vault, kdbx, restart, step, write_sticks,
 };

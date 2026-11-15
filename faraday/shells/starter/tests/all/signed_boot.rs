@@ -5,6 +5,11 @@
 //! when it is chosen and again by the writer (the elevated copy on
 //! Windows), and written with the rest of the boot partition the release's.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::io::Cursor;
 use std::path::PathBuf;
 

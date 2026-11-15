@@ -3,6 +3,11 @@
 //! unprotected without the secret sheet, and a password out (for KeePass
 //! or as a file) names neither the key it came from nor its index.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_bip::bip39::Language;

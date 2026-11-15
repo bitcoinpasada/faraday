@@ -10,6 +10,11 @@
 //! same way. The sheet holds the real lists, each word with its number
 //! and the bits or dice that name it.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::diceware::List;
 use faraday_core::keygen::{Way, kstep};

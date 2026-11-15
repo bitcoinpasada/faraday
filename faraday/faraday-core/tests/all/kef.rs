@@ -2,6 +2,11 @@
 //! (`docs/KEF.md` §6, §7.2, §14): what comes out opens to what went in,
 //! a seal is never the same twice, and Cancel really stops the work.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::time::{Duration, Instant};
 
 use faraday_bip::keys::Network;

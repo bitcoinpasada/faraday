@@ -2,6 +2,11 @@
 //! as codes the device reads back as it was written, except a secret
 //! (F236).
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_core::scan_read::Kind;
 use faraday_core::transfer::TextPress;
 use faraday_core::wallet::Session;

@@ -1,5 +1,10 @@
 //! What the test modules share.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bitcoin::NetworkKind;
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;

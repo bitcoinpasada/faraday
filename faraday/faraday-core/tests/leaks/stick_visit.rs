@@ -2,6 +2,11 @@
 //! not tick is dropped, and nothing of the picture or its code is left
 //! freed unwiped.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::forms::{PHRASE, seed_forms};
 use crate::{arm, finish};
 use faraday_bip::bip39::{Language, Mnemonic};

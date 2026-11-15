@@ -143,10 +143,13 @@ shows it. Beside that, `faraday/clippy.toml` disallows
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
 governs every crate under `faraday/` that has none of its own; `faraday-keys`,
-`faraday-vault`, `faraday-pgp` and `faraday-kef` each have one, the same four
-files, that repeats every entry of `faraday/clippy.toml` and adds the refusals
-of `docs/SECRET-LEAKS.md` §6; `tools/clippy.py` fails when they differ or lack
-an entry, and a change to an entry is made in all five); and the costs lint
+`faraday-vault` and `faraday-pgp` each have one, the same three files, that
+repeats the entries of `faraday/clippy.toml` that are not the key boundary's
+(`docs/KEYS.md`) and adds the refusals of `docs/SECRET-LEAKS.md` §6;
+`faraday-kef`'s is those and every key boundary entry but its own, and
+`faraday-sb`'s is `faraday/clippy.toml` without the key boundary's;
+`tools/clippy.py` fails when they differ or lack an entry, and a change to an
+entry is made in every file that holds it); and the costs lint
 rejects `unchecked` under `faraday/`, a mint outside its list,
 and the `unchecked` feature in any `faraday/**/Cargo.toml`. `faraday/fuzz/`,
 a workspace of its own with no app guarantee, is exempt from both:

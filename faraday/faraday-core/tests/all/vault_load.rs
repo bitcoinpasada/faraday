@@ -7,6 +7,12 @@
 //! sheet never changes the saved setting. A wallet the backup flow seals
 //! into a vault loads at unlock unless its vault item turns it off.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::{device, type_text};
 use faraday_core::testkit::Plain;

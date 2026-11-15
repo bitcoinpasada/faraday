@@ -10,6 +10,12 @@
 //! The signer elsewhere is rust-bitcoin's secp256k1 signing over
 //! rust-bitcoin's sighash, not Faraday's signing code.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::add_key;
 use faraday_bip::bitcoin::secp256k1::{
     Message, PublicKey as Point, Scalar, Secp256k1, SecretKey, ecdsa::Signature,

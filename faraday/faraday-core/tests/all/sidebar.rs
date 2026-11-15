@@ -4,6 +4,11 @@
 //! the stage of the session. Under its tab, each flow in progress has a
 //! row, its name and open step, which returns to it as it was left.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::testkit::KindText;
 use faraday_core::testkit::Plain;

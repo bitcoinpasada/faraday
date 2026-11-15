@@ -3,6 +3,12 @@
 //! restored from its paperkey, and a Bitcoin Core wallet read. Each plants
 //! the secret the reader takes in and ends by Lock where the flow has one.
 
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::{device, type_text};
 use crate::forms::{
     ENTRY_NOTES, ENTRY_PASSWORD, PHRASE, TOTP_URI, VAULT_PASSPHRASE, entry_forms, seed_forms,

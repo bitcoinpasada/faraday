@@ -13,6 +13,11 @@
 //! (and against other implementations), so a change to the vectors or
 //! the testkit shows up as a failing test until this is run again.
 
+#![expect(
+    clippy::disallowed_methods,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use std::fmt::Write as _;
 use std::path::PathBuf;
 

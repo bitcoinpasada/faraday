@@ -6,6 +6,11 @@
 //! nothing, a renewal counts its term from the clock, and what is signed
 //! is what the page shows.
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "a test or example builds keys and seeds directly and is not shipped (docs/KEYS.md)"
+)]
+
 use crate::common::RecordsOf as _;
 use crate::common::{scroll_to_text, type_text};
 use std::path::{Path, PathBuf};
