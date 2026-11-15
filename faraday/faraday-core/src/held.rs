@@ -822,7 +822,7 @@ impl Faraday {
                 continue;
             };
             let share =
-                Text::of(char::to_ascii_uppercase(&char::from(index)).encode_utf8(&mut [0; 4]));
+                Text::from_char(char::to_ascii_uppercase(&char::from(index)));
             // Only a string of the plan's set is written: a key loaded
             // with another set holds strings that are not it.
             let record = self
@@ -901,7 +901,7 @@ impl Faraday {
         for (share, id) in self.backup_vault_c32_left(&c, cur, v) {
             self.toast(&Text::fill(
                 EN.c32_vault_left,
-                &[share.encode_utf8(&mut [0; 4]), &id],
+                &[&Text::from_char(share), &id],
             ));
         }
     }

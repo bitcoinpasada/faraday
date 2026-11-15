@@ -83,6 +83,51 @@ impl Text {
         out
     }
 
+    /// One holding the character `c`, built without an unwiped copy of it.
+    pub fn from_char(c: char) -> Text {
+        let mut out = Text::with_room(c.len_utf8());
+        out.push(c);
+        out
+    }
+
+    /// One holding the character `c` in upper case, built without an
+    /// unwiped copy of it.
+    pub fn from_char_uppercase(c: char) -> Text {
+        let mut out = Text::with_room(c.len_utf8());
+        for u in char::to_uppercase(c) {
+            out.push(u);
+        }
+        out
+    }
+
+    /// One holding `s` with its first character in lower case, built in a
+    /// buffer of its own so no unwiped copy is made.
+    pub fn first_lowercase(s: &str) -> Text {
+        let mut c = s.chars();
+        let mut out = Text::with_room(s.len());
+        if let Some(f) = c.next() {
+            for l in char::to_lowercase(f) {
+                out.push(l);
+            }
+            out.push_str(c.as_str());
+        }
+        out
+    }
+
+    /// One holding `s` with its first character in upper case, built in a
+    /// buffer of its own so no unwiped copy is made.
+    pub fn first_uppercase(s: &str) -> Text {
+        let mut c = s.chars();
+        let mut out = Text::with_room(s.len());
+        if let Some(f) = c.next() {
+            for u in char::to_uppercase(f) {
+                out.push(u);
+            }
+            out.push_str(c.as_str());
+        }
+        out
+    }
+
     /// One holding `s` with its ASCII letters in lower case and every other
     /// character as it is, in a buffer of exactly its size. Costs time
     /// linear in `s`.

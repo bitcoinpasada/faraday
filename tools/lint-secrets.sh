@@ -642,6 +642,16 @@ SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
+# A character is never encoded into a bare stack array in a held file: the
+# array is not wiped, so a seed word's or a passphrase's last character would
+# stay on the stack. Text::from_char and the wiping text's own push do it.
+for f in $SECRET_FILES; do
+    [ -f "$f" ] || continue
+    if grep -nE 'encode_utf8\(&mut \[' "$f" | grep -v '^[0-9]*:[[:space:]]*//' | grep -q .; then
+        echo "lint-secrets: $f encodes a character into an unwiped stack array (use Text::from_char)"
+        status=1
+    fi
+done
 # Files in SECRET_FILES that hold a secret without naming a secret type or the
 # wiping text, each with why:
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs

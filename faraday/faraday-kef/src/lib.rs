@@ -134,8 +134,10 @@ pub fn reading_passphrases(text: &str) -> Vec<Zeroizing<Vec<u8>>> {
             // Its final size is known, so it never reallocates.
             let size: usize = chars.iter().map(|ch| ch.len_utf8()).sum();
             let mut form = Zeroizing::new(Vec::with_capacity(size));
+            // Each character is encoded in one wiped buffer.
+            let mut one = Zeroizing::new([0u8; 4]);
             for &ch in chars.iter() {
-                form.extend_from_slice(ch.encode_utf8(&mut [0; 4]).as_bytes());
+                form.extend_from_slice(ch.encode_utf8(&mut *one).as_bytes());
             }
             if !out.iter().any(|seen| **seen == *form) {
                 out.push(form);

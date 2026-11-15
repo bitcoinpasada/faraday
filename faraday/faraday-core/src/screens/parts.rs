@@ -1571,7 +1571,7 @@ pub(crate) fn word_keys(
                         ky,
                         Some(kw),
                         kh,
-                        c.encode_utf8(&mut [0; 4]),
+                        &Text::from_char(c),
                         style,
                         Action::EntryKey(c),
                     );
@@ -1778,7 +1778,7 @@ pub(crate) fn card_pad(
         let (gap, max, row) = (6.0, 52.0, 52.0);
         let names: Vec<Text> = faraday_entropy::RANKS
             .iter()
-            .map(|c| Text::of(c.encode_utf8(&mut [0; 4])))
+            .map(|c| Text::from_char(*c))
             .collect();
         let labels: Vec<&str> = names.iter().map(|n| n.as_str()).collect();
         let (cols, bw) = if ui.compact {
@@ -1817,7 +1817,7 @@ pub(crate) fn card_pad(
                 cy,
                 Some(sw),
                 BUTTON_H,
-                ch.encode_utf8(&mut [0; 4]),
+                &Text::from_char(*ch),
                 style,
                 suit_press(s as u8),
             );
@@ -2113,7 +2113,7 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
             let letter = char::from(b'A' + u8::try_from(b).unwrap_or(0));
             (
                 Text::of(&Text::num(b as u64 + 1)),
-                Text::of(letter.encode_utf8(&mut [0; 4])),
+                Text::from_char(letter),
             )
         } else {
             let at = Text::of(&Text::num((b * COPY_BLOCK) as u64));

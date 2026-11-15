@@ -2385,15 +2385,7 @@ fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> Text {
 
 /// The text with its first letter in lower case, to stand mid-line.
 fn lower_first(s: &str) -> Text {
-    let mut c = s.chars();
-    match c.next() {
-        Some(f) => {
-            let mut t = Text::lowercase(f.encode_utf8(&mut [0; 4]));
-            t.push_str(c.as_str());
-            t
-        }
-        None => Text::default(),
-    }
+    Text::first_lowercase(s)
 }
 
 impl Faraday {
@@ -3220,7 +3212,7 @@ impl Faraday {
                 let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
                 let share =
-                    Text::of(char::to_ascii_uppercase(&char::from(index)).encode_utf8(&mut [0; 4]));
+                    Text::from_char(char::to_ascii_uppercase(&char::from(index)));
                 let title = Text::fill(EN.c32_picture_title, &[&share, id]);
                 let lines = [Text::of(EN.c32_picture_line)];
                 Some(zeroize::Zeroizing::new(crate::picture::labelled_png(

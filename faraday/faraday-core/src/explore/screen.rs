@@ -373,7 +373,7 @@ fn secret(app: &View, ui: &mut Ui, at: Cols, y: f32) -> f32 {
                 (_, b's') => Text::of(EN.explore_codex32_secret),
                 (_, i) => Text::fill(
                     EN.explore_codex32_share,
-                    &[char::from(i).encode_utf8(&mut [0; 4])],
+                    &[&Text::from_char(char::from(i))],
                 ),
             };
             cy += value_row(ui, at, cy, &name, form);

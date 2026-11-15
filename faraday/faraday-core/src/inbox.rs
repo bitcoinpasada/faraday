@@ -1153,11 +1153,7 @@ impl Faraday {
             if n > 0 {
                 words.push(' ');
             }
-            let mut c = w.chars();
-            if let Some(f) = c.next() {
-                words.push_str(&Text::uppercase(f.encode_utf8(&mut [0; 4])));
-                words.push_str(c.as_str());
-            }
+            words.push_str(&Text::first_uppercase(w));
         }
         let carried = crate::wallet::carried_name(&text).map_or(words, |t| Text::of(&t));
         Text::of(&crate::wallet::wallet_name(&carried))

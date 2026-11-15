@@ -1528,9 +1528,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
         .and_then(|(id, at)| app.vaults.store().related(id, at));
     if rel.is_some() {
         let index = faraday_keys::vault::codex32_share_header(r)
-            .map(|(_, _, i)| {
-                Text::of(char::to_ascii_uppercase(&char::from(i)).encode_utf8(&mut [0u8; 4]))
-            })
+            .map(|(_, _, i)| Text::from_char_uppercase(char::from(i)))
             .unwrap_or_default();
         let said = Text::fill(EN.vault_related_share, &[&index]);
         line = if line.is_empty() {
