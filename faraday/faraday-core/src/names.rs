@@ -78,7 +78,7 @@ pub struct LegacyDesktop {
 }
 
 /// The names an earlier Starter installed the desktop app under: as
-/// "Faraday Demo" (F119), and before that as "Faraday Desktop".
+/// "Faraday Demo", and before that as "Faraday Desktop".
 pub const LEGACY_DESKTOP: [LegacyDesktop; 2] = [
     LegacyDesktop {
         linux_bin: "faraday-demo",

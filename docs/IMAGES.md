@@ -1,7 +1,7 @@
 # Images for each piece of hardware
 
 **Kind:** Spec
-**Status:** Specified (F145, F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built
+**Status:** Specified (F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built
 **Open:** each screen tried on it (§9.11), a full release's size and staging time measured, the Starter's finder tried on a computer with a real release's images (§9.6), the website's choice
 
 A person picks their hardware, and gets the one signed image built for
@@ -9,7 +9,7 @@ it: one for the PC stick, and one for the Pi that finds its screen at
 boot (§3, F186, F187).
 Each is its own release file. Nothing is edited after the build. The Starter carries no
 images: the person downloads the Starter and the images they chose, and
-the Starter offers what it finds. The owner's choices are F145, which
+the Starter offers what it finds. The owner's choices are F185 and F186, which
 replaces this plan's earlier form in `docs/STARTER.md` §9.3 (one image,
 edited for its screen by the Starter) and the Starter's earlier payload of
 images (§1.3, removed).
@@ -84,7 +84,7 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
   drivers are forbidden), and HDMI audio is off in the device tree
   (`vc4-kms-v3d,noaudio`), so no sound card is registered.
 - **HDMI.** A monitor's EDID is read by the kernel. A monitor is a
-  small new input; the owner accepts it (F145).
+  small new input; the owner accepts it (owner, 2026-10-28).
 - **USB HID.** The generic HID and multitouch drivers, the USB keyboard
   and mouse. No vendor-specific HID drivers, as on the PC. The stick's
   rules for new devices come across unchanged (SECURITY-MODEL, "USB
@@ -99,7 +99,7 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
   - a new touchscreen counts once it taps the targets on the screen in
     a row.
 - **A new USB touchscreen approves itself; nothing is trusted by name**
-  (owner, F153, replacing F145's touchscreen named by the profile). An
+  (owner, F153, replacing the earlier touchscreen named by the profile). An
   HDMI panel's touch reaches the Pi over USB, and on such a panel it is
   the only input there is. It is held back as every plugged-in device
   is, and the app draws targets, one at a time, each at a place drawn
@@ -171,7 +171,7 @@ HDMI.
 - **The HDMI screen** is driven by vc4's kernel mode setting
   (`dtoverlay=vc4-kms-v3d,noaudio,cma-64`, the firmware's overlay README,
   "vc4-kms-v3d"), which reads the screen's EDID over the HDMI bus and
-  sets its preferred mode; no mode is named on the card (F150).
+  sets its preferred mode; no mode is named on the card.
   `NATIVE` and `MOUNT` are not given: the screen's mode says which way
   it is.
 - **A window on the HDMI screen** is asked for by `faraday.window=WxH`
@@ -186,7 +186,7 @@ HDMI.
   is added later as its own directory, its drivers and its probe
   (between HDMI and the 2.8-inch, since the DSI connector's I²C uses no
   header pin), when its panel is at hand to try. The original
-  Raspberry Pi Touch Display (800 × 480) is not offered (owner, F145).
+  Raspberry Pi Touch Display (800 × 480) is not offered (owner, 2026-10-28).
 - **A screen whose check fails on its panel** (§9.11) and cannot
   be put right in its directory's values is not supported on the Pi: `docs/HARDWARE.md` §6 lists it with what failed,
   and it gets no image of its own. One case is
@@ -352,10 +352,10 @@ unmounts it before the app starts.
 
 ### 3.6 Every Pi, and screens listed before they are tried
 
-- **The image starts every Pi Faraday supports** (F147). It carries the
+- **The image starts every Pi Faraday supports** (F186). It carries the
   device trees of the 3B, 3B+ and Zero 2 W, and the firmware loads the
   one for the board it starts on. The Pi 4 joins them, planned (§9).
-- **A screen may be listed before it is tried on its panel** (F147),
+- **A screen may be listed before it is tried on its panel** (F186),
   marked on the download page as looking for testers. Once it has been
   tried there, its values become fact, not data from its documentation,
   its tour is rendered at its size and in both orientations
@@ -468,7 +468,7 @@ balenaEtcher or `dd`. The README says so in a few lines per system.
 ## 7. The website
 
 The download page asks one thing, the hardware, and leads to one image
-per visit (F147): a person is getting the stick, the Pi image or the
+per visit (F186): a person is getting the stick, the Pi image or the
 Starter, and it asks nothing about screens (owner, 2026-11-03).
 
 1. **Tiles**, one per `[[hardware]]` entry of `faraday/builds.toml`, in
@@ -521,7 +521,7 @@ The Pi 4 on the same images: its 32-bit kernel, firmware and device
 tree on every Pi card, the system the same. First, for the owner:
 what it adds to the kernel's reach (USB behind PCIe, a boot loader in
 the board's EEPROM, against `docs/SECURITY-MODEL.md`), and whether
-the 2.8-inch image boots on the board with the Pi's kernel. Approved by the owner (F150) on these
+the 2.8-inch image boots on the board with the Pi's kernel. Approved by the owner (2026-10-28) on these
 terms: no boot loader update is ever on a card; SPI_SPIDEV and
 SPI_BCM2835 are forbidden in the kernel; the Pi 4 is described as close
 to a PC, its boot code on the board, and its owner is told to restore
@@ -719,7 +719,7 @@ architecture.
 | Raspberry Pi 3B / 3B+ / Zero 2 W | `boards/pi3` | 3B+ tested — the owner's device; the 3B's and Zero 2 W's device trees are on the card, built, not booted |
 | x86_64 PC with UEFI firmware | `boards/x86_64-uefi` | untested on hardware — booted in QEMU with OVMF by `faraday/tools/qemu-check.py` |
 
-The 3B, 3B+ and Zero 2 W share one card and one build (F147); nobody has
+The 3B, 3B+ and Zero 2 W share one card and one build (F186); nobody has
 booted a Zero 2 W or a 3B on it.
 
 An ARMv6 Zero — the Zero W and the original Zero — is **not** here. It

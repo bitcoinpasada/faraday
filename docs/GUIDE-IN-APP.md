@@ -278,7 +278,7 @@ Moved to `docs/history/GUIDE-IN-APP-LOG.md`.
   lists it as allowed only.
 - **`src/block.rs`** is the type `how.rs` is generated into.
 - **`src/construction.rs`** and `how.rs`'s `CONSTRUCTIONS` (the
-  accounts of a format several actions share, F159) are drawn on the
+  accounts of a format several actions share, F190) are drawn on the
   Cryptography tab after the blocks of the actions they belong to, and
   on `/cryptography`. A construction names its actions, not a page.
 - **`MAKERS`, `guide_id`, `guide_address`, `GUIDES`** are the start

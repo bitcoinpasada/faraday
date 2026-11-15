@@ -7593,7 +7593,7 @@ decision = "F206"
 [[action.own]]
 text = "Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed."
 kind = "Neutral"
-decision = "F159"
+decision = "F190"
 
 [action.review]
 places = [
@@ -7748,7 +7748,7 @@ adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules
 what = "The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` (`faraday-vault::contents`)"
 why = "only-part-used"
 note = "toml_parser reads the tokens; Faraday builds the tree and refuses what VAULT.md does not name, as the JSON visitor does over serde_json."
-decision = "F189, F190"
+decision = "F190"
 
 [action.checked]
 vectors = ["toml"]
@@ -8232,9 +8232,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "Each seal counts itself and stamps the sealing computer's clock in the file's custom data, so an older copy can be told from a newer one (F159)."
+text = "Each seal counts itself and stamps the sealing computer's clock in the file's custom data, so an older copy can be told from a newer one (F190)."
 kind = "Neutral"
-decision = "F159"
+decision = "F190"
 
 [action.review]
 places = [

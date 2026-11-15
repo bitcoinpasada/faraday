@@ -267,7 +267,7 @@ Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 Faraday Demo runs Faraday in a window on an ordinary computer, for
 trying it on testnet and for developing it. A release does not
 publish it on its own: it runs inside the Linux and Windows Faraday
-Starters (`docs/DECISIONS.md` F83, F126), and its theme there is the
+Starters (`docs/DECISIONS.md` F126), and its theme there is the
 Starter's. It has none of the stick's protections and is
 never for a seed that holds funds. It starts in Practice, a mode on
 testnet that takes only the public seeds (the user guide's key,

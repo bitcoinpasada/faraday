@@ -728,7 +728,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }
-        // The demo adds a sample in place of words made here (F20): the
+        // The demo adds a sample in place of words made here (F81): the
         // strip says which (`host`).
         if let Some(n) = &k.note {
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + 6.0;
@@ -2121,7 +2121,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 /// One SLIP-39 share at a time, its words numbered, with the way to the
 /// next.
 /// The sample the demo added in place of the key made, when it did
-/// (F20): a line under the fingerprint, which is the sample's; or the
+/// (F81): a line under the fingerprint, which is the sample's; or the
 /// sample the words made are, when it kept them.
 fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let line = match (k.kept.as_deref(), k.handed, k.fingerprint) {

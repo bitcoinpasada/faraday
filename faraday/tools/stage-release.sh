@@ -77,7 +77,7 @@
 # image always gives the same .xz.
 #
 # Before it finishes, either pass refuses a release folder that holds a
-# file whose name starts faraday-demo- (F83, F126), and names it.
+# file whose name starts faraday-demo- (F126), and names it.
 #
 # Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
@@ -425,12 +425,12 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-# Faraday Demo is not published on its own (F83) and runs inside the
+# Faraday Demo is not published on its own (F126) and runs inside the
 # Starter (F126): a release folder holding a desktop app is refused,
 # whichever pass put it there, before the second pass adds anything.
 for f in "$out"/faraday-demo-*; do
     [ -e "$f" ] || continue
-    refuse "$f is a desktop app, which a release does not publish (F83): Faraday Demo is inside the Starter (F126)"
+    refuse "$f is a desktop app, which a release does not publish: Faraday Demo is inside the Starter (F126)"
 done
 if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter

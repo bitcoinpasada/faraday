@@ -32,7 +32,7 @@
 #             hardware, as a person reads it ("Ribbon cable (DSI)")
 #
 # And one [[hardware]] entry for each piece of hardware the download page
-# offers a tile for (docs/IMAGES.md §7, F147), in the tiles' order:
+# offers a tile for (docs/IMAGES.md §7, F186), in the tiles' order:
 #
 #   id        a short name, unique; the download page's address
 #   label     the tile's name, as a person reads it

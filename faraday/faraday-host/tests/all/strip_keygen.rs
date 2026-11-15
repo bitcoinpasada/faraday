@@ -63,7 +63,7 @@ fn tall(app: &mut Faraday) {
     }));
 }
 
-/// The demo on a Create slot (F20, `docs/MODES.md` §7): the passphrase is
+/// The demo on a Create slot (F81, `docs/MODES.md` §7): the passphrase is
 /// `faraday` once Use faraday is pressed, in both fields; Lock in adds the next
 /// sample with it, saying so before and after.
 #[test]

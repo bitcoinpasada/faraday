@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`
-**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
+**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -1258,7 +1258,7 @@ The change that builds the last of this spec's open work removes its plan
 
 ## 18. Constructions: how a format is built
 
-(owner, 2026-10-28; F159.) The vault, and how strong a passphrase is,
+(owner, 2026-10-28; F190.) The vault, and how strong a passphrase is,
 need an account of their own: the file, the keys, opening and sealing,
 what the format promises and what it does not. No block holds that. This section adds it to the manifest as a
 **construction**, drawn on the Cryptography tab after its actions' blocks and on

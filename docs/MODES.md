@@ -15,7 +15,7 @@ and `docs/DEMO.md` differ, this holds.
   wallet with its keys (§5.2), or another input a flow takes (§5.3).
   "Public seed" and "the demo" leave the product's words; the mode's name
   in the product, Learn and these documents is Practice (it was Demo until
-  2026-10-26, F119); the code keeps `Demo`.
+  2026-10-26); the code keeps `Demo`.
 - **Fresh session**: what a lock leaves (`Faraday::lock`, then the
   shell's restart): no keys, no wallets, no screen state.
 
@@ -29,7 +29,7 @@ and `docs/DEMO.md` differ, this holds.
    impl Mode { pub fn network(self) -> Network /* Demo → Testnet */ }
    ```
 
-   The variant `Mode::Demo` is the mode a person reads as Practice (F119);
+   The variant `Mode::Demo` is the mode a person reads as Practice (owner, 2026-10-26);
    the code identifiers keep Demo.
 
    `Faraday::mode()` reads the state: Practice while `session.keys.demo()`,
@@ -143,7 +143,7 @@ and `docs/DEMO.md` differ, this holds.
 - `restart` reads `app.mode_after_restart()` from the app before
   replacing it, and builds `desktop_app_in` with it: the mode carries
   across a lock.
-- **No online warning** (owner, 2026-10-22). F61's `Sheet::NotAirgapped`
+- **No online warning** (owner, 2026-10-22). The `Sheet::NotAirgapped`
   goes, with `with_start_warning`, `without_airgap_warning`,
   `airgap_warned`, `test_asked`'s use for it, the `test_network_*`
   strings, the boot import's wait under it and `devices.rs`'s guard;

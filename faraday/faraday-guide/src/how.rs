@@ -1777,7 +1777,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("faraday/faraday-vault/src/file.rs", "create")],
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated by the argon2, hmac or chacha20 crates."), p("The Argon2id output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the Argon2id memory is overwritten before it is released; the passphrase's NFC form is wiped on drop (the normaliser's own buffer of combining marks is not).")],
         limits: &[p("One passphrase, non-empty; no slots, no second passphrase."), p("File sizes 64 KiB, 256 KiB, 1 MiB and 4 MiB only."), p("A vault is made at any cost the reader accepts: memory 8 MiB to 1 GiB, 1 to 100 passes, 1 to 64 lanes."), p("A cost whose memory cannot be allocated is an error that names the MiB needed."), p("A passphrase is put in Unicode NFC, and Argon2id takes that form's UTF-8 bytes.")],
-        own_calls: &[p("The file vault is one KDBX 4 file with one passphrase, padded to a multiple of 32 KiB, so a file's length says how much it holds to within 32 KiB and, between two copies, that it grew or shrank (F206). Conservative, F206."), p("Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed. Neutral, F159.")],
+        own_calls: &[p("The file vault is one KDBX 4 file with one passphrase, padded to a multiple of 32 KiB, so a file's length says how much it holds to within 32 KiB and, between two copies, that it grew or shrank (F206). Conservative, F206."), p("Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed. Neutral, F190.")],
         screens: &["CreateVault"],
     },
     Block {
@@ -1882,7 +1882,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("faraday/faraday-vault/src/file.rs", "seal")],
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated by the argon2, hmac or chacha20 crates."), p("The plaintext is a Zeroizing buffer, sized before it is grown so a refusal as too small leaves no copy; the keys are Secret values wiped on drop.")],
         limits: &[p("Refuses changes that do not fit the largest size, and names the bytes over and the next size."), p("Refuses a change the file cannot write, and keeps the vault open with its changes."), p("A vault held read only (a `faraday.format` other than the one this build writes, or a Meta or custom data that reads ambiguously) refuses every change and every seal (`Error::ReadOnly`); a KeePass app's other settings do not hold it read only."), p("Nothing is sealed before the session's answer has arrived.")],
-        own_calls: &[p("Each seal counts itself and stamps the sealing computer's clock in the file's custom data, so an older copy can be told from a newer one (F159). Neutral, F159.")],
+        own_calls: &[p("Each seal counts itself and stamps the sealing computer's clock in the file's custom data, so an older copy can be told from a newer one (F190). Neutral, F190.")],
         screens: &["VaultContents", "BackupFlow"],
     },
     Block {

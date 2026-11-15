@@ -1,5 +1,5 @@
 //! The online app (the desktop) opens in Practice, which takes only public
-//! seeds (F20, F81), and shows no warning sheet in any mode: a person can
+//! seeds (F81), and shows no warning sheet in any mode: a person can
 //! type a seed on an online computer anywhere, so every step that takes
 //! a seed or a secret says once, in a line under its field, never to
 //! type one that holds real bitcoin. The stick and the Pi say nothing.

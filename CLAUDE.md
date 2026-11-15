@@ -26,7 +26,9 @@ plan <paths>` lists the ones a change touches.
   (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
   index, then only the decision you need. A new decision is a new file
   and a row; one replaced, superseded or withdrawn moves to
-  `docs/history/decisions/` and keeps its row.
+  `docs/history/decisions/` and keeps its row. A decision also moves once it no longer binds a
+  later change and a Reference, Spec or lint holds all of it, or its
+  feature is unbuilt (F268).
 - What a change brings with it is `tools/impact.toml` (F149, narrowed by
   F258): `impact.py plan <paths>` says it for a task; `just lint` fails on
   a pair left unmet unless a commit says why (`Impact-skip: <rule>:

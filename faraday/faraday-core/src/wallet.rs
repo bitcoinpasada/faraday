@@ -979,7 +979,7 @@ impl Session {
         })
     }
 
-    /// Sets the demo up (F20, F81): the session takes only the public set
+    /// Sets the demo up (F81): the session takes only the public set
     /// `samples` holds (every sample key, with and without `password`),
     /// and New key hands out the next sample of the length chosen in
     /// place of the key it made ([`faraday_keys::Keys::next_handout`]). A

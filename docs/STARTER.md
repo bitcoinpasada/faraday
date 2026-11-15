@@ -4,7 +4,7 @@
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
 **Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system, with the sum in the Pi card's image list (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
-Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
+Decided by the owner (`docs/DECISIONS.md` F11; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
 on the sheet, never required, §6). §12 records each decision.
 
@@ -22,7 +22,7 @@ People see the app as **Faraday Starter** (owner, 2026-10-12, DECISIONS
 F16), and the code's crates use `starter` as well (DECISIONS F16,
 2026-10-14). The desktop app is **Faraday
 Demo**, which runs inside the Linux and Windows Starters' own window
-and is not published on its own (F83, F126, §5.3); the stick is Faraday.
+and is not published on its own (F126, §5.3); the stick is Faraday.
 
 ## 0. Rules for the implementing agent
 
@@ -53,7 +53,7 @@ downloads".
 | `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter |
 | `IMAGES` | the release's image list: one line per image, with its two sums, size, build, platform, screen and the boards it starts (IMAGES §4) |
 
-Faraday Demo is not a release file of its own (F83): the Linux
+Faraday Demo is not a release file of its own (F126): the Linux
 Starter and the Windows Starter each have it compiled in and run it in
 their own window (F126, §5.3).
 Faraday does not support macOS: a Mac with an Intel chip runs Windows or Linux
@@ -387,9 +387,9 @@ the computer's facts and the screen's one primary button.
 thing it opens. They hold only what is about this computer and this
 copy of the Starter; the destinations (§3.1d) hold the rest:
 
-- **Faraday Demo** (F83, F126, §5.3): one line, its version, which is
+- **Faraday Demo** (F126, §5.3): one line, its version, which is
   this Starter's, and **Open Faraday Demo**, a secondary button, which
-  shows the Demo in this window (F83).
+  shows the Demo in this window (F126).
 - **Update the installed Faraday**, a card shown only while the running
   copy is newer than the installed one (§3.5), with **Update**, a
   secondary button. Install itself is the top app bar's action
@@ -1451,9 +1451,9 @@ Uninstall remove the one an earlier Starter installed.
 ### 5.3 The desktop app from the Starter
 
 Faraday Demo runs inside the Starter (F126, owner 2026-10-25; amending
-F83's design, which carried it as a payload file, installed it and
+The design before F126, which carried it as a payload file, installed it and
 started it as a program of its own). Releases do not publish it on its
-own (F83).
+own (F126).
 
 **Inside the Starter.** The Starter's binary links Faraday Demo's shell
 side, `faraday_desktop::Demo` (`faraday/shells/desktop/src/lib.rs`: the
@@ -1646,7 +1646,7 @@ whose Secure Boot keys changed does not ask afterwards either.
   stick from the boot menu on the restart that saves Secure Boot off
   (§3.4 step 3).
 - The stick reminds at power-off (§7.5).
-- **No Microsoft account row** (F48). Nothing in the
+- **No Microsoft account row** (§6.7). Nothing in the
   Starter names a Microsoft account, so the Starter does not read the
   account type. The guides' pointer (§6.7) names the Microsoft account
   as a condition.
@@ -1719,10 +1719,10 @@ every app, so the pages change with the code that reads them).
   computers it asks for the BitLocker recovery key, as If something is
   different says."
 - **The pointer**, one paragraph under If something is different, in
-  the Windows guide and each maker page. Until F48 it read "If Windows
+  the Windows guide and each maker page. Until 2026-10-19 it read "If Windows
   asks for the BitLocker recovery key: for a computer set up with a
   Microsoft account, the key is on the account's recovery-key page,
-  aka.ms/myrecoverykey; otherwise …". F48 (owner, 2026-10-19) framed the key plainly and named the Microsoft account only as a
+  aka.ms/myrecoverykey; otherwise …". The owner (2026-10-19) framed the key plainly and named the Microsoft account only as a
   condition, but also said "It is not needed here", which F49 corrects:
   Windows may ask for it even with Secure Boot back on (§6.1). Since
   F49 it reads: "The BitLocker recovery key: with Secure Boot off,
@@ -2002,7 +2002,7 @@ removes is the second firmware visit every time, not the first.
 ### 7.8 Written directions, not firmware sketches
 
 The maker pages give written directions for the firmware's screens
-(F105, which amends F18). Firmware setup screens differ by model and
+(F105). Firmware setup screens differ by model and
 BIOS version, so the pages draw none.
 
 - **What a step says.** The key to press (§7.6); the menu or tab to
@@ -2040,10 +2040,10 @@ Windows desktop app use it alike (§2), through `faraday-window`.
 
 ## 9. Pi compatibility
 
-**Replaced by F145** (owner, 2026-10-28): one signed image per screen
+**Replaced by F185 and F186** (owner, 2026-10-28): one signed image per screen
 and build, chosen on the website and offered by the Starter from what
 it finds, is `docs/IMAGES.md`; the rest of this section is the design
-as it stood. **Before F145, one screen** (owner, D1: the Waveshare 2.8
+as it stood. **Before 2026-10-28, one screen** (owner, D1: the Waveshare 2.8
 inch DPI panel only). §9.1's checks at other sizes and §9.3's profile mechanism are
 deferred until a second screen has been tried on a Pi (owner, D5):
 with one panel the card is the image as it is built today, written
@@ -2096,7 +2096,7 @@ building.
 1. Pi 3B, 3B+ and Zero 2 W: one 32-bit image; the Zero 2 W board is in
    the tree already.
 2. Pi 4: its own kernel, firmware and device tree on the same cards as
-   the Pi 3's (`docs/IMAGES.md` §3, F147).
+   the Pi 3's (`docs/IMAGES.md` §3.6, §7).
 3. Pi 5: later, if at all. It is 64-bit only, its display goes through
    KMS (`DRM` is forbidden on every Faraday image), and its cameras
    need libcamera.
@@ -2263,7 +2263,7 @@ on 2026-10-19 (#30).
   own system's desktop app, and Windows install, Try and uninstall
   mirror Linux's (§5.2, §5.3). Its Starter parts are superseded by F30
   (2026-10-14): the Starter carried, installed and ran no desktop app.
-  F83 (2026-10-23) brought the payload, Open and install back, without
+  The owner (2026-10-23) brought the payload, Open and install back, without
   the check box (§5.3, built). F126 (2026-10-26) put Faraday
   Demo inside the Starter's window: no payload file, no install.
 - **D21 tools/flash-stick:** removed once the Starter writes a

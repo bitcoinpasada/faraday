@@ -1,7 +1,7 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
+**Status:** Specified (F190; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one.
 **Open:** not built: part of key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`, and the YubiKey's response against kdbxweb, KeeWeb's library; `faraday-keys` holds a vault's key file and secret for its seals, the Unlock screen takes a key file from Files and a YubiKey's secret, Create a vault adds a key file, made at Create or chosen from Files, and the open vault's ⋮ holds Key file and Remove YubiKey secret; not built: the YubiKey checks F208 names: KeePassXC's own test file and `keepassxc-cli` through a stand-in for the key, which judge KeePassXC's padding of the challenge)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
@@ -27,8 +27,8 @@ inside, and the vectors under `tools/vectors/vault/` settle a
 disagreement.
 
 The first format (four equal slots under Argon2id and
-XChaCha20-Poly1305, `.fvlt`) and the age format F189 chose before it are
-read by nothing (F189 point 10). No vault exists anywhere, so nothing is
+XChaCha20-Poly1305, `.fvlt`) and the age format before it are
+read by nothing (F190 point 9). No vault exists anywhere, so nothing is
 migrated.
 
 ## 1. The file
@@ -212,7 +212,7 @@ says more until Faraday seals it again.
 ### 2.1 The QR size
 
 A QR vault is an OpenPGP message (§1.2) and holds one item, a note, or
-nothing yet (F189 point 6, F190 point 5): a
+nothing yet (F190 points 5 and 9): a
 seed's words (12 or 24 words of the English list, as a SeedQR's are; a
 Seed XOR part is 24), a codex32 share, a BIP-39 passphrase with the
 fingerprint of the key it belongs to, or any text typed into it. No
@@ -221,8 +221,7 @@ seed of another list or word count, and a longer text go in a file
 vault.
 
 Its contents, the literal data of §1.2, are the item's keys at the top
-of a TOML v1.0.0 document, a rule of Faraday's own (F189 point 6, kept
-by F190 point 5), written one to a line: a seed is `words = "…"`; a codex32
+of a TOML v1.0.0 document, a rule of Faraday's own (F190 points 5 and 9), written one to a line: a seed is `words = "…"`; a codex32
 share is `codex32 = "…"` and `for = "…"` (the fingerprint of its key);
 a passphrase is `passphrase = "…"` and `for = "…"` (the fingerprint of the key the words make with that passphrase, as in a file vault, §7); a note is
 `note = "…"`. At most one of `words`, `codex32`, `passphrase` and
@@ -267,8 +266,8 @@ Starter does not scan or print a QR vault.
 The passphrase is put in Unicode NFC (Unicode Standard Annex #15), and
 both formats take the NFC form's UTF-8 bytes: the KDBX composite key is
 made from them (§1.1) and the OpenPGP S2K takes them as its passphrase
-(§1.2). Two passphrases with one NFC form are one passphrase (F159
-point 2). Nothing else is done to it: no character is mapped or refused,
+(§1.2). Two passphrases with one NFC form are one passphrase (F190
+point 9). Nothing else is done to it: no character is mapped or refused,
 and compatibility characters ("ﬁ", "Ａ"), case and spaces are kept as
 typed. KeePass apps and `sq` do not put a passphrase in NFC: a vault
 whose passphrase has a character with two forms opens there only when
@@ -849,7 +848,7 @@ The vault's own values are the database's:
 | `faraday.sealed` | the time of the last seal, an RFC 3339 date-time in UTC (`2026-10-28T14:02:00Z`) by the clock of the computer that sealed it; absent when that clock was not set. |
 | `faraday.signed.{tx}` | one per transaction: `{tx}` the SHA-256 of an unsigned transaction in lower-case hex, the value the amount each input stated, in satoshis, comma-separated, in order. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full. |
 | `faraday.nonces.{tx}` | One per transaction, `{tx}` as `faraday.signed.{tx}` names it: the signatures of that transaction the nonce check found valid, each `{key}:{r}:{msg}` in lower-case hex (the x coordinate of its key, its nonce point, the message it verified against; 32 bytes each), comma-separated, with no version field. Written into every open vault at a seal when Nonce history is on (`docs/FLOWS.md`, Nonce check); a transaction checked again with new entries is written again as the newest; past 10,000 entries in a vault the oldest transaction is dropped first. Record type 17: field 1 the tx (32 bytes, required), field 2 an entry (96 bytes, required, repeated). |
-| `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of F189's `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
+| `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of the `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
 
 **An entry** is a KeePass entry with no `faraday.kind`: the person's
 password entries, whether Faraday made them or a KeePass app did.
@@ -1213,7 +1212,7 @@ never by its name, with the plan's.
 **Create a vault** on Vaults takes a name, the memory step (§3.1) and a
 passphrase typed twice; it refuses an empty passphrase. It asks for no
 size: a file vault starts at 32 KiB and grows by itself (§2). **Add randomness** is offered before the vault is made
-(F189 point 8, `docs/OWN-RANDOMNESS.md` §2.2). Making it draws the
+(F190 points 8 and 9, `docs/OWN-RANDOMNESS.md` §2.2). Making it draws the
 identifier and seals the empty database (its custom data alone) as the
 first seal, count 1.
 

@@ -16,7 +16,7 @@ it.
 | The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (one build, with `efi=disable_early_pci_dma` on its command line); an Intel Mac runs it as a PC (`docs/guide/start/mac-intel.md`) | released; booted in QEMU with OVMF (`docs/IMAGES.md` §10.2) and on a laptop (the kernel with `efi=disable_early_pci_dma`, 2026-10-31) |
 | The Pi, the 2.8-inch screen | `faraday-pi-X.Y.Z.img.xz` (`just faraday-pi-image`), one image for every Pi screen | a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8-inch DPI panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2, §3) | built, not tried on the one image: looking for testers (the earlier 2.8-inch image was tried on the panel) |
 | The Pi, HDMI screen | the same file | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers |
-| The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same screens | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
+| The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same screens | built, not tried: the Pi image carries its device tree (F186); nobody has booted it on a Zero 2 W |
 | Faraday Demo | inside the Linux and Windows Starters (`docs/DEMO.md` §1) | Linux and Windows, x86_64 | released, for trying Faraday: not air-gapped |
 | The Starter | `Faraday-Starter-X.Y.Z-Linux.tar.gz`, `-Windows.exe` (`docs/STARTER.md` §1.1) | Linux and Windows, x86_64 | released on Linux and Windows |
 

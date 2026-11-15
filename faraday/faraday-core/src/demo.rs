@@ -1,4 +1,4 @@
-//! What Practice refuses (F20, F81). A session set up for the demo
+//! What Practice refuses (F81). A session set up for the demo
 //! ([`crate::wallet::Session::set_demo`], on Testnet) takes only the
 //! samples (`crate::samples`).
 

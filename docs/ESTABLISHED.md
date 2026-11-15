@@ -683,7 +683,7 @@ area: 30 `outside`, 27 `outside-and-own`, 9 `own`; 28 name none, of
 which the six GnuPG actions, the three Secure Boot actions and
 `starter-signed` are judged by outside programs in required tests.
 Since then three vault actions have been added with no area
-(`vault-contents`, `vault-kdbx`, `vault-qr-pgp`, for F189's and F190's
+(`vault-contents`, `vault-kdbx`, `vault-qr-pgp`, for F190's
 vault): 66 of 97 name an area, 31 none.
 
 ### 9.1 The words
@@ -759,7 +759,7 @@ vendored; embit is taken in full only with Specter's importer, not now;
 btclib's change rule comes first and Core's wallet second; aezeed gets
 a run with the software AES round; Node, a JVM, Swift and .NET are not
 taken now; libsecp256k1's silent payments module is not a reference.
-The vault waited for an outside reviewer (F192 point 7); since F189 and
+The vault waited for an outside reviewer (F192 point 7); since
 F190 it is two published formats that others' code reads, judged as
 F190 point 11 and `docs/VAULT.md` §10 say (§9.4), and §9.8 is
 withdrawn.
@@ -950,5 +950,5 @@ Moved to `docs/history/ESTABLISHED-LOG.md`.
 ### 9.8 Not decided: a vault reader written from VAULT.md alone
 
 Withdrawn: the container it would have read, Faraday's own FVLT format,
-is replaced by KDBX 4 and RFC 9580, which others' code reads (F189);
+is replaced by KDBX 4 and RFC 9580, which others' code reads (F190);
 the vault is judged by the programs `docs/VAULT.md` §10 names.

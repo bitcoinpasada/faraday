@@ -457,7 +457,7 @@ fn device_key(answer: [u8; 32]) -> Faraday {
     app
 }
 
-/// New key in the demo on mainnet (F20): the key is made from the
+/// New key in the demo on mainnet (F81): the key is made from the
 /// generator's answer as ever, and the session adds the next public seed
 /// not loaded in its place; without the demo, as on the device, the key
 /// made is the key added.

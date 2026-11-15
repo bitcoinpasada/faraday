@@ -369,7 +369,7 @@ struct Demo {
 }
 
 /// The session's keys, the network every one derives for, and the demo's
-/// public seeds when the shell set it (F20).
+/// public seeds when the shell set it (F81).
 pub struct Keys {
     entries: Vec<Entry>,
     /// The network every key derives for and every address is shown on.
@@ -710,7 +710,7 @@ impl Keys {
 
     // ---- adding and forgetting ----
 
-    /// Sets the demo up (F20, F81). A lookup: the fingerprints are
+    /// Sets the demo up (F81). A lookup: the fingerprints are
     /// literals the samples crate's tests check. `handouts` are what New
     /// key hands out, `public` every fingerprint the demo takes (a key
     /// that takes a passphrase is there with none and with `faraday`),

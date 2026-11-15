@@ -1661,7 +1661,7 @@ impl crate::Faraday {
         };
         // The demo adds its next sample of this length in place of the key
         // just made, which goes unused, with the passphrase chosen on the
-        // Key card, which is `faraday` (`Keys::next_handout`, F20,
+        // Key card, which is `faraday` (`Keys::next_handout`, F81,
         // `docs/MODES.md` §7); words that are a sample's own stay.
         let handed = self
             .session

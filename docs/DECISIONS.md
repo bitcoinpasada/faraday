@@ -26,15 +26,15 @@ Read this table, then only the decision you need.
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
 | [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Amended by F137, F140 | design |
 | [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128, F133, F247 | Starter |
-| [F12](decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
+| [F12](history/decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Superseded by F268 | Starter |
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30, F257 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
 | [F15](history/decisions/F15.md) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
 | [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119, F126, F165 | Starter |
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
-| [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
+| [F18](history/decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Superseded by F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
-| [F20](decisions/F20.md) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Amended by F81, F252 | platforms |
+| [F20](history/decisions/F20.md) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Superseded by F81 | platforms |
 | [F21](history/decisions/F21.md) | The BitLocker step is optional | 2026-10-14 | Superseded by F33 | Starter |
 | [F22](decisions/F22.md) | An armored GPG public key or signature is public | 2026-10-14 | Amended by F32 | signing |
 | [F23](decisions/F23.md) | The PC stick's kernel is 6.18 longterm, ahead of upstream's | 2026-10-14 | Active | stick |
@@ -50,7 +50,7 @@ Read this table, then only the decision you need.
 | [F33](decisions/F33.md) | Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion | 2026-10-14 | Amended by F34, F48, F49 | Starter |
 | [F34](decisions/F34.md) | Faraday Companion is dropped | 2026-10-15 | Amended by F99 | platforms |
 | [F35](decisions/F35.md) | A wallet's backup plan is asked place by place | 2026-10-15 | Active | backup |
-| [F36](decisions/F36.md) | Numbered stick pills on every device | 2026-10-15 | Active | stick |
+| [F36](history/decisions/F36.md) | Numbered stick pills on every device | 2026-10-15 | Superseded by F268 | stick |
 | [F37](decisions/F37.md) | The backup plan is a board of places | 2026-10-15 | Active | backup |
 | [F38](history/decisions/F38.md) | Access layers | 2026-10-16 | Withdrawn | backup |
 | [F39](decisions/F39.md) | One page colour; steps are sections, not cards | 2026-10-16 | Active | design |
@@ -62,7 +62,7 @@ Read this table, then only the decision you need.
 | [F45](decisions/F45.md) | Keys from a vault in Create; a new wallet from one you have | 2026-10-19 | Active | wallets |
 | [F46](history/decisions/F46.md) | Access layers: layers first, a paper route for every layer | 2026-10-19 | Withdrawn | backup |
 | [F47](decisions/F47.md) | Three things to write down before the restart, and a sheet to print | 2026-10-19 | Active | Starter |
-| [F48](decisions/F48.md) | The recovery key, framed plainly; no Microsoft account row | 2026-10-19 | Amended by F49 | Starter |
+| [F48](history/decisions/F48.md) | The recovery key, framed plainly; no Microsoft account row | 2026-10-19 | Superseded by F268 | Starter |
 | [F49](decisions/F49.md) | The Starter offers to suspend BitLocker and to print its recovery key | 2026-10-19 | Active | Starter |
 | [F50](decisions/F50.md) | OSKDATA keeps its drive letter; a computer's own files are ignored by name | 2026-10-19 | Active | stick |
 | [F51](decisions/F51.md) | A flow is left by Cancel inside it | 2026-10-19 | Active | design |
@@ -75,7 +75,7 @@ Read this table, then only the decision you need.
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
 | [F59](history/decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Replaced by F99 | signing |
 | [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62, F130 | stick |
-| [F61](decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Amended by F81, F83 | release |
+| [F61](history/decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Superseded by F81 and F126 | release |
 | [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
 | [F63](decisions/F63.md) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
 | [F64](decisions/F64.md) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
@@ -97,7 +97,7 @@ Read this table, then only the decision you need.
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128, F174, F182 | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143, F247 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Amended by F257 | design |
-| [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Amended by F126 | release |
+| [F83](history/decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Superseded by F126 | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
 | [F85](decisions/F85.md) | Text size: Standard, Large, Larger, and the layout steps down for it | 2026-10-23 | Active | design |
 | [F86](decisions/F86.md) | Your own randomness is mixed into the session's; the stick's kernel credits what it says it does | 2026-10-23 | Amended by F102, F124, F157 | security |
@@ -124,7 +124,7 @@ Read this table, then only the decision you need.
 | [F107](history/decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Superseded by F240 | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Amended by F113, F152, F188 | design |
 | [F109](history/decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Superseded by F234 | wallets |
-| [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
+| [F110](history/decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Superseded by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Amended by F240, F247 | design |
 | [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138 | design |
@@ -133,7 +133,7 @@ Read this table, then only the decision you need.
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
 | [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
 | [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
-| [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Amended by F126 | design |
+| [F119](history/decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Superseded by F268 | design |
 | [F120](decisions/F120.md) | Settings' theme chips are filled in their own theme's colours; the chosen one is ringed | 2026-10-25 | Active | design |
 | [F121](decisions/F121.md) | No codex32 strings for a key of words | 2026-10-26 | Active | backup |
 | [F122](decisions/F122.md) | Make a new wallet: one press takes a stick, and Check opens the backup | 2026-10-26 | Active | backup |
@@ -159,12 +159,12 @@ Read this table, then only the decision you need.
 | [F142](decisions/F142.md) | A stick's pill is filled in its tone while the stick is in, its tones set by mode and contrast | 2026-10-27 | Active | design |
 | [F143](decisions/F143.md) | The user guide's key is a Practice sample, and New key keeps a sample's own words | 2026-10-27 | Active | design |
 | [F144](decisions/F144.md) | With no one holding an earlier build's files, the formats drop the names before Faraday's, and another program's PSBT records are signed past | 2026-10-28 | Active | wallets |
-| [F145](decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Amended by F147, F150, F153, F185, F186 | release |
+| [F145](history/decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Superseded by F185 and F186 | release |
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
-| [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Amended by F150, F185, F186, F198 | release |
+| [F147](history/decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Superseded by F185 and F186 | release |
 | [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197, F247, F259 | security |
 | [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151, F258 | repository |
-| [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
+| [F150](history/decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Superseded by F185 and F186 | release |
 | [F151](history/decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Replaced by F258 | repository |
 | [F152](decisions/F152.md) | Touch targets are tested over the snapshot tours, and a press cannot be made without its state layer | 2026-10-28 | Amended by F188 | design |
 | [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185, F202, F205, F221 | security |
@@ -172,17 +172,17 @@ Read this table, then only the decision you need.
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
 | [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
-| [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Amended by F160, F189 | security |
-| [F159](decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Amended by F189, F247 | security |
+| [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix and the Secure Boot generator | 2026-10-28 | Amended by F160, F189, F268 | security |
+| [F159](history/decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Superseded by F190 | security |
 | [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190, F192 | crypto |
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Amended by F176 | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
-| [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Amended by F237 | crypto |
+| [F164](history/decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Superseded by F268 | crypto |
 | [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |
 | [F166](decisions/F166.md) | A BIP-85 child seed's parent is kept only in a vault, when the person records it; nothing outside one says so; a wallet made over one says so once | 2026-10-29 | Amended by F247 | keys |
 | [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Amended by F173 | keys |
-| [F168](decisions/F168.md) | The Nonce check page carries the rail's two touch-target exceptions every rail page carries | 2026-10-29 | Active | design |
+| [F168](history/decisions/F168.md) | The Nonce check page carries the rail's two touch-target exceptions every rail page carries | 2026-10-29 | Superseded by F268 | design |
 | [F169](decisions/F169.md) | A GPG key is restored from its paperkey and its public certificate | 2026-10-29 | Active | crypto |
 | [F170](decisions/F170.md) | The vault area's code stays together for auditability, not split per screen | 2026-10-29 | Active | repository |
 | [F171](decisions/F171.md) | A WIF private key is swept, never kept: a sheet of its addresses, its PSBT reviewed against the loaded wallets and signed with a hold | 2026-10-29 | Active | keys |
@@ -203,7 +203,7 @@ Read this table, then only the decision you need.
 | [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187, F198 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
-| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190, F226 | security |
+| [F189](history/decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Superseded by F190 | security |
 | [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208 and F211 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 and F211 | crypto |
@@ -212,10 +212,10 @@ Read this table, then only the decision you need.
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Amended by F248 | repository |
 | [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Amended by F239, F247, F259 | repository |
-| [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |
+| [F198](history/decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Superseded by F268 | release |
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
-| [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
-| [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |
+| [F200](history/decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Superseded by F268 | design |
+| [F201](history/decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Superseded by F268 | design |
 | [F202](decisions/F202.md) | A USB pointer approves itself by pressing targets in a row while nothing trusted can point, and tries at a target are counted for the session, and a device present at start is trusted | 2026-11-04 | Amended by F218 | security |
 | [F203](decisions/F203.md) | A vault's name taken by a file nothing proves is a question: overwrite or save beside | 2026-11-04 | Active | security |
 | [F204](decisions/F204.md) | SLIP-39's set actions are in Convert a seed; codex32's stay with the backup | 2026-11-04 | Active | keys |
@@ -223,7 +223,7 @@ Read this table, then only the decision you need.
 | [F206](decisions/F206.md) | A file vault grows by itself: no size to choose, 32 KiB steps, up to 128 MiB as long as it fits in memory | 2026-11-04 | Active | security |
 | [F207](decisions/F207.md) | A KeePass file keeps its entry history and recycle bin, written back and never shown | 2026-11-04 | Active | security |
 | [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Amended by F257 | security |
-| [F209](decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Active | design |
+| [F209](history/decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Superseded by F268 | design |
 | [F210](decisions/F210.md) | The fuzz run before a release may run on GitHub Actions, started by hand, under F183's limits | 2026-11-04 | Active | repository |
 | [F211](decisions/F211.md) | The QR vault's judges: PyCA's primitives, sq reads only and shares Argon2, rPGP the only outside sealer | 2026-11-04 | Active | crypto |
 | [F212](decisions/F212.md) | GitHub's cache may hold compiled dependencies, never Faraday's own crates, written only by a push to main | 2026-11-04 | Active | repository |
@@ -251,7 +251,7 @@ Read this table, then only the decision you need.
 | [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Amended by F257 | wallets |
 | [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Amended by F255 | stick |
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
-| [F237](decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Active | crypto |
+| [F237](history/decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Superseded by F268 | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
 | [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Amended by F259 | repository |
 | [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Active | wallets |
@@ -267,7 +267,7 @@ Read this table, then only the decision you need.
 | [F249](history/decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Replaced by F264 | standards |
 | [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; the `lint-macos` recipe stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
-| [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |
+| [F252](history/decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Superseded by F268 | platforms |
 | [F254](decisions/F254.md) | An output is change only of the wallet the inputs spend, and a wallet of several keys comes in only through one sheet that shows its keys | 2026-11-14 | Active | wallets |
 | [F257](decisions/F257.md) | What nobody can run or reach leaves the tree: the macOS code, silent-payment sending, the Liana-shape recovery builder, own-against-own cross-check areas, the typed YubiKey secret and Guided mode's walk-through | 2026-11-14 | Active | repository |
 | [F258](decisions/F258.md) | The impact registry keeps only the pairs and what reads them; review rules are a checklist in the reviewer's file and the area documents | 2026-11-14 | Active | repository |
@@ -280,3 +280,4 @@ Read this table, then only the decision you need.
 | [F265](decisions/F265.md) | A push to main whose head commit already passed the check (run by hand on a branch) runs nothing again; the caches are still saved by main when a manifest changed | 2026-11-14 | Active | repository |
 | [F264](decisions/F264.md) | The Argon QR Vault and its test tool live in their own repository; Faraday keeps nothing for them but `faraday-window`'s default feature | 2026-11-14 | Active | standards |
 | [F266](decisions/F266.md) | The Linux Starter always draws its own close button | 2026-11-14 | Active | starter |
+| [F268](decisions/F268.md) | Decisions that no longer bind move to history | 2026-11-14 | Active | repository |

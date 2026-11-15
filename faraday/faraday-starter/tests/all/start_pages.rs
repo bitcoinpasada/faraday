@@ -175,10 +175,10 @@ fn the_windows_guide_and_each_maker_page_say_the_key_may_be_asked_for_and_where_
         let p = different.paragraphs[0];
         assert!(p.starts_with("The BitLocker recovery key:"), "{id}: {p}");
         assert!(p.contains("Temporarily suspend BitLocker"), "{id}");
-        // F49 corrects F48: the key can be needed.
+        // F49: the key can be needed.
         assert!(!p.contains("not needed"), "{id}");
         // Where it is on this computer, and the Microsoft account's page
-        // only as a condition (F48).
+        // only as a condition (`docs/STARTER.md` §6.7).
         assert!(p.contains("Back up your recovery key"), "{id}");
         assert!(p.contains("manage-bde -protectors -get C:"), "{id}");
         assert!(p.contains("aka.ms/myrecoverykey"), "{id}");

@@ -496,10 +496,10 @@ def schema_sources(e, d):
 
 def decision_problem(c, value):
     """Why a `decision` value is not accepted, else None: it names decisions (`F178`, or
-    `F189, F190` for a piece two decisions accept), each a file in docs/decisions/ whose Status is
+    `F190, F206` for a piece two decisions accept), each a file in docs/decisions/ whose Status is
     Active or Amended by. A decision moved to history is not one."""
     if not (str_ok(value) and re.fullmatch(r"F\d+(, F\d+)*", value)):
-        return f"`decision` {value!r} is not a decision (F178) or decisions (F189, F190)"
+        return f"`decision` {value!r} is not a decision (F178) or decisions (F190, F206)"
     for n in re.findall(r"F\d+", value):
         text = c.read(f"{DECISIONS_DIR}/{n}.md")
         m = re.search(r"^\*\*Status:\*\*\s*(.*)$", text, re.M)

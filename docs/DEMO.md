@@ -1,14 +1,14 @@
 # Practice, and Faraday Demo for developers
 
 **Kind:** Reference
-**Status:** Built (F30, F61, F81; Practice's aids in Faraday Demo's host strip, §14, F118)
+**Status:** Built (F30, F81, F126; Practice's aids in Faraday Demo's host strip, §14, F118)
 
 ## 1. The decision
 
 1. Faraday Starter on Linux and Windows has Faraday Demo compiled in:
    **Open Faraday Demo** on Home shows it in the Starter's own window,
-   under the Starter's top app bar (F126, which amends F83; F83 amends
-   F30 and F61). It is not installed and not a release file. Releases
+   under the Starter's top app bar (F126, which amends F30;
+   F81 holds the rest). It is not installed and not a release file. Releases
    do not publish it on its own.
 2. The code and its builds stay: `faraday/shells/desktop`, `cargo build
    -p faraday-desktop`, `just faraday-linux-bin` (whose default package
@@ -22,7 +22,7 @@
    own download, is the way to try Faraday.
 4. Practice lets people open every tab and screen, and every action
    that would make a secret is disabled. Bitcoin use with the eleven
-   public seeds stays fully open, as F20 has it. Practice is for trying
+   public seeds stays fully open, as F81 has it. Practice is for trying
    Faraday out, not for testing it exhaustively.
 
 ## 2. What Practice is now
@@ -52,13 +52,13 @@ action in §4 asks it, in two places: the screen draws the action with
 false, so a key press, a click, a shell message or a test's action all
 meet the same refusal. No action in §4 has a path around it.
 
-**Test networks in Faraday Demo** keep F20's rules: any seed, real
+**Test networks in Faraday Demo** keep F81's rules: any seed, real
 addresses, no warning sheet. `Keys::demo()` is false there, so every
 action in §4 is live on a test network, which is how a developer tries
 Make flows without a stick. A key made there is a real key made on an
 online computer; the line under every field that takes a seed or a secret
 is the guard, in every mode, and the released files are named testnet
-only (F61). F27's rule is
+only (F81). F27's rule is
 separate and stands: no Nostr key while `Faraday::online` is set, on
 any network.
 
@@ -74,7 +74,7 @@ new secret: they are public.
 
 Two actions are open with their result replaced (owner, 2026-10-14):
 New key, whose sources all run and whose key is replaced by the next
-public seed (§5.1, F20), and **Generate with dice** for a vault
+public seed (§5.1, F81), and **Generate with dice** for a vault
 passphrase, whose rolls run and whose words are replaced by `faraday`,
 the one passphrase of Practice (§5.2). What they make is shown and then
 dropped, never kept.
@@ -112,7 +112,7 @@ public values work; only the actions in the table are disabled.
 
 - **Keys**: typing, scanning or reading a public seed in any form (words,
   SeedQR, CompactSeedQR, SLIP-39 shares, Seed XOR parts, codex32), refused unless it is a
-  public seed (F20); a passphrase, chosen and never typed: it is `faraday`
+  public seed (F81); a passphrase, chosen and never typed: it is `faraday`
   (§5.4); **Load samples**,
   the pill beside the Practice pill, which loads ticked sample wallets and
   sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`

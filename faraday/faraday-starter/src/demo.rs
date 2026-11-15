@@ -36,7 +36,7 @@ pub(crate) struct Held {
 
 impl Starter {
     /// Whether Home offers Open Faraday Demo: on Linux and Windows. The
-    /// macOS Starter offers none (F83). A lookup.
+    /// macOS Starter offers none (F126). A lookup.
     pub fn offers_desktop(&self) -> bool {
         self.computer.os != Os::MacOs
     }
