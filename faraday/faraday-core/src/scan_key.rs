@@ -1065,7 +1065,7 @@ impl Faraday {
             .camera
             .scan()
             .is_some_and(|s| s.purpose == ScanPurpose::Seed)
-            || (self.sheet == Some(Sheet::Scan) && !self.stick.is_empty())
+            || (self.sheet == Some(Sheet::Scan) && self.stick.in_the_way())
         {
             return false;
         }
@@ -1156,7 +1156,7 @@ impl Faraday {
         // A stick plugged in while the camera is on is held back, and no
         // key loads while it is attached: what loads one is not read.
         if camera
-            && !self.stick.is_empty()
+            && self.stick.in_the_way()
             && matches!(
                 purpose,
                 ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_)
@@ -1860,7 +1860,7 @@ impl Faraday {
         // It turns the camera on, which a stick in or a held device
         // forbids: the press waits under its sheet (`pull_what`), and is
         // run again when it is let through.
-        if !self.stick.is_empty() {
+        if self.stick.in_the_way() {
             return;
         }
         if let Some(scan) = self.camera.scan.as_mut()
@@ -2093,7 +2093,7 @@ impl Faraday {
     /// waiting for it.
     fn files_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>, camera: bool) {
         let c = self.compute();
-        let sticks = !self.stick.is_empty();
+        let sticks = self.stick.in_the_way();
         // What do you have?: a seed asks how it loads, a share of a key
         // goes to Add a key's form for it, any other secret is named, and
         // anything else goes to Files below and the camera stays on.

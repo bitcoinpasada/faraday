@@ -318,3 +318,22 @@ fn the_potential_wallet_waits_for_its_passphrase_typed_twice_alike() {
     assert!(app.session.keys.is_empty(), "no key was loaded");
     assert!(app.potential().is_some(), "the sheet stays");
 }
+
+#[test]
+fn storage_the_kernel_shows_but_the_disk_process_never_listed_stops_typing_a_passphrase() {
+    let c = testkit::compute();
+    let mut app = with_inbox(vec![("summer-words.txt".to_string(), words("summer"))]);
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    app.storage(StorageEvent::Attached(true));
+    assert!(app.sticks().is_empty());
+    app.press(Action::PotentialType);
+    type_text(&mut app, "TREZOR");
+    assert!(
+        !app.potential().unwrap().typing,
+        "the passphrase field took typing with storage attached"
+    );
+    app.storage(StorageEvent::Attached(false));
+    app.press(Action::PotentialType);
+    assert!(app.potential().unwrap().typing);
+}

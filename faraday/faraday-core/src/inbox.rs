@@ -1369,7 +1369,7 @@ impl Faraday {
             }
             KeyIn::Enter => self.potential_make(),
             // Nothing secret is typed with a stick attached.
-            _ if !self.stick.is_empty() => {}
+            _ if self.stick.in_the_way() => {}
             KeyIn::Char(c) if !c.is_control() => {
                 if let Some(p) = self.inbox.potential.as_mut()
                     && p.typing
@@ -1748,13 +1748,13 @@ impl Faraday {
             }
             Action::PotentialType => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.typing = self.stick.is_empty();
+                    p.typing = !self.stick.in_the_way();
                     p.typing_again = false;
                 }
             }
             Action::PotentialTypeAgain => {
                 if let Some(p) = self.inbox.potential.as_mut() {
-                    p.typing = self.stick.is_empty();
+                    p.typing = !self.stick.in_the_way();
                     p.typing_again = true;
                 }
             }
