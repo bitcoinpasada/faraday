@@ -48,17 +48,6 @@ pub(crate) fn busy_line(app: &View, ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f
     busy_bar(app, ui, (x, y + h - tokens::PROGRESS_H, w), b);
 }
 
-/// A screen's walk-through in Guided mode, under its title. Returns the
-/// height it took: nothing in Steps only.
-pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    if !app.guided() {
-        return 0.0;
-    }
-    let h = ui.wrap_as((x + 14.0, y, w - 14.0), BODY_M, Role::OnSurface, text);
-    ui.fill(x, y, 3.0, h, 1.5, Role::Primary.paint());
-    h + 18.0
-}
-
 /// The caution under a field where a seed or a secret is typed or
 /// pasted, where `Faraday::seed_line` is set (the desktop) only: a statement of fact in the caution
 /// tone, in every mode. `y` is where the room under the field starts,

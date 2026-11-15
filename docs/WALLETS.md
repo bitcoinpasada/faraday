@@ -129,7 +129,7 @@ is a list of them.
 | **Load** | A wallet in any form (§3.2). Builds the wallet card, routing itself to the right kind. |
 | **Signers** | The wallet card's slots, filled for signing (§2). |
 | **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2). An address is checked against every loaded wallet's first 100 receive and change addresses by **Check an address** (Tools, Transactions), and a miss can **Look further**, to 1,000 or 10,000 of each chain in every loaded wallet, with **Stop**. |
-| **Transaction** | A PSBT by scan, a file in Files or typing. The review in sentences with the full table one choice away; every warning from one function, never softened for guided mode (§3.3). |
+| **Transaction** | A PSBT by scan, a file in Files or typing. The review in sentences with the full table one choice away; every warning from one function, never softened (§3.3). |
 | **Txid** | The transaction id before anyone signs, for native SegWit and Taproot spends; refused for legacy and P2SH-wrapped inputs, whose id changes on signing. |
 | **Sign** | Signs with every key held, producing one partly signed PSBT per key, the form separate devices would give. |
 | **Collect** | **Signatures for this transaction**: cosigners' PSBTs by scan, file or Files. Each signature is verified against its key and this transaction's sighash; a PSBT for another transaction is refused, never merged. The collection belongs to the transaction, so reviewing again keeps it. |
@@ -662,7 +662,7 @@ wallet card's line under its shape says the same in one line ("Backup:
 paper ×2 checked · vault.kdbx · for the stick", or "Not backed up") and
 opens Backups on that wallet.
 
-## 6. Guided mode
+## 6. One way every flow draws
 
 The same steps and the same engine serve someone inheriting bitcoin, so
 the same paper gives the same addresses and byte-identical signatures,
@@ -670,12 +670,11 @@ and every warning is word for word the same, from the same function.
 That path is the **Spend** tab (`docs/SPEND-FROM-BACKUP.md`): its first question is
 *What do you have?*, and its order, wording and folds are written there.
 
-A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in
-progress carries over between them. The choice is one setting for every
-flow, kept with the others; Steps only is on the left, and is where a
-first start is, on a device that has never had a setting saved (F82):
-a working screen carries no explanation unless the person turns Guided
-on.
+Every flow draws as Steps only drew it: a working screen carries labels,
+values and actions and no explanation. The explanations are in the guide
+(`docs/guide/`), opened by the help button at the step the person is on
+(`docs/GUIDE-IN-APP.md`). A settings file with an old `guided=` line
+still loads and the line is ignored.
 
 ## 7. Tools
 

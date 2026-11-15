@@ -1106,7 +1106,7 @@ checked, or named for review.
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
 | The former Learn pages (since removed) | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
 | `docs/guide/` pages | What a screen's control computes | Named for review |
-| `faraday/faraday-strings/src/en.rs` | Strings that state a construction: Settings' Guided explainers, the Tools tiles' lines | Named for review |
+| `faraday/faraday-strings/src/en.rs` | Strings that state a construction: the Tools tiles' lines | Named for review |
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
 | `docs/deps/` | A primitive crate's page: `**Cryptography:** computes` | Checked (§4.1) |
 | `SECURITY.md`, `docs/AUDIT-SUBMISSIONS.md` | The scope an audit is asked to cover | Named for review |

@@ -41,7 +41,7 @@ pub fn is_file(name: &str) -> bool {
 }
 
 /// The settings: what the person chose for the display, motion, QR
-/// speed, idle times, time zone and guided mode. Its fields are private;
+/// speed, idle times and time zone. Its fields are private;
 /// the rest of the crate reads them through the accessors and changes
 /// them through the methods.
 pub(crate) struct Settings {
@@ -76,8 +76,6 @@ pub(crate) struct Settings {
     /// The time zone, minutes east of UTC (`docs/TOTP.md` §2.1): −720 to
     /// +840, a multiple of 15.
     tz_min: i16,
-    /// Guided mode: flows show their written walk-through.
-    guided: bool,
     /// Faraday Demo's host holds the app (`docs/DESKTOP-HOST.md`):
     /// its stick pills, Load samples, the preview size and every demo
     /// aid stand in the host's strip, outside the app, so the app draws
@@ -99,11 +97,6 @@ impl Default for Settings {
             qr_frame_ms: crate::QR_SPEEDS[0],
             idle_off_min: crate::IDLE_OFF_MIN,
             tz_min: 0,
-            // A device that has never had a setting saved opens Steps
-            // only; Guided, with its explanations, is a choice (F82). A saved
-            // value, from the kept state or the boot stick's settings
-            // file, overwrites this before the person sees a screen.
-            guided: false,
             hosted: false,
         }
     }
@@ -181,11 +174,6 @@ impl Settings {
         self.tz_min
     }
 
-    /// Whether guided mode is on.
-    pub(crate) fn guided(&self) -> bool {
-        self.guided
-    }
-
     /// Whether Faraday Demo's host holds the app.
     pub(crate) fn hosted(&self) -> bool {
         self.hosted
@@ -226,11 +214,6 @@ impl Settings {
         self.qr_frame_ms = ms;
     }
 
-    /// Sets guided mode.
-    pub(crate) fn set_guided(&mut self, on: bool) {
-        self.guided = on;
-    }
-
     /// Steps the time zone by `delta` minutes, stopping at −12:00 and
     /// +14:00.
     pub(crate) fn step_tz(&mut self, delta: i16) {
@@ -241,7 +224,7 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}guided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}qr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
             self.orientation.id(),
             self.theme.name.id(),
@@ -255,7 +238,6 @@ impl Settings {
                 Some(false) => "motion=full\n",
                 None => "",
             },
-            u8::from(self.guided),
             self.qr_frame_ms,
             self.idle_lock_min,
             self.idle_off_min,
@@ -316,11 +298,8 @@ impl Settings {
                 "full" => self.reduce_motion = Some(false),
                 _ => {}
             },
-            "guided" => match value {
-                "1" => self.guided = true,
-                "0" => self.guided = false,
-                _ => {}
-            },
+            // Kept in files written before Guided mode was taken out.
+            "guided" => {}
             "qr-ms" => {
                 if let Ok(ms) = value.parse::<u64>()
                     && crate::QR_SPEEDS.contains(&ms)
@@ -686,10 +665,5 @@ impl Faraday {
     /// The time zone, minutes east of UTC: −720 to +840, a multiple of 15.
     pub fn tz_min(&self) -> i16 {
         self.settings.tz_min()
-    }
-
-    /// Guided mode: flows show their written walk-through.
-    pub fn guided(&self) -> bool {
-        self.settings.guided()
     }
 }

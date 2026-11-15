@@ -11,7 +11,7 @@ One card per step, from the wallet a transaction spends from to the signed resul
 
 **Key:** spend.wallet
 
-The wallet is the loaded one whose script the transaction's first input spends. Its name, shape and source are shown.
+The wallet is the loaded one whose script the transaction's first input spends. Its name, shape and source are shown. If it is not the wallet meant, stop here.
 
 **Continue** goes on. With no loaded wallet matching, the card says so, and change cannot be verified until the wallet is loaded.
 
@@ -25,7 +25,7 @@ Shown only for a wallet with several ways to spend. Each path lists its keys, ta
 
 **Key:** spend.transaction
 
-The transaction as rows. **Sends** gives each recipient and amount; **Change** is shown only for an output derived from the loaded wallet, marked **Verified**. **Fee** gives the amount and its rate. **Spends** gives the total and the number of inputs, with **Amount unchecked** where an input's amount is not stated. **Txid** gives the id, **Unchanged by signing**, when every input is native SegWit or Taproot, and **Not known until signed** otherwise.
+The transaction as rows, to be checked against what was meant to be sent; nothing is signed yet, and if anything differs, stop. **Sends** gives each recipient and amount; **Change** is shown only for an output derived from the loaded wallet, marked **Verified**. **Fee** gives the amount and its rate. **Spends** gives the total and the number of inputs, with **Amount unchecked** where an input's amount is not stated. **Txid** gives the id, **Unchanged by signing**, when every input is native SegWit or Taproot, and **Not known until signed** otherwise.
 
 **Show the table** and **Hide the table** list each input and output. **No warnings** appears when none apply. **Register this wallet** appears for a wallet not yet registered. **Compare** opens Check a signer with this transaction as the first, to set a fee-bump copy beside it. **Continue** is absent while the review stops the spend.
 
@@ -49,7 +49,7 @@ Shown for a wallet of several keys. Each key is listed with its fingerprint and 
 
 Shown for an **All keys · MuSig2** wallet. Each key adds a one-time nonce before anyone signs; its row reads **Nonce here** or **Waiting**, and **This device** marks the keys held here.
 
-An Add from button for each file in Files brings in another signer's copy. **Show as QR** shows this device's copy. **Go first: share this device's nonce** goes to Sign. **Continue** goes on. Locking the session forgets the nonce.
+An Add from button for each file in Files brings in another signer's copy. **Show as QR** shows this device's copy. **Go first: share this device's nonce** goes to Sign. **Continue** goes on. Keep the session unlocked until the signatures return: locking forgets the nonce.
 
 ## Sign
 

@@ -605,43 +605,6 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     assert_eq!(app.backup().unwrap().stage, BStage::Plan);
 }
 
-/// The backup's last card, in Guided, says extra copies are made outside
-/// the plan and links the guide's section on them; Steps only shows neither
-/// (`docs/BACKUP-FLOW.md` §17.19 item 7).
-#[test]
-fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
-    let c = faraday_core::testkit::compute();
-    let mut app = device(Vec::new(), 2400);
-    let (_, fp) = made_here(&mut app);
-    app.press(Action::CBackup);
-    backup_as(&mut app, Preset::Paper);
-    no_paper_description(&mut app);
-    app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
-    }
-    check_the_copy(&mut app, fp);
-    the_envelopes(&mut app);
-    app.press(Action::Guided(true));
-    let _ = app.frame();
-    let t = app.drawn_texts().join(" ");
-    assert!(
-        t.contains("More copies can be made once the wallet is made"),
-        "{t}"
-    );
-    assert!(app.offers(Action::GuideExtraCopies));
-    app.press(Action::GuideExtraCopies);
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
-    assert_eq!(app.guide().key, faraday_core::guide::EXTRA_COPIES_KEY);
-    app.press(Action::Cancel);
-    app.press(Action::Guided(false));
-    let _ = app.frame();
-    assert!(!app.offers(Action::GuideExtraCopies), "not in Steps only");
-}
-
 /// While a key made here waits for its backup, no receive address opens a
 /// code: not on Create's Check, not on the wallet's card, and a press for
 /// one shows none (`docs/QR.md` §7, F31).

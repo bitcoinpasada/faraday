@@ -116,8 +116,7 @@ would need more splits it into parts. The lint holds the bound.
 no metaphor, no flourish, no second person beyond the imperative of a
 direction. The guide is the one place a working screen's explanation
 lives; a working screen still carries labels, values and actions only
-(DESIGN §2, F82's Guided walk-through and F112's tooltip remain the two
-short exceptions on a screen).
+(DESIGN §2; F112's tooltip is the one short exception on a screen).
 
 The rule line in CLAUDE.md:
 
@@ -202,8 +201,7 @@ The rail's and the menu's **Guide** opens the guide exactly as the bar's
 button does, at the place's section: it is no destination of its
 own (it has its place in the rail and Home's menu). Its icon is `Icon::Help`.
 
-The Guided walk-through has no link to the guide under an open step: the
-button opens that step's section. Nothing here moves the step rows.
+The button opens the section of the step that is open. Nothing here moves the step rows.
 
 ### 4.2 The guide's screen
 
@@ -254,9 +252,8 @@ place's page to another's; the guide does not link between sections.
 ### 4.4 Links into the guide from a working screen
 
 A working screen opens the guide only through the button and the rail
-entry, with two exceptions that name a section: Back up's and the
-wallet flow's **Extra copies** (Guided only, DESIGN §4.17) opens
-`backup.extra-copies`, and the Starter's Keep data opens its section.
+entry, with one exception that names a section: the Starter's Keep data
+opens its section.
 The Starter's links to the guides for starting a computer (§6) are
 the start guides' own.
 
@@ -283,8 +280,6 @@ the start guides' own.
   works out the key of §1.2 (`guide_key`); it holds the sheet, the pane,
   the pin and the How tab. A page has no ticked steps and the Spend tab
   no step-by-step row (the guide acts on nothing, §4.2).
-- **`faraday/faraday-core/src/walkthrough.rs`** is Guided mode's
-  walk-through (F82).
 
 ### 5.4 About
 

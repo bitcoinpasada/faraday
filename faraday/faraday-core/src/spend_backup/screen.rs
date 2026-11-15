@@ -58,7 +58,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: open == Some(id),
             default: false,
             toggle: crate::spend_backup::toggle(app, id),
-            walkthrough: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
+            lead: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
         })
         .collect();
     // From a wallet's card: the wallet's name, and no word on the
@@ -99,8 +99,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .map(|b| app.named_back(b)),
         heading: from.as_deref().unwrap_or(EN.spend_backup_spend),
-        guided: true,
-        switch: false,
         wrap_closed: false,
         total_fixed: false,
         note: None,

@@ -14,7 +14,7 @@ use faraday_text::{Text, text};
 
 use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
-use crate::screens::{guide_text, never_real_seed_if, never_under, section_label};
+use crate::screens::{never_real_seed_if, never_under, section_label};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
@@ -323,17 +323,6 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += BUTTON_H + tokens::SPACER;
     }
-    y += guide_text(
-        app,
-        ui,
-        x,
-        y,
-        w,
-        &Text::fill(
-            EN.vault_a_vault_holds,
-            &[app.medium.a(), app.medium.for_the()],
-        ),
-    );
     let files = app.vault_files();
     if files.is_empty() {
         ui.text_as(x, y + 8.0, BODY_M, muted, EN.vault_no_vault_in_files);
@@ -409,7 +398,6 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_as(x, y, BODY_M, muted, ONCE_MORE);
         y += ui.line_as(BODY_M);
     }
-    y += guide_text(app, ui, x, y, w, EN.vault_choose_the_vault);
     if !app.may_load_keys() {
         let pull = Text::fill(EN.vault_remove_the_then_type, &[app.medium.noun()]);
         y += stick_banner(ui, x, y, w, &pull);
@@ -868,7 +856,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: c.open == Some(k),
             default: k == vstep::PRESET, // the size: closed at entry, with Change
             toggle: va(V::CStep(k)),
-            walkthrough: Some(create_guide(k).as_str().into()),
+            lead: None,
         })
         .collect();
     // A small panel has no side panel, nor has a window too low to hold
@@ -888,8 +876,6 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),
         })),
         heading: EN.vault_create_a_vault,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,
@@ -909,15 +895,6 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     crate::dice_entry::screen::foot_panel(ui, (&col, h), foot, super::dice::ask(app));
     if !compact {
         create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
-    }
-}
-
-fn create_guide(k: u8) -> Text {
-    match k {
-        vstep::WHERE => Text::of(EN.vault_a_vault_opens_only),
-        vstep::COST => Text::of(EN.vault_guide_guess_cost),
-        vstep::PRESET => Text::of(EN.vault_a_vault_opens),
-        _ => Text::of(EN.vault_each_passphrase),
     }
 }
 
@@ -1977,14 +1954,6 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += BUTTON_H + tokens::GAP;
     }
     y += seals_head(app, ui, v, (x, y, w), beside);
-    y += guide_text(
-        app,
-        ui,
-        x,
-        y,
-        w,
-        &Text::fill(EN.vault_secret_values, &[app.medium.noun()]),
-    );
 
     // Three columns: kinds, items, the item. A wallet's chart takes the
     // room the other two give up (`docs/history/NEW-WALLET.md` §7.2).

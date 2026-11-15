@@ -230,7 +230,7 @@ writes a vault and its files now.
 
 ## 7. The guide
 
-Bring in the sticks' Guided text and the guide's pages (`docs/guide/create.md`,
+The guide's pages (`docs/guide/create.md`,
 `docs/guide/restore.md`, `docs/guide/backup.md`) say why the
 sticks are laid out and read here, before the keys: a stick is not read
 while a key or a vault is open; reading them now makes sure every vault

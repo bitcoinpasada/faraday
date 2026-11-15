@@ -1,6 +1,6 @@
 //! The Material 3 tour (`docs/decisions/F108.md`): Home, Settings with
 //! its segmented buttons and its Appearance, the power-off dialog, a
-//! flow's title row with **Steps only · Guided** and **Cancel**, the
+//! flow's title row with **Cancel**, the
 //! dialog Cancel brings up, in Cobalt and then in High contrast dark and
 //! light, where nothing see-through lowers the contrast, Set the time
 //! with its Set button not yet available and then the toast its Set

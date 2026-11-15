@@ -21,7 +21,7 @@ The choice is how the key comes in. Under **Make a new key**, the device makes i
 
 The choice is how many words the key has. Each length adds a checksum to its bits.
 
-**12 words** and **24 words** are shown; **Other** opens 15, 18 and 21 words. For SLIP-39 the choice is a share of 20 or 33 words, with **Shares needed** and **Shares dealt** as steppers: that many shares rebuild the key, and fewer reveal nothing of it. Shares restore only in software that reads SLIP-39.
+**12 words** and **24 words** are shown; **Other** opens 15, 18 and 21 words. For SLIP-39 the choice is a share of 20 or 33 words, with **Shares needed** and **Shares dealt** as steppers: that many shares rebuild the key, and fewer reveal nothing of it. Shares restore only in software that reads SLIP-39. 12 words carry 128 bits and 24 words 256; either is beyond guessing, and most wallets and signers read every length.
 
 ## Randomness
 
@@ -37,9 +37,9 @@ The choice is where the key's randomness comes from. Each source asks for trust 
 
 The entries for the source chosen, counted against the number the length needs. Dice and coin flips are **Typed** or pressed as **Buttons**.
 
-**Dice** takes faces 1 to 6. **Coin flips** takes heads or tails, or a die as **Coin** or **Die**. **Playing cards** takes a rank, then a suit, and refuses a card already drawn. **Hex entropy** takes hex digits made elsewhere, which must already be random. **Mixed sources** takes two or more of these in turn. **This device** reads the system's generator once; **Skip** goes on without adding randomness of one's own.
+**Dice** takes faces 1 to 6. **Coin flips** takes heads or tails, or a die as **Coin** or **Die**. **Playing cards** takes a rank, then a suit, and refuses a card already drawn. **Hex entropy** takes hex digits already random. Use a real die; never pick numbers in the head. A card cannot come up twice from one deck: past 52, shuffle again. **Mixed sources** takes two or more in turn. **This device** reads the system's generator once.
 
-**Undo** takes back the last entry, **Clear** all of them. After the last entry of a source that has counts, a **Randomness check** shows them with cautions, and **Roll again** restarts. **Make the words** follows the last entry, or **Continue** where the words showed as entered; for SLIP-39 it deals the shares.
+**Undo** takes back the last entry, **Clear** all of them. After the last entry, a **Randomness check** shows the counts; **Roll again** restarts. **Make the words** follows the last entry, or **Continue** where the words showed as entered; for SLIP-39 it deals the shares.
 
 ## Check
 
@@ -47,7 +47,7 @@ The entries for the source chosen, counted against the number the length needs. 
 
 For SLIP-39 shares only: the counts of the entries behind the shares made.
 
-**Rolls** and **Faces** count what came up, **Longest run** is the longest repeat, and cautions name a long run, a count far from even or a run counting up or down. A caution does not block **Continue**, which opens the shares. **Roll again** starts the entries over. The check cannot turn a poor entry into a good one.
+**Rolls** and **Faces** count what came up, **Longest run** is the longest repeat, and cautions name a long run, a count far from even or a run counting up or down. The counts catch a biased die or entries typed instead of rolled. A caution does not block **Continue**, which opens the shares. **Roll again** starts the entries over. The check cannot turn a poor entry into a good one.
 
 ## Key
 

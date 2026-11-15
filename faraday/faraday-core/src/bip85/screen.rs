@@ -33,7 +33,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: b.open == Some(s),
             default: false,
             toggle: Action::PStep(s),
-            walkthrough: Some(guide(s, b.app)),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -44,8 +44,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.bip85_wallets, Action::Nav(b.back)))),
         heading: EN.bip85_derive_with_bip,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,
@@ -100,19 +98,6 @@ fn summary(app: &View, b: &Bip85State, s: u8) -> String {
         },
         pstep::INDEX => String::from(&*b.index),
         _ => String::from(&*b.path()),
-    }
-}
-
-fn guide(s: u8, app: Bip85App) -> String {
-    match s {
-        pstep::KEY => EN.bip85_bip_85_turns.to_string(),
-        pstep::APP => match app {
-            Bip85App::Words => EN.bip85_guide_child_seed.to_string(),
-            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_guide_password.to_string(),
-            _ => EN.bip85_the_value_is_made.to_string(),
-        },
-        pstep::INDEX => EN.bip85_guide_index.to_string(),
-        _ => EN.bip85_guide_value.to_string(),
     }
 }
 

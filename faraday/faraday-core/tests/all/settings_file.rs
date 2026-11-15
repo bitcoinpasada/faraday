@@ -96,7 +96,6 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
         && a.text_size() == b.text_size()
         && a.scale_pct() == b.scale_pct()
         && a.reduce_motion() == b.reduce_motion()
-        && a.guided() == b.guided()
         && a.qr_frame_ms() == b.qr_frame_ms()
         && a.idle_lock_min() == b.idle_lock_min()
         && a.idle_off_min() == b.idle_off_min()
@@ -314,18 +313,10 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
 }
 
 #[test]
-fn a_fresh_app_opens_steps_only() {
-    // No kept state and no stick settings file: a device that has never
-    // had a setting saved opens Steps only; Guided is a choice (F82).
-    let app = defaults();
-    assert!(!app.guided());
-    let booted = booted(None);
-    assert!(!booted.guided());
-}
-
-#[test]
-fn a_settings_file_saying_guided_0_is_steps_only() {
-    let file = b"faraday-settings 1\nguided=0\n";
+fn an_old_settings_file_saying_guided_is_read_and_the_rest_holds() {
+    // The `guided` key of a file written before Guided mode went (F82) is
+    // ignored; the other settings in it are kept.
+    let file = b"faraday-settings 1\nguided=1\nscale=125\n";
     let app = booted(Some(file));
-    assert!(!app.guided());
+    assert_eq!(app.scale_pct(), 125);
 }

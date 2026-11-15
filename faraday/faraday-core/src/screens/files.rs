@@ -1,6 +1,6 @@
 //! `Screen::Files`: Inbox and Outbox.
 
-use super::parts::{guide_text, kind_line, pull_line};
+use super::parts::{kind_line, pull_line};
 use super::spend::fp_label;
 use crate::drawing::View;
 use crate::strings::EN;
@@ -406,17 +406,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::Scan,
     );
     y += BUTTON_H + SPACER;
-    y += guide_text(
-        app,
-        ui,
-        x,
-        y,
-        width,
-        &Text::fill(
-            EN.files_holds_what_was,
-            &[app.medium.from_box(), app.medium.for_box()],
-        ),
-    );
     if let Some(line) = boot_medium_line(app) {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + SPACER;
     }

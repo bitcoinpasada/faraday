@@ -45,7 +45,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: s.open == Some(k),
             default: s.done(k),
             toggle: act(S::Step(k)),
-            walkthrough: None,
+            lead: None,
         })
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {
@@ -61,8 +61,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.seed_check_title,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,

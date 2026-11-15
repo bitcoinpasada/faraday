@@ -62,12 +62,6 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("wallet-flow-2-create-count")?;
     t.press(Action::CNext(cstep::HOW_MANY));
     t.shot("wallet-flow-3-insert")?;
-    // Guided's walk-through of Bring in the sticks, behind its tap on a
-    // small panel.
-    t.press(Action::Guided(true));
-    t.press(Action::About(0));
-    t.shot("wallet-flow-3a-insert-guided")?;
-    t.press(Action::About(0));
     // A figure's ⋮ menu, and Check it later's dialog; Cancel leaves both.
     t.press(Action::Flow(F::FigMenu(1)));
     t.shot("wallet-flow-3b-figure-menu")?;
@@ -199,7 +193,6 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         files: Vec::new(),
         vaults: Vec::new(),
     };
-    t.press(Action::Guided(false));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
     t.press(Action::CBackupForm(

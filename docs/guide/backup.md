@@ -29,7 +29,7 @@ The map of the places is checked three ways, by trying every place lost or found
 
 **Key:** backup.blank
 
-Blank templates are printed from Faraday Starter on the online computer; they hold no secret, and Faraday prints nothing. Each seed is copied onto one by hand in the next item.
+Blank templates are printed from Faraday Starter on the online computer; they hold no secret, and Faraday prints nothing, and a seed never goes to a printer. Each seed is copied onto one by hand in the next item.
 
 **Words on the seed** is **12** or **24**. **Done** marks the templates printed.
 
@@ -119,10 +119,4 @@ Lists what goes into the envelope of each place. The envelopes are stored apart.
 
 **Lock and write** locks the session, then writes each stick of the plan in turn, by its place, in the backup flow. **Kept** lists what the lock keeps and **Wiped from memory** what it wipes.
 
-## Extra copies
-
-**Key:** backup.extra-copies
-
-The last card, in Guided only. A copy made outside the plan is not tracked, and the plan's three checks do not count it.
-
-**Extra copies** opens the page on them. A vault is copied to another stick, from the vault on the wallet's chart with **Copy the vault to another stick**; the copy opens with the same passphrase and is copied again after a later change. Words are copied by hand onto a new sheet and checked word by word. Each copy is as sensitive as what it copies.
+A copy made outside the plan is not tracked, and the plan's three checks do not count it. A vault is copied to another stick, from the vault on the wallet's chart with **Copy the vault to another stick**; the copy opens with the same passphrase and is copied again after a later change. Words are copied by hand onto a new sheet and checked word by word. Each copy is as sensitive as what it copies.

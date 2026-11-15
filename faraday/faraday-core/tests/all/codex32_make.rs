@@ -1161,10 +1161,10 @@ fn a_character_in_its_box_brings_a_dragged_view_back_over_several_frames() {
 
 #[test]
 fn a_character_in_its_box_brings_a_scrolled_page_back_to_a_whole_sheet() {
-    // 1920x1080: the sheet is whole and the page follows it. Scrolled away
+    // 1920x900: the sheet is whole and the page follows it. Scrolled away
     // by a drag, the box off screen, the next character typed brings the
     // page back over several frames, at once under Reduce motion.
-    let mut app = typed_a(1920, 1080, 22);
+    let mut app = typed_a(1920, 900, 22);
     let front = page_y(&app);
     assert!(front > 0.0);
     drag_from(&mut app, (900, 300), 700);
@@ -1177,7 +1177,7 @@ fn a_character_in_its_box_brings_a_scrolled_page_back_to_a_whole_sheet() {
     let between = ys.iter().filter(|&&y| y > away && y < to).count();
     assert!(between >= 3, "several frames on the way: {ys:?}");
 
-    let mut reduced = typed_a(1920, 1080, 22);
+    let mut reduced = typed_a(1920, 900, 22);
     reduced.press(Action::ReduceMotion(true));
     drag_from(&mut reduced, (900, 300), 700);
     assert!(page_y(&reduced) < front);

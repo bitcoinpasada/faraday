@@ -1,7 +1,7 @@
 //! Make a new wallet's setup of its vaults, before the keys
 //! (`docs/BACKUP-FLOW.md` §4.2, §4.3, §10): one press takes a stick for
 //! its vault, Create a vault opens by itself once the last stick is
-//! bound, and Guided says why the sticks come first.
+//! bound.
 
 use crate::backup_flow_wallet::{step, sticks};
 use crate::common::*;
@@ -76,22 +76,6 @@ fn the_last_stick_pulled_opens_create_a_vault_for_a_new_vault() {
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.sheet, None);
     assert_eq!(app.flow().unwrap().live.creating, Some(0));
-}
-
-/// Guided on, Bring in the sticks says why the sticks are read before the
-/// keys; Steps only, it does not.
-#[test]
-fn guided_bring_in_the_sticks_says_why_the_sticks_come_first() {
-    let mut app = on_the_sticks();
-    app.press(Action::Guided(true));
-    let why = |app: &mut Faraday| {
-        texts(app)
-            .iter()
-            .any(|t| t.starts_with("Each vault's stick is read here"))
-    };
-    assert!(why(&mut app), "{:?}", texts(&mut app));
-    app.press(Action::Guided(false));
-    assert!(!why(&mut app));
 }
 
 /// Make a new wallet on the Sticks and vaults card, Use vaults answered

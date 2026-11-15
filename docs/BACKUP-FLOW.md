@@ -638,12 +638,11 @@ and matched. A write made on the stick visit page does not count
      with their passphrases and the new ones made with Create a vault's
      own form (name, passphrase twice, cost and memory check). The setup
      asks nothing about places, which key goes into which vault, or paper,
-     and its sticks are named "the stick for Vault 1". Its two cards
-     have Make a new wallet's Guided switch: Bring in the sticks says
-     why the sticks are read before any key exists (what is checked and
-     read on them, that nothing is written until the lock, and that a
-     stick is read with a key in memory only after that lock), and
-     Vaults says why the vaults are made or unlocked before the keys.
+     and its sticks are named "the stick for Vault 1". The guide's
+     pages say why the sticks are read before any key exists (what is
+     checked and read on them, that nothing is written until the lock,
+     and that a stick is read with a key in memory only after that lock)
+     and why the vaults are made or unlocked before the keys.
   4. **Keys**, made into memory, as before. No key or wallet description
      is written to any vault by the setup.
   5. **Back up's plan**, after the keys, as it was before F31: which
@@ -2037,8 +2036,8 @@ which share goes where.
    on every run.
 7. **Extra copies, after the wallet is made** (owner, 2026-10-19). The
    backup's last card (the wallet flow's Done, and Back up's checklist
-   once done) carries, in its guided walk-through only (shown in Guided,
-   hidden in Steps only), one line: "More copies can be made once the
+   once done) carried, in the walk-through Guided mode had (since
+   removed), one line: "More copies can be made once the
    wallet is made: a vault copied to another stick, words copied by hand.
    They are not part of the plan." and a Learn link **Extra copies**: a
    new Faraday Learn page (since removed) saying

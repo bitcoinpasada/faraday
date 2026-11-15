@@ -1419,16 +1419,11 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
 }
 
 #[test]
-fn a_guided_card_shows_its_text_with_no_link_and_the_guide_opens_at_the_place() {
+fn the_guide_opens_at_the_place_of_a_card() {
     use faraday_core::keygen::kstep;
     let mut app = opened();
     app.press(Action::KStep(kstep::LENGTH));
     let _ = app.frame();
-    let shown = |app: &mut Faraday| app.drawn_texts().join(" ").contains("words carry 128 bits");
-    assert!(!shown(&mut app), "Steps only");
-    app.press(Action::Guided(true));
-    let _ = app.frame();
-    assert!(shown(&mut app));
     app.press(Action::Guide);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
     assert_eq!(app.guide().shown, "keygen", "the guide at the place");

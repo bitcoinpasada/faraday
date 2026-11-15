@@ -5,9 +5,8 @@
 //! page divided from the next by a rule, with no fill and no box
 //! (`docs/DECISIONS.md` F39).
 //!
-//! In Guided mode a card can carry a short written walk-through, shown at
-//! the top of the card while it is open (`docs/WALLETS.md` §6). Steps only
-//! hides it; the controls are the same in both.
+//! A card can carry a short line of its own, shown at the top of the card
+//! while it is open.
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -19,9 +18,7 @@ use crate::ui::Disclosure;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens;
-use faraday_draw::tokens::{
-    BODY_M, BODY_S, LABEL_L, LABEL_M, MARGIN_COMPACT, SEGMENTED_H, TITLE_M,
-};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, MARGIN_COMPACT, TITLE_M};
 
 /// How far in from a step's left edge its body is drawn, under its title.
 pub(crate) const BODY_INDENT: f32 = 58.0;
@@ -46,8 +43,8 @@ pub struct Card {
     pub default: bool,
     /// What pressing its header does.
     pub toggle: Action,
-    /// The walk-through shown in Guided mode while it is open.
-    pub walkthrough: Option<String>,
+    /// A line of the card's own, shown while it is open.
+    pub lead: Option<String>,
 }
 
 /// Where the column is scrolled, and whether to bring the open card into
@@ -76,10 +73,6 @@ pub struct Column<'a> {
     pub back: Option<(&'a str, Action)>,
     /// The flow's name, on the top app bar over it.
     pub heading: &'a str,
-    /// Whether Guided mode is on.
-    pub guided: bool,
-    /// Whether Steps only · Guided is shown at the head of the column.
-    pub switch: bool,
     /// On the compact layout, whether a closed card's line too long for its
     /// row wraps; otherwise it is cut to fit.
     pub wrap_closed: bool,
@@ -153,27 +146,12 @@ pub(crate) fn column_wide(
     let (x, w) = (col.x, col.w);
     // The top app bar over the page names the flow and carries its way
     // back and Cancel (`docs/LAYOUT.md` §3, DESIGN §4.1, §4.13); the flow's own
-    // head keeps what is the flow's: its chip at the left and Steps only ·
-    // Guided at the right.
+    // head keeps what is the flow's: its chip at the left.
     crate::screens::bar_head(ui, col.back, col.heading);
-    let mut bx = x + w;
     let mut row = 0.0;
-    if col.switch {
-        bx -= guided_width(ui);
-        guided_choice(ui, (bx, y), col.guided);
-        row = SEGMENTED_H;
-    }
-    // The chip beside the switch where it clears it, else on its own line
-    // under it.
     if let Some(chip) = col.chip {
-        let (cx, cy) = if x + ui.chip_width(chip) + tokens::GAP <= bx {
-            row = f32::max(row, tokens::TAG_H);
-            (x, y + (row - tokens::TAG_H) / 2.0)
-        } else {
-            let cy = y + row + tokens::GAP;
-            row += tokens::GAP + tokens::TAG_H;
-            (x, cy)
-        };
+        let (cx, cy) = (x, y);
+        row = tokens::TAG_H;
         let cw = ui.chip_press(
             cx,
             cy,
@@ -218,15 +196,12 @@ pub(crate) fn column_wide(
         if card.open {
             open_top = Some(y + settled - top);
         }
-        let walkthrough = card
-            .walkthrough
-            .as_deref()
-            .filter(|_| col.guided && card.open);
+        let lead = card.lead.as_deref().filter(|_| card.open);
         // Measured in a pass that draws nothing and keeps no hits, so the
         // card's surface can go down before what is on it.
         let mut draw_open = |ui: &mut Ui| -> f32 {
             let mut used = 0.0;
-            if let Some(text) = walkthrough {
+            if let Some(text) = lead {
                 used += guide_text(ui, (inner_x, y + 56.0, inner_w), text);
                 used += 18.0;
             }
@@ -533,26 +508,17 @@ fn paged(
             y += body(ui, i, M, y, inner);
             ui.page_view = None;
             ui.press_box(M, head_y, inner, th.max(ui.touch), card.toggle);
-            // The walk-through comes after the controls, behind a tap:
-            // on a small panel it would otherwise take the room the
-            // controls need. The tap is the choice there, so it is offered
-            // in Steps only too. A flow with no Guided switch (the Spend
-            // tab) has a lead that is its own text, always shown.
-            if let Some(text) = card.walkthrough.as_deref() {
-                if col.switch {
-                    let label = EN.flow_about_this_step;
-                    y += about(ui, M, y, inner, label, i as u8, text);
-                } else {
-                    y += 8.0;
-                    let gh = ui.wrap_as(
-                        (M + 12.0, y, inner - 12.0),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        text,
-                    );
-                    ui.fill(M, y, 3.0, gh, 1.5, Role::Primary.paint());
-                    y += gh + 8.0;
-                }
+            // A card's own line, after the controls.
+            if let Some(text) = card.lead.as_deref() {
+                y += 8.0;
+                let gh = ui.wrap_as(
+                    (M + 12.0, y, inner - 12.0),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    text,
+                );
+                ui.fill(M, y, 3.0, gh, 1.5, Role::Primary.paint());
+                y += gh + 8.0;
             }
         }
         None => {
@@ -703,25 +669,7 @@ pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, k: u8, tex
     cy - y
 }
 
-/// The width of [`guided_choice`]. Arithmetic.
-pub(crate) fn guided_width(ui: &Ui) -> f32 {
-    ui.segment_width(LABEL_L.size, &[EN.flow_steps_only, EN.flow_guided]) * 2.0
-}
-
-/// Steps only or Guided from (x, y): Material's segmented button, its
-/// fill sliding between them as the setting changes. A flow's head and
-/// Settings draw this one control for the one setting.
-pub(crate) fn guided_choice(ui: &mut Ui, (x, y): (f32, f32), guided: bool) {
-    let options = [
-        (EN.flow_steps_only, Action::Guided(false)),
-        (EN.flow_guided, Action::Guided(true)),
-    ];
-    let chosen = Some(usize::from(guided));
-    let slide = Some(ui.guided_shown);
-    ui.segmented((x, y, SEGMENTED_H), LABEL_L.size, &options, chosen, slide);
-}
-
-/// A Guided text from (x, y), `w` wide: its words in body text beside a
+/// A card's text from (x, y), `w` wide: its words in body text beside a
 /// bar in the accent, as a flow's open card and Settings' cards show it.
 /// Returns its height.
 pub(crate) fn guide_text(ui: &mut Ui, (x, y, w): (f32, f32, f32), text: &str) -> f32 {

@@ -151,7 +151,7 @@ fn on_the_pi_the_entrys_tabs_each_keep_their_place() {
 
 #[test]
 fn on_a_desktop_the_reviews_tabs_each_keep_their_place() {
-    let mut app = on(1366, 768, 160);
+    let mut app = on(1366, 420, 160);
     entry(&mut app, Way::Typed);
     for s in SHARES {
         for &ch in &s.as_bytes()[9..35] {
@@ -164,5 +164,5 @@ fn on_a_desktop_the_reviews_tabs_each_keep_their_place() {
     for t in [1, 0] {
         c32(&mut app, C32::Tab(t));
     }
-    comes_back_to_the_same_place(&mut app, (700, 500, 120), C32::Tab(1), C32::Tab(0));
+    comes_back_to_the_same_place(&mut app, (700, 300, 120), C32::Tab(1), C32::Tab(0));
 }

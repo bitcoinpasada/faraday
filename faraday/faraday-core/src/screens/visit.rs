@@ -2,7 +2,7 @@
 //! own lists from expanded windows up, and below that Material's primary
 //! tabs In Faraday and On the stick.
 
-use super::parts::{guide_text, kind_line, pull_line, size_text};
+use super::parts::{kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Region;
@@ -519,17 +519,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     y += 64.0;
-    y += guide_text(
-        app,
-        ui,
-        x,
-        y,
-        width.min(900.0),
-        &Text::fill(
-            EN.visit_write_what_waits,
-            &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
-        ),
-    );
     if let Some(line) = super::files::boot_medium_line(app) {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + GRID;
     }

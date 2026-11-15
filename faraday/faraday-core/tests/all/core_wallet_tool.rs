@@ -290,7 +290,7 @@ fn a_person_reading_a_plain_wallet_sees_each_pair_with_its_own_take() {
     let mut app = opened(vec![("plain.dat", vector("plain.dat"))]);
     read_with(&mut app, "");
     for _ in 0..40 {
-        if offered(&mut app, Action::CoreWallet(W::Take(3))) {
+        if offered(&mut app, Action::CoreWallet(W::Take(3))) && has(&mut app, "Taproot (tr)") {
             break;
         }
         app.event(Event::Scroll {

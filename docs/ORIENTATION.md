@@ -247,17 +247,14 @@ is not affected; the arrow keys move as the screen shows.
   segmented button of two segments, Landscape and Portrait, the chosen
   one selected, as the Contrast row is drawn (`Ui::choices`), each row's
   label beside it where the column has room and over it on a compact
-  window, as Appearance's are. Rotation's explainer stands under it
-  while Guided is on. On a compact window the Display section opens as
+  window, as Appearance's are. On a compact window the Display section opens as
   its own page as every section does (`docs/LAYOUT.md` §17). Each
   segment is a 48 dp touch target.
 - **Strings**, in `faraday/faraday-strings/src/en.rs`:
   `settings_display` "Display" (which replaced "Display scale"),
   `settings_scale` "Scale",
   `settings_rotation` "Rotation", `settings_landscape` "Landscape",
-  `settings_portrait` "Portrait". Guided mode's explainer:
-  `settings_guide_rotation` "Landscape suits the backup board and lists
-  beside their detail. Portrait suits typing words in."
+  `settings_portrait` "Portrait".
 - **Kept.** One line in `faraday-settings.txt`, `rotation=landscape` or
   `rotation=portrait`, written by `Settings::body` after `scale=` and
   taken by `Settings::apply` only when its value is one of the two; any

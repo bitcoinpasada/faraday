@@ -7,7 +7,7 @@ use faraday_bip::keys::ScriptType;
 
 use crate::explore::shown::xprv_path;
 use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
-use crate::screens::{button_rows, guide_text};
+use crate::screens::button_rows;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Code};
@@ -29,7 +29,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, width, top, mut y) = frame(app, ui, x0, cw, h);
     let guide = EN.explore_the_public;
     if !compact {
-        y = header(app, ui, x, y, width, guide);
+        y = header(app, ui, y);
     }
     let keys: Vec<(Text, Style, Action)> = app
         .session
@@ -481,13 +481,13 @@ pub(super) fn frame(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) -> (f32, 
     (x, width, top, start)
 }
 
-/// The way back, the title and what explains the page, as the desktop
-/// draws them. Returns where the page goes on.
-fn header(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, guide: &str) -> f32 {
+/// The way back and the title, as the desktop draws them. Returns where
+/// the page goes on.
+fn header(app: &View, ui: &mut Ui, y: f32) -> f32 {
     let Some(e) = app.explore.state() else {
         return y;
     };
     let back = app.named_back((EN.explore_wallets, Action::Nav(e.back)));
     crate::screens::bar_head(ui, Some(back), EN.explore_explore);
-    y + guide_text(app, ui, x, y, width, guide)
+    y
 }

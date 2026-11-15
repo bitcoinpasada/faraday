@@ -35,7 +35,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: s.open == Some(k),
             default: false,
             toggle: Action::SStep(k),
-            walkthrough: Some(guide(k)),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -46,8 +46,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.silent_wallets, Action::Nav(s.back)))),
         heading: EN.silent_silent_payments,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,
@@ -86,15 +84,6 @@ fn summary(app: &View, s: &SilentState, k: u8) -> String {
             Some(None) => EN.silent_needs_a_previous.to_string(),
             None => EN.silent_a_transaction.to_string(),
         },
-    }
-}
-
-fn guide(k: u8) -> String {
-    match k {
-        sstep::KEY => EN.silent_a_silent_payments_address.to_string(),
-        sstep::ADDRESS => EN.silent_give_this_address.to_string(),
-        sstep::SCAN => EN.silent_finding_payments.to_string(),
-        _ => EN.silent_guide_payment.to_string(),
     }
 }
 

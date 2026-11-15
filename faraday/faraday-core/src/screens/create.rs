@@ -10,7 +10,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
-use crate::{Action, Code, Screen, flow, walkthrough};
+use crate::{Action, Code, Screen, flow};
 use faraday_draw::tokens;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_S};
 use faraday_ui::parts::button_rows;
@@ -60,10 +60,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 || k == cstep::BACKUP_FORM
                 || k == cstep::WHERE,
             toggle: Action::CStep(k),
-            // Only the open card shows its walk-through: the others make none.
-            walkthrough: (c.open == Some(k))
-                .then(|| create_guide(k, c, app.medium))
-                .filter(|g| !g.is_empty()),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -79,8 +76,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.create_wallets, Action::Nav(Screen::WalletsStart))
         })),
         heading: EN.create_make_a_new_wallet,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,
@@ -97,16 +92,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::Create, next, again);
-}
-
-/// The walk-through of Make a new wallet's card `k`: the Backup card has
-/// its own (F240).
-fn create_guide(k: u8, c: &crate::CreateState, medium: crate::medium::Medium) -> String {
-    use crate::cstep;
-    match k {
-        cstep::BACKUP_FORM => EN.create_guide_backup.to_string(),
-        _ => walkthrough::create(k, c.kind, c.m, c.n, medium),
-    }
 }
 
 /// The closed line of Make a new wallet's card `k`, with the account on
@@ -778,6 +763,12 @@ fn create_check(
         if let Some(set) = c.built.and_then(|i| app.create_shares_set(i)) {
             cy += change_row(ui, x, cy, w, EN.create_backup, &set.line(), None);
         }
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.create_compare_addresses,
+        ) + tokens::GAP;
         cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
         cy += 6.0;
         cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);

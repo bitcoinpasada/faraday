@@ -38,17 +38,14 @@ pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("panes-backups-chosen")?;
     t.press(Action::Nav(Screen::Settings));
     t.shot("panes-settings")?;
-    // Settings with Guided on: each card's explainer; on a compact
-    // window, Appearance opened from the list as its own page.
-    t.press(Action::Guided(true));
-    t.shot("panes-settings-guided")?;
+    // On a compact window, Appearance opened from the list as its own
+    // page.
     t.press(Action::SettingsSection(Some(4)));
     t.shot("panes-settings-appearance")?;
     // Display, with Rotation on a 7-inch or 10-inch panel's render
     // (`docs/ORIENTATION.md` §6).
     t.press(Action::SettingsSection(Some(5)));
     t.shot("panes-settings-display")?;
-    t.press(Action::Guided(false));
     t.press(Action::SettingsSection(None));
     Ok(())
 }

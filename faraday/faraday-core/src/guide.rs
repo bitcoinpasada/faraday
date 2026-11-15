@@ -380,10 +380,6 @@ fn flow_key(at: GuideAt) -> &'static str {
     }
 }
 
-/// The section Back up's Extra copies card opens, in Guided only
-/// (`docs/GUIDE-IN-APP.md` §4): a card shown under the plan, not a step.
-pub const EXTRA_COPIES_KEY: &str = "backup.extra-copies";
-
 /// Where a key resolves in the written pages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GuideAim {
@@ -748,11 +744,6 @@ impl Faraday {
             let now = self.screen_key();
             self.guide.move_to_pane(&mut self.sheet, now, self.screen);
         }
-    }
-
-    /// The Extra copies link: opens the guide at its section.
-    pub(crate) fn guide_extra_copies(&mut self) {
-        self.guide_open_key(EXTRA_COPIES_KEY);
     }
 
     /// The link to the shares page: the guide at the current place.

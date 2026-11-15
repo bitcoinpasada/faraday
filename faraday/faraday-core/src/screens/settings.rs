@@ -7,13 +7,12 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{
-    APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER,
-    MARGIN_WIDE, PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
+    APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, MARGIN_WIDE,
+    PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER,
 };
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
 use faraday_shell_api::Orientation;
 use faraday_ui::parts::wrap_buttons;
-use std::borrow::Cow;
 use std::sync::OnceLock;
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -96,37 +95,14 @@ fn part_title(p: Part) -> &'static str {
     }
 }
 
-/// Section `p`'s explainer, shown under its title while Guided is on
-/// (the flows' setting): what the section does, in a sentence or two.
-fn part_guide(app: &View, p: Part) -> Option<Cow<'static, str>> {
-    if !app.guided() {
-        return None;
-    }
-    Some(match p {
-        Part::Mode => EN.settings_guide_mode.into(),
-        Part::Session => EN.settings_guide_session.into(),
-        Part::Time => EN.settings_guide_time.into(),
-        Part::Randomness => EN.settings_guide_randomness.into(),
-        Part::Appearance => EN.settings_guide_appearance.into(),
-        Part::Display => EN.settings_guide_scale.into(),
-        Part::Signed => EN.settings_guide_signed.into(),
-        Part::Nonces => EN.settings_guide_nonces.into(),
-        Part::About => EN.settings_guide_about.into(),
-    })
-}
-
-/// Section `p` as a card from (x, y) `w` wide, its explainer under its
-/// title while Guided is on. Returns its height and the gap under it.
+/// Section `p` as a card from (x, y) `w` wide. Returns its height and the
+/// gap under it.
 fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
-    let guide = part_guide(app, p);
     if p == Part::Mode {
-        return mode_card(app, ui, (x, y, w), guide.as_deref()) + 14.0;
+        return mode_card(app, ui, (x, y, w)) + 14.0;
     }
     section(ui, x, y, w, part_title(p), &|ui, x, y0, w| {
-        let g = guide.as_deref().map_or(0.0, |t| {
-            crate::flow::guide_text(ui, (x, y0, w), t) + GUIDE_AFTER
-        });
-        g + part_body(app, ui, p, (x, y0 + g, w))
+        part_body(app, ui, p, (x, y0, w))
     })
 }
 
@@ -207,8 +183,8 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y - y0
 }
 
-/// Time (`docs/TOTP.md` §2): Now, the time zone and Set the time; what
-/// reads the clock is its explainer, under Guided. Returns its height.
+/// Time (`docs/TOTP.md` §2): Now, the time zone and Set the time. Returns
+/// its height.
 fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.settings_now);
@@ -303,8 +279,7 @@ fn labelled_choices(
 }
 
 /// Display (`docs/ORIENTATION.md` §6): Scale, and Rotation where the
-/// shell can turn its frame, with Rotation's explainer under it while
-/// Guided is on. Returns its height.
+/// shell can turn its frame. Returns its height.
 fn display_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32), label_w: Option<f32>) -> f32 {
     let mut y = y0 + scale_body(app, ui, (x, y0, w), label_w);
     if app.rotation_offered() {
@@ -321,10 +296,6 @@ fn display_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32), label_w: O
         ];
         let on = Some(usize::from(app.orientation() == Orientation::Portrait));
         y += labelled_choices(ui, (x, y, w), label_w, EN.settings_rotation, &items, on);
-        if app.guided() {
-            y += GUIDE_AFTER;
-            y += crate::flow::guide_text(ui, (x, y, w), EN.settings_guide_rotation);
-        }
     }
     y - y0
 }
@@ -462,14 +433,6 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y - y0
 }
 
-/// Steps only or Guided at (x, y), the flows' control for the same
-/// setting: with Guided on, each card carries its explainer. Returns the
-/// height its row takes.
-fn guided_row(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    crate::flow::guided_choice(ui, (x, y), app.guided());
-    TOUCH
-}
-
 /// [`draw`] on a compact window (`docs/LAYOUT.md` §17): the sections as
 /// Material's list items, Mode's opening its sheet and each other's
 /// opening that section as its own page, whose Back is the list again.
@@ -480,7 +443,6 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.moving_page_begin((x0, cw, h), app.list_offset);
     let top = M;
     let mut y = top;
-    y += guided_row(app, ui, x, y);
     let parts = parts();
     if let Some(p) = open_part(app, &parts) {
         y += part(app, ui, p, (x, y, w));
@@ -538,8 +500,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         super::bar_head(ui, None, EN.settings_settings);
     }
     ui.moving_page_begin((x0, cw, h), app.list_offset);
-    let mut top = PANE_TOP_BAR;
-    top += guided_row(app, ui, x, top);
+    let top = PANE_TOP_BAR;
     let (mut left, mut right) = (top, top);
     for p in parts() {
         if two && (p as u8) >= (Part::Appearance as u8) {
@@ -616,24 +577,17 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     rows
 }
 
-/// The card holding the Mode row, which opens the mode sheet, and its
-/// explainer under the row while Guided is on. Returns its height.
-fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), guide: Option<&str>) -> f32 {
+/// The card holding the Mode row, which opens the mode sheet. Returns its
+/// height.
+fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     use faraday_draw::tokens::MODE_ROW;
     let pad = 22.0;
     let (ix, iw) = (x + pad, w - 2.0 * pad);
-    let at = (ix, y + pad + MODE_ROW, iw);
-    let gh = guide.map_or(0.0, |t| {
-        crate::compact::screen::measured(ui, |ui| crate::flow::guide_text(ui, at, t)) + GAP
-    });
-    let h = MODE_ROW + gh + 2.0 * pad;
+    let h = MODE_ROW + 2.0 * pad;
     if !ui.shows(y, h) {
         return h;
     }
     ui.card(x, y, w, h, Role::OutlineVariant);
     crate::modes::screen::settings_row(app, ui, ix, y + pad, iw);
-    if let Some(t) = guide {
-        crate::flow::guide_text(ui, (ix, y + pad + MODE_ROW + GAP, iw), t);
-    }
     h
 }

@@ -140,26 +140,11 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
                     open: open(card),
                     default: false,
                     toggle: a(C32::Card(card.index())),
-                    // Built only for the open card.
-                    walkthrough: open(card).then(|| guide(card).into()),
+                    lead: None,
                 },
             )
         })
         .collect()
-}
-
-/// Guided mode's walk-through of a card: what it does and what its
-/// button does.
-fn guide(card: Card) -> &'static str {
-    match card {
-        Card::Scheme => EN.walkthrough_codex32_scheme,
-        Card::Identifier => EN.walkthrough_codex32_identifier,
-        Card::Entropy => EN.walkthrough_codex32_entropy,
-        Card::Enter => EN.walkthrough_codex32_enter,
-        Card::Sheets => EN.walkthrough_codex32_sheets,
-        Card::Strings => EN.walkthrough_codex32_strings,
-        Card::Made => EN.walkthrough_codex32_made,
-    }
 }
 
 fn title(m: &Codex32Make, card: Card) -> Text {

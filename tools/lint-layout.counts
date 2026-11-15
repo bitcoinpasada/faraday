@@ -2,7 +2,7 @@
 # is the owner's decision, recorded in DECISIONS.
 #
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
-fields Faraday 83
+fields Faraday 82
 
 # Files under faraday/ with an inherent `impl Faraday {`: the list only
 # shrinks.

@@ -1501,8 +1501,7 @@ same job and writes nothing.
 A flow in progress has a way out where the person is, not on its
 sidebar row (a press on the row only returns to the flow).
 
-1. **Cancel** at the top of every flow that has a sidebar row, beside
-   **Steps only · Guided**: it ends the flow, its row goes, and the
+1. **Cancel** at the top of every flow that has a sidebar row: it ends the flow, its row goes, and the
    screen it was opened from is shown as it was seen (F77); the screen
    in the table's last column only when that one is not known.
 2. **Asked first only when something would be lost** that the person
@@ -1765,8 +1764,7 @@ nonce records are dropped before signed amounts (`docs/VAULT.md` §5).
 
 **The setting.** Settings carries a card after Signed amounts, **Nonce
 history**, with **Kept in an open vault** · **Off**, the status line
-"{n} signatures remembered" over the open vaults, and with Guided on an
-explainer under its title. Off, nothing is remembered, compared or
+"{n} signatures remembered" over the open vaults. Off, nothing is remembered, compared or
 drawn, and a vault's records are neither read nor added to; at the
 vault's ceiling they still go first, as above.
 The default is **Kept in an open vault**.

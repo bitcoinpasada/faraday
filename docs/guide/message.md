@@ -19,7 +19,7 @@ The address is a receive address of the wallet, 0/0 at first; **-** and **+** st
 
 **Key:** message.text
 
-The text to be signed, exactly as typed or scanned: the signature fits these characters and no others.
+The text to be signed, exactly as typed or scanned: the signature fits these characters and no others. A single changed character, a space or a line break, makes a different message and the signature will not check.
 
 **Type** starts typing into the box and **Stop typing** ends it. **Scan** reads a QR code of plain text into the box; a code that holds a key is refused. The count of characters is shown beside the buttons. **Continue** opens the next card.
 

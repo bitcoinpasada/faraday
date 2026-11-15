@@ -38,7 +38,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: v.open == Some(s),
             default: false,
             toggle: va(V::Step(s)),
-            walkthrough: Some(guide(s).to_string()),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -49,8 +49,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.vanity_wallets, Action::Nav(v.back)))),
         heading: EN.vanity_vanity_address,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,
@@ -70,16 +68,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::Vanity, next, again);
-}
-
-fn guide(s: u8) -> &'static str {
-    match s {
-        vstep::KEY => EN.vanity_the_key_whose,
-        vstep::DIAL => EN.vanity_a_search_tries,
-        vstep::SCRIPT => EN.vanity_guide_kind,
-        vstep::PREFIX => EN.vanity_type_the_characters,
-        _ => EN.vanity_the_search_runs,
-    }
 }
 
 fn summary(app: &View, v: &VanityState, s: u8) -> String {

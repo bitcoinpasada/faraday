@@ -48,7 +48,7 @@
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
-//!   glance), `walkthrough` (Guided mode's walk-through), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
+//!   glance), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
 //!   (what a code read is), `text_check` (the secrets a text holds, refused by Transfer's Send text and by Compare with the wallet app's), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
@@ -178,7 +178,6 @@ pub mod scan_read;
 mod screens;
 pub(crate) mod text_check;
 mod visible;
-mod walkthrough;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
 pub mod bip85;
@@ -852,7 +851,7 @@ pub struct Faraday {
     restart_computer: bool,
     last_display: Option<DisplayInfo>,
     /// What the person chose: scale, theme, motion, idle times, QR speed,
-    /// time zone and guided mode (`stick/settings.rs`).
+    /// and time zone (`stick/settings.rs`).
     settings: stick::settings::Settings,
     /// Setting the time by hand (`docs/TOTP.md` §3).
     set_time: set_time::SetTimeArea,
@@ -987,9 +986,6 @@ pub struct Faraday {
     /// lately shown a fade's steps, the frosted page under the open
     /// sheet, and the screen the last frame drew (`fade.rs`).
     fade: fade::Fade,
-    /// The Guided switch's pill sliding: where it started, 0 on Steps
-    /// only and 1 on Guided, and the tick it started at.
-    guided_moving: Option<(f32, Option<u64>)>,
     /// What the start-up self-test found (`faraday_selftest`): run when the
     /// display first arrives, before any input. A failure blocks the app
     /// on a screen naming the check, with Exit its only control.
@@ -1119,7 +1115,6 @@ impl Faraday {
             worker: worker::Worker::new(),
             disclosed: None,
             fade: fade::Fade::default(),
-            guided_moving: None,
             selftest: None,
             online: false,
             seed_line: false,
@@ -2539,7 +2534,6 @@ impl Faraday {
             Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::GuideShares => self.guide_shares(),
-            Action::GuideExtraCopies => self.guide_extra_copies(),
             Action::GuidePin => self.guide_button(action),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
@@ -2842,15 +2836,6 @@ impl Faraday {
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
             Action::About(k) => self.panel.toggle_about(self.screen, k),
-            Action::Guided(on) => {
-                if on != self.guided() {
-                    // The switch's pill slides from where it shows now.
-                    let from = self.guided_shown();
-                    self.guided_moving = (!self.reduce_motion()).then_some((from, None));
-                }
-                self.settings.set_guided(on);
-                self.save_boxes();
-            }
             a @ (Action::SealAmounts(_) | Action::NonceHistory(_)) => self.memory_press(a),
             a @ (Action::TzStep(..)
             | Action::OpenSetTime
@@ -4229,7 +4214,6 @@ impl Faraday {
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme());
                 ui.frost = self.fade.take_frost(&frost_key);
-                ui.guided_shown = self.guided_shown();
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
                 ui.offset = self.screen_offset().unwrap_or(page_offset);
                 ui.active = slot;
@@ -4361,7 +4345,6 @@ impl Faraday {
         if let Some(d) = self.disclosed.as_mut() {
             d.moving = false;
         }
-        self.guided_moving = None;
         self.fresh.own_settle();
         let whole = self.whole_offset();
         let offset = self.scroll_offset().map_or(0.0, whole);
@@ -4775,21 +4758,12 @@ impl App for Faraday {
                 {
                     d.at = Some(now_ms);
                 }
-                if let Some((_, at @ None)) = self.guided_moving.as_mut() {
-                    *at = Some(now_ms);
-                }
-                if let Some((_, Some(at))) = self.guided_moving
-                    && now_ms >= at + motion::SWITCH_MS + 16
-                {
-                    self.guided_moving = None;
-                }
                 if self.out.toast.is_some() && self.out.toast_at.is_none() {
                     self.out.toast_at = Some(now_ms);
                 }
                 let fading = fading
                     || self.typing.caret_changed(self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
-                    || self.guided_moving.is_some()
                     || self.busy().is_some()
                     || self.out.toast.as_ref().is_some_and(|(_, until)| {
                         self.out

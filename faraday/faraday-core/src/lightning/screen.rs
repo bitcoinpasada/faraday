@@ -3,7 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::lightning::NodeSource;
-use crate::screens::{button_rows, guide_text};
+use crate::screens::button_rows;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -36,11 +36,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         EN.lightning_a_lightning_node
     };
-    let y = if compact {
-        top
-    } else {
-        header(app, ui, x, width, guide)
-    };
+    let y = if compact { top } else { header(app, ui) };
     let end = body(app, ui, x, y, width, (vx, vw, below));
     if compact {
         let y = end + crate::compact::screen::about(ui, x, end, width, guide);
@@ -48,10 +44,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
-/// The way back and the name, handed to the top app bar, and what
-/// explains the page, as the desktop draws them. Returns where the page
-/// goes on.
-fn header(app: &View, ui: &mut Ui, x: f32, width: f32, guide: &str) -> f32 {
+/// The way back and the name, handed to the top app bar, as the desktop
+/// draws it. Returns where the page goes on.
+fn header(app: &View, ui: &mut Ui) -> f32 {
     let Some(l) = app.lightning.state() else {
         return 0.0;
     };
@@ -61,8 +56,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32, guide: &str) -> f32 {
     } else {
         EN.lightning_lightning_node
     };
-    let y = crate::screens::bar_head(ui, Some(back), title);
-    y + guide_text(app, ui, x, y, width, guide)
+    crate::screens::bar_head(ui, Some(back), title)
 }
 
 /// The sources, the aezeed's words, and the node. `vx`, `vw` are where

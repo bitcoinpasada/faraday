@@ -89,10 +89,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
         heading: named.map_or(title.as_str(), |n| n.0),
-        // The setup of a wallet's vaults is Make a new wallet's, with its
-        // Guided switch (owner, 2026-10-25).
-        guided: f.is_setup() && app.guided(),
-        switch: f.is_setup(),
         wrap_closed: false,
         total_fixed: false,
         note: None,
@@ -238,22 +234,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         open,
         default: false,
         toggle: fa(F::Open(s.n())),
-        walkthrough: setup_guide(app, f, s),
-    }
-}
-
-/// The walk-through of the setup of a wallet's vaults, card by card, as
-/// Make a new wallet's own cards have theirs; the backup's other flows
-/// have none.
-fn setup_guide(app: &View, f: &BackupFlow, s: Step) -> Option<String> {
-    if !f.is_setup() {
-        return None;
-    }
-    let (m, ms) = (app.medium.noun(), app.medium.nouns());
-    match s {
-        Step::Sticks => Some(fill(FEN.backup_flow_guide_sticks, &[m, ms, m])),
-        Step::Vaults => Some(FEN.walkthrough_create_vaults.to_string()),
-        _ => None,
+        lead: None,
     }
 }
 
@@ -1517,10 +1498,6 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         cy += ui.list_item_still((x, cy, w), &it);
     }
     cy += 8.0;
-    // In Guided, extra copies (`docs/BACKUP-FLOW.md` §17.19 item 7).
-    if f.wallet.is_some() {
-        cy += crate::screens::extra_copies(app, ui, x, cy, w);
-    }
     let mut items: Vec<(String, Style, Action)> = Vec::new();
     // Unlock the first of the plan's vaults; its key's page follows, or a
     // wallet's checklist.

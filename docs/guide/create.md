@@ -27,7 +27,7 @@ Asked for a single key of any address type. The choice is how the key is written
 
 **Key:** create.quorum
 
-For a kind with several keys. A quorum of m keys out of n must sign to spend; **All keys · MuSig2** has no quorum, only the count of keys.
+For a kind with several keys. A quorum of m keys out of n must sign to spend; **All keys · MuSig2** has no quorum, only the count of keys. The keys are kept apart, on different devices or with different people, or the quorum protects nothing.
 
 **Signatures needed** and **Keys** are set by steppers. **Path** is **BIP-48** or **BIP-87** for the multisig kinds that are a descriptor, and cannot change once the wallet is made. **Account** is the account the keys are taken at, 0 at first.
 

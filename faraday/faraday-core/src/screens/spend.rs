@@ -9,7 +9,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, btc, grouped, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
-use crate::{Action, Screen, flow, walkthrough};
+use crate::{Action, Screen, flow};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
     BUTTON_H, CHIP_LINE, FACT_INDENT, GAP, GAP_SMALL, PAD, REVIEW_ADDR_INSET, REVIEW_ADDR_INSET_S,
@@ -268,11 +268,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (s.wallet, s.steps.clone())
     };
 
-    let (cards, scroll, guided) = {
+    let (cards, scroll) = {
         let s = app.wallets.spend().expect("spend");
-        let kind = wallet_idx
-            .and_then(|w| app.session.wallets.get(w))
-            .map(|w| crate::wallet::Kind::of(w.policy()));
         let cards: Vec<flow::Card> = steps
             .iter()
             .map(|&n| flow::Card {
@@ -283,8 +280,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 open: s.open == Some(n),
                 default: n == step::CHECK,
                 toggle: Action::Step(n),
-                walkthrough: Some(walkthrough::spend(n, kind, needed, s, app.medium))
-                    .filter(|g| !g.is_empty()),
+                lead: None,
             })
             .collect();
         (
@@ -293,7 +289,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 y: s.scroll,
                 follow: s.follow,
             },
-            app.guided(),
         )
     };
     let compact = ui.compact;
@@ -305,8 +300,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h: if compact { h - spend_bar_h(ui) } else { h },
         back: Some(app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.spend_sign_a_transaction,
-        guided,
-        switch: true,
         wrap_closed: false,
         total_fixed: false,
         note: None,

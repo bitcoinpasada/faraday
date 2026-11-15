@@ -149,38 +149,6 @@ fn a_clock_before_2020_is_not_known() {
     }
 }
 
-/// Settings' Time card says what reads the clock with Guided on, and
-/// carries its values and actions alone with it off.
-#[test]
-fn the_time_card_says_what_the_time_is_for_when_guided() {
-    let mut app = vault_app(Some(1_791_000_000));
-    // The vault's load sheet put away, Settings' Time chosen.
-    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadNotNow));
-    app.press(Action::Nav(Screen::Settings));
-    crate::common::settings_section(&mut app, "Time");
-    let says = |app: &mut Faraday| {
-        let _ = app.frame();
-        let texts = app.drawn_texts().join(" ");
-        texts.contains("TOTP codes, GPG and Secure Boot signatures")
-    };
-    app.press(Action::Guided(false));
-    assert!(!says(&mut app), "no explainer with Steps only");
-    app.press(Action::Guided(true));
-    // The Time card sits below Session's on this page: scrolled to, as a
-    // person would.
-    for _ in 0..6 {
-        if says(&mut app) {
-            break;
-        }
-        app.event(Event::Scroll {
-            x: 700,
-            y: 400,
-            dy: 120,
-        });
-    }
-    assert!(says(&mut app), "the explainer with Guided");
-}
-
 #[test]
 fn setting_the_time_by_hand_corrects_a_clock_before_2020() {
     let mut app = vault_app(Some(1000));

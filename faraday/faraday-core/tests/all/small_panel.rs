@@ -211,22 +211,6 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     assert_eq!(typed.as_str(), "aa", "the keys type into the field");
 }
 
-#[test]
-fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
-    let mut app = panel();
-    // A first start is Steps only (F82), and this walk-through opens on
-    // a tap there too.
-    assert!(!app.guided(), "Steps only is the first start");
-    tap(&mut app, Action::Nav(Screen::Vaults));
-    tap(&mut app, Action::Vault(V::Create));
-    // Create a vault opens on its second card, Name and passphrase.
-    let about = Action::About(1);
-    tap(&mut app, about);
-    assert_eq!(app.about_open(), Some((Screen::CreateVault, 1)));
-    tap(&mut app, about);
-    assert_eq!(app.about_open(), None, "a second tap puts it away");
-}
-
 /// The app on a phone's panel, 5 inches at 9:16, as `faraday --panel 5`
 /// shows it on a laptop of 277 pixels an inch, drawn once.
 fn phone() -> Faraday {

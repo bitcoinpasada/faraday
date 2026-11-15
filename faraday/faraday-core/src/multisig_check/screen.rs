@@ -25,7 +25,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: s.open == Some(step),
             default: step == mstep::SETUP && s.shown.is_some(),
             toggle: Action::MultisigCheck(M::Step(step)),
-            walkthrough: None,
         })
         .collect();
     let back_name = app.back_name(s.back);
@@ -37,8 +36,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.mscheck_title,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,

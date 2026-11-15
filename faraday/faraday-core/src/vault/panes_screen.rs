@@ -6,7 +6,6 @@
 
 use crate::drawing::View;
 use crate::panes::screen::{Item, ListPane, split};
-use crate::screens::guide_text;
 use crate::strings::{EN, fill};
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -184,11 +183,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += MARGIN_WIDE;
         }
     }
-    let about = fill(
-        EN.vault_a_vault_holds,
-        &[app.medium.a(), app.medium.for_the()],
-    );
-    y += guide_text(app, ui, dx, y, w, &about);
     app.scroll.content_h().set(y - top);
     ui.region_close(open, y - top - (h - p.top));
 }

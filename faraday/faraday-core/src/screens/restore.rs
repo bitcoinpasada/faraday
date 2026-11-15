@@ -8,8 +8,8 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::wallet::{FileKind, Session, fp_text};
-use crate::{Action, Screen, flow, walkthrough};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, LABEL_M};
+use crate::{Action, Screen, flow};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, LABEL_L, LABEL_M};
 use faraday_ui::parts::wrap_buttons;
 
 /// The closed line of Restore's card of vaults: the answer.
@@ -87,7 +87,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 // Unanswered, it has no value to change.
                 || (k == rstep::WHERE && r.vaults.answer.is_some()),
             toggle: Action::RStep(k),
-            walkthrough: (r.open == Some(k)).then(|| walkthrough::restore(k, app.medium)),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -114,8 +114,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.restore_wallets, Action::Nav(Screen::WalletsStart))
         })),
         heading: EN.restore_title,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: false,
         note: None,
@@ -425,6 +423,14 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let mut cy = y;
+    if r.described {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.restore_wrong_passphrase,
+        ) + GAP;
+    }
     let multi = r.kind().multi();
     let mut open_drawn = false;
     // What fills a slot starts at 124 dp; on a panel too narrow for "Not

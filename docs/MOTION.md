@@ -351,8 +351,6 @@ extent; a motion left from another screen or sheet is stopped.
     and widening with it; the ticks keep it in step with the open sheet
     (`Faraday::chart_side_tick`), and another node's sheet replaces it
     where it stands;
-  - a switch's fill slides in 150 ms on Material's standard curve
-    (`motion::SWITCH_MS`, `motion::ease_move`);
   - a batch added on Add randomness puts a pressed state layer in the
     accent behind its added line, easing to nothing over 400 ms on
     Material's standard curve (`tokens::PRESS_EMPHASIS_MS`, medium 4,
@@ -473,7 +471,6 @@ extent; a motion left from another screen or sheet is stopped.
     for short 4 after its values are entered. Each is at once (the pulse
     a steady highlight) under Reduce motion and while the gate below has
     fades off, and each asks for frames only while it runs;
-  - the Guided / Steps only switch's pill slides between its options;
   - the codex32 checksum worksheet's view follows the entry's work
     (`docs/CODEX32.md` §7.5, owner 2026-10-24) as smoothly as the
     fades: the place is worked out once when the front moves, and the

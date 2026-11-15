@@ -498,8 +498,6 @@ pub struct Ui<'a, A> {
     /// The frosted copy of the page under the open sheet, kept from the
     /// frame the sheet opened on.
     pub frost: Option<Vec<u8>>,
-    /// Where the Guided switch's pill is: 0 on Steps only, 1 on Guided.
-    pub guided_shown: f32,
     /// How open the codex32 dice sheet shows: 0 closed, 1 open.
     pub dice_shown: f32,
     /// On the wide layout, the page's name and its way back (the name of
@@ -670,7 +668,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             hovered: None,
             offset: 0.0,
             frost: None,
-            guided_shown: 1.0,
             dice_shown: 1.0,
             head: None,
             about_open: None,

@@ -6,7 +6,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::visible::first_line;
-use crate::{Action, Code, Screen, flow, walkthrough};
+use crate::{Action, Code, Screen, flow};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, GAP, MESSAGE_FIELD_MIN_H, MESSAGE_FIELD_PAD_X, MESSAGE_FIELD_PAD_Y,
     MESSAGE_SHOWN_GAP, TITLE_S,
@@ -90,7 +90,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: m.open == Some(k),
             default: false,
             toggle: Action::MStep(k),
-            walkthrough: Some(walkthrough::message(k)),
+            lead: None,
         })
         .collect();
     let col = flow::Column {
@@ -101,8 +101,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.message_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.message_sign_a_message,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,

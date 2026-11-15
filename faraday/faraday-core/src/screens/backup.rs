@@ -10,7 +10,7 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui};
 use crate::wallet::{Session, fp_text, key_line};
-use crate::{Action, Code, Faraday, Screen, flow, walkthrough};
+use crate::{Action, Code, Faraday, Screen, flow};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
@@ -281,9 +281,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return;
     };
-    let keys = app.backup_keys(b.wallet);
     let checklist = b.stage == BStage::Checklist;
-    let split = b.answers.split && crate::wallet_backup::splits(wallet);
     let steps = if checklist {
         app.backup_items()
     } else {
@@ -338,18 +336,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
-                    walkthrough: Some(walkthrough::backup(
-                        k,
-                        split,
-                        keys.len(),
-                        app.medium,
-                        if crate::bstep::is_copy(k) {
-                            app.copy_forms(b, usize::from(k - crate::bstep::COPY))
-                        } else {
-                            crate::plan::CopyForms::default()
-                        },
-                    ))
-                    .filter(|g| !g.is_empty()),
+                    lead: None,
                 }
             } else {
                 flow::Card {
@@ -364,7 +351,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.q == Some(k),
                     default: false,
                     toggle: Action::BQ(k),
-                    walkthrough: None,
+                    lead: None,
                 }
             }
         })
@@ -397,8 +384,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.backup_wallets, Action::OpenWallet(b.wallet))
         })),
         heading: &heading,
-        guided: app.guided(),
-        switch: checklist,
         wrap_closed: false,
         total_fixed: false,
         note: None,
@@ -649,7 +634,6 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         cy += 16.0;
     }
-    cy += extra_copies(app, ui, x, cy, w);
     // What the checklist made was written inside it: nothing waits For the
     // stick (`docs/BACKUP-FLOW.md` §10.2).
     let items: Vec<(&str, Style, Action)> = vec![
@@ -661,31 +645,6 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (EN.backup_done_change, Style::Secondary, Action::BPlan),
     ];
     cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
-    cy - y
-}
-
-/// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §17.19
-/// item 7): copies made outside the plan, and the link to the guide on them.
-/// Returns its height; nothing in Steps only.
-pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    if !app.guided() {
-        return 0.0;
-    }
-    let mut cy = y;
-    let text = fill(EN.backup_extra_copies, &[app.medium.noun()]);
-    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &text) + 6.0;
-    let label = EN.backup_extra_copies_link;
-    let bw = (ui.measure_as(LABEL_L, label) + 24.0).min(w);
-    ui.button(
-        x,
-        cy,
-        Some(bw),
-        BUTTON_H,
-        label,
-        Style::Ghost,
-        Action::GuideExtraCopies,
-    );
-    cy += BUTTON_H + 12.0;
     cy - y
 }
 

@@ -318,8 +318,6 @@ pub enum Action {
     TextSize(ui::TextSize),
     /// Reduce motion on or off.
     ReduceMotion(bool),
-    /// Guided mode on or off.
-    Guided(bool),
     /// Steps the time zone by this many minutes, stopping at the ends
     /// (`docs/TOTP.md` §2.1). Settings' row and Set the time's own row.
     TzStep(i16),
@@ -696,8 +694,6 @@ pub enum Action {
     /// **What is a share?** beside the backup plan's In shares: the
     /// The guide sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     GuideShares,
-    /// The guide at Extra copies, from the line under the backup's plan.
-    GuideExtraCopies,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the

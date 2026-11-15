@@ -180,7 +180,6 @@ mod seeds_first;
 mod select;
 mod selftest;
 mod settings_file;
-mod settings_guided;
 mod shared_keys;
 mod sidebar;
 mod sign_from_card;

@@ -171,9 +171,6 @@ impl Region<'_> {
 /// How long two-finger scrolling may pause before it is taken to have
 /// ended, for a shell that does not say when the fingers lift.
 pub(crate) const SCROLL_QUIET_MS: u64 = 300;
-/// How long a switch's pill takes to slide to the other side:
-/// Material's short 3.
-pub(crate) const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a step card takes to open or close: Material's medium 2,
 /// since it moves much of the page.
 pub(crate) const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
@@ -750,19 +747,6 @@ impl Scroll {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
-    /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
-    /// Guided, between while it slides.
-    pub(crate) fn guided_shown(&self) -> f32 {
-        let to = if self.guided() { 1.0 } else { 0.0 };
-        match self.guided_moving {
-            Some((from, at)) => {
-                let t = ease_move(progress(at, self.now_ms, SWITCH_MS));
-                from + (to - from) * t
-            }
-            None => to,
-        }
-    }
-
     /// Runs `go` on the motion and the region that scrolls now, with how
     /// far it goes as the last frame drew it. A motion left over from
     /// another screen or sheet is stopped first.

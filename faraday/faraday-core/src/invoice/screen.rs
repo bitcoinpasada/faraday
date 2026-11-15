@@ -43,11 +43,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::bar_head(ui, Some(back), EN.invoice_title)
     };
     let mut y = top;
-    let guide = EN.invoice_about;
-    // On a small panel the About page comes after what it explains.
-    if !compact {
-        y += crate::screens::parts::guide_text(app, ui, x, y, w, guide);
-    }
 
     // Material's outlined text field, its edge thicker and in primary
     // while typing goes to it, which is always here.
@@ -111,6 +106,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(Ok(rows)) => y = draw_rows(ui, rows, (x, y, w)),
     }
     if compact {
+        let guide = EN.invoice_about;
         y += INVOICE_BLOCK_GAP
             + crate::compact::screen::about(ui, x, y + INVOICE_BLOCK_GAP, w, guide);
     }

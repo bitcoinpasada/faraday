@@ -49,7 +49,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 open: s.open == n,
                 default: side.is_some(),
                 toggle: Action::SignerCheck(SignerPress::Card(n)),
-                walkthrough: None,
+                lead: None,
             }
         })
         .collect();
@@ -64,8 +64,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::SignerCheck(SignerPress::Back),
         ))),
         heading: EN.catalog_check_a_signer,
-        guided: false,
-        switch: false,
         wrap_closed: true,
         total_fixed: true,
         note: None,

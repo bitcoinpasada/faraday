@@ -30,16 +30,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && app.vaults.open.is_empty()
         && !app.create_unfinished()
         && app.wallets.spend().is_none();
-    if app.guided() && !compact {
-        let text = if empty {
-            fill(EN.start_no_wallet_loaded, &[app.medium.a()])
-        } else {
-            EN.start_start_from_what.to_string()
-        };
-        let lead_w = width.min(820.0);
-        let used = ui.wrap_as((x, y, lead_w), BODY_M, Role::OnSurfaceVariant, &text);
-        y += used + 20.0;
-    }
     section_label(ui, x, y, EN.start_your_wallets);
     y += if compact { 24.0 } else { 30.0 };
     y += wallet_rows(app, ui, x, y, width, 2, &Action::OpenWallet) + 18.0;

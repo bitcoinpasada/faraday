@@ -22,7 +22,7 @@ use crate::ui::Paint;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, flow, walkthrough};
+use crate::{Action, flow};
 use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
 
@@ -97,8 +97,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let steps = k.steps();
-    // The walk-through is New key's own: a key typed has none.
-    let guided = |s: u8| s != kstep::TYPED && !(s == kstep::KEY && k.typed());
     let mut cards: Vec<flow::Card> = steps
         .iter()
         .map(|&s| flow::Card {
@@ -111,7 +109,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Once locked in, nothing before Key changes: no Change.
             default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
-            walkthrough: guided(s).then(|| walkthrough::keygen(s, k)),
+            lead: None,
         })
         .collect();
     // Make codex32 shares draws a card each of its own (`docs/CODEX32.md` §6).
@@ -152,8 +150,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h: h - dice_foot.unwrap_or(0.0),
         back: Some(app.named_back((back_label, Action::Nav(k.back)))),
         heading: &heading,
-        guided: app.guided(),
-        switch: true,
         wrap_closed: false,
         total_fixed: true,
         note: None,

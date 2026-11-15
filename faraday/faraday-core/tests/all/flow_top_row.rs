@@ -107,13 +107,6 @@ fn flows_end_before_the_testnet_pill_and_the_question_mark() {
         app.settle();
         checked += usize::from(clear_of_top_row(&mut app, "Make codex32 shares"));
         let _ = app.frame();
-        let pair = boxed(&app, Action::Guided(true)).expect("the Guided pair");
-        let q = boxed(&app, Action::Guide).map_or(i32::MAX, |b| b.0);
-        let pill = boxed(&app, Action::ModeSheet).map_or(q, |b| b.0.min(q));
-        assert!(
-            pair.0 + pair.2 <= pill,
-            "{w}x{h}: Guided ends past the pill"
-        );
         assert!(
             CANCELS.load(std::sync::atomic::Ordering::Relaxed) > 0,
             "no flow was open"

@@ -734,7 +734,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
 }
 
 #[test]
-fn the_then_chip_on_the_checklist_is_clear_of_steps_only_guided_and_cancel() {
+fn the_then_chip_on_the_checklist_is_clear_of_cancel() {
     use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
     let (mut app, _, _) = made(&[1], "");
     app.event(Event::Display(DisplayInfo {
@@ -758,22 +758,17 @@ fn the_then_chip_on_the_checklist_is_clear_of_steps_only_guided_and_cancel() {
         .find(|(t, _)| t == "Then: Wallets")
         .map(|(_, b)| *b)
         .unwrap_or_else(|| panic!("no Then chip drawn: {boxes:?}"));
-    for a in [
-        Action::Guided(false),
-        Action::Guided(true),
-        Action::CancelFlow,
-    ] {
-        let b = app.hit_box(a).unwrap_or_else(|| panic!("{a:?} not drawn"));
-        let b = (
-            i32::from(b.0),
-            i32::from(b.1),
-            i32::from(b.2),
-            i32::from(b.3),
-        );
-        let apart = chip.0 + chip.2 <= b.0
-            || b.0 + b.2 <= chip.0
-            || chip.1 + chip.3 <= b.1
-            || b.1 + b.3 <= chip.1;
-        assert!(apart, "the chip {chip:?} under {a:?} at {b:?}");
-    }
+    let a = Action::CancelFlow;
+    let b = app.hit_box(a).unwrap_or_else(|| panic!("{a:?} not drawn"));
+    let b = (
+        i32::from(b.0),
+        i32::from(b.1),
+        i32::from(b.2),
+        i32::from(b.3),
+    );
+    let apart = chip.0 + chip.2 <= b.0
+        || b.0 + b.2 <= chip.0
+        || chip.1 + chip.3 <= b.1
+        || b.1 + b.3 <= chip.1;
+    assert!(apart, "the chip {chip:?} under {a:?} at {b:?}");
 }

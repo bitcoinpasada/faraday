@@ -842,13 +842,10 @@ pub const SWITCH_HANDLE_PRESSED: f32 = 28.0;
 /// A switch: the state layer round its handle, its diameter.
 pub const SWITCH_STATE: f32 = 40.0;
 
-/// A Guided text: how far in from its bar the words stand.
+/// A card's own text: how far in from its bar the words stand.
 pub const GUIDE_INDENT: f32 = 14.0;
 
-/// A Guided text: the room under it.
-pub const GUIDE_AFTER: f32 = 18.0;
-
-/// A Guided text: the width of the bar beside it.
+/// A card's own text: the width of the bar beside it.
 pub const GUIDE_BAR: f32 = 3.0;
 
 // Window size classes (`docs/LAYOUT.md` §2, Material 3's widths and

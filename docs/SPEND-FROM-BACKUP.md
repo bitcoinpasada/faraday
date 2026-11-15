@@ -73,7 +73,6 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   lock for a stick visit or for idleness returns the person to the same
   page after Unlock, with those files still listed. Seeds come back by a
   vault or not at all. A page 4 kept from before maps to page 3.
-- The Guided/Full switch does not apply here: the Spend tab always shows its text.
 
 ## 3. The pages
 
