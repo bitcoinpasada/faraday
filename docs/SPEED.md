@@ -523,7 +523,9 @@ Nothing a person waits on blocks a frame. What holds:
    lock) is dropped. The boot stick's sheet and the visit's row say
    "Being read" until it comes (`VisitState::reading`). A picture is
    decoded once and searched for light-on-dark codes only when it holds
-   no dark-on-light one (`faraday_codec::decode::decode_picture`).
+   no dark-on-light one (`faraday_codec::decode::decode_picture`), a
+   picture over 2^23 pixels (`faraday_files::TWO_PASS_PIXELS`) only for
+   dark-on-light ones (`decode_luma`).
 2. **A press that stretches a key or makes pictures is drawn first.** A
    press whose work stretches a key (PBKDF2, scrypt, Argon2) or makes
    more than one picture or PDF is drawn, then done on the tick after

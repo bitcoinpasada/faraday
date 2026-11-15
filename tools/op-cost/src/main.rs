@@ -46,6 +46,7 @@ const OPERATIONS: [(&str, fn()); 6] = [
     ("psbt-read", psbt_read),
     ("psbt-sign", psbt_sign),
     ("text-file-words-1mib", text_file_words),
+    ("qr-in-png-limit", qr_in_png_limit),
 ];
 
 /// A sentence of plain English, repeated to about 1 MiB: what a note on a
@@ -123,6 +124,27 @@ fn psbt_sign() {
     )
     .expect("vector psbt signs");
     assert!(result.complete);
+}
+
+/// A picture at the size limit, 4096 x 4096 of 3-pixel squares with no code
+/// in it, read for QR codes as the disk process reads a picture off a stick.
+fn qr_in_png_limit() {
+    let side = 4096usize;
+    let px: Vec<u8> = (0..side * side)
+        .map(|i| {
+            let (x, y) = (i % side / 3, i / side / 3);
+            if (x * 7 + y * 13 + x * y) % 3 == 0 {
+                0
+            } else {
+                255
+            }
+        })
+        .collect();
+    let png = faraday_codec::png::grey_png(side, side, &px);
+    drop(px);
+    let c = Compute::unchecked();
+    let codes = faraday_files::qr_in_png(&c, &png).expect("a picture at the limit");
+    assert!(codes.is_empty());
 }
 
 fn main() -> ExitCode {

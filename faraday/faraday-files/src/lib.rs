@@ -67,6 +67,15 @@ pub const MAX_VAULT_READ: u64 = vault_file::MAX_FILE_LEN;
 /// this before any pixel is decoded.
 pub const MAX_PIXELS: usize = 4096 * 4096;
 
+/// A picture over this many pixels, 2^23 (about 8.4 million: a 4K
+/// screen's 8.3 million is under it), is searched once, dark on light,
+/// and never inverted. The QR reader's work grows with the pixels, a
+/// crafted picture at [`MAX_PIXELS`] costs it seconds on a Pi, and the
+/// second, inverted search would double that. A phone's screenshot, a
+/// 12-megapixel photograph and Faraday's own pictures of a code are all
+/// under it or hold their code dark on light.
+pub const TWO_PASS_PIXELS: usize = 1 << 23;
+
 /// A file's name and its first bytes, or why they were not read.
 pub type Head = (Text, Result<Vec<u8>, Text>);
 
@@ -1500,7 +1509,12 @@ fn png_header_pixels(bytes: &[u8]) -> Option<u64> {
 
 /// Costs a PNG decode and [`faraday_codec::decode::decode_picture`]: a
 /// third of a second for a 12-megapixel photograph, seconds on a Pi, so
-/// a shell reads pictures off its own thread. The QR codes in a PNG's
+/// a shell reads pictures off its own thread. A picture over
+/// [`TWO_PASS_PIXELS`] is searched once, not twice: a crafted picture at
+/// [`MAX_PIXELS`] is searched once: 4.2 billion instructions under
+/// callgrind (`tools/op-cost`, `qr-in-png-limit`, a patterned 4096 × 4096
+/// picture with no code, picture built included), 6.2 billion with the
+/// inverse search too. The QR codes in a PNG's
 /// bytes, dark on light or light on dark, wiped when dropped: a code may
 /// be a SeedQR.
 pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec<u8>>>, Text> {
@@ -1555,9 +1569,17 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
     if wrong {
         return Err(Text::of(EN.files_picture_unread));
     }
-    // A code printed light on dark is read too.
-    Ok(zeroize::Zeroizing::new(
+    // A code printed light on dark is read too, in a picture small enough
+    // to be searched twice.
+    #[allow(clippy::arithmetic_side_effects, reason = "w * h is under MAX_PIXELS")]
+    let large = w * h > TWO_PASS_PIXELS;
+    let found = if large {
+        faraday_codec::decode::decode_luma(c, w, h, &luma)
+    } else {
         faraday_codec::decode::decode_picture(c, w, h, &luma)
+    };
+    Ok(zeroize::Zeroizing::new(
+        found
             .into_iter()
             .map(|mut d| std::mem::take(&mut *d.bytes))
             .collect(),

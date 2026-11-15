@@ -9,3 +9,4 @@ seed-xor-combine 31739573
 psbt-read 988287
 psbt-sign 59944909
 text-file-words-1mib 132170791
+qr-in-png-limit 4175346902
