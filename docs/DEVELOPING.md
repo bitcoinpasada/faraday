@@ -164,7 +164,7 @@ and trailers.
 
 One crate's tests or one lint recipe can run there alone, started by hand on
 any branch (`.github/workflows/targeted.yml`, F243); `lint` is `none` for
-tests only, and `filter` is optional:
+tests only, `filter` is optional and `crate` may name several crates separated by spaces (one nextest run):
 
 ```
 gh workflow run targeted.yml --ref <branch> -f crate=faraday-core -f filter='test(/^keygen::/)' -f lint=none

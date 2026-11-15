@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       crate:
-        description: The workspace crate whose tests run (empty for a lint only)
+        description: The workspace crates whose tests run, separated by spaces, in one nextest run (empty for a lint only)
         default: ""
       filter:
         description: A nextest filter for the crate's tests
@@ -66,10 +66,10 @@ jobs:
             printf '%s' "$c" | grep -Eq '^[a-z0-9_-]{1,64}$' \
               || { echo "A crate name is not a crate name." >&2; exit 1; }
           done
-          if [ -n "$CRATE" ]; then
-            printf '%s' "$CRATE" | grep -Eq '^[a-z0-9_-]{1,64}$' \
+          for c in $CRATE; do
+            printf '%s' "$c" | grep -Eq '^[a-z0-9_-]{1,64}$' \
               || { echo "The crate name is not a crate name." >&2; exit 1; }
-          fi
+          done
           printf '%s' "$FILTER" | grep -Eq '^[A-Za-z0-9_:/^$().|&!= ~*-]{0,200}$' \
             || { echo "The filter has a character a filter does not use." >&2; exit 1; }
 
@@ -106,7 +106,10 @@ jobs:
         env:
           CRATE: ${{ inputs.crate }}
           FILTER: ${{ inputs.filter }}
-        run: cargo nextest run --locked -p "$CRATE" -E "${FILTER:-all()}"
+        run: |
+          args=()
+          for c in $CRATE; do args+=(-p "$c"); done
+          cargo nextest run --locked --no-fail-fast "${args[@]}" -E "${FILTER:-all()}"
       - name: The lint recipe
         if: inputs.lint != 'none'
         env:
