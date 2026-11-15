@@ -39,6 +39,7 @@ mod build;
 mod caret;
 mod catalog;
 mod chart_edit;
+mod check;
 mod check_copy;
 mod check_needs_wallet;
 mod checklist_next_frame;

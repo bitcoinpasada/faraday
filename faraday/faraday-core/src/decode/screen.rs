@@ -22,6 +22,7 @@ pub(crate) fn decode_back(back: Screen) -> &'static str {
         Screen::Files => EN.decode_back_files,
         Screen::WalletsStart => EN.decode_back_wallets,
         Screen::Catalog => EN.decode_back_tools,
+        Screen::Check => EN.compact_check,
         Screen::NonceCheck => EN.decode_back_nonce_check,
         _ => EN.decode_back_back,
     }

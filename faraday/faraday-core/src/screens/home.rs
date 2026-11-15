@@ -237,12 +237,9 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
 
 /// Home's tiles, under the lead when there is one: the four ways in,
 /// then, where they apply, Stick visit (a stick attached, nothing held)
-/// and Backups (a wallet known). With no vault in Files or open, Vaults
-/// is Create a vault: the list would have nothing else on it.
+/// and Backups (a wallet known). The fourth is Check, always: vaults are
+/// reached from the sidebar (F255).
 pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)> {
-    use crate::vault::VaultAction as V;
-    let vault_files = app.vault_files().len();
-    let open = app.vaults.open.len();
     let mut t = vec![
         (
             Glyph::Icon(Icon::Flag),
@@ -262,25 +259,12 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             EN.home_ways_a_stick_words.to_string(),
             Action::Nav(Screen::SpendBackup),
         ),
-        if open == 0 && vault_files == 0 {
-            (
-                Glyph::Icon(Icon::Lock),
-                EN.home_ways_create_vault,
-                EN.home_ways_none_yet.to_string(),
-                Action::Vault(V::Create),
-            )
-        } else {
-            (
-                Glyph::Icon(Icon::Lock),
-                EN.home_ways_vaults,
-                if open == 0 {
-                    fill(EN.home_ways_locked, &[&vault_files.to_string()])
-                } else {
-                    fill(EN.home_ways_open, &[&open.to_string()])
-                },
-                Action::Nav(Screen::Vaults),
-            )
-        },
+        (
+            Glyph::Icon(Icon::Checklist),
+            EN.home_ways_check,
+            EN.home_ways_check_line.to_string(),
+            Action::Nav(Screen::Check),
+        ),
     ];
     let (known, without) = app.backup_counts();
     if known > 0 {

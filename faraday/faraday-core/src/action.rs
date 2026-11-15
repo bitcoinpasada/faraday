@@ -895,6 +895,8 @@ pub enum Action {
     DecodeFinished,
     /// Open the Tools page's tile n.
     Catalog(u8),
+    /// A press on the Check page: a row, or a form in its backup menu.
+    Check(crate::check::Press),
     /// Load the wallets the Inbox describes, with the seeds here.
     InboxLoad,
     /// Leave out, or take back, the Inbox's wallet n in its next load.

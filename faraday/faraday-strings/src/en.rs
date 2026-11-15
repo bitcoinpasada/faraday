@@ -1932,6 +1932,8 @@ strings! {
     compact_backups: "Backups",
     /// Text in `tiles`. `{}`: `without`.
     compact_not_backed: "{} not backed up",
+    /// Check's name in the bar and on the Pi's Home menu.
+    compact_check: "Check",
     /// Text in `tiles`.
     compact_tools: "Tools",
     /// Text in `tiles`.
@@ -5450,9 +5452,68 @@ strings! {
     bar_menu_hide_sheets: "Hide sheets",
     /// A destination's badge past 999 things waiting (Material's most).
     nav_badge_many: "999+",
+    // ----- Check (faraday-core/src/check/screen.rs) -----
+    /// A group on Check.
+    check_group_wallet: "The wallet",
+    /// A group on Check.
+    check_group_signing: "Signing",
+    /// A group on Check.
+    check_group_setup: "Setup and backups",
+    /// A group on Check.
+    check_group_messages: "Messages and keys",
+    /// The mark on a Check row that works from the seed.
+    check_seed: "Seed",
+    /// A Check row.
+    check_row_address: "An address on its screen",
+    /// A Check row's line.
+    check_address_line: "The address and the wallet loaded here",
+    /// A Check row.
+    check_transaction: "A transaction before signing",
+    /// A Check row's line.
+    check_transaction_line: "The PSBT, as a file or a QR code",
+    /// A Check row.
+    check_signed: "What it signed",
+    /// A Check row's line.
+    check_signed_line: "The PSBT sent and the one returned",
+    /// A Check row.
+    check_signatures: "Its signatures hide nothing",
+    /// A Check row's line.
+    check_signatures_line: "A signed PSBT or transaction",
+    /// A Check row.
+    check_dice: "A seed made from dice rolls",
+    /// A Check row's line.
+    check_dice_line: "The rolls and the words made from them",
+    /// A Check row; it opens a menu of the forms.
+    check_backup: "A backup in another form",
+    /// A Check row's line.
+    check_backup_line: "Shares, parts, a SeedQR, codex32 or a Krux code",
+    /// A Check row.
+    check_row_message: "A signed message",
+    /// A Check row's line.
+    check_message_line: "The message, its signature and the address",
+    /// A Check row.
+    check_child: "Child seeds",
+    /// A Check row's line.
+    check_child_line: "The parent seed and the child's index",
+    /// A Check row.
+    check_xpub: "An xpub's other spellings",
+    /// A Check row's line.
+    check_xpub_line: "An extended public key in any spelling",
+    /// A form in the backup menu.
+    check_menu_slip39: "SLIP-39 shares",
+    /// A form in the backup menu.
+    check_menu_xor: "Seed XOR parts",
+    /// A form in the backup menu.
+    check_menu_seedqr: "SeedQR",
+    /// A form in the backup menu.
+    check_menu_codex32: "codex32",
+    /// A form in the backup menu.
+    check_menu_krux: "Krux code",
     // ----- sidebar (faraday-core/src/screens/sidebar.rs) -----
     /// Text in `sidebar`.
     sidebar_home: "Home",
+    /// The Check destination, right under Home.
+    sidebar_check: "Check",
     /// Text in `sidebar`.
     sidebar_vaults: "Vaults",
     /// Text in `sidebar`.
@@ -5560,16 +5621,10 @@ strings! {
     home_ways_spend_backup: "Spend from a backup, step by step",
     /// Text in `home_ways`.
     home_ways_a_stick_words: "A stick, words, or paper",
-    /// Text in `home_ways`.
-    home_ways_create_vault: "Create a vault",
-    /// Text in `home_ways`.
-    home_ways_none_yet: "None yet",
-    /// Text in `home_ways`.
-    home_ways_vaults: "Vaults",
-    /// Text in `home_ways`. `{}`: `vault_files`.
-    home_ways_locked: "{} locked",
-    /// Text in `home_ways`. `{}`: `open`.
-    home_ways_open: "{} open",
+    /// Home's Check tile, always the fourth.
+    home_ways_check: "Check a hardware wallet",
+    /// Home's Check tile's line.
+    home_ways_check_line: "Its seed, addresses and signatures",
     /// Text in `home_ways`.
     home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.

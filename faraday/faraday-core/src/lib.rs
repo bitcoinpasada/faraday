@@ -41,7 +41,7 @@
 //!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
 //!   `compact` (the small panel), `panes` (list and detail), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
-//!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
+//!   a lock), `copy_check` (a copy by hand checked), `check` (Check, the list of what to hold up against a hardware wallet, with `check/screen.rs`), `set_time`, `stick`
 //!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, `trail` (where
 //!   Back lands: the screens left, as they were seen), and `ui` (drawing
 //!   in design units).
@@ -91,6 +91,7 @@
 //! | `Entry` | `screens/entry.rs` |
 //! | `Backup` | `screens/backup.rs` |
 //! | `Message` | `screens/message.rs` |
+//! | `Check` | `check/screen.rs` |
 //! | `CheckMessage` | `screens/check_message.rs` |
 //! | `Create` | `screens/create.rs` |
 //! | `Restore` | `screens/restore.rs` |
@@ -215,6 +216,7 @@ pub mod word_entry;
 
 // Wallets and PSBTs.
 pub mod catalog;
+pub mod check;
 pub mod decode;
 pub mod explore;
 pub mod plan;
@@ -316,6 +318,8 @@ pub const RESTART_COMPUTER_CODE: u8 = 76;
 pub enum Screen {
     /// Home.
     Home,
+    /// Check: what to hold up against a hardware wallet, each row opening its tool.
+    Check,
     /// The Wallets tab's first page: every flow, by what the person has.
     WalletsStart,
     /// The Wallets tab: the wallets, the wallet card, and every flow (`docs/WALLETS.md`).
@@ -568,6 +572,8 @@ pub enum Sheet {
     ChildRecord,
     /// Tools' **GPG key** with no vault open: **Make a key** or **Restore from a paperkey**.
     GpgTile,
+    /// Check's **A backup in another form**: the forms to choose from.
+    CheckBackups,
     /// **Options** of the Krux code tool's form.
     KefOptions,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
@@ -2869,6 +2875,7 @@ impl Faraday {
             | Action::BC32(..)) => self.backup_act(a, &c),
             Action::Board(p) => self.board_press(p),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
+            Action::Check(p) => check::press(self, p),
             a @ (Action::DecodeFinished
             | Action::DecodeInbox(..)
             | Action::QrDecoded

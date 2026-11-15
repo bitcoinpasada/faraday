@@ -116,6 +116,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::Explore => EN.compact_explore_a_key,
         Screen::Lightning => EN.compact_lightning,
         Screen::Tools | Screen::Catalog => EN.compact_tools,
+        Screen::Check => EN.compact_check,
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
         Screen::Invoice => EN.compact_invoice,
@@ -1051,6 +1052,14 @@ fn tiles(app: &View) -> Vec<Tile> {
     // Wallets empty state and the guide sheet), then the ways in and
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
+        // Check is the first button (F255).
+        (
+            Icon::Checklist.into(),
+            EN.compact_check,
+            Text::new(),
+            Action::Nav(Screen::Check),
+            true,
+        ),
         (
             Icon::Wallet.into(),
             EN.compact_wallets,
@@ -1092,7 +1101,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     let (known, without) = app.backup_counts();
     if known > 0 {
         t.insert(
-            2,
+            3,
             (
                 Icon::Shield.into(),
                 EN.compact_backups,

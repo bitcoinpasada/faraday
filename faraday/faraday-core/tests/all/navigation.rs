@@ -82,8 +82,20 @@ fn the_pi_panel_shows_homes_menu_and_no_bar() {
     // 480 × 640 at 286 dpi: 268 × 358 dp.
     let mut app = on(480, 640, 286);
     assert_eq!(app.nav(), Nav::Menu);
-    // Wallets and the guide are buttons on the menu itself.
+    // Check first, then Wallets and the guide: buttons on the menu itself,
+    // the guide further down it.
+    assert!(at(&mut app, Action::Nav(Screen::Check)).is_some());
     assert!(at(&mut app, Action::Nav(Screen::WalletsStart)).is_some());
+    for _ in 0..20 {
+        if at(&mut app, Action::Guide).is_some() {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 134,
+            y: 300,
+            dy: 120,
+        });
+    }
     assert!(at(&mut app, Action::Guide).is_some());
     assert!(
         !app.offers(Action::NavMenu(MenuPress::Open(None))),

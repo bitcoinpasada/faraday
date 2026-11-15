@@ -1014,6 +1014,13 @@ pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
 /// Add randomness' reading area: its `COLUMN_MAX` column between two
 /// 48 dp insets.
 pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
+/// Check's reading area: its list's `COLUMN_MAX` column between two
+/// `PAGE_INSET`s.
+pub const READING_CHECK_W: f32 = COLUMN_MAX + 2.0 * PAGE_INSET;
+/// Check's list's top on a compact window.
+pub const CHECK_TOP: f32 = 14.0;
+/// The space under Check's last row.
+pub const CHECK_TAIL: f32 = 40.0;
 /// Explore's inset from its area's edges on a wide window.
 pub const EXPLORE_INSET: f32 = 56.0;
 /// The space under the line beneath a private key Explore shows.

@@ -503,24 +503,21 @@ fn home_and_empty_wallets_name_the_two_flows() {
 
 /// Home's Start with nothing under way is its four ways in, each opening
 /// its flow, whose way back is Home: Make a new wallet, Restore an
-/// existing wallet, Spend from a backup, and Vaults, which with no vault
-/// at all opens Create a vault.
+/// existing wallet, Spend from a backup, and Check.
 #[test]
 fn homes_four_ways_in_open_their_flows_and_lead_back_home() {
-    use faraday_core::vault::VaultAction as V;
     for (action, screen) in [
         (Action::CreateWallet, Screen::Create),
         (Action::RestoreWallet, Screen::Restore),
         (Action::Nav(Screen::SpendBackup), Screen::SpendBackup),
-        (Action::Vault(V::Create), Screen::CreateVault),
+        (Action::Nav(Screen::Check), Screen::Check),
     ] {
         let mut app = shown();
         assert!(app.offers(action), "{action:?} is on Home");
         tap(&mut app, action);
         assert_eq!(app.screen, screen);
         // Back steps back to the flow's first step, then leaves it
-        // (F104): Create a vault opens on its second, its size closed on
-        // the default.
+        // (F104).
         for _ in 0..4 {
             if app.screen != screen {
                 break;
@@ -550,13 +547,13 @@ fn the_flows_opened_from_wallets_lead_back_to_wallets() {
     }
 }
 
-/// With a vault in Files, Home's Vaults opens the list, not Create a
-/// vault.
+/// Home's fourth tile is Check whether or not a vault is in Files.
 #[test]
-fn homes_vaults_opens_the_list_once_there_is_a_vault() {
+fn homes_fourth_tile_is_check_with_or_without_a_vault() {
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let app = with_inbox(vec![("vault.kdbx", vault)]);
+    assert!(app.offers(Action::Nav(Screen::Check)));
     assert!(!app.offers(Action::Vault(V::Create)));
 }
 

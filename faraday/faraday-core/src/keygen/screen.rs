@@ -127,6 +127,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Create => EN.keygen_make_a_new_wallet,
         crate::Screen::Entry => EN.keygen_add_a_key,
         crate::Screen::Catalog => EN.keygen_tools,
+        crate::Screen::Check => EN.compact_check,
         _ => EN.keygen_back,
     };
     let (column, panel) = codex32_places(app, k, (cw, h));

@@ -1292,6 +1292,17 @@ impl crate::Faraday {
         self.keygen_start_next();
     }
 
+    /// Opens the flow making a key, on its Randomness card with dice
+    /// chosen, the way chosen there (Check's dice row).
+    pub(crate) fn keygen_open_dice(&mut self) {
+        self.keygen_open_on(Start::Make);
+        if let Some(k) = self.keygen.state.as_mut().filter(|k| !k.locked) {
+            k.done[usize::from(kstep::LENGTH)] = true;
+            k.open = Some(kstep::SOURCE);
+            k.scroll.follow = true;
+        }
+    }
+
     /// Start's Continue: the cards for the choice open. A choice other
     /// than the one the later cards were opened for starts them over.
     fn keygen_start_next(&mut self) {

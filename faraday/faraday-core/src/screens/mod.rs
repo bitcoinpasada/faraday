@@ -143,6 +143,7 @@ fn area_of(screen: Screen) -> Area {
         #[cfg(feature = "demo")]
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
         Screen::Catalog => Area::Work,
+        Screen::Check => Area::Reading(faraday_draw::tokens::READING_CHECK_W),
         // New key, which holds Make codex32 shares and its supporting
         // pane; Home, whose tiles are a feed across the work width; and
         // the lists, a list pane and the one chosen beside it to the
@@ -490,6 +491,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::ChildRecord => crate::bip85::screen::record_dialog(app, ui, w, h),
             Sheet::GpgTile => crate::backup_flow::gpg_restore_screen::tile_dialog(ui, w, h),
             Sheet::MadeWallet => crate::explore::made::dialog(app, ui, w, h),
+            Sheet::CheckBackups => crate::check::screen::backups_dialog(ui, w, h),
             Sheet::ChildNotice => crate::screens::create::child_notice(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
@@ -656,6 +658,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
         Screen::Compare => crate::compare::screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
+        Screen::Check => crate::check::screen::draw(app, ui, x, cw, h),
         #[cfg(feature = "demo")]
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),

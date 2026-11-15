@@ -104,6 +104,17 @@ fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Actio
 /// something is held) and Power off at its foot.
 pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
     let (mut top, more) = destinations(app);
+    // Check stands right under Home: a rail takes up to seven destinations,
+    // the bar keeps its five (F255).
+    top.insert(
+        1,
+        dest(
+            app,
+            Icon::Checklist,
+            EN.sidebar_check,
+            Action::Nav(Screen::Check),
+        ),
+    );
     top.extend(more);
     let under = [
         dest(app, Icon::Help, EN.sidebar_guide, Action::Guide),

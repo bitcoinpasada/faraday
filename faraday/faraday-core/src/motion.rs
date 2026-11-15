@@ -1269,6 +1269,7 @@ impl Faraday {
             | Screen::Invoice
             | Screen::NonceCheck
             | Screen::Catalog
+            | Screen::Check
             | Screen::Backups
             | Screen::Settings
             | Screen::SetTime
