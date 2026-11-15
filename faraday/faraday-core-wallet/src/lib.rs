@@ -751,6 +751,43 @@ pub fn read<V: AsRef<[u8]>>(
     mode: Network,
     passphrase: Option<&SecretText>,
 ) -> Result<Wallet, Refusal> {
+    let network = checked_network(application_id, mode)?;
+    let (fresh, repeats) = first_of_each_key(records);
+    let flags = descriptor_flags(&fresh)?;
+    let mut r = Reader::new(c, network, flags);
+    r.flag_and_repeat_failures(flags, repeats);
+    let (cache, placed) = r.account_key_cache(&fresh);
+    for (key, value) in fresh.iter().copied() {
+        if let Some(("walletdescriptor", tail)) = split_key(key) {
+            r.descriptor(tail, value, &cache)?;
+        }
+    }
+    r.cache_without_descriptor(placed);
+    let sorted = r.sort_records(&fresh);
+    let openable = r.master_keys(&sorted.mkeys);
+    if sorted.mkeys.is_empty() {
+        r.private_keys(&sorted.plain);
+    } else {
+        for (_, _, _, tail) in &sorted.plain {
+            r.fail("walletdescriptorkey", tail, Fault::PlainKeyEncrypted);
+        }
+    }
+    r.encrypted_keys(
+        !sorted.mkeys.is_empty(),
+        openable,
+        &sorted.crypted,
+        passphrase,
+    );
+    r.uncompared();
+    r.wallet.unread = r.unread.list;
+    r.wallet.unknown = r.unknown.list;
+    r.wallet.unknown_more = r.unknown.more;
+    Ok(r.wallet)
+}
+
+/// The network the application id names, where it is a kind of network the
+/// mode's is.
+fn checked_network(application_id: u32, mode: Network) -> Result<Network, Refusal> {
     let network =
         network_of_application_id(application_id).ok_or(Refusal::Application(application_id))?;
     if network.kind() != mode.kind() {
@@ -759,11 +796,19 @@ pub fn read<V: AsRef<[u8]>>(
             loaded: mode,
         });
     }
-    // Each key is in Bitcoin Core's table once; a second is refused and
-    // not read.
+    Ok(network)
+}
+
+/// A record's key and value.
+type Pair<'a> = (&'a [u8], &'a [u8]);
+
+/// The records of the first appearance of each key, and the keys that
+/// appeared again. Each key is in Bitcoin Core's table once; a second is
+/// refused and not read.
+fn first_of_each_key<V: AsRef<[u8]>>(records: &[(Vec<u8>, V)]) -> (Vec<Pair<'_>>, Vec<&[u8]>) {
     let mut seen: HashSet<&[u8]> = HashSet::with_capacity(records.len());
     let mut repeats: Vec<&[u8]> = Vec::new();
-    let fresh: Vec<(&[u8], &[u8])> = records
+    let fresh: Vec<Pair<'_>> = records
         .iter()
         .map(|(key, value)| (key.as_slice(), value.as_ref()))
         .filter(|(key, _)| {
@@ -774,6 +819,12 @@ pub fn read<V: AsRef<[u8]>>(
             new
         })
         .collect();
+    (fresh, repeats)
+}
+
+/// The wallet's flags, where it holds no legacy record and is a descriptor
+/// wallet.
+fn descriptor_flags(fresh: &[Pair<'_>]) -> Result<u64, Refusal> {
     let mut legacy = Counts::default();
     let mut flags = None;
     for (key, value) in fresh.iter().copied() {
@@ -792,181 +843,231 @@ pub fn read<V: AsRef<[u8]>>(
     if flags & FLAG_DESCRIPTORS == 0 {
         return Err(Refusal::NotDescriptors);
     }
-    let mut r = Reader {
-        c,
-        wallet: Wallet {
-            network,
-            version: None,
-            flags,
-            descriptors: Vec::new(),
-            kept: Vec::new(),
-            active: Vec::new(),
-            labels: Vec::new(),
-            master_keys: Vec::new(),
-            passphrase: Passphrase::NotNeeded,
-            keys_passed: 0,
-            keys_unchecked: 0,
-            tx_count: 0,
-            block_locator: None,
-            unread: Vec::new(),
-            unknown: Vec::new(),
-            unknown_more: 0,
-            failures: Vec::new(),
-            failures_more: 0,
-        },
-        held: HashSet::new(),
-        at: HashMap::new(),
-        kept_ids: HashSet::new(),
-        label_at: HashMap::new(),
-        needs: HashMap::new(),
-        compared: HashSet::new(),
-        unread: Counts::default(),
-        unknown: Counts::default(),
-        app_kind_main: network.is_mainnet(),
-    };
-    if flags & !KNOWN_FLAGS != 0 {
-        r.fail("flags", &[], Fault::UnknownFlags);
-    }
-    for key in repeats {
-        match split_key(key) {
-            Some((name, tail)) => r.fail(name, tail, Fault::Repeated),
-            None => r.fail("", key, Fault::Repeated),
+    Ok(flags)
+}
+
+/// The records of a wallet's keys, sorted by what they hold.
+struct Sorted<'a> {
+    /// The `mkey` records: the id and the value.
+    mkeys: Vec<(u32, &'a [u8])>,
+    /// The private keys that are not encrypted.
+    plain: Vec<KeyRecord>,
+    /// The encrypted private keys.
+    crypted: Vec<KeyRecord>,
+}
+
+impl<'a> Reader<'a> {
+    /// A reader of a wallet of `network` with `flags`, holding nothing yet.
+    fn new(c: &'a Compute, network: Network, flags: u64) -> Self {
+        Reader {
+            c,
+            wallet: Wallet {
+                network,
+                version: None,
+                flags,
+                descriptors: Vec::new(),
+                kept: Vec::new(),
+                active: Vec::new(),
+                labels: Vec::new(),
+                master_keys: Vec::new(),
+                passphrase: Passphrase::NotNeeded,
+                keys_passed: 0,
+                keys_unchecked: 0,
+                tx_count: 0,
+                block_locator: None,
+                unread: Vec::new(),
+                unknown: Vec::new(),
+                unknown_more: 0,
+                failures: Vec::new(),
+                failures_more: 0,
+            },
+            held: HashSet::new(),
+            at: HashMap::new(),
+            kept_ids: HashSet::new(),
+            label_at: HashMap::new(),
+            needs: HashMap::new(),
+            compared: HashSet::new(),
+            unread: Counts::default(),
+            unknown: Counts::default(),
+            app_kind_main: network.is_mainnet(),
         }
     }
-    // The cached account keys first, then the descriptors, which list
-    // with them: the other records name the descriptors.
-    let mut cache: Cache = HashMap::new();
-    let mut placed: Vec<([u8; 32], u32)> = Vec::new();
-    for (key, value) in fresh.iter().copied() {
-        if let Some(("walletdescriptorlhcache", tail)) = split_key(key) {
-            match lh_record(tail, value) {
-                Some((id, place, xpub)) => {
-                    cache.insert((id, place), xpub);
-                    placed.push((id, place));
-                }
-                None => r.fail("walletdescriptorlhcache", tail, Fault::Layout),
+}
+
+impl Reader<'_> {
+    /// Fails the flags Faraday does not know and each key that repeated.
+    fn flag_and_repeat_failures(&mut self, flags: u64, repeats: Vec<&[u8]>) {
+        if flags & !KNOWN_FLAGS != 0 {
+            self.fail("flags", &[], Fault::UnknownFlags);
+        }
+        for key in repeats {
+            match split_key(key) {
+                Some((name, tail)) => self.fail(name, tail, Fault::Repeated),
+                None => self.fail("", key, Fault::Repeated),
             }
         }
     }
-    for (key, value) in fresh.iter().copied() {
-        if let Some(("walletdescriptor", tail)) = split_key(key) {
-            r.descriptor(tail, value, &cache)?;
+
+    /// The cached account keys, read before the descriptors, which list
+    /// with them: the other records name the descriptors. Each is placed
+    /// by its descriptor's id and its place.
+    fn account_key_cache<'r>(&mut self, fresh: &[Pair<'r>]) -> (Cache<'r>, Vec<([u8; 32], u32)>) {
+        let mut cache: Cache = HashMap::new();
+        let mut placed = Vec::new();
+        for (key, value) in fresh.iter().copied() {
+            if let Some(("walletdescriptorlhcache", tail)) = split_key(key) {
+                match lh_record(tail, value) {
+                    Some((id, place, xpub)) => {
+                        cache.insert((id, place), xpub);
+                        placed.push((id, place));
+                    }
+                    None => self.fail("walletdescriptorlhcache", tail, Fault::Layout),
+                }
+            }
+        }
+        (cache, placed)
+    }
+
+    /// Fails each cached account key whose descriptor the file does not hold.
+    fn cache_without_descriptor(&mut self, placed: Vec<([u8; 32], u32)>) {
+        for (id, place) in placed {
+            if !self.held.contains(&id) {
+                let tail = [id.as_slice(), &place.to_le_bytes()].concat(); // not text: bytes
+                self.fail("walletdescriptorlhcache", &tail, Fault::NotHeld);
+            }
         }
     }
-    for (id, place) in placed {
-        if !r.held.contains(&id) {
-            let tail = [id.as_slice(), &place.to_le_bytes()].concat(); // not text: bytes
-            r.fail("walletdescriptorlhcache", &tail, Fault::NotHeld);
-        }
-    }
-    let mut mkeys: Vec<(u32, &[u8])> = Vec::new();
-    let mut plain: Vec<KeyRecord> = Vec::new();
-    let mut crypted: Vec<KeyRecord> = Vec::new();
-    let mut locators: Vec<(bool, usize)> = Vec::new();
-    for (key, value) in fresh.iter().copied() {
-        let Some((name, tail)) = split_key(key) else {
-            r.fail("", key, Fault::Layout);
-            continue;
+
+    /// Sorts the records that are not descriptors: each is read by its
+    /// type, the keys into the plain and the encrypted ones and the master
+    /// keys, and the block locator is the one without a Merkle tree where
+    /// there are both.
+    fn sort_records<'k>(&mut self, fresh: &[Pair<'k>]) -> Sorted<'k> {
+        let mut sorted = Sorted {
+            mkeys: Vec::new(),
+            plain: Vec::new(),
+            crypted: Vec::new(),
         };
-        match name {
-            "walletdescriptor" | "walletdescriptorlhcache" => {}
-            "version" => match <[u8; 4]>::try_from(value) {
-                Ok(v) if tail.is_empty() => r.wallet.version = Some(u32::from_le_bytes(v)),
-                _ => r.fail(name, tail, Fault::Layout),
-            },
-            "minversion" => {
-                if tail.is_empty() && value.len() == 4 {
-                    r.unread.bump(name);
+        let mut locators: Vec<(bool, usize)> = Vec::new();
+        for (key, value) in fresh.iter().copied() {
+            let Some((name, tail)) = split_key(key) else {
+                self.fail("", key, Fault::Layout);
+                continue;
+            };
+            match name {
+                "walletdescriptor" | "walletdescriptorlhcache" => {}
+                "version" => match <[u8; 4]>::try_from(value) {
+                    Ok(v) if tail.is_empty() => self.wallet.version = Some(u32::from_le_bytes(v)),
+                    _ => self.fail(name, tail, Fault::Layout),
+                },
+                "minversion" => {
+                    if tail.is_empty() && value.len() == 4 {
+                        self.unread.bump(name);
+                    } else {
+                        self.fail(name, tail, Fault::Layout);
+                    }
+                }
+                "flags" => {
+                    if !tail.is_empty() || value.len() != 8 {
+                        self.fail(name, tail, Fault::Layout);
+                    }
+                }
+                "activeexternalspk" | "activeinternalspk" => self.active(name, tail, value),
+                "name" | "purpose" => self.label(name, tail, value),
+                "mkey" => match <[u8; 4]>::try_from(tail) {
+                    Ok(id) => sorted.mkeys.push((u32::from_le_bytes(id), value)),
+                    Err(_) => self.fail(name, tail, Fault::Layout),
+                },
+                "walletdescriptorkey" | "walletdescriptorckey" => {
+                    self.key_record(name, tail, value, &mut sorted);
+                }
+                "tx" => self.wallet.tx_count += 1,
+                "bestblock" | "bestblock_nomerkle" => {
+                    self.block_locator(name, tail, value, &mut locators);
+                }
+                n if UNREAD.contains(&n) => self.unread.bump(n),
+                other => self.unknown.bump(other),
+            }
+        }
+        locators.sort_by_key(|(nomerkle, _)| !nomerkle);
+        self.wallet.block_locator = locators.first().map(|(_, n)| *n);
+        sorted
+    }
+
+    /// A private key record, plain or encrypted, put with its kind where its
+    /// descriptor is in the file and its value is not too large.
+    fn key_record(&mut self, name: &str, tail: &[u8], value: &[u8], sorted: &mut Sorted<'_>) {
+        let parsed = tail.split_at_checked(32).and_then(|(id, rest)| {
+            Some((<[u8; 32]>::try_from(id).ok()?, key_pubkey(rest)?.to_vec()))
+        });
+        match parsed {
+            Some(_) if value.len() > MAX_KEY_VALUE => self.fail(name, tail, Fault::Layout),
+            Some((id, pubkey)) if self.held.contains(&id) => {
+                let item = (id, pubkey, Zeroizing::new(value.to_vec()), tail.to_vec());
+                if name == "walletdescriptorkey" {
+                    sorted.plain.push(item);
                 } else {
-                    r.fail(name, tail, Fault::Layout);
+                    sorted.crypted.push(item);
                 }
             }
-            "flags" => {
-                if !tail.is_empty() || value.len() != 8 {
-                    r.fail(name, tail, Fault::Layout);
-                }
+            Some(_) => self.fail(name, tail, Fault::NotHeld),
+            None => self.fail(name, tail, Fault::Layout),
+        }
+    }
+
+    /// A block locator record, its count of hashes put in `locators` with
+    /// whether it is the one without a Merkle tree.
+    fn block_locator(
+        &mut self,
+        name: &str,
+        tail: &[u8],
+        value: &[u8],
+        locators: &mut Vec<(bool, usize)>,
+    ) {
+        // The version, the count and a hash for each, sized with
+        // checked arithmetic: a count is any 64-bit number.
+        let hashes = value.get(4..).and_then(compact_size).and_then(|(n, used)| {
+            let n = usize::try_from(n).ok()?;
+            let size = n.checked_mul(32)?.checked_add(4)?.checked_add(used)?;
+            (value.len() == size).then_some(n)
+        });
+        match hashes {
+            Some(n) if tail.is_empty() => {
+                locators.push((name == "bestblock_nomerkle", n));
             }
-            "activeexternalspk" | "activeinternalspk" => r.active(name, tail, value),
-            "name" | "purpose" => r.label(name, tail, value),
-            "mkey" => match <[u8; 4]>::try_from(tail) {
-                Ok(id) => mkeys.push((u32::from_le_bytes(id), value)),
-                Err(_) => r.fail(name, tail, Fault::Layout),
-            },
-            "walletdescriptorkey" | "walletdescriptorckey" => {
-                let parsed = tail.split_at_checked(32).and_then(|(id, rest)| {
-                    Some((<[u8; 32]>::try_from(id).ok()?, key_pubkey(rest)?.to_vec()))
-                });
-                match parsed {
-                    Some(_) if value.len() > MAX_KEY_VALUE => r.fail(name, tail, Fault::Layout),
-                    Some((id, pubkey)) if r.held.contains(&id) => {
-                        let item = (id, pubkey, Zeroizing::new(value.to_vec()), tail.to_vec());
-                        if name == "walletdescriptorkey" {
-                            plain.push(item);
-                        } else {
-                            crypted.push(item);
-                        }
+            _ => self.fail(name, tail, Fault::Layout),
+        }
+    }
+
+    /// The master keys: each is read and fails where its layout, method or
+    /// rounds are wrong, and one past the first fails. Bitcoin Core writes
+    /// one `mkey`; the first by id is the one tried, and its value is
+    /// returned where it can be.
+    fn master_keys<'k>(&mut self, mkeys: &[(u32, &'k [u8])]) -> Option<&'k [u8]> {
+        let mut sorted = mkeys.to_vec();
+        sorted.sort_by_key(|(id, _)| *id);
+        let mut openable = None;
+        for (i, (id, value)) in sorted.iter().enumerate() {
+            let tail = id.to_le_bytes();
+            match master_info(*id, value) {
+                None => self.fail("mkey", &tail, Fault::Layout),
+                Some(m) => {
+                    self.wallet.master_keys.push(m);
+                    if m.method != METHOD_SHA512_AES {
+                        self.fail("mkey", &tail, Fault::MasterMethod);
+                    } else if m.rounds == 0 || m.rounds > MAX_ROUNDS {
+                        self.fail("mkey", &tail, Fault::MasterRounds);
+                    } else if i == 0 {
+                        openable = Some(*value);
                     }
-                    Some(_) => r.fail(name, tail, Fault::NotHeld),
-                    None => r.fail(name, tail, Fault::Layout),
                 }
             }
-            "tx" => r.wallet.tx_count += 1,
-            "bestblock" | "bestblock_nomerkle" => {
-                // The version, the count and a hash for each, sized with
-                // checked arithmetic: a count is any 64-bit number.
-                let hashes = value.get(4..).and_then(compact_size).and_then(|(n, used)| {
-                    let n = usize::try_from(n).ok()?;
-                    let size = n.checked_mul(32)?.checked_add(4)?.checked_add(used)?;
-                    (value.len() == size).then_some(n)
-                });
-                match hashes {
-                    Some(n) if tail.is_empty() => {
-                        locators.push((name == "bestblock_nomerkle", n));
-                    }
-                    _ => r.fail(name, tail, Fault::Layout),
-                }
-            }
-            n if UNREAD.contains(&n) => r.unread.bump(n),
-            other => r.unknown.bump(other),
-        }
-    }
-    locators.sort_by_key(|(nomerkle, _)| !nomerkle);
-    r.wallet.block_locator = locators.first().map(|(_, n)| *n);
-    mkeys.sort_by_key(|(id, _)| *id);
-    // Bitcoin Core writes one `mkey`; the first by id is the one tried.
-    let mut openable = None;
-    for (i, (id, value)) in mkeys.iter().enumerate() {
-        let tail = id.to_le_bytes();
-        match master_info(*id, value) {
-            None => r.fail("mkey", &tail, Fault::Layout),
-            Some(m) => {
-                r.wallet.master_keys.push(m);
-                if m.method != METHOD_SHA512_AES {
-                    r.fail("mkey", &tail, Fault::MasterMethod);
-                } else if m.rounds == 0 || m.rounds > MAX_ROUNDS {
-                    r.fail("mkey", &tail, Fault::MasterRounds);
-                } else if i == 0 {
-                    openable = Some(*value);
-                }
+            if i > 0 {
+                self.fail("mkey", &tail, Fault::ManyMasterKeys);
             }
         }
-        if i > 0 {
-            r.fail("mkey", &tail, Fault::ManyMasterKeys);
-        }
+        openable
     }
-    if mkeys.is_empty() {
-        r.private_keys(&plain);
-    } else {
-        for (_, _, _, tail) in &plain {
-            r.fail("walletdescriptorkey", tail, Fault::PlainKeyEncrypted);
-        }
-    }
-    r.encrypted_keys(!mkeys.is_empty(), openable, &crypted, passphrase);
-    r.uncompared();
-    r.wallet.unread = r.unread.list;
-    r.wallet.unknown = r.unknown.list;
-    r.wallet.unknown_more = r.unknown.more;
-    Ok(r.wallet)
 }
 
 /// An `mkey` record's method and rounds, where its value reads.
