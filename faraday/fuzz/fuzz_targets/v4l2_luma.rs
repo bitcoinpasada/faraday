@@ -1,8 +1,8 @@
 //! The V4L2 shell's frame converters over what a driver hands back: a
 //! pixel format, a width, a height and a stride, all the driver's word,
 //! then a buffer of any length. `luma`, `chroma` and the two downscales
-//! (faraday-camera's, shared with the macOS and Windows shells) turn it into the frame the scanner decodes; the decoder under them is
-//! `decode_luma` in the root `fuzz/`. The macOS and Windows shells have
+//! (faraday-camera's, shared with the Windows shell) turn it into the frame the scanner decodes; the decoder under them is
+//! `decode_luma` in the root `fuzz/`. The Windows shell has
 //! converters of the same shape that this does not cover.
 
 #![no_main]

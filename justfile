@@ -121,12 +121,6 @@ lint-repo:
 lint-all:
     python3 -I -B tools/lint-all.py
 
-# The Starter's macOS code, checked for both Mac targets. macOS is paused
-# (docs/STARTER.md), so no automatic check runs this: run it by hand.
-[group('lint')]
-lint-macos:
-    tools/check-macos.sh
-
 # The touch-target ratchet (docs/M3-CHECKS.md §2): every snapshot tour of
 # Faraday and the Starter's example at the four sizes, held to
 # tools/touch-targets.counts. The tests are `#[ignore]`d for `just test`.

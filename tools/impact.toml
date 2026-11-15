@@ -15,7 +15,7 @@ reads = [
   "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-qr/**",
   "faraday/faraday-samples/**", "faraday/faraday-sb/**", "faraday/faraday-scanner/**",
   "faraday/faraday-storage/**", "faraday/faraday-vault/**", "faraday/faraday-grant/**",
-  "faraday/shells/camera/**", "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**", "faraday/shells/mediafoundation/**",
+  "faraday/shells/camera/**", "faraday/shells/v4l2/**", "faraday/shells/mediafoundation/**",
 ]
 act = "the device app, the stick and the Pi images are built again"
 
@@ -31,7 +31,7 @@ reads = [
   "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
   "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
   "faraday/faraday-sb/**", "faraday/faraday-boot/**", "faraday/faraday-samples/**",
-  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/shells/camera/**", "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**",
+  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/shells/camera/**", "faraday/shells/v4l2/**",
   "faraday/shells/mediafoundation/**", "core/**",
 ]
 act = "the Starter is built again"

@@ -1,7 +1,7 @@
 //! What the Starter decides from what the shell reports, with no drawing:
 //! the disks offered and refused and their order (§3.2, §4.2), keep
 //! data's rules (§3.2 step 2), and Home's checklist and its next step
-//! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
+//! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/history/MAC-LOG.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
 use faraday_paper::build::{Fit, compare};

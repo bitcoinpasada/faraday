@@ -26,7 +26,7 @@ pub enum StartGuide {
     WhatElseRuns,
     /// About the boot entry (§3.1c).
     BootEntry,
-    /// Starting an Intel Mac from the stick (`docs/MAC.md` §3.1–§3.2).
+    /// Starting an Intel Mac from the stick (`docs/history/MAC-LOG.md` §3.1–§3.2).
     MacIntel,
 }
 

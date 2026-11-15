@@ -9,7 +9,7 @@
 //!   it writes its own IDs (`docs/STICK-IDENTITY.md`).
 //! - [`platform`]: the seam. Everything that differs between operating
 //!   systems is behind [`platform::Platform`]; [`linux`] is Linux's,
-//!   [`windows`] Windows', [`macos`] macOS's.
+//!   [`windows`] Windows'.
 //! - [`signed`]: a boot file the person signed, checked to be the
 //!   release's own program before the writer puts it in its place (F133).
 //! - [`stick`]: which Faraday a stick holds, read from its boot
@@ -31,7 +31,6 @@ pub mod ids;
 pub mod image;
 #[cfg(target_os = "linux")]
 pub mod linux;
-pub mod macos;
 pub mod pdf;
 pub mod platform;
 pub mod scheme;

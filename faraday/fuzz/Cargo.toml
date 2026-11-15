@@ -38,8 +38,6 @@ faraday-boot = { path = "../faraday-boot" }
 # `pe_image` signs any image (`sign-any`); `release_sums` checks a
 # release's sums with faraday-pgp (F134).
 faraday-sb = { path = "../faraday-sb", features = ["sign-any"] }
-# The Starter's plist reader, included by path in the plist target.
-base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
 faraday-pgp = { path = "../faraday-pgp" }
 # The camera shells' shared shrink, which the V4L2 converter included by
 # path in the v4l2_luma target calls.
@@ -214,13 +212,6 @@ bench = false
 [[bin]]
 name = "image_list"
 path = "fuzz_targets/image_list.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "plist"
-path = "fuzz_targets/plist.rs"
 test = false
 doc = false
 bench = false

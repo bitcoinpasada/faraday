@@ -3,8 +3,8 @@
 //! with [`nv12`] and [`scale`]), the reasons a camera gave no frames
 //! ([`Failure`]), and the list of Linux cameras ([`list`]).
 //!
-//! The capture itself, which is `unsafe`, stays in `faraday-v4l2`,
-//! `faraday-avfoundation` and `faraday-mediafoundation`; each passes the
+//! The capture itself, which is `unsafe`, stays in `faraday-v4l2`
+//! and `faraday-mediafoundation`; each passes the
 //! widest frame it hands the core.
 
 #![forbid(unsafe_code)]
@@ -64,7 +64,7 @@ impl Frame {
 }
 
 /// Why a camera gave no frames, when it is clearly one of three things.
-/// The macOS and Windows shells use the same type.
+/// The Windows shell uses the same type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Failure {
     /// Camera access is denied or restricted, or the person said no.

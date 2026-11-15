@@ -13,13 +13,12 @@ it.
 
 | Platform | Image or file | Runs on | State |
 |---|---|---|---|
-| The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (one build, with `efi=disable_early_pci_dma` on its command line); Intel Macs planned (`docs/MAC.md` §1, §3) | released; booted in QEMU with OVMF (`docs/IMAGES.md` §10.2) and on a laptop (the kernel with `efi=disable_early_pci_dma`, 2026-10-31) |
+| The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (one build, with `efi=disable_early_pci_dma` on its command line); an Intel Mac runs it as a PC (`docs/guide/start/mac-intel.md`) | released; booted in QEMU with OVMF (`docs/IMAGES.md` §10.2) and on a laptop (the kernel with `efi=disable_early_pci_dma`, 2026-10-31) |
 | The Pi, the 2.8-inch screen | `faraday-pi-X.Y.Z.img.xz` (`just faraday-pi-image`), one image for every Pi screen | a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8-inch DPI panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2, §3) | built, not tried on the one image: looking for testers (the earlier 2.8-inch image was tried on the panel) |
 | The Pi, HDMI screen | the same file | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers |
 | The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same screens | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
-| The Apple Silicon stick | `docs/MAC.md` §4 | Macs with M1 or M2 | planned: its Spec is `docs/MAC.md` |
 | Faraday Demo | inside the Linux and Windows Starters (`docs/DEMO.md` §1) | Linux and Windows, x86_64 | released, for trying Faraday: not air-gapped |
-| The Starter | `Faraday-Starter-X.Y.Z-Linux.tar.gz`, `-Windows.exe` (`docs/STARTER.md` §1.1) | Linux and Windows, x86_64; macOS specified (`docs/MAC.md` §6) | released on Linux and Windows |
+| The Starter | `Faraday-Starter-X.Y.Z-Linux.tar.gz`, `-Windows.exe` (`docs/STARTER.md` §1.1) | Linux and Windows, x86_64 | released on Linux and Windows |
 
 The Starter writes sticks and Pi cards and holds no keys. Faraday Demo
 runs on a computer that is on a network. It is a simulator with
@@ -73,7 +72,7 @@ The stick's and the Pi's kernels carry only the drivers
 
 On the stick and the Pi, FAT is read by `faraday-disk` in Rust, not by
 the kernel. Faraday Demo reads files through the computer's own system
-and opens its camera through V4L2, Media Foundation or AVFoundation.
+and opens its camera through V4L2 or Media Foundation.
 
 ## 5. How each is kept off the network
 

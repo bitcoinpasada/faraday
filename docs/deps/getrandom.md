@@ -24,4 +24,4 @@ graph twice through `winit`'s platform crates, so it costs nothing.
 **Reopen when** the desktop shell moves to a platform layer that
 exposes an RNG of its own.
 
-**Review.** Trusted under F71 by F180: the Rand project's publisher (`github:rust-random/getrandom`) is a trusted publisher (`supply-chain/audits.toml`), which covers 0.4.3. 0.3.4, which `ahash` in the window stack takes, is an exemption, not reviewed by a human; an AI model read it for the project, the Linux, Windows and macOS backends in full, recorded under `ai-says-safe-to-deploy`, which grants no trust (F71).
+**Review.** Trusted under F71 by F180: the Rand project's publisher (`github:rust-random/getrandom`) is a trusted publisher (`supply-chain/audits.toml`), which covers 0.4.3. 0.3.4, which `ahash` in the window stack takes, is an exemption, not reviewed by a human; an AI model read it for the project, the Linux and Windows backends in full, recorded under `ai-says-safe-to-deploy`, which grants no trust (F71).

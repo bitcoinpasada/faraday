@@ -1,4 +1,4 @@
-//! The Mac table (`docs/MAC.md` §1, §7), held in `macs.tsv`: one row
+//! The Mac table (`docs/history/MAC-LOG.md` §1, §7), held in `macs.tsv`: one row
 //! per model identifier, with its marketing name, year, line, chip,
 //! whether it has the T2 chip or 32-bit EFI firmware, and how its
 //! built-in keyboard is attached.
@@ -58,7 +58,7 @@ pub enum Line {
     Xserve,
 }
 
-/// How a Mac's built-in keyboard is attached (`docs/MAC.md` §1).
+/// How a Mac's built-in keyboard is attached (`docs/history/MAC-LOG.md` §1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyboard {
     /// USB, inside the case: a generic HID keyboard.
@@ -196,7 +196,7 @@ pub enum Start {
     },
     /// 32-bit EFI firmware: it cannot start the stick.
     Firmware32,
-    /// Apple silicon: not yet (until the Apple Silicon image and start-up file of `docs/MAC.md` §4 exist).
+    /// Apple silicon: not yet (until the Apple Silicon image and start-up file of `docs/history/MAC-LOG.md` §4 exist).
     NotYet,
 }
 

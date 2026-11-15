@@ -171,9 +171,9 @@ strings! {
     starter_cannot_start_arm: "This computer cannot start a Faraday stick",
     /// A computer started in legacy BIOS mode.
     starter_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
-    /// A Mac with 32-bit EFI firmware (docs/MAC.md §1).
+    /// A Mac with 32-bit EFI firmware (docs/history/MAC-LOG.md §1).
     starter_cannot_start_mac_firmware: "This Mac's firmware cannot start Faraday",
-    /// A Mac with Apple silicon, until its image exists (docs/MAC.md §4).
+    /// A Mac with Apple silicon, until its image exists (docs/history/MAC-LOG.md §4).
     starter_cannot_start_mac_yet: "This Mac cannot start Faraday yet",
     /// Card line: a Mac with the T2 chip.
     starter_mac_t2: "Apple T2 Security Chip",
@@ -203,7 +203,7 @@ strings! {
     starter_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
     /// Guide title.
     starter_start_mac_intel: "Starting an Intel Mac from the stick",
-    /// Make a Faraday stick's first choice, once the images found include both stick images (docs/MAC.md §6).
+    /// Make a Faraday stick's first choice, once the images found include both stick images (docs/history/MAC-LOG.md §6).
     starter_which_title: "For which computer?",
     /// Row.
     starter_which_pc: "A PC or an Intel Mac",

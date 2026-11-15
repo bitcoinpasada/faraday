@@ -15,7 +15,7 @@ It is not in the stick or Pi images, which write the framebuffer
 (`tiny-skia`), so the window needs a way to present a pixel buffer and no
 GPU API (OpenGL, Vulkan, wgpu) would be used or wanted on a signer.
 `softbuffer` is the pixel-buffer presenter that works on a `winit` window
-across Wayland, X11, Windows and macOS, with no graphics driver.
+across Wayland, X11 and Windows, with no graphics driver.
 
 **Version and features.** `softbuffer = "0.4"`, default features, in the
 workspace `Cargo.toml`.

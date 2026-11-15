@@ -755,8 +755,7 @@ impl VaultArea {
             .set_copy_reader(move || read().map(copy_room_of));
     }
 
-    /// Costs a read of the free memory: on macOS the process `vm_stat`,
-    /// elsewhere one small file. Reads what this computer has free now, for the check about to be made and for the screens that show
+    /// Costs a read of the free memory (one small file). Reads what this computer has free now, for the check about to be made and for the screens that show
     /// it. Without a reader the figure the shell said stands; a reader that
     /// cannot say leaves no figure, and the checks then run as for a
     /// computer that does not say.

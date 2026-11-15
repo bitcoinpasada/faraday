@@ -9,7 +9,6 @@ mod stick_folders;
 mod transfer;
 mod vault_pieces;
 mod vault_write;
-mod vm_stat;
 
 /// A token for the listings the tests make.
 #[expect(

@@ -16,7 +16,7 @@ pub enum Os {
     Linux,
     /// Windows.
     Windows,
-    /// macOS (`docs/MAC.md` §6).
+    /// macOS (`docs/history/MAC-LOG.md` §6).
     MacOs,
 }
 
@@ -260,7 +260,7 @@ pub enum PayloadKind {
     /// The stick image for a PC or an Intel Mac (`faraday-stick-…`).
     Stick,
     /// The stick image for a Mac with M1 or M2
-    /// (`faraday-stick-…-arm64-apple.img.xz`, `docs/MAC.md` §4.1).
+    /// (`faraday-stick-…-arm64-apple.img.xz`, `docs/history/MAC-LOG.md` §4.1).
     AppleStick,
     /// The Pi image (`faraday-pi-…`).
     Pi,

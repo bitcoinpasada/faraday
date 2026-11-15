@@ -1,4 +1,4 @@
-# The Mac table (docs/MAC.md §1, §7), read by src/macs.rs, whose doc
+# The Mac table (docs/history/MAC-LOG.md §1, §7), read by src/macs.rs, whose doc
 # comment names the sources and the date they were read. One row per
 # model identifier, tab-separated:
 # identifier, marketing names (" / " between the names that share it),

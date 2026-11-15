@@ -2,8 +2,7 @@
 //! not write, where they are installed: `xz` and 7-Zip decode the same
 //! `.xz` streams as Faraday's decoder (same bytes, or all refuse); gdisk's
 //! `sgdisk -v` and util-linux's `sfdisk --verify` find no problem in
-//! every table the Starter writes, GPT and MBR; CPython's `plistlib`
-//! reads the `diskutil` answers as the plist reader does; CPython's
+//! every table the Starter writes, GPT and MBR; CPython's
 //! `uuid` finds the GUIDs written on a stick to be version 4 and RFC 9562
 //! variant; CPython's `zlib.crc32` finds the header and partition-array CRCs of
 //! a GPT the Starter writes (both copies) to be CRC-32 of the bytes they
@@ -18,7 +17,6 @@ use std::process::{Command, Stdio};
 use faraday_payload::ImageKind;
 use faraday_starter::api::Mode;
 use faraday_starter_shell::gpt;
-use faraday_starter_shell::macos::plist;
 use faraday_starter_shell::writer::Job;
 
 use crate::ids::{runs, tool};
@@ -320,119 +318,6 @@ fn the_crcs_in_the_gpt_written_on_a_stick_are_crc_32_as_python_works_it_out() {
         args.len(),
         "{said}"
     );
-}
-
-// ---- the property lists ----------------------------------------------------
-
-/// Every `diskutil ... -plist` answer in the fixture files, by title.
-fn diskutil_answers() -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    for file in ["intel-mac.txt", "usb-start.txt"] {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/macos")
-            .join(file);
-        let text = fs::read_to_string(path).expect("answers");
-        let mut current: Option<(String, String)> = None;
-        for line in text.lines() {
-            if let Some(title) = line.strip_prefix("=== ") {
-                out.extend(current.take());
-                current = title
-                    .contains("-plist")
-                    .then(|| (format!("{file}: {title}"), String::new()));
-            } else if let Some((_, body)) = current.as_mut() {
-                body.push_str(line);
-                body.push('\n');
-            }
-        }
-        out.extend(current);
-    }
-    out
-}
-
-/// A value written as the Python below writes it.
-fn canon(v: &plist::Value) -> String {
-    use plist::Value;
-    let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
-    match v {
-        Value::Dict(d) => {
-            let items: Vec<String> = d
-                .iter()
-                .map(|(k, v)| format!("{}={}", hex(k.as_bytes()), canon(v)))
-                .collect();
-            format!("{{{}}}", items.join(","))
-        }
-        Value::Array(a) => format!("[{}]", a.iter().map(canon).collect::<Vec<_>>().join(",")),
-        Value::String(s) => format!("s:{}", hex(s.as_bytes())),
-        Value::Integer(i) => format!("i:{i}"),
-        Value::Real(r) => format!("r:{:016x}", r.to_bits()),
-        Value::Bool(b) => format!("b:{}", u8::from(*b)),
-        Value::Data(d) => format!("d:{}", hex(d)),
-        Value::Date(d) => format!("D:{d}"),
-    }
-}
-
-const PLISTLIB: &str = r#"
-import datetime, os, plistlib, struct, sys
-def enc(v):
-    if isinstance(v, bool): return 'b:%d' % v
-    if isinstance(v, int): return 'i:%d' % v
-    if isinstance(v, float): return 'r:' + struct.pack('>d', v).hex()
-    if isinstance(v, str): return 's:' + v.encode().hex()
-    if isinstance(v, bytes): return 'd:' + v.hex()
-    if isinstance(v, datetime.datetime): return 'D:' + v.strftime('%Y-%m-%dT%H:%M:%SZ')
-    if isinstance(v, list): return '[' + ','.join(enc(x) for x in v) + ']'
-    if isinstance(v, dict): return '{' + ','.join(k.encode().hex() + '=' + enc(v[k]) for k in sorted(v)) + '}'
-    raise ValueError(type(v))
-for name in sorted(os.listdir(sys.argv[1])):
-    data = open(os.path.join(sys.argv[1], name), 'rb').read()
-    try:
-        print(name + '\t' + enc(plistlib.loads(data, fmt=plistlib.FMT_XML)))
-    except Exception:
-        print(name + '\trefused')
-"#;
-
-#[test]
-fn the_answers_diskutil_gives_are_read_as_python_reads_them_or_refused_by_both() {
-    if !have(&["python3"]) {
-        return;
-    }
-    let dir = tmp("outside-plist");
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).expect("a folder");
-    let mut inputs: Vec<String> = Vec::new();
-    for (_, body) in diskutil_answers() {
-        // The answer whole, and cut short at a spread of places.
-        let end = body.rfind("</plist>").expect("closed");
-        for at in (0..end).step_by(61) {
-            inputs.push(body[..at].to_string());
-        }
-        inputs.push(body.replace("<integer>", "<integer>5x"));
-        inputs.push(body.replace("&amp;", "&nbsp;"));
-        inputs.push(body);
-    }
-    for (n, text) in inputs.iter().enumerate() {
-        fs::write(dir.join(format!("{n:06}")), text).expect("written");
-    }
-    let out = Command::new("python3")
-        .args(["-I", "-c", PLISTLIB])
-        .arg(&dir)
-        .output()
-        .expect("python3");
-    assert!(out.status.success(), "{}", text_of(&out));
-    let python = String::from_utf8_lossy(&out.stdout).to_string();
-    let lines: Vec<&str> = python.lines().collect();
-    assert_eq!(lines.len(), inputs.len());
-    let (mut read_by_both, mut refused_by_both) = (0, 0);
-    for (n, (text, line)) in inputs.iter().zip(&lines).enumerate() {
-        let theirs = line.split_once('\t').expect("a result").1;
-        let ours = plist::parse(text).ok().map(|v| canon(&v));
-        match (&ours, theirs) {
-            (None, "refused") => refused_by_both += 1,
-            (Some(a), b) if a == b => read_by_both += 1,
-            _ => panic!("input {n}: Faraday {ours:?}, plistlib {theirs}\n{text}"),
-        }
-    }
-    assert!(read_by_both >= 10 && refused_by_both > 50);
 }
 
 // ---- the GUIDs -------------------------------------------------------------

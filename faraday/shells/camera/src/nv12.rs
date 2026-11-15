@@ -1,8 +1,8 @@
 //! Turning a locked NV12 buffer's two planes into the packed 8-bit luma
 //! the core decodes and the NV12 chroma it draws the preview from.
 //!
-//! NV12 (AVFoundation's bi-planar video-range format, and Media
-//! Foundation's NV12) already lays its second plane out as interleaved
+//! NV12 (Media Foundation's)
+//! already lays its second plane out as interleaved
 //! Cb and Cr pairs, one per 2 x 2 block of luma, which is the order the
 //! core takes; the only work is the row stride.
 

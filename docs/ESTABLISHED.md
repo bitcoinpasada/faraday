@@ -147,7 +147,7 @@ decision = "F178"
 | `why` | yes | One of the four values of §1.1 |
 | `note` | yes | One sentence, plain fact, for a reader of the website: why this piece is written here |
 | `unfit` | where `why` is `does-not-fit` | The crate and version, and the rule it fails |
-| `tier` | on an action of a crate in AUDIT §4 or §5 | `carries`: a format Faraday reads or writes that computes nothing on a key (UR, BBQr, SeedQR, the QR encoder, the PNG writer, FAT, GPT and MBR, the PDF writer, the plist reader, the UUID form) |
+| `tier` | on an action of a crate in AUDIT §4 or §5 | `carries`: a format Faraday reads or writes that computes nothing on a key (UR, BBQr, SeedQR, the QR encoder, the PNG writer, FAT, GPT and MBR, the PDF writer, the UUID form) |
 | `decision` | yes | The decision that accepts the piece: F178 for those of §3 that were in the tree on 2026-10-30, F180 for those §3 adds, a later one for a piece added after |
 
 ### 2.2 What `docs/crypto/check.py` checks
@@ -848,7 +848,7 @@ not at all).
 | vault-kdbx | The KDBX 4 container written here (§3.4); argon2 in one call, chacha20, aes, cbc, hmac, sha2, miniz_oxide | none: pykeepass's files read in tests | area `vault`: pykeepass and `keepassxc-cli` both ways, built, each opening the files Faraday made and Faraday opening theirs (F190 point 11, `docs/VAULT.md` §10); keepass-rs for the format only (built: reads Faraday's files, and writes files Faraday opens and seals, with Twofish, AES-KDF and Salsa20 files refused as known differences); PyCA's Argon2id as a second Argon2 lineage | none | outside |
 | vault-qr-pgp | The RFC 9580 message written here (§3.4); argon2 in one call, aes, ocb3; HKDF Faraday's, one copy | none: RFC 9580's vectors in tests | area `qrvault` (built): Debian's `sq`, over Nettle, judges the primitives except Argon2, which it shares with the app's lineage; rPGP judges the format only; PyCA's Argon2id, HKDF-SHA-256 and AES-256-OCB over OpenSSL judge the primitives, under the area's own framing; `sq`, rPGP and PyCA open Faraday's seals and rPGP's and PyCA's seals are opened by Faraday (F190 point 11, VAULT §10); pysequoia once its backend is checked and OpenPGP.js when Node is taken stay out | the OpenPGP framing around PyCA's primitives and the QR TOML (`qr_toml`), both written in the area (`area_qrvault.py`) from RFC 9580 and `docs/VAULT.md` §1.2 and §2.1 | outside-and-own |
 | vault-contents | The TOML tree over toml_parser (§3.4) | none: toml-test's cases in tests | CPython's `tomllib` reads every vault's TOML tree beside Faraday's reader, in area `vault`; area `qrvault` compares the QR form's writer byte for byte and its reader by item | none | outside |
-| starter-write | lzma-rust2, sha2, getrandom; GPT and MBR, the FAT32 formatter, the plist reader, the UUID form and CRC-32 Faraday's | `sha256sum`, `xz` as encoder, `sfdisk` and dosfstools (tests; required in `just crosscheck`) | built (`faraday/shells/starter/tests/all/outside.rs`): `xz` decoding good and corrupted streams beside lzma-rust2, 7-Zip (`7zz` or `7z`, upstream 7-Zip, not p7zip) as a second decoder lineage, `sgdisk -v` beside `sfdisk --verify` on the GPT and MBR tables written, `plistlib` over the `diskutil` fixtures, `uuid` on the IDs drawn, `zlib.crc32` over the GPT header and partition array against their CRC fields (built) | none | none (tests) |
+| starter-write | lzma-rust2, sha2, getrandom; GPT and MBR, the FAT32 formatter, the UUID form and CRC-32 Faraday's | `sha256sum`, `xz` as encoder, `sfdisk` and dosfstools (tests; required in `just crosscheck`) | built (`faraday/shells/starter/tests/all/outside.rs`): `xz` decoding good and corrupted streams beside lzma-rust2, 7-Zip (`7zz` or `7z`, upstream 7-Zip, not p7zip) as a second decoder lineage, `sgdisk -v` beside `sfdisk --verify` on the GPT and MBR tables written, `uuid` on the IDs drawn, `zlib.crc32` over the GPT header and partition array against their CRC fields (built) | none | none (tests) |
 
 Unchanged:
 
@@ -939,7 +939,7 @@ they were not, they were not checked.
 | Wallet files | none | real wallet files from the wallets' published test suites, as fixtures (built: `tools/vectors/wallet-files/`, with each file's repository, commit, licence and SHA-256) |
 
 The standard library covers the rest: `hashlib`, `hmac`, `json`,
-`zlib`, `plistlib`, `uuid`. btclib's wheels, Core's functional-test
+`zlib`, `uuid`. btclib's wheels, Core's functional-test
 framework and its `crypto/ripemd160.py`, python-ecdsa, PyCA
 cryptography, Go and the volvelle harness are in place already.
 

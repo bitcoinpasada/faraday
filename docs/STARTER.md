@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system, with the sum in the Pi card's image list (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system, with the sum in the Pi card's image list (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -52,16 +52,12 @@ downloads".
 | `faraday-pi-X.Y.Z.img.xz` | the Pi image, for every supported Pi and every Pi screen listed, the 2.8-inch and an HDMI screen: it finds its screen at boot (IMAGES §3, §4) |
 | `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter |
 | `IMAGES` | the release's image list: one line per image, with its two sums, size, build, platform, screen and the boards it starts (IMAGES §4) |
-| `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac; not built yet) |
-| `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1; not built yet) |
-| `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4; not built yet) |
 
 Faraday Demo is not a release file of its own (F83): the Linux
 Starter and the Windows Starter each have it compiled in and run it in
 their own window (F126, §5.3).
-The macOS rows are not built yet. The Apple
-Silicon image is found and checked like the others, and the start-up
-file template is built into every Starter, once they exist.
+Faraday does not support macOS: a Mac with an Intel chip runs Windows or Linux
+(`docs/guide/start/mac-intel.md`).
 
 `SHA256SUMS` lists the `.tar.gz` and the file inside it, under the
 inner name, so a person can check either, and each image's boot
@@ -253,22 +249,6 @@ samples compiled in (F126, §5.3).
   memory and checks none against this computer. The camera module the
   desktop app shares with the Starter is §8's. The Windows Starter
   runs it in its own window (F126, §5.3).
-- **On macOS** (`docs/MAC.md` §6, F13): a `macos` module beside
-  `linux` and `windows`. Disks from `diskutil list -plist` and
-  `diskutil info -plist` (whole, physical, on USB or the built-in SD
-  reader); unmounted with `diskutil unmountDisk`; opened through
-  `/usr/libexec/authopen`, whose system password prompt hands back a
-  descriptor for `/dev/rdiskN`, so no part of the Starter runs as
-  root; one descriptor serves the write and the read-back; after it,
-  `diskutil unmountDisk` again, so the volumes macOS mounts after a
-  write are not left mounted and the stick stays listed. Facts from
-  `sysctl hw.model` (the model identifier), `uname -m` and
-  `sysctl.proc_translated`. Every program by its absolute path. Built
-  on a Mac (Apple's SDK licence), as a universal binary; until there is
-  one, `tools/check-macos.sh` (run by hand; macOS is paused and no
-  automatic check runs it) type-checks the module for both Mac
-  targets on the build machine and its parsers are tested on Linux
-  against hand-written answers.
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
   GitHub Actions builds nothing for release (F183, F210). The Windows
@@ -383,19 +363,16 @@ back to **Restart into the BIOS** with one line saying why.
 The stick cannot start with Secure Boot on, which is why that state
 offers the firmware restart instead.
 
-**On a Mac** (the maker begins "Apple", on macOS, Linux or Windows;
-`docs/MAC.md` §6): *This computer* shows the Mac's name and model
+**On a Mac** (the maker begins "Apple", running Linux or Windows):
+*This computer* shows the Mac's name and model
 identifier from the Starter's Mac table and no Secure Boot line. An Intel
 Mac's checklist is *Make a Faraday stick*, then **Start this Mac from
 the stick**, whose button opens §3.4's Mac steps: there is no restart
 into firmware settings or from the stick on a Mac, and no Turn Secure
 Boot back on (the steps put a T2 Mac's Startup Security back). A Mac
-with 32-bit firmware, and for now every Apple Silicon Mac, gets one
-line, "This Mac cannot start Faraday" or "… yet", and keeps *Make a
-Faraday stick*, for another computer. Once the Apple Silicon image and
-start-up file exist (MAC §4.1, §4.4), an M1 or M2 Mac's checklist is *Set
-up this Mac to start Faraday*, then *Start Faraday*, with *Remove
-Faraday from this Mac* in the rows once set up (MAC §4.5, §4.6).
+with 32-bit firmware, and every Apple Silicon Mac, gets one
+line, "This Mac cannot start Faraday", and keeps *Make a
+Faraday stick*, for another computer.
 
 A person who comes back to Windows with Secure Boot off sees Turn
 Secure Boot back on listed; a first-time visitor sees Make a Faraday
@@ -412,7 +389,7 @@ copy of the Starter; the destinations (§3.1d) hold the rest:
 
 - **Faraday Demo** (F83, F126, §5.3): one line, its version, which is
   this Starter's, and **Open Faraday Demo**, a secondary button, which
-  shows the Demo in this window; on macOS, no card (F83).
+  shows the Demo in this window (F83).
 - **Update the installed Faraday**, a card shown only while the running
   copy is newer than the installed one (§3.5), with **Update**, a
   secondary button. Install itself is the top app bar's action
@@ -437,13 +414,11 @@ computer's screens and warns, by name, when one is:
 
 - **a TV**: from its EDID (Linux: `/sys/class/drm/*/edid`, readable by
   every user; Windows: the monitor's EDID in the registry and
-  `DisplayConfigGetDeviceInfo`'s output technology; macOS: its IOKit
-  display entry): a monitor name naming a TV, a TV maker's PNP ID with
+  `DisplayConfigGetDeviceInfo`'s output technology): a monitor name naming a TV, a TV maker's PNP ID with
   the HDMI vendor block and TV timings, or the HDMI-CEC address a TV
   carries. The rule is one pure function over EDID bytes, tested
   against made-up EDIDs for a TV, a monitor and a laptop panel;
-- **a wireless display** (Windows' Miracast output technology, a
-  macOS AirPlay display);
+- **a wireless display** (Windows' Miracast output technology);
 - **a remote session** (Windows `SM_REMOTESESSION`; an X11 or Wayland
   session over the network where the platform says so).
 
@@ -792,11 +767,6 @@ destinations; Faraday Demo and the device keep their own navigation
 
 ### 3.2 Make a Faraday stick
 
-0. **For which computer?**, only once the finder has found
-   both stick images (MAC §4.1): "A PC or an Intel Mac" or "A Mac with
-   M1 or M2". Nothing is chosen for the person, as with the disk; the
-   row that fits this computer says "This computer". Keep data refuses
-   a stick of the other kind (MAC §4.8).
 **Image** (`docs/IMAGES.md` §5), above the disks, once the finder
 (§1.3) has found a release image or there is hardware whose image it
 has not: a Material 3 list (Lists, two-line items) of the images that
@@ -958,8 +928,7 @@ chip"; a Mac known to have no T2 chip has only the first.
 temporary folder as `faraday-start-from-the-stick.pdf` and opened at
 once in the system's own viewer, exactly as Blank templates' Print
 (§3.8): the person prints it, or saves it, from the viewer. Offline;
-no printing code or service of the Starter's own, on Windows, Linux
-and macOS. A viewer that cannot be opened shows why under the button.
+no printing code or service of the Starter's own, on Windows and Linux. A viewer that cannot be opened shows why under the button.
 The sheet carries the page's title, the three rows (a line to write on
 for a value not known), two lines to circle the key that worked (below),
 on Windows with the box ticked the BitLocker recovery key (below), the
@@ -1024,8 +993,8 @@ The steps:
    **Restart to choose a device** (Windows' *Use a device*, §7.3),
    offered only while Windows reports Secure Boot off
    (F33) and a Faraday stick is attached.
-On an Intel Mac the steps are the Mac's, from the `mac-intel` guide
-(MAC §3.1, §3.2), and none of them is a button: on a T2 Mac, lower
+On an Intel Mac the steps are the Mac's, from the `mac-intel` guide,
+and none of them is a button: on a T2 Mac, lower
 Startup Security in macOS Recovery; then shut down and hold Option at
 power-on, and choose **EFI Boot** (after the firmware password, if
 one is set); on a T2 Mac, afterwards, Startup Security back to Full.
@@ -1225,8 +1194,7 @@ shows as one made before versions were recorded. That version is shown
 on Which stick and Confirm and drives the keep-data rules (§3.2).
 The data partition is never mounted, opened, read or written (§4.4).
 Each system's disk list gives the layout without a password: udisks2's
-`Partition.Type`, `Offset` and `Size`; `diskutil info`'s `Content`,
-`PartitionMapPartitionOffset` and `Size`; `IOCTL_DISK_GET_DRIVE_LAYOUT_EX`'s
+`Partition.Type`, `Offset` and `Size`; `IOCTL_DISK_GET_DRIVE_LAYOUT_EX`'s
 partition type, start and length.
 
 **On Windows** (owner, 2026-10-19, option (e), D22) the boot partition
@@ -1246,7 +1214,7 @@ Confirm and written only after its hold. What was read stands for the session un
 written. A declined prompt says so on What to write and nothing is
 written. As a second check, the elevated writer reads the stick's
 version again before a keep-data write and refuses the same build.
-Linux and macOS read the version as above and never ask; the image is
+Linux reads the version as above and never asks; the image is
 unchanged.
 
 ### 4.2 Which disks are offered
@@ -1427,7 +1395,7 @@ partition (F128).
   the release's boot partition, nothing else. The release's SHA-256 is
   still checked on the image as it streams, and what is written is read
   back and compared as for any write.
-- A Pi card and a stick for a Mac with M1 or M2 have no boot file
+- A Pi card has no boot file
   choice.
 
 ## 5. Install, run without installing, uninstall
@@ -1470,15 +1438,6 @@ at install when the size chosen in that run is not the one kept. The
 Starter reads it at start, whether or not the copy running is the
 installed one; a line it does not know leaves Standard.
 
-On macOS: the Starter at `~/Applications/Faraday Starter.app`, a copy
-of the running bundle made with `ditto` (which keeps its signature);
-per user, no administrator. The
-bundle is the menu entry and carries the icon. The settings file is
-`~/Library/Application Support/Faraday Starter/settings.txt`, outside
-the bundle, whose signature covers what is in it. A bundle of that name
-whose identifier is not `app.faradayoffline.FaradayStarter` is in the
-way, as on Linux. Uninstall removes exactly that.
-
 The menu file names are reverse-DNS, so they never collide with a
 developer's own `faraday.desktop`. The executable's name is plain, so
 install replaces, and uninstall removes, `faraday-starter` (and the
@@ -1514,7 +1473,7 @@ is on screen. The bar's way back, the window's close button and the
 Demo's own power off return to Home, and the Demo's session ends with
 it: each open starts afresh. A lock in it starts a fresh app in place,
 as its own window does. When the stick folders cannot be made, the card
-says why. The macOS Starter offers none (F83).
+says why.
 
 **One theme in a session.** The Demo opens in the Starter's theme, and
 a theme chosen in the Demo (its Settings, or the boot stick's settings
@@ -1528,8 +1487,7 @@ contrast, Light or Dark as this computer's own setting asks apps
 portal's `org.freedesktop.appearance` `color-scheme`, read once over
 the session bus within 0.7 seconds, and where no portal answers
 GNOME's `color-scheme` or a GTK theme named dark; on Windows
-`AppsUseLightTheme` (Settings' app mode); on macOS
-`AppleInterfaceStyle`; Light where the setting says neither or cannot
+`AppsUseLightTheme` (Settings' app mode); Light where the setting says neither or cannot
 be read.
 
 **Install, update and Uninstall** install no Faraday Demo. Each removes
@@ -1558,7 +1516,7 @@ measured at the next release build.
 
 **Tests** (§11): Open Faraday Demo shows the Demo under the Starter's
 bar, a press on its frame reaches it, its keys are its own, and the way
-back returns to Home; macOS offers none
+back returns to Home
 (`faraday/faraday-starter/tests/all/demo.rs`); a theme chosen in the
 Demo is the Starter's after leaving it, and the next Demo opens in it,
 with nothing written to the computer for it
@@ -1692,7 +1650,7 @@ whose Secure Boot keys changed does not ask afterwards either.
   Starter names a Microsoft account, so the Starter does not read the
   account type. The guides' pointer (§6.7) names the Microsoft account
   as a condition.
-- **Not on a Mac**: an Intel Mac's Start page (Boot Camp included) has
+- **On a Mac**: an Intel Mac's Start page (Boot Camp included) has
   no BitLocker row; its steps change Startup Security, not Secure Boot.
 
 The elevated copy's verbs, `--bitlocker key|suspend|resume --pipe
@@ -1834,13 +1792,9 @@ An ARM computer cannot start the x86_64 stick (Windows on Snapdragon
 laptops); one started in legacy BIOS mode needs UEFI turned on first,
 which its maker's page covers.
 
-On macOS: maker "Apple Inc.", the model identifier from `sysctl
-hw.model` (the same string DMI's `product_name` gives on an Intel Mac),
-ARM from `uname -m` or `sysctl.proc_translated` (an x86_64 Starter
-under Rosetta), a virtual machine from `kern.hv_vmm_present`. What
-kind of Mac it is (T2, 32-bit firmware, the Apple chip) comes from the
-Starter's table of model identifiers (MAC §7), on any system running on a
-Mac.
+On a Mac running Linux or Windows, what kind of Mac it is (T2, 32-bit
+firmware, the Apple chip) comes from the Starter's table of model
+identifiers (`faraday/faraday-starter/src/macs.tsv`).
 
 ### 7.2 The guides are Guide pages
 
@@ -1865,8 +1819,7 @@ guide for this computer, not its text. Pages:
   them), the last numbered step (§6.7); Known quirks. Each ends with a line of where it comes from:
   the maker's support page and the date it was read. No page names
   the model it was tried on: the computers tried are the owner's, and
-  their make and model are personal information (the owner's rule;
-  MAC.md M6 decided the same for Macs).
+  their make and model are personal information (the owner's rule).
 - *When the stick does not start*: not in the boot menu (Fast Boot,
   USB boot off, a USB-C port that does not boot, CSM), a black screen,
   a firmware password set by an employer.
@@ -1918,8 +1871,8 @@ on before starting Windows." until F33).
   starts with Secure Boot on only once a key of the person's own is
   enrolled (§7.7, later), which reads on. On: not shown.
 - **Only the PC stick.** The Pi has no BIOS; Faraday Demo never
-  reads the state; a Mac (maker "Apple Inc.") follows `docs/MAC.md`
-  §3.2: a T2 Mac's Startup Security line, and none on another Intel
+  reads the state; a Mac (maker "Apple Inc.") follows the `mac-intel` guide:
+  a T2 Mac's Startup Security line, and none on another Intel
   Mac, whose firmware has no Secure Boot.
 - **The rule on working screens.** A working screen carries labels,
   values and actions. This line is the action the person takes next,
@@ -2074,8 +2027,7 @@ text typed or pasted as codes, except a secret (F236); Receive reads the
 device's codes with the camera and saves each whole file into the
 Downloads folder. On Linux the camera is `faraday-v4l2`, as the
 desktop app's. On Windows it is `faraday-mediafoundation`
-(`faraday/shells/mediafoundation`), built as `faraday-avfoundation`
-is: one small C file, `src/camera.c`, behind a two-function C ABI, that
+(`faraday/shells/mediafoundation`), one small C file, `src/camera.c`, behind a two-function C ABI, that
 lists Media Foundation's video capture devices and reads the first, or
 the one chosen on the scan sheet, as NV12 near 640 x 480 on a thread of
 its own; the calls declared in the crate, every `unsafe` block with its
@@ -2194,18 +2146,10 @@ submit the file to Microsoft's false-positive form is the owner's call
 at the time, since the form asks for an identity; this spec does not
 assume it.
 
-The macOS Starter is ad-hoc signed and not notarized, for the same
-reason (MAC M8): macOS refuses it on first open; System Settings →
-Privacy & Security → *Open Anyway* opens it. The README and About say
-so, and how to check the zip against `SHA256SUMS` and its signature.
-
 ### 10.3 What it does to the computer
 
 Only what the person asks for: a written stick or card, an install, a
 saved file, a restart. Since F33 nothing touches BitLocker (§6). Uninstall takes back what install did (§5.4).
-On an Apple Silicon Mac (MAC §4.5a), the Faraday start-up volume and
-the shrunk macOS container, which the Starter's *Remove Faraday from
-this Mac* takes back.
 
 ### 10.4 A stick changed on another computer
 
@@ -2292,7 +2236,7 @@ on 2026-10-19 (#30).
   `docs/DECISIONS.md` F50). FARADAYDATA keeps its drive letter, so a person
   can put a PSBT or any file on a Faraday stick from Windows; Faraday
   reads what Windows writes there and never lists, reads or counts
-  Windows' or macOS's own files, told by name (§4.4).
+  Windows' own files, told by name (§4.4).
 - **D12 Home:** a checklist that leads with this computer's next step,
   then the rows (§3.1); since F91 the checklist is inside the This
   computer card and the rows become destinations and cards (§3.1d).

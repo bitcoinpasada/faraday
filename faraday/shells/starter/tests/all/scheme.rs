@@ -50,12 +50,3 @@ fn windows_app_mode_is_read_from_its_registry_value() {
     assert_eq!(scheme::windows(dword(&1u32.to_le_bytes())), Some(false));
     assert_eq!(scheme::windows(None), None);
 }
-
-/// `defaults read -g AppleInterfaceStyle`: `Dark` in Dark mode; in Light
-/// mode the key is absent and the command fails.
-#[test]
-fn macos_interface_style_is_read_as_defaults_prints_it() {
-    assert_eq!(scheme::apple_interface_style(Some("Dark\n")), Some(true));
-    assert_eq!(scheme::apple_interface_style(None), Some(false));
-    assert_eq!(scheme::apple_interface_style(Some("Light\n")), None);
-}

@@ -1,8 +1,7 @@
 # A stick that does not say it is Faraday's
 
-**Kind:** Spec
-**Status:** Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1)
-**Open:** macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
+**Kind:** Reference
+**Status:** Built (F174, F182): the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1)
 
 A Faraday stick or Pi card has partitions with the same names as any
 other stick or card, its own IDs, and nothing in Faraday that finds it
@@ -99,8 +98,6 @@ copies with Windows' change applied, unless it says read):
   The stick then starts, and the device finds it by its build. OVMF
   does this to every USB disk in at start, not only the one it starts
   from. Other firmware may or may not.
-- **macOS** (`IOGUIDPartitionScheme`, read): an entries CRC that fails
-  ends the scan; the disk has no partitions.
 - **Windows**: `IOCTL_DISK_GET_DRIVE_LAYOUT_EX` gives both partitions
   (Windows reads its own backup), so the Starter on Windows lists the
   stick as a Faraday stick; then its raw read of the table (keep data,
@@ -111,7 +108,7 @@ copies with Windows' change applied, unless it says read):
   table is used; `stick-boot.sh` accepts the stick.
 
 Every reader that fails, fails closed. But a stick that has been in a
-Windows computer once is not seen by Linux or macOS, nor kept by the
+Windows computer once is not seen by Linux, nor kept by the
 Starter's keep data, until a PC's firmware happens to repair it. Every
 stick of 0.1.8 and before has this shape.
 
@@ -335,7 +332,7 @@ is its first sector, so that sector is written as zeros until then, and
 the SHA-256 of §4.3's Pi card holds with the sector's own bytes put back,
 as the IDs are. Nothing is compared
 after that but the table, so what Windows then adds to the volume fails no
-check. A second open asks for nothing there. macOS's and Linux's opens may
+check. A second open asks for nothing there. Linux's open may
 ask for a password each time, so they keep the one open, table first.
 
 **A Pi card.** It is compared with the image as decompressed again with
@@ -464,13 +461,12 @@ rule.
 ### 5.3 The Starter
 
 The Starter knows a Faraday stick by §5.1's layout, on each system from
-what it reads now without a password (udisks2 on Linux, `diskutil` on
-macOS, `IOCTL_DISK_GET_DRIVE_LAYOUT_EX` on Windows, which gives each
+what it reads now without a password (udisks2 on Linux, `IOCTL_DISK_GET_DRIVE_LAYOUT_EX` on Windows, which gives each
 partition's type, start and size), and by the release string on its
 boot partition where that can be read (`docs/STARTER.md` §4.3). Keep
 data checks the layout before and after, in place of F67's names and
 GUIDs (`faraday/shells/starter/src/gpt.rs`, `linux/udisks.rs`,
-`macos/diskutil.rs`, `windows/disks.rs`). The image's boot partition is
+`windows/disks.rs`). The image's boot partition is
 checked as a FAT32 volume labelled `EFI` where it was `FARADAYBOOT`
 (`writer.rs`).
 
@@ -540,13 +536,13 @@ with the Starter for it to have its own IDs.
   (labels), `faraday/shells/stick/src/files.rs` and `main.rs`,
   `faraday/faraday-core/src/backup_flow/steps.rs`, Files (Rename stick).
 - The Starter: `faraday/shells/starter/src/gpt.rs`, `writer.rs`,
-  `linux/udisks.rs`, `macos/diskutil.rs`, `windows/disks.rs`,
+  `linux/udisks.rs`, `windows/disks.rs`,
   `faraday/faraday-starter/src/api.rs` and `decide.rs`, the Name field.
 - Strings: `faraday/faraday-strings/src/en.rs` (`starter_why_boot_label`,
   the `starter_fault_*` lines that name FARADAYBOOT and FARADAYDATA, the
   check's line, the Name field, Rename stick, Files' lines of §5.2).
 - Docs: F67 (amended by F174) and F80's partition names, `docs/STARTER.md` §4.1, §4.3,
-  §4.4, `docs/MAC.md`, `docs/BACKUP-FLOW.md`, `docs/DEVELOPING.md`,
+  §4.4, `docs/BACKUP-FLOW.md`, `docs/DEVELOPING.md`,
   `README.md`, `docs/guide/secure-boot-keys.md`, the Learn pages of
   §8, and the tests and fixtures that name the old labels
   (`faraday/faraday-disk/tests/disks.rs`, `faraday/faraday-grant/tests/grant.rs`,
@@ -673,8 +669,8 @@ F182):
   (F180). The others weighed and not taken: the image written whole
   with a table for the stick's size over it (the data partition stays
   128 MiB); readers that take the backup when the primary is broken
-  (the kernel only with `gpt` on its command line, macOS's and
-  udisks2's readers cannot be changed, and the stick stays broken for
+  (the kernel only with `gpt` on its command line, and
+  udisks2's reader cannot be changed, and the stick stays broken for
   every other computer).
 - The boot partition stays the release's byte for byte, its FAT serial
   included, on the stick, the Pi card and in keep data (§4.2, §4.4);

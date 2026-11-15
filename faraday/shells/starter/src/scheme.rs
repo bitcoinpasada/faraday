@@ -14,7 +14,6 @@
 //!   `color-scheme` ([`gnome_color_scheme`]) and, before GNOME 42, a GTK
 //!   theme named dark ([`gtk_theme`]).
 //! - Windows: the app mode in Settings, `AppsUseLightTheme` ([`windows`]).
-//! - macOS: `AppleInterfaceStyle` ([`apple_interface_style`]).
 
 use faraday_core::ui::{Mode, Theme};
 
@@ -67,17 +66,6 @@ pub fn windows(apps_use_light_theme: Option<u32>) -> Option<bool> {
     apps_use_light_theme.map(|v| v == 0)
 }
 
-/// What `defaults read -g AppleInterfaceStyle` prints in Dark mode,
-/// `Dark`; in Light mode the key is not there and the command fails,
-/// which is given here as `None`.
-pub fn apple_interface_style(printed: Option<&str>) -> Option<bool> {
-    match printed.map(str::trim) {
-        Some("Dark") => Some(true),
-        Some(_) => None,
-        None => Some(false),
-    }
-}
-
 /// Linux's answer: the portal's, else GNOME's own settings. Costs a call
 /// on the session bus and, where it says nothing, up to two runs of
 /// `gsettings`; done once, at start.
@@ -101,20 +89,4 @@ pub fn linux() -> Option<bool> {
         .as_deref()
         .and_then(gnome_color_scheme)
         .or_else(|| gsettings("gtk-theme").as_deref().and_then(gtk_theme))
-}
-
-/// macOS's answer. Costs a run of `defaults`; done once, at start.
-#[cfg(target_os = "macos")]
-pub fn macos() -> Option<bool> {
-    let out = std::process::Command::new("/usr/bin/defaults")
-        .args(["read", "-g", "AppleInterfaceStyle"])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    let printed = out
-        .status
-        .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).into_owned());
-    apple_interface_style(printed.as_deref())
 }

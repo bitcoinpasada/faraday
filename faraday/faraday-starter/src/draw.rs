@@ -1623,7 +1623,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y + phone_code(starter, ui, x, y, w, side, &guide.address())
 }
 
-/// The Start page on a Mac (§3.4, `docs/MAC.md` §3.1–§3.2): the Mac's
+/// The Start page on a Mac (§3.4, `docs/history/MAC-LOG.md` §3.1–§3.2): the Mac's
 /// steps, none of them a button. On a T2 Mac, Startup Security lowered
 /// in macOS Recovery; then Option at power-on and EFI Boot; on a T2 Mac,
 /// Startup Security back afterwards. A Mac the table does not know gets

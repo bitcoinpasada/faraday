@@ -12,7 +12,6 @@ members = [
     "core/faraday-draw",
     "faraday/shells/camera",
     "faraday/shells/v4l2",
-    "faraday/shells/avfoundation",
     "tools/fontbake",
     "tools/costs-lint",
     "tools/op-cost",
@@ -87,7 +86,7 @@ argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
 # `upper` and `mixed`) and `faraday-payload`.
 base16ct = { version = "1.0", default-features = false, features = ["alloc"] }
 # Base64 in four places (docs/deps/base64ct.md): PSBT, BIP-322, BSMS,
-# BIP-85, the OpenPGP armour, KDBX and the Starter's plist.
+# BIP-85, the OpenPGP armour and KDBX.
 base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
 # The KDBX 4 stream cipher (docs/deps/chacha20.md): KDBX encrypts its
 # body and its inner random stream with plain ChaCha20 (RFC 8439).
@@ -185,9 +184,8 @@ getrandom = "0.4"
 # constant declarations the raw V4L2 ioctls need. Used by
 # `faraday-v4l2`, and by `faraday-disk` for `O_DIRECT` alone.
 libc = { version = "0.2", default-features = false }
-# Camera capture on macOS and Windows (§16.33; docs/deps/cc.md): compiles
-# the one Objective-C file of `faraday-avfoundation` and the one C file
-# of `faraday-mediafoundation` at build time. Already in the graph, since
+# Camera capture on Windows (§16.33; docs/deps/cc.md): compiles the one
+# C file of `faraday-mediafoundation` at build time. Already in the graph, since
 # `secp256k1-sys` builds libsecp256k1 with it.
 cc = "1"
 

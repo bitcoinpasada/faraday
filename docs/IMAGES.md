@@ -527,7 +527,7 @@ SPI_BCM2835 are forbidden in the kernel; the Pi 4 is described as close
 to a PC, its boot code on the board, and its owner is told to restore
 Raspberry Pi's boot loader with Raspberry Pi Imager before first use
 (a wire to test point TP5 locks it in hardware).
-Paused by the owner, as macOS is: nothing is built for it until
+Paused by the owner: nothing is built for it until
 the owner takes it up again.
 
 ### 9.3 The Pi's kernel

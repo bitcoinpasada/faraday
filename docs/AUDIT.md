@@ -125,7 +125,7 @@ used is written:
 - PSBT inspection, signing orchestration and verification logic (`faraday-psbt`)
 - The choice among a script's satisfactions by real signature size (`faraday-psbt::finalize`)
 
-**No established implementation exists** (21)
+**No established implementation exists** (20)
 
 - WipeOnFree, the allocator that wipes what it frees (`faraday-crypto::wipe`)
 - BIP-327 MuSig2, with BIP-328 and BIP-390 (`faraday-bip::musig`)
@@ -146,7 +146,6 @@ used is written:
 - CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files (`faraday-sb`)
 - The FAT32 formatter for the Starter's data partition (`faraday-fat::format`) (carries)
 - GPT and MBR tables, read and rewritten (`faraday-starter-shell::gpt`, `faraday-starter-shell::ids`) (carries)
-- The plist reader for the disk tool's output (`faraday/shells/starter`) (carries)
 - The PDF writer (`faraday-core::pdf`, `faraday-starter::sheets`) (carries)
 
 **One exists but does not fit the key rules** (6)
@@ -215,7 +214,7 @@ stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
 `faraday-guide` (Learn pages) and the Starter's `start_pages` module (the start-from-stick
 guides), every shell but the desktop app's window (`faraday-desktop`, `faraday-stick`,
 `faraday-snapshot`, `faraday-mediafoundation`, the
-Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev
+Starter's, `faraday-v4l2`), and the dev
 tools (`faraday-testkit`, `faraday-fontbake`,
 `costs-lint`). The snapshot shell and the testkit tool build the test
 keys and wallets they render and write, and ship in nothing. The Starter

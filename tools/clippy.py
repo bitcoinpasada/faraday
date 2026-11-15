@@ -10,7 +10,7 @@ silently guards nothing (docs/COMPUTE.md §7). This runs clippy with the
 arguments given, prints what it prints, and fails when any message
 points into a clippy.toml.
 
-Run from the repository root; `just lint` and tools/check-macos.sh do:
+Run from the repository root; `just lint` does:
 
     python3 tools/clippy.py --workspace --all-targets
 """

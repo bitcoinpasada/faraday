@@ -325,8 +325,7 @@ not for the machine it is made on. It can be changed on an open vault
 cannot open the vault at any speed. A slow machine opens it slowly.
 
 What a machine has free is Linux's `MemAvailable`, Windows' available
-physical memory, and on macOS the free, inactive and speculative pages
-`vm_stat` prints times its page size.
+physical memory.
 
 **A machine that does not say what it has free** (where that cannot be
 read) unlocks and makes only vaults of 64 MiB, which opens anywhere:

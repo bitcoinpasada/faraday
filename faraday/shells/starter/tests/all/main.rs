@@ -10,7 +10,6 @@ mod ids;
 mod image_finish;
 mod install;
 mod key_sheets;
-mod macos;
 mod outside;
 mod platform;
 mod scheme;

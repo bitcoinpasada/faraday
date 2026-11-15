@@ -665,7 +665,7 @@ before Kept, with "Turn Secure Boot back on in the BIOS before starting
 Windows." in the warning tone, and the QR code of this computer's guide
 under it (`docs/DECISIONS.md` F33, `docs/STARTER.md` §7.5). It asks for
 no press of its own: Power off is the press. Not on the Pi, not on
-Faraday Demo; a Mac as `docs/MAC.md` §3.2. The sheet also offers
+Faraday Demo; a Mac follows the `mac-intel` guide. The sheet also offers
 **Restart** (below, Restart; F42).
 
 ## The stick in Files

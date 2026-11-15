@@ -75,31 +75,4 @@ with integers or a buffer that outlives it. The helper's decisions are in
 its library, which has no `unsafe` and is tested without privilege
 against a stand-in `/sys` (`faraday-grant/tests/grant.rs`).
 
-## The Starter on macOS: authopen's descriptor
-
-**Where it is used:** `faraday/shells/starter` (`faraday-starter-shell`), under
-`[target.'cfg(target_os = "macos")'.dependencies]`, at the lockfile's
-`=0.2.189` with `default-features = false`, in one function:
-`src/macos/mac.rs`'s `receive` (`docs/MAC.md` §6).
-
-**Why it is needed.** On a Mac the Starter writes a stick through the
-descriptor `/usr/libexec/authopen -stdoutpipe` opens after the system's
-own password prompt, so no part of the Starter runs as root. authopen
-sends that descriptor over a Unix socket as an `SCM_RIGHTS` control
-message. std makes the socket (`UnixStream::pair`) but receiving
-ancillary data is not stable in std, so `recvmsg`, the `msghdr`,
-`iovec` and `cmsghdr` structs, the `CMSG_*` macros and four constants
-(`SOL_SOCKET`, `SCM_RIGHTS`, `MSG_CTRUNC`, `O_RDWR`) come from `libc`.
-Nothing else in the Starter calls it; every other macOS step is a
-program run by its absolute path.
-
-**Cost.** None new: `libc` 0.2.189 is already in the lock file and in
-the macOS build graph through `winit` and `getrandom`.
-
-**Risk.** The one `unsafe` block, with its `// SAFETY:` comment; the
-crate keeps `unsafe_code = "deny"` and allows it on that function alone.
-It has been type-checked for `aarch64-apple-darwin` and
-`x86_64-apple-darwin` (`tools/check-macos.sh`), not yet run: batch A3c
-runs it on a Mac.
-
 **Review.** Trusted by publisher (rust-lang-owner) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

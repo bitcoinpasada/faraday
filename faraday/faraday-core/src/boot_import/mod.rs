@@ -993,8 +993,7 @@ impl Faraday {
         }
     }
 
-    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
-    /// elsewhere one small file). Import pressed (F130): the ticked files, and those alone, are asked
+    /// Costs a read of the free memory (one small file). Import pressed (F130): the ticked files, and those alone, are asked
     /// of the stick; once every one is answered, what they held comes in
     /// ([`Faraday::import_if_read`]). Nothing ticked, or the stick out:
     /// Import is disabled, and the choice stays open.

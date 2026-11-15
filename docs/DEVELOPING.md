@@ -24,11 +24,7 @@ recipe (F243), nothing else.
   with `--frozen`; that one has crates to fetch, once beforehand:
   `cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml`.
 - **just** (the task runner) and, for the check, `cargo install --locked
-  cargo-nextest cargo-deny cargo-vet`. The two Mac targets, `rustup
-  target add aarch64-apple-darwin x86_64-apple-darwin`, are needed only
-  for `just lint-macos`, which type-checks the Starter's macOS code
-  (`tools/check-macos.sh`); macOS is paused, so neither `just lint` nor
-  GitHub runs it and it is run by hand.
+  cargo-nextest cargo-deny cargo-vet`.
 - **Node 22 or later**, for the colour tables' lint
   (`tools/lint-themes.sh`).
 - **Python 3.11 or later** and **git** for the lints (`tools/impact.py`
@@ -131,7 +127,6 @@ just lint                 clippy with warnings as errors, fmt, and the repositor
 just lint-clippy          clippy over every target
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
-just lint-macos           the Starter's macOS code for both Mac targets (by hand; macOS is paused)
 just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes
 just lint-op-cost         the instruction count of each named costly operation under valgrind (F238)
 just lint-all             every command of `lint`, run to the end; lists all that failed

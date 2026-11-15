@@ -27,7 +27,7 @@ The next step is marked: the first of the stick and the start that is not done.
 
 **Key:** starter-home.desktop
 
-Not shown on macOS. **Open Faraday Demo** opens Faraday Demo inside the Starter, with the version shown on the card.
+**Open Faraday Demo** opens Faraday Demo inside the Starter, with the version shown on the card.
 
 ## Update
 

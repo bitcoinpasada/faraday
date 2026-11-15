@@ -2016,8 +2016,7 @@ impl Faraday {
         self.visit.vault_from_set(name, sha256_of(&c, bytes), label);
     }
 
-    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
-    /// elsewhere one small file). What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
+    /// Costs a read of the free memory (one small file). What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
     /// on the stick shown that Faraday reads, but a seed's by its name
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.

@@ -111,7 +111,6 @@ shipped binary does.
 | `pe_transplant` | `pe::transplant` against a fixed release PE (`faraday-sb`'s `tests/vectors/tiny.efi`) and `pe::signer`, on the input as a signed boot file: whenever it is taken, what is built has the release's image hash and is the release's bytes but for the checksum, the certificate-table entry and the table. |
 | `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
-| `plist` | The Starter's macOS property list reader; `plist.rs` is included by path. |
 | `contents` | The TOML inside a vault: `read_qr`, `read_plan`, `read_codex32_facts` and `read_child_facts`; a value read is written again and reads back as the same fields. |
 | `image_list` | `faraday_payload::ImageList::parse` over any bytes, the release's `IMAGES` list. |
 | `core_text` | Four readers of text in `faraday-core`: `explore::parse_path`, `vault::parse_tz_offset`, `parse_version_output` and `wallet::parse_words` in each language. |
@@ -129,7 +128,7 @@ limits), since the 4 KiB libFuzzer default cannot show a size that
 multiplies. For the same reason the others of the stick's file readers run
 with `-max_len=262144`.
 
-Not fuzzed here: the other macOS and Windows camera converters, the stick
+Not fuzzed here: the Windows camera converters, the stick
 shell's evdev and keyboard readers (the kernel shapes what they read), and
 the Windows writer pipe and BitLocker helper (a line protocol with fixed
 line limits).

@@ -797,8 +797,7 @@ impl Faraday {
         self.flow_start_reading(i, slot, purpose, &st, chosen);
     }
 
-    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
-    /// elsewhere one small file). Starts reading a stick's vault files.
+    /// Costs a read of the free memory (one small file). Starts reading a stick's vault files.
     fn flow_start_reading(
         &mut self,
         i: usize,

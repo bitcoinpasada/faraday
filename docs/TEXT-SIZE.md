@@ -225,8 +225,7 @@ A screen that today works out a list's total height for its scroll
   installed, as `settings.txt` (Linux
   `~/.local/share/faraday-starter/settings.txt`, Windows
   `%LOCALAPPDATA%\Programs\Faraday Starter\settings.txt` beside the
-  installed Starter, macOS `~/Library/Application Support/Faraday
-  Starter/settings.txt`, outside the signed bundle) holding one
+  installed Starter) holding one
   `text=` line (`faraday/shells/starter/src/settings.rs`). The shell
   reads it at start (`StarterEvent::TextKept`); the Starter asks for it
   to be written (`StarterCommand::KeepTextSize`) while a Starter is
@@ -276,7 +275,7 @@ In `faraday/faraday-starter/tests/all/text_size.rs`:
    run without installing writes no file. The file itself, written,
    read back and removed by Uninstall with its folder, is checked in
    the shell's install tests (`faraday/shells/starter/tests/all/`:
-   `install.rs`, `windows.rs`, `macos.rs`).
+   `install.rs`, `windows.rs`).
 
 The snapshot shell takes `FARADAY_SNAP_TEXT=large|larger` as it takes
 `FARADAY_SNAP_THEME`, and writes `cut.txt` beside the frames listing any

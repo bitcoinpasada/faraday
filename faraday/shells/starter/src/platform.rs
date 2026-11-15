@@ -1,8 +1,7 @@
 //! The seam between the Starter's window and the operating system
 //! (`docs/STARTER.md` §2): everything that differs from one system to
 //! another is behind [`Platform`], and the window calls nothing else.
-//! Linux is [`crate::linux`], Windows [`crate::windows`], macOS
-//! [`crate::macos`]. A system without a module of its own gets
+//! Linux is [`crate::linux`], Windows [`crate::windows`]. A system without a module of its own gets
 //! [`Elsewhere`], which writes nothing.
 
 use std::path::PathBuf;
@@ -73,9 +72,7 @@ pub trait Platform: Send + Sync {
     /// What is attached now that is of concern (§3.1a): the screens, the
     /// USB devices, a virtual machine, a remote session. Called every
     /// few seconds off the window's thread. What a system does not read
-    /// yet it knows nothing of, which holds nothing and says nothing: on
-    /// macOS a virtual machine is read, and the screens and USB devices
-    /// wait for batch A3c.
+    /// yet it knows nothing of, which holds nothing and says nothing.
     fn concerns(&self) -> Vec<Concern> {
         Vec::new()
     }
@@ -164,11 +161,7 @@ pub fn this_computer() -> Arc<dyn Platform> {
     {
         Arc::new(crate::windows::Windows)
     }
-    #[cfg(target_os = "macos")]
-    {
-        Arc::new(crate::macos::MacOs)
-    }
-    #[cfg(not(any(target_os = "linux", windows, target_os = "macos")))]
+    #[cfg(not(any(target_os = "linux", windows)))]
     {
         Arc::new(Elsewhere)
     }

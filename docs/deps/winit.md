@@ -8,7 +8,7 @@ by `faraday/shells/desktop` and `faraday/shells/starter`, which run the
 event loop.
 
 **Where it ships.** The desktop app and the Starter, on Linux (Wayland and
-X11), Windows and macOS. It is not in the stick or Pi images, which have no
+X11) and Windows. It is not in the stick or Pi images, which have no
 window system.
 
 **Why this crate.** Opening a window and receiving input on four platforms

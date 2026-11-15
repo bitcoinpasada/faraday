@@ -353,7 +353,7 @@ process refuses such a name in WriteBegin.
   memory changes with what else runs on it:
   - *F* is the free memory now, and *L* counts only reads and products
     in progress, since what Faraday holds already shows in it.
-  - Where the system gives no figure (macOS for now,
+  - Where the system gives no figure (any system but Linux and Windows,
     `memory_available_mib`), the sheet shows **Size** and **{vault}
     needs** only and refuses nothing, as Create and Unlock check nothing
     there.

@@ -1072,8 +1072,7 @@ impl Faraday {
             | more::settle(self)
     }
 
-    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
-    /// elsewhere one small file), at most twice a second. Reads what this
+    /// Costs a read of the free memory (one small file), at most twice a second. Reads what this
     /// computer has free while a screen shows it (Unlock, Create, Visit's
     /// rows and the file menu, the Spend from a backup and backup-flow Unlock lines, the
     /// memory step's rows); true when the figure changes what is shown.

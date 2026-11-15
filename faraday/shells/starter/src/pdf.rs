@@ -251,11 +251,7 @@ fn opener() -> PathBuf {
         let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
         PathBuf::from(root).join("explorer.exe")
     }
-    #[cfg(target_os = "macos")]
-    {
-        PathBuf::from("/usr/bin/open")
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
+    #[cfg(not(windows))]
     {
         PathBuf::from("xdg-open")
     }

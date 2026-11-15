@@ -256,8 +256,7 @@ Faraday Starter on Linux and Windows has Faraday Demo inside it
 ("Faraday Demo" below). **Open Faraday Demo**, a card on its Home,
 shows it in the Starter's own window; the way back returns to Home. It
 is not installed on its own: **Install**, update and **Uninstall**
-remove the copy an earlier Starter installed beside itself. Faraday
-Starter for macOS carries none.
+remove the copy an earlier Starter installed beside itself.
 
 Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,

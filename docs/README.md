@@ -60,7 +60,6 @@ need. Each document's header says what kind it is:
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | Which boards, platforms and screens does Faraday run on, with which layout, and which were considered? | `docs/HARDWARE.md` |
 | Which image does each piece of hardware get, and how does a person choose and check it? | `docs/IMAGES.md` |
-| What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How do I build Faraday, check it, reproduce a release, or try it on my own hardware? | `docs/DEVELOPING.md` |
 | What are Practice and the developer builds? | `docs/DEMO.md` |
@@ -273,12 +272,11 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92) but for Check on the rails and Home's Check tile (F255): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
-- `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
 - `docs/MODES.md`: Modes, Practice and samples. Built here (F81), except the website.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148); the manifest, its inventory lint and generator are built and held by `just lint`; the order of flow blocks, guide pictures, the website's rendering and a few tables are open.
-- `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built, a stick Windows leaves whole included; macOS keys checked against a Mac (paused until one is available) are not.
+- `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Built (F174, F182), a stick Windows leaves whole included.
 - `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190, amending F189; F226); the file vault and the QR vault tool are built; key files and a YubiKey's secret are built in part (its Open line).
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. The worker, the shells' wake, the busy screen, the vault stretches, PSBT signing and read, the backup checklist and more are built; the rest of the jobs (§9) are open.
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.

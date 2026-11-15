@@ -101,7 +101,7 @@ const OWN: [(&str, &str); 19] = [
 /// §7.2), by id, in the order they are read: Windows, Linux, what Secure
 /// Boot and BitLocker are (§3.1b), screens and devices that can record
 /// (§3.1a), when the stick does not start, replacing Faraday on a stick
-/// and starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
+/// and starting an Intel Mac (`docs/history/MAC-LOG.md` §3.1–§3.2).
 pub const BOOT: [&str; 7] = [
     "windows",
     "linux",

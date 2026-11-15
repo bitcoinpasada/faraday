@@ -1,23 +1,19 @@
-//! The camera channel, which exists on Linux, macOS and Windows.
+//! The camera channel, which exists on Linux and Windows.
 //!
 //! On Linux `faraday-v4l2` finds a `/dev/video*`, streams it on its
 //! own thread and posts frames to a bounded channel; the event loop
 //! drains that channel on every pass, so a frame reaches the core within
 //! a tick of capture and a slow decode drops frames instead of backing
-//! up. On macOS `faraday-avfoundation` does the same through an
-//! `AVCaptureSession`, which posts to the channel from AVFoundation's
-//! own queue. On Windows `faraday-mediafoundation` reads a Media
+//! up. On Windows `faraday-mediafoundation` reads a Media
 //! Foundation source reader on its own thread and posts to the channel
 //! from there; the scan sheet's camera choice lists Media Foundation's
 //! devices by name. Anywhere else every `CameraOn` is refused and the
 //! app offers its file fallback.
 //!
-//! macOS answers the permission prompt when it pleases rather than at
-//! `CameraOn`, and Windows' privacy setting is only known once the
-//! device is opened on the capture thread, so on both a refusal arrives
-//! as a message on the frame channel and not as an error from `on`. That
-//! is why `on` returning `Ok` is not a promise of frames, on any
-//! platform.
+//! Windows' privacy setting is only known once the device is opened on
+//! the capture thread, so a refusal there arrives as a message on the
+//! frame channel and not as an error from `on`. That is why `on`
+//! returning `Ok` is not a promise of frames, on any platform.
 //!
 //! Every platform presents the same three calls, so the command match in
 //! the shells (the desktop app's and the Starter's) has no `#[cfg]` in it.
@@ -106,8 +102,7 @@ impl Camera {
 
     /// Opens `path` from now on, the camera the person chose on the scan
     /// sheet; a camera already running is restarted on it. On Linux it is
-    /// a `/dev/videoN`, on Windows a device's symbolic link, on macOS a
-    /// device's unique ID.
+    /// a `/dev/videoN`, on Windows a device's symbolic link.
     pub fn choose(&mut self, path: PathBuf) {
         self.inner.choose(path);
     }
@@ -119,9 +114,8 @@ impl Camera {
 /// its metadata node without opening either; the name is the one the
 /// device gives. The stick shell lists them the same way. On Windows,
 /// Media Foundation's video capture devices: the symbolic link and the
-/// name Windows shows (`windows::list`). On macOS, AVFoundation's video
-/// devices: the unique ID and the name macOS shows (`macos::list`).
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+/// name Windows shows (`windows::list`).
+#[cfg(not(target_os = "windows"))]
 pub fn list() -> Vec<(String, String)> {
     faraday_camera::list()
 }
@@ -258,125 +252,6 @@ mod linux {
     }
 }
 
-#[cfg(target_os = "macos")]
-use macos::Inner;
-#[cfg(target_os = "macos")]
-pub use macos::list;
-
-#[cfg(target_os = "macos")]
-mod macos {
-    use std::path::PathBuf;
-    use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
-
-    use faraday_avfoundation::{Camera as Session, MAX_FPS, Message};
-    use faraday_shell_api::{CameraFailure, Event};
-
-    use super::{Unavailable, event_for};
-    /// The app's reason for the backend's.
-    fn failure(why: faraday_avfoundation::Failure) -> CameraFailure {
-        match why {
-            faraday_avfoundation::Failure::Refused => CameraFailure::Refused,
-            faraday_avfoundation::Failure::InUse => CameraFailure::InUse,
-            faraday_avfoundation::Failure::NotFound => CameraFailure::NotFound,
-        }
-    }
-
-    /// Frames the channel holds, as on Linux: one being decoded and one
-    /// waiting. A third would be out of date by the time the core
-    /// reached it, and the capture callback drops it instead.
-    const QUEUE: usize = 2;
-
-    /// The cameras this machine has, as `(unique ID, name)`, for the scan
-    /// sheet's choice, in the system's order: the first is not
-    /// necessarily the default one, which is opened when none was chosen.
-    pub fn list() -> Vec<(String, String)> {
-        faraday_avfoundation::devices()
-            .into_iter()
-            .map(|d| (d.id, d.name))
-            .collect()
-    }
-
-    pub struct Inner {
-        /// The unique ID of the camera to open, or `None` for the
-        /// system's default.
-        device: Option<String>,
-        disabled: bool,
-        session: Option<(Session, Receiver<Message>)>,
-    }
-
-    impl Inner {
-        pub fn new(device: Option<PathBuf>, disabled: bool) -> Inner {
-            Inner {
-                device: device.map(|p| p.to_string_lossy().into_owned()),
-                disabled,
-                session: None,
-            }
-        }
-
-        pub fn on(&mut self) -> Result<(), Unavailable> {
-            if self.disabled {
-                return Err(Unavailable::plain("--no-camera"));
-            }
-            if self.session.is_some() {
-                return Ok(());
-            }
-            let (tx, frames) = sync_channel(QUEUE);
-            // Starting is asynchronous: the permission prompt, the
-            // device and the session all answer on the channel. A
-            // failure arrives as `Unavailable`, never as an error here.
-            let session = Session::start(self.device.as_deref(), tx);
-            eprintln!(
-                "camera: AVFoundation, {}, up to {MAX_FPS} frames a second",
-                self.device.as_deref().unwrap_or("the default device")
-            );
-            self.session = Some((session, frames));
-            Ok(())
-        }
-
-        pub fn choose(&mut self, path: PathBuf) {
-            let running = self.session.is_some();
-            self.device = Some(path.to_string_lossy().into_owned());
-            if running {
-                self.off();
-                if let Err(reason) = self.on() {
-                    eprintln!("faraday: camera unavailable: {reason}");
-                }
-            }
-        }
-
-        pub fn off(&mut self) {
-            // Dropping the session stops it: the capture is torn down
-            // before the drop returns.
-            self.session = None;
-        }
-
-        pub fn poll(&mut self) -> Option<Event> {
-            let (_, frames) = self.session.as_ref()?;
-            match frames.try_recv() {
-                Ok(Message::Frame(f)) => Some(Event::CameraFrame {
-                    width: f.width,
-                    height: f.height,
-                    luma: f.luma,
-                    chroma: f.chroma,
-                }),
-                // No camera, or the user refused. Turn the camera off so
-                // that a later `CameraOn` starts a session and asks
-                // again; macOS answers a second request from its
-                // remembered decision, without another prompt.
-                Ok(Message::Unavailable(why)) => {
-                    eprintln!("camera: no device, or macOS refused access");
-                    self.off();
-                    Some(event_for(why.map(failure)))
-                }
-                Err(TryRecvError::Empty) => None,
-                // The sender lives as long as the session, so this is
-                // unreachable while one is on; treat it as no frame.
-                Err(TryRecvError::Disconnected) => None,
-            }
-        }
-    }
-}
-
 #[cfg(target_os = "windows")]
 use windows::Inner;
 #[cfg(target_os = "windows")]
@@ -498,10 +373,10 @@ mod windows {
     }
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 use other::Inner;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 mod other {
     use std::path::PathBuf;
 
@@ -518,7 +393,7 @@ mod other {
 
         pub fn on(&mut self) -> Result<(), Unavailable> {
             Err(Unavailable::plain(
-                "this shell captures on Linux, macOS and Windows only",
+                "this shell captures on Linux and Windows only",
             ))
         }
 

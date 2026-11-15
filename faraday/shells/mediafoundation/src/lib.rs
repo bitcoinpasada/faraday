@@ -1,18 +1,17 @@
 //! Media Foundation capture for the Windows shells (the desktop app and
 //! the Starter): list the cameras, start one, and hand back 8-bit luma
-//! frames with the colour beside them. The Windows twin of
-//! `faraday-avfoundation`, with the same [`Frame`], [`Message`] and
-//! [`MAX_FPS`].
+//! frames with the colour beside them. It hands the
+//! scanner [`Frame`]s and [`Message`]s, at most [`MAX_FPS`] a second.
 //!
 //! # Why this crate may use `unsafe`
 //!
 //! The workspace sets `unsafe_code = "forbid"`. This crate is one of the
-//! exceptions, with `faraday-v4l2` and `faraday-avfoundation`, and
+//! exceptions, with `faraday-v4l2`, and
 //! its `Cargo.toml` says so rather than inheriting the workspace lints.
 //! The reason: each platform reaches its
 //! camera through the operating system's own interface with code we
-//! write and can read, and on Windows that is Media Foundation, "the same
-//! one-small-file pattern" as AVFoundation on macOS.
+//! write and can read, and on Windows that is Media Foundation, a small
+//! C file of its own.
 //!
 //! Media Foundation is COM, which Rust cannot call without either a
 //! binding crate (`windows`, tens of thousands of generated lines) or C.
@@ -28,7 +27,7 @@
 //!
 //! Everything that touches Media Foundation is behind
 //! `#[cfg(target_os = "windows")]`, and the build script compiles
-//! `src/camera.c` only when the target is Windows. On Linux and macOS
+//! `src/camera.c` only when the target is Windows. On Linux
 //! this crate is [`Device`], [`Frame`], [`Message`] and their tests, and
 //! the build runs no compiler but `rustc`.
 //!
@@ -58,7 +57,7 @@
 /// the type `faraday-camera` has, shared by the camera crates.
 pub use faraday_camera::{Failure, Frame};
 
-/// The widest frame we hand the core: the same as the macOS shell's.
+/// The widest frame we hand the core: the same as the V4L2 shell's.
 pub const MAX_WIDTH: usize = 1280;
 
 /// `faraday_mf_capture`'s `FARADAY_MF_NO_CAMERA`.

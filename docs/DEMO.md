@@ -9,8 +9,7 @@
    **Open Faraday Demo** on Home shows it in the Starter's own window,
    under the Starter's top app bar (F126, which amends F83; F83 amends
    F30 and F61). It is not installed and not a release file. Releases
-   do not publish it on its own; the macOS Starter and the macOS
-   desktop app carry none.
+   do not publish it on its own.
 2. The code and its builds stay: `faraday/shells/desktop`, `cargo build
    -p faraday-desktop`, `just faraday-linux-bin` (whose default package
    is still `faraday-desktop`) and `just faraday-windows-bin build

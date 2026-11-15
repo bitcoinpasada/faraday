@@ -736,14 +736,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-avfoundation"
-version = "0.1.0"
-dependencies = [
- "cc",
- "faraday-camera",
-]
-
-[[package]]
 name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
@@ -902,7 +894,6 @@ dependencies = [
 name = "faraday-fuzz"
 version = "0.0.0"
 dependencies = [
- "base64ct",
  "faraday-bip",
  "faraday-boot",
  "faraday-camera",
@@ -1195,7 +1186,6 @@ dependencies = [
  "faraday-text",
  "faraday-window",
  "getrandom 0.4.3",
- "libc",
  "rustbus",
  "sha2",
  "windows-sys 0.52.0",
@@ -1281,7 +1271,6 @@ dependencies = [
 name = "faraday-window"
 version = "0.2.0"
 dependencies = [
- "faraday-avfoundation",
  "faraday-camera",
  "faraday-core",
  "faraday-mediafoundation",

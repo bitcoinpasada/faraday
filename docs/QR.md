@@ -61,7 +61,7 @@ open.
 
 | Feature | Faraday OS | Faraday |
 |---|---|---|
-| Camera choice when there is more than one | yes | yes: stick (sysfs), Linux, Windows and macOS desktop |
+| Camera choice when there is more than one | yes | yes: stick (sysfs), Linux and Windows desktop |
 | Viewfinder with corner guides, and the found code outlined | preview only | brackets, outline, state and parts inside (§8 item 4) |
 | Progress for multi-part codes: "4 of 10, missing 3, 7", kept across interruptions and when the camera is closed and opened again | count only | yes, UR included (§8 item 7) |
 | Mirrored symbols | zbar | yes |
@@ -524,9 +524,9 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    on the state line for `NOTE_FLASH_MS` (2 s). A shell with no
    clipboard (the stick, the Pi) has no Paste on any scanner, and no
    dimmed tile stands in for it. Paste on the desktop is live: the window shell reads the text
-   through the platform's own tool (`wl-paste`, `xclip`, `pbpaste`; the
+   through the platform's own tool (`wl-paste`, `xclip`; the
    Windows API on Windows), run only on a press,
-   and sets `Faraday::clipboard`. Ctrl+V (Command+V on macOS) is
+   and sets `Faraday::clipboard`. Ctrl+V is
    `Key::Paste` and does what the tile does; with the scanner closed it
    is Paste words where the words form has the keyboard (F75), and
    nothing anywhere else.
@@ -558,5 +558,3 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    line "Hold it square-on, in focus, with its white margin in the
    frame". A read, a pass too fine, or the QR out of view starts the wait
    again. The scanner reports all of this.
-9. **macOS camera choice.** The window shell lists the AVFoundation
-   cameras, and choosing one reopens the camera on it.

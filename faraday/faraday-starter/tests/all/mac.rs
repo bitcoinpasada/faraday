@@ -1,5 +1,5 @@
 //! Home, the Start page and Make a stick on a Mac (`docs/STARTER.md` §3.1's
-//! "On a Mac", §3.2 step 0, §3.4; `docs/MAC.md` §6): what a person sees
+//! "On a Mac", §3.2 step 0, §3.4; `docs/history/MAC-LOG.md` §6): what a person sees
 //! and can do, on macOS and on Linux running on a Mac.
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -43,7 +43,7 @@ fn file(name: &str, n: char) -> ImageFinding {
 }
 
 /// The PC stick image found, and the Apple silicon one when `apple` (a
-/// stand-in: no release carries it until the Apple Silicon image of `docs/MAC.md` §4.1 exists).
+/// stand-in: no release carries it until the Apple Silicon image of `docs/history/MAC-LOG.md` §4.1 exists).
 fn images(apple: bool) -> Vec<ImageFinding> {
     let mut found = vec![file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a')];
     if apple {
