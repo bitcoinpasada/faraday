@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What a change brings with it (docs/IMPACT.md, F149).
+"""What a change brings with it (docs/IMPACT.md, F149, F258).
 
 Reads the registry tools/impact.toml (and the rule files named in the
 environment variable FARADAY_IMPACT_EXTRA, separated by ":") and answers,
@@ -7,16 +7,14 @@ from the paths a change touches, what must change with it:
 
     impact.py plan [<path>...] [--at <moment>] [--long]
     impact.py check [<range>] [--quiet] [--paths <path>...] [--message <file>]
-                    (FARADAY_IMPACT_MESSAGE=<file> as --message, relative to the repository)
+                    (FARADAY_IMPACT_MESSAGE=<file> as --message, relative to the repository;
+                    FARADAY_IMPACT_RANGE=<range> as the range)
     impact.py lint
-    impact.py docs [--check]
     impact.py --self-test
 
 `plan` is for a task's brief; `check` is the landing check, run over a
-range of commits (default: the merge base of main and HEAD, plus the
-working tree); `lint` checks the registry against itself and the tree; `docs` writes
-docs/CHECKS.md from the public registry, and `docs --check` fails while the
-file differs.
+range of commits (`A..B`; default: the merge base of main and HEAD, plus the
+working tree); `lint` checks the registry against itself and the tree.
 Run as `python3 -I -B tools/impact.py`. Python 3.11 or later, git, and the
 standard library only. Costs a few git calls and a read of the registry;
 no build.
@@ -40,34 +38,28 @@ AREAS = [
     "compute", "speed", "structure", "strings", "design", "tokens", "themes",
     "guide", "learn", "deps", "builds", "fuzz", "release", "impact",
 ]
-KINDS = ("held", "pair", "forbid", "trailer", "review")
-STAGES = ("just lint", "just test", "just crosscheck", "release", "website",
-          "repository hook")
+KINDS = ("pair", "forbid")
 ONS = ("add", "modify", "delete")
 STATUS_ON = {"A": "add", "M": "modify", "D": "delete"}
 VERB = {"A": "added", "M": "changed", "D": "deleted"}
 
 # Field name -> type: "s" string, "l" list of strings, "b" bool.
 FIELDS = {
-    "check": {"id": "s", "run": "s", "stage": "s", "catches": "s",
-              "misses": "s", "status": "s"},
     "consumer": {"id": "s", "name": "s", "reads": "l", "act": "s",
                  "site_check": "s", "site_with": "l", "blocking": "b"},
     "rule": {"id": "s", "title": "s", "source": "l", "at": "s", "when": "l",
              "on": "l", "lines": "s", "rises": "b", "names_raised": "b", "kind": "s",
-             "held_by": "l", "with": "l", "with_each": "l", "trailer": "s",
+             "with": "l", "with_each": "l",
              "misses": "s", "consumers": "l", "status": "s"},
-    "amend": {"id": "s", "held_by": "l", "misses": "s", "with": "l",
+    "amend": {"id": "s", "misses": "s", "with": "l",
               "consumers": "l"},
 }
 DEFAULTS = {
-    "check": {"run": "", "stage": "just lint", "catches": "", "misses": "",
-              "status": "built"},
     "consumer": {"name": "", "reads": [], "act": "", "site_check": "",
                  "site_with": [], "blocking": False},
     "rule": {"title": "", "source": [], "at": "change", "when": [],
-             "on": list(ONS), "lines": "", "rises": False, "names_raised": False, "kind": "review",
-             "held_by": [], "with": [], "with_each": [], "trailer": "",
+             "on": list(ONS), "lines": "", "rises": False, "names_raised": False, "kind": "pair",
+             "with": [], "with_each": [],
              "misses": "", "consumers": [], "status": "active"},
 }
 
@@ -134,12 +126,12 @@ def has_wild(pattern):
 
 class Registry:
     def __init__(self):
-        self.checks, self.consumers, self.rules = [], [], []
+        self.consumers, self.rules = [], []
         self.errors = []
         self.extra_files = []
 
     def by_id(self):
-        return {t["id"]: t for t in self.checks + self.consumers + self.rules}
+        return {t["id"]: t for t in self.consumers + self.rules}
 
     def add_file(self, path, extra):
         label = os.path.basename(str(path))
@@ -152,8 +144,8 @@ class Registry:
         if extra:
             self.extra_files.append(label)
         amends = []
-        for table, kind in (("check", "check"), ("consumer", "consumer"),
-                            ("rule", "rule"), ("amend", "amend")):
+        for table, kind in (("consumer", "consumer"), ("rule", "rule"),
+                            ("amend", "amend")):
             for raw in data.get(table, []):
                 item = self.typed(kind, raw, label)
                 if item is None:
@@ -162,8 +154,7 @@ class Registry:
                 if kind == "amend":
                     amends.append(item)
                 else:
-                    {"check": self.checks, "consumer": self.consumers,
-                     "rule": self.rules}[kind].append(item)
+                    {"consumer": self.consumers, "rule": self.rules}[kind].append(item)
         for key in data:
             if key not in FIELDS:
                 self.errors.append(f"{label}: unknown table [[{key}]]")
@@ -202,7 +193,7 @@ class Registry:
         if target is None:
             self.errors.append(f"{a['_file']}: amend {a['id']}: no such rule")
             return
-        for k in ("held_by", "with", "consumers"):
+        for k in ("with", "consumers"):
             for v in a.get(k, []):
                 if v not in target[k]:
                     target[k].append(v)
@@ -256,28 +247,20 @@ def heading_exists(text, sec):
     return False
 
 
-def lint(reg, root, tracked, justfile_text):
+def lint(reg, root, tracked):
     """The registry against itself and the tree (docs/IMPACT.md §2.5);
     the list of problems."""
     root = Path(root)
     errs = list(reg.errors)
     seen = {}
-    for t in reg.checks + reg.consumers + reg.rules:
+    for t in reg.consumers + reg.rules:
         i = t["id"]
         if not re.match(r"^[a-z0-9][a-z0-9.-]*$", i):
             errs.append(f"{i}: not a lower-case id")
         if i in seen:
             errs.append(f"{i}: id used twice ({seen[i]}, {t['_file']})")
         seen[i] = t["_file"]
-    check_ids = {c["id"]: c for c in reg.checks}
     consumer_ids = {c["id"] for c in reg.consumers}
-    for c in reg.checks:
-        if c["stage"] not in STAGES:
-            errs.append(f"{c['id']}: stage {c['stage']!r} is none of {', '.join(STAGES)}")
-        if c["status"] not in ("built", "planned"):
-            errs.append(f"{c['id']}: status {c['status']!r} is not built or planned")
-        if not c["run"]:
-            errs.append(f"{c['id']}: no run")
     for c in reg.consumers:
         if not re.match(r"^(app|website)\.", c["id"]):
             errs.append(f"{c['id']}: a consumer's id starts app. or website.")
@@ -300,19 +283,11 @@ def lint(reg, root, tracked, justfile_text):
                 if n < last_area:
                     errs.append(f"{i}: out of the areas' order ({area})")
                 last_area = max(last_area, n)
-        for h in r["held_by"]:
-            if h not in check_ids:
-                errs.append(f"{i}: held_by {h} is no check")
         for c in r["consumers"]:
             if c not in consumer_ids:
                 errs.append(f"{i}: consumers {c} is no consumer")
-        if r["kind"] == "held" and r["status"] == "active" and not any(
-                check_ids.get(h, {}).get("status") == "built" for h in r["held_by"]):
-            errs.append(f"{i}: a held rule names no built check")
         if r["kind"] == "pair" and not (r["with"] or r["with_each"]):
             errs.append(f"{i}: a pair names nothing in with or with_each")
-        if r["kind"] == "trailer" and not r["trailer"]:
-            errs.append(f"{i}: a trailer rule names no trailer")
         if r["names_raised"] and not (r["rises"] and r["kind"] == "pair" and r["with"]):
             errs.append(f"{i}: names_raised needs rises, kind pair and with")
         if r["lines"]:
@@ -342,15 +317,6 @@ def lint(reg, root, tracked, justfile_text):
                     negs = [x for x in r["when"] if x.startswith("!")]
                     if not any(match_list([p] + negs, t) is not None for t in tracked):
                         errs.append(f"{i}: when {p} matches no tracked path")
-    # The lint recipe and the checks of stage "just lint" are one list.
-    recipe = recipe_commands(justfile_text, "lint")
-    built = [c["run"] for c in reg.checks if c["stage"] == "just lint" and c["status"] == "built"]
-    for cmd in recipe:
-        if cmd not in built:
-            errs.append(f"justfile lint: `{cmd}` is no [[check]] of stage just lint")
-    for cmd in built:
-        if cmd not in recipe:
-            errs.append(f"check `{cmd}` is not a command of the justfile's lint recipe")
     return errs
 
 
@@ -545,33 +511,13 @@ def waivers(commits):
     return out
 
 
-def trailer_values(commits, name):
-    return [(v, label) for label, message in commits for k, v in trailers(message)
-            if k.lower() == name.lower() and v]
-
-
-def reviewed(commits):
-    """{rule: label} from the commits' Reviewed trailers, each of which
-    names one or more rules, comma-separated."""
-    out = {}
-    for label, message in commits:
-        for key, value in trailers(message):
-            if key.lower() == "reviewed":
-                for name in value.split(","):
-                    if name.strip():
-                        out.setdefault(name.strip(), label)
-    return out
-
-
 def evaluate(reg, changes, commits):
-    """The check: ([(state, rule, text)], counts) with state one of unmet,
-    waived, met, review, held, planned."""
+    """The check: ([(state, rule, text)], notes) with state one of unmet,
+    waived, met, planned."""
     results = []
     wv = waivers(commits)
     notes = []
     known = {r["id"] for r in reg.rules}
-    rv = reviewed(commits)
-    attestable = set()
     for rule, _, _ in wv:
         if rule not in known:
             notes.append(f"waiver of {rule}: no such rule")
@@ -584,57 +530,31 @@ def evaluate(reg, changes, commits):
         mine = [w for w in wv if w[0] == r["id"]]
         if r["status"] == "planned":
             results.append(("planned", r, r["title"]))
-        elif r["kind"] == "held":
-            results.append(("held", r, ""))
-        elif r["kind"] == "review" and (r["_extra"] or standing(r)):
-            results.append(("review", r, r["title"]))
-        elif r["kind"] == "review":
-            attestable.add(r["id"])
-            if r["id"] in rv:
-                results.append(("met", r, f'"Reviewed: {r["id"]}" ({rv[r["id"]]})'))
-            elif mine:
-                results.append(("waived", r, f'"{mine[0][1]}" ({mine[0][2]})'))
-            else:
-                paths = ", ".join(dict.fromkeys(c.path for c, _ in trig))
-                results.append(("unmet", r, f'{paths}; add "Reviewed: {r["id"]}" once checked'))
-        else:
-            if r["kind"] == "pair":
-                unmet = pair_unmet(r, changes, trig)
-                why = "; ".join(unmet)
-            elif r["kind"] == "forbid":
-                # `with` names a move that allows the change: a path in it
-                # (captures filled) changing in the same range.
-                unmet = []
-                for c, caps in trig:
-                    anyp = [fill(p, caps) for p in r["with"]]
-                    if anyp and any(match_list(anyp, x.path) is not None
-                                    for x in changes if x.path != c.path):
-                        continue
-                    unmet.append(f"{c.path} {VERB[c.status]}, which is refused")
-                why = "; ".join(unmet)
-            else:  # trailer
-                have = trailer_values(commits, r["trailer"])
-                unmet = [] if have else [1]
-                why = f"add a `{r['trailer']}: <value>` trailer to the commit"
-                if have:
-                    results.append(("met", r, f'"{r["trailer"]}: {have[0][0]}" ({have[0][1]})'))
+            continue
+        if r["kind"] == "pair":
+            unmet = pair_unmet(r, changes, trig)
+        else:  # forbid
+            # `with` names a move that allows the change: a path in it
+            # (captures filled) changing in the same range.
+            unmet = []
+            for c, caps in trig:
+                anyp = [fill(p, caps) for p in r["with"]]
+                if anyp and any(match_list(anyp, x.path) is not None
+                                for x in changes if x.path != c.path):
                     continue
-            if not unmet:
-                results.append(("met", r, "paired in the range"))
-            elif mine:
-                results.append(("waived", r, f'"{mine[0][1]}" ({mine[0][2]})'))
-            else:
-                results.append(("unmet", r, why))
-    for rule in rv:
-        if rule not in known:
-            notes.append(f"Reviewed: {rule}: no such rule")
-        elif rule not in attestable:
-            notes.append(f"Reviewed: {rule}: not triggered, or not a review rule of the registry")
+                unmet.append(f"{c.path} {VERB[c.status]}, which is refused")
+        why = "; ".join(unmet)
+        if not unmet:
+            results.append(("met", r, "paired in the range"))
+        elif mine:
+            results.append(("waived", r, f'"{mine[0][1]}" ({mine[0][2]})'))
+        else:
+            results.append(("unmet", r, why))
     return results, notes
 
 
 def render(results, quiet):
-    order = ["unmet", "waived", "met", "review", "planned"]
+    order = ["unmet", "waived", "met", "planned"]
     lines = []
     for state in order:
         if quiet and state != "unmet":
@@ -644,14 +564,11 @@ def render(results, quiet):
                 continue
             if r["_extra"]:
                 text = f"(a rule of {r['_file']})"
-            if st == "unmet" and r["kind"] == "review":
-                lines.append(f"impact: unreviewed {r['id']}: {text}")
-                continue
             lines.append(f"impact: {st} {r['id']}: {text}")
     counts = {}
     for st, _, _ in results:
         counts[st] = counts.get(st, 0) + 1
-    parts = [f"{counts[s]} {s}" for s in ("unmet", "waived", "held", "met", "review", "planned")
+    parts = [f"{counts[s]} {s}" for s in ("unmet", "waived", "met", "planned")
              if counts.get(s)]
     lines.append(f"impact: {len(results)} rules triggered" + (": " + ", ".join(parts) if parts else ""))
     return lines, counts.get("unmet", 0)
@@ -674,14 +591,6 @@ def expand_paths(paths, tracked):
     return out
 
 
-def standing(r):
-    """A review rule whose only trigger is every file (`**`, exclusions aside):
-    it applies to every change, so it is listed, never attested per change
-    (F151). The push hook or a check of its own holds such a rule."""
-    pos = [p for p in r["when"] if not p.startswith("!")]
-    return bool(pos) and all(p == "**" for p in pos)
-
-
 def plan(reg, paths, at, long):
     rules = []
     for r in reg.rules:
@@ -695,11 +604,8 @@ def plan(reg, paths, at, long):
             rules.append((r, hit))
     n = len(paths)
     out = [f"impact: {n} path{'s' if n != 1 else ''}, {len(rules)} rule{'s' if len(rules) != 1 else ''}"]
-    change, trail, forbid, review, attest, held = [], [], [], [], [], []
+    change, forbid = [], []
     for r, hit in rules:
-        for h in r["held_by"]:
-            if h not in held:
-                held.append(h)
         if r["kind"] == "pair":
             ps = []
             for p in hit:
@@ -710,26 +616,13 @@ def plan(reg, paths, at, long):
                 if text not in ps:
                     ps.append(text)
             change.append((r["id"], "; ".join(ps)))
-        elif r["kind"] == "review" and (r["with"] or r["with_each"]):
-            change.append((r["id"], ("(needs Reviewed) " if not r["_extra"] else "(review) ") + r["title"]))
-        elif r["kind"] == "review":
-            (review if r["_extra"] or standing(r) else attest).append(r["id"])
-        elif r["kind"] == "trailer":
-            trail.append(f"{r['id']} ({r['trailer']}: <value>)")
         elif r["kind"] == "forbid":
             forbid.append(f"{r['id']} {r['title']}".rstrip())
     if change:
         out.append("change with it:")
         w = max(len(i) for i, _ in change)
         out += [f"  {i:<{w}}  {t}" for i, t in change]
-    if held:
-        out.append("held by: " + ", ".join(held))
-    out += [f"trailer: {t}" for t in trail]
     out += [f"forbidden: {t}" for t in forbid]
-    if attest:
-        out.append("needs a Reviewed: <rule> line in the commit: " + ", ".join(attest))
-    if review:
-        out.append("review: " + ", ".join(review))
     reads = []
     for c in reg.consumers:
         if c["id"] in [x for r, _ in rules for x in r["consumers"]] or any(
@@ -824,9 +717,7 @@ def app_reads_lint(reg, root, metadata=None):
 
 def run_lint(reg, root=ROOT):
     git = Git(root)
-    jf = Path(root) / "justfile"
-    text = jf.read_text(encoding="utf-8") if jf.is_file() else ""
-    return lint(reg, root, tracked_set(git, root), text) + app_reads_lint(reg, root)
+    return lint(reg, root, tracked_set(git, root)) + app_reads_lint(reg, root)
 
 
 def cmd_lint(args):
@@ -837,7 +728,7 @@ def cmd_lint(args):
     if errs:
         print(f"impact: lint: {len(errs)} problem(s)")
         return 2
-    print(f"impact: lint: {len(reg.checks)} checks, {len(reg.consumers)} consumers, "
+    print(f"impact: lint: {len(reg.consumers)} consumers, "
           f"{len(reg.rules)} rules, ok")
     return 0
 
@@ -897,6 +788,9 @@ def collect(args, git):
         print("impact: not a git checkout with commits; nothing to compare, not checked")
         return 0, [], []
     with_tree = False
+    # FARADAY_IMPACT_RANGE names the same range as the argument, for a check
+    # run inside a recipe (`just lint-repo`), as the CI run of a push does.
+    args.range = args.range or os.environ.get("FARADAY_IMPACT_RANGE")
     if args.range:
         if "..." in args.range:
             x, y = args.range.split("...", 1)
@@ -1102,173 +996,6 @@ def cmd_plan(args):
     return 0
 
 
-# ---------------------------------------------------------------- self-test
-
-
-# ---------------------------------------------------------------- docs
-
-CHECKS_MD = "docs/CHECKS.md"
-
-
-def cell(text):
-    """A table cell: one line, pipes escaped."""
-    return " ".join(str(text).split()).replace("|", "\\|") or "-"
-
-
-def code_list(items):
-    return "<br>".join(f"`{x}`" for x in items) or "-"
-
-
-def source_text(sources):
-    out = []
-    for s in sources:
-        path, sep, sec = s.partition(" §")
-        out.append(f"`{path}`" + (f" §{sec}" if sep else ""))
-    return "<br>".join(out) or "-"
-
-
-def trigger_text(r):
-    parts = [code_list(r["when"])]
-    if r["at"] != "change":
-        parts.append(f"at {r['at']}")
-    if r["on"] != list(ONS):
-        parts.append("on " + ", ".join(r["on"]))
-    if r["lines"]:
-        parts.append("lines matching `" + r["lines"].replace("|", "\\|") + "`")
-    if r["rises"]:
-        parts.append("a number that rises")
-    if r["names_raised"]:
-        parts.append("each raised key named in the partner")
-    return "<br>".join(parts)
-
-
-def change_with(r):
-    if r["kind"] == "trailer":
-        return f"a `{r['trailer']}:` trailer"
-    items = []
-    if r["with"]:
-        items.append(("one of " if len(r["with"]) > 1 else "") + code_list(r["with"]))
-    if r["with_each"]:
-        items.append(("each of " if len(r["with_each"]) > 1 else "") + code_list(r["with_each"]))
-    return "<br>".join(items) or "-"
-
-
-def render_checks_md(reg, report=False):
-    """docs/CHECKS.md as text, from the public registry (docs/IMPACT.md §7);
-    with `report`, the map of §2.4 instead: the extra files' rules and
-    consumers too, each marked with its file, and the rules of each moment."""
-    mark = (lambda t: f" (of {t['_file']})" if t["_extra"] else "") if report else (lambda t: "")
-    if report:
-        head = [
-            "# Impact map: every check, rule and consumer",
-            "",
-            "Written by `tools/impact.py report` from `tools/impact.toml`"
-            + (" and " + ", ".join(f"`{f}`" for f in reg.extra_files) if reg.extra_files else "")
-            + "; for reading, never committed.",
-            "",
-        ]
-    else:
-        head = [
-            "# Checks: what holds each rule",
-            "",
-            "**Kind:** Reference",
-            "**Status:** Built (F149); generated by `tools/impact.py docs` from `tools/impact.toml`, never edited by hand",
-            "",
-            "Every check the repository has, when it runs and what it catches and",
-            "misses; every rule of the registry by area, with what holds it; and",
-            "the parts of the suite that read the repository's paths. `just lint`",
-            "fails while this file differs from the registry. The reasons are",
-            "`docs/IMPACT.md`'s and `docs/decisions/F149.md`'s; which tool or lint",
-            "does what is `tools/README.md`'s.",
-            "",
-        ]
-    out = head + [
-        "## 1. Checks",
-        "",
-        "| Id | Stage | Run | Catches | Misses | Status |",
-        "|---|---|---|---|---|---|",
-    ]
-    for c in reg.checks:
-        out.append(f"| `{c['id']}` | {c['stage']} | `{cell(c['run'])}` | {cell(c['catches'])} "
-                   f"| {cell(c['misses'])} | {c['status']} |")
-    out += ["", "## 2. Rules by area", ""]
-    n = 0
-    areas = AREAS + sorted({r["id"].split(".")[0] for r in reg.rules} - set(AREAS))
-    for area in areas:
-        rules = [r for r in reg.rules if r["id"].split(".")[0] == area]
-        if not rules:
-            continue
-        n += 1
-        out += [f"### 2.{n} {area}", "",
-                "| Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |",
-                "|---|---|---|---|---|---|---|"]
-        for r in rules:
-            name = f"`{r['id']}`" + (" (planned)" if r["status"] == "planned" else "") + mark(r)
-            held = ", ".join(f"`{h}`" for h in r["held_by"]) or "-"
-            out.append(f"| {name}: {cell(r['title'])} | {trigger_text(r)} | {r['kind']} "
-                       f"| {change_with(r)} | {held} | {cell(r['misses'])} | {source_text(r['source'])} |")
-        out.append("")
-    out += ["## 3. Review only", "",
-            "No script holds these; a reviewer reads this list for the change.", "",
-            "| Rule | Source |", "|---|---|"]
-    for r in reg.rules:
-        if r["kind"] == "review":
-            out.append(f"| `{r['id']}`{mark(r)}: {cell(r['title'])} | {source_text(r['source'])} |")
-    if report:
-        out += ["", "## 4. Read by", "",
-                "| Part | Reads | What to do when it changes | Blocking |", "|---|---|---|---|"]
-        for c in reg.consumers:
-            out.append(f"| `{c['id']}`{mark(c)}: {cell(c['name'])} | {code_list(c['reads'])} "
-                       f"| {cell(c['act'])} | {'yes' if c['blocking'] else 'no'} |")
-        out += ["", "## 5. Rules of each moment", ""]
-        for at in sorted({r["at"] for r in reg.rules}, key=lambda x: (x != "change", x)):
-            ids = ", ".join(f"`{r['id']}`" for r in reg.rules if r["at"] == at)
-            out.append(f"- **{at}:** {ids}")
-        return "\n".join(out) + "\n"
-    out += ["", "## 4. Read by", "",
-            "| Part | Reads | What to do when it changes |", "|---|---|---|"]
-    for c in reg.consumers:
-        out.append(f"| `{c['id']}`: {cell(c['name'])} | {code_list(c['reads'])} | {cell(c['act'])} |")
-    return "\n".join(out) + "\n"
-
-
-def cmd_docs(args):
-    reg = load_registry(ROOT, "")
-    errs = run_lint(reg)
-    if errs:
-        for e in errs:
-            print(f"impact: lint: {e}")
-        return 2
-    text = render_checks_md(reg)
-    path = ROOT / CHECKS_MD
-    if args.check:
-        have = path.read_text(encoding="utf-8") if path.is_file() else None
-        if have != text:
-            print(f"impact: {CHECKS_MD} differs from the registry: run "
-                  "`python3 -I -B tools/impact.py docs`")
-            return 1
-        return 0
-    path.write_text(text, encoding="utf-8")
-    print(f"impact: wrote {CHECKS_MD}")
-    return 0
-
-
-def cmd_report(args):
-    reg = load_or_die()
-    errs = run_lint(reg)
-    if errs:
-        for e in errs:
-            print(f"impact: lint: {e}")
-        return 2
-    text = render_checks_md(reg, report=True)
-    if args.out:
-        Path(args.out).write_text(text, encoding="utf-8")
-        print(f"impact: wrote {args.out}")
-    else:
-        sys.stdout.write(text)
-    return 0
-
-
 def mkrule(**kw):
     r = {k: (list(v) if isinstance(v, list) else v) for k, v in DEFAULTS["rule"].items()}
     r.update(kw)
@@ -1277,16 +1004,8 @@ def mkrule(**kw):
     return r
 
 
-def _standing_test(ok):
-    r = {"when": ["**", "!LICENSE"]}
-    ok(standing(r), "a rule on every file is standing")
-    ok(not standing({"when": ["**/screen.rs"]}), "a narrower rule is not standing")
-    ok(not standing({"when": []}), "a rule with no trigger is not standing")
-
-
 def self_test():
     ok = lambda c, *m: c or sys.exit("impact self-test failed: " + " ".join(map(str, m)))
-    _standing_test(ok)
 
     # Pattern forms.
     m = lambda pats, path: match_list(pats, path)
@@ -1362,7 +1081,7 @@ def self_test():
     res, _ = evaluate(_reg(rp), [ch("A", "docs/decisions/F7.md"), ch("A", "docs/decisions/F8.md")], [])
     ok(res[0][0] == "unmet", "several triggers, one partner missing")
 
-    # Forbid, held, review, planned, at.
+    # Forbid, planned, at.
     rf = mkrule(id="f.f", when=[".github/workflows/**"], on=["add"], kind="forbid", title="no hosted CI")
     res, _ = evaluate(_reg(rf), [ch("A", ".github/workflows/a.yml")], [])
     ok(res[0][0] == "unmet", "forbid refuses")
@@ -1388,51 +1107,14 @@ def self_test():
     ok(len(errs) == 1 and "lib" in errs[0], "an app crate no pattern reads", errs)
     regc.consumers[0]["reads"] = ["app/**", "lib/**"]
     ok(app_reads_lint(regc, ".", meta) == [], "every crate read")
-    rh = mkrule(id="h.h", when=["a"], kind="held", held_by=["c"])
-    rr = mkrule(id="r.r", when=["a"], kind="review", title="look", _extra=True)
     rpl = mkrule(id="p.p", when=["a"], kind="pair", status="planned", **{"with": ["b"]})
     rel = mkrule(id="e.e", when=["a"], at="release", kind="pair", **{"with": ["b"]})
-    res, _ = evaluate(_reg(rh, rr, rpl, rel), [ch("M", "a")], [])
-    ok([s for s, _, _ in res] == ["held", "review", "planned"], res)
+    res, _ = evaluate(_reg(rpl, rel), [ch("M", "a")], [])
+    ok([s for s, _, _ in res] == ["planned"], res)
     lines, unmet = render(res, False)
-    ok(unmet == 0 and lines[-1] == "impact: 3 rules triggered: 1 held, 1 review, 1 planned", lines)
+    ok(unmet == 0 and lines[-1] == "impact: 1 rules triggered: 1 planned", lines)
 
-    # Review rules of the registry are attested in the commit.
-    rv1 = mkrule(id="v.one", when=["a"], kind="review", title="look")
-    rv2 = mkrule(id="v.two", when=["a"], kind="review", title="look again")
-    c1 = [ch("M", "a")]
-    res, _ = evaluate(_reg(rv1), c1, [])
-    ok(res[0][0] == "unmet", "a review rule with no trailer")
-    lines, unmet = render(res, True)
-    ok(unmet == 1 and lines[0] == 'impact: unreviewed v.one: a; add "Reviewed: v.one" once checked', lines)
-    res, _ = evaluate(_reg(rv1), c1, [("a1b2c3d4", "S\n\nBody\n\nReviewed: v.one\n")])
-    ok(res[0][0] == "met" and "a1b2c3d4" in res[0][2], res)
-    res, _ = evaluate(_reg(rv1, rv2), c1, [("a1b2c3d4", "S\n\nReviewed: v.two, v.one\n")])
-    ok([s for s, _, _ in res] == ["met", "met"], res)
-    res, _ = evaluate(_reg(rv1, rv2), c1, [("a1b2c3d4", "S\n\nReviewed: v.one\n")])
-    ok([s for s, _, _ in res] == ["met", "unmet"], res)
-    res, _ = evaluate(_reg(rv1), c1, [("a1b2c3d4", "S\n\nImpact-skip: v.one: nothing to judge\n")])
-    ok(res[0][0] == "waived", res)
-    res, _ = evaluate(_reg(rv1), c1, [("message", "S\n\nReviewed: v.one\n")])
-    ok(res[0][0] == "met", "the message file counts as a commit")
-    res, notes = evaluate(_reg(rv1, rh), c1, [("a1b2c3d4", "S\n\nReviewed: h.h, v.one, nope.x\n")])
-    ok(any("h.h" in n for n in notes) and any("nope.x" in n for n in notes) and "unmet" not in [s for s, _, _ in res],
-       (res, notes))
-    res, notes = evaluate(_reg(rv1), [ch("M", "zzz")], [("a1b2c3d4", "S\n\nReviewed: v.one\n")])
-    ok(res == [] and any("v.one" in n for n in notes), "a Reviewed line for a rule not triggered is a note")
-
-    # Trailer rule and trailer parsing.
-    rt = mkrule(id="t.t", when=["**/screen.rs"], kind="trailer", trailer="Material")
-    res, _ = evaluate(_reg(rt), [ch("M", "a/screen.rs")], [])
-    ok(res[0][0] == "unmet", "trailer missing")
-    res, _ = evaluate(_reg(rt), [ch("M", "a/screen.rs")], [("e5f6a7b8", "S\n\nBody\n\nMaterial: Lists, Top app bar\n")])
-    ok(res[0][0] == "met" and "Lists, Top app bar" in res[0][2], res)
-    res, _ = evaluate(_reg(rt), [ch("M", "a/screen.rs")], [("e5f6a7b8", "S\n\nMaterial:\n")])
-    ok(res[0][0] == "unmet", "a trailer without a value")
-    res, _ = evaluate(_reg(rt), [ch("M", "a/screen.rs")], [("e5f6a7b8", "S\n\nMaterial: Lists\n\nprose after")])
-    ok(res[0][0] == "unmet", "a trailer outside the last paragraph is prose")
-    res, _ = evaluate(_reg(rt), [ch("M", "a/screen.rs")], [("e5f6a7b8", "S\n\nImpact-skip: t.t: only a label moved\n")])
-    ok(res[0][0] == "waived", "trailer waived")
+    # Trailer parsing.
     ok(trailers("S\n\nA: b\nC: d e\n  f\n") == [("A", "b"), ("C", "d e f")], "continuation")
     ok(trailers("Material: Lists") == [], "a subject alone has no trailers")
 
@@ -1455,16 +1137,13 @@ def self_test():
     # Plan.
     reg = _reg(mkrule(id="docs.a", when=["docs/*.md"], kind="pair", **{"with": ["docs/README.md"]}),
                mkrule(id="docs.b", when=["docs/decisions/F{n}.md"], kind="pair", **{"with": ["docs/DECISIONS.md"], "with_each": ["docs/x-{n}.md"]}),
-               mkrule(id="s.h", when=["a/**"], kind="held", held_by=["c"]),
-               mkrule(id="s.t", when=["a/**"], kind="trailer", trailer="Material"),
-               mkrule(id="s.r", when=["a/**"], kind="review"),
-               mkrule(id="s.rel", when=["a/**"], at="release", kind="review"))
+               mkrule(id="s.f", when=["a/**"], kind="forbid", title="no"),
+               mkrule(id="s.rel", when=["a/**"], at="release", kind="pair", **{"with": ["b"]}))
     reg.consumers.append({"id": "app.z", "reads": ["a/**"], "_file": "", "_extra": False})
     out = plan(reg, ["a/b.rs", "docs/decisions/F9.md"], "change", False)
-    ok(out[0] == "impact: 2 paths, 4 rules", out)
+    ok(out[0] == "impact: 2 paths, 2 rules", out)
     ok(any("docs.b" in l and "docs/DECISIONS.md and docs/x-9.md" in l for l in out), out)
-    ok("held by: c" in out and "trailer: s.t (Material: <value>)" in out and "needs a Reviewed: <rule> line in the commit: s.r" in out
-       and "read by: app.z" in out, out)
+    ok("forbidden: s.f no" in out and "read by: app.z" in out, out)
     ok("s.rel" not in " ".join(out) and "s.rel" in " ".join(plan(reg, ["a/b.rs"], "release", False)), "moments")
     ok(plan(reg, [], "change", False) == ["impact: 0 paths, 0 rules"], "empty plan")
     ok(expand_paths(["docs/**/*.md", "tools", "new/file"], {"docs/a.md", "tools/x", "tools/y/z"}) ==
@@ -1480,18 +1159,12 @@ def self_test():
         put("tools/l.sh", "")
         put("justfile", "lint:\n    tools/l.sh\n    # a comment\n\n    tools/m.sh\n\nother:\n    x\n")
         put("tools/impact.toml", """
-[[check]]
-id = "l"
-run = "tools/l.sh"
-[[check]]
-id = "m"
-run = "tools/m.sh"
 [[rule]]
 id = "docs.a"
 source = ["docs/A.md §1.2"]
 when = ["tools/*.sh"]
-kind = "held"
-held_by = ["l"]
+kind = "pair"
+with = ["docs/A.md"]
 consumers = ["app.q"]
 [[consumer]]
 id = "app.q"
@@ -1499,8 +1172,7 @@ reads = ["tools/**"]
 """)
         tracked = {"docs/A.md", "tools/l.sh", "justfile", "tools/impact.toml"}
         reg = load_registry(td, "")
-        jf = (Path(td) / "justfile").read_text()
-        errs = lint(reg, td, tracked, jf)
+        errs = lint(reg, td, tracked)
         ok(errs == [], errs)
         put("tools/impact.toml", (Path(td) / "tools/impact.toml").read_text()
             + """
@@ -1508,62 +1180,36 @@ reads = ["tools/**"]
 id = "docs.a"
 source = ["docs/A.md §9", "docs/Gone.md"]
 when = ["tools/*.py", "docs/Nope.md"]
-kind = "held"
-held_by = ["nothing"]
+kind = "pair"
+with = ["docs/A.md"]
 consumers = ["web.q"]
 [[rule]]
 id = "repo.late"
 kind = "pair"
 [[rule]]
 id = "docs.misc"
-kind = "held"
-status = "active"
+kind = "review"
 """)
-        errs = lint(load_registry(td, ""), td, tracked, jf.replace("    tools/l.sh\n", "    tools/l.sh\n    tools/extra.sh\n"))
+        errs = lint(load_registry(td, ""), td, tracked)
         text = "\n".join(errs)
         for want in ("docs.a: id used twice", "has no section 9", "Gone.md does not exist",
                      "when tools/*.py matches no tracked path", "Nope.md does not exist",
-                     "held_by nothing is no check", "consumers web.q is no consumer",
+                     "consumers web.q is no consumer",
                      "repo.late: out of the areas' order", "a pair names nothing",
-                     "docs.misc: a held rule names no built check",
-                     "`tools/extra.sh` is no [[check]]"):
+                     "docs.misc: kind 'review' is none of"):
             ok(want in text, want, "|", text)
-        ok(lint(load_registry(td, ""), td, tracked, "lint:\n    tools/l.sh\n")[-1:] != [] , "recipe missing a check")
         # A lint recipe split into recipes it depends on is the same list.
         split = "lint: lint-a && lint-b\n    # c\n\nlint-a:\n    tools/l.sh\n\nlint-b:\n    tools/m.sh\n"
         ok(recipe_commands(split, "lint") == ["tools/l.sh", "tools/m.sh"], recipe_commands(split, "lint"))
-        ok(lint(reg, td, tracked, split) == [], lint(reg, td, tracked, split))
         # An amend adds, an extra rule keeps its file's name.
-        put("extra.toml", '[[amend]]\nid = "docs.a"\nheld_by = ["m"]\nmisses = "more"\n'
-            '[[rule]]\nid = "x.mine"\nwhen = ["private/**"]\nkind = "review"\n')
+        put("extra.toml", '[[amend]]\nid = "docs.a"\nwith = ["m"]\nmisses = "more"\n'
+            '[[rule]]\nid = "x.mine"\nwhen = ["private/**"]\nkind = "pair"\nwith = ["x"]\n')
         reg = load_registry(td, str(Path(td) / "extra.toml"))
         a = next(r for r in reg.rules if r["id"] == "docs.a")
-        ok("m" in a["held_by"] and "more" in a["misses"], a)
-        ok(not [e for e in lint(reg, td, tracked, jf) if "x.mine" in e], "an extra rule may name untracked paths")
+        ok("m" in a["with"] and "more" in a["misses"], a)
+        ok(not [e for e in lint(reg, td, tracked) if "x.mine" in e], "an extra rule may name untracked paths")
         put("bad.toml", '[[rule]]\nid = "r"\nbogus = 1\nkind = 3\n')
         ok(load_registry(td, str(Path(td) / "bad.toml")).errors, "unknown field and wrong type")
-    # docs/CHECKS.md: generated, escaped, stable.
-    reg = _reg(mkrule(id="docs.a", title="a | b", when=["docs/*.md"], kind="pair",
-                      **{"with": ["docs/README.md"]}, source=["CLAUDE.md"]),
-               mkrule(id="impact.z", kind="review", status="planned"))
-    reg.checks = [{"id": "c", "run": "tools/c.sh", "stage": "just lint", "catches": "x|y",
-                   "misses": "", "status": "built"}]
-    reg.consumers = [{"id": "app.q", "name": "Q", "reads": ["a/b"], "act": "redo"}]
-    md1 = render_checks_md(reg)
-    ok(md1 == render_checks_md(reg), "docs output is stable")
-    ok("a \\| b" in md1 and "x\\|y" in md1, "pipes escaped in cells")
-    ok("**Kind:** Reference" in md1 and "### 2.1 docs" in md1 and "(planned)" in md1, "docs shape")
-    ok(md1.count("`impact.z`") == 2, "a review rule is in its area and in the review list")
-    ok("`app.q`" in md1 and "| redo |" in md1, "consumers listed")
-    # report: the extra file's rules marked, the public docs never.
-    rx2 = mkrule(id="docs.extra", kind="review", _extra=True)
-    rx2["_file"] = "mine.toml"
-    reg2 = _reg(mkrule(id="docs.a", kind="review"), rx2)
-    reg2.extra_files = ["mine.toml"]
-    rep = render_checks_md(reg2, report=True)
-    ok("`docs.extra` (of mine.toml)" in rep and "`mine.toml`" in rep, "report marks an extra rule with its file")
-    ok("**Kind:**" not in rep and "## 5. Rules of each moment" in rep, "report shape")
-    ok("(of mine.toml)" not in render_checks_md(reg2), "docs marks nothing")
     # check --consumer: selection, states, blocking, the site's side.
     mkc = lambda cid, **kw: {"id": cid, "name": "", "reads": [], "act": "redo", "site_check": "",
                              "site_with": [], "blocking": False, "_file": "impact.toml",
@@ -1571,7 +1217,7 @@ status = "active"
     cg = mkc("website.guide", reads=["docs/guide/**"], blocking=True, site_with=["site/guide/**"])
     ct = mkc("website.tour", reads=["a/screen.rs"])
     ca = mkc("app.x", reads=["a/**"], blocking=True)
-    reg3 = _reg(mkrule(id="guide.pictures", kind="review", when=["a/screen.rs"],
+    reg3 = _reg(mkrule(id="guide.pictures", kind="pair", **{"with": ["x"]}, when=["a/screen.rs"],
                        consumers=["website.guide"]))
     reg3.consumers = [cg, ct, ca]
     ok([c["id"] for c in select_consumers(reg3, "website")] == ["website.guide", "website.tour"], "prefix selects")
@@ -1658,10 +1304,6 @@ def main(argv):
     p.add_argument("--site")
     p.add_argument("--site-since")
     sub.add_parser("lint")
-    p = sub.add_parser("report")
-    p.add_argument("--out")
-    p = sub.add_parser("docs")
-    p.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
     if args.self_test:
         self_test()
@@ -1672,10 +1314,6 @@ def main(argv):
         return cmd_check(args)
     if args.cmd == "lint":
         return cmd_lint(args)
-    if args.cmd == "docs":
-        return cmd_docs(args)
-    if args.cmd == "report":
-        return cmd_report(args)
     ap.print_usage()
     return 2
 

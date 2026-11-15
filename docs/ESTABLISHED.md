@@ -276,9 +276,6 @@ spec as `planned`, `active` when `crypto-check` holds it.
   manifest does not name is established (cargo vet holds that it is
   vetted, not that it is established)
 
-`docs/CHECKS.md` is regenerated from it in the same commit
-(`python3 -I -B tools/impact.py docs`).
-
 ### 2.5 The inventory's name matching
 
 Moved to `docs/history/ESTABLISHED-LOG.md`.

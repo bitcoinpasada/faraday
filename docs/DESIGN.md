@@ -1169,3 +1169,13 @@ Moved to `docs/history/DESIGN-LOG.md`.
 ## 8. How this gets built
 
 Moved to `docs/history/DESIGN-LOG.md`.
+
+## 9. Checklist for a change
+
+Read by whoever makes or reviews a change in this area; no script holds these.
+
+- The medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from.
+- A screen or component change names the Material 3 page it was checked against.
+- None of F111's left-out components is added.
+- Faraday Demo differs from the device only by a decision.
+- The Starter's maker pages show several families at once, no model, no maker's screenshot or name.

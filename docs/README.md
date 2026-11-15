@@ -65,14 +65,14 @@ need. Each document's header says what kind it is:
 | How do I build Faraday, check it, reproduce a release, or try it on my own hardware? | `docs/DEVELOPING.md` |
 | What are Practice and the developer builds? | `docs/DEMO.md` |
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
-| How does Faraday keep a secret from being left behind? | `docs/KEYS.md` (where secrets live and wipe), `docs/SECRET-LEAKS.md` (the tests that find a copy), `docs/CHECKS.md` (what enforces it) |
+| How does Faraday keep a secret from being left behind? | `docs/KEYS.md` (where secrets live and wipe), `docs/SECRET-LEAKS.md` (the tests that find a copy), `tools/README.md` (which lint holds it) |
 | Which thread does costly work run on, and what does a screen do while it runs? | `docs/WORKERS.md` |
 | How does a frame reach the panel at its refresh rate: a scroll step, the cores, the panel's conversion and write? | `docs/FRAMES.md` |
 | How do the modes, Practice and its samples work? | `docs/MODES.md` |
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; how they are checked, `docs/deps/README.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
-| What must change with what, and which check holds each rule? | `docs/CHECKS.md`; why and how, `docs/IMPACT.md` |
+| What must change with what? | `docs/IMPACT.md`; which lint holds what, `tools/README.md` |
 | What is run before a release, and which parsers are fuzzed? | `tools/README.md`, "Before a release"; `fuzz/README.md`, `faraday/fuzz/README.md` |
 | For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
@@ -235,7 +235,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/COMPARE.md`: Compare two PSBTs, and the fee bump: the differences between any two PSBTs or finished transactions, listed without judging, and whether a replacement only raises the fee, in Compare and on Sign a transaction's review. Built (F233).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F240); no Codex32QR picture for 74 and 127 characters.
-- `docs/CHECKS.md`: Checks: what holds each rule, generated from `tools/impact.toml`. Built (F149).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.

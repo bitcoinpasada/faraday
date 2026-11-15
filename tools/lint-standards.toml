@@ -2,7 +2,7 @@
 # cryptography the F79 cross-check's stamp does not cover, the work kept out
 # of the app, every hold with its decision (F136), and the disagreements of
 # STANDARDS §8. A new entry is the change's author's statement, reviewed
-# with it (standards.what-goes-in, standards.no-way-past).
+# with it.
 
 # ------------------------------------------------------------ uncovered
 # A crate whose normal dependencies include a primitive crate, or that has
@@ -520,7 +520,7 @@ case = "An input carrying an inscription: a note that keeps nothing safe (F136's
 
 # A way past that is neither a hold nor a level. Each names a file and a
 # pattern that must still match; a new one of this kind cannot be found by a
-# pattern and is covered by review rule standards.no-way-past.
+# pattern and is covered by review only.
 
 [[way_past]]
 what = "The dev image"

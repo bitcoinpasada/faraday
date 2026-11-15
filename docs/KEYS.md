@@ -659,3 +659,20 @@ three statements are `docs/AUDIT.md` §2.
 ## 9. Questions for the owner
 
 Answered 2026-10-21 (F70); the answers in force are in §2 (Q1, the vault's scope; Q2, the eleven reveals, fourteen since F125) and §6 (Q4, tests exempt), and the questions: moved to `docs/history/KEYS-LOG.md`.
+
+## 10. Checklist for a change
+
+Read by whoever makes or reviews a change in this area; no script holds these.
+
+- A file that starts to hold secrets is added to lint-secrets' SECRET_FILES.
+- An entry in tools/leak-entries.toml, or a form the leak tests look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry.
+- A change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see.
+- That a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password.
+- A kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open.
+- A GPG key's paperkey reaches a code only as one static code of its base16 lines on the QR sheet marked Secret: no format choice, no parts, no picture, no file, made at the press through the existing reveal.
+- A change to what opening or sealing a file vault holds in memory keeps the one function that checks it first true, and its factor only falls by a measurement.
+- A file vault's seal writes a file that needs what the copy opened needed: a key file's key and a YubiKey's secret go with the passphrase through every path that seals, and one function makes the composite key.
+- A KDBX file's contents never refuse it: a damaged or ambiguous item is Unreadable and kept as read, and only the format limits, a wrong passphrase, damage and XML not well formed refuse a file.
+- A vault write goes over a file nothing proves only after the person's hold on the dialog, naming the SHA-256 of the file shown; a proved copy is replaced with no dialog, and no hash of an earlier seal is kept inside a vault.
+- A field a signer adds to a returned PSBT is stated only when its content is checked in full against the unchanged transaction or Sent, never Returned's own copy, and is a finding otherwise; the words state it without "change" or "mine".
+- A fee bump is said only when every rule of COMPARE §3.2 holds, a rule that cannot be worked out is Cannot tell, the result never stops signing, and Compare's differences carry no tone; a change to a rule is a decision.

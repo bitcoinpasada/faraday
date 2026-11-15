@@ -11,7 +11,7 @@ whole app's dependencies. One crate for both would make every target
 here build as heavily as the larger one, and saves time only when both
 are built cold. Every parser in
 `core/` that takes bytes or text has its target in the change that adds
-it (a review rule, `fuzz.parser-target`), and `just lint` fails on a
+it (a review item, not a lint), and `just lint` fails on a
 target missing from the table below or a row with no target
 (`tools/lint-fuzz-parsers.py`).
 

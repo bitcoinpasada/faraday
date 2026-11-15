@@ -558,3 +558,14 @@ establishes them (`docs/ESTABLISHED.md` §1.2). The tables are written by
 | `rqrr` | The camera's QR decoder, vendored and patched against panics on hostile frames (third_party/rqrr/PATCHES.md): the only maintained pure-Rust QR decoder. What it reads is untrusted input that Faraday's parsers check. The same panic is reported upstream as rqrr's issue 54. | F180 |
 | `quick-xml` | The tokenizer under the XML of a KDBX vault file. It does no cryptography and has no outside review; its default features are off and it is already in the dependency graph. Which references are refused, the nesting cap and everything else the reader does are Faraday's own. | F213 |
 <!-- crypto-manifest: end §10 -->
+
+## 11. Checklist for a change
+
+Read by whoever makes or reviews a change in this area; no script holds these.
+
+- A new kind of key or signature is a decision.
+- The online apps' Send text refuses a secret through the device's own classifier; a secret kind added to scan_read is refused by it too, and bare hex stays the one case let through.
+- No text calls a check outside where the implementation it compares with is Faraday's own, or calls such a check not independent: it is not checked against an outside source.
+- A cross-check judge is others' code of another lineage than what it judges (a port, or another version of the same library for the maths they share, is not); Faraday's second version of a part is retired where such a judge covers the same inputs; every judge just crosscheck names is required there and is a DEVELOPING prerequisite; a switch lands with its cross-check change.
+- What Faraday says of KEF is what it does: all twelve versions read, only versions 20 and 5 written, Krux's refusals kept when writing, seeds.json and a passphrase that is a code left out, and the claim says it was checked against Krux's code and not on a device.
+- The first of KEF's code is read against the claim in docs/KEF.md, and the commit that adds it names the paths in the claim's rule.

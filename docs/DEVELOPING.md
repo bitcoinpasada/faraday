@@ -538,3 +538,13 @@ target feeds; `tools/README.md`, "Before a release", is the release run.
 - `tools/README.md`: every tool and lint.
 - `docs/AUDIT.md`: where the cryptography is, for a reviewer.
 - `SECURITY.md`: how to report a security problem.
+
+## 10. Checklist for a change
+
+Read by whoever makes or reviews a change in this area; no script holds these.
+
+- CONTRIBUTING.md's summary follows CLAUDE.md's rules.
+- An image or PDF carries no metadata.
+- A parser of untrusted input has its fuzz target in the same change.
+- A release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs.
+- Before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus.

@@ -113,8 +113,6 @@ lint-repo:
     python3 -I -B tools/impact.py lint
     # No pair of the registry left unmet in the range from main (F149).
     python3 -I -B tools/impact.py check --quiet
-    # docs/CHECKS.md is what the registry makes (`tools/impact.py docs` writes it).
-    python3 -I -B tools/impact.py docs --check
 
 # Every lint of `lint`, run to the end: one line per command, then the
 # output of each that failed and the command to run it again

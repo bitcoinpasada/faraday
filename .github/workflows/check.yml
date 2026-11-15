@@ -259,13 +259,23 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # lint-repo's impact.py check reads the commits since main.
+          # lint-repo's impact.py check reads the commits since main, or the
+          # pushed range on a push.
           # (A string: the number 0 is false in an expression.)
           fetch-depth: ${{ matrix.part == 'lint-repo' && '0' || '1' }}
           persist-credentials: false
       - name: A local main to compare with
         if: matrix.part == 'lint-repo' && github.event_name == 'pull_request'
         run: git branch --force main "origin/${GITHUB_BASE_REF}"
+      - name: The pushed range to check
+        if: matrix.part == 'lint-repo' && github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A new branch has a `before` of all zeros: the default range then.
+          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "FARADAY_IMPACT_RANGE=${BEFORE}..${GITHUB_SHA}" >> "$GITHUB_ENV"
+          fi
       - uses: ./.github/actions/setup
         with:
           valgrind: ${{ matrix.part == 'lint-op-cost' }}

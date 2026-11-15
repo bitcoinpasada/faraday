@@ -64,7 +64,7 @@ only.
 Not seen: a method call whose receiver's type the inventory cannot tell
 (§4.4 of docs/CRYPTO-LEARN.md) in check 2; a way past of a kind no pattern
 finds (a new flag, a new answer, a new setting that skips a check: not a hold, not
-a level) in check 3b, which review rule `standards.no-way-past` covers; the
+a level) in check 3b, which only review covers; the
 dangers and blocked warnings (they refuse), and the destructive-act holds
 (read as holds in check 3); in check 3a, `Inspection.warnings` and
 `Warning`'s fields are `pub`, so code outside faraday-psbt could push or change

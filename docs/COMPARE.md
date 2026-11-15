@@ -600,8 +600,8 @@ and does not judge; the fee bump is Faraday's own rule, failing closed,
 with I1 to I5, X1, P1, P2 and F1 to F3 as §3.2 has them; the result is
 a statement and never a gate; it shows only where §3.1 applies and, on
 the review, only where Files holds another transaction spending the same
-inputs. A change to any of these rules is a decision. Its rule in
-`tools/impact.toml` is `keys.fee-bump-rules`, a review rule.
+inputs. A change to any of these rules is a decision. It is on the
+checklist in `docs/KEYS.md`.
 
 No difference from Material: both screens are DESIGN §4's components in
 DESIGN §5's step flow and Spend's review.

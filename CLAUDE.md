@@ -27,13 +27,12 @@ plan <paths>` lists the ones a change touches.
   index, then only the decision you need. A new decision is a new file
   and a row; one replaced, superseded or withdrawn moves to
   `docs/history/decisions/` and keeps its row.
-- What a change brings with it is `tools/impact.toml` (F149): `impact.py
-  plan <paths>` says it for a task; `just lint` fails on a pair left unmet
-  unless a commit says why (`Impact-skip: <rule>: <reason>`); a review
-  rule a change triggers is attested with a `Reviewed: <rule>` trailer
-  (F151). A new rule line here, or a decision that binds later changes,
-  is a rule in the registry in the same commit. `docs/CHECKS.md` is
-  generated from it.
+- What a change brings with it is `tools/impact.toml` (F149, narrowed by
+  F258): `impact.py plan <paths>` says it for a task; `just lint` fails on
+  a pair left unmet unless a commit says why (`Impact-skip: <rule>:
+  <reason>`). A new pair is added there if a change must bring another
+  with it. What no script can see is a checklist in the area's document and
+  in `.claude/agents/reviewer.md`, not a trailer.
 - `just` is the check: tests, clippy with warnings as errors, fmt and the
   lints in the `lint` recipe, every lint run to the end (`lint-all`). Keep
   every test passing or change it to the rule it now encodes; do not

@@ -216,7 +216,7 @@ entry is made only in a commit that says why, and passes review.
   paints the stack and looks afterwards is not proposed: its result
   depends on the compiler and the target, and what it finds is gone at
   the next call. A change to how a secret is handled locally is read for
-  it (a review rule, §10).
+  it (the checklist in `docs/KEYS.md`, §10).
 - **Timing, and loads indexed by a secret.** Under the Security scope
   (`docs/SECURITY-MODEL.md`, "What this does not defend against") these
   are worth having and later work, recorded as open work and done when
@@ -251,21 +251,20 @@ entry is made only in a commit that says why, and passes review.
 - **Allowed entries** live in one file under `tools/`; an entry is added
   only in a commit that says why, and passes review.
 
-## 10. What the registry holds
+## 10. What holds this
 
-`tools/impact.toml` holds this so `just lint` does and nobody has to
-remember:
+Held by `just lint` and the tests:
 
 - a change to a flow that touches a secret (§4's list, and the files of
   `faraday-keys`, `faraday-vault` and the seed and backup screens) runs
-  under the leak tests and the tour check: a **held** rule;
-- a secret type follows §6: a **held** rule through clippy and
-  `lint-secrets`;
-- a change to an allowed entry or to the forms of §3 names its reason,
-  and a manifest never lists the allocator, `faraday-leak-scan`, outside
-  a `dev-dependencies` table (`lint-secrets`, rule 6): a **review** rule
-  and a **held** one;
-- a change to how a secret is handled in a local, indexed by or compared:
-  a **review** rule that says what the tests cannot see (§8).
+  under the leak tests and the tour check;
+- a secret type follows §6, through clippy and `lint-secrets`;
+- a manifest never lists the allocator, `faraday-leak-scan`, outside a
+  `dev-dependencies` table (`lint-secrets`, rule 6).
 
-`docs/CHECKS.md` is generated from the registry and shows them.
+Read by whoever changes or reviews the area, from the checklist in
+`docs/KEYS.md`:
+
+- a change to an allowed entry or to the forms of §3 names its reason;
+- a change to how a secret is handled in a local, indexed by or compared
+  is read for what the tests cannot see (§8).

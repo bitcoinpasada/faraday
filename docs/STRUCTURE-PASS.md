@@ -297,3 +297,9 @@ Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 ## 9. Questions for the owner
 
 Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
+
+## 10. Checklist for a change
+
+Read by whoever makes or reviews a change in this area; no script holds these.
+
+- The vault code is not split per screen (F170).
