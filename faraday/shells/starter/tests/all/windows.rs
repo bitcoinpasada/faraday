@@ -66,6 +66,16 @@ fn the_after_exit_command_turns_delayed_expansion_off_and_keeps_a_path_with_a_ba
         "{c}"
     );
     assert!(install::after_exit_command(Path::new(r"C:\a%b")).is_none());
+
+    // `&` and parentheses are inside the quotes, so they stay part of the
+    // name.
+    let odd = Path::new(r"D:\R&D (old)\Faraday & Co\faraday");
+    let c = install::after_exit_command(odd).expect("a command");
+    assert!(c.contains(&format!("rmdir \"{}\"", odd.display())), "{c}");
+    assert!(
+        c.contains(&format!("del /f /q \"{}\\Faraday Starter.exe\"", odd.display())),
+        "{c}"
+    );
 }
 
 #[test]

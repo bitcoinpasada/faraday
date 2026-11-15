@@ -18,6 +18,8 @@ use faraday_starter::api::{Protection, Reason, RecoveryKey, StickFault};
 use faraday_starter_shell::windows::bitlocker::{self, Answer, Order, Recorded, Verb};
 
 const KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";
+const ID2: &str = "{0F1E2D3C-4B5A-4968-8776-655443322110}";
+const KEY2: &str = "111111-222222-333333-444444-555555-666666-777777-888888";
 const ID: &str = "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}";
 const C: &str = r"\\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\";
 const E: &str = r"\\?\Volume{1b2c3d4e-0000-4000-8000-00000000000e}\";
@@ -38,7 +40,7 @@ fn key() -> RecoveryKey {
 #[test]
 fn the_key_is_read_for_the_sheet_and_nothing_changes() {
     let mut wmi = recorded("pro.wmi");
-    assert_eq!(bitlocker::read_key(&mut wmi, "C:"), Ok(key()));
+    assert_eq!(bitlocker::read_key(&mut wmi, "C:"), Ok(vec![key()]));
     assert_eq!(
         wmi.log,
         [
@@ -47,6 +49,32 @@ fn the_key_is_read_for_the_sheet_and_nothing_changes() {
             format!("GetKeyProtectorNumericalPassword {C} VolumeKeyProtectorID=str:{ID}"),
         ]
     );
+}
+
+#[test]
+fn every_recovery_password_is_read_each_with_its_id_and_all_reach_the_window() {
+    let second = RecoveryKey::parse("C:", ID2, KEY2).expect("a key");
+    let mut wmi = recorded("two-passwords.wmi");
+    assert_eq!(
+        bitlocker::read_key(&mut wmi, "C:"),
+        Ok(vec![key(), second.clone()])
+    );
+    assert_eq!(wmi.made("GetKeyProtectorNumericalPassword"), 2);
+    let mut wire = Vec::new();
+    assert!(bitlocker::run(
+        &mut recorded("two-passwords.wmi"),
+        Verb::Key,
+        "C:",
+        &mut wire
+    ));
+    let reply = bitlocker::reply(&mut Cursor::new(wire)).expect("a reply");
+    assert_eq!(reply.keys, [key(), second]);
+    // One of them not read is none read.
+    let text = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/windows/two-passwords.wmi"))
+        .expect("a recorded answer");
+    let cut: String = text.lines().filter(|l| !l.contains(KEY2)).map(|l| format!("{l}\n")).collect();
+    let mut wmi = Recorded::parse(&cut).expect("a well-formed recording");
+    assert!(bitlocker::read_key(&mut wmi, "C:").is_err());
 }
 
 #[test]
@@ -244,7 +272,7 @@ fn the_elevated_copys_whole_step_reaches_the_window_as_it_was_answered() {
         &mut wire
     ));
     let reply = bitlocker::reply(&mut Cursor::new(wire)).expect("a reply");
-    assert_eq!(reply.key, Some(key()));
+    assert_eq!(reply.keys, [key()]);
     assert_eq!(reply.state, Some((Protection::On, None)));
     assert_eq!(reply.done, Some(Ok(())));
 
@@ -257,7 +285,7 @@ fn the_elevated_copys_whole_step_reaches_the_window_as_it_was_answered() {
     ));
     let reply = bitlocker::reply(&mut Cursor::new(wire)).expect("a reply");
     assert_eq!(reply.state, Some((Protection::Suspended, Some(3))));
-    assert!(reply.key.is_none());
+    assert!(reply.keys.is_empty());
 
     let mut wire = Vec::new();
     assert!(!bitlocker::run(

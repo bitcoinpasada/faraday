@@ -92,9 +92,9 @@ pub trait Platform: Send + Sync {
         (Err(Reason::Unsupported), None)
     }
 
-    /// The system drive's BitLocker recovery key, read through the
-    /// elevated copy for the sheet (Windows, F49).
-    fn recovery_key(&self) -> Result<RecoveryKey, Reason> {
+    /// The system drive's BitLocker recovery keys, every one, read
+    /// through the elevated copy for the sheet (Windows, F49).
+    fn recovery_key(&self) -> Result<Vec<RecoveryKey>, Reason> {
         Err(Reason::Unsupported)
     }
 

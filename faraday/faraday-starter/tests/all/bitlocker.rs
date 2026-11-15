@@ -283,7 +283,7 @@ fn the_sheet_carries_the_key_only_when_ticked() {
     s.press(StarterAction::PrintNotes);
     assert_eq!(commands(&mut s), [StarterCommand::ReadRecoveryKey]);
     assert!(shows(&mut s, "Waiting for administrator permission"));
-    s.starter_event(StarterEvent::RecoveryKey(Ok(key())));
+    s.starter_event(StarterEvent::RecoveryKey(Ok(vec![key()])));
     let sheet = commands(&mut s);
     let [StarterCommand::PrintNotes { pdf, with_key, .. }] = sheet.as_slice() else {
         panic!("one PrintNotes expected: {sheet:?}");
@@ -295,7 +295,7 @@ fn the_sheet_carries_the_key_only_when_ticked() {
     assert!(pdf_has(pdf, "650375-210331-584155-047520"));
     // The rest of the sheet as without it.
     let notes = Notes::for_computer(&dell(Os::Windows)).expect("notes");
-    assert_eq!(*pdf, notes.pdf_with_key(&c, &key()));
+    assert_eq!(*pdf, notes.pdf_with_key(&c, &[key()]));
     assert!(pdf_has(pdf, "Boot menu key"));
     // The key is never on the page itself.
     let all = texts(&mut s).join(" ");
@@ -319,11 +319,11 @@ fn a_key_that_cannot_be_read_says_why_and_prints_nothing() {
 }
 
 #[test]
-fn the_key_s_sheet_carries_the_key_protector_s_id_as_windows_shows_it() {
+fn the_key_s_sheet_carries_the_key_protector_s_id() {
     let c = compute();
     let pdf = Notes::for_computer(&dell(Os::Windows))
         .expect("notes")
-        .pdf_with_key(&c, &key());
+        .pdf_with_key(&c, &[key()]);
     let id = b"6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B";
     assert!(pdf.windows(id.len()).any(|w| w == id));
     let without = Notes::for_computer(&dell(Os::Windows))
@@ -337,7 +337,7 @@ fn the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code()
     let c = compute();
     let pdf = Notes::for_computer(&dell(Os::Windows))
         .expect("notes")
-        .pdf_with_key(&c, &key());
+        .pdf_with_key(&c, &[key()]);
     for word in [
         b"/Info".as_slice(),
         b"/Producer",
@@ -351,7 +351,7 @@ fn the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code()
         b"Dell Inc.",
         b"DESKTOP-",
         b"aka.ms",
-        // A key protector's ID is not on it either.
+        // A protector's ID is printed without braces.
         b"{",
     ] {
         assert!(!pdf.windows(word.len()).any(|w| w == word), "{word:?}");
@@ -371,4 +371,24 @@ fn a_recovery_key_is_eight_groups_of_six_digits_and_debug_shows_none_of_it() {
     assert!(RecoveryKey::parse("C:", "", KEY).is_none());
     let shown = format!("{:?}", key());
     assert!(!shown.contains("205568"), "{shown}");
+}
+
+#[test]
+fn a_drive_with_two_recovery_passwords_has_both_on_the_sheet_each_with_its_id() {
+    const KEY2: &str = "111111-222222-333333-444444-555555-666666-777777-888888";
+    let second = RecoveryKey::parse("C:", "{0F1E2D3C-4B5A-4968-8776-655443322110}", KEY2)
+        .expect("a second key");
+    let pdf = Notes::for_computer(&dell(Os::Windows))
+        .expect("notes")
+        .pdf_with_key(&compute(), &[key(), second]);
+    for text in [
+        "205568-492019-108251-336446-",
+        "650375-210331-584155-047520",
+        "111111-222222-333333-444444-",
+        "555555-666666-777777-888888",
+        "6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B",
+        "0F1E2D3C-4B5A-4968-8776-655443322110",
+    ] {
+        assert!(pdf_has(&pdf, text), "{text}");
+    }
 }

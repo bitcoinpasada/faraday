@@ -147,10 +147,10 @@ impl Platform for Windows {
         (result, read)
     }
 
-    fn recovery_key(&self) -> Result<RecoveryKey, Reason> {
+    fn recovery_key(&self) -> Result<Vec<RecoveryKey>, Reason> {
         let reply = elevate_bitlocker(Verb::Key)?;
-        match (reply.done, reply.key) {
-            (Some(Ok(())), Some(k)) => Ok(k),
+        match (reply.done, reply.keys) {
+            (Some(Ok(())), keys) if !keys.is_empty() => Ok(keys),
             (Some(Err(why)), _) => Err(why),
             _ => Err(Reason::BitLocker {
                 call: String::from("GetKeyProtectorNumericalPassword"),

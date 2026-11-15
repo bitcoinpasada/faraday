@@ -1126,18 +1126,18 @@ impl Starter {
     /// Makes the sheet and asks the shell to open it: with the recovery
     /// key when one is given, which is dropped (and wiped) once the PDF
     /// is made.
-    fn print_notes(&mut self, key: Option<api::RecoveryKey>) {
+    fn print_notes(&mut self, keys: Option<Vec<api::RecoveryKey>>) {
         let c = self.held.compute();
         if let Some(notes) = notes::Notes::for_computer(&self.computer) {
             self.notes_open_failed = None;
-            let pdf = match &key {
+            let pdf = match &keys {
                 Some(k) => notes.pdf_with_key(&c, k),
                 None => notes.pdf(&c),
             };
             self.out.push_back(StarterCommand::PrintNotes {
                 name: notes::FILE_NAME.to_string(),
                 pdf,
-                with_key: key.is_some(),
+                with_key: keys.is_some(),
             });
         }
     }
@@ -1575,8 +1575,8 @@ impl Starter {
             StarterEvent::RecoveryKey(r) => {
                 self.key_reading = false;
                 match r {
-                    Ok(key) if self.page == Page::Start && self.include_key => {
-                        self.print_notes(Some(key));
+                    Ok(keys) if self.page == Page::Start && self.include_key => {
+                        self.print_notes(Some(keys));
                     }
                     Ok(_) => {}
                     Err(why) => self.notes_open_failed = Some(why),

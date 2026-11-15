@@ -270,20 +270,20 @@ impl Notes {
     /// for a value not known, the lines to circle the keys that worked, and
     /// the steps. Writing a PDF.
     pub fn pdf(&self, c: &Compute) -> zeroize::Zeroizing<Vec<u8>> {
-        self.sheet(c, None)
+        self.sheet(c, &[])
     }
 
     /// Costs what `sheet` costs. The same sheet with the system drive's
     /// BitLocker recovery key after the rows (F49): its drive and its eight
-    /// groups, four to a line. Nothing else of BitLocker. The rows' copy of
-    /// the key is wiped once the PDF is written, and the PDF when it is
-    /// dropped. Writing a PDF.
-    pub fn pdf_with_key(&self, c: &Compute, key: &RecoveryKey) -> zeroize::Zeroizing<Vec<u8>> {
-        self.sheet(c, Some(key))
+    /// groups, four to a line, and its protector's ID, for every key.
+    /// Nothing else of BitLocker. The rows' copy of the key is wiped once
+    /// the PDF is written, and the PDF when it is dropped. Writing a PDF.
+    pub fn pdf_with_key(&self, c: &Compute, keys: &[RecoveryKey]) -> zeroize::Zeroizing<Vec<u8>> {
+        self.sheet(c, keys)
     }
 
     /// Costs a picture drawn (through `notes`).
-    fn sheet(&self, c: &Compute, key: Option<&RecoveryKey>) -> zeroize::Zeroizing<Vec<u8>> {
+    fn sheet(&self, c: &Compute, keys: &[RecoveryKey]) -> zeroize::Zeroizing<Vec<u8>> {
         use zeroize::Zeroize;
         let mut rows: Vec<(String, Option<String>)> = self
             .rows
@@ -293,7 +293,7 @@ impl Notes {
         for c in &self.circles {
             rows.push((c.label.to_string(), Some(c.text())));
         }
-        if let Some(k) = key {
+        for k in keys {
             // Four groups to a line: the value column holds about 44
             // characters, and a line breaks only at a space.
             let at = 4 * (crate::api::KEY_DIGITS + 1);

@@ -333,10 +333,12 @@ pub fn state(wmi: &mut dyn Wmi, drive: &str) -> (Protection, Option<u32>) {
     }
 }
 
-/// Read the recovery key for the sheet (F49): the system drive's first
-/// numerical password. Nothing changes on the computer: a drive with
-/// none is refused, not given one.
-pub fn read_key(wmi: &mut dyn Wmi, drive: &str) -> Result<RecoveryKey, Reason> {
+/// Read the recovery keys for the sheet (F49): every numerical password
+/// of the system drive, each with its protector's ID, in the order
+/// Windows lists them. Nothing changes on the computer: a drive with
+/// none is refused, not given one, and one key not read is a refusal of
+/// them all.
+pub fn read_key(wmi: &mut dyn Wmi, drive: &str) -> Result<Vec<RecoveryKey>, Reason> {
     let vols = wmi.volumes()?;
     let v = vols
         .iter()
@@ -357,22 +359,29 @@ pub fn read_key(wmi: &mut dyn Wmi, drive: &str) -> Result<RecoveryKey, Reason> {
     if o.ret != 0 {
         return Err(refused(call, o.ret));
     }
-    let Some(id) = o.texts("VolumeKeyProtectorID").first().cloned() else {
+    let ids = o.texts("VolumeKeyProtectorID");
+    if ids.is_empty() {
         return Err(Reason::NoRecoveryKey);
-    };
-    let call = "GetKeyProtectorNumericalPassword";
-    let o = wmi.call(
-        &v.device,
-        call,
-        &[("VolumeKeyProtectorID", Value::text(&id))],
-        &["NumericalPassword"],
-    )?;
-    if o.ret != 0 {
-        return Err(refused(call, o.ret));
     }
-    o.text("NumericalPassword")
-        .and_then(|k| RecoveryKey::parse(&v.letter, &id, k))
-        .ok_or_else(|| refused(call, 0))
+    let call = "GetKeyProtectorNumericalPassword";
+    let mut keys = Vec::with_capacity(ids.len());
+    for id in &ids {
+        let o = wmi.call(
+            &v.device,
+            call,
+            &[("VolumeKeyProtectorID", Value::text(id))],
+            &["NumericalPassword"],
+        )?;
+        if o.ret != 0 {
+            return Err(refused(call, o.ret));
+        }
+        let key = o
+            .text("NumericalPassword")
+            .and_then(|k| RecoveryKey::parse(&v.letter, id, k))
+            .ok_or_else(|| refused(call, 0))?;
+        keys.push(key);
+    }
+    Ok(keys)
 }
 
 /// Whether `v` is an operating-system volume: `VolumeType` 0, or the
@@ -918,8 +927,8 @@ pub struct Reply {
     /// The system drive's protection, read at the end, and its count
     /// while suspended.
     pub state: Option<(Protection, Option<u32>)>,
-    /// The recovery key, for the sheet.
-    pub key: Option<RecoveryKey>,
+    /// The recovery keys, for the sheet, in the order they were sent.
+    pub keys: Vec<RecoveryKey>,
     /// How the step ended; `None` when the copy ended without saying.
     pub done: Option<Result<(), Reason>>,
 }
@@ -931,7 +940,7 @@ pub fn reply<R: Read>(r: &mut R) -> Result<Reply, String> {
     while let Some(a) = next(r, &mut buf) {
         match a? {
             Answer::State(p, n) => out.state = Some((p, n)),
-            Answer::Key(k) => out.key = Some(k),
+            Answer::Key(k) => out.keys.push(k),
             Answer::Done(r) => out.done = Some(r),
         }
     }
@@ -939,14 +948,16 @@ pub fn reply<R: Read>(r: &mut R) -> Result<Reply, String> {
 }
 
 /// The elevated copy's whole step against `wmi`, its answers written to
-/// `w`: the key for [`Verb::Key`], then the system drive's state, then
+/// `w`: each key for [`Verb::Key`], then the system drive's state, then
 /// how it ended. Whether it succeeded.
 pub fn run<W: Write>(wmi: &mut dyn Wmi, verb: Verb, drive: &str, w: &mut W) -> bool {
     let mut scratch = Zeroizing::new(Vec::with_capacity(MAX_LINE));
     let result = match verb {
-        Verb::Key => read_key(wmi, drive).and_then(|k| {
-            send(w, &Answer::Key(k), &mut scratch)
-                .map_err(|e| refused("the pipe", e.raw_os_error().unwrap_or(0) as u32))
+        Verb::Key => read_key(wmi, drive).and_then(|keys| {
+            keys.into_iter().try_for_each(|k| {
+                send(w, &Answer::Key(k), &mut scratch)
+                    .map_err(|e| refused("the pipe", e.raw_os_error().unwrap_or(0) as u32))
+            })
         }),
         Verb::Suspend => suspend(wmi, drive),
         Verb::Resume => resume(wmi, drive),

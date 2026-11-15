@@ -82,9 +82,8 @@ pub struct BitLocker {
 }
 
 /// A BitLocker recovery key, eight groups of six digits, with the drive
-/// it opens and the ID of its key protector, which Windows shows at its
-/// recovery screen to say which key it wants (§3.4, F49): read by the elevated copy for the sheet, and
-/// held only until the sheet is made. `Debug` prints none of the key,
+/// it opens and the ID of its key protector (§3.4, F49): read by the
+/// elevated copy for the sheet, and held only until the sheet is made. `Debug` prints none of the key,
 /// and it is wiped when dropped.
 #[derive(Clone, PartialEq, Eq)]
 pub struct RecoveryKey {
@@ -146,8 +145,8 @@ impl RecoveryKey {
         &self.drive
     }
 
-    /// The key protector's ID as Windows shows it: a GUID in capitals,
-    /// without braces.
+    /// The key protector's ID: a GUID in capitals, without braces. The
+    /// recovery screen shows its first group.
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -794,7 +793,7 @@ pub enum StarterEvent {
         result: Result<(), Reason>,
     },
     /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
-    RecoveryKey(Result<RecoveryKey, Reason>),
+    RecoveryKey(Result<Vec<RecoveryKey>, Reason>),
     /// [`StarterCommand::ReadVersion`] ended: the release string on the
     /// stick's boot partition (`None` for a stick made before Faraday put one
     /// there) and the SHA-256 of that partition when it could be read, or why
