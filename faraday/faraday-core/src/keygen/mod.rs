@@ -905,13 +905,12 @@ impl KeyGen {
             return None;
         }
         let strength = self.strength();
-        let mut bytes = if self.procedure().direct() && !self.by_die {
+        let bytes = zeroize::Zeroizing::new(if self.procedure().direct() && !self.by_die {
             self.dice_entropy(strength).ok()?.as_bytes().to_vec()
         } else {
             self.coins.entropy(strength).ok()?.as_bytes().to_vec()
-        };
+        });
         let m = faraday_keys::words::from_entropy(Language::English, &bytes).ok();
-        zeroize::Zeroize::zeroize(&mut bytes);
         m?.indices().get(self.words - 1).copied()
     }
 

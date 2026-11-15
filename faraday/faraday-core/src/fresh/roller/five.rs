@@ -458,7 +458,7 @@ impl FiveRoller {
 }
 
 /// What asks for 32 fresh bytes.
-pub type Draw<'a> = dyn FnMut() -> Option<[u8; 32]> + 'a;
+pub type Draw<'a> = dyn FnMut() -> Option<Zeroizing<[u8; 32]>> + 'a;
 
 /// The host's entry as the roller carries it through one tick.
 struct Sim5 {

@@ -95,7 +95,7 @@ impl Host {
 }
 
 /// A stream of fresh answers that gives `faces`, then more.
-fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> + use<> {
+fn stream(faces: &[u8]) -> impl FnMut() -> Option<zeroize::Zeroizing<[u8; 32]>> + use<> {
     let mut next = faces.to_vec();
     let mut state = 0x2545_f491_u32;
     move || {
@@ -111,20 +111,20 @@ fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> + use<> {
                 next.remove(0) - 1
             };
         }
-        Some(out)
+        Some(zeroize::Zeroizing::new(out))
     }
 }
 
 /// A stream of fresh answers whose bytes, in the order the roller uses
 /// them, are `bytes`, then zeros.
-fn raw(bytes: &[u8]) -> impl FnMut() -> Option<[u8; 32]> + use<> {
+fn raw(bytes: &[u8]) -> impl FnMut() -> Option<zeroize::Zeroizing<[u8; 32]>> + use<> {
     let mut next = bytes.to_vec();
     move || {
         let mut out = [0u8; 32];
         for slot in out.iter_mut().rev() {
             *slot = if next.is_empty() { 0 } else { next.remove(0) };
         }
-        Some(out)
+        Some(zeroize::Zeroizing::new(out))
     }
 }
 
@@ -134,7 +134,7 @@ fn run(
     h: &mut Host,
     r: &mut FiveRoller,
     reduce: bool,
-    draw: &mut impl FnMut() -> Option<[u8; 32]>,
+    draw: &mut impl FnMut() -> Option<zeroize::Zeroizing<[u8; 32]>>,
 ) -> Vec<u8> {
     let mut all = Vec::new();
     let mut now = 0;
@@ -442,7 +442,7 @@ fn every_face_of_every_die_offered_comes_up_as_often() {
                 state ^= state << 5;
                 *slot = (state >> 24) as u8;
             }
-            Some(out)
+            Some(zeroize::Zeroizing::new(out))
         };
         let mut pool = super::Pool::default();
         let total = 60_000u32;

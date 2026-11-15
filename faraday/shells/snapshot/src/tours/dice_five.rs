@@ -11,12 +11,12 @@ use faraday_core::testkit::five::{Act, FiveRoller, Reach, Where};
 use faraday_core::testkit::five_screen::{Pairs, preview};
 
 /// Fresh answers that give `faces` in order.
-fn answer(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
+fn answer(faces: &[u8]) -> impl FnMut() -> Option<faraday_crypto::Zeroizing<[u8; 32]>> {
     let mut out = [0u8; 32];
     for (slot, f) in out.iter_mut().rev().zip(faces) {
         *slot = f - 1;
     }
-    move || Some(out)
+    move || Some(faraday_crypto::Zeroizing::new(out))
 }
 
 fn shot(t: &mut Tour, name: &str, r: &FiveRoller, p: &Pairs) -> Result<(), String> {

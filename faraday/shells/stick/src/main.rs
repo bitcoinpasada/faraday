@@ -775,10 +775,10 @@ fn sysfs_dir(fb: &Path) -> Option<PathBuf> {
 /// CLOCK_BOOTTIME at which it opened `/dev/random` and at which the read
 /// returned.
 fn entropy(verbose: bool) -> Option<Event> {
-    let mut bytes = [0u8; 32];
+    let mut bytes = zeroize::Zeroizing::new([0u8; 32]);
     let opened = boottime_ms();
     let mut file = File::open(ENTROPY_SOURCE).ok()?;
-    let read = file.read_exact(&mut bytes);
+    let read = file.read_exact(&mut bytes[..]);
     if verbose {
         eprintln!(
             "entropy: opened {ENTROPY_SOURCE} at boottime {} ms, read returned at boottime {} ms{}",
@@ -788,7 +788,7 @@ fn entropy(verbose: bool) -> Option<Event> {
         );
     }
     read.ok()?;
-    Some(Event::Entropy(EntropyBytes::new(bytes)))
+    Some(Event::Entropy(EntropyBytes::new(*bytes)))
 }
 
 /// CLOCK_BOOTTIME in milliseconds, from `/proc/uptime`, which the kernel

@@ -2381,7 +2381,7 @@ pub fn open_scan(app: &mut crate::Faraday, purpose: crate::ScanPurpose) {
 /// The 32 bytes a key made now for `what` takes from the session's fresh
 /// randomness ([`crate::Faraday::fresh`]): one pooled answer, used up.
 pub fn fresh(app: &mut crate::Faraday, what: &[u8]) -> Option<[u8; 32]> {
-    app.fresh(what)
+    app.fresh(what).map(|answer| *answer)
 }
 
 /// The `n` bytes a split or a file made now for `what` takes from the
@@ -2404,7 +2404,7 @@ pub fn device_bytes(app: &crate::Faraday, bytes: &[u8; 32]) -> [u8; 32] {
 /// The session seed's draw for `what` and `count`, as a seal nonce or a
 /// keyboard's code draws it.
 pub fn seed_draw(app: &crate::Faraday, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
-    app.fresh.draw(what, count)
+    app.fresh.draw(what, count).map(|draw| *draw)
 }
 
 thread_local! {

@@ -164,3 +164,39 @@ fn a_lock_pressed_while_the_vault_seals_leaves_no_copy() {
     assert!(app.session.keys.is_empty(), "Lock left a key");
     finish("vault seal at lock", armed, true);
 }
+
+/// Twelve words made from 128 coin flips: the live preview of the last
+/// word works the entropy out on every frame, and frees no plain copy of
+/// it.
+#[test]
+fn coin_flips_previewed_as_the_last_word_leave_no_copy_of_the_entropy() {
+    let heads = |i: usize| (i * 5 + i / 3).is_multiple_of(2);
+    let mut entropy = [0u8; 16];
+    for i in 0..128 {
+        if heads(i) {
+            entropy[i / 8] |= 0x80 >> (i % 8);
+        }
+    }
+    let forms = [faraday_leak_scan::Form::new(
+        "coin entropy",
+        entropy.to_vec(),
+    )];
+    let armed = arm(&forms);
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip(heads(i)));
+        let _ = app.frame();
+    }
+    assert!(
+        app.keygen().unwrap().checksum_word().is_some(),
+        "the last word was not previewed"
+    );
+    finish("coin preview", armed, false);
+}

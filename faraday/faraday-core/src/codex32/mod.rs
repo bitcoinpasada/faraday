@@ -1466,14 +1466,14 @@ impl Codex32Make {
     /// set's headers, or a QR encoding. One press. `fresh` is this
     /// device's randomness where the press asks for it (Suggest), drawn
     /// before the flow is borrowed.
-    pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
+    pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<Zeroizing<[u8; 32]>>) {
         let was = self.rolled_at();
         self.act_press(c, press, fresh);
         self.after_rolls(was);
     }
 
     /// Costs what [`Self::act`] costs. The press itself.
-    fn act_press(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
+    fn act_press(&mut self, c: &Compute, press: C32, fresh: Option<Zeroizing<[u8; 32]>>) {
         if self.locked && !matches!(press, C32::Card(_) | C32::Tab(_) | C32::TabStep(_)) {
             if matches!(
                 press,
@@ -1523,8 +1523,8 @@ impl Codex32Make {
             C32::Key(k) => self.key(c, k),
             C32::Suggest if self.suggest_draws() => {
                 if let Some(r) = fresh {
-                    for (slot, b) in self.id.iter_mut().zip(r) {
-                        *slot = b & 31;
+                    for (slot, b) in self.id.iter_mut().zip(r.iter()) {
+                        *slot = *b & 31;
                     }
                     self.id_len = 4;
                     self.note = None;

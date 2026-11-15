@@ -2690,8 +2690,6 @@ impl Faraday {
         else {
             return Err(Text::of(EN.no_randomness));
         };
-        let primary = Zeroizing::new(primary);
-        let subkey = Zeroizing::new(subkey);
         let made = faraday_keys::gpg::create(
             &primary,
             &subkey,

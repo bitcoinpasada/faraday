@@ -240,12 +240,12 @@ impl Own {
 impl Seed {
     /// `what` hashed with the seed and `count`: 32 bytes no other
     /// `what` or count draws.
-    pub(crate) fn draw(&self, what: &[u8], count: &[u8]) -> [u8; 32] {
+    pub(crate) fn draw(&self, what: &[u8], count: &[u8]) -> Zeroizing<[u8; 32]> {
         let mut e = sha256::Hash::engine();
         e.input(what);
         e.input(&self.0[..]);
         e.input(count);
-        sha256::Hash::from_engine(e).to_byte_array()
+        Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array())
     }
 }
 
@@ -304,7 +304,7 @@ impl Fresh {
     /// not answered yet; either way another answer is asked for. With
     /// the person's own randomness added, it is hashed in after the
     /// system's answer.
-    pub(crate) fn take(&mut self, what: &[u8], out: &mut Out) -> Option<[u8; 32]> {
+    pub(crate) fn take(&mut self, what: &[u8], out: &mut Out) -> Option<Zeroizing<[u8; 32]>> {
         out.command(Command::RequestEntropy);
         let bytes = self.pool.pop()?;
         Some(self.mixed(what, &bytes))
@@ -332,7 +332,7 @@ impl Fresh {
         let mut bytes = Zeroizing::new(Vec::with_capacity(answers * 32));
         for _ in 0..answers {
             let answer = self.pool.pop()?;
-            bytes.extend_from_slice(&Zeroizing::new(self.mixed(what, &answer))[..]);
+            bytes.extend_from_slice(&self.mixed(what, &answer)[..]);
         }
         bytes.truncate(n);
         Some(bytes)
@@ -341,7 +341,7 @@ impl Fresh {
     /// SHA-256("faraday fresh" ‖ `what` ‖ `answer` ‖ the person's
     /// accumulator, when there is one): one answer, for `what`
     /// (`docs/OWN-RANDOMNESS.md` §2.3).
-    fn mixed(&self, what: &[u8], answer: &[u8; 32]) -> [u8; 32] {
+    fn mixed(&self, what: &[u8], answer: &[u8; 32]) -> Zeroizing<[u8; 32]> {
         let mut e = sha256::Hash::engine();
         e.input(b"faraday fresh");
         e.input(what);
@@ -349,7 +349,7 @@ impl Fresh {
         if let Some(acc) = self.own.acc.as_deref() {
             e.input(acc);
         }
-        sha256::Hash::from_engine(e).to_byte_array()
+        Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array())
     }
 
     /// The person added a batch of their own: hashed into the
@@ -425,14 +425,12 @@ impl Fresh {
             return None;
         };
         self.sign_draws += 1;
-        Some(Zeroizing::new(
-            seed.draw(b"faraday sign seed", &self.sign_draws.to_le_bytes()),
-        ))
+        Some(seed.draw(b"faraday sign seed", &self.sign_draws.to_le_bytes()))
     }
 
     /// `what` hashed with the session's seed and `count`, or `None`
     /// before the seed arrived.
-    pub(crate) fn draw(&self, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
+    pub(crate) fn draw(&self, what: &[u8], count: &[u8]) -> Option<Zeroizing<[u8; 32]>> {
         Some(self.seed.as_ref()?.draw(what, count))
     }
 
@@ -535,7 +533,6 @@ impl Faraday {
     /// later is blinded from it as it is added.
     fn keys_reblind(&mut self) {
         if let Some(blind) = self.fresh.draw(b"faraday key blinding", b"") {
-            let blind = Zeroizing::new(blind);
             let c = self.compute();
             self.session.keys.reblind(&c, &blind);
         }
@@ -543,17 +540,15 @@ impl Faraday {
 
     /// 32 bytes of their own for `what`, or `None` while the system has
     /// not answered yet; either way another answer is asked for.
-    pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
+    pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<Zeroizing<[u8; 32]>> {
         self.fresh.take(what, &mut self.out)
     }
 
     /// A seed for a quiz's order from the session's generator, or `None`
     /// while the system has not answered; the answer is used up.
     pub(crate) fn quiz_seed(&mut self) -> Option<u64> {
-        let mut bytes = self.fresh(b"faraday quiz order");
-        let seed = bytes.as_ref().map(crate::quiz::Quiz::seed);
-        zeroize::Zeroize::zeroize(&mut bytes);
-        seed
+        let bytes = self.fresh(b"faraday quiz order");
+        bytes.as_deref().map(crate::quiz::Quiz::seed)
     }
 
     /// `n` bytes of their own for `what`, an answer for every 32

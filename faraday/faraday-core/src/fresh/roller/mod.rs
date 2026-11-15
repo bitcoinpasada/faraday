@@ -135,13 +135,17 @@ impl Pool {
     /// byte among the `256 mod faces` highest is skipped so that no face
     /// is likelier (`faraday_entropy::uniform_face`): for six faces,
     /// every byte of 252 or more. `None` while `draw` has no answer.
-    fn next(&mut self, faces: u8, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
+    fn next(
+        &mut self,
+        faces: u8,
+        draw: &mut dyn FnMut() -> Option<Zeroizing<[u8; 32]>>,
+    ) -> Option<u8> {
         if !faraday_entropy::booklet::faces_ok(faces) {
             return None;
         }
         loop {
             if self.n == 0 {
-                let mut bytes = Zeroizing::new(draw()?);
+                let mut bytes = draw()?;
                 self.bytes.copy_from_slice(&bytes[..]);
                 self.n = self.bytes.len();
                 bytes.fill(0);
@@ -282,7 +286,7 @@ impl Roller {
     }
 
     /// The next value, 1 to 6 (see [`Pool::next`]).
-    fn next(&mut self, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
+    fn next(&mut self, draw: &mut dyn FnMut() -> Option<Zeroizing<[u8; 32]>>) -> Option<u8> {
         self.pool.next(6, draw)
     }
 
@@ -300,7 +304,7 @@ impl Roller {
         reduce: bool,
         len: usize,
         room: usize,
-        draw: &mut dyn FnMut() -> Option<[u8; 32]>,
+        draw: &mut dyn FnMut() -> Option<Zeroizing<[u8; 32]>>,
     ) -> (Vec<u8>, bool) {
         let mut landed = Vec::new();
         if !self.active() {

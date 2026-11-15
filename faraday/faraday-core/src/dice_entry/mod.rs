@@ -98,7 +98,7 @@ pub struct Env<'a> {
     /// Whether Reduce motion is on.
     pub reduce: bool,
     /// Asks for 32 fresh bytes.
-    pub draw: &'a mut dyn FnMut() -> Option<[u8; 32]>,
+    pub draw: &'a mut dyn FnMut() -> Option<zeroize::Zeroizing<[u8; 32]>>,
 }
 
 /// What a press did for the owner.
