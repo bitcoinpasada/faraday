@@ -396,11 +396,20 @@ fn funding(script_pubkey: ScriptBuf) -> Transaction {
 
 /// The unsigned spend of a test wallet.
 pub fn unsigned(kit: &Kit) -> Result<Psbt, KitError> {
+    unsigned_into(kit, kit)
+}
+
+/// The unsigned spend of a test wallet whose second output goes to `into`
+/// (another test wallet's change address `1/0`; the same wallet for its
+/// own change).
+pub fn unsigned_into(kit: &Kit, into: &Kit) -> Result<Psbt, KitError> {
     let c = compute();
     let policy =
         WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| text!("{}: {e:?}", kit.id))?;
+    let to =
+        WalletPolicy::parse_any(&c, &into.descriptor).map_err(|e| text!("{}: {e:?}", into.id))?;
     let input = definite(&policy, false, 0)?;
-    let back = definite(&policy, true, 0)?;
+    let back = definite(&to, true, 0)?;
     let fund = funding(input.script_pubkey());
     let recipient: Address = RECIPIENT
         .parse::<Address<_>>()

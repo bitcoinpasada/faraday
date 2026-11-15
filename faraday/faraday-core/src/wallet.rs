@@ -37,6 +37,7 @@ pub use nonce::{NonceCheck, NonceRow, Unmatched};
 mod v2;
 pub use v2::{is_silent_payment_psbt, read_psbt, read_psbt_kept};
 mod account;
+mod own_name;
 pub use account::{Account, AccountAsk};
 mod state;
 pub use state::SpendState;

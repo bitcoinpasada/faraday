@@ -170,6 +170,137 @@ fn change_that_cannot_be_verified_is_drawn_as_a_payment() {
     assert!(!texts(&mut app).iter().any(|t| t.contains("Unverified")));
 }
 
+/// The change row names the wallet the change goes to (F254).
+#[test]
+fn the_change_row_names_its_wallet() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let mut app = reviewing(&psbt);
+    let name = app.session.wallets[0].name.to_string();
+    let shown = texts(&mut app);
+    assert!(
+        shown
+            .iter()
+            .any(|t| t.starts_with(&name) && t.contains(" · to 1/")),
+        "{shown:?}"
+    );
+}
+
+/// A wallet file of the single-key script `script` over the spending
+/// wallet's key at its BIP-84 account, under the name `name`: with a script
+/// other than `wpkh`, a wallet of its own beside the account.
+fn odd_wallet(id: &'static str, name: &'static str, script: &str) -> testkit::Kit {
+    let mut kit = kit("spending");
+    kit.id = id;
+    kit.name = name;
+    kit.descriptor = format!(
+        "{script}({}/<0;1>/*)",
+        faraday_core::testkit::key(0, "m/84'/1'/0'")
+    );
+    if script == "sh(wpkh" {
+        kit.descriptor.push(')');
+    }
+    kit
+}
+
+/// `psbt` open on Review with the wallets `first` then `second` (when
+/// there is one) loaded in that order, and the spending key loaded.
+fn reviewing_wallets(psbt: &Psbt, wallets: &[&testkit::Kit]) -> Faraday {
+    let mut files: Vec<(faraday_text::Text, Vec<u8>)> = wallets
+        .iter()
+        .map(|k| {
+            let (n, b) = testkit::wallet_file(k);
+            (faraday_text::Text::of(&n), b)
+        })
+        .collect();
+    files.push((faraday_text::Text::of("spend.psbt"), psbt.to_bytes()));
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(files),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    for i in 0..wallets.len() {
+        app.press(Action::LoadWallet(i));
+    }
+    add_key(&mut app, "bacon");
+    let at = app.inbox().iter().position(|i| i.name == "spend.psbt");
+    app.press(Action::StartSpend(at.unwrap()));
+    if app.spend().unwrap().open != Some(step::TRANSACTION) {
+        app.press(Action::Step(step::TRANSACTION));
+    }
+    assert_eq!(app.spend().unwrap().open, Some(step::TRANSACTION));
+    app
+}
+
+/// Of two single-key wallets at one fingerprint and path, the change row
+/// names the one that is that account's own script, not the one
+/// registered first with another script.
+#[test]
+fn the_change_row_names_the_wallet_of_the_matching_script() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let odd = odd_wallet("odd", "Odd", "sh(wpkh");
+    let main = odd_wallet("main", "Main", "wpkh");
+    let mut app = reviewing_wallets(&psbt, &[&odd, &main]);
+    let shown = texts(&mut app);
+    assert!(shown.iter().any(|t| t == "Main · to 1/0"), "{shown:?}");
+    assert!(!shown.iter().any(|t| t == "Odd · to 1/0"), "{shown:?}");
+}
+
+/// With only a wallet of another script at the account, the change row
+/// names the key and the account's kind.
+#[test]
+fn the_change_row_falls_back_to_the_key_and_its_account() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let odd = odd_wallet("odd", "Odd", "sh(wpkh");
+    let mut app = reviewing_wallets(&psbt, &[&odd]);
+    let shown = texts(&mut app);
+    assert!(
+        shown
+            .iter()
+            .any(|t| t.contains(EN.explore_native_segwit) && t.ends_with(" · to 1/0")),
+        "{shown:?}"
+    );
+    assert!(!shown.iter().any(|t| t.starts_with("Odd · ")), "{shown:?}");
+}
+
+/// An own address on the receive chain reads Receive, not Change.
+#[test]
+fn an_own_receive_address_reads_receive() {
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    // The output pays the input's own address, `0/0`.
+    let own = psbt.inner_mut().inputs[0].witness_utxo.clone().unwrap();
+    let derivation = psbt.inner_mut().inputs[0].bip32_derivation.clone();
+    psbt.inner_mut().unsigned_tx.output[1].script_pubkey = own.script_pubkey;
+    psbt.inner_mut().outputs[1].bip32_derivation = derivation;
+    let mut app = reviewing(&psbt);
+    let shown = texts(&mut app);
+    assert!(shown.iter().any(|t| t == EN.step_receive), "{shown:?}");
+}
+
+/// A payment into another of the person's wallets sits under Sends, says
+/// "To" that wallet, and carries its whole address.
+#[test]
+fn a_transfer_names_the_wallet_it_pays() {
+    let (spending, savings) = (kit("spending"), kit("savings"));
+    let psbt = testkit::unsigned_into(&spending, &savings).unwrap();
+    let mut app = reviewing_wallets(&psbt, &[&spending, &savings]);
+    let shown = texts(&mut app);
+    let to = fill(EN.step_to_wallet, &[savings.name]);
+    assert!(
+        shown
+            .iter()
+            .any(|t| *t == format!("{} · {to}", EN.step_sends)),
+        "{shown:?}"
+    );
+    let address = app.spend().unwrap().inspection.outputs[1].address.clone();
+    let flat: String = shown
+        .join("")
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    assert!(flat.contains(&address), "{shown:?}");
+}
+
 /// With no key of the wallet here, Review goes on to collect the
 /// signatures made elsewhere: no key here taking part is no refusal.
 #[test]

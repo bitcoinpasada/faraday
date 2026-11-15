@@ -801,28 +801,47 @@ impl StepView<'_> {
             whole.push(None);
         }
         for o in recipients(i) {
-            rows.push((
-                Text::of(EN.step_sends),
-                btc(o.amount.to_sat()),
-                Text::new(),
-                None,
-            ));
+            // A payment into another of the person's wallets names it.
+            let to = match &o.own {
+                Some(own) => self
+                    .app
+                    .session
+                    .own_wallet_name(own)
+                    .map_or_else(Text::new, |n| Text::fill(EN.step_to_wallet, &[&n])),
+                None => Text::new(),
+            };
+            rows.push((Text::of(EN.step_sends), btc(o.amount.to_sat()), to, None));
             whole.push(Some(grouped(&o.address)));
         }
         for o in &i.outputs {
             match o.kind {
                 OutputKind::WalletChange { change, index, .. }
                 | OutputKind::Change { change, index, .. } => {
+                    // Change is on the change chain; an own address on the
+                    // receive chain reads as one that receives (F254).
+                    let path = Text::fill(
+                        EN.step_to_path,
+                        &[
+                            &text!("{}", (if change { 1 } else { 0 })),
+                            &text!("{}", index),
+                        ],
+                    );
+                    let detail = match o
+                        .own
+                        .as_ref()
+                        .and_then(|own| self.app.session.own_wallet_name(own))
+                    {
+                        Some(n) => text!("{} · {}", &*n, &*path),
+                        None => path,
+                    };
                     rows.push((
-                        Text::of(EN.step_change),
+                        Text::of(if change {
+                            EN.step_change
+                        } else {
+                            EN.step_receive
+                        }),
                         btc(o.amount.to_sat()),
-                        Text::fill(
-                            EN.step_to_path,
-                            &[
-                                &text!("{}", (if change { 1 } else { 0 })),
-                                &text!("{}", index),
-                            ],
-                        ),
+                        detail,
                         Some((EN.step_verified, Role::Ok.paint())),
                     ));
                 }
@@ -943,7 +962,19 @@ impl StepView<'_> {
             if let Some(a) = whole.get(k).and_then(Option::as_ref) {
                 let lh = if compact { REVIEW_ADDR_LINE_S } else { top };
                 let (lx, ly) = (inset, if compact { GAP_SMALL } else { 0.0 });
-                ui.text_mid_as((x + lx, ry + ly, lh), BODY_S, Role::OnSurfaceVariant, label);
+                // A payment into another of the person's wallets names it
+                // beside the label.
+                let label = if rest.is_empty() {
+                    label.clone()
+                } else {
+                    text!("{} · {}", &**label, &**rest)
+                };
+                ui.text_mid_as(
+                    (x + lx, ry + ly, lh),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    &label,
+                );
                 ui.text_right_as(
                     (x + w - lx, ry + ly, lh),
                     BODY_M.mono(),
@@ -2131,11 +2162,21 @@ fn spend_panel(
         .unwrap_or_else(|| Text::of("·"));
     // Change is verified change only: an output that claims to be change
     // and cannot be verified is among what it sends (F136).
-    let change = Text::of(if i.outputs.iter().any(|o| o.is_ours()) {
-        EN.spend_panel_verified
-    } else {
-        EN.spend_panel_none
+    // It names the wallet the change goes to (F254).
+    let own = i.outputs.iter().filter(|o| o.is_ours()).max_by_key(|o| {
+        matches!(
+            o.kind,
+            OutputKind::Change { change: true, .. } | OutputKind::WalletChange { change: true, .. }
+        )
     });
+    let change = match own {
+        Some(o) => o
+            .own
+            .as_ref()
+            .and_then(|w| app.session.own_wallet_name(w))
+            .unwrap_or_else(|| Text::of(EN.spend_panel_verified)),
+        None => Text::of(EN.spend_panel_none),
+    };
     let facts: [(&str, Text, TypeRole, u8); 6] = [
         (
             EN.spend_panel_wallet,

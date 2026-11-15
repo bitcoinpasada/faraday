@@ -206,6 +206,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       the nonce check's counts and headlines
 #   faraday/faraday-core/src/wallet/account.rs
 #       an account's name, BIP number and source
+#   faraday/faraday-core/src/wallet/own_name.rs
+#       a wallet's name, a key's label and fingerprint
 #   faraday/faraday-core/src/screens/wallets.rs
 #       vault names, fingerprints and counts
 #   faraday/faraday-core/src/screens/check_message.rs
@@ -288,6 +290,7 @@ faraday/faraday-core/src/multisig_check/mod.rs
 faraday/faraday-core/src/multisig_check/screen.rs
 faraday/faraday-core/src/wallet/nonce.rs
 faraday/faraday-core/src/wallet/account.rs
+faraday/faraday-core/src/wallet/own_name.rs
 faraday/faraday-core/src/screens/wallets.rs
 faraday/faraday-core/src/screens/check_message.rs
 faraday/faraday-core/src/visible.rs

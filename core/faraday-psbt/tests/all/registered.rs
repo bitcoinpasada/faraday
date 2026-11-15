@@ -1028,6 +1028,7 @@ fn an_output_to_a_planted_wallet_over_your_single_key_account_is_not_change() {
         "{:?}",
         insp.outputs[1].kind
     );
+    assert_eq!(insp.outputs[1].own, Some(OwnWallet::Registered(0)));
     assert!(
         insp.warnings
             .iter()
@@ -1243,6 +1244,14 @@ fn your_own_change_stays_change_beside_a_planted_wallet_over_its_account() {
         insp.outputs[1].kind,
         insp.warnings
     );
+    assert_eq!(
+        insp.outputs[1].own,
+        Some(OwnWallet::Account {
+            key: abandon.fingerprint(),
+            path: account_path(84),
+        })
+    );
+    assert_eq!(insp.outputs[0].own, None, "a recipient names no wallet");
     assert_eq!(insp.amount_to_others.to_sat(), 60_000);
 }
 
@@ -1288,6 +1297,7 @@ fn a_consolidation_into_your_registered_multisig_is_a_transfer_with_a_caution() 
         insp.outputs[1].kind,
         insp.warnings
     );
+    assert_eq!(insp.outputs[1].own, Some(OwnWallet::Registered(0)));
     assert_eq!(insp.amount_to_others.to_sat(), 99_000);
     assert!(
         insp.warnings

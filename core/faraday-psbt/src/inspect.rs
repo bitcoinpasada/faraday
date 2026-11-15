@@ -492,7 +492,19 @@ impl OwnWallet {
     fn named(self, ctx: &Context) -> Self {
         if let OwnWallet::Registered(w) = self
             && let Some(p) = ctx.wallets.get(w)
-            && let faraday_bip::policy::Template::Single { script } = p.template()
+            && let Some(account) = Self::account_of_wallet(p)
+        {
+            return account;
+        }
+        self
+    }
+
+    /// The account a wallet is, by the rule of [`OwnWallet::named`]: a
+    /// policy that is one key's own single-key script whose type is that
+    /// path's purpose, `None` for any other. A lookup.
+    #[must_use]
+    pub fn account_of_wallet(p: &faraday_bip::policy::WalletPolicy) -> Option<Self> {
+        if let faraday_bip::policy::Template::Single { script } = p.template()
             && let [k] = p.keys()
             && let (Some(key), Some(path)) = (k.fingerprint(), k.path())
             && let Some(ChildNumber::Hardened { index }) = path.as_ref().first().copied()
@@ -504,12 +516,12 @@ impl OwnWallet {
                     ScriptType::Taproot => 86,
                 }
         {
-            return OwnWallet::Account {
+            return Some(OwnWallet::Account {
                 key,
                 path: path.clone(),
-            };
+            });
         }
-        self
+        None
     }
 }
 
@@ -533,6 +545,12 @@ pub struct OutputInfo {
     pub amount: Amount,
     /// Recipient, verified change, or unverified claim.
     pub kind: OutputKind,
+    /// The wallet of the person's the output is verified as an address of,
+    /// named the way the inputs name theirs (a registered wallet that is
+    /// one key's own single-key account is that account): set for
+    /// [`OutputKind::Change`], [`OutputKind::WalletChange`] and
+    /// [`OutputKind::Transfer`], `None` for any other.
+    pub own: Option<OwnWallet>,
     /// Below the dust limit for its script.
     pub is_dust: bool,
 }

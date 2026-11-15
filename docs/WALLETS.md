@@ -162,6 +162,17 @@ non-cryptographic and live in `faraday-core`:
   and is not that key's address is refused (`ChangeSpoof`). Change at an
   address index of 10,000 or more is still change but carries a Caution,
   as a wallet with a gap limit does not find coins that far (F242).
+- **Change is of the wallet spent** (F254): an address of one of the
+  person's wallets (each loaded key's single-key accounts, the registered
+  wallets that hold a loaded key) is change only where every input of
+  theirs spends that same wallet. Otherwise it is a **transfer**, counted
+  as sent, drawn under **Sends** as "To" and the wallet's name with its
+  whole address, with a Caution; a transfer is never blocked. The Review
+  names the wallet on a change row, which reads "Change" only for an
+  address on chain 1 (an own address on chain 0 reads "Receive", still not
+  sent), and on the spend panel's change fact. A registered wallet is named
+  by its name; a loaded key's account by the loaded single-key wallet at
+  it, else the key's label and the account's kind.
 - **Review stops** where nothing would sign (F136): a blocked warning, or a
   danger with no way past it, stops the Review step with the refusal and
   what to do instead, and signing refuses it too. No key here taking

@@ -47,7 +47,13 @@ pub(super) fn read_outputs(
         let address = output_address(spk, network, i, warnings);
 
         let (kind, own) = output_kind(w.c, w.secp, out, txout, w.ctx, i, warnings);
-        let kind = change_or_transfer(kind, own, spent, w.ctx, i, warnings);
+        let kind = change_or_transfer(kind, own.clone(), spent, w.ctx, i, warnings);
+        let own = match kind {
+            OutputKind::Change { .. }
+            | OutputKind::WalletChange { .. }
+            | OutputKind::Transfer { .. } => own.map(|o| o.named(w.ctx)),
+            _ => None,
+        };
         match kind {
             OutputKind::Change { .. } | OutputKind::WalletChange { .. } => {
                 change_total = change_total
@@ -80,6 +86,7 @@ pub(super) fn read_outputs(
             script_pubkey: spk.clone(),
             amount: txout.value,
             kind,
+            own,
             is_dust,
         });
     }

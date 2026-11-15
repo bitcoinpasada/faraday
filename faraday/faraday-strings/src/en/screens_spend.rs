@@ -164,6 +164,10 @@ macro_rules! words_screens_spend {
     step_to_path: "to {}/{}",
     /// Text in `step_body`.
     step_change: "Change",
+    /// Text in `step_body`: an output on the receive chain of one of the person's wallets.
+    step_receive: "Receive",
+    /// Text in `step_body`: a payment into another of the person's wallets. `{}`: its name.
+    step_to_wallet: "To {}",
     /// Text in `step_body`.
     step_fee: "Fee",
     /// The fee on Review and in the spend panel when an input's amount is

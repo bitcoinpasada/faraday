@@ -38,7 +38,7 @@ key:
 |---|---|
 | `version`, `locktime`, `rbf` | tx version; locktime as none / block height / unix time; whether any input signals BIP-125 |
 | `inputs[]` | outpoint, value, script kind, whether ours, stated key origin, sighash type, who already signed, sequence, finalized |
-| `outputs[]` | address for the context network (or `non-standard script <hex>`), value, `Recipient` / verified `Change` / `UnverifiedChange`, dust flag |
+| `outputs[]` | address for the context network (or `non-standard script <hex>`), value, `Recipient` / verified `Change` / `UnverifiedChange`, the person's wallet a verified or transfer output is an address of (`own`), dust flag |
 | `fee`, `fee_rate_sat_vb`, `vsize_estimate` | inputs − outputs; rate from an estimated virtual size (below) |
 | `total_in`, `total_out`, `amount_to_others`, `change_total`, `is_self_transfer` | totals; unverified change counts as "others" |
 | `participating_keys` | loaded keys that can sign at least one input |
@@ -82,7 +82,9 @@ several keys over a single-key account leaves that account's change
 its own. A verified output is change only of the one wallet (a loaded
 key's account, or a registered wallet) every input of the person's
 spends; an address of another wallet of theirs is `Transfer`, counted
-in `amount_to_others`, with a `TransferToOwnWallet` caution (F254).
+in `amount_to_others`, with a `TransferToOwnWallet` caution (F254). `OutputInfo.own` names the
+wallet a `Change`, `WalletChange` or `Transfer` output is an address of,
+a registered wallet that is one key's own account as that account.
 Inputs are verified the same way; a
 multisig input is "ours" only where a loaded key's account (single-sig or
 BIP-48), or the xpub a registered wallet holds for that fingerprint,

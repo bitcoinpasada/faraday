@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, and the wallet named on Review's change and transfer rows (F254), Check a multisig setup (its row on the Check place and its Tools tile, Add this wallet, and Faraday Demo's Paste)
+**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, Check a multisig setup (its row on the Check place and its Tools tile, Add this wallet, and Faraday Demo's Paste)
 
 Every flow, where it starts, and where it leaves the person.
 

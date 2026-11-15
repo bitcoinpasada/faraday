@@ -202,7 +202,7 @@ fn spending_review(claimed: bool) -> Faraday {
 
 /// The side panel's Change line counts verified change only: an output
 /// that is only claimed as change is among what it sends (F136), so the
-/// panel reads Verified for the change that is, and never Unverified.
+/// panel names the wallet of the change that is, and never reads Unverified.
 #[test]
 fn the_panel_counts_only_verified_change() {
     // The value beside the panel's Change label.
@@ -219,8 +219,10 @@ fn the_panel_counts_only_verified_change() {
             .unwrap_or_else(|| panic!("{shown:?}"));
         shown[panel + label + 1].clone()
     };
-    assert_eq!(panel_change(false), "Verified");
-    assert_eq!(panel_change(true), "Verified");
+    // The panel names the wallet the verified change goes to (F254).
+    let wallet = spending_review(false).session.wallets[0].name.to_string();
+    assert_eq!(panel_change(false), wallet);
+    assert_eq!(panel_change(true), wallet);
 }
 
 #[test]
