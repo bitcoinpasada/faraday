@@ -41,6 +41,12 @@ Each stick the Starter writes has its own IDs; a stick written with another tool
 
 Plugging the stick into this computer exposes its data partition, whatever Faraday Starter does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases; the settings file is not. A program on this computer could read the settings file, and could change or delete anything on the data partition.
 
+## Keeping the boot stick offline
+
+The boot partition holds Faraday's kernel and application. A program running on an online computer the stick is plugged into can change it: on Linux with no prompt, on Windows probably only with administrator rights, and on a Pi card it is plain files. Faraday then starts what it finds. Faraday Starter will check the boot partition against the release each time it sees the stick, which catches a stick changed on another computer, not one changed by malware on the computer doing the check.
+
+If you want the boot stick kept offline, plug it only into the computer that starts Faraday, after it is made. Take files to and from the device on a second, plain USB stick (Files formats and writes one), or by QR code. Signing the boot file with your own Secure Boot key, above, is another option; it is never required.
+
 ## Where this comes from
 
 Faraday's own design: the Starter's specification (sections 3.2, 4.4 and 4.5) and decisions F2, F5, F11, F80, F128, F133 and F174, in Faraday's repository, as of 2026-10-30.

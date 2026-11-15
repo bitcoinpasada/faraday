@@ -98,6 +98,12 @@ reading them, and imports only what the person ticks, before any key
 loads. `docs/FLOWS.md` ("Home" and "Session") has the sheets and their
 buttons, and `docs/guide/vaults.md` the unlock.
 
+The boot stick holds the kernel and the application, and an online
+computer it is plugged into can change what is on it. Anyone who wants
+it kept offline after it is made carries files on a second plain stick
+or by QR code instead (`docs/guide/start/replace-faraday.md`, "Keeping
+the boot stick offline"; `docs/SECURITY-MODEL.md`).
+
 ## A second stick for storage
 
 Any other USB stick, MBR or GPT with a FAT32 or FAT16 partition, carries

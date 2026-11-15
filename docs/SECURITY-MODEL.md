@@ -402,6 +402,21 @@ file goes wrong are absent by construction, not patched after the fact.
   Management Engine (MEI) driver with which to detect it. The Learn page
   `docs/guide/start/what-else-runs.md` says which computers have
   AMT and what to do.
+- A boot stick changed on an online computer. The stick's boot partition
+  holds the kernel and the application, and the release's boot file is
+  unsigned, so Secure Boot is off while Faraday runs. When the stick is
+  plugged into an online computer, malware there can rewrite the boot
+  partition: on Linux, as the person, with no prompt; on Windows it is
+  an EFI system partition with no drive letter, which needs
+  administrator rights (suspected, not shown); on a Pi card it is plain
+  FAT, and `cmdline.txt` and `config.txt` are editable files. Faraday
+  looks only for the release string and runs what it finds. Faraday
+  Starter will check a stick's boot partition against the release each
+  time it sees the stick (`docs/STARTER.md` §10.4, not built yet), which
+  catches a stick changed elsewhere and not malware on the computer
+  doing the check. A person who wants more keeps the boot stick offline
+  after it is made, with a second plain stick or QR codes for files, or
+  signs the boot file with their own Secure Boot key (`docs/guide/start/replace-faraday.md`).
 - A weak passphrase.
 - A malicious device that shows only as a keyboard or mouse and is plugged
   in when Faraday starts: it is trusted, and a notice lists it so a person

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system, with the sum in the Pi card's image list (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -2206,6 +2206,35 @@ saved file, a restart. Since F33 nothing touches BitLocker (§6). Uninstall take
 On an Apple Silicon Mac (MAC §4.5a), the Faraday start-up volume and
 the shrunk macOS container, which the Starter's *Remove Faraday from
 this Mac* takes back.
+
+### 10.4 A stick changed on another computer
+
+The boot partition of a Faraday stick or card can be changed by
+malware on an online computer it was plugged into (`docs/SECURITY-MODEL.md`,
+"What this does not defend against"). Two protections, neither
+required, and nothing in the app that nudges or warns:
+
+- **The check.** Each time the Starter sees a Faraday stick it compares
+  the boot partition with the release it carries and shows a match line
+  or a mismatch line with the rewrite offered. On Windows the partition
+  is an EFI system partition with no letter, so the sum is read by the
+  elevated copy behind a **Check this stick** button, one administrator
+  prompt. A Pi card needs its boot partition's sum in the image list.
+  The read runs in a worker thread, so the start stays instant, and the
+  data partition is never read. A boot file the person signed reads
+  "matches, except the boot file you signed" (§4.5), and a stick after an
+  interrupted keep-data write is judged as §4.4 says. Malware on the
+  same computer can defeat the check too.
+- **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
+  may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
+  Secure Boot off from the release's unsigned boot file, and no key is
+  required.
+
+The guide suggests a second plain stick or QR codes for anyone who
+wants the boot stick kept offline (`docs/guide/start/replace-faraday.md`).
+
+**Open:** the check is not built, on any system, nor the boot sum in the
+Pi card's image list; the guide for own-key signing (§7.7).
 
 ## 11. Tests
 
