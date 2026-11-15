@@ -59,7 +59,8 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
         | Screen::SpendBackup
         | Screen::SignerCheck
         | Screen::Compare => true,
-        Screen::WalletsStart
+        Screen::Check
+        | Screen::WalletsStart
         | Screen::Wallets
         | Screen::Files
         | Screen::Entry
@@ -1493,6 +1494,7 @@ impl Faraday {
                 | Screen::Tools
                 | Screen::Lightning => true,
                 Screen::Home
+                | Screen::Check
                 | Screen::WalletsStart
                 | Screen::Wallets
                 | Screen::Spend

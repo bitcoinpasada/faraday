@@ -704,6 +704,7 @@ impl Faraday {
             | Screen::Invoice
             | Screen::NonceCheck
             | Screen::Catalog
+            | Screen::Check
             | Screen::Home => return None,
             #[cfg(feature = "demo")]
             Screen::Transfer => return None,

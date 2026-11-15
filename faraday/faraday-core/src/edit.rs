@@ -1194,6 +1194,7 @@ impl Faraday {
                 .get(self.vaults.pick)
                 .is_some_and(|f| f.open.is_none()),
             Screen::Home
+            | Screen::Check
             | Screen::WalletsStart
             | Screen::Wallets
             | Screen::Files

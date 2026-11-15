@@ -147,6 +147,7 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Restore => Screen::WalletsStart,
         Screen::CreateVault | Screen::Unlock | Screen::VaultContents => Screen::Vaults,
         Screen::Home
+        | Screen::Check
         | Screen::WalletsStart
         | Screen::Files
         | Screen::Settings
