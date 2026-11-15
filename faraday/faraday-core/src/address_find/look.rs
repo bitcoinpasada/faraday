@@ -5,12 +5,14 @@
 //! with how far it has got and **Stop**.
 
 use faraday_bip::bitcoin::ScriptBuf;
+use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
+use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 
-use crate::wallet::Wallet;
+use crate::wallet::{Session, Wallet};
 
 use super::{Account, DEPTHS, Pace};
 
@@ -23,11 +25,43 @@ pub enum LookWay {
     Stop,
 }
 
+/// What a find is in, worked out once at the find from the wallets then
+/// loaded, so the card is drawn from it and never from the wallets.
+#[derive(Clone)]
+pub(crate) enum FoundIn {
+    /// A loaded wallet: its name, its shape and a line for each of its
+    /// keys, the key's fingerprint and its full path to the address.
+    Wallet {
+        name: Text,
+        shape: Text,
+        keys: Vec<Text>,
+    },
+    /// A loaded key's standard account: the key's name, the account's
+    /// script, number and where a wallet of it is made, and the one line
+    /// of the key and its full path to the address.
+    Account {
+        label: Text,
+        script: ScriptType,
+        number: u32,
+        line: Text,
+        at: (Fingerprint, DerivationPath),
+    },
+}
+
+/// "m/84h/0h/0h/0/12": an account's path, the chain and the index.
+fn full_path(account: &DerivationPath, change: bool, index: u32) -> Text {
+    Text::replaced(&text!("m/{account}/{}/{index}", u8::from(change)), "'", "h")
+}
+
 /// Where a look is: an address not found to `looked` indices of each
 /// chain, and the look beyond it under way.
 pub(crate) struct Look {
     /// What is looked for.
     target: ScriptBuf,
+    /// The address looked for, as it is shown.
+    pub(crate) address: Text,
+    /// The one wallet's name, when exactly one wallet is looked in.
+    pub(crate) only: Option<Text>,
     /// How many wallets are looked in.
     pub(crate) wallets: usize,
     /// The checksums of those wallets' policies, by place: what tells
@@ -46,16 +80,24 @@ pub(crate) struct Look {
     /// Where it was found, once it was: the wallet's place, the chain
     /// and the index.
     pub(crate) found: Option<(usize, bool, u32)>,
-    /// The name of the wallet it was found in, as it was at the find.
-    pub(crate) found_name: Option<Text>,
+    /// What it was found in, as it was at the find.
+    pub(crate) found_in: Option<FoundIn>,
+    /// The place of the wallet made from a key's account it was found in.
+    pub(crate) made: Option<usize>,
 }
 
 impl Look {
     /// A miss at the first [`DEPTHS`]' depth in the `wallets` and the
     /// `accounts`.
-    pub(crate) fn new(target: ScriptBuf, wallets: &[Wallet], accounts: Vec<Account>) -> Self {
+    pub(crate) fn new(
+        (address, target): (Text, ScriptBuf),
+        wallets: &[Wallet],
+        accounts: Vec<Account>,
+    ) -> Self {
         Look {
             target,
+            address,
+            only: (wallets.len() == 1).then(|| wallets[0].name.clone()),
             wallets: wallets.len(),
             loaded: wallets.iter().map(|w| w.checksum().to_owned()).collect(),
             ended: false,
@@ -63,7 +105,8 @@ impl Look {
             looked: DEPTHS[0],
             under_way: None,
             found: None,
-            found_name: None,
+            found_in: None,
+            made: None,
         }
     }
 
@@ -89,12 +132,64 @@ impl Look {
         self.ended && self.found.is_none()
     }
 
-    /// Keeps the name of the wallet a find is in, from `wallets` as they
-    /// are at the find.
-    pub(crate) fn name_found(&mut self, wallets: &[Wallet]) {
-        if let (Some((w, _, _)), None) = (self.found, &self.found_name) {
-            self.found_name = wallets.get(w).map(|w| w.name.clone());
-        }
+    /// Keeps what a find is in, from `session` as it is at the find.
+    pub(crate) fn settle(&mut self, session: &Session) {
+        let (Some((w, change, index)), None) = (self.found, &self.found_in) else {
+            return;
+        };
+        self.found_in = if let Some(a) = self.account(w) {
+            Some(FoundIn::Account {
+                label: a.label.clone(),
+                script: a.script_type,
+                number: a.number,
+                line: Text::fill(
+                    crate::strings::EN.address_check_key_path,
+                    &[
+                        &crate::wallet::fp_text(a.fingerprint),
+                        &full_path(&a.account, change, index),
+                    ],
+                ),
+                at: (a.fingerprint, a.account.clone()),
+            })
+        } else {
+            session.wallets.get(w).map(|wl| FoundIn::Wallet {
+                name: wl.name.clone(),
+                shape: Session::shape(wl),
+                keys: wl
+                    .policy()
+                    .keys()
+                    .iter()
+                    .filter_map(|k| {
+                        Some(Text::fill(
+                            crate::strings::EN.address_check_key_path,
+                            &[
+                                &crate::wallet::fp_text(k.fingerprint()?),
+                                &full_path(k.path()?, change, index),
+                            ],
+                        ))
+                    })
+                    .collect(),
+            })
+        };
+    }
+
+    /// Costs an address derivation for each index of each chain of each
+    /// account, up to `depth`. The place and the chain and index of
+    /// `addr` in the first account that holds it, as a find's place
+    /// counts on from the wallets'.
+    pub(crate) fn accounts_find(
+        &self,
+        c: &Compute,
+        net: faraday_bip::keys::Network,
+        addr: &faraday_bip::bitcoin::Address,
+        depth: u32,
+    ) -> Option<(usize, (bool, u32))> {
+        self.accounts.iter().enumerate().find_map(|(i, a)| {
+            Some((
+                self.wallets + i,
+                a.policy.find_address(c, net, addr, depth)?,
+            ))
+        })
     }
 
     /// How many accounts are looked in beside the wallets.

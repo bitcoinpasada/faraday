@@ -140,7 +140,7 @@ destination's action.
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
 | Account key | Create's or Restore's slot waiting for one; else filed. **Keep in Files** |
-| Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
+| Address, BIP-21, silent payment address | **Is this address mine?**: on the address check's own scanner (Home's Scan, Tools' Check an address) the result card (`docs/DESIGN.md` §5, Check an address: the wallet or key account, the place, the path or each cosigner's, the whole address in groups of four, or on a miss the address and how far it looked); on any other scanner the address is named and its way over is **Check the address**; a find in a key's account ends with **Make a wallet**, then **Open the wallet**; with nothing loaded the line is "Load a key or a wallet first"; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault, **Sign this message** while a single-key wallet is loaded (Sign a message opens with the text as the message) and **Keep in Files** |
@@ -175,11 +175,11 @@ Scan, none a scanner: an address typed on the address keyboard, pasted on
 Faraday Demo, and read from a text file in Files, a `bitcoin:` link in
 any of them read as a scanned one is. Typed, pasted and file text go
 through the pasted-text classifier (§4.6), then to the same
-`address_note` check, first-100 search and **Look further** as a scanned
+address check, first-100 search and **Look further** as a scanned
 address; a secret is refused as Paste refuses it, a kind that is not an
 address is named, and a file of several addresses lists each with its
 place. The screen, the refusals and the fuzz targets are DESIGN §5's
-Check, "Check an address"; this is not built yet (DESIGN's Open line).
+Check, "Check an address"; the page is not built yet (DESIGN's Open line): until it is, the result card shows on the scanner's read card.
 
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and
@@ -291,7 +291,7 @@ they are in):
   "Example · account 1"; a PSBT's "2 inputs · Savings" (its
   wallet when one loaded spends it); a wallet description's shape "2 of
   3 · P2WSH"; an account key's "73c5da0a · m/48h/1h/0h/2h"; an address's
-  `address_note` line; text masked behind its eye (§4.10).
+  result card (§5.4); text masked behind its eye (§4.10).
 - Nothing of a secret's value. A secret kind carries the warning
   glyph in `WARN` beside its kind (DESIGN §4.11, Warning).
 
@@ -332,7 +332,7 @@ transaction, a wallet description, split sheets, a signed message,
 text, a TOTP code with no vault open. The code is in Files already
 (public kinds) and **Done** replaces **Cancel**. Where Home's Scan goes
 straight on (a seed to the seed sheet, a share to its form, a TOTP code
-into the open vault's form, an address's line), no card.
+into the open vault's form), no card. An address shows the address check's result card, as the address check's own scanner does (§4.2).
 
 ### 5.5 The Spend tab's intake
 

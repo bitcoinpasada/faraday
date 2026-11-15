@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** the Check place (§5, `Check`; F255) is built but for its row A multisig setup, not drawn until the row opens Check a multisig setup (§5, `MultisigCheck`), and that tool's Tools tile; Check a signer taking Compare two PSBTs into it and its shield-with-tick icon (the checklist icon stands in); Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, and its result card (a find's wallet or key account, place, full path or each cosigner's, and the whole address in groups of four; a miss's address and how far it looked), still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
+**Open:** the Check place (§5, `Check`; F255) is built but for its row A multisig setup, not drawn until the row opens Check a multisig setup (§5, `MultisigCheck`), and that tool's Tools tile; Check a signer taking Compare two PSBTs into it and its shield-with-tick icon (the checklist icon stands in); Check an address taking an address typed on the address keyboard, pasted on Faraday Demo or read from a text file in Files as well as scanned, its refusals, a file with several addresses and the fuzz target for finding addresses in text, still to be built; Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,

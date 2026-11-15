@@ -102,7 +102,7 @@ impl Camera {
         }
         let policies: Vec<_> = session.wallets.iter().map(|w| w.policy()).collect();
         look.tick(c, &policies, now);
-        look.name_found(&session.wallets);
+        look.settle(session);
         crate::address_find::refresh(card);
         true
     }
@@ -333,15 +333,67 @@ impl Camera {
 }
 
 impl Faraday {
-    /// The read card of an address that is none of the first hundred of
-    /// any loaded wallet: its line, and **Look further** to each depth.
-    pub(crate) fn address_miss_card(
+    /// Costs what [`Faraday::address_check`] and [`Faraday::read_card`]
+    /// cost. The read card of an address `read` as the address check
+    /// reads it (`docs/DESIGN.md` §5, Check an address): on the address
+    /// check's own scanner the result card, else the address named with
+    /// **Check the address** as its way over; a refusal is its line.
+    pub(crate) fn address_card_put(
         &mut self,
-        card: &mut scan_read::ReadCard,
-        look: crate::address_find::Look,
+        c: &Compute,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+        read: Result<faraday_bip::bitcoin::Address, Text>,
     ) {
-        card.look = Some(look);
-        crate::address_find::refresh(card);
+        let page = self
+            .camera
+            .scan()
+            .is_some_and(|s| s.ask == crate::Ask::Address);
+        let mut card = self.read_card(c, scan_read::Kind::Address, (None, "txt", bytes));
+        match read {
+            Err(why) => card.facts.push(why),
+            Ok(addr) if page => match self.address_check(c, &addr) {
+                Some(look) => {
+                    card.look = Some(look);
+                    crate::address_find::refresh(&mut card);
+                }
+                None => card.facts.push(Text::of(EN.address_check_load_first)),
+            },
+            Ok(_) => card.ways = vec![scan_read::Way::CheckAddress],
+        }
+        self.read_card_put(card);
+    }
+
+    /// Costs a key derivation for each step of an account's path, a
+    /// descriptor parse and two address derivations. A press on the
+    /// result card's **Make a wallet**: the wallet of the key's account
+    /// the address was found in; the card then offers to open it.
+    fn address_make(&mut self) {
+        let Some(at) = self
+            .camera
+            .scan()
+            .and_then(|s| s.card.as_ref())
+            .and_then(|k| k.look.as_ref())
+            .and_then(|l| match l.found_in.as_ref()? {
+                crate::address_find::FoundIn::Account { at, script, .. } => {
+                    Some((*at.0.as_bytes(), at.1.clone(), *script))
+                }
+                crate::address_find::FoundIn::Wallet { .. } => None,
+            })
+        else {
+            return;
+        };
+        let c = self.compute();
+        match self.make_wallet_at(&c, at.0, &at.1, at.2) {
+            Ok(place) => {
+                if let Some(card) = self.camera.scan.as_mut().and_then(|s| s.card.as_mut()) {
+                    if let Some(look) = card.look.as_mut() {
+                        look.made = Some(place);
+                    }
+                    crate::address_find::refresh(card);
+                }
+            }
+            Err(why) => self.toast(&why),
+        }
     }
 
     /// A press on **Look further** or **Stop**.
@@ -1317,16 +1369,12 @@ impl Faraday {
         if let Some(kind) = scan_read::secret_kind(&c, &bytes) {
             return self.read_card_show(&c, kind, (None, "txt", bytes));
         }
-        // An address is checked against the loaded wallets: that is the
-        // card's fact.
+        // An address is checked against the loaded wallets on the address
+        // check's page; here it is named, with the way over to the page.
         let text = trimmed(&bytes);
-        if let Some((said, look)) = self.address_note(&c, &text) {
-            let mut card = self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
-            card.facts.push(Text::of(&said));
-            if let Some(look) = look {
-                self.address_miss_card(&mut card, look);
-            }
-            return self.read_card_put(card);
+        if let Some(read) = self.address_read(&text) {
+            drop(text);
+            return self.address_card_put(&c, bytes, read);
         }
         drop(text);
         let Some((named, ext, data)) = self.read_code(bytes) else {
@@ -1510,6 +1558,7 @@ impl Faraday {
             filed: None,
             kef,
             look: None,
+            answer: None,
         }
     }
 
@@ -1588,6 +1637,14 @@ impl Faraday {
         if let Way::Look(look) = way {
             return self.look_go(look);
         }
+        // The wallet of a key's account: made on the card, then opened.
+        if way == Way::MakeWallet {
+            return self.address_make();
+        }
+        if let Way::OpenWallet(place) = way {
+            self.scan_close();
+            return self.act(Action::OpenWallet(place));
+        }
         // A way that loads a key waits for the stick to be out.
         if way.loads_a_key() && !self.may_load_keys() {
             return;
@@ -1638,6 +1695,13 @@ impl Faraday {
                 crate::qr_tool::open_code(self, code.to_vec());
             }
             Way::Open | Way::NotEncrypted => self.read_go_kef(way, kef, (named, ext, code)),
+            Way::CheckAddress => {
+                if let Some(scan) = self.camera.scan.as_mut() {
+                    scan.ask = crate::Ask::Address;
+                }
+                drop(text);
+                self.scan_not_taken(code);
+            }
             Way::Share => {
                 self.intake_key_part(&code);
             }
@@ -2483,21 +2547,16 @@ impl Faraday {
                 (None, "psbt", bytes.to_vec())
             }
             None => {
-                // An address is checked against the loaded wallets, not
-                // filed.
-                match self.address_note(&c, &text) {
-                    Some((_, Some(look))) => {
-                        let mut card =
-                            self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
-                        self.address_miss_card(&mut card, look);
-                        self.read_card_put(card);
-                        return None;
+                // An address goes to the address check's page, not filed.
+                if let Some(read) = self.address_read(&text) {
+                    if let Some(scan) = self.camera.scan.as_mut() {
+                        scan.ask = crate::Ask::Address;
                     }
-                    Some((said, None)) => {
-                        self.camera.say(said);
-                        return None;
+                    match read {
+                        Err(why) => self.camera.say(why),
+                        ok => self.address_card_put(&c, bytes, ok),
                     }
-                    None => {}
+                    return None;
                 }
                 // A Krux encrypted code read as raw bytes keeps its bytes:
                 // the text above would change each one that is no UTF-8.

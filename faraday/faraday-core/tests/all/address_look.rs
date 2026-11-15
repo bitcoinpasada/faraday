@@ -59,8 +59,9 @@ fn said(app: &Faraday) -> String {
     };
     match scan.card.as_ref() {
         Some(k) => k
-            .facts
+            .result_lines()
             .iter()
+            .chain(&k.facts)
             .map(|f| String::from(f.as_str()))
             .collect::<Vec<_>>()
             .join("\n"),
@@ -76,7 +77,7 @@ fn said(app: &Faraday) -> String {
 fn look_through(app: &mut Faraday) {
     for t in 1..100_000u64 {
         app.event(Event::Tick { now_ms: t });
-        if !said(app).starts_with("Looking") {
+        if !said(app).contains("Looking") {
             return;
         }
     }
@@ -91,7 +92,7 @@ fn an_address_at_150_is_found_by_looking_to_a_thousand() {
     assert!(said(&app).contains("first 100"), "{}", said(&app));
     app.press(Action::ReadGo(0));
     look_through(&mut app);
-    assert!(said(&app).contains("receive address 150"), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
 }
 
 #[test]
@@ -101,7 +102,7 @@ fn a_change_address_at_5000_is_found_by_looking_to_ten_thousand() {
     read(&mut app, &address(&d, true, 5_000));
     app.press(Action::ReadGo(1));
     look_through(&mut app);
-    assert!(said(&app).contains("change address 5000"), "{}", said(&app));
+    assert!(said(&app).contains("Change · index 5000"), "{}", said(&app));
 }
 
 #[test]
@@ -111,7 +112,7 @@ fn a_multisig_address_past_100_is_found() {
     read(&mut app, &address(&d, false, 120));
     app.press(Action::ReadGo(0));
     look_through(&mut app);
-    assert!(said(&app).contains("receive address 120"), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 120"), "{}", said(&app));
 }
 
 #[test]
@@ -119,11 +120,11 @@ fn a_miss_says_how_far_it_looked_and_in_how_many_wallets() {
     let mut app = checking(&[single(0), testkit::savings()]);
     read(&mut app, &address(&single(1), false, 7));
     assert!(said(&app).contains("first 100"), "{}", said(&app));
-    assert!(said(&app).contains("2 loaded wallets"), "{}", said(&app));
+    assert!(said(&app).contains("2 wallets"), "{}", said(&app));
     app.press(Action::ReadGo(0));
     look_through(&mut app);
     assert!(said(&app).contains("first 1000"), "{}", said(&app));
-    assert!(said(&app).contains("2 loaded wallets"), "{}", said(&app));
+    assert!(said(&app).contains("2 wallets"), "{}", said(&app));
 }
 
 #[test]
@@ -132,11 +133,11 @@ fn stop_ends_the_look() {
     read(&mut app, &address(&single(1), false, 7));
     app.press(Action::ReadGo(1));
     app.event(Event::Tick { now_ms: 1 });
-    assert!(said(&app).starts_with("Looking"), "{}", said(&app));
+    assert!(said(&app).contains("Looking"), "{}", said(&app));
     // Stop is the card's only way while it looks.
     app.press(Action::ReadGo(0));
     let stopped = said(&app);
-    assert!(stopped.contains("not among the first"), "{stopped}");
+    assert!(stopped.contains("Not found"), "{stopped}");
     for t in 2..50 {
         app.event(Event::Tick { now_ms: t });
     }
@@ -149,12 +150,12 @@ fn a_look_ends_when_the_loaded_wallets_change_and_does_not_claim_the_new_one() {
     read(&mut app, &address(&single(1), false, 5_000));
     app.press(Action::ReadGo(1));
     app.event(Event::Tick { now_ms: 1 });
-    assert!(said(&app).starts_with("Looking"), "{}", said(&app));
+    assert!(said(&app).contains("Looking"), "{}", said(&app));
     // The first wallet goes and the second takes its place.
     app.session.wallets.remove(0);
     app.event(Event::Tick { now_ms: 2 });
     let line = said(&app);
-    assert!(!line.starts_with("Looking"), "{line}");
+    assert!(!line.contains("Looking"), "{line}");
     for t in 3..50 {
         app.event(Event::Tick { now_ms: t });
     }
@@ -220,32 +221,36 @@ fn a_loaded_key_with_no_wallet_has_its_standard_accounts_searched() {
         // BIP-84: m/84'/0'/0'/0/0
         (
             "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
-            "receive address 0",
+            "Receive · index 0",
         ),
         // BIP-84: m/84'/0'/0'/1/0
         (
             "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
-            "change address 0",
+            "Change · index 0",
         ),
         // BIP-86: m/86'/0'/0'/0/0
         (
             "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
-            "receive address 0",
+            "Receive · index 0",
         ),
         // BIP-44: m/44'/0'/0'/0/0, made with embit 0.8.0
-        ("1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA", "receive address 0"),
+        ("1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA", "Receive · index 0"),
     ] {
         let mut app = with_key();
         read(&mut app, address);
         assert!(said(&app).contains(line), "{address}: {}", said(&app));
-        assert!(said(&app).contains("is key "), "{address}: {}", said(&app));
+        assert!(
+            said(&app).contains("Found in key "),
+            "{address}: {}",
+            said(&app)
+        );
     }
     let mut app = with_key();
     read(
         &mut app,
         "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
     );
-    assert!(said(&app).contains("m/86'/0'/0'"), "{}", said(&app));
+    assert!(said(&app).contains("m/86h/0h/0h"), "{}", said(&app));
 }
 
 #[test]
@@ -258,8 +263,8 @@ fn a_loaded_key_has_its_nested_account_searched_on_testnet() {
     // BIP-49's test vector, m/49'/1'/0'/0/0 of `OTHER` on Testnet
     // (https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki).
     read(&mut app, "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2");
-    assert!(said(&app).contains("receive address 0"), "{}", said(&app));
-    assert!(said(&app).contains("m/49'/1'/0'"), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
+    assert!(said(&app).contains("m/49h/1h/0h"), "{}", said(&app));
 }
 
 #[test]
@@ -270,8 +275,8 @@ fn a_standard_account_is_looked_further_in() {
     assert!(said(&app).contains("first 100"), "{}", said(&app));
     app.press(Action::ReadGo(0));
     look_through(&mut app);
-    assert!(said(&app).contains("receive address 150"), "{}", said(&app));
-    assert!(said(&app).contains("m/44'/0'/0'"), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
+    assert!(said(&app).contains("m/44h/0h/0h"), "{}", said(&app));
 }
 
 #[test]
@@ -291,13 +296,13 @@ fn an_account_with_a_wallet_is_not_searched_twice() {
     // BIP-84: m/84'/0'/0'/0/0
     read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
     // The wallet's own line, not the account's.
-    assert!(!said(&app).contains("is key "), "{}", said(&app));
-    assert!(said(&app).contains("receive address 0"), "{}", said(&app));
+    assert!(!said(&app).contains("Found in key "), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
     // A miss counts the wallet and the three accounts with none.
     let a = address_in(&app, &single(1), false, 7);
     read(&mut app, &a);
     assert!(
-        said(&app).contains("4 loaded wallets and key accounts"),
+        said(&app).contains("1 wallet and 3 key accounts"),
         "{}",
         said(&app)
     );
@@ -324,8 +329,8 @@ fn a_wallet_written_with_h_is_the_wallet_a_find_names() {
     assert!(d.contains('h') && !d.contains('\''), "{d}");
     load_from_file(&mut app, &d);
     read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
-    assert!(!said(&app).contains("is key "), "{}", said(&app));
-    assert!(said(&app).contains("receive address 0"), "{}", said(&app));
+    assert!(!said(&app).contains("Found in key "), "{}", said(&app));
+    assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
 }
 
 #[test]
@@ -335,5 +340,127 @@ fn a_wallet_of_another_script_leaves_the_key_searched_on_its_own() {
     load_from_file(&mut app, &d);
     // BIP-84 m/84'/0'/0'/0/0: the key's own account, no wallet for it.
     read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
-    assert!(said(&app).contains("is key "), "{}", said(&app));
+    assert!(said(&app).contains("Found in key "), "{}", said(&app));
+}
+
+#[test]
+fn a_find_in_a_single_key_wallet_shows_the_wallet_place_path_and_whole_address() {
+    let d = single(0);
+    let mut app = checking(std::slice::from_ref(&d));
+    let a = address(&d, false, 12);
+    read(&mut app, &a);
+    let card = said(&app);
+    let name = app.session.wallets[0].name.clone();
+    assert!(
+        card.contains(&format!("Found in {}", name.as_str())),
+        "{card}"
+    );
+    assert!(
+        card.contains(&format!("Address: {}", faraday_ui::grouped(&a).as_str())),
+        "{card}"
+    );
+    assert!(card.contains("Place: Receive · index 12"), "{card}");
+    assert!(
+        card.contains("Wallet: Single key · native SegWit"),
+        "{card}"
+    );
+    assert!(card.contains("Path: "), "{card}");
+    assert!(card.contains("m/84h/1h/0h/0/12"), "{card}");
+}
+
+#[test]
+fn a_find_in_a_multisig_wallet_lists_each_cosigner() {
+    let d = testkit::savings();
+    let mut app = checking(std::slice::from_ref(&d));
+    read(&mut app, &address(&d, true, 3));
+    let card = said(&app);
+    let keys = app.session.wallets[0].policy().keys().len();
+    assert!(keys >= 2);
+    assert!(card.contains("Keys: "), "{card}");
+    assert!(card.contains("Place: Change · index 3"), "{card}");
+    assert_eq!(card.matches("/1/3").count(), keys, "{card}");
+}
+
+#[test]
+fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
+    let mut app = with_key();
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    let card = said(&app);
+    assert!(
+        card.contains("Account: Native SegWit · account 0"),
+        "{card}"
+    );
+    assert!(card.contains("Path: "), "{card}");
+    let ways = |app: &Faraday| -> Vec<String> {
+        app.scan()
+            .and_then(|s| s.card.as_ref())
+            .map(|k| {
+                k.ways
+                    .iter()
+                    .map(|w| String::from(w.label().as_str()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(ways(&app), ["Make a wallet"]);
+    app.press(Action::ReadGo(0));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(ways(&app), ["Open the wallet"]);
+}
+
+#[test]
+fn a_miss_offers_look_further_and_names_what_it_searched() {
+    let d = single(0);
+    let mut app = checking(std::slice::from_ref(&d));
+    read(&mut app, &address(&single(1), false, 7));
+    let card = said(&app);
+    let name = app.session.wallets[0].name.clone();
+    assert!(card.starts_with("Not found"), "{card}");
+    assert!(
+        card.contains(&format!(
+            "Searched: The first 100 receive and change addresses of {}",
+            name.as_str()
+        )),
+        "{card}"
+    );
+    let ways = &app.scan().unwrap().card.as_ref().unwrap().ways;
+    assert_eq!(ways.len(), 2);
+    assert!(ways[0].label().as_str().starts_with("Look further"));
+}
+
+#[test]
+fn homes_scan_of_an_address_opens_the_address_check_with_it_checked() {
+    let d = single(0);
+    let mut app = checking(std::slice::from_ref(&d));
+    app.press(Action::Cancel);
+    app.press(Action::Scan);
+    read(&mut app, &address(&d, false, 4));
+    let card = said(&app);
+    assert!(card.contains("Place: Receive · index 4"), "{card}");
+}
+
+#[test]
+fn with_nothing_loaded_the_address_check_says_to_load_a_key_or_a_wallet() {
+    let mut app = testkit::started();
+    app.press(Action::ScanFor(Ask::Address));
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    assert_eq!(said(&app), "Load a key or a wallet first");
+}
+
+#[test]
+fn another_scanners_read_card_of_an_address_leads_to_the_result() {
+    let d = single(0);
+    let mut app = checking(std::slice::from_ref(&d));
+    app.press(Action::Cancel);
+    app.press(Action::ScanSeed);
+    read(&mut app, &address(&d, false, 4));
+    let ways = &app.scan().unwrap().card.as_ref().unwrap().ways;
+    assert_eq!(ways.len(), 1, "{}", said(&app));
+    assert_eq!(ways[0].label().as_str(), "Check the address");
+    app.press(Action::ReadGo(0));
+    assert!(
+        said(&app).contains("Place: Receive · index 4"),
+        "{}",
+        said(&app)
+    );
 }

@@ -485,6 +485,14 @@ pub enum Way {
     /// An address not found among the first hundred: look further, or
     /// stop looking (`docs/QR.md` §2).
     Look(crate::address_find::LookWay),
+    /// An address read by a scanner that is not the address check's: the
+    /// address check, with this address checked.
+    CheckAddress,
+    /// An address found in a loaded key's standard account: the wallet of
+    /// that account is made.
+    MakeWallet,
+    /// The wallet made from that account, at this place, opened.
+    OpenWallet(usize),
 }
 
 impl Way {
@@ -520,6 +528,9 @@ impl Way {
                 ))],
             ),
             Way::Look(crate::address_find::LookWay::Stop) => Text::of(EN.read_look_stop),
+            Way::CheckAddress => Text::of(EN.read_go_address),
+            Way::MakeWallet => Text::of(EN.explore_make_wallet),
+            Way::OpenWallet(_) => Text::of(EN.explore_open_wallet),
         }
     }
 
@@ -567,6 +578,30 @@ pub struct ReadCard {
     /// hundred of each chain, while the card is of an address that was
     /// not found.
     pub(crate) look: Option<crate::address_find::Look>,
+    /// What the address check's result card says, made again with the
+    /// look.
+    pub(crate) answer: Option<crate::address_find::Answer>,
+}
+
+impl ReadCard {
+    /// What the address check's result card says, a line each: the Result
+    /// line, then each fact as its label, a colon and its value; empty
+    /// for any other card.
+    pub fn result_lines(&self) -> Vec<Text> {
+        let Some(a) = self.answer.as_ref() else {
+            return Vec::new();
+        };
+        let mut out = vec![a.head.clone()];
+        for row in &a.rows {
+            for (i, line) in row.lines.iter().enumerate() {
+                let mut one = Text::of(if i == 0 { row.label } else { "" });
+                one.push_str(": ");
+                one.push_str(line);
+                out.push(one);
+            }
+        }
+        out
+    }
 }
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":

@@ -3229,18 +3229,15 @@ impl Faraday {
         }
     }
 
-    /// Costs an address derivation (through `find_address`), and a key
-    /// derivation for each standard account of a loaded key that has no
-    /// wallet. What a scanned address is to the loaded wallets and those
-    /// accounts: one of a wallet's first hundred on
-    /// either chain, or none of them (`docs/QR.md` §2: "Is this address
-    /// mine?"), and for none of them the look further that is offered.
-    /// `None` when the text is not an address.
-    fn address_note(
+    /// What `text` is as an address (`docs/QR.md` §2): `None` when it is
+    /// not one; the line it is refused with (a payment link that needs
+    /// something this device does not read, a checksum that fails, another
+    /// network's address); or the address, from a `bitcoin:` link as well.
+    fn address_read(
         &self,
-        c: &Compute,
         text: &str,
-    ) -> Option<(faraday_text::Text, Option<address_find::Look>)> {
+    ) -> Option<Result<faraday_bip::bitcoin::Address, faraday_text::Text>> {
+        let refused = |line: &'static str| Some(Err(faraday_text::Text::of(line)));
         let t = text.trim();
         let mut is_uri = false;
         let t = match faraday_codec::bip21::parse(t) {
@@ -3250,10 +3247,10 @@ impl Faraday {
             }
             Err(faraday_codec::bip21::Error::NotUri) => t,
             Err(faraday_codec::bip21::Error::Required) => {
-                return Some((faraday_text::Text::of(EN.address_note_uri_required), None));
+                return refused(EN.address_note_uri_required);
             }
             Err(faraday_codec::bip21::Error::Malformed) => {
-                return Some((faraday_text::Text::of(EN.address_note_uri_malformed), None));
+                return refused(EN.address_note_uri_malformed);
             }
         };
         let net = self.session.network();
@@ -3268,55 +3265,49 @@ impl Faraday {
                     .iter()
                     .any(|&n| faraday_bip::address::is_address_prefix(t, n));
             if whole {
-                return Some((faraday_text::Text::of(EN.address_note_that_address_fails), None));
+                return refused(EN.address_note_that_address_fails);
             }
             // A link whose address is anything else (not empty: BIP 321
             // links carry none) is not well formed.
             return (is_uri && !t.is_empty())
-                .then(|| (faraday_text::Text::of(EN.address_note_uri_malformed), None));
+                .then(|| Err(faraday_text::Text::of(EN.address_note_uri_malformed)));
         };
-        let Ok(addr) = addr.require_network(net.into()) else {
-            return Some((
-                faraday_text::Text::fill(
-                    EN.address_note_wrong_network,
-                    &[wallet::network_name(net)],
-                ),
-                None,
-            ));
-        };
-        for w in &self.session.wallets {
-            if let Some((change, index)) = w.policy().find_address(c, net, &addr, 100) {
-                let chain = if change {
-                    EN.address_note_change
-                } else {
-                    EN.address_note_receive
-                };
-                return Some((
-                    faraday_text::Text::fill(
-                        EN.address_note_found,
-                        &[&w.name, chain, &faraday_text::Text::num(u64::from(index))],
-                    ),
-                    None,
-                ));
-            }
-        }
+        Some(addr.require_network(net.into()).map_err(|_| {
+            faraday_text::Text::fill(EN.address_note_wrong_network, &[wallet::network_name(net)])
+        }))
+    }
+
+    /// Costs an address derivation (through `find_address`), and a key
+    /// derivation for each standard account of a loaded key that has no
+    /// wallet. What an address is to the loaded wallets and those
+    /// accounts: one of a wallet's first hundred on either chain, or none
+    /// of them (`docs/QR.md` §2: "Is this address mine?"), and for none of
+    /// them the look further that is offered. `None` when no wallet and no
+    /// key is loaded.
+    fn address_check(
+        &self,
+        c: &Compute,
+        addr: &faraday_bip::bitcoin::Address,
+    ) -> Option<address_find::Look> {
+        let net = self.session.network();
         let accounts = address_find::unmade(c, &self.session);
-        for a in &accounts {
-            if let Some((change, index)) = a.policy.find_address(c, net, &addr, 100) {
-                let chain = if change {
-                    EN.address_note_change
-                } else {
-                    EN.address_note_receive
-                };
-                return Some((address_find::found_in_account(a, chain, index), None));
-            }
-        }
         let wallets = &self.session.wallets;
         if wallets.len() + accounts.len() == 0 {
-            return Some((faraday_text::Text::of(EN.address_note_no_wallet), None));
+            return None;
         }
-        let look = address_find::Look::new(addr.script_pubkey(), wallets, accounts);
-        Some((address_find::missed(&look), Some(look)))
+        let mut shown = faraday_text::Text::new();
+        let _ = std::fmt::Write::write_fmt(&mut shown, format_args!("{addr}"));
+        let mut look = address_find::Look::new((shown, addr.script_pubkey()), wallets, accounts);
+        let wallet_find = wallets
+            .iter()
+            .enumerate()
+            .find_map(|(w, wl)| Some((w, wl.policy().find_address(c, net, addr, 100)?)));
+        let found = wallet_find.or_else(|| look.accounts_find(c, net, addr, 100));
+        if let Some((place, (change, index))) = found {
+            look.found = Some((place, change, index));
+            look.settle(&self.session);
+        }
+        Some(look)
     }
 
     fn open_qr(&mut self, view: Result<QrView, impl AsRef<str>>) {

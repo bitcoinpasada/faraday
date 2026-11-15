@@ -3,7 +3,8 @@
 //! §2, `docs/WALLETS.md`): account 0 of BIP-84, BIP-86, BIP-49 and BIP-44,
 //! on the network in use.
 
-use faraday_bip::keys::Fingerprint;
+use faraday_bip::bitcoin::bip32::DerivationPath;
+use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_bip::policy::{Template, WalletPolicy};
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
@@ -26,10 +27,12 @@ pub(crate) struct Account {
     pub(crate) label: Text,
     /// The key's fingerprint.
     pub(crate) fingerprint: Fingerprint,
-    /// The account's path, `m/84'/0'/0'`.
-    pub(crate) path: Text,
-    /// The script kind's name, as the New wallet screen writes it.
-    pub(crate) script: &'static str,
+    /// The account's path as a derivation path, to make its wallet at.
+    pub(crate) account: DerivationPath,
+    /// The script the account's addresses are of.
+    pub(crate) script_type: ScriptType,
+    /// The account's number.
+    pub(crate) number: u32,
     /// The single-key wallet the account is.
     pub(crate) policy: WalletPolicy,
 }
@@ -88,11 +91,15 @@ pub(crate) fn unmade(c: &Compute, session: &Session) -> Vec<Account> {
             {
                 continue;
             }
+            let Ok(account) = kind.path(net).parse::<DerivationPath>() else {
+                continue;
+            };
             out.push(Account {
                 label: info.label.clone(),
                 fingerprint: info.fingerprint,
-                path: kind.path(net),
-                script: kind.name(),
+                account,
+                script_type: policy.script_type(),
+                number: 0,
                 policy,
             });
         }

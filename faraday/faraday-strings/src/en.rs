@@ -4813,22 +4813,54 @@ strings! {
     address_note_change: "change",
     /// Text in `address_note`.
     address_note_receive: "receive",
-    /// Text in `address_note`. `{}`: `w.name`, `chain`, `index`.
-    address_note_found: "That address is {}'s {} address {}",
-    /// Text in `address_note`.
-    address_note_no_wallet: "That is an address. Load a wallet to check whether it is yours",
     /// Text in `address_note`: a `bitcoin:` link with a `req-` parameter.
     address_note_uri_required: "That payment link needs something this device does not read",
     /// Text in `address_note`: a `bitcoin:` link that is not well formed.
     address_note_uri_malformed: "That payment link is not well formed",
-    /// Text in `address_note`. `{}`: how many indices of each chain it looked at, and how many wallets.
-    address_note_missed: "That address is not among the first {} receive and change addresses of {} loaded wallets",
-    /// Text in `address_note`. `{}`: how many indices of each chain it looked at.
-    address_note_missed_one: "That address is not among the first {} receive and change addresses of the loaded wallet",
-    /// Text in `address_note`. `{}`: how many indices of each chain it looked at, and how many wallets and key accounts together.
-    address_note_missed_accounts: "That address is not among the first {} receive and change addresses of the {} loaded wallets and key accounts",
-    /// Text in `address_note`, for an address of a loaded key's standard account with no wallet. `{}`: the key's name, its fingerprint, the account's path, the script, `chain`, `index`.
-    address_note_found_account: "That address is key {} {} at {}, {}: {} address {}",
+    /// Result line of the address check when the address is one of a loaded wallet's. `{}`: the wallet's name.
+    address_check_found: "Found in {}",
+    /// Result line of the address check when the address is one of a loaded key's standard accounts. `{}`: the key's name.
+    address_check_found_key: "Found in key {}",
+    /// Result line of the address check when the address is not found.
+    address_check_missed: "Not found",
+    /// The address check's page with neither a key nor a wallet loaded.
+    address_check_load_first: "Load a key or a wallet first",
+    /// The address check's result: the address's label.
+    address_check_address: "Address",
+    /// The address check's result: the place's label.
+    address_check_place: "Place",
+    /// The address check's result: a receive address. `{}`: the index.
+    address_check_receive: "Receive · index {}",
+    /// The address check's result: a change address. `{}`: the index.
+    address_check_change: "Change · index {}",
+    /// The address check's result: the wallet's shape label.
+    address_check_wallet: "Wallet",
+    /// The address check's result: a key account's label.
+    address_check_account: "Account",
+    /// The address check's result: a key account. `{}`: the script's name, the account number.
+    address_check_account_value: "{} · account {}",
+    /// The address check's result: the path's label.
+    address_check_path: "Path",
+    /// The address check's result: a multisig wallet's keys' label.
+    address_check_keys: "Keys",
+    /// The address check's result: a key and its path to the address. `{}`: a fingerprint, a path.
+    address_check_key_path: "{} · {}",
+    /// The address check's result: how far a miss looked, label.
+    address_check_searched: "Searched",
+    /// The address check's result: how far a miss looked. `{}`: the depth, a wallet's name or a count below.
+    address_check_searched_value: "The first {} receive and change addresses of {}",
+    /// The address check's result: how many wallets were searched. `{}`: the count.
+    address_check_wallets: "{} wallets",
+    /// The address check's result: one wallet searched among key accounts.
+    address_check_wallet_one: "1 wallet",
+    /// The address check's result: how many key accounts were searched. `{}`: the count.
+    address_check_accounts: "{} key accounts",
+    /// The address check's result: one key account searched.
+    address_check_account_one: "1 key account",
+    /// The address check's result: wallets and key accounts searched. `{}`: the wallets, the key accounts, each as counted above.
+    address_check_wallets_accounts: "{} and {}",
+    /// Way over from another scanner's read card of an address to the address check.
+    read_go_address: "Check the address",
     /// Button on the read card of an address not found. `{}`: the depth, in indices of each chain.
     read_look_further: "Look further: {}",
     /// Button on the read card while it looks further.
