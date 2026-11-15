@@ -512,16 +512,12 @@ fn a_starter_is_added_only_if_it_carries_this_releases_image_list() {
 }
 
 /// A stand-in Starter built against the release's `IMAGES`: it holds
-/// the list's first line, which names the release and the commit.
+/// the whole list, as a real Starter built against it does.
 fn starter_with(root: &Path, out: &Path) -> PathBuf {
-    let first = fs::read_to_string(out.join("IMAGES"))
-        .expect("IMAGES")
-        .lines()
-        .next()
-        .expect("a first line")
-        .to_string();
+    // A real Starter carries the whole list as it was built in.
+    let images = fs::read_to_string(out.join("IMAGES")).expect("IMAGES");
     let starter = root.join("faraday-starter");
-    fs::write(&starter, format!("a Starter\n{first}\n")).expect("starter");
+    fs::write(&starter, format!("a Starter\n{images}")).expect("starter");
     starter
 }
 
