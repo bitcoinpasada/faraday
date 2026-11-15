@@ -304,8 +304,8 @@ mod tests {
     #[test]
     fn a_vault_that_did_not_fit_in_memory_says_so() {
         assert_eq!(
-            vault_label(&vault(VaultAct::Unlocked, 1024, 4, VaultEnded::NoMemory)),
-            "vault unlocked Strong 1024 MiB 4 passes, failed: no memory"
+            vault_label(&vault(VaultAct::Unlocked, 1024, 3, VaultEnded::NoMemory)),
+            "vault unlocked Strong 1024 MiB 3 passes, failed: no memory"
         );
         assert_eq!(
             vault_label(&vault(VaultAct::Made, 512, 3, VaultEnded::NotFree)),
