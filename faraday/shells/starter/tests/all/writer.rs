@@ -1232,7 +1232,7 @@ fn a_boot_partition_past_what_a_disk_addresses_is_damaged() {
 #[test]
 fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_blocks_only() {
     // A developer's image 100 bytes past a whole number of sectors, to a
-    // disk written straight to the disk, as macOS's raw disk is: the
+    // disk that takes whole blocks only, as a disk opened raw does: the
     // write succeeds, the image is on the disk, and the rest of the last
     // block keeps what the disk held there.
     let len = IMAGE + 100;

@@ -102,7 +102,7 @@ pub trait Device {
     /// The size in bytes of the disk's blocks. Every write the writer
     /// makes is a whole number of them at a multiple of it, and every
     /// read a whole number of [`ALIGN`] bytes at a multiple of that, so a
-    /// disk that refuses anything else (macOS's raw `/dev/rdiskN`) is
+    /// disk opened raw, which refuses anything else, is
     /// written as any other. A power of two from 512 to [`ALIGN`].
     fn block(&mut self) -> u64 {
         512
@@ -159,7 +159,7 @@ where
     F: FnOnce() -> Result<Box<dyn Device>, Reason> + Send + 'static,
 {
     std::thread::spawn(move || {
-        // The in-process writers (Linux, macOS) read the boot file the
+        // The in-process writer (Linux) reads the boot file the
         // order names here, as chosen; the elevated writer on Windows is
         // sent its bytes over its pipe instead.
         let result = order
@@ -1218,7 +1218,7 @@ impl Plan {
 ///
 /// Each stretch goes out from a buffer aligned to [`ALIGN`], as a disk
 /// opened unbuffered (Windows) needs, as whole blocks at a multiple of
-/// the block size, as a raw disk (macOS) needs: a stretch that starts
+/// the block size, as a disk opened raw needs: a stretch that starts
 /// or ends inside a block (an image whose length is not a whole number
 /// of blocks, or of 4096-byte blocks on a disk that has them) is
 /// written as the whole blocks it touches, with what the disk held
