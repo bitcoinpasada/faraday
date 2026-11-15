@@ -158,6 +158,9 @@ on a branch) runs nothing again: that first job finds the run, names it, and
 skips every test and lint (F265); when main's cache lacks the dependencies
 of a job (a manifest or lock file changed), one more job per missing cache
 compiles just those dependencies and saves them, running no test or lint.
+A run started by hand takes `lint_repo=false` to leave out the lint-repo
+part when `just lint-repo` already passed on the same tree, commit range
+and trailers.
 
 One crate's tests or one lint recipe can run there alone, started by hand on
 any branch (`.github/workflows/targeted.yml`, F243); `lint` is `none` for

@@ -37,6 +37,10 @@ on:
         description: Run every lint part (false runs lint-repo only, for a tree whose other lints already passed)
         type: boolean
         default: true
+      lint_repo:
+        description: Run lint-repo (false when it already passed on this tree, commit range and trailers)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -73,18 +77,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           DEPS_HASH: ${{ github.event_name == 'push' && hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock', '.github/actions/save-deps/*') || '' }}
-          LINTS: ${{ github.event_name == 'workflow_dispatch' && inputs.lints || 'true' }}
+          LINTS: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.lints) || 'true' }}
+          LINT_REPO: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.lint_repo) || 'true' }}
           TOOLS_HASH: ${{ github.event_name == 'push' && hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') || '' }}
         run: |
           set -euo pipefail
           echo "pass=false" >> "$GITHUB_OUTPUT"; echo "warm=[]" >> "$GITHUB_OUTPUT"
-          # The lint parts to run: a run started with lints=false keeps only lint-repo, which reads the tree's generated files.
-          if [ "$LINTS" = false ]; then
-            echo 'parts=["lint-repo"]' >> "$GITHUB_OUTPUT"
-            echo "lints=false: only lint-repo runs of the lint parts." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'parts=["lint-clippy","lint-deps","lint-repo","lint-touch-targets","lint-op-cost"]' >> "$GITHUB_OUTPUT"
-          fi
+          # The lint parts to run: lints=false keeps only lint-repo, lint_repo=false leaves lint-repo out (it already passed on this tree).
+          parts='["lint-clippy","lint-deps","lint-repo","lint-touch-targets","lint-op-cost"]'
+          [ "$LINTS" = false ] && parts='["lint-repo"]'
+          [ "$LINT_REPO" = false ] && parts=$(echo "$parts" | sed 's/"lint-repo",\?//; s/,\]/]/; s/\[,/[/')
+          echo "parts=$parts" >> "$GITHUB_OUTPUT"
+          echo "lint parts: $parts" | tee -a "$GITHUB_STEP_SUMMARY"
           [ "$EVENT" = push ] || { echo "Not a push to main: the whole check runs."; exit 0; }
           run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=30" \
             --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | first | .id // empty")
@@ -229,7 +233,7 @@ jobs:
   lint:
     name: ${{ matrix.part }}
     needs: gate
-    if: needs.gate.outputs.pass != 'true'
+    if: needs.gate.outputs.pass != 'true' && needs.gate.outputs.parts != '[]'
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     strategy:
