@@ -665,10 +665,39 @@ fn free_name(place: &mut dyn Place, name: &str) -> Result<Text, Text> {
         .ok_or_else(|| Text::of(EN.files_no_free_name))
 }
 
+/// Whether `held` is `other` with `-2` to `-99` before its extension,
+/// ignoring case: a name [`free_name`] gives a copy kept beside `other`.
+/// Where `other` is not a `.kdbx` name, `held` may also be a name
+/// [`finish_vault_writes`] gives a kept part of it: `other` with `.kdbx`
+/// after it, and that name's own free forms.
+fn is_free_form(held: &str, other: &str) -> bool {
+    if !is_kdbx_name(other) {
+        let kept = text!("{other}.kdbx");
+        return held.eq_ignore_ascii_case(&kept) || free_form_of(held, &kept);
+    }
+    free_form_of(held, other)
+}
+
+fn free_form_of(held: &str, other: &str) -> bool {
+    let (stem, ext) = match other.rfind('.') {
+        Some(i) if i > 0 => (&other[..i], &other[i..]),
+        _ => (other, ""),
+    };
+    (2..100).any(|n| held.eq_ignore_ascii_case(&text!("{stem}-{n}{ext}")))
+}
+
 /// Writes `bytes` under the hidden name `temp`, reads them back and
 /// compares. The temp file is gone again on any failure.
 fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), Text> {
     if has(place, temp)? {
+        // A whole vault left under a temp name is a copy that may be the
+        // newer one: it is never written over.
+        if let Ok(old) = place.read(temp, MAX_VAULT_READ)
+            && whole_vault(&old)
+            && old != bytes
+        {
+            return Err(Text::fill(EN.files_newer_waiting, &[temp]));
+        }
         place.remove(temp)?;
     }
     place.create(temp, bytes)?;
@@ -874,6 +903,94 @@ pub fn write_vault_over(
             return Err(Text::fill(EN.files_vault_not_ours, &[&same[0]]).into());
         }
         1 => same.remove(0),
+        2 if over => {
+            // A write-back cut short after its part file took a free name
+            // leaves the original and a file of exactly these bytes: the
+            // original takes them again and the identical file goes.
+            let holds = |place: &mut dyn Place, n: &str| {
+                place.read(n, MAX_VAULT_READ).is_ok_and(|b| b == bytes)
+            };
+            let (a, b) = (holds(place, &same[0]), holds(place, &same[1]));
+            if a && b {
+                // A retry cut after its remove of the original, or after
+                // its rename, leaves two files of exactly these bytes:
+                // the one under the other's free name goes, so nothing
+                // can be lost.
+                let (first, second) = (same.remove(0), same.remove(0));
+                if renamed {
+                    // A renamed retry keeps the copy under the asked name
+                    // (or its free form); where neither has it, the one
+                    // the other is a free form of takes a free form of it.
+                    let asked = checked_for_write(name)?;
+                    let exact = |n: &str| n.eq_ignore_ascii_case(asked);
+                    let near = |n: &str| free_form_of(n, asked);
+                    let keep_first = if exact(&first) || (!exact(&second) && near(&first)) {
+                        Some(true)
+                    } else if exact(&second) || near(&second) {
+                        Some(false)
+                    } else if is_free_form(&second, &first) {
+                        Some(true)
+                    } else if is_free_form(&first, &second) {
+                        Some(false)
+                    } else {
+                        None
+                    };
+                    if let Some(keep_first) = keep_first {
+                        let (kept, gone) = if keep_first {
+                            (first, second)
+                        } else {
+                            (second, first)
+                        };
+                        place.remove(&gone)?;
+                        if exact(&kept) || near(&kept) {
+                            return Ok(kept);
+                        }
+                        let to = free_name(place, asked)?;
+                        place.rename(&kept, &to)?;
+                        return Ok(to);
+                    }
+                    return Err(Text::fill(EN.files_vault_twice, &[&first, &second]).into());
+                }
+                if is_free_form(&second, &first) {
+                    place.remove(&second)?;
+                    return Ok(first);
+                }
+                if is_free_form(&first, &second) {
+                    place.remove(&first)?;
+                    return Ok(second);
+                }
+                return Err(Text::fill(EN.files_vault_twice, &[&first, &second]).into());
+            }
+            if a == b {
+                return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
+            }
+            let (holder, other) = if a {
+                (same.remove(0), same.remove(0))
+            } else {
+                let other = same.remove(0);
+                (same.remove(0), other)
+            };
+            // Only a name finish_vault_writes gives a kept part (the
+            // other copy's name with -2, -3 and so on) marks a cut
+            // write-back: the holder is the second name of the write and
+            // the other copy takes the bytes. Any other name is a vault
+            // the stick holds as it is, or a backup the person kept: the
+            // write is done, nothing is written over, and the vault
+            // only takes a new name the person asked for.
+            if !is_free_form(&holder, &other) {
+                if renamed && !holder.eq_ignore_ascii_case(name) {
+                    let asked = checked_for_write(name)?;
+                    let to = free_name(place, asked)?;
+                    place.rename(&holder, &to)?;
+                    return Ok(to);
+                }
+                return Ok(holder);
+            }
+            let (dup, original) = (holder, other);
+            let to = replace_file(place, &original, name, bytes, renamed)?;
+            let _ = place.remove(&dup);
+            return Ok(to);
+        }
         _ => {
             return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
         }
@@ -1073,10 +1190,13 @@ fn whole_vault(b: &[u8]) -> bool {
     }
 }
 
-/// Finishes a vault write-back a pulled stick interrupted
-/// (`docs/VAULT.md` §6 step 4). A part file whose original is gone is a
-/// whole vault that only missed its rename, and takes the name; a part
-/// file beside its original is a write that never finished, and goes.
+/// Costs a read of each part file, and of the original, up to a vault's
+/// size, and for a whole part beside a whole original that holds other bytes a read of each other
+/// file of exactly the part's length. Finishes a vault write-back a pulled
+/// stick interrupted (`docs/VAULT.md` §6 step 4). A part file whose original is gone is a
+/// whole vault that only missed its rename, and takes the name; a whole
+/// part file beside a whole original is kept under the first free name,
+/// as either may be the newer; a part file that is not whole goes.
 pub fn finish_vault_writes(place: &mut dyn Place) {
     let Ok(files) = place.files() else { return };
     for (n, len) in &files {
@@ -1094,8 +1214,15 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         }
         // A part file larger than any vault is a crafted one: it goes
         // without being read. The rest are read once.
-        let whole =
-            *len <= MAX_VAULT_READ && place.read(n, MAX_VAULT_READ).is_ok_and(|b| whole_vault(&b));
+        let part = if *len <= MAX_VAULT_READ {
+            place
+                .read(n, MAX_VAULT_READ)
+                .ok()
+                .filter(|b| whole_vault(b))
+        } else {
+            None
+        };
+        let whole = part.is_some();
         if !named && !whole {
             continue;
         }
@@ -1107,13 +1234,48 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             // The part goes only where the original reads as a whole
             // vault with its chain ending where its size says; a torn
             // delete or rename can leave the part as the only good copy.
-            let kept = *olen <= MAX_VAULT_READ
-                && place
+            let held = if *olen <= MAX_VAULT_READ {
+                place
                     .read(original, MAX_VAULT_READ)
-                    .is_ok_and(|b| whole_vault(&b))
-                && place.chain_ends(original) == Ok(true);
-            if kept {
+                    .ok()
+                    .filter(|b| whole_vault(b))
+            } else {
+                None
+            };
+            let kept = held.is_some() && place.chain_ends(original) == Ok(true);
+            // A file other than the original that reads exactly the part
+            // is a torn rename of it: its second name goes alone.
+            // Worked out only where the original is whole and differs.
+            let mut twin = || {
+                files.iter().any(|(o, l)| {
+                    o != n
+                        && o != original
+                        && *l == *len
+                        && place
+                            .read(o, MAX_VAULT_READ)
+                            .is_ok_and(|b| Some(&b) == part.as_ref())
+                })
+            };
+            if kept && (held == part || twin()) {
+                // The same bytes, or one chain under two names after a
+                // torn rename: only the part's name goes.
                 let _ = place.remove(n);
+            } else if kept {
+                // Either may be the newer: the part is kept under the
+                // first free name beside the original, and the seal count
+                // at unlock says which is which.
+                let wanted = if named {
+                    Text::of(name)
+                } else {
+                    text!("{name}.kdbx")
+                };
+                // With no free name it stays hidden, and the next write-back
+                // is refused rather than go over it.
+                if let Ok(free) = free_name(place, &wanted)
+                    && faraday_fat::name_allowed(&free)
+                {
+                    let _ = place.rename(n, &free);
+                }
             } else if place.discard(original).is_ok() {
                 // The part is the vault: it takes the original's name.
                 let _ = place.rename(n, original);
@@ -1142,8 +1304,22 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             } else if !taken {
                 let _ = place.rename(n, &target);
             }
-        } else if checked_for_write(&target).is_ok() && !taken {
-            let _ = place.rename(n, &target);
+        } else if checked_for_write(&target).is_ok() {
+            if !taken {
+                let _ = place.rename(n, &target);
+            } else if let Some((t, tlen)) =
+                files.iter().find(|(o, _)| o.eq_ignore_ascii_case(&target))
+            {
+                // The target held by a file of exactly the part's bytes is
+                // a torn rename's other name: the part goes alone.
+                if *tlen == *len
+                    && place
+                        .read(t, MAX_VAULT_READ)
+                        .is_ok_and(|b| Some(&b) == part.as_ref())
+                {
+                    let _ = place.remove(n);
+                }
+            }
         }
     }
 }

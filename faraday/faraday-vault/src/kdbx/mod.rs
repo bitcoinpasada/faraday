@@ -537,9 +537,9 @@ pub fn derive_with(
     Ok(SealKeys { keys, cost, salt })
 }
 
-/// Costs an Argon2id run at `cost`, and a read of the file made without
-/// one (its HMACs, its decryption and its inner header). [`derive`] and
-/// [`seal_keyed`] in one.
+/// Costs two Argon2id runs at `cost`, and a read of the file made without
+/// one (its HMACs, its decryption and its inner header). [`derive_checked`]
+/// and [`seal_keyed`] in one.
 pub fn seal(
     c: &Compute,
     passphrase: &str,
@@ -571,8 +571,50 @@ pub fn seal_with(
     contents: &Contents<'_>,
     plain_len: usize,
 ) -> Result<Vec<u8>, Error> {
-    let keys = derive_with(c, passphrase, components, cost, random)?;
+    let keys = derive_checked(c, passphrase, components, cost, random)?;
     seal_keyed(keys, random, contents, plain_len)
+}
+
+/// Costs two Argon2id runs at `cost`: [`derive_with`] twice, the keys of
+/// the two required to be the same. A fault in one run would otherwise
+/// seal a file nothing opens and the read-back, made under the same keys,
+/// would not see it. [`Error::ReadBack`] when they differ. Both sets of
+/// keys wipe as they drop.
+pub fn derive_checked(
+    c: &Compute,
+    passphrase: &str,
+    components: &Components,
+    cost: Cost,
+    random: &[u8; RANDOM_LEN],
+) -> Result<SealKeys, Error> {
+    #[allow(unused_mut)]
+    let mut first = derive_with(c, passphrase, components, cost, random)?;
+    #[cfg(test)]
+    if fault::take() {
+        first.keys.encryption.expose_mut()[0] ^= 1;
+    }
+    let second = derive_with(c, passphrase, components, cost, random)?;
+    if first.keys.encryption != second.keys.encryption
+        || first.keys.hmac_base != second.keys.hmac_base
+    {
+        return Err(Error::ReadBack);
+    }
+    Ok(first)
+}
+
+/// A crate test's way to make the next [`derive_checked`] see a wrong key
+/// in its first run. Compiled in tests only.
+#[cfg(test)]
+pub(crate) mod fault {
+    use core::sync::atomic::{AtomicBool, Ordering};
+    static NEXT: AtomicBool = AtomicBool::new(false);
+    /// The next seal's first key run is wrong.
+    pub(crate) fn arm() {
+        NEXT.store(true, Ordering::SeqCst);
+    }
+    pub(super) fn take() -> bool {
+        NEXT.swap(false, Ordering::SeqCst)
+    }
 }
 
 /// Costs a read of the file made (its HMACs, its decryption and its inner

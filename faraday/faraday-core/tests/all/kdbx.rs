@@ -182,16 +182,17 @@ fn header_field(file: &[u8], id: u8) -> &[u8] {
 fn an_export_named_as_a_sealed_vault_waiting_goes_beside_it() {
     let c = testkit::compute();
     let sealed = testkit::test_vault().unwrap();
-    let mut app = at_the_export_prompt_beside(12, vec![("mail.kdbx".into(), sealed.clone())]);
+    let waiting = vec![("keepass-export.kdbx".into(), sealed.clone())];
+    let mut app = at_the_export_prompt_beside(12, waiting);
     app.press(Action::Vault(V::PromptGo));
     testkit::settle(&mut app);
     let file = |name: &str| app.outbox.iter().find(|i| i.name == name);
     assert_eq!(
-        file("mail.kdbx").map(|i| &*i.bytes),
+        file("keepass-export.kdbx").map(|i| &*i.bytes),
         Some(&sealed),
         "the sealed vault is still there, unchanged"
     );
-    let export = file("mail-2.kdbx").expect("the export beside it");
+    let export = file("keepass-export-2.kdbx").expect("the export beside it");
     faraday_vault::file::open(&c, &export.bytes, "keepass passphrase")
         .expect("the export opens under its own passphrase");
 }

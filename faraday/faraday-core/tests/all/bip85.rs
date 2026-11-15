@@ -201,7 +201,7 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
         .iter()
         .find(|i| i.name.ends_with(".kdbx"))
         .expect("no KeePass file");
-    assert_eq!(file.name, "password.kdbx");
+    assert_eq!(file.name, "keepass-export.kdbx");
     let opened = faraday_vault::file::open(&c, &file.bytes, "keepass passphrase")
         .expect("the file opens under its passphrase");
     let read = opened.read();

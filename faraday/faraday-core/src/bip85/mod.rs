@@ -81,12 +81,14 @@ pub(crate) fn out_title(title: &str) -> &str {
     if bip85 { EN.bip85_password_out } else { title }
 }
 
-/// The title an entry titled `title` carries in a KeePass export and the
-/// file's name: as [`out_title`] calls it, beside any other file waiting in
-/// the Outbox rather than over it, since that may be a sealed vault (F172).
+/// The title an entry titled `title` carries in a KeePass export, as
+/// [`out_title`] calls it, and the file's name: the generic
+/// `kdbx_export_file`, never the entry's title, which the stick's listing
+/// would show; beside any other file waiting in the Outbox rather than
+/// over it, since that may be a sealed vault (F172).
 pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, Text) {
     let out = out_title(title);
-    let name = text!("{}.kdbx", crate::file_stem(out).as_str());
+    let name = text!("{}.kdbx", EN.kdbx_export_file);
     (
         out,
         Text::of(&crate::visit_taken::outbox_free_name(outbox, &name)),

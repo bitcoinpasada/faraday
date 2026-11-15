@@ -294,13 +294,14 @@ fn a_write_back_a_pulled_stick_cut_short_leaves_the_copy_or_the_new_file_whole()
     place.files.insert(part("vault.kdbx"), sealed_again(1, 3));
     finish_vault_writes(&mut place);
     assert_eq!(place.files["vault.kdbx"], sealed_again(1, 3));
-    // Pulled before: the original stays and the part file goes.
+    // Pulled before: both copies are whole, and both stay, under two names.
     let mut place = Memory::default();
     place.files.insert("vault.kdbx".into(), sealed_again(1, 1));
     place.files.insert(part("vault.kdbx"), sealed_again(1, 3));
     finish_vault_writes(&mut place);
     assert_eq!(place.files["vault.kdbx"], sealed_again(1, 1));
-    assert_eq!(place.files.len(), 1);
+    assert_eq!(place.files["vault-2.kdbx"], sealed_again(1, 3));
+    assert_eq!(place.files.len(), 2);
 }
 
 #[test]

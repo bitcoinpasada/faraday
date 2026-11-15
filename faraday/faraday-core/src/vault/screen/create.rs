@@ -103,7 +103,9 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
 pub(super) fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
     let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     if app.vaults.working == Some(vault::Work::Create) {
-        let t = app.vaults.time_text(mem, passes).to_string();
+        // A seal runs Argon2id twice (the second checks the key), so the
+        // time is that of twice the passes.
+        let t = app.vaults.time_text(mem, passes * 2).to_string();
         let line = fill(EN.vault_creating, &[&t]);
         crate::screens::working_line(ui, (x, by, w, 46.0), &line);
         return 46.0;

@@ -345,3 +345,29 @@ fn an_end_field_with_bytes_opens_the_same_and_costs_no_more_to_hold() {
         big.binaries[0].data.backing_len()
     );
 }
+
+/// A seal whose first key run comes out wrong is refused as a file that
+/// did not read back, and a normal one opens.
+#[test]
+fn a_seal_whose_key_run_differs_from_a_second_run_is_refused() {
+    let c = crate::tests::compute();
+    let document = vec![b'x'; 4_000];
+    let random: [u8; super::RANDOM_LEN] = core::array::from_fn(|i| i as u8);
+    let contents = super::Contents {
+        document: &document,
+        binaries: inner::Binaries::all(&[]),
+        public_custom_data: None,
+    };
+    let cost = crate::Cost {
+        memory_kib: 8 * 1024,
+        passes: 1,
+        lanes: 1,
+    };
+    let sealed = || super::seal(&c, "pass", cost, &random, &contents, 8_192);
+    let file = sealed().unwrap();
+    assert!(super::open(&c, &file, "pass").is_ok());
+    super::fault::arm();
+    assert!(matches!(sealed(), Err(Error::ReadBack)));
+    // The fault is spent: the next seal is whole again.
+    assert!(sealed().is_ok());
+}

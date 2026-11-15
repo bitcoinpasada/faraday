@@ -9,6 +9,9 @@ then `bin: yes` or `bin: no` for a recycle bin group. Usage:
 With `more`, a line `data: KEY=VALUE` for each of the database's custom data
 items, `entry: TITLE tags=TAGS icon=NUMBER` and `entry data: KEY=VALUE` for each
 entry, and `attachment: NAME=HEX` (the bytes in hex) for each attachment follow.
+With `protected` instead, a line `protected: TITLE FIELD=yes|no` for each field of
+each entry follows: whether the file stores the field's value protected, and a
+line `value: TITLE FIELD=VALUE` for each custom field, as pykeepass decrypts it.
 """
 import sys
 
@@ -40,3 +43,10 @@ if len(sys.argv) > 3 and sys.argv[3] == "more":
         print("entry: %s tags=%s icon=%s" % (e.title, ";".join(e.tags or []), e.icon))
         for item in e._element.findall("CustomData/Item"):
             print("entry data: %s=%s" % (item.find("Key").text, item.find("Value").text))
+if len(sys.argv) > 3 and sys.argv[3] == "protected":
+    for e in kp.entries:
+        for s in e._element.findall("String"):
+            flag = s.find("Value").attrib.get("Protected", "False")
+            print("protected: %s %s=%s" % (e.title, s.find("Key").text, "yes" if flag == "True" else "no"))
+        for k, v in (e.custom_properties or {}).items():
+            print("value: %s %s=%s" % (e.title, k, v))

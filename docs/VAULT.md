@@ -641,9 +641,9 @@ S2K and every data packet.
   a toast says the file did not read back (or, where the computer could
   not hold the file to read it, that it lacks the memory), and the vault
   stays open with its changes (an idle lock loses them, as for any seal
-  that cannot be written). It does not run Argon2id a second time, so a key
-  derived from the passphrase is not derived again: a wrong derivation
-  would not be seen here. It does not compare the file with what
+  that cannot be written). Before the file is built Argon2id runs a second
+  time and the two keys must be the same: a seal costs two Argon2id runs, and
+  a key that differs is refused as a file that did not read back. It does not compare the file with what
   another KeePass app reads.
 - **A seal goes beside a file, never over one that is not its own.** The
   file a seal makes takes the vault's file name. A file of that name
@@ -738,11 +738,12 @@ file each seal was made from. A file on a stick is a copy a sealed vault
 goes over only when its SHA-256 is the vault's own or one it was sealed
 from, by one lock or a chain of them; a copy of the same vault from
 another line, a newer one included, is asked about like any other file
-of that name. Writing back replaces that copy; no older copy is kept. On a stick visit:
+of that name. Writing back replaces that copy; no older copy is kept, except where a pull cut a write-back short (step 4). On a stick visit:
 
 1. Find the file on the visited stick whose SHA-256 is one of the sealed
    vault's copies. None: write it as a new file. More than one: refuse
-   and name both. None, and a file has the name asked for, ignoring case:
+   and name both, except two copies of which one is exactly the sealed
+   bytes (step 4). None, and a file has the name asked for, ignoring case:
    nothing is written until the person answers (F203): **Overwrite**, by a
    hold, naming the SHA-256 of the file shown, which the disk process
    refuses if the file has changed since; or **Save beside**, as
@@ -764,7 +765,22 @@ of that name. Writing back replaces that copy; no older copy is kept. On a stick
    even where the app would not write that name (a device name such as
    `con.kdbx`), for a name the volume can hold. If it finds both, and the
    original reads as a whole vault with its chain of clusters ending
-   where its size says, it keeps the original and discards the new file.
+   where its size says, it keeps both where their bytes differ: the new file
+   is renamed to the first free `name-2.kdbx` (`NAME.kdbx` first, where the
+   name does not end `.kdbx`), as either may be the newer (the seal count at
+   unlock says which). A new file with the original's bytes, or another file of exactly the
+   new file's bytes after a torn rename, and a new file that is not whole, lose only
+   their name. A new file that has no free name stays hidden, and the next
+   write-back of that vault is refused, naming it, rather than go over
+   it. Writing back again, with the original and a file of exactly the
+   sealed bytes on the stick whose name is the original's with `-2`, `-3`
+   and so on before the extension (for an original not named `.kdbx`, its
+   name with `.kdbx` after it, and that name's `-2`, `-3` and so on),
+   puts the seal over the original and removes that file. Two files of
+   exactly the sealed bytes, one under the other's such name, are one
+   copy: the one under the such name is removed. With a file of exactly the sealed bytes under any
+   other name, the write is done: nothing is written or removed, and the
+   file only takes a new name the person asked for.
    If the original does not, the new file is the vault: the original's
    entries are erased, its clusters freed only where its chain reads whole,
    ends where its size says and no other file's chain, in the root or in any
@@ -1250,8 +1266,9 @@ Argon2id at the first memory step (§3.1), 3 passes and 4 lanes, under a
 passphrase typed for it (8 characters or more), as Create a vault makes
 one: its identifier, its seal and its entry's identifiers are drawn as a
 vault's are (`fresh_bytes`), and the seal is count 1. The file is named
-for the entry's title (`password.kdbx` for a BIP-85 password), goes beside
-any file of that name waiting (`password-2.kdbx`), never over it (a seal's
+`keepass-export.kdbx` whatever the entry's title, which a stick's listing
+would otherwise show, goes beside
+any file of that name waiting (`keepass-export-2.kdbx`), never over it (a seal's
 file does the same, §5), and waits
 in the Outbox sealed. The entry's title is its own, "Password" for a BIP-85 password,
 and a notes line that is a BIP-85 path is left out. A KeePass app reads

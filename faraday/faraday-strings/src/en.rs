@@ -1449,6 +1449,9 @@ strings! {
     /// in a KeePass export (`bip85::out_title`) and as a file
     /// (`bip85_out`): nothing of the key it came from or its index (F172).
     bip85_password_out: "Password",
+    /// The file name a KeePass export goes under, whatever the entry's
+    /// title: the stick's listing shows no entry's title (`bip85::kdbx_out`).
+    kdbx_export_file: "keepass-export",
     /// Text in `bip85_out`.
     bip85_secret_warning: "Whoever has it has what it protects or spends",
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
@@ -10502,6 +10505,9 @@ strings! {
     /// Why a vault was not overwritten: the file is not the one the person
     /// was shown. `{}`: the file.
     files_taken_changed: "{} changed since it was shown: not overwritten",
+    /// Why a vault was not written: a hidden file holds another copy of it.
+    /// `{}`: that file.
+    files_newer_waiting: "{} holds another copy of this vault",
     /// Why a vault was not written: two files hold it. `{}`: the files.
     files_vault_twice: "{} and {} are the same vault; remove one",
     /// Why a rename was refused. `{}`: the file.

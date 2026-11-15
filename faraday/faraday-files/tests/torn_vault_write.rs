@@ -121,6 +121,26 @@ fn an_original_whose_last_cluster_was_freed_keeps_the_part_file() {
 }
 
 #[test]
+fn a_whole_part_file_beside_a_whole_original_is_kept_under_a_free_name() {
+    let mut place = Fat(Volume::open(stick(&vault(1), &vault(2))).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), vault(1));
+    assert_eq!(place.read("mine-2.kdbx", u64::MAX).unwrap(), vault(2));
+    assert!(place.read(PART, u64::MAX).is_err());
+}
+
+#[test]
+fn a_part_file_that_is_not_whole_beside_its_original_is_removed() {
+    let mut torn = vault(2);
+    torn.truncate(torn.len() - 100);
+    let mut place = Fat(Volume::open(stick(&vault(1), &torn)).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), vault(1));
+    let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    assert_eq!(names, ["mine.kdbx"]);
+}
+
+#[test]
 fn wiping_one_of_two_names_on_a_chain_leaves_the_other_readable() {
     let mut img = stick(&vault(1), &vault(2));
     let (part, first) = entry_of(&img, 1);
@@ -156,8 +176,180 @@ fn two_names_on_one_chain_leave_the_vault_whole_after_another_file_is_written() 
     img[orig + 26..orig + 28].copy_from_slice(&(first as u16).to_le_bytes());
     let mut place = Fat(Volume::open(img).unwrap());
     finish_vault_writes(&mut place);
+    let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    assert_eq!(names, ["mine.kdbx"]);
     place.create("other.bin", &[7u8; 70_000]).unwrap();
     assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), vault(2));
+}
+
+/// A write-back retried after a pull left the original and a second file
+/// of exactly the sealed bytes ends with the seal under the original name
+/// and no second copy.
+#[test]
+fn a_write_back_retried_after_a_pull_leaves_one_file_with_the_new_seal() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    let copies = [faraday_crypto::sha256(&old), faraday_crypto::sha256(&new)];
+    let done = write_vault_over(
+        &compute(),
+        &mut place,
+        "mine.kdbx",
+        &new,
+        &copies,
+        true,
+        false,
+        OnTaken::Ask,
+    );
+    assert_eq!(done.unwrap(), "mine.kdbx");
+    let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    assert_eq!(names, ["mine.kdbx"]);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// A retry that finds the seal already under the vault's name and an
+/// older copy the person kept beside it writes nothing: both stay.
+#[test]
+fn a_retry_with_the_seal_under_the_vaults_name_leaves_the_backup_copy_alone() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&new, &old)).unwrap());
+    place.remove(PART).unwrap();
+    place.create("mine-old.kdbx", &old).unwrap();
+    let copies = [faraday_crypto::sha256(&old), faraday_crypto::sha256(&new)];
+    let done = write_vault_over(
+        &compute(),
+        &mut place,
+        "mine.kdbx",
+        &new,
+        &copies,
+        true,
+        false,
+        OnTaken::Ask,
+    );
+    assert_eq!(done.unwrap(), "mine.kdbx");
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), new);
+    assert_eq!(place.read("mine-old.kdbx", u64::MAX).unwrap(), old);
+}
+
+/// A pull during the rename of the part file to its free name leaves
+/// both names on one chain: the first write after it does not spoil
+/// either.
+#[test]
+fn a_cut_during_the_rename_of_a_waiting_copy_leaves_no_third_name() {
+    let mut place = Fat(Volume::open(stick(&vault(1), &vault(2))).unwrap());
+    place.create("mine-2.kdbx", &[1]).unwrap();
+    place.0.flush().unwrap();
+    let mut img = place.0.into_disk();
+    // The torn rename: mine-2.kdbx's entry points at the part's chain.
+    let (part, first) = entry_of(&img, 1);
+    let (twin, _) = entry_of(&img, 2);
+    let src = img[part + 20..part + 22].to_vec();
+    img[twin + 20..twin + 22].copy_from_slice(&src);
+    img[twin + 26..twin + 28].copy_from_slice(&(first as u16).to_le_bytes());
+    let size = img[part + 28..part + 32].to_vec();
+    img[twin + 28..twin + 32].copy_from_slice(&size);
+    let mut place = Fat(Volume::open(img).unwrap());
+    finish_vault_writes(&mut place);
+    let mut names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    names.sort();
+    assert_eq!(names, ["mine-2.kdbx", "mine.kdbx"]);
+    place.create("other.bin", &[7u8; 70_000]).unwrap();
+    assert_eq!(place.read("mine-2.kdbx", u64::MAX).unwrap(), vault(2));
+}
+
+fn retry(place: &mut Fat<Vec<u8>>, name: &str, new: &[u8], renamed: bool) -> Text {
+    let copies = [
+        faraday_crypto::sha256(&vault(1)),
+        faraday_crypto::sha256(new),
+    ];
+    write_vault_over(
+        &compute(),
+        place,
+        name,
+        new,
+        &copies,
+        true,
+        renamed,
+        OnTaken::Ask,
+    )
+    .unwrap()
+}
+
+fn names_of(place: &mut Fat<Vec<u8>>) -> Vec<Text> {
+    let mut names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    names.sort();
+    names
+}
+
+/// The vault was renamed on the stick and the write-back cut after the
+/// rename: the retry from a session that still knows the old name leaves
+/// the person's backup copy and the file's name as they are.
+#[test]
+fn a_retry_under_the_old_name_keeps_the_renamed_file_and_the_backup_copy() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick_named("family.kdbx", &new, &old)).unwrap());
+    place.remove(".faraday-family.kdbx.part").unwrap();
+    place.create("family-old.kdbx", &old).unwrap();
+    assert_eq!(retry(&mut place, "mine.kdbx", &new, false), "family.kdbx");
+    assert_eq!(names_of(&mut place), ["family-old.kdbx", "family.kdbx"]);
+    assert_eq!(place.read("family-old.kdbx", u64::MAX).unwrap(), old);
+    assert_eq!(place.read("family.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// A write renamed to a new name, cut after the original went and before
+/// the rename: the retry gives the vault the new name and leaves the
+/// backup copy alone.
+#[test]
+fn a_retry_of_a_renamed_write_names_the_vault_and_keeps_the_backup_copy() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    place.remove("mine.kdbx").unwrap();
+    place.create("mine-old.kdbx", &old).unwrap();
+    finish_vault_writes(&mut place);
+    assert_eq!(retry(&mut place, "ours.kdbx", &new, true), "ours.kdbx");
+    assert_eq!(names_of(&mut place), ["mine-old.kdbx", "ours.kdbx"]);
+    assert_eq!(place.read("mine-old.kdbx", u64::MAX).unwrap(), old);
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// The kept copy of a cut write-back under the other copy's free name
+/// ends as one file under the original's name, whatever name the session
+/// holds.
+#[test]
+fn a_retry_with_a_kept_copy_under_a_free_name_leaves_one_file_under_the_original_name() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["mine-2.kdbx", "mine.kdbx"]);
+    retry(&mut place, "mine-2.kdbx", &new, false);
+    assert_eq!(names_of(&mut place), ["mine.kdbx"]);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// A whole part file that could not take a name is not deleted by the
+/// next write-back: the write-back is refused.
+#[test]
+fn a_whole_copy_waiting_without_a_free_name_is_not_deleted_by_a_write_back() {
+    let (old, waiting, new) = (vault(1), vault(2), vault(3));
+    let mut place = Fat(Volume::open(stick(&old, &waiting)).unwrap());
+    place.create("mine-2.kdbx", &vault(4)).unwrap();
+    for n in 3..100 {
+        place.create(&format!("mine-{n}.kdbx"), &[1]).unwrap();
+    }
+    let copies = [faraday_crypto::sha256(&old)];
+    let done = write_vault_over(
+        &compute(),
+        &mut place,
+        "mine.kdbx",
+        &new,
+        &copies,
+        true,
+        false,
+        OnTaken::Ask,
+    );
+    assert!(done.is_err());
+    assert_eq!(place.read(PART, u64::MAX).unwrap(), waiting);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), old);
 }
 
 /// The chain of the `n`th file's clusters, from the first copy of the FAT.
@@ -744,4 +936,96 @@ fn a_part_file_with_a_header_as_keepass_writes_it_takes_the_name_only_when_whole
             assert!(names.is_empty(), "{names:?}");
         }
     }
+}
+
+/// A vault found by its contents under a name without `.kdbx`, its
+/// write-back cut after the part file was written: the next visit and
+/// the retry leave one copy with the new seal, and the next write-back
+/// is not refused.
+#[test]
+fn a_cut_write_back_of_a_vault_not_named_kdbx_ends_with_one_copy_with_the_new_seal() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick_named("family", &old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["family", "family.kdbx"]);
+    retry(&mut place, "family", &new, false);
+    assert_eq!(names_of(&mut place), ["family"]);
+    assert_eq!(place.read("family", u64::MAX).unwrap(), new);
+    retry(&mut place, "family", &new, false);
+}
+
+/// The retry itself cut after its remove of the original: the next visit
+/// ends with one copy under the original name, holding the new seal.
+#[test]
+fn a_retry_cut_after_the_original_was_removed_ends_with_one_copy_with_the_new_seal() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    // The retry wrote its part, then the original went.
+    place.create(PART, &new).unwrap();
+    place.remove("mine.kdbx").unwrap();
+    finish_vault_writes(&mut place);
+    retry(&mut place, "mine.kdbx", &new, false);
+    assert_eq!(names_of(&mut place), ["mine.kdbx"]);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// The retry cut after its rename and before the duplicate's removal.
+#[test]
+fn a_retry_cut_after_its_rename_ends_with_one_copy_with_the_new_seal() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    place.remove("mine.kdbx").unwrap();
+    place.create("mine.kdbx", &new).unwrap();
+    finish_vault_writes(&mut place);
+    retry(&mut place, "mine.kdbx", &new, false);
+    assert_eq!(names_of(&mut place), ["mine.kdbx"]);
+    assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), new);
+}
+
+/// A renamed retry (mine.kdbx to ours.kdbx) cut after its rename: the next
+/// retry ends with one copy under the asked name with the new seal.
+#[test]
+fn a_renamed_retry_cut_after_its_rename_ends_with_one_copy_under_the_new_name() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["mine-2.kdbx", "mine.kdbx"]);
+    place.remove("mine.kdbx").unwrap();
+    place.create("ours.kdbx", &new).unwrap();
+    assert_eq!(retry(&mut place, "ours.kdbx", &new, true), "ours.kdbx");
+    assert_eq!(names_of(&mut place), ["ours.kdbx"]);
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+    retry(&mut place, "ours.kdbx", &new, false);
+}
+
+/// The same retry cut after its remove of the original: the person's new
+/// name is kept, not dropped.
+#[test]
+fn a_renamed_retry_cut_after_the_original_was_removed_ends_under_the_new_name() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick(&old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    place.create(PART, &new).unwrap();
+    place.remove("mine.kdbx").unwrap();
+    finish_vault_writes(&mut place);
+    assert_eq!(retry(&mut place, "ours.kdbx", &new, true), "ours.kdbx");
+    assert_eq!(names_of(&mut place), ["ours.kdbx"]);
+    assert_eq!(place.read("ours.kdbx", u64::MAX).unwrap(), new);
+    retry(&mut place, "ours.kdbx", &new, false);
+}
+
+/// A vault `family` whose retry was cut after its remove of `family`: the
+/// next visit leaves family.kdbx alone and no hidden part.
+#[test]
+fn a_retry_of_a_vault_not_named_kdbx_cut_after_its_remove_leaves_no_hidden_copy() {
+    let (old, new) = (vault(1), vault(2));
+    let mut place = Fat(Volume::open(stick_named("family", &old, &new)).unwrap());
+    finish_vault_writes(&mut place);
+    place.create(".faraday-family.part", &new).unwrap();
+    place.remove("family").unwrap();
+    finish_vault_writes(&mut place);
+    assert_eq!(names_of(&mut place), ["family.kdbx"]);
+    assert_eq!(place.read("family.kdbx", u64::MAX).unwrap(), new);
 }

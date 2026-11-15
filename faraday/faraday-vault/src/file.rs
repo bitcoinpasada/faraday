@@ -628,7 +628,7 @@ pub fn seal(
     seal_with(c, opened, changes, Rekey::default(), random, now)
 }
 
-/// Costs an Argon2id run at [`Opened::next_cost_at`] the step of `rekey`,
+/// Costs two Argon2id runs at [`Opened::next_cost_at`] the step of `rekey`,
 /// a document write for each item changed, and a read of the document
 /// and of the file made, written and read again. A new file from `opened`
 /// with `changes` applied to a copy of its document, `faraday.format`
@@ -642,9 +642,10 @@ pub fn seal(
 /// `opened` is not changed: a refusal leaves the vault open with its
 /// changes. A read-only vault is refused, an empty passphrase and a step
 /// outside [`STEPS_KIB`] too. The document written is read and written
-/// again, and the file made is opened again with the keys it was made
-/// under (no second Argon2id run): a file that would not read back is
-/// refused as [`kdbx::Error::ReadBack`].
+/// again, the key is derived a second time and the two must be the same,
+/// and the file made is opened again with the keys it was made under: a
+/// key that differs or a file that would not read back is refused as
+/// [`kdbx::Error::ReadBack`].
 pub fn seal_with(
     c: &Compute,
     opened: &Opened,
@@ -666,7 +667,7 @@ pub fn seal_with(
         None => core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
     };
     let components = opened.components.changed(rekey.key_file);
-    let sealing = kdbx::derive_with(
+    let sealing = kdbx::derive_checked(
         c,
         passphrase,
         &components,
@@ -706,7 +707,8 @@ pub(crate) fn read_back(xml: &[u8], inner_key: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// Costs an Argon2id run at `cost`. A new vault: the root group with the
+/// Costs two Argon2id runs at `cost` (the seal checks its key with a
+/// second). A new vault: the root group with the
 /// UUID `id`, named `label`, an empty database stamped as the first seal
 /// (count 1, §8), one [`STEP`] of plaintext, under `passphrase`.
 pub fn create(
@@ -731,7 +733,8 @@ pub fn create(
     )
 }
 
-/// Costs an Argon2id run at `cost` and a document write for each item put.
+/// Costs two Argon2id runs at `cost` (the seal checks its key with a
+/// second) and a document write for each item put.
 /// A new vault as [`create`] makes it (first seal, count 1), with `changes`
 /// put in it, each a [`Change::Put`], sealed at the smallest multiple of [`STEP`]
 /// that holds it. The file needs `components` after the passphrase (§3.2).

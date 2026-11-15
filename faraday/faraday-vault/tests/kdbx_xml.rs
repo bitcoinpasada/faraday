@@ -1337,3 +1337,59 @@ fn a_small_budget_refuses_with_memory_and_a_big_one_reads_the_same_document() {
     let big = Document::read_within(&real, KEY, Some(charged)).expect("reads");
     assert_eq!(big.write(KEY).to_vec(), whole.write(KEY).to_vec());
 }
+
+/// A password a KeePass app saved unprotected and Faraday changes is stored
+/// protected, as another implementation reads the file; a field Faraday
+/// does not change keeps the flag it had.
+#[test]
+fn a_changed_password_in_an_unprotected_entry_is_read_by_pykeepass_as_protected() {
+    use faraday_vault::kdbx::items::{self, Body, Place};
+    use faraday_vault::records::field;
+    let key = [7u8; 64];
+    let id = [9u8; 16];
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let mut e = Entry::new(id);
+    e.set_field("Title", "Example", false).unwrap();
+    e.set_field("UserName", "alice", false).unwrap();
+    e.set_field("Password", "old", false).unwrap();
+    e.set_field("Floor", "3", false).unwrap();
+    // A protected value after the changed one: the stream stays in step.
+    e.set_field("Later", "tail", true).unwrap();
+    doc.root_mut().push_entry(e).unwrap();
+    let doc = Document::read(&doc.write(&key), &key).unwrap();
+    let read = items::read(&compute(), &doc);
+    let Body::Record(r) = &read.items[0].body else {
+        panic!("not a record")
+    };
+    let mut r = r.duplicate();
+    r.set(field::PASSWORD, b"new");
+    let mut doc = doc;
+    let place = Place {
+        uuid: id,
+        group: "",
+        group_uuid: [1; 16],
+        title: "",
+        now: None,
+    };
+    items::put(&compute(), &mut doc, &place, &Body::Record(r)).unwrap();
+    let e = doc.root().entries().next().unwrap();
+    assert_eq!(e.field("Password").unwrap().value(), "new");
+    assert!(e.field("Password").unwrap().protected());
+    assert!(!e.field("Floor").unwrap().protected());
+    assert!(e.field("Later").unwrap().protected());
+    assert_eq!(e.field("Later").unwrap().value(), "tail");
+    let again = Document::read(&doc.write(&key), &key).unwrap();
+    let e = again.root().entries().next().unwrap();
+    assert_eq!(e.field("Password").unwrap().value(), "new");
+    assert_eq!(e.field("Later").unwrap().value(), "tail");
+    assert!(e.field("Later").unwrap().protected());
+    if let Some(text) = pykeepass_reads_with("protected", &doc, &[], &["protected"]) {
+        assert!(text.contains("protected: Example Later=yes\n"), "{text}");
+        assert!(text.contains("value: Example Later=tail\n"), "{text}");
+        assert!(text.contains("protected: Example Password=yes\n"), "{text}");
+        assert!(text.contains("protected: Example UserName=no\n"), "{text}");
+        assert!(text.contains("protected: Example Floor=no\n"), "{text}");
+        assert!(text.contains("\talice\tnew\t"), "{text}");
+    }
+}

@@ -398,9 +398,10 @@ pub fn put_known(
             continue;
         }
         // A person's entry keeps each field's protection as a KeePass app
-        // set it; an item's protection is §7's.
+        // set it, but a Password or one-time password Faraday changes is
+        // written protected; an item's protection is §7's.
         let protected = match (name, e.field(key)) {
-            (None, Some(f)) => f.protected(),
+            (None, Some(f)) => f.protected() || (*protected && f.value() != v),
             _ => *protected,
         };
         e.set_field(key, v, protected)

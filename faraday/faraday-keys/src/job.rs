@@ -208,7 +208,8 @@ impl StretchJob {
     }
 
     /// Costs an Argon2id run over the vault's memory (the same call as
-    /// `faraday_vault::file::open` or `create`), and the reading of each
+    /// `faraday_vault::file::open`; two where a create seals, as
+    /// `create` does), and the reading of each
     /// GPG key of an opened file; with [`StretchJob::with_identities`],
     /// also a PBKDF2 and two elliptic-curve multiplications for each
     /// distinct key record. Everything the job held is wiped as it
@@ -406,7 +407,7 @@ impl SealJob {
         }
     }
 
-    /// Costs an Argon2id run at the vault's next cost, a document write for
+    /// Costs two Argon2id runs at the vault's next cost, a document write for
     /// each entry changed, a PBKDF2 for each new key with no label and a
     /// read back of the document and of the file made (the same calls as
     /// `faraday_vault::file::seal_with`).
@@ -475,8 +476,8 @@ impl KdbxJob {
         }
     }
 
-    /// Costs an Argon2id run at the job's cost and a document write (the
-    /// same calls as `faraday_vault::file::create_holding`). The vault
+    /// Costs two Argon2id runs at the job's cost (the seal checks its key
+    /// with a second) and a document write (the same calls as `faraday_vault::file::create_holding`). The vault
     /// file, encrypted so public; an error where the item does not fit the
     /// largest size, and then no file is given back.
     pub fn run(self, c: &Compute) -> Result<Vec<u8>, fv::file::Error> {
