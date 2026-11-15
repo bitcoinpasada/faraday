@@ -22,46 +22,15 @@
 //! no press, since a real stick is put in by hand (`docs/BACKUP-FLOW.md`
 //! §16).
 
-use crate::Item;
-use crate::Screen;
-use crate::Seen;
-use crate::Sheet;
-use crate::StorageCommand;
-use crate::StorageEvent;
+use super::folders::{BOOT_FOLDER, FIRST_BACKUP, backup_folder, folder_number};
 use crate::backup_flow::{Purpose, Step};
 use crate::drawing::View;
 use crate::medium::Medium;
 use crate::strings::EN;
 use crate::ui::{Ui, W};
-use crate::wallet::FileKind;
 use crate::{Action, Faraday, StickInfo};
-use crate::{backup_flow, catalog, convert, devices, secrets, seeds, stick, vault};
-use faraday_intake::seedqr_words;
-use faraday_shell_api::Command;
-use faraday_text::{Num, Text, text};
+use faraday_text::{Num, Text};
 use faraday_ui::stick::{PillAt, StickState};
-use std::collections::BTreeSet;
-
-/// The boot stick's folder.
-pub const BOOT_FOLDER: &str = "BOOTSTICK";
-
-/// The number of the first backup stick: the boot stick is Stick 1.
-pub const FIRST_BACKUP: usize = 2;
-
-/// The folder of backup Stick `n` (2 and on: Stick 1 is the boot stick,
-/// whose folder is [`BOOT_FOLDER`]).
-pub fn backup_folder(n: usize) -> Text {
-    text!("STICK-{n}")
-}
-
-/// The number a backup stick's folder is for, when it is one.
-fn folder_number(folder: &str) -> Option<usize> {
-    folder
-        .strip_prefix("STICK-")?
-        .parse()
-        .ok()
-        .filter(|&n| n >= FIRST_BACKUP)
-}
 
 /// The sticks a backup flow waits for, for the pills and for a demo that
 /// inserts them itself.
@@ -258,6 +227,53 @@ impl Faraday {
         )
     }
 
+    /// The sticks the person pressed since the last call, as folder
+    /// names: the shell inserts each one that is out and pulls each one
+    /// that is in.
+    pub fn take_stick_toggles(&mut self) -> Vec<Text> {
+        std::mem::take(&mut self.stick.toggles)
+    }
+
+    /// A press on pill `n`; none on a device, whose sticks are put in by
+    /// hand.
+    pub(crate) fn stick_pill_pressed(&mut self, n: u8) {
+        if !self.shell_sticks {
+            return;
+        }
+        let n = usize::from(n);
+        let folder = if n <= 1 {
+            Text::of(BOOT_FOLDER)
+        } else {
+            backup_folder(n)
+        };
+        self.stick.toggles.push(folder);
+        // A pill for a stick of the flow at Bring in the sticks says
+        // which one the stick put in next is for.
+        if let Some(i) = self.flows.on() {
+            let slot = (0..self.flows[i].slots.len()).find(|&k| self.flows[i].stick_number(k) == n);
+            if let Some(k) = slot {
+                self.flows.want(i, k);
+            }
+        }
+    }
+
+    /// A press that is the shell's, not the page's, so it acts under any
+    /// sheet and waits for nothing: a stick's pill, in Faraday Demo's
+    /// host strip or its menu, or a device's strip. Returns whether it
+    /// was one.
+    pub(crate) fn stick_bar_press(&mut self, action: Action) -> bool {
+        match action {
+            Action::StickPill(n) => {
+                self.stick_pill_pressed(n);
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+// Which flow slot a stick is, and what the flow calls it.
+impl Faraday {
     /// The slot of the flow on screen that the stick `st` reads as, when
     /// it is recognised as one (§18): the stick being read, once the flow
     /// has taken it for its slot or checked it; else the one slot whose
@@ -464,36 +480,6 @@ impl Faraday {
         let (word, n) = self.flow_slot_word_n(k)?;
         Some(Text::fill(EN.backup_flow_mark_as, &[word, &n]))
     }
-
-    /// The sticks the person pressed since the last call, as folder
-    /// names: the shell inserts each one that is out and pulls each one
-    /// that is in.
-    pub fn take_stick_toggles(&mut self) -> Vec<Text> {
-        std::mem::take(&mut self.stick.toggles)
-    }
-
-    /// A press on pill `n`; none on a device, whose sticks are put in by
-    /// hand.
-    pub(crate) fn stick_pill_pressed(&mut self, n: u8) {
-        if !self.shell_sticks {
-            return;
-        }
-        let n = usize::from(n);
-        let folder = if n <= 1 {
-            Text::of(BOOT_FOLDER)
-        } else {
-            backup_folder(n)
-        };
-        self.stick.toggles.push(folder);
-        // A pill for a stick of the flow at Bring in the sticks says
-        // which one the stick put in next is for.
-        if let Some(i) = self.flows.on() {
-            let slot = (0..self.flows[i].slots.len()).find(|&k| self.flows[i].stick_number(k) == n);
-            if let Some(k) = slot {
-                self.flows.want(i, k);
-            }
-        }
-    }
 }
 
 /// How a row of pills is set.
@@ -698,533 +684,4 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
         }
     }
     (ui.ox, ui.oy, ui.in_sheet) = was;
-}
-
-impl Faraday {
-    /// A press that is the shell's, not the page's, so it acts under any
-    /// sheet and waits for nothing: a stick's pill, in Faraday Demo's
-    /// host strip or its menu, or a device's strip. Returns whether it
-    /// was one.
-    pub(crate) fn stick_bar_press(&mut self, action: Action) -> bool {
-        match action {
-            Action::StickPill(n) => {
-                self.stick_pill_pressed(n);
-                true
-            }
-            _ => false,
-        }
-    }
-}
-
-impl Faraday {
-    pub(crate) fn storage_event(&mut self, event: StorageEvent) {
-        let c = self.compute();
-        let event = match self
-            .settings_event(event)
-            .and_then(|e| self.import_event(e))
-        {
-            Some(e) => e,
-            None => {
-                self.out.redraw();
-                self.out.commands.push_back(Command::Draw);
-                return;
-            }
-        };
-        match event {
-            StorageEvent::Sticks(sticks) => {
-                self.sticks_changed(sticks);
-                self.zero_sticks_changed();
-            }
-            StorageEvent::Read { stick, name, bytes } if self.flow_wants_read(&stick, &name) => {
-                self.flow_read_answer(&name, Some(bytes));
-            }
-            // A picture the write step wrote, read back for its codes.
-            StorageEvent::QrRead {
-                name,
-                bytes,
-                payloads,
-            } if self.flow_wants_qr(&name) => {
-                self.flow_qr_answer(&name, Some((bytes, payloads)));
-            }
-            StorageEvent::ReadFailed { name, .. } if self.flow_wants_qr(&name) => {
-                self.flow_qr_answer(&name, None);
-            }
-            StorageEvent::ReadFailed { stick, name, .. } if self.flow_wants_read(&stick, &name) => {
-                self.flow_read_answer(&name, None);
-            }
-            StorageEvent::StickSpace { stick, free, size } if self.flow_wants_space(&stick) => {
-                self.flow_space_answer(free, size);
-            }
-            StorageEvent::StickProblem { stick, read_only } => {
-                self.flow_stick_problem(&stick, read_only);
-            }
-            ev @ (StorageEvent::Written { .. } | StorageEvent::WriteFailed { .. })
-                if self.flow_wants_write_event(&ev) =>
-            {
-                self.flow_write_event(ev);
-            }
-            ev @ StorageEvent::NameTaken { .. } => self.name_taken_event(ev),
-            StorageEvent::Read { stick, name, bytes } => {
-                // A file Faraday reads as nothing else still comes in, as
-                // a File: to sign, or to send as codes.
-                let mut item = Item::new(&c, &name, bytes);
-                // A secret (seed, TOTP entries, wallet) the person did not
-                // tick is not kept (its bytes wipe as they drop): the file
-                // stays listed, unticked, as a secret named as one is.
-                if !self.visit.inn_is_own(&name)
-                    && item.kind.exposure() == secrets::Exposure::Secret
-                {
-                    self.visit.inn_unchoose(&name);
-                    self.visit.load_after_remove(&name);
-                    self.visit.reading_done(&name);
-                    self.visit.log_push((
-                        faraday_text::Text::fill(EN.storage_event_seed_not_copied, &[&*name]),
-                        true,
-                    ));
-                } else {
-                    item.name = self.inbox_name_for(&name, &item.bytes);
-                    if item.kind == FileKind::Vault
-                        && let Some(s) = self.stick.iter().find(|s| s.id == stick)
-                    {
-                        let label = s.label.clone();
-                        self.vault_read_from(&item.name, &item.bytes, &label);
-                    }
-                    // The visit's rows say what came in; only a seed waiting
-                    // for the stick's removal is worth a line.
-                    let line = (item.kind == FileKind::Words
-                        && self.visit.load_after.contains(&*item.name))
-                    .then(|| {
-                        faraday_text::Text::fill(
-                            EN.storage_event_copied_words,
-                            &[&item.name, self.medium.noun()],
-                        )
-                    });
-                    self.inbox.push(item);
-                    if let Some(line) = line {
-                        self.visit.log_push((line, true));
-                    }
-                    self.visit.inn_unchoose(&name);
-                    self.visit.reading_done(&name);
-                    self.save_boxes();
-                }
-            }
-            StorageEvent::ReadFailed { name, reason, .. } => {
-                self.visit.reading_done(&name);
-                self.visit
-                    .log_push((faraday_text::text!("{}: {}", &*name, &*reason), false));
-            }
-            StorageEvent::Written { name, wrote_as, .. } => {
-                self.visit_written(&name, &wrote_as);
-                // A rename is carried by one write, to the stick written:
-                // another stick keeps its own name for the same vault.
-                self.visit.renamed_remove(&name);
-                // A copy from the Inbox stays there, for the next stick.
-                if self.visit.writing_inbox_done(&name) {
-                    self.visit.inbox_unpick(&name);
-                } else {
-                    // Written, it leaves For the stick for the receipt. A
-                    // vault stays in Files as the stick now holds it, to
-                    // unlock again; its copy from before goes.
-                    if let Some(k) = self.outbox.iter().position(|i| i.name == *name) {
-                        let item = self.outbox.remove(k);
-                        self.inbox_vault_written(&c, &item);
-                    }
-                    self.visit.out_unchoose(&name);
-                }
-                let line = if wrote_as == name {
-                    faraday_text::Text::fill(EN.storage_event_wrote_read, &[&*name])
-                } else {
-                    faraday_text::Text::fill(EN.storage_event_wrote, &[&*name, &*wrote_as])
-                };
-                self.visit.log_push((line, true));
-                self.save_boxes();
-            }
-            StorageEvent::WriteFailed { name, reason, .. } => {
-                self.visit_write_failed(&name, &reason)
-            }
-            StorageEvent::NotKept => self.not_kept(),
-            StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None, true),
-            StorageEvent::WipedName { stick, name } => self.wiped(&stick, &name, None, false),
-            e @ StorageEvent::Renamed { .. } => self.file_renamed(e),
-            e @ StorageEvent::StickNamed { .. } => self.stick_named(e),
-            StorageEvent::BootMedium(m) => self.stick.set_boot_medium(m),
-            StorageEvent::Attached(a) => self.storage_attached(a),
-            StorageEvent::Hashed { stick, name, sha } => self.file_hashed(&stick, &name, sha),
-            StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
-            StorageEvent::Zeroing {
-                next, total, done, ..
-            } => self.zero_step(next, total, done),
-            StorageEvent::ZeroFailed { stick, reason } => {
-                // The room on a stick could not be asked for: the flow's
-                // reading of it ends, with the stick unusable.
-                self.flow_space_failed(&stick);
-                self.zero_failed(&reason)
-            }
-            StorageEvent::WipeFailed {
-                stick,
-                name,
-                reason,
-            } => self.wiped(&stick, &name, Some(&reason), false),
-            StorageEvent::Printed { path } => {
-                self.toast(&faraday_text::Text::fill(EN.storage_event_saved, &[&*path]))
-            }
-            StorageEvent::Clock { unix_secs } => {
-                self.vaults.set_clock(unix_secs, self.now_ms);
-                return;
-            }
-            StorageEvent::Memory { available_mib } => {
-                let shown = self.vaults.memory_shown();
-                self.vaults.set_memory_free(available_mib);
-                // Drawn again only when the figure changes what the screen
-                // shows, not at every reading.
-                if !matches!(self.screen, Screen::CreateVault | Screen::Unlock)
-                    || shown == self.vaults.memory_shown()
-                {
-                    return;
-                }
-            }
-            StorageEvent::Cameras(list) => {
-                // Sent as the shell looks again: drawn again only when it
-                // changes, since what the copy item offers depends on it.
-                if !self.camera.set_cameras(list) {
-                    return;
-                }
-            }
-            StorageEvent::QrSeen {
-                width,
-                height,
-                corners,
-                module_tenths,
-                read,
-                whole,
-            } => {
-                let now_ms = self.now_ms;
-                self.camera.qr_seen(
-                    now_ms,
-                    Seen {
-                        width,
-                        height,
-                        corners,
-                        read,
-                    },
-                    module_tenths,
-                    whole,
-                );
-            }
-            StorageEvent::QrRead {
-                name,
-                mut bytes,
-                mut payloads,
-            } => {
-                // A picture holding a SeedQR comes in only on the
-                // person's own tick: another is dropped, left listed.
-                let own = self.visit.inn_is_own(&name);
-                self.visit.inn_unchoose(&name);
-                self.visit.reading_done(&name);
-                let dropped = !own
-                    && payloads.iter().any(|p| {
-                        !crate::scan_read::is_compact_text(p) && seedqr_words(p).is_some()
-                    });
-                if dropped {
-                    self.visit.load_after_remove(&name);
-                    self.visit.log_push((
-                        faraday_text::Text::fill(EN.storage_event_seed_not_copied, &[&*name]),
-                        true,
-                    ));
-                } else {
-                    // The picture itself comes in as it is, beside what its
-                    // codes hold, to be written to another stick; it takes
-                    // the exposure of what they hold.
-                    let before = self.inbox.len();
-                    self.qr_read(&name, std::mem::take(&mut payloads));
-                    let holds = self.picture_holds(before);
-                    // Under its own name, unless what its codes held took it.
-                    let got = if self.inbox.iter().skip(before).any(|i| i.name == *name) {
-                        self.free_inbox_name(&name)
-                    } else {
-                        self.inbox.retain(|i| i.name != *name);
-                        faraday_text::Text::of(&name)
-                    };
-                    let mut item = Item::new(&c, &got, std::mem::take(&mut *bytes));
-                    item.picture = Some(holds);
-                    self.inbox.push(item);
-                    self.save_boxes();
-                }
-            }
-            StorageEvent::PrintFailed { reason } => self.toast(&faraday_text::Text::fill(
-                EN.storage_event_not_printed,
-                &[&*reason],
-            )),
-            #[cfg(feature = "demo")]
-            StorageEvent::HostFiles { dir, files, opens } => {
-                if !self.transfer_listed(dir, files, opens) {
-                    return;
-                }
-            }
-            #[cfg(feature = "demo")]
-            e @ (StorageEvent::Hovered(_)
-            | StorageEvent::Dropped { .. }
-            | StorageEvent::HostRead { .. }
-            | StorageEvent::HostReadFailed { .. }
-            | StorageEvent::Saved { .. }
-            | StorageEvent::SaveFailed { .. }) => self.transfer_event(e),
-            // Only Faraday Demo and the Starter hold Transfer, which these
-            // events are for; the stick's shell never sends them.
-            #[cfg(not(feature = "demo"))]
-            StorageEvent::HostFiles { .. }
-            | StorageEvent::Hovered(_)
-            | StorageEvent::Dropped { .. }
-            | StorageEvent::HostRead { .. }
-            | StorageEvent::HostReadFailed { .. }
-            | StorageEvent::Saved { .. }
-            | StorageEvent::SaveFailed { .. } => {}
-            e @ (StorageEvent::NewInput { .. }
-            | StorageEvent::InputTyped { .. }
-            | StorageEvent::InputTapped { .. }
-            | StorageEvent::InputUsed { .. }
-            | StorageEvent::InputTrust { .. }
-            | StorageEvent::BootUsb { .. }
-            | StorageEvent::InputGone { .. }) => self.input_event(e),
-            StorageEvent::Restored {
-                inbox,
-                outbox,
-                kept,
-            } => {
-                self.inbox.replace(
-                    inbox
-                        .into_iter()
-                        .map(|(n, b)| Item::new(&c, &n, b))
-                        .collect(),
-                );
-                self.outbox = outbox
-                    .into_iter()
-                    .map(|(n, b)| Item::new(&c, &n, b))
-                    .collect();
-                self.restore_kept(&kept);
-            }
-        }
-        self.out.redraw();
-        self.out.commands.push_back(Command::Draw);
-    }
-
-    pub(crate) fn sticks_changed(&mut self, sticks: Vec<StickInfo>) {
-        let had = !self.stick.is_empty();
-        let ids_before: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
-        self.stick.set_sticks(sticks);
-        // The keys follow: no way of adding one adds it with a stick in.
-        let noun = self.stick.in_the_way().then(|| self.medium.noun());
-        self.session.keys.set_stick_attached(noun);
-        let present: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
-        // What the shell found unusable comes with each listing: a stick
-        // that no longer reports a problem has none.
-        let _ = &present;
-        self.stick.clear_problems();
-        // The medium the device started from goes by what it is, not by its volume label.
-        let boot = self.medium.boot();
-        self.stick.label_boot_sticks(boot);
-        let ids_now: Vec<faraday_text::Text> = self.stick.iter().map(|s| s.id.clone()).collect();
-        if self.visit.stick >= self.stick.len() {
-            self.visit.set_stick(0);
-        }
-        let names: BTreeSet<faraday_text::Text> = self
-            .stick
-            .get(self.visit.stick)
-            .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
-            .unwrap_or_default();
-        self.visit.inn_retain(|n| names.contains(n));
-        self.flow_sticks_changed();
-        self.name_taken_pulled();
-        if self.stick.is_empty() {
-            self.stick.set_held(false);
-            self.stick.set_not_now(false);
-            if self.sheet == Some(Sheet::Lock) {
-                self.sheet = None;
-            }
-            // A passphrase waiting on the stick takes typing now.
-            if self.screen == Screen::Unlock
-                && self.vaults.focus.is_none()
-                && self.vault_files().iter().any(|f| f.open.is_none())
-            {
-                self.vaults.set_focus(Some(vault::Focus::Passphrase));
-            }
-            self.visit_pulled();
-            if had {
-                let loaded = self.load_after_pull() + self.import_load_after_pull();
-                let said = if loaded == 0 {
-                    faraday_text::Text::fill(EN.sticks_changed_removed_only, &[self.medium.cap()])
-                } else {
-                    faraday_text::Text::fill(
-                        EN.sticks_changed_removed,
-                        &[
-                            self.medium.cap(),
-                            &faraday_text::Text::num(loaded as u64),
-                            (if loaded == 1 {
-                                EN.sticks_changed_key
-                            } else {
-                                EN.sticks_changed_keys
-                            }),
-                        ],
-                    )
-                };
-                self.toast(&said);
-            }
-            self.import_stick_gone();
-            // What was pressed with the stick in carries on, and the
-            // reminders the sheet listed are seen.
-            if self.sheet == Some(Sheet::Pull) {
-                self.sheet = None;
-                if let Some(a) = self.visit.take_pull() {
-                    if self.devices.held.is_empty() {
-                        self.devices.understand();
-                    }
-                    self.act(a);
-                }
-            }
-            return;
-        }
-        self.import_stick_gone();
-        if ids_now == ids_before {
-            self.flow_sticks_changed();
-            self.release_held_stick();
-            return;
-        }
-        // A stick arriving while the camera is on is held back, and
-        // arrives when the camera is off (`docs/FLOWS.md`): then a clean
-        // process visits it and any other asks to lock first. The
-        // scanner is never replaced with its camera still on.
-        if self.camera_on() {
-            self.stick.set_held(true);
-            return;
-        }
-        self.stick_arrived();
-    }
-
-    /// A stick arrived, or one held back is taken now.
-    pub(crate) fn stick_arrived(&mut self) {
-        let c = self.compute();
-        // A stick arrived. Only a clean process takes it; any other locks
-        // first (`docs/FLOWS.md`). No passphrase field takes typing while
-        // it is attached.
-        seeds::kef::kef_stick_arrived(self);
-        if matches!(
-            self.vaults.focus,
-            Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
-        ) {
-            self.vaults.set_focus(None);
-        }
-        stick::tools_lose_secrets(self, false);
-        // The backup flow on screen takes the stick: never the visit, at any
-        // step (`docs/BACKUP-FLOW.md` §5).
-        if self.flow_stick_arrived() {
-            return;
-        }
-        self.visit.log_clear();
-        self.visit.set_settings(None);
-        // The first look at the boot stick this power-on: what it holds is
-        // copied into memory for the import (`boot_import`).
-        let first_look = self.stick.settings().is_none();
-        let boot = self.stick.iter().find(|s| s.boot).cloned();
-        if !self.clean() {
-            self.stick.set_not_now(false);
-            self.lock_sheet_replaces_devices();
-        } else {
-            {
-                let v = self.visit_default_out(&c);
-                self.visit.set_out(v);
-            }
-            {
-                let v = self.visit_default_in();
-                self.visit.set_inn(v);
-            }
-            if self.sheet == Some(Sheet::Import) {
-                self.sheet = None;
-            }
-            // The boot stick alone at its first look, or back for its
-            // import, leaves Home on screen (`boot_import`).
-            if !self.import_keeps_home(first_look, boot.as_ref()) {
-                // A stick arriving in the middle of Create or Restore
-                // brings the person back there when it is pulled.
-                if matches!(
-                    self.screen,
-                    Screen::Create | Screen::Restore | Screen::SpendBackup
-                ) {
-                    self.visit.set_after_visit(self.screen);
-                }
-                self.screen = Screen::Files;
-                self.visit.set_tab_stick(true);
-            }
-            if first_look
-                && self.import.state().is_none()
-                && let Some(b) = boot.as_ref()
-                && b.files.iter().any(|(n, _)| !stick::settings::is_file(n))
-            {
-                self.import_start(b);
-            }
-            // The boot stick's settings, once a session (`stick_settings`).
-            if self.stick.settings().is_none()
-                && let Some(boot) = self.stick.iter().find(|s| s.boot)
-            {
-                match boot.files.iter().find(|(n, _)| stick::settings::is_file(n)) {
-                    Some((n, _)) => self.out.storage_out.push_back(StorageCommand::Read {
-                        stick: boot.id.clone(),
-                        name: n.clone(),
-                    }),
-                    None => self.settings_on_stick_known(),
-                }
-            }
-        }
-    }
-
-    /// What `action` does, named for the sheet that asks for the stick to
-    /// be pulled first, when it loads a key or turns the camera on (a
-    /// frame may picture a seed); `None` for anything a stick may stay in
-    /// for.
-    pub fn pull_what(&self, action: Action) -> Option<&'static str> {
-        use {backup_flow::steps::FlowAction as F, catalog::Go, convert::ConvertAction as C};
-        Some(match action {
-            a if devices::camera_press(a) => EN.pull_what_scan,
-            Action::Convert(C::Check) if convert::checks_by_scan(self) => EN.pull_what_scan,
-            Action::Entry(_)
-            | Action::SeedCheck(crate::seed_check::SeedAction::Type)
-            | Action::EntryWallet(_)
-            | Action::ScanSeed
-            | Action::ScanKey(_)
-            | Action::ScanPart
-            | Action::LoadKey(_)
-            | Action::KeyGen(None)
-            | Action::CSlotVault(..)
-            | Action::Convert(C::VaultKey(..) | C::Aezeed | C::SetSource)
-            | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
-            Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
-            Action::PotentialOpen(_) => EN.pull_what_load_wallet,
-            // The ticks stay on Load samples' state; the load runs once the stick is out.
-            Action::SamplesLoad if self.sample_area.any_ticked() => EN.pull_what_load_samples,
-            // Unlocking for another flow: the Pull sheet asks first, and
-            // Unlock opens once the stick is out.
-            Action::Vault(vault::VaultAction::OpenFrom(i, _))
-                if self.vault_files().get(i).is_some_and(|f| f.open.is_none()) =>
-            {
-                EN.pull_what_unlock
-            }
-            Action::Vault(vault::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
-            Action::Flow(F::UnlockVault(_) | F::UnlockDone(_)) => EN.pull_what_unlock,
-            Action::Flow(F::CreateVault(_)) => EN.pull_what_create_vault,
-            Action::Flow(F::Make | F::CopyKey | F::TypeString) => EN.pull_what_make_a_key,
-            Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
-                Go::VaultCategory(c)
-                    if self.vaults.open.is_empty()
-                        && !self.vault_files().is_empty()
-                        && backup_flow::Kind::of_category(c).is_none() =>
-                {
-                    EN.pull_what_unlock
-                }
-                Go::NewShares => EN.pull_what_make_a_key,
-                Go::NewKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => EN.pull_what_add_a_key,
-                // Sign and Decode with nothing to open: the Scan they press waits.
-                Go::CheckAddress | Go::Scan => EN.pull_what_scan,
-                _ => return None,
-            },
-            _ => return None,
-        })
-    }
 }

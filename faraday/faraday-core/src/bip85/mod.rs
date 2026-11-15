@@ -91,7 +91,7 @@ pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, 
     let name = text!("{}.kdbx", EN.kdbx_export_file);
     (
         out,
-        Text::of(&crate::visit_taken::outbox_free_name(outbox, &name)),
+        Text::of(&crate::stick::visit_taken::outbox_free_name(outbox, &name)),
     )
 }
 
@@ -659,7 +659,10 @@ impl Faraday {
             // key it came from or its index, and holding itself alone
             // (F172), beside any other waiting in the Outbox.
             let name = text!("{}.txt", crate::file_stem(EN.bip85_password_out).as_str());
-            let name = Text::of(&crate::visit_taken::outbox_free_name(&self.outbox, &name));
+            let name = Text::of(&crate::stick::visit_taken::outbox_free_name(
+                &self.outbox,
+                &name,
+            ));
             (name, text!("{}\n", value.as_str()))
         } else {
             let fp = b

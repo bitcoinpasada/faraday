@@ -708,7 +708,7 @@ fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> Text {
         return Text::of(name);
     }
     taken.extend(others_in(&app.inbox));
-    Text::of(&crate::visit_taken::free_name(&taken, name))
+    Text::of(&crate::stick::visit_taken::free_name(&taken, name))
 }
 
 /// The back half: the file to the Outbox, and the next vault.

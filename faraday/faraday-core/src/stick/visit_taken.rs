@@ -11,8 +11,12 @@
 use crate::drawing::View;
 use crate::storage_api::OnTaken;
 use crate::strings::EN;
+use crate::wallet::FileKind;
+use crate::{Column, Item, ReceiptFile, VisitBarAt, Writing, seed_by_name};
+use faraday_crypto::work::Compute;
 use faraday_draw::widgets::Icon;
 use faraday_text::{Text, text};
+use std::collections::BTreeSet;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
@@ -1544,5 +1548,201 @@ impl Faraday {
         args.push(self.medium.for_the());
         let text = Text::fill(template, &args);
         self.toast(&text);
+    }
+}
+
+/// The visit screen's choices.
+#[derive(Default)]
+pub struct VisitState {
+    /// The stick shown, by index.
+    pub stick: usize,
+    /// On a small window, whether Files' tab On the stick is the one
+    /// shown (else In Faraday).
+    pub tab_stick: bool,
+    /// Outbox files chosen to write, by name.
+    pub out: BTreeSet<faraday_text::Text>,
+    /// Stick files chosen to copy, by name.
+    pub inn: BTreeSet<faraday_text::Text>,
+    /// The stick files the person ticked themselves, as opposed to the
+    /// visit's defaults: a file that turns out to hold a seed is kept
+    /// only when its tick is here (`Faraday::visit_read_in`).
+    pub inn_own: BTreeSet<faraday_text::Text>,
+    /// Stick files asked for and not yet answered, by name: a picture's
+    /// codes are read off the shell's thread, one picture at a time.
+    pub reading: BTreeSet<faraday_text::Text>,
+    /// The settings file's row as the person set it; `None` for its
+    /// default (`Faraday::visit_settings_on`).
+    pub settings: Option<bool>,
+    /// What the last write or copy did, one line per file.
+    pub log: Vec<(faraday_text::Text, bool)>,
+    /// Names from an "Import and load" copy, by name: loaded as keys the
+    /// moment the stick is pulled, no further press needed.
+    pub load_after: BTreeSet<faraday_text::Text>,
+    /// How far the Outbox list is scrolled, design units. The stick's
+    /// files scroll by [`Faraday::list_offset`].
+    pub out_offset: f32,
+    /// Where each column's scrollbar was drawn, by [`VisitState::bar`].
+    pub bars: [std::cell::Cell<Option<VisitBarAt>>; 2],
+    /// Inbox files chosen to write, by name: a copy from one stick to
+    /// another. One that may be a secret is chosen only on the secret
+    /// sheet.
+    pub from_inbox: BTreeSet<faraday_text::Text>,
+    /// Inbox files sent to be written and not yet answered, by name.
+    pub writing_inbox: BTreeSet<faraday_text::Text>,
+    /// The write under way: the stick's label, and each file sent with
+    /// the SHA-256 of its bytes. Its first answer starts a new receipt.
+    pub writing: Option<Writing>,
+    /// The files the write would write whose names are taken on the
+    /// stick, while the Already on the stick sheet asks.
+    pub taken: Vec<Taken>,
+}
+
+impl VisitState {
+    /// Where `column`'s scrollbar was drawn, `None` when its list fits.
+    pub fn bar(&self, column: Column) -> &std::cell::Cell<Option<VisitBarAt>> {
+        &self.bars[match column {
+            Column::Outbox => 0,
+            Column::Stick => 1,
+        }]
+    }
+}
+
+impl Faraday {
+    /// A write's answer onto the receipt: the first answer of a write
+    /// replaces the last receipt with a new one.
+    pub(crate) fn receipt_add(&mut self, name: &str, failure: Option<faraday_text::Text>) {
+        let c = self.compute();
+        let now = self.clock_now();
+        let Some((name, hash, opened)) = self.visit.writing_answered(name, now) else {
+            return;
+        };
+        if let Some(r) = opened {
+            self.visit.set_receipt(Some(r));
+        }
+        let hash = self.hash_to_keep(&c, hash);
+        self.visit.receipt_push(ReceiptFile {
+            name: name.as_str().into(),
+            hash,
+            verified: failure.is_none(),
+            failure: failure.map(|f| f.as_str().into()),
+        });
+    }
+
+    /// Costs a read of the free memory (one small file). What a visit ticks to come in: every file
+    /// on the stick shown that Faraday reads, but a seed's by its name
+    /// (which comes in through its own tick), one over 18 MiB, and one
+    /// From the stick already by name and size.
+    pub(crate) fn visit_default_in(&mut self) -> std::collections::BTreeSet<faraday_text::Text> {
+        // Which vault files fit is by what is free now.
+        self.vaults.read_free();
+        let Some(stick) = self.stick.get(self.visit.stick) else {
+            return Default::default();
+        };
+        stick
+            .files
+            .iter()
+            .filter(|(n, size)| {
+                stick.kind_of(n).is_some()
+                    && stick.unread_why(&self.vaults, n, *size).is_none()
+                    && !seed_by_name(n)
+                    && !self
+                        .inbox
+                        .iter()
+                        .any(|i| i.name == **n && i.bytes.len() as u64 == *size)
+            })
+            .map(|(n, _)| faraday_text::Text::of(n))
+            .collect()
+    }
+
+    /// Costs a hash of a whole file (through `hash`).
+    /// [`Faraday::visit_all_out`], but with more than one vault file
+    /// waiting, one vault for this stick: the
+    /// first the last write did not write. The rest wait for the next
+    /// stick.
+    pub(crate) fn visit_default_out(
+        &self,
+        c: &Compute,
+    ) -> std::collections::BTreeSet<faraday_text::Text> {
+        let mut out = self.visit_all_out();
+        let vaults: Vec<&Item> = self
+            .outbox
+            .iter()
+            .filter(|i| i.kind == FileKind::Vault)
+            .collect();
+        if vaults.len() > 1 {
+            let written = |i: &Item| {
+                self.visit
+                    .receipt()
+                    .as_ref()
+                    .is_some_and(|r| r.holds(&i.name, &i.hash(c)))
+            };
+            let one = vaults
+                .iter()
+                .find(|i| !written(i))
+                .or(vaults.first())
+                .map(|i| i.name.clone());
+            for i in &vaults {
+                if Some(&i.name) != one.as_ref() {
+                    out.remove(&*i.name);
+                }
+            }
+        }
+        out
+    }
+
+    /// Reads every chosen stick file into the Inbox.
+    pub(crate) fn visit_copy(&mut self) {
+        if let Some(stick) = self.stick.get(self.visit.stick) {
+            let id = stick.id.clone();
+            self.visit.log_clear();
+            self.vaults.read_free();
+            for name in self.visit.inn.clone() {
+                // A vault file this computer has not the memory for now is
+                // not read; the row says what it needs.
+                let size = stick
+                    .files
+                    .iter()
+                    .find(|(n, _)| **n == *name)
+                    .map_or(0, |(_, size)| *size);
+                if stick.unread_why(&self.vaults, &name, size).is_some() {
+                    self.visit.inn_unchoose(&name);
+                    continue;
+                }
+                // A picture's QR codes are read, not its bytes.
+                let stick = id.clone();
+                if self.visit.reading_has(&name) {
+                    continue;
+                }
+                self.visit.reading_add(name.clone());
+                self.out.storage_out.push_back(
+                    if faraday_text::Text::ascii_lowercase(&name).ends_with(".png") {
+                        StorageCommand::ReadQr {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
+                    } else {
+                        StorageCommand::Read {
+                            stick,
+                            name: faraday_text::Text::of(&name),
+                        }
+                    },
+                );
+            }
+        }
+    }
+
+    /// A stick visit column's list scrolled to where its scrollbar is
+    /// held, at pixel row `y`: the thumb's middle under the finger.
+    pub(crate) fn visit_drag(&mut self, column: Column, y: i32) {
+        let Some((top, h, thumb, max)) = self.visit.bar(column).get() else {
+            return;
+        };
+        let room = (h - thumb).max(1) as f32;
+        let at = ((y - top) as f32 - thumb as f32 / 2.0).clamp(0.0, room);
+        let offset = at / room * max;
+        match column {
+            Column::Outbox => self.visit.set_out_offset(offset),
+            Column::Stick => self.list_offset = offset,
+        }
     }
 }

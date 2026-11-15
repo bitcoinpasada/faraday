@@ -62,7 +62,7 @@ impl-faraday faraday/faraday-core/src/trail.rs
 impl-faraday faraday/faraday-core/src/transfer/mod.rs
 impl-faraday faraday/faraday-core/src/vanity/mod.rs
 impl-faraday faraday/faraday-core/src/vault/mod.rs
-impl-faraday faraday/faraday-core/src/visit_taken.rs
+impl-faraday faraday/faraday-core/src/stick/visit_taken.rs
 impl-faraday faraday/faraday-core/src/wallet.rs
 impl-faraday faraday/faraday-core/src/wallet_backup.rs
 impl-faraday faraday/faraday-core/src/word_entry.rs

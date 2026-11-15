@@ -1,13 +1,16 @@
 //! The stick area: the sticks present and what is chosen about them.
 
+pub(crate) mod events;
+pub mod folders;
 pub(crate) mod pills;
 pub mod settings;
+pub mod visit_taken;
 pub mod wipe;
 
 use crate::medium::Medium;
 use crate::strings::{EN, fill};
 use crate::vault::Focus;
-use crate::{Faraday, StickInfo};
+use crate::{Action, Faraday, StickInfo, backup_flow, catalog, convert, devices, vault};
 
 /// Said where what would load a key, or take a secret typed, waits for no
 /// stick attached: on the camera, and in a vault's fields.
@@ -93,6 +96,59 @@ pub(crate) fn keep_focus_off(app: &mut Faraday) {
 /// ([`refuses`]); an entry's field (editing an entry, too) is one.
 pub(crate) fn refuses_focus(app: &mut Faraday, focus: Focus) -> bool {
     app.vaults.focus_is_secret(focus) && refuses(app, matches!(focus, Focus::Field(_)))
+}
+
+/// What `action` does, named for the sheet that asks for the stick to
+/// be pulled first, when it loads a key or turns the camera on (a
+/// frame may picture a seed); `None` for anything a stick may stay in
+/// for.
+pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
+    use {backup_flow::steps::FlowAction as F, catalog::Go, convert::ConvertAction as C};
+    Some(match action {
+        a if devices::camera_press(a) => EN.pull_what_scan,
+        Action::Convert(C::Check) if convert::checks_by_scan(app) => EN.pull_what_scan,
+        Action::Entry(_)
+        | Action::SeedCheck(crate::seed_check::SeedAction::Type)
+        | Action::EntryWallet(_)
+        | Action::ScanSeed
+        | Action::ScanKey(_)
+        | Action::ScanPart
+        | Action::LoadKey(_)
+        | Action::KeyGen(None)
+        | Action::CSlotVault(..)
+        | Action::Convert(C::VaultKey(..) | C::Aezeed | C::SetSource)
+        | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
+        Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
+        Action::PotentialOpen(_) => EN.pull_what_load_wallet,
+        // The ticks stay on Load samples' state; the load runs once the stick is out.
+        Action::SamplesLoad if app.sample_area.any_ticked() => EN.pull_what_load_samples,
+        // Unlocking for another flow: the Pull sheet asks first, and
+        // Unlock opens once the stick is out.
+        Action::Vault(vault::VaultAction::OpenFrom(i, _))
+            if app.vault_files().get(i).is_some_and(|f| f.open.is_none()) =>
+        {
+            EN.pull_what_unlock
+        }
+        Action::Vault(vault::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
+        Action::Flow(F::UnlockVault(_) | F::UnlockDone(_)) => EN.pull_what_unlock,
+        Action::Flow(F::CreateVault(_)) => EN.pull_what_create_vault,
+        Action::Flow(F::Make | F::CopyKey | F::TypeString) => EN.pull_what_make_a_key,
+        Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
+            Go::VaultCategory(c)
+                if app.vaults.open.is_empty()
+                    && !app.vault_files().is_empty()
+                    && backup_flow::Kind::of_category(c).is_none() =>
+            {
+                EN.pull_what_unlock
+            }
+            Go::NewShares => EN.pull_what_make_a_key,
+            Go::NewKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => EN.pull_what_add_a_key,
+            // Sign and Decode with nothing to open: the Scan they press waits.
+            Go::CheckAddress | Go::Scan => EN.pull_what_scan,
+            _ => return None,
+        },
+        _ => return None,
+    })
 }
 
 /// Typing goes to `focus`, unless the stick rule refuses it.

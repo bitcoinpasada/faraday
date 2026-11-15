@@ -350,7 +350,7 @@ pub(crate) enum PartPlan {
     /// The same transaction as the file waiting under the name: replaces it.
     Replace(Text, Box<crate::Item>),
     /// A different transaction, or none waiting: beside any file of the name.
-    Beside(crate::visit_taken::Beside),
+    Beside(crate::stick::visit_taken::Beside),
 }
 
 /// Costs a serialisation of the PSBT and a decode of it and of the file
@@ -390,7 +390,7 @@ pub(crate) fn part_plan(
     if same {
         PartPlan::Replace(Text::of(name), Box::new(crate::Item::new(c, name, bytes)))
     } else {
-        PartPlan::Beside(crate::visit_taken::beside_plan(
+        PartPlan::Beside(crate::stick::visit_taken::beside_plan(
             c,
             name,
             Zeroizing::new(bytes),

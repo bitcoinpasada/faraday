@@ -2,6 +2,7 @@
 
 use crate::Action;
 use crate::drawing::View;
+use crate::stick;
 use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::Shape;
@@ -381,7 +382,7 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let what = app
         .visit
         .pull()
-        .and_then(|a| app.pull_what(a))
+        .and_then(|a| stick::pull_what(app, a))
         .unwrap_or(EN.pull_default_reason);
     let title = Text::fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
     let line = match app.stick.len() {

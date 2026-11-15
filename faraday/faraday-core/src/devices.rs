@@ -461,7 +461,7 @@ impl DeviceCheck {
 }
 
 /// Whether `action` turns a device scanner's camera on: what a stick
-/// attached or a held device makes wait ([`Faraday::pull_what`]).
+/// attached or a held device makes wait ([`crate::stick::pull_what`]).
 pub(crate) fn camera_press(action: Action) -> bool {
     use crate::backup_flow::steps::{FlowAction as F, RestorePress as R};
     use crate::{codex32_backup, decode, kef_form, kef_tool, seeds, spend_backup, vault};
@@ -580,12 +580,12 @@ impl Faraday {
     /// Whether `action` shows a secret, loads or unlocks one, or has one
     /// typed: what waits while an item is held. Loading a key, scanning
     /// and unlocking are what a stick attached holds too
-    /// ([`Faraday::pull_what`]); showing a seed, a key or a vault's
+    /// ([`crate::stick::pull_what`]); showing a seed, a key or a vault's
     /// contents are added here.
     pub fn device_holds(&self, action: Action) -> bool {
         use crate::vault::VaultAction as V;
         self.devices.holding()
-            && (self.pull_what(action).is_some()
+            && (crate::stick::pull_what(self, action).is_some()
                 || matches!(
                     action,
                     Action::BKey(_)

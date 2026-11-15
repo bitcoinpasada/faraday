@@ -42,7 +42,7 @@
 //!   `compact` (the small panel), `panes` (list and detail), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
 //!   a lock), `copy_check` (a copy by hand checked), `check` (Check, the list of what to hold up against a hardware wallet, with `check/screen.rs`), `set_time`, `stick`
-//!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, `trail` (where
+//!   (`pills.rs`, `events.rs`, `folders.rs`, `settings.rs`, `wipe.rs`, `visit_taken.rs`), `trail` (where
 //!   Back lands: the screens left, as they were seen), and `ui` (drawing
 //!   in design units).
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
@@ -162,7 +162,7 @@ pub mod set_time;
 pub mod stick;
 mod trail;
 pub mod ui;
-pub mod visit_taken;
+
 pub mod work;
 pub mod worker;
 
@@ -277,8 +277,10 @@ pub use receipt::{Receipt, ReceiptFile};
 pub use restore::RestoreState;
 pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
-pub use state::{EntryState, MessageState, VisitState};
-pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
+pub use state::{EntryState, MessageState};
+pub use stick::folders::{BOOT_FOLDER, FIRST_BACKUP, backup_folder};
+pub use stick::pills::{Pill, SticksWanted};
+pub use stick::visit_taken::VisitState;
 pub use storage_api::{
     BootMedium, Files, Kept, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent,
     files_from, kept_from,
@@ -908,7 +910,7 @@ pub struct Faraday {
     wallets: wallet::WalletsArea,
     /// The stick visit: its screen, the pull waiting, the receipt, Files' row
     /// menus and the For the stick list's scroll.
-    visit: visit_taken::VisitArea,
+    visit: stick::visit_taken::VisitArea,
     /// What the boot stick brought at its first look this power-on,
     /// waiting to be imported (`boot_import`).
     import: boot_import::BootImportArea,
@@ -1083,7 +1085,7 @@ impl Faraday {
             outbox: Vec::new(),
             entry: state::EntryArea::default(),
             wallets: wallet::WalletsArea::default(),
-            visit: visit_taken::VisitArea::default(),
+            visit: stick::visit_taken::VisitArea::default(),
             import: boot_import::BootImportArea::default(),
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
@@ -1192,7 +1194,7 @@ impl Faraday {
         self.drain_jobs();
         let screen = self.screen;
         self.note_here();
-        self.storage_event(event.in_own_words());
+        stick::events::storage_event(self, event.in_own_words());
         self.event_settled();
         self.stick.note_visit(self.stick_pane());
         self.storage_left(screen);
@@ -1246,7 +1248,7 @@ impl Faraday {
         }
         self.stick.set_held(false);
         if !self.stick.is_empty() {
-            self.stick_arrived();
+            stick::events::stick_arrived(self);
             self.out.redraw();
             self.out.commands.push_back(Command::Draw);
         }
@@ -1727,7 +1729,7 @@ impl Faraday {
             // to be pulled: one sheet, and pulling it is going on.
             let pull = self.selftest_passed()
                 && self.stick.in_the_way()
-                && self.pull_what(action).is_some();
+                && stick::pull_what(self, action).is_some();
             if pull && self.devices.held.is_empty() {
                 self.visit.set_pull(action);
                 self.sheet = Some(Sheet::Pull);
@@ -1738,7 +1740,10 @@ impl Faraday {
         }
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
-        if self.selftest_passed() && self.stick.in_the_way() && self.pull_what(action).is_some() {
+        if self.selftest_passed()
+            && self.stick.in_the_way()
+            && stick::pull_what(self, action).is_some()
+        {
             self.visit.set_pull(action);
             self.sheet = Some(Sheet::Pull);
             return;
