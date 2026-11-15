@@ -38,6 +38,9 @@ pub struct Window {
     /// The `sys` paths of the devices the window trusts: those it let in
     /// while open, or the list a closed window was loaded with.
     trusted: Vec<PathBuf>,
+    /// The computer is a laptop: its PS/2 keyboard and touchpad are its
+    /// own whenever they appear, as after a controller reset.
+    laptop: bool,
 }
 
 /// The file in the boxes directory that carries the window across a lock.
@@ -95,11 +98,17 @@ impl Window {
         }
     }
 
+    /// Says whether the computer is a laptop (its chassis type).
+    pub fn set_laptop(&mut self, laptop: bool) {
+        self.laptop = laptop;
+    }
+
     /// Whether the device at `sys` is trusted: while the window is open
-    /// every device is, and is remembered; after, only one on the list.
+    /// every device is, and is remembered; after, only one on the list, or
+    /// on a laptop one on the PS/2 controller.
     pub fn admit(&mut self, sys: &Path) -> bool {
         if self.closed {
-            return self.trusted.iter().any(|p| p == sys);
+            return self.trusted.iter().any(|p| p == sys) || (self.laptop && on_i8042(sys));
         }
         self.trusted.push(sys.to_path_buf());
         true
@@ -128,6 +137,12 @@ impl Window {
     pub fn close(&mut self) {
         self.closed = true;
     }
+}
+
+/// Whether the device at `sys` (a canonical `/sys` path) is on the i8042
+/// controller, which the kernel registers as the platform device `i8042`.
+fn on_i8042(sys: &Path) -> bool {
+    sys.components().any(|c| c.as_os_str() == "i8042")
 }
 
 /// A device the kernel names `1-2` or `3-1.4.2`: a port on a bus, as
@@ -200,6 +215,24 @@ mod tests {
             }],
             ..UsbDevice::default()
         }
+    }
+
+    /// A PS/2 keyboard that appears after the window closed on a desktop is
+    /// held; one found in the window, or on a laptop at any time, is not.
+    #[test]
+    fn a_ps2_keyboard_appearing_late_is_trusted_only_on_a_laptop() {
+        let early = Path::new("/sys/devices/platform/i8042/serio0/input/input3/event3");
+        let late = Path::new("/sys/devices/platform/i8042/serio1/input/input9/event9");
+        let mut desktop = Window::new();
+        assert!(desktop.admit(early));
+        desktop.close();
+        assert!(desktop.admit(early));
+        assert!(!desktop.admit(late));
+        let mut laptop = Window::new();
+        laptop.set_laptop(true);
+        laptop.close();
+        assert!(laptop.admit(late));
+        assert!(!laptop.admit(Path::new("/sys/devices/pci0/usb1/1-1/input/input4/event4")));
     }
 
     fn secs(ms: u64) -> Duration {

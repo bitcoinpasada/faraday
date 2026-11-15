@@ -273,6 +273,14 @@ pub fn screen_external(chassis_type: &str) -> bool {
     )
 }
 
+/// Whether the computer is a laptop's, from its DMI chassis type: portable
+/// (8), laptop (9), notebook (10), sub-notebook (14), convertible (31) or
+/// detachable (32). Its keyboard is on the PS/2 controller inside it.
+/// Anything else, and an unreadable type, is not.
+pub fn chassis_laptop(chassis_type: &str) -> bool {
+    matches!(chassis_type.trim().parse::<u8>(), Ok(8..=10 | 14 | 31 | 32))
+}
+
 /// The device check's state.
 #[derive(Debug, Clone, Default)]
 pub struct DeviceCheck {

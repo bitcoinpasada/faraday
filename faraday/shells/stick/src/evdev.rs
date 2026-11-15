@@ -470,17 +470,19 @@ pub fn touch_range(dir: &Path, multitouch: bool) -> Option<crate::hid::Range> {
 }
 
 /// Whether an input device is part of the machine, from `/sys` alone: on
-/// the i8042 controller (a laptop's keyboard and touchpad), on I2C (a
-/// touchpad, the Pi's panel), a platform device (the power button), or on
-/// a USB port the firmware describes as hard-wired. A device on an
-/// external USB port, or on any other bus, is not.
+/// I2C (a touchpad, the Pi's panel), a platform device (the power button),
+/// or on a USB port the firmware describes as hard-wired. A device on an
+/// external USB port, or on any other bus, is not. One on the i8042
+/// controller is not either: a PS/2 port can be wired to a connector, so
+/// it is the machine's own only when the start window found it or the
+/// computer is a laptop (`start_window::Window::admit`).
 pub fn trusted_by_bus(dir: &Path) -> bool {
     let bus = fs::read_to_string(dir.join("device/id/bustype"))
         .ok()
         .and_then(|t| u16::from_str_radix(t.trim(), 16).ok());
     match bus {
-        // BUS_I8042, BUS_I2C, BUS_HOST.
-        Some(0x11 | 0x18 | 0x19) => true,
+        // BUS_I2C, BUS_HOST.
+        Some(0x18 | 0x19) => true,
         // BUS_USB: the device's port says whether it is built in.
         Some(0x03) => fs::canonicalize(dir.join("device")).is_ok_and(port_fixed),
         _ => false,

@@ -2130,6 +2130,9 @@ fn run(args: Args) -> Result<Exit, String> {
     // Once per power-on: a process started after a lock finds the list the
     // window left and starts with the window closed (F202).
     let mut window = start_window::Window::load(Path::new(BOXES));
+    window.set_laptop(faraday_core::devices::chassis_laptop(
+        &std::fs::read_to_string(CHASSIS_TYPE).unwrap_or_default(),
+    ));
     let mut watch = args.input.is_empty().then(|| {
         evdev::Watch::new(
             Path::new("/sys/class/input"),
