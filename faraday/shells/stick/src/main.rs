@@ -331,6 +331,37 @@ const BOXES: &str = "/run/faraday";
 /// The file in [`BOXES`] that carries the mode across a lock.
 const MODE_FILE: &str = "mode";
 
+/// The file in [`BOXES`] that carries the limits on new devices across a
+/// lock, beside the start window's: three counts on one line.
+const INPUT_COUNTS_FILE: &str = "input-counts";
+
+/// Writes the counts of devices kept out, presses beside a target and
+/// wrong letters for the process a lock starts.
+fn keep_input_counts(dir: &Path, counts: [usize; 3]) {
+    let _ = std::fs::create_dir_all(dir);
+    let text = format!("{} {} {}\n", counts[0], counts[1], counts[2]);
+    if let Err(e) = std::fs::write(dir.join(INPUT_COUNTS_FILE), text) {
+        eprintln!("input counts: not saved: {e}");
+    }
+}
+
+/// The counts a lock carried, read once and removed, so a power-off
+/// carries none; a file that is not three numbers gives every count at
+/// its largest, the door shut.
+fn input_counts_at_start(dir: &Path) -> [usize; 3] {
+    let path = dir.join(INPUT_COUNTS_FILE);
+    let text = std::fs::read_to_string(&path);
+    let _ = std::fs::remove_file(&path);
+    let Ok(text) = text else {
+        return [0; 3];
+    };
+    let n: Vec<Option<usize>> = text.split_whitespace().map(|w| w.parse().ok()).collect();
+    match n.as_slice() {
+        [Some(a), Some(b), Some(c)] => [*a, *b, *c],
+        _ => [usize::MAX; 3],
+    }
+}
+
 /// The name a mode has in the `mode` file: `mainnet`, `testnet`,
 /// `signet` or `regtest`. None for a mode the stick does not offer.
 fn mode_token(mode: Mode) -> Option<&'static str> {
@@ -2320,6 +2351,7 @@ fn run(args: Args) -> Result<Exit, String> {
             app.set_memory_reader(faraday_storage::memory_available_mib);
             app.set_wake(work::wake(work_tx));
             app.medium = medium();
+            app.set_input_carry(input_counts_at_start(Path::new(BOXES)));
             app.session =
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
             if app.medium == Medium::SdCard && hdmi {
@@ -2487,6 +2519,7 @@ fn run(args: Args) -> Result<Exit, String> {
         .is_some_and(Faraday::computer_restart_requested);
     if restart && let Some(app) = shell.app.as_ref() {
         keep_mode(Path::new(BOXES), app.mode_after_restart());
+        keep_input_counts(Path::new(BOXES), app.input_carry());
     }
     shell.app = None;
     if exiting && !restart {

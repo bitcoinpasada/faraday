@@ -64,6 +64,11 @@ pub(crate) const TAP_TRIES: usize = 3;
 /// the session: each of [`KEPT_OUT_LIMIT`] devices' [`TAP_TRIES`].
 pub(crate) const BESIDE_LIMIT: usize = KEPT_OUT_LIMIT * TAP_TRIES;
 
+/// How many letters from keyboards that never typed their code, unplugged
+/// or kept out, close the door for the session: each of [`KEPT_OUT_LIMIT`]
+/// keyboards' [`CODE_TRIES`] codes' worth.
+pub(crate) const WRONG_LETTERS_LIMIT: usize = KEPT_OUT_LIMIT * CODE_LEN * CODE_TRIES;
+
 /// The most targets in a row a sheet draws; a screen needing more shows
 /// none.
 pub(crate) const TARGETS_MAX: usize = 16;
@@ -181,6 +186,11 @@ pub(crate) struct InputsArea {
     /// How many presses beside a target any device made this session:
     /// unplugging and Ignore do not clear it.
     beside: usize,
+    /// How many letters keyboards that did not type their code made and
+    /// that were then kept out or unplugged this session: unplugging does
+    /// not clear it, so a device that leaves before its last try gets no
+    /// fresh codes.
+    wrong: usize,
     /// Nothing trusted can point, as the shell says: a pointer may approve
     /// itself. False until it says so.
     alone: bool,
@@ -293,7 +303,23 @@ impl InputsArea {
     /// The door is closed: too many devices kept out, or too many presses
     /// beside a target, this session.
     fn closed(&self) -> bool {
-        self.kept_out >= KEPT_OUT_LIMIT || self.beside >= BESIDE_LIMIT
+        self.kept_out >= KEPT_OUT_LIMIT
+            || self.beside >= BESIDE_LIMIT
+            || self.wrong >= WRONG_LETTERS_LIMIT
+    }
+
+    /// The counts a lock carries to the next process: devices kept out,
+    /// presses beside a target, and wrong letters.
+    pub(crate) fn carry(&self) -> [usize; 3] {
+        [self.kept_out, self.beside, self.wrong]
+    }
+
+    /// Takes the counts a lock carried; a count past its limit is the
+    /// limit, so a file that was edited cannot do more than close the door.
+    pub(crate) fn set_carry(&mut self, [kept_out, beside, wrong]: [usize; 3]) {
+        self.kept_out = kept_out.min(KEPT_OUT_LIMIT);
+        self.beside = beside.min(BESIDE_LIMIT);
+        self.wrong = wrong.min(WRONG_LETTERS_LIMIT);
     }
 
     /// The door has closed: every device waiting on a target is kept out.
@@ -425,7 +451,10 @@ impl InputsArea {
         d.typed = d.typed.chars().skip(keep).collect();
         if d.code.as_deref() == Some(d.typed.as_str()) {
             Typed::Matched
-        } else if d.letters >= CODE_LEN * CODE_TRIES {
+        } else if d.letters >= CODE_LEN * CODE_TRIES
+            || self.letters_in_hand() >= WRONG_LETTERS_LIMIT
+        {
+            let d = &self.held[i];
             let (name, touch) = (d.name.clone(), d.touch);
             self.ignore(id);
             self.kept_out += 1;
@@ -479,18 +508,28 @@ impl InputsArea {
         Some(d)
     }
 
+    /// The wrong letters so far: those counted and those the held
+    /// keyboards have typed.
+    fn letters_in_hand(&self) -> usize {
+        self.wrong + self.held.iter().map(|d| d.letters).sum::<usize>()
+    }
+
     /// The device is kept out until it is unplugged.
     pub(crate) fn ignore(&mut self, id: u32) {
         let Some(i) = self.held.iter().position(|d| d.id == id) else {
             return;
         };
         let d = self.held.remove(i);
+        self.wrong += d.letters;
         self.decisions.push_back((id, false));
         self.ignored.push((id, d.name));
     }
 
     /// The device was unplugged.
     pub(crate) fn gone(&mut self, id: u32) {
+        if let Some(d) = self.held.iter().find(|d| d.id == id) {
+            self.wrong += d.letters;
+        }
         self.held.retain(|d| d.id != id);
         self.ignored.retain(|(i, _)| *i != id);
     }
@@ -506,6 +545,18 @@ impl Faraday {
     #[cfg(feature = "testkit")]
     pub fn new_inputs(&self) -> &[NewInput] {
         self.inputs.held()
+    }
+
+    /// What a lock carries to the next process for the session's
+    /// limits on new devices: kept out, presses beside a target, wrong
+    /// letters.
+    pub fn input_carry(&self) -> [usize; 3] {
+        self.inputs.carry()
+    }
+
+    /// Takes what [`input_carry`](Self::input_carry) gave before a lock.
+    pub fn set_input_carry(&mut self, carry: [usize; 3]) {
+        self.inputs.set_carry(carry);
     }
 
     /// The held device whose sheet shows: the first, if it has acted

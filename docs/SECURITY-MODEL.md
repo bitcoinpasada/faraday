@@ -180,8 +180,9 @@ internal error rather than carrying on.
   it counts toward the three devices kept out as a keyboard does (F153).
   It needs no other input, so an HDMI panel whose only input is its USB
   touch approves itself. Nine presses beside any target in a session, or
-  three devices kept out, end the targets until Faraday starts again;
-  unplugging and Ignore do not clear the count. There are as many targets
+  three devices kept out, or 54 wrong letters from keyboards kept out or
+  unplugged, end the targets until Faraday starts again; unplugging,
+  Ignore and a lock do not clear the counts. There are as many targets
   as make a blind device's chance in a session no better than a
   keyboard's code allows, about 1 in 620,000 (F202). No USB
   device is trusted for the name it gives. A touchscreen on a bus that

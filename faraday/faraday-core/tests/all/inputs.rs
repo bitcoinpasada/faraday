@@ -1537,3 +1537,47 @@ fn a_device_used_during_the_idle_warning_leaves_it_up_and_the_lock_comes_on_time
     tick_to(&mut app, 30 * MIN);
     assert!(app.restart_requested());
 }
+
+/// A keyboard that types 17 wrong letters and is unplugged, `n` times.
+fn guess_and_leave(app: &mut Faraday, n: u32) {
+    for id in 1..=n {
+        new_device(app, id, true, false);
+        type_on(app, id, &"z".repeat(17));
+        app.storage(StorageEvent::InputGone { id });
+    }
+}
+
+#[test]
+fn a_keyboard_that_unplugs_before_its_last_try_still_runs_out_of_codes() {
+    let mut app = seeded();
+    guess_and_leave(&mut app, 4);
+    new_device(&mut app, 5, true, false);
+    while app.poll_input_decision().is_some() {}
+    assert!(app.new_inputs().is_empty());
+    assert_eq!(app.toast_text(), Some(EN.inputs_new_keyboards_ignored));
+}
+
+#[test]
+fn the_wrong_letters_of_unplugged_keyboards_are_counted_across_a_lock() {
+    let mut app = seeded();
+    guess_and_leave(&mut app, 3);
+    let mut next = seeded();
+    next.set_input_carry(app.input_carry());
+    // Fifty-one letters were typed; the next three close the door.
+    new_device(&mut next, 4, true, false);
+    type_on(&mut next, 4, "zzz");
+    new_device(&mut next, 5, true, false);
+    while next.poll_input_decision().is_some() {}
+    assert!(next.new_inputs().is_empty());
+    assert_eq!(next.toast_text(), Some(EN.inputs_new_keyboards_ignored));
+}
+
+#[test]
+fn a_person_who_replugs_their_keyboard_twice_still_gets_a_code() {
+    let mut app = seeded();
+    guess_and_leave(&mut app, 2);
+    new_device(&mut app, 3, true, false);
+    let code = code_of(&app);
+    type_on(&mut app, 3, &code);
+    assert_eq!(app.poll_input_decision(), Some((3, true)));
+}
