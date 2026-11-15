@@ -332,6 +332,18 @@ fn under(path: &str, mount: &str) -> bool {
     !m.is_empty() && (p == m || p.starts_with(&format!("{m}\\")))
 }
 
+/// Whether a volume is encrypted and so shows no files: Windows lists it but
+/// names no file system for it (a locked BitLocker volume is not mounted).
+/// No sector is read to tell: a locked BitLocker To Go volume made from a FAT
+/// stick does not start with "-FVE-FS-" (its first sector reads as a FAT
+/// volume's, with BitLocker's marker further in), and an unlocked one reads as
+/// its file system, so a sector decides nothing the file system's name does
+/// not. A volume of a file system Windows cannot read (ext4, raw) takes the
+/// same hold, which is the safe answer.
+pub fn volume_encrypted(filesystem: &str) -> bool {
+    filesystem.is_empty()
+}
+
 impl RawVolume {
     fn extents(&self) -> Vec<Extent> {
         extents(&self.extents).unwrap_or_default()
@@ -410,11 +422,12 @@ impl Snapshot {
                         .any(|e| e.disk == n && e.offset == offset)
                 })
             };
+            let encrypted = |v: &RawVolume| volume_encrypted(&v.filesystem);
             let volume = |v: Option<&RawVolume>| Volume {
                 label: v.map(|v| v.label.clone()).filter(|l| !l.is_empty()),
-                files: v.is_some_and(|v| !v.filesystem.is_empty()),
+                files: v.is_some_and(|v| !v.filesystem.is_empty() && !encrypted(v)),
                 fs: v.map_or_else(String::new, |v| v.filesystem.to_ascii_lowercase()),
-                encrypted: false,
+                encrypted: v.is_some_and(encrypted),
             };
             let table = layout(&raw.layout).filter(|l| l.style != Style::Raw);
             let parts = table

@@ -16,7 +16,7 @@ use faraday_starter::api::{
     BootFile, Bus, FaradayStick, InUse, InstallItem, Mode, Os, Reason, Source, StickFault,
     WriteOrder, WriteStage,
 };
-use faraday_starter::decide::{Refusal, Target, offers};
+use faraday_starter::decide::{Refusal, Target, offers, unlike_a_stick};
 use faraday_starter_shell::settings;
 use faraday_starter_shell::stick;
 use faraday_starter_shell::windows::disks::{Found, Snapshot, stick_read};
@@ -116,6 +116,39 @@ fn usb_sticks_are_offered_and_the_computers_own_disks_are_not() {
     assert_eq!(stick.volumes[0].label.as_deref(), Some("HOLIDAY"));
     assert!(stick.volumes[0].files);
     assert!(stick.faraday.is_none());
+}
+
+/// Disk 1's one volume as Windows answers for a BitLocker volume: locked
+/// (no file system named) or unlocked (its file system mounted).
+fn disk_one_with(filesystem: &str) -> Snapshot {
+    let mut s = laptop();
+    let v = s
+        .volumes
+        .iter_mut()
+        .find(|v| v.paths.iter().any(|p| p == r"E:\"))
+        .expect("E:");
+    v.filesystem = filesystem.to_string();
+    s
+}
+
+#[test]
+fn a_locked_bitlocker_volume_reads_as_encrypted_and_asks_for_the_hold() {
+    let s = disk_one_with("");
+    let list = found(&s);
+    let stick = &disk(&list, "Disk 1").disk;
+    assert!(stick.volumes[0].encrypted);
+    assert!(!stick.volumes[0].files);
+    assert!(unlike_a_stick(stick).is_some());
+}
+
+#[test]
+fn an_unlocked_bitlocker_volume_with_files_reads_as_before() {
+    let s = disk_one_with("NTFS");
+    let list = found(&s);
+    let stick = &disk(&list, "Disk 1").disk;
+    assert!(!stick.volumes[0].encrypted);
+    assert!(stick.volumes[0].files);
+    assert!(unlike_a_stick(stick).is_none());
 }
 
 #[test]
