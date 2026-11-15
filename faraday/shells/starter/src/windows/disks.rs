@@ -344,6 +344,10 @@ pub fn volume_encrypted(filesystem: &str) -> bool {
     filesystem.is_empty()
 }
 
+/// The GPT type of the Microsoft Reserved partition, which Windows never
+/// gives a volume and which holds no one's data.
+const MICROSOFT_RESERVED: &str = "E3C9E316-0B5C-4DB8-817D-F92DF00215AE";
+
 impl RawVolume {
     fn extents(&self) -> Vec<Extent> {
         extents(&self.extents).unwrap_or_default()
@@ -438,7 +442,23 @@ impl Snapshot {
                 // A file system on the whole disk, with no partition table.
                 on_disk.iter().map(|v| volume(Some(v))).collect()
             } else {
-                parts.iter().map(|p| volume(at(p.offset))).collect()
+                // A partition Windows made no volume for (a Linux file
+                // system, LUKS, swap) holds contents Windows cannot show:
+                // it reads as encrypted and takes the hold, as a volume
+                // of a file system Windows cannot read does. Only the
+                // Microsoft Reserved partition is left out.
+                parts
+                    .iter()
+                    .map(|p| match at(p.offset) {
+                        None if !p.type_guid.eq_ignore_ascii_case(MICROSOFT_RESERVED) => Volume {
+                            label: None,
+                            files: false,
+                            fs: String::new(),
+                            encrypted: true,
+                        },
+                        v => volume(v),
+                    })
+                    .collect()
             };
             // A Faraday stick by its layout alone
             // (`docs/STICK-IDENTITY.md` §5.1): each partition's type,

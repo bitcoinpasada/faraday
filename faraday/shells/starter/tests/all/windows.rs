@@ -142,6 +142,20 @@ fn a_locked_bitlocker_volume_reads_as_encrypted_and_asks_for_the_hold() {
 }
 
 #[test]
+fn a_partition_with_no_volume_reads_as_encrypted_and_asks_for_the_hold() {
+    // Disk 1's partition moved off the volume's extent: Windows lists no
+    // volume for it, as for a Linux file system or LUKS.
+    let mut s = laptop();
+    let d = s.disks.iter_mut().find(|d| d.number == 1).expect("disk 1");
+    d.layout[48 + 8 + 2] ^= 0x01;
+    let list = found(&s);
+    let stick = &disk(&list, "Disk 1").disk;
+    assert!(stick.volumes[0].encrypted);
+    assert!(!stick.volumes[0].files);
+    assert!(unlike_a_stick(stick).is_some());
+}
+
+#[test]
 fn an_unlocked_bitlocker_volume_with_files_reads_as_before() {
     let s = disk_one_with("NTFS");
     let list = found(&s);
