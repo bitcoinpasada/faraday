@@ -237,6 +237,7 @@ mod wallet_files_other;
 mod wallet_names;
 mod wallet_not_your_key;
 mod wallet_paths;
+mod wallet_secret_text;
 mod wallet_setup;
 mod wallets_page;
 mod way_back;

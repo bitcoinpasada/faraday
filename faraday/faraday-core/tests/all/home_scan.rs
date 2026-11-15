@@ -286,6 +286,19 @@ fn an_sp_descriptor_scanned_on_home_is_filed_as_a_wallet_and_a_spend_key_is_not(
     named_not_filed(&app, "That is a private key");
 }
 
+/// A descriptor whose key is an extended private key with no origin is
+/// named a private key and never filed.
+#[test]
+fn a_descriptor_with_an_extended_private_key_and_no_origin_is_named_a_private_key() {
+    let mut app = testkit::started();
+    home_scan(&mut app);
+    read(
+        &mut app,
+        "wpkh(xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi/<0;1>/*)",
+    );
+    named_not_filed(&app, "That is a private key");
+}
+
 /// paperkey 1.6's printed lines and its raw form of one key
 /// (`tools/vectors/paperkey/`).
 const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");

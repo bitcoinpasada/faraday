@@ -567,6 +567,25 @@ impl FromWallet {
     }
 }
 
+/// What a flow that takes a wallet file takes `it` for: a wallet file
+/// made secret by text beside a wallet that was read is still the wallet
+/// file it was, so Restore and Spend from a backup offer it and take it.
+pub(crate) fn wallet_flow_kind(it: &crate::Item) -> wallet::FileKind {
+    if it.kind == wallet::FileKind::SecretWallet && it.wallet().is_some() {
+        wallet::FileKind::Wallet
+    } else {
+        it.kind
+    }
+}
+
+/// A descriptor file Keys lists: a wallet file, a secret one included.
+fn is_listed_wallet(it: &crate::Item) -> bool {
+    matches!(
+        it.kind,
+        wallet::FileKind::Wallet | wallet::FileKind::SecretWallet
+    ) && it.wallet().is_some()
+}
+
 /// The account key in a file, if the file is one: the first of
 /// [`read_keys`].
 pub fn read_key(text: &str) -> Option<Text> {
@@ -650,9 +669,7 @@ impl Faraday {
             self.inbox
                 .iter()
                 .enumerate()
-                .filter(|(_, it)| {
-                    matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet)
-                })
+                .filter(|(_, it)| it.kind.is_key() || is_listed_wallet(it))
                 .map(|(at, it)| KeyFile {
                     at,
                     name: Text::of(&it.name),
@@ -1808,7 +1825,7 @@ impl Faraday {
         let file = self
             .inbox
             .iter()
-            .any(|it| matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet));
+            .any(|it| it.kind.is_key() || is_listed_wallet(it));
         if file {
             return false;
         }
@@ -2061,13 +2078,13 @@ impl Faraday {
             .unwrap_or_default();
         let current = self.session.network();
         let taken = match (item.kind, item.wallet()) {
-            (wallet::FileKind::Key, _) => {
+            (k, _) if k.is_key() => {
                 let text = Text::from_utf8_lossy(&item.bytes);
                 self.create_slot_file_key(slot, &text)
             }
             // A file of account keys (Coldcard's export, a single-key
             // file) as Keys offers it, else a descriptor of one key.
-            (wallet::FileKind::Wallet, Some(policy)) => {
+            (wallet::FileKind::Wallet | wallet::FileKind::SecretWallet, Some(policy)) => {
                 let text = Text::from_utf8_lossy(&item.bytes);
                 if key_for_slot(kind, bip87, &text).is_ok() {
                     self.create_slot_file_key(slot, &text)

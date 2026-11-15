@@ -16,7 +16,6 @@ pub mod sweep;
 
 use crate::create::{self, NewKind};
 use crate::strings::EN;
-use crate::wallet::FileKind;
 use crate::wallet::KeyTexts;
 use crate::{Faraday, Screen, spend_backup};
 use faraday_crypto::work::Compute;
@@ -507,7 +506,7 @@ impl Faraday {
         let Some(text) = self
             .inbox
             .get(index)
-            .filter(|i| i.kind == FileKind::Key)
+            .filter(|i| i.kind.is_key())
             .map(|i| Text::from_utf8_lossy(&i.bytes))
         else {
             return false;

@@ -7572,6 +7572,9 @@ strings! {
     /// Text in `kind_name`: another wallet's file that holds a private
     /// key or a seed beside its public keys.
     kind_name_secret_wallet: "Wallet file with a private key",
+    /// Text in `kind_name`: an account key file with a seed or a private
+    /// key beside the key.
+    kind_name_secret_key: "Key file with a secret",
     /// Text in `kind_name`.
     kind_name_file: "File",
     // ----- add_to_vault (faraday-core/src/screens/files.rs) -----

@@ -1076,6 +1076,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Sheet => EN.kind_name_print_sheet,
         FileKind::Message => EN.kind_name_signed_message,
         FileKind::Key => EN.kind_name_account_xpub,
+        FileKind::KeyWithSecret => EN.kind_name_secret_key,
         FileKind::Words => EN.kind_name_seed_words,
         FileKind::Share => EN.kind_name_split_share,
         FileKind::Vault => EN.kind_name_vault_locked,

@@ -2311,7 +2311,7 @@ impl Faraday {
         let Some(item) = self.scanned_secret(item, enveloped, intake) else {
             return;
         };
-        let is_key = item.kind == crate::wallet::FileKind::Key;
+        let is_key = item.kind.is_key();
         let at = self.inbox_file_in(item);
         let name = self.inbox[at].name.clone();
         if intake {

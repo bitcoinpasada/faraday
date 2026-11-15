@@ -864,7 +864,7 @@ impl Faraday {
         // wallet .json, BIP 129 record, Core's import) count once.
         let mut wallets: Vec<(usize, Text)> = Vec::new();
         for (k, it) in self.inbox.iter().enumerate() {
-            if it.kind != FileKind::Wallet
+            if crate::create::wallet_flow_kind(it) != FileKind::Wallet
                 || !(all
                     || self
                         .spend_backup
@@ -1159,7 +1159,11 @@ impl Faraday {
     /// A file the intake scanner put in Files: listed, and taken as what
     /// it is. The camera stays on.
     pub(crate) fn spend_backup_intake_file(&mut self, index: usize) {
-        let Some((kind, name)) = self.inbox.get(index).map(|i| (i.kind, i.name.clone())) else {
+        let Some((kind, name)) = self
+            .inbox
+            .get(index)
+            .map(|i| (crate::create::wallet_flow_kind(i), i.name.clone()))
+        else {
             return;
         };
         self.spend_backup_came(Came::File(Text::of(&name)));
@@ -1194,7 +1198,7 @@ impl Faraday {
                     Err(e) => Text::of(&e),
                 }
             }
-            FileKind::Key => {
+            FileKind::Key | FileKind::KeyWithSecret => {
                 self.seeds_take_file(index);
                 Text::of(EN.spend_backup_a_public_key)
             }
@@ -1742,7 +1746,7 @@ impl Faraday {
     /// Returns whether the tab took it (on Home, only a PSBT for a spend
     /// under way).
     pub(crate) fn spend_backup_arrived(&mut self, index: usize) -> bool {
-        let Some(kind) = self.inbox.get(index).map(|i| i.kind) else {
+        let Some(kind) = self.inbox.get(index).map(crate::create::wallet_flow_kind) else {
             return false;
         };
         // Home's scan takes a PSBT only for a spend under way.

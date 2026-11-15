@@ -51,6 +51,17 @@ fn a_public_key_or_an_address_is_not_a_secret() {
 }
 
 #[test]
+fn an_extended_private_key_in_a_descriptor_without_an_origin_is_a_secret() {
+    let c = crate::common::compute();
+    for [_, _, _, xprv] in bip39_english() {
+        assert_eq!(
+            secret_text(&c, &format!("wpkh({xprv}/<0;1>/*)")),
+            Some(TextSecret::ExtendedPrivateKey)
+        );
+    }
+}
+
+#[test]
 fn twelve_words_that_are_not_a_valid_seed_are_not_a_secret() {
     let c = crate::common::compute();
     // The last word of the all-zero vector replaced: the checksum fails.

@@ -442,6 +442,20 @@ pub fn language_name(lang: Language) -> &'static str {
 
 /// The list's word a typed word is, matched on its ASCII fold.
 pub(crate) fn typed_index(lang: Language, typed: &str) -> Option<u16> {
+    // The English list is sorted and its typed form is the word itself:
+    // a binary search finds the word in 11 comparisons, not 2048.
+    if lang == Language::English {
+        let (mut lo, mut hi) = (0u16, 2048u16);
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            match lang.word(mid).cmp(typed) {
+                std::cmp::Ordering::Less => lo = mid + 1,
+                std::cmp::Ordering::Greater => hi = mid,
+                std::cmp::Ordering::Equal => return Some(mid),
+            }
+        }
+        return None;
+    }
     // The characters go into a wiping buffer sized once, so no grown-out
     // block is freed holding them; a word has no more characters than bytes.
     let mut chars = zeroize::Zeroizing::new(Vec::<char>::with_capacity(typed.len()));

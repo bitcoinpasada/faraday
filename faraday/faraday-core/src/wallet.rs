@@ -1788,6 +1788,13 @@ pub fn same_wallet(policy: &WalletPolicy) -> Text {
     Text::of(&policy.to_descriptor())
 }
 
+impl FileKind {
+    /// A file `read_keys` reads, a secret beside its key or not.
+    pub fn is_key(self) -> bool {
+        matches!(self, FileKind::Key | FileKind::KeyWithSecret)
+    }
+}
+
 /// What a file holds, as far as this build is concerned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileKind {
@@ -1800,6 +1807,11 @@ pub enum FileKind {
     /// `docs/INTEROP.md` §5, Electrum wallet files): a secret. It loads as the wallet its
     /// public keys describe; nothing secret in it is read.
     SecretWallet,
+    /// An account key file that holds a secret beside its key (seed words
+    /// or an extended private key in a note, a comment or a line of its
+    /// own): it imports as the key file it is, wherever a key file does,
+    /// and is a secret. Nothing secret in it is read.
+    KeyWithSecret,
     /// A finished transaction, as hex.
     Transaction,
     /// A sheet to print on the desktop app.
@@ -1894,6 +1906,70 @@ fn text_may_be_secret(c: &Compute, text: &str) -> bool {
         || crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
         || crate::restore::is_share(text)
         || crate::inbox::part_of(text).is_some()
+}
+
+/// Costs a `read_keys` on the line: base58 decodes. Whether a line of a
+/// key file is a key `read_keys` reads.
+fn is_key_line(line: &str) -> bool {
+    !crate::create::read_keys(line).is_empty()
+}
+
+/// Costs a pass over the words of every part, with a checksum for each
+/// of five lengths at every list word of a run (a run past 48 is
+/// dropped, and a token that cannot be a list word is not looked up).
+/// Whether the words among `parts` hold a seed: a run of consecutive list
+/// words, in the order they come, broken by any other token (a place
+/// number does not break it), of which some 12, 15, 18, 21 or 24 in a row
+/// are a mnemonic. A seed spread over lines, numbered or in a JSON array
+/// is found with other text around it, headings and labels that are list
+/// words too. Each part is read as a file's words are (place numbers
+/// dropped).
+fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
+    // The word numbers of the run: a wiping buffer sized once.
+    let mut run = zeroize::Zeroizing::new(Vec::<u16>::with_capacity(25));
+    let mut overlong = false;
+    let mut seen = 0usize;
+    for part in parts {
+        let words = crate::forms::file_words(part);
+        for w in words.as_str().split_whitespace() {
+            // The list's words are 3 to 8 lowercase ASCII letters.
+            let index = if (3..=8).contains(&w.len()) && w.bytes().all(|b| b.is_ascii_lowercase()) {
+                crate::forms::typed_index(Language::English, w)
+            } else {
+                None
+            };
+            let Some(i) = index else {
+                run.clear();
+                overlong = false;
+                seen = 0;
+                continue;
+            };
+            if overlong {
+                continue;
+            }
+            if run.len() == 24 {
+                // Slide: the window of the last 24 words is the longest
+                // that is checked.
+                run.remove(0);
+            }
+            seen += 1;
+            if seen > 48 {
+                // Past 48 words of one run, no more are checked.
+                overlong = true;
+                continue;
+            }
+            run.push(i);
+            for n in [12, 15, 18, 21, 24] {
+                if run.len() >= n
+                    && faraday_keys::words::from_indices(Language::English, &run[run.len() - n..])
+                        .is_ok()
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Costs what `classify_read` costs. Says what a file holds.
@@ -2004,6 +2080,21 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             return FileKind::SecretWallet.into();
         }
         if let Ok(w) = read_wallet(c, text) {
+            // Secret text beside a descriptor, in a JSON member the reader
+            // skips or a comment, makes the wallet file a secret one. A
+            // file that is not a wallet keeps the kind it has below.
+            let unread = faraday_intake::wallet::unread_texts(text);
+            if unread.iter().any(|t| text_may_be_secret(c, t.as_str()))
+                || words_across(unread.iter().map(Text::as_str))
+            {
+                return Classified {
+                    kind: FileKind::SecretWallet,
+                    psbt: None,
+                    wallet: Some(w),
+                    outpoints: Vec::new(),
+                    unsigned_txid: None,
+                };
+            }
             return Classified {
                 kind: FileKind::Wallet,
                 psbt: None,
@@ -2013,6 +2104,20 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             };
         }
         if crate::create::read_key(text).is_some() {
+            // `read_keys` drops every line it cannot read: a seed beside
+            // the key, on a line or in a JSON member, makes a secret file.
+            let unread = faraday_intake::wallet::unread_texts(text);
+            let skipped = text.lines().map(str::trim).filter(|l| !is_key_line(l));
+            if unread
+                .iter()
+                .map(Text::as_str)
+                .chain(text.lines())
+                .any(|t| text_may_be_secret(c, t.trim().trim_start_matches('#').trim()))
+                || words_across(skipped)
+                || words_across(unread.iter().map(Text::as_str))
+            {
+                return FileKind::KeyWithSecret.into();
+            }
             return FileKind::Key.into();
         }
         if crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()

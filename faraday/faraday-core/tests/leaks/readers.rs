@@ -671,3 +671,16 @@ fn a_seed_in_a_bbqr_file_envelope_leaves_no_freed_copy() {
     scan_bbqr(&parts);
     finish("bbqr envelope seed", armed, false);
 }
+
+#[test]
+fn a_seed_over_comment_lines_beside_a_descriptor_classified_leaves_no_copy() {
+    let descriptor = include_str!("../vectors/interop/bluewallet/coldcardmk4-descriptor.txt");
+    let comments: Vec<String> = PHRASE.split(' ').map(|w| format!("# {w}")).collect();
+    let file = format!("{}\n{descriptor}", comments.join("\n"));
+    let c = testkit::compute();
+    let forms = seed_forms("");
+    let armed = arm(&forms);
+    let kind = faraday_core::wallet::classify(&c, "wallet.txt", file.as_bytes());
+    assert_eq!(kind, faraday_core::wallet::FileKind::SecretWallet);
+    finish("seed in comments classified", armed, false);
+}

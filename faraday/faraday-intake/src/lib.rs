@@ -107,7 +107,26 @@ pub(crate) fn holds_spend_key(text: &str) -> bool {
         .any(|w| w.eq_ignore_ascii_case(b"spspend1"))
 }
 
-/// Costs what `parse` costs. Whether scanned text is a secret, and
+/// The versions of an extended private key, SLIP-132's included.
+const PRIVATE_PREFIXES: [&str; 10] = [
+    "xprv", "tprv", "yprv", "zprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv",
+];
+
+/// Costs one scan of `text`: at most 111 bytes compared at each position.
+/// Whether `text` holds an extended private key anywhere in it, in a
+/// descriptor with no origin too: a private version followed by the
+/// base58 characters of a whole key (111 in all).
+fn holds_extended_private_key(text: &str) -> bool {
+    const BASE58: &[u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    text.as_bytes().windows(111).any(|w| {
+        PRIVATE_PREFIXES.iter().any(|p| w.starts_with(p.as_bytes()))
+            && w[4..].iter().all(|c| BASE58.contains(c))
+    })
+}
+
+/// Costs what `parse` costs, plus one scan of the text for an extended
+/// private key: at most 111 bytes compared at each position, so linear in
+/// the text's length (by its loop, not timed). Whether scanned text is a secret, and
 /// which: a seed's words, an extended private key, with or without its
 /// origin, or a silent payments spend key.
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
@@ -117,12 +136,7 @@ pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
         return Some(TextSecret::Words);
     }
     let key = t.split(']').next_back().unwrap_or(t);
-    if [
-        "xprv", "tprv", "yprv", "zprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv",
-    ]
-    .iter()
-    .any(|p| key.starts_with(p))
-    {
+    if PRIVATE_PREFIXES.iter().any(|p| key.starts_with(p)) || holds_extended_private_key(t) {
         return Some(TextSecret::ExtendedPrivateKey);
     }
     holds_spend_key(t).then_some(TextSecret::SilentSpendKey)

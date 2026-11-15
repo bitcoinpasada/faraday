@@ -53,6 +53,10 @@ pub fn check(c: &Compute, text: &str) -> TextCheck {
     let cleaned = without_invisible(t);
     let t = cleaned.as_deref().unwrap_or(t).trim();
     if let Some(kind) = scan_read::secret_kind(c, t.as_bytes()) {
+        // A key among other words is found in the text, not the text.
+        if kind == Kind::Xprv && t.split_whitespace().nth(1).is_some() {
+            return TextCheck::Inside(kind);
+        }
         return TextCheck::Secret(kind);
     }
     let file = wallet::classify(c, "text.txt", t.as_bytes());
@@ -90,7 +94,7 @@ fn file_secret(kind: wallet::FileKind) -> Kind {
         F::Words => Kind::SeedWords,
         F::SeedPart => Kind::Codex32Share,
         F::Entries => Kind::Entries,
-        F::SecretWallet => Kind::Wallet,
+        F::SecretWallet | F::KeyWithSecret => Kind::Wallet,
         _ => Kind::Wif,
     }
 }

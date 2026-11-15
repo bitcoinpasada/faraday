@@ -405,6 +405,50 @@ pub fn holds_secret(text: &str) -> bool {
     t.starts_with('{') && t.contains("\"wallet_type\"") && electrum::text_holds_secret(t)
 }
 
+/// Costs a JSON parse of a text that starts as JSON, else one pass over
+/// the lines. The pieces of a wallet file's text that its readers never
+/// look at and that may still hold a secret: every string value of a JSON file (and
+/// what follows its first `:`, a label before the secret), and in text
+/// on every line everything after the first `#` (a comment, as the
+/// multisig config reader drops it, without the run of `#` of a
+/// heading), the value of a `Name:` line and the name of a Specter DIY
+/// `addwallet` command. A piece with a label before its first `:` is kept
+/// as what follows the label, once. Each is in a wiping [`Text`].
+pub fn unread_texts(text: &str) -> Vec<Text> {
+    let t = text.trim_start_matches('\u{feff}').trim_start();
+    let mut out: Vec<Text> = Vec::new();
+    // A label before the secret (`seed: ...`) is not part of it.
+    let mut push = |s: &str| {
+        let s = s.trim();
+        out.push(Text::of(
+            s.split_once(':').map_or(s, |(_, rest)| rest.trim()),
+        ));
+    };
+    if t.starts_with('{')
+        && let Ok(v) = json::parse(text)
+    {
+        v.all_strings().into_iter().for_each(&mut push);
+    }
+    for line in text.lines() {
+        let (head, comment) = match line.split_once('#') {
+            Some((h, c)) => (h, Some(c.trim_start_matches('#'))),
+            None => (line, None),
+        };
+        if let Some(c) = comment {
+            push(c);
+        }
+        if let Some((label, value)) = head.split_once(':')
+            && label.trim().eq_ignore_ascii_case("name")
+        {
+            push(value);
+        }
+    }
+    if let Some((name, _)) = specter_diy::split(text) {
+        push(name);
+    }
+    out
+}
+
 /// Costs a parse of each descriptor and of each wallet tried: descriptors
 /// other wallets write that are not one multipath descriptor, read as
 /// the `<0;1>` wallet they describe:

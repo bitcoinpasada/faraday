@@ -349,7 +349,7 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         FileKind::Wallet | FileKind::SecretWallet => Kind::Wallet,
         FileKind::Transaction => Kind::Transaction,
         FileKind::Message => Kind::Message,
-        FileKind::Key => Kind::AccountKey,
+        FileKind::Key | FileKind::KeyWithSecret => Kind::AccountKey,
         FileKind::Words => Kind::SeedWords,
         FileKind::Share => Kind::SplitSheets,
         FileKind::Entries => Kind::Entries,

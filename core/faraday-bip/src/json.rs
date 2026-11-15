@@ -116,6 +116,23 @@ impl Value {
         out
     }
 
+    /// Every string value at any depth, in the order the text writes
+    /// them (member names are not values).
+    pub fn all_strings(&self) -> Vec<&str> {
+        let mut out = Vec::new();
+        self.collect_all(&mut out);
+        out
+    }
+
+    fn collect_all<'a>(&'a self, out: &mut Vec<&'a str>) {
+        match self {
+            Value::String(s) => out.push(s),
+            Value::Object(members) => members.iter().for_each(|(_, v)| v.collect_all(out)),
+            Value::Array(items) => items.iter().for_each(|v| v.collect_all(out)),
+            _ => {}
+        }
+    }
+
     fn collect_strings<'a>(&'a self, key: &str, out: &mut Vec<&'a str>) {
         match self {
             Value::Object(members) => {

@@ -45,6 +45,7 @@ impl FileKind {
             | FileKind::Words
             | FileKind::SeedPart
             | FileKind::SecretWallet
+            | FileKind::KeyWithSecret
             | FileKind::CoreWallet => Exposure::Secret,
             _ => Exposure::Public,
         }
@@ -59,6 +60,7 @@ impl FileKind {
             FileKind::Words
                 | FileKind::SeedPart
                 | FileKind::SecretWallet
+                | FileKind::KeyWithSecret
                 | FileKind::Entries
                 | FileKind::CoreWallet
                 | FileKind::Text

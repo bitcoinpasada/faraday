@@ -12,7 +12,6 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W, grouped};
-use crate::wallet::FileKind;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_L};
 
 fn sa(a: S) -> Action {
@@ -189,7 +188,7 @@ pub(crate) fn cosigner(
                     .inbox
                     .iter()
                     .enumerate()
-                    .filter(|(_, i)| i.kind == FileKind::Key)
+                    .filter(|(_, i)| i.kind.is_key())
                     .map(|(k, i)| (k, i.name.as_str()))
                     .collect();
                 let labels: Vec<String> = files

@@ -167,7 +167,7 @@ fn description_files<'a>(app: &'a View<'_>) -> Vec<(usize, &'a str)> {
     app.inbox
         .iter()
         .enumerate()
-        .filter(|(_, i)| i.kind == FileKind::Wallet)
+        .filter(|(_, i)| crate::create::wallet_flow_kind(i) == FileKind::Wallet)
         .map(|(k, i)| (k, i.name.as_str()))
         .collect()
 }

@@ -324,7 +324,10 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             );
             y += 32.0;
         }
-        let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
+        let file = app
+            .inbox
+            .iter()
+            .position(|i| crate::create::wallet_flow_kind(i) == FileKind::Wallet);
         let mut bx = x;
         if let Some(k) = file {
             bx += ui.button(
@@ -468,7 +471,10 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             ui.text_mid_as((x + 100.0, y, 30.0), BODY_S, Role::OnSurfaceVariant, &label);
             y += 32.0;
         }
-        let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
+        let file = app
+            .inbox
+            .iter()
+            .position(|i| crate::create::wallet_flow_kind(i) == FileKind::Wallet);
         let open_label = file.map(|k| Text::fill(EN.spend_backup_open, &[&app.inbox[k].name]));
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if let (Some(k), Some(l)) = (file, open_label.as_deref()) {
@@ -940,14 +946,14 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let files: Vec<Text> = app
             .inbox
             .iter()
-            .filter(|i| i.kind == FileKind::Wallet)
+            .filter(|i| crate::create::wallet_flow_kind(i) == FileKind::Wallet)
             .map(|i| Text::fill(EN.spend_backup_open, &[&i.name]))
             .collect();
         let items: Vec<(&str, Style, Action)> = app
             .inbox
             .iter()
             .enumerate()
-            .filter(|(_, i)| i.kind == FileKind::Wallet)
+            .filter(|(_, i)| crate::create::wallet_flow_kind(i) == FileKind::Wallet)
             .zip(&files)
             .map(|((k, _), l)| (l.as_str(), Style::Secondary, fa(F::UseWallet(k))))
             .collect();
@@ -1096,7 +1102,7 @@ fn came_rows(app: &View) -> Vec<Text> {
                 let Some(item) = app.inbox.iter().find(|i| i.name.as_str() == name.as_str()) else {
                     continue;
                 };
-                rows.push(match item.kind {
+                rows.push(match crate::create::wallet_flow_kind(item) {
                     FileKind::Wallet => {
                         match app
                             .session
@@ -1128,7 +1134,7 @@ fn came_rows(app: &View) -> Vec<Text> {
                             }
                         }
                     }
-                    FileKind::Key => {
+                    FileKind::Key | FileKind::KeyWithSecret => {
                         let t = Text::from_utf8_lossy(&item.bytes);
                         let key = crate::create::read_key(&t).unwrap_or_default();
                         let fp = key

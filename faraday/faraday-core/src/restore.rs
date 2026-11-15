@@ -715,7 +715,7 @@ impl Faraday {
                     .inbox
                     .iter()
                     .enumerate()
-                    .filter(|(_, i)| i.kind == FileKind::Wallet)
+                    .filter(|(_, i)| crate::create::wallet_flow_kind(i) == FileKind::Wallet)
                     .map(|(k, _)| k)
                     .collect();
                 match files.as_slice() {
@@ -1035,7 +1035,11 @@ impl Faraday {
     /// it was.
     pub(crate) fn restore_arrived(&mut self, at: usize) -> bool {
         let c = self.compute();
-        let Some((kind, name)) = self.inbox.get(at).map(|i| (i.kind, i.name.clone())) else {
+        let Some((kind, name)) = self
+            .inbox
+            .get(at)
+            .map(|i| (crate::create::wallet_flow_kind(i), i.name.clone()))
+        else {
             return false;
         };
         let Some(r) = self.restore.state.as_mut().filter(|r| !r.described) else {

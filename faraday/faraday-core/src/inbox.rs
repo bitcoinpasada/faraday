@@ -1084,7 +1084,7 @@ impl Faraday {
         // Account xpubs: once each, and only those no wallet here uses and
         // no seed here gives (the seed is the stronger of the two).
         for (k, item) in items.iter().enumerate() {
-            if item.kind != FileKind::Key {
+            if !item.kind.is_key() {
                 continue;
             }
             let text = Text::from_utf8_lossy(&item.bytes);
