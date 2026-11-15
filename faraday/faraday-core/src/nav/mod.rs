@@ -146,6 +146,22 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Create
         | Screen::Restore => Screen::WalletsStart,
         Screen::CreateVault | Screen::Unlock | Screen::VaultContents => Screen::Vaults,
-        s => s,
+        Screen::Home
+        | Screen::WalletsStart
+        | Screen::Files
+        | Screen::Settings
+        | Screen::SetTime
+        | Screen::Randomness
+        | Screen::Vaults
+        | Screen::Codes
+        | Screen::Decode
+        | Screen::Invoice
+        | Screen::NonceCheck
+        | Screen::SignerCheck
+        | Screen::Compare
+        | Screen::Catalog
+        | Screen::BackupFlow => s,
+        #[cfg(feature = "demo")]
+        Screen::Transfer => s,
     }
 }

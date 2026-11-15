@@ -1314,7 +1314,14 @@ impl Faraday {
             Screen::Message => self.message.scroll_y().map(|_| Place::Message)?,
             Screen::Create => self.create.scroll_y().map(|_| Place::Create)?,
             Screen::Restore => self.restore.scroll_y().map(|_| Place::Restore)?,
-            _ => return None,
+            // The screens above that scroll as the page only when compact.
+            Screen::Home
+            | Screen::CheckMessage
+            | Screen::Vaults
+            | Screen::Unlock
+            | Screen::VaultContents
+            | Screen::Lightning
+            | Screen::Tools => return None,
         })
     }
 

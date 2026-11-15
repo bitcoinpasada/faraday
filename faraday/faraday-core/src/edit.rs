@@ -1193,7 +1193,18 @@ impl Faraday {
                 .vault_files()
                 .get(self.vaults.pick)
                 .is_some_and(|f| f.open.is_none()),
-            _ => true,
+            Screen::Home
+            | Screen::WalletsStart
+            | Screen::Wallets
+            | Screen::Files
+            | Screen::Entry
+            | Screen::Settings
+            | Screen::Vaults
+            | Screen::Backups
+            | Screen::VaultContents
+            | Screen::Codes
+            | Screen::SpendBackup
+            | Screen::Catalog => true,
         }
     }
 }

@@ -37,30 +37,51 @@ pub(crate) const BAR_H: f32 = APP_BAR_H;
 
 /// The screens that draw their own top, as a step flow does.
 pub(crate) fn draws_own_bar(s: Screen) -> bool {
-    matches!(
-        s,
+    match s {
         Screen::Home
-            | Screen::Create
-            | Screen::Restore
-            | Screen::Backup
-            | Screen::Message
-            | Screen::Spend
-            | Screen::KeyGen
-            | Screen::Bip85
-            | Screen::Convert
-            | Screen::KefTool
-            | Screen::QrTool
-            | Screen::OtsCheck
-            | Screen::SeedCheck
-            | Screen::CoreWallet
-            | Screen::Silent
-            | Screen::Vanity
-            | Screen::CreateVault
-            | Screen::BackupFlow
-            | Screen::SpendBackup
-            | Screen::SignerCheck
-            | Screen::Compare
-    )
+        | Screen::Create
+        | Screen::Restore
+        | Screen::Backup
+        | Screen::Message
+        | Screen::Spend
+        | Screen::KeyGen
+        | Screen::Bip85
+        | Screen::Convert
+        | Screen::KefTool
+        | Screen::QrTool
+        | Screen::OtsCheck
+        | Screen::SeedCheck
+        | Screen::CoreWallet
+        | Screen::Silent
+        | Screen::Vanity
+        | Screen::CreateVault
+        | Screen::BackupFlow
+        | Screen::SpendBackup
+        | Screen::SignerCheck
+        | Screen::Compare => true,
+        Screen::WalletsStart
+        | Screen::Wallets
+        | Screen::Files
+        | Screen::Entry
+        | Screen::CheckMessage
+        | Screen::Settings
+        | Screen::SetTime
+        | Screen::Randomness
+        | Screen::Vaults
+        | Screen::Backups
+        | Screen::Explore
+        | Screen::Lightning
+        | Screen::Tools
+        | Screen::Unlock
+        | Screen::VaultContents
+        | Screen::Codes
+        | Screen::Decode
+        | Screen::Invoice
+        | Screen::NonceCheck
+        | Screen::Catalog => false,
+        #[cfg(feature = "demo")]
+        Screen::Transfer => false,
+    }
 }
 
 /// What a page's bar calls it.
@@ -1452,26 +1473,55 @@ impl Faraday {
         }
     }
 
-    /// Transfer is the page shown (Faraday Demo and the Starter only).
-    fn on_transfer(&self) -> bool {
-        #[cfg(feature = "demo")]
-        return self.screen == Screen::Transfer;
-        #[cfg(not(feature = "demo"))]
-        false
-    }
-
     /// A page that takes typing with no field to focus: its bar offers
     /// the keyboard.
     pub(crate) fn osk_offered(&self) -> bool {
         self.sheet.is_none()
-            && (matches!(
-                self.screen,
+            && match self.screen {
                 Screen::Explore
-                    | Screen::Bip85
-                    | Screen::Catalog
-                    | Screen::Tools
-                    | Screen::Lightning
-            ) || self.on_transfer())
+                | Screen::Bip85
+                | Screen::Catalog
+                | Screen::Tools
+                | Screen::Lightning => true,
+                Screen::Home
+                | Screen::WalletsStart
+                | Screen::Wallets
+                | Screen::Spend
+                | Screen::Files
+                | Screen::Entry
+                | Screen::Backup
+                | Screen::Message
+                | Screen::CheckMessage
+                | Screen::Create
+                | Screen::Restore
+                | Screen::Settings
+                | Screen::SetTime
+                | Screen::Randomness
+                | Screen::Vaults
+                | Screen::Backups
+                | Screen::CreateVault
+                | Screen::KeyGen
+                | Screen::Convert
+                | Screen::KefTool
+                | Screen::QrTool
+                | Screen::OtsCheck
+                | Screen::SeedCheck
+                | Screen::CoreWallet
+                | Screen::Silent
+                | Screen::Unlock
+                | Screen::VaultContents
+                | Screen::Codes
+                | Screen::SpendBackup
+                | Screen::Vanity
+                | Screen::Decode
+                | Screen::Invoice
+                | Screen::NonceCheck
+                | Screen::SignerCheck
+                | Screen::Compare
+                | Screen::BackupFlow => false,
+                #[cfg(feature = "demo")]
+                Screen::Transfer => true,
+            }
     }
 
     /// Whether the keyboard is up. On a small panel it rises by itself

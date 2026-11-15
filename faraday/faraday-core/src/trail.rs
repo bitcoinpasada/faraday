@@ -684,7 +684,29 @@ impl Faraday {
             Screen::BackupFlow => &crate::backup_flow::steps::FLOW_STEPS,
             Screen::Compare => &crate::compare::COMPARE_STEPS,
             Screen::SignerCheck => &crate::decode::check::SIGNER_STEPS,
-            _ => return None,
+            Screen::WalletsStart
+            | Screen::Wallets
+            | Screen::Files
+            | Screen::Entry
+            | Screen::CheckMessage
+            | Screen::Settings
+            | Screen::SetTime
+            | Screen::Randomness
+            | Screen::Vaults
+            | Screen::Backups
+            | Screen::Explore
+            | Screen::Lightning
+            | Screen::Tools
+            | Screen::Unlock
+            | Screen::VaultContents
+            | Screen::Codes
+            | Screen::Decode
+            | Screen::Invoice
+            | Screen::NonceCheck
+            | Screen::Catalog
+            | Screen::Home => return None,
+            #[cfg(feature = "demo")]
+            Screen::Transfer => return None,
         })
     }
 
