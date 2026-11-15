@@ -12,6 +12,7 @@ mod diff;
 mod finalize_checks;
 mod fixtures;
 mod inspect;
+mod inspection_pinned;
 mod leaf_wallet;
 mod message;
 mod miniscript;
