@@ -245,3 +245,48 @@ fn a_changed_plans_split_saved_again_replaces_the_old_share_2() {
     assert!(!resplit.contains(&own[0]), "the old Share 2 went");
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
 }
+
+/// A Copy that gathers what the first added vault takes and then finds
+/// another added vault still locked writes nothing: both open vaults are
+/// as they were, and the Copy pressed again with every vault open writes
+/// what the first one takes.
+#[test]
+fn a_copy_that_stops_part_way_leaves_every_added_vault_as_it_was() {
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready(&mut shell, false);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    // Vaults 1 and 3 take the description; Vault 2 holds seed 2.
+    flow_whole_in_vault(&mut shell, &mut app, 0);
+    flow_whole_in_vault(&mut shell, &mut app, 2);
+    shell.flow(&mut app, F::Continue);
+    open_vault(&mut shell, &mut app, 0, PHRASE);
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
+    let shape = |app: &Faraday| -> Vec<(Vec<u8>, Vec<Vec<u8>>)> {
+        (0..2)
+            .map(|o| {
+                (
+                    contents(app, o).iter().map(|r| r.kind).collect(),
+                    held(app, o, Moved::Seed),
+                )
+            })
+            .collect()
+    };
+    let before = shape(&app);
+    // Vault 3 is still locked: Vault 1 is gathered, then Copy stops.
+    shell.flow(&mut app, F::CopyKey);
+    assert_eq!(app.toast_text(), Some("Unlock every vault first"));
+    assert_eq!(
+        shape(&app),
+        before,
+        "a vault was written before Copy stopped"
+    );
+    open_vault(&mut shell, &mut app, 2, PHRASE_3);
+    shell.flow(&mut app, F::CopyKey);
+    assert_ne!(
+        shape(&app)[0],
+        before[0],
+        "Vault 1 takes the description once every vault is open"
+    );
+}
