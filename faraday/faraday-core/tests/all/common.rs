@@ -1761,13 +1761,12 @@ pub fn moved_on(app: &Faraday, action: Action) -> bool {
         return false;
     };
     let c = testkit::compute();
-    app.backup().is_some_and(|b| b.open != Some(n))
-        && faraday_core::bstep::item(n).is_some_and(|it| app.backup_item_done_now(&c, it))
+    app.backup().is_some_and(|b| b.open != Some(n)) && app.backup_item_done_now(&c, n)
 }
 
 /// Checklist item `n` opened, unless the checklist, moving on by itself
 /// (`docs/BACKUP-FLOW.md` §17.23), has it open already.
-pub fn open_item(app: &mut Faraday, n: u8) {
+pub fn open_item(app: &mut Faraday, n: faraday_core::plan::Item) {
     if app.backup().and_then(|b| b.open) != Some(n) {
         app.press(Action::BStep(n));
     }

@@ -12,7 +12,7 @@ use faraday_core::kef_form::KefAct;
 use faraday_core::kef_tool::KefToolAction as K;
 use faraday_core::plan::{Item, Preset};
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep, qstep, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageEvent, qstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 /// A one-key wallet whose plan keeps seed A's Krux code on a new stick,
@@ -58,9 +58,9 @@ fn plan_the_code(app: &mut Faraday, sticks: usize) {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(Item::Templates));
     }
     app.settle();
 }
@@ -72,8 +72,8 @@ fn done(app: &Faraday) -> bool {
 /// The status the item's row reads once the card is put away, the card
 /// opened again after.
 fn status(app: &mut Faraday) -> &'static str {
-    if app.backup().and_then(|b| b.open) == Some(bstep::KEF) {
-        app.press(Action::BStep(bstep::KEF));
+    if app.backup().and_then(|b| b.open) == Some(Item::KefCode(0)) {
+        app.press(Action::BStep(Item::KefCode(0)));
     }
     let texts = crate::common::texts(app);
     let row = texts
@@ -84,7 +84,7 @@ fn status(app: &mut Faraday) -> &'static str {
         .into_iter()
         .find(|s| texts[row + 1..].iter().take(3).any(|t| t == s))
         .unwrap_or("none");
-    open_item(app, bstep::KEF);
+    open_item(app, Item::KefCode(0));
     read
 }
 
@@ -122,9 +122,9 @@ fn the_item_is_listed_for_a_seed_with_a_code_on_a_stick() {
     let c = testkit::compute();
     let app = at_the_checklist();
     let items = app.backup_items_now(&c);
-    assert!(items.contains(&bstep::KEF), "{items:?}");
-    if let Some(sheets) = items.iter().position(|n| *n == bstep::SHEETS) {
-        assert!(items.iter().position(|n| *n == bstep::KEF) < Some(sheets));
+    assert!(items.contains(&Item::KefCode(0)), "{items:?}");
+    if let Some(sheets) = items.iter().position(|n| *n == Item::Sheets) {
+        assert!(items.iter().position(|n| *n == Item::KefCode(0)) < Some(sheets));
     }
     assert!(!done(&app));
 }
@@ -133,7 +133,7 @@ fn the_item_is_listed_for_a_seed_with_a_code_on_a_stick() {
 fn the_item_reads_not_checked_once_made_and_checked_once_opened_back() {
     let mut app = at_the_checklist();
     assert_eq!(status(&mut app), "Not made");
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     assert_eq!(status(&mut app), "Not made");
     make(&mut app);
     assert!(!done(&app), "made, not checked");
@@ -142,8 +142,8 @@ fn the_item_reads_not_checked_once_made_and_checked_once_opened_back() {
     assert!(done(&app));
     assert_eq!(status(&mut app), "Checked");
     // Put away and opened again, it is still checked.
-    app.press(Action::BStep(bstep::KEF));
-    open_item(&mut app, bstep::KEF);
+    app.press(Action::BStep(Item::KefCode(0)));
+    open_item(&mut app, Item::KefCode(0));
     assert!(done(&app));
     assert_eq!(status(&mut app), "Checked");
 }
@@ -151,7 +151,7 @@ fn the_item_reads_not_checked_once_made_and_checked_once_opened_back() {
 #[test]
 fn a_wrong_passphrase_leaves_it_not_checked() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "another one");
     assert!(!done(&app));
@@ -161,7 +161,7 @@ fn a_wrong_passphrase_leaves_it_not_checked() {
 #[test]
 fn back_at_the_plan_typing_makes_no_code() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     let sent = app.outbox.len();
     app.press(Action::BPlan);
     type_in(&mut app, "Home");
@@ -174,16 +174,16 @@ fn back_at_the_plan_typing_makes_no_code() {
 
 #[test]
 fn leaving_the_item_or_the_checklist_wipes_the_passphrase() {
-    for leave in [Action::BStep(bstep::KEF), Action::BPlan] {
+    for leave in [Action::BStep(Item::KefCode(0)), Action::BPlan] {
         let mut app = at_the_checklist();
-        open_item(&mut app, bstep::KEF);
+        open_item(&mut app, Item::KefCode(0));
         app.press(Action::KefTool(K::Backup(KefAct::Field)));
         type_in(&mut app, "typed and left");
         app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
         type_in(&mut app, "typed and left");
         app.press(leave);
         app.press(Action::BChecklist);
-        open_item(&mut app, bstep::KEF);
+        open_item(&mut app, Item::KefCode(0));
         make(&mut app);
         check_with(&mut app, "a passphrase");
         assert!(done(&app), "{leave:?}: the old text is gone");
@@ -212,9 +212,9 @@ fn to_lock(app: &mut Faraday, shell: &mut Shell) {
     testkit::type_passphrases(app);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::ENVELOPE)
+        .contains(&Item::Envelopes)
     {
-        app.press(Action::BNext(bstep::ENVELOPE));
+        app.press(Action::BNext(Item::Envelopes));
     }
     shell.flow(app, F::WalletLock);
 }
@@ -223,7 +223,7 @@ fn to_lock(app: &mut Faraday, shell: &mut Shell) {
 fn the_sticks_holding_the_code_list_its_two_files_at_lock_and_write() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let names = kef_files(&app);
@@ -247,7 +247,7 @@ fn the_sticks_holding_the_code_list_its_two_files_at_lock_and_write() {
 fn a_code_not_made_holds_the_lock() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     assert!(!done(&app));
     to_lock(&mut app, &mut shell);
     assert!(app.flow().is_none(), "no lock while the code is not made");
@@ -303,7 +303,7 @@ fn picture_reads_as_file(disk: &[(String, Vec<u8>)]) {
 fn both_files_reach_the_stick_and_the_picture_reads_back() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let names = kef_files(&app);
@@ -318,7 +318,7 @@ fn both_files_reach_the_stick_and_the_picture_reads_back() {
 fn a_code_already_written_once_goes_on_the_next_sticks_too() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let names = kef_files(&app);
@@ -348,7 +348,7 @@ fn a_code_already_written_once_goes_on_the_next_sticks_too() {
 fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_stick() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let names = kef_files(&app);
@@ -377,7 +377,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
         assert_eq!(now.bytes, o.bytes, "{} untouched", o.name.as_str());
     }
     // Made again, the new code is put beside the other, which stays.
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     assert!(done(&app));
@@ -400,7 +400,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
 fn a_second_stick_holding_the_code_gets_both_files_too() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist_on(2);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let names = kef_files(&app);
@@ -417,7 +417,7 @@ fn a_second_stick_holding_the_code_gets_both_files_too() {
 fn the_item_and_the_stick_lists_stay_when_the_backup_is_opened_again() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let w = app.backup().unwrap().wallet;
@@ -448,7 +448,7 @@ fn reopen(app: &mut Faraday) {
 #[test]
 fn a_code_closed_before_it_is_checked_is_read_back_from_its_file() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     let before = kef_files(&app);
     reopen(&mut app);
@@ -464,7 +464,7 @@ fn a_code_closed_before_it_is_checked_is_read_back_from_its_file() {
 #[test]
 fn a_code_whose_file_is_gone_reads_not_made_and_offers_the_first_step() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     reopen(&mut app);
@@ -479,7 +479,7 @@ fn a_code_whose_file_is_gone_reads_not_made_and_offers_the_first_step() {
 fn a_record_kept_before_the_code_files_were_named_still_loads() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     to_lock(&mut app, &mut shell);
@@ -519,7 +519,7 @@ fn a_record_kept_before_the_code_files_were_named_still_loads() {
 fn a_code_made_and_not_checked_holds_the_lock() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     assert!(!done(&app));
     to_lock(&mut app, &mut shell);
@@ -530,7 +530,7 @@ fn a_code_made_and_not_checked_holds_the_lock() {
 #[test]
 fn a_code_written_to_the_sticks_still_reads_checked_and_shows_its_code() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let card = testkit::kef_card_png(&app, 0).expect("the picture");
@@ -554,7 +554,7 @@ fn a_code_written_to_the_sticks_still_reads_checked_and_shows_its_code() {
 fn another_code_under_the_same_name_is_not_this_one() {
     let mut shell = Shell::new();
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     reopen(&mut app);
@@ -573,7 +573,7 @@ fn another_code_under_the_same_name_is_not_this_one() {
 fn a_code_with_one_of_its_files_gone_reads_not_made() {
     for gone in [".kef", ".png"] {
         let mut app = at_the_checklist();
-        open_item(&mut app, bstep::KEF);
+        open_item(&mut app, Item::KefCode(0));
         make(&mut app);
         check_with(&mut app, "a passphrase");
         app.outbox.retain(|i| !i.name.ends_with(gone));
@@ -587,7 +587,7 @@ fn a_code_with_one_of_its_files_gone_reads_not_made() {
 #[test]
 fn a_code_made_with_other_options_reopens_to_the_same_picture() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Version(5))));
     app.press(Action::KefTool(K::Backup(KefAct::Low)));
@@ -604,7 +604,7 @@ fn a_code_made_with_other_options_reopens_to_the_same_picture() {
     testkit::settle(&mut app);
     let made = testkit::kef_card_png(&app, 0).expect("the picture");
     reopen(&mut app);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     assert_eq!(testkit::kef_card_png(&app, 0), Some(made));
 }
 
@@ -632,7 +632,7 @@ fn make_by_fingerprint(app: &mut Faraday) {
 #[test]
 fn a_second_wallet_of_the_same_seed_keeps_the_first_wallets_code_in_files() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make_by_fingerprint(&mut app);
     check_with(&mut app, "a passphrase");
     let first = app.backup().unwrap().wallet;
@@ -649,7 +649,7 @@ fn a_second_wallet_of_the_same_seed_keeps_the_first_wallets_code_in_files() {
     assert_ne!(first, second);
     app.press(Action::Backup(second));
     plan_the_code(&mut app, 1);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make_by_fingerprint(&mut app);
     check_with(&mut app, "a passphrase");
     let second_names = kef_files(&app);
@@ -676,7 +676,7 @@ fn a_second_wallet_of_the_same_seed_keeps_the_first_wallets_code_in_files() {
 #[test]
 fn a_code_goes_beside_files_holding_only_the_picture_of_an_earlier_one_under_one_stem() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make_by_fingerprint(&mut app);
     check_with(&mut app, "a passphrase");
     let first_names = kef_files(&app);
@@ -692,7 +692,7 @@ fn a_code_goes_beside_files_holding_only_the_picture_of_an_earlier_one_under_one
     let second = app.session.wallets.len() - 1;
     app.press(Action::Backup(second));
     plan_the_code(&mut app, 1);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make_by_fingerprint(&mut app);
     let mut names = kef_files(&app);
     names.sort();
@@ -741,9 +741,9 @@ fn reopen_on_paper(app: &mut Faraday, paper_only: bool) {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(Item::Templates));
     }
     app.settle();
 }
@@ -766,7 +766,7 @@ fn seen(app: &mut Faraday, text: &str) -> bool {
 #[test]
 fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     for t in ["Size", "By hand"] {
         assert!(
@@ -796,15 +796,15 @@ fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
     let marked = mark(&mut app, 48);
     assert_ne!(marked, before);
     // Closed and opened again, the mark stands.
-    app.press(Action::BStep(bstep::KEF));
-    open_item(&mut app, bstep::KEF);
+    app.press(Action::BStep(Item::KefCode(0)));
+    open_item(&mut app, Item::KefCode(0));
     assert!(seen(&mut app, &marked), "{marked}");
 }
 
 #[test]
 fn on_paper_with_a_camera_the_card_offers_scan_my_copy_and_not_check_my_code() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     assert!(seen(&mut app, "Scan my copy"));
     assert!(!seen(&mut app, "Check my code"));
@@ -820,7 +820,7 @@ fn on_paper_with_a_camera_the_card_offers_scan_my_copy_and_not_check_my_code() {
 #[test]
 fn a_code_checked_with_no_camera_stays_checked_when_a_camera_is_plugged_in() {
     let mut app = on_paper(false);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     assert!(seen(&mut app, "Check my code"));
     check_with(&mut app, "a passphrase");
@@ -842,36 +842,36 @@ fn a_code_checked_with_no_camera_stays_checked_when_a_camera_is_plugged_in() {
 #[test]
 fn check_my_code_alone_on_paper_ends_the_item_with_no_camera() {
     let mut app = on_paper(false);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     assert!(done(&app));
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     assert!(seen(&mut app, "Drawn copy: Not scanned"));
 }
 
 #[test]
 fn not_on_paper_takes_the_code_off_every_place_and_the_item_goes_with_no_stick_copy() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
     assert!(
         !app.backup_items_now(&testkit::compute())
-            .contains(&bstep::KEF),
+            .contains(&Item::KefCode(0)),
         "no copy left anywhere"
     );
     // The form is put away: the checklist moved on and typing goes nowhere.
-    assert_ne!(app.backup().and_then(|b| b.open), Some(bstep::KEF));
+    assert_ne!(app.backup().and_then(|b| b.open), Some(Item::KefCode(0)));
     // With a stick copy too, the item stays.
     let mut app = at_the_checklist();
     reopen_on_paper(&mut app, false);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
     assert!(
         app.backup_items_now(&testkit::compute())
-            .contains(&bstep::KEF)
+            .contains(&Item::KefCode(0))
     );
     assert!(!seen(&mut app, "Not on Paper"));
 }
@@ -896,7 +896,7 @@ fn make_labelled(app: &mut Faraday, n: usize) {
 #[test]
 fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make_labelled(&mut app, 30);
     let side = crate::common::texts(&mut app)
         .into_iter()
@@ -912,8 +912,8 @@ fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
         })
         .expect("the sheet's name");
     assert!(!side.starts_with("33 "), "a side of its own: {side}");
-    app.press(Action::BStep(bstep::KEF));
-    open_item(&mut app, bstep::BLANK);
+    app.press(Action::BStep(Item::KefCode(0)));
+    open_item(&mut app, Item::Templates);
     let want = format!("Krux code, {side}");
     let texts = crate::common::texts(&mut app);
     assert!(
@@ -927,7 +927,7 @@ fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
 #[test]
 fn a_code_larger_than_the_largest_sheet_reads_by_hand_no() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Id(
         faraday_core::kef_form::IdKind::Label,
@@ -953,7 +953,7 @@ fn a_code_larger_than_the_largest_sheet_reads_by_hand_no() {
 #[test]
 fn a_record_with_the_old_eight_field_code_line_still_reads() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let w = app.backup().unwrap().wallet;
@@ -1012,7 +1012,7 @@ fn open_scan_my_copy(app: &mut Faraday) {
 #[test]
 fn scanning_the_made_code_then_its_passphrase_checks_it_and_the_record_keeps_it() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     assert!(!done(&app));
     let text = code_text(&app);
@@ -1036,7 +1036,7 @@ fn scanning_the_made_code_then_its_passphrase_checks_it_and_the_record_keeps_it(
 #[test]
 fn another_code_reads_not_this_code_and_three_closings_offer_not_on_paper() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     // Many wrong frames in one opening of the camera count one miss.
     open_scan_my_copy(&mut app);
@@ -1057,14 +1057,14 @@ fn another_code_reads_not_this_code_and_three_closings_offer_not_on_paper() {
     app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
     assert!(
         !app.backup_items_now(&testkit::compute())
-            .contains(&bstep::KEF)
+            .contains(&Item::KefCode(0))
     );
 }
 
 #[test]
 fn a_wrong_passphrase_after_a_good_scan_reads_so_and_the_right_one_checks() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     let text = code_text(&app);
     open_scan_my_copy(&mut app);
@@ -1086,7 +1086,7 @@ fn a_wrong_passphrase_after_a_good_scan_reads_so_and_the_right_one_checks() {
 #[test]
 fn nothing_scanned_for_the_drawn_code_is_loaded_or_filed() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     let (keys, wallets, inbox, outbox) = (
         app.session.keys.len(),
@@ -1109,7 +1109,7 @@ fn in_practice_the_sample_tile_gives_the_made_code() {
     let mut app = on_paper(true);
     app.session.set_demo(testkit::demo_samples());
     app.samples = Some(testkit::demo_samples());
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     open_scan_my_copy(&mut app);
     app.press(Action::ScanSample);
@@ -1123,7 +1123,7 @@ fn in_practice_the_sample_tile_gives_the_made_code() {
 #[test]
 fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Id(
         faraday_core::kef_form::IdKind::Label,
@@ -1139,7 +1139,7 @@ fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
     testkit::settle(&mut app);
     assert!(!seen(&mut app, "Scan my copy"));
     let mut small = on_paper(true);
-    open_item(&mut small, bstep::KEF);
+    open_item(&mut small, Item::KefCode(0));
     make(&mut small);
     assert!(seen(&mut small, "Scan my copy"));
 }
@@ -1147,7 +1147,7 @@ fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
 #[test]
 fn not_on_paper_puts_the_form_away_with_what_was_typed_in_its_field() {
     let mut app = on_paper(false);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     app.press(Action::KefTool(K::Backup(KefAct::Check)));
     type_in(&mut app, "half a passphr");
@@ -1161,7 +1161,7 @@ fn not_on_paper_puts_the_form_away_with_what_was_typed_in_its_field() {
 #[test]
 fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() {
     let mut app = on_paper(true);
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Id(
         faraday_core::kef_form::IdKind::Label,
@@ -1175,8 +1175,8 @@ fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() 
     type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);
-    app.press(Action::BStep(bstep::KEF));
-    open_item(&mut app, bstep::BLANK);
+    app.press(Action::BStep(Item::KefCode(0)));
+    open_item(&mut app, Item::Templates);
     let texts = crate::common::texts(&mut app);
     assert!(
         texts.iter().any(|t| t.contains("Krux code, 33"))
@@ -1192,13 +1192,13 @@ fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() 
         faraday_text::Text::of("cam"),
         faraday_text::Text::of("Camera"),
     )]));
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     assert!(done(&app));
     assert_eq!(status(&mut app), "Checked");
     // Back at the plan, the code is also put on Paper at the first place.
-    app.press(Action::BStep(bstep::KEF));
+    app.press(Action::BStep(Item::KefCode(0)));
     app.press(Action::BPlan);
     board(&mut app, BP::Menu(Chip::List(Thing::Seed(0))));
     board(&mut app, BP::MenuVerb(Verb::Kef));
@@ -1210,7 +1210,7 @@ fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() 
     app.settle();
     assert!(
         app.backup_items_now(&testkit::compute())
-            .contains(&bstep::KEF),
+            .contains(&Item::KefCode(0)),
         "no item"
     );
     assert!(!done(&app));
@@ -1221,7 +1221,7 @@ fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() 
 /// its item opened.
 fn checked_reopened_then_put_on_paper(camera: bool) -> Faraday {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     assert!(done(&app));
@@ -1240,8 +1240,8 @@ fn checked_reopened_then_put_on_paper(camera: bool) -> Faraday {
     app.press(Action::BChecklist);
     app.settle();
     // The blank template to print comes first on Paper.
-    app.press(Action::BNext(bstep::BLANK));
-    open_item(&mut app, bstep::KEF);
+    app.press(Action::BNext(Item::Templates));
+    open_item(&mut app, Item::KefCode(0));
     app
 }
 
@@ -1260,7 +1260,7 @@ fn a_reopened_code_checked_off_paper_stays_checked_on_paper_with_no_camera() {
 #[test]
 fn a_record_kept_before_paper_was_kept_reads_as_before() {
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     make(&mut app);
     check_with(&mut app, "a passphrase");
     let w = app.backup().unwrap().wallet;
@@ -1303,7 +1303,7 @@ fn with_a_stick_attached_the_krux_code_takes_no_passphrase() {
         })
     };
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
     type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
@@ -1312,7 +1312,7 @@ fn with_a_stick_attached_the_krux_code_takes_no_passphrase() {
     if app.sheet == Some(faraday_core::Sheet::Lock) {
         app.press(Action::NotNow);
     }
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.event(Event::Key(Key::Enter));
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);
@@ -1348,7 +1348,7 @@ fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
         })
     };
     let mut app = at_the_checklist();
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Rounds)));
     for _ in 0..8 {
@@ -1363,7 +1363,7 @@ fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
     if app.sheet == Some(faraday_core::Sheet::Lock) {
         app.press(Action::NotNow);
     }
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::BackupDice(Press::Use)));
     assert_eq!(
         app.toast_text(),
@@ -1377,7 +1377,7 @@ fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
     if app.sheet == Some(faraday_core::Sheet::Lock) {
         app.press(Action::NotNow);
     }
-    open_item(&mut app, bstep::KEF);
+    open_item(&mut app, Item::KefCode(0));
     app.press(Action::KefTool(K::Backup(KefAct::Options)));
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.event(Event::Key(Key::Char('x')));

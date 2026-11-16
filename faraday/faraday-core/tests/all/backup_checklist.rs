@@ -18,7 +18,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
+use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, plan, qrow, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
 
@@ -125,22 +125,19 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         app.backup_items_now(&c),
         vec![
-            bstep::BLANK,
-            bstep::COPY,
-            bstep::VAULT,
-            bstep::SHEETS,
-            bstep::ENVELOPE,
-            bstep::STICKS
+            Item::Templates,
+            Item::Copy(0),
+            Item::Vault(0),
+            Item::Sheets,
+            Item::Envelopes,
+            Item::Sticks
         ],
         "only what paper and a vault need, and the writes"
     );
@@ -160,7 +157,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
         assert!(!done(&app, item), "{item:?} done before anything");
     }
     // So the checklist opens on the copy, which is typed back.
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Copy(0)));
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
@@ -169,23 +166,23 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     assert!(!done(&app, Item::Vault(0)), "the copy is not the vault");
     // The seed and the wallet, into the vault, by the vault item's one
     // button.
-    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    press_offered(&mut app, Action::BStep(Item::Vault(0)));
     press_offered(&mut app, Action::BVaultSave(0));
     assert!(done(&app, Item::Vault(0)));
     // The sheet, For the stick since the checklist: its row offers
     // Remove, which undoes the item, and making it again redoes it.
-    press_offered(&mut app, Action::BStep(bstep::SHEETS));
+    press_offered(&mut app, Action::BStep(Item::Sheets));
     press_offered(&mut app, Action::PublicRemove(w, 3));
     assert!(!done(&app, Item::Sheets));
     press_offered(&mut app, Action::BOut(3));
     assert!(done(&app, Item::Sheets));
     // The envelopes, by a press; then the writes, which are the
     // checklist's last item: one lock, then each stick.
-    press_offered(&mut app, Action::BStep(bstep::ENVELOPE));
-    press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
+    press_offered(&mut app, Action::BStep(Item::Envelopes));
+    press_offered(&mut app, Action::BNext(Item::Envelopes));
     assert!(done(&app, Item::Envelopes));
     // The envelopes' press opened the writes, the last item.
-    assert_eq!(app.backup().unwrap().open, Some(bstep::STICKS));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Sticks));
     press_offered(
         &mut app,
         Action::Flow(faraday_core::backup_flow::steps::FlowAction::WalletLock),
@@ -224,7 +221,7 @@ fn the_descriptor_shown_as_a_code_stays_done_when_the_backup_is_opened_again() {
         plan::software::SPARROW as u8,
     ));
     app.press(Action::BChecklist);
-    assert!(app.backup_items_now(&c).contains(&bstep::SHOW));
+    assert!(app.backup_items_now(&c).contains(&Item::ShowDescriptor));
     assert!(!done(&app, Item::ShowDescriptor));
     app.press(Action::QrWallet(w));
     assert!(done(&app, Item::ShowDescriptor));
@@ -266,12 +263,12 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
     put(&mut app, Thing::Pass(0), Zone::Paper(0));
     app.press(Action::BChecklist);
     assert!(
-        app.backup_items_now(&c).contains(&bstep::PASSPHRASE),
+        app.backup_items_now(&c).contains(&Item::Passphrase(0)),
         "{:?}",
         app.backup_items_now(&c)
     );
     assert!(!done(&app, Item::Passphrase(0)));
-    assert_eq!(app.backup().unwrap().open, Some(bstep::PASSPHRASE));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Passphrase(0)));
     app.press(Action::BCheck);
     type_text(&mut app, "lantern-orchid-41");
     app.event(Event::Key(Key::Enter));
@@ -301,11 +298,8 @@ fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick()
         "nothing is made before the checklist"
     );
     press_offered(&mut app, Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     let name = format!(
         "{}-wallet.json",
@@ -347,11 +341,8 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     ));
     put(&mut app, Thing::Seed(0), Zone::Files(0, s));
     press_offered(&mut app, Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     let plans: Vec<_> = app
         .vaults()
@@ -383,11 +374,8 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     app.press(Action::BPlan);
     put(&mut app, Thing::Vault(0), Zone::Card(0));
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     assert_eq!(
         app.vaults()
@@ -434,11 +422,8 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     app.press(Action::BName(1));
     type_text(&mut app, NAME);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     // The blank template is printed from Faraday Starter: nothing is made
     // here, and no place's name is on any file.
@@ -449,7 +434,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
             .any(|i| i.name.starts_with("blank-template")),
         "the checklist makes no template"
     );
-    app.press(Action::BStep(bstep::BLANK));
+    app.press(Action::BStep(Item::Templates));
     assert!(
         app.drawn_texts()
             .iter()
@@ -537,32 +522,29 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     // No paper words, so the vaults come first.
     no_words(&mut app);
     press_offered(&mut app, Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     let items = app.backup_items_now(&c);
     assert!(
-        items.contains(&bstep::VAULT) && items.contains(&(bstep::VAULT + 1)),
+        items.contains(&Item::Vault(0)) && items.contains(&(Item::Vault(1))),
         "two vault items: {items:?}"
     );
     assert!(
-        !items.contains(&(bstep::VAULT + 2)),
+        !items.contains(&(Item::Vault(2))),
         "no vault for the cosigner's seed"
     );
     // Vault 1, open first: made, its seed and the wallet saved into it.
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(0)));
     press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
     make_the_vault(&mut app);
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(0)));
     press_offered(&mut app, Action::BVaultSave(0));
     assert!(done(&app, Item::Vault(0)));
     assert!(!done(&app, Item::Vault(1)));
     // Vault 2's item: the open vault holds Vault 1's seed, so it offers
     // no save, only to lock it and make a new one.
-    press_offered(&mut app, Action::BStep(bstep::VAULT + 1));
+    press_offered(&mut app, Action::BStep(Item::Vault(1)));
     let mut found = false;
     for _ in 0..20 {
         app.settle();
@@ -588,7 +570,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     faraday_core::testkit::settle(&mut app);
     assert_eq!(app.vaults().open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(1)));
     press_offered(&mut app, Action::BVaultSave(1));
     assert!(done(&app, Item::Vault(1)));
     assert!(
@@ -629,7 +611,7 @@ fn check_copy(app: &mut Faraday, w: usize, i: usize) {
         .keys
         .reveal(k, faraday_keys::Reveal::Words)
         .to_string();
-    let item = bstep::COPY + i as u8;
+    let item = Item::Copy(i);
     if app.backup().unwrap().open != Some(item) {
         press_offered(app, Action::BStep(item));
     }
@@ -665,12 +647,12 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
     assert_eq!(
         app.backup_items_now(&c),
         vec![
-            bstep::BLANK,
-            bstep::COPY,
-            bstep::COPY + 1,
-            bstep::SHEETS,
-            bstep::ENVELOPE,
-            bstep::STICKS
+            Item::Templates,
+            Item::Copy(0),
+            Item::Copy(1),
+            Item::Sheets,
+            Item::Envelopes,
+            Item::Sticks
         ]
     );
     let seed = |i: usize| String::from(&*app.backup_seed_list_now(w)[i].0);
@@ -717,7 +699,7 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
         [false, false, false, true, false, false],
         Some(&titles[0]),
     );
-    app.press(Action::BNext(bstep::BLANK));
+    app.press(Action::BNext(Item::Templates));
     check(
         &mut app,
         [true, false, false, true, false, false],
@@ -735,8 +717,8 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
         [true, true, true, true, false, false],
         Some(&titles[4]),
     );
-    press_offered(&mut app, Action::BStep(bstep::ENVELOPE));
-    press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
+    press_offered(&mut app, Action::BStep(Item::Envelopes));
+    press_offered(&mut app, Action::BNext(Item::Envelopes));
     check(
         &mut app,
         [true, true, true, true, true, false],
@@ -772,11 +754,11 @@ fn offered_anywhere(app: &mut Faraday, action: Action) -> bool {
 
 /// Opens the checklist's public files item afresh: closed, then opened.
 fn reopen_public(app: &mut Faraday) {
-    if app.backup().and_then(|b| b.open) == Some(bstep::PUBLIC) {
-        app.press(Action::BStep(bstep::PUBLIC));
+    if app.backup().and_then(|b| b.open) == Some(Item::PublicFiles) {
+        app.press(Action::BStep(Item::PublicFiles));
     }
-    app.press(Action::BStep(bstep::PUBLIC));
-    assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::PUBLIC));
+    app.press(Action::BStep(Item::PublicFiles));
+    assert_eq!(app.backup().and_then(|b| b.open), Some(Item::PublicFiles));
 }
 
 #[test]
@@ -793,15 +775,15 @@ fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made
     ));
     app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     // The items before the public files: the copy typed back, the vault.
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    press_offered(&mut app, Action::BStep(Item::Vault(0)));
     press_offered(&mut app, Action::BVaultSave(0));
     // Making the checklist makes no file that is under More options.
     let stem = faraday_core::file_stem(&app.session.wallets[w].name);

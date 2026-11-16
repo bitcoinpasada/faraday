@@ -17,9 +17,7 @@ use faraday_core::testkit::backup_as;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::fp_text;
-use faraday_core::{
-    Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, qstep,
-};
+use faraday_core::{Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, cstep, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const WARNING: &str = "Back up before you receive";
@@ -110,11 +108,8 @@ fn checklist(app: &mut Faraday, p: Preset) {
     backup_as(app, p);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
 }
@@ -138,11 +133,11 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
 
 /// The rest of a Paper only checklist after the copy: the envelopes.
 fn the_envelopes(app: &mut Faraday) {
-    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
-        app.press(Action::BStep(bstep::ENVELOPE));
+    if app.backup().unwrap().open != Some(Item::Envelopes) {
+        app.press(Action::BStep(Item::Envelopes));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::ENVELOPE));
-    app.press(Action::BNext(bstep::ENVELOPE));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Envelopes));
+    app.press(Action::BNext(Item::Envelopes));
 }
 
 fn kit_of(app: &Faraday, w: usize) -> Kit {
@@ -194,11 +189,8 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert_eq!(app.screen, Screen::Backup);
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     assert!(app.key_held(&c, fp), "held before the envelopes");
@@ -280,10 +272,10 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
     // The copy checked, the checklist has moved on to the vault's item.
-    if app.backup().unwrap().open != Some(bstep::VAULT) {
-        app.press(Action::BStep(bstep::VAULT));
+    if app.backup().unwrap().open != Some(Item::Vault(0)) {
+        app.press(Action::BStep(Item::Vault(0)));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(0)));
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
@@ -314,11 +306,8 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
@@ -370,11 +359,8 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
@@ -392,18 +378,15 @@ fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     // The checklist is on show with its last item waiting, drawn.
     let _ = app.drawn_texts();
     assert!(app.receive_held(&c, &app.session.wallets[w]));
-    app.press(Action::BStep(bstep::ENVELOPE));
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BStep(Item::Envelopes));
+    app.press(Action::BNext(Item::Envelopes));
     // No frame has been drawn since the press: the key is already
     // released, and the address is not held back.
     assert!(!app.key_held(&c, fp));
@@ -442,11 +425,8 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     backup_as(&mut app, Preset::Paper);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
@@ -482,22 +462,19 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // No paper: the vault's item comes first.
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(0)));
     let _ = app.frame();
     let make = Action::Vault(V::CreateFrom(Screen::Backup));
     assert!(app.offers(make), "Make a vault");
     assert!(!app.offers(Action::BVaultSave(0)));
-    assert!(!app.offers(Action::BNext(bstep::VAULT)), "a Continue");
+    assert!(!app.offers(Action::BNext(Item::Vault(0))), "a Continue");
     // The next item does not open, nor does Continue pass it.
-    app.press(Action::BStep(bstep::SHEETS));
-    app.press(Action::BNext(bstep::VAULT));
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    app.press(Action::BStep(Item::Sheets));
+    app.press(Action::BNext(Item::Vault(0)));
+    assert_eq!(app.backup().unwrap().open, Some(Item::Vault(0)));
     // The vault made: one button saves everything.
     app.press(make);
     for second in [false, true] {
@@ -525,7 +502,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     let _ = app.frame();
     assert!(app.offers(Action::BVaultSave(0)), "Save into the vault");
     assert!(!app.offers(make));
-    assert!(!app.offers(Action::BNext(bstep::VAULT)));
+    assert!(!app.offers(Action::BNext(Item::Vault(0))));
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     assert!(app.key_held(&c, fp), "the rest of the checklist waits");
@@ -533,7 +510,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // (`docs/BACKUP-FLOW.md` §17.23).
     let _ = app.frame();
     assert!(!app.offers(Action::BVaultSave(0)));
-    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_ne!(app.backup().unwrap().open, Some(Item::Vault(0)));
 }
 
 #[test]
@@ -561,13 +538,10 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
         "no vault on the plan"
     );
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
-    assert!(!app.backup_items_now(&c).contains(&bstep::VAULT));
+    assert!(!app.backup_items_now(&c).contains(&Item::Vault(0)));
     let line = format!("vault.kdbx holds seed {}", String::from(&*fp_text(fp)));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
@@ -596,11 +570,8 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     let nowhere = format!("Seed {} is kept nowhere", String::from(&*fp_text(fp)));
     assert!(app.drawn_texts().plain().contains(&nowhere));
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     assert_eq!(app.backup().unwrap().stage, BStage::Plan);
 }
@@ -655,11 +626,8 @@ fn a_key_made_here_warns_on_its_descriptor_and_explore_opens_no_code_until_its_b
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app
-        .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
-    {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
