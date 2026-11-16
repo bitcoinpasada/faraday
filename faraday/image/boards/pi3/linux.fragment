@@ -137,14 +137,18 @@ CONFIG_USB_VIDEO_CLASS=y
 
 # ---- Faraday: no filesystem on the card is parsed by the kernel ----
 # (docs/SECURITY-MODEL.md "What the kernel can reach".) faraday-disk reads the card's data partition, unprivileged,
-# with its own FAT code; common/linux.fragment turns vfat on for upstream's
-# mount, and these lines turn it off again. MBR partitions stay, so the
+# with its own FAT code; the kernel has no FAT driver. MBR partitions stay, so the
 # card's partitions are their own nodes and the whole card is never handed
 # out.
 # CONFIG_FAT_FS is not set
 # CONFIG_VFAT_FS is not set
 # CONFIG_MSDOS_FS is not set
 # CONFIG_EXFAT_FS is not set
+# The defconfig's name tables are for a mounted filesystem; none is.
+# CONFIG_NLS_CODEPAGE_437 is not set
+# CONFIG_NLS_ASCII is not set
+# CONFIG_NLS_ISO8859_1 is not set
+# CONFIG_NLS_UTF8 is not set
 # CONFIG_NTFS3_FS is not set
 # CONFIG_ISO9660_FS is not set
 # CONFIG_UDF_FS is not set

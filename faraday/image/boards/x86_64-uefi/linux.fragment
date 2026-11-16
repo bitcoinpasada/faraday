@@ -326,14 +326,17 @@ CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
 
 # ---- Faraday: no filesystem on a stick is parsed by the kernel ----
 # (docs/SECURITY-MODEL.md "What the kernel can reach".) The stick's partitions are read by faraday-disk, an
-# unprivileged process with its own FAT code, never mounted. This board
-# fragment comes after common/linux.fragment, which turns vfat on for
-# upstream's exchange partition; these lines turn it, and every other
-# filesystem a stick could carry, off again.
+# unprivileged process with its own FAT code, never mounted. These lines
+# keep FAT, and every other filesystem a stick could carry, off.
 # CONFIG_FAT_FS is not set
 # CONFIG_VFAT_FS is not set
 # CONFIG_MSDOS_FS is not set
 # CONFIG_EXFAT_FS is not set
+# The defconfig's name tables are for a mounted filesystem; none is.
+# CONFIG_NLS_CODEPAGE_437 is not set
+# CONFIG_NLS_ASCII is not set
+# CONFIG_NLS_ISO8859_1 is not set
+# CONFIG_NLS_UTF8 is not set
 # CONFIG_NTFS3_FS is not set
 # CONFIG_ISO9660_FS is not set
 # CONFIG_UDF_FS is not set

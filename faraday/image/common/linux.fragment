@@ -73,20 +73,6 @@ CONFIG_LOGO_LINUX_CLUT224=y
 # CONFIG_LOGO_LINUX_MONO is not set
 # CONFIG_LOGO_LINUX_VGA16 is not set
 
-# ---- microSD file exchange ----
-# The card's second partition is FAT and is mounted at /mnt/microsd by
-# init, so a PSBT can arrive as a file and a signed one can go back.
-# CONFIG_MMC_BLOCK gives the block device the mount needs; the codepage
-# and the NLS tables are what vfat needs to read a name a computer wrote.
-CONFIG_FAT_FS=y
-CONFIG_VFAT_FS=y
-CONFIG_FAT_DEFAULT_CODEPAGE=437
-CONFIG_FAT_DEFAULT_IOCHARSET="ascii"
-CONFIG_NLS=y
-CONFIG_NLS_CODEPAGE_437=y
-CONFIG_NLS_ASCII=y
-CONFIG_NLS_ISO8859_1=y
-
 # ---- SysRq and the kernel debugger ----
 # Nothing should be able to reboot the device, kill the app or dump kernel
 # state from an input device. The device is meant to be unreachable except

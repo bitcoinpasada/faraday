@@ -25,7 +25,11 @@ KEXEC          loading a second kernel over this one keeps the device running a 
 MAGIC_SYSRQ    no input device may reboot the device, kill the app or dump kernel state
 DEBUG_FS       debugfs publishes kernel internals as a writable filesystem
 PROC_KCORE     /proc/kcore is the running kernel's memory as a file to read
-EXT4_FS        the rootfs is an initramfs and the exchange partition is FAT; no other filesystem is ever mounted
+EXT4_FS        the rootfs is an initramfs and no disk filesystem is ever mounted
+NLS_CODEPAGE_437 a filesystem's name table, and no disk filesystem is mounted (NLS itself stays: the USB core selects it for string descriptors)
+NLS_ASCII      as NLS_CODEPAGE_437
+NLS_ISO8859_1  as NLS_CODEPAGE_437
+NLS_UTF8       as NLS_CODEPAGE_437
 BTRFS_FS       as EXT4_FS
 F2FS_FS        as EXT4_FS
 XFS_FS         as EXT4_FS
