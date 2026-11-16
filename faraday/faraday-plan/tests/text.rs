@@ -121,3 +121,11 @@ fn a_plan_needs_eight_answer_lines() {
     }
     assert!(read("").is_none());
 }
+
+#[test]
+fn a_spot_keeping_a_string_the_set_does_not_have_is_refused() {
+    // Seed 0's set needs two strings and has indices 29 and 24.
+    let set = "codex32 0 2 48 ac qprz 0";
+    assert!(read(&with(&format!("{set}\nspot place0 x0.29 x0.24"))).is_some());
+    assert!(read(&with(&format!("{set}\nspot place0 x0.29 x0.10"))).is_none());
+}

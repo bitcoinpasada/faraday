@@ -380,6 +380,16 @@ impl Answers {
         for i in got.unmade {
             a.set_c32(shape, i, None);
         }
+        // A string a spot keeps is one of its seed's set: an index the
+        // form does not list would count toward rebuilding the seed.
+        if a.map.iter().flatten().any(|s| {
+            s.holds.iter().any(|(w, _)| {
+                codex32::string_of(*w)
+                    .is_some_and(|(i, j)| a.c32(i).is_some_and(|f| !f.indices.contains(&j)))
+            })
+        }) {
+            return None;
+        }
         // A set rotated away is a real identifier and not the plan's own
         // (its strings would be taken out at a save); the lines may come
         // before the seed's `codex32` line, so this is checked last.
