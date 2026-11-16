@@ -1097,7 +1097,7 @@ impl Faraday {
             // A seed whose every copy is at this one place, where losing
             // the place loses the wallet (`lost_why`'s "kept only at").
             if lost_no {
-                for i in shape.here() {
+                for i in shape.vaultable() {
                     let at: Vec<usize> = (0..places)
                         .filter(|&q| things[q].contains(&Thing::Seed(i)))
                         .collect();

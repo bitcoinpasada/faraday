@@ -3045,3 +3045,37 @@ fn a_date_follows_a_thing_moved_on_the_board_and_none_stays_behind() {
         "{left:?}"
     );
 }
+
+/// A key loaded from SLIP-39 shares or a master seed, kept only in the
+/// plan's vault whose stick is at one place, is marked on the board there
+/// as the plan's line says: lost with that place.
+#[test]
+fn a_key_kept_as_shares_in_a_vault_at_one_place_is_marked_on_the_board() {
+    use std::str::FromStr;
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    let fp = app.session.keys.add_seed(&c, &[7u8; 32], "").unwrap();
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let pos = app.session.keys.position(fp).unwrap();
+    let x = app.session.keys.xpub_at(&c, pos, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let d = format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Test",
+            &d,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+    app.press(Action::Backup(w));
+    testkit::backup_as(&mut app, Preset::PaperVault);
+    open_board(&mut app);
+    let marked = app.board_marks(&c);
+    assert!(
+        marked.iter().any(|(_, t)| *t == Thing::Seed(0)),
+        "{marked:?}"
+    );
+}

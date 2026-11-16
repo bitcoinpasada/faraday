@@ -1803,10 +1803,11 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             ));
             for sd in &w.shape.seeds {
                 out.push_str(&text!(
-                    "wseed\t{}\t{}\t{}\n",
+                    "wseed\t{}\t{}\t{}\t{}\n",
                     &*clean(&sd.name),
                     u8::from(sd.here),
-                    u8::from(sd.passphrase)
+                    u8::from(sd.passphrase),
+                    u8::from(sd.shares)
                 ));
             }
             if w.setup {
@@ -2128,12 +2129,14 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             w.shape.vaults = vaults;
             true
         }
-        ["wseed", name, here, pass] => {
+        // The last field, whether the key is kept as shares, is missing in
+        // a flow kept before it was written.
+        ["wseed", name, here, pass, ref rest @ ..] if rest.len() <= 1 => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.shape.seeds.push(crate::plan::Seed {
                 name: faraday_text::Text::of(name),
                 here: here == "1",
-                shares: false,
+                shares: rest.first() == Some(&"1"),
                 passphrase: pass == "1",
             });
             true

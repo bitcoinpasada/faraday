@@ -3671,3 +3671,70 @@ fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
     assert!(!app.create_card_done(cstep::WHERE));
     assert!(!app.create_card_done(cstep::HOW_MANY));
 }
+
+/// A saved Make a new wallet flow keeps that a key is kept as shares, so
+/// after a lock and a restart it still reads the key as kept as shares; a
+/// flow kept before the mark was written reads the key as not.
+#[test]
+fn a_saved_wallet_flow_remembers_a_key_is_kept_as_shares() {
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready_with(&mut shell, false);
+    shell.flow(&mut app, F::WalletLock);
+    let app = restart(&mut shell, &mut app);
+    let shares = |app: &Faraday| -> Vec<bool> {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        wf.shape.seeds.iter().map(|s| s.shares).collect()
+    };
+    assert_eq!(shares(&app), vec![false; 3], "keys with words");
+    // The first key's line of the kept flow, rewritten: the mark is the
+    // line's last field, missing in a flow kept before it was written.
+    let read_with = |mark: Option<&str>| -> Faraday {
+        let mut kept = shell.boxes.2.clone();
+        for (n, b) in kept.iter_mut() {
+            if n == "backup-flow" {
+                let text = String::from_utf8_lossy(b).to_string();
+                let mut done = false;
+                let out: String = text
+                    .lines()
+                    .map(|l| {
+                        if l.starts_with("wseed\t") && !done {
+                            done = true;
+                            let f: Vec<&str> = l.split('\t').take(4).collect();
+                            match mark {
+                                Some(m) => format!("{}\t{m}\n", f.join("\t")),
+                                None => format!("{}\n", f.join("\t")),
+                            }
+                        } else {
+                            format!("{l}\n")
+                        }
+                    })
+                    .collect();
+                *b = out.into_bytes();
+            }
+        }
+        process(shell.boxes.0.clone(), shell.boxes.1.clone(), kept)
+    };
+    assert_eq!(shares(&read_with(Some("1"))), vec![true, false, false]);
+    assert_eq!(shares(&read_with(Some("0"))), vec![false; 3]);
+    assert_eq!(shares(&read_with(None)), vec![false; 3], "an older flow");
+}
+
+/// A Make a new wallet flow with a key kept as shares is written with that
+/// mark, and the key reads back as kept as shares.
+#[test]
+fn a_wallet_flow_with_a_key_kept_as_shares_is_written_with_the_mark() {
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready_with(&mut shell, false);
+    shell.flow(&mut app, F::WalletLock);
+    let app = restart(&mut shell, &mut app);
+    let mut flow = app.flow().unwrap().clone();
+    let seeds = &mut flow.wallet.as_mut().unwrap().shape.seeds;
+    seeds[0].shares = true;
+    let text = String::from_utf8(faraday_core::backup_flow::encode(&[flow])).unwrap();
+    let marks: Vec<&str> = text
+        .lines()
+        .filter(|l| l.starts_with("wseed\t"))
+        .map(|l| l.rsplit('\t').next().unwrap())
+        .collect();
+    assert_eq!(marks, vec!["1", "0", "0"], "{text}");
+}
