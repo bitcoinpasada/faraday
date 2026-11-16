@@ -1071,7 +1071,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     let mut t: Vec<Tile> = vec![
         // Check is the first button (F255).
         (
-            Icon::Checklist.into(),
+            Icon::Verified.into(),
             EN.compact_check,
             Text::new(),
             Action::Nav(Screen::Check),

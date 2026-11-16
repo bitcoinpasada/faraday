@@ -110,7 +110,7 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
         1,
         dest(
             app,
-            Icon::Checklist,
+            Icon::Verified,
             EN.sidebar_check,
             Action::Nav(Screen::Check),
         ),

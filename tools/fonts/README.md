@@ -15,6 +15,7 @@ to `tools/fontbake` only; no font file and no TTF parser ships on a device.
 | `Font_Awesome_6_Free-Solid-900.otf` | Font Awesome 6 Free Solid | the rest of the `Icon` set |
 | `material-symbols/fact_check_fill1_24px.svg` | Material Symbols | `Icon::Method` (How Faraday does it), a path baked into the icon face at `U+E930` |
 | `material-symbols/push_pin_24px.svg`, `push_pin_fill1_24px.svg` | Material Symbols | `Icon::Pin` and `Icon::Pinned` (Learn's pane pin, off and on), paths baked at `U+E931` and `U+E932` |
+| `material-symbols/verified_user_fill1_24px.svg` | Material Symbols | `Icon::Verified` (the Check place: a shield with a tick), a path baked at `U+E933` |
 | `cjk/NotoSans{JP,KR,TC,SC}-Regular.otf` | Noto Sans CJK | the wordlist and keyboard glyphs the faces above lack |
 
 ## Iosevka, which is not committed

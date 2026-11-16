@@ -65,11 +65,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // a sheet) is drawn between Tools and whatever comes after it.
     let items = [
         (Glyph::Icon(Icon::House), EN.sidebar_home, Screen::Home),
-        (
-            Glyph::Icon(Icon::Checklist),
-            EN.sidebar_check,
-            Screen::Check,
-        ),
+        (Glyph::Icon(Icon::Verified), EN.sidebar_check, Screen::Check),
         (Glyph::Icon(Icon::Lock), EN.sidebar_vaults, Screen::Vaults),
         (Glyph::Icon(Icon::File), EN.sidebar_files, Screen::Files),
         (

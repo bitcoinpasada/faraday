@@ -173,6 +173,7 @@ const ICONS: &[u32] = &[
     0xE930, // fact_check, filled
     0xE931, // push_pin, outlined
     0xE932, // push_pin, filled
+    0xE933, // verified_user, filled
 ];
 
 /// Icons whose outline is a Material Symbols SVG path, kept in
@@ -183,6 +184,7 @@ const SVG_ICONS: &[(u32, &str)] = &[
     (0xE930, "material-symbols/fact_check_fill1_24px.svg"),
     (0xE931, "material-symbols/push_pin_24px.svg"),
     (0xE932, "material-symbols/push_pin_fill1_24px.svg"),
+    (0xE933, "material-symbols/verified_user_fill1_24px.svg"),
 ];
 
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1

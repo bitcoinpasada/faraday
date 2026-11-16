@@ -259,7 +259,7 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             Action::Nav(Screen::SpendBackup),
         ),
         (
-            Glyph::Icon(Icon::Checklist),
+            Glyph::Icon(Icon::Verified),
             EN.home_ways_check,
             EN.home_ways_check_line.to_string(),
             Action::Nav(Screen::Check),

@@ -159,6 +159,9 @@ pub enum Icon {
     /// A push pin, filled: a pane kept open across screens, its pin on
     /// (Material Symbols `push_pin`, filled).
     Pinned,
+    /// A shield with a tick: the Check place (Material Symbols
+    /// `verified_user`, filled).
+    Verified,
 }
 
 impl Icon {
@@ -166,7 +169,7 @@ impl Icon {
     /// draws.
     pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 67] = [
+    pub const ALL: [Icon; 68] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -234,6 +237,7 @@ impl Icon {
         Icon::Method,
         Icon::Pin,
         Icon::Pinned,
+        Icon::Verified,
     ];
 
     /// The code point in the baked icon face.
@@ -306,6 +310,7 @@ impl Icon {
             Icon::Method => '\u{e930}',
             Icon::Pin => '\u{e931}',
             Icon::Pinned => '\u{e932}',
+            Icon::Verified => '\u{e933}',
         }
     }
 
@@ -379,6 +384,7 @@ impl Icon {
             Icon::Method => "Method",
             Icon::Pin => "Pin",
             Icon::Pinned => "Pinned",
+            Icon::Verified => "Verified",
         }
     }
 }
