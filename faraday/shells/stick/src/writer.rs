@@ -270,13 +270,31 @@ mod tests {
         assert_eq!(*lock(&panel).sink(), want);
     }
 
-    /// A wait the test lets go of by hand.
-    struct Gate(std::sync::mpsc::Receiver<()>);
+    /// A wait the test lets go of by hand, counting the waits it has let
+    /// through so the test can pace its releases by the thread's own
+    /// returns and not by the clock alone.
+    struct Gate(
+        std::sync::mpsc::Receiver<()>,
+        Arc<std::sync::atomic::AtomicUsize>,
+    );
 
     impl Vblank for Gate {
         fn wait(&mut self) -> io::Result<()> {
-            self.0.recv().map_err(|_| io::Error::other("closed"))
+            self.0.recv().map_err(|_| io::Error::other("closed"))?;
+            self.1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
         }
+    }
+
+    /// A gate, the way to release it and the count of waits it let by.
+    fn gate() -> (
+        std::sync::mpsc::Sender<()>,
+        Gate,
+        Arc<std::sync::atomic::AtomicUsize>,
+    ) {
+        let (release, rx) = std::sync::mpsc::channel();
+        let passed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        (release, Gate(rx, passed.clone()), passed)
     }
 
     /// A framebuffer without the call.
@@ -300,26 +318,52 @@ mod tests {
 
     /// Writes the first frame, then lets the thread measure a steady
     /// refresh of 12 ms, as a screen would once it is being written.
+    /// Whether it did: on a machine so busy that the thread wakes more
+    /// than a refresh late the gaps are not steady, the wait is turned
+    /// off (as it should be) and there is no vblank to test against.
+    ///
+    /// Each release is sent only once the thread has returned from the one
+    /// before, so a thread the machine has not run for a while sees the
+    /// same gaps as one that has, and none is left queued afterwards.
     fn let_it_measure(
         release: &std::sync::mpsc::Sender<()>,
+        passed: &std::sync::atomic::AtomicUsize,
         panel: &Arc<Mutex<Panel<Vec<u8>>>>,
         p: &mut Presenter,
-    ) {
+    ) -> bool {
         put(p, panel, &frame(0x01));
         p.settle(None).expect("written");
-        for _ in 0..=16 {
+        for n in 1..=17 {
             release.send(()).expect("released");
+            let until = Instant::now() + Duration::from_secs(30);
+            while passed.load(std::sync::atomic::Ordering::SeqCst) < n {
+                assert!(Instant::now() < until, "the wait was never taken");
+                std::thread::yield_now();
+            }
             std::thread::sleep(Duration::from_millis(12));
         }
+        let beat = p.beat().expect("a beat");
+        let until = Instant::now() + Duration::from_secs(30);
+        while beat.on() && !beat.measured() {
+            assert!(
+                Instant::now() < until,
+                "the refresh was not measured: {}",
+                beat.report()
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        beat.measured()
     }
 
     #[test]
     fn a_frame_is_written_after_the_vblank_and_not_before() {
-        let (release, gate) = std::sync::mpsc::channel();
-        let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
+        let (release, gate, passed) = gate();
+        let Some((panel, mut p)) = rig_waiting(Box::new(gate)) else {
             return;
         };
-        let_it_measure(&release, &panel, &mut p);
+        if !let_it_measure(&release, &passed, &panel, &mut p) {
+            return;
+        }
         let before = lock(&panel).rows_written();
         put(&mut p, &panel, &frame(0x42));
         std::thread::sleep(Duration::from_millis(60));
@@ -348,11 +392,13 @@ mod tests {
 
     #[test]
     fn a_blank_does_not_wait_for_a_vblank_that_has_not_come() {
-        let (release, gate) = std::sync::mpsc::channel();
-        let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
+        let (release, gate, passed) = gate();
+        let Some((panel, mut p)) = rig_waiting(Box::new(gate)) else {
             return;
         };
-        let_it_measure(&release, &panel, &mut p);
+        if !let_it_measure(&release, &passed, &panel, &mut p) {
+            return;
+        }
         put(&mut p, &panel, &frame(0x77));
         // The writer is waiting; the panel's lock is free.
         lock(&panel).blank();
