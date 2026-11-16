@@ -1330,10 +1330,17 @@ fn copying_the_keys_to_a_vault_with_an_older_plan_for_the_other_key_order_leaves
 #[test]
 fn copying_the_keys_to_a_vault_with_shares_for_the_other_key_order_copies_nothing() {
     let app = copy_with_other_order_plan_in_the_added_vault(true);
+    // No wallet is loaded after the lock; the toast says what is so, and
+    // no string is asked for before the refusal.
     assert_eq!(
         app.toast_text(),
-        Some(crate::backup_plan::OTHER_ORDER_TOAST)
+        Some(
+            "The vault keeps a shares plan for the wallet with its keys in another order, \
+             or its answers are damaged or missing, and the copy would drop its shares. \
+             Copy into another vault, or load the wallet with its keys in that order first"
+        )
     );
+    assert!(app.flow().unwrap().live.c32_wanted.is_none());
     assert_eq!(contents(&app, 1).of(kind::KEY).count(), 1, "no seed copied");
 }
 

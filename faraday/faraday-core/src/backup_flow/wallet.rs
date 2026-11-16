@@ -1726,6 +1726,32 @@ impl Faraday {
         Ok(())
     }
 
+    /// Costs what `described_of` costs. Whether added vault `o` keeps the
+    /// wallet's plan for the other key order with shares the holder's plan
+    /// record does not read, so the copy would drop them: decided before
+    /// the copy asks for anything, nothing written.
+    fn wallet_copy_plan_refused(&self, cx: &CopyCtx<'_>, o: usize) -> bool {
+        use faraday_vault::records::kind as rkind;
+        let c = cx.c;
+        let Some(hp) = cx.holders.iter().find_map(|&h| {
+            self.vaults
+                .described_of(c, self.vaults.open[h].id, rkind::PLAN)
+                .find(|(_, _, d)| *d.checksum == *cx.cs)
+                .map(|(_, _, d)| d.policy.clone())
+        }) else {
+            return false;
+        };
+        let want = crate::wallet::same_wallet(&hp);
+        self.vaults
+            .described_of(c, self.vaults.open[o].id, rkind::PLAN)
+            .any(|(_, r, d)| {
+                *d.same == *want
+                    && *d.checksum != *cx.cs
+                    && !crate::vault::plan_store::same_keys(d, &hp)
+                    && !crate::vault::plan_store::reads_for(d, r, &hp)
+            })
+    }
+
     /// Costs the record tokens of the vault and the vault's refusal and fit check of the result (`vault_refuses`, `fit`): the codex32 strings and the plan record of added vault `v`, then only what this flow put into the vault is taken out, and the vault must take the result.
     fn wallet_copy_close(
         &mut self,
@@ -1758,13 +1784,14 @@ impl Faraday {
                 .find(|(_, _, d)| *d.checksum == *cx.cs)
                 .and_then(|(_, r, d)| Some((r.to_public()?, d.policy.clone())))
         });
-        // Each record of the wallet in the vault, and whether it is in the
-        // other key order and its shares are not read for the holder's.
+        // Each record of the wallet in the vault, and whether one is in the
+        // other key order (its shares were checked before the copy asked
+        // for anything, `wallet_copy_plan_refused`).
         let mut kept: Vec<usize> = Vec::new();
-        let (mut other_order, mut refused) = (false, false);
+        let mut other_order = false;
         if let Some((_, hp)) = &holder {
             let want = crate::wallet::same_wallet(hp);
-            for (k, r, d) in self
+            for (k, _, d) in self
                 .vaults
                 .described_of(c, self.vaults.open[o].id, rkind::PLAN)
             {
@@ -1772,15 +1799,8 @@ impl Faraday {
                     continue;
                 }
                 kept.push(k);
-                if *d.checksum != *cx.cs {
-                    other_order = true;
-                    refused |= !crate::vault::plan_store::same_keys(d, hp)
-                        && !crate::vault::plan_store::reads_for(d, r, hp);
-                }
+                other_order |= *d.checksum != *cx.cs;
             }
-        }
-        if refused {
-            return Err(CopyStop::Say(Text::of(EN.plan_store_other_key_order)));
         }
         // With one in the other order, the vault's records of the wallet
         // all go and the holder's takes their place.
@@ -1848,6 +1868,9 @@ impl Faraday {
             typed: Vec::new(),
             out: Vec::new(),
         };
+        if self.wallet_copy_plan_refused(cx, o) {
+            return Err(CopyStop::Say(Text::of(EN.backup_flow_copy_plan_kept)));
+        }
         self.wallet_copy_seeds(cx, v, o, &before, &mut w)?;
         self.wallet_copy_description(cx, v, o, &mut w)?;
         self.wallet_copy_gone(cx, v, o, &mut w)?;
