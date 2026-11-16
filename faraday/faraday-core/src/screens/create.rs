@@ -716,6 +716,7 @@ fn slot_passphrase(
                     (
                         c.pass_focus == Some(n),
                         app.pass_chip(crate::demo::PassField::Slot(n)),
+                        app.typing.pass_eye.shown,
                     ),
                     Action::CPassField(n),
                 )

@@ -769,6 +769,8 @@ pub enum Action {
     SelfTestRun,
     /// Show or hide the words.
     KShow,
+    /// The eye on the passphrase fields.
+    PassEye,
     /// The Quiz's last button: loads SLIP-39 shares' key, or leaves the
     /// flow once a BIP-39 key is locked in.
     KAdd,
@@ -1248,6 +1250,7 @@ impl Faraday {
             Action::GuideShares => self.guide_shares(),
             Action::GuidePin => self.guide_button(action),
             Action::Osk(p) => self.osk_press(p),
+            Action::PassEye => self.typing.pass_eye.toggle(),
             a @ (Action::ScanPaste
             | Action::PasteWords
             | Action::ScanCamera(..)

@@ -1157,6 +1157,7 @@ impl crate::Faraday {
             ));
             return;
         }
+        self.typing.pass_eye = crate::pass_eye::PassEye::default();
         // A flow already open ends first, giving back what it kept; one
         // opened again from its own screen returns where it was opened
         // from.
@@ -1321,6 +1322,7 @@ impl crate::Faraday {
             k.parts_in = 0;
             k.passphrase.clear();
             k.passphrase2.clear();
+            self.typing.pass_eye.reset();
             k.focus = None;
             for s in [kstep::TYPED, kstep::KEY] {
                 k.done[usize::from(s)] = false;
@@ -1668,6 +1670,12 @@ impl crate::Faraday {
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
             return;
         }
+        // A passphrase typed with hardware keys waits until the eye has
+        // shown it once.
+        if self.typing.pass_eye.waits() && self.keygen.state().is_some_and(KeyGen::asks_passphrase)
+        {
+            return;
+        }
         if self.keygen.state().is_some_and(KeyGen::typed) {
             self.keygen_lock_typed();
             return;
@@ -1743,6 +1751,7 @@ impl crate::Faraday {
             k.key_text = key_text;
             k.passphrase.clear();
             k.passphrase2.clear();
+            self.typing.pass_eye.reset();
             k.focus = None;
             k.note = None;
             k.scroll.follow = true;
@@ -1846,6 +1855,7 @@ impl crate::Faraday {
             k.key_text = key_text;
             k.passphrase.clear();
             k.passphrase2.clear();
+            self.typing.pass_eye.reset();
             k.focus = None;
             k.note = None;
             k.scroll.follow = true;
@@ -2318,7 +2328,15 @@ impl crate::Faraday {
                 self.keygen_lock();
                 return true;
             }
-            return k.passphrase_key(key);
+            let hardware = self.typing.hardware_key && matches!(key, KeyIn::Char(_));
+            let took = k.passphrase_key(key);
+            let empty = k.passphrase.is_empty() && k.passphrase2.is_empty();
+            if empty {
+                self.typing.pass_eye.reset();
+            } else if hardware && took {
+                self.typing.pass_eye.typed_by_hardware();
+            }
+            return took;
         }
         if k.roller_typing {
             return k.roller_key(key);

@@ -141,6 +141,7 @@ pub(crate) fn secrets_off_screen_but_vaults(app: &mut Faraday) {
     app.scan_card_hide();
     app.backup.hide_secrets();
     app.keygen.hide_secrets();
+    app.typing.pass_eye.close();
     app.bip85.hide_secrets();
     app.seed_read.hide_secrets();
 }

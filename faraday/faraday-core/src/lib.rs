@@ -34,7 +34,7 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
+//!   the selection), `pass_eye` (the eye on the passphrase fields), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `item` (an Inbox or Outbox file), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
@@ -158,6 +158,7 @@ mod moved;
 pub mod nav;
 mod out;
 mod panes;
+mod pass_eye;
 mod pointer;
 mod public_files;
 pub mod set_time;
@@ -1168,7 +1169,9 @@ impl App for Faraday {
                     return;
                 } else {
                     self.later_now();
+                    self.typing.hardware_key = true;
                     self.key(k);
+                    self.typing.hardware_key = false;
                 }
                 self.pointer.tip_focus(self.now_ms);
             }

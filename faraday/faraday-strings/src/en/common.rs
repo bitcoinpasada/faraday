@@ -1461,6 +1461,9 @@ macro_rules! words_common {
     tip_wireless_keyboard: "Wireless keyboard",
     /// Tooltip on the power icon.
     tip_power_off: "Power off",
+    /// Line under a passphrase field once a key of a hardware keyboard typed
+    /// into it.
+    keys_read_as_us: "Keys are read as a US keyboard. Caps Lock is ignored.",
     /// Tooltip on an eye that shows what is hidden.
     tip_show: "Show",
     /// Tooltip on an eye that hides what is shown.

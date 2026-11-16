@@ -57,6 +57,8 @@ Shows the key the entries made, and **Lock in** adds it to the keys loaded. The 
 
 **Show words** and **Hide words** toggle the words. For a key typed or made for a wallet's key slot, **Passphrase** and **Passphrase again** take a BIP-39 passphrase: with one, the words make a different key, and both are needed to spend. Left empty, there is none. A key made on its own has no passphrase.
 
+The eye of a passphrase field shows what is typed. Once a hardware keyboard has typed one, **Keys are read as a US keyboard. Caps Lock is ignored.** shows and **Lock in** waits until the eye has been opened.
+
 ## Words
 
 **Key:** keygen.words

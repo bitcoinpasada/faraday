@@ -163,11 +163,6 @@ pub(crate) fn secret_box(
     action: Action,
     eye: Action,
 ) {
-    let (muted, primary, inset) = (
-        Role::OnSurfaceVariant,
-        Role::Primary,
-        Role::SurfaceContainerHighest,
-    );
     // Practice's `faraday`: in its code box, no eye; a press in it focuses the field.
     if show == Show::Code {
         crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
@@ -176,24 +171,34 @@ pub(crate) fn secret_box(
     }
     let shown = show == Show::Shown;
     text_box(ui, x, y, w, b, !shown, focused, action);
-    // The eye sits inside the field's right end, over any long text.
-    let ex = x + w - FIELD_H;
+    eye_at(ui, (x, y, w), FIELD_H, shown, eye);
+}
+
+/// The eye inside a field's right end, over any long text: `h` is the
+/// field's height, `shown` whether it is open, `eye` its press.
+pub(crate) fn eye_at(ui: &mut Ui, (x, y, w): (f32, f32, f32), h: f32, shown: bool, eye: Action) {
+    let (muted, primary, inset) = (
+        Role::OnSurfaceVariant,
+        Role::Primary,
+        Role::SurfaceContainerHighest,
+    );
+    let ex = x + w - h;
     let pressed = ui.is_pressed(eye);
     crate::ui::fill_pressed(
         ui,
-        (ex + 8.0, y + 8.0, FIELD_H - 16.0, FIELD_H - 16.0, 6.0),
+        (ex + 8.0, y + 8.0, h - 16.0, h - 16.0, 6.0),
         inset,
         pressed,
     );
     ui.icon(
         ex,
         y,
-        FIELD_H,
+        h,
         if shown { Icon::EyeOff } else { Icon::Eye },
         EYE_GLYPH,
         if shown { primary } else { muted },
     );
-    crate::compact::eye_hit(ui, (ex, y, FIELD_H, FIELD_H), eye, shown);
+    crate::compact::eye_hit(ui, (ex, y, h, h), eye, shown);
 }
 
 /// The eye's glyph in a secret field, enabled or not.

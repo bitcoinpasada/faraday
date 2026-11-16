@@ -1090,6 +1090,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         (
                             s.focus == Some(n),
                             app.pass_chip(crate::demo::PassField::SeedRead(n)),
+                            app.typing.pass_eye.shown,
                         ),
                         Action::SeedRead(Choice::Field(n)),
                     )

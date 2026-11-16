@@ -15,6 +15,8 @@ The words are typed in order, one box each. **Words** sets the count: 12, 15, 18
 
 **Other languages** opens the other word lists. **BIP-39 passphrase** takes the passphrase the key was made with; the same words with another passphrase are another key, and the field left empty means none. **Scan a SeedQR** fills the words from a code. **Add key** adds the key; **Clear** empties the boxes; **Make a new key** opens New key. **Other forms** opens the other forms, and **Copy files in**, with a stick attached, opens Files.
 
+A passphrase field has an eye that shows what is typed. Hardware keyboard keys are read as US, Caps Lock ignored.
+
 ## SLIP-39 shares
 
 **Key:** entry.shares

@@ -531,6 +531,7 @@ fn passphrase_key() -> Faraday {
             app.event(Event::Key(Key::Char(c)));
         }
     }
+    app.press(Action::PassEye);
     app.press(Action::KLock);
     app.press(Action::KNext);
     let c = app.create().expect("create");

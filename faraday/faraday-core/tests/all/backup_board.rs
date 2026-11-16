@@ -1176,6 +1176,7 @@ fn passphrase_key_on_the_board() -> Faraday {
         app.press(Action::KPassField(field));
         type_text(&mut app, "Ride the 7 bus");
     }
+    app.press(Action::PassEye);
     app.press(Action::KLock);
     app.press(Action::KNext);
     app.press(Action::CBackup);

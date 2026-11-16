@@ -233,7 +233,11 @@ fn passphrase(app: &View, s: &SeedState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
                 w,
                 label,
                 text,
-                (s.focus == Some(n), app.pass_chip(PassField::SeedCheck(n))),
+                (
+                    s.focus == Some(n),
+                    app.pass_chip(PassField::SeedCheck(n)),
+                    app.typing.pass_eye.shown,
+                ),
                 act(S::PassField(n)),
             )
         },

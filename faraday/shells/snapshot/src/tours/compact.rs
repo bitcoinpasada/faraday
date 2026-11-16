@@ -76,6 +76,11 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("keygen-key-passphrase-selected")?;
     t.press(Action::KPassField(1));
     type_text(t, "Ride the 7 bus");
+    // Typed with keys: the US-layout line shows and Lock in waits for the
+    // eye, which then shows both passphrases.
+    t.shot("keygen-key-passphrase-hardware")?;
+    t.press(Action::PassEye);
+    t.shot("keygen-key-passphrase-shown")?;
     // Lock in adds the key and, a single key being the whole wallet,
     // makes it: the Key card shows its descriptor and first address.
     t.press(Action::KLock);

@@ -425,7 +425,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
             fy,
             pw,
             if second { &e.again } else { &e.passphrase },
-            (on, entry_chip(app, second)),
+            (on, entry_chip(app, second), app.typing.pass_eye.shown),
             if second {
                 Action::EntryPassphraseAgain
             } else {

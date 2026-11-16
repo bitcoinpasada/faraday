@@ -562,7 +562,7 @@ fn pass_field(
     w: f32,
     label: &str,
     secret: &str,
-    (on, chip): (bool, Option<Action>),
+    (on, chip, shown): (bool, Option<Action>, bool),
     action: Action,
 ) -> f32 {
     let lh = ui.field_label(x, y, label);
@@ -580,6 +580,7 @@ fn pass_field(
     } else {
         // Wiped when dropped, like the field it stands for.
         let dots = faraday_text::Text::repeated("•", secret.chars().count());
+        let held = faraday_text::Text::of(secret);
         ui.typed(
             x + FIELD_PAD,
             fy,
@@ -587,11 +588,12 @@ fn pass_field(
             (BODY_M.mono()).size,
             W::from((BODY_M.mono()).face),
             Role::OnSurface,
-            &dots,
-            w - 2.0 * FIELD_PAD,
+            if shown { &held } else { &dots },
+            w - 2.0 * FIELD_PAD - FIELD_H,
             on,
             action,
         );
+        crate::vault::screen::eye_at(ui, (x, fy, w), FIELD_H, shown, Action::PassEye);
     }
     lh + FIELD_H + 12.0
 }
@@ -622,6 +624,7 @@ fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str)
             (
                 e.on_passphrase && e.on_again == second,
                 crate::screens::entry_chip(app, second),
+                app.typing.pass_eye.shown,
             ),
             action,
         )

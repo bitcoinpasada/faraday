@@ -821,6 +821,9 @@ fn lock_in_waits_until_the_two_passphrases_match() {
     type_text(&mut app, "s");
     let shown = texts(&mut app);
     assert!(!shown.contains("The two passphrases differ"));
+    // Typed with hardware keys, it waits until the eye has shown them.
+    app.press(Action::PassEye);
+    let _ = texts(&mut app);
     assert!(app.offers(Action::KLock));
 }
 
@@ -835,6 +838,7 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     type_text(&mut app, "Ride the 7 bus");
     app.press(Action::KPassField(1));
     type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::PassEye);
     app.press(Action::KLock);
     let mut probe = faraday_core::wallet::Session::default();
     let with = probe
@@ -879,8 +883,70 @@ fn unequal_passphrases_lock_nothing_in() {
     app.event(Event::Key(faraday_shell_api::Key::Backspace));
     app.event(Event::Key(faraday_shell_api::Key::Backspace));
     type_text(&mut app, "one");
+    app.press(Action::PassEye);
     app.event(Event::Key(faraday_shell_api::Key::Enter));
     assert_eq!(app.session.keys.len(), 1);
+}
+
+const US_LINE: &str = "Keys are read as a US keyboard. Caps Lock is ignored.";
+
+fn at_the_passphrases() -> Faraday {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    app
+}
+
+#[test]
+fn a_passphrase_typed_with_hardware_keys_says_so_and_lock_in_waits_for_the_eye() {
+    let mut app = at_the_passphrases();
+    assert!(!texts(&mut app).contains(US_LINE));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "Ride the 7 bus");
+    let shown = texts(&mut app);
+    assert!(shown.contains(US_LINE));
+    assert!(!shown.contains("Ride the 7 bus"), "the eye is closed");
+    assert!(!app.offers(Action::KLock), "Lock in waits for the eye");
+    app.press(Action::KLock);
+    assert!(app.session.keys.is_empty());
+    app.press(Action::PassEye);
+    assert!(texts(&mut app).contains("Ride the 7 bus"));
+    assert!(app.offers(Action::KLock));
+    app.press(Action::PassEye);
+    assert!(app.offers(Action::KLock), "closing the eye again keeps it");
+    app.press(Action::KLock);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_passphrase_typed_on_the_on_screen_keyboard_has_no_line_and_no_wait() {
+    use faraday_ui::keyboard::OskPress;
+    let mut app = at_the_passphrases();
+    for field in [0, 1] {
+        app.press(Action::KPassField(field));
+        for c in "one".chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+    }
+    let shown = texts(&mut app);
+    assert!(!shown.contains(US_LINE));
+    assert!(app.offers(Action::KLock));
+}
+
+#[test]
+fn the_idle_warning_closes_the_eye_on_a_passphrase() {
+    let mut app = at_the_passphrases();
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::PassEye);
+    assert!(texts(&mut app).contains("Ride the 7 bus"));
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    app.press(Action::Cancel);
+    assert!(!texts(&mut app).contains("Ride the 7 bus"));
 }
 
 /// The passphrase stays optional in Practice: left empty, the sample goes in
@@ -1320,6 +1386,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
         "a key typed takes a passphrase"
     );
     passphrase_twice(&mut app, "Ride the 7 bus");
+    app.press(Action::PassEye);
     app.press(Action::KLock);
     let fp = app
         .session

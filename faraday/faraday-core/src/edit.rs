@@ -43,6 +43,11 @@ pub(crate) struct TypingArea {
     caret_at: u64,
     /// The last frame drew a caret, and whether it showed.
     caret_drawn: Option<bool>,
+    /// The eye on the passphrase fields.
+    pub(crate) pass_eye: crate::pass_eye::PassEye,
+    /// The key being handled came from a hardware keyboard, not the
+    /// on-screen one.
+    pub(crate) hardware_key: bool,
 }
 
 impl TypingArea {
@@ -54,6 +59,8 @@ impl TypingArea {
             fields: Vec::new(),
             caret_at: 0,
             caret_drawn: None,
+            pass_eye: crate::pass_eye::PassEye::default(),
+            hardware_key: false,
         }
     }
 

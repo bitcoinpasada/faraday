@@ -732,11 +732,20 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                         (
                             k.focus == Some(n),
                             app.pass_chip(crate::demo::PassField::KeyGen(n)),
+                            app.typing.pass_eye.shown,
                         ),
                         Action::KPassField(n),
                     )
                 },
             );
+            if app.typing.pass_eye.hardware {
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    EN.keys_read_as_us,
+                ) + faraday_draw::tokens::GRID;
+            }
             cy += never_real_seed(app, ui, x, cy, w);
         }
         // The demo adds a sample in place of words made here (F81): the
@@ -746,7 +755,8 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         }
         cy += 4.0;
         let agree = !k.asks_passphrase()
-            || !pass_pair::differ(k.passphrase.as_str(), k.passphrase2.as_str());
+            || (!pass_pair::differ(k.passphrase.as_str(), k.passphrase2.as_str())
+                && !app.typing.pass_eye.waits());
         cy += buttons_and_next_when(
             ui,
             x,

@@ -729,7 +729,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     iw,
                     if k.hex { EN.kef_hex } else { EN.kef_passphrase },
                     &k.pass,
-                    (k.focus, None),
+                    (k.focus, None, app.typing.pass_eye.shown),
                     Action::KefRead(KefAct::Field),
                 );
                 if let Some(e) = &k.error {

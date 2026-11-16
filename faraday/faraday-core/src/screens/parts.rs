@@ -912,7 +912,7 @@ pub(crate) fn pass_field(
     w: f32,
     label: &str,
     text: &crate::secret_text::SecretText,
-    (on, chip): (bool, Option<Action>),
+    (on, chip, shown): (bool, Option<Action>, bool),
     action: Action,
 ) -> f32 {
     let (px, py, pw) = if ui.compact {
@@ -932,12 +932,13 @@ pub(crate) fn pass_field(
         r,
         if on { Role::Primary } else { Role::Outline },
     );
-    dots_field(ui, px, py, pw, text, (on, chip), action);
+    dots_field(ui, px, py, pw, text, (on, chip, shown), action);
     py - y + 48.0
 }
 
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
-/// a dot for each character typed, with the selection and the caret
+/// a dot for each character typed (the characters while `shown`, the eye
+/// open), with the selection and the caret
 /// while `on`, or the **No passphrase** pill while it is empty.
 /// In Practice (`chip`) the empty field
 /// offers the `faraday` chip, and `faraday` is drawn in its code box.
@@ -947,7 +948,7 @@ pub(crate) fn dots_field(
     y: f32,
     w: f32,
     text: &str,
-    (on, chip): (bool, Option<Action>),
+    (on, chip, shown): (bool, Option<Action>, bool),
     action: Action,
 ) {
     ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
@@ -961,6 +962,7 @@ pub(crate) fn dots_field(
         code_field(ui, x, y, w, tokens::TEXT_FIELD, text);
     } else {
         let dots = Text::repeated("•", text.chars().count());
+        let held = Text::of(text);
         ui.typed(
             x + 12.0,
             y,
@@ -968,11 +970,12 @@ pub(crate) fn dots_field(
             BODY_M.size,
             W::M,
             Role::OnSurface,
-            &dots,
-            w - 24.0,
+            if shown { &held } else { &dots },
+            w - 24.0 - tokens::TEXT_FIELD,
             on,
             action,
         );
+        crate::vault::screen::eye_at(ui, (x, y, w), tokens::TEXT_FIELD, shown, Action::PassEye);
     }
 }
 
