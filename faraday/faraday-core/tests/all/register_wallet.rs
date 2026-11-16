@@ -138,6 +138,34 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
         "the name from the file: {shown}"
     );
     assert!(shown.contains("Hold to register"), "{shown}");
+    // Each cosigner's whole key and the descriptor's checksum, the rows
+    // the confirmation sheet shows.
+    let offer = app.spend().unwrap().inspection.register.clone().unwrap();
+    for k in &offer.cosigners {
+        let whole: String = k
+            .xpub
+            .to_string()
+            .chars()
+            .collect::<Vec<_>>()
+            .chunks(4)
+            .map(|g| g.iter().collect::<String>())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            shown.contains(&whole),
+            "the whole key of {}: {shown}",
+            k.fingerprint
+        );
+    }
+    let checksum = WalletPolicy::from_descriptor(&c, &offer.readings[0].descriptor)
+        .unwrap()
+        .checksum()
+        .to_string();
+    assert!(shown.contains(&checksum), "the checksum: {shown}");
+    assert!(
+        shown.contains("Compare every key"),
+        "the line to compare by: {shown}"
+    );
     assert!(app.session.wallets.is_empty(), "nothing before the hold");
 
     // Cancel registers nothing.
@@ -148,7 +176,6 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
     // The hold held to its end, as a person holds it.
     app.press(Action::RegisterOpen);
     hold(&mut app, Action::RegisterHold);
-    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
     let wallet = &app.session.wallets[0];
@@ -194,7 +221,6 @@ fn the_name_typed_is_the_wallet_name() {
     assert_eq!(app.sheet, Some(Sheet::Register));
     assert!(app.session.wallets.is_empty());
     app.press(Action::RegisterHold);
-    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.wallets[0].name, "Family");
 }
@@ -221,7 +247,6 @@ fn global_xpubs_that_do_not_give_the_input_are_refused_by_name() {
     assert!(app.spend().unwrap().inspection.register.is_some());
     app.press(Action::RegisterOpen);
     app.press(Action::RegisterHold);
-    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.session.wallets.is_empty(), "nothing is registered");
     assert_eq!(app.sheet, Some(Sheet::Register), "the sheet stays with why");
     let shown = screen(&mut app);
@@ -283,7 +308,6 @@ fn a_key_under_your_fingerprint_that_is_not_yours_is_refused_by_name() {
     assert!(blocked(&app));
     app.press(Action::RegisterOpen);
     hold(&mut app, Action::RegisterHold);
-    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.session.wallets.is_empty(), "nothing is registered");
     assert_eq!(app.sheet, Some(Sheet::Register));
     let shown = screen(&mut app);
@@ -354,14 +378,29 @@ fn where_the_spend_cannot_tell_sorted_from_listed_the_person_chooses() {
     let shown = screen(&mut app);
     assert!(shown.contains("Most coordinators sort the keys"), "{shown}");
     assert!(shown.contains("2 of 3, P2WSH, sorted"), "{shown}");
+    let sorted = WalletPolicy::from_descriptor(&c, &offer.readings[0].descriptor)
+        .unwrap()
+        .checksum()
+        .to_string();
+    assert!(
+        shown.contains(&sorted),
+        "the sorted reading's checksum: {shown}"
+    );
     app.press(Action::RegisterReading(1));
     let shown = screen(&mut app);
     assert!(
         shown.contains("2 of 3, P2WSH, keys in this order"),
         "{shown}"
     );
+    let in_order = WalletPolicy::from_descriptor(&c, &offer.readings[1].descriptor)
+        .unwrap()
+        .checksum()
+        .to_string();
+    assert!(
+        shown.contains(&in_order),
+        "the other reading's checksum: {shown}"
+    );
     hold(&mut app, Action::RegisterHold);
-    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     let registered = app.session.wallets[0].policy();
     for i in 0..4 {

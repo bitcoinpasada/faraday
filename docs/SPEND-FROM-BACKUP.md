@@ -509,10 +509,14 @@ several keys that is not registered here is blocked: the Transaction
 card's warnings say "input 0 spends from a wallet of several keys that
 is not registered here; register the wallet to sign". Where the PSBT
 carries the cosigners' extended keys, **Register this wallet** under it
-opens a dialog: the shape ("2 of 3, P2WSH, sorted"), a line per
-cosigner (fingerprint · path, "· Yours" for a key loaded here), **Name**
-(the PSBT's file name, "Savings Unsigned" for `savings-unsigned.psbt`),
-**Hold to register** and **Cancel**. The hold adds the wallet and the
+opens a dialog that is the wallet confirmation sheet (F254): the shape
+("2 of 3, P2WSH, sorted"), **Name** (the PSBT's file name, "Savings
+Unsigned" for `savings-unsigned.psbt`), then each cosigner's
+fingerprint · path, its whole extended key in groups of four and "Yours"
+for a key loaded here, the descriptor's checksum of the reading chosen,
+the line to compare them by, **Hold to register** and **Cancel**. The
+hold is the one confirmation: it runs its checks and adds the wallet,
+with no second sheet, and the
 spend goes on from the same card, now signable; a wallet whose keys do
 not give the spend's addresses, or none of whose keys is a loaded key's
 own, stays unregistered and the dialog says which ("These keys do not

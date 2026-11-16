@@ -1109,7 +1109,7 @@ Cancel and **Hold to add this wallet**; F254), **Which account to load?** (`Acco
 holding a single-sig account and a silent payments account, the file's
 name, **Cancel**, **Single-sig · BIP-84** and **Silent payments ·
 BIP-352**, the two alike; `docs/INTEROP.md` §5, BIP-392 sp()), the register sheet (the wallet a spend's PSBT defines,
-its shape, cosigners and name, Cancel and **Hold to register**; F135),
+its shape and name and the wallet confirmation sheet's rows, Cancel and **Hold to register**, which is the wallet's one confirmation; F135, F254),
 the older-copy dialog an unlock stops at (the vault's name, what its seal
 count found, **Keep locked** and **Open**; `docs/VAULT.md`
 §11), **Remove codex32 set** and **Remove BIP-85 origin** (`Trim`: the

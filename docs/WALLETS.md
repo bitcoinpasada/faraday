@@ -238,8 +238,10 @@ non-cryptographic and live in `faraday-core`:
   the transaction is blocked, with no override (`WalletNotRegistered`).
   A PSBT that carries its cosigners' extended keys (BIP 174's global
   xpubs) and spends one `multi` shape offers **Register this wallet**:
-  its shape, its cosigners and which is yours, a name, and a hold that
-  adds the wallet once its descriptor gives every input's script and
+  its shape, a name, and the confirmation sheet's rows (each cosigner's
+  fingerprint, path and whole key, which is yours, and the checksum of
+  the reading chosen), and a hold, the wallet's one confirmation (F254),
+  that adds the wallet once its descriptor gives every input's script and
   every change output's that claims it and one of its keys is a loaded
   key's own ("None of these keys is yours" otherwise); where the spend
   cannot tell `sortedmulti` from `multi`, the sheet offers both, sorted

@@ -37,6 +37,10 @@ pub struct RegisterAsk {
     /// The reading chosen, by its place in the offer's readings: the
     /// first, `sortedmulti`, until the person picks the other.
     pub reading: usize,
+    /// The wallet the reading chosen writes, as the confirmation sheet
+    /// shows it, worked out when the sheet opens and the reading
+    /// changes; `None` where its descriptor does not read as a wallet.
+    pub rows: Option<crate::wallet::Rows>,
 }
 
 impl RegisterAsk {
@@ -47,6 +51,7 @@ impl RegisterAsk {
             typing: false,
             refused: None,
             reading: 0,
+            rows: None,
         }
     }
 
@@ -158,9 +163,11 @@ pub(crate) fn path_text(path: &faraday_psbt::bitcoin::bip32::DerivationPath) -> 
 
 /// The register sheet (`docs/SPEND-FROM-BACKUP.md` §8): DESIGN §4.13's dialog
 /// with the wallet's shape (left out over the small panel's keyboard, so
-/// the field shows above it), the name field, the refusal when the last hold found one, a
-/// line per cosigner (fingerprint and path in the mono face, "Yours"
-/// where a loaded key is that cosigner), and DESIGN §4.13's hold; Cancel
+/// the field shows above it), the name field, the refusal when the last
+/// hold found one, the confirmation sheet's rows of the reading chosen
+/// (each cosigner's whole key, "Yours" where a loaded key is that
+/// cosigner, the checksum) and the line to compare them by, and
+/// DESIGN §4.13's hold, which is the wallet's one confirmation; Cancel
 /// is the dialog's action. Reads the offer the inspection
 /// keeps and the sheet's state; works nothing out.
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -231,21 +238,14 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, why) + T::GAP_SMALL;
             }
             cy += T::GAP_SMALL;
-            for k in &offer.cosigners {
-                let line = fill(
-                    if k.ours {
-                        EN.register_cosigner_yours
-                    } else {
-                        EN.register_cosigner
-                    },
-                    &[&fp_text(k.fingerprint), &path_text(&k.path)],
+            if let Some(rows) = &ask.rows {
+                cy += crate::wallet::draw_rows(rows, &[], ui, (x, cy, iw));
+                cy += ui.wrap_as(
+                    (x, cy, iw),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    EN.wallet_confirm_compare,
                 );
-                let tone = if k.ours {
-                    Role::Primary
-                } else {
-                    Role::OnSurfaceVariant
-                };
-                cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), tone, &line);
             }
             cy += T::GAP;
             crate::vault::screen::hold_button_in(

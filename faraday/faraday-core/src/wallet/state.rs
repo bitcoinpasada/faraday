@@ -736,6 +736,13 @@ impl WalletsArea {
         true
     }
 
+    /// The register sheet shows `rows`, the chosen reading's.
+    pub(crate) fn register_set_rows(&mut self, rows: Option<crate::wallet::Rows>) {
+        if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {
+            ask.rows = rows;
+        }
+    }
+
     /// The register sheet's name field is being typed in.
     pub(crate) fn register_typing(&mut self) {
         if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {

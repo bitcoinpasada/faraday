@@ -28,6 +28,7 @@ pub(crate) enum Mark {
 }
 
 /// One cosigner's row.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct KeyRow {
     pub(crate) number: Text,
     pub(crate) fingerprint: Text,
@@ -38,6 +39,7 @@ pub(crate) struct KeyRow {
 }
 
 /// The rows of the confirmation sheet, worked out once.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rows {
     pub(crate) shape: Text,
     pub(crate) keys: Vec<KeyRow>,
@@ -49,6 +51,14 @@ pub struct Rows {
 }
 
 impl Rows {
+    /// Costs what [`Rows::of`] costs and parsing the descriptor: the rows
+    /// of the wallet `descriptor` writes, for the register sheet. `None`
+    /// where it does not read as a wallet.
+    pub(crate) fn of_descriptor(session: &Session, c: &Compute, descriptor: &str) -> Option<Rows> {
+        let policy = WalletPolicy::from_descriptor(c, descriptor).ok()?;
+        Some(Rows::of(session, c, &policy, false))
+    }
+
     /// Costs a key derivation for each key of `policy` under a loaded
     /// fingerprint, and the descriptor's checksum: the rows of `policy`
     /// as the sheet shows them. `given`: the checksum came with the text

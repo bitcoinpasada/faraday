@@ -140,10 +140,6 @@ macro_rules! words_wallet {
     register_sorted: "sorted",
     /// The key order in `register_shape`: `multi`, the keys in the order listed.
     register_in_order: "keys in this order",
-    /// A cosigner's line on the register sheet. `{}`: its fingerprint, then its path.
-    register_cosigner: "{} · {}",
-    /// A cosigner's line on the register sheet, a loaded key. `{}`: its fingerprint, then its path.
-    register_cosigner_yours: "{} · {} · Yours",
     /// The register sheet's name field's label.
     register_name: "Name",
     /// The register sheet's hold.

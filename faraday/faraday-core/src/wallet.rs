@@ -1135,6 +1135,15 @@ impl Session {
         Some(ask)
     }
 
+    /// The person confirmed `policy` on the register sheet, whose hold is
+    /// its confirmation: it is added without a sheet of its own.
+    pub(crate) fn wallet_confirmed_by_register(&mut self, policy: &WalletPolicy) {
+        let same = same_wallet(policy);
+        if !self.wallet_confirmed.contains(&same) {
+            self.wallet_confirmed.push(same);
+        }
+    }
+
     /// The wallet waiting first is not added; the next one waits.
     pub(crate) fn wallet_drop(&mut self) {
         if self.wallet_asked.pop_front().is_some() {
@@ -3988,10 +3997,14 @@ impl Faraday {
         match action {
             Action::RegisterOpen if s.inspection.register.is_some() => {
                 self.wallets.open_register();
+                self.register_rows(0);
                 self.sheet = Some(Sheet::Register);
             }
             Action::RegisterField => self.wallets.register_typing(),
-            Action::RegisterReading(k) => self.wallets.register_reading(k),
+            Action::RegisterReading(k) => {
+                self.wallets.register_reading(k);
+                self.register_rows(usize::from(k));
+            }
             Action::RegisterCancel => {
                 self.wallets.close_register();
                 self.sheet = None;
@@ -4013,6 +4026,9 @@ impl Faraday {
                 let added = faraday_psbt::register(&c, &psbt, &offer, reading, &yours)
                     .map_err(|r| (Text::of(&crate::register::refusal_text(r, &offer)), false))
                     .and_then(|policy| {
+                        // The hold, after every check, is the wallet's
+                        // confirmation: no second sheet.
+                        self.session.wallet_confirmed_by_register(&policy);
                         self.session
                             .add_policy(&c, &name, policy, &source, Origin::Named)
                             .map_err(|e| (e.text(), e == Refusal::Unconfirmed))
@@ -4037,6 +4053,21 @@ impl Faraday {
             }
             _ => {}
         }
+    }
+
+    /// Costs a key derivation for each key of reading `k`'s wallet under
+    /// a loaded fingerprint, and its checksum: the register sheet's rows,
+    /// worked out at the press so drawing only reads.
+    fn register_rows(&mut self, k: usize) {
+        let descriptor = self
+            .wallets
+            .spend()
+            .and_then(|s| s.inspection.register.as_ref())
+            .and_then(|o| o.readings.get(k))
+            .map(|r| r.descriptor.clone());
+        let c = self.compute();
+        let rows = descriptor.and_then(|d| Rows::of_descriptor(&self.session, &c, &d));
+        self.wallets.register_set_rows(rows);
     }
 
     /// The lines that name a wallet under its code: its shape and
