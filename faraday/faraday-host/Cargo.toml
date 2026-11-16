@@ -20,7 +20,7 @@ faraday-text = { path = "../../core/faraday-text" }
 
 [dev-dependencies]
 # The test wallets, and the shell the app's own tests share.
-faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-core = { path = "../faraday-core", features = ["testkit", "demo"] }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-codec = { path = "../../core/faraday-codec" }
 faraday-entropy = { path = "../../core/faraday-entropy" }

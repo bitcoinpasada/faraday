@@ -191,7 +191,7 @@ fn sticks(app: &Faraday) -> Vec<Ctl> {
 /// vault's Generate with dice, where the "Demo only" card would hold it.
 /// A lookup.
 pub(crate) fn roller_shown(app: &Faraday) -> Option<Roller> {
-    app.demo_hosted_now().and_then(|h| h.roller)
+    app.demo_roller_now()
 }
 
 /// The screen's demo aids and the lines saying what Practice puts in place
@@ -714,12 +714,18 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32
         }
     }
     if let Some(m) = &more {
-        // What More holds follows its own label.
+        // What More holds (the rows its menu lists, not the disabled
+        // ones) follows its own label.
         let at = labels
             .iter()
             .position(|l| *l == m.label)
             .map_or(labels.len(), |i| i + 1);
-        let rest: Vec<String> = fitted.demo_more.iter().map(|c| c.label.clone()).collect();
+        let rest: Vec<String> = fitted
+            .demo_more
+            .iter()
+            .filter(|c| c.kind != Kind::Off)
+            .map(|c| c.label.clone())
+            .collect();
         labels.splice(at..at, rest);
     }
     // The lines, each whole, however short they were cut.

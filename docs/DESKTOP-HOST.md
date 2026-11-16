@@ -29,7 +29,7 @@ Starter's close button covers it.
 | Size shown | The app area | The strip |
 |---|---|---|
 | This window (the default) | the window less the strip, laid out as a device of that size would be | `HOST_STRIP_H` (64 dp) along the window's foot |
-| A preview (Pi panel, 7-inch panel, …; §10.1) | the screen's size in dp, centred in the host's space above the strip with a pixel-wide edge, at its own pixels where it fits inside `MARGIN_WIDE`, scaled down where the window is smaller | the same, at the window's foot, never inside the frame |
+| A preview (Pi panel, 7-inch panel, …; §10.1) | the screen's size in dp, centred in the host's space above the strip with an edge `HOST_FOCUS_EDGE` wide, at its own pixels where it fits inside `MARGIN_WIDE`, scaled down where the window is smaller | the same, at the window's foot, never inside the frame |
 
 The app is told the app area as its display and knows nothing else:
 the class, short and low rules, the navigation and the on-screen
@@ -216,7 +216,7 @@ on the app, the host scheme's round a preview.
 ## 5. The menus
 
 Each stands up from its control on the strip: Material's menu, 280 dp
-(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`) with title-medium labels,
+(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`) with label-large labels,
 fading in over Material's medium 1 on the standard decelerate and out
 over its short 3 on the standard accelerate (owner, 2026-10-25), at
 once under Reduce motion and with fades off (`docs/MOTION.md` §3.5).
@@ -288,7 +288,7 @@ control and menu row is 48 dp tall (§2).
   a container role of its own colour): Material's tertiary is the
   accent for what balances primary and secondary and draws attention,
   apart from the strip's neutral inverse surface.
-- **48 dp controls with title-medium labels at every window size**
+- **48 dp controls with label-large labels at every window size**
   (owner, 2026-10-26, from Material 3): the strip grows to hold them and
   scrolls sideways rather than shrink them; the row is centred.
 - **The host's menus fade** (owner, 2026-10-25): Material's fade
@@ -501,7 +501,7 @@ on-screen keyboard rising by itself where a field takes typing. No
 screen knows it is previewed.
 
 The frame is drawn centred in the host's space above the strip with a
-pixel-wide edge, at the window's own pixels where it fits inside a
+`HOST_FOCUS_EDGE`-wide edge, at the window's own pixels where it fits inside a
 24 dp margin, and scaled down to fit where the window is smaller (each
 window pixel the average of the frame's pixels it covers;
 `Canvas::place_scaled`). Resizing the window moves and scales the frame

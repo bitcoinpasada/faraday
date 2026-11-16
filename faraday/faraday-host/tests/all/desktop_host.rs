@@ -1447,3 +1447,25 @@ fn a_fling_along_the_narrow_strip_coasts_and_then_the_window_rests() {
     assert_eq!(asked, 0, "and then the window rests");
     assert_eq!(host.menu_open(), None, "the fling opened nothing");
 }
+
+#[test]
+fn a_second_display_at_the_same_size_leaves_the_apps_frame_as_it_was() {
+    use faraday_core::work::{Work, since, snapshot};
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    let _ = host.frame();
+    let before = snapshot();
+    host.event(display(1280, 800));
+    let _ = host.frame();
+    assert_eq!(
+        since(&before).of(Work::FullCanvas),
+        0,
+        "the same window made the app's frame again"
+    );
+    host.event(display(1100, 700));
+    let _ = host.frame();
+    assert!(
+        since(&before).of(Work::FullCanvas) > 0,
+        "a new size makes it again"
+    );
+}

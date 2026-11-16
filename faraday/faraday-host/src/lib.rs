@@ -296,16 +296,12 @@ impl Host {
     /// Where the host's control for `press` stood in the frame last
     /// drawn: its centre in the window's pixels. A lookup.
     pub fn where_offered(&self, press: HostPress) -> Option<(u16, u16)> {
-        self.hits
-            .iter()
-            .rev()
-            .find(|(_, p)| *p == press)
-            .map(|(r, _)| {
-                (
-                    (r.x + r.w / 2).clamp(0, i32::from(u16::MAX)) as u16,
-                    (r.y + r.h / 2).clamp(0, i32::from(u16::MAX)) as u16,
-                )
-            })
+        self.offered_area(press).map(|(x, y, w, h)| {
+            (
+                (x + w / 2).clamp(0, i32::from(u16::MAX)) as u16,
+                (y + h / 2).clamp(0, i32::from(u16::MAX)) as u16,
+            )
+        })
     }
 
     /// What the strip's controls said in the frame last drawn, left to
@@ -317,9 +313,8 @@ impl Host {
     /// Where Samples' sheet stood in the frame last drawn, in the window's
     /// pixels: its left and top edges, its width and height. A lookup.
     pub fn sheet_area(&self) -> Option<(i32, i32, i32, i32)> {
-        self.sheet_view
+        self.menu_area()
             .filter(|_| self.menu_open() == Some(HostMenu::Samples))
-            .map(|(r, _)| (r.x, r.y, r.w, r.h))
     }
 
     /// Where the app's frame stands in the window, in pixels: its left
@@ -1016,6 +1011,11 @@ impl App for Host {
         match event {
             Event::Display(d) => {
                 if d.width == 0 || d.height == 0 {
+                    return;
+                }
+                // The same window again changes nothing: a new canvas would
+                // restart the app's fades.
+                if self.window == Some(d) {
                     return;
                 }
                 self.window = Some(d);

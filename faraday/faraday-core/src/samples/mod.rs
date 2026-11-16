@@ -923,7 +923,10 @@ impl Faraday {
 
     /// The computer's dice roller on the page on screen, where its dice
     /// entry is open on Faraday Demo. A lookup.
-    fn demo_roller_now(&self) -> Option<Roller> {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn demo_roller_now(&self) -> Option<Roller> {
         if !self.roller_offered() {
             return None;
         }
