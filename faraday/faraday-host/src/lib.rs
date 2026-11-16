@@ -658,6 +658,7 @@ impl Host {
                 && a.y == 0
                 && self.menu.is_none()
                 && self.leaving.is_none()
+                && !self.ink_on
         });
         let top = if unplaced.is_some() {
             i32::from(d.height) - self.strip_px()
@@ -954,7 +955,8 @@ impl Host {
         let (px, py) = (i32::from(x), i32::from(y));
         self.hovered = self.hit_at(px, py);
         match self.area().filter(|a| a.inside(px, py)) {
-            Some(a) if self.hovered.is_none() => {
+            // Under an open menu or sheet the app is not hovered.
+            Some(a) if self.hovered.is_none() && self.menu.is_none() => {
                 self.pointer_in = true;
                 let (x, y) = a.to_app(px, py);
                 self.app.event(Event::Hover { x, y });
@@ -1043,6 +1045,8 @@ impl App for Host {
             }
             // The window's focus is the host's: the app has no use for it.
             Event::Focus(on) => self.window_focus = on,
+            // The keys are the host's while a menu or sheet is open.
+            Event::Key(_) if self.menu.is_some() => {}
             Event::Key(_) => {
                 self.keys_in = true;
                 self.app.event(event);

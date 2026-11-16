@@ -1467,3 +1467,29 @@ fn a_second_display_at_the_same_size_leaves_the_apps_frame_as_it_was() {
         "a new size makes it again"
     );
 }
+
+#[test]
+fn under_an_open_menu_the_pointer_and_the_keys_stay_with_the_host() {
+    use faraday_ui::pal::Role;
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    let dim = host.app.theme().role(Role::OutlineVariant);
+    host.event(Event::HoverEnd);
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    assert_eq!(host.menu_open(), Some(HostMenu::Size));
+    // The pointer over the app beside the menu, and a key.
+    host.event(Event::Hover { x: 10, y: 10 });
+    assert_eq!(border(&mut host), dim, "the pointer is not on the app");
+    host.event(Event::Key(faraday_shell_api::Key::Char('a')));
+    assert_eq!(border(&mut host), dim, "the key did not reach the app");
+    assert_eq!(host.menu_open(), Some(HostMenu::Size));
+}
+
+#[test]
+fn recorded_ink_holds_the_strip_at_the_windows_own_size() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 2, true, (1280, 800));
+    host.record_ink(true);
+    let _ = host.parts();
+    assert!(!host.ink().is_empty(), "the strip's ink is recorded");
+}
