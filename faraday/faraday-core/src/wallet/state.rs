@@ -25,6 +25,10 @@ pub struct SpendState {
     /// The inspection, kept current: worked out again only when what it
     /// is of changed ([`SpendState::inspected`]).
     pub inspection: faraday_psbt::Inspection,
+    /// The wallet each output of the inspection goes to, by name, one per
+    /// output in order (`None` where it is no wallet of the person's):
+    /// worked out where the spend is refreshed, read when drawing.
+    pub own_names: Vec<Option<Text>>,
     /// What [`SpendState::inspection`] is of: the PSBT, the session's
     /// network, keys and wallets. `refresh_spend` inspects again only when
     /// one of them changed.
@@ -221,6 +225,7 @@ impl SpendState {
             table: false,
             error: None,
             inspection,
+            own_names: Vec::new(),
             inspected,
             signers: Vec::new(),
             to_sign: Vec::new(),
@@ -849,6 +854,13 @@ impl WalletsArea {
             s.take(fresh);
             s.others_stale = true;
         }
+        // The wallets the outputs go to, named once here for every draw.
+        s.own_names = s
+            .inspection
+            .outputs
+            .iter()
+            .map(|o| o.own.as_ref().and_then(|own| session.own_wallet_name(own)))
+            .collect();
         s.review_lapse();
         let wallet = s.wallet.and_then(|w| session.wallets.get(w));
         let kind = wallet.map(|w| Kind::of(w.policy()));

@@ -2011,6 +2011,8 @@ impl Faraday {
             }
             let last = self.session.wallets.len().saturating_sub(1);
             self.wallets.set_wallet(self.wallets.wallet().min(last));
+            // A spend panel open names wallets: it must not name one that is gone.
+            self.refresh_spend();
         }
         self.spend_backup.state.everything = false;
         let s = &mut self.spend_backup.state.seeds;

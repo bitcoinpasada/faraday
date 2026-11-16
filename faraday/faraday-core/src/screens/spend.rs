@@ -800,20 +800,16 @@ impl StepView<'_> {
             ));
             whole.push(None);
         }
-        for o in recipients(i) {
+        for (k, o) in i.outputs.iter().enumerate().filter(|(_, o)| !o.is_ours()) {
             // A payment into another of the person's wallets names it.
-            let to = match &o.own {
-                Some(own) => self
-                    .app
-                    .session
-                    .own_wallet_name(own)
-                    .map_or_else(Text::new, |n| Text::fill(EN.step_to_wallet, &[&n])),
-                None => Text::new(),
+            let to = match s.own_names.get(k) {
+                Some(Some(n)) => Text::fill(EN.step_to_wallet, &[n]),
+                _ => Text::new(),
             };
             rows.push((Text::of(EN.step_sends), btc(o.amount.to_sat()), to, None));
             whole.push(Some(grouped(&o.address)));
         }
-        for o in &i.outputs {
+        for (k, o) in i.outputs.iter().enumerate() {
             match o.kind {
                 OutputKind::WalletChange { change, index, .. }
                 | OutputKind::Change { change, index, .. } => {
@@ -826,13 +822,9 @@ impl StepView<'_> {
                             &text!("{}", index),
                         ],
                     );
-                    let detail = match o
-                        .own
-                        .as_ref()
-                        .and_then(|own| self.app.session.own_wallet_name(own))
-                    {
-                        Some(n) => text!("{} · {}", &*n, &*path),
-                        None => path,
+                    let detail = match s.own_names.get(k) {
+                        Some(Some(n)) => text!("{} · {}", &**n, &*path),
+                        _ => path,
                     };
                     rows.push((
                         Text::of(if change {
@@ -2163,18 +2155,23 @@ fn spend_panel(
     // Change is verified change only: an output that claims to be change
     // and cannot be verified is among what it sends (F136).
     // It names the wallet the change goes to (F254).
-    let own = i.outputs.iter().filter(|o| o.is_ours()).max_by_key(|o| {
-        matches!(
-            o.kind,
-            OutputKind::Change { change: true, .. } | OutputKind::WalletChange { change: true, .. }
-        )
-    });
+    let own = i
+        .outputs
+        .iter()
+        .enumerate()
+        .filter(|(_, o)| o.is_ours())
+        .max_by_key(|(_, o)| {
+            matches!(
+                o.kind,
+                OutputKind::Change { change: true, .. }
+                    | OutputKind::WalletChange { change: true, .. }
+            )
+        });
     let change = match own {
-        Some(o) => o
-            .own
-            .as_ref()
-            .and_then(|w| app.session.own_wallet_name(w))
-            .unwrap_or_else(|| Text::of(EN.spend_panel_verified)),
+        Some((k, _)) => match s.own_names.get(k) {
+            Some(Some(n)) => n.clone(),
+            _ => Text::of(EN.spend_panel_verified),
+        },
         None => Text::of(EN.spend_panel_none),
     };
     let facts: [(&str, Text, TypeRole, u8); 6] = [
