@@ -180,7 +180,8 @@ class Node:
     """One bitcoind for the run, on regtest, offline. Use as a context
     manager: it is stopped and its folders deleted on every way out."""
 
-    def __init__(self, rpc_threads=4, wallet=False, release=None, args=()):
+    def __init__(self, rpc_threads=4, wallet=False, release=None, args=(), chain="regtest"):
+        self.chain = chain
         self.release = release
         self.args = list(args)
         self.rpc_threads = max(4, rpc_threads)
@@ -212,7 +213,7 @@ class Node:
         datadir.mkdir()
         for attempt in range(PORT_TRIES):
             port = _free_port()
-            common_args = [f"-datadir={datadir}", "-regtest", f"-rpcport={port}"]
+            common_args = [f"-datadir={datadir}", f"-{self.chain}", f"-rpcport={port}"]
             self.proc = subprocess.Popen(
                 [str(bins["bitcoind"]), *common_args, "-networkactive=0", "-listen=0",
                  "-connect=0", "-dnsseed=0", "-fixedseeds=0", "-discover=0",
@@ -242,7 +243,7 @@ class Node:
         if not net.get("subversion", "").startswith(want):
             raise CoreError(f"Bitcoin Core: the node says {net.get('subversion')}, "
                             f"pinned {p['version']}")
-        cookie = (datadir / "regtest" / ".cookie").read_text().strip()
+        cookie = (datadir / {"testnet": "testnet3"}.get(self.chain, self.chain) / ".cookie").read_text().strip()
         user, password = cookie.split(":", 1)
         self.info = {"url": f"http://{user}:{password}@localhost:{port}",
                      "version": net["subversion"].strip("/").split(":")[1],

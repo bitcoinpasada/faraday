@@ -2201,6 +2201,7 @@ adds = "The script is derived from the keys of the policy on a verification-only
 vectors = [
   "addresses",
   "bip32",
+  "multisig-check",
 ]
 tests = [
   "core/faraday-bip/tests/all/accounts.rs::bip44_legacy_mainnet",
@@ -2213,6 +2214,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore_addresses.rs::the_list_gives_the_published_addresses_of_each_account",
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
   "faraday/faraday-core/tests/all/seed_check.rs::an_address_of_the_second_chain_is_found_with_its_index",
+  "faraday/faraday-core/tests/all/multisig_check.rs::the_first_address_of_every_kind_is_the_one_bitcoin_core_derives",
 ]
 crosscheck = "addr"
 independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys, and its descriptors (`parse`, `script_pub_key`, `checksum`) for each account descriptor's kind, text, script at an index and checksum; BIP 380's own checksum code, as the BIP prints it; python-mnemonic, by Trezor (SatoshiLabs), for the seeds" }
@@ -9960,6 +9962,10 @@ source = "own"
 [vector.seedqr]
 source = "published"
 by = "SeedSigner's SeedQR specification, by the SeedSigner developers"
+
+[vector.multisig-check]
+source = "outside"
+by = "Bitcoin Core (the pinned bitcoind on testnet4), run by `tools/vectors/multisig-check/gen.py`: the descriptor checksum and first receive address of multisig wallets of each kind the check reads, over the account keys of BIP 32 test vectors 1 to 3"
 
 [vector.seed-check]
 source = "outside"

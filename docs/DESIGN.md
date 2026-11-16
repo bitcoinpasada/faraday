@@ -1168,15 +1168,13 @@ card) and Progress indicators (linear, determinate) pages.
 
 ### A multisig setup (`MultisigCheck`)
 
-Built, but for what its **Open:** line below says. A wallet of several keys, read from its descriptor, a BIP-388
+Built. A wallet of several keys, read from its descriptor, a BIP-388
 policy, a multisig setup file or a BIP 129 record, shown as its quorum,
 its descriptor checksum and each cosigner, for the person to hold against
 every other signer's device and the coordinator; with a key loaded here
 or a seed given, which cosigner that key is. Opened from the Check
 screen's row 7, from its Tools tile and from the ⋮ menu of a wallet file's row in Files (**Check this setup**, on a file Files reads as a wallet of more than one key, never on a single-key wallet file), which opens it on that file with the Setup card closed and the Result, or the refusal line, shown. Its steps, what it reads and what
 it refuses are `docs/FLOWS.md`, Check a multisig setup.
-
-**Open:** the Check against Core's own `deriveaddresses` for the first address.
 
 | `Screen` | What it holds | Drawn as |
 |---|---|---|

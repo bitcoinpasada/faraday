@@ -528,3 +528,29 @@ fn a_wallet_already_loaded_reads_loaded_at_once() {
     assert!(!has_part(&mut app, "Add this wallet"));
     assert_eq!(app.session.wallets.len(), 1);
 }
+
+/// Bitcoin Core's `deriveaddresses` of each multisig kind's first receive
+/// address, with the descriptor and checksum Core gives it
+/// (`tools/vectors/multisig-check`).
+const CORE_ADDRESSES: &str = include_str!("../../../../tools/vectors/multisig-check/vectors.json");
+
+#[test]
+fn the_first_address_of_every_kind_is_the_one_bitcoin_core_derives() {
+    let vectors: serde_json::Value = serde_json::from_str(CORE_ADDRESSES).unwrap();
+    let vectors = vectors.as_array().unwrap();
+    assert!(vectors.len() >= 9);
+    for v in vectors {
+        let (name, descriptor, address) = (
+            v["name"].as_str().unwrap(),
+            v["descriptor"].as_str().unwrap(),
+            v["address"].as_str().unwrap(),
+        );
+        let mut app = scanned(descriptor);
+        assert!(has_part(&mut app, "holds"), "{name}: {descriptor}");
+        let shown = texts(&mut app);
+        assert!(
+            shown.iter().any(|t| t.contains(address)),
+            "{name}: Core derives {address}, the check shows {shown:?}"
+        );
+    }
+}
