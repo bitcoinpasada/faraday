@@ -1,8 +1,7 @@
 # Faraday Demo as a simulator: the host
 
-**Kind:** Spec
+**Kind:** Reference
 **Status:** Built (F118, `faraday/faraday-host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card; it runs inside Faraday Starter's window, under the Starter's top app bar (§1, F126).
-**Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Demo read as a simulator of
 the device, so it is always clear what is the app and what is Faraday
