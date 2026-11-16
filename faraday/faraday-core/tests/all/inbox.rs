@@ -493,6 +493,20 @@ fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
     assert_eq!(app.inbox().len(), 2, "the same bytes again are no new file");
 }
 
+/// A stick's FAT does not tell names apart by case: a file read under a
+/// name that differs from one held only by case is kept numbered.
+#[test]
+fn a_second_file_whose_name_differs_only_by_case_is_kept_numbered() {
+    let mut app = with_files(vec![("Notes.txt".to_string(), b"first\n".to_vec())]);
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of("notes.txt"),
+        bytes: b"second\n".to_vec().into(),
+    });
+    let names: Vec<&str> = app.inbox().iter().map(|i| i.name.as_str()).collect();
+    assert_eq!(names, vec!["Notes.txt", "notes-2.txt"]);
+}
+
 /// A From the stick vault row whose name a For the stick vault also
 /// has, another vault, is its own vault: with the For the stick one open
 /// and its own locked, the row offers Unlock, not the other's Contents.

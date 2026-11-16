@@ -772,16 +772,16 @@ impl Faraday {
     }
 
     /// The name a file read from a stick as `name` comes into Files under:
-    /// its own, replacing a file of that name with the same bytes. A file
+    /// its own, replacing a file of that name (in any case) with the same bytes. A file
     /// Files holds under it with other bytes is kept, this one numbered
     /// beside it, and the visit says so. A lookup per file.
     pub(crate) fn inbox_name_for(&mut self, name: &str, bytes: &[u8]) -> Text {
         if !self
             .inbox
             .iter()
-            .any(|i| i.name == name && *i.bytes != bytes)
+            .any(|i| i.name.eq_ignore_ascii_case(name) && *i.bytes != bytes)
         {
-            self.inbox.retain(|i| i.name != name);
+            self.inbox.retain(|i| !i.name.eq_ignore_ascii_case(name));
             return Text::of(name);
         }
         let kept = self.free_inbox_name(name);

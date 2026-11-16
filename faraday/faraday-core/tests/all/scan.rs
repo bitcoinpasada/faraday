@@ -61,6 +61,28 @@ fn a_psbt_in_bbqr_parts_says_what_is_missing_and_arrives_whole() {
     assert_eq!(*item.bytes, psbt);
 }
 
+/// A code read as a file never takes the name of one the Inbox already
+/// holds, as after a lock and an unlock restored the Inbox.
+#[test]
+fn a_scanned_file_is_named_apart_from_the_files_already_in_the_inbox() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let parts = faraday_qr::bbqr::encode('P', &psbt, 60).unwrap();
+    let mut app = scanning(vec![
+        ("scanned-1.psbt", b"older".to_vec()),
+        ("Scanned-2.PSBT", b"older".to_vec()),
+    ]);
+    for p in &parts {
+        scan(&mut app, p);
+    }
+    let names: Vec<&str> = app.inbox().iter().map(|i| i.name.as_str()).collect();
+    assert_eq!(names.len(), 3, "{names:?}");
+    let new = names[2].to_ascii_lowercase();
+    assert!(
+        new != "scanned-1.psbt" && new != "scanned-2.psbt",
+        "{names:?}"
+    );
+}
+
 #[test]
 fn a_file_in_the_envelope_arrives_under_its_own_name() {
     let wallet = kit("spending").descriptor;

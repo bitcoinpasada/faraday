@@ -346,10 +346,8 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     // The keys follow: no way of adding one adds it with a stick in.
     let noun = app.stick.in_the_way().then(|| app.medium.noun());
     app.session.keys.set_stick_attached(noun);
-    let present: Vec<faraday_text::Text> = app.stick.iter().map(|s| s.id.clone()).collect();
     // What the shell found unusable comes with each listing: a stick
     // that no longer reports a problem has none.
-    let _ = &present;
     app.stick.clear_problems();
     // The medium the device started from goes by what it is, not by its volume label.
     let boot = app.medium.boot();
@@ -417,7 +415,6 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     }
     app.import_stick_gone();
     if ids_now == ids_before {
-        app.flow_sticks_changed();
         app.release_held_stick();
         return;
     }

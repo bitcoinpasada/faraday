@@ -67,15 +67,20 @@ pub(crate) struct NameTaken {
     pub(crate) sent: Option<[u8; 32]>,
 }
 
+/// `name` split before its last dot (a leading dot is no extension).
+fn stem_ext(name: &str) -> (&str, &str) {
+    match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    }
+}
+
 /// `name` for suffix 1, else `stem-n.ext`.
 fn suffixed(name: &str, n: u32) -> Text {
     if n <= 1 {
         return Text::of(name);
     }
-    let (stem, ext) = match name.rfind('.') {
-        Some(i) if i > 0 => (&name[..i], &name[i..]),
-        _ => (name, ""),
-    };
+    let (stem, ext) = stem_ext(name);
     text!("{stem}-{n}{ext}")
 }
 
@@ -84,17 +89,15 @@ fn lower(s: &str) -> Text {
     s.chars().map(|c| c.to_ascii_lowercase()).collect()
 }
 
-/// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`
-/// (lower case), as `faraday_files` names a file kept beside another.
+/// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`,
+/// compared without regard to case as FAT does, as `faraday_files` names
+/// a file kept beside another. The one finder of such a name.
 pub(crate) fn free_name(taken: &[impl AsRef<str>], name: &str) -> Text {
-    let is_taken = |n: &str| taken.iter().any(|t| t.as_ref() == &*lower(n));
+    let is_taken = |n: &str| taken.iter().any(|t| t.as_ref().eq_ignore_ascii_case(n));
     if !is_taken(name) {
         return Text::of(name);
     }
-    let (stem, ext) = match name.rfind('.') {
-        Some(i) if i > 0 => (&name[..i], &name[i..]),
-        _ => (name, ""),
-    };
+    let (stem, ext) = stem_ext(name);
     let mut n = 2u32;
     loop {
         let beside = text!("{stem}-{n}{ext}");

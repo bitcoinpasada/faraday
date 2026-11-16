@@ -17,6 +17,7 @@ pub(crate) mod text_ask;
 use text_ask::Ask;
 pub use text_ask::TextSeedAnswer;
 
+use crate::stick::visit_taken::free_name;
 use crate::strings::EN;
 use faraday_text::{Text, text};
 use std::collections::BTreeSet;
@@ -226,21 +227,6 @@ fn ext(name: &str) -> Text {
 /// A picture's file name.
 fn is_png(name: &str) -> bool {
     ext(name) == "png"
-}
-
-/// `name`, or `stem-2.ext`, … when `taken` says it is in use.
-fn free_name(name: &str, taken: impl Fn(&str) -> bool) -> Text {
-    if !taken(name) {
-        return Text::of(name);
-    }
-    let (stem, ext) = match name.rfind('.') {
-        Some(i) if i > 0 => (&name[..i], &name[i..]),
-        _ => (name, ""),
-    };
-    (2..1000)
-        .map(|n| text!("{stem}-{n}{ext}"))
-        .find(|n| !taken(n))
-        .unwrap_or_else(|| Text::of(name))
 }
 
 impl ImportState {
@@ -507,7 +493,7 @@ impl Faraday {
                     let item = Item::new(&c, &text!("{stem}-words.txt"), words.as_bytes().to_vec());
                     let mut item = item;
                     let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
-                    item.name = free_name(&item.name, |n| taken.contains(&n));
+                    item.name = free_name(&taken, &item.name);
                     imp.items.push(item);
                     imp.item_file.push(f);
                 }
@@ -747,7 +733,7 @@ impl Faraday {
         for item in got {
             let taken: Vec<&str> = imp.items.iter().map(|i| i.name.as_str()).collect();
             let mut item = item;
-            item.name = free_name(&item.name, |n| taken.contains(&n));
+            item.name = free_name(&taken, &item.name);
             imp.items.push(item);
             imp.item_file.push(f);
         }
@@ -1114,8 +1100,10 @@ impl Faraday {
                 already.insert(Text::of(&item.name));
                 plain.push(item);
             } else {
-                let taken = |n: &str| plain.iter().any(|p: &Item| p.name == n);
-                let name = free_name(&self.free_inbox_name(&item.name), taken);
+                let taken: Vec<&str> = (self.inbox.iter().chain(plain.iter()))
+                    .map(|i| i.name.as_str())
+                    .collect();
+                let name = free_name(&taken, &item.name);
                 if name != item.name.as_str() {
                     renamed.push(name.duplicate());
                 }

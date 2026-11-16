@@ -1248,24 +1248,19 @@ impl Faraday {
         }
         match self.gpg_public_name(data) {
             Some((_, n)) => self.free_inbox_name(&n),
-            None => text!("scanned-{}.{ext}", self.camera.next_number()),
+            None => loop {
+                let n = text!("scanned-{}.{ext}", self.camera.next_number());
+                if self.free_inbox_name(&n) == n.as_str() {
+                    break n;
+                }
+            },
         }
     }
 
-    /// `name`, or `stem-2.ext`, … when the Inbox has it.
+    /// `name`, or `stem-2.ext`, … when the Inbox has it, in any case.
     pub(crate) fn free_inbox_name(&self, name: &str) -> Text {
-        let taken = |n: &str| self.inbox.iter().any(|i| i.name == n);
-        if !taken(name) {
-            return Text::of(name);
-        }
-        let (stem, ext) = match name.rfind('.') {
-            Some(i) if i > 0 => (&name[..i], &name[i..]),
-            _ => (name, ""),
-        };
-        (2..1000)
-            .map(|n| text!("{stem}-{n}{ext}"))
-            .find(|n| !taken(n))
-            .unwrap_or_else(|| Text::of(name))
+        let taken: Vec<&str> = self.inbox.iter().map(|i| i.name.as_str()).collect();
+        crate::stick::visit_taken::free_name(&taken, name)
     }
 
     /// The scanner's line says `why`; the camera stays on.
