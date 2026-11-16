@@ -208,6 +208,7 @@ fn a_picture_on_a_stick_holding_a_private_key_or_words_that_are_no_seed_files_no
     for secret in [UNCHECKED, WIF, XPRV, NSEC, SPSPEND, PAPERKEY] {
         let mut app = testkit::started();
         app.storage(StorageEvent::QrRead {
+            stick: faraday_text::Text::of("S1"),
             name: faraday_text::Text::of("code.png"),
             bytes: (Vec::new()).into(),
             payloads: (vec![secret.as_bytes().to_vec()]).into(),

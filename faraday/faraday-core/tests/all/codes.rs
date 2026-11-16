@@ -257,6 +257,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     }]));
     app.press(Action::Nav(Screen::Files));
     app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of(name),
         bytes: (png.to_vec()).into(),
         payloads: (faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec()).into(),

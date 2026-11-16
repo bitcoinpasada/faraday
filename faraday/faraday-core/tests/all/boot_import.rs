@@ -114,8 +114,9 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
                     bytes: bytes.into(),
                 });
             }
-            StorageCommand::ReadQr { name, .. } => {
+            StorageCommand::ReadQr { stick, name } => {
                 app.storage(StorageEvent::QrRead {
+                    stick,
                     name,
                     bytes: (Vec::new()).into(),
                     payloads: (vec![zebra_seedqr()]).into(),
@@ -282,9 +283,10 @@ fn reads(app: &mut Faraday, files: &[(String, Vec<u8>)]) -> Vec<String> {
                     bytes: bytes.into(),
                 });
             }
-            StorageCommand::ReadQr { name, .. } => {
+            StorageCommand::ReadQr { stick, name } => {
                 asked.push(String::from(&*name));
                 app.storage(StorageEvent::QrRead {
+                    stick,
                     name,
                     bytes: (Vec::new()).into(),
                     payloads: (vec![zebra_seedqr()]).into(),
@@ -957,9 +959,10 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
     app.press(Action::VisitCopy);
     let mut asked = false;
     while let Some(c) = app.poll_storage() {
-        if let StorageCommand::ReadQr { name, .. } = c {
+        if let StorageCommand::ReadQr { stick, name } = c {
             asked = true;
             app.storage(StorageEvent::QrRead {
+                stick,
                 name,
                 bytes: (Vec::new()).into(),
                 payloads: (vec![zebra_wallet().into_bytes()]).into(),
@@ -1001,8 +1004,9 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
                     bytes: bytes.into(),
                 });
             }
-            StorageCommand::ReadQr { name, .. } => {
+            StorageCommand::ReadQr { stick, name } => {
                 app.storage(StorageEvent::QrRead {
+                    stick,
                     name,
                     bytes: (Vec::new()).into(),
                     payloads: (vec![seed_seedqr(0)]).into(),
@@ -1023,8 +1027,9 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
                     bytes: bytes.into(),
                 });
             }
-            StorageCommand::ReadQr { name, .. } => {
+            StorageCommand::ReadQr { stick, name } => {
                 app.storage(StorageEvent::QrRead {
+                    stick,
                     name,
                     bytes: (Vec::new()).into(),
                     payloads: (vec![seed_seedqr(0)]).into(),
@@ -1579,8 +1584,9 @@ fn text_picture_asked() -> faraday_core::Faraday {
                         bytes: bytes.into(),
                     });
                 }
-                StorageCommand::ReadQr { name, .. } => {
+                StorageCommand::ReadQr { stick, name } => {
                     app.storage(StorageEvent::QrRead {
+                        stick,
                         name,
                         bytes: (Vec::new()).into(),
                         payloads: (vec![b"a short note 123".to_vec()]).into(),
@@ -1675,4 +1681,39 @@ fn seeds_loaded_on_the_worker_are_added_when_the_answer_is_taken() {
     testkit::release_worker();
     testkit::settle(&mut app);
     assert_eq!(key_fps(&app), [fp(0)]);
+}
+
+#[test]
+fn a_picture_of_the_same_name_on_another_stick_is_not_taken_for_the_boot_sticks() {
+    let files: Vec<(String, Vec<u8>)> = vec![("zebra-seedqr.png".into(), b"a picture".to_vec())];
+    let mut app = booted_with(&files);
+    app.press(Action::Import(I::Go));
+    let mut asked = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::ReadQr { stick, name } = c {
+            asked.push((stick, name));
+        }
+    }
+    assert!(!asked.is_empty(), "the picture was not asked for");
+    for (stick, name) in asked {
+        // The other stick's picture, of the same name, answers first.
+        app.storage(StorageEvent::QrRead {
+            stick: faraday_text::Text::of("other"),
+            name: name.clone(),
+            bytes: (Vec::new()).into(),
+            payloads: (vec![seed_seedqr(0)]).into(),
+        });
+        assert!(
+            inbox_names(&app).is_empty(),
+            "the other stick's code came in: {:?}",
+            inbox_names(&app)
+        );
+        app.storage(StorageEvent::QrRead {
+            stick,
+            name,
+            bytes: (Vec::new()).into(),
+            payloads: (vec![zebra_seedqr()]).into(),
+        });
+    }
+    assert_eq!(inbox_names(&app), ["zebra-seedqr-words.txt"]);
 }

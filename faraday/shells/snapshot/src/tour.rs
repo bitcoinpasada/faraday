@@ -247,6 +247,7 @@ impl Tour {
                     let ev = match faraday_storage::read_qr_png(&self.app.compute(), &stick, &name)
                     {
                         Ok((bytes, payloads)) => StorageEvent::QrRead {
+                            stick,
                             name,
                             bytes,
                             payloads,

@@ -530,6 +530,7 @@ impl Shell {
                             .to_vec(),
                     };
                     app.storage(StorageEvent::QrRead {
+                        stick,
                         name,
                         bytes: bytes.into(),
                         payloads: payloads.into(),

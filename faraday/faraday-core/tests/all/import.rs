@@ -191,6 +191,7 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     app.press(Action::Nav(Screen::Files));
     own_tick(&mut app, "key-1-seedqr.png");
     app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of("key-1-seedqr.png"),
         bytes: (b"a picture".to_vec()).into(),
         payloads: (vec![seedqr_digits()]).into(),
@@ -259,6 +260,7 @@ const TEXT_SEEDQR: &[u8; 16] = b"a short note 123";
 fn read_text_picture(app: &mut faraday_core::Faraday, payload: Vec<u8>) {
     own_tick(app, "note.png");
     app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of("note.png"),
         bytes: (b"a picture".to_vec()).into(),
         payloads: (vec![payload]).into(),

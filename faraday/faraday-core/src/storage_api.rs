@@ -340,6 +340,8 @@ pub enum StorageEvent {
     /// and its bytes as they are. The app keeps and writes the bytes and
     /// never decodes them.
     QrRead {
+        /// The stick the image was read from.
+        stick: Text,
         /// The image's name.
         name: Text,
         /// The picture's bytes, unchanged.

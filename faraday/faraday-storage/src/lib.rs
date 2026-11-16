@@ -890,6 +890,7 @@ pub fn serve_with(
         for (stick, name, picture) in sticks.pictures_read() {
             app.storage(match picture {
                 Ok((bytes, payloads)) => StorageEvent::QrRead {
+                    stick: faraday_text::Text::of(stick.as_str()),
                     name: faraday_text::Text::of(name.as_str()),
                     bytes,
                     payloads,

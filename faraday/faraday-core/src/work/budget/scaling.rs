@@ -209,7 +209,8 @@ fn boot_import(copies: usize) -> Faraday {
                     bytes: bytes.into(),
                 });
             }
-            StorageCommand::ReadQr { name, .. } => app.storage(StorageEvent::QrRead {
+            StorageCommand::ReadQr { stick, name } => app.storage(StorageEvent::QrRead {
+                stick,
                 name,
                 bytes: Vec::new().into(),
                 payloads: Vec::new().into(),

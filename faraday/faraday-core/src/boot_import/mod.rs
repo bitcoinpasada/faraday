@@ -329,10 +329,10 @@ impl Faraday {
                 .log_push((Text::fill(EN.qr_read_copied_no_qr, &[name]), true));
         } else {
             // An image is read as the camera reads: a UR in parts can
-            // span several images.
-            if self.camera.scan().is_none() {
-                self.camera.open(crate::ScanState::default());
-            }
+            // span several images. It is read in a scan of the visit's
+            // own, put back after, so the camera's is not left open.
+            let mine = self.visit.take_pictures_scan().unwrap_or_default();
+            let outer = self.camera.swap(Some(mine));
             let before = self.inbox.len();
             let mut seeds = 0;
             let mut asked = 0;
@@ -342,9 +342,6 @@ impl Faraday {
                 let p = zeroize::Zeroizing::new(std::mem::take(p));
                 if self.visit_seedqr(name, &p, &mut seeds, &mut asked) {
                     continue;
-                }
-                if self.camera.scan().is_none() {
-                    self.camera.open(crate::ScanState::default());
                 }
                 let parts = self.camera.scan().is_some_and(crate::ScanState::in_parts);
                 let n = self.inbox.len();
@@ -359,6 +356,8 @@ impl Faraday {
                 .camera
                 .scan()
                 .and_then(|s| s.note.as_deref().map(Text::of));
+            let kept = self.camera.swap(outer);
+            self.visit.set_pictures_scan(kept);
             let seed_last = self
                 .inbox
                 .last()
@@ -595,14 +594,14 @@ impl Faraday {
     /// other event back.
     pub(crate) fn import_event(&mut self, event: StorageEvent) -> Option<StorageEvent> {
         match event {
-            StorageEvent::Read { stick, name, bytes } if self.import_waits(Some(&stick), &name) => {
+            StorageEvent::Read { stick, name, bytes } if self.import_waits(&stick, &name) => {
                 self.import_read(&name, bytes)
             }
             StorageEvent::ReadFailed {
                 stick,
                 name,
                 reason,
-            } if self.import_waits(Some(&stick), &name) => {
+            } if self.import_waits(&stick, &name) => {
                 if let Some(imp) = self.import.state.as_mut()
                     && let Some(f) = imp.waiting(&name)
                 {
@@ -612,8 +611,11 @@ impl Faraday {
             // The picture's bytes are not kept: what its codes hold is
             // imported, and the picture is copied on a visit.
             StorageEvent::QrRead {
-                name, mut payloads, ..
-            } if self.import_waits(None, &name) => {
+                stick,
+                name,
+                mut payloads,
+                ..
+            } if self.import_waits(&stick, &name) => {
                 self.import_codes(&name, std::mem::take(&mut *payloads))
             }
             other => return Some(other),
@@ -622,14 +624,12 @@ impl Faraday {
         None
     }
 
-    /// Whether the import waits for `name` from `stick` (any stick for a
-    /// picture's codes, whose answer names none).
-    fn import_waits(&self, stick: Option<&str>, name: &str) -> bool {
-        self.import.state().is_some_and(|i| {
-            stick.is_none_or(|s| i.stick == s)
-                && i.waiting(name).is_some()
-                && (stick.is_some() || is_png(name))
-        })
+    /// Whether the import waits for `name` from `stick`: a same-named file on
+    /// another stick is not its.
+    fn import_waits(&self, stick: &str, name: &str) -> bool {
+        self.import
+            .state()
+            .is_some_and(|i| i.stick == stick && i.waiting(name).is_some())
     }
 
     /// A file Import asked for, read: held here, a vault too, until every

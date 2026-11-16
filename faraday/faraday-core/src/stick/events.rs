@@ -47,6 +47,7 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
             name,
             bytes,
             payloads,
+            ..
         } if app.flow_wants_qr(&name) => {
             app.flow_qr_answer(&name, Some((bytes, payloads)));
         }
@@ -247,6 +248,7 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
             name,
             mut bytes,
             mut payloads,
+            ..
         } => {
             // A picture holding a SeedQR comes in only on the
             // person's own tick: another is dropped, left listed.
@@ -449,6 +451,7 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
         return;
     }
     app.visit.log_clear();
+    app.visit.set_pictures_scan(None);
     app.visit.set_settings(None);
     // The first look at the boot stick this power-on: what it holds is
     // copied into memory for the import (`boot_import`).

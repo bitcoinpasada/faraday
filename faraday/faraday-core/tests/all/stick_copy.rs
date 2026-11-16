@@ -118,6 +118,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                     }
                 };
                 app.storage(StorageEvent::QrRead {
+                    stick,
                     name,
                     bytes: bytes.into(),
                     payloads: payloads.into(),
@@ -976,12 +977,13 @@ fn the_visit_redraws_after_a_seedqr_picture_is_left_out_of_a_copy() {
     // The picture is read; the answer is the last event.
     let mut answers = Vec::new();
     while let Some(c) = app.poll_storage() {
-        if let StorageCommand::ReadQr { name, .. } = c {
+        if let StorageCommand::ReadQr { stick, name } = c {
             let bytes = a.files[&*name].clone();
             let codes = faraday_files::qr_in_png(&testkit::compute(), &bytes)
                 .unwrap_or_default()
                 .to_vec();
             answers.push(StorageEvent::QrRead {
+                stick,
                 name,
                 bytes: bytes.into(),
                 payloads: codes.into(),

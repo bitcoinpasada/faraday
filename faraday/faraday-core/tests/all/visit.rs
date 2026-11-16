@@ -1397,6 +1397,7 @@ fn a_picture_asked_for_says_it_is_being_read_until_its_codes_come() {
     let _ = app.frame();
     assert!(being_read(&mut app), "{:?}", app.drawn_texts());
     app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of("photo.png"),
         bytes: (b"\x89PNG".to_vec()).into(),
         payloads: (Vec::new()).into(),

@@ -153,6 +153,10 @@ pub(crate) struct VisitArea {
     pull: Option<Action>,
     /// The flow a stick visit returns to when the stick is pulled.
     after_visit: Option<Screen>,
+    /// What the pictures copied in so far have read of a transfer in
+    /// parts, which can span several pictures. Kept apart from the camera
+    /// sheet's, so nothing of it carries into a later scan.
+    pictures_scan: Option<crate::ScanState>,
     /// What the last stick visit wrote, this power-on (§4.3).
     receipt: Option<crate::Receipt>,
     /// Each vault file read from a stick this power-on: its name, the
@@ -535,6 +539,16 @@ impl VisitArea {
             .iter()
             .find(|u| u.stick == stick)
             .map(|u| (&u.line, u.names.iter().cloned().collect()))
+    }
+
+    /// The pictures' scan, taken to read the next picture in it.
+    pub(crate) fn take_pictures_scan(&mut self) -> Option<crate::ScanState> {
+        self.pictures_scan.take()
+    }
+
+    /// The pictures' scan, kept for the next picture (`None` forgets it).
+    pub(crate) fn set_pictures_scan(&mut self, scan: Option<crate::ScanState>) {
+        self.pictures_scan = scan;
     }
 
     /// The log is emptied.

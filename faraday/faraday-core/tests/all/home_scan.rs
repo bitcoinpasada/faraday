@@ -362,3 +362,31 @@ fn the_spend_tabs_intake_names_a_totp_code_and_files_no_secret() {
         assert!(app.inbox().is_empty(), "{secret} was filed");
     }
 }
+
+#[test]
+fn part_of_an_animated_code_in_a_picture_copied_in_does_not_carry_into_a_later_scan() {
+    let psbt = testkit::unsigned(
+        &testkit::kits()
+            .into_iter()
+            .find(|k| k.id == "spending")
+            .unwrap(),
+    )
+    .unwrap()
+    .to_bytes();
+    let parts = faraday_qr::bbqr::encode('P', &psbt, 60).unwrap();
+    let mut app = desktop();
+    app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
+        name: faraday_text::Text::of("part.png"),
+        bytes: (b"a picture".to_vec()).into(),
+        payloads: (vec![parts[0].as_bytes().to_vec()]).into(),
+    });
+    let _ = app.frame();
+    app.press(Action::Cancel);
+    home_scan(&mut app);
+    assert_eq!(
+        note(&app),
+        "",
+        "parts read from the picture were carried on"
+    );
+}

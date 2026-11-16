@@ -47,9 +47,10 @@ fn a_seedqr_picture_left_on_its_default_tick_and_dropped_leaves_no_freed_copy() 
     app.press(Action::VisitCopy);
     let mut asked = false;
     while let Some(c) = app.poll_storage() {
-        if let StorageCommand::ReadQr { name, .. } = c {
+        if let StorageCommand::ReadQr { stick, name } = c {
             asked = true;
             app.storage(StorageEvent::QrRead {
+                stick,
                 name,
                 bytes: zeroize::Zeroizing::new(b"the picture".to_vec()),
                 payloads: zeroize::Zeroizing::new(vec![digits.to_vec()]),

@@ -821,6 +821,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
         kept: Vec::new(),
     });
     back.storage(faraday_core::StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of(&picture.0.clone()),
         bytes: (picture.1.clone()).into(),
         payloads: (read).into(),

@@ -36,6 +36,7 @@ fn scan(app: &mut Faraday, name: &str, png: &[u8]) {
     let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec();
     assert!(!payloads.is_empty(), "{name}: no code read");
     app.storage(StorageEvent::QrRead {
+        stick: faraday_text::Text::of("S1"),
         name: faraday_text::Text::of(name),
         bytes: (png.to_vec()).into(),
         payloads: payloads.into(),
