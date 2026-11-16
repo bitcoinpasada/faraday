@@ -118,7 +118,7 @@ macro_rules! words_screens_create {
     /// Line in `create_body`.
     create_make_the_wallet: "Make the wallet first",
     /// Create's passphrase pair, a line under it.
-    create_pass_kept: "Kept nowhere until its backup. Another passphrase is another wallet.",
+    create_pass_kept: "Kept nowhere until it is backed up. A different passphrase opens a different wallet.",
         }
     };
 }

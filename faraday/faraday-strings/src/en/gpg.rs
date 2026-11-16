@@ -57,7 +57,7 @@ macro_rules! words_gpg {
     /// Error in `gpg_sign_ticked`, `gpg_export`. `{}`: the file's name.
     gpg_exists: "File exists: {}",
     /// Error in `gpg_sign_ticked`. `{}`: the file's name.
-    gpg_changed: "{} changed since it was ticked. It was not signed",
+    gpg_changed: "{} changed after it was ticked, so it was not signed",
     /// Error in `gpg_renew`.
     gpg_choose_the_term: "Choose the new term first",
     /// Error in `gpg_renew`, after GnuPG's.

@@ -529,7 +529,7 @@ macro_rules! words_sweep {
     /// Check a multisig setup: the line for a descriptor that holds a private key.
     mscheck_private: "A private key: not taken here",
     /// Check a multisig setup: the line for a descriptor whose checksum fails. `{}`: the checksum given, then the checksum the descriptor gives.
-    mscheck_checksum_fails: "The descriptor checksum does not hold: given {}, the descriptor gives {}",
+    mscheck_checksum_fails: "The descriptor checksum is wrong: it is given as {}, and the descriptor gives {}",
     /// Check a multisig setup: the checksum's label.
     mscheck_checksum: "Descriptor checksum",
     /// Check a multisig setup: a checksum given and held. `{}`: the checksum.
@@ -723,7 +723,7 @@ macro_rules! words_sweep {
     /// Check a timestamp: refusal.
     ots_err_uri_long: "The proof has a calendar address over 1,000 bytes",
     /// Check a timestamp: refusal.
-    ots_err_uri_invalid: "The proof has a calendar address with a character it may not",
+    ots_err_uri_invalid: "The proof has a calendar address with a character that is not allowed",
     /// Check a timestamp: refusal.
     ots_err_header_length: "A block header is 80 bytes",
     /// Check a timestamp: refusal.

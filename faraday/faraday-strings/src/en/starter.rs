@@ -350,9 +350,9 @@ macro_rules! words_starter {
     /// A boot file being checked against the release.
     starter_boot_checking: "Checking against this release",
     /// Confirm refused.
-    starter_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
+    starter_not_confirmed_stick: "Not the stick that was confirmed: it was removed or changed",
     /// Confirm refused.
-    starter_not_confirmed_card: "Not the card confirmed: it was removed or changed",
+    starter_not_confirmed_card: "Not the card that was confirmed: it was removed or changed",
     /// Button on Confirm when the disk is no longer the one confirmed.
     starter_choose_again: "Choose again",
     /// Button.

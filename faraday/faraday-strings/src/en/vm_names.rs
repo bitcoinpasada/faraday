@@ -193,7 +193,7 @@ macro_rules! words_vm_names {
     /// A stick pulled while writing.
     backup_flow_pulled: "Pulled before the copy was checked. Nothing counted",
     /// A write that did not read back.
-    backup_flow_not_checked: "The copy did not check on {}. Nothing counted",
+    backup_flow_not_checked: "The copy on {} failed its check. Nothing was counted",
     /// A file written to a stick did not read back, twice
     /// (`docs/BACKUP-FLOW.md` §17.12 item 10): the file, the stick.
     backup_flow_no_read_back: "{} did not read back from {}; try another stick",
@@ -384,7 +384,7 @@ macro_rules! words_vm_names {
     /// Fact line under the plan's checks: every secret of the wallet is at one place. The place's name.
     plan_all_at_one_place: "Every secret of this wallet is at {}. Separate places are strongly recommended.",
     /// Fact line under the plan's checks, for a single key with no passphrase.
-    plan_passphrase_apart: "A passphrase kept at another place than the seed is recommended.",
+    plan_passphrase_apart: "Keeping the passphrase in a different place from the seed is recommended.",
     /// Button beside that line.
     plan_add_passphrase: "Add a passphrase",
     /// Templates item of the checklist: print them from Faraday Starter. The count, the words, the copy form.

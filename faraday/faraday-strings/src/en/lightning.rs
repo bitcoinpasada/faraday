@@ -23,7 +23,7 @@ macro_rules! words_lightning {
     /// Text in `lightning_act`.
     lightning_a_lightning: "A Lightning node's private key",
     /// Text in `lightning_act`.
-    lightning_whoever_has: "Whoever has it is the node: its channels and their money",
+    lightning_whoever_has: "Whoever has it controls the node, its channels and the money in them",
     // ----- lightning (faraday-core/src/lightning/screen.rs) -----
     /// Text in `draw`.
     lightning_a_lightning_node: "A Lightning node's key, made the way ldk-node or LND makes it. Its public key is the node id, safe to share; its private key is the node, and goes into a vault.",

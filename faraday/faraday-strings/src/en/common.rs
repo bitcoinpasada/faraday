@@ -603,7 +603,7 @@ macro_rules! words_common {
     /// Text in `visit_inbox`.
     visit_inbox_a_file: "A file Faraday does not read",
     /// Text in `visit_inbox`.
-    visit_inbox_whoever_has_it_holds: "Whoever has it holds the key: spends its coins, or signs as it",
+    visit_inbox_whoever_has_it_holds: "Whoever has it holds the key: they can spend its coins or sign as it",
     /// Text in `visit_inbox`.
     visit_inbox_whoever_has_enough: "Whoever has enough parts holds the key",
     /// Text in `visit_inbox`.
@@ -1132,7 +1132,7 @@ macro_rules! words_common {
     /// Text in `offer_seed`.
     secrets_seed_warning: "Whoever has it spends this wallet's coins",
     /// Text in `offer_seed`. `{}`: `fps`, `more`, `if more == 1 { EN.secrets_key } else …`.
-    secrets_whoever_has: "Whoever has it signs as key {}; with {} more {}, spends",
+    secrets_whoever_has: "Whoever has it can sign as key {}, and with {} more {} can spend",
     /// Text in `offer_seed`.
     secrets_key: "key",
     /// Text in `offer_seed`.

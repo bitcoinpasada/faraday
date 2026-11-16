@@ -306,7 +306,7 @@ macro_rules! words_bip85 {
     /// To row: a new set.
     convert_set_rotate: "Rotate the set",
     /// Line of Rotate the set.
-    convert_set_rotate_line: "A new set of the same secret; the old set is no longer to be used",
+    convert_set_rotate_line: "A new set for the same secret; stop using the old set",
     /// Line of a row not yet offered. `{}`: the count.
     convert_set_needs_shares: "Shares still needed in one group: {}",
     /// Line of Rotate not yet offered. `{}`: the count.
@@ -349,9 +349,9 @@ macro_rules! words_bip85 {
     /// a vault or load as a key.
     bip85_record_head: "Record it as a child seed?",
     /// Text in `record_dialog`, for the vault. `{}`: the index, the parent's fingerprint.
-    bip85_record_vault: "Recorded, the vault keeps that these words are BIP-85 index {} of key {}. Not recorded, it holds them as an ordinary seed.",
+    bip85_record_vault: "If recorded, the vault notes that these words are BIP-85 index {} of key {}. If not, it holds them as an ordinary seed.",
     /// Text in `record_dialog`, for Load as a key. `{}`: the index, the parent's fingerprint.
-    bip85_record_load: "Recorded, Faraday keeps that these words are BIP-85 index {} of key {}, and so does any vault they are saved into. Not recorded, they are an ordinary seed.",
+    bip85_record_load: "If recorded, Faraday notes that these words are BIP-85 index {} of key {}, and so does any vault they are saved into. If not, they are an ordinary seed.",
     /// Action in `record_dialog`: the words go in as an ordinary seed.
     bip85_record_no: "Don't record",
     /// Action in `record_dialog`: the words go in recorded as a child seed.
@@ -380,7 +380,7 @@ macro_rules! words_bip85 {
     /// title: the stick's listing shows no entry's title (`bip85::kdbx_out`).
     kdbx_export_file: "keepass-export",
     /// Text in `bip85_out`.
-    bip85_secret_warning: "Whoever has it has what it protects or spends",
+    bip85_secret_warning: "Whoever has it can open what it protects or spend what it holds",
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
     /// Text in `TITLES`.
     bip85_key: "Key",

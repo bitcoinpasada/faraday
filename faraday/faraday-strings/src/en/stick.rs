@@ -73,11 +73,11 @@ macro_rules! words_stick {
     /// Text in `delete_sheet`.
     stick_wipe_chosen_files: "Chosen files",
     /// Text in `delete_sheet`.
-    stick_wipe_zeros_over: "Zeros over each, then it is removed with its name",
+    stick_wipe_zeros_over: "Each is overwritten with zeros, then removed along with its name",
     /// Text in `delete_sheet`.
     stick_wipe_the_free: "The free space",
     /// Text in `delete_sheet`.
-    stick_wipe_the_files: "The files stay; what earlier deletes left is zeroed",
+    stick_wipe_the_files: "The files stay; what earlier deletions left behind is zeroed",
     /// Text in `delete_sheet`.
     stick_wipe_the_whole: "The whole partition",
     /// Text in `delete_sheet`.

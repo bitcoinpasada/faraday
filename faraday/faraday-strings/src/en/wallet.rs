@@ -31,9 +31,9 @@ macro_rules! words_wallet {
     /// Text in `text`. `{}`: `network_name(*offered)`, `network_name(*loaded)`.
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the application id in hex.
-    core_wallet_application: "This wallet file is of no network Faraday has (application id {})",
+    core_wallet_application: "This wallet file is for a network Faraday does not have (application id {})",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the record types and counts.
-    core_wallet_legacy: "This is a legacy wallet (records {}); Bitcoin Core's migratewallet makes a descriptor wallet of it",
+    core_wallet_legacy: "This is a legacy wallet (records {}); Bitcoin Core's migratewallet turns it into a descriptor wallet",
     /// Refusal in `core_wallet::Refusal::message`.
     core_wallet_not_descriptors: "This wallet is not a descriptor wallet",
     /// Text in `text`: a wallet read with a key that is a bare extended
@@ -58,7 +58,7 @@ macro_rules! words_wallet {
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the most rows.
     core_wallet_too_many_rows: "This wallet file holds more than {} records, more than a Bitcoin Core wallet has",
     /// Refusal in `core_wallet::Refusal::message`.
-    core_wallet_berkeley: "This is a legacy Berkeley DB wallet; Bitcoin Core's migratewallet makes a descriptor wallet of it",
+    core_wallet_berkeley: "This is a legacy Berkeley DB wallet; Bitcoin Core's migratewallet turns it into a descriptor wallet",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`: a wallet refused because one of its keys has a
@@ -105,7 +105,7 @@ macro_rules! words_wallet {
     // ----- Which account of a Coldcard export loads (docs/INTEROP.md §5, BIP-392 sp()), faraday-core -----
     /// Text in `text`: a Coldcard export holding a single-sig account and
     /// a silent payments account, not added until one is chosen.
-    wallet_account_unchosen: "Not added yet: its account is to be chosen",
+    wallet_account_unchosen: "Not added yet: choose its account first",
     /// A MuSig2 wallet two of whose keys come from one seed, refused.
     wallet_musig_one_seed: "Two keys of this wallet come from one seed. This device cannot sign for both.",
     /// The account dialog's title.
@@ -322,10 +322,10 @@ macro_rules! words_wallet {
     wallet_a_signature: "A signature in {} does not verify",
     /// Collect's refusal of a cosigner's PSBT that asks, or signs with, a
     /// sighash other than the transaction's. `{}`: the file's name.
-    wallet_sighash_other: "A signature in {} signs with another sighash than this transaction's",
+    wallet_sighash_other: "A signature in {} uses a different sighash from this transaction's",
     /// Collect's refusal of a PSBT whose inputs ask another sighash than
     /// this transaction's, signed or not. `{}`: the file's name.
-    wallet_sighash_field_other: "{} asks another sighash of an input than this transaction",
+    wallet_sighash_field_other: "{} asks for a different sighash on an input than this transaction does",
     /// Error in `finish`.
     wallet_not_enough_signatures: "Not enough signatures yet",
     /// Text in `finish_reason`.

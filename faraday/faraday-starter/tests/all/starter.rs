@@ -365,7 +365,7 @@ fn a_disk_that_is_not_the_confirmed_one_is_refused() {
     let mut other = disk("sdb", "Stick", 16 * GB);
     other.serial = "SN-OTHER".into();
     starter.starter_event(StarterEvent::Disks(vec![other]));
-    assert!(shows(&mut starter, "Not the stick confirmed"));
+    assert!(shows(&mut starter, "Not the stick that was confirmed"));
     starter.press(StarterAction::Write);
     assert!(commands(&mut starter).is_empty());
     assert_eq!(starter.page, Page::Confirm);
@@ -383,7 +383,7 @@ fn a_disk_that_is_not_the_confirmed_one_is_refused() {
     starter.starter_event(StarterEvent::Disks(Vec::new()));
     starter.press(StarterAction::Write);
     assert!(commands(&mut starter).is_empty());
-    assert!(shows(&mut starter, "Not the stick confirmed"));
+    assert!(shows(&mut starter, "Not the stick that was confirmed"));
 }
 
 #[test]

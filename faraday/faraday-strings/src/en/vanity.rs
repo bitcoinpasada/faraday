@@ -41,7 +41,7 @@ macro_rules! words_vanity {
     /// Toast in `vanity_use`. `{}`: `name`.
     vanity_is_open: "{} is open",
     /// Error in `vanity_key_in`. `{}`: `c`.
-    vanity_cannot_stand: "{} cannot stand there in this kind of address",
+    vanity_cannot_stand: "{} cannot appear there in this kind of address",
     // ----- vanity (faraday-core/src/vanity/screen.rs) -----
     /// Text in `TITLES`.
     vanity_key: "Key",
