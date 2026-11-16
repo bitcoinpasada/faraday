@@ -29,7 +29,7 @@ If it doesn't open, use Faraday Starter's Restart into the BIOS, or try the next
 
 Some computers name it Secure Boot Control, Secure Boot Support or Secure Boot State, or have a Boot Mode or OS Type choice instead; names vary. Leave the Secure Boot keys as they are; do not delete or clear them.
 
-If you cannot find the Secure Boot setting, exit the BIOS without saving changes. Windows starts as before.
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 ## Choosing the stick
 
@@ -49,7 +49,7 @@ If Secure Boot does not stay on, load the computer's own Secure Boot keys. On so
 
 ## If something is different
 
-Windows asks for the BitLocker recovery key if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
 
 ## If the stick is not listed
 

@@ -21,7 +21,7 @@ If it doesn't open, use Faraday Starter's Restart into the BIOS.
 
 4. Look for the tab named Security, then the entry Secure Boot, and set Secure Boot Support to Disabled. Press F10, Save & Reset, to save and restart.
 
-If you cannot find the Secure Boot setting, exit the BIOS without saving changes. Windows starts as before.
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 ## Choosing the stick
 
@@ -41,7 +41,7 @@ If Secure Boot does not stay on, MSI's notebook article does not describe restor
 
 ## If something is different
 
-Windows asks for the BitLocker recovery key if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
 
 ## If the stick is not listed
 
