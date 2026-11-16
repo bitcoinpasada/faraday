@@ -140,7 +140,7 @@ pub struct Camera {
     disabled: bool,
     /// The loop's wake channel, for the capture thread to say a frame is
     /// ready.
-    wake: SyncSender<Wake>,
+    wake: crate::wakechan::WakeTx,
     session: Option<Session>,
     /// Why the last attempt gave no frames, for the caller to print.
     reason: Option<String>,
@@ -150,7 +150,7 @@ impl Camera {
     /// A camera that opens `device` when asked, or searches
     /// `/dev/video*` when that is `None`. `disabled` is `--no-camera`,
     /// and `wake` is the channel the main loop waits on.
-    pub fn new(device: Option<PathBuf>, disabled: bool, wake: SyncSender<Wake>) -> Camera {
+    pub fn new(device: Option<PathBuf>, disabled: bool, wake: crate::wakechan::WakeTx) -> Camera {
         Camera {
             device,
             disabled,
@@ -261,7 +261,7 @@ impl Camera {
 fn capture(
     device: Option<PathBuf>,
     tx: &SyncSender<Message>,
-    wake: &SyncSender<Wake>,
+    wake: &crate::wakechan::WakeTx,
     stop: &AtomicBool,
 ) {
     let path = match device {

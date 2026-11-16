@@ -2,7 +2,7 @@
 //! worker wakes the loop with a note when an answer is ready, and a job
 //! that runs keeps the frames coming.
 
-use std::sync::mpsc::SyncSender;
+use crate::wakechan::WakeTx;
 
 use faraday_core::Faraday;
 
@@ -11,7 +11,7 @@ use crate::Wake;
 /// What the core calls from its worker's thread when an answer is ready:
 /// a note to the loop. A full channel means the loop is behind and takes
 /// the answer on its next pass anyway.
-pub fn wake(tx: SyncSender<Wake>) -> Box<dyn Fn() + Send> {
+pub fn wake(tx: WakeTx) -> Box<dyn Fn() + Send> {
     Box::new(move || {
         let _ = tx.try_send(Wake::Work);
     })
@@ -24,7 +24,6 @@ pub fn running(app: Option<&Faraday>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::sync_channel;
     use std::time::{Duration, Instant};
 
     use faraday_core::testkit;
@@ -36,7 +35,7 @@ mod tests {
 
     #[test]
     fn the_panic_chord_powers_off_while_a_job_runs() {
-        let (tx, rx) = sync_channel(8);
+        let (tx, rx) = crate::wakechan::channel(8);
         let mut app = testkit::started();
         app.set_modes(DESKTOP_MODES);
         testkit::into_demo(&mut app);

@@ -41,12 +41,12 @@
 //! going from the listing is what drops it. That is a listing and a
 //! `read_dir`: no netlink socket, no hotplug helper, no ioctl.
 
+use crate::wakechan::WakeTx;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::SyncSender;
 use std::thread;
 
 use crate::Wake;
@@ -623,7 +623,7 @@ pub struct Direct {
 pub fn read_loop(
     device: &Device,
     readers: &mut Readers,
-    tx: &SyncSender<Wake>,
+    tx: &WakeTx,
     hold: Option<u32>,
     direct: &Direct,
 ) -> std::io::Result<()> {
@@ -678,7 +678,7 @@ pub fn read_loop(
 /// Starts one reader thread. The thread owns the device; the main loop
 /// only ever sees [`Wake`] values, and one last word naming the device
 /// when it is gone.
-pub fn spawn(id: u32, device: Device, panel: &TouchPanel, tx: SyncSender<Wake>, direct: Direct) {
+pub fn spawn(id: u32, device: Device, panel: &TouchPanel, tx: WakeTx, direct: Direct) {
     let mut readers = Readers::new(&device, panel);
     let hold = (!device.trusted).then_some(id);
     thread::Builder::new()

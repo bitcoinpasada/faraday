@@ -124,6 +124,7 @@ mod touch;
 #[cfg(test)]
 mod turned_tests;
 mod usb;
+mod wakechan;
 mod work;
 mod writer;
 
@@ -132,9 +133,10 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
+use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use wakechan::{WakeRx, WakeTx};
 
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
@@ -916,7 +918,7 @@ struct Shell {
     watch: Option<evdev::Watch>,
     /// The sender a newly found device's reader thread is given. Held for
     /// as long as the watch is.
-    tx: Option<SyncSender<Wake>>,
+    tx: Option<WakeTx>,
     /// The panel as a touchscreen's reader needs it, which a new one
     /// needs too.
     touch_panel: evdev::TouchPanel,
@@ -2122,7 +2124,7 @@ fn run(args: Args) -> Result<Exit, String> {
     // One channel the loop waits on. The touch reader owns the input
     // device on its own thread and sends the contacts it decodes; the
     // capture thread sends a note for each frame it queues.
-    let (tx, rx) = sync_channel(WAKES);
+    let (tx, rx) = wakechan::channel(WAKES);
     // `--input` is a review flag: each one names a file of recorded
     // packets standing in for a device, so the shell can be driven on a
     // build box that has none. It also says there is no directory to
@@ -2611,7 +2613,7 @@ impl Loop {
 
     /// Waits for the next wake, on the grid up to its deadline, at rest
     /// for the first thing to arrive, and returns what arrived.
-    fn wait(&mut self, rx: &Receiver<Wake>) -> Vec<Wake> {
+    fn wait(&mut self, rx: &WakeRx) -> Vec<Wake> {
         let mut wakes: Vec<Wake> = Vec::new();
         if self.unwoken {
             std::thread::sleep(TICK);
@@ -2982,7 +2984,7 @@ fn housekeeping(shell: &mut Shell) {
 /// from the camera's channel, one per pass and the newest one, so a
 /// board that decodes slower than it captures still ticks and still
 /// feels a finger.
-fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
+fn main_loop(shell: &mut Shell, rx: &WakeRx) {
     let mut state = Loop::new(shell);
     while !shell.done && !shell.enough() {
         let wakes = state.wait(rx);
