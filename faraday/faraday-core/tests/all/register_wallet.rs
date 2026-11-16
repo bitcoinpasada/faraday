@@ -116,6 +116,11 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
     assert_eq!(app.sheet, Some(Sheet::Register));
     let shown = screen(&mut app);
     assert!(shown.contains("2 of 3, P2WSH, sorted"), "{shown}");
+    assert_eq!(
+        shown.matches("2 of 3").count(),
+        1,
+        "the shape is stated once: {shown}"
+    );
     let c = testkit::compute();
     let reference = WalletPolicy::parse_any(&c, &kit.descriptor).unwrap();
     for key in reference.keys() {

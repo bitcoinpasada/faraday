@@ -551,6 +551,28 @@ fn homes_scan_of_a_psbt_or_a_descriptor_shows_the_card_with_its_press_and_done()
     }
 }
 
+/// A scanned wallet description of several keys, whose way over loads
+/// it, asks on the confirmation sheet and is added on the hold.
+#[test]
+fn a_scanned_wallet_of_several_keys_is_added_on_the_hold_and_not_before() {
+    let path = "m/48'/1'/0'/0'";
+    let descriptor = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, path),
+        testkit::key(1, path),
+        testkit::key(2, path)
+    );
+    let mut app = testkit::started();
+    open(&mut app, Opened::Home);
+    read(&mut app, descriptor.as_bytes());
+    app.press(Action::ReadGo(0));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty(), "added before the hold");
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
 #[test]
 fn homes_scan_of_an_account_key_is_filed_with_no_card() {
     let key = testkit::key(2, "48h/1h/0h/2h");

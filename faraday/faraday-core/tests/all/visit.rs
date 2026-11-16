@@ -1603,3 +1603,43 @@ fn with_something_held_files_says_lock_to_use_the_stick_and_has_no_pane() {
     assert!(!app.offers(Action::VisitCopy));
     assert!(!app.offers(Action::VisitWrite));
 }
+
+/// A stick visit with a wallet of several keys in the Inbox, loaded.
+fn visit_with_a_multisig_wallet() -> Faraday {
+    let mut app = with_stick(0);
+    let p = "m/48'/1'/0'/0'";
+    let descriptor = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        faraday_core::testkit::key(0, p),
+        faraday_core::testkit::key(1, p),
+        faraday_core::testkit::key(2, p)
+    );
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("S"),
+        name: faraday_text::Text::of("shared-wallet.txt"),
+        bytes: descriptor.into_bytes().into(),
+    });
+    app.press(Action::InboxLoad);
+    app
+}
+
+#[test]
+fn a_wallet_of_several_keys_loaded_on_a_visit_comes_back_to_the_visit_after_cancel() {
+    let mut app = visit_with_a_multisig_wallet();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty(), "nothing before the hold");
+    app.press(Action::WalletCancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.session.wallets.is_empty());
+}
+
+#[test]
+fn a_wallet_of_several_keys_loaded_on_a_visit_comes_back_to_the_visit_after_the_hold() {
+    let mut app = visit_with_a_multisig_wallet();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Files);
+    assert_eq!(app.session.wallets.len(), 1);
+}

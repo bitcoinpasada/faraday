@@ -719,6 +719,38 @@ fn a_guess_with_a_key_not_loaded_asks_and_the_guess_goes_on_after_the_hold() {
 }
 
 #[test]
+fn a_guess_held_for_its_sheet_and_cancelled_stays_at_the_way_the_wallet_is() {
+    let mut app = shown();
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    scan_seed(&mut app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Slide(faraday_core::seeds::SLIDE_N, 2));
+    app.event(Event::Key(faraday_shell_api::Key::Right));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Focus(
+        faraday_core::seeds::Focus::Cosigner(0),
+    )));
+    type_text(&mut app, &testkit::key(2, "m/48'/1'/0'/2'"));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let first = app.spend_backup_wallet().expect("the guess was not made");
+    let first_text = app.session.wallets[first].policy().to_string();
+    let way = app.spend_backup_guess().expect("a guess").at;
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.press(Action::WalletCancel);
+    let kept = app.spend_backup_wallet().expect("the guess before went");
+    assert_eq!(app.session.wallets[kept].policy().to_string(), first_text);
+    assert_eq!(
+        app.spend_backup_guess().expect("a guess").at,
+        way,
+        "the way shown is the way the wallet is"
+    );
+}
+
+#[test]
 fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     let mut app = shown();
     on_intake(&mut app);

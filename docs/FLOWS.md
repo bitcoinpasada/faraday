@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Home's Check tile in place of Vaults (F255), Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in
+**Open:** Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -2055,7 +2055,7 @@ Nothing is added to the session unless the person asks, and then only
 through that sheet. The sheet is skipped for a wallet whose every key is
 a key loaded here at its path, for a wallet of the person's own vault
 and for Load samples (`docs/WALLETS.md` §3.5); several held at once get
-one sheet each, "{i} of {n}", and Cancel drops only the wallet shown. Built, but for the rows said in this page's **Open:** line. Its screen is
+one sheet each, "{i} of {n}", and Cancel drops only the wallet shown. Built. Its screen is
 `docs/DESIGN.md` §5, A multisig setup.
 
 | From | What opens it |

@@ -1370,13 +1370,20 @@ impl Faraday {
             g.none = true;
             return;
         }
+        let before = g.at;
         g.at = at;
         let (kind, _) = Self::guess_way(g, at);
         let multi = g.multi;
         self.spend_backup.state.addresses = 0;
         self.spend_backup.state.closed[page::CHECK as usize] = false;
         if multi {
-            self.spend_backup_seeds_kind(kind);
+            // Held for its sheet, the wallet is still the way before:
+            // the way shown stays that one until the hold.
+            if self.spend_backup_seeds_kind(kind)
+                && let Some(g) = self.spend_backup.state.guess.as_mut()
+            {
+                g.at = before;
+            }
         } else {
             self.spend_backup_words_kind(kind);
         }
@@ -1384,11 +1391,12 @@ impl Faraday {
     }
 
     /// The wallet of several keys made again as `kind`, in place of the
-    /// one made before, under the same name.
-    fn spend_backup_seeds_kind(&mut self, kind: NewKind) {
+    /// one made before, under the same name. True when a sheet holds the
+    /// new wallet back and the one before stays.
+    fn spend_backup_seeds_kind(&mut self, kind: NewKind) -> bool {
         let c = self.compute();
         let Some(w) = self.spend_backup_wallet() else {
-            return;
+            return false;
         };
         let before = self.spend_backup.state.seeds.kind;
         self.spend_backup.state.seeds.kind = kind;
@@ -1397,7 +1405,7 @@ impl Faraday {
             Ok(d) => d,
             Err(e) => {
                 self.spend_backup.state.error = Some(Text::of(&e));
-                return;
+                return false;
             }
         };
         let kept = self.session.wallets.remove(w);
@@ -1426,9 +1434,11 @@ impl Faraday {
                         self.inbox_print(),
                     );
                 }
+                return true;
             }
             Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
+        false
     }
 
     /// The seed's passphrase was typed for the guess: the seed is its

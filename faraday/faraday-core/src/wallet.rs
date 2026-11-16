@@ -41,7 +41,7 @@ mod own_name;
 pub use account::{Account, AccountAsk};
 mod confirm;
 pub use confirm::Rows;
-pub(crate) use confirm::draw_rows;
+pub(crate) use confirm::{draw_rows, draw_rows_without_shape};
 mod state;
 pub use state::SpendState;
 pub(crate) use state::{SPEND_STEPS, SpendSteps, WalletsArea};

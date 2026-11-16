@@ -179,14 +179,29 @@ pub(crate) fn groups_of_four(text: &str) -> Text {
 /// says it is the seed given. Returns the height. The one drawing
 /// of these rows: the confirmation sheet's, the register sheet's and
 /// Check a multisig setup's Result.
-pub(crate) fn draw_rows(
+pub(crate) fn draw_rows(r: &Rows, seeded: &[usize], ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    draw_rows_with(r, seeded, true, ui, at)
+}
+
+/// `draw_rows` without the shape line, for the sheet that states the
+/// shape itself, with the order of the keys.
+pub(crate) fn draw_rows_without_shape(r: &Rows, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    draw_rows_with(r, &[], false, ui, at)
+}
+
+fn draw_rows_with(
     r: &Rows,
     seeded: &[usize],
+    shape: bool,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
     use faraday_ui::sheet::kv;
-    let mut cy = ui.wrap_as((x, y, w), BODY_M, Role::OnSurface, &r.shape) + GAP;
+    let mut cy = if shape {
+        ui.wrap_as((x, y, w), BODY_M, Role::OnSurface, &r.shape) + GAP
+    } else {
+        0.0
+    };
     for line in &r.repeats {
         cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line) + GAP;
     }
