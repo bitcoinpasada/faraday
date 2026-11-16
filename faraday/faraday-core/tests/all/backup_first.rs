@@ -692,8 +692,8 @@ fn a_key_loaded_without_words_goes_into_the_plans_vault_and_the_vault_restores_i
         "the one place holds the vault with the only copy"
     );
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
