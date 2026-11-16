@@ -2018,11 +2018,7 @@ run them (`tools/crosscheck/area_bip32.py`,
 `tools/crosscheck/area_addr.py`), and a SeedQR against its area
 (`tools/crosscheck/area_seedqr.py`). Built: a test for each account row, for
 Keep this key (the key loaded as Add a key loads it, refused with a
-stick in) and for Done, Cancel and a lock (the key gone). Not built: a test for each
-compare line: a match from an xpub, an address and a descriptor, a
-multisig's "key 2 of 3", "It matches without the passphrase", and an
-origin whose key is not the seed's.
-
+stick in) and for Done, Cancel and a lock (the key gone).
 **Practice** (`docs/MODES.md` §6). Built: the passphrase fields offer
 `faraday` (MODES §6.2), and a SeedQR is read through the read sheet. Not
 built: the Seed card's word sample and its scanner's sample, and the

@@ -1016,3 +1016,50 @@ fn outside_practice_no_sample_is_offered() {
     app.press(Action::SeedCheck(S::Compare));
     assert!(!strip_offers(&mut app, Action::SeedCheck(S::CompareSample)));
 }
+
+#[test]
+fn a_descriptor_of_this_account_matches() {
+    let (_, zpub) = bip84();
+    let mut app = at_compare(false);
+    compare_typed(
+        &mut app,
+        &format!("wpkh([73c5da0a/84h/0h/0h]{zpub}/<0;1>/*)"),
+    );
+    assert!(shows_down(&mut app, "Matches"), "{:?}", texts(&mut app));
+    assert!(!shows(&mut app, "Doesnotmatch"));
+}
+
+#[test]
+fn the_first_receive_address_matches_with_its_index() {
+    let (first, _) = bip84();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &first);
+    assert!(shows_down(&mut app, "Matches"), "{:?}", texts(&mut app));
+    assert!(
+        shows_down(&mut app, "Receiveaddress0"),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
+#[test]
+fn an_origin_of_this_seed_with_a_key_that_is_not_its_own_does_not_match() {
+    let v: Value = serde_json::from_str(COMPARE).unwrap();
+    let foreign = v["cosigners"][0]["xpub"].as_str().unwrap();
+    let mut app = at_compare(false);
+    compare_typed(&mut app, &format!("[73c5da0a/84h/0h/0h]{foreign}"));
+    assert!(
+        shows_down(&mut app, "Doesnotmatch"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(
+        shows_down(
+            &mut app,
+            "Thefingerprintisthisseed's;thexpubatm/84h/0h/0hisnot"
+        ),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(!shows(&mut app, "Matches"));
+}
