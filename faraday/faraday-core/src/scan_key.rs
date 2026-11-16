@@ -2236,7 +2236,11 @@ impl Faraday {
         } else {
             None
         };
-        self.scan_close();
+        // A queued question (a text that reads as a seed, at a stick
+        // visit) keeps its sheet.
+        if self.sheet == Some(Sheet::Scan) {
+            self.scan_close();
+        }
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
         if is_key && self.seeds_take_file(at) {

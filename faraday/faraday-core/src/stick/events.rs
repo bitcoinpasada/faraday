@@ -272,16 +272,32 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                 let before = app.inbox.len();
                 app.qr_read(&name, std::mem::take(&mut payloads));
                 let holds = app.picture_holds(before);
-                // Under its own name, unless what its codes held took it.
-                let got = if app.inbox.iter().skip(before).any(|i| i.name == *name) {
-                    app.free_inbox_name(&name)
+                // Whatever its codes hold that is a secret (a share of a
+                // key, a TOTP setup, secret text) comes in only on the
+                // person's own tick as well.
+                if !own && holds.exposure() == secrets::Exposure::Secret {
+                    let mut at = 0;
+                    app.inbox.retain(|_| {
+                        at += 1;
+                        at <= before
+                    });
+                    app.visit.load_after_remove(&name);
+                    app.visit.log_push((
+                        faraday_text::Text::fill(EN.storage_event_seed_not_copied, &[&*name]),
+                        true,
+                    ));
                 } else {
-                    app.inbox.retain(|i| i.name != *name);
-                    faraday_text::Text::of(&name)
-                };
-                let mut item = Item::new(&c, &got, std::mem::take(&mut *bytes));
-                item.picture = Some(holds);
-                app.inbox.push(item);
+                    // Under its own name, unless what its codes held took it.
+                    let got = if app.inbox.iter().skip(before).any(|i| i.name == *name) {
+                        app.free_inbox_name(&name)
+                    } else {
+                        app.inbox.retain(|i| i.name != *name);
+                        faraday_text::Text::of(&name)
+                    };
+                    let mut item = Item::new(&c, &got, std::mem::take(&mut *bytes));
+                    item.picture = Some(holds);
+                    app.inbox.push(item);
+                }
                 app.save_boxes();
             }
         }

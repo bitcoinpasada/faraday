@@ -978,6 +978,76 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
     assert_eq!(item.kind, FileKind::Wallet);
 }
 
+/// A stick at a visit (not the boot stick) with one picture, `name`.
+fn visit_with_picture(name: &str) -> Faraday {
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("S"),
+        label: faraday_text::Text::of("TESTSTICK"),
+        boot: false,
+        files: vec![(faraday_text::Text::of(name), 9000)],
+        vaults: Vec::new(),
+    }]));
+    // The visit page ticks its pictures when it is first drawn.
+    let _ = app.frame();
+    app
+}
+
+/// Presses Copy at the visit and answers every code read with `payload`.
+fn visit_copy_answered(app: &mut Faraday, payload: Vec<u8>) {
+    app.press(Action::VisitCopy);
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::ReadQr { name, .. } = c {
+            app.storage(StorageEvent::QrRead {
+                name,
+                bytes: (Vec::new()).into(),
+                payloads: (vec![payload.clone()]).into(),
+            });
+        }
+    }
+}
+
+#[test]
+fn a_picture_of_a_codex32_share_at_a_visit_comes_in_only_when_ticked() {
+    let share = CODEX32_SHARES[0].as_bytes().to_vec();
+    let mut app = visit_with_picture("share.png");
+    // The picture is ticked by default; the person unticks it.
+    app.press(Action::VisitIn(0));
+    assert!(!app.visit().inn.contains("share.png"), "it is still ticked");
+    visit_copy_answered(&mut app, share.clone());
+    assert!(
+        app.inbox().iter().all(|i| !i.name.starts_with("share")),
+        "an unticked picture of a share came into Files"
+    );
+
+    // Left at the visit's own tick, the picture is not the person's choice;
+    // unticked and ticked again by them, it is.
+    let mut app = visit_with_picture("share.png");
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitIn(0));
+    assert!(app.visit().inn.contains("share.png"), "it is not ticked");
+    visit_copy_answered(&mut app, share);
+    assert!(
+        app.inbox().iter().any(|i| i.name.starts_with("share")),
+        "a ticked picture of a share did not come in"
+    );
+}
+
+#[test]
+fn a_code_scanned_at_a_visit_leaves_a_text_question_waiting_asked() {
+    let mut app = visit_with_picture("note.png");
+    faraday_core::testkit::open_scan(&mut app, faraday_core::ScanPurpose::Files);
+    visit_copy_answered(&mut app, b"a short note 123".to_vec());
+    assert_eq!(app.sheet, Some(Sheet::TextSeed), "the question is not up");
+    app.event(Event::Scanned {
+        bytes: zebra_wallet().into_bytes(),
+    });
+    assert_eq!(app.sheet, Some(Sheet::TextSeed), "the question was dropped");
+}
+
 #[test]
 fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() {
     let stem = "seed-1-9a6a2580";
