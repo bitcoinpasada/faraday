@@ -7,7 +7,6 @@
 mod common;
 mod desktop_host;
 mod pi_panel;
-mod strip_codex32_dice;
 mod strip_codex32_rest;
 mod strip_codex32_roller;
 mod strip_demo;

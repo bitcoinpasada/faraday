@@ -282,8 +282,9 @@ fn a_menu_closes_on_a_press_beside_it_and_does_nothing_else() {
         .where_offered(Action::Nav(Screen::Vaults))
         .or_else(|| host.app.where_offered(Action::CreateWallet))
         .expect("a tile");
-    tap_at(&mut host, fx, fy.min(40));
+    tap_at(&mut host, fx, fy);
     assert_eq!(host.menu_open(), None);
+    assert_eq!(host.app.sheet, None);
     assert_eq!(host.app.screen, Screen::Home, "the press went no further");
 }
 

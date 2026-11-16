@@ -399,9 +399,9 @@ impl Host {
     /// Costs a frame. The strip's texts and the app's presses in it for
     /// `app`, held for one frame and given back.
     fn peek(app: &mut Faraday) -> (Vec<Text>, Vec<Action>) {
-        let Some(d) = app.last_display_info() else {
-            return (Vec::new(), Vec::new());
-        };
+        let d = app
+            .last_display_info()
+            .expect("the app has a display before its strip is read");
         let taken = std::mem::take(app);
         let mut host = Host::new(taken);
         host.event(Event::Display(d));

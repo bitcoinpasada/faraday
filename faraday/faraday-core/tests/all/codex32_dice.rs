@@ -368,3 +368,21 @@ fn on_the_pi_panel_off_mainnet_the_step_wraps_in_the_bar_beside_the_pill() {
         "no way-back label under a name on two lines: {texts:?}"
     );
 }
+
+#[test]
+fn twenty_faced_dice_are_padded_one_to_twenty() {
+    let mut app = on(1366, 4000);
+    app.press(Action::ReduceMotion(true));
+    to_entry(&mut app, 20);
+    let _ = app.frame();
+    // The pad's keys 1 to 20.
+    for n in 1..=20u8 {
+        assert!(app.offers(Action::Codex32(C32::Face(n))), "key {n}");
+    }
+    assert!(!app.offers(Action::Codex32(C32::Face(21))));
+    // Faces past six, pressed by hand, are rolls of the character.
+    for f in [17, 3, 20, 9] {
+        c32(&mut app, C32::Face(f));
+    }
+    assert_eq!(make(&app).seq_len(), 4);
+}

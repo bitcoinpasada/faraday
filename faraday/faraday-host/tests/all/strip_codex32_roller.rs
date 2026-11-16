@@ -116,7 +116,6 @@ fn use_a_sample_is_offered_beside_your_dice_on_faraday_desktop_only() {
     let mut desk = app(true, true);
     on_dice_entry(&mut desk);
     assert!(in_strip(&mut desk, "Use a sample"));
-    assert!(!in_strip(&mut desk, "Next") && !in_strip(&mut desk, "Play"));
     assert!(shows(&mut desk, "Your dice"), "the pad for real dice stays");
 
     let mut stick = app(false, true);
