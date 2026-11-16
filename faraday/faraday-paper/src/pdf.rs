@@ -818,7 +818,10 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
             y,
             10.0,
             Font::Sans,
-            &format!("{name} · {}", get(f, "shape").unwrap_or("")),
+            &match get(f, "path") {
+                Some(path) => format!("{name} · {} · {path}", get(f, "shape").unwrap_or("")),
+                None => format!("{name} · {}", get(f, "shape").unwrap_or("")),
+            },
         );
         y += 16.0;
     } else {

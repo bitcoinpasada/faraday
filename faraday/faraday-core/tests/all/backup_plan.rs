@@ -40,6 +40,7 @@ fn a_seed_past_the_checklists_numbers_is_kept_nowhere() {
         seeds,
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     };
     let a = Answers::default();
     let line = faraday_core::plan::kept_nowhere(&c, &shape, &a, &[28]);
@@ -57,7 +58,57 @@ fn one_key() -> Shape {
         seeds: vec![seed("aaaa0001", true)],
         splits: false,
         vaults: 0,
+        seed_alone_fails: false,
     }
+}
+
+/// A key at an account or script the seed alone does not give back: a plan
+/// that keeps only the words does not read as rebuilding it, yet whoever
+/// finds the seed still sees the balance and can spend with the vault
+/// (`docs/WALLETS.md`: a one-key seed is seen by its seed).
+#[test]
+fn a_seed_alone_that_does_not_give_the_wallet_back_is_still_found_with_its_seed() {
+    let c = faraday_core::testkit::compute();
+    let mut shape = one_key();
+    // Two places, the seed in a vault alone, the wallet's description kept
+    // nowhere.
+    let mut a = Answers::preset_at(&shape, Preset::PaperVault, 2);
+    a.toggle(&shape, Question::Seeds, seeds::WORDS);
+    if a.sheet_at(&shape, 0) {
+        a.toggle(&shape, Question::Wallet, 0);
+    }
+    let marks = [(
+        At::Vault(0),
+        What::Seed(0),
+        faraday_core::plan::Mark::Exposed,
+    )];
+    let plain = faraday_core::plan::follows(&c, &shape, &a, &marks).found;
+    assert_eq!(plain.spend, Found::OnlyWithVault, "{plain:?}");
+    shape.seed_alone_fails = true;
+    let found = faraday_core::plan::follows(&c, &shape, &a, &marks).found;
+    assert_eq!(found, plain, "a found seed reads as it did");
+    // A seed found in the clear at a place sees the balance too.
+    let mut a = Answers::preset(&shape, Preset::Paper);
+    if a.sheet_at(&shape, 0) {
+        a.toggle(&shape, Question::Wallet, 0);
+    }
+    let alone = faraday_core::plan::alone(&c, &shape, &a, At::Place(0));
+    assert_eq!(alone.balance, Found::Yes, "{alone:?}");
+}
+
+/// The same plan, the seed alone not giving the wallet back: losing the
+/// place that keeps the description no longer leaves a wallet that rebuilds.
+#[test]
+fn a_plan_with_no_description_does_not_rebuild_a_wallet_the_seed_alone_does_not_give() {
+    let c = faraday_core::testkit::compute();
+    let mut shape = one_key();
+    let mut a = Answers::preset_at(&shape, Preset::Paper, 2);
+    if a.sheet_at(&shape, 0) {
+        a.toggle(&shape, Question::Wallet, 0);
+    }
+    assert_ne!(check(&c, &shape, &a).lost, Lost::No, "a plain key rebuilds");
+    shape.seed_alone_fails = true;
+    assert_eq!(check(&c, &shape, &a).lost, Lost::No);
 }
 
 fn three_of_five() -> Shape {
@@ -70,6 +121,7 @@ fn three_of_five() -> Shape {
             .collect(),
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 
@@ -85,6 +137,7 @@ fn two_of_three() -> Shape {
         ],
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 
@@ -838,6 +891,7 @@ fn no_place_holds_two_different_keys_where_the_places_allow_it() {
             .collect(),
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     };
     for (shape, name) in [
         (one_key(), "one key"),
@@ -1717,6 +1771,7 @@ fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
         seeds,
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     };
     let mut a = faraday_core::plan::Answers::default();
     a.set_map(

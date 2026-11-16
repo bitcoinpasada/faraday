@@ -164,14 +164,14 @@ impl Faraday {
     /// or Restore it is for.
     pub(crate) fn wallet_placeholder(&self, owner: u64) -> Option<plan::Shape> {
         use crate::create::NewKind as K;
-        let (kind, m, n_keys) = match (
+        let (kind, m, n_keys, standard) = match (
             self.create.state().filter(|c| c.owner == owner),
             self.restore.state().filter(|r| r.owner == owner),
         ) {
-            (Some(c), _) => (c.kind, c.m, c.n),
+            (Some(c), _) => (c.kind, c.m, c.n, c.account == 0),
             (_, Some(r)) => {
                 let s = r.seeds.as_ref()?;
-                (s.kind, s.m, s.n)
+                (s.kind, s.m, s.n, s.account == 0 && s.custom.is_none())
             }
             _ => return None,
         };
@@ -194,6 +194,7 @@ impl Faraday {
                 K::Multi | K::MultiNested | K::MultiLegacy | K::TapMulti
             ),
             vaults: 0,
+            seed_alone_fails: !(standard && kind == K::NativeSegwit),
         })
     }
 

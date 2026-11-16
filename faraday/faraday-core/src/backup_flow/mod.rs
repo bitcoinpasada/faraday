@@ -1795,11 +1795,12 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 ));
             }
             out.push_str(&text!(
-                "wshape\t{}\t{}\t{}\t{}\n",
+                "wshape\t{}\t{}\t{}\t{}\t{}\n",
                 w.shape.m,
                 w.shape.keys,
                 u8::from(w.shape.splits),
-                w.shape.vaults
+                w.shape.vaults,
+                u8::from(w.shape.seed_alone_fails)
             ));
             for sd in &w.shape.seeds {
                 out.push_str(&text!(
@@ -2115,7 +2116,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             ));
             true
         }
-        ["wshape", m, keys, splits, vaults] => {
+        ["wshape", m, keys, splits, vaults] | ["wshape", m, keys, splits, vaults, _] => {
             let (Ok(m), Ok(keys), Ok(vaults)) = (m.parse(), keys.parse(), vaults.parse()) else {
                 return false;
             };
@@ -2127,6 +2128,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             w.shape.keys = keys;
             w.shape.splits = splits == "1";
             w.shape.vaults = vaults;
+            w.shape.seed_alone_fails = f.get(5) == Some(&"1");
             true
         }
         // The last field, whether the key is kept as shares, is missing in
@@ -2403,6 +2405,7 @@ impl WalletFlow {
                 seeds: Vec::new(),
                 splits: false,
                 vaults: 0,
+                seed_alone_fails: false,
             },
             answers: crate::plan::Answers::default(),
             checksum: None,

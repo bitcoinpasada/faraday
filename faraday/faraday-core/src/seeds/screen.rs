@@ -280,8 +280,55 @@ pub(crate) fn shape(
         ui.rule(x, cy + rh, w, Role::OutlineVariant);
         cy += rh + 2.0;
     }
-    // The path.
-    cy += 12.0;
+    cy += path_rows(ui, s, net, x, cy, w);
+    // What it makes.
+    cy += 8.0;
+    match app.seeds_address(s) {
+        Ok(a) => {
+            ui.text_as(
+                x,
+                cy,
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.seeds_first_receive,
+            );
+            cy += ui.advance_as(BODY_S, 22.0);
+            cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &grouped(&a)) + 14.0;
+        }
+        Err(e) => {
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, &e) + 12.0;
+        }
+    }
+    if let Some(e) = &s.error {
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 10.0;
+    }
+    let left: &[(&str, Style, Action)] = if back {
+        &[(EN.seeds_back_to_the_seeds, Style::Secondary, sa(S::Keys))]
+    } else {
+        &[]
+    };
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        left,
+        Some((EN.seeds_make_the_wallet, sa(S::Make))),
+    );
+    cy - y
+}
+
+/// The derivation path: the standard one, its account and a custom path.
+/// Returns the height used.
+pub(crate) fn path_rows(
+    ui: &mut Ui,
+    s: &SeedsState,
+    net: faraday_bip::keys::Network,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    let mut cy = y + 12.0;
     ui.text_as(
         x,
         cy,
@@ -350,40 +397,6 @@ pub(crate) fn shape(
         );
         cy += 50.0;
     }
-    // What it makes.
-    cy += 8.0;
-    match app.seeds_address(s) {
-        Ok(a) => {
-            ui.text_as(
-                x,
-                cy,
-                BODY_S,
-                Role::OnSurfaceVariant,
-                EN.seeds_first_receive,
-            );
-            cy += ui.advance_as(BODY_S, 22.0);
-            cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &grouped(&a)) + 14.0;
-        }
-        Err(e) => {
-            cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, &e) + 12.0;
-        }
-    }
-    if let Some(e) = &s.error {
-        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 10.0;
-    }
-    let left: &[(&str, Style, Action)] = if back {
-        &[(EN.seeds_back_to_the_seeds, Style::Secondary, sa(S::Keys))]
-    } else {
-        &[]
-    };
-    cy += buttons_and_next(
-        ui,
-        x,
-        cy,
-        w,
-        left,
-        Some((EN.seeds_make_the_wallet, sa(S::Make))),
-    );
     cy - y
 }
 

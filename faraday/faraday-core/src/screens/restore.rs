@@ -255,14 +255,28 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
                 cy += first_addresses(app, ui, i, x, cy, w);
                 cy += 6.0;
-                cy += buttons_and_next(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    &[],
-                    Some((EN.restore_it_matches, Action::RNext(n))),
-                );
+                // A wallet made from the seeds alone says what it assumed.
+                // It reads the wallet made, not the seeds card: the card can
+                // be changed after Make.
+                let alone = (!r.described && r.seeds.is_some())
+                    .then(|| crate::wallet_backup::made_from_seed_line(wl))
+                    .flatten();
+                if let Some(line) = &alone {
+                    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, line) + GAP;
+                }
+                let (matches, left): (&str, &[(&str, Style, Action)]) = if alone.is_some() {
+                    (
+                        EN.restore_it_matches_record,
+                        &[(
+                            EN.restore_nothing_to_compare,
+                            Style::Secondary,
+                            Action::RNext(n),
+                        )],
+                    )
+                } else {
+                    (EN.restore_it_matches, &[])
+                };
+                cy += buttons_and_next(ui, x, cy, w, left, Some((matches, Action::RNext(n))));
             } else {
                 ui.text_as(
                     x,
@@ -598,7 +612,19 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + 8.0;
     }
     let (filled, all) = restore_filled(app);
-    let ready = filled >= all && (r.described || app.seeds_descriptor(s).is_ok());
+    let made = (filled >= all && !r.described).then(|| app.seeds_descriptor(s));
+    let ready = filled >= all && (r.described || matches!(made, Some(Ok(_))));
+    // With no description the seeds alone say neither the account nor a
+    // path other than the standard one: the person says them.
+    if !r.described && filled > 0 {
+        cy += crate::seeds::screen::path_rows(ui, s, app.session.network(), x, cy, w);
+        // A path that gives no wallet says why, where Make would be.
+        if s.custom.is_some()
+            && let Some(Err(e)) = &made
+        {
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + GAP;
+        }
+    }
     if ready {
         cy += 6.0;
         cy += buttons_and_next(

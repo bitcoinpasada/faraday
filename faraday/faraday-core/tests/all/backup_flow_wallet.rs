@@ -592,6 +592,7 @@ fn spots_two_of_three_with_key_3_on_paper() -> (Shape, Answers) {
         seeds: vec![seed("a"), seed("b"), seed("c")],
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     };
     let mut a = Answers::preset(&shape, Preset::PaperVault);
     a.set_map(vec![
@@ -655,6 +656,7 @@ fn one_key_shape() -> Shape {
         }],
         splits: false,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 
@@ -1049,6 +1051,7 @@ fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
             .collect(),
         splits: seeds_n > 1,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 
@@ -1742,6 +1745,52 @@ pub(crate) fn new_key_here(app: &mut Faraday) -> [u8; 4] {
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::KNext);
     fp
+}
+
+/// A wallet flow kept across a restart still says its seed alone does not
+/// give the wallet back, and a kept line from before the field reads as
+/// the seed alone giving it.
+#[test]
+fn a_wallet_the_seed_alone_does_not_give_back_is_remembered_across_a_restart() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key(&mut shell, true);
+    shell.flow(&mut app, F::WalletLock);
+    let _app = restart(&mut shell, &mut app);
+    let flow_text = String::from_utf8(
+        shell
+            .boxes
+            .2
+            .iter()
+            .find(|(n, _)| n == "backup-flow")
+            .map(|(_, b)| b.clone())
+            .unwrap(),
+    )
+    .unwrap();
+    let line = flow_text
+        .lines()
+        .find(|l| l.starts_with("wshape\t"))
+        .expect("a wshape line");
+    assert!(line.ends_with("\t0"), "the field is written: {line:?}");
+    let reads = |text: String| -> bool {
+        let mut kept = shell.boxes.2.clone();
+        for (n, b) in kept.iter_mut() {
+            if n == "backup-flow" {
+                *b = text.clone().into_bytes();
+            }
+        }
+        let next = process(shell.boxes.0.clone(), shell.boxes.1.clone(), kept);
+        next.backup_flows()
+            .iter()
+            .filter_map(|f| f.wallet.as_ref())
+            .next()
+            .expect("the wallet flow reads")
+            .shape
+            .seed_alone_fails
+    };
+    let set = flow_text.replace(line, &format!("{}1", &line[..line.len() - 1]));
+    assert!(reads(set), "the field is read back");
+    let old = flow_text.replace(line, &line[..line.len() - 2]);
+    assert!(!reads(old), "a line without the field reads as false");
 }
 
 #[test]
@@ -2724,6 +2773,7 @@ fn a_one_place_plan_with_a_passphrase_stays_one_place_when_the_wallet_is_made() 
             .collect(),
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     };
     let mut b = Answers::preset(&shape3, Preset::PaperVault);
     b.vaults[0] = vec![true, false, false];

@@ -734,6 +734,163 @@ fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Farad
     (app, w)
 }
 
+/// Restore on one seed with no description, the seed typed, then `presses`
+/// and Make: the Check card.
+fn seed_alone_at_check(kind: Option<u8>, presses: &[Action]) -> Faraday {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    if let Some(k) = kind {
+        app.press(Action::RKind(k));
+    }
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    for a in presses {
+        app.press(*a);
+    }
+    app.press(Action::Seeds(S::Make));
+    made(&app);
+    app
+}
+
+/// A seed alone gives Native SegWit at account 0 and the Check card says
+/// so; the Keys card offers another account, and the wallet it makes says
+/// the account it assumed and that its backup needs the description.
+#[test]
+fn a_restore_from_the_seed_alone_says_the_account_and_script_it_assumed() {
+    let mut app = seed_alone_at_check(None, &[]);
+    let text = drawn(&mut app);
+    assert!(
+        text.contains(
+            "Made from the seed alone: Single key · native SegWit, account 0, m/84'/1'/0'"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("It matches my record"), "{text}");
+    assert!(text.contains("I have nothing to compare"), "{text}");
+    let w = made(&app);
+    assert!(!app.plan_shape_now(w).seed_alone_fails);
+    let zero = desc(&app, w);
+
+    let mut app = seed_alone_at_check(None, &[Action::Seeds(S::Account(true))]);
+    let text = drawn(&mut app);
+    assert!(text.contains("account 1, m/84'/1'/1'"), "{text}");
+    let w = made(&app);
+    // The account-1 key of the zebra seed, derived a second time outside
+    // the repository by a plain Python BIP-32 (no shared code; the same
+    // derivation gives the published 2-of-3 vector's tpub for this seed at
+    // m/48'/1'/0'/2'). No other BIP-32 implementation was to hand.
+    assert!(
+        desc(&app, w).contains(
+            "[5d388376/84h/1h/1h]tpubDCiB1iLoNxaajbgCAJYPcfs9ZwFdUmAmRzLAnTeYCQ6RqcFd1MBAp2paCByiNfRdyC7Vgw8WhT4zpcExsGZtCQwZMKQAHHjEY91NxihBLDS"
+        ),
+        "the key is taken at account 1: {}",
+        desc(&app, w)
+    );
+    assert_ne!(desc(&app, w), zero, "another account is another wallet");
+    assert!(
+        app.plan_shape_now(w).seed_alone_fails,
+        "the seed alone does not give account 1 back"
+    );
+
+    // Taproot at account 0 is a script the seed does not say either.
+    let taproot = kind_place(NewKind::Taproot);
+    let mut app = seed_alone_at_check(Some(taproot), &[]);
+    let text = drawn(&mut app);
+    assert!(text.contains("Taproot, account 0"), "{text}");
+    let w = made(&app);
+    assert!(desc(&app, w).starts_with("tr(["), "{}", desc(&app, w));
+    assert!(app.plan_shape_now(w).seed_alone_fails);
+}
+
+/// The Check card reads the wallet made, not the Keys card: changing the
+/// account after Make leaves the wallet and its line as they were.
+#[test]
+fn the_line_on_the_check_card_is_the_wallet_made_not_the_keys_card() {
+    let mut app = seed_alone_at_check(None, &[Action::Seeds(S::Account(true))]);
+    app.press(Action::Seeds(S::Account(true)));
+    let text = drawn(&mut app);
+    assert!(text.contains("account 1, m/84'/1'/1'"), "{text}");
+    assert!(!text.contains("account 2"), "{text}");
+}
+
+/// A mainnet wallet at the testnet account `84'/1'/0'` is not the one a
+/// seed alone gives on mainnet (`84'/0'/0'`): it is not counted as rebuilt
+/// from the seed alone.
+#[test]
+fn a_mainnet_wallet_at_the_testnet_path_is_not_rebuilt_from_the_seed_alone() {
+    let mut app = shown();
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::Seeds(S::Custom));
+    for _ in 0..5 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_text(&mut app, "1'/0'");
+    app.press(Action::Seeds(S::Make));
+    let w = made(&app);
+    assert!(desc(&app, w).contains("/84h/1h/0h]"), "{}", desc(&app, w));
+    assert!(app.plan_shape_now(w).seed_alone_fails);
+}
+
+/// The blank seed sheet of a wallet prints the path its keys are taken at,
+/// which the seed alone does not say.
+#[test]
+fn the_blank_sheet_of_an_account_one_wallet_prints_its_path() {
+    let app = seed_alone_at_check(None, &[Action::Seeds(S::Account(true))]);
+    let w = made(&app);
+    let net = app.session.network();
+    let text = faraday_core::wallet_backup::sheet_blank(
+        24,
+        faraday_core::wallet_backup::BlankCopy::Both,
+        Some(&app.session.wallets[w]),
+        net,
+        2,
+    );
+    assert!(text.contains("\npath: m/84'/1'/1'\n"), "{}", &*text);
+    let c = testkit::compute();
+    let pdf = faraday_paper::pdf::sheet(&c, &text).expect("a PDF");
+    let path = b"m/84'/1'/1'";
+    assert!(
+        pdf.windows(path.len()).any(|x| x == path),
+        "path in the PDF"
+    );
+}
+
+/// A path that gives no wallet says why, where Make would be.
+#[test]
+fn a_bad_custom_path_says_why_there_is_no_make() {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::Seeds(S::Custom));
+    for _ in 0..20 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    let text = drawn(&mut app);
+    assert!(text.contains("Type a derivation path"), "{text}");
+}
+
+/// The place of `kind` among Restore's single-key kinds.
+fn kind_place(kind: NewKind) -> u8 {
+    faraday_core::seeds::SeedsState::default()
+        .kinds()
+        .iter()
+        .position(|k| *k == kind)
+        .expect("a single-key kind") as u8
+}
+
 /// Restore ends on Done, whatever the question of vaults was answered.
 #[test]
 fn it_matches_opens_done_with_no_vaults() {

@@ -16,6 +16,7 @@ fn shape() -> Shape {
         }],
         splits: false,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 

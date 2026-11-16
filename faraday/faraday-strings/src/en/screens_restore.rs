@@ -32,6 +32,15 @@ macro_rules! words_screens_restore {
     restore_continue: "Continue",
     /// Text in `restore_body`.
     restore_it_matches: "It matches",
+    /// Restore's Check card for a wallet made from the seeds alone: the button.
+    restore_it_matches_record: "It matches my record",
+    /// Restore's Check card for a wallet made from the seeds alone: the other way on.
+    restore_nothing_to_compare: "I have nothing to compare",
+    /// Restore's Check card, a line on a wallet made from the seeds alone: its
+    /// kind, account and path, which the seeds do not say.
+    restore_made_from_seed: "Made from the seed alone: {}, account {}, {}",
+    /// Restore's Check card, the same line for a custom path.
+    restore_made_from_seed_path: "Made from the seed alone: {}, path {}",
     /// Line in `restore_body`.
     restore_make_the_wallet: "Make the wallet first",
     /// Restore's seeds card, a line on what a wrong passphrase does.

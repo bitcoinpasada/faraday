@@ -27,7 +27,7 @@ Asked for a kind with several keys: how many keys the wallet has and how many mu
 
 **Key:** restore.description
 
-The description names every key and the wallet's rules. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.
+The description names every key and the wallet's rules. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path; the Keys card asks for the account.
 
 **I have the seed** makes a single-key wallet from its seed alone. **I do not have it** does the same for a multisig. **Scan descriptor** reads a description with the camera. A button named From and a file's name reads a wallet file from Files. **Copy files in** brings in a stick's files; a stick is not read while a key is loaded. A button named Unlock and a vault's name opens a locked vault, and a wallet in an open vault is offered by name.
 
@@ -63,7 +63,7 @@ One row per key. A filled row reads **Here**, or Key 1 of the wallet and so on f
 
 Shows the wallet that was made, for you to compare with the backup sheet or the software that holds its history. **Make the wallet first** stands in until the wallet exists.
 
-The descriptor and the first addresses are shown. **It matches** closes the card.
+The descriptor and the first addresses are shown. **It matches** closes the card. A wallet made from the seeds alone also says the kind, account and path it assumed, and the button reads **It matches my record**, beside **I have nothing to compare**.
 
 ## Done
 

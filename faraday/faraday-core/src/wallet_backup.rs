@@ -412,6 +412,20 @@ pub fn sheet_blank(
             wallet_name(&w.name),
             &*Session::shape(w)
         ));
+        // The path its keys are taken at, which the seed alone does not say.
+        let mut paths = Text::new();
+        for p in w.policy().keys().iter().filter_map(|k| k.path()) {
+            let p = text!("m/{p}");
+            if !paths.split(", ").any(|q| q == &*p) {
+                if !paths.is_empty() {
+                    paths.push_str(", ");
+                }
+                paths.push_str(&p);
+            }
+        }
+        if !paths.is_empty() {
+            out.push_str(&text!("path: {}\n", &*paths));
+        }
     }
     out
 }
@@ -3200,6 +3214,7 @@ impl Faraday {
                 seeds: Vec::new(),
                 splits: false,
                 vaults: 0,
+                seed_alone_fails: false,
             };
         };
         self.plan_shape_of(wallet)
@@ -3230,6 +3245,7 @@ impl Faraday {
             seeds,
             splits: crate::wallet_backup::splits(wallet),
             vaults,
+            seed_alone_fails: !seed_alone_gives(wallet, self.session.network()),
         }
     }
 
@@ -3705,6 +3721,56 @@ impl Faraday {
 pub(crate) fn plan_now(c: &Compute, app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<Text>)> {
     let (answers, names) = crate::glance::plan_of_now(c, app, w)?;
     Some((answers, names.iter().map(|n| Text::of(n)).collect()))
+}
+
+/// The wallet's seed alone gives it back when Restore, made from that seed
+/// with nothing assumed beyond its defaults, is that wallet: one plain
+/// Native SegWit key at account 0, the key's own origin and no more.
+/// Another account or script type, a seed used for several keys and a
+/// silent payments wallet (whose count of labels handed out is kept only in
+/// its description) need the description.
+pub(crate) fn seed_alone_gives(wallet: &crate::wallet::Wallet, network: Network) -> bool {
+    use faraday_bip::keys::ScriptType;
+    use faraday_bip::policy::Template;
+    if wallet.policy().silent().is_some() {
+        return false;
+    }
+    let Template::Single { script } = wallet.policy().template() else {
+        return false;
+    };
+    let [key] = wallet.policy().keys() else {
+        return false;
+    };
+    let Some(path) = key.path() else {
+        return false;
+    };
+    // Native SegWit at account 0 on the session's network: the path
+    // Restore takes with nothing said (`84'/1'/0'` is not it on mainnet).
+    let path = text!("{path}");
+    let path = path.trim_start_matches("m/");
+    let standard = crate::create::NewKind::NativeSegwit.path(network);
+    script == ScriptType::NativeSegwit && path == standard.trim_start_matches("m/")
+}
+
+/// What a wallet made from the seeds alone assumed, read from the wallet:
+/// its script, the account its first key is at and the path.
+pub(crate) fn made_from_seed_line(wl: &Wallet) -> Option<Text> {
+    let key = wl.policy().keys().first()?;
+    let path = text!("{}", key.path()?);
+    let path = path.trim_start_matches("m/");
+    let shape = Session::shape(wl);
+    let full = text!("m/{path}");
+    let account = path
+        .split('/')
+        .nth(2)
+        .and_then(|a| a.trim_end_matches(['\'', 'h']).parse::<u32>().ok());
+    Some(match account {
+        Some(n) => Text::fill(
+            EN.restore_made_from_seed,
+            &[&*shape, &*Text::num(u64::from(n)), &*full],
+        ),
+        None => Text::fill(EN.restore_made_from_seed_path, &[&*shape, &*full]),
+    })
 }
 
 #[cfg(test)]

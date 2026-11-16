@@ -460,6 +460,7 @@ fn two_of_three() -> Shape {
         seeds: vec![seed("aaaa0001"), seed("aaaa0002"), seed("aaaa0003")],
         splits: true,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 

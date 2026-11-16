@@ -2262,6 +2262,7 @@ pub(crate) fn card_frame(
             seeds: Vec::new(),
             splits: false,
             vaults: 0,
+            seed_alone_fails: false,
         },
         held,
         drag: drag.map(|(px, py)| (px as f32 / f - ox, py as f32 / f - oy)),

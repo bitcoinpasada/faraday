@@ -201,9 +201,19 @@ pub struct Shape {
     /// (`docs/BACKUP-FLOW.md` §10.2): the plan has at least this many
     /// vaults to put seeds in, however many seeds there are.
     pub vaults: usize,
+    /// The seeds alone do not give this wallet back: an account other
+    /// than 0, more keys than distinct seeds, or a wallet that is not one
+    /// plain key. Its description is then needed to rebuild it, as for a
+    /// multisig.
+    pub seed_alone_fails: bool,
 }
 
 impl Shape {
+    /// Rebuilding needs the description, not only the seeds.
+    pub fn needs_description(&self) -> bool {
+        self.multi() || self.seed_alone_fails
+    }
+
     /// No seed of it is here: nothing to ask about seeds.
     pub fn watch_only(&self) -> bool {
         !self.seeds.iter().any(|s| s.here)
@@ -1932,7 +1942,7 @@ impl Have {
     /// The wallet rebuilds: a quorum of seeds, and for more than one seed
     /// the description; one seed rebuilds its own wallet.
     fn rebuilds(&self, shape: &Shape, a: &Answers) -> bool {
-        self.spends(shape) && (!shape.multi() || self.wallet_ok(shape, a))
+        self.spends(shape) && (!shape.needs_description() || self.wallet_ok(shape, a))
     }
 
     /// The balance can be seen: the description, or the one seed of a
