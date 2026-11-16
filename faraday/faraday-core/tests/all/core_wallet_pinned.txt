@@ -1,3 +1,51 @@
+## records activemultisig regtest None
+accepted Regtest version Some(310100) flags 0x600000004 passphrase NotNeeded
+descriptor cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/0/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/0/*))#pcwhujcy"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/0/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/0/*))#pq4jh7et"
+descriptor f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/1/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/1/*))#v3azrr62"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/1/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/1/*))#cnxkedv7"
+active internal false Bech32 cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8
+active internal true Bech32 f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8
+keys passed 2 unchecked 0 tx 0 locator Some(2)
+unread "walletdescriptorcache" x4
+unknown more 0
+failures more 0
+## records activemultisig regtest Some("faraday")
+accepted Regtest version Some(310100) flags 0x600000004 passphrase NotNeeded
+descriptor cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/0/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/0/*))#pcwhujcy"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/0/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/0/*))#pq4jh7et"
+descriptor f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/1/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/1/*))#v3azrr62"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/1/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/1/*))#cnxkedv7"
+active internal false Bech32 cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8
+active internal true Bech32 f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8
+keys passed 2 unchecked 0 tx 0 locator Some(2)
+unread "walletdescriptorcache" x4
+unknown more 0
+failures more 0
+## records activemultisig regtest Some("faradaz")
+accepted Regtest version Some(310100) flags 0x600000004 passphrase NotNeeded
+descriptor cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/0/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/0/*))#pcwhujcy"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/0/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/0/*))#pq4jh7et"
+descriptor f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8 time 1794812630 next 0 range Some((0, 999)) private 1 encrypted 0
+  text "wsh(multi(2,[761fc933/48h/1h]tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/0h/2h/1/*,tpubD6NzVbkrYhZ4YcGTkysmywUYe85vmJsVPi9gzkwgNXCYvUnNwGj7A6uFo65Z9vjx7fynHPHAXBDGsf1asdq7sY99dXnwbhXHb8WNeEQhKbh/48h/1h/0h/2h/1/*))#v3azrr62"
+  listed "wsh(multi(2,[761fc933/48h/1h/0h/2h]tpubDAtw5xFQfZ8RS6rjv1ev4sMVrCGxg6P72LixmquqCVxxKwSiYJ2o4AyJUsUpKDZvaTXnjzAxJRwXDVTAZQBb7NA53ns1myGcnX3n9vW9gUX/1/*,[761fc933/48h/1h/0h/2h]tpubDEuQEq7bjG3qyNSLLEM28RVbrV4tQGKDPmemuxR3fWo1j5wG16hsEf7MKLqLg8TUaRzznufYRuU2PgXCJF6uhCTjHCzBeHPFHXcThxodKgK/1/*))#cnxkedv7"
+active internal false Bech32 cbe48272db7e5c77d75b737a98414a39ad8e20e20c8144b267fc538fb4724be8
+active internal true Bech32 f560f8bc2b7dc895a8bc33529636256834f2d8c798f5223fff2781675b6ba8c8
+keys passed 2 unchecked 0 tx 0 locator Some(2)
+unread "walletdescriptorcache" x4
+unknown more 0
+failures more 0
+## records activemultisig mainnet None
+refused Network { offered: Regtest, loaded: Mainnet }
+## records activemultisig mainnet Some("faraday")
+refused Network { offered: Regtest, loaded: Mainnet }
+## records activemultisig mainnet Some("faradaz")
+refused Network { offered: Regtest, loaded: Mainnet }
 ## records blank regtest None
 accepted Regtest version Some(310100) flags 0x600000004 passphrase NotNeeded
 keys passed 0 unchecked 0 tx 0 locator Some(2)
