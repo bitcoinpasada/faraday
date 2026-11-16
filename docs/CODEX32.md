@@ -493,8 +493,11 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `faraday-keys`. A key
   carrying a correction's mark has its line beside its fingerprint on
   Wallets (each loose key, and under the wallet's keys held;
-  `screens/wallets.rs`, `mark_line`); New key's Key card does not show
-  it. Tested in
+  `screens/wallets.rs`, `mark_line`); New key's Key card shows it beside
+  the fingerprint once the strings are in and before Lock in, which
+  notes the same mark with the key (tested by
+  `a_corrected_key_card_has_the_marks_line_and_unlocked_leaves_none`).
+  Tested in
   `faraday/faraday-core/tests/all/codex32_rest.rs` and, against BIP 93's
   vectors 2 and 3, `faraday/faraday-keys/tests/codex32.rs` (its `given`
   module and `vault_codex32` test); snapshot tour `codex32` from

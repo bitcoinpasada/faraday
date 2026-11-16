@@ -24,6 +24,7 @@ impl KeyGen {
         self.mnemonic = None;
         self.shown = false;
         self.fingerprint = None;
+        self.mark = None;
         self.quiz = None;
         self.skip_ask = false;
         self.skipped = false;

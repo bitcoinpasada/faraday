@@ -1482,9 +1482,6 @@ impl Faraday {
                     fp
                 }
             };
-        if let Some(m) = self.entry.state().correction.key_mark() {
-            self.session.key_marks.note(fp.0, m);
-        }
         Ok(fp)
     }
 
@@ -1611,8 +1608,12 @@ impl Faraday {
         if let Some(kind) = self.form_makes_more() {
             return self.keygen_codex32_given(kind);
         }
+        let mark = self.entry.state().correction.key_mark();
         match self.form_key() {
             Ok(fp) => {
+                if let Some(m) = mark {
+                    self.session.key_marks.note(fp.0, m);
+                }
                 self.toast(&faraday_text::Text::fill(
                     EN.forms_key_added,
                     &[&fp_text(fp)],

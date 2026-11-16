@@ -332,6 +332,34 @@ fn a_corrected_keys_line_is_on_wallets() {
     assert!(crate::common::has_part(&mut app, "Share entry corrected"));
 }
 
+/// §8.4: New key's Key card shows the mark's line beside the fingerprint
+/// of strings that went in by a correction, before Lock in; a key left
+/// without locking leaves no mark.
+#[test]
+fn a_corrected_key_card_has_the_marks_line_and_unlocked_leaves_none() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
+    app.press(Action::KeyGen(None));
+    let _ = app.frame();
+    let _ = app.frame();
+    app.press(Action::KStart(Start::Codex32.index()));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
+    app.press(Action::Codex32Correct(Press::Tick));
+    let mut b = SHARE_A.as_bytes().to_vec();
+    let at = BECH32.iter().position(|&c| c == b[19]).unwrap();
+    b[19] = BECH32[(at + 7) % 32];
+    add(&mut app, std::str::from_utf8(&b).unwrap());
+    app.press(Action::Codex32Correct(Press::Mistyped));
+    app.event(Event::Key(Key::Char(char::from(SHARE_A.as_bytes()[19]))));
+    add(&mut app, SHARE_C);
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
+    assert!(crate::common::has_part(&mut app, "Share entry corrected"));
+    assert_eq!(app.session.key_marks.of(NAME_FP), None, "not locked");
+    app.press(Action::Nav(Screen::Wallets));
+    assert!(!crate::common::has_part(&mut app, "Share entry corrected"));
+}
+
 /// The demo's public set with its codex32 sample, BIP 93's vector 2, as
 /// `faraday-samples` lists it (`docs/MODES.md` §7).
 pub(crate) fn samples() -> &'static Samples {

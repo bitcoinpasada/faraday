@@ -680,6 +680,20 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy += ui.wrap_as((x + 24.0, cy, w - 24.0), BODY_M, Role::OnSurface, &l) + 10.0;
         }
         cy += 4.0;
+        if let Some(fp) = k.fingerprint {
+            cy = stat(
+                ui,
+                x,
+                cy,
+                EN.keygen_fingerprint,
+                &fp_text(faraday_bip::keys::Fingerprint(fp)),
+                Role::OnSurface.paint(),
+            );
+            if let Some(m) = k.mark {
+                cy += crate::codex32_correct::screen::fingerprint_line(ui, x, cy, w, m)
+                    + faraday_draw::tokens::CORRECT_GAP;
+            }
+        }
     }
     let show = (
         if k.shown {

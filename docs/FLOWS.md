@@ -1,8 +1,7 @@
 # Flows
 
-**Kind:** Spec
-**Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** the codex32 mark's line on New key's Key card (Add a key)
+**Kind:** Reference
+**Status:** Built; the code is the record where it differs
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -389,7 +388,7 @@ SeedQR** takes a Codex32QR code and opens the codex32 form with it in
 (§10.1). Once a string of a split set is in, the form offers **Make the
 rest** and **Add a share** (§8.1 step 2, §8.2); **Check a string** shows
 its checksum worksheet's final row; and the mark's line stands beside the
-fingerprint on Wallets. Not built: the mark's line on New key's Key card.
+fingerprint on Wallets and on New key's Key card.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
 first card is **Start**, open with no choice ticked (owner, 2026-10-29):

@@ -259,6 +259,9 @@ pub struct KeyGen {
     pub shown: bool,
     /// The key's fingerprint, once the words are made.
     pub fingerprint: Option<[u8; 4]>,
+    /// The mark the typed codex32 strings carry (`docs/CODEX32.md` §8.4),
+    /// worked out when the Key card opens; Lock in notes it with the key.
+    pub mark: Option<crate::codex32_correct::Mark>,
     /// The backup quiz, once the words have been shown.
     pub quiz: Option<crate::quiz::Quiz>,
     /// The person asked to skip the quiz; a second press skips it.
@@ -404,6 +407,7 @@ impl KeyGen {
             mnemonic: None,
             shown: false,
             fingerprint: None,
+            mark: None,
             quiz: None,
             skip_ask: false,
             skipped: false,
@@ -1428,9 +1432,22 @@ impl crate::Faraday {
         }
         let parts = self.entry.state().parts.lines(form).len();
         self.entry.forget_error();
+        // Codex32 strings show their key's fingerprint and mark on the
+        // Key card, before Lock in notes the mark (§8.4).
+        let (mut fingerprint, mut mark) = (None, None);
+        if form == Form::Codex32 {
+            let c = self.compute();
+            fingerprint = faraday_keys::codex32_seed(&self.entry.state().parts.codex32)
+                .ok()
+                .and_then(|seed| faraday_keys::identity::fingerprint_of_seed(&c, &seed))
+                .map(|f| f.0);
+            mark = self.entry.state().correction.key_mark();
+        }
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
+        k.fingerprint = fingerprint;
+        k.mark = mark;
         k.mnemonic = words;
         k.parts_in = parts;
         k.shown = false;
@@ -1815,6 +1832,9 @@ impl crate::Faraday {
                 return;
             }
         };
+        if let Some(m) = self.keygen.state.as_ref().and_then(|k| k.mark) {
+            self.session.key_marks.note(fp.0, m);
+        }
         // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
         let key_text = self.made_key_text(&c, fp, slot.is_some());
         // What was typed goes; the Key card keeps the words to show.
