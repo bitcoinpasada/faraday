@@ -287,9 +287,10 @@ The decision is F184 (owner, 2026-11-02): it binds later changes (a new
 costly press is put on one side of the line of §2.1), it amends a built
 rule (SPEED §9 point 2: frame first, work on the tick after, now for
 short work), and it lets key material cross a thread inside faraday-keys
-(§6). Its rule is `speed.worker-line` in `tools/impact.toml`: a change to
-`slow.rs`'s list says which side of the line the press is on and how
-that was measured.
+(§6). The tests hold it: in debug builds and every test, `slow::guard`
+stops a press that starts no job yet stretches a key or makes more than
+one picture. A change to `slow.rs`'s list says which side of the line
+the press is on and how that was measured.
 
 ## 6. Key material in a job
 
