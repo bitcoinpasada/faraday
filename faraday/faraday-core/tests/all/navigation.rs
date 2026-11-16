@@ -125,6 +125,10 @@ fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
         let (_, y) = at(&mut app, Action::Nav(Screen::Home)).expect("the bar");
         assert!(y >= 800 - 80);
     }
+    assert!(
+        at(&mut app, Action::Nav(Screen::Check)).is_none_or(|p| p.1 < 800 - 80),
+        "Check is not on the bar"
+    );
     // Settings is in the top app bar's ⋮ menu.
     let more = at(&mut app, Action::NavMenu(MenuPress::Open(None))).expect("the ⋮ menu");
     assert!(more.1 < 64);
@@ -153,6 +157,12 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
         tap(&mut app, p);
         assert_eq!(app.screen, screen, "{dest:?}");
     }
+    let home = in_rail(&mut app, Action::Nav(Screen::Home));
+    let check = in_rail(&mut app, Action::Nav(Screen::Check));
+    let wallets = in_rail(&mut app, Action::Nav(Screen::WalletsStart));
+    assert!(home.1 < check.1 && check.1 < wallets.1, "Check under Home");
+    tap(&mut app, check);
+    assert_eq!(app.screen, Screen::Check);
     let p = in_rail(&mut app, Action::Guide);
     tap(&mut app, p);
     assert_eq!(app.sheet, Some(Sheet::Guide));
