@@ -2,7 +2,8 @@
 //! size at its own density, so the same panel or window is the same
 //! class wherever it is shown.
 
-use faraday_core::{Action, Faraday, testkit};
+use faraday_core::nav::{BarTool, MenuPress};
+use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_draw::geom::WindowClass;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -139,4 +140,34 @@ fn larger_text_at_1280_lays_out_a_class_down_with_the_rail() {
     let mut big = shown_on(1920, 1080, 160);
     big.press(Action::TextSize(TextSize::Larger));
     assert!(!big.is_compact());
+}
+
+/// At 1024x600 a flow's Cancel is on the bar, not in a ⋮ menu.
+#[test]
+fn at_1024_by_600_a_flows_cancel_stays_on_the_bar() {
+    let mut app = shown_on(1024, 600, 160);
+    app.press(Action::Nav(Screen::Spend));
+    let _ = app.frame();
+    assert!(app.offers(Action::CancelFlow), "Cancel on the bar");
+}
+
+/// At 480x640 a flow is cancelled from the ⋮, not from the bar.
+#[test]
+fn at_480_by_640_a_flow_is_cancelled_from_the_overflow_menu() {
+    let mut app = shown_on(480, 640, 160);
+    app.press(Action::Nav(Screen::Spend));
+    let _ = app.frame();
+    assert!(!app.offers(Action::CancelFlow), "no Cancel on the bar");
+    let held = app
+        .drawn_actions()
+        .into_iter()
+        .find_map(|a| match a {
+            Action::NavMenu(MenuPress::Open(Some(o))) => Some(o),
+            _ => None,
+        })
+        .expect("a ⋮ on the bar");
+    app.press(Action::NavMenu(MenuPress::Open(Some(held))));
+    let _ = app.frame();
+    app.press(Action::NavMenu(MenuPress::Tool(BarTool::Cancel)));
+    assert_ne!(app.screen, Screen::Spend, "the flow is left");
 }

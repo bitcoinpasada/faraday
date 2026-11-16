@@ -2100,3 +2100,14 @@ fn change_passphrase_waits_while_the_two_differ() {
     );
     assert!(!app.offers(Action::Vault(V::FormSave)), "Save waits");
 }
+
+/// A size keeps its number and its unit together: it cannot break between
+/// them.
+#[test]
+fn a_size_keeps_its_number_and_its_unit_together() {
+    for bytes in [900_u64, 9_000, 9_000_000, 9_000_000_000] {
+        let text = faraday_core::vault::file_text(bytes as usize);
+        assert!(!text.contains(' '), "{text:?} can break between its parts");
+    }
+    assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
+}

@@ -597,7 +597,12 @@ fn new_key(rig: &mut Rig) -> Vec<String> {
             &mut found,
         );
     }
-    quiz(rig, "New key, BIP-39", &mut found);
+    let answered = quiz(rig, "New key, BIP-39", &mut found);
+    assert!(
+        answered > 0 || rig.mode == Mode::Practice,
+        "{}: BIP-39's quiz",
+        rig.label
+    );
     leave(rig);
     // SLIP-39 shares, through their check, the shares and the quiz.
     rig.press(Action::Nav(Screen::Home));
@@ -1420,28 +1425,6 @@ fn on_the_pi_sign_a_transaction_with_nothing_loaded_names_itself_beside_the_menu
     }
 }
 
-/// At 1024x600 a flow's Cancel is on the bar, not in a ⋮ menu.
-#[test]
-fn at_1024_by_600_a_flows_cancel_stays_on_the_bar() {
-    let mut app = Faraday::new();
-    app.event(display(1024, 600, 160));
-    app.press(Action::Nav(Screen::Spend));
-    let _ = app.frame();
-    assert!(app.offers(Action::CancelFlow), "Cancel on the bar");
-}
-
-/// At 480x640 a flow is cancelled from the ⋮, not from the bar.
-#[test]
-fn at_480_by_640_a_flow_is_cancelled_from_the_overflow_menu() {
-    let mut app = Faraday::new();
-    app.event(display(480, 640, 160));
-    app.press(Action::Nav(Screen::Spend));
-    let _ = app.frame();
-    assert!(!app.offers(Action::CancelFlow), "no Cancel on the bar");
-    app.press(Action::NavMenu(MenuPress::Tool(BarTool::Cancel)));
-    assert_ne!(app.screen, Screen::Spend, "the flow is left");
-}
-
 /// A flow is cancelled from the ⋮ on the Pi's panel, its first row.
 #[test]
 fn on_the_pi_a_flow_is_cancelled_from_the_overflow_menu() {
@@ -1474,7 +1457,7 @@ fn on_the_pi_the_guide_sheets_tab_names_are_read_whole() {
     let (_, texts) = rig.drawn_past_sides_and_text();
     for (action, title) in tabs {
         let own = rig.hit_box(action).expect("its tab");
-        let (_, tabbed): (Vec<_>, Vec<_>) = texts
+        let tabbed: Vec<_> = texts
             .iter()
             .filter(|(t, r)| {
                 t == title
@@ -1482,8 +1465,7 @@ fn on_the_pi_the_guide_sheets_tab_names_are_read_whole() {
                     && r.1 + r.3 <= i32::from(own.1) + i32::from(own.3)
             })
             .cloned()
-            .map(|x| ((), x))
-            .unzip();
+            .collect();
         assert!(!tabbed.is_empty(), "{title}: its tab is drawn whole");
         for (t, r) in &tabbed {
             // A label cut by its tab's edge is drawn flush against it:
@@ -1551,28 +1533,63 @@ fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_s
         );
     }
     assert!(texts(&mut app).iter().any(|t| t == "Existing"));
+    // The choice's two segments are drawn whichever is chosen: what shows
+    // that the press took is the chosen segment's look, in their box.
+    let (fx, fy, _, fh) = app.hit_box(first).expect("first");
+    let (sx, _, sw, _) = app.hit_box(second).expect("second");
+    let segments = |app: &mut Faraday| -> Vec<u8> {
+        let frame = app.frame();
+        let (width, rgba) = (usize::from(frame.width), frame.rgba);
+        let mut region = Vec::new();
+        for y in usize::from(fy)..usize::from(fy) + usize::from(fh) {
+            let row = y * width;
+            let (a, b) = (
+                row + usize::from(fx),
+                row + usize::from(sx) + usize::from(sw),
+            );
+            region.extend_from_slice(&rgba[a * 4..b * 4]);
+        }
+        region
+    };
+    let before = segments(&mut app);
     app.press(second);
-    let _ = app.frame();
-    assert!(
-        texts(&mut app).iter().any(|t| t.starts_with("Existing")),
-        "the second segment was not taken"
+    let after = segments(&mut app);
+    assert_ne!(before, after, "the second segment was not taken");
+    app.press(first);
+    assert_eq!(
+        segments(&mut app),
+        before,
+        "the first segment is chosen again"
     );
 }
 
 #[test]
 fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_room() {
-    let name = |mode: Mode| {
+    let name = |mode: Mode, open: Action| {
         let mut rig = rig(On::Stick, mode, Vec::new());
-        rig.press(Action::KeyGen(None));
+        rig.press(open);
         rig.settle();
-        flow_bar_name(&mut rig).expect("New key's bar names it")
+        flow_bar_name(&mut rig).expect("the step flow's bar names it")
     };
+    let convert = || Action::Convert(faraday_core::convert::ConvertAction::Open);
     // On Mainnet the ? alone stands beside it: the bar's own size.
-    let (text, _) = name(Mode::Mainnet);
-    assert_eq!(text, "Add a key");
+    let (text, mainnet) = name(Mode::Mainnet, convert());
+    assert_eq!(text, "Convert a seed");
     // On Testnet the mode pill stands at the end of the first line, so the
-    // name steps down or wraps before it is cut: whole.
-    let (text, _) = name(Mode::Testnet);
+    // name steps down before it wraps at a word (the pages' whole names are
+    // held by the mode pill test below): its first line is of whole words
+    // and smaller.
+    let (text, testnet) = name(Mode::Testnet, convert());
+    assert!(
+        "Convert a seed".starts_with(&text) && text.split(' ').count() >= 2,
+        "whole words beside the ? and the pill: {text:?}"
+    );
+    assert!(
+        testnet < mainnet,
+        "smaller beside the pill: {testnet} dp against {mainnet} dp"
+    );
+    // "Add a key" fits beside the pill at the bar's own size.
+    let (text, _) = name(Mode::Testnet, Action::KeyGen(None));
     assert_eq!(text, "Add a key", "whole beside the ? and the pill");
     // Create vault's name beside Cancel and the ?: whole words or none,
     // never a piece of a word.
@@ -1591,15 +1608,6 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
             "{text:?} cuts a word"
         );
     }
-}
-
-#[test]
-fn a_size_keeps_its_number_and_its_unit_together() {
-    for bytes in [900_u64, 9_000, 9_000_000, 9_000_000_000] {
-        let text = faraday_core::vault::file_text(bytes as usize);
-        assert!(!text.contains(' '), "{text:?} can break between its parts");
-    }
-    assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
 }
 
 /// What a page drawn now, scrolled to each place, shows cut off or drawn
