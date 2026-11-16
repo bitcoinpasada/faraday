@@ -147,9 +147,19 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // The Files row stands above the stick's row at the foot; the pill
     // under Lock while the idle lock waits for a new wallet's backup
     // takes its room from the lists.
-    let files_top = h - 172.0 - if held { LOCK_PILL_H + GRID } else { 0.0 };
+    // The stick's row is shown when a stick is attached or an import
+    // waits; with none, "none" is not worth the room the lists need.
+    let sticks_row = sticks_row_shown(app);
+    let files_top = h - 172.0 + if sticks_row { 0.0 } else { TOUCH }
+        - if held { LOCK_PILL_H + GRID } else { 0.0 };
     lists(app, ui, y + GRID, files_top);
-    foot(app, ui, files_top, held);
+    foot(app, ui, files_top, held, sticks_row);
+}
+
+/// Whether the foot's stick row stands under the Files row: a stick is
+/// attached, or an import the boot stick brought waits behind it.
+fn sticks_row_shown(app: &View) -> bool {
+    !app.stick.is_empty() || app.import.state().is_some()
 }
 
 /// A row of the lists, a touch target tall: stacked rows leave a target
@@ -326,11 +336,21 @@ fn group(
 }
 
 /// The foot of the sidebar from `fy`: the Files row with the session's
-/// stage, the stick's row, Lock and Power off, and under them the pill
+/// stage, the stick's row (`sticks_row`), Lock and Power off, and under them the pill
 /// while the idle lock is `held`.
-fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
+fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool, sticks_row: bool) {
     files_row(app, ui, fy);
-    let fy = fy + TOUCH;
+    let mut fy = fy + TOUCH;
+    if sticks_row {
+        stick_row(app, ui, fy);
+        fy += TOUCH;
+    }
+    // Room above the buttons, for their targets to reach 48 dp.
+    foot_buttons(app, ui, fy + 12.0, held);
+}
+
+/// The stick's row at `fy`: what is attached, or the import waiting.
+fn stick_row(app: &View, ui: &mut Ui, fy: f32) {
     // With no stick attached, an import the boot stick brought waits
     // behind this row.
     let waiting = app.import.state().is_some() && app.stick.is_empty();
@@ -367,8 +387,11 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
         },
     );
     ui.text_right_as((SIDEBAR_W - 24.0, fy, TOUCH), BODY_S, tone, &sticks);
-    // Room above the buttons, for their targets to reach 48 dp.
-    let fy = fy + TOUCH + 12.0;
+}
+
+/// Lock and Power off at `fy`, and under them the pill while the idle
+/// lock is `held`.
+fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
     if app.holds_secret() {
         ui.button(
             16.0,

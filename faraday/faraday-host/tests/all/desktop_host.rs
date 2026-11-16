@@ -254,16 +254,16 @@ fn size_shows_the_pi_panel_framed_above_the_strip_and_a_press_inside_reaches_it(
     assert_eq!(x, (1280 - 268) / 2);
     assert!(y + h <= 800 - STRIP, "above the strip: {y} + {h}");
     app_holds_no_host_item(&mut host);
-    // Vaults' tile, pressed where the window shows it.
+    // Check's tile, pressed where the window shows it.
     let (fx, fy) = host
         .app
-        .where_offered(Action::Nav(Screen::Vaults))
-        .expect("Home's menu offers Vaults");
+        .where_offered(Action::Nav(Screen::Check))
+        .expect("Home's menu offers Check");
     tap_at(&mut host, x as u16 + fx, y as u16 + fy);
-    assert_eq!(host.app.screen, Screen::Vaults);
+    assert_eq!(host.app.screen, Screen::Check);
     // A press beside the frame reaches nothing.
     tap_at(&mut host, 10, 10);
-    assert_eq!(host.app.screen, Screen::Vaults);
+    assert_eq!(host.app.screen, Screen::Check);
     // Back to the window's own size.
     click(&mut host, HostPress::Menu(HostMenu::Size));
     click(&mut host, HostPress::Size(None));

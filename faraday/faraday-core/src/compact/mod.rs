@@ -704,12 +704,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // On the rail's and the bar's windows the top app bar carries the
     // name, and the sidebar's lists lead as chips (`docs/LAYOUT.md` §3).
     let beside = app.nav().beside();
-    if beside {
-        y += crate::nav::screen::status_strip(app, ui, M, y, inner);
-    } else {
+    if !beside {
         home_head(app, ui, w, y);
         y += 38.0;
     }
+    y += crate::nav::screen::status_strip(app, ui, M, y, inner);
 
     // What this session holds.
     let keys = app.session.keys.len();
@@ -748,7 +747,12 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ),
         ),
     };
-    let sub = app.home_files_line();
+    // Without the rail the status strip above names the keys, the
+    // wallets, the files and the sticks, and the menu below opens the way
+    // in: the card stays only for the vaults, which the strip does not
+    // show, and then carries its one line.
+    let sub = beside.then(|| app.home_files_line());
+    let card = beside || vaults > 0;
     let session = if keys + wallets == 0 {
         Screen::WalletsStart
     } else {
@@ -757,27 +761,36 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let action = Action::Nav(session);
     // Its two lines, the card as tall as they need (`docs/TEXT-SIZE.md`
     // §5).
-    let (l1, l2) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
+    let l1 = ui.line_as(LABEL_L);
+    let l2 = if sub.is_some() {
+        ui.line_as(BODY_S)
+    } else {
+        0.0
+    };
     let card_h = ui.row_height(52.0, l1 + l2, faraday_draw::tokens::GRID);
     let text_top = y + (card_h - l1 - l2) / 2.0;
-    ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
-    ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
-    ui.press(
-        Shape::new(M, y, inner, card_h, SHAPE_M),
-        Role::OnSurface.paint(),
-        action,
-    );
-    ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, dot);
-    let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
-    ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
-    let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
-    ui.text_mid_as(
-        (M + 28.0, text_top + l1, l2),
-        BODY_S,
-        Role::OnSurfaceVariant,
-        &sub,
-    );
-    y += card_h + 10.0;
+    if card {
+        ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
+        ui.press(
+            Shape::new(M, y, inner, card_h, SHAPE_M),
+            Role::OnSurface.paint(),
+            action,
+        );
+        ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, dot);
+        let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
+        ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
+        if let Some(sub) = sub {
+            let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
+            ui.text_mid_as(
+                (M + 28.0, text_top + l1, l2),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &sub,
+            );
+        }
+        y += card_h + 10.0;
+    }
 
     // The session strip: the four stages of the lock cycle, the one now
     // current in the accent, the rest dim. Tapping it opens Files.
@@ -810,28 +823,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
         }
         y += 22.0 + 10.0;
-    }
-
-    // A tile per flow in progress leads the tiles: its name and its open
-    // step, opening it as it was left (`docs/FLOWS.md`, Flows in
-    // progress).
-    for r in app.flows_in_progress().iter().filter(|_| !beside) {
-        let icon = match r.tab {
-            Screen::Vaults => Icon::Lock,
-            Screen::Catalog => Icon::Tools,
-            _ => Icon::Wallet,
-        };
-        y += crate::compact::screen::row(
-            ui,
-            M,
-            y,
-            inner,
-            Some(icon),
-            &r.name,
-            &r.step,
-            Role::OnSurfaceVariant.paint(),
-            Some(Action::Resume(r.going)),
-        );
     }
 
     // The one thing waiting, when there is one.
@@ -1898,6 +1889,22 @@ impl Faraday {
             1 => Text::of(&self.stick[0].label),
             k => text!("{k} {}", self.medium.nouns()),
         };
-        text!("{} · {}", self.files_count().as_str(), sticks.as_str())
+        let (n, whose) = if !self.outbox.is_empty() {
+            (self.outbox.len(), Some(self.medium.for_the()))
+        } else if !self.inbox.is_empty() {
+            (self.inbox.len(), Some(self.medium.from_the()))
+        } else {
+            (0, None)
+        };
+        let noun = if n == 1 {
+            EN.compact_file_count_one
+        } else {
+            EN.compact_file_count_many
+        };
+        let files = match whose {
+            Some(w) => text!("{n} {noun} {w}"),
+            None => text!("{n} {noun}"),
+        };
+        text!("{} · {}", files.as_str(), sticks.as_str())
     }
 }

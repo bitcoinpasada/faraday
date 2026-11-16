@@ -1364,8 +1364,8 @@ the small Home's tiles; `Action::Resume`.
    as they do today (`sidebar_caps`). A flow that keeps nothing when
    left (a calculator, Explore, Check a signer) has no row.
 5. **The narrow window and the small panel** (the compact layout): the
-   small Home leads with one tile per flow in progress, its name and
-   step, opening it, before its other tiles.
+   small Home leads with the status strip, a chip per flow in progress,
+   its name and step, opening it, before the keys and wallets.
 6. The survey of every screen whose state is kept when it is left:
    below.
 7. **Speed.** Which flows are in progress is worked out once a frame

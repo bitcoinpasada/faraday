@@ -45,9 +45,9 @@ fn attach(app: &mut Faraday, on: bool) {
 #[test]
 fn the_pi_s_home_says_no_card_or_stick() {
     let app = panel(Medium::SdCard);
-    assert_eq!(app.home_files_line(), "none · no card or stick");
+    assert_eq!(app.home_files_line(), "0 files · no card or stick");
     let pc = panel(Medium::Stick);
-    assert_eq!(pc.home_files_line(), "none · no stick");
+    assert_eq!(pc.home_files_line(), "0 files · no stick");
 }
 
 #[test]
@@ -87,5 +87,5 @@ fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
         vaults: Vec::new(),
     }]));
     let _ = app.frame();
-    assert_eq!(app.home_files_line(), "none · Boot SD card");
+    assert_eq!(app.home_files_line(), "0 files · Boot SD card");
 }

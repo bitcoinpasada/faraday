@@ -106,6 +106,10 @@ macro_rules! words_compact {
     compact_done: "Done",
     /// Text in `files_count`.
     compact_none: "none",
+    /// Text in `home_files_line`: the count, one file.
+    compact_file_count_one: "file",
+    /// Text in `home_files_line`: the count, other than one.
+    compact_file_count_many: "files",
     /// Text in `home_files_line`. `{}`: `self.medium.noun()`.
     compact_no_medium: "no {}",
     // ----- compact (faraday-core/src/compact/screen.rs) -----

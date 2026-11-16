@@ -810,3 +810,28 @@ fn the_small_home_offers_backups_once_a_wallet_is_known() {
     small(&mut app);
     assert!(app.offers(Action::Nav(Screen::Backups)));
 }
+
+/// The Pi's Home names the wallet that is loaded, in the status strip
+/// under its name.
+#[test]
+fn the_pi_s_home_names_a_loaded_wallet() {
+    let mut app = with_a_wallet();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let name = app.session.wallets[0].name.to_string();
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        shown.iter().any(|t| t.contains(&name)),
+        "Home does not name {name}: {shown:?}"
+    );
+}
