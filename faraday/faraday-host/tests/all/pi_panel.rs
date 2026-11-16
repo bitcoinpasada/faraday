@@ -1,10 +1,12 @@
 //! The Pi's 2.8-inch panel, 268 × 358 dp: nothing on any page, step, tab
 //! or sheet is cut off at its sides or drawn over other text, in every
 //! mode, on the stick's Pi (480 × 640 pixels at 286 dpi) and in Faraday
-//! Demo's Pi preview (the app framed at the panel's size in the window).
+//! Demo's Pi preview (the app at the size the preview gives it).
 //! Every control and every line of text stands inside the panel and
 //! inside the card or sheet it is drawn in, at every place the page
-//! scrolls to; no line of text is drawn over another; no two touch
+//! scrolls to (the Tools word lists, thousands of rows each, through
+//! their first [`SCROLLS`] steps); no line of text is drawn over another
+//! (under a sheet, its own lines: the page there is a dimmed copy); no two touch
 //! targets of the bar across the top overlap; what runs past the foot of a
 //! page that scrolls, or past the sides of a view that pans sideways, is
 //! not counted (`docs/LAYOUT.md` §8).
@@ -24,6 +26,7 @@ use faraday_core::in_progress::Going;
 use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::spend_backup::SpendBackupAction as F;
+use faraday_core::strings::EN;
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
@@ -38,10 +41,33 @@ use faraday_ui::keyboard::OskPress;
 type DrawnText = (String, (i32, i32, i32, i32));
 
 /// The Pi panel's size in dp, as Faraday Demo's Size menu lists it.
-const PI: (u16, u16) = (268, 358);
+const PI: (u16, u16) = faraday_draw::tokens::PREVIEW_SIZES[0];
 
-/// The most presses a page's walk makes.
+/// The pixels per inch of the stick's panel and of the Demo's window; a
+/// dp is 1/160 inch.
+fn dpi(on: On) -> u16 {
+    match on {
+        On::Stick => 286,
+        On::Preview => 160,
+    }
+}
+
+/// The most presses a page's walk makes; a page offering more fails.
 const PRESSES: usize = 60;
+
+/// The most scroll steps a page is checked through; a page that scrolls
+/// further fails.
+const SCROLLS: usize = 80;
+
+/// The Tools pages long by design: the word lists, thousands of rows
+/// each. Their walk checks the first [`SCROLLS`] steps and stops there
+/// without failing; any other page still scrolling then fails.
+const WORD_LISTS: [&str; 4] = [
+    EN.catalog_bip_39_words,
+    EN.catalog_eff_large_list,
+    EN.catalog_eff_short_list_1,
+    EN.catalog_eff_short_list_2,
+];
 
 /// Where the panel is.
 #[derive(Clone, Copy, Debug)]
@@ -69,6 +95,9 @@ struct Rig {
     w: u16,
     h: u16,
     label: String,
+    /// Whether the page on show is one of the [`WORD_LISTS`], checked
+    /// through its first [`SCROLLS`] steps only.
+    long: bool,
 }
 
 impl std::ops::Deref for Rig {
@@ -112,7 +141,7 @@ fn rig(on: On, mode: Mode, inbox: Vec<(String, Vec<u8>)>) -> Rig {
     }
     let host = match on {
         On::Stick => {
-            app.event(display(480, 640, 286));
+            app.event(display(480, 640, dpi(on)));
             Host::bare(app)
         }
         On::Preview => {
@@ -123,7 +152,7 @@ fn rig(on: On, mode: Mode, inbox: Vec<(String, Vec<u8>)>) -> Rig {
                 app.samples = Some(testkit::demo_samples());
             }
             let mut host = Host::new(app);
-            host.event(display(1280, 800, 160));
+            host.event(display(1280, 800, dpi(on)));
             host.set_preview(Some(PI));
             host
         }
@@ -134,6 +163,7 @@ fn rig(on: On, mode: Mode, inbox: Vec<(String, Vec<u8>)>) -> Rig {
         w: 0,
         h: 0,
         label: format!("{on:?} {mode:?}"),
+        long: false,
     };
     rig.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(inbox),
@@ -145,10 +175,7 @@ fn rig(on: On, mode: Mode, inbox: Vec<(String, Vec<u8>)>) -> Rig {
     rig.press(Action::Nav(Screen::Home));
     let _ = rig.frame();
     let (w, h) = rig.size();
-    let f = match on {
-        On::Stick => 286.0 / 160.0,
-        On::Preview => 1.0,
-    };
+    let f = f32::from(dpi(on)) / 160.0;
     rig.w = (w * f).round() as u16;
     rig.h = (h * f).round() as u16;
     rig
@@ -329,12 +356,20 @@ fn check(rig: &mut Rig, what: &str) -> (Vec<String>, Vec<Action>) {
     let mut found: Vec<String> = Vec::new();
     let mut offered: Vec<Action> = Vec::new();
     let mut last = None;
-    for _ in 0..80 {
+    // Under a sheet the page is drawn once, then stands as its dimmed
+    // copy: a frame drawn first leaves only the sheet's own lines to
+    // check, as a person sees them over that copy (the page is checked
+    // on its own).
+    if rig.sheet.is_some() {
+        let _ = rig.drawn_past_sides_and_text();
+    }
+    let mut at_foot = false;
+    for _ in 0..SCROLLS {
         let (past, texts) = rig.drawn_past_sides_and_text().plain();
         let mut lines = past;
+        let toast = rig.toast_text().map(str::to_string);
+        lines.extend(drawn_over(&texts, toast.as_deref()));
         if rig.sheet.is_none() {
-            let toast = rig.toast_text().map(str::to_string);
-            lines.extend(drawn_over(&texts, toast.as_deref()));
             lines.extend(head_row_overlaps(rig));
         }
         for p in lines {
@@ -349,13 +384,25 @@ fn check(rig: &mut Rig, what: &str) -> (Vec<String>, Vec<Action>) {
             }
         }
         if last.as_ref() == Some(&texts) {
+            at_foot = true;
             break;
         }
         last = Some(texts);
         rig.event(Event::Scroll { x, y, dy });
         rig.settle();
+        if rig.sheet.is_some() {
+            // A frame to come to rest in (a typed field kept above the
+            // keyboard): the one read next is drawn once over the copy.
+            let _ = rig.drawn_past_sides_and_text();
+            rig.settle();
+        }
     }
-    for _ in 0..80 {
+    if !at_foot && !rig.long {
+        found.push(format!(
+            "{what}: the page still scrolls after {SCROLLS} steps"
+        ));
+    }
+    for _ in 0..SCROLLS {
         rig.event(Event::Scroll { x, y, dy: -dy });
     }
     rig.settle();
@@ -388,12 +435,14 @@ fn look(rig: &mut Rig, what: &str) -> Vec<String> {
 fn walk_through(rig: &mut Rig, what: &str, part: fn(&Action) -> bool) -> Vec<String> {
     let (mut found, mut offered) = check(rig, what);
     let mut pressed: Vec<Action> = Vec::new();
+    let mut done = false;
     for _ in 0..PRESSES {
         let Some(a) = offered
             .iter()
             .copied()
             .find(|a| part(a) && !pressed.contains(a))
         else {
+            done = true;
             break;
         };
         pressed.push(a);
@@ -406,6 +455,9 @@ fn walk_through(rig: &mut Rig, what: &str, part: fn(&Action) -> bool) -> Vec<Str
                 offered.push(a);
             }
         }
+    }
+    if !done && offered.iter().any(|a| part(a) && !pressed.contains(a)) {
+        found.push(format!("{what}: more than {PRESSES} parts to press"));
     }
     found
 }
@@ -894,7 +946,9 @@ fn tools(rig: &mut Rig) -> Vec<String> {
         rig.press(Action::Nav(Screen::Tools));
         rig.press(Action::Catalog(i as u8));
         rig.settle();
+        rig.long = WORD_LISTS.contains(&t.name);
         found.extend(walk(rig, &format!("Tools, {}", t.name)));
+        rig.long = false;
         leave(rig);
     }
     found
@@ -1006,7 +1060,10 @@ macro_rules! panel_tests {
 }
 
 panel_tests!(on_the_stick_on_mainnet, On::Stick, Mode::Mainnet);
+panel_tests!(on_the_stick_on_testnet, On::Stick, Mode::Testnet);
 panel_tests!(on_the_stick_in_practice, On::Stick, Mode::Practice);
+panel_tests!(in_the_demo_preview_on_mainnet, On::Preview, Mode::Mainnet);
+panel_tests!(in_the_demo_preview_on_testnet, On::Preview, Mode::Testnet);
 panel_tests!(in_the_demo_preview_in_practice, On::Preview, Mode::Practice);
 
 #[test]

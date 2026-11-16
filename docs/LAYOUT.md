@@ -425,8 +425,9 @@ at 1280 lays out a class down, at 914 × 571 dp, with the rail. On the Pi's 480 
 every screen (empty, with a wallet and its keys, online and in Practice),
 the stateless sheets, the scanners, every step of a spend and the
 sample spend draw no control and no text past a side of the panel or
-of the card or sheet it is in, at every place the page scrolls to
-(`faraday-core` `pi_panel`, `faraday-samples` `pi_panel`).
+of the card or sheet it is in, at every place the page scrolls to (the
+Tools word lists, thousands of rows each, through their first 80
+steps) (`faraday-host` `pi_panel`, `faraday-samples` `pi_panel`).
 
 Built (L7): `navigation`, `window_class`, `home` and `list_detail` in
 `faraday-core`'s tests hold each of these; a short row of Home's tiles
