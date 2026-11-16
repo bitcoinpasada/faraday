@@ -197,3 +197,22 @@ fn both_wallets_of_one_load_are_added_by_two_holds() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 2);
 }
+
+#[test]
+fn a_load_all_adds_the_single_key_wallet_at_once_and_asks_about_the_rest() {
+    let single = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'"));
+    let mut app = with_files(vec![
+        ("one-wallet.txt", single),
+        ("a-wallet.txt", multisig(0).descriptor),
+        ("b-wallet.txt", multisig(1).descriptor),
+    ]);
+    app.press(Action::InboxLoad);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    assert!(screen(&mut app).contains("1 of 2"));
+    app.press(Action::WalletHold);
+    assert!(screen(&mut app).contains("2 of 2"));
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 3);
+}

@@ -656,6 +656,8 @@ fn take(app: &mut Faraday, pair: usize) {
             app.screen = Screen::Wallets;
             app.refresh_spend();
         }
+        // Held for its sheet: its hold runs this again and opens Wallets.
+        Err(crate::wallet::Refusal::Unconfirmed) => {}
         Err(e) => app.toast(&e.text()),
     }
 }

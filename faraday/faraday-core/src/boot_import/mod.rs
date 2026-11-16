@@ -1124,6 +1124,7 @@ impl Faraday {
             }
         }
         let (keys_before, wallets_before) = (self.session.keys.len(), self.session.wallets.len());
+        let waiting_before = self.session.wallets_waiting();
         if let Some(imp) = self.import.state.as_mut() {
             imp.wallets_before = wallets_before;
         }
@@ -1146,7 +1147,13 @@ impl Faraday {
         self.refresh_spend();
         self.wallets.set_wallet(0);
         let keys = self.session.keys.len() - keys_before;
-        let wallets = self.session.wallets.len() - wallets_before;
+        // A wallet held for its sheet is brought in with the rest: its
+        // sheet follows.
+        let wallets = self.session.wallets.len() - wallets_before
+            + self
+                .session
+                .wallets_waiting()
+                .saturating_sub(waiting_before);
         self.import_toast(
             wallets,
             keys,

@@ -579,6 +579,7 @@ pub fn replays(action: Action) -> bool {
             | Action::Seeds(crate::seeds::SeedsAction::Make)
             | Action::CNext(crate::cstep::KEYS)
             | Action::SpendBackup(F::UseWallet(_) | F::Rebuild | F::GuessWay(_))
+            | Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::Take(_))
     )
 }
 
@@ -615,6 +616,9 @@ pub struct Session {
     /// waits: the one just pushed, or the one already waiting for the
     /// same descriptor.
     wallet_asked_last: usize,
+    /// The sheet the confirmation sheet opened over, put back once no
+    /// wallet waits ([`Faraday::confirm_act`]).
+    wallet_covered: Option<crate::Sheet>,
     /// The descriptors of the wallets the person confirmed in this
     /// session, which [`Session::add_policy`] adds without asking again.
     wallet_confirmed: Vec<Text>,
@@ -674,6 +678,7 @@ impl Default for Session {
             wallet_asked: std::collections::VecDeque::new(),
             wallet_asked_past: 0,
             wallet_asked_last: 0,
+            wallet_covered: None,
             wallet_confirmed: Vec::new(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
@@ -749,6 +754,7 @@ impl Session {
             wallet_asked: std::collections::VecDeque::new(),
             wallet_asked_past: 0,
             wallet_asked_last: 0,
+            wallet_covered: None,
             wallet_confirmed: Vec::new(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
@@ -1076,6 +1082,23 @@ impl Session {
         self.wallet_asked.front()
     }
 
+    /// Notes the sheet the confirmation sheet opens over.
+    pub(crate) fn wallet_cover(&mut self, sheet: Option<crate::Sheet>) {
+        if self.wallet_covered.is_none() {
+            self.wallet_covered = sheet;
+        }
+    }
+
+    /// The sheet the confirmation sheet covered, taken.
+    pub(crate) fn wallet_uncover(&mut self) -> Option<crate::Sheet> {
+        self.wallet_covered.take()
+    }
+
+    /// How many wallets wait for their sheet.
+    pub(crate) fn wallets_waiting(&self) -> usize {
+        self.wallet_asked.len()
+    }
+
     /// Which wallet of the run now waiting the next sheet is, from 1, and
     /// how many there are: "{i} of {n}".
     pub fn wallet_asked_place(&self) -> (usize, usize) {
@@ -1178,6 +1201,7 @@ impl Session {
         self.wallet_asked.clear();
         self.wallet_asked_past = 0;
         self.wallet_asked_last = 0;
+        self.wallet_covered = None;
         self.wallet_confirmed.clear();
         self.key_xpubs.borrow_mut().clear();
     }
@@ -3866,6 +3890,7 @@ impl Faraday {
     /// wallet waits to be confirmed (F254). Whether it opened.
     pub(crate) fn wallet_sheet_open(&mut self) -> bool {
         if self.session.wallet_asked().is_some() && self.sheet != Some(Sheet::WalletConfirm) {
+            self.session.wallet_cover(self.sheet);
             self.sheet = Some(Sheet::WalletConfirm);
             return true;
         }
@@ -3882,17 +3907,22 @@ impl Faraday {
             Action::WalletCancel => self.session.wallet_drop(),
             _ => {}
         }
-        if !self.wallet_sheet_open()
-            && self.screen == Screen::SpendBackup
-            && self
-                .camera
-                .scan()
-                .is_some_and(|s| s.purpose == crate::qr_view::ScanPurpose::Intake)
-        {
-            // The intake scanner the sheet covered is still on.
-            self.sheet = Some(Sheet::Scan);
-        } else if self.sheet.is_none() && self.import.state().is_some() {
-            // The import's passphrase sheet the sheet covered is still asked.
+        if self.wallet_sheet_open() {
+            return;
+        }
+        // The sheet the confirmation sheet covered comes back, where what
+        // it asked is still asked: the scanner while the camera is on, the
+        // import's passphrase sheet while it is.
+        let covered = self.session.wallet_uncover();
+        if self.sheet.is_none() {
+            self.sheet = match covered {
+                Some(Sheet::Scan) if self.camera.scan().is_none() => None,
+                Some(Sheet::Import) if self.import.state().is_none() => None,
+                Some(Sheet::Pull) => None,
+                other => other,
+            };
+        }
+        if self.sheet.is_none() && self.import.state().is_some() {
             self.sheet = Some(Sheet::Import);
         }
     }
@@ -4259,6 +4289,8 @@ impl Faraday {
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
             }
+            // Held for its sheet: its hold runs this again.
+            Err(Refusal::Unconfirmed) => {}
             Err(e) => self.toast(&e.text()),
         }
     }

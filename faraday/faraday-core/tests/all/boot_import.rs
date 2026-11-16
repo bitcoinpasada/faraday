@@ -795,6 +795,40 @@ fn with_only_the_settings_file_no_sheet_comes_up() {
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
 }
 
+fn two_wallet_files() -> Vec<(String, Vec<u8>)> {
+    testkit::files()
+        .unwrap()
+        .into_iter()
+        .filter(|(n, _)| n == "savings-wallet.txt" || n == "spending-wallet.txt")
+        .collect()
+}
+
+#[test]
+fn the_imports_multisig_wallet_is_asked_and_home_is_back_after_the_hold() {
+    let mut app = imported_with(&two_wallet_files());
+    // A wallet that came in by an event asks on the next tick.
+    app.event(Event::Tick { now_ms: 2000 });
+    // Spending is one key and loads at once; Savings asks.
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert_eq!(app.session.wallets.len(), 1);
+    app.press(Action::WalletHold);
+    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
+    assert!(app.import().is_none());
+    assert_eq!(app.session.wallets.len(), 2);
+}
+
+#[test]
+fn cancelling_the_imports_multisig_wallet_adds_it_not_and_comes_back_to_home() {
+    let mut app = imported_with(&two_wallet_files());
+    app.event(Event::Tick { now_ms: 2000 });
+    app.press(Action::WalletCancel);
+    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
+    assert!(app.import().is_none());
+    // Only the one-key wallet, which asked nothing.
+    assert_eq!(app.session.wallets.len(), 1);
+    assert!(app.session.wallets.iter().all(|w| w.name != "Savings"));
+}
+
 #[test]
 fn wallet_files_with_no_key_here_still_load_as_wallets() {
     let kit = testkit::files().unwrap();

@@ -758,6 +758,8 @@ impl Faraday {
                 self.refresh_spend();
                 self.toast(&Text::fill(EN.wallet_confirm_added, &[&name]));
             }
+            // Held for its sheet, which opens next.
+            Err(crate::wallet::Refusal::Unconfirmed) => {}
             Err(e) => self.toast(&e.text()),
         }
     }

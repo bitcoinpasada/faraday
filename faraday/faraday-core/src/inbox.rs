@@ -1177,7 +1177,8 @@ impl Faraday {
     /// descriptor), each with the seeds among `items` that are its keys,
     /// and the seeds `also` names whether a wallet chosen uses them or
     /// not. Seeds load only with no stick attached. Returns (wallets,
-    /// seeds) loaded.
+    /// seeds) loaded; a wallet held back for its confirmation sheet
+    /// (F254) counts as loaded, and is not dropped: its sheet follows.
     pub(crate) fn load_found_in(
         &mut self,
         items: &[Item],
@@ -1236,6 +1237,9 @@ impl Faraday {
                 .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
             {
                 Ok(_) => wallets += 1,
+                // Held for its own sheet: counted with the loaded, for it
+                // is brought in once its hold adds it.
+                Err(crate::wallet::Refusal::Unconfirmed) => wallets += 1,
                 Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
                     self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
@@ -1275,6 +1279,8 @@ impl Faraday {
                 .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
             {
                 Ok(_) => n += 1,
+                // Held for its own sheet: counted, as in `load_found_in`.
+                Err(crate::wallet::Refusal::Unconfirmed) => n += 1,
                 Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
                     self.toast(&Text::fill(EN.vaults_refused, &[&name, &e.text()]));
                 }
