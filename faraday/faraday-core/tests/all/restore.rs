@@ -385,7 +385,12 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     type_text(&mut app, &testkit::key(2, MULTI_PATH));
     app.event(Event::Key(Key::Enter));
     app.press(Action::Seeds(S::Make));
-    faraday_core::testkit::confirm_wallets(&mut app);
+    // The cosigner's xpub is no loaded key's own: the wallet waits for its
+    // sheet, and Restore goes on from it once held.
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert_eq!(app.restore().unwrap().wallet, None);
+    assert_eq!(app.restore().unwrap().error, None);
+    app.press(Action::WalletHold);
     let w = made(&app);
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
     assert!(
@@ -817,6 +822,21 @@ fn a_wallet_restored_from_a_vault_named_vault_goes_the_vault_route() {
     use faraday_core::spend_backup::Route;
     let app = restored_from_vault_named("Vault");
     assert_eq!(app.spend_backup().route, Some(Route::Vault));
+}
+
+/// The person's own record in an open vault is restored with no sheet.
+#[test]
+fn a_wallet_restored_from_a_vault_asks_for_no_sheet() {
+    let app = restored_from_vault_named("Vault");
+    assert_ne!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallet_asked().is_none());
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .find(|w| w.name == "Spending")
+        .expect("the wallet was restored");
+    assert_eq!(w.origin, faraday_core::wallet::Origin::Vault);
 }
 
 /// A seed whose fingerprint a description names, but whose key at that

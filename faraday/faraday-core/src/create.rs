@@ -2374,6 +2374,13 @@ impl Faraday {
                     self.wallet_flow_attach(i, owner);
                 }
             }
+            // Held for its sheet: the hold runs Keys' Continue again, which
+            // makes the wallet and opens Check.
+            Err(wallet::Refusal::Unconfirmed) => {
+                if let Some(c) = self.create.state.as_mut() {
+                    c.error = None;
+                }
+            }
             Err(e) => {
                 if let Some(c) = self.create.state.as_mut() {
                     c.error = Some(e.text());

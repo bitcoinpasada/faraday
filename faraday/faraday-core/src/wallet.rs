@@ -3927,6 +3927,11 @@ impl Faraday {
         {
             Ok(i) if ask.restore && self.restore.state().is_some() => {
                 self.restore_added(i, ask.origin);
+                if ask.origin == Origin::TypedSeeds {
+                    // Made from the typed seeds, as Make would have.
+                    self.restore.made_from_seeds();
+                    self.refresh_spend();
+                }
             }
             Ok(i) => {
                 let name = self.session.wallets[i].name.clone();

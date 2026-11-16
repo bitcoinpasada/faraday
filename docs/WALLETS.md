@@ -344,7 +344,12 @@ it — Wallets, Home, or a Tools tile with its kind already ticked
 (2026-10-10, `docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for
 this flow only); Kind's Continue closes it as done and opens the next
 card. Keys' Continue makes the wallet and opens Check; there is no card
-of its own for the descriptor. Keys that would offer one way on only
+of its own for the descriptor. A wallet with a cosigner's key no loaded
+key gives is made once its confirmation sheet is held (F254): Continue
+goes on from the hold as it would have with no sheet, and Cancel leaves
+Keys open with no wallet. Restore's Make from typed seeds and its
+description work the same, and a vault's wallet restored from the open
+vault takes no sheet. Keys that would offer one way on only
 (a single key with nothing to choose from; F115, F240) is
 passed over: the card before it opens that key flow for slot 1, and the
 key flow's Cancel returns to the card before Keys (`docs/FLOWS.md`,

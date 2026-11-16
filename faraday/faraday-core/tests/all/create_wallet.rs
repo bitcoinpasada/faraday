@@ -259,7 +259,10 @@ fn checks_address_rows_are_named_the_wallets_first_addresses() {
 
 /// A 2-of-3 multisig, Create opened on Kind and advanced to Keys.
 fn multisig_on_keys() -> Faraday {
-    let mut app = testkit::started();
+    multisig_on_keys_in(testkit::started())
+}
+
+fn multisig_on_keys_in(mut app: Faraday) -> Faraday {
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
     app.press(Action::CreateWallet);
@@ -1294,4 +1297,48 @@ fn check_names_what_it_matches_compares() {
         "the addresses are compared against the wallet software: {texts:?}"
     );
     assert!(texts.iter().any(|t| t == "It matches"), "{texts:?}");
+}
+
+/// A two of three with two keys loaded here and the third a cosigner's
+/// account key from a file: the wallet is held for its sheet, and the
+/// hold makes it and opens Check, as Continue does with no sheet.
+fn two_here_and_a_cosigner() -> Faraday {
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    let mut app = multisig_on_keys_in(app);
+    app.press(Action::CSlotHere(0, app.session.keys[0].fingerprint.0));
+    app.press(Action::CSlotHere(1, app.session.keys[1].fingerprint.0));
+    let xpub = testkit::key(2, "m/48'/1'/0'/2'");
+    testkit::inbox_file(&mut app, "cosigner.txt", xpub.into_bytes());
+    app.press(Action::CSlotFile(2, 0));
+    assert_eq!(app.create().unwrap().error, None);
+    app.press(Action::CNext(cstep::KEYS));
+    app
+}
+
+#[test]
+fn a_cosigners_key_in_the_wallet_asks_for_the_sheet_then_the_hold_builds_it() {
+    let mut app = two_here_and_a_cosigner();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    let c = app.create().unwrap();
+    assert!(c.built.is_none(), "no wallet before the hold");
+    assert!(c.error.is_none(), "no reason is shown beside the sheet");
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 1);
+    let c = app.create().unwrap();
+    assert_eq!(c.built, Some(0));
+    assert_eq!(c.open, Some(cstep::CHECK));
+}
+
+#[test]
+fn cancelling_the_sheet_leaves_create_on_keys_with_no_wallet() {
+    let mut app = two_here_and_a_cosigner();
+    app.press(Action::WalletCancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.is_empty());
+    let c = app.create().unwrap();
+    assert!(c.built.is_none());
+    assert_eq!(c.open, Some(cstep::KEYS));
 }

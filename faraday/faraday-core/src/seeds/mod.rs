@@ -829,6 +829,8 @@ impl Faraday {
                         self.spend_backup_opened();
                         self.spend_backup_settle();
                     }
+                    // Held for its sheet: the hold runs Make again.
+                    Err(crate::wallet::Refusal::Unconfirmed) => {}
                     Err(e) => self.spend_backup.set_seeds_error(e.text()),
                 }
             }
