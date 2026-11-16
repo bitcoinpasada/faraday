@@ -441,3 +441,45 @@ fn keys_typed_with_the_result_closed_reach_nothing_and_the_seed_is_gone() {
         assert!(app.session.keys.all().next().is_none());
     }
 }
+
+#[test]
+fn add_this_wallet_asks_the_sheet_and_the_hold_loads_it_here() {
+    let mut app = scanned(&kit("savings"));
+    assert!(has_part(&mut app, "Add this wallet"));
+    app.press(Action::MultisigCheck(M::Add));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.screen, Screen::MultisigCheck);
+    let name = app.session.wallets[0].name.to_string();
+    assert!(has_part(&mut app, &format!("Loaded here as {name}")));
+    assert!(!has_part(&mut app, "Add this wallet"));
+}
+
+#[test]
+fn cancelling_the_sheet_adds_nothing_and_the_page_still_offers_it() {
+    let mut app = scanned(&kit("savings"));
+    app.press(Action::MultisigCheck(M::Add));
+    app.press(Action::WalletCancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.is_empty());
+    assert!(has_part(&mut app, "Add this wallet"));
+}
+
+#[test]
+fn a_wallet_already_loaded_reads_loaded_at_once() {
+    let mut app = scanned(&kit("savings"));
+    app.press(Action::MultisigCheck(M::Add));
+    app.press(Action::WalletHold);
+    app.press(Action::MultisigCheck(M::Another));
+    app.press(Action::MultisigCheck(M::Scan));
+    app.event(Event::Scanned {
+        bytes: kit("savings").into_bytes(),
+    });
+    let _ = app.frame();
+    assert!(has_part(&mut app, "Loaded here as"));
+    assert!(!has_part(&mut app, "Add this wallet"));
+    assert_eq!(app.session.wallets.len(), 1);
+}

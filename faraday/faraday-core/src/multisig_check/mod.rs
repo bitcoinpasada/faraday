@@ -51,6 +51,10 @@ pub enum MsAction {
     /// The Result's **Check a seed against it**: the Seed and Passphrase
     /// steps of My seed makes my wallet open under the rows.
     CheckSeed,
+    /// The Result's **Add this wallet**: the wallet read goes through the
+    /// confirmation sheet like any wallet of several keys (F254), then
+    /// the page says it is loaded here.
+    Add,
 }
 
 /// What the seed given to Check a seed against it is to the setup.
@@ -79,6 +83,8 @@ pub(crate) struct Shown {
     pub(crate) ways: Vec<Text>,
     pub(crate) ways_too_many: bool,
     pub(crate) first: Option<Text>,
+    /// The name this wallet is loaded under here, if it is.
+    pub(crate) loaded: Option<Text>,
 }
 
 /// The check's state.
@@ -311,6 +317,12 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         .address_at(c, network, false, 0)
         .ok()
         .map(|a| Text::of(&a.to_string()));
+    let same = crate::wallet::same_wallet(&policy);
+    let loaded = session
+        .wallets
+        .iter()
+        .find(|w| crate::wallet::same_wallet(w.policy()) == same)
+        .map(|w| Text::of(&w.name));
     Shown {
         policy,
         rows,
@@ -318,6 +330,7 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         ways,
         ways_too_many,
         first,
+        loaded,
     }
 }
 
@@ -443,6 +456,7 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
                 s.scroll.follow = true;
             }
         }
+        MsAction::Add => add(app),
         MsAction::CheckSeed => {
             crate::seed_check::open_for_check(app);
             if let Some(s) = st(app) {
@@ -450,6 +464,37 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
                 s.scroll.follow = true;
             }
         }
+    }
+}
+
+/// Costs what `Session::add_policy` costs. **Add this wallet**: the
+/// wallet read is added through the gate, so a wallet of several keys
+/// waits for its sheet, and the press runs again once the hold confirms
+/// it; a wallet already loaded, or all of whose keys are loaded keys,
+/// reads as loaded at once.
+fn add(app: &mut Faraday) {
+    let Some((policy, source)) = state(app).and_then(|s| {
+        let shown = s.shown.as_ref()?;
+        Some((shown.policy.clone(), s.source.clone()?))
+    }) else {
+        return;
+    };
+    let c = app.compute();
+    let name = crate::register::name_of_file(&source);
+    match app
+        .session
+        .add_policy(&c, &name, policy, &source, Origin::Named)
+    {
+        Ok(i) => {
+            let name = Text::of(&app.session.wallets[i].name);
+            app.wallets.set_wallet(i);
+            app.refresh_spend();
+            if let Some(shown) = st(app).and_then(|s| s.shown.as_mut()) {
+                shown.loaded = Some(name);
+            }
+        }
+        Err(crate::wallet::Refusal::Unconfirmed) => {}
+        Err(e) => app.toast(&e.text()),
     }
 }
 

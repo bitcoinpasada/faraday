@@ -169,6 +169,25 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     };
     let mut cy = rows(r, s.seed.as_ref(), ui, (x, y, w));
     cy += GAP;
+    if let Some(name) = &r.loaded {
+        cy += ui.wrap_as(
+            (x, y + cy, w),
+            BODY_M,
+            Role::Ok,
+            &Text::fill(EN.mscheck_loaded_as, &[name]),
+        ) + GAP;
+    } else {
+        ui.button(
+            x,
+            y + cy,
+            None,
+            BUTTON_H,
+            EN.mscheck_add,
+            Style::Secondary,
+            Action::MultisigCheck(M::Add),
+        );
+        cy += BUTTON_H + GAP;
+    }
     ui.button(
         x,
         y + cy,

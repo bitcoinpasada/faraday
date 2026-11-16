@@ -568,6 +568,10 @@ macro_rules! words_sweep {
     mscheck_first_receive: "First receive address",
     /// Check a multisig setup: no file of Files reads as a wallet.
     mscheck_none_in_files: "No wallet in Files",
+    /// Check a multisig setup: the Result's button that adds the wallet.
+    mscheck_add: "Add this wallet",
+    /// Check a multisig setup: the Result's line once the wallet is loaded.
+    mscheck_loaded_as: "Loaded here as {}",
     /// Check a multisig setup: the Result's text button.
     mscheck_another: "Another setup",
     /// Check a multisig setup: the Result's text button, which opens the

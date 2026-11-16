@@ -580,6 +580,7 @@ pub fn replays(action: Action) -> bool {
             | Action::CNext(crate::cstep::KEYS)
             | Action::SpendBackup(F::UseWallet(_) | F::Rebuild | F::GuessWay(_))
             | Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::Take(_))
+            | Action::MultisigCheck(crate::multisig_check::MsAction::Add)
     )
 }
 

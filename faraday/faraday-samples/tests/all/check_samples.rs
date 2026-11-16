@@ -81,3 +81,17 @@ fn in_practice_the_xpub_calculator_offers_a_sample_that_it_reads() {
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t.contains("pub")), "{texts:?}");
 }
+
+#[test]
+fn in_practice_the_sample_setup_is_added_only_through_the_sheet() {
+    let mut app = demo_app();
+    app.press(Action::MultisigCheck(MsAction::Open));
+    app.press(Action::UseSample);
+    let _ = app.frame();
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::MultisigCheck(MsAction::Add));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::WalletHold);
+    assert_eq!(app.session.wallets.len(), 1);
+}
