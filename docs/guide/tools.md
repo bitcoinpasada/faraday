@@ -5,7 +5,7 @@
 **Screen:** `Tools`
 **Key:** tools
 
-Six calculators on one page: each takes what is typed, works one thing out and keeps nothing. An extended private key is refused, and **Clear** empties the field.
+Tools holds six calculators on one page: each takes what you type, works one thing out and keeps nothing. An extended private key is refused, and **Clear** empties the field.
 
 ## Hashes
 
@@ -35,10 +35,10 @@ Six calculators on one page: each takes what is typed, works one thing out and k
 
 **Key:** tools.units
 
-**Units** gives one amount in sat, BTC, mBTC and bits. The unit the amount is typed in is chosen in the row above the field.
+**Units** gives one amount in sat, BTC, mBTC and bits. Choose the unit you are typing in from the row above the field.
 
 ## Miniscript compiler
 
 **Key:** tools.miniscript
 
-**Miniscript compiler** turns a policy into a descriptor under wsh or tr, the choice in the row above. It gives the **Descriptor**, the **Spend paths** count and whether it is a **Wallet** this device loads, or why it is refused. A key may be named by the fingerprint of a loaded key, which stands for that key's account key.
+**Miniscript compiler** turns a policy into a descriptor under wsh or tr, chosen in the row above. It gives the **Descriptor**, the **Spend paths** count and whether it is a **Wallet** this device loads, or why it is refused. A key may be named by the fingerprint of a loaded key, which stands for that key's account key.
