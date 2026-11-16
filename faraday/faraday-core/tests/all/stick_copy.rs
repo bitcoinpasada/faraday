@@ -906,3 +906,93 @@ fn screen(app: &mut Faraday) -> String {
 fn squeezed(s: &str) -> String {
     s.split_whitespace().collect()
 }
+
+#[test]
+fn a_file_whose_read_a_backup_flow_took_is_copied_when_copy_is_pressed_again() {
+    use crate::common::{Disk, keep_time, process, start};
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    use faraday_core::backup_flow::{Kind, Step};
+    let vault = crate::common::vault("Main", "first vault phrase", 0x44);
+    let mut disk = Disk::empty("S1", "KEYSTICK");
+    disk.files = vec![("main.kdbx".into(), vault.clone())];
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    start(&mut app, Kind::Gpg);
+    app.press(Action::Flow(F::Continue));
+    assert_eq!(app.flow().expect("a flow").step, Step::Sticks);
+    app.storage(StorageEvent::Sticks(vec![disk.info()]));
+    // The flow asks for the vault file, and Copy asks for it too.
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    let mut asked = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            asked.push((stick, name));
+        }
+    }
+    assert!(!asked.is_empty(), "nothing was read");
+    // One answer comes, and the flow takes it.
+    let (stick, name) = asked[0].clone();
+    app.storage(StorageEvent::Read {
+        stick,
+        name,
+        bytes: vault.clone().into(),
+    });
+    while app.poll_storage().is_some() {}
+    // Copy pressed again asks for the file again, and the answer comes in.
+    app.press(Action::VisitCopy);
+    let mut again = false;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            again = true;
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: vault.clone().into(),
+            });
+        }
+    }
+    assert!(
+        again,
+        "Copy skipped the file the flow had read: {asked:?} {:?} {:?}",
+        app.visit().inn,
+        app.screen
+    );
+    assert!(
+        app.inbox().iter().any(|i| i.name == "main.kdbx"),
+        "the file did not come in"
+    );
+}
+
+#[test]
+fn the_visit_redraws_after_a_seedqr_picture_is_left_out_of_a_copy() {
+    use faraday_shell_api::Command;
+    let mut app = testkit::started();
+    let qr = kit_ending("-seedqr.png");
+    let photo = ("photo.png".to_string(), qr.1);
+    let a = Stick::new("a", std::slice::from_ref(&photo));
+    attach(&mut app, &[&a]);
+    app.press(Action::VisitCopy);
+    // The picture is read; the answer is the last event.
+    let mut answers = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::ReadQr { name, .. } = c {
+            let bytes = a.files[&*name].clone();
+            let codes = faraday_files::qr_in_png(&testkit::compute(), &bytes)
+                .unwrap_or_default()
+                .to_vec();
+            answers.push(StorageEvent::QrRead {
+                name,
+                bytes: bytes.into(),
+                payloads: codes.into(),
+            });
+        }
+    }
+    while app.poll_command().is_some() {}
+    for e in answers {
+        app.storage(e);
+    }
+    let drew = std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::Draw);
+    assert!(app.inbox().is_empty(), "the SeedQR came in unasked");
+    assert!(drew, "the visit was not drawn again");
+}

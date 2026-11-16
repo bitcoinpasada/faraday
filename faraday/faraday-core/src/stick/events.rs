@@ -17,6 +17,15 @@ use std::collections::BTreeSet;
 
 pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
     let c = app.compute();
+    // A read's answer ends its being asked for, whichever handler takes it:
+    // a flow's or the import's answer leaves the name free for Copy to ask
+    // again.
+    if let StorageEvent::Read { name, .. }
+    | StorageEvent::QrRead { name, .. }
+    | StorageEvent::ReadFailed { name, .. } = &event
+    {
+        app.visit.reading_done(name);
+    }
     let event = match app.settings_event(event).and_then(|e| app.import_event(e)) {
         Some(e) => e,
         None => {
