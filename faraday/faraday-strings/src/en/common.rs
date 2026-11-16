@@ -643,6 +643,8 @@ macro_rules! words_common {
     chart_edit_checked: "Checked today",
     /// Toast in `chart_checked`.
     chart_edit_not_current: "This is not the current copy. Open the current copy to mark it checked.",
+    /// Toast in `chart_notes_change`.
+    chart_edit_keys_order: "The plan cannot be changed with the keys in this order.",
     /// Text in `envelopes_out`. `{}`: `v + 1`.
     chart_edit_vault_stick: "Vault {} stick",
     // ----- codes (faraday-core/src/codes/mod.rs) -----

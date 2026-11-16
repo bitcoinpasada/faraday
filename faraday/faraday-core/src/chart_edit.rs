@@ -155,7 +155,8 @@ impl Faraday {
 
     /// Changes the notes kept for the chart's wallet with `change`, in the
     /// vault that keeps its plan; a plan kept in no open vault yet is
-    /// saved into the current one first. False with no vault open.
+    /// saved into the current one first. False with no vault open, and
+    /// with a toast when every record kept reads only for another key order.
     pub(crate) fn chart_notes_change(
         &mut self,
         press: Press,
@@ -228,8 +229,10 @@ impl Faraday {
             })
             .collect();
         let each: Vec<(usize, &[&[u8]])> = kept.iter().map(|(i, v)| (*i, v.as_slice())).collect();
-        // No record reads for this wallet: nothing is saved.
+        // No record reads for this wallet: nothing is saved, and the
+        // toast says why.
         if each.is_empty() {
+            self.toast(EN.chart_edit_keys_order);
             return false;
         }
         if let Err(why) = self.vaults.edit(id, |s| {

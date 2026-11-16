@@ -2028,6 +2028,69 @@ fn a_note_saved_from_the_other_key_orders_chart_leaves_the_shares_plans_notes_as
 }
 
 #[test]
+fn a_mark_pressed_on_a_chart_whose_plan_is_kept_only_for_the_other_key_order_says_so() {
+    use crate::chart_edit::node_of;
+    use crate::common::RecordsOf;
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::ChartAction as C;
+    use faraday_core::plan::Mark;
+    use faraday_core::testkit;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let notes = [Note::Marked(At::Place(0), What::Share(0), Mark::Lost)];
+    let (mut app, id) = shares_plan_kept(&[0, 1], &x, &y, &notes);
+    let kept = |app: &Faraday| -> Vec<Vec<u8>> {
+        let all = app.vaults().store().contents_for_tests(id);
+        all.of(kind::PLAN)
+            .flat_map(|(_, r)| {
+                faraday_keys::vault::RecordView::of(r)
+                    .public_all(field::PLAN_NOTE)
+                    .map(<[u8]>::to_vec)
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
+    let before = kept(&app);
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    // The plan the chart shows is the one an earlier backup of this wallet
+    // recorded (as a stick's backups record keeps it); the only plan the
+    // open vault keeps is for the other key order and does not read here.
+    let shape = app.plan_shape_now(w);
+    let answers = Answers::preset(&shape, Preset::Standard).to_text();
+    let packed = answers.trim_end().replace('\n', ";");
+    let sum = app.session.wallets[w].checksum().to_string();
+    testkit::restore_backups(
+        &mut app,
+        format!("backup\t{sum}\tPair\t0\nplan\t{packed}\n").as_bytes(),
+    );
+    let (n, _) = node_of(&app, w, "Place 1");
+    app.press(faraday_core::Action::Chart(C::Mark(
+        Press::Loaded(w),
+        n,
+        None,
+        Mark::Exposed,
+    )));
+    assert_eq!(kept(&app), before);
+    assert_eq!(
+        app.toast_text(),
+        Some(faraday_strings::EN.chart_edit_keys_order)
+    );
+}
+
+#[test]
 fn a_plan_with_shares_for_two_keys_of_one_seed_does_not_open_with_the_keys_swapped() {
     use faraday_core::glance::Backup;
     use faraday_core::testkit;
