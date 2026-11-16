@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work drawn first is F184.
-**Open:** the rest of the jobs (§9): files written as storage requests (§7.3), held until a Pi shows it is needed; the list of §2.1 confirmed on a Pi 3B+
+**Open:** the list of §2.1 confirmed on a Pi 3B+
 
 Touch and drawing run on each shell's own thread, the main thread. Work
 that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
@@ -127,8 +127,7 @@ table together and says in its message what was measured on what.
 | Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until timed with the stand-in |
 
 Files written to a stick are not a press's work but a wait on the disk
-process; whether they cross the line is the dev card's `file written`
-row's answer (§7.3).
+process; they stay on the main thread (§7.3).
 
 ## 3. The worker
 
@@ -250,7 +249,7 @@ brought up to date on each pass, so the bar is determinate.
 | The panic chord, Power off | Taken by the shell on its main thread at once, the job or not; the machine goes off with the worker mid-run (a key in its memory goes with the power, inside the Security scope) |
 | Theme, text size, rotation, Faraday Demo's preview size or window size | Accepted: they change what is drawn, not what the job reads |
 | Typing into a field | Accepted as today; no typed probe is a job (§2.1), and one that became one would take latest wins (§3.2) |
-| A stick put in or pulled | Taken as today (`storage` events); a job that reads or writes a stick is one of §7.3's, answered by the storage, not by the worker. When the event moves the screen or the sheet away from where the job was started (to Visit, Import closed, the Lock sheet over Import), the job's answer is made stale and dropped where it arrives, as Back does, for every job; an event that moves neither leaves the job live |
+| A stick put in or pulled | Taken as today (`storage` events); a stick's read or write is not a job: it is a wait on the disk process on the main thread (§7.3). When the event moves the screen or the sheet away from where the job was started (to Visit, Import closed, the Lock sheet over Import), the job's answer is made stale and dropped where it arrives, as Back does, for every job; an event that moves neither leaves the job live |
 | A scanned code | Taken by the scanner as today; a code that would start a job while one runs is held until the job ends, as a stick plugged in under the camera is held back |
 
 Strings: the working lines exist (`working_files` and the vault's);
@@ -380,22 +379,11 @@ this spec's.
 
 ### 7.3 Files written to a stick
 
-Held for a Pi's answer: a write is a wait on the disk process, and only
-the dev card's `file written` row on a Pi 3B+ says whether it crosses
-the line of §2.1. Until it does, files are written as today. If it does,
-a write is a storage request answered by a storage event, as a picture
-read is (`read_qr_later`):
-
-- `faraday_storage::Sticks::write_later` (new): the stick shell sends
-  the request to the disk process and goes on; the answer thread it
-  already has (`DiskProcess`) hands back `StorageEvent::Written` or
-  `NotKept` on a later pass, with the timeout as today. Faraday Demo's
-  `Dirs` writes on its pictures thread, renamed for both.
-- The core shows "Writing to the stick" with the indeterminate bar
-  while a write it waits on is out; a stick pulled meanwhile ends it as
-  `NotKept` does today.
-- The boot report's write (`costly::DEV_FILE_WRITTEN`, a dev card's) goes
-  the same way.
+Files are written on the main thread, a request to the disk process and
+a wait for its answer with a timeout (`DiskProcess`). On a Pi 3B+ the
+boot report's write (`costly::DEV_FILE_WRITTEN`, a dev card's row) took
+29 to 44 ms, under the line of §2.1, so a write is not a job and not a
+storage request.
 
 ## 8. Tests
 
@@ -428,9 +416,6 @@ Each states what a person would notice, in the area's tests
 - **The panic chord during work** (`faraday/shells/stick`, its tests of
   `PanicTimer` and the loop): with a job held running, the chord held
   for `PANIC_HOLD` asks for power off at once.
-- **A write that is slow**, if files written as storage requests are built (`faraday-storage`'s tests, a
-  disk process that answers late): frames go on, and the file's toast
-  comes with the answer; one that never answers ends as "not kept".
 - The budget tests (`work/budget/`), `slow_press.rs` and the snapshot
   tours pass unchanged, since scripted presses run inline and the counts
   come home.
@@ -443,8 +428,7 @@ shells' wake and the busy screen (§3, §4) follow. The vault stretches come
 before the other jobs that hold key material, because they build
 faraday-keys' `job.rs`, which the aezeed read, the KeePass export, signing
 and a PSBT's read use; a set of public files needs only the worker and the
-busy screen. Files written as storage requests (§7.3) needs only the
-worker, and is built only if a Pi's `file written` row crosses the line.
+busy screen. Files written to a stick stay on the main thread (§7.3).
 Confirming the list of §2.1 on a Pi 3B+ needs a Pi dev card. A job that
 touches keys, cryptography, signing or what the device takes in gets the
 reviewer before it lands.
@@ -527,13 +511,6 @@ What each piece is and changes:
   vault's save are made with the write of a stick, beside secret words,
   and stay there (§6, §7.3). `faraday-core/src/public_files.rs`,
   `wallet_backup.rs`, `picture.rs`, `pdf.rs`, `backup_flow/`.
-- **Files written as storage requests** (§7.3, held, not built):
-  `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process
-  answer, Faraday Demo's `Dirs` thread, the boot report's write.
-  `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`,
-  `files.rs`, `faraday-core/src/lib.rs` (the storage events),
-  `faraday/shells/demo/src/lib.rs`. A backup's files are written as
-  before; it has no parser and no key.
 - **The list confirmed on a Pi** (not built): the list of §2.1 on a
   Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or
   moved as §2.1 says; one late-flow session timed as SPEED §7 says. `Later`
