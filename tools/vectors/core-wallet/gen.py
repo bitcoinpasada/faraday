@@ -1,17 +1,17 @@
 """Bitcoin Core's descriptor wallets, made by Bitcoin Core (F229).
 
 Runs the pinned bitcoind of `tools/crosscheck/core_node.py` on regtest with
-no network, makes nine descriptor wallets (a migrated one, below, and plain, encrypted with the
+no network, makes ten descriptor wallets (a migrated one, below, and plain, encrypted with the
 passphrase `faraday`, watch-only, blank, with labels, with an imported
 descriptor, with an imported uncompressed key, with an imported multisig and a miniscript
-descriptor of master keys with hardened steps), and writes for each, beside this file:
+descriptor of master keys with hardened steps, and a multisig made active as a receive and change pair), and writes for each, beside this file:
 
 - `<name>.json`: the wallet's SQLite application id, every (key, value) of
   its table `main` as hex, Core's `listdescriptors` (with private keys
   where the wallet has them), `listdescriptors_public` (without them, the
   descriptors with their origins and the account keys) and `getwalletinfo`;
 - `<name>.dat`: the wallet.dat itself, for the plain, the encrypted, the
-  multisig, the watch-only and the migrated wallet (the SQLite reader, the Read a Bitcoin Core wallet tests and the
+  multisig, the active multisig, the watch-only and the migrated wallet (the SQLite reader, the Read a Bitcoin Core wallet tests and the
   Practice sample use them).
 
 The migrated wallet is made in two steps: the older bitcoind of
@@ -45,7 +45,7 @@ import core_node  # noqa: E402
 from area_core_wallet import multisig_descriptors  # noqa: E402
 
 PASSPHRASE = "faraday"
-KEEP_DAT = ("plain", "encrypted", "watchonly", "multisig", "migrated")
+KEEP_DAT = ("plain", "encrypted", "watchonly", "multisig", "activemultisig", "migrated")
 DAT_LIMIT = 200 * 1024
 
 
@@ -144,6 +144,7 @@ def run(legacy, only):
         imported = make("imported", False, False, "", False, True, False)
         uncompressed = make("uncompressed", False, False, "", False, True, False)
         multisig = make("multisig", False, True, "", False, True, False)
+        activemultisig = make("activemultisig", False, True, "", False, True, False)
 
         # A coinbase in the plain wallet gives it a transaction record and a
         # block locator.
@@ -185,6 +186,17 @@ def run(legacy, only):
         done = multisig.importdescriptors([
             {"desc": t, "timestamp": "now", "active": False, "range": [0, 20]}
             for t in multisig_descriptors(rpc, source)])
+        assert all(r["success"] for r in done), done
+
+        # The same multisig as an active receive and change pair: Core marks
+        # a `wsh` descriptor active as Native SegWit, which the wallet tool
+        # offers to take.
+        receive = multisig_descriptors(rpc, source)[0].split("#")[0]
+        change = receive.replace("/0/*", "/1/*")
+        done = activemultisig.importdescriptors([
+            {"desc": t + "#" + rpc.getdescriptorinfo(t)["checksum"], "timestamp": "now",
+             "active": True, "internal": internal, "range": [0, 20]}
+            for t, internal in ((receive, False), (change, True))])
         assert all(r["success"] for r in done), done
 
         # The legacy wallet, migrated by this release: its own folder in the

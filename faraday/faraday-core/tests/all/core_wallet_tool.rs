@@ -432,3 +432,28 @@ fn a_migrated_wallet_lists_its_combo_descriptors_as_kept_and_takes_an_active_pai
     let seen = texts(&mut app);
     assert_eq!(app.screen, Screen::Wallets, "{seen:?}");
 }
+
+/// A wallet of several keys that Core marks active is taken through the
+/// confirmation sheet: Cancel adds nothing, the hold adds it and opens
+/// Wallets.
+#[test]
+fn taking_an_active_multisig_asks_on_the_confirmation_sheet_and_is_added_on_the_hold() {
+    // The multisig is the wallet's only pair, so its Take is the first.
+    let take = |app: &mut Faraday| app.press(Action::CoreWallet(W::Take(0)));
+    let mut app = opened(vec![("wallet.dat", vector("activemultisig.dat"))]);
+    read_with(&mut app, "");
+    assert!(has(&mut app, "The wallet is whole"));
+    take(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty(), "added before the hold");
+    app.press(Action::WalletCancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.is_empty(), "added by Cancel");
+    take(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WalletConfirm));
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert!(app.session.wallets[0].same().starts_with("wsh(multi("));
+    assert_eq!(app.screen, Screen::Wallets);
+}
