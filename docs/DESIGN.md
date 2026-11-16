@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** Make a wallet on Explore's path and Find pages, and its dialog (§5, Make a wallet), still to be built
+**Open:** the Guide's Cryptography tab and its row of the components (`docs/CRYPTO-LEARN.md` §8), not built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
@@ -752,7 +752,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Invoice` | A Lightning invoice taken apart: an outlined text field (Material's text field page, outlined) that always takes typing, **Decode**, **Scan** and **Clear**, then a row for each field the invoice or offer carries, name and value, or the one line saying why it was refused. Checked against Material 3's text fields page (outlined text field) and its lists page. | Page |
 | `NonceCheck` | A signed PSBT no key here is left to sign, or a finished transaction, brought in by the camera, Files or Tools: the file's name, Send it's nonce check of it, whether it is finished, and **Save to a stick**, **Decode it**, **Show the raw hex** and **Show as QR** (`docs/FLOWS.md`, Nonce check). | Page |
 | `SignerCheck` | Check a signer, from Tools: two PSBTs or finished transactions, chosen from Files or scanned, Sent and Returned, and one Result: the fee bump result where it applies, the verdict of what the signer changed where both are PSBTs, the facts, the findings and a line per difference; the Sent, Returned and Result cards, each file's name and its line "{n} signatures · {txid short form}" or "Finished · {txid short form}", **Scan**, **Change** and **Swap** (`docs/SIGNER-CHECK.md` §3, §4, §11; checked against Material 3's cards, lists and dividers pages). The seed step (SIGNER-CHECK §12): under the "Nonces recomputed" fact, a list row per key that signed and is not loaded (Material 3 Lists, one-line: the fingerprint, "Seed not loaded", a trailing text button **Load the seed**); the button opens a sheet titled "Seed of {fp}" (checked against Material 3's Dialogs page, a simple dialog of list rows) with **Type the words**, **Scan a SeedQR** and **Open a vault**; a seed whose fingerprint is another is refused with "Fingerprint {x}: not {fp}", and the right one brings the person back to the Result, checked again with the nonce lines. | Step flow |
-| `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76), and in the account's row **Make a wallet** (not built; below, Make a wallet). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
+| `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76), and in the account's row **Make a wallet** (below, Make a wallet). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
 | `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
 | `Convert` | Convert a seed: From a loaded key, an open vault's key, an LND aezeed or a typed SLIP-39 set, To a form that restores the same wallet (the words another way, SeedQR, hex entropy, master seed in hex, xprv, Seed XOR parts, codex32, SLIP-39) or, for a SLIP-39 set, Add a share, Replace a lost share and Rotate the set, with what is not offered dimmed and its line saying why; a Settings card for a split or a set action; Result with a masked value, its Facts, **Check my copy** and **Save as a file…** (`docs/SEED-CONVERSION.md` §6). | Step flow |
 | `KefTool` | The Krux code tool in Tools: Contents (typed, or a loaded wallet's descriptor), the passphrase and Options, Make the code, and the Code card with Check my code, Copy by hand and Make another. | Step flow |
@@ -1020,7 +1020,7 @@ pasted on Faraday Demo or read from a text file in Files, and a `bitcoin:`
 link the same way, and searches the loaded wallets and keys; it reads **Load a
 key or a wallet first** until one is loaded."
 
-**Make a wallet** (built for Explore's path page and Find an address, not yet for the address check's find;
+**Make a wallet** (on Explore's path page and Find an address
 at a BIP-44, BIP-49, BIP-84 or BIP-86 path on the network's coin type,
 and the address check's find in a loaded key's account; Material 3
 Buttons, "Common buttons", and Dialogs, the basic dialog, checked
@@ -1060,12 +1060,10 @@ the first-address check and what is refused are `docs/FLOWS.md`
   under the button that was pressed, the way a step card's error line
   is drawn, and no dialog.
 
-Strings (`faraday/faraday-strings/src/en/`; the two `read_go_` ones are for the address check, not built):
+Strings (`faraday/faraday-strings/src/en/`; the address check's find uses the first two):
 
 - `explore_make_wallet`: "Make a wallet"
 - `explore_open_wallet`: "Open the wallet"
-- `read_go_make_wallet`: "Make a wallet"
-- `read_go_open_wallet`: "Open the wallet"
 - `made_wallet_name`: "{} · {}" (the key's name, the account's path)
 - `made_wallet_differs`: "Its first address is not the one this key
   gives at {}: not added" (the account's path)
