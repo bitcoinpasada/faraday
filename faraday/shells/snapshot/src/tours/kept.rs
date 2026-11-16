@@ -3,7 +3,7 @@
 use crate::tour::{Tour, scroll_to, seed_files_at, to_checklist, type_text, type_words};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StorageEvent, bstep};
+use faraday_core::{Action, Screen, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 
 /// Scrolls the checklist until the open item's Continue is on screen.
@@ -25,7 +25,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.backup_as(faraday_core::plan::Preset::Paper);
     seed_files_at(c, t, 0);
     t.press(Action::BChecklist);
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(Item::Templates));
     t.press(Action::BFile);
     t.press(Action::SecretUnprotected);
     t.press(Action::SecretHold);
@@ -64,7 +64,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Backup(1));
     to_checklist(t, faraday_core::plan::Preset::PaperVault, &[]);
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(Item::Templates));
     t.press(Action::BReveal);
     t.press(Action::BCheck);
     type_words(t, None)?;

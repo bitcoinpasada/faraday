@@ -4,7 +4,7 @@ use crate::tour::{Tour, bmap, boff, keep_vault, type_text, vault_place};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, What};
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StickInfo, StorageEvent, bstep};
+use faraday_core::{Action, Screen, StickInfo, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 
 /// Costs a map of the plan (through `bmap`). Every seed's words and
@@ -121,7 +121,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::BVaultSave(0));
     t.press(Action::BVaultSave(1));
     t.press(Action::BOut(3));
-    t.press(Action::BNext(bstep::ENVELOPE));
+    t.press(Action::BNext(Item::Envelopes));
     t.shot("wallet-flow-8-write-to-sticks")?;
     t.press(Action::Flow(F::WalletLock));
     let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;

@@ -6,7 +6,7 @@ use crate::common::{device, type_text};
 use crate::forms::{PHRASE, VAULT_PASSPHRASE, seed_forms, vault_passphrase_forms};
 use crate::{arm, finish};
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::{Action, Faraday, Screen, Sheet, bstep, plan, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, plan, plan::Item, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 
 /// The test seed typed into Add a key, a one-key wallet made from it and
@@ -27,11 +27,11 @@ fn at_the_copy(app: &mut Faraday, preset: plan::Preset) {
     app.press(Action::Backup(0));
     testkit::backup_as(app, preset);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(Item::Copy(0)) {
+        app.press(Action::BStep(Item::Copy(0)));
     }
 }
 

@@ -1,7 +1,7 @@
 //! The copy tour.
 
 use crate::tour::{Tour, copy_digits, scroll_to, type_words};
-use faraday_core::{Action, StorageEvent, bstep};
+use faraday_core::{Action, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
@@ -18,7 +18,7 @@ pub(crate) fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         1,
     )));
     t.press(Action::BChecklist);
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(Item::Templates));
     t.press(Action::BReveal);
     t.app.storage(StorageEvent::Cameras(Vec::new()));
     scroll_to(t, Action::BCheck);

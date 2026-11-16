@@ -56,7 +56,7 @@ fn c32(t: &mut Tour, p: Press) {
 }
 
 pub(crate) fn codex32_backup_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::{bstep, plan};
+    use faraday_core::plan::{self, Item};
     use faraday_vault::codex32::{SetFacts, State};
     // A key loaded from two strings of vector 2, its set told.
     t.press(Action::Entry(None));
@@ -86,8 +86,8 @@ pub(crate) fn codex32_backup_tour(t: &mut Tour) -> Result<(), String> {
     let a = drawn_by_hand(t)?;
     t.press(Action::BChecklist);
     t.shot("c32b-1b-templates-codex32qr")?;
-    t.press(Action::BNext(bstep::BLANK));
-    let n = bstep::of(plan::Item::Codex32(0));
+    t.press(Action::BNext(Item::Templates));
+    let n = Item::Codex32(0);
     if t.app.backup().and_then(|b| b.open) != Some(n) {
         t.press(Action::BStep(n));
     }

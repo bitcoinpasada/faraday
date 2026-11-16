@@ -140,7 +140,7 @@ pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{Verb, Zone};
     use faraday_core::plan::Preset;
     use faraday_core::seeds::SeedsAction as S;
-    use faraday_core::{bstep, testkit};
+    use faraday_core::{plan::Item, testkit};
     let step = |a| Action::KefTool(K::Backup(a));
     t.press(Action::Nav(Screen::Home));
     t.press(Action::Entry(None));
@@ -159,15 +159,15 @@ pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Seed(0))));
     t.press(Action::BQ(qstep::PLAN));
     t.press(Action::BChecklist);
-    if t.app.backup().and_then(|b| b.open) == Some(bstep::BLANK) {
-        t.press(Action::BNext(bstep::BLANK));
+    if t.app.backup().and_then(|b| b.open) == Some(Item::Templates) {
+        t.press(Action::BNext(Item::Templates));
     }
     // Closed, the item reads Not made.
-    if t.app.backup().and_then(|b| b.open) == Some(bstep::KEF) {
-        t.press(Action::BStep(bstep::KEF));
+    if t.app.backup().and_then(|b| b.open) == Some(Item::KefCode(0)) {
+        t.press(Action::BStep(Item::KefCode(0)));
     }
     t.shot("kef-step-listed")?;
-    t.press(Action::BStep(bstep::KEF));
+    t.press(Action::BStep(Item::KefCode(0)));
     t.shot("kef-step-form-keyboard")?;
     t.press(Action::Osk(faraday_core::OskPress::Hide));
     t.shot("kef-step-form")?;
@@ -185,9 +185,9 @@ pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
     t.tick();
     scroll_to(t, step(KefAct::Check));
     t.shot("kef-step-code")?;
-    t.press(Action::BStep(bstep::KEF));
+    t.press(Action::BStep(Item::KefCode(0)));
     t.shot("kef-step-not-checked")?;
-    t.press(Action::BStep(bstep::KEF));
+    t.press(Action::BStep(Item::KefCode(0)));
     t.press(step(KefAct::Check));
     type_text(t, "a passphrase");
     t.press(step(KefAct::Compare));
@@ -199,7 +199,7 @@ pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::BStep(open));
     }
     t.shot("kef-step-listed-checked")?;
-    t.press(Action::BStep(bstep::KEF));
+    t.press(Action::BStep(Item::KefCode(0)));
     scroll_to(t, step(KefAct::Check));
     t.shot("kef-step-checked")
 }

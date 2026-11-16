@@ -3,7 +3,7 @@
 use crate::tour::{Tour, scroll, scroll_to, to_checklist, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StorageEvent, bstep, qrow};
+use faraday_core::{Action, Screen, StorageEvent, plan::Item, qrow};
 
 /// A loaded wallet backed up again: Savings loaded from its descriptor
 /// file with no seed here opens on its public files, every one on offer;
@@ -29,7 +29,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         (qrow::FORM, 1),
     ];
     to_checklist(t, faraday_core::plan::Preset::PaperVaultSoftware, &every);
-    t.press(Action::BStep(bstep::PUBLIC));
+    t.press(Action::BStep(Item::PublicFiles));
     scroll_to(t, Action::PublicOut(0, 7));
     t.shot("again-watch-only-files")?;
     let vault = testkit::files()
@@ -66,7 +66,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
     to_checklist(t, faraday_core::plan::Preset::PaperVault, &[]);
-    t.press(Action::BStep(bstep::VAULT));
+    t.press(Action::BStep(Item::Vault(0)));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));

@@ -231,18 +231,18 @@ fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
 /// Check my copy's word grid in Practice, empty with Fill words in its first
 /// cell, and the backup's template count.
 fn demo_copy_check(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::bstep;
+    use faraday_core::plan::Item;
     let c = testkit::compute();
     t.press(Action::Nav(Screen::Home));
     t.press(Action::Backup(0));
     testkit::backup_as(&mut t.app, faraday_core::plan::Preset::Paper);
     t.press(Action::BChecklist);
-    if t.app.backup_items_now(&c).contains(&bstep::BLANK) {
+    if t.app.backup_items_now(&c).contains(&Item::Templates) {
         t.shot("modes-demo-backup-template")?;
-        t.press(Action::BNext(bstep::BLANK));
+        t.press(Action::BNext(Item::Templates));
     }
-    if t.app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        t.press(Action::BStep(bstep::COPY));
+    if t.app.backup().and_then(|b| b.open) != Some(Item::Copy(0)) {
+        t.press(Action::BStep(Item::Copy(0)));
     }
     t.press(Action::BCheck);
     t.shot("modes-demo-copy-check")?;

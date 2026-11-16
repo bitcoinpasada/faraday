@@ -6,7 +6,7 @@ use crate::common::type_text;
 use crate::{arm, finish};
 use faraday_bip::keys::ScriptType;
 use faraday_core::codex32_backup::Press;
-use faraday_core::{Action, Faraday, StorageEvent, bstep, plan, testkit};
+use faraday_core::{Action, Faraday, StorageEvent, plan, plan::Item, testkit};
 use faraday_keys::texts::Spec;
 use faraday_leak_scan::Form;
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
@@ -84,9 +84,9 @@ fn at_the_item() -> Faraday {
     app.press(Action::LoadWallet(0));
     app.press(Action::Backup(0));
     app.press(Action::BChecklist);
-    let n = bstep::of(plan::Item::Codex32(0));
-    if app.backup().unwrap().open == Some(bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    let n = Item::Codex32(0);
+    if app.backup().unwrap().open == Some(Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
     if app.backup().unwrap().open != Some(n) {
         app.press(Action::BStep(n));

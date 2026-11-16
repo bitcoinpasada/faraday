@@ -15,7 +15,7 @@ use crate::tour::{
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Medium, Screen, StorageCommand, StorageEvent, bstep};
+use faraday_core::{Action, Medium, Screen, StorageCommand, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key};
 
@@ -805,9 +805,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.backup_as(faraday_core::plan::Preset::Paper);
     shares_on_paper(c, t);
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::BLANK));
+    t.press(Action::BStep(Item::Templates));
     t.shot("backup-blank")?;
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(Item::Templates));
     t.press(Action::BReveal);
     t.shot("backup-seed")?;
     // The copy scanned with its third word drawn wrong.
@@ -826,12 +826,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The copy typed back.
     t.press(Action::BCheck);
     type_words(t, None)?;
-    t.press(Action::BStep(bstep::SHEETS));
+    t.press(Action::BStep(Item::Sheets));
     t.shot("backup-split")?;
-    t.press(Action::BStep(bstep::ENVELOPE));
+    t.press(Action::BStep(Item::Envelopes));
     t.shot("backup-envelope")?;
     // Every item done: what waits for the stick, and the way to one.
-    t.press(Action::BNext(bstep::ENVELOPE));
+    t.press(Action::BNext(Item::Envelopes));
     // The last item: one lock, then each stick by place.
     t.shot("backup-write-to-sticks")?;
     // The sheets went For the stick as PDFs with the checklist; written
@@ -1148,8 +1148,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Backup(spending));
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
-    if t.app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        t.press(Action::BStep(bstep::COPY));
+    if t.app.backup().and_then(|b| b.open) != Some(Item::Copy(0)) {
+        t.press(Action::BStep(Item::Copy(0)));
     }
     t.press(Action::BReveal);
     for _ in 0..2 {

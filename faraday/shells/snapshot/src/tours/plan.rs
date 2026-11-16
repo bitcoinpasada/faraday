@@ -3,7 +3,7 @@
 use crate::tour::{Tour, bput, scroll_to, shares_on_paper, vault_stick};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::testkit;
-use faraday_core::{Action, bstep, qstep};
+use faraday_core::{Action, plan::Item, qstep};
 use faraday_crypto::work::Compute;
 
 /// Costs what `shares_on_paper`, `add_wallet` and `vault_stick` cost.
@@ -53,9 +53,9 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BQ(qstep::PLAN));
     t.shot("plan-map-two-of-three")?;
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::SHEETS));
+    t.press(Action::BStep(Item::Sheets));
     t.shot("plan-checklist-part-done")?;
-    t.press(Action::BStep(bstep::ENVELOPE));
+    t.press(Action::BStep(Item::Envelopes));
     t.shot("plan-envelopes")?;
     // A 3-of-5's shares: up to two keys left off each, on the board and
     // on the checklist's Shares card.
@@ -76,7 +76,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BOmit(2));
     t.shot("plan-board-shares-three-of-five")?;
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::SHEETS));
+    t.press(Action::BStep(Item::Sheets));
     t.shot("plan-shares-three-of-five")?;
     // A vault per seed: Spending's one vault and its checklist item; then
     // Savings with test key 2 typed in too, two seeds here and a vault
@@ -85,7 +85,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Backup(spending));
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::VAULT));
+    t.press(Action::BStep(Item::Vault(0)));
     t.shot("plan-checklist-vault-one-key")?;
     t.press(Action::Entry(None));
     t.type_key(1);
@@ -99,7 +99,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BQ(qstep::PLAN));
     t.shot("plan-map-vaults-two-of-three")?;
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::VAULT + 1));
+    t.press(Action::BStep(Item::Vault(1)));
     t.shot("plan-checklist-vaults-two-of-three")?;
     for item in t
         .app

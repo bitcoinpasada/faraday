@@ -6,6 +6,7 @@ use crate::tour::{
 };
 use faraday_core::board::{Thing, Zone};
 use faraday_core::explore::{Eye, Page, XAction};
+use faraday_core::plan::Item;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
@@ -162,9 +163,9 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BChecklist);
     // The items before the vault's wait for it (`docs/WALLETS.md` §13):
     // each copy by hand checked in turn, then the vault.
-    items_before(c, t, faraday_core::bstep::VAULT)?;
-    if t.app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
-        t.press(Action::BStep(faraday_core::bstep::VAULT));
+    items_before(c, t, Item::Vault(0))?;
+    if t.app.backup().and_then(|b| b.open) != Some(Item::Vault(0)) {
+        t.press(Action::BStep(Item::Vault(0)));
     }
     // Making the checklist saved the plan into the vault already.
     use faraday_vault::records::kind;
@@ -200,7 +201,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         ));
     }
     // Then the public files, to the Outbox.
-    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
+    t.press(Action::BStep(Item::PublicFiles));
     t.press(Action::PublicOut(built, 1));
     t.press(Action::PublicOut(built, 2));
     t.shot("create-backup-public")?;
@@ -294,8 +295,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// `target` in the checklist's order, as a person must
 /// (`docs/WALLETS.md` §13): a copy by hand is checked by its words
 /// typed back, the envelopes by their Continue.
-pub(crate) fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
-    use faraday_core::bstep;
+pub(crate) fn items_before(c: &Compute, t: &mut Tour, target: Item) -> Result<(), String> {
     while let Some(n) = t.app.backup_waiting(c) {
         if n == target {
             break;
@@ -303,13 +303,13 @@ pub(crate) fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), 
         if t.app.backup().and_then(|b| b.open) != Some(n) {
             t.press(Action::BStep(n));
         }
-        if bstep::is_copy(n) {
+        if matches!(n, Item::Copy(_)) {
             t.press(Action::BCheck);
             type_words(t, None)?;
         }
         t.press(Action::BNext(n));
         if t.app.backup_waiting(c) == Some(n) {
-            return Err(format!("checklist item {n} was not done in turn"));
+            return Err(format!("checklist item {n:?} was not done in turn"));
         }
     }
     Ok(())

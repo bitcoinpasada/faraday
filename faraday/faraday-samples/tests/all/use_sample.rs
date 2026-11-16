@@ -515,7 +515,7 @@ fn seedqr_copy_only(app: &mut Faraday, seed: usize) {
 #[test]
 fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     use faraday_core::seeds::SeedsAction as S;
-    use faraday_core::{ScanPurpose, StorageEvent, bstep};
+    use faraday_core::{ScanPurpose, StorageEvent, plan::Item};
     let c = testkit::compute();
     let mut app = demo_app();
     app.storage(StorageEvent::Cameras(vec![(
@@ -533,11 +533,11 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     seedqr_copy_only(&mut app, 0);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(Item::Copy(0)) {
+        app.press(Action::BStep(Item::Copy(0)));
     }
     app.press(Action::BReveal);
     let _ = app.frame();
@@ -591,7 +591,7 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
 /// The first twelve-word sample key (the guide's) loaded, its backup open on the copy item,
 /// with the typed words check open.
 pub(crate) fn open_words_check(app: &mut Faraday) {
-    use faraday_core::bstep;
+    use faraday_core::plan::Item;
     let c = testkit::compute();
     add_a_key(app);
     app.press(Action::UseSample);
@@ -603,11 +603,11 @@ pub(crate) fn open_words_check(app: &mut Faraday) {
     app.press(Action::Backup(0));
     testkit::backup_as(app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(Item::Copy(0)) {
+        app.press(Action::BStep(Item::Copy(0)));
     }
     app.press(Action::BCheck);
     let _ = app.frame();

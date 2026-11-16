@@ -6,7 +6,7 @@ use crate::tour::{
 };
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StorageEvent, bstep, qrow};
+use faraday_core::{Action, Screen, StorageEvent, plan::Item, qrow};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key};
 
@@ -69,7 +69,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // item.
     description_file_at(c, t, 0);
     t.press(Action::BChecklist);
-    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
+    t.press(Action::BStep(Item::PublicFiles));
     // Found while it is offered: once done, the row says so instead.
     scroll_to(t, Action::PublicOut(built, 8));
     t.press(Action::PublicOut(built, 8));
@@ -92,7 +92,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // for the copies and the vaults, which this tour does not make.
     t.press(Action::Chart(faraday_core::glance::sheet::ChartAction::Do(
         faraday_core::glance::Press::Loaded(built),
-        faraday_core::glance::sheet::Step::Item(bstep::PUBLIC),
+        faraday_core::glance::sheet::Step::Item(Item::PublicFiles),
     )));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));

@@ -3,7 +3,7 @@
 use crate::tour::{Tour, device_key, scroll, scroll_to, type_text, type_words, vault_place};
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StorageEvent, bstep};
+use faraday_core::{Action, Screen, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 
 /// Costs what `vault_place`, `backup_items_now` and
@@ -46,11 +46,11 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("first-place-vault-board")?;
     t.press(Action::BChecklist);
     // The blank templates, printed from the Starter and marked done.
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(Item::Templates));
     // The copy checked, typed back.
     t.press(Action::BCheck);
     type_words(t, None)?;
-    t.press(Action::BStep(bstep::VAULT));
+    t.press(Action::BStep(Item::Vault(0)));
     scroll_to(t, Action::Vault(V::CreateFrom(Screen::Backup)));
     t.shot("first-vault-make")?;
     t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
@@ -79,13 +79,13 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     scroll_to(t, Action::BVaultSave(0));
     t.shot("first-vault-save")?;
     t.press(Action::BVaultSave(0));
-    scroll_to(t, Action::BNext(bstep::VAULT));
+    scroll_to(t, Action::BNext(Item::Vault(0)));
     t.shot("first-vault-saved")?;
-    t.press(Action::BNext(bstep::VAULT));
-    if t.app.backup().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
-        t.press(Action::BStep(bstep::ENVELOPE));
+    t.press(Action::BNext(Item::Vault(0)));
+    if t.app.backup().and_then(|b| b.open) != Some(Item::Envelopes) {
+        t.press(Action::BStep(Item::Envelopes));
     }
-    t.press(Action::BNext(bstep::ENVELOPE));
+    t.press(Action::BNext(Item::Envelopes));
     write_sticks(t)?;
     t.shot("first-sticks-written")?;
     t.press(Action::Flow(F::UnlockDone(0)));
@@ -98,7 +98,6 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .backup_items_now(c)
         .into_iter()
-        .filter_map(bstep::item)
         .all(|it| t.app.backup_item_done_now(c, it));
     if !done {
         return Err("the first tour's checklist is not done".to_string());

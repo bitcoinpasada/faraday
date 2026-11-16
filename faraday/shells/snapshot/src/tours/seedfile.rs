@@ -5,7 +5,7 @@ use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
 use faraday_core::plan::{At, What};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StorageEvent, bstep};
+use faraday_core::{Action, Screen, StorageEvent, plan::Item};
 use faraday_crypto::work::Compute;
 
 /// Costs a map of the plan (through `seed_files_at`). The backup's
@@ -32,7 +32,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     seed_files_at(c, t, 0);
     seedqr_on_paper(c, t)?;
     t.press(Action::BChecklist);
-    t.press(Action::BStep(bstep::FILES));
+    t.press(Action::BStep(Item::SeedFiles));
     scroll_to(t, Action::BFile);
     t.shot("seedfile-no-vault")?;
     t.press(Action::BFile);
@@ -75,11 +75,11 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Nav(Screen::Backup));
-    t.press(Action::BStep(bstep::VAULT));
+    t.press(Action::BStep(Item::Vault(0)));
     t.shot("seedfile-in-vault")?;
     t.press(Action::BKey(second));
     t.shot("seedfile-vault")?;
-    t.press(Action::BStep(bstep::FILES));
+    t.press(Action::BStep(Item::SeedFiles));
     t.press(Action::BFile);
     t.press(Action::SecretForm(1));
     t.shot("seedfile-sheet-seedqr")?;
