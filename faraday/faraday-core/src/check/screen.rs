@@ -1,9 +1,10 @@
-//! `Screen::Check`: a list of what to hold up against a hardware wallet
-//! (Material 3 Lists), a subheader per group and a divider between them.
+//! `Screen::Check`: what to hold up against a hardware wallet, a tile for
+//! each in Tools' grid, a subheader per group and a divider between them.
 
 use super::{FORMS, GROUPS, Press};
 use crate::Action;
 use crate::drawing::View;
+use crate::screens::catalog::{Face, grid};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Region, Style, Ui};
@@ -12,9 +13,8 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
-use faraday_ui::roles::ListItem;
 
-/// Check: the rows in the reading column, scrolling where the panel is
+/// Check: the tiles in the page, scrolling where the panel is
 /// short. The top app bar carries the name.
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
@@ -38,17 +38,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         section_label(ui, x, y, name);
         y += ui.line_as(TITLE_S) + GAP_SMALL;
-        for it in *items {
-            let item = ListItem {
-                headline: it.label,
-                supporting: it.line,
-                trailing: it
-                    .seed
-                    .then_some((EN.check_seed, Role::OnSurfaceVariant.paint())),
+        let g = grid(compact, w);
+        for (k, it) in items.iter().enumerate() {
+            let (tx, ty) = g.at(x, y, k);
+            let tags: &[&str] = if it.seed { &[EN.check_seed] } else { &[] };
+            Face {
+                name: it.label,
+                line: it.line,
+                warn: false,
+                tags,
+                opens: true,
                 action: Action::Check(Press::Row(it.row)),
-            };
-            y += ui.list_item((x, y, w), &item, false);
+            }
+            .draw(ui, tx, ty, g.tile_w);
         }
+        y += g.height(items.len());
         y += GAP_SMALL;
     }
     app.scroll.content_h().set(y - top + CHECK_TAIL);

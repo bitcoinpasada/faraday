@@ -731,7 +731,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Screen` | What it holds | Drawn as |
 |---|---|---|
 | `Home` | The lead tile while something is under way or waiting, then the tiles; on the small panel the menu of the sidebar's entries; **Scan** (`docs/FLOWS.md`, Home). | Page |
-| `Check` | Check, the place for checking what a hardware wallet says (F255): a list in four groups, each row a label and one line saying what the person needs in hand, the rows that take a seed marked **Seed** at their end, each opening the tool that does the check; below the table. Checked against Material 3's lists page and its navigation drawer and navigation rail pages. | Page |
+| `Check` | Check, the place for checking what a hardware wallet says (F255): four groups of tiles in the grid Tools uses, each tile a label and one line saying what the person needs in hand, the tiles that take a seed tagged **Seed**, each opening the tool that does the check; below the table. Checked against Material 3's cards page and its navigation drawer and navigation rail pages. | Page |
 | `WalletsStart` | The Wallets tab's first page: the wallets loaded, the keys without a wallet, and every way in by what the person has. | Page |
 | `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, a `tr()` tree's key path line under the shape (the danger line, in the error colour, for a key not of the wallet; F132), the backup line, the signatures possible here, **Spend paths** (fact rows, §4.11) for a wallet with a relative wait, with **Coins last moved** and **I moved every coin**, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
 | `Spend` | Signing a transaction: the review (what it sends, to whom, each recipient's whole address under its row in groups of four, the fee, change, the txid, warnings; on the small panel Continue shows once the review's end is in view, the foot reading **Scroll to the end** until then), the signers, **Sign with** (§4.4), and the signed PSBT and finished transaction. | Step flow |
@@ -772,19 +772,19 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Settings` | Mode; the session (the keys loaded) and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Appearance (Theme as filter chips, one per theme, Cobalt's marked Default; Mode, Light · Dark; Contrast, Standard · Medium · High; Text size, Standard · Large · Larger, `docs/TEXT-SIZE.md` §2; the Reduce motion switch, THEMES §12); Display (Scale, and on a 7-inch or 10-inch panel Rotation, Landscape · Portrait, `docs/ORIENTATION.md` §6); what is remembered (Signed amounts, Sealed into an open vault · Kept until power-off only; Nonce history, Kept in an open vault · Off, `docs/FLOWS.md`, Nonce history); About. In About, Run again (Material 3's Progress indicators, a disabled button rather than a spinner) reads "Running" and takes no press while the self-test runs; when it ends a snackbar (Material 3's Snackbar) says "Self-test passed: N checks" or "Self-test failed: <check>" and the result line shows the fresh result. On a compact window a list of the sections, each its own page; from medium up every card on one page (`docs/LAYOUT.md` §17). | Page |
 | `Transfer` | The desktop app as the device's QR link: files and text out as codes, in by camera. Only in the desktop app. Send text is an outlined multi-line text field with its count or refusal under it and Paste, Clear and Show as QR (Material 3 Text fields, Cards, Buttons). | Page |
 
-**Check** (F255; Material 3 Lists). A page under the top app bar named
+**Check** (F255; Material 3 Cards). A page under the top app bar named
 **Check**, opened from its row right under Home on the expanded rail and
 the navigation rail, from the Pi's Home menu, where it is the first
 button, and from Home's Check tile (**Check a hardware wallet**, "Its
 seed, addresses and signatures", the fourth tile, always). The page's
 name is the verb and each row its object: a row reads "An address on its
 screen", and the tool it opens keeps its own name ("Check an address").
-The list is Material's two-line list item, as the Randomness row is
-(§4.1): the label as its headline, the line under it as its supporting
-text, saying what the person needs in hand, and nothing else on the
-page, no explainer. The rows stand in the reading
-column (`docs/LAYOUT.md` §14), under a subheader per group, a divider
-between groups; on the small panel the list is the panel's width and
+Each row is a tile in the grid Tools draws (`screens/catalog.rs`, the
+one drawing of a tile and its columns, `docs/LAYOUT.md` §17): the label
+as its name, the line under it saying what the person needs in hand, and
+nothing else on the page, no explainer. The tiles stand in as many
+columns as fit, at least three beside the navigation and one on a small
+panel, under a subheader per group, a divider between groups; the page
 scrolls. Rows, in order (label, then its line, then what a press opens):
 
 - **The wallet**
@@ -821,8 +821,7 @@ scrolls. Rows, in order (label, then its line, then what a press opens):
   11. **An xpub's other spellings**, "An extended public key in any
       spelling": Convert an xpub, in the calculators.
 
-**Seed** marks rows 1, 6, 8 and 10, Material's trailing supporting text
-in the label type and on-surface-variant: the rows keep the order of
+**Seed** tags rows 1, 6, 8 and 10, as a standard is tagged on a Tools tile: the rows keep the order of
 checking a hardware wallet (its seed, what it shows, what it signs, its
 setup and backups, the rest), which putting the seed-free ones first in
 each group would break, and the mark lets a person who keeps the seed

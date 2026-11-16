@@ -7,7 +7,7 @@
 //! one screen.
 
 mod backup;
-mod catalog;
+pub(crate) mod catalog;
 mod check_message;
 mod create;
 use crate::decode::screen as decode;

@@ -1,4 +1,4 @@
-//! Check: what to hold up against a hardware wallet, as a list of rows
+//! Check: what to hold up against a hardware wallet, as a grid of tiles
 //! each opening the tool that does it, as Tools does (`docs/DESIGN.md` §5,
 //! Check; F255). Tools stays the master list: a row is a second way in.
 

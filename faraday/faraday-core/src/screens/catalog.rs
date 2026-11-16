@@ -75,16 +75,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     y += if compact { 54.0 } else { 64.0 };
-    let gap = 14.0;
-    // As many columns as `CATALOG_TILE_MIN` leaves room for, never
-    // fewer than three beside the navigation (`docs/LAYOUT.md` §17).
-    let per = if compact {
-        1
-    } else {
-        (((width + gap) / (CATALOG_TILE_MIN + gap)) as usize).max(CATALOG_COLUMNS_MIN)
-    };
-    let tw3 = (width - (per as f32 - 1.0) * gap) / per as f32;
-    let th = 82.0;
+    let g = grid(compact, width);
+    let tw3 = g.tile_w;
     let mut any = false;
     for group in GROUPS {
         let tiles: Vec<(usize, &crate::catalog::Tile)> = TILES
@@ -99,70 +91,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         section_label(ui, x, y, group);
         y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
         for (k, (i, tile)) in tiles.iter().enumerate() {
-            let tx = x + (k % per) as f32 * (tw3 + gap);
-            let ty = y + (k / per) as f32 * (th + 10.0);
+            let (tx, ty) = g.at(x, y, k);
             let need = app.tile_need(tile.go);
-            let opens = app.tile_opens(tile.go);
-            let action = Action::Catalog(*i as u8);
-            let r = faraday_draw::tokens::SHAPE_M;
-            ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
-            ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);
-            if opens {
-                ui.press(
-                    Shape::new(tx, ty, tw3, th, r),
-                    Role::OnSurface.paint(),
-                    action,
-                );
-            }
-            let name = ui.fit_as(TITLE_S, tile.name, tw3 - 32.0);
-            ui.text_as(
-                tx + 16.0,
-                ty + 12.0,
-                TITLE_S,
-                if opens {
-                    Role::OnSurface.paint()
-                } else {
-                    crate::ui::off()
-                },
-                &name,
-            );
-            let line = ui.fit_as(BODY_S, need.unwrap_or(tile.line), tw3 - 32.0);
-            ui.text_as(
-                tx + 16.0,
-                ty + 34.0,
-                BODY_S,
-                if need.is_some() {
-                    Role::Warning
-                } else {
-                    Role::OnSurfaceVariant
-                },
-                &line,
-            );
-            // The standards, as small tags.
-            let mut gx = tx + 16.0;
-            for tag in tile.tags {
-                let gw = ui.measure_as(LABEL_S.mono(), tag) + 14.0;
-                if gx + gw > tx + tw3 - 12.0 {
-                    break;
-                }
-                ui.fill(
-                    gx,
-                    ty + 56.0,
-                    gw,
-                    18.0,
-                    faraday_draw::tokens::shape_full(18.0),
-                    Role::SurfaceContainerHighest,
-                );
-                ui.text_mid_as(
-                    (gx + 7.0, ty + 56.0, 18.0),
-                    LABEL_S.mono(),
-                    Role::OnSurfaceVariant,
-                    tag,
-                );
-                gx += gw + 6.0;
-            }
+            let face = Face {
+                name: tile.name,
+                line: need.unwrap_or(tile.line),
+                warn: need.is_some(),
+                tags: tile.tags,
+                opens: app.tile_opens(tile.go),
+                action: Action::Catalog(*i as u8),
+            };
+            face.draw(ui, tx, ty, tw3);
         }
-        y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;
+        y += g.height(tiles.len()) + 16.0;
     }
     if !any {
         ui.text_as(
@@ -176,4 +117,127 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     app.scroll.content_h().set(y - top + 40.0);
     ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// The height of a tile.
+const TILE_H: f32 = 82.0;
+
+/// The grid tiles stand in: as many columns as `CATALOG_TILE_MIN` leaves
+/// room for, never fewer than three beside the navigation (`docs/LAYOUT.md`
+/// §17), one on a small panel. Tools and Check both use it.
+pub(crate) struct Grid {
+    /// Tiles to a row.
+    pub per: usize,
+    /// A tile's width.
+    pub tile_w: f32,
+}
+
+const TILE_GAP: f32 = 14.0;
+
+/// The grid for a page `width` wide.
+pub(crate) fn grid(compact: bool, width: f32) -> Grid {
+    let per = if compact {
+        1
+    } else {
+        (((width + TILE_GAP) / (CATALOG_TILE_MIN + TILE_GAP)) as usize).max(CATALOG_COLUMNS_MIN)
+    };
+    Grid {
+        per,
+        tile_w: (width - (per as f32 - 1.0) * TILE_GAP) / per as f32,
+    }
+}
+
+impl Grid {
+    /// Where tile `k` of a group starting at (`x`, `y`) goes.
+    pub fn at(&self, x: f32, y: f32, k: usize) -> (f32, f32) {
+        (
+            x + (k % self.per) as f32 * (self.tile_w + TILE_GAP),
+            y + (k / self.per) as f32 * (TILE_H + 10.0),
+        )
+    }
+
+    /// The height of `n` tiles.
+    pub fn height(&self, n: usize) -> f32 {
+        n.div_ceil(self.per) as f32 * (TILE_H + 10.0)
+    }
+}
+
+/// What a tile shows.
+pub(crate) struct Face<'a> {
+    /// Its name.
+    pub name: &'a str,
+    /// The line under it.
+    pub line: &'a str,
+    /// The line is a warning (what the tile needs first).
+    pub warn: bool,
+    /// Small tags at its foot.
+    pub tags: &'a [&'a str],
+    /// Whether a press acts.
+    pub opens: bool,
+    /// What a press does.
+    pub action: Action,
+}
+
+impl Face<'_> {
+    /// Draws the tile at (`tx`, `ty`), `tw3` wide.
+    pub fn draw(&self, ui: &mut Ui, tx: f32, ty: f32, tw3: f32) {
+        let th = TILE_H;
+        let r = faraday_draw::tokens::SHAPE_M;
+        ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
+        ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);
+        if self.opens {
+            ui.press(
+                Shape::new(tx, ty, tw3, th, r),
+                Role::OnSurface.paint(),
+                self.action,
+            );
+        }
+        let name = ui.fit_as(TITLE_S, self.name, tw3 - 32.0);
+        ui.text_as(
+            tx + 16.0,
+            ty + 12.0,
+            TITLE_S,
+            if self.opens {
+                Role::OnSurface.paint()
+            } else {
+                crate::ui::off()
+            },
+            &name,
+        );
+        let line = ui.fit_as(BODY_S, self.line, tw3 - 32.0);
+        ui.text_as(
+            tx + 16.0,
+            ty + 34.0,
+            BODY_S,
+            if self.warn {
+                Role::Warning
+            } else {
+                Role::OnSurfaceVariant
+            },
+            &line,
+        );
+        // The standards, as small tags.
+        let mut gx = tx + 16.0;
+        for tag in self.tags {
+            let gw = ui.measure_as(LABEL_S.mono(), tag) + 14.0;
+            if gx + gw > tx + tw3 - 12.0 {
+                break;
+            }
+            ui.fill(
+                gx,
+                ty + 56.0,
+                gw,
+                18.0,
+                faraday_draw::tokens::shape_full(18.0),
+                Role::SurfaceContainerHighest,
+            );
+            ui.text_mid_as(
+                (gx + 7.0, ty + 56.0, 18.0),
+                LABEL_S.mono(),
+                Role::OnSurfaceVariant,
+                tag,
+            );
+            gx += gw + 6.0;
+        }
+    }
 }
