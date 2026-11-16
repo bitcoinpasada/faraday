@@ -5,7 +5,7 @@
 **Screen:** `MultisigCheck`
 **Key:** multisig-check
 
-Shows what a wallet of several keys is, from its descriptor, a BIP-388 policy, a setup file or a BIP 129 record, so that it can be held against every other signer's device and the coordinator. Nothing is added to the session.
+This shows what a wallet of several keys is, from its descriptor, a BIP-388 policy, a setup file or a BIP 129 record, so you can compare it with every other signer's device and the coordinator. Nothing is added to the session.
 
 ## Setup
 

@@ -5,7 +5,7 @@
 **Screen:** `BackupFlow`
 **Key:** gpg-restore
 
-The flow restores a GPG key made by Faraday from the paper copy of its secret (a paperkey) and its public key. The key is saved into each vault of the plan, which are then written to sticks as in the backup flow.
+This flow restores a GPG key made by Faraday, from the paper copy of its secret (a paperkey) and its public key. The key is saved into each vault of the plan, and the vaults are then written to sticks as in the backup flow.
 
 ## Restore a GPG key
 
@@ -19,7 +19,7 @@ The sheet lists each public key in Files that Faraday can restore, by user ID an
 
 **Key:** gpg-restore.head
 
-Shows the key the paperkey is restored against: user ID, fingerprint, signing subkey and dates, and a revocation date when the key has been revoked. A key is restored only if it is an Ed25519 key with one Ed25519 signing subkey, version 4, and a user ID.
+This step shows the key the paperkey is restored against: user ID, fingerprint, signing subkey and dates, and a revocation date when the key has been revoked. A key is restored only if it is an Ed25519 key with one Ed25519 signing subkey, version 4, and a user ID.
 
 **Line 1 of its paperkey** gives the bytes that line must read, so the paper in hand can be matched to this key. **Continue** goes on to the plan.
 
@@ -45,7 +45,7 @@ Each vault is made or unlocked here, as in the backup flow, so the restored key 
 
 **Key:** gpg-restore.make
 
-The paperkey is typed one line at a time, in hex digits, on the keyboard at the foot. Each line ends with its CRC and is checked as it ends; a line that fails keeps its digits and shows the reason.
+Type the paperkey one line at a time, in hex digits, on the keyboard at the foot. Each line ends with its CRC and is checked as it ends; a line that fails keeps its digits and shows the reason.
 
 **Scan the paperkey** fills the lines from its QR code while no line is checked. A checked line reads **Line 1 · checked**. **Type line 1 again** clears that line and every line after it. **Next line** ends the line by hand. **Restore the key** appears once every line, the CRC of the whole secret included, is checked, and saves the key into each vault of the plan.
 

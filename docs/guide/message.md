@@ -11,7 +11,7 @@ One card per step: the address, the message, the format and the signature. A sig
 
 **Key:** message.address
 
-The choice is which wallet and which receive address signs. Only a single-key wallet whose key is held on this device is offered, each by its name.
+Choose which wallet and which receive address signs. Only a single-key wallet whose key is held on this device is offered, each by its name.
 
 The address is a receive address of the wallet, 0/0 at first; **-** and **+** step its index. Check an address offers **Sign a message with this address** on an address it finds in such a wallet, or in a standard account of a key you have loaded. A receive address of a wallet opens this screen with that wallet and index chosen. A change address, or an address of a key with no wallet, opens it showing that address with its path and no **-** or **+**; choosing a wallet then leaves it. Choosing another wallet or index clears a signature already made. **Continue** opens the next card.
 
@@ -19,7 +19,7 @@ The address is a receive address of the wallet, 0/0 at first; **-** and **+** st
 
 **Key:** message.text
 
-The text to be signed, exactly as typed or scanned: the signature fits these characters and no others. A single changed character, a space or a line break, makes a different message and the signature will not check.
+This is the text to be signed, exactly as typed or scanned. The signature fits these characters and no others. A single changed character, a space or a line break, makes a different message and the signature will not check.
 
 **Type** starts typing into the box and **Stop typing** ends it. **Scan** reads a QR code of plain text into the box; a code that holds a key is refused. The count of characters is shown beside the buttons. **Continue** opens the next card.
 
@@ -27,7 +27,7 @@ The text to be signed, exactly as typed or scanned: the signature fits these cha
 
 **Key:** message.format
 
-The choice is the signature's format, which the person checking it must read.
+Choose the signature's format; the person checking it must be able to read that format.
 
 **BIP-137** is read by most exchanges and older tools. **BIP-322** is the newer format. A legacy or nested SegWit address signs in BIP-137 only, a native SegWit address in either, and a Taproot address in BIP-322 only; a format the address cannot sign is greyed. Choosing a format opens the next card.
 

@@ -5,7 +5,7 @@
 **Screen:** `Lightning`
 **Key:** lightning
 
-Works out a Lightning node's key from a loaded key, an LND aezeed, or Core Lightning's words or hsm_secret file, to confirm which node a backup belongs to. The node id is public and the private key, which is the node, is secret; nothing is signed with it.
+This works out a Lightning node's key from a loaded key, an LND aezeed, or Core Lightning's words or hsm_secret file, so you can confirm which node a backup belongs to. The node id is public and the private key, which is the node, is secret; nothing is signed with it.
 
 ## Source
 

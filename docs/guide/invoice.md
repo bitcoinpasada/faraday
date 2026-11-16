@@ -5,13 +5,13 @@
 **Screen:** `Invoice`
 **Key:** invoice
 
-Reads a Lightning invoice or an offer and shows what it asks. Nothing is paid, signed or kept.
+This reads a Lightning invoice or an offer and shows what it asks for. Nothing is paid, signed or kept.
 
 ## Invoice or offer
 
 **Key:** invoice.field
 
-The text goes in the **Invoice or offer** box, typed or scanned. **Decode** reads it, **Scan** takes it from a QR code, and **Clear** empties the box and the result.
+Put the text in the **Invoice or offer** box, typed or scanned. **Decode** reads it, **Scan** takes it from a QR code, and **Clear** empties the box and the result.
 
 An invoice starts with a Lightning network prefix and is read as BOLT #11; an offer starts with `lno1` and is read as BOLT #12. A text that is neither is refused with the reason in one line.
 

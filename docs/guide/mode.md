@@ -5,7 +5,7 @@
 **Screen:** `Mode`, `Samples`
 **Key:** mode
 
-The sheet lists the modes the app offers, the one in use marked; **Not now** closes it. Practice is Faraday on testnet with public sample keys, on an online computer: it opens every screen and works as Faraday does, but makes no secret a person could take away.
+The sheet lists the modes the app offers and marks the one in use; **Not now** closes it. Practice is Faraday on testnet with public sample keys, on an online computer: it opens every screen and works as Faraday does, but makes no secret a person could take away.
 
 ## Samples
 
