@@ -2057,7 +2057,7 @@ fn a_mark_pressed_on_a_chart_whose_plan_is_kept_only_for_the_other_key_order_say
     let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Pair",
             &text,
