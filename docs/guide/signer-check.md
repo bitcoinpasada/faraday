@@ -5,25 +5,25 @@
 **Screen:** `SignerCheck`
 **Key:** signer-check
 
-Compares the PSBT sent to a signing device with the one that came back, in three cards: **Sent**, **Returned** and **Result**. The result says what the signer changed and how the two differ; nothing is signed.
+Check a signer compares the PSBT you sent to a signing device with the one that came back, in three cards: **Sent**, **Returned** and **Result**. The result says what the signer changed and how the two differ; nothing is signed.
 
 ## Sent
 
 **Key:** signer-check.sent
 
-The PSBT that went to the signer. Each PSBT or transaction in Files is a row, with its name, its number of signatures and a short form of its transaction id, or **Finished** for a finished transaction; **No PSBT or transaction in Files** shows when there is none. **Scan** takes it from a QR code instead, and a code that is neither a PSBT nor a transaction is refused with **Not a PSBT or a transaction**. Where the two are an original and its replacement, Sent is the original. A row of a different transaction than the other card's is listed under **Other transactions**.
+This is the PSBT that went to the signer. Each PSBT or transaction in Files is a row, with its name, its number of signatures and a short form of its transaction id, or **Finished** for a finished transaction; **No PSBT or transaction in Files** shows when there is none. **Scan** takes it from a QR code instead, and a code that is neither a PSBT nor a transaction is refused with **Not a PSBT or a transaction**. Where the two are an original and its replacement, Sent is the original. A row for a different transaction than the other card's is listed under **Other transactions**.
 
 ## Returned
 
 **Key:** signer-check.returned
 
-The PSBT the signer gave back, chosen as the sent one is; where the two are an original and its replacement, the replacement. The check runs once both are chosen. A file that was changed or is no longer in Files is marked **changed or no longer in Files**.
+This is the PSBT the signer gave back, chosen the same way as the sent one; where the two are an original and its replacement, the replacement. The check runs once both are chosen. A file that was changed or is no longer in Files is marked **changed or no longer in Files**.
 
 ## Result
 
 **Key:** signer-check.result
 
-The verdict comes first. **Only signatures were added** is clean: the transaction is the one sent, and the only differences are verified signatures and inputs finalized from them. **Only nonces and signatures were added** is the same for a MuSig2 PSBT, which also gains public nonces. Otherwise it reads **1 finding** or a count of findings, in red when the worst is Danger or Blocked and amber otherwise, or **Not the same transaction**. A clean verdict does not say the transaction was the one wanted: read it in Spend. Where either side is a finished transaction, there is no verdict: the signer check needs two PSBTs, and the result lists the facts and the differences.
+The result opens with the verdict. **Only signatures were added** is clean: the transaction is the one sent, and the only differences are verified signatures and inputs finalized from them. **Only nonces and signatures were added** is the same for a MuSig2 PSBT, which also gains public nonces. Otherwise it reads **1 finding** or a count of findings, in red when the worst is Danger or Blocked and amber otherwise, or **Not the same transaction**. A clean verdict does not say the transaction was the one wanted: check that in Spend. Where either side is a finished transaction, there is no verdict, because the signer check needs two PSBTs; the result lists the facts and the differences instead.
 
 ## Facts and findings
 
@@ -49,4 +49,4 @@ The verdict comes first. **Only signatures were added** is clean: the transactio
 
 **Key:** signer-check.actions
 
-**Show as QR** shows the returned PSBT as a code. **Swap** exchanges the two PSBTs and checks again. A key that signed and is not loaded has a row under the facts, **Seed not loaded**, with **Load the seed**. It opens a sheet to type the words, scan a SeedQR or open a vault; words of another key are refused, and the right ones load the key and check again, with the nonce lines. A key only the fee bump names has a **Load** button with its fingerprint, which opens Add a key and returns here. **Choose again** reopens **Returned**, and **Done** leaves.
+**Show as QR** shows the returned PSBT as a code. **Swap** exchanges the two PSBTs and checks again. A key that signed and is not loaded has a row under the facts, **Seed not loaded**, with **Load the seed**, which opens a sheet where you type the words, scan a SeedQR or open a vault. Words of another key are refused; the right ones load the key and the check runs again, with the nonce lines. A key only the fee bump names has a **Load** button with its fingerprint, which opens Add a key and returns here. **Choose again** reopens **Returned**, and **Done** leaves.

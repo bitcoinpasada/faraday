@@ -5,29 +5,29 @@
 **Screen:** `OtsCheck`
 **Key:** ots-check
 
-Checks an OpenTimestamps proof (a `.ots` file) against a file and a Bitcoin block header, without a network. It opens from Tools and returns there.
+Check a timestamp tests an OpenTimestamps proof (a `.ots` file) against a file and a Bitcoin block header, without a network. It opens from Tools and returns there.
 
 ## Proof
 
 **Key:** ots-check.proof
 
-The proof is chosen from Files, one button per file that starts as an OpenTimestamps proof. **No file in Files** shows when there is none. A proof that cannot be read shows the reason in one line.
+Choose the proof from Files, which offers one button per file that starts as an OpenTimestamps proof. **No file in Files** shows when there is none. A proof that cannot be read shows the reason in one line.
 
 ## File
 
 **Key:** ots-check.file
 
-The file the proof stamps is chosen from Files, or only its SHA-256 is given. **SHA-256 of the file** takes 64 hex digits, and **Use** takes the typed value; **Scan** reads the SHA-256 from a code.
+Choose the file the proof stamps from Files, or give only its SHA-256. **SHA-256 of the file** takes 64 hex digits, and **Use** takes the typed value; **Scan** reads the SHA-256 from a code.
 
-A SHA-256 given this way says nothing about the file itself. When the proof starts from another hash, the result is **The whole file is needed** and the file is chosen instead.
+A SHA-256 given this way says nothing about the file itself. When the proof starts from another hash, the result is **The whole file is needed**, and you choose the file instead.
 
 ## Block header
 
 **Key:** ots-check.header
 
-The header of the block the proof names, 80 bytes, from a node that is trusted. It is chosen from Files, as a raw 80-byte file or its hex, typed as hex in **Header in hex** and taken with **Use**, or read with **Scan**.
+This is the 80-byte header of the block the proof names, taken from a node you trust. Choose it from Files, as a raw 80-byte file or its hex; or type the hex in **Header in hex** and press **Use**; or read it with **Scan**.
 
-A header that is not 80 bytes, whose target is not valid or easier than the network allows, or whose hash is above its own target is refused with the reason in one line.
+A header is refused, with the reason in one line, if it is not 80 bytes, if its target is not valid or is easier than the network allows, or if its hash is above its own target.
 
 ## Result
 

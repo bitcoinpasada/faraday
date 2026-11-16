@@ -5,13 +5,13 @@
 **Screen:** `Settings`
 **Key:** settings
 
-The settings of the session and of how the app looks, in sections: Mode, Session, Time, Randomness, Appearance, Display, Signed amounts, Nonce history and About.
+Settings holds the session's settings and how the app looks, in sections: Mode, Session, Time, Randomness, Appearance, Display, Signed amounts, Nonce history and About.
 
 ## Mode
 
 **Key:** settings.mode
 
-The network that keys, wallets and addresses are made for. The row shows the mode in use and opens a sheet with a row per mode the app offers; **Not now** closes the sheet.
+Mode is the network that keys, wallets and addresses are made for. The row shows the mode in use and opens a sheet with a row per mode the app offers; **Not now** closes the sheet.
 
 The device offers **Mainnet**, **Testnet**, **Signet** and **Regtest**. Faraday Demo offers **Practice** in place of Mainnet.
 
@@ -19,7 +19,7 @@ The device offers **Mainnet**, **Testnet**, **Signet** and **Regtest**. Faraday 
 
 **Key:** settings.session
 
-Shows how many keys are loaded. **Lock** and **Remove every key** appear while a secret is held; **Power off**, or **Quit** in the desktop app, ends the session.
+This section shows how many keys are loaded. **Lock** and **Remove every key** appear while a secret is held; **Power off**, or **Quit** in the desktop app, ends the session.
 
 **Remove every key** unloads the keys and keeps the wallets. **Lock after** locks after the minutes with no input, and **Power off after** powers off after them, on the device only. Each is set to **2 min**, **5 min** or more, or **Never**. A line names any input device ignored until it is unplugged.
 
@@ -27,19 +27,19 @@ Shows how many keys are loaded. **Lock** and **Remove every key** appear while a
 
 **Key:** settings.session-keys-kept
 
-A key loaded is in memory only; nothing is written to the stick or the disk on its own. The lock sheet lists under **Kept** what a lock keeps and under **Wiped from memory** what it wipes, a key kept nowhere else in the error tone. **Lock after** offers 2, 5, 10 or 30 minutes and **Power off after** 10, 20, 30 or 60, 30 and 60 at first; power-off waits while files wait for the stick. From the start of Make a new wallet until its keys are sealed in a vault or its backup is done, the idle lock waits and the sidebar reads **Auto-lock off until backup complete**.
+A loaded key is in memory only, and nothing is written to the stick or the disk on its own. The lock sheet lists under **Kept** what a lock keeps and under **Wiped from memory** what it wipes, a key kept nowhere else is shown in the error tone. **Lock after** offers 2, 5, 10 or 30 minutes and **Power off after** 10, 20, 30 or 60, 30 and 60 at first; power-off waits while files wait for the stick. From the start of Make a new wallet until its keys are sealed in a vault or its backup is done, the idle lock waits and the sidebar reads **Auto-lock off until backup complete**.
 
 ## Time
 
 **Key:** settings.time
 
-Shows the clock now and the **Time zone**. **Set the time** opens the page that sets the clock by hand. TOTP codes, GPG and Secure Boot signatures and backup check dates read this clock.
+This section shows the clock now and the **Time zone**. **Set the time** opens the page that sets the clock by hand. TOTP codes, GPG and Secure Boot signatures and backup check dates read this clock.
 
 ## Randomness
 
 **Key:** settings.randomness
 
-Shows what the session's randomness is made from: the system's, and the camera frames, dice rolls, coin flips, cards and keys pressed that were added. **Add randomness** opens the page where more is added.
+This section shows what the session's randomness is made from: the system's, and any camera frames, dice rolls, coin flips, cards and keys pressed that you added. **Add randomness** opens the page where more is added.
 
 ## Appearance
 
@@ -51,7 +51,7 @@ Shows what the session's randomness is made from: the system's, and the camera f
 
 **Key:** settings.display
 
-**Scale** sets the size of text and controls: **Auto**, which is the size for the screen, or 75, 90, 110, 125, 150 or 200 %.
+**Scale** sets the size of text and controls: **Auto**, which picks the size for the screen, or 75, 90, 110, 125, 150 or 200 %.
 
 **Rotation** is **Landscape** or **Portrait**, offered only where the screen can rotate. Landscape suits the backup board and lists beside their detail; Portrait suits typing words in.
 
@@ -59,7 +59,7 @@ Shows what the session's randomness is made from: the system's, and the camera f
 
 **Key:** settings.signed-amounts
 
-The amounts each signed input stated are remembered, and the same transaction stated with other amounts is refused. The line gives how many transactions are remembered.
+Faraday remembers the amounts each signed input stated, and refuses the same transaction when it is stated with other amounts. The line gives how many transactions are remembered.
 
 **Sealed into an open vault** keeps them past power-off. **Kept until power-off only** keeps them for the session.
 
@@ -67,7 +67,7 @@ The amounts each signed input stated are remembered, and the same transaction st
 
 **Key:** settings.nonce-history
 
-Each signature checked is remembered by its key, its nonce and its message; a nonce one key used on another message is refused. The line gives how many signatures are remembered.
+Faraday remembers each signature it checks by its key, its nonce and its message, and refuses a nonce that one key used on another message. The line gives how many signatures are remembered.
 
 **Kept in an open vault** stores them in the open vault. **Off** keeps none.
 
@@ -75,4 +75,4 @@ Each signature checked is remembered by its key, its nonce and its message; a no
 
 **Key:** settings.about
 
-The version, how keys are brought in, and where vaults and files move. **Self-test** gives the result of the self-test that runs at every start, before any key is accepted, and **Run again** repeats it.
+About gives the version, how keys are brought in, and where vaults and files move. **Self-test** gives the result of the self-test that runs at every start, before any key is accepted, and **Run again** repeats it.
