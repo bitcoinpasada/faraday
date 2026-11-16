@@ -709,7 +709,10 @@ The Pi's kernel, its patches and its options are in §2 and §3.5 and
 command line has `efi=disable_early_pci_dma` (§1), which the board's
 `cmdline.txt` carries and its `kernel.cmdline` checks against the built
 kernel's `CONFIG_CMDLINE`; the Pi's `boot.cmdline` checks the words its
-`cmdline.txt` ends up with (`rng_core.default_quality=0` among them).
+`cmdline.txt` ends up with (`rng_core.default_quality=0` among them). A
+word the dev part's `cmdline.txt` takes off the line by name, as it takes
+off `console=ttynull` to keep its consoles, is not asked of the dev
+variant; no other part may take a checked word off.
 
 Each combination has its own build tree at
 `out/pi/<board>-<panel>[-dev]/output` and its own image. The Buildroot

@@ -144,11 +144,25 @@ for entry in ${required[@]+"${required[@]}"}; do
     fi
 done
 
+# A word the dev part's cmdline.txt takes off the line by name ("-word")
+# is the dev variant's stated difference, as its own consoles are in
+# place of the null one: it is not asked of the dev variant. Only a part
+# named dev may do this, and a release has none.
+taken_off=" "
+for part in "$@"; do
+    [ "$(basename "$part")" = dev ] || continue
+    [ -f "$part/cmdline.txt" ] || continue
+    for w in $(sed 's/#.*//' "$part/cmdline.txt"); do
+        [ "${w#-}" = "$w" ] || taken_off="$taken_off${w#-} "
+    done
+done
+
 if [ "${#cmdline_words[@]}" -gt 0 ]; then
     built_in="$(sed -n 's/^CONFIG_CMDLINE="\(.*\)"$/\1/p' "$config")"
     for entry in "${cmdline_words[@]}"; do
         word="${entry%%|*}"
         rest="${entry#*|}"
+        case "$taken_off" in *" $word "*) continue ;; esac
         case " $built_in " in
             *" $word "*) ;;
             *)
@@ -182,6 +196,7 @@ if [ "${#boot_words[@]}" -gt 0 ]; then
     for entry in "${boot_words[@]}"; do
         word="${entry%%|*}"
         rest="${entry#*|}"
+        case "$taken_off" in *" $word "*) continue ;; esac
         case " ${boot_line[*]-} " in
             *" $word "*) ;;
             *)
