@@ -149,6 +149,15 @@ impl Medium {
         }
     }
 
+    /// Mid-sentence, where a file waits to be written: "to write to the
+    /// stick", "to write to the card or stick".
+    pub const fn to_write_to(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_to_write_to_the_stick_inline,
+            Medium::SdCard => EN.medium_to_write_to_the_card_or_stick_inline,
+        }
+    }
+
     /// The card that lays the vaults on the media: "Sticks and vaults",
     /// "Cards, sticks and vaults".
     pub const fn and_vaults(self) -> &'static str {

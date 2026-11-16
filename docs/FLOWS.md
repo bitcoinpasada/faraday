@@ -211,16 +211,11 @@ for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
 **Check** stands right under Home, on the rails and first on the small
 panel's Home menu (F255; `docs/DESIGN.md` §5, Check). **Learn** follows Tools (decision 13); the small panel's Home grid
 carries it. The sidebar's status block carries the session, Files and
-the sticks, which open Files on the stick; its **Files** entry opens Files. **The session strip**
-(decision 15) is one line, **Bring in · Open · Work · Write out**, the
-current stage in the accent, computed from what is attached, loaded and
-waiting; it stands under Files and its count in the one Files row, which
-opens Files. **Bring in** is a stick attached or
-an import waiting, and also nothing attached, loaded or waiting at all
-(owner, 2026-10-24); **Write out** is files For the stick, or a vault
-changed since it was written (decision 26), with no stick attached;
-**Work** is a key, wallet or open vault loaded; **Open** is files in the
-Inbox with nothing loaded. The mode shows only as an off-mainnet pill that opens the
+the sticks, which open Files on the stick; its **Files** entry opens Files
+and says in plain words what the files are: **n files from the stick**
+(brought in), **n files to write to the stick** (waiting to be written)
+or **0 files**. There is no strip of stages.
+The mode shows only as an off-mainnet pill that opens the
 mode sheet (decisions 14 and 33; F81): no coloured bar along the top on
 a test network; the sheet is also Settings' Mode row, the only door on
 mainnet.
@@ -822,8 +817,7 @@ written" (open with unsaved changes, or sealed bytes that differ). A
 vault copied in from a stick and not changed reads "On {label} ·
 current" for the stick it came from, remembered across a lock, or
 "Unchanged" when that stick is not known. A changed vault makes Home
-lead with "Write {name} to a stick" and the session strip read Write
-out.
+lead with "Write {name} to a stick".
 
 A locked vault says what it held (decision 23, `docs/VAULT.md` §11): what
 it held when last seen open is kept across a lock until power-off; its
@@ -1364,8 +1358,9 @@ the small Home's tiles; `Action::Resume`.
    as they do today (`sidebar_caps`). A flow that keeps nothing when
    left (a calculator, Explore, Check a signer) has no row.
 5. **The narrow window and the small panel** (the compact layout): the
-   small Home leads with the status strip, a chip per flow in progress,
-   its name and step, opening it, before the keys and wallets.
+   small Home leads with the box of what is loaded, a line per flow in
+   progress, its name and "in progress", opening it, before the keys and
+   wallets.
 6. The survey of every screen whose state is kept when it is left:
    below.
 7. **Speed.** Which flows are in progress is worked out once a frame

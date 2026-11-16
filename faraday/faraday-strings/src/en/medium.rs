@@ -62,6 +62,10 @@ macro_rules! words_medium {
     medium_on_the_stick: "on the stick",
     /// Text in `on_the`.
     medium_on_the_card_or_stick: "on the card or stick",
+    /// Text in `to_write_to`.
+    medium_to_write_to_the_stick_inline: "to write to the stick",
+    /// Text in `to_write_to`.
+    medium_to_write_to_the_card_or_stick_inline: "to write to the card or stick",
     /// Text in `for_the`.
     medium_for_the_stick_inline: "for the stick",
     /// Text in `for_the`.

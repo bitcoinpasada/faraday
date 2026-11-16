@@ -21,8 +21,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT, SHAPE_M,
-    SHAPE_XS,
+    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, MARGIN_COMPACT, SHAPE_M,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
@@ -702,73 +701,40 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let inner = w - 2.0 * M;
 
     // On the rail's and the bar's windows the top app bar carries the
-    // name, and the sidebar's lists lead as chips (`docs/LAYOUT.md` §3).
+    // name, and the sidebar's lists lead in one box (`docs/LAYOUT.md` §3).
     let beside = app.nav().beside();
     if !beside {
         home_head(app, ui, w, y);
         y += 38.0;
     }
-    y += crate::nav::screen::status_strip(app, ui, M, y, inner);
+    y += crate::nav::screen::loaded_card(app, ui, M, y, inner) + 10.0;
 
-    // What this session holds.
+    // The box above names the keys, the wallets and the files; this card
+    // stays only for the vaults it does not show.
     let keys = app.session.keys.len();
-    let wallets = app.session.wallets.len();
     let vaults = app.vaults.open.len();
-    let (dot, line) = match (keys + wallets, vaults) {
-        (0, 0) => (Role::OnSurfaceVariant, Text::of(EN.compact_nothing_loaded)),
-        (_, 0) => (
-            Role::Ok,
-            text!(
-                "{keys} {} · {wallets} {}",
-                if keys == 1 {
-                    EN.compact_key_inline
-                } else {
-                    EN.compact_keys
-                },
-                if wallets == 1 {
-                    EN.compact_wallet
-                } else {
-                    EN.compact_wallets_inline
-                }
-            ),
-        ),
-        (_, v) => (
-            Role::Ok,
-            Text::fill(
-                EN.compact_vaults_open,
-                &[
-                    &Text::num(v as u64),
-                    (if v == 1 {
-                        EN.compact_vault
-                    } else {
-                        EN.compact_vaults_inline
-                    }),
-                ],
-            ),
-        ),
-    };
-    // Without the rail the status strip above names the keys, the
-    // wallets, the files and the sticks, and the menu below opens the way
-    // in: the card stays only for the vaults, which the strip does not
-    // show, and then carries its one line.
-    let sub = beside.then(|| app.home_files_line());
-    let card = beside || vaults > 0;
-    let session = if keys + wallets == 0 {
+    let card = vaults > 0;
+    let line = Text::fill(
+        EN.compact_vaults_open,
+        &[
+            &Text::num(vaults as u64),
+            (if vaults == 1 {
+                EN.compact_vault
+            } else {
+                EN.compact_vaults_inline
+            }),
+        ],
+    );
+    let session = if keys + app.session.wallets.len() == 0 {
         Screen::WalletsStart
     } else {
         Screen::Wallets
     };
     let action = Action::Nav(session);
-    // Its two lines, the card as tall as they need (`docs/TEXT-SIZE.md`
-    // §5).
+    // The card as tall as its line needs (`docs/TEXT-SIZE.md` §5).
     let l1 = ui.line_as(LABEL_L);
-    let l2 = if sub.is_some() {
-        ui.line_as(BODY_S)
-    } else {
-        0.0
-    };
-    let card_h = ui.row_height(52.0, l1 + l2, faraday_draw::tokens::GRID);
-    let text_top = y + (card_h - l1 - l2) / 2.0;
+    let card_h = ui.row_height(52.0, l1, faraday_draw::tokens::GRID);
+    let text_top = y + (card_h - l1) / 2.0;
     if card {
         ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
         ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
@@ -777,52 +743,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Role::OnSurface.paint(),
             action,
         );
-        ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, dot);
+        ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, Role::Ok);
         let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
         ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
-        if let Some(sub) = sub {
-            let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
-            ui.text_mid_as(
-                (M + 28.0, text_top + l1, l2),
-                BODY_S,
-                Role::OnSurfaceVariant,
-                &sub,
-            );
-        }
         y += card_h + 10.0;
-    }
-
-    // The session strip: the four stages of the lock cycle, the one now
-    // current in the accent, the rest dim. Tapping it opens Files.
-    {
-        let stage = app.session_stage();
-        let open_files = Action::Nav(Screen::Files);
-        ui.press(
-            Shape::new(M, y, inner, 22.0, SHAPE_XS),
-            Role::OnSurface.paint(),
-            open_files,
-        );
-        let mut sx = M + 4.0;
-        for (i, label) in [
-            EN.compact_bring_in_button,
-            EN.compact_open_button,
-            EN.compact_work,
-            EN.compact_write_out,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            if i > 0 {
-                sx += ui.text_mid_as((sx, y, 22.0), BODY_S, Role::OnSurfaceVariant, " · ");
-            }
-            let fg = if label == stage {
-                Role::Primary
-            } else {
-                Role::OnSurfaceVariant
-            };
-            sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
-        }
-        y += 22.0 + 10.0;
     }
 
     // The one thing waiting, when there is one.
@@ -1869,28 +1793,12 @@ impl Faraday {
         }
     }
 
-    /// Files by direction, as the sidebar's Files row reads it: "3 for
-    /// the stick" while any wait, else "20 from the stick", else "none".
+    /// Files by direction, as the sidebar's Files row and Home's box read
+    /// them: "3 files from the stick", "2 files to write to the stick",
+    /// or "0 files".
     pub fn files_count(&self) -> Text {
-        if !self.outbox.is_empty() {
-            text!("{} {}", self.outbox.len(), self.medium.for_the())
-        } else if !self.inbox.is_empty() {
-            text!("{} {}", self.inbox.len(), self.medium.from_the())
-        } else {
-            Text::of(EN.compact_none)
-        }
-    }
-
-    /// Home's status line on a small panel: Files by direction, and
-    /// what is attached, by its label or by how many.
-    pub fn home_files_line(&self) -> Text {
-        let sticks = match self.stick.len() {
-            0 => Text::fill(EN.compact_no_medium, &[self.medium.noun()]),
-            1 => Text::of(&self.stick[0].label),
-            k => text!("{k} {}", self.medium.nouns()),
-        };
         let (n, whose) = if !self.outbox.is_empty() {
-            (self.outbox.len(), Some(self.medium.for_the()))
+            (self.outbox.len(), Some(self.medium.to_write_to()))
         } else if !self.inbox.is_empty() {
             (self.inbox.len(), Some(self.medium.from_the()))
         } else {
@@ -1901,9 +1809,24 @@ impl Faraday {
         } else {
             EN.compact_file_count_many
         };
-        let files = match whose {
+        match whose {
             Some(w) => text!("{n} {noun} {w}"),
             None => text!("{n} {noun}"),
+        }
+    }
+
+    /// Home's files line on a small panel: the files, and with no file
+    /// brought in or waiting what is attached, by its label or by how
+    /// many.
+    pub fn home_files_line(&self) -> Text {
+        let files = self.files_count();
+        if !self.outbox.is_empty() || !self.inbox.is_empty() {
+            return files;
+        }
+        let sticks = match self.stick.len() {
+            0 => Text::fill(EN.compact_no_medium, &[self.medium.noun()]),
+            1 => Text::of(&self.stick[0].label),
+            k => text!("{k} {}", self.medium.nouns()),
         };
         text!("{} · {}", files.as_str(), sticks.as_str())
     }

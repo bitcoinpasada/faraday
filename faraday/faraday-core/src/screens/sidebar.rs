@@ -335,8 +335,7 @@ fn group(
     }
 }
 
-/// The foot of the sidebar from `fy`: the Files row with the session's
-/// stage, the stick's row (`sticks_row`), Lock and Power off, and under them the pill
+/// The foot of the sidebar from `fy`: the Files row, the stick's row (`sticks_row`), Lock and Power off, and under them the pill
 /// while the idle lock is `held`.
 fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool, sticks_row: bool) {
     files_row(app, ui, fy);
@@ -427,9 +426,8 @@ fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
 }
 
 /// The Files row at `fy`, one touch target tall, which opens Files: its
-/// name and how many files wait, and under them the four stages of the
-/// lock cycle, the one now current in the accent, the rest dim
-/// (the session strip, merged into this row).
+/// name and under it what the files are: brought in from the stick,
+/// waiting to be written to it, or none.
 fn files_row(app: &View, ui: &mut Ui, fy: f32) {
     let here = app.screen == Screen::Files;
     if here {
@@ -451,36 +449,18 @@ fn files_row(app: &View, ui: &mut Ui, fy: f32) {
     );
     let muted = on_selected(here, Role::OnSurfaceVariant);
     ui.icon(22.0, fy + 14.0, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
-    // Two lines in the row: the name and the count, then the stages.
+    // Two lines in the row: the name, then what the files are: brought
+    // in from the stick, waiting to be written to it, or none.
     let half = TOUCH / 2.0;
     let line = (fy + GAP_SMALL, half - GAP_SMALL);
-    ui.text_mid_as((46.0, line.0, line.1), BODY_S, muted, EN.sidebar_files);
+    let tx = 46.0;
+    ui.text_mid_as((tx, line.0, line.1), BODY_S, muted, EN.sidebar_files);
     let ink = on_selected(here, Role::OnSurface);
     let files = app.files_count();
-    let end = SIDEBAR_W - 24.0;
-    ui.text_right_as((end, line.0, line.1), BODY_S, ink, &files);
-    let stage = app.session_stage();
     let line = (fy + half, half - GAP_SMALL);
-    let mut sx = 46.0;
-    for (i, label) in [
-        EN.sidebar_bring_in_button,
-        EN.sidebar_open,
-        EN.sidebar_work,
-        EN.sidebar_write_out,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        if i > 0 {
-            sx += ui.text_mid_as((sx, line.0, line.1), LABEL_S, muted, " · ");
-        }
-        let fg = if label == stage {
-            Role::Primary.paint()
-        } else {
-            muted
-        };
-        sx += ui.text_mid_as((sx, line.0, line.1), LABEL_S, fg, label);
-    }
+    let room = SIDEBAR_W - 24.0 - tx;
+    let files = ui.fit_as(BODY_S, &files, room);
+    ui.text_mid_as((tx, line.0, line.1), BODY_S, ink, &files);
 }
 
 /// The pill's height.

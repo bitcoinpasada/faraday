@@ -6,17 +6,17 @@ use super::{MenuPress, Nav, destination_of};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Ui, W};
+use crate::ui::{Glyph, Shape, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{
-    APP_BAR_H, CAPTION, GAP, GAP_SMALL, GRID, ICON_SMALL, MARGIN_COMPACT, MODE_PILL_HEIGHT,
-    STATUS_CHIP_H, TOUCH,
+    APP_BAR_H, BODY_S, CAPTION, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LOADED_LINE,
+    MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON, PAD, SHAPE_M, SHAPE_XS, STATUS_CHIP_H, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::nav::{AppBar, Badge, Chip, Dest, Rail};
 
-/// The most chips a group of the status strip shows before "+ N more".
+/// The most keys or wallets Home's box lists before "+ N more".
 const CHIPS_PER_GROUP: usize = 4;
 
 /// A destination for screen `s` (or `action`), lit while it is the one
@@ -332,37 +332,6 @@ impl Flowing {
         self.any = true;
     }
 
-    /// A status chip: its icon, its head, its tail and its press.
-    fn chip(
-        &mut self,
-        ui: &mut Ui,
-        icon: Option<Glyph>,
-        head: (&str, W),
-        tail: &str,
-        action: Option<Action>,
-    ) {
-        let c = Chip {
-            icon,
-            head,
-            tail,
-            action,
-        };
-        self.put(ui, &mut |ui, x, y, max| {
-            faraday_ui::nav::status_chip(ui, (x, y, max), &c)
-        });
-    }
-
-    /// At row `i` of a group of `n`: past the most a group shows, the
-    /// "+ N more" chip that opens the whole list, and true.
-    fn more(&mut self, ui: &mut Ui, i: usize, n: usize, all: Action) -> bool {
-        if i < CHIPS_PER_GROUP || n <= CHIPS_PER_GROUP + 1 {
-            return false;
-        }
-        let more = fill(EN.sidebar_more, &[&(n - i).to_string()]);
-        self.chip(ui, None, (&more, W::S), "", Some(all));
-        true
-    }
-
     /// The height the rows take, from where they began at `top`.
     fn height(&self, top: f32) -> f32 {
         if self.any {
@@ -387,72 +356,130 @@ pub(crate) fn flow_chips(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     f.height(y)
 }
 
-/// Home's status strip where there is no expanded rail: the sidebar's
-/// lists as chips (the flows in progress, the keys, the wallets, the
-/// files and the sticks), each opening what its sidebar row opens.
-/// Drawn at (x, y) in `w`; returns the height it takes.
-pub(crate) fn status_strip(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut f = Flowing::new(x, y, w);
+/// One line of Home's box of what is loaded: its icon, its text and
+/// what a press opens.
+struct Line {
+    icon: Option<Glyph>,
+    head: String,
+    tail: String,
+    action: Option<Action>,
+}
+
+/// Home's box of what is loaded where there is no expanded rail: one
+/// card, a plain line in it for each flow in progress, key, wallet, the
+/// files and a stick's import waiting, each opening what its sidebar row
+/// opens. Drawn at (x, y) in `w`; returns the height it takes.
+pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut lines: Vec<Line> = Vec::new();
     for r in app.flows_in_progress().iter() {
-        f.put(ui, &mut |ui, x, y, max| flow_chip(ui, x, y, max, r));
+        let icon = match r.tab {
+            Screen::Vaults => Icon::Lock,
+            Screen::Catalog => Icon::Tools,
+            _ => Icon::Wallet,
+        };
+        lines.push(Line {
+            icon: Some(icon.into()),
+            head: r.name.to_string(),
+            tail: EN.home_in_progress.to_string(),
+            action: Some(Action::Resume(r.going)),
+        });
     }
+    let more = |n: usize, i: usize, all: Action| Line {
+        icon: None,
+        head: fill(EN.sidebar_more, &[&(n - i).to_string()]),
+        tail: String::new(),
+        action: Some(all),
+    };
     let keys: Vec<_> = app.session.keys.all().collect();
     for (i, k) in keys.iter().enumerate() {
-        if f.more(ui, i, keys.len(), Action::Explore) {
+        if i >= CHIPS_PER_GROUP && keys.len() > CHIPS_PER_GROUP + 1 {
+            lines.push(more(keys.len(), i, Action::Explore));
             break;
         }
         let fp = fp_text(k.fingerprint);
         // A key named by its fingerprint is not named twice.
         let name = crate::bip85::key_name(k);
-        let label = if name.eq_ignore_ascii_case(&fp) {
-            ""
+        let tail = if name.eq_ignore_ascii_case(&fp) {
+            String::new()
         } else {
-            &name
+            name.to_string()
         };
-        let open = Action::ExploreKey(k.fingerprint.0);
-        f.chip(ui, Some(Icon::Keys.into()), (&fp, W::M), label, Some(open));
+        lines.push(Line {
+            icon: Some(Icon::Keys.into()),
+            head: fp.to_string(),
+            tail,
+            action: Some(Action::ExploreKey(k.fingerprint.0)),
+        });
     }
     let wallets = &app.session.wallets;
     for (i, wl) in wallets.iter().enumerate() {
-        if f.more(ui, i, wallets.len(), Action::Nav(Screen::Wallets)) {
+        if i >= CHIPS_PER_GROUP && wallets.len() > CHIPS_PER_GROUP + 1 {
+            lines.push(more(wallets.len(), i, Action::Nav(Screen::Wallets)));
             break;
         }
-        let open = Some(Action::OpenWallet(i));
-        f.chip(ui, Some(Icon::Wallet.into()), (&wl.name, W::S), "", open);
+        lines.push(Line {
+            icon: Some(Icon::Wallet.into()),
+            head: wl.name.to_string(),
+            tail: String::new(),
+            action: Some(Action::OpenWallet(i)),
+        });
     }
-    let files = app.files_count();
-    let open = Some(Action::Nav(Screen::Files));
-    f.chip(
-        ui,
-        Some(Icon::File.into()),
-        (EN.sidebar_files, W::S),
-        &files,
-        open,
-    );
-    // The sticks attached; with none, an import the boot stick brought
-    // waits behind this chip.
-    let waiting = app.import.state().is_some() && app.stick.is_empty();
-    let sticks = match app.stick.len() {
-        0 if waiting => Some(EN.sidebar_import_waiting.to_string()),
-        0 => None,
-        1 => Some(String::from(&*app.stick[0].label)),
-        k => Some(fill(EN.sidebar_attached, &[&k.to_string()])),
-    };
-    if let Some(s) = sticks {
-        let open = if waiting {
-            Some(crate::boot_import::OPEN)
-        } else {
-            (!app.holds_secret()).then_some(Action::Nav(Screen::Files))
-        };
-        f.chip(
-            ui,
-            Some(app.medium.icon()),
-            (app.medium.caps(), W::S),
-            &s,
-            open,
-        );
+    lines.push(Line {
+        icon: Some(Icon::File.into()),
+        head: app.home_files_line().to_string(),
+        tail: String::new(),
+        action: Some(Action::Nav(Screen::Files)),
+    });
+    // An import the boot stick brought waits behind its own line.
+    if app.import.state().is_some() && app.stick.is_empty() {
+        lines.push(Line {
+            icon: Some(app.medium.icon()),
+            head: EN.sidebar_import_waiting.to_string(),
+            tail: String::new(),
+            action: Some(crate::boot_import::OPEN),
+        });
     }
-    f.height(y)
+    let line_h = ui.row_height(LOADED_LINE, ui.line_as(LABEL_L), GAP_SMALL);
+    let h = lines.len() as f32 * line_h + 2.0 * GAP_SMALL;
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
+    let mut ly = y + GAP_SMALL;
+    for l in &lines {
+        if let Some(a) = l.action {
+            ui.press(
+                Shape::new(x + GAP_SMALL, ly, w - 2.0 * GAP_SMALL, line_h, SHAPE_XS),
+                Role::OnSurface.paint(),
+                a,
+            );
+        }
+        let mut tx = x + PAD;
+        if let Some(i) = l.icon {
+            let iy = ly + (line_h - ICON_SMALL) / 2.0;
+            ui.icon(
+                tx,
+                iy,
+                ICON_SMALL,
+                i,
+                NAV_ICON - GAP_SMALL,
+                Role::OnSurfaceVariant,
+            );
+            tx += ICON_SMALL + GRID;
+        }
+        let room = x + w - PAD - tx;
+        let head = ui.fit_as(LABEL_L, &l.head, room);
+        let used = ui.text_mid_as((tx, ly, line_h), LABEL_L, Role::OnSurface, &head);
+        if !l.tail.is_empty() {
+            let tail = ui.fit_as(BODY_S, &l.tail, (room - used - GRID).max(0.0));
+            ui.text_mid_as(
+                (tx + used + GRID, ly, line_h),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &tail,
+            );
+        }
+        ly += line_h;
+    }
+    h
 }
 
 /// The ⋮ menu of the top app bar on the bar's windows: Settings and

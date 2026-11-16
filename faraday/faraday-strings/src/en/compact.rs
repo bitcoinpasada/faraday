@@ -50,34 +50,20 @@ macro_rules! words_compact {
     compact_vault_contents: "Vault contents",
     /// Text in `page`.
     compact_home: "Home",
-    /// Text in `home`.
-    compact_nothing_loaded: "Nothing loaded",
-    /// Text in `home`.
-    compact_key_inline: "key",
-    /// Text in `home`.
-    compact_keys: "keys",
-    /// Text in `home`.
-    compact_wallet: "wallet",
-    /// Text in `home`.
-    compact_wallets_inline: "wallets",
     /// Text in `home`. `{}`: `v`, `if v == 1 { EN.compact_vault } else {…`.
     compact_vaults_open: "{} {} open",
     /// Text in `home`.
     compact_vault: "vault",
     /// Text in `home`.
     compact_vaults_inline: "vaults",
-    /// Text in `home`.
-    compact_bring_in_button: "Bring in",
-    /// Text in `home`.
-    compact_open_button: "Open",
-    /// Text in `home`.
-    compact_work: "Work",
-    /// Text in `home`.
-    compact_write_out: "Write out",
     /// Button in `home`.
     compact_lock: "Lock",
     /// Button in `home`.
     compact_scan: "Scan",
+    /// Text in `home`.
+    compact_key_inline: "key",
+    /// Text in `home`.
+    compact_keys: "keys",
     /// Text in `tiles`.
     compact_wallets: "Wallets",
     /// Text in `tiles`.
@@ -104,8 +90,6 @@ macro_rules! words_compact {
     compact_settings: "Settings",
     /// Text in `keyboard`.
     compact_done: "Done",
-    /// Text in `files_count`.
-    compact_none: "none",
     /// Text in `home_files_line`: the count, one file.
     compact_file_count_one: "file",
     /// Text in `home_files_line`: the count, other than one.

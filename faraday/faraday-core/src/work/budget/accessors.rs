@@ -246,12 +246,6 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "session_stage",
-            Box::new(|v| {
-                let _ = v.session_stage();
-            }),
-        ),
-        (
             "vault_changed",
             Box::new(|v| {
                 let _ = v.vault_changed();

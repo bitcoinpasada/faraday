@@ -68,10 +68,11 @@ stick's arrival opens the On tab; on the Pi each tab draws its column as
 the Pi's compact pages do.
 
 **What the sidebar lists** besides its tabs (flows in progress with
-their open step, the loaded keys, the wallets, the session strip, the
-sticks attached) stays on the expanded rail. Where there is no expanded
-rail, it is **Home's status strip** (§4): the same rows, as chips at the
-top of Home (on the small panel under its mark and name), each opening what its sidebar row opens. A flow in
+their open step, the loaded keys, the wallets, Files, the sticks
+attached) stays on the expanded rail. Where there is no expanded
+rail, it is **Home's box of what is loaded** (§4): one card with the same
+rows as plain lines, at the top of Home (on the small panel under its
+mark and name), each opening what its sidebar row opens. A flow in
 progress also shows its chip at the top of every destination while it
 waits, so it is never more than one press away.
 
@@ -137,11 +138,13 @@ Cancel already rules (F51).
 Home is Material's feed layout: the lead tile while something is under
 way or waiting (`docs/FLOWS.md`, Home), then the tiles in a grid.
 
-- **The status strip** (every window without the expanded rail, the
-  small panel included): the sidebar's rows as chips, at the top, under
-  the mark and name on the small panel (§3). The small panel's summary
-  card under it stands only while vaults are open; its menu follows the
-  session strip.
+- **The box of what is loaded** (every window without the expanded
+  rail, the small panel included): one card, the sidebar's rows as plain
+  lines in it, at the top, under the mark and name on the small panel
+  (§3). The small panel's summary card under it stands only while
+  vaults are open; its menu follows it. On the 480 by 640 panel with a
+  flow, a key and a wallet loaded, the menu's first row shows and the
+  rest scrolls.
 - **The lead tile**: its icon, its line and its one button at its end,
   as wide as that needs and at most `LEAD_MAX` (560 dp).
 - **The tiles**: each its icon beside its name and one line under the

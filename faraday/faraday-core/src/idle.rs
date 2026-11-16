@@ -279,20 +279,4 @@ impl Faraday {
         // `lock_finish` when the last is done.
         self.vault_seal_all(may_lose);
     }
-
-    /// Costs a hash of a whole file (through `vault_changed`). The session
-    /// strip's stage, computed, never stored (`docs/FLOWS.md`, Sidebar).
-    pub fn session_stage(&self, c: &Compute) -> &'static str {
-        if !self.stick.is_empty() || self.import.state().is_some() {
-            EN.session_stage_bring
-        } else if !self.outbox.is_empty() || self.vault_changed(c).is_some() {
-            EN.session_stage_write
-        } else if self.holds_secret() || !self.session.wallets.is_empty() {
-            EN.session_stage_work
-        } else if !self.inbox.is_empty() {
-            EN.session_stage_open
-        } else {
-            EN.session_stage_bring
-        }
-    }
 }

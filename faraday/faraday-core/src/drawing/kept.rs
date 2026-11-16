@@ -758,13 +758,6 @@ impl View<'_> {
         self.kept(|c| self.app.gpg_chosen(c))
     }
 
-    /// The session strip's stage ([`crate::Faraday::session_stage`]),
-    /// from each vault file's hash taken when it came in. Costs a hash of
-    /// a file whose hash was not taken.
-    pub fn session_stage(&self) -> &'static str {
-        self.kept(|c| self.app.session_stage(c))
-    }
-
     /// The first vault changed since it was written
     /// ([`crate::Faraday::vault_changed`]), from each vault file's hash
     /// taken when it came in. Costs a hash of a file whose hash was not

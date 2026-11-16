@@ -90,97 +90,6 @@ fn the_sidebar_has_no_spend_row() {
     assert!(!app.offers(Action::Nav(Screen::SpendBackup)));
 }
 
-/// Each of the four stages of the session strip in turn: Bring in with
-/// nothing attached, loaded or waiting (owner, 2026-10-24), Open once
-/// the Inbox has a file.
-#[test]
-fn the_session_strip_names_the_current_stage() {
-    let c = testkit::compute();
-    let mut app = with(0, 0);
-    assert_eq!(app.session_stage(&c), "Bring in", "an empty session");
-    app.storage(faraday_core::StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(
-            faraday_text::Text::of("wallet.txt"),
-            b"wpkh".to_vec(),
-        )]),
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    assert_eq!(app.session_stage(&c), "Open", "a file in the Inbox");
-    app.session
-        .keys.add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
-        .unwrap();
-    assert_eq!(app.session_stage(&c), "Work");
-    app.outbox.clear();
-    app.session.keys.clear();
-    app.outbox.push(faraday_core::Item {
-        name: faraday_text::Text::of("a.psbt"),
-        bytes: (Vec::new()).into(),
-        kind: faraday_core::wallet::FileKind::Psbt,
-        secret: false,
-        picture: None,
-        sha: None,
-        facts: None,
-        wallet: None,
-        psbt: None,
-        outpoints: Vec::new(),
-        unsigned_txid: None,
-    });
-    assert_eq!(app.session_stage(&c), "Write out");
-    app.storage(faraday_core::StorageEvent::Sticks(vec![
-        faraday_core::StickInfo {
-            make: Default::default(),
-            serial: None,
-            id: faraday_text::Text::of("a"),
-            label: faraday_text::Text::of("STICK"),
-            boot: false,
-            files: Vec::new(),
-            vaults: Vec::new(),
-        },
-    ]));
-    assert_eq!(app.session_stage(&c), "Bring in");
-}
-
-/// Write out also when nothing waits For the stick but a vault has
-/// changed since it was written (§3.5): here the test vault, copied in,
-/// opened, and a key saved into it.
-#[test]
-fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
-    let c = faraday_core::testkit::compute();
-    use faraday_core::vault::VaultAction as V;
-    let mut app = with(1, 0);
-    app.storage(faraday_core::StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(
-            faraday_text::Text::of("vault.kdbx"),
-            faraday_core::testkit::test_vault().unwrap(),
-        )]),
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    app.storage(faraday_core::StorageEvent::Memory {
-        available_mib: 15_000,
-    });
-    faraday_core::testkit::vault_speed(&mut app, Some(180));
-    app.press(Action::Vault(V::Open(0)));
-    for c in faraday_core::testkit::VAULT_PASSPHRASE.chars() {
-        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
-    }
-    app.press(Action::Vault(V::Unlock));
-    for t in 1..60u64 {
-        if !app.vaults().open.is_empty() {
-            break;
-        }
-        let _ = app.frame();
-        app.event(Event::Tick { now_ms: t * 1000 });
-    }
-    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
-    assert_eq!(app.session_stage(&c), "Work", "open and unchanged");
-    app.press(Action::Vault(V::AddKind(0)));
-    app.press(Action::Vault(V::SaveKey(0)));
-    assert!(app.outbox.is_empty());
-    assert_eq!(app.session_stage(&c), "Write out");
-}
-
 #[test]
 fn a_few_are_each_named_and_open_what_they_name() {
     // Rows are a touch target tall, so five need a taller panel.
@@ -312,11 +221,10 @@ fn the_lists_scrolled_to_their_end_follow_a_list_that_shrinks() {
     assert!(!app.offers(Action::ExploreKey(fp(&app, 29))));
 }
 
-/// The Files row names how many files wait and, under that, the four
-/// stages of the session, the stage once a strip of its own: all of it
-/// between the Files row's name and the stick's row under it.
+/// The Files row says in plain words what the files are: brought in
+/// from the stick, then, once one waits, to be written to it.
 #[test]
-fn the_files_row_names_the_session_stage() {
+fn the_files_row_says_what_the_files_are() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
@@ -327,34 +235,21 @@ fn the_files_row_names_the_session_stage() {
         kept: Vec::new(),
     });
     app.press(Action::Nav(Screen::Home));
-    let _ = app.frame();
-    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
-    let boxes: Vec<(String, (i32, i32, i32, i32))> = app
-        .drawn_text_boxes()
-        .plain()
-        .into_iter()
-        .filter(|(_, (x, _, _, _))| *x < edge)
-        .collect();
-    let lowest = |want: &dyn Fn(&str) -> bool| {
-        boxes
-            .iter()
-            .filter(|(s, _)| want(s))
-            .map(|(_, b)| *b)
-            .max_by_key(|b| b.1)
-            .unwrap_or_else(|| panic!("not drawn: {boxes:?}"))
-    };
-    let files = lowest(&|t| t == "Files");
-    // The stick's row: nothing attached.
-    let stick = lowest(&|t| t == "none");
-    let count = lowest(&|t| t.starts_with("1 "));
-    assert_eq!(count.1, files.1, "the count beside the name: {boxes:?}");
-    for t in ["Bring in", "Open", "Work", "Write out"] {
-        let b = lowest(&|s| s == t);
-        assert!(
-            files.1 < b.1 && b.1 < stick.1,
-            "{t:?} is not in the Files row: {b:?}, Files {files:?}, stick {stick:?}"
-        );
-    }
+    assert!(crate::common::has(&mut app, "1 file from the stick"));
+    app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("a.psbt"),
+        bytes: (Vec::new()).into(),
+        kind: faraday_core::wallet::FileKind::Psbt,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    assert!(crate::common::has(&mut app, "1 file to write to the stick"));
     assert!(app.offers(Action::Nav(Screen::Files)));
 }
 

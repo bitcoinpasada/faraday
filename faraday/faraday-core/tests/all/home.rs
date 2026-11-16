@@ -835,3 +835,41 @@ fn the_pi_s_home_names_a_loaded_wallet() {
         "Home does not name {name}: {shown:?}"
     );
 }
+
+/// Files waiting to be written to the stick show on the Pi's Home.
+#[test]
+fn the_pi_s_home_shows_files_waiting_to_be_written() {
+    let mut app = with_a_wallet();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.outbox.push(faraday_core::Item {
+        name: faraday_text::Text::of("a.psbt"),
+        bytes: (Vec::new()).into(),
+        kind: faraday_core::wallet::FileKind::Psbt,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+        outpoints: Vec::new(),
+        unsigned_txid: None,
+    });
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        shown
+            .iter()
+            .any(|t| t.starts_with("1 file to write to the stick")),
+        "{shown:?}"
+    );
+}

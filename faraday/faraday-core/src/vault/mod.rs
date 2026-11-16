@@ -2537,7 +2537,7 @@ impl Faraday {
 
     /// Costs a hash of a whole file (through `currency`). The first vault
     /// changed since it was written, by the name it goes by: Home's lead
-    /// rule 6 and the session strip's Write out.
+    /// rule 6.
     pub fn vault_changed(&self, c: &Compute) -> Option<Text> {
         self.vault_files().iter().find_map(|f| {
             (self.currency(c, f) == Some(Currency::Changed)).then(|| {

@@ -177,15 +177,6 @@ macro_rules! words_common {
     start_spend_not_a_psbt: "Not a PSBT",
     /// Toast in `start_spend` for a PSBT with silent payment fields.
     start_spend_silent_payments: "Not signed: this PSBT sends to silent payments, which this device does not sign",
-    // ----- session_stage (faraday-core/src/lib.rs) -----
-    /// Text in `session_stage`.
-    session_stage_bring: "Bring in",
-    /// Text in `session_stage`.
-    session_stage_write: "Write out",
-    /// Text in `session_stage`.
-    session_stage_work: "Work",
-    /// Text in `session_stage`.
-    session_stage_open: "Open",
     // ----- act (faraday-core/src/lib.rs) -----
     /// Text in `act`. `{}`: `w`, `if w == 1 { EN.act_wallet } else { EN…`, `k`, `if k == 1 { EN.act_seed } else { EN.a…`.
     act_and_loaded: "{} {} and {} {} loaded",

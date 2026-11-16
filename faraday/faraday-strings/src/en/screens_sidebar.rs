@@ -23,17 +23,11 @@ macro_rules! words_screens_sidebar {
     /// Row in `sidebar`.
     sidebar_guide: "Guide",
     /// Text in `sidebar`.
-    sidebar_bring_in_button: "Bring in",
-    /// Text in `sidebar`.
-    sidebar_open: "Open",
-    /// Text in `sidebar`.
-    sidebar_work: "Work",
-    /// Text in `sidebar`.
-    sidebar_write_out: "Write out",
-    /// Text in `sidebar`.
     sidebar_passphrase: "passphrase",
     /// Text in `more`. `{}`: `n - i`.
     sidebar_more: "+ {} more",
+    /// A flow in progress's line in Home's box of what is loaded.
+    home_in_progress: "in progress",
     /// Text in `sidebar`.
     sidebar_keys: "Keys",
     /// Text in `sidebar`. `{}`: `m`, `n`.
