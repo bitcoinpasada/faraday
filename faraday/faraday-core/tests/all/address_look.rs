@@ -7,7 +7,8 @@
 use faraday_bip::policy::WalletPolicy;
 use faraday_core::address_check::AddressPress;
 use faraday_core::create::NewKind;
-use faraday_core::{Action, Ask, Faraday, StorageEvent, testkit};
+use faraday_core::explore::XAction;
+use faraday_core::{Action, Ask, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Event};
 
 /// A single-key native SegWit wallet over test seed `n`.
@@ -297,6 +298,7 @@ fn a_standard_account_is_looked_further_in() {
     look_through(&mut app);
     assert!(said(&app).contains("Receive · index 150"), "{}", said(&app));
     assert!(said(&app).contains("m/44h/0h/0h"), "{}", said(&app));
+    assert!(ways(&app).contains(&"Make a wallet".to_string()));
 }
 
 #[test]
@@ -318,6 +320,7 @@ fn an_account_with_a_wallet_is_not_searched_twice() {
     // The wallet's own line, not the account's.
     assert!(!said(&app).contains("Found in key "), "{}", said(&app));
     assert!(said(&app).contains("Receive · index 0"), "{}", said(&app));
+    assert!(!ways(&app).contains(&"Make a wallet".to_string()));
     // A miss counts the wallet and the three accounts with none.
     let a = address_in(&app, &single(1), false, 7);
     read(&mut app, &a);
@@ -404,6 +407,7 @@ fn a_find_in_a_multisig_wallet_lists_each_cosigner() {
 #[test]
 fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
     let mut app = with_key();
+    testkit::keep_published(&mut app);
     read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
     let card = said(&app);
     assert!(
@@ -415,7 +419,78 @@ fn a_find_in_a_keys_account_offers_to_make_its_wallet_and_then_to_open_it() {
     assert_eq!(ways(&app), [sign, "Make a wallet"]);
     app.press(way(1));
     assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.sheet, Some(Sheet::MadeWallet));
     assert_eq!(ways(&app), [sign, "Open the wallet"]);
+    // Done leaves the page as it was, with the wallet loaded.
+    app.press(Action::X(XAction::MadeDone));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::CheckAddress);
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
+#[test]
+fn the_made_wallets_dialog_opens_the_wallet() {
+    let mut app = with_key();
+    testkit::keep_published(&mut app);
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    app.press(way(1));
+    assert_eq!(app.sheet, Some(Sheet::MadeWallet));
+    let _ = app.frame();
+    app.press(Action::X(XAction::MadeOpen));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.wallet_index(), 0);
+}
+
+#[test]
+fn a_find_among_a_files_several_addresses_offers_no_wallet() {
+    let mut app = with_key();
+    testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Check an address")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::CheckAddress);
+    let text = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu\n1B2iaW2V1eutqAyXQxgussmdjeqDz4PPvw\n";
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("list.txt"),
+            text.as_bytes().to_vec(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::AddressCheck(AddressPress::File(0)));
+    let _ = app.frame();
+    app.press(Action::AddressCheck(AddressPress::Row(0)));
+    assert!(said(&app).contains("Found in key"), "{}", said(&app));
+    assert!(
+        !ways(&app).contains(&"Make a wallet".to_string()),
+        "{:?}",
+        ways(&app)
+    );
+}
+
+#[test]
+fn a_wallet_made_from_a_child_seeds_account_shows_its_notice_once_after_the_dialog() {
+    let mut app = with_key();
+    testkit::keep_published(&mut app);
+    let of = faraday_vault::child::ChildOf {
+        parent: [1, 2, 3, 4],
+        language: 0,
+        words: 12,
+        index: 7,
+    };
+    assert!(app.session.keys.set_child_of(0, Some(of)));
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    app.press(way(1));
+    assert_eq!(app.sheet, Some(Sheet::MadeWallet));
+    app.press(Action::X(XAction::MadeDone));
+    assert_eq!(app.sheet, Some(Sheet::ChildNotice));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
 }
 
 #[test]

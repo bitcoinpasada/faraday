@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path)
+**Open:** Open the wallet's way back to the page Make a wallet was pressed on (Make a wallet at the path); and Add a key's codex32 entry's Make the rest, Add a share, a checksum worksheet's final row and the mark's line on Wallets and New key's Key card, as its paragraph lists them
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1133,8 +1133,9 @@ the code, no PNG) → **Wallets**.
 
 ### Make a wallet at the path
 
-Built from Explore; the address check's way in and the BIP-85 child
-seed notice after a wallet made from Explore are not. Finding a person's address at a path of their key means a
+Built but for Open the wallet's way back to the page it was pressed on (step 3): Back from the wallet's card goes to Wallets.
+
+Finding a person's address at a path of their key means a
 wallet is there, so Faraday makes that wallet from where the person
 found it, without Create's or Restore's cards. Two ways in, one
 action:

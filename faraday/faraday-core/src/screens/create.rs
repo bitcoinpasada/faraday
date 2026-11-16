@@ -938,7 +938,11 @@ fn change_row(
 pub(crate) fn child_notice(app: &View, ui: &mut Ui, w: f32, h: f32) {
     use faraday_draw::tokens::{DIALOG_MAX, GAP};
     use faraday_draw::widgets::Icon;
-    let Some(fp) = app.create().and_then(|c| c.child) else {
+    let Some(fp) = app
+        .create()
+        .and_then(|c| c.child)
+        .or_else(|| app.explore.child())
+    else {
         return;
     };
     let line = fill(

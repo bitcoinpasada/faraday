@@ -173,7 +173,9 @@ pub(crate) fn answer(look: &Look) -> (Answer, Vec<Way>) {
                 sign.as_ref()
                     .map(|_| Way::SignAddress)
                     .into_iter()
-                    .chain([look.made.map_or(Way::MakeWallet, Way::OpenWallet)])
+                    .chain(
+                        (!look.listed).then(|| look.made.map_or(Way::MakeWallet, Way::OpenWallet)),
+                    )
                     .collect(),
             ),
         }

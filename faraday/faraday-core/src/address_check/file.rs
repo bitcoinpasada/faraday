@@ -245,6 +245,7 @@ fn row(
         &app.session.wallets,
         accounts.to_vec(),
     );
+    look.listed = true;
     if let Some(&(place, change, index)) = owned.get(&target) {
         look.found = Some((place, change, index));
         look.settle(&app.session);

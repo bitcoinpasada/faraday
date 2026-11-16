@@ -125,6 +125,9 @@ pub struct Reading {
 #[derive(Default)]
 pub(crate) struct ExploreArea {
     state: Option<ExploreState>,
+    /// The key of a wallet just made that is recorded as a BIP-85 child
+    /// seed, until its notice has been shown (F166).
+    child: Option<[u8; 4]>,
 }
 
 impl ExploreArea {
@@ -512,16 +515,27 @@ impl Faraday {
         }
     }
 
-    /// **Done** on the made wallet's dialog.
+    /// The wallet the Wallet made dialog is about: Explore's, or the
+    /// address check's find made into one.
+    pub(crate) fn made_place(&self) -> Option<usize> {
+        if self.screen == Screen::CheckAddress {
+            self.address_check_state().and_then(|s| s.made())
+        } else {
+            self.explore.state().and_then(|e| e.made)
+        }
+    }
+
+    /// **Done** on the made wallet's dialog; a wallet made with a key
+    /// recorded as a BIP-85 child seed then shows its notice, once.
     pub(crate) fn explore_made_done(&mut self) {
         if self.sheet == Some(Sheet::MadeWallet) {
-            self.sheet = None;
+            self.sheet = self.explore.take_child().map(|_| Sheet::ChildNotice);
         }
     }
 
     /// **Open the wallet** on the made wallet's dialog.
     pub(crate) fn explore_made_open(&mut self) {
-        let made = self.explore.state().and_then(|e| e.made);
+        let made = self.made_place();
         self.explore_made_done();
         if let Some(i) = made {
             self.act(Action::OpenWallet(i));
@@ -591,6 +605,12 @@ impl Faraday {
             .map_err(|e| e.text())?;
         self.glance.moved_to(&self.session, i);
         self.wallets.set_wallet(i);
+        let child = self
+            .session
+            .keys
+            .info(place)
+            .is_some_and(|k| k.child_of.is_some());
+        self.explore.set_child(child.then_some(fp));
         Ok(i)
     }
 }

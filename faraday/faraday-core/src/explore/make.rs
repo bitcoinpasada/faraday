@@ -84,6 +84,22 @@ impl ExploreArea {
         })
     }
 
+    /// Notes the key of the wallet just made when it is a BIP-85 child
+    /// seed.
+    pub(super) fn set_child(&mut self, child: Option<[u8; 4]>) {
+        self.child = child;
+    }
+
+    /// The child seed the notice is about, until it is shown.
+    pub(crate) fn child(&self) -> Option<[u8; 4]> {
+        self.child
+    }
+
+    /// Takes the child seed the notice is about: shown once.
+    pub(super) fn take_child(&mut self) -> Option<[u8; 4]> {
+        self.child.take()
+    }
+
     /// Clears the line a refused press left.
     pub(crate) fn clear_make_error(&mut self) {
         if let Some(e) = self.state.as_mut() {

@@ -59,6 +59,26 @@ fn a_bip84_path_makes_the_wallet_and_a_second_press_opens_it() {
 }
 
 #[test]
+fn a_wallet_made_from_a_child_seeds_account_shows_its_notice_once_after_the_dialog() {
+    let mut app = exploring();
+    let of = faraday_vault::child::ChildOf {
+        parent: [1, 2, 3, 4],
+        language: 0,
+        words: 12,
+        index: 7,
+    };
+    assert!(app.session.keys.set_child_of(0, Some(of)));
+    assert!(offered(&mut app));
+    app.press(Action::X(XAction::Make));
+    assert_eq!(app.sheet, Some(Sheet::MadeWallet));
+    app.press(Action::X(XAction::MadeOpen));
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.sheet, Some(Sheet::ChildNotice));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
 fn a_multisig_path_offers_no_wallet() {
     let mut app = exploring();
     app.press(Action::XPreset(4));

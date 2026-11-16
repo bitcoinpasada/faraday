@@ -117,6 +117,9 @@ pub(crate) struct Look {
     pub(crate) found_in: Option<FoundIn>,
     /// The place of the wallet made from a key's account it was found in.
     pub(crate) made: Option<usize>,
+    /// Whether the address is one of a file's several, whose finds offer
+    /// no wallet to make.
+    pub(crate) listed: bool,
 }
 
 impl Look {
@@ -140,6 +143,7 @@ impl Look {
             found: None,
             found_in: None,
             made: None,
+            listed: false,
         }
     }
 

@@ -16,7 +16,7 @@ use faraday_draw::widgets::Icon;
 /// The dialog: the wallet's name for its head, the descriptor row
 /// (opening the wallet's code) and the first addresses for its body.
 pub(crate) fn dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(i) = app.explore.state().and_then(|e| e.made) else {
+    let Some(i) = app.made_place() else {
         return;
     };
     let Some(wl) = app.session.wallets.get(i) else {

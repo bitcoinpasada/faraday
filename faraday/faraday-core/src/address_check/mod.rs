@@ -136,6 +136,11 @@ impl AddressCheckState {
     }
 
     /// What was checked and found is forgotten, as the text changes.
+    /// The place of the wallet made from the find, once it was.
+    pub(crate) fn made(&self) -> Option<usize> {
+        self.look.as_ref().and_then(|l| l.made)
+    }
+
     fn forget(&mut self) {
         self.refusal = None;
         self.look = None;
@@ -422,6 +427,7 @@ fn make(app: &mut Faraday) {
                 }
                 s.refresh();
             }
+            app.sheet = Some(crate::Sheet::MadeWallet);
         }
         Err(why) => app.toast(&why),
     }

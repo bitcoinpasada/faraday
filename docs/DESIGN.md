@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open
-**Open:** Check a signer's shield-with-tick icon (the checklist icon stands in); Make a wallet on Explore's path and Find pages and on the address check's find, and its dialog (§5, Make a wallet), still to be built
+**Open:** Check a signer's shield-with-tick icon (the checklist icon stands in); Make a wallet on Explore's path and Find pages, and its dialog (§5, Make a wallet), still to be built
 
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
