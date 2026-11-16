@@ -20,6 +20,11 @@
 
 use std::path::PathBuf;
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use std::path::Path;
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use faraday_camera::Frame;
 use faraday_shell_api::{CameraFailure, Event};
 
 /// A camera that would not start: the reason to print, and the reason
@@ -120,12 +125,120 @@ pub fn list() -> Vec<(String, String)> {
     faraday_camera::list()
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+/// What differs between the platforms: how a capture starts and stops
+/// and how it is read. Everything else about the camera (the
+/// `--no-camera` refusal, starting twice, choosing a device, turning the
+/// camera off once it has ended) is [`Shared`].
+trait Backend {
+    /// A running capture and the channel its frames arrive on.
+    type Session;
+
+    /// Starts capturing on `device`, or on the first camera when that is
+    /// `None`.
+    fn start(device: Option<&Path>) -> Result<Self::Session, Unavailable>;
+
+    /// Ends the capture and waits until the device is closed.
+    fn stop(session: Self::Session);
+
+    /// The next thing the capture has to say.
+    fn poll(session: &mut Self::Session) -> Polled;
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+/// What a capture had for one [`Backend::poll`].
+enum Polled {
+    /// Nothing is waiting.
+    Nothing,
+    /// An event for the app; the capture goes on.
+    Event(Event),
+    /// The capture is over: turn the camera off, so that a later
+    /// `CameraOn` tries again, and tell the app.
+    Ended(Event),
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+/// The camera, written once over a platform's [`Backend`].
+struct Shared<B: Backend> {
+    device: Option<PathBuf>,
+    disabled: bool,
+    session: Option<B::Session>,
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+impl<B: Backend> Shared<B> {
+    fn new(device: Option<PathBuf>, disabled: bool) -> Self {
+        Shared {
+            device,
+            disabled,
+            session: None,
+        }
+    }
+
+    fn on(&mut self) -> Result<(), Unavailable> {
+        if self.disabled {
+            return Err(Unavailable::plain("--no-camera"));
+        }
+        if self.session.is_some() {
+            return Ok(());
+        }
+        self.session = Some(B::start(self.device.as_deref())?);
+        Ok(())
+    }
+
+    fn choose(&mut self, path: PathBuf) {
+        let running = self.session.is_some();
+        self.device = Some(path);
+        if running {
+            self.off();
+            if let Err(reason) = self.on() {
+                eprintln!("faraday: camera unavailable: {reason}");
+            }
+        }
+    }
+
+    fn off(&mut self) {
+        if let Some(session) = self.session.take() {
+            B::stop(session);
+        }
+    }
+
+    fn poll(&mut self) -> Option<Event> {
+        match B::poll(self.session.as_mut()?) {
+            Polled::Nothing => None,
+            Polled::Event(event) => Some(event),
+            Polled::Ended(event) => {
+                self.off();
+                Some(event)
+            }
+        }
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+/// A frame as the event that carries it to the core.
+fn frame_event(mut f: Frame) -> Event {
+    Event::CameraFrame {
+        width: f.width,
+        height: f.height,
+        // Taken out of the wiping wrapper, not copied: the bytes go on
+        // to the core, which wipes them.
+        luma: std::mem::take(&mut *f.luma),
+        chroma: f.chroma.as_mut().map(|uv| std::mem::take(&mut **uv)),
+    }
+}
+
+/// Frames the channel holds. Two is one being decoded and one waiting; a
+/// third would already be out of date by the time the core reached it.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+const QUEUE: usize = 2;
+
 #[cfg(target_os = "linux")]
-use linux::Inner;
+type Inner = Shared<linux::Platform>;
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use std::path::PathBuf;
+    use std::path::Path;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
@@ -134,7 +247,7 @@ mod linux {
     use faraday_shell_api::{CameraFailure, Event};
     use faraday_v4l2::{Camera as Device, Failure, Frame, MAX_FPS, Size};
 
-    use super::Unavailable;
+    use super::{Backend, Polled, QUEUE, Unavailable, frame_event};
 
     /// The app's reason for a V4L2 one.
     fn reason(why: Failure) -> CameraFailure {
@@ -145,42 +258,21 @@ mod linux {
         }
     }
 
-    /// Frames the channel holds. Two is one being decoded and one
-    /// waiting; a third would already be out of date by the time the
-    /// core reached it.
-    const QUEUE: usize = 2;
-
     /// A running capture: the thread, its stop flag, and the frames.
-    struct Session {
+    pub struct Session {
         frames: Receiver<Frame>,
         stop: Arc<AtomicBool>,
         thread: JoinHandle<()>,
     }
 
-    pub struct Inner {
-        device: Option<PathBuf>,
-        disabled: bool,
-        session: Option<Session>,
-    }
+    pub struct Platform;
 
-    impl Inner {
-        pub fn new(device: Option<PathBuf>, disabled: bool) -> Inner {
-            Inner {
-                device,
-                disabled,
-                session: None,
-            }
-        }
+    impl Backend for Platform {
+        type Session = Session;
 
-        pub fn on(&mut self) -> Result<(), Unavailable> {
-            if self.disabled {
-                return Err(Unavailable::plain("--no-camera"));
-            }
-            if self.session.is_some() {
-                return Ok(());
-            }
-            let path = match &self.device {
-                Some(p) => p.clone(),
+        fn start(device: Option<&Path>) -> Result<Session, Unavailable> {
+            let path = match device {
+                Some(p) => p.to_path_buf(),
                 None => faraday_v4l2::find_or_failure().map_err(|why| Unavailable {
                     reason: String::from("no /dev/video* is a streaming capture device"),
                     why: Some(reason(why)),
@@ -201,53 +293,29 @@ mod linux {
             let (tx, frames) = sync_channel(QUEUE);
             let stop = Arc::new(AtomicBool::new(false));
             let thread = faraday_v4l2::spawn(device, tx, Arc::clone(&stop));
-            self.session = Some(Session {
+            Ok(Session {
                 frames,
                 stop,
                 thread,
-            });
-            Ok(())
+            })
         }
 
-        pub fn choose(&mut self, path: PathBuf) {
-            let running = self.session.is_some();
-            self.device = Some(path);
-            if running {
-                self.off();
-                if let Err(reason) = self.on() {
-                    eprintln!("faraday: camera unavailable: {reason}");
-                }
-            }
+        fn stop(session: Session) {
+            session.stop.store(true, Ordering::Relaxed);
+            // The camera is dropped on that thread, so the join is what
+            // closes the device.
+            let _ = session.thread.join();
         }
 
-        pub fn off(&mut self) {
-            if let Some(session) = self.session.take() {
-                session.stop.store(true, Ordering::Relaxed);
-                // The camera is dropped on that thread, so the join is
-                // what closes the device.
-                let _ = session.thread.join();
-            }
-        }
-
-        pub fn poll(&mut self) -> Option<Event> {
-            let session = self.session.as_ref()?;
+        fn poll(session: &mut Session) -> Polled {
             match session.frames.try_recv() {
-                Ok(mut f) => Some(Event::CameraFrame {
-                    width: f.width,
-                    height: f.height,
-                    // Taken out of the wiping wrapper, not copied: the
-                    // bytes go on to the core, which wipes them.
-                    luma: std::mem::take(&mut *f.luma),
-                    chroma: f.chroma.as_mut().map(|uv| std::mem::take(&mut **uv)),
-                }),
-                Err(TryRecvError::Empty) => None,
+                Ok(f) => Polled::Event(frame_event(f)),
+                Err(TryRecvError::Empty) => Polled::Nothing,
                 // The capture thread ended on its own: the device failed
-                // or is gone. Tell the app, and tidy up so a later
-                // CameraOn tries again.
+                // or is gone.
                 Err(TryRecvError::Disconnected) => {
                     eprintln!("camera: the device stopped delivering frames");
-                    self.off();
-                    Some(Event::CameraUnavailable)
+                    Polled::Ended(Event::CameraUnavailable)
                 }
             }
         }
@@ -255,32 +323,28 @@ mod linux {
 }
 
 #[cfg(target_os = "windows")]
-use windows::Inner;
+type Inner = Shared<windows::Platform>;
 #[cfg(target_os = "windows")]
 pub use windows::list;
 
 #[cfg(target_os = "windows")]
 mod windows {
-    use std::path::PathBuf;
+    use std::path::Path;
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
 
-    use faraday_mediafoundation::{Camera as Session, MAX_FPS, Message};
+    use faraday_mediafoundation::{Camera as Capture, MAX_FPS, Message};
     use faraday_shell_api::{CameraFailure, Event};
 
-    use super::{Unavailable, event_for};
+    use super::{Backend, Polled, QUEUE, Unavailable, event_for, frame_event};
+
     /// The app's reason for the backend's.
-    fn failure(why: faraday_mediafoundation::Failure) -> CameraFailure {
+    fn reason(why: faraday_camera::Failure) -> CameraFailure {
         match why {
-            faraday_mediafoundation::Failure::Refused => CameraFailure::Refused,
-            faraday_mediafoundation::Failure::InUse => CameraFailure::InUse,
-            faraday_mediafoundation::Failure::NotFound => CameraFailure::NotFound,
+            faraday_camera::Failure::Refused => CameraFailure::Refused,
+            faraday_camera::Failure::InUse => CameraFailure::InUse,
+            faraday_camera::Failure::NotFound => CameraFailure::NotFound,
         }
     }
-
-    /// Frames the channel holds, as on Linux: one being decoded and one
-    /// waiting. A third would be out of date by the time the core
-    /// reached it, and the capture callback drops it instead.
-    const QUEUE: usize = 2;
 
     /// The cameras this machine has, as `(symbolic link, name)`, for the
     /// scan sheet's choice, in Media Foundation's order: the first is
@@ -292,86 +356,47 @@ mod windows {
             .collect()
     }
 
-    pub struct Inner {
-        /// The symbolic link of the camera to open, or `None` for the
-        /// first.
-        device: Option<String>,
-        disabled: bool,
-        session: Option<(Session, Receiver<Message>)>,
-    }
+    pub struct Platform;
 
-    impl Inner {
-        pub fn new(device: Option<PathBuf>, disabled: bool) -> Inner {
-            Inner {
-                device: device.map(|p| p.to_string_lossy().into_owned()),
-                disabled,
-                session: None,
-            }
-        }
+    impl Backend for Platform {
+        type Session = (Capture, Receiver<Message>);
 
-        pub fn on(&mut self) -> Result<(), Unavailable> {
-            if self.disabled {
-                return Err(Unavailable::plain("--no-camera"));
-            }
-            if self.session.is_some() {
-                return Ok(());
-            }
+        /// `device` is the symbolic link of the camera to open.
+        fn start(device: Option<&Path>) -> Result<Self::Session, Unavailable> {
+            let link = device.map(|p| p.to_string_lossy().into_owned());
             let (tx, frames) = sync_channel(QUEUE);
             // Starting is asynchronous: the device, the privacy setting
             // and the format all answer on the channel. A failure
             // arrives as `Unavailable`, never as an error here.
-            let session = Session::start(self.device.as_deref(), tx);
+            let capture = Capture::start(link.as_deref(), tx);
             eprintln!(
                 "camera: Media Foundation, {}, up to {MAX_FPS} frames a second",
-                self.device.as_deref().unwrap_or("the first device")
+                link.as_deref().unwrap_or("the first device")
             );
-            self.session = Some((session, frames));
-            Ok(())
+            Ok((capture, frames))
         }
 
-        pub fn choose(&mut self, path: PathBuf) {
-            let running = self.session.is_some();
-            self.device = Some(path.to_string_lossy().into_owned());
-            if running {
-                self.off();
-                if let Err(reason) = self.on() {
-                    eprintln!("faraday: camera unavailable: {reason}");
-                }
-            }
-        }
-
-        pub fn off(&mut self) {
-            // Dropping the session stops it: the capture thread has
+        fn stop(session: Self::Session) {
+            // Dropping the capture stops it: the capture thread has
             // released the device before the drop returns.
-            self.session = None;
+            drop(session);
         }
 
-        pub fn poll(&mut self) -> Option<Event> {
-            let (_, frames) = self.session.as_ref()?;
+        fn poll((_, frames): &mut Self::Session) -> Polled {
             match frames.try_recv() {
-                Ok(Message::Frame(mut f)) => Some(Event::CameraFrame {
-                    width: f.width,
-                    height: f.height,
-                    // Taken out of the wiping wrapper, not copied: the
-                    // bytes go on to the core, which wipes them.
-                    luma: std::mem::take(&mut *f.luma),
-                    chroma: f.chroma.as_mut().map(|uv| std::mem::take(&mut **uv)),
-                }),
+                Ok(Message::Frame(f)) => Polled::Event(frame_event(f)),
                 // No camera, the chosen one gone, the privacy setting,
                 // or a device that failed; or the capture thread ended
-                // with the channel too full to say so. Turn the camera
-                // off so that a later `CameraOn` tries again.
+                // with the channel too full to say so.
                 Ok(Message::Unavailable(why)) => {
                     eprintln!("camera: no device, Windows refused access, or the device failed");
-                    self.off();
-                    Some(event_for(why.map(failure)))
+                    Polled::Ended(event_for(why.map(reason)))
                 }
                 Err(TryRecvError::Disconnected) => {
                     eprintln!("camera: the capture thread ended without a word");
-                    self.off();
-                    Some(Event::CameraUnavailable)
+                    Polled::Ended(Event::CameraUnavailable)
                 }
-                Err(TryRecvError::Empty) => None,
+                Err(TryRecvError::Empty) => Polled::Nothing,
             }
         }
     }
