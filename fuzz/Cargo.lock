@@ -430,6 +430,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-text",
  "miniscript",
+ "zeroize",
 ]
 
 [[package]]
