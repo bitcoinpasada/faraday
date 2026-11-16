@@ -1448,10 +1448,24 @@ impl Faraday {
                     let want = if want_pass { &name } else { &base };
                     // A key kept as shares has no words; it is saved as it
                     // is, so long as no passphrase is wanted with it.
-                    let k = self.session.keys.all().position(|k| {
-                        (k.has_words() || !wf.shape.seeds.get(s).is_some_and(|x| x.passphrase))
-                            && fp_text(k.fingerprint).eq_ignore_ascii_case(want)
-                    });
+                    let has_pass_seed = wf.shape.seeds.get(s).is_some_and(|x| x.passphrase);
+                    let by = |k: &faraday_keys::KeyInfo, fp: &str| {
+                        (k.has_words() || !has_pass_seed)
+                            && fp_text(k.fingerprint).eq_ignore_ascii_case(fp)
+                    };
+                    // The words alone of a key loaded with its passphrase:
+                    // its fingerprint is the seed's name, and the save
+                    // without the passphrase keeps the words only.
+                    let k = self
+                        .session
+                        .keys
+                        .all()
+                        .position(|k| by(k, want))
+                        .or_else(|| {
+                            (!want_pass)
+                                .then(|| self.session.keys.all().position(|k| by(k, &name)))
+                                .flatten()
+                        });
                     match k {
                         Some(k) => w.typed.push((k, want_pass)),
                         // A seed kept only on paper: typed back from its
