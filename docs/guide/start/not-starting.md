@@ -27,7 +27,7 @@ Faraday shows its logo a few seconds after it starts, then its first screen. A s
 
 ## A BIOS password
 
-If the BIOS asks for a password that you do not have, set by an employer or a previous owner, only whoever set it can open it. Without it Secure Boot stays on, and this computer cannot start the stick.
+If the BIOS asks for a password you do not have, such as one set by an employer or a previous owner, only whoever set it can open it. Without it Secure Boot stays on, and this computer cannot start the stick.
 
 ## Where this comes from
 

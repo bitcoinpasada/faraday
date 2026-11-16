@@ -19,7 +19,7 @@ By hand, in a terminal: systemctl reboot --firmware-setup. If that does not work
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
-If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.
+If you cannot find the Secure Boot setting, exit the BIOS without saving changes. The computer starts as before.
 
 ## Choosing the stick
 
@@ -35,19 +35,19 @@ Without a boot menu key: choose the stick in the BIOS's boot override list. If t
 
 6. Turn Secure Boot back on: open the BIOS, set Secure Boot back to Enabled, save and exit. Do it before the computer's own system starts.
 
-If Secure Boot cannot be enabled: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
+If Secure Boot cannot be enabled, load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 
 ## If something is different
 
-Stick not in the boot menu: the BIOS's Fast Boot makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
+If the stick is not in the boot menu, the BIOS's Fast Boot may be making the computer skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
 
 systemctl reboot --firmware-setup works only on a computer started in UEFI mode whose BIOS offers it. The screen at power-on often names the maker's key.
 
-Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
+Secure Boot goes off because the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
 
 ## The disk unlocked by the TPM
 
-The disk unlocked by the TPM: such a disk was set up with systemd-cryptenroll --tpm2-pcrs=7, or bound to PCR 7 another way, and Faraday Starter shows this first when /etc/crypttab names a tpm2-device. PCR 7 holds the Secure Boot state: it changes when Secure Boot is turned on or off and when its keys change, and the TPM releases the disk's key only for the state it was bound to. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
+Such a disk was set up with systemd-cryptenroll --tpm2-pcrs=7, or bound to PCR 7 another way, and Faraday Starter shows this first when /etc/crypttab names a tpm2-device. PCR 7 holds the Secure Boot state: it changes when Secure Boot is turned on or off and when its keys change, and the TPM releases the disk's key only for the state it was bound to. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
 
 ## Sources
 

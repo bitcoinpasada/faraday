@@ -11,13 +11,13 @@ The last step turns Secure Boot back on, before Windows starts. With Secure Boot
 
 1. Plug the stick in.
 
-2. BitLocker on: Temporarily suspend BitLocker, or print the recovery key.
+2. If BitLocker is on, suspend it temporarily or print the recovery key.
 
 3. Open the BIOS with Faraday Starter's Restart into the BIOS.
 
 By hand: Settings → System → Recovery (Windows 10: Settings → Update & Security → Recovery), Restart now beside Advanced startup, then Troubleshoot → Advanced options → UEFI Firmware Settings → Restart.
 
-No UEFI Firmware Settings entry: restart and press the maker's key at power-on, often Esc, Delete, F1, F2, F10, F11 or F12.
+Without that entry, restart and press the maker's key at power-on, often Esc, Delete, F1, F2, F10, F11 or F12.
 
 Use Restart, not Shut down: with Fast Startup on, Shut down does not fully close Windows.
 
@@ -25,7 +25,7 @@ Use Restart, not Shut down: with Fast Startup on, Shut down does not fully close
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
-If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+If you cannot find it, exit the BIOS without saving changes. Windows starts as before.
 
 ## Choosing the stick
 
@@ -41,7 +41,7 @@ Without a boot menu key: choose the stick in the BIOS's boot override list. If t
 
 7. Turn Secure Boot back on: open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts.
 
-If Secure Boot cannot be enabled, or Windows does not start with it on: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
+If Secure Boot cannot be enabled, or Windows does not start with it on, load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 
 ## If something is different
 
@@ -49,21 +49,21 @@ The BitLocker recovery key: Windows asks for it if it starts with Secure Boot of
 
 ## If the stick is not listed
 
-Stick not in the list: the BIOS's own Fast Boot, which is not Windows' Fast Startup, makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough, and save.
+If the stick is not in the list, the BIOS's own Fast Boot (not Windows' Fast Startup) may be making the computer skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough, and save.
 
-Without the maker's key: the screen at power-on often names it, and the page Another maker lists the common ones.
+If you do not know the maker's key, the screen at power-on often names it, and the page Another maker lists the common ones.
 
 ## Other ways in
 
-No UEFI Firmware Settings entry in Windows: Windows started in legacy BIOS mode. Faraday Starter's Restart into the BIOS works on any maker's computer started in UEFI mode, so not on this one; the screen at power-on often names the maker's key. Holding Shift while choosing Power → Restart also opens the Choose an option screen.
+If Windows has no UEFI Firmware Settings entry, it started in legacy BIOS mode. Faraday Starter's Restart into the BIOS works on any maker's computer started in UEFI mode, so not on this one; the screen at power-on often names the maker's key. Holding Shift while choosing Power → Restart also opens the Choose an option screen.
 
 Other ways to choose the stick, only when Windows is already running with Secure Boot off: Faraday Starter's Restart to choose a device, offered only then, and Use a device on the Choose an option screen. The stick then starts with Secure Boot already off; turn it back on afterwards, as the last step says. Use a device is offered only on computers started in UEFI mode, and not on every one.
 
 ## Why the steps are as they are
 
-Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
+Secure Boot goes off because the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
 
-Why Restart and not Shut down: with Fast Startup, which is on by default, Shut down saves the running Windows kernel to the disk and resumes it at the next power-on, so the key at power-on can be missed. Restart always closes Windows fully.
+Restart is used instead of Shut down because, with Fast Startup (on by default), Shut down saves the running Windows kernel to the disk and resumes it at the next power-on, so the key at power-on can be missed. Restart always closes Windows fully.
 
 Fast Startup: Microsoft recommends leaving it on. To turn it off anyway, on Windows 11 search for "Choose a power plan", then Choose what the power button does, Change settings that are currently unavailable, clear Turn on fast startup, and Save changes. On Windows 10: Power & sleep settings → Additional power settings, then the same steps.
 
