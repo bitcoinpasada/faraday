@@ -95,6 +95,7 @@ pub struct Region {
     slot: Slot,
     view: Rect,
     ground: Role,
+    fade: Option<Role>,
     own_bar: bool,
     offset: Option<f32>,
     pan: f32,
@@ -110,6 +111,7 @@ impl Region {
             slot: Slot::Page,
             view,
             ground: Role::Surface,
+            fade: None,
             own_bar: false,
             offset: None,
             pan: 0.0,
@@ -141,6 +143,16 @@ impl Region {
     /// container shows in the gap a stretch opens (`docs/THEMES.md` §6, §7).
     pub fn on(self, ground: Role) -> Self {
         Region { ground, ..self }
+    }
+
+    /// Its edges fade into `fill` rather than into what it sits on: for a
+    /// region whose view one panel of that fill covers, which a fade
+    /// into the page behind it would tint.
+    pub fn fades_into(self, fill: Role) -> Self {
+        Region {
+            fade: Some(fill),
+            ..self
+        }
     }
 
     /// The region draws its own scrollbar.
@@ -337,6 +349,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         self.region_begin(Region::page(view).from_zero(by).moves(Moves::Yes));
     }
 
+    /// [`Ui::moving_page_begin`] for a page one panel of `fill` covers
+    /// ([`Region::fades_into`]).
+    pub fn moving_panel_page_begin(&mut self, (x0, cw, h): (f32, f32, f32), by: f32, fill: Role) {
+        let view = self.rect(x0, 0.0, cw, h);
+        let region = Region::page(view).from_zero(by).moves(Moves::Yes);
+        self.region_begin(region.fades_into(fill));
+    }
+
     /// [`Ui::page_begin`] that returns `top`, where the page's content
     /// starts, for a page that begins at once with its first line.
     pub fn page_top(&mut self, page: (f32, f32, f32), by: f32, top: f32) -> f32 {
@@ -423,7 +443,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
             self.stretch_view(view, ground);
         }
-        self.edge_fades(view, max, offset, ground);
+        self.edge_fades(view, max, offset, region.fade.unwrap_or(ground));
         // A small panel draws no scrollbar: the edge fades say the page
         // goes on.
         if let Some((alpha, bar_offset)) = self.bar

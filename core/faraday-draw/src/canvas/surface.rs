@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 
 use tiny_skia::{FillRule, Paint, PixmapMut, PremultipliedColorU8, Stroke, Transform};
 
-use super::{div255, outside, over, skia_rect, yuv_to_rgb};
+use super::{div255, outside, skia_rect, yuv_to_rgb};
 use crate::color::Color;
 use crate::fonts::Coverage;
 use crate::geom::Rect;
@@ -47,18 +47,27 @@ pub(crate) fn fill_rect(s: &mut Surface<'_>, rect: Rect, clip: Rect, color: Colo
         // Blended here, a whole pixel at a time: tiny-skia's blend of
         // a translucent fill took twenty milliseconds over a 1080p
         // panel, and a sheet's dim covers the whole of it every frame.
+        //
+        // The colour's share and the pixel's are summed before the one
+        // division, red with blue and green with alpha each in one word.
+        // Rounded apart, the two shares made a ramp of alphas over a
+        // flat fill (an edge fade) step up and down by one on its way,
+        // which shows as stripes on a panel of fewer bits.
         let a = u32::from(color.a);
-        let src = u32::from_le_bytes([
-            div255(u32::from(color.r) * a) as u8,
-            div255(u32::from(color.g) * a) as u8,
-            div255(u32::from(color.b) * a) as u8,
-            color.a,
-        ]);
+        let inv = 255 - a;
+        let src_rb = (u32::from(color.r) | u32::from(color.b) << 16) * a;
+        let src_ga = (u32::from(color.g) | 255 << 16) * a;
+        let div = |x: u32| {
+            let x = x + 0x0080_0080;
+            ((x + ((x >> 8) & 0x00ff_00ff)) >> 8) & 0x00ff_00ff
+        };
         for y in r.y..r.bottom() {
             let row = &mut s.row_mut(y)[r.x as usize * 4..r.right() as usize * 4];
             for p in row.chunks_exact_mut(4) {
                 let d = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
-                p.copy_from_slice(&over(src, d, 255 - a).to_le_bytes());
+                let rb = div((d & 0x00ff_00ff) * inv + src_rb);
+                let ga = div(((d >> 8) & 0x00ff_00ff) * inv + src_ga);
+                p.copy_from_slice(&(rb | (ga << 8)).to_le_bytes());
             }
         }
         return;

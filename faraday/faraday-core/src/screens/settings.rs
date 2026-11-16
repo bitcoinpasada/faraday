@@ -440,11 +440,17 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::panes::screen::{Item, list_item};
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    ui.moving_page_begin((x0, cw, h), app.list_offset);
+    let parts = parts();
+    let open = open_part(app, &parts);
+    if open.is_some() {
+        // A section's card covers the page: the edges fade into its fill.
+        ui.moving_panel_page_begin((x0, cw, h), app.list_offset, Role::SurfaceContainerLow);
+    } else {
+        ui.moving_page_begin((x0, cw, h), app.list_offset);
+    }
     let top = M;
     let mut y = top;
-    let parts = parts();
-    if let Some(p) = open_part(app, &parts) {
+    if let Some(p) = open {
         y += part(app, ui, p, (x, y, w));
     } else {
         for (k, &q) in parts.iter().enumerate() {
