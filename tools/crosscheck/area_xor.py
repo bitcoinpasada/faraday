@@ -4,7 +4,7 @@ firmware's `shared/utils.py` `xor` that `shared/xor_seed.py` combines
 parts with; vendored unchanged in `coldcard/`), with python-mnemonic
 (Trezor's BIP-39 reference) for the words.
 
-Coldcard's two published examples and this tree's two constructed
+Coldcard's two published examples and this tree's three constructed
 vectors, then random splits and combines in every BIP-39 language and
 length, parts Coldcard's own `xor_split` made read back by Faraday, and
 refusals: a part with a broken checksum, parts of different lengths, one
@@ -72,7 +72,7 @@ class Xor(Area):
     )
     vectors = (
         "Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's "
-        'two'
+        'three'
     )
     corpus = (
         'splits and combines in all ten languages and five lengths, with refusals; '
@@ -107,7 +107,7 @@ class Xor(Area):
         for ex in coldcard["examples"]:
             want = answer(0, bytes(m.to_entropy(ex["seed"])))
             self.combine(0, ex["parts"], ("ok", want))
-        for name in ["12-words-2-parts.txt", "24-words-3-parts.txt"]:
+        for name in ["12-words-2-parts.txt", "18-words-2-parts.txt", "24-words-3-parts.txt"]:
             text = (ROOT / "tools/vectors/xor" / name).read_text()
             value = lambda key: [l.split(":", 1)[1].strip() for l in text.splitlines()  # noqa: E731
                                  if l.startswith(key)]

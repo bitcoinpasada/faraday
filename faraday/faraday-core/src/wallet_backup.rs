@@ -2592,7 +2592,7 @@ impl Faraday {
             plan::Item::Sheets => {
                 if b.answers.split && splits(w) {
                     let (_, n) = Session::quorum_keys(w);
-                    out(&text!("{stem}-share-1-of-{n}.pdf"))
+                    (1..=n).all(|j| out(&text!("{stem}-share-{j}-of-{n}.pdf")))
                 } else {
                     out(&text!("{stem}-backup.pdf"))
                 }

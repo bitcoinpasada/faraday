@@ -11,6 +11,7 @@ use bip39::{Language, Mnemonic};
 use faraday_entropy::SeedXor;
 
 const TWELVE: &str = include_str!("../../../tools/vectors/xor/12-words-2-parts.txt");
+const EIGHTEEN: &str = include_str!("../../../tools/vectors/xor/18-words-2-parts.txt");
 const TWENTY_FOUR: &str = include_str!("../../../tools/vectors/xor/24-words-3-parts.txt");
 
 /// One vector file: each part's entropy and words, then the seed's.
@@ -106,4 +107,9 @@ fn twelve_words_in_two_parts_combine_into_the_seed() {
 #[test]
 fn twenty_four_words_in_three_parts_combine_into_the_seed() {
     check(TWENTY_FOUR, 24, 3);
+}
+
+#[test]
+fn eighteen_words_in_two_parts_combine_into_the_seed() {
+    check(EIGHTEEN, 18, 2);
 }

@@ -355,7 +355,7 @@ one:
   read (`wallet_key_found` over the loaded wallets).
 - Its actions: **Use without a passphrase** (filled), **Add a
   passphrase**, **Cancel**; from a wallet's or the Spend tab's scanner,
-  **Not this one**. For 12 or 24 words, a text button **It is a Seed XOR
+  **Not this one**. For 12, 18 or 24 words, a text button **It is a Seed XOR
   part**, which opens Add a key's Seed XOR form with this part in.
 - After **Use without a passphrase**: Wallets, with the key
   under Keys without a wallet and **Make a wallet from this key**, **Add

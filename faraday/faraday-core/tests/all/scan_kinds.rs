@@ -650,7 +650,33 @@ fn the_seed_sheet_is_titled_for_the_form_read() {
     }
 }
 
-/// Twelve or 24 words read offer It is a Seed XOR part, which opens Add a
+/// Coldcard's Seed XOR takes 12, 18 and 24 words (its Seed XOR document):
+/// an 18-word seed read offers It is a Seed XOR part, and a 15-word one
+/// does not.
+#[test]
+fn an_18_word_seed_read_offers_it_is_a_seed_xor_part_and_a_15_word_one_does_not() {
+    for (words, offered) in [(18usize, true), (15, false)] {
+        // The all-zero entropy of that length: "abandon" repeated, then
+        // the word its checksum picks (agent for 18 words, address for 15).
+        let last = if words == 18 { "agent" } else { "address" };
+        let text = format!("{}{last}", "abandon ".repeat(words - 1));
+        let mut app = testkit::started();
+        app.clipboard = true;
+        open(&mut app, Opened::AddAKey);
+        paste(&mut app, &text);
+        assert!(
+            app.offers(Action::SeedRead(Choice::Plain)),
+            "{words} words: the seed sheet is open"
+        );
+        assert_eq!(
+            app.offers(Action::SeedRead(Choice::Xor)),
+            offered,
+            "{words} words"
+        );
+    }
+}
+
+/// Twelve, 18 or 24 words read offer It is a Seed XOR part, which opens Add a
 /// key's Seed XOR form with them in; loading them as a seed stays the
 /// default.
 #[test]

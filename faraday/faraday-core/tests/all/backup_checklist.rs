@@ -831,3 +831,40 @@ fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made
     assert!(!offered_anywhere(&mut app, Action::PublicMore(w)));
     assert!(offered_anywhere(&mut app, Action::PublicOut(w, 9)));
 }
+
+/// A split backup's Sheets item is done when every share's sheet is in
+/// the Outbox, not when the first one is.
+#[test]
+fn a_split_backups_sheets_are_done_only_while_every_shares_file_is_there() {
+    let mut app = device(Vec::new());
+    let w = two_of_three_two_here(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    faraday_core::testkit::change_backup_answers(&mut app, |a| a.split = true);
+    press_offered(&mut app, Action::BChecklist);
+    press_offered(&mut app, Action::BStep(bstep::SHEETS));
+    let shares: Vec<String> = app
+        .outbox
+        .iter()
+        .map(|i| i.name.to_string())
+        .filter(|n| n.contains("-share-") && n.ends_with(".pdf"))
+        .collect();
+    assert_eq!(shares.len(), 3, "{shares:?}");
+    assert!(done(&app, Item::Sheets));
+    faraday_core::testkit::backup_open_item(&mut app, bstep::SHEETS);
+    assert!(
+        !offered_anywhere(&mut app, Action::BOut(4)),
+        "every share's file is there"
+    );
+    let at = app
+        .outbox
+        .iter()
+        .position(|i| i.name.contains("-share-3-of-3.pdf"))
+        .unwrap();
+    app.outbox.remove(at);
+    assert!(!done(&app, Item::Sheets), "share 3's file is gone");
+    assert!(
+        offered_anywhere(&mut app, Action::BOut(4)),
+        "the Sheets step offers Make them while a share's file is gone"
+    );
+}

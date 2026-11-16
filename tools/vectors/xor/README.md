@@ -7,6 +7,7 @@ mnemonic of the same word count, and every part is needed.
 | File | Words | Parts |
 |---|---|---|
 | `12-words-2-parts.txt` | 12 | 2 |
+| `18-words-2-parts.txt` | 18 | 2 |
 | `24-words-3-parts.txt` | 24 | 3 |
 | `coldcard.json` | 24 and 12 | 3 |
 
@@ -16,15 +17,20 @@ English mnemonic that entropy encodes.
 ## Where these numbers come from
 
 Coldcard's worked examples (`coldcard.json`, below) split into three
-parts only. These two files are constructed from the definition of Seed
+parts only, and none is of 18 words, which the Seed XOR document of Coldcard's firmware
+says it takes ("12-, 18-, or 24-word"). These files are constructed from the definition of Seed
 XOR, so that a two-part split is covered too, with values chosen so that
 anyone can reproduce them.
 
-The seed and all but the last part are the leading 16 or 32 bytes of the
+The seed and all but the last part are the leading 16, 24 or 32 bytes of the
 SHA-256 of a label:
 
     seed   = sha256("Faraday Seed XOR vector 12 seed")[..16]
     part 1 = sha256("Faraday Seed XOR vector 12 part 1")[..16]
+    part 2 = seed XOR part 1
+
+    seed   = sha256("Faraday Seed XOR vector 18 seed")[..24]
+    part 1 = sha256("Faraday Seed XOR vector 18 part 1")[..24]
     part 2 = seed XOR part 1
 
     seed   = sha256("Faraday Seed XOR vector 24 seed")[..32]

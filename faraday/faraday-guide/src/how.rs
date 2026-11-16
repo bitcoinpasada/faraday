@@ -455,7 +455,7 @@ static AREA_XOR: Area = Area {
     area: "xor",
     code: &[p("faraday_entropy::SeedXor with faraday_bip::bip39")],
     second: &[p("Coldcard's own xor and xor_split (coldcard/, unchanged) with python-mnemonic (bip39/) for the words."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the count of parts (2 to 4) and the five BIP-39 lengths are Faraday's rule, written in the area in front of Coldcard's xor, which asserts only equal lengths.")],
-    vectors: &[p("Coldcard's two examples (tools/vectors/xor/coldcard.json) and this tree's two.")],
+    vectors: &[p("Coldcard's two examples (tools/vectors/xor/coldcard.json) and this tree's three.")],
     random: &[p("Splits and combines in all ten languages and five lengths, with refusals; parts made by Coldcard's xor_split read back to their seed.")],
     differences: &[p("None known.")],
     when: &[p("Before every release, with a new seed and about ten times the cases.")],

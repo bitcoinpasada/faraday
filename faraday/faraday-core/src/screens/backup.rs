@@ -1,8 +1,8 @@
 //! `Screen::Backup`: backing up a wallet.
 
 use super::parts::{
-    Cells, buttons_and_next, file_row, keyed_cells, keyed_pills, made_state, never_below,
-    never_real_seed, next_button, side_panel_w, ticked, typed_cells, word_keys,
+    Cells, buttons_and_next, file_row, keyed_cells, keyed_pills, made_place, made_state,
+    never_below, never_real_seed, next_button, side_panel_w, ticked, typed_cells, word_keys,
 };
 use crate::drawing::{Scrolled, View};
 use crate::plan::Item;
@@ -1110,7 +1110,13 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             // with the checklist; Remove takes them all.
             let stem = crate::file_stem(&wallet.name);
             let stem = stem.as_str();
-            let file = format!("{stem}-share-1-of-{}.pdf", Session::quorum_keys(wallet).1);
+            // The row is made only when every share's sheet is, as the
+            // checklist item is: the first one missing stands for it.
+            let shares = Session::quorum_keys(wallet).1;
+            let file = (1..=shares)
+                .map(|j| format!("{stem}-share-{j}-of-{shares}.pdf"))
+                .find(|f| made_place(app, f).is_none())
+                .unwrap_or_else(|| format!("{stem}-share-1-of-{shares}.pdf"));
             let (state, button) = made_state(
                 app,
                 &file,

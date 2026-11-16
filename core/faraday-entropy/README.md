@@ -31,8 +31,8 @@ Keystone and BitBox publish.
 - `tools/reference/booklet-dice/README.md` quotes the booklet's worksheet and tree; the unit tests in `src/booklet.rs` walk all 32 paths of its tree.
 - `tools/reference/dice/README.md` quotes each procedure's source; the
   inline unit tests in `src/dice.rs` check against it.
-- `tools/vectors/xor/` (`12-words-2-parts.txt`), read by
-  `faraday/faraday-core/tests/all/forms.rs`.
+- `tools/vectors/xor/` (`12-words-2-parts.txt`, `18-words-2-parts.txt`, `24-words-3-parts.txt`), read by
+  `core/faraday-entropy/tests/xor.rs`.
 - End to end through `faraday/faraday-core/tests/all/keygen.rs`.
 
 ## `unsafe`

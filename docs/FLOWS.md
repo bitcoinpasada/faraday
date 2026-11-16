@@ -101,7 +101,7 @@ camera closes and the sheet, titled for what was read (**SeedQR read**,
 **CompactSeedQR read**, **Words read**), shows the key it makes
 **Without a passphrase**, "Key 2 of Savings" where a loaded wallet has
 it, with **Use without a passphrase**, **Add a passphrase** and Cancel,
-and for 12 or 24 words **It is a Seed XOR part**, which opens Add a
+and for 12, 18 or 24 words **It is a Seed XOR part**, which opens Add a
 key's Seed XOR form with them in (`docs/SCANNING.md` §6). A codex32
 secret, which holds no passphrase, read at a slot of Create or Restore
 loads on Add a key's codex32 form with no sheet and goes into the slot,

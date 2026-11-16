@@ -373,7 +373,7 @@ impl Faraday {
     }
 
     /// The seed sheet just opened on words read as `kind`: its title names
-    /// the form, a loaded wallet that has the key is named, and twelve or
+    /// the form, a loaded wallet that has the key is named, and 12, 18 or
     /// 24 words offer **It is a Seed XOR part** (`docs/SCANNING.md` §6).
     /// A lookup per loaded wallet's keys.
     pub(crate) fn seed_read_marked(&mut self, kind: crate::scan_read::Kind) {
@@ -397,7 +397,7 @@ impl Faraday {
         if let Some(s) = self.seed_read.state.as_mut() {
             s.read = Some(kind);
             s.key_of = key_of;
-            s.xor = plain_sheet && matches!(words, 12 | 24);
+            s.xor = plain_sheet && matches!(words, 12 | 18 | 24);
         }
     }
 
