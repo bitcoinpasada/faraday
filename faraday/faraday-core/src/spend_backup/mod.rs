@@ -128,6 +128,9 @@ pub enum SpendBackupAction {
     StrayPass([u8; 4]),
     /// No money shows: the next kind of wallet the seeds may be.
     NoMoney,
+    /// The wallet of several keys made again as way `n` of the guess:
+    /// run again by the hold of its confirmation sheet.
+    GuessWay(usize),
     /// The passphrase question's answer: Yes, type it, or No.
     Passphrase(bool),
     /// After every kind: back to What do you have?, with the camera
@@ -669,6 +672,7 @@ impl Faraday {
                 }
             }
             F::NoMoney => self.spend_backup_no_money(),
+            F::GuessWay(at) => self.spend_backup_guess_step(at),
             F::Passphrase(yes) => {
                 if yes {
                     if let Some(fp) = self
@@ -1386,6 +1390,7 @@ impl Faraday {
         let Some(w) = self.spend_backup_wallet() else {
             return;
         };
+        let before = self.spend_backup.state.seeds.kind;
         self.spend_backup.state.seeds.kind = kind;
         let s = self.spend_backup.state.seeds.clone();
         let d = match self.seeds_descriptor(&c, &s) {
@@ -1395,8 +1400,8 @@ impl Faraday {
                 return;
             }
         };
-        let name = self.session.wallets[w].name.clone();
-        self.session.wallets.remove(w);
+        let kept = self.session.wallets.remove(w);
+        let name = kept.name.clone();
         match self.session.add_wallet(
             &c,
             &name,
@@ -1407,6 +1412,20 @@ impl Faraday {
             Ok(i) => {
                 self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
                 self.wallets.set_wallet(i);
+            }
+            // A cosigner's key no loaded key gives holds this guess back
+            // for its sheet: the guess before stays until the hold, which
+            // makes this way again.
+            Err(crate::wallet::Refusal::Unconfirmed) => {
+                self.session.wallets.insert(w, kept);
+                self.spend_backup.state.seeds.kind = before;
+                let way = self.spend_backup.state.guess.as_ref().map(|g| g.at);
+                if let Some(at) = way {
+                    self.session.wallet_replay(
+                        crate::Action::SpendBackup(SpendBackupAction::GuessWay(at)),
+                        self.inbox_print(),
+                    );
+                }
             }
             Err(e) => self.spend_backup.state.error = Some(e.text()),
         }

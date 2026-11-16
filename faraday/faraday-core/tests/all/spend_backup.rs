@@ -682,6 +682,42 @@ fn two_seeds_and_no_description_make_the_two_of_three_from_all_three_seeds() {
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
+/// Two seeds and a cosigner's key no loaded key gives: the wallet is held
+/// for its sheet at every way the guess tries, and the guess goes on from
+/// the hold with the way before kept until then.
+#[test]
+fn a_guess_with_a_key_not_loaded_asks_and_the_guess_goes_on_after_the_hold() {
+    let mut app = shown();
+    on_intake(&mut app);
+    scan_seed(&mut app, "bacon");
+    scan_seed(&mut app, "zebra");
+    app.press(Action::Cancel);
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Slide(faraday_core::seeds::SLIDE_N, 2));
+    app.event(Event::Key(faraday_shell_api::Key::Right));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Focus(
+        faraday_core::seeds::Focus::Cosigner(0),
+    )));
+    type_text(&mut app, &testkit::key(2, "m/48'/1'/0'/2'"));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let first = app.spend_backup_wallet().expect("the guess was not made");
+    let first_text = app.session.wallets[first].policy().to_string();
+    // The next way is held too; the guess before stays until the hold.
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    let kept = app.spend_backup_wallet().expect("the guess before went");
+    assert_eq!(app.session.wallets[kept].policy().to_string(), first_text);
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let now = app
+        .spend_backup_wallet()
+        .expect("the next way was not made");
+    assert_ne!(app.session.wallets[now].policy().to_string(), first_text);
+    assert_eq!(app.session.wallets.len(), 1);
+}
+
 #[test]
 fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     let mut app = shown();

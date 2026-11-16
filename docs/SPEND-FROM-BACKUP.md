@@ -312,6 +312,12 @@ and **Type a passphrase** drop the guessed wallet and go back to page 3,
 with the camera or the seed's passphrase sheet. A wallet from a
 description or a vault was not guessed: its page is as above.
 
+A guess made only of the seeds typed here has every key a loaded key's own
+at its path, and no sheet asks for it (F254). A guess that also holds a
+cosigner's key no loaded key gives is held for the wallet confirmation
+sheet at the first way and again at each next way; the way before stays
+until the hold, and Cancel keeps it.
+
 **More:**
 - In Sparrow: File → New Wallet, give it a name, then the way in that
   scans a QR code or imports a descriptor; hold this screen up to the
