@@ -830,7 +830,8 @@ pub enum StarterEvent {
     /// [`StarterCommand::JudgeBoot`] answered: whether the boot partition
     /// the shell read from the stick is the one the command named and the
     /// release's with only the boot file the person signed in its place
-    /// (§4.5, §10.4); `false` when it could not be read or is another.
+    /// (§4.5, §10.4); `Some(false)` when it could not be read or is another,
+    /// `None` when there is no release to judge it by.
     BootJudged {
         /// The disk, as the command named it.
         disk: String,
@@ -843,8 +844,8 @@ pub enum StarterEvent {
         /// The release's boot partition SHA-256, as the command named it.
         want: String,
         /// The read partition is the named one and the release's with a
-        /// signed boot file.
-        signed: bool,
+        /// signed boot file; `None` when it could not be judged.
+        signed: Option<bool>,
     },
     /// [`StarterCommand::CheckBootFile`] answered: the file as the order
     /// names it and who signed it, or why it is refused (§4.5, F133).

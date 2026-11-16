@@ -856,30 +856,25 @@ fn read_listed(r: &ReadVersion) -> Result<StickRead, Reason> {
         .as_ref()
         .and_then(|(s, size)| job_of(s, *size).ok());
     // Asked to judge against a release this copy cannot work the boot sum
-    // of (its source does not open, or is not a boot partition's): said so,
-    // never answered as a mismatch.
-    if r.source.is_some() && job.as_ref().is_none_or(|j| expected(j).1.is_none()) {
-        return Err(Reason::NotJudged);
-    }
-    let mut keep = job.is_some().then(Vec::new);
+    // of (its source does not open, or is not a boot partition's): the
+    // stick is read all the same and answered with no judgement, and the
+    // window says it could not be checked unless the sum is the release's
+    // own, which it compares itself.
+    let want = job.as_ref().and_then(|j| expected(j).1);
+    let mut keep = want.is_some().then(Vec::new);
     let (release, sum) = read_release(&mut device, &now.device, keep.as_mut())?;
     // A stick of another release than this one cannot be this release with
     // a boot file the person signed: it is judged to differ, without the
     // decompression.
-    let signed = match (&sum, job.as_ref().map(expected)) {
-        (Some(got), Some((build, Some(want)))) if !got.eq_ignore_ascii_case(&want) => {
-            let same = build.is_none_or(|b| {
-                faraday_paper::build::compare(
-                    release.as_deref().and_then(faraday_paper::build::build_id),
-                    b,
-                ) == faraday_paper::build::Fit::Same
-            });
-            Some(
-                same && matches!((&job, &keep), (Some(job), Some(bytes)) if signed::is_release_signed(job, bytes)),
-            )
-        }
-        _ => None,
-    };
+    let signed = elevated::judgement(sum.as_deref(), want.as_deref(), || {
+        let build = job.as_ref().and_then(|j| expected(j).0);
+        build.is_none_or(|b| {
+            faraday_paper::build::compare(
+                release.as_deref().and_then(faraday_paper::build::build_id),
+                b,
+            ) == faraday_paper::build::Fit::Same
+        }) && matches!((&job, &keep), (Some(job), Some(bytes)) if signed::is_release_signed(job, bytes))
+    });
     Ok((release, sum, signed))
 }
 

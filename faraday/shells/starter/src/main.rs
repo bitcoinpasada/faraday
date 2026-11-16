@@ -462,6 +462,8 @@ impl Shell {
                     Some((source, size))
                 });
                 std::thread::spawn(move || {
+                    // With no release to judge by the stick is read all the
+                    // same and the window compares its sum with the release's.
                     let (result, signed) = match system.read_version(&disk, &serial, size, judge) {
                         Ok((release, sum, signed)) => (Ok((release, sum)), signed),
                         Err(why) => (Err(why), None),
@@ -515,13 +517,14 @@ impl Shell {
                     // listed, is answered as not signed: the listed one
                     // already differs from the release's.
                     let read = system.read_boot_partition(&disk, &serial, size);
-                    let signed = match (read, job) {
-                        (Some(bytes), Some(job)) => {
+                    // With no release to judge by it is answered as not
+                    // judged, as Windows says it.
+                    let signed = job.map(|job| {
+                        read.is_some_and(|bytes| {
                             signed::sha256(&bytes) == sha256
                                 && signed::is_release_signed(&job, &bytes)
-                        }
-                        _ => false,
-                    };
+                        })
+                    });
                     let _ = tx.send(StarterEvent::BootJudged {
                         disk,
                         serial,

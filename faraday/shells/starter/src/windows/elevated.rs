@@ -254,6 +254,23 @@ fn source_of(sha256: &str, got: [Option<&str>; 4]) -> Result<(Source, Option<u64
     }
 }
 
+/// What the elevated copy answers about a stick it has read, besides its
+/// sum: `None` when it has no boot sum of the release to judge by, or the
+/// stick's sum is the release's (nothing to add; the window compares the
+/// sums itself); otherwise whether the stick is the release's with a boot
+/// file the person signed, which `signed_by_person` works out (only asked
+/// for a sum that differs).
+pub fn judgement(
+    sum: Option<&str>,
+    want: Option<&str>,
+    signed_by_person: impl FnOnce() -> bool,
+) -> Option<bool> {
+    match (sum, want) {
+        (Some(got), Some(want)) if !got.eq_ignore_ascii_case(want) => Some(signed_by_person()),
+        _ => None,
+    }
+}
+
 /// A stick's version to read, as the elevated copy is given it: the
 /// disk the window listed, by its serial and size as listed then.
 #[derive(Debug, Clone, PartialEq, Eq)]

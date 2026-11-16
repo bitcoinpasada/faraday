@@ -1314,3 +1314,23 @@ fn a_demo_exe_that_is_somebody_elses_is_left_by_install_and_uninstall() {
     assert_eq!(fs::read_to_string(&app).expect("kept"), "another program");
     assert!(lnk.is_file());
 }
+
+#[test]
+fn a_stick_read_with_no_boot_sum_to_judge_by_is_answered_with_no_judgement() {
+    use faraday_starter_shell::windows::elevated::judgement;
+    let sum = "a".repeat(64);
+    let other = "b".repeat(64);
+    // No release sum to judge by: no judgement, the person's signature is
+    // never asked about.
+    assert_eq!(judgement(Some(&sum), None, || panic!("asked")), None);
+    // The release's own sum: nothing to add.
+    assert_eq!(
+        judgement(Some(&sum), Some(&sum.to_uppercase()), || panic!("asked")),
+        None
+    );
+    // A stick whose sum could not be read.
+    assert_eq!(judgement(None, Some(&sum), || panic!("asked")), None);
+    // Another sum: judged by the signature.
+    assert_eq!(judgement(Some(&sum), Some(&other), || true), Some(true));
+    assert_eq!(judgement(Some(&sum), Some(&other), || false), Some(false));
+}

@@ -100,7 +100,7 @@ fn a_boot_partition_with_one_byte_changed_shows_the_mismatch_line_and_offers_the
         size,
         sha256,
         want,
-        signed: false,
+        signed: Some(false),
     });
     assert!(shows(&mut s, EN.starter_stick_boot_differs));
     assert!(!shows(&mut s, EN.starter_stick_boot_matches));
@@ -126,7 +126,7 @@ fn a_boot_partition_with_the_boot_file_the_person_signed_reads_as_expected() {
         size: 16 * GB,
         sha256: "8".repeat(64),
         want: BOOT_SUM.repeat(64),
-        signed: true,
+        signed: Some(true),
     });
     assert!(shows(&mut s, EN.starter_stick_boot_signed));
     assert!(!shows(&mut s, EN.starter_stick_boot_differs));
@@ -145,7 +145,7 @@ fn a_judgement_of_a_partition_the_stick_no_longer_has_says_nothing() {
         size: 16 * GB,
         sha256: "7".repeat(64),
         want: BOOT_SUM.repeat(64),
-        signed: true,
+        signed: Some(true),
     });
     assert!(!shows(&mut s, EN.starter_stick_boot_signed));
 }
@@ -367,7 +367,7 @@ fn a_linux_judgement_made_against_one_release_is_asked_again_for_another() {
         size: 16 * GB,
         sha256: "8".repeat(64),
         want: BOOT_SUM.repeat(64),
-        signed: true,
+        signed: Some(true),
     });
     assert!(shows(&mut s, EN.starter_stick_boot_signed));
     let _ = commands(&mut s);
@@ -461,8 +461,8 @@ fn two_judgements_of_one_partition_answered_in_reverse_order_each_show_under_the
             signed,
         });
     };
-    answer(&mut s, b, false);
-    answer(&mut s, a, true);
+    answer(&mut s, b, Some(false));
+    answer(&mut s, a, Some(true));
     assert!(shows(&mut s, EN.starter_stick_boot_differs));
     assert!(!shows(&mut s, EN.starter_stick_boot_signed));
     s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
@@ -483,6 +483,82 @@ fn a_stick_the_elevated_copy_cannot_judge_says_so_and_is_not_offered_the_check_a
     // Another release is a new question.
     s.starter_event(StarterEvent::ImagesFound(another_release()));
     assert!(shows(&mut s, EN.starter_stick_check));
+    // And the line about the release before is not said under it.
+    assert!(!shows(&mut s, &first_words(EN.starter_why_not_judged)));
+}
+
+#[test]
+fn a_declined_check_is_not_said_under_another_release() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    check_failed(&mut s, faraday_starter::api::Reason::Declined);
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
+    s.starter_event(StarterEvent::ImagesFound(another_release()));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn keep_data_ticked_on_another_stick_does_not_take_the_checks_failure_as_its_reason() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    let mut other = unread_windows_stick();
+    other.id = r"\\.\PhysicalDrive3".into();
+    other.serial = "SN-other".into();
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick(), other]));
+    s.press(StarterAction::MakePage);
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = checked(&mut s)
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive3"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Err(faraday_starter::api::Reason::Declined),
+        signed: None,
+    });
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn two_linux_sticks_that_cannot_be_judged_each_say_so() {
+    let mut first = stick_with(Some(&"8".repeat(64)));
+    first.id = "sdb".into();
+    let mut second = stick_with(Some(&"7".repeat(64)));
+    second.id = "sdc".into();
+    second.serial = "SN-sdc".into();
+    let mut s = Starter::new();
+    s.event(display(1280, 800, 160));
+    s.starter_event(StarterEvent::Computer(linux(true)));
+    s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
+    s.starter_event(StarterEvent::Disks(vec![first, second]));
+    for c in commands(&mut s) {
+        if let StarterCommand::JudgeBoot {
+            disk,
+            serial,
+            size,
+            sha256,
+            want,
+            ..
+        } = c
+        {
+            s.starter_event(StarterEvent::BootJudged {
+                disk,
+                serial,
+                size,
+                sha256,
+                want,
+                signed: None,
+            });
+        }
+    }
+    s.press(StarterAction::MakePage);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
 }
 
 #[test]
@@ -511,5 +587,239 @@ fn a_failed_check_shows_on_the_card_for_that_stick_only() {
     check_failed(&mut s, faraday_starter::api::Reason::Declined);
     s.starter_event(StarterEvent::Disks(Vec::new()));
     s.starter_event(StarterEvent::Disks(vec![unread_windows_stick()]));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn a_stick_whose_sum_is_the_releases_shows_the_match_line_when_the_read_came_with_no_judgement() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &BOOT_SUM.repeat(64), None);
+    s.press(StarterAction::Home);
+    assert!(shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_not_judged)));
+}
+
+#[test]
+fn a_stick_read_but_not_judged_says_it_could_not_be_checked_and_is_not_offered_again() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &"8".repeat(64), None);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(!s.offers_action(StarterAction::CheckStick));
+}
+
+#[test]
+fn a_linux_stick_with_no_release_to_judge_by_says_it_could_not_be_checked() {
+    let mut s = starter_with(
+        linux(true),
+        stick_with(Some(&"8".repeat(64))),
+        images("0.2.0"),
+    );
+    let StarterCommand::JudgeBoot {
+        disk,
+        serial,
+        size,
+        sha256,
+        want,
+        ..
+    } = commands(&mut s)
+        .into_iter()
+        .find(|c| matches!(c, StarterCommand::JudgeBoot { .. }))
+        .expect("the shell is asked to judge the partition")
+    else {
+        unreachable!()
+    };
+    s.starter_event(StarterEvent::BootJudged {
+        disk,
+        serial,
+        size,
+        sha256,
+        want,
+        signed: None,
+    });
+    s.press(StarterAction::MakePage);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+    assert!(
+        !commands(&mut s)
+            .iter()
+            .any(|c| matches!(c, StarterCommand::JudgeBoot { .. })),
+        "asked again"
+    );
+}
+
+#[test]
+fn another_stick_under_the_same_disk_id_does_not_show_the_old_failure_line() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    check_failed(&mut s, faraday_starter::api::Reason::Declined);
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
+    let mut other = unread_windows_stick();
+    other.serial = "SN-other".into();
+    s.starter_event(StarterEvent::Disks(vec![other]));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn a_read_of_another_stick_does_not_clear_the_failure_line() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    check_failed(&mut s, faraday_starter::api::Reason::Declined);
+    s.starter_event(StarterEvent::VersionRead {
+        disk: r"\\.\PhysicalDrive7".into(),
+        serial: "SN-elsewhere".into(),
+        size: 8 * GB,
+        result: Ok((Some("6.6.84-faraday-0.2.0".into()), None)),
+        signed: None,
+    });
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn keep_data_ticked_while_a_check_read_fails_shows_the_reason_on_its_page() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = asked
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive2"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Err(faraday_starter::api::Reason::Declined),
+        signed: None,
+    });
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
+}
+
+#[test]
+fn a_stick_written_after_it_could_not_be_judged_is_not_said_to_be_unjudged_any_more() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    check_failed(&mut s, faraday_starter::api::Reason::NotJudged);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive2"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::Whole));
+    s.press(StarterAction::Continue);
+    s.press(StarterAction::Write);
+    let _ = commands(&mut s);
+    s.starter_event(StarterEvent::Written(Ok(())));
+    s.press(StarterAction::MakePage);
+    assert!(!shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    assert!(s.offers_action(StarterAction::CheckStick));
+}
+
+#[test]
+fn keep_data_stays_ticked_on_a_stick_when_another_sticks_check_read_answers() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    let mut other = unread_windows_stick();
+    other.id = r"\\.\PhysicalDrive3".into();
+    other.serial = "SN-other".into();
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick(), other]));
+    s.press(StarterAction::MakePage);
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = checked(&mut s)
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive3"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Ok((Some("0.2.0".into()), Some("8".repeat(64)))),
+        signed: None,
+    });
+    assert!(commands(&mut s).iter().any(|c| matches!(
+        c,
+        StarterCommand::ReadVersion { disk, .. } if disk == r"\\.\PhysicalDrive3"
+    )));
+}
+
+#[test]
+fn a_stick_unplugged_and_plugged_in_again_shows_no_match_line_until_it_is_read_again() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &BOOT_SUM.repeat(64), None);
+    s.press(StarterAction::Home);
+    assert!(shows(&mut s, EN.starter_stick_boot_matches));
+    s.starter_event(StarterEvent::Disks(vec![]));
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick()]));
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
+}
+
+#[test]
+fn a_stick_that_could_not_be_checked_and_later_reads_as_the_releases_shows_only_the_match_line() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked.clone(), &"8".repeat(64), None);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    answered(&mut s, asked, &BOOT_SUM.repeat(64), None);
+    assert!(shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_not_judged)));
+}
+
+#[test]
+fn a_read_answered_after_its_stick_was_unplugged_does_not_bring_a_match_line_back_on_replug() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    s.starter_event(StarterEvent::Disks(vec![]));
+    answered(&mut s, asked, &BOOT_SUM.repeat(64), None);
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick()]));
+    s.press(StarterAction::Home);
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
+}
+
+#[test]
+fn keep_datas_failed_read_of_one_stick_gives_no_reason_on_the_stick_chosen_since() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    let mut other = unread_windows_stick();
+    other.id = r"\\.\PhysicalDrive3".into();
+    other.serial = "SN-other".into();
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick(), other]));
+    s.press(StarterAction::MakePage);
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let first = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive2"));
+    s.press(first);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = commands(&mut s).into_iter().next().expect("a read")
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.press(StarterAction::Back);
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive3"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Err(faraday_starter::api::Reason::Declined),
+        signed: None,
+    });
     assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
 }

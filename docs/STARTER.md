@@ -2214,10 +2214,24 @@ required, and nothing in the app that nudges or warns:
   never leave it, so there is no second prompt. A judgement belongs to the
   release it was made against: another release in its place shows no line
   until the stick is judged again. A check the person declines or the disk
-  refuses says why on Make's stick card, for that stick only; a release the
-  elevated copy cannot judge a stick against (one whose boot sum it cannot
-  work out from its arguments) says so there, reads as no match, and the
-  button is not offered again for that stick and release. Malware on the same computer can defeat the check too.
+  refuses says why on Make's stick card, for that stick and its serial and
+  size only; a stick read against a release it cannot be judged by (one
+  whose boot sum cannot be worked out from its arguments) shows the match
+  line when its sum is the release's and otherwise says it could not be
+  checked, reads as no match, and the button is not offered again for that
+  stick and release; a line belongs to the release it was asked about and is
+  not said under another, nor after the stick is written. A Windows window
+  with no release it can hand the elevated copy still has it read the stick
+  and compares the sum with the release's itself: the match line when they
+  are the same, otherwise "could not be checked". Keep data ticked on the
+  stick whose check's read fails shows the reason on the Mode page; a read
+  that answers for another stick leaves it ticked and the chosen stick's
+  own read is asked then. What was read or judged of a stick is kept only
+  while it stays attached: one unplugged and plugged in again is read
+  afresh and shows no line until that read answers. The match line and
+  "could not be checked" are never shown together. On
+  Linux, the same line shows for a stick the shell has no release to judge
+  by, for each such stick. Malware on the same computer can defeat the check too.
 - **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
   may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
   Secure Boot off from the release's unsigned boot file, and no key is

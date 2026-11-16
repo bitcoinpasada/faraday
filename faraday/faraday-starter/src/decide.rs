@@ -353,7 +353,12 @@ impl crate::Starter {
             let Some(sum) = f.boot_sha256.as_deref() else {
                 continue;
             };
-            if boot_is(f, Some(want)) || self.boot_judgement(d, sum, want).is_some() {
+            if boot_is(f, Some(want))
+                || self.boot_judgement(d, sum, want).is_some()
+                || self.boot_unjudged.iter().any(|(id, serial, size, w)| {
+                    *id == d.id && *serial == d.serial && *size == d.size && w == want
+                })
+            {
                 continue;
             }
             let key = (
