@@ -39,7 +39,7 @@ const ABANDON: &str =
 const PSBT: &str = include_str!("psbt.txt");
 
 /// The operations, by name.
-const OPERATIONS: [(&str, fn()); 6] = [
+const OPERATIONS: [(&str, fn()); 7] = [
     ("mnemonic-parse-24", mnemonic_parse),
     ("mnemonic-to-seed", mnemonic_to_seed),
     ("seed-xor-combine", seed_xor_combine),
