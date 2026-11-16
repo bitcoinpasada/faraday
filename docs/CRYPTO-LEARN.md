@@ -560,8 +560,8 @@ The Starter's computing actions: writing an image and checking its
 SHA-256 (`faraday/faraday-payload/src/decode.rs`), checking a boot file
 the person signed (`faraday/shells/starter/src/signed.rs`, F133), and
 once IMAGES is built, checking the release's image list. Its top app
-bar carries the same action, the same icon and tooltip, left of the ⋮,
-on the pages inside a task that perform them:
+bar carries the same action, the same icon and tooltip, at its end
+right of the page's name, on the pages inside a task that perform them:
 
 | Page (STARTER §3.2 to §3.4) | Blocks, in order |
 |---|---|
@@ -569,8 +569,10 @@ on the pages inside a task that perform them:
 | Confirm, Writing, Done | starter-write, then starter-signed when a signed boot file is chosen |
 | Start this computer from the stick, while **Include the BitLocker recovery key** is offered | starter-recovery-key |
 
-On a compact window it goes into the ⋮ as its first row, as in Faraday.
-It opens a sheet in the Starter's look (`faraday-ui`), drawn as the
+The pages that perform them are inside a task and carry no ⋮, so on a
+compact window it stays on the bar, right of **Guide**, as at every
+size; the bar's title gives up the room (STARTER §3.1d). It opens a
+sheet in the Starter's look (`faraday-ui`), drawn as the
 Starter's other sheets (`faraday_ui::sheet::scroll_sheet`, DESIGN §5):
 the window's width less its margin on a compact window, centred at
 most 560 dp wide otherwise (LAYOUT §5), over the page's frost and

@@ -296,10 +296,10 @@ as now.
   Faraday Demo's (the held app's guide).
 - Its pages inside a task (What to write, Which stick, Confirm, Keep
   data, Start this computer from the stick) carry the Guide button on
-  their top app bar, left of the ⋮, opening a sheet in the Starter's
-  look (`faraday_ui::sheet::scroll_sheet`), as its Cryptography sheet
-  is (`docs/CRYPTO-LEARN.md` §8.4), at the page's section; on a compact
-  window it is in the ⋮ after Cryptography.
+  their top app bar, left of Cryptography's button, opening a sheet in
+  the Starter's look (`faraday_ui::sheet::scroll_sheet`), as its Cryptography sheet
+  is (`docs/CRYPTO-LEARN.md` §8.4), at the page's section, on the bar at every
+  size (those pages carry no ⋮).
 - Faraday Demo inside the Starter has the guide as Faraday has it.
 
 ## 7. One guide, in the app; the website points to it
