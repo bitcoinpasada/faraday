@@ -1654,7 +1654,7 @@ whose Secure Boot keys changed does not ask afterwards either.
   Windows, so the restart into the BIOS, Faraday's session and the
   restart after it do not use it up. 3 leaves room for a Windows start
   between (an update, a start before the stick is chosen). How Windows
-  counts is to be confirmed on the Windows test virtual machine;
+  counts is to be confirmed on a Windows computer, recorded with `--record-bitlocker`;
   the count is `api::SUSPEND_STARTS`, held at 3 by the
   owner.
 - **The recovery key on the sheet** (§3.4): the tick box beside Print;
