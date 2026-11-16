@@ -2222,7 +2222,7 @@ pub fn backup_plan_save(app: &mut crate::Faraday) {
 
 /// Opens checklist item `n` of the backup as it stands, whatever
 /// items before it are left, so that its body can be looked at.
-pub fn backup_open_item(app: &mut crate::Faraday, n: u8) {
+pub fn backup_open_item(app: &mut crate::Faraday, n: crate::plan::Item) {
     app.backup_item_open(Some(n));
 }
 

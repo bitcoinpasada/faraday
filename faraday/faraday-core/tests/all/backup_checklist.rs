@@ -842,7 +842,7 @@ fn a_split_backups_sheets_are_done_only_while_every_shares_file_is_there() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     faraday_core::testkit::change_backup_answers(&mut app, |a| a.split = true);
     press_offered(&mut app, Action::BChecklist);
-    press_offered(&mut app, Action::BStep(bstep::SHEETS));
+    press_offered(&mut app, Action::BStep(Item::Sheets));
     let shares: Vec<String> = app
         .outbox
         .iter()
@@ -851,7 +851,7 @@ fn a_split_backups_sheets_are_done_only_while_every_shares_file_is_there() {
         .collect();
     assert_eq!(shares.len(), 3, "{shares:?}");
     assert!(done(&app, Item::Sheets));
-    faraday_core::testkit::backup_open_item(&mut app, bstep::SHEETS);
+    faraday_core::testkit::backup_open_item(&mut app, Item::Sheets);
     assert!(
         !offered_anywhere(&mut app, Action::BOut(4)),
         "every share's file is there"
