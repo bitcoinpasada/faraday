@@ -1,8 +1,7 @@
 # A second implementation of each cryptographic step
 
-**Kind:** Spec
-**Status:** Option A decided (F79) and built, §10.5 items 1 to 6
-**Open:** the references of Faraday's own replaced by outside code (§10.7), planned.
+**Kind:** Reference
+**Status:** Option A decided (F79) and built, §10.5 items 1 to 6; the references of Faraday's own replaced by outside code where it exists (§10.7)
 
 ## 1. The idea
 
@@ -14,11 +13,10 @@ it and whether they agree. A bug in one implementation, or a tampered
 dependency, then shows as a disagreement instead of a wrong address, a
 wrong key or a wrong signature.
 
-Today the cross-check meets this only in part: about half its areas
-compare Faraday's Rust with code other people wrote, and the rest with
-second implementations Faraday's own authors wrote in Python, which are
-not checked against an outside source (F160, F177). §10.7 says which and
-what replaces them.
+Every area of the cross-check compares Faraday's Rust with code other
+people wrote; where a part has no outside implementation, a second one
+Faraday's own authors wrote stands beside it and is named as such (F160,
+F177). §10.7 says which parts, and what replaced the rest.
 
 ## 10. The build-time cross-check (option A)
 
@@ -290,56 +288,51 @@ The cross-check fetches nothing, ever.
 
 ### 10.7 Replacing the references of Faraday's own
 
-Planned (owner, 2026-10-29, F160), in order of what makes or checks keys,
-addresses and signatures first. Each step replaces a second
-implementation Faraday's authors wrote with code other people wrote,
-moves the action's `independence` to `outside`, and retires Faraday's
-implementation once nothing needs it. What each action is compared with
-once `docs/ESTABLISHED.md`'s switches are made, and the order it is
-built in, are ESTABLISHED §9 (F192).
+Decided (owner, 2026-10-29, F160) and built in the order of what makes or
+checks keys, addresses and signatures first. Each step replaced a second
+implementation Faraday's authors wrote with code other people wrote and
+moved the action's `independence` to `outside`, or to `outside-and-own`
+where a named part has no outside code. No area is left with Faraday's own
+second implementation alone: every action with an area is `outside` or
+`outside-and-own`. What each action is compared with, and the order it was
+built in, are `docs/ESTABLISHED.md` §9 (F192).
 
-1. **Bitcoin Core as a program**, required (§10.4). Built for `sign`
-   (2026-10-29): `descriptorprocesspsbt` signs every PSBT of its vectors
-   and corpus from the held masters' extended private keys, so Core
-   derives the keys and chooses where each signs, and its ECDSA
-   signatures are compared byte for byte; `finalizepsbt` finalizes and
-   extracts, compared byte for byte; `testmempoolaccept` judges every
-   transaction Faraday finalizes over funding on the node (§10.1). Built
-   for `addr` (2026-10-29): `deriveaddresses` from the seed's master.
-   Planned: `deriveaddresses` for `bip32`, `miniscript` and `vanity`;
-   `decodepsbt` for version 0 PSBTs; `signmessagewithprivkey` and
-   `verifymessage` for BIP-137 with P2PKH. The refusals of F136 and F141
-   are Faraday's policy, which Core does not share, and stay in the
-   implementation Faraday's authors wrote, labelled so.
+1. **Bitcoin Core as a program**, required (§10.4). Built: `sign`
+   (`descriptorprocesspsbt`, `finalizepsbt` and `testmempoolaccept`), `addr`,
+   `miniscript` and `vanity` (`deriveaddresses`), `psbt` (`decodepsbt` for
+   version 0), and BIP-137 (`signmessagewithprivkey`, `verifymessage`).
+   `bip32` is judged by btclib and btcd's `hdkeychain`, which cover its
+   keys; Core's `deriveaddresses` would add only addresses, which `addr`
+   has. The refusals of F136 and F141 are Faraday's policy, which Core
+   does not share, and stay in the implementation Faraday's authors wrote,
+   labelled so.
 2. **btclib** (vendored by commit and SHA-256): BIP-32 derivation and
-   strict decoding, BIP-137's other headers, and BIP-340 with its
-   randomness given. **python-ecdsa** (the distribution's package): every
-   ECDSA signature again under RFC 6979, byte for byte. Both outside the
-   libsecp256k1 lineage.
+   strict decoding, BIP-137's other headers, and BIP-340. **python-ecdsa**
+   (the distribution's package): every ECDSA signature again under
+   RFC 6979, byte for byte. Both outside the libsecp256k1 lineage. Built.
 3. **HWI's `psbt.py`** (vendored): version 2 PSBTs, which Core refuses.
+   Built.
 4. **PyCA `cryptography`** (the distribution's package): the vault's
-   HKDF-SHA256 and the ChaCha20 block.
+   HKDF-SHA256 is built (area `hash`). The ChaCha20 block has no
+   comparison of its own: the vault's cipher is judged by the files
+   pykeepass, `keepassxc-cli` and keepass-rs write and read, and no
+   Faraday-written reference stands for it.
 5. **embit and SeedSigner's own code** (vendored): SeedQR and numbered
-   parts; **Coldcard's code**, where its licence allows: the dice
-   procedure and Seed XOR.
-6. **LND's aezeed and AEZ in Go** (a Go toolchain, offline): the second
-   AEZ §10.5 item 6 lacks, and LND's node keys.
-7. **BIP-322:** against an outside implementation if a reasonable one
-   exists; if none does, BIP-322 is held out of the app until it can be
-   checked, never labelled self-checked. Built: btclib-wallet's `bip322`
-   and btcd's (pull request 2521, Go) answer every case of the `msg`
-   area, with the BIP's generated vectors and btcd's negative ones; with
-   Core's `signmessagewithprivkey` and `verifymessage` and btclib's `bms`
-   for BIP-137 (the message parts of items 1 and 2), they replaced
+   parts; **Coldcard's code**: the dice procedure and Seed XOR. Built.
+6. **LND's aezeed and AEZ in Go** (a Go toolchain, offline): built, with
+   LND's node keys. ldk-node's node keys stay Faraday's composition of
+   btclib's steps, since the only other implementation needs Node.
+7. **BIP-322:** built against btclib-wallet's `bip322` and btcd's (pull
+   request 2521, Go), with the BIP's generated vectors and btcd's negative
+   ones; with Core and btclib's `bms` for BIP-137, they replaced
    `area_msg.py`'s own BIP-137 and BIP-322.
 8. **Faraday's own specifications** (the vault's container, own
    randomness, cards, the camera, a mix, the Demo roller; the last five
-   are held by frozen vectors and Rust tests, not cross-checked): an
-   implementation written by an outside party from the specification
-   alone, or a named outside
-   party's reproduction of the published vectors (`tools/vectors/vault/`
-   and the others), recorded on the Audits page
-   (`docs/AUDIT-SUBMISSIONS.md`). Until then each keeps its label. The
-   call, with the specification's sections, the vectors and what an
-   outside implementation offers to take the place of Faraday's in an
-   area, is `docs/AUDIT-SUBMISSIONS.md` §10.
+   are held by frozen vectors and Rust tests, not cross-checked) have no
+   outside implementation. Each keeps its label until an implementation
+   written by an outside party from the specification alone, or a named
+   outside party's reproduction of the published vectors
+   (`tools/vectors/vault/` and the others), is recorded on the Audits
+   page (`docs/AUDIT-SUBMISSIONS.md`). The call, with the specification's
+   sections, the vectors and what an outside implementation offers to take
+   the place of Faraday's in an area, is `docs/AUDIT-SUBMISSIONS.md` §10.

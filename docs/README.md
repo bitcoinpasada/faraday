@@ -95,6 +95,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built.
 - `docs/COMPARE.md`: Comparing two transactions, and the fee bump. Built (F233, F270).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
+- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step. Option A decided (F79) and built, §10.5 items 1 to 6; the references of Faraday's own replaced by outside code where it exists (§10.7).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F81, F126; Practice's aids in Faraday Demo's host strip, §14, F118).
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118, `faraday/faraday-host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card; it runs inside Faraday Starter's window, under the Starter's top app bar (§1, F126).
 - `docs/DEVELOPING.md`: Developing Faraday. Built.
@@ -134,7 +135,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 **Spec**
 
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19), except the Audits page's part of §10 (F160).
-- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step. Option A decided (F79) and built, §10.5 items 1 to 6.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`.
 - `docs/DESIGN.md`: Design system. Built but for the items under Open.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open; the code is the record where it differs.
