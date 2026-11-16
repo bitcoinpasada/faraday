@@ -329,6 +329,14 @@ pub fn put(
     put_known(c, doc, place, body, None)
 }
 
+/// Whether a field's old and new value are the same: the lengths are
+/// compared openly and the bytes without stopping at the first that differs,
+/// since the values may be a password or a one-time password's secret.
+fn same_value(old: &str, new: &str) -> bool {
+    use subtle::ConstantTimeEq;
+    old.len() == new.len() && bool::from(old.as_bytes().ct_eq(new.as_bytes()))
+}
+
 /// Costs what [`put`] costs, less the read of the document when `known` is
 /// given: [`put`], reading the document for the entry's readability only when
 /// `known` is not given: the `read` of the document before the batch of
@@ -401,7 +409,7 @@ pub fn put_known(
         // set it, but a Password or one-time password Faraday changes is
         // written protected; an item's protection is §7's.
         let protected = match (name, e.field(key)) {
-            (None, Some(f)) => f.protected() || (*protected && f.value() != v),
+            (None, Some(f)) => f.protected() || (*protected && !same_value(f.value(), v)),
             _ => *protected,
         };
         e.set_field(key, v, protected)

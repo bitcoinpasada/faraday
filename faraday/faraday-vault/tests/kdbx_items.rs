@@ -1004,6 +1004,25 @@ fn a_persons_entry_keeps_its_other_fields_across_a_change() {
 }
 
 #[test]
+fn a_persons_password_is_protected_only_when_a_write_back_changes_it() {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let e = bad(90, None, &[("Password", "hunter2", false)], &[]);
+    doc.root_mut().push_entry(e).unwrap();
+    let first = read(&doc);
+    for (new, protected) in [("hunter2", false), ("hunter3", true), ("Hunter2", true)] {
+        let mut doc = again(&doc);
+        let mut r = record_of(&first, 90).duplicate();
+        r.set(field::PASSWORD, new.as_bytes());
+        items::put(&compute(), &mut doc, &place(90, "", ""), &Body::Record(r)).unwrap();
+        let doc = again(&doc);
+        let e = doc.root().entries().next().unwrap();
+        let f = e.field("Password").unwrap();
+        assert_eq!((f.value(), f.protected()), (new, protected));
+    }
+}
+
+#[test]
 fn an_item_moved_or_renamed_in_a_keepass_app_keeps_its_kind() {
     let c = compute();
     let mut doc = Document::new([0xee; 16], "Vault");
