@@ -991,9 +991,71 @@ impl PsbtV2 {
             self.inputs[i].remove(&k);
         }
         let n = added.len();
+        let mut bytes = Vec::new();
+        let mut finalized = alloc::collections::BTreeSet::new();
+        for (i, k, v) in &added {
+            if let Some(b) = self.added_sighash_byte(*i, k, v) {
+                bytes.push(b);
+            } else if matches!(
+                k.first(),
+                Some(&IN_FINAL_SCRIPTSIG | &IN_FINAL_SCRIPTWITNESS)
+            ) {
+                finalized.insert(*i);
+            }
+        }
+        for i in finalized {
+            bytes.extend(crate::verify::finalized_sighash_bytes(signed.inner(), i));
+        }
         for (i, k, v) in added {
             self.inputs[i].set(k, v);
         }
+        self.update_modifiable(&bytes);
         Ok(n)
+    }
+
+    /// The sighash byte of a signature pair a signing pass adds on input
+    /// `i`: the last byte of an ECDSA or Schnorr signature (a 64-byte
+    /// Schnorr signature is `DEFAULT`, 0), the input's own
+    /// `PSBT_IN_SIGHASH_TYPE` for a MuSig2 partial signature, which
+    /// states none. `None` for a pair that is not a signature.
+    fn added_sighash_byte(&self, i: usize, key: &[u8], value: &[u8]) -> Option<u8> {
+        match *key.first()? {
+            IN_PARTIAL_SIG => value.last().copied(),
+            IN_TAP_KEY_SIG | IN_TAP_SCRIPT_SIG => match value.len() {
+                64 => Some(0),
+                65 => value.last().copied(),
+                _ => None,
+            },
+            crate::musig::IN_PARTIAL_SIG => Some(match self.inputs[i].get_type(IN_SIGHASH_TYPE) {
+                Some(&[b, _, _, _]) => b,
+                _ => 0,
+            }),
+            _ => None,
+        }
+    }
+
+    /// BIP-370's rule for a signer on `PSBT_GLOBAL_TX_MODIFIABLE`, for the
+    /// sighash bytes of the signatures just added: each not using
+    /// `SIGHASH_ANYONECANPAY` clears bit 0 (inputs), each not using
+    /// `SIGHASH_NONE` clears bit 1 (outputs), each using `SIGHASH_SINGLE`
+    /// sets bit 2. A PSBT without the field, or with one that is not a
+    /// single byte, is left as it is.
+    fn update_modifiable(&mut self, sighashes: &[u8]) {
+        let Some(&[mut flags]) = self.global.get_type(GLOBAL_TX_MODIFIABLE) else {
+            return;
+        };
+        for b in sighashes {
+            if b & 0x80 == 0 {
+                flags &= !0b001;
+            }
+            if b & 0x1f != 2 {
+                flags &= !0b010;
+            }
+            if b & 0x1f == 3 {
+                flags |= 0b100;
+            }
+        }
+        self.global
+            .set(alloc::vec![GLOBAL_TX_MODIFIABLE], alloc::vec![flags]);
     }
 }

@@ -1191,6 +1191,21 @@ fn filed_leaf_not_run<'a, C: secp256k1::Verification>(
         .is_some_and(|(_, not_run)| *not_run)
 }
 
+/// The sighash byte of each signature in input `index`'s final
+/// `scriptSig` or witness, read and not checked.
+pub(crate) fn finalized_sighash_bytes(psbt: &bitcoin::Psbt, index: usize) -> Vec<u8> {
+    let c = classify(psbt, index);
+    collect(&c, &psbt.inputs[index])
+        .iter()
+        .filter(|p| p.finalized)
+        .map(|p| match sighash_of(p) {
+            SighashKind::Ecdsa(t) => t as u8,
+            SighashKind::Taproot(t) => t as u8,
+            SighashKind::NonStandard(n) => n as u8,
+        })
+        .collect()
+}
+
 /// Every signature one input carries, from the partial-signature fields
 /// and from a final `scriptSig` or witness.
 fn collect(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present> {

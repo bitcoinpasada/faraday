@@ -3332,6 +3332,36 @@ fn a_version_2_pair_with_its_flags_updated_by_the_rule_is_clean() {
 }
 
 #[test]
+fn a_version_2_file_signed_with_all_goes_back_with_its_modifiable_flags_cleared() {
+    // BIP-370, "Signer": a signature not using SIGHASH_ANYONECANPAY clears
+    // bit 0 (inputs), one not using SIGHASH_NONE clears bit 1 (outputs);
+    // bit 2 (SIGHASH_SINGLE) is not touched by a SIGHASH_ALL signature.
+    for (before, after) in [(0b011u8, 0b000u8), (0b111, 0b100), (0b000, 0b000)] {
+        let mut file = v2_of(&core_sent(), None);
+        file.global.set(vec![0x06], vec![before]);
+        file.merge_signed(&core_signed())
+            .expect("the same transaction");
+        assert_eq!(
+            file.global.get_type(0x06),
+            Some(&[after][..]),
+            "{before:#05b}"
+        );
+        // The file the person gets, read back, holds it.
+        let c = Compute::unchecked();
+        let back = PsbtV2::parse_bytes(&c, &file.to_bytes()).unwrap();
+        assert_eq!(back.global.get_type(0x06), Some(&[after][..]));
+    }
+    // The checker that holds other signers to the rule accepts the file.
+    let (mut sent, _) = core_v2_pair();
+    sent.global.set(vec![0x06], vec![0b011]);
+    let mut returned = sent.clone();
+    returned
+        .merge_signed(&core_signed())
+        .expect("the same transaction");
+    assert_clean(&run_v2(&sent, &returned), 0, false);
+}
+
+#[test]
 fn a_signature_that_cannot_be_filed_under_a_loaded_key_is_s6u_not_not_loaded() {
     let sent = demo();
     let returned = signed(&sent, 0, &abandon(), EcdsaSighashType::All, Nonce::Rfc6979);
