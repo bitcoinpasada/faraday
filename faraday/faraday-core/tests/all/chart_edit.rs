@@ -837,11 +837,11 @@ fn type_back(app: &mut Faraday, w: usize) {
 /// already under way (the person comes back to it from wherever they were).
 fn type_back_here(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Backup));
-    if app.backup().and_then(|b| b.open) == Some(faraday_core::bstep::BLANK) {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup().and_then(|b| b.open) == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::COPY) {
-        app.press(Action::BStep(faraday_core::bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BCheck);
     testkit::type_words(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -854,11 +854,11 @@ fn type_back_in(app: &mut Faraday, w: usize, kept: bool) {
     if kept {
         plan_as_kept(app, w);
     }
-    if app.backup().and_then(|b| b.open) == Some(faraday_core::bstep::BLANK) {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup().and_then(|b| b.open) == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::COPY) {
-        app.press(Action::BStep(faraday_core::bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BCheck);
     testkit::type_words(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -944,7 +944,7 @@ fn the_charts_type_my_copy_dates_the_place_of_its_line_without_asking() {
     let fp = app.session.keys[0].fingerprint.0;
     let (n, j) = line_of(&app, w, "Place 2", "Key 1 words");
     open(&mut app, press, Target::Line(n, j));
-    let step = Step::Type(fp, faraday_core::bstep::COPY, Some(At::Place(1)));
+    let step = Step::Type(fp, faraday_core::plan::Item::Copy(0), Some(At::Place(1)));
     assert!(app.offers(Action::Chart(C::Do(press, step))));
     app.press(Action::Chart(C::Do(press, step)));
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -1420,7 +1420,7 @@ fn a_scan_cancelled_on_the_chart_leaves_no_place_for_the_next_match() {
     let press = Press::Loaded(w);
     // The checklist's Copy item is open, as the person left it.
     app.press(Action::Nav(Screen::Backup));
-    app.press(Action::BStep(faraday_core::bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
     let (n, j) = line_of(&app, w, "Place 2", "Key 1 words");
@@ -1450,7 +1450,7 @@ fn a_typed_check_closed_with_escape_leaves_no_place_for_the_next_match() {
     open(&mut app, press, Target::Line(n, j));
     app.press(Action::Chart(C::Do(
         press,
-        Step::Type(fp, faraday_core::bstep::COPY, Some(At::Place(1))),
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), Some(At::Place(1))),
     )));
     app.event(Event::Key(Key::Escape));
     // The words typed back on the checklist: the plan keeps them at two
@@ -1589,7 +1589,7 @@ fn a_question_left_unanswered_dates_nothing_and_a_new_match_asks_again() {
     type_back(&mut app, w);
     assert!(shown(&mut app, "Which copy was this?"));
     // Another item opens: the question is gone, nothing is dated.
-    app.press(Action::BStep(faraday_core::bstep::BLANK));
+    app.press(Action::BStep(faraday_core::plan::Item::Templates));
     assert!(!shown(&mut app, "Which copy was this?"));
     // An answer to it dates nothing.
     app.press(Action::BWhich(0));

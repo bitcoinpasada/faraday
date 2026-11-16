@@ -20,7 +20,7 @@ use faraday_core::plan::{
 };
 use faraday_core::testkit;
 use faraday_core::testkit::Plain;
-use faraday_core::{Action, BStage, Faraday, Screen, Sheet, bstep, cstep, qstep};
+use faraday_core::{Action, BStage, Faraday, Screen, Sheet, cstep, qstep};
 use faraday_shell_api::{App, Event, Key};
 
 const PHRASE: &str = "first vault phrase";
@@ -103,8 +103,8 @@ pub(crate) fn save_vaults(app: &mut Faraday) {
     let vaults: Vec<usize> = app
         .backup_items_now(&c)
         .into_iter()
-        .filter_map(|n| match bstep::item(n) {
-            Some(Item::Vault(v)) => Some(v),
+        .filter_map(|n| match n {
+            Item::Vault(v) => Some(v),
             _ => None,
         })
         .collect();
@@ -304,10 +304,14 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     // The files are no items of their own: they go with their sticks.
     assert_eq!(
         app.backup_items_now(&c),
-        vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
+        vec![
+            faraday_core::plan::Item::Vault(0),
+            faraday_core::plan::Item::Envelopes,
+            faraday_core::plan::Item::Sticks
+        ]
     );
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
@@ -404,9 +408,12 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         app.backup_items_now(&c),
-        vec![bstep::ENVELOPE, bstep::STICKS]
+        vec![
+            faraday_core::plan::Item::Envelopes,
+            faraday_core::plan::Item::Sticks
+        ]
     );
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     assert!(
         app.key_held(&c, Fingerprint(fp)),
         "every item but the write is done, and the key waits for its stick"
@@ -629,7 +636,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 0, "no seed's file");
     let mut app = restart(&mut shell, &mut app);
@@ -703,7 +710,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     );
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 0, "held at the drop");
     let mut app = restart(&mut shell, &mut app);
@@ -766,7 +773,7 @@ fn a_seeds_words_file_on_a_stick_asks_the_hold_at_the_drop_and_not_at_the_lock()
     assert_eq!((app.sheet, testkit::plain_asked(&app)), (None, None));
     files_at(&mut app, 0, &[1, 2]);
     app.press(Action::BChecklist);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 0, "nothing more at the lock");
     assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
@@ -1671,7 +1678,7 @@ fn after_the_lock_the_flows_board_keeps_paper_and_files_and_changes_vaults() {
     vault_at(&mut app, 0, 0, &[0, 1, 2]);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(step(&app), Step::Write);
@@ -2335,14 +2342,11 @@ fn the_standard_ways_checklist_writes_its_copies() {
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     let items = app.backup_items_now(&c);
     for i in 0..3 {
-        assert!(
-            items.contains(&bstep::of(Item::Copy(i))),
-            "seed {i}: {items:?}"
-        );
+        assert!(items.contains(&Item::Copy(i)), "seed {i}: {items:?}");
     }
-    assert!(items.contains(&bstep::of(Item::Sheets)), "{items:?}");
-    assert!(items.contains(&bstep::of(Item::Templates)), "{items:?}");
-    assert!(!items.contains(&bstep::of(Item::Vault(0))), "no vault");
+    assert!(items.contains(&Item::Sheets), "{items:?}");
+    assert!(items.contains(&Item::Templates), "{items:?}");
+    assert!(!items.contains(&Item::Vault(0)), "no vault");
 }
 
 /// In Customize backup a seed chip's toggles: the SeedQR is added by its
@@ -2768,7 +2772,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
         sorted(paper(&app, 0)),
         sorted(vec![What::SeedQr(0), What::Sheet])
     );
-    assert!(app.backup_items_now(&c).contains(&bstep::of(Item::Copy(0))));
+    assert!(app.backup_items_now(&c).contains(&Item::Copy(0)));
 }
 
 /// A new plan keeps each seed's words on paper and no SeedQR, a single key
@@ -2790,7 +2794,7 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
         }
         app.press(Action::BChecklist);
         let items = app.backup_items_now(&c);
-        assert!(items.contains(&bstep::of(Item::Copy(0))), "{items:?}");
+        assert!(items.contains(&Item::Copy(0)), "{items:?}");
         app.press(Action::BPlan);
         app.press(Action::Board(BP::Customize));
         app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));

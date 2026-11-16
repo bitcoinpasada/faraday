@@ -20,7 +20,7 @@ use faraday_core::backup_flow::{Problem, Step};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{self, At, Shape, Spot, What, form};
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, cstep, testkit};
+use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::{field, kind};
 
@@ -142,7 +142,7 @@ fn lock_and_write(shell: &mut Shell, app: &mut Faraday) -> Faraday {
         app.backup_kept_nowhere(&c)
     );
     testkit::type_passphrases(app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(app, F::WalletLock);
     let_seed_files_out(app);
     shell.pump(app);
@@ -458,7 +458,7 @@ fn seedqr_on_stick_1(shell: &mut Shell) -> (Faraday, [u8; 4]) {
         plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
     });
     app.press(Action::BChecklist);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 1);
     shell.pump(&mut app);

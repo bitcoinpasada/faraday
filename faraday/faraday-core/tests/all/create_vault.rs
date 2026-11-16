@@ -65,11 +65,14 @@ fn create_to_vault_step() -> Faraday {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    assert_eq!(app.backup().unwrap().open, Some(faraday_core::bstep::VAULT));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Vault(0))
+    );
     let _ = app.frame();
     assert!(
         app.offers(Action::Vault(V::CreateFrom(Screen::Backup))),
@@ -189,9 +192,9 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     app.press(Action::BOut(0));
     app.press(Action::BOut(3));

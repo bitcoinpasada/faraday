@@ -131,10 +131,10 @@ fn a_seed_xor_split_typed_back_is_the_same_key() {
 fn a_key_of_words_is_not_offered_codex32_strings_by_hand() {
     let mut app = backing_up();
     app.press(Action::BChecklist);
-    if app.backup().unwrap().open == Some(faraday_core::bstep::BLANK) {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    if app.backup().unwrap().open == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    let copy = faraday_core::bstep::of(faraday_core::plan::Item::Copy(0));
+    let copy = faraday_core::plan::Item::Copy(0);
     if app.backup().unwrap().open != Some(copy) {
         app.press(Action::BStep(copy));
     }

@@ -6,7 +6,7 @@
 use faraday_core::plan::{self, Item};
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, bstep, qrow};
+use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, qrow};
 use faraday_draw::canvas::InkKind;
 use faraday_shell_api::{App, Event, Key};
 
@@ -295,8 +295,11 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
         }
     }
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     (app, w)
 }
@@ -325,7 +328,10 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     let mut want = pictures.clone();
     want.sort();
     assert_eq!(have, want);
-    assert!(app.backup_items_now(&c).contains(&bstep::PUBLIC));
+    assert!(
+        app.backup_items_now(&c)
+            .contains(&faraday_core::plan::Item::PublicFiles)
+    );
     assert!(app.backup_item_done_now(&c, Item::PublicFiles));
     // Taking the descriptor's picture (its first part, past one code) off
     // the stick makes the item not done again.

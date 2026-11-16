@@ -848,7 +848,7 @@ fn a_kvm_arriving_takes_new_keys_words_off_the_screen_until_checked_again() {
 
 #[test]
 fn a_kvm_arriving_takes_back_ups_words_off_the_screen_until_checked_again() {
-    use faraday_core::{bstep, testkit};
+    use faraday_core::testkit;
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let list: Vec<String> = words.split(' ').map(str::to_owned).collect();
     let mut app = shown(laptop());
@@ -869,10 +869,16 @@ fn a_kvm_arriving_takes_back_ups_words_off_the_screen_until_checked_again() {
     );
     app.press(Action::BChecklist);
     let c = faraday_core::testkit::compute();
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::COPY));
+    assert_eq!(
+        app.backup().and_then(|b| b.open),
+        Some(faraday_core::plan::Item::Copy(0))
+    );
     app.press(Action::BReveal);
     assert!(words_drawn(&mut app, &list) > 0, "the words are not shown");
     app.usb_devices(&[kvm()]);

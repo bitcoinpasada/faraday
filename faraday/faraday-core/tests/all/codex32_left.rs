@@ -192,10 +192,7 @@ fn a_share_left_in_its_vault_does_not_hold_up_that_vaults_item() {
     let c = testkit::compute();
     assert!(app.backup_item_done_now(&c, plan::Item::Vault(0)));
     assert!(!app.backup_item_done_now(&c, plan::Item::Vault(1)));
-    assert_ne!(
-        app.backup_waiting(&c),
-        Some(faraday_core::bstep::of(plan::Item::Vault(0)))
-    );
+    assert_ne!(app.backup_waiting(&c), Some(plan::Item::Vault(0)));
     testkit::vault_current(&mut app, 1);
     app.press(Action::BVaultSave(1));
     assert_eq!(

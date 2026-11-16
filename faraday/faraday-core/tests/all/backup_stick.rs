@@ -287,7 +287,6 @@ fn the_lock_sheet_lists_a_seed_in_memory_only_as_nowhere_else() {
 #[test]
 fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     let c = testkit::compute();
-    use faraday_core::bstep;
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     // The shell's randomness, which a lock seals the vault with.
@@ -311,12 +310,12 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     app.press(Action::BCheck);

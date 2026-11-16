@@ -15,7 +15,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::vanity::VanityAction as VA;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, bstep, demo, qstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, demo, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
 
@@ -267,11 +267,14 @@ fn backing_up(app: &mut Faraday) -> usize {
     faraday_core::testkit::backup_as(app, Preset::Paper);
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().unwrap().open != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     w
@@ -346,12 +349,15 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     }
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     // The copy, typed back.
-    if app.backup().unwrap().open != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     app.storage(faraday_core::StorageEvent::Cameras(Vec::new()));
@@ -362,8 +368,8 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         "the copy did not check"
     );
     // The envelopes, then the writes, the last item.
-    app.press(Action::BStep(bstep::ENVELOPE));
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BStep(faraday_core::plan::Item::Envelopes));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     assert!(app.backup_item_done_now(&c, Item::Envelopes));
     for item in [
         Item::Templates,
@@ -371,7 +377,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         Item::Copy(0),
         Item::Envelopes,
     ] {
-        if app.backup_items_now(&c).contains(&item_step(item)) {
+        if app.backup_items_now(&c).contains(&item) {
             assert!(app.backup_item_done_now(&c, item), "{item:?} is not done");
         }
     }
@@ -379,16 +385,6 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         offered_anywhere(&mut app, Action::Flow(F::WalletLock)),
         "the writes cannot be started"
     );
-}
-
-/// The checklist step an item is drawn on.
-fn item_step(item: Item) -> u8 {
-    match item {
-        Item::Templates => bstep::BLANK,
-        Item::Sheets => bstep::SHEETS,
-        Item::Copy(_) => bstep::COPY,
-        _ => bstep::ENVELOPE,
-    }
 }
 
 // ---------------------------------------------------------------------

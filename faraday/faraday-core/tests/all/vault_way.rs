@@ -13,7 +13,7 @@ use faraday_core::catalog::TILES;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_vault::records::kind;
 
@@ -343,7 +343,7 @@ fn on_the_seeds_step(app: &mut Faraday) {
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(app, faraday_core::plan::Preset::PaperVault);
     app.press(Action::BChecklist);
-    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::BReveal);
     let _ = app.frame();
 }
@@ -357,7 +357,7 @@ fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     crate::common::no_words(&mut app);
     app.press(Action::BChecklist);
     let step = app.backup().unwrap().open;
-    assert_eq!(step, Some(bstep::VAULT));
+    assert_eq!(step, Some(faraday_core::plan::Item::Vault(0)));
     press_make(&mut app, Screen::Backup);
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);

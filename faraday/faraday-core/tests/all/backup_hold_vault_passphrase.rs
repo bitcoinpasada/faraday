@@ -10,7 +10,7 @@ use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::board::Thing;
 use faraday_core::testkit;
-use faraday_core::{Action, Screen, bstep, cstep};
+use faraday_core::{Action, Screen, cstep};
 
 #[test]
 fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
@@ -45,7 +45,7 @@ fn a_passphrase_made_in_create_and_kept_in_the_vault_is_written_and_signs() {
     assert!(app.backup().unwrap().answers.pass_in_vault(0));
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1"]);
@@ -106,7 +106,7 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BFilesMake);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     let_seed_files_out(&mut app);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -170,15 +170,18 @@ fn words_kept_without_a_passphrase_by_a_flow_hold_only_the_passphrase_still_writ
     no_words(&mut app);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     save_vaults(&mut app);
     testkit::type_passphrases(&mut app);
-    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
-        app.press(Action::BStep(bstep::ENVELOPE));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Envelopes) {
+        app.press(Action::BStep(faraday_core::plan::Item::Envelopes));
     }
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     let_seed_files_out(&mut app);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);

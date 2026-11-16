@@ -474,7 +474,6 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_a_krux_code_s_contents_at_once
 
 #[test]
 fn a_lock_pressed_while_one_vault_is_sealed_hides_the_backup_checklist_s_words_at_once() {
-    use faraday_core::bstep;
     use faraday_core::seeds::SeedsAction as S;
     let mut app = device(cheap_vault());
     open_and_change(&mut app);
@@ -494,12 +493,12 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_backup_checklist_s_words_a
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     // The checklist draws each word of the seed in a row of its own.
@@ -547,7 +546,6 @@ fn a_lock_from_the_checklist_s_one_vault_seal_through_the_lock_sheet_locks_when_
     use crate::backup_checklist::{
         device as checklist_device, make_the_vault, press_offered, two_of_three_two_here,
     };
-    use faraday_core::bstep;
     let mut app = checklist_device(Vec::new());
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Backup(w));
@@ -555,13 +553,16 @@ fn a_lock_from_the_checklist_s_one_vault_seal_through_the_lock_sheet_locks_when_
     let c = testkit::compute();
     crate::common::no_words(&mut app);
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
     make_the_vault(&mut app);
     press_offered(&mut app, Action::BVaultSave(0));
-    press_offered(&mut app, Action::BStep(bstep::VAULT + 1));
+    press_offered(&mut app, Action::BStep(faraday_core::plan::Item::Vault(1)));
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -605,7 +606,6 @@ fn lock_stops(app: &mut Faraday) {
 
 #[test]
 fn a_lock_that_stops_keeps_the_check_being_typed_on_the_checklist() {
-    use faraday_core::bstep;
     use faraday_core::seeds::SeedsAction as S;
     let mut app = device(cheap_vault());
     open_and_change(&mut app);
@@ -624,12 +624,12 @@ fn a_lock_that_stops_keeps_the_check_being_typed_on_the_checklist() {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     app.press(Action::BCheck);
@@ -1029,7 +1029,6 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_inbox_passphrase_at_once()
 
 /// The checklist on the copy step with the words shown and Seed XOR made.
 fn checklist_with_parts() -> Faraday {
-    use faraday_core::bstep;
     use faraday_core::seeds::SeedsAction as S;
     let mut app = device(cheap_vault());
     open_and_change(&mut app);
@@ -1048,12 +1047,12 @@ fn checklist_with_parts() -> Faraday {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     crate::common::top_up(&mut app);

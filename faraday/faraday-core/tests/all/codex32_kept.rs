@@ -22,7 +22,7 @@ use faraday_core::codex32_backup::Press;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{self, At, Spot, What};
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, BStage, Faraday, Screen, bstep, cstep, testkit};
+use faraday_core::{Action, BStage, Faraday, Screen, cstep, testkit};
 use faraday_keys::texts::Spec;
 use faraday_shell_api::{App, Event, Key};
 use faraday_ui::keyboard::OskPress;
@@ -115,11 +115,11 @@ pub(crate) fn codex32_item(app: &mut Faraday) {
         "{:?}",
         app.backup_kept_nowhere(&c)
     );
-    let n = bstep::of(plan::Item::Codex32(0));
+    let n = plan::Item::Codex32(0);
     assert!(app.backup_items_now(&c).contains(&n), "the codex32 item");
     // The blank templates, printed from Faraday Starter, come first.
-    if app.backup().unwrap().open == Some(bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup().unwrap().open == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     open_item(app, n);
     assert_eq!(app.backup().unwrap().open, Some(n));
@@ -129,7 +129,7 @@ pub(crate) fn codex32_item(app: &mut Faraday) {
 /// Each string on paper typed back from its paper in the codex32 item,
 /// open again where the checklist moved on.
 pub(crate) fn type_each_back(app: &mut Faraday) {
-    open_item(app, bstep::of(plan::Item::Codex32(0)));
+    open_item(app, plan::Item::Codex32(0));
     for s in [A, C, D] {
         let j = plan::codex32::index_of(s.as_bytes()[8]).unwrap();
         app.press(Action::BC32(Press::Open(j as u8)));
@@ -408,7 +408,7 @@ fn a_share_the_plan_keeps_in_another_vault_goes_at_the_save() {
 #[test]
 fn the_vault_item_lists_the_strings_it_will_hold() {
     let line = "1 of 2 shares of fab6868a".to_string();
-    let n = bstep::of(plan::Item::Vault(0));
+    let n = plan::Item::Vault(0);
     for with_string in [false, true] {
         let mut app = device(vec![("home.kdbx".into(), vault_of(PHRASE, Vec::new(), 7))]);
         unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
@@ -683,7 +683,7 @@ fn a_string_not_here_stops_lock_and_write() {
     codex32_item(&mut app);
     skip_each(&mut app);
     testkit::type_passphrases(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         app.toast_text(),
@@ -709,7 +709,7 @@ fn backups_says_a_stick_with_a_string_let_out_is_unprotected() {
     codex32_item(&mut app);
     type_each_back(&mut app);
     testkit::type_passphrases(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let_seed_files_out(&mut app);
     shell.pump(&mut app);
@@ -765,7 +765,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     codex32_item(&mut app);
     type_each_back(&mut app);
     testkit::type_passphrases(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let_seed_files_out(&mut app);
     shell.pump(&mut app);
@@ -874,7 +874,7 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     codex32_item(&mut app);
     type_each_back(&mut app);
     testkit::type_passphrases(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let (name, on) = testkit::plain_asked(&app).expect("the hold, at Lock and write");
     assert_eq!(on, "stick at Place 1");
@@ -910,7 +910,7 @@ fn warned_with_typing(by_key: bool) {
     wallet_and_backup(&mut app);
     codex32_item(&mut app);
     type_each_back(&mut app);
-    open_item(&mut app, bstep::of(plan::Item::Codex32(0)));
+    open_item(&mut app, plan::Item::Codex32(0));
     app.press(Action::BC32(Press::Open(ix('a') as u8)));
     for ch in A[3..9].chars() {
         app.press(Action::BC32(Press::Key(OskPress::Char(ch))));
@@ -988,7 +988,7 @@ fn the_idle_warning_leaves_a_set_actions_typing_drawn() {
     wallet_and_backup(&mut app);
     codex32_item(&mut app);
     type_each_back(&mut app);
-    open_item(&mut app, bstep::of(plan::Item::Codex32(0)));
+    open_item(&mut app, plan::Item::Codex32(0));
     app.press(Action::BC32(Press::Set(
         faraday_core::codex32_backup::SetPress::Add,
     )));

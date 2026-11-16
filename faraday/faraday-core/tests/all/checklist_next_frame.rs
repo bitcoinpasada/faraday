@@ -6,7 +6,7 @@ use crate::common::{CLOCK, Shell, no_words, process, type_text};
 use faraday_core::plan::Item;
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys
@@ -156,22 +156,28 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Vault(0))
+    );
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     make_vault(&mut app, "first vault phrase");
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
-    app.press(Action::BNext(bstep::VAULT));
+    app.press(Action::BNext(faraday_core::plan::Item::Vault(0)));
     let seed2 = String::from(&*app.backup_seed_list_now(w)[1].0);
     let title = format!("Vault 2 · {seed2}");
     let number = app
         .backup_items_now(&c)
         .iter()
-        .position(|&n| n == bstep::VAULT + 1)
+        .position(|&n| n == faraday_core::plan::Item::Vault(1))
         .expect("a Vault 2 item")
         + 1;
     let boxes = next_frame(&mut app);
@@ -216,5 +222,8 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     assert!(ticked(&boxes, &title, number), "{boxes:?}");
     assert!(app.backup_item_done_now(&c, Item::Vault(1)));
     // Done, the item has moved on by itself (`docs/BACKUP-FLOW.md` §17.23).
-    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
+    assert_ne!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Vault(1))
+    );
 }

@@ -30,7 +30,7 @@ use faraday_core::plan::{self, Item};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::testkit::Plain;
-use faraday_core::{Action, Faraday, ScanPurpose, Sheet, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, ScanPurpose, Sheet, StorageEvent};
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 /// SeedSigner's 24-word vector: the words and its Standard SeedQR digits.
@@ -148,13 +148,16 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
     testkit::backup_as(app, plan::Preset::Paper);
     copies_as(app, 0, copies.0, copies.1);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     // The template is made with the checklist, so the copy is the first
     // item left and opens by itself.
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     let _ = app.frame();
@@ -284,7 +287,10 @@ fn a_words_only_plan_with_a_camera_opens_the_typed_check_not_the_camera() {
     testkit::type_words(&mut app, ATTACK);
     assert!(seeds_done(&app), "the typed seed did not complete the item");
     // Done, the item moves on by itself (`docs/BACKUP-FLOW.md` §17.23).
-    assert_ne!(app.backup().unwrap().open, Some(faraday_core::bstep::COPY));
+    assert_ne!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Copy(0))
+    );
 }
 
 #[test]
@@ -675,11 +681,14 @@ fn each_seed_is_checked_by_its_own_forms() {
     copies_as(&mut app, seeds[0], true, false);
     copies_as(&mut app, seeds[1], false, true);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    let first = bstep::COPY + seeds[0] as u8;
-    let second = bstep::COPY + seeds[1] as u8;
+    let first = faraday_core::plan::Item::Copy(seeds[0]);
+    let second = faraday_core::plan::Item::Copy(seeds[1]);
     let words_of = |app: &Faraday, i: usize| {
         let k = app.backup_seed_list_now(w)[i].1.unwrap();
         app.session
@@ -728,7 +737,10 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(chart_has(
+        &mut app,
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None)
+    ));
     assert!(!chart_has(&mut app, Step::Scan(fp, None)));
 
     // A SeedQR with a camera: scanned.
@@ -737,7 +749,10 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     let _ = app.frame();
     let fp = fp_of(&app);
     assert!(chart_has(&mut app, Step::Scan(fp, None)));
-    assert!(!chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(!chart_has(
+        &mut app,
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None)
+    ));
     // The scan keeps the chart under the camera.
     app.press(Action::Chart(C::Open(Press::Loaded(0), Target::Key(0))));
     app.press(Action::Chart(C::Do(Press::Loaded(0), Step::Scan(fp, None))));
@@ -750,7 +765,10 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(chart_has(
+        &mut app,
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None)
+    ));
     assert!(!chart_has(&mut app, Step::Scan(fp, None)));
 
     // Both forms, with a camera: a row for each.
@@ -758,7 +776,10 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(chart_has(
+        &mut app,
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None)
+    ));
     assert!(chart_has(&mut app, Step::Scan(fp, None)));
 }
 
@@ -770,8 +791,8 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
 /// box, the items, the open item and whether the copy's item is done.
 type Shown = (
     Vec<(String, (i32, i32, i32, i32))>,
-    Vec<u8>,
-    Option<u8>,
+    Vec<faraday_core::plan::Item>,
+    Option<faraday_core::plan::Item>,
     bool,
 );
 
@@ -803,8 +824,8 @@ fn typed_back(words: &str, times: usize, clear: bool) -> Faraday {
         let _ = app.frame();
     }
     // Once or thirty times, the checklist ends past the copy's item.
-    if app.backup().and_then(|b| b.open) == Some(faraday_core::bstep::COPY) {
-        app.press(Action::BNext(faraday_core::bstep::COPY));
+    if app.backup().and_then(|b| b.open) == Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BNext(faraday_core::plan::Item::Copy(0)));
     }
     app
 }
@@ -812,8 +833,8 @@ fn typed_back(words: &str, times: usize, clear: bool) -> Faraday {
 /// The copy's item opened again: a match moves the checklist on by
 /// itself (`docs/BACKUP-FLOW.md` §17.23).
 fn copy_open(app: &mut Faraday) {
-    if app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::COPY) {
-        app.press(Action::BStep(faraday_core::bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
 }
 
@@ -969,7 +990,10 @@ fn keep_the_words_only_turns_the_seedqr_item_into_a_typed_words_check() {
     let forms = plan_forms(&app);
     assert!(forms.words && !forms.seedqr, "the plan's copies: {forms:?}");
     assert!(!seeds_done(&app), "the item is done with nothing checked");
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Copy(0))
+    );
     // Now typed back: no scan, no Keep the words only, no grid.
     assert!(offered(&mut app, Action::BCheck));
     assert!(!app.offers(Action::BScan), "the scan is still asked for");
@@ -1002,7 +1026,7 @@ fn keep_the_words_only_with_the_words_already_checked_completes_the_item_at_once
     );
     assert_ne!(
         app.backup().unwrap().open,
-        Some(bstep::COPY),
+        Some(faraday_core::plan::Item::Copy(0)),
         "the checklist did not move on"
     );
     let forms = plan_forms(&app);

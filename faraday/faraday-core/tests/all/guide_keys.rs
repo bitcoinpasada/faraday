@@ -68,24 +68,24 @@ fn steps(s: Screen) -> Vec<u8> {
 /// The ways in other than a step number: what is open by position in a
 /// list, a checklist item, a step of an embedded spend, a code to open.
 fn parts(s: Screen) -> Vec<GuideAt> {
-    use faraday_core::{bstep, wallet::step};
+    use faraday_core::wallet::step;
     match s {
         Screen::Settings => (0..9).map(GuideAt::Part).collect(),
         Screen::VaultContents => (0..6).map(GuideAt::Part).collect(),
         Screen::Entry => (0..4).map(GuideAt::Part).collect(),
         Screen::Backup => [
-            bstep::BLANK,
-            bstep::PUBLIC,
-            bstep::SHEETS,
-            bstep::ENVELOPE,
-            bstep::FILES,
-            bstep::SHOW,
-            bstep::STICKS,
-            bstep::COPY,
-            bstep::CODEX32,
-            bstep::PASSPHRASE,
-            bstep::KEF,
-            bstep::VAULT,
+            faraday_core::plan::Item::Templates,
+            faraday_core::plan::Item::PublicFiles,
+            faraday_core::plan::Item::Sheets,
+            faraday_core::plan::Item::Envelopes,
+            faraday_core::plan::Item::SeedFiles,
+            faraday_core::plan::Item::ShowDescriptor,
+            faraday_core::plan::Item::Sticks,
+            faraday_core::plan::Item::Copy(0),
+            faraday_core::plan::Item::Codex32(0),
+            faraday_core::plan::Item::Passphrase(0),
+            faraday_core::plan::Item::KefCode(0),
+            faraday_core::plan::Item::Vault(0),
         ]
         .into_iter()
         .map(GuideAt::Item)

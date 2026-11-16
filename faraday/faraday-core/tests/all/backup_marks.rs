@@ -10,7 +10,7 @@ use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::plan::Item;
 use faraday_core::testkit;
-use faraday_core::{Action, Screen, bstep};
+use faraday_core::{Action, Screen};
 
 #[test]
 fn the_templates_and_envelopes_pressed_stay_done_through_the_lock_and_the_unlock() {
@@ -31,7 +31,7 @@ fn the_templates_and_envelopes_pressed_stay_done_through_the_lock_and_the_unlock
     assert!(app.backup_item_done_now(&c, Item::Envelopes), "envelopes");
     // Every item is done with nothing pressed again.
     for n in app.backup_items_now(&c) {
-        let item = bstep::item(n).unwrap();
+        let item = n;
         assert!(app.backup_item_done_now(&c, item), "{item:?} is not done");
     }
 }

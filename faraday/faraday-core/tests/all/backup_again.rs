@@ -15,7 +15,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet_backup::Tone;
-use faraday_core::{Action, Code, Faraday, Screen, bstep, plan, qrow, qstep};
+use faraday_core::{Action, Code, Faraday, Screen, plan, qrow, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// One file of the test stick, made alone: building the whole stick costs
@@ -155,9 +155,9 @@ fn every_software(app: &mut Faraday) {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
 }
 
@@ -187,16 +187,22 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     app.press(Action::BQ(qstep::BOARD));
     every_software(&mut app);
     let items = app.backup_items_now(&c);
-    assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
+    assert!(
+        !items.contains(&faraday_core::plan::Item::Templates)
+            && !items.contains(&faraday_core::plan::Item::Copy(0))
+    );
     // Making the checklist made every file it calls for, For the stick:
     // the public files and the shares are done with no press; the rest
     // are not.
     for n in &items {
-        let it = bstep::item(*n).unwrap();
+        let it = *n;
         let made = matches!(it, plan::Item::PublicFiles | plan::Item::Sheets);
         assert_eq!(app.backup_item_done_now(&c, it), made, "{it:?}");
     }
-    press_offered(&mut app, Action::BStep(bstep::PUBLIC));
+    press_offered(
+        &mut app,
+        Action::BStep(faraday_core::plan::Item::PublicFiles),
+    );
     let want = testkit::public_files("Savings", &testkit::savings()).unwrap();
     for name in [
         "savings-descriptor.txt",
@@ -235,8 +241,11 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     }
     // The whole wallet sheet, the plan's default, made with the
     // checklist.
-    press_offered(&mut app, Action::BStep(bstep::SHEETS));
-    assert_eq!(app.backup().unwrap().open, Some(bstep::SHEETS));
+    press_offered(&mut app, Action::BStep(faraday_core::plan::Item::Sheets));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Sheets)
+    );
     assert!(in_outbox(&app, "savings-backup.pdf"));
     assert!(app.backup_item_done_now(&c, plan::Item::Sheets));
 }
@@ -254,21 +263,27 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     press_offered(&mut app, Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     // Seeds here: the blank template is printed from Faraday Starter and
     // done by its press, so the checklist opens on the copy.
     assert!(app.backup_item_done_now(&c, plan::Item::Templates));
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Copy(0))
+    );
     // The vault's item opens once the copy is checked.
-    app.press(Action::BStep(bstep::VAULT));
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Vault(0)));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Copy(0))
+    );
     press_offered(&mut app, Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     assert!(app.backup_item_done_now(&c, plan::Item::Copy(0)));
-    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    press_offered(&mut app, Action::BStep(faraday_core::plan::Item::Vault(0)));
     // The vault is locked: Unlock it, and back to this step.
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     press_offered(&mut app, Action::Vault(V::OpenFrom(0, Screen::Backup)));
@@ -283,7 +298,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     }
     assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Vault(0))
+    );
     assert_eq!(app.backup_kept(&c).unwrap().wallet.1, Tone::Warn);
     assert!(!app.backup_item_done_now(&c, plan::Item::Vault(0)));
     // One press saves the seed and the wallet.
@@ -297,7 +315,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     assert!(!app.offers(Action::BVaultSave(0)));
     assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
     // Done, the item moves on by itself (`docs/BACKUP-FLOW.md` §17.23).
-    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT));
+    assert_ne!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Vault(0))
+    );
 }
 
 #[test]
@@ -360,7 +381,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     );
     app.press(Action::Backup(w));
     every_software(&mut app);
-    app.press(Action::BStep(bstep::PUBLIC));
+    app.press(Action::BStep(faraday_core::plan::Item::PublicFiles));
     let _ = app.frame();
     // The file the checklist made is taken off, and a file of its name
     // that came from elsewhere is in its place.
@@ -431,7 +452,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     };
     app.press(Action::Backup(w));
     every_software(&mut app);
-    app.press(Action::BStep(bstep::PUBLIC));
+    app.press(Action::BStep(faraday_core::plan::Item::PublicFiles));
     let _ = app.frame();
     // Test key 2's seed is not here: its slot has no row.
     let away = (0..3u8)

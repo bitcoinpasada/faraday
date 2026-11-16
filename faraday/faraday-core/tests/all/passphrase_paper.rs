@@ -14,7 +14,7 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{At, Item, Preset, What};
 use faraday_core::testkit::KindText;
-use faraday_core::{Action, Faraday, bstep, testkit};
+use faraday_core::{Action, Faraday, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const PASSPHRASE: &str = "lantern Orchid 41";
@@ -77,16 +77,19 @@ fn backing_up(passphrase: &str) -> Faraday {
 fn at_the_passphrase(app: &mut Faraday) {
     if app
         .backup_items_now(&testkit::compute())
-        .contains(&bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
-    testkit::type_copy(app);
-    app.press(Action::BNext(bstep::COPY));
     assert_eq!(
         app.backup().unwrap().open,
-        Some(bstep::PASSPHRASE),
+        Some(faraday_core::plan::Item::Copy(0))
+    );
+    testkit::type_copy(app);
+    app.press(Action::BNext(faraday_core::plan::Item::Copy(0)));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Passphrase(0)),
         "the passphrase's item does not follow the copy"
     );
     let _ = app.frame();
@@ -119,9 +122,13 @@ fn a_passphrase_on_paper_is_its_own_item_after_its_seeds_copy() {
     let items = app.backup_items_now(&testkit::compute());
     let copy = items
         .iter()
-        .position(|&i| i == bstep::COPY)
+        .position(|&i| i == faraday_core::plan::Item::Copy(0))
         .expect("a copy item");
-    assert_eq!(items.get(copy + 1), Some(&bstep::PASSPHRASE), "{items:?}");
+    assert_eq!(
+        items.get(copy + 1),
+        Some(&faraday_core::plan::Item::Passphrase(0)),
+        "{items:?}"
+    );
     assert!(says(&mut app, "Write the passphrase of seed"));
 }
 
@@ -144,7 +151,7 @@ fn typing_the_right_passphrase_back_completes_the_item() {
     // no Continue to press.
     assert_ne!(
         app.backup().unwrap().open,
-        Some(bstep::PASSPHRASE),
+        Some(faraday_core::plan::Item::Passphrase(0)),
         "a done item moves on"
     );
 }
@@ -170,7 +177,10 @@ fn a_wrong_passphrase_leaves_the_item_undone_and_wipes_what_was_typed() {
         .as_ref()
         .expect("the field closed");
     assert!(check.typed.is_empty(), "what was typed is kept");
-    assert!(!app.offers(Action::BNext(bstep::PASSPHRASE)), "a Continue");
+    assert!(
+        !app.offers(Action::BNext(faraday_core::plan::Item::Passphrase(0))),
+        "a Continue"
+    );
     // A space more is another passphrase.
     type_text(&mut app, &format!("{PASSPHRASE} "));
     app.event(Event::Key(Key::Enter));
@@ -203,6 +213,14 @@ fn show_the_passphrase_shows_it_and_the_check_hides_it() {
 fn a_plan_with_no_passphrase_on_paper_has_no_passphrase_item() {
     let app = backing_up("");
     let items = app.backup_items_now(&testkit::compute());
-    assert!(items.contains(&bstep::COPY), "{items:?}");
-    assert!(!items.iter().any(|&i| bstep::is_passphrase(i)), "{items:?}");
+    assert!(
+        items.contains(&faraday_core::plan::Item::Copy(0)),
+        "{items:?}"
+    );
+    assert!(
+        !items
+            .iter()
+            .any(|&i| matches!(i, faraday_core::plan::Item::Passphrase(_))),
+        "{items:?}"
+    );
 }

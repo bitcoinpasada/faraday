@@ -13,7 +13,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet_backup::Tone;
-use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
 };
@@ -118,8 +118,8 @@ fn backed_up(copies: usize) -> Faraday {
     app.press(Action::Backup(0));
     preset_saved(&mut app, 2);
     app.press(Action::BChecklist);
-    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
-        app.press(Action::BStep(bstep::COPY));
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::plan::Item::Copy(0)) {
+        app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     }
     app.press(Action::BReveal);
     // Each copy past the first is checked again from the start.
@@ -507,7 +507,7 @@ fn a_copy_checked_shows_on_the_backups_screen_after_it_was_scrolled() {
         "{texts:?}"
     );
     app.press(Action::Backup(0));
-    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::BReveal);
     app.press(Action::BCheck);
     type_the_copy(&mut app);

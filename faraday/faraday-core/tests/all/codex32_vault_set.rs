@@ -28,7 +28,7 @@ use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::codex32_backup::{Press, SetPress, SetStep};
 use faraday_core::plan::{self, At, What};
 use faraday_core::vault::VaultAction as VA;
-use faraday_core::{Action, Faraday, bstep, cstep, testkit};
+use faraday_core::{Action, Faraday, cstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 use faraday_ui::keyboard::OskPress;
 use faraday_vault::records::{field, kind};
@@ -90,7 +90,7 @@ pub(crate) fn locked_with(shell: &mut Shell, in_vault: &[char]) -> Faraday {
         .collect();
     want.sort();
     assert_eq!(strings, want, "the vault holds the plan's strings");
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let app = restart(shell, &mut app);
     assert!(app.flow().unwrap().made);
@@ -209,7 +209,7 @@ fn after_a_new_set_the_vault_holds_the_new_sets_string_and_not_the_old_one() {
     assert!(app.backup_item_done_now(&c, plan::Item::Vault(0)));
     // Rotate the set: every old string held and destroyed, then a new set
     // of 2 of 3 named w0za.
-    open_item(&mut app, bstep::of(plan::Item::Codex32(0)));
+    open_item(&mut app, plan::Item::Codex32(0));
     let c32 = |app: &mut Faraday, p: Press| app.press(Action::BC32(p));
     c32(&mut app, Press::Set(SetPress::Rotate));
     c32(&mut app, Press::Set(SetPress::Counted));
@@ -334,7 +334,7 @@ fn try_rotate(app: &mut Faraday, id: &str) {
         .iter()
         .map(|&(ch, _)| ch)
         .collect();
-    open_item(app, bstep::of(plan::Item::Codex32(0)));
+    open_item(app, plan::Item::Codex32(0));
     let c32 = |app: &mut Faraday, p: Press| app.press(Action::BC32(p));
     c32(app, Press::Set(SetPress::Rotate));
     c32(app, Press::Set(SetPress::Counted));
@@ -350,7 +350,7 @@ fn try_rotate(app: &mut Faraday, id: &str) {
 
 /// Each of `strings` typed back from its paper in the codex32 item.
 fn type_back(app: &mut Faraday, strings: &[String]) {
-    open_item(app, bstep::of(plan::Item::Codex32(0)));
+    open_item(app, plan::Item::Codex32(0));
     for s in strings {
         let j = plan::codex32::index_of(s.as_bytes()[8]).unwrap();
         app.press(Action::BC32(Press::Open(j as u8)));

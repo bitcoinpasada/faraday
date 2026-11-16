@@ -20,10 +20,10 @@ use std::rc::Rc;
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::boot_import::ImportAction as I;
+use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::vault::load::{LoadCard, LoadView};
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
-use faraday_core::{bstep, testkit};
 use faraday_shell_api::{App, Event};
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
@@ -467,8 +467,11 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::Backup(w));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
         app.press(Action::BChecklist);
-        if app.backup_items_now(&c).contains(&bstep::BLANK) {
-            app.press(Action::BNext(bstep::BLANK));
+        if app
+            .backup_items_now(&c)
+            .contains(&faraday_core::plan::Item::Templates)
+        {
+            app.press(Action::BNext(faraday_core::plan::Item::Templates));
         }
         // The copy by hand first, typed back: the vault item comes after.
         app.press(Action::BReveal);
@@ -476,8 +479,8 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::BCheck);
         testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
         // Matched, the copy's item moved on by itself.
-        if !crate::common::moved_on(&app, Action::BStep(bstep::VAULT)) {
-            app.press(Action::BStep(bstep::VAULT));
+        if !crate::common::moved_on(&app, Action::BStep(faraday_core::plan::Item::Vault(0))) {
+            app.press(Action::BStep(faraday_core::plan::Item::Vault(0)));
         }
         // The vault item's Load at unlock, somewhere down its column.
         let mut offered = false;

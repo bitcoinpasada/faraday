@@ -18,7 +18,7 @@ use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::wallet_backup::{Kept, Tone};
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_vault::records::kind;
 
@@ -139,11 +139,11 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::BReveal);
     let _ = app.frame();
     fp
@@ -537,11 +537,14 @@ fn a_matched_copy_check_marks_that_seed_only() {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY + i));
+    assert_eq!(
+        app.backup().unwrap().open,
+        Some(faraday_core::plan::Item::Copy(i as usize))
+    );
     assert_eq!(app.backup().unwrap().key, k1);
     app.press(Action::BReveal);
     app.press(Action::BCheck);

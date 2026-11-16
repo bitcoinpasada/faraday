@@ -392,7 +392,7 @@ fn a_plan_saved_with_access_layers_opens_without_them() {
 fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     let c = faraday_core::testkit::compute();
     use faraday_core::create::NewKind;
-    use faraday_core::{Action, bstep, cstep, qrow, testkit};
+    use faraday_core::{Action, cstep, qrow, testkit};
     use faraday_shell_api::{App, Event, Key};
     let mut app = testkit::started();
     for word in ["bacon", "zebra", "summer"] {
@@ -433,10 +433,11 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     crate::common::no_vaults(&mut app);
     app.press(Action::BChecklist);
     assert!(
-        app.backup_items_now(&c).contains(&bstep::PUBLIC),
+        app.backup_items_now(&c)
+            .contains(&faraday_core::plan::Item::PublicFiles),
         "the checklist has the public files item"
     );
-    app.press(Action::BStep(bstep::PUBLIC));
+    app.press(Action::BStep(faraday_core::plan::Item::PublicFiles));
     // Making the checklist made its files in the text form too: each
     // taken back out, to be made from the item.
     for n in [1u8, 2, 5, 6, 7] {
@@ -622,8 +623,8 @@ fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
 #[test]
 fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     let c = faraday_core::testkit::compute();
+    use faraday_core::Action;
     use faraday_core::seeds::SLIDE_OMIT;
-    use faraday_core::{Action, bstep};
     use faraday_shell_api::App;
     let shape = three_of_five();
     let mut a = Answers::preset(&shape, Preset::Standard);
@@ -641,7 +642,7 @@ fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     assert_eq!(app.backup().unwrap().answers.omit, 2);
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     app.press(Action::BChecklist);
-    app.press(Action::BStep(bstep::SHEETS));
+    app.press(Action::BStep(faraday_core::plan::Item::Sheets));
     let _ = app.frame();
     assert!(app.offers(Action::Slide(SLIDE_OMIT, 1)), "the Shares card");
     app.press(Action::Slide(SLIDE_OMIT, 1));
@@ -1440,7 +1441,7 @@ fn no_preset_makes_more_than_one_place_per_key() {
 fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_written() {
     let c = faraday_core::testkit::compute();
     use faraday_bip::keys::Fingerprint;
-    use faraday_core::{Action, bstep};
+    use faraday_core::Action;
     let mut app = passphrase_key();
     let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::CBackup);
@@ -1460,7 +1461,11 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     // its own (`docs/WALLETS.md` §13).
     assert_eq!(
         app.backup_items_now(&c),
-        vec![bstep::PASSPHRASE, bstep::ENVELOPE, bstep::STICKS]
+        vec![
+            faraday_core::plan::Item::Passphrase(0),
+            faraday_core::plan::Item::Envelopes,
+            faraday_core::plan::Item::Sticks
+        ]
     );
     let rows = app.wallet_stick_rows_now(&c);
     assert_eq!(rows.len(), 1, "{rows:?}");
@@ -1470,7 +1475,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
         faraday_core::wallet::fp_text(Fingerprint(fp.0)).to_lowercase()
     );
     assert_eq!(rows[0].1, vec![faraday_text::Text::of(&name)], "{rows:?}");
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     assert!(
         app.key_held(&c, Fingerprint(fp.0)),
         "the key waits for its file's stick"
@@ -1511,7 +1516,7 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
 #[test]
 fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() {
     let c = faraday_core::testkit::compute();
-    use faraday_core::{Action, bstep, qstep};
+    use faraday_core::{Action, qstep};
     let mut app = three_here();
     vault_at(&mut app, 0, 0, &[0, 1]);
     for q in app.backup_questions(&c) {
@@ -1526,16 +1531,12 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
         );
     }
     let b = app.backup().unwrap();
-    let want: Vec<u8> = checklist(&c, &app.plan_shape_now(b.wallet), &b.answers)
+    let want: Vec<Item> = checklist(&c, &app.plan_shape_now(b.wallet), &b.answers)
         .into_iter()
-        .map(bstep::of)
         .collect();
     app.press(Action::BChecklist);
     assert_eq!(app.backup_items_now(&c), want);
-    assert!(
-        app.backup_items_now(&c)
-            .contains(&bstep::of(Item::Vault(0)))
-    );
+    assert!(app.backup_items_now(&c).contains(&Item::Vault(0)));
 }
 
 /// A single key with a passphrase may have a second place for the

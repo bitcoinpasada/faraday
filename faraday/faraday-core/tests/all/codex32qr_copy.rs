@@ -13,7 +13,6 @@
 
 use faraday_bip::codex32::Codex32;
 use faraday_core::board::{Thing, Zone};
-use faraday_core::bstep;
 use faraday_core::codex32_backup::{Found, Press, printed};
 use faraday_core::plan::{self, At, What};
 use faraday_core::{Action, Faraday, ScanPurpose, StorageEvent, testkit};
@@ -141,10 +140,10 @@ fn texts(app: &mut Faraday) -> String {
 /// item open on string `j`, typed from its paper.
 fn typed_back(app: &mut Faraday, j: usize) {
     app.press(Action::BChecklist);
-    if app.backup().unwrap().open == Some(bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup().unwrap().open == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
-    let n = bstep::of(plan::Item::Codex32(0));
+    let n = plan::Item::Codex32(0);
     if app.backup().unwrap().open != Some(n) {
         app.press(Action::BStep(n));
     }
@@ -208,8 +207,8 @@ fn the_templates_item_names_the_codex32qr_sheet() {
         "{sheets:?}"
     );
     app.press(Action::BChecklist);
-    if app.backup().unwrap().open != Some(bstep::BLANK) {
-        app.press(Action::BStep(bstep::BLANK));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BStep(faraday_core::plan::Item::Templates));
     }
     assert!(text_seen(
         &mut app,

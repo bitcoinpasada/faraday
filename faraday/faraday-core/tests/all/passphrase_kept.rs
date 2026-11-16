@@ -13,7 +13,7 @@ use faraday_core::keygen::Way;
 use faraday_core::plan::Preset;
 use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, cstep, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 const PASSPHRASE: &str = "lantern-orchid-41";
@@ -121,7 +121,7 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     faraday_core::testkit::backup_as(&mut app, Preset::PaperVault);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
-    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::BReveal);
     let _ = app.frame();
     unlock_vault(&mut app);

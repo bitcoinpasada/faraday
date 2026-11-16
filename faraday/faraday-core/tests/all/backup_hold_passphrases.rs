@@ -12,7 +12,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_core::keygen::Way;
 use faraday_core::plan::Preset;
 use faraday_core::testkit::{self, backup_as};
-use faraday_core::{Action, Faraday, bstep, cstep};
+use faraday_core::{Action, Faraday, cstep};
 
 /// Words made here, locked in as a key with no passphrase, then given the
 /// passphrase `one` and `two` in Create's slot, each a key made here. Create
@@ -58,15 +58,18 @@ fn backing_up_one_passphrase_of_some_words_holds_the_other_passphrase() {
     app.press(Action::CBackup);
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     testkit::type_copy(&mut app);
     testkit::type_passphrases(&mut app);
-    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
-        app.press(Action::BStep(bstep::ENVELOPE));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Envelopes) {
+        app.press(Action::BStep(faraday_core::plan::Item::Envelopes));
     }
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     assert!(!app.key_held(&c, two), "the key backed up is released");
     assert!(!app.key_held(&c, bare), "the words alone are released");
     assert!(
@@ -122,15 +125,18 @@ fn a_passphrase_backed_up_is_released_while_another_passphrase_of_its_words_wait
     app.press(Action::CBackup);
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     testkit::type_copy(&mut app);
     testkit::type_passphrases(&mut app);
-    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
-        app.press(Action::BStep(bstep::ENVELOPE));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Envelopes) {
+        app.press(Action::BStep(faraday_core::plan::Item::Envelopes));
     }
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     let name = faraday_bip::keys::Fingerprint::to_string(&two);
     assert!(!app.key_held(&c, two), "the key backed up is released");
     assert!(app.toast_text().is_some_and(|t| t.contains(&name)));
@@ -261,15 +267,18 @@ pub(crate) fn back_up_on_paper(app: &mut Faraday) {
     app.press(Action::CBackup);
     backup_as(app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now(&c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::plan::Item::Templates)
+    {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     testkit::type_copy(app);
     testkit::type_passphrases(app);
-    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
-        app.press(Action::BStep(bstep::ENVELOPE));
+    if app.backup().unwrap().open != Some(faraday_core::plan::Item::Envelopes) {
+        app.press(Action::BStep(faraday_core::plan::Item::Envelopes));
     }
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
 }
 
 /// Whether the last toast names key `fp` as signing from now.

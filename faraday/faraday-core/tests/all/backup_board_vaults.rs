@@ -10,7 +10,7 @@ use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::{self, At, What};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, BStage, Screen, bstep};
+use faraday_core::{Action, BStage, Screen};
 
 /// Two vaults on one stick (`docs/STICK-SETUP.md` §6.3): Vault 2 dropped on
 /// the stick that carries Vault 1 joins it there, and the write step
@@ -43,7 +43,7 @@ fn two_vaults_on_one_stick_survive_a_save_and_are_both_written_to_it_each_its_ow
     app.press(Action::BChecklist);
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let_seed_files_out(&mut app);
     let mut app = restart(&mut shell, &mut app);
@@ -113,7 +113,7 @@ fn a_vault_put_on_the_second_of_two_copies_sticks_is_written_to_that_stick_only(
     );
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
     shell.flow(&mut app, F::WalletLock);
     let_seed_files_out(&mut app);
     let mut app = restart(&mut shell, &mut app);

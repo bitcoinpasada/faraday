@@ -18,9 +18,7 @@ use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::glance::{Backup, BackupNode, Direction, Glance, Press, layout};
 use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{
-    Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, bstep, testkit,
-};
+use faraday_core::{Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 type Files = Vec<(String, Vec<u8>)>;
@@ -117,9 +115,9 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
@@ -303,14 +301,17 @@ fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
     assert_eq!(for_the_stick(&app), before, "opening the sheet made files");
     // Its envelope: the checklist at that item, from the plan the chart
     // shows, and still nothing made.
-    let envelope = Action::Chart(C::Do(press, Step::Item(bstep::ENVELOPE)));
+    let envelope = Action::Chart(C::Do(
+        press,
+        Step::Item(faraday_core::plan::Item::Envelopes),
+    ));
     assert!(app.offers(envelope));
     app.press(envelope);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup().unwrap();
     assert_eq!(b.stage, BStage::Checklist);
-    assert_eq!(b.open, Some(bstep::ENVELOPE));
+    assert_eq!(b.open, Some(faraday_core::plan::Item::Envelopes));
     assert!(b.answers.seeds[faraday_core::plan::seeds::VAULT]);
     assert_eq!(for_the_stick(&app), before, "the checklist made files");
     // Its way back is the wallet's card, and the chart.
@@ -459,7 +460,7 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     // A copy of the words is checked by typing them back, not scanned.
     assert!(app.offers(Action::Chart(C::Do(
         press,
-        Step::Type(fp, bstep::COPY, None)
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None)
     ))));
     assert!(!app.offers(Action::Chart(C::Do(press, Step::Scan(fp, None)))));
     // The xpub's code over the card; closed, the chart again.
@@ -477,7 +478,7 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     open(&mut app, press, Target::Key(0));
     app.press(Action::Chart(C::Do(
         press,
-        Step::Type(fp, bstep::COPY, None),
+        Step::Type(fp, faraday_core::plan::Item::Copy(0), None),
     )));
     assert_eq!(app.screen, Screen::Backup);
     assert!(app.backup().is_some_and(|b| b.check.is_some()));
@@ -775,9 +776,9 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     app.press(Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
@@ -894,9 +895,9 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
         app.press(Action::BChecklist);
         if app
             .backup_items_now(&c)
-            .contains(&faraday_core::bstep::BLANK)
+            .contains(&faraday_core::plan::Item::Templates)
         {
-            app.press(Action::BNext(faraday_core::bstep::BLANK));
+            app.press(Action::BNext(faraday_core::plan::Item::Templates));
         }
         app.press(Action::BVaultSave(0));
     }
@@ -944,7 +945,10 @@ fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
     app.press(Action::Nav(Screen::VaultContents));
     let _ = app.frame();
     open(&mut app, press, Target::Node(0));
-    app.press(Action::Chart(C::Do(press, Step::Item(bstep::ENVELOPE))));
+    app.press(Action::Chart(C::Do(
+        press,
+        Step::Item(faraday_core::plan::Item::Envelopes),
+    )));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup().map(|b| b.stage), Some(BStage::Checklist));
     let _ = app.frame();

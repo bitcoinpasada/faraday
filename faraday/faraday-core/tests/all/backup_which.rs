@@ -5,14 +5,14 @@ use crate::backup_flow_wallet::single_key_plan;
 use crate::common::*;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::testkit;
-use faraday_core::{Action, Faraday, Screen, bstep};
+use faraday_core::{Action, Faraday, Screen};
 
 /// The checklist's words, typed back again.
 fn type_words_back(app: &mut Faraday, fp: [u8; 4]) {
     let keys = &app.session.keys;
     let key = keys.position(faraday_bip::keys::Fingerprint(fp)).unwrap();
     let text = keys.reveal(key, faraday_keys::Reveal::Words).to_string();
-    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BStep(faraday_core::plan::Item::Copy(0)));
     app.press(Action::BCheck);
     testkit::type_words(app, &text);
 }

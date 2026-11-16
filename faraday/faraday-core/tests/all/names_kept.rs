@@ -191,15 +191,15 @@ fn a_place_names_name_never_leaves_the_vault() {
     press_offered(&mut app, Action::BChecklist);
     if app
         .backup_items_now(&c)
-        .contains(&faraday_core::bstep::BLANK)
+        .contains(&faraday_core::plan::Item::Templates)
     {
-        app.press(Action::BNext(faraday_core::bstep::BLANK));
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    press_offered(&mut app, Action::BStep(faraday_core::bstep::VAULT));
+    press_offered(&mut app, Action::BStep(faraday_core::plan::Item::Vault(0)));
     press_offered(&mut app, Action::BVaultSave(0));
     // The wallet itself into the vault too, so the next process can load
     // it back and find the plan kept for it.

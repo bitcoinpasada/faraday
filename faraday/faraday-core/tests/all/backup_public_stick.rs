@@ -8,7 +8,7 @@ use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::{self, At, What};
-use faraday_core::{Action, Faraday, Screen, bstep, cstep};
+use faraday_core::{Action, Faraday, Screen, cstep};
 
 /// `n` empty sticks of different serials.
 fn sticks(shell: &mut Shell, n: usize) {
@@ -65,8 +65,8 @@ fn save_vaults(app: &mut Faraday) {
     let vaults: Vec<usize> = app
         .backup_items_now(&c)
         .into_iter()
-        .filter_map(|n| match bstep::item(n) {
-            Some(faraday_core::plan::Item::Vault(v)) => Some(v),
+        .filter_map(|n| match n {
+            faraday_core::plan::Item::Vault(v) => Some(v),
             _ => None,
         })
         .collect();
@@ -114,12 +114,12 @@ fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() 
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BOut(3));
-    app.press(Action::BNext(bstep::ENVELOPE));
-    let open: Vec<u8> = app
+    app.press(Action::BNext(faraday_core::plan::Item::Envelopes));
+    let open: Vec<faraday_core::plan::Item> = app
         .backup_items_now(&c)
         .into_iter()
-        .filter(|&n| n != bstep::STICKS)
-        .filter(|&n| !bstep::item(n).is_some_and(|it| app.backup_item_done_now(&c, it)))
+        .filter(|&n| n != faraday_core::plan::Item::Sticks)
+        .filter(|&n| !app.backup_item_done_now(&c, n))
         .collect();
     assert!(open.is_empty(), "every other item is done: {open:?}");
     let fp = faraday_bip::keys::Fingerprint(fp);

@@ -15,7 +15,6 @@
 
 use faraday_bip::keys::ScriptType;
 use faraday_core::board::{BoardPress, Thing, Zone};
-use faraday_core::bstep;
 use faraday_core::codex32_backup::{Found, Press, SetPress, SetStep};
 use faraday_core::plan::{self, At, What};
 use faraday_core::{Action, Faraday, StorageEvent, testkit};
@@ -177,12 +176,12 @@ fn type_in(app: &mut Faraday, s: &str) {
 /// The checklist made and its codex32 item open.
 pub(crate) fn checklist_at_codex32(app: &mut Faraday) {
     app.press(Action::BChecklist);
-    let n = bstep::of(plan::Item::Codex32(0));
+    let n = plan::Item::Codex32(0);
     let c = testkit::compute();
     assert!(app.backup_items_now(&c).contains(&n), "the codex32 item");
     // The blank templates, printed from Faraday Starter, come first.
-    if app.backup().unwrap().open == Some(bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup().unwrap().open == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     if app.backup().unwrap().open != Some(n) {
         app.press(Action::BStep(n));
@@ -276,7 +275,7 @@ fn each_string_typed_back_is_checked_against_the_set_and_two_rebuild_the_key() {
         Some(ix('d'))
     );
     type_in(&mut app, D);
-    let n = bstep::of(plan::Item::Codex32(0));
+    let n = plan::Item::Codex32(0);
     // Typed back, the string waits for its Continue; then the item, done,
     // moves on.
     assert_eq!(app.backup().unwrap().open, Some(n));
@@ -960,14 +959,14 @@ fn with_two_seeds() -> Faraday {
 
 /// Seed `i`'s codex32 item open, the checklist made.
 fn open_seed(app: &mut Faraday, i: usize) {
-    let n = bstep::of(plan::Item::Codex32(i));
+    let n = plan::Item::Codex32(i);
     let c = testkit::compute();
     assert!(
         app.backup_items_now(&c).contains(&n),
         "the codex32 item {i}"
     );
-    if app.backup().unwrap().open == Some(bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app.backup().unwrap().open == Some(faraday_core::plan::Item::Templates) {
+        app.press(Action::BNext(faraday_core::plan::Item::Templates));
     }
     if app.backup().unwrap().open != Some(n) {
         app.press(Action::BStep(n));
