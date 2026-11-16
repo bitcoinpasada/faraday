@@ -10,10 +10,10 @@
    under the Starter's top app bar (F126, which amends F30;
    F81 holds the rest). It is not installed and not a release file. Releases
    do not publish it on its own.
-2. The code and its builds stay: `faraday/shells/desktop`, `cargo build
-   -p faraday-desktop`, `just faraday-linux-bin` (whose default package
-   is still `faraday-desktop`) and `just faraday-windows-bin build
-   out/windows out/build/run faraday-desktop faraday`. `just` keeps
+2. The code and its builds stay: `faraday/shells/demo`, `cargo build
+   -p faraday-demo`, `just faraday-linux-bin` (whose default package
+   is still `faraday-demo`) and `just faraday-windows-bin build
+   out/windows out/build/run faraday-demo faraday`. `just` keeps
    building and testing the desktop shell; the Linux and Windows
    container recipes stay working, and the Starter's release builds go
    through the same recipes, so every release exercises them. The README
@@ -42,7 +42,7 @@ address is bitcoin. One build has it:
 
 The stick, the Pi and the `Faraday` the Starter holds for Transfer and
 Learn never call `set_demo` (the Faraday Demo inside the Starter does:
-it is Faraday Demo, made by `faraday_desktop::desktop_app_in`): the stick has no Practice mode, and nothing in
+it is Faraday Demo, made by `faraday_demo::desktop_app_in`): the stick has no Practice mode, and nothing in
 this spec changes them.
 
 **The gate.** One function in `faraday-core`, `Faraday::makes_secrets()`,

@@ -77,10 +77,10 @@
 //! With `--panel`, whose window is already a device's screen, the app is
 //! held bare: no strip and no preview.
 //!
-//! This window is the developer's (`cargo run -p faraday-desktop`): people
+//! This window is the developer's (`cargo run -p faraday-demo`): people
 //! open Faraday Demo inside Faraday Starter's window (F126,
 //! `docs/STARTER.md` §5.3). What the Demo does apart from the window is
-//! `faraday_desktop::Demo`, which both hold.
+//! `faraday_demo::Demo`, which both hold.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::path::{Path, PathBuf};
@@ -89,7 +89,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
 use faraday_core::{Action, Faraday, Screen};
-use faraday_desktop::{Asked, Demo, Paths};
+use faraday_demo::{Asked, Demo, Paths};
 use faraday_host::Host as AppHost;
 use faraday_shell_api::{App, Command, Event};
 use faraday_window::camera::Camera;
@@ -683,7 +683,7 @@ fn main() -> ExitCode {
         }
     };
     let proxy = event_loop.create_proxy();
-    let mut app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    let mut app = faraday_demo::desktop_app_in(faraday_core::Mode::Demo);
     faraday_window::wake_on_work(&mut app, &proxy);
     let shell = Shell {
         proxy,

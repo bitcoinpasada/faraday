@@ -45,7 +45,7 @@ members = [
     "faraday/faraday-intake",
     "faraday/shells/window",
     "faraday/shells/mediafoundation",
-    "faraday/shells/desktop",
+    "faraday/shells/demo",
     "faraday/shells/starter",
     "faraday/shells/stick",
     "faraday/shells/snapshot",

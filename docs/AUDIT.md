@@ -212,7 +212,7 @@ screen), `faraday-plan` (the backup plan: what each place keeps, the
 checklist, its codex32 and text forms), `faraday-boot` (the release string the Starter reads a
 stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
 `faraday-guide` (Learn pages) and the Starter's `start_pages` module (the start-from-stick
-guides), every shell but the desktop app's window (`faraday-desktop`, `faraday-stick`,
+guides), every shell but the desktop app's window (`faraday-demo`, `faraday-stick`,
 `faraday-snapshot`, `faraday-mediafoundation`, the
 Starter's, `faraday-v4l2`), and the dev
 tools (`faraday-testkit`, `faraday-fontbake`,

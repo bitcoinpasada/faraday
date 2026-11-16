@@ -239,7 +239,7 @@ samples compiled in (F126, §5.3).
   program (no console) whose `.exe` carries the icon, the version and an
   `asInvoker` manifest, from the same code as the Starter's
   (`faraday/build/windows/resources.rs`); and `just faraday-windows-bin
-  build out/windows out/build/run faraday-desktop faraday` builds it
+  build out/windows out/build/run faraday-demo faraday` builds it
   into `out/windows/faraday.exe` through the same checks as the Starter
   (the default arguments build the Starter). Both programs load libraries
   from System32 only: the `.exe` carries a load configuration with
@@ -1485,7 +1485,7 @@ started it as a program of its own). Releases do not publish it on its
 own (F126).
 
 **Inside the Starter.** The Starter's binary links Faraday Demo's shell
-side, `faraday_desktop::Demo` (`faraday/shells/desktop/src/lib.rs`: the
+side, `faraday_demo::Demo` (`faraday/shells/demo/src/lib.rs`: the
 stick folders, the Inbox and Outbox kept in memory, the Downloads
 listing, the clipboard, the preview size kept across a lock, the fresh
 app a lock starts), the same code Faraday Demo's own window uses, and
@@ -1534,8 +1534,8 @@ goes too. Installed's Record lists the Starter's own files only. Never
 **Releases** (§1.1, §1.3). Staging takes no Faraday Demo build: the
 release folder holds the images and `IMAGES`, the Starters are built
 against that list, and staging refuses a release folder that holds a `faraday-demo-…` file. The
-`faraday-desktop` package and its `faraday` binary stay for developers
-(`cargo run -p faraday-desktop`, `README.md`).
+`faraday-demo` package and its `faraday` binary stay for developers
+(`cargo run -p faraday-demo`, `README.md`).
 
 **Size.** Faraday Demo's own code and the samples are compiled into the
 Starter (the Demo's 5.6 MB `.xz` was measured on

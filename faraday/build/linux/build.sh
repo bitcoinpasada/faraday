@@ -4,14 +4,14 @@
 # `just faraday-linux-bin` starts it; there is nothing here to run on the
 # host.
 #
-#   build.sh [PACKAGE [BINARY]]       default: faraday-desktop faraday
+#   build.sh [PACKAGE [BINARY]]       default: faraday-demo faraday
 #
 # The binary lands in /out/BINARY. Container paths: /src is the checkout
 # (read-only), /out and /build are bind mounts, /cargo the registry cache.
 # FARADAY_BUILD comes from the host (faraday/image/build-id.sh).
 set -euo pipefail
 
-package="${1:-faraday-desktop}"
+package="${1:-faraday-demo}"
 binary="${2:-faraday}"
 
 die() { printf 'build.sh: %s\n' "$1" >&2; exit 1; }

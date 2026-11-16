@@ -61,7 +61,7 @@ stick_panel := "efi-framebuffer"
 # The boot stick starts empty, and every session starts on testnet. The
 # stick image's app starts on mainnet.
 [group('build')]
-faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop" bin="faraday":
+faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-demo" bin="faraday":
     #!/usr/bin/env bash
     set -euo pipefail
     root="$(pwd)"
@@ -104,8 +104,8 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # `clippy` runs clippy for the Windows target on that package instead.
 #
 #   FARADAY_STARTER_IMAGES=out/release/0.2.0/IMAGES just faraday-windows-bin
-#   just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
-#   just faraday-windows-bin clippy out/windows out/build/run faraday-desktop faraday
+#   just faraday-windows-bin build out/windows out/build/run faraday-demo faraday
+#   just faraday-windows-bin clippy out/windows out/build/run faraday-demo faraday
 [group('build')]
 faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package="faraday-starter-shell" bin="faraday-starter":
     #!/usr/bin/env bash
@@ -142,7 +142,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
 faraday-panel inches="2.8" *flags="":
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -q --release --locked -p faraday-desktop
+    cargo build -q --release --locked -p faraday-demo
     if command -v hyprctl >/dev/null && hyprctl monitors 2>/dev/null | grep -q '^Monitor eDP'; then
         output="$(hyprctl monitors | awk '/^Monitor eDP/ {print $2; exit}')"
         hyprctl dispatch "hl.dsp.focus({ monitor = \"$output\" })" >/dev/null 2>&1 \

@@ -109,7 +109,7 @@ and checks no signature; events only today; a
 | `faraday-core/src/drawing.rs`: `View::new` | `new(work::core_count)`, into a private field | Memo fills, kept values, `Allowed` |
 | `faraday-storage/src/lib.rs`: `Pictures::ask` | `new(\|_\| {})` | The pictures' worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own |
 | `faraday-disk/src/main.rs`: `pictures` and `main` | `new(\|_\| {})` | The disk process's pictures thread and its serving loop, which draw nothing |
-| `faraday/shells/desktop/src/lib.rs`: `Demo::sticks` | `new(\|_\| {})` | The shell's look at the stick folders, which draws nothing; the listing reads twelve bytes of a file of a vault's length (`FileRead`) |
+| `faraday/shells/demo/src/lib.rs`: `Demo::sticks` | `new(\|_\| {})` | The shell's look at the stick folders, which draws nothing; the listing reads twelve bytes of a file of a vault's length (`FileRead`) |
 | `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
 | `faraday/faraday-vault/examples/argon2_bench.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
 | `faraday-core/src/worker.rs`: `worker_loop` | `new(work::core_count)` | The core's worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own and the counts it makes come home with each answer (`docs/WORKERS.md` §5) |

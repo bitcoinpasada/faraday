@@ -35,7 +35,7 @@ fn commands(s: &mut Starter) -> Vec<StarterCommand> {
 fn opened(s: &mut Starter) {
     s.press(StarterAction::OpenDesktop);
     assert_eq!(commands(s), vec![StarterCommand::OpenDemo]);
-    let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    let app = faraday_demo::desktop_app_in(faraday_core::Mode::Demo);
     s.show_demo(Host::new(app));
 }
 

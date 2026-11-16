@@ -11,9 +11,9 @@
 #
 # A third check: `faraday-samples` (the public samples Practice takes,
 # docs/MODES.md §5.4) is public data, carried only by Faraday Demo: the
-# desktop app (`faraday-desktop`) and Faraday Starter, in whose window
+# desktop app (`faraday-demo`) and Faraday Starter, in whose window
 # Faraday Demo runs (docs/decisions/F126.md), so the Starter reaches it
-# through `faraday-desktop` alone. The samples are strings, bytes and
+# through `faraday-demo` alone. The samples are strings, bytes and
 # fingerprints that anyone may read, and Faraday Demo starts in Practice
 # on testnet, where they are its only keys (F81); the Starter already
 # carried faraday-core and faraday-keys for Transfer and Learn, so no key
@@ -43,7 +43,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-shipped=(-p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant
+shipped=(-p faraday-demo -p faraday-stick -p faraday-disk -p faraday-grant
     -p faraday-boot -p faraday-starter-shell)
 
 # tree WHAT CARGO-TREE-ARGS...: runs cargo tree into $out. A failure of
@@ -128,10 +128,10 @@ if grep -q 'faraday-vault feature "fuzzing"' <<< "$out"; then
 fi
 
 # The Starter reaches it only through Faraday Demo's crate: every path from
-# faraday-starter-shell to faraday-samples runs through faraday-desktop.
+# faraday-starter-shell to faraday-samples runs through faraday-demo.
 tree "faraday-starter-shell" -e normal --depth 1 -p faraday-starter-shell
 if grep -qE '^[├└]── faraday-samples v' <<< "$out"; then
-    echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-desktop"
+    echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-demo"
     echo "$out"
     exit 1
 fi

@@ -9,7 +9,7 @@ name = "the device app, the stick and the Pi images"
 reads = [
   "faraday/faraday-core/**", "faraday/faraday-ui/**", "faraday/faraday-strings/**",
   "faraday/faraday-guide/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
-  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/image/**", "core/**",
+  "faraday/shells/window/**", "faraday/shells/demo/**", "faraday/image/**", "core/**",
   "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
   "faraday/faraday-files/**", "faraday/faraday-intake/**",
   "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-qr/**",
@@ -31,7 +31,7 @@ reads = [
   "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
   "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
   "faraday/faraday-sb/**", "faraday/faraday-boot/**", "faraday/faraday-samples/**",
-  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/shells/camera/**", "faraday/shells/v4l2/**",
+  "faraday/shells/window/**", "faraday/shells/demo/**", "faraday/shells/camera/**", "faraday/shells/v4l2/**",
   "faraday/shells/mediafoundation/**", "core/**",
 ]
 act = "the Starter is built again"

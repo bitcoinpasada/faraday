@@ -303,14 +303,14 @@ The check, `just`, needs cargo-nextest and cargo-deny (`cargo install
 `fsck.fat` and mtools, and skip with a note when they are missing.
 
 For developers it also builds as a window of its own, which holds the
-same host and the same Demo side as the Starter's (`faraday_desktop::Demo`,
-`faraday/shells/desktop/src/lib.rs`); `cargo run -p faraday-starter-shell`
+same host and the same Demo side as the Starter's (`faraday_demo::Demo`,
+`faraday/shells/demo/src/lib.rs`); `cargo run -p faraday-starter-shell`
 opens it inside the Starter.
 
 ```
-cargo build -p faraday-desktop --release          # target/release/faraday
+cargo build -p faraday-demo --release          # target/release/faraday
 just faraday-linux-bin                            # one Linux file, out/linux/faraday
-just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
+just faraday-windows-bin build out/windows out/build/run faraday-demo faraday
 ./target/release/faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR]
 ```
 
@@ -330,7 +330,7 @@ cargo run -q -p faraday-testkit -- out/testkit
 
 ```
 just                                         the check: every test and lint
-cargo run -p faraday-desktop --release       Faraday in a window, on testnet
+cargo run -p faraday-demo --release       Faraday in a window, on testnet
 just dev=1 faraday-stick-image               a stick image for trying a machine
 just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   write it to a stick
 just crosscheck                              the crypto against its Python references

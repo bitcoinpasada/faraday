@@ -94,8 +94,8 @@ faraday/faraday-disk/src/*.rs
 faraday/faraday-storage/src/*.rs
 $(find core/faraday-bip/src -name '*.rs' -not -path '*/wordlists/*' -not -path '*/diceware/*' -not -name hangul.rs -not -name kana.rs | sort)
 $(find core/faraday-psbt/src -name '*.rs' | sort)
-faraday/shells/desktop/src/main.rs
-faraday/shells/desktop/src/lib.rs
+faraday/shells/demo/src/main.rs
+faraday/shells/demo/src/lib.rs
 faraday/shells/starter/src/main.rs"
 
 # A failed awk is a failed lint, never a pass: its status and stderr are kept.

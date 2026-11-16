@@ -10,7 +10,7 @@ a thread of its own, one worker in the core; shorter work stays where
 it is, drawn first and done on the tick after (owner, 2026-10-31,
 2026-11-02; F184, which amends `docs/SPEED.md` §9 point 2). This holds
 for every Faraday: the stick and the Pi (`faraday/shells/stick`, one
-shell for both) and Faraday Demo (`faraday/shells/desktop` over
+shell for both) and Faraday Demo (`faraday/shells/demo` over
 `faraday/shells/window`). The worker is in the core, so every shell that
 holds a `Faraday` gets it with no code of its own but a wake.
 
@@ -373,7 +373,7 @@ this spec's.
 
 - winit's loop takes a user event: the waker is the loop's
   `EventLoopProxy::send_event`, in `faraday/shells/window` so both windows
-  share it (`faraday/shells/desktop/src/main.rs`, the Starter's window in
+  share it (`faraday/shells/demo/src/main.rs`, the Starter's window in
   `faraday/shells/starter/src/main.rs`).
 - `Demo::sticks` stays on the main thread: four bytes a file of a
   vault's length, a lookup.
@@ -532,7 +532,7 @@ What each piece is and changes:
   answer, Faraday Demo's `Dirs` thread, the boot report's write.
   `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`,
   `files.rs`, `faraday-core/src/lib.rs` (the storage events),
-  `faraday/shells/desktop/src/lib.rs`. A backup's files are written as
+  `faraday/shells/demo/src/lib.rs`. A backup's files are written as
   before; it has no parser and no key.
 - **The list confirmed on a Pi** (not built): the list of §2.1 on a
   Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or

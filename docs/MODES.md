@@ -132,7 +132,7 @@ and `docs/DEMO.md` differ, this holds.
 
 ## 4. Starting, locking, no warning
 
-**Faraday Demo** (`faraday/shells/desktop/src/main.rs`):
+**Faraday Demo** (`faraday/shells/demo/src/main.rs`):
 
 - `desktop_app_for(release)` becomes `desktop_app_in(mode, warned)`:
   `Session::on(mode.network())`, `set_demo` when the mode is Practice,
@@ -311,7 +311,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   faraday-disk, faraday-grant, faraday-boot and the Starter's own crate
   `faraday-starter` (normal edges, every target) must find nothing. The
   desktop depends on it normally, and the Starter's binary
-  (`faraday-starter-shell`) through `faraday-desktop` alone, since
+  (`faraday-starter-shell`) through `faraday-demo` alone, since
   Faraday Demo runs inside it (F126); faraday-core never does.
 - **The test** (faraday-samples' tests/, faraday-core's `testkit` as a
   dev-dependency): every word sample's fingerprint equals what

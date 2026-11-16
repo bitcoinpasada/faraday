@@ -65,7 +65,7 @@ fn the_close_button_in_faraday_demo_returns_to_home() {
     let mut s = starter(Os::Linux);
     s.press(StarterAction::OpenDesktop);
     assert_eq!(commands(&mut s), vec![StarterCommand::OpenDemo]);
-    s.show_demo(Host::new(faraday_desktop::desktop_app_in(Mode::Demo)));
+    s.show_demo(Host::new(faraday_demo::desktop_app_in(Mode::Demo)));
     press_close(&mut s);
     assert!(!s.showing_demo());
     assert_eq!(s.page, Page::Home);

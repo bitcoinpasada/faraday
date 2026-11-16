@@ -14,7 +14,7 @@ is not yet taken). This spec
 designs four speed-ups the owner asked for (2026-11-02), measures what
 each can give, and orders the work. Every shell gains from the parts in
 the core: the stick on a PC and on the Pi (`faraday/shells/stick`, one
-shell for both) and Faraday Demo (`faraday/shells/desktop` over
+shell for both) and Faraday Demo (`faraday/shells/demo` over
 `faraday/shells/window`).
 
 ## 1. Where a frame's time goes

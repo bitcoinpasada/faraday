@@ -667,7 +667,7 @@ def tracked_set(git, root):
 
 # The packages each app consumer is built from (docs/IMPACT.md §9.2).
 APP_ROOTS = {
-    "app.faraday": ("faraday-desktop", "faraday-stick"),
+    "app.faraday": ("faraday-demo", "faraday-stick"),
     "app.starter": ("faraday-starter-shell",),
 }
 
@@ -1096,7 +1096,7 @@ def self_test():
     res, _ = evaluate(_reg(rm), [ch("D", "docs/X.md"), ch("A", "docs/history/Y.md")], [])
     ok(res[0][0] == "unmet", "forbid with a move: another file's move does not")
     meta = {"workspace_root": "/w", "workspace_members": ["a", "b"],
-            "packages": [{"id": "a", "name": "faraday-desktop", "manifest_path": "/w/app/Cargo.toml"},
+            "packages": [{"id": "a", "name": "faraday-demo", "manifest_path": "/w/app/Cargo.toml"},
                          {"id": "b", "name": "lib", "manifest_path": "/w/lib/Cargo.toml"}],
             "resolve": {"nodes": [{"id": "a", "deps": [{"pkg": "b", "dep_kinds": [{"kind": None}]}]},
                                   {"id": "b", "deps": []}]}}

@@ -5,7 +5,7 @@
 //! across a lock, and the fresh app a lock starts.
 //!
 //! Two windows hold it: Faraday Demo's own (`src/main.rs`, the
-//! developer's `cargo run -p faraday-desktop`), and Faraday Starter's,
+//! developer's `cargo run -p faraday-demo`), and Faraday Starter's,
 //! where the Demo runs under the Starter's top app bar (F126,
 //! `docs/STARTER.md` §5.3). Each window keeps its loop, its pacing, its
 //! pointer and its camera, and asks this for the rest.

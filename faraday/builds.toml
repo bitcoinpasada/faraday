@@ -61,7 +61,7 @@ tested = false
 # ---------------------------------------------------------------- apps
 
 [[build]]
-id = "desktop-linux"
+id = "demo-linux"
 label = "Faraday Demo for Linux"
 group = "app"
 status = "built"
@@ -69,12 +69,12 @@ recipe = "faraday-linux-bin"
 outputs = ["out/linux/faraday"]
 
 [[build]]
-id = "desktop-windows"
+id = "demo-windows"
 label = "Faraday Demo for Windows"
 group = "app"
 status = "built"
 recipe = "faraday-windows-bin"
-args = ["build", "out/windows", "out/build/run", "faraday-desktop", "faraday"]
+args = ["build", "out/windows", "out/build/run", "faraday-demo", "faraday"]
 outputs = ["out/windows/faraday.exe"]
 
 # ---------------------------------------------------------------- images

@@ -4,7 +4,7 @@ Containers that build the apps for release.
 
 - `linux/`: Debian 11 (glibc 2.31), so one binary runs on Ubuntu 20.04 and
   later, Debian 11 and later, Fedora 32 and later and Arch. `build.sh`
-  builds one package: by default the desktop app (`faraday-desktop`,
+  builds one package: by default the desktop app (`faraday-demo`,
   `faraday`); the Starter is built with the arguments
   `faraday-starter-shell faraday-starter`. Run by
   `just faraday-linux-bin`.

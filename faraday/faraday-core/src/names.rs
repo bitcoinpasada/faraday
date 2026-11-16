@@ -12,7 +12,7 @@ pub const LINUX_BIN: &str = "faraday-starter";
 /// own `faraday.desktop`), and its Windows manifest identity.
 pub const MENU_ID: &str = "app.faradayoffline.FaradayStarter";
 /// The developer's Faraday Demo's Windows manifest identity
-/// (`shells/desktop/build.rs`); an earlier Starter's install of the Demo
+/// (`shells/demo/build.rs`); an earlier Starter's install of the Demo
 /// had its menu entry under it ([`LEGACY_DESKTOP`]).
 pub const MENU_DESKTOP_ID: &str = "app.faradayoffline.FaradayDemo";
 
@@ -22,7 +22,7 @@ pub const WIN_NAME: &str = "Faraday Starter";
 pub const WIN_EXE: &str = "Faraday Starter.exe";
 /// The Start menu shortcut.
 pub const WIN_SHORTCUT: &str = "Faraday Starter.lnk";
-/// The developer's Faraday Demo on Windows (`shells/desktop/build.rs`),
+/// The developer's Faraday Demo on Windows (`shells/demo/build.rs`),
 /// and the name an earlier Starter installed it under ([`LEGACY_DESKTOP`]).
 pub const WIN_DESKTOP_EXE: &str = "Faraday Demo.exe";
 

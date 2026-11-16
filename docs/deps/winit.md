@@ -4,7 +4,7 @@
 keyboard, mouse, touch and wheel input, scale factor and the frame pacing
 call `Window::pre_present_notify` (`docs/MOTION.md`). Used by
 `faraday/shells/window` (`input.rs`, `view.rs`, `pace.rs`), and directly
-by `faraday/shells/desktop` and `faraday/shells/starter`, which run the
+by `faraday/shells/demo` and `faraday/shells/starter`, which run the
 event loop.
 
 **Where it ships.** The desktop app and the Starter, on Linux (Wayland and

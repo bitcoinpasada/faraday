@@ -15,7 +15,7 @@ and `core/faraday-codec` (payload classification). `faraday-keys`
 
 **Where it ships.** It is in the signing core, so in every build that
 hosts `faraday-core`: the stick and the Pi image (`faraday/shells/stick`),
-the desktop app (`faraday/shells/desktop`) and the Starter
+the desktop app (`faraday/shells/demo`) and the Starter
 (`faraday/shells/starter`, through `faraday/faraday-starter`). It is not a
 build-time tool.
 

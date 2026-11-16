@@ -30,7 +30,7 @@
 //! Faraday Demo runs in this window (F126, `docs/STARTER.md` §5.3): Open
 //! Faraday Demo on Home shows it under the top app bar, its sticks the
 //! folders in `~/faraday-sticks` and its Downloads the Starter's, served
-//! by `faraday_desktop::Demo` as in the Demo's own window; the bar's way
+//! by `faraday_demo::Demo` as in the Demo's own window; the bar's way
 //! back, the window's close button or the Demo's power off returns to
 //! Home. The Starter opens in Cobalt, Light or Dark as this computer's
 //! own setting says (`faraday_starter_shell::scheme`), and a theme chosen
@@ -50,7 +50,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
 use faraday_core::strings::EN;
-use faraday_desktop::{Asked, Demo, Paths};
+use faraday_demo::{Asked, Demo, Paths};
 use faraday_host::Host as AppHost;
 use faraday_shell_api::{App, Command, Event};
 use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
@@ -244,7 +244,7 @@ impl Shell {
                 return;
             }
         };
-        let mut app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+        let mut app = faraday_demo::desktop_app_in(faraday_core::Mode::Demo);
         faraday_window::wake_on_work(&mut app, &self.proxy);
         self.starter.show_demo(AppHost::new(app));
         if let Some(host) = self.starter.demo() {

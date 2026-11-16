@@ -186,7 +186,7 @@ gh workflow run targeted.yml --ref <branch> -f tool=clippy -f crates='faraday-co
 ## 3. The desktop app
 
 ```
-cargo run -p faraday-desktop --release            Faraday in a window, in Practice on testnet
+cargo run -p faraday-demo --release            Faraday in a window, in Practice on testnet
 just faraday-panel 2.8                            the Pi's 2.8-inch panel at its true size
 just faraday-testkit                              the test stick's files, into out/testkit
 just faraday-snap 480x640 spend                   one tour at one size, into out/snapshots/faraday/480x640/spend/

@@ -20,7 +20,7 @@
 //!   (F85).
 //!
 //! Faraday Demo runs in the same window (F126, `docs/STARTER.md` §5.3):
-//! `faraday_desktop::Demo` serves it, as in the Demo's own window.
+//! `faraday_demo::Demo` serves it, as in the Demo's own window.
 //!
 //! The window loop is `main.rs`, built on `faraday-window` as the
 //! desktop app is.

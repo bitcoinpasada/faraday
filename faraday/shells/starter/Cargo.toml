@@ -36,7 +36,7 @@ faraday-window = { path = "../window" }
 # Faraday Demo, run inside the Starter's window (F126, docs/STARTER.md
 # §5.3): its sticks, storage and fresh app, and through it the public
 # samples Practice takes (faraday-samples, tools/lint-keys-tests.sh).
-faraday-desktop = { path = "../desktop" }
+faraday-demo = { path = "../demo" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 base64ct.workspace = true

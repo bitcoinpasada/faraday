@@ -16,9 +16,9 @@ The host runs in Faraday Starter's window (F126, `docs/STARTER.md`
 §5.3): Open Faraday Demo on the Starter's Home gives it the space under
 the Starter's top app bar, which reads "Faraday Demo" and holds the way
 back to Home, and "the window" below is that space. Developers run it
-in a window of its own too (`cargo run -p faraday-desktop`), which is
+in a window of its own too (`cargo run -p faraday-demo`), which is
 the whole window; both hold the same host and the same Demo side
-(`faraday_desktop::Demo`).
+(`faraday_demo::Demo`).
 
 Faraday Demo's own window has the same gap on a Linux desktop that
 draws no title bar (the same winit build, `docs/STARTER.md` §3.1d), and

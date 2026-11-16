@@ -1093,7 +1093,7 @@ fn destination_shots(s: &Snap) -> Result<(), String> {
 fn demo_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.press(StarterAction::OpenDesktop);
-    let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    let app = faraday_demo::desktop_app_in(faraday_core::Mode::Demo);
     h.show_demo(faraday_host::Host::new(app));
     s.shot(&mut h, "demo")?;
     h.press(StarterAction::Back);

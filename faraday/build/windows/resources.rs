@@ -1,6 +1,6 @@
 //! The Windows `.exe` resources both Faraday programs for Windows carry
 //! (`docs/STARTER.md` §2): included by `shells/starter/build.rs` and
-//! `shells/desktop/build.rs` with `#[path]`, so it is plain `std` and
+//! `shells/demo/build.rs` with `#[path]`, so it is plain `std` and
 //! nothing else, and it is not part of any crate.
 
 use std::path::{Path, PathBuf};
@@ -26,7 +26,7 @@ pub struct Program<'a> {
 /// The icon is the menu icon's PNG inside an `.ico`, which Windows reads
 /// as it is. The manifest asks for no elevation (`asInvoker`): the
 /// Starter's writer is elevated per write. Shared by the build scripts
-/// of `faraday-starter` and `faraday-desktop`, which `#[path]` it in.
+/// of `faraday-starter` and `faraday-demo`, which `#[path]` it in.
 pub fn windows_resources(program: &Program) {
     let out = PathBuf::from(std::env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"));
     let png_path = program.icon_png;

@@ -6,7 +6,7 @@ the Starter: `faraday/shells/window/src/view.rs` creates a `Context` and a
 `faraday-draw` rendered into it. It is the "software blit" of the shell
 (`docs/MOTION.md`, `docs/STARTER.md`).
 
-**Where it ships.** The desktop app (`faraday/shells/desktop`) and the
+**Where it ships.** The desktop app (`faraday/shells/demo`) and the
 Starter (`faraday/shells/starter`), both through `faraday/shells/window`.
 It is not in the stick or Pi images, which write the framebuffer
 (`faraday/shells/stick`).

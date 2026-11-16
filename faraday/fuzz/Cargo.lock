@@ -839,7 +839,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-desktop"
+name = "faraday-demo"
 version = "0.2.0"
 dependencies = [
  "faraday-core",
@@ -1179,7 +1179,7 @@ dependencies = [
  "faraday-boot",
  "faraday-core",
  "faraday-crypto",
- "faraday-desktop",
+ "faraday-demo",
  "faraday-fat",
  "faraday-host",
  "faraday-paper",

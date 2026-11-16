@@ -63,7 +63,7 @@ crate = "faraday/faraday-storage"
 reason = "Takes the compute token for the disk process's answers; computes nothing cryptographic."
 
 [[uncovered]]
-crate = "faraday/shells/desktop"
+crate = "faraday/shells/demo"
 reason = "Turns on faraday-crypto's `pin-pages`; computes nothing cryptographic."
 
 [[uncovered]]

@@ -321,7 +321,7 @@ The app consumers are for plan's "read by" line; which apps a commit
 touches is `cargo tree -i <crate>`'s answer, and the patterns above are
 its summary: tools/impact.toml names each crate's directory. `impact.py
 lint` compares each app consumer with `cargo metadata --offline`, from
-the packages `faraday-desktop` and `faraday-stick` (the device app) and
+the packages `faraday-demo` and `faraday-stick` (the device app) and
 `faraday-starter-shell` (the Starter), and fails on a workspace crate
 the app is built from that no pattern of its consumer reads. Where cargo
 cannot run, it prints a note and skips the comparison.
