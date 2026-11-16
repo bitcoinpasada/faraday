@@ -308,7 +308,10 @@ const CMDLINE_WINDOW: &str = "faraday.window=";
 /// The file the kernel command line is read from.
 const CMDLINE: &str = "/proc/cmdline";
 
-/// Where the boot medium's exchange partition is mounted on the device.
+/// The plain directory the dev files go to when there is no disk process
+/// and `--files` names none. Nothing is mounted here on the device: the
+/// kernel has no FAT driver and the disk process reads the exchange
+/// partition in userspace.
 const DEFAULT_FILES: &str = "/mnt/microsd";
 
 /// Where the Inbox and Outbox wait between processes. The inittab makes
@@ -441,11 +444,11 @@ const SYS_BLOCK: &str = "/sys/class/block";
 /// a clean app after storage newly shows in the kernel: the grant hands it
 /// over within half a second; after this it is shown as it is.
 const HIDE_WAITING: Duration = Duration::from_secs(2);
-/// How often the mounts are looked at again.
+/// How often the disk process is asked for its sticks again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
 
 /// The disk process's FIFOs, which `rcS` makes (`docs/SECURITY-MODEL.md` "When root is used"). Where
-/// they are missing, sticks are read from the mounts.
+/// they are missing, no sticks are listed.
 const DISK_REQUESTS: &str = "/run/faraday-disk/requests";
 const DISK_RESPONSES: &str = "/run/faraday-disk/responses";
 
@@ -487,8 +490,8 @@ struct Args {
     no_camera: bool,
     /// The directory files are read from and written to.
     files: PathBuf,
-    /// True when `--files` was given, which also drops the mount check:
-    /// off the device the directory is an ordinary one.
+    /// True when `--files` was given: the directory is an ordinary one off
+    /// the device, so writes to it are not refused (`Files::mounted`).
     files_given: bool,
     /// An explicit panel size, overriding sysfs.
     size: Option<(u16, u16)>,
@@ -906,7 +909,7 @@ struct Shell {
     /// loop keeps drawing while a frame is decoded. Alive exactly while
     /// the camera is.
     scanner: Option<Scanner>,
-    /// The file channel: every mounted exchange directory.
+    /// The dev files' directory: a plain directory, never a mounted partition.
     files: Files,
     /// What each call costs, when `--timings` asked for it.
     timings: Option<Timings>,
@@ -1938,7 +1941,7 @@ impl Shell {
     }
 
     /// The sticks the disk process lists; none without one, as nothing is
-    /// mounted on the device.
+    /// mounted on the device for this shell to read.
     fn mounted_sticks(&mut self) -> (Vec<StickInfo>, Vec<(String, bool)>) {
         if let Some(disk) = self.disk.clone() {
             let hide = self.clean != Some(false) && Instant::now() < self.hide_until;
