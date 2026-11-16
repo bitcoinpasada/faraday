@@ -9,7 +9,7 @@ use bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_bip::spend::Lock;
 
-use super::{Locktime, SighashKind};
+use super::{Locktime, RelativeLock, SighashKind};
 use crate::classify::ScriptKind;
 use crate::reason::Reason;
 use crate::verify::Unchecked;
@@ -167,6 +167,13 @@ pub enum Detail {
     },
     /// A locktime is set; this signer has no clock to check it.
     Locktime(Locktime),
+    /// An input's sequence sets a relative wait.
+    RelativeLock {
+        /// The input.
+        input: usize,
+        /// The wait.
+        lock: RelativeLock,
+    },
     /// None of the loaded keys can sign the transaction.
     NoParticipatingKey,
     /// Two signatures under one key share a nonce.

@@ -973,6 +973,24 @@ impl StepView<'_> {
                 None
             },
         ));
+        if let faraday_psbt::LocktimeKind::Height(h) = i.locktime.kind {
+            rows.push((
+                Text::of(EN.step_locked_until),
+                Text::fill(EN.psbt_locktime_block, &[&text!("{h}")]),
+                Text::new(),
+                None,
+            ));
+        }
+        rows.push((
+            Text::of(EN.step_replacement),
+            Text::of(if i.rbf {
+                EN.step_replaceable
+            } else {
+                EN.step_final
+            }),
+            Text::new(),
+            None,
+        ));
         // The transaction's id, at the foot: known before signing
         // for a segwit spend, not for a legacy one.
         if txid_known(&s.spend.psbt) {

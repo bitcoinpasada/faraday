@@ -175,8 +175,11 @@ macro_rules! words_psbt_refusal {
     psbt_warn_locktime: "cannot be mined before {}; this signer has no clock to check it",
     /// A warning on Review. A locktime. `{}`: the block height.
     psbt_locktime_block: "block {}",
-    /// A warning on Review. A locktime. `{}`: the Unix time.
-    psbt_locktime_time: "unix time {}",
+    /// A warning on Review. A locktime. `{}`: the date and time.
+    psbt_locktime_time: "{} UTC",
+    /// A warning on Review. A relative lock. `{}`: the input, the wait
+    /// (a `psbt_wait_*`).
+    psbt_warn_relative_lock: "input {} cannot be mined until {} after its coin confirmed",
     /// A warning on Review. None of the loaded keys can sign.
     psbt_warn_no_key: "none of your keys can sign this transaction",
     /// A warning on Review. `{}`: the key.

@@ -117,9 +117,9 @@ pub use context::{Context, KeyRef};
 pub use finalize::{finalize, input_finishes, is_complete};
 pub use inspect::{
     ABSURD_FEE_RATE_SAT_VB, Cosigner, Detail, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
-    HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, Locktime, LocktimeKind,
+    HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, LockDate, Locktime, LocktimeKind,
     MultisigSummary, MusigInput, MusigParticipation, MusigRound, MusigSummary, OutputInfo,
-    OutputKind, OwnWallet, SighashKind, SpendRoute, Warning, WarningKind, inspect,
+    OutputKind, OwnWallet, RelativeLock, SighashKind, SpendRoute, Warning, WarningKind, inspect,
 };
 pub use musig::{MusigSession, MusigSessionView};
 pub use psbt::{Error, Psbt};

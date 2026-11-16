@@ -198,7 +198,7 @@ pub fn fixtures() -> Vec<Fixture> {
         psbt,
     );
 
-    // Info: a locktime of block 800 000, with the input not signalling
+    // No warning: a height lock of block 800 000, with the input not signalling
     // replaceability.
     let mut b = Build::new(SEGWIT, NET);
     b.recipients.push((theirs(0, NET), 99_000));
@@ -206,7 +206,7 @@ pub fn fixtures() -> Vec<Fixture> {
     b.sequence = 0xffff_fffe;
     add(
         "warn-locktime-in-future.psbt",
-        "info: the transaction is locked until block 800 000",
+        "none: the transaction is locked until block 800 000, a plain row on Review",
         single_sig(&master(ABANDON, NET), &b),
     );
 

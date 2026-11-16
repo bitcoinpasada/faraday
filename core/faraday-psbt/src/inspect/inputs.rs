@@ -180,6 +180,7 @@ fn read_input(w: &Walk, st: &mut Inputs, i: usize) {
         signatures,
         finalized,
         sequence: txin.sequence,
+        relative_lock: crate::inspect::relative_lock(tx, txin),
         spend_route,
         musig: owner.musig,
     });

@@ -118,7 +118,8 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
 | `MissingUtxo`, `NoParticipatingKey`, `NetworkMismatch` | Danger | see above |
 | `NoWalletForScript` | Caution | an input that names a loaded key spends a miniscript or a taproot tree (a leaf, or the key path of an output that states a tree) of one key, and no registered wallet that holds a loaded key gives its script: it is left unsigned and the rest of the transaction is signed (F141) |
 | `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `UnknownDerivation` for a path under no loaded account, or the key in another script; `NonStandardScript` is `Info` for a zero-value OP_RETURN |
-| `MixedScriptTypes`, `LocktimeInFuture` | Info | the signer has no clock; a set locktime is reported, not judged |
+| `MixedScriptTypes` | Info | inputs of more than one script type |
+| `LocktimeInFuture`, `RelativeLock` | Caution | the signer has no clock; a time lock is stated as a date (a height lock is no warning) and a relative lock (BIP 68) on the input it sits on, not judged |
 
 ## Registering a wallet from the PSBT
 

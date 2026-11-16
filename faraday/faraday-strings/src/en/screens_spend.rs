@@ -173,6 +173,15 @@ macro_rules! words_screens_spend {
     /// The fee on Review and in the spend panel when an input's amount is
     /// not known, so the fee cannot be worked out (F136).
     step_fee_not_known: "Not known",
+    /// A row on Review: the block height before which the transaction
+    /// cannot be mined.
+    step_locked_until: "Locked until",
+    /// A row on Review: whether the transaction can be replaced (BIP 125).
+    step_replacement: "Replacement",
+    /// The value of Review's replacement row: an input signals it.
+    step_replaceable: "Replaceable",
+    /// The value of Review's replacement row: no input signals it.
+    step_final: "Final",
     /// Review's line when Faraday signs nothing of the transaction: a
     /// blocked or a danger warning with no hold (F136).
     step_review_refused: "Faraday does not sign this transaction. Make it again in the coordinator without what is marked above.",

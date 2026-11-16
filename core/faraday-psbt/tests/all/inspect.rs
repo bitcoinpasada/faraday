@@ -729,7 +729,12 @@ fn locktime_rbf_and_non_standard_output() {
     assert_eq!(insp.locktime.kind, LocktimeKind::Height(800_000));
     assert_eq!(insp.locktime.to_string(), "block 800000");
     assert!(!insp.rbf);
-    assert!(has(&insp, Level::Info, &WarningKind::LocktimeInFuture));
+    assert!(
+        !insp
+            .warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::LocktimeInFuture)
+    );
     assert!(has(&insp, Level::Info, &WarningKind::NonStandardScript));
     assert!(insp.outputs[1].address.is_empty());
     assert!(!insp.outputs[1].is_dust);

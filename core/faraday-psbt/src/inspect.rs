@@ -129,9 +129,11 @@ pub enum WarningKind {
     UnknownDerivation,
     /// Fee rate at or above [`ABSURD_FEE_RATE_SAT_VB`].
     AbsurdFeeRate,
-    /// A locktime is set; the signer has no clock, so it is reported as
-    /// information.
+    /// A time lock is set; the signer has no clock, so a caution states
+    /// it as a date. A height lock is no warning.
     LocktimeInFuture,
+    /// An input's sequence sets a relative wait (BIP 68).
+    RelativeLock,
     /// An output pays a script with no address form.
     NonStandardScript,
     /// Two outputs share a script, or an output pays back to an input's
@@ -295,6 +297,32 @@ pub struct Locktime {
     pub raw: u32,
     /// What the value means.
     pub kind: LocktimeKind,
+    /// The date and time (UTC) of a time lock, worked out once here.
+    pub date: Option<LockDate>,
+}
+
+/// A date and time in UTC, to the minute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LockDate {
+    /// Year.
+    pub year: u16,
+    /// Month, 1 to 12.
+    pub month: u8,
+    /// Day of the month, 1 to 31.
+    pub day: u8,
+    /// Hour, 0 to 23.
+    pub hour: u8,
+    /// Minute, 0 to 59.
+    pub minute: u8,
+}
+
+/// A relative wait an input's sequence sets (BIP 68).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RelativeLock {
+    /// This many blocks after the coin confirmed.
+    Blocks(u16),
+    /// This many intervals of 512 seconds after the coin confirmed.
+    Intervals(u16),
 }
 
 /// The meaning of a locktime value.
@@ -413,6 +441,9 @@ pub struct InputInfo {
     pub finalized: bool,
     /// The input's sequence number.
     pub sequence: Sequence,
+    /// The relative wait the sequence sets, when it sets one: version 2
+    /// or later, the disable flag clear, a count above zero (BIP 68).
+    pub relative_lock: Option<RelativeLock>,
     /// The way this input spends the wallet's script, when the wallet is
     /// in use and the PSBT says which way that is.
     pub spend_route: Option<SpendRoute>,
@@ -831,13 +862,28 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
 
     // Locktime and RBF.
     let locktime = locktime(tx.lock_time);
-    if locktime.kind != LocktimeKind::None {
+    // A height lock is no warning: wallets set the current height on
+    // nearly every spend, so it is a plain row on Review.
+    if matches!(locktime.kind, LocktimeKind::Time(_)) {
         warn(
             &mut warnings,
-            Level::Info,
+            Level::Caution,
             WarningKind::LocktimeInFuture,
             Detail::Locktime(locktime),
         );
+    }
+    for inp in &inputs {
+        if let Some(lock) = inp.relative_lock {
+            warn(
+                &mut warnings,
+                Level::Caution,
+                WarningKind::RelativeLock,
+                Detail::RelativeLock {
+                    input: inp.index,
+                    lock,
+                },
+            );
+        }
     }
     let rbf = tx.input.iter().any(|i| i.sequence.is_rbf());
 
@@ -1587,7 +1633,47 @@ fn locktime(lt: LockTime) -> Locktime {
         LockTime::Blocks(h) => LocktimeKind::Height(h.to_consensus_u32()),
         LockTime::Seconds(t) => LocktimeKind::Time(t.to_consensus_u32()),
     };
-    Locktime { raw, kind }
+    let date = match kind {
+        LocktimeKind::Time(t) => Some(lock_date(t)),
+        _ => None,
+    };
+    Locktime { raw, kind, date }
+}
+
+/// A Unix time as a UTC date, by the civil-from-days rule.
+fn lock_date(t: u32) -> LockDate {
+    let days = i64::from(t / 86_400) + 719_468;
+    let era = days / 146_097;
+    let doe = days % 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    let secs = t % 86_400;
+    LockDate {
+        year: year as u16,
+        month: month as u8,
+        day: day as u8,
+        hour: (secs / 3_600) as u8,
+        minute: (secs % 3_600 / 60) as u8,
+    }
+}
+
+/// The relative wait `txin`'s sequence sets in `tx` (BIP 68): none at
+/// version 1, with the disable flag set, or with a count of zero.
+pub(crate) fn relative_lock(tx: &Transaction, txin: &bitcoin::TxIn) -> Option<RelativeLock> {
+    let seq = txin.sequence.to_consensus_u32();
+    let count = (seq & 0xffff) as u16;
+    if tx.version.0.cast_unsigned() < 2 || seq & (1 << 31) != 0 || count == 0 {
+        return None;
+    }
+    Some(if seq & (1 << 22) != 0 {
+        RelativeLock::Intervals(count)
+    } else {
+        RelativeLock::Blocks(count)
+    })
 }
 
 /// A scriptPubKey carries no network, so the network is checked where it

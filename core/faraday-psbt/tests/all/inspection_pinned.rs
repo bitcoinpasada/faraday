@@ -40,7 +40,7 @@ mod musig_example;
 mod wallet;
 
 /// SHA-256 over the Debug text of every inspection, in order.
-const DIGEST: &str = "a63738a5f33106e2e642f0581a10a200e508a39c694be880abdf99a38a79a0b1";
+const DIGEST: &str = "3be9b6735627a5663ba7c8e007584217e0b5b3efc042221aa74aab59470b3473";
 /// How many PSBTs are inspected (each under every context).
 const PSBTS: usize = 149;
 /// How many files read as PSBT sources did not parse.

@@ -172,6 +172,21 @@ fn output_words(d: &Detail) -> Option<Words<'static>> {
             EN.psbt_warn_change_not_loaded,
             &[&n(*output), &text!("{key}")],
         ),
+        D::RelativeLock { input, lock } => t(
+            EN.psbt_warn_relative_lock,
+            &[
+                &n(*input),
+                match lock {
+                    faraday_psbt::RelativeLock::Blocks(c) => {
+                        Text::fill(EN.psbt_wait_blocks, &[&text!("{c}")])
+                    }
+                    faraday_psbt::RelativeLock::Intervals(c) => {
+                        Text::fill(EN.psbt_wait_intervals, &[&text!("{c}")])
+                    }
+                }
+                .as_str(),
+            ],
+        ),
         D::ChangeFarIndex { output, index } => t(
             EN.psbt_warn_change_far_index,
             &[&n(*output), &text!("{index}")],
@@ -404,7 +419,20 @@ fn wait_text(lock: faraday_bip::spend::Lock) -> Text {
 fn locktime_text(lt: faraday_psbt::Locktime) -> Text {
     use faraday_psbt::LocktimeKind as K;
     match lt.kind {
-        K::Time(t) => Text::fill(EN.psbt_locktime_time, &[&text!("{t}")]),
+        K::Time(t) => match lt.date {
+            Some(d) => Text::fill(
+                EN.psbt_locktime_time,
+                &[&text!(
+                    "{}-{:02}-{:02} {:02}:{:02}",
+                    d.year,
+                    d.month,
+                    d.day,
+                    d.hour,
+                    d.minute
+                )],
+            ),
+            None => Text::fill(EN.psbt_locktime_time, &[&text!("{t}")]),
+        },
         K::Height(h) => Text::fill(EN.psbt_locktime_block, &[&text!("{h}")]),
         K::None => Text::fill(EN.psbt_locktime_block, &["0"]),
     }

@@ -314,7 +314,7 @@ regtest.
 | `warn-network-mismatch.psbt` | `NetworkMismatch` | danger | mainnet paths read on regtest; the paths are under no loaded account, so two cautions come with it |
 | `warn-no-participating-key.psbt` | `NoParticipatingKey` | danger | the whole transaction belongs to the "zoo" seed |
 | `warn-unknown-derivation.psbt` | `UnknownDerivation` | caution | our fingerprint at `84'/1'/5'/0/0` |
-| `warn-locktime-in-future.psbt` | `LocktimeInFuture` | info | locked until block 800 000, and not replaceable |
+| `warn-locktime-in-future.psbt` | none | none | locked until block 800 000, and not replaceable: a height lock is a plain row on Review, no warning |
 | `warn-non-standard-script.psbt` | `NonStandardScript` | info | an OP_RETURN output |
 | `warn-address-reuse.psbt` | `AddressReuse` | caution | two outputs pay one address |
 | `warn-utxo-mismatch.psbt` | `UtxoMismatch` | blocked | the input's transaction is not the one it spends, which leaves it with `MissingUtxo` and `NoParticipatingKey` too |
