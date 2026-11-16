@@ -29,7 +29,7 @@ use faraday_core::wallet::Spend;
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
 
-/// Costs what `add_words`, `add_wallet`, `inspect` and the rest it
+/// Costs what `add_words`, `add_wallet_confirmed`, `inspect` and the rest it
 /// calls cost.
 fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (unsigned, cosigned) = testkit::spend().map_err(|e| String::from(&*e))?;
@@ -43,7 +43,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| String::from(&*e.text()))?;
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Savings",
             &testkit::savings(),
@@ -109,7 +109,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
                 .add_words(c, &testkit::test_words(word), label, None)
                 .map_err(|e| String::from(&*e.text()))?;
         }
-        all.add_wallet(
+        all.add_wallet_confirmed(
             c,
             kit.name,
             &kit.descriptor,
@@ -164,7 +164,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| String::from(&*e.text()))?;
     second
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             kit.name,
             &kit.descriptor,
@@ -197,7 +197,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     s1.keys
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| String::from(&*e.text()))?;
-    s1.add_wallet(
+    s1.add_wallet_confirmed(
         c,
         "MuSig2",
         &testkit::musig_policy()
