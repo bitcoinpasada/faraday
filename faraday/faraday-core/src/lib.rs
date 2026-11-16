@@ -59,7 +59,7 @@
 //! - Wallets and PSBTs: `plan`, `decode`, `spend_backup`, `explore`, `catalog`, `register`, `review`, `signing`, `cstep` (Make a new wallet's cards, numbered).
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
 //!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`, `public_files`,
-//!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
+//!   `codex32_backup` (its
 //!   codex32 item and the set's actions, with its `screen.rs`).
 //! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
 //! - Sticks, boot and files: `transfer` (the desktop as the
@@ -719,8 +719,6 @@ pub mod rstep {
     pub const COUNT: u8 = 8;
 }
 
-/// The backup cards, in order.
-pub mod bstep;
 pub mod codex32_backup;
 
 /// The backup's two parts.

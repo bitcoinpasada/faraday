@@ -635,7 +635,7 @@ has, since it joins no list of copies:
   for the paper form the Templates item's condition and its count),
   `faraday-plan/src/text.rs` (codes `kef{i}` and `kefp{i}`), `board/mod.rs` (`forms_in`, `things_of`, the name, the menu),
   `board/lines.rs`, `glance/mod.rs` (its line), `backups/mod.rs` (a file, not a copy),
-  `backup_flow/wallet.rs` and `bstep.rs`.
+  and `backup_flow/wallet.rs`.
 - They have none in `seed_form`, `seed_spots`, the place's reach, `is_secret_file` or `secrets.rs`,
   and none in `scan_key.rs` beyond the scan of a drawn copy below, which reads no `What`.
 
@@ -649,7 +649,7 @@ public files, and a place holding only a drawn code keeps nothing of the seed.
 **The checklist step.** `Item::KefCode(i)`, one per seed with a code anywhere on the map, however
 many sticks and places. In order: after the copies on paper, the vaults and `Item::SeedFiles`, before the
 sheets, the public files and the envelopes, so before **Lock and write**, while the key is
-loaded. `bstep.rs` numbers it from a range taken from the top of the passphrases' unused one. Its
+loaded. Its
 title is "Krux code of {seed}", its status **Not made**, **Not checked** or **Checked**. A step in
 the item's own card, not a sub-flow: the first step (§15.3), then the bar, then the code with
 **Check my code**. It leaves nothing behind when closed but a code already made.

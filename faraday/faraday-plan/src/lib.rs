@@ -26,13 +26,13 @@ use faraday_crypto::work::Compute;
 use faraday_strings::EN;
 use faraday_text::{Text, text};
 
-/// How many items the checklist gives the seeds: one range of a seed's
-/// numbers, the narrowest of the copy, codex32 and passphrase ranges. A
-/// seed past them has none.
+/// How many seeds the checklist gives items: each of the copy, codex32,
+/// passphrase and Krux-code items is kept for this many seeds. A seed
+/// past them has none.
 pub const CHECKLIST_SEEDS: usize = 28;
 
-/// The most vaults a plan holds: the numbers the checklist gives vault
-/// items (`bstep::VAULT` to 255), one each. A plan past it is refused.
+/// The most vaults a plan holds: the checklist gives each vault an item,
+/// up to this many. A plan past it is refused.
 pub const MAX_VAULTS: usize = 128;
 
 /// The most sticks a plan holds, which have no item numbers of their own.

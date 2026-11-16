@@ -791,13 +791,11 @@ pub(crate) fn shares_table(
     reason = "one match over the backup flow's steps, each arm drawing that step's body"
 )]
 fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f32 {
-    use crate::bstep;
-    let n = bstep::of(item);
     let b = app.backup().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
     let mut cy = y;
-    match n {
-        bstep::BLANK => {
+    match item {
+        Item::Templates => {
             ui.text_mid_as(
                 (x, cy, 38.0),
                 BODY_S,
@@ -870,14 +868,14 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 cy += 48.0;
             }
         }
-        bstep::STICKS => {
+        Item::Sticks => {
             cy += sticks_item(app, ui, x, cy, w);
             cy += 8.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
-        n if bstep::is_copy(n) => {
+        Item::Copy(seed) => {
             let keys = app.backup_keys(b.wallet);
             if keys.is_empty() {
                 ui.wrap_as(
@@ -899,7 +897,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             let word_count = usize::from(key.word_count.unwrap_or(0));
             // The seed's copies and the forms they take: the grid is drawn
             // for a SeedQR copy only (`docs/WALLETS.md` §13).
-            let forms = app.copy_forms(b, usize::from(n - bstep::COPY));
+            let forms = app.copy_forms(b, seed);
             let bw = ui.button(
                 x,
                 cy,
@@ -987,22 +985,20 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             }
             cy += copy_foot(app, ui, x, cy, w, item);
         }
-        n if bstep::is_codex32(n) => {
-            let i = usize::from(n - bstep::CODEX32);
+        Item::Codex32(i) => {
             let (h, foot) = crate::codex32_backup::screen::item(app, ui, x, cy, w, i);
             cy += h;
             if foot && item_next(app, ui, x, cy, w, item) {
                 cy += T::TOUCH;
             }
         }
-        n if bstep::is_passphrase(n) => {
+        Item::Passphrase(_) => {
             cy += passphrase_item(app, ui, x, cy, w);
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
-        n if bstep::is_kef(n) => {
-            let i = usize::from(n - bstep::KEF);
+        Item::KefCode(i) => {
             if let Some(f) = app.backup.kef_form(i) {
                 cy += crate::kef_form::screen::draw(
                     app,
@@ -1040,28 +1036,28 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 cy += T::TOUCH;
             }
         }
-        bstep::PUBLIC => {
+        Item::PublicFiles => {
             cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
             cy += 12.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
-        n if n >= bstep::VAULT => {
-            cy += vault_item(app, ui, x, cy, w, usize::from(n - bstep::VAULT));
+        Item::Vault(v) => {
+            cy += vault_item(app, ui, x, cy, w, v);
             cy += 8.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
-        bstep::FILES => {
+        Item::SeedFiles => {
             cy += seed_files(app, ui, x, cy, w);
             cy += 8.0;
             if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
-        bstep::SHOW => {
+        Item::ShowDescriptor => {
             let shown = if b.shown {
                 EN.backup_shown
             } else {
@@ -1082,7 +1078,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 cy += 48.0;
             }
         }
-        bstep::SHEETS if !(b.answers.split && crate::wallet_backup::splits(wallet)) => {
+        Item::Sheets if !(b.answers.split && crate::wallet_backup::splits(wallet)) => {
             let stem = crate::file_stem(&wallet.name);
             let stem = stem.as_str();
             let file = format!("{stem}-backup.pdf");
@@ -1108,7 +1104,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 cy += 48.0;
             }
         }
-        bstep::SHEETS => {
+        Item::Sheets => {
             cy += shares_card(app, ui, x, cy, w, b.wallet, b.answers.omit);
             // Each share's sheet, text and picture, made For the stick
             // with the checklist; Remove takes them all.
@@ -1672,7 +1668,9 @@ fn keep_words_offered(app: &View, i: usize) -> bool {
 /// match Keep the words only beside it (`docs/WALLETS.md` §13).
 /// Returns the height used in the column.
 fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: Item) -> f32 {
-    let i = usize::from(crate::bstep::of(n) - crate::bstep::COPY);
+    let Item::Copy(i) = n else {
+        return 0.0;
+    };
     let missed = app.backup().is_some_and(|b| {
         app.session
             .keys

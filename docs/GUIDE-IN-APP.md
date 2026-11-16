@@ -60,7 +60,7 @@ lookups use it):
 The app works out the key from what it shows, in one function in
 `faraday-core` that matches on `Screen` and fails to build when a
 screen is added, `guide_key` in `faraday/faraday-core/src/guide.rs`; a flow's step is named by a match on its step constants
-beside them (the `cstep`, `kstep`, `rstep`, `bstep`, `mstep` and `step`
+beside them (the `cstep`, `kstep`, `rstep`, `mstep` and `step`
 modules). It is a lookup, done when the guide is opened or the step
 changes, never while drawing.
 
