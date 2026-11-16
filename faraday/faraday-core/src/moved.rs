@@ -357,6 +357,44 @@ mod tests {
         );
     }
 
+    /// The tools' step columns and Create a vault, each opened from
+    /// Tools' catalog with every step card opened as far as it goes, on
+    /// the Pi's panel and a desktop: a scroll step shows what a whole
+    /// frame shows.
+    #[test]
+    fn the_tools_step_columns_show_what_a_whole_frame_shows() {
+        use crate::catalog::{Go, TILES};
+        let c = testkit::compute();
+        let _ = &c;
+        let mut moving: Vec<(String, u32)> = Vec::new();
+        for panel in [PI, DESKTOP] {
+            for go in [
+                Go::Convert,
+                Go::Bip85,
+                Go::Silent,
+                Go::Vanity,
+                Go::SignMessage,
+                Go::CheckMessage,
+                Go::Restore,
+                Go::SignerCheck,
+                Go::CreateVault,
+                Go::NewKey,
+            ] {
+                let (mut app, _) = heavy_on(panel);
+                let tile = TILES.iter().position(|t| t.go == go).expect("the tile") as u8;
+                app.press(crate::Action::Nav(crate::Screen::Catalog));
+                app.press(crate::Action::Catalog(tile));
+                moving.extend(scrolls(&mut app, &format!("{go:?}")));
+            }
+        }
+        for name in ["Convert Page", "Restore Page"] {
+            assert!(
+                moving.iter().any(|(n, _)| n == name),
+                "{name} takes moved frames: {moving:?}"
+            );
+        }
+    }
+
     #[test]
     fn every_other_event_draws_the_frame_whole() {
         let c = testkit::compute();

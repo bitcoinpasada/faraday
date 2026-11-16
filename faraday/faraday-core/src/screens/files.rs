@@ -466,7 +466,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let split = x + colw + SPACER / 2.0;
     let clip = ui.rect(x0, top, split - x0, view);
     let clip_out = ui.rect(split, top, colw + SPACER, view);
-    let open = ui.region_open(Region::page(clip).from_zero(shift));
+    let open = ui.region_open(
+        Region::page(clip)
+            .from_zero(shift)
+            .moves(crate::ui::Moves::Yes),
+    );
     let mut iy = y + 32.0;
     for (k, item) in app.inbox.iter().enumerate() {
         // A row scrolled out of the list's sight is passed over.
@@ -670,7 +674,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             clip_out,
             *app.visit.files_out_offset(),
         )
-        .from_zero(shift_out),
+        .from_zero(shift_out)
+        .moves(crate::ui::Moves::Yes),
     );
     let mut oy = y + 32.0;
     // Grouped by who may read them: public files, vaults sealed under a

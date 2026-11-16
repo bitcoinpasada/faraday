@@ -157,7 +157,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chip_tap: None,
         // Opened for a Make a new wallet slot, Cancel returns there
         // (`docs/FLOWS.md`, Cancel).
-        moves: crate::ui::Moves::No,
+        moves: crate::ui::Moves::Yes,
     };
     let scroll = k.scroll;
     // The page shows above the input panel at the foot, and not at all
