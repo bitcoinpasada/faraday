@@ -19,7 +19,7 @@ By hand, in a terminal: systemctl reboot --firmware-setup. If that does not work
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
-If you cannot find the Secure Boot setting, exit the BIOS without saving changes. The computer starts as before.
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.
 
 ## Choosing the stick
 

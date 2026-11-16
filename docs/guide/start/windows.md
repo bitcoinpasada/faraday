@@ -25,7 +25,7 @@ Use Restart, not Shut down: with Fast Startup on, Shut down does not fully close
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
-If you cannot find it, exit the BIOS without saving changes. Windows starts as before.
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 ## Choosing the stick
 
