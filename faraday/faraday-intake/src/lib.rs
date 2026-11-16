@@ -121,6 +121,12 @@ const PRIVATE_PREFIXES: [&str; 10] = [
     "xprv", "tprv", "yprv", "zprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv",
 ];
 
+/// Whether `text` starts with the version of an extended private key,
+/// the 4 bytes `secret_text` names it by. Costs 10 comparisons of 4 bytes.
+pub fn starts_with_private_version(text: &str) -> bool {
+    PRIVATE_PREFIXES.iter().any(|p| text.starts_with(p))
+}
+
 /// Costs one scan of `text`: at most 111 bytes compared at each position.
 /// Whether `text` holds an extended private key anywhere in it, in a
 /// descriptor with no origin too: a private version followed by the

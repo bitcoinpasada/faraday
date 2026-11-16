@@ -2140,10 +2140,29 @@ fn is_text(text: &str) -> bool {
             .all(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'))
 }
 
+/// The length in bytes under which a piece of text is no key, seed or
+/// share, unless it starts with an extended private key's version:
+/// BIP-392's `spspend1` marker, 8 bytes, is the shortest of the rest, while
+/// `secret_text` names a text by its 4-byte private version alone.
+const MIN_SECRET_LEN: usize = 8;
+
+/// Whether `text` is too short for any detector, which is not so for one
+/// that starts with a private version.
+fn too_short_to_be_secret(text: &str) -> bool {
+    text.len() < MIN_SECRET_LEN && !faraday_intake::starts_with_private_version(text)
+}
+
 /// Costs what `secret_text` costs. Whether a piece of text, a user ID
 /// or an armour header, is a seed's words, an extended private key or a
 /// share: the detectors that read a plain text file.
 fn text_may_be_secret(c: &Compute, text: &str) -> bool {
+    // Apart from a private version's 4 bytes, the shortest secret is a
+    // silent payments spend key's `spspend1`, 8 bytes; a shorter piece is
+    // none, and a file of short lines is not read line by line at the
+    // cost of each.
+    if too_short_to_be_secret(text.trim()) {
+        return false;
+    }
     faraday_intake::secret_text(c, text).is_some()
         || crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
         || crate::restore::is_share(text)
@@ -2153,7 +2172,7 @@ fn text_may_be_secret(c: &Compute, text: &str) -> bool {
 /// Costs a `read_keys` on the line: base58 decodes. Whether a line of a
 /// key file is a key `read_keys` reads.
 fn is_key_line(line: &str) -> bool {
-    !crate::create::read_keys(line).is_empty()
+    !too_short_to_be_secret(line) && !crate::create::read_keys(line).is_empty()
 }
 
 /// Costs a pass over the words of every part, with a checksum for each
@@ -2265,7 +2284,10 @@ fn sorted_outpoints(tx: &Transaction) -> Vec<OutPoint> {
     out
 }
 
-/// Costs what [`classify`] costs. [`classify`], keeping what it read to
+/// Costs what [`classify`] costs, and for text, a few passes over it and
+/// a check of each line, each linear in the file's length (a file of
+/// many short lines or of one line of many short tokens costs by its
+/// length). [`classify`], keeping what it read to
 /// tell: a PSBT is parsed once and a wallet file read once when a file
 /// comes in.
 pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {

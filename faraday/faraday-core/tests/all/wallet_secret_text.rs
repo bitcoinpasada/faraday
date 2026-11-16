@@ -334,6 +334,44 @@ fn a_key_file_with_a_big_file_of_words_is_read_without_delay() {
     }
 }
 
+#[test]
+fn a_key_file_with_a_private_key_copied_in_groups_of_four_is_named_as_holding_a_secret() {
+    let groups: Vec<&str> = XPRV
+        .as_bytes()
+        .chunks(4)
+        .map(|g| std::str::from_utf8(g).unwrap())
+        .collect();
+    let file = format!("{KEY}\n{}\n", groups.join("\n"));
+    assert_eq!(kind(&file), FileKind::KeyWithSecret);
+}
+
+#[test]
+fn a_big_file_of_short_tokens_is_read_without_delay() {
+    for token in ["a", "ab", "1", "xy"] {
+        let lines = format!("{token}\n").repeat(200_000);
+        let one_line = format!("{token} ").repeat(1_000_000);
+        for (what, file) in [
+            ("lines", format!("{KEY}\n{lines}")),
+            ("one line", format!("{KEY}\n{one_line}\n")),
+            ("lines, no key", lines.clone()),
+            ("one line, no key", one_line.clone()),
+        ] {
+            let start = std::time::Instant::now();
+            let k = kind(&file);
+            assert!(
+                start.elapsed().as_secs() < 10,
+                "{token} {what}: {:?}",
+                start.elapsed()
+            );
+            if what.ends_with("no key") {
+                assert_ne!(k, FileKind::Key, "{token} {what}");
+            } else {
+                assert_eq!(k, FileKind::Key, "{token} {what}");
+            }
+        }
+    }
+}
+
 fn secret_wallet_files() -> Vec<(String, Vec<u8>)> {
     let (name, bytes) = faraday_core::testkit::files()
         .unwrap()
