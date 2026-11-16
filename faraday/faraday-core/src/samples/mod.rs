@@ -187,6 +187,13 @@ pub struct SampleInputs {
     pub signer_returned: &'static [u8],
     /// That Returned with one proprietary pair added.
     pub signer_returned_proprietary: &'static [u8],
+    /// Check a signer's second pair, signed elsewhere: Sent is
+    /// `tools/vectors/psbt/demo-regtest.psbt`.
+    pub signer_elsewhere_sent: &'static [u8],
+    /// Its Returned, `signer-random-nonce.psbt`: signed by the "abandon"
+    /// key, which Practice does not load at the start. Both are fixed
+    /// data that `regenerate` copies.
+    pub signer_elsewhere_returned: &'static [u8],
     /// Compare's first card: Bitcoin Core's `psbtbumpfee` original
     /// (`tools/vectors/psbt/bump-core-original.psbt`), fixed data that
     /// `regenerate` does not remake.
@@ -760,6 +767,7 @@ impl Faraday {
             Action::SamplesLoad => self.samples_load(set),
             Action::UseSample => self.use_sample(),
             Action::ScanSample => self.scan_use_sample(),
+            Action::ScanSampleElsewhere => self.scan_use_sample_elsewhere(),
             Action::SamplePsbt => self.sample_psbt_use(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

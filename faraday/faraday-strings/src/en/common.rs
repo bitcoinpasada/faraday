@@ -1261,6 +1261,8 @@ macro_rules! words_common {
     /// The scanner's tile, and the step's button, that hands over the
     /// sample transaction.
     scan_sample_psbt: "Load sample PSBT",
+    /// Check a signer's scanners' second tile, which hands over a sample signed by a key that is not loaded.
+    scan_sample_signed_elsewhere: "Load sample PSBT, signed elsewhere",
     /// The scanner's tile that hands over a sample wallet.
     scan_sample_wallet: "Load sample wallet",
     /// The scanner's tile that hands over a sample seed.

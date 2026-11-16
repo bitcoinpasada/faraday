@@ -840,6 +840,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if app.scan_sample_offered() {
         ui.demo_offer(app.scan_sample_label(), Action::ScanSample);
     }
+    if app.scan_sample_elsewhere_offered() {
+        ui.demo_offer(EN.scan_sample_signed_elsewhere, Action::ScanSampleElsewhere);
+    }
     let extra = rows + keys_h + type_row;
     // The title, then the picture: the state line is inside it.
     let top = 56.0;

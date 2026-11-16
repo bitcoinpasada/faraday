@@ -1008,7 +1008,11 @@ impl Faraday {
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.state().back {
             Some(
-                s @ (Screen::SpendBackup | Screen::Spend | Screen::BackupFlow | Screen::Create),
+                s @ (Screen::SpendBackup
+                | Screen::Spend
+                | Screen::BackupFlow
+                | Screen::Create
+                | Screen::SignerCheck),
             ) => s,
             Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
                 Screen::Restore

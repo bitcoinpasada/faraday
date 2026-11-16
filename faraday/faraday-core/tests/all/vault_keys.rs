@@ -17,7 +17,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
-fn kit_file(name: &str) -> (String, Vec<u8>) {
+pub(crate) fn kit_file(name: &str) -> (String, Vec<u8>) {
     if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
@@ -31,7 +31,7 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
     (name.to_string(), testkit::wallet_file(&kit).1)
 }
 
-fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
+pub(crate) fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
@@ -63,7 +63,7 @@ fn find(app: &Faraday, name: &str) -> usize {
 }
 
 /// Types the test vault's passphrase on the Unlock screen and waits.
-fn type_and_unlock(app: &mut Faraday) {
+pub(crate) fn type_and_unlock(app: &mut Faraday) {
     for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }

@@ -273,6 +273,12 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   hands over the Sent; the Returned scanner hands over the clean one, and
   the proprietary one while the Returned card holds the clean one, so two
   presses show both results.
+- **Check a signer's pair signed elsewhere**: `demo-regtest.psbt` as Sent
+  and `signer-random-nonce.psbt` as Returned, signed by the "abandon …
+  about" key, which Practice does not load at the start, with a nonce RFC
+  6979 does not give. Both scanners offer it, as Load sample PSBT, signed
+  elsewhere; the Result carries the key's row **Load the seed** (SIGNER-CHECK
+  §12).
 - **Check a timestamp**: the OpenTimestamps proof of the US Commerce
   Department's gdp2q25-2nd.pdf (`gdp2q25-2nd.pdf.ots` of the reference
   client's examples, `tools/vectors/opentimestamps/`), which reaches its

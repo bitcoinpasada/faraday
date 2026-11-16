@@ -179,7 +179,7 @@ fn sheets() -> Vec<Sheet> {
     let mut all = every!(Sheet: Lock, LockAsk, RemoveKeys, Power, Qr, Scan, Locked, NewInput, Guide, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
-        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,
+        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,
         ChildRecord, GpgTile, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,

@@ -1,8 +1,7 @@
 # Check a signer
 
-**Kind:** Spec
-**Open:** the seed step (§12), loading on the Result the seed of a key that signed so that its nonces are checked in the same pass, is not built: the Result's **Load {fp}** opens Add a key
-**Status:** Built but for §12, the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3)
+**Kind:** Reference
+**Status:** Built, the seed step (§12) and the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
@@ -175,8 +174,8 @@ PSBT), **Swap**, **Choose again** (ghost), **Done** (back to where the
 flow was opened, F77). Where the seed of a key that signed is not
 loaded, or a key the fee bump names (`docs/COMPARE.md` §3.4, U2 and
 U3): **Load {fp}**, secondary, which opens Add a key and comes back to
-the result (§11.5; for a key that signed, the seed step of §12 is to
-take its place).
+the result (§11.5); for a key that signed, the seed step of §12 takes
+its place.
 
 ## 4. The screen
 
@@ -863,10 +862,6 @@ fee bump and the differences.
 
 ## 12. The seed step: the nonces checked in the same pass
 
-Not built: today the Result's **Load {fp}** opens Add a key,
-and the person comes back to the Result by its way back; nothing below
-is drawn yet.
-
 Checking a signed PSBT and checking its nonces are one task for a person
 holding the seed of a key that signed: the check recomputes each added
 signature's nonce where the key's seed is loaded (§8.1, the "Nonces
@@ -932,16 +927,3 @@ start, with a nonce RFC 6979 does not give. The Result reads "Only
 signatures were added" with "None: 73c5da0a not loaded" and the key's
 row; **Load the seed**, **Type the words** and Practice's sample words
 (`docs/MODES.md` §5) load it, and the same Result then carries S6.
-
-**What the build touches.** The Result's rows and the sheet in
-faraday/faraday-core/src/decode/check_screen.rs; a press for the row and
-the fingerprint match in decode/check.rs and the area's mod.rs, reaching
-the words form, the SeedQR scanner and the vault unlock through their
-own presses with this flow as their way back; the strings in
-`faraday/faraday-strings/src/en/`; the sample pair in
-faraday/faraday-core/src/samples/ (`docs/MODES.md` §5.3). Tests: the row
-shows only for a key not loaded; typed words of another fingerprint load
-nothing; the right words load the key and turn the random-nonce result
-to S6 in one press; a SeedQR and a vault do the same; a key the fee bump
-names keeps **Load {fp}**; the budget test counts one check on the
-loading press.

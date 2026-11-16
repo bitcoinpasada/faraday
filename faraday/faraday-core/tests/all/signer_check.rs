@@ -329,7 +329,7 @@ fn loading_the_key_after_a_check_turns_the_result_to_a_finding_and_dropping_it_t
 #[test]
 fn the_nonce_fact_says_none_for_a_key_not_loaded_and_how_many_for_one_that_is() {
     let mut app = random_nonce_pair();
-    let none = holding(&mut app, "not loaded");
+    let none = holding(&mut app, "None: ");
     assert_eq!(none.len(), 1, "{:?}", texts(&mut app));
     assert!(none[0].starts_with("None: "), "{none:?}");
     let c = faraday_core::testkit::compute();
@@ -341,54 +341,169 @@ fn the_nonce_fact_says_none_for_a_key_not_loaded_and_how_many_for_one_that_is() 
     assert!(shows(&mut app, "0 of 1"), "{:?}", texts(&mut app));
 }
 
-/// From Add a key's Key card: Lock in, Continue to Words, the quiz
-/// passed, and Done.
-fn finish_key(app: &mut Faraday) {
-    use faraday_core::quiz::QuizState;
-    app.press(Action::KLock);
-    app.press(Action::KNext);
-    for i in 0..4u8 {
-        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
-            [0x50 + i; 32],
-        )));
-    }
-    app.press(Action::KNext);
-    for _ in 0..30 {
-        let Some(q) = app.keygen().and_then(|k| k.quiz.as_ref()) else {
-            break;
-        };
-        if q.state() == QuizState::Passed {
-            break;
-        }
-        let slot = q.correct_slot() as u8;
-        app.press(Action::KQuiz(slot));
-    }
-    app.press(Action::KAdd);
-    faraday_core::testkit::keep_published(app);
+/// The seed row's sheet opened for the one key not loaded.
+fn open_seed_sheet(app: &mut Faraday) {
+    app.press(Action::SignerCheck(SignerPress::Seed(0)));
+    assert_eq!(app.sheet, Some(Sheet::SignerSeed));
+}
+
+/// The result has turned to a finding: the nonce is told not to be
+/// reproduced and no row is left to load.
+fn checked_with_the_key(app: &mut Faraday) {
+    assert_eq!(app.screen, Screen::SignerCheck);
+    let found = holding(app, "could not be reproduced");
+    assert_eq!(found.len(), 1, "{:?}", texts(app));
+    assert!(holding(app, EN.signer_seed_not_loaded).is_empty());
+    assert!(holding(app, EN.signer_load_the_seed).is_empty());
 }
 
 #[test]
-fn load_opens_add_a_key_and_its_end_comes_back_to_the_result_with_the_key_loaded() {
-    use faraday_core::keygen::Start;
+fn a_key_that_signed_and_is_not_loaded_is_a_row_and_a_key_loaded_is_not() {
     let mut app = random_nonce_pair();
-    let _ = app.frame();
-    assert!(
-        !holding(&mut app, "Load ").is_empty(),
+    assert_eq!(
+        holding(&mut app, EN.signer_seed_not_loaded).len(),
+        1,
         "{:?}",
         texts(&mut app)
     );
-    app.press(Action::SignerCheck(SignerPress::Load(0)));
-    assert_eq!(app.screen, Screen::KeyGen);
-    // The seed scanned in Add a key: "abandon" eleven times and "about".
-    app.press(Action::KStart(Start::Scan.index()));
+    assert!(shows(&mut app, EN.signer_load_the_seed));
+    assert!(holding(&mut app, "Load ").len() == 1, "only the row's own");
+    let c = faraday_core::testkit::compute();
+    app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
+    touch(&mut app);
+    assert!(holding(&mut app, EN.signer_seed_not_loaded).is_empty());
+    assert!(!shows(&mut app, EN.signer_load_the_seed));
+}
+
+#[test]
+fn the_row_opens_the_sheet_of_the_seed_of_its_fingerprint() {
+    let mut app = random_nonce_pair();
+    open_seed_sheet(&mut app);
+    let t = texts(&mut app);
+    assert!(t.iter().any(|l| l.starts_with("Seed of ")), "{t:?}");
+    assert!(t.iter().any(|l| l == EN.keygen_type_the_words));
+    assert!(t.iter().any(|l| l == EN.keygen_scan_a_seedqr));
+    assert!(t.iter().any(|l| l == EN.signer_open_a_vault));
+}
+
+#[test]
+fn words_of_another_fingerprint_are_refused_and_load_nothing() {
+    let mut app = random_nonce_pair();
+    open_seed_sheet(&mut app);
+    app.press(Action::SignerCheck(SignerPress::SeedWords));
+    assert_eq!(app.screen, Screen::Entry);
+    faraday_core::testkit::type_words(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 0);
+    let t = texts(&mut app);
+    assert!(
+        t.iter()
+            .any(|l| l.starts_with("Fingerprint ") && l.contains(": not ")),
+        "{t:?}"
+    );
+}
+
+#[test]
+fn the_right_words_turn_the_random_nonce_result_to_a_finding_in_one_press() {
+    let mut app = random_nonce_pair();
+    open_seed_sheet(&mut app);
+    app.press(Action::SignerCheck(SignerPress::SeedWords));
+    assert_eq!(app.screen, Screen::Entry);
+    faraday_core::testkit::type_words(&mut app, ABANDON);
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    checked_with_the_key(&mut app);
+}
+
+#[test]
+fn a_seedqr_does_the_same() {
+    let mut app = random_nonce_pair();
+    open_seed_sheet(&mut app);
+    app.press(Action::SignerCheck(SignerPress::SeedScan));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
     read(
         &mut app,
         b"000000000000000000000000000000000000000000000003",
     );
-    finish_key(&mut app);
-    assert_eq!(app.screen, Screen::SignerCheck);
-    assert!(!holding(&mut app, "could not be reproduced").is_empty());
-    assert!(holding(&mut app, "Load ").is_empty(), "no key left to load");
+    if app.sheet == Some(Sheet::SeedRead) {
+        app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    }
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    checked_with_the_key(&mut app);
+}
+
+/// A vault file that holds the "abandon" key, sealed on Lock.
+fn vault_holding_abandon() -> Vec<(String, Vec<u8>)> {
+    use crate::vault_keys::{device, kit_file, type_and_unlock};
+    use faraday_core::StorageCommand;
+    use faraday_core::vault::VaultAction as V;
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    for i in 0..8u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    app.press(Action::Lock);
+    let mut out = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, .. } = c {
+            out = Some(testkit::plain_files(outbox));
+        }
+    }
+    out.expect("nothing queued on locking")
+        .into_iter()
+        .filter(|(n, _)| n == "vault.kdbx")
+        .collect()
+}
+
+#[test]
+fn a_vault_holding_the_key_loads_it_and_the_same_press_checks_again() {
+    use crate::vault_keys::{device, type_and_unlock};
+    use faraday_core::vault::VaultAction as V;
+    let mut inbox = vault_holding_abandon();
+    inbox.push(("sent.psbt".into(), vector("demo-regtest.psbt")));
+    inbox.push(("random.psbt".into(), vector("signer-random-nonce.psbt")));
+    let mut app = device(inbox);
+    open(&mut app);
+    assert!(
+        shows(&mut app, EN.signer_load_the_seed),
+        "{:?}",
+        texts(&mut app)
+    );
+    open_seed_sheet(&mut app);
+    // No vault is open: the list of vaults opens, coming back here.
+    app.press(Action::SignerCheck(SignerPress::SeedVault));
+    assert_eq!(app.session.keys.len(), 0);
+    assert_ne!(app.screen, Screen::SignerCheck);
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    // The vault's Load sheet, the key ticked: nothing is loaded yet.
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    assert_eq!(app.session.keys.len(), 0);
+    app.press(Action::Vault(V::LoadTicked));
+    for t in 1..20u64 {
+        if !app.session.keys.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick {
+            now_ms: 100_000 + t * 1000,
+        });
+    }
+    testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    checked_with_the_key(&mut app);
 }
 
 #[test]
@@ -825,4 +940,27 @@ fn a_returned_card_with_only_the_sent_file_offers_scan_and_no_empty_line() {
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
     assert!(shows(&mut app, EN.signer_scan));
     assert!(!shows(&mut app, EN.compare_no_files));
+}
+
+#[test]
+fn a_fee_bump_naming_a_key_not_loaded_keeps_its_load_row() {
+    let mut app = with_files(vec![
+        ("original.psbt", vector("bump-core-original.psbt")),
+        ("replacement.psbt", vector("bump-core-replacement.psbt")),
+    ]);
+    open(&mut app);
+    app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));
+    app.press(Action::SignerCheck(SignerPress::Pick(Slot::Returned, 1)));
+    // The actions are at the foot of the scrolling Result.
+    app.event(Event::Wheel {
+        x: 640,
+        y: 400,
+        dy: 3000,
+    });
+    app.settle();
+    assert!(
+        !holding(&mut app, "Load ").is_empty(),
+        "{:?}",
+        texts(&mut app)
+    );
 }

@@ -907,7 +907,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     let back = matches!(
                         self.screen,
-                        Screen::Restore | Screen::SpendBackup | Screen::Spend
+                        Screen::Restore | Screen::SpendBackup | Screen::Spend | Screen::SignerCheck
                     )
                     .then_some(self.screen);
                     // A small panel has no keyboard of its own: every
@@ -1135,6 +1135,15 @@ impl Faraday {
             Err(e) if self.screen == Screen::Restore => {
                 self.restore.set_error(e.text());
                 self.entry.reset();
+            }
+            // A seed asked for by Check a signer that makes another key.
+            Err(crate::wallet::Refusal::WrongKey { wanted, got })
+                if back == Some(Screen::SignerCheck) =>
+            {
+                self.entry.set_error(faraday_text::Text::fill(
+                    crate::strings::EN.signer_wrong_seed,
+                    &[&got, &wanted],
+                ));
             }
             Err(e) => self.entry.set_error(e.text()),
         }

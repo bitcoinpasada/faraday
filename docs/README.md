@@ -115,6 +115,7 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/SECRET-LEAKS.md`: Secret leaks: tests that fail on a secret left in memory or on screen. Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Built.
+- `docs/SIGNER-CHECK.md`: Check a signer. Built, the seed step (§12) and the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/SPEED.md`: Speed in long flows. Built; the glyph cache measured (§3.8).
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
@@ -141,7 +142,6 @@ Generated from each document's header (`python3 -I -B tools/docs-index.py write`
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; §2 lists what works; §5 is built except Electrum seed words.
 - `docs/LAYOUT.md`: Layout at every window size. Built but for the items under Open: the five size classes and density (F101), the navigation bar, rail and expanded rail, and the top app bar over every page on every class but compact short, Home and the step flows included (§3); Home's lead tile and tile grid (§4); list and detail (§5, §17); the supporting pane, Guide in it on extra-large windows (§6); the page area to the window's edge (§15); reading width and wide content (§14); Make codex32 shares on a wide window (§16); the tours at every class's size and §11's tests.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/SIGNER-CHECK.md`: Check a signer. Built but for §12, the one flow for two PSBTs or finished transactions (§11) included; the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`; in Practice both scanners offer a sample pair (`docs/MODES.md` §5.3).
 - `docs/STARTER.md`: The Starter. Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card.
 - `docs/WORKERS.md`: Costly work off the drawing thread. Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open.
 

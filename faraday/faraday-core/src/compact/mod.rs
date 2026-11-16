@@ -586,6 +586,10 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
             EN.compact_explore_a_key,
             Action::X(crate::explore::XAction::Page(crate::explore::Page::Path)),
         ),
+        // Check a signer asked for the key: the way back is the Result.
+        Screen::Entry if app.entry_leave() == Screen::SignerCheck => {
+            (EN.catalog_check_a_signer, Action::Nav(Screen::SignerCheck))
+        }
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
             (EN.compact_wallets, Action::Nav(Screen::WalletsStart))
         }

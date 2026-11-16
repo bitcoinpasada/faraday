@@ -66,6 +66,17 @@ pub enum SignerPress {
     /// The Result's **Load {fp}** for the key in this place of
     /// [`Shown::load`]: Add a key opens, and its end comes back here.
     Load(usize),
+    /// The Result's **Load the seed** for the key in this place of
+    /// [`Shown::seeds`]: the sheet of ways to load it opens.
+    Seed(usize),
+    /// The sheet's **Type the words**: Add a key's form for the key, its
+    /// way back this screen.
+    SeedWords,
+    /// The sheet's **Scan a SeedQR**: the same form with its scanner open.
+    SeedScan,
+    /// The sheet's **Open a vault**: the key loads from the open vault
+    /// that holds it, else a vault is unlocked to return here.
+    SeedVault,
     /// Files' ⋮ **Check a signer** on this PSBT or finished transaction
     /// (From the stick, or For the stick when the first is true; its
     /// place in that list): the flow opens with it as Returned.
@@ -145,6 +156,9 @@ pub(crate) struct CheckState {
     pub scroll: flow::Scroll,
     /// Where the flow was opened from.
     pub back: Screen,
+    /// The key whose seed the sheet of ways to load it is for, or that a
+    /// way is loading.
+    pub seed: Option<Fingerprint>,
 }
 
 impl CheckState {
@@ -163,6 +177,7 @@ impl CheckState {
                 follow: true,
             },
             back,
+            seed: None,
         }
     }
 
@@ -473,8 +488,11 @@ pub(crate) struct Shown {
     pub differences: Vec<Text>,
     /// Whether **Show as QR** is offered: the Returned side is a PSBT.
     pub qr: bool,
-    /// The keys the result says are not loaded, one **Load** each: the
-    /// check's, then the fee bump's.
+    /// The keys that signed and are not loaded, one **Load the seed** row
+    /// each (SIGNER-CHECK §12).
+    pub seeds: Vec<Fingerprint>,
+    /// The keys only the fee bump names and that are not loaded, one
+    /// **Load** each.
     pub load: Vec<Fingerprint>,
 }
 
@@ -574,11 +592,13 @@ pub(crate) fn shown(
     qr: bool,
 ) -> Shown {
     use super::check_words as words;
-    let mut load: Vec<Fingerprint> = checked
+    let seeds: Vec<Fingerprint> = checked
         .and_then(|(r, _)| r.facts.recomputed.as_ref())
         .map_or_else(Vec::new, |r| r.not_loaded.clone());
+    let mut load: Vec<Fingerprint> = Vec::new();
     for l in bump.map_or(&[][..], |b| &b.lines[..]) {
         if let Line::ChangeNotLoaded { key, .. } | Line::InputNotLoaded { key, .. } = l
+            && !seeds.contains(key)
             && !load.contains(key)
         {
             load.push(*key);
@@ -633,6 +653,7 @@ pub(crate) fn shown(
             .map(|l| Text::of(l))
             .collect(),
         qr,
+        seeds,
         load,
     }
 }

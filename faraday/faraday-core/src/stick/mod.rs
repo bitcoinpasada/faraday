@@ -117,6 +117,11 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
         | Action::KeyGen(None)
         | Action::CSlotVault(..)
         | Action::Convert(C::VaultKey(..) | C::Aezeed | C::SetSource)
+        | Action::SignerCheck(
+            crate::decode::check::SignerPress::SeedWords
+            | crate::decode::check::SignerPress::SeedScan
+            | crate::decode::check::SignerPress::SeedVault,
+        )
         | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
         Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
         Action::PotentialOpen(_) => EN.pull_what_load_wallet,

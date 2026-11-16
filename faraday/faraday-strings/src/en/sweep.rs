@@ -290,6 +290,16 @@ macro_rules! words_sweep {
     signer_nonces_not_loaded: "{} not loaded",
     /// The Result's button that opens Add a key for a key that signed and is not loaded. `{}`: the key's fingerprint.
     signer_load: "Load {}",
+    /// The Result's line under a key that signed and whose seed is not loaded.
+    signer_seed_not_loaded: "Seed not loaded",
+    /// The Result's button on that line, which opens the sheet of ways to load the seed.
+    signer_load_the_seed: "Load the seed",
+    /// That sheet's title. `{}`: the key's fingerprint.
+    signer_seed_of: "Seed of {}",
+    /// That sheet's way in through a vault.
+    signer_open_a_vault: "Open a vault",
+    /// The words or the passphrase give another key than the one asked for. `{}`: the fingerprint they give, then the one asked for.
+    signer_wrong_seed: "Fingerprint {}: not {}",
     /// The Result's label over the findings.
     signer_findings_label: "Findings",
     /// The Result's line where the check found nothing.

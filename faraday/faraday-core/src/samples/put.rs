@@ -353,6 +353,32 @@ impl Faraday {
                 .is_some_and(|s| s.purpose == ScanPurpose::Seed)
     }
 
+    /// The sample the scanner on screen hands over as signed elsewhere
+    /// (Check a signer's Sent or Returned), if it is one of them: a lookup.
+    fn elsewhere_bytes(&self) -> Option<&'static [u8]> {
+        let set = self.put_on()?;
+        let bytes = match self.camera.scan()?.purpose {
+            ScanPurpose::CheckSent => set.inputs.signer_elsewhere_sent,
+            ScanPurpose::CheckReturned => set.inputs.signer_elsewhere_returned,
+            _ => return None,
+        };
+        (self.sheet == Some(Sheet::Scan) && !bytes.is_empty()).then_some(bytes)
+    }
+
+    /// Whether Check a signer's scanner draws **Load sample PSBT, signed
+    /// elsewhere**: Practice, with the pair set. A lookup.
+    pub(crate) fn scan_sample_elsewhere_offered(&self) -> bool {
+        self.elsewhere_bytes().is_some()
+    }
+
+    /// Handles `Action::ScanSampleElsewhere`: the scanner reads that
+    /// sample as if the camera had.
+    pub(crate) fn scan_use_sample_elsewhere(&mut self) {
+        if let Some(bytes) = self.elsewhere_bytes() {
+            self.scanned(bytes.to_vec());
+        }
+    }
+
     /// What the Sample tile on the scanner on screen hands over, as the
     /// words on it: a lookup.
     pub fn scan_sample_label(&self) -> &'static str {

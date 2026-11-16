@@ -9,6 +9,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, flow};
+use faraday_bip::keys::Fingerprint;
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_GLYPH, PAD, READING_PAGE_W, SHAPE_S, SPACER,
     TITLE_M, TITLE_S, TOUCH,
@@ -242,6 +243,70 @@ fn tone_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), line: &str, tone: Tone) ->
     card_h + PAD
 }
 
+/// A key that signed and whose seed is not loaded: its fingerprint, what
+/// it lacks and **Load the seed** (Material 3 Lists, a list item with a
+/// trailing text button).
+fn seed_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), fp: &Fingerprint, n: usize) -> f32 {
+    let (name_h, line_h) = (ui.line_as(TITLE_S), ui.line_as(BODY_S));
+    let h = (name_h + line_h + PAD).max(TOUCH);
+    let label = EN.signer_load_the_seed;
+    let bw = (ui.measure_as(BODY_M, label) + 2.0 * PAD).max(TOUCH);
+    let text_y = y + (h - name_h - line_h) / 2.0;
+    ui.text_as(x, text_y, TITLE_S.mono(), Role::OnSurface, &fp.to_string());
+    ui.text_as(
+        x,
+        text_y + name_h,
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.signer_seed_not_loaded,
+    );
+    ui.button(
+        x + w - bw,
+        y + (h - BUTTON_H) / 2.0,
+        Some(bw),
+        BUTTON_H,
+        label,
+        Style::Ghost,
+        Action::SignerCheck(SignerPress::Seed(n)),
+    );
+    ui.rule(x, y + h, w, Role::OutlineVariant);
+    h + GAP_SMALL
+}
+
+/// The sheet of ways to load the seed of a key that signed: Type the
+/// words, Scan a SeedQR and Open a vault, each coming back to the Result
+/// (Material 3 Dialogs, a simple dialog of list rows).
+pub(crate) fn seed_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::DIALOG_MAX;
+    let Some(fp) = app.signer_check().and_then(|s| s.seed) else {
+        return;
+    };
+    let title = fill(EN.signer_seed_of, &[&fp.to_string()]);
+    let head = (Icon::Keys.into(), Role::Primary.paint(), title.as_str());
+    let ways = [
+        (EN.keygen_type_the_words, SignerPress::SeedWords),
+        (EN.keygen_scan_a_seedqr, SignerPress::SeedScan),
+        (EN.signer_open_a_vault, SignerPress::SeedVault),
+    ];
+    let actions = [(EN.vault_cancel, Style::Secondary, Action::Cancel)];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for (label, press) in ways {
+                ui.fill(x, cy, iw, TOUCH, SHAPE_S, Role::SurfaceContainerHighest);
+                ui.text_mid_as((x + PAD, cy, TOUCH), BODY_M, Role::OnSurface, label);
+                ui.press_box(x, cy, iw, TOUCH, Action::SignerCheck(press));
+                cy += TOUCH + GAP_SMALL;
+            }
+            cy - GAP_SMALL - y
+        },
+        &actions,
+    );
+}
+
 /// The Result card, top down (SIGNER-CHECK §11.5): the fee bump, the
 /// verdict in its tone, the facts, the findings, what is stated, the
 /// differences, the actions. The words were made with the result; this
@@ -285,6 +350,9 @@ fn result(s: &CheckState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
                 cy += fact(ui, (x, cy, w), f);
             }
         }
+    }
+    for (n, fp) in shown.seeds.iter().enumerate() {
+        cy += seed_row(ui, (x, cy, w), fp, n);
     }
     if shown.has_findings {
         section_label(ui, x, cy, EN.signer_findings_label);

@@ -90,6 +90,45 @@ fn the_press_completing_the_second_card_counts_one_check_and_drawing_counts_none
     }
 }
 
+#[test]
+fn the_press_loading_a_seed_counts_one_check() {
+    use faraday_shell_api::Key;
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: crate::files_from(vec![
+            (
+                faraday_text::Text::of("sent.psbt"),
+                vector("demo-regtest.psbt"),
+            ),
+            (
+                faraday_text::Text::of("random.psbt"),
+                vector("signer-random-nonce.psbt"),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let tile = crate::catalog::TILES
+        .iter()
+        .position(|t| t.go == crate::catalog::Go::SignerCheck)
+        .expect("the tile") as u8;
+    app.press(Action::Nav(crate::Screen::Catalog));
+    app.press(Action::Catalog(tile));
+    app.press(Action::SignerCheck(SignerPress::Seed(0)));
+    app.press(Action::SignerCheck(SignerPress::SeedWords));
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
+                 abandon abandon about";
+    for c in words.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let _ = app.frame();
+    let before = snapshot();
+    app.press(Action::EntryAdd);
+    let press = since(&before);
+    assert_eq!(press.of(Work::PsbtInspect), 4, "one check");
+    assert_eq!(app.session.keys.len(), 1);
+}
+
 mod compare {
     //! The two files' comparison does its costly work on the press that
     //! completes the second card and nowhere else (`docs/COMPARE.md` §6.2):

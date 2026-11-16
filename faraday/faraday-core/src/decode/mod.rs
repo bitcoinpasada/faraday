@@ -1004,8 +1004,57 @@ impl Faraday {
             // Add a key opens with this screen as its way back; the key
             // loaded makes the result again (`signer_check_sync`).
             P::Load(_) => self.keygen_open(None),
+            P::Seed(n) => {
+                let fp = self
+                    .decode
+                    .check()
+                    .and_then(|s| s.shown.as_ref())
+                    .and_then(|s| s.seeds.get(n).copied());
+                if let (Some(fp), true) = (fp, self.may_load_keys()) {
+                    if let Some(s) = self.decode.check.as_mut() {
+                        s.seed = Some(fp);
+                    }
+                    self.sheet = Some(crate::Sheet::SignerSeed);
+                }
+            }
+            P::SeedWords | P::SeedScan => {
+                let fp = self.decode.check().and_then(|s| s.seed);
+                self.sheet = None;
+                if let Some(fp) = fp {
+                    self.act(Action::Entry(Some(fp.0)));
+                    if matches!(press, P::SeedScan) {
+                        self.act(Action::ScanSeed);
+                    }
+                }
+            }
+            P::SeedVault => {
+                self.sheet = None;
+                self.signer_seed_from_vault(true);
+            }
             P::File(outbox, k) => self.signer_check_file(c, outbox, k),
             P::FromReview(outbox, k) => self.signer_check_from_review(c, outbox, k),
+        }
+    }
+
+    /// Costs what the load of a key from a vault costs. The seed the
+    /// sheet is for, loaded from the open vault that holds it; where none
+    /// does and `list` is true, the vaults' list opens to unlock one,
+    /// coming back here (a vault unlocked loads the seed on its return).
+    pub(crate) fn signer_seed_from_vault(&mut self, list: bool) {
+        use crate::vault::{SlotOf, VaultAction as V};
+        let Some(fp) = self.decode.check().and_then(|s| s.seed) else {
+            return;
+        };
+        let c = self.compute();
+        let slot = wallet::Slot::bare(fp);
+        if let Some((v, rec)) = self.vault_key_for(&c, &slot) {
+            // The vault's Load sheet, the seed ticked; the sheet's own
+            // press loads it and the Result checks again.
+            if !self.signer_load_sheet(v, rec) {
+                self.vault_act(V::LoadKeyOf(fp.0, SlotOf::Bare));
+            }
+        } else if list {
+            self.vault_act(V::ListFrom(Screen::SignerCheck));
         }
     }
 
@@ -1407,8 +1456,20 @@ impl Faraday {
             s.shown.is_some() && s.made_with.as_ref() != Some(&self.session.inspect_inputs())
         });
         if stale {
+            let rows = |app: &Self| {
+                app.decode
+                    .check()
+                    .and_then(|s| s.shown.as_ref())
+                    .map_or(0, |s| s.seeds.len())
+            };
+            let before = rows(self);
             let c = self.compute();
             self.signer_check_run(&c);
+            // A seed loaded turns its row into a fact: the Result opens
+            // at the facts, not where the row was.
+            if self.screen == Screen::SignerCheck && rows(self) < before {
+                self.list_offset = 0.0;
+            }
         }
     }
 

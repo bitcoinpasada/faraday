@@ -27,6 +27,9 @@ pub struct LoadSheet {
     pub name: String,
     /// Unlocked on the boot sheet: the import goes on after it.
     pub boot: bool,
+    /// Opened by Check a signer for one seed: closing it leaves the
+    /// Result open, and nothing lands.
+    pub signer: bool,
     /// How many wallets the session held before: the landing after it
     /// counts what this unlock, or the import, brought.
     pub wallets_before: usize,

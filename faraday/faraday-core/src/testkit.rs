@@ -228,6 +228,8 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 signer_sent: &[],
                 signer_returned: &[],
                 signer_returned_proprietary: &[],
+                signer_elsewhere_sent: &[],
+                signer_elsewhere_returned: &[],
                 compare_first: &[],
                 compare_second: &[],
                 krux_code: &[],

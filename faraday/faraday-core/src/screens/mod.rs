@@ -498,6 +498,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgTile => crate::backup_flow::gpg_restore_screen::tile_dialog(ui, w, h),
             Sheet::MadeWallet => crate::explore::made::dialog(app, ui, w, h),
             Sheet::CheckBackups => crate::check::screen::backups_dialog(ui, w, h),
+            Sheet::SignerSeed => crate::decode::check_screen::seed_dialog(app, ui, w, h),
             Sheet::ChildNotice => crate::screens::create::child_notice(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),

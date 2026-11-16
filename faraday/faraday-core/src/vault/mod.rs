@@ -1284,6 +1284,11 @@ impl Faraday {
                 Screen::Files
             });
         }
+        // Unlocked to load the seed Check a signer asked for: it loads
+        // from this vault where the vault holds it.
+        if back == Some(Screen::SignerCheck) {
+            self.signer_seed_from_vault(false);
+        }
         // Landed on the codes screen with the clock not checked this power-on:
         // Set the time first (`docs/TOTP.md` §5.2), coming back to the codes.
         if self.screen == Screen::Codes && !self.clock_checked() {
@@ -3491,8 +3496,59 @@ impl Faraday {
         self.vaults.state.load = Some(load::LoadSheet {
             name: open.name.as_str().into(),
             boot,
+            signer: false,
             wallets_before,
             ticked,
+            choice: Default::default(),
+            passphrases,
+        });
+        self.sheet = Some(Sheet::UnlockLoad);
+        true
+    }
+
+    /// Open vault `v` holds the seed in key record `rec` that Check a
+    /// signer asked for: the Load sheet comes up with that seed ticked, as
+    /// its own card's tick where the vault keeps it on a Keys card, or its
+    /// wallet's where it is a wallet's seed. Returns false, showing
+    /// nothing, when the sheet has nothing to tick for it.
+    pub(crate) fn signer_load_sheet(&mut self, v: usize, rec: usize) -> bool {
+        let c = self.compute();
+        let wallets_before = self.session.wallets.len();
+        let none = BTreeSet::new();
+        let view = self
+            .vaults
+            .load_view(&c, &self.session, v, &none, &BTreeMap::new(), None);
+        let tick = view
+            .keys
+            .iter()
+            .find(|k| k.record == rec && !k.loaded)
+            .map(|k| k.record)
+            .or_else(|| {
+                view.cards
+                    .iter()
+                    .find(|c| !c.done && c.seeds.iter().any(|s| s.record == rec && !s.loaded))
+                    .map(|c| c.record)
+            });
+        let Some(tick) = tick else {
+            return false;
+        };
+        let passphrases = view
+            .cards
+            .iter()
+            .flat_map(|c| c.seeds.iter())
+            .chain(view.keys.iter())
+            .filter(|s| !s.passphrases.is_empty())
+            .map(|s| (s.record, s.passphrases.clone()))
+            .collect();
+        let Some(open) = self.vaults.open.get(v) else {
+            return false;
+        };
+        self.vaults.state.load = Some(load::LoadSheet {
+            name: open.name.as_str().into(),
+            boot: false,
+            signer: true,
+            wallets_before,
+            ticked: BTreeSet::from([tick]),
             choice: Default::default(),
             passphrases,
         });
@@ -3607,6 +3663,9 @@ impl Faraday {
         };
         if self.sheet == Some(Sheet::UnlockLoad) {
             self.sheet = None;
+        }
+        if s.signer {
+            return;
         }
         let file = self.vaults.open[v].name.clone();
         if s.boot {

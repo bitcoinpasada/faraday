@@ -167,3 +167,40 @@ fn with_no_wallet_loaded_the_sample_psbt_still_comes_in_and_says_what_is_missing
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t.contains("transaction")), "{texts:?}");
 }
+
+#[test]
+fn check_a_signers_scanners_offer_the_pair_signed_elsewhere_and_the_result_asks_for_the_seed() {
+    use faraday_core::catalog::{Go, TILES};
+    use faraday_core::decode::check::{SignerPress, Slot};
+    use faraday_core::strings::EN;
+    let mut app = demo_app();
+    let tile = TILES
+        .iter()
+        .position(|t| t.go == Go::SignerCheck)
+        .expect("the tile is in Tools") as u8;
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Catalog(tile));
+    assert_eq!(app.screen, Screen::SignerCheck);
+    for slot in [Slot::Sent, Slot::Returned] {
+        app.press(Action::SignerCheck(SignerPress::Scan(slot)));
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        assert!(crate::common::strip_offers(
+            &mut app,
+            Action::ScanSampleElsewhere
+        ));
+        assert!(
+            crate::common::strip(&mut app)
+                .iter()
+                .any(|t| t == EN.scan_sample_signed_elsewhere)
+        );
+        app.press(Action::ScanSampleElsewhere);
+        assert_eq!(app.sheet, None, "the scanner closed");
+    }
+    let _ = app.frame();
+    let shown = faraday_core::testkit::Plain::plain(app.drawn_texts());
+    assert!(
+        shown.iter().any(|t| t == EN.signer_load_the_seed),
+        "{shown:?}"
+    );
+}

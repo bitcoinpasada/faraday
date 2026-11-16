@@ -49,4 +49,4 @@ The verdict comes first. **Only signatures were added** is clean: the transactio
 
 **Key:** signer-check.actions
 
-**Show as QR** shows the returned PSBT as a code. **Swap** exchanges the two PSBTs and checks again. A **Load** button with a fingerprint is offered for a key that signed and is not loaded; it opens Add a key and returns here. **Choose again** reopens **Returned**, and **Done** leaves.
+**Show as QR** shows the returned PSBT as a code. **Swap** exchanges the two PSBTs and checks again. A key that signed and is not loaded has a row under the facts, **Seed not loaded**, with **Load the seed**. It opens a sheet to type the words, scan a SeedQR or open a vault; words of another key are refused, and the right ones load the key and check again, with the nonce lines. A key only the fee bump names has a **Load** button with its fingerprint, which opens Add a key and returns here. **Choose again** reopens **Returned**, and **Done** leaves.

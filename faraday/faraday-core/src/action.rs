@@ -305,6 +305,9 @@ pub enum Action {
     PassChip(crate::demo::PassField),
     /// The scanner's Sample tile: reads a sample as the camera would.
     ScanSample,
+    /// Check a signer's scanners' second tile: the sample pair signed
+    /// elsewhere, one side of it.
+    ScanSampleElsewhere,
     /// Load sample PSBT, in a step that asks for the transaction: the
     /// sample spend comes in as a scan of it would bring it.
     SamplePsbt,
@@ -1519,6 +1522,7 @@ impl Faraday {
             | Action::SamplesLoad
             | Action::UseSample
             | Action::ScanSample
+            | Action::ScanSampleElsewhere
             | Action::SamplePsbt) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet

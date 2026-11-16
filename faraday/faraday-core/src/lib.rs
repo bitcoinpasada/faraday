@@ -585,6 +585,9 @@ pub enum Sheet {
     GpgTile,
     /// Check's **A backup in another form**: the forms to choose from.
     CheckBackups,
+    /// Check a signer's **Load the seed**: the ways to load the seed of
+    /// the key that signed (`decode/check_screen.rs`).
+    SignerSeed,
     /// **Options** of the Krux code tool's form.
     KefOptions,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
