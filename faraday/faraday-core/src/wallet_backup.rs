@@ -29,8 +29,7 @@ use crate::public_files;
 use crate::wallet::{Kind, Session, Wallet, fp_label, fp_text, wallet_name};
 use crate::{
     Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
-    board, bstep, copy_check, file_stem, flow, picture, plan, plan_cards_on, qrow, qstep, ui,
-    vault,
+    board, copy_check, file_stem, flow, picture, plan, plan_cards_on, qrow, qstep, ui, vault,
 };
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
@@ -537,8 +536,8 @@ pub struct BackupState {
     pub names: Vec<Text>,
     /// The place whose name is being typed.
     pub naming: Option<usize>,
-    /// The open item of the checklist, by [`bstep`].
-    pub open: Option<u8>,
+    /// The open item of the checklist.
+    pub open: Option<plan::Item>,
     /// The public files item shows its files under More options (F64):
     /// pressed, or one of them already For the stick when it opened.
     pub public_more: bool,
@@ -636,9 +635,9 @@ pub struct BackupState {
     /// saved, and where.
     pub added: Option<(plan::At, plan::What)>,
     /// A plan that was already made, saved with a thing added on the
-    /// board: the checklist opens at the item that makes it, by
-    /// [`bstep`], and no other.
-    pub then_item: Option<u8>,
+    /// board: the checklist opens at the item that makes it, and no
+    /// other.
+    pub then_item: Option<plan::Item>,
     /// The plan's vaults, by number, whose record of the wallet is set
     /// not to load at unlock: the vault item's **Load at unlock** turned
     /// off (F62). Every other starts on.
@@ -661,7 +660,7 @@ pub struct BackupState {
     pub c32_made: Vec<(usize, usize, Text)>,
     /// The open item, and whether it was done when last looked at: an
     /// item that becomes done moves on to the next.
-    pub seen: Option<(u8, bool)>,
+    pub seen: Option<(plan::Item, bool)>,
     /// What the person unticked on the Keep sheet in this backup.
     pub keeps: crate::vault::keep::Left,
     /// The forms of the Krux code items opened, by seed (`kef.rs`).
@@ -962,7 +961,7 @@ impl WalletBackupArea {
             return false;
         };
         // A codex32 string typed back, or in, on the keyboard.
-        if b.open.is_some_and(bstep::is_codex32)
+        if matches!(b.open, Some(plan::Item::Codex32(_)))
             && b.c32.as_ref().is_some_and(|c| {
                 c.at.is_some() || !matches!(c.set, crate::codex32_backup::SetStep::None)
             })
@@ -1108,7 +1107,7 @@ impl WalletBackupArea {
     }
 
     /// The open item as last seen, and whether it was done then.
-    pub(crate) fn set_seen(&mut self, seen: Option<(u8, bool)>) {
+    pub(crate) fn set_seen(&mut self, seen: Option<(plan::Item, bool)>) {
         if let Some(b) = self.state.as_mut() {
             b.seen = seen;
         }
@@ -1215,11 +1214,11 @@ impl WalletBackupArea {
         }
     }
 
-    /// The envelopes (`bstep::ENVELOPE`) or the blank templates (any
+    /// The envelopes (`Item::Envelopes`) or the blank templates (any
     /// other item) marked done by their press.
-    pub(crate) fn mark_done(&mut self, n: u8) {
+    pub(crate) fn mark_done(&mut self, n: plan::Item) {
         if let Some(b) = self.state.as_mut() {
-            if n == bstep::ENVELOPE {
+            if n == plan::Item::Envelopes {
                 b.envelopes = true;
             } else {
                 b.printed = true;
@@ -1230,10 +1229,12 @@ impl WalletBackupArea {
     /// Opens checklist item `n`, or closes them all, showing seed `key`
     /// where it has one; the public files item's More options open when
     /// `more`.
-    pub(crate) fn open_item(&mut self, n: Option<u8>, more: bool, key: Option<usize>) {
+    pub(crate) fn open_item(&mut self, n: Option<plan::Item>, more: bool, key: Option<usize>) {
         if let Some(b) = self.state.as_mut() {
             // A passphrase item opens, and closes, with it hidden.
-            if n.is_some_and(bstep::is_passphrase) || b.open.is_some_and(bstep::is_passphrase) {
+            if matches!(n, Some(plan::Item::Passphrase(_)))
+                || matches!(b.open, Some(plan::Item::Passphrase(_)))
+            {
                 b.reveal = false;
             }
             b.open = n;
@@ -1242,10 +1243,7 @@ impl WalletBackupArea {
             b.which = None;
             b.public_more = more;
             // The codex32 item opens on its seed's strings, its list.
-            if let Some(i) = n.and_then(bstep::item).and_then(|it| match it {
-                plan::Item::Codex32(i) => Some(i),
-                _ => None,
-            }) {
+            if let Some(plan::Item::Codex32(i)) = n {
                 match b.c32.as_mut() {
                     Some(st) if st.seed == i => st.list(),
                     _ => {
@@ -1295,7 +1293,7 @@ impl WalletBackupArea {
     /// The seeds' files item shows seed `k`, where it is open.
     pub(crate) fn file_key(&mut self, k: usize) {
         if let Some(b) = self.state.as_mut()
-            && b.open == Some(bstep::FILES)
+            && b.open == Some(plan::Item::SeedFiles)
         {
             b.key = k;
         }
@@ -1390,14 +1388,14 @@ impl WalletBackupArea {
     }
 
     /// The checklist item to open once the plan is saved, or none.
-    pub(crate) fn then_item_set(&mut self, n: Option<u8>) {
+    pub(crate) fn then_item_set(&mut self, n: Option<plan::Item>) {
         if let Some(b) = self.state.as_mut() {
             b.then_item = n;
         }
     }
 
     /// The checklist item to open, taken: it is used once.
-    pub(crate) fn then_item_take(&mut self) -> Option<u8> {
+    pub(crate) fn then_item_take(&mut self) -> Option<plan::Item> {
         self.state.as_mut().and_then(|b| b.then_item.take())
     }
 
@@ -1683,7 +1681,9 @@ impl Faraday {
     pub(crate) fn shown_tidy(&mut self) {
         self.explore_left();
         let want = self.backup.state().and_then(|b| {
-            let open = b.open.filter(|&n| bstep::is_copy(n))?;
+            let Some(plan::Item::Copy(open)) = b.open else {
+                return None;
+            };
             let lang = self.session.keys.info(b.key)?.language;
             (self.screen == Screen::Backup && b.reveal && b.check.is_none())
                 .then_some((b.key, open, b.compact, lang))
@@ -1693,10 +1693,10 @@ impl Faraday {
         };
         let c = self.compute();
         let seedqr = lang == Language::English
-            && self.backup.state().is_some_and(|b| {
-                self.copy_forms(&c, b, usize::from(open - bstep::COPY))
-                    .seedqr
-            });
+            && self
+                .backup
+                .state()
+                .is_some_and(|b| self.copy_forms(&c, b, open).seedqr);
         self.backup
             .hold(&c, &self.session.keys, k, lang, compact, seedqr);
     }
@@ -1709,9 +1709,10 @@ impl Faraday {
                 // The plan the chart shows, at its first item not done;
                 // nothing is made For the stick by opening it.
                 if self.chart_checklist(i, false) {
-                    let first = self.backup_items_now(c).into_iter().find(|&n| {
-                        bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it))
-                    });
+                    let first = self
+                        .backup_items_now(c)
+                        .into_iter()
+                        .find(|&it| !self.backup_item_done_now(c, it));
                     self.backup_item_open(first);
                     self.screen = Screen::Backup;
                 }
@@ -1874,18 +1875,19 @@ impl Faraday {
                 // No way past an item but doing it; the envelopes and the
                 // blank templates, printed from Faraday Starter, are done
                 // by this press.
-                if n != bstep::ENVELOPE
-                    && n != bstep::BLANK
-                    && !bstep::item(n).is_some_and(|it| self.backup_item_done_now(c, it))
+                if n != plan::Item::Envelopes
+                    && n != plan::Item::Templates
+                    && !self.backup_item_done_now(c, n)
                 {
                     return;
                 }
                 let items = self.backup_items_now(c);
-                let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
+                let next = if n == plan::Item::Envelopes || n == plan::Item::Templates {
                     self.backup.mark_done(n);
-                    items.iter().copied().find(|&i| {
-                        bstep::item(i).is_some_and(|it| !self.backup_item_done_now(c, it))
-                    })
+                    items
+                        .iter()
+                        .copied()
+                        .find(|&it| !self.backup_item_done_now(c, it))
                 } else {
                     items.iter().skip_while(|&&i| i != n).nth(1).copied()
                 };
@@ -2151,7 +2153,7 @@ impl Faraday {
 
     fn copy_check_new(&self) -> Option<WordCheck> {
         let b = self.backup.state()?;
-        if b.open.is_some_and(crate::bstep::is_passphrase) {
+        if matches!(b.open, Some(plan::Item::Passphrase(_))) {
             return Some(WordCheck::passphrase());
         }
         let key = self.session.keys.info(b.key)?;
@@ -2246,10 +2248,9 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
-        let Some(n) = b.open.filter(|&n| crate::bstep::is_copy(n)) else {
+        let Some(n @ plan::Item::Copy(i)) = b.open else {
             return;
         };
-        let i = usize::from(n - crate::bstep::COPY);
         if !self.copy_forms(&c, b, i).seedqr {
             return;
         }
@@ -2258,7 +2259,7 @@ impl Faraday {
         self.backup.keep_words(answers);
         self.plan_save();
         self.backups_sync();
-        if crate::bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)) {
+        if self.backup_item_done_now(&c, n) {
             self.act(crate::Action::BNext(n));
         }
     }
@@ -2450,12 +2451,12 @@ impl Faraday {
         plan_cards_on(&self.kept.plan_mapped(c, &shape, &b.answers))
     }
 
-    /// Costs what `plan_mapped` costs. The backup's checklist, by
-    /// [`bstep`]: only what the plan needs. Works out the plan's shape
+    /// Costs what `plan_mapped` costs. The backup's checklist: only what
+    /// the plan needs. Works out the plan's shape
     /// (kept for the frame while one is drawn).
     ///
     /// Works out [`crate::drawing::View::backup_items`] from the state as it is.
-    pub fn backup_items_now(&self, c: &Compute) -> Vec<u8> {
+    pub fn backup_items_now(&self, c: &Compute) -> Vec<plan::Item> {
         let Some(b) = self.backup.state() else {
             return Vec::new();
         };
@@ -2465,17 +2466,13 @@ impl Faraday {
             &b.answers,
             &self.kept.plan_mapped(c, &shape, &b.answers),
         )
-        .into_iter()
-        .map(bstep::of)
-        .collect()
     }
 
     /// Opens checklist item `n`, or closes them all. A seed's copy shows
     /// that seed.
-    pub(crate) fn backup_item_open(&mut self, n: Option<u8>) {
+    pub(crate) fn backup_item_open(&mut self, n: Option<plan::Item>) {
         let shape = self.backup.state().map(|b| self.plan_shape_now(b.wallet));
         let key = n
-            .and_then(bstep::item)
             .and_then(|it| match it {
                 plan::Item::Copy(i)
                 | plan::Item::Passphrase(i)
@@ -2494,7 +2491,7 @@ impl Faraday {
             });
         // More options opens closed, unless a file under it is already
         // For the stick.
-        let more = n == Some(bstep::PUBLIC)
+        let more = n == Some(plan::Item::PublicFiles)
             && self.backup.state().is_some_and(|b| {
                 self.session.wallets.get(b.wallet).is_some_and(|w| {
                     public_more_files(w)
@@ -2971,6 +2968,18 @@ pub(crate) struct BackupSteps;
 /// The one [`BackupSteps`].
 pub(crate) static BACKUP_STEPS: BackupSteps = BackupSteps;
 
+impl BackupSteps {
+    /// The checklist's item at place `k`, the key the trail keeps it by.
+    fn item_at(&self, app: &Faraday, k: u8) -> Option<plan::Item> {
+        let b = app.backup()?;
+        let shape = app.plan_shape_now(b.wallet);
+        let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
+        plan::checklist_on(&shape, &b.answers, &mapped)
+            .get(usize::from(k))
+            .copied()
+    }
+}
+
 impl crate::trail::StepFlow for BackupSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let b = app.backup()?;
@@ -2979,19 +2988,29 @@ impl crate::trail::StepFlow for BackupSteps {
         // and Back leaves.
         let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
         Some(if b.stage == BStage::Checklist {
-            let order = plan::checklist_on(&shape, &b.answers, &mapped)
-                .into_iter()
-                .map(bstep::of)
+            // The trail's steps are the items' places in the checklist.
+            let items = plan::checklist_on(&shape, &b.answers, &mapped);
+            let order = (0..items.len())
+                .filter_map(|k| u8::try_from(k).ok())
                 .collect();
-            crate::trail::Steps::new(order, b.open)
+            let open = b
+                .open
+                .and_then(|it| items.iter().position(|&x| x == it))
+                .and_then(|k| u8::try_from(k).ok());
+            crate::trail::Steps::new(order, open)
         } else {
             crate::trail::Steps::new(plan_cards_on(&mapped), b.q)
         })
     }
 
     fn open(&self, app: &Faraday, k: u8) -> Action {
-        if app.backup().is_some_and(|b| b.stage == BStage::Checklist) {
-            Action::BStep(k)
+        if let Some(b) = app.backup().filter(|b| b.stage == BStage::Checklist) {
+            // A place the checklist no longer has (it changed between
+            // Back and Forward) opens the checklist as it stands.
+            match self.item_at(app, k) {
+                Some(it) => Action::BStep(it),
+                None => Action::BackupChecklist(b.wallet),
+            }
         } else {
             Action::BQ(k)
         }
@@ -3008,7 +3027,10 @@ impl crate::trail::StepFlow for BackupSteps {
                 _ => EN.backup_flow_the_plan,
             };
         }
-        match bstep::item(k).unwrap_or(plan::Item::Envelopes) {
+        let Some(item) = self.item_at(app, k) else {
+            return "";
+        };
+        match item {
             plan::Item::Templates => EN.backup_step_templates,
             plan::Item::Copy(_) => EN.backup_step_copy,
             plan::Item::Codex32(_) => EN.backup_step_codex32,
@@ -3485,7 +3507,7 @@ impl Faraday {
     /// (a vault keeps its record) and is saved with a thing added on the
     /// board: the checklist item that makes the last thing added, where a
     /// checklist item makes it; no other item is opened.
-    fn plan_added_item(&self, c: &Compute) -> Option<u8> {
+    fn plan_added_item(&self, c: &Compute) -> Option<plan::Item> {
         let b = self.backup.state()?;
         let wallet = self.session.wallets.get(b.wallet)?;
         self.plan_vault_of(c, wallet)?;
@@ -3498,7 +3520,7 @@ impl Faraday {
             (plan::At::Files, plan::What::SeedFile(_)) => plan::Item::SeedFiles,
             _ => return None,
         };
-        Some(crate::bstep::of(item))
+        Some(item)
     }
 
     /// Costs what `described_of` costs. The open vault that keeps a plan

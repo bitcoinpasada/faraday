@@ -28,8 +28,8 @@ pub enum GuideAt {
     Sheet,
     /// A code brought in to open, in the place of the card that makes one.
     Opening,
-    /// An item of the backup checklist, by the number `bstep` gives it.
-    Item(u8),
+    /// An item of the backup checklist.
+    Item(crate::plan::Item),
     /// A step of the flow a place holds in its column (the spend that
     /// Spend from a backup carries), by that flow's step module.
     Inner(u8),
@@ -215,23 +215,22 @@ fn kef_tool_key(step: Option<u8>) -> &'static str {
     }
 }
 
-/// The key of a backup checklist item, by its `bstep` number.
-fn backup_item_key(n: u8) -> &'static str {
+/// The key of a backup checklist item.
+fn backup_item_key(n: crate::plan::Item) -> &'static str {
     use crate::plan::Item;
-    match crate::bstep::item(n) {
-        Some(Item::Templates) => "backup.blank",
-        Some(Item::Copy(_)) => "backup.copy",
-        Some(Item::Codex32(_)) => "backup.codex32",
-        Some(Item::Passphrase(_)) => "backup.passphrase",
-        Some(Item::KefCode(_)) => "backup.kef",
-        Some(Item::Vault(_)) => "backup.vault",
-        Some(Item::SeedFiles) => "backup.files",
-        Some(Item::Sheets) => "backup.sheets",
-        Some(Item::PublicFiles) => "backup.public",
-        Some(Item::ShowDescriptor) => "backup.show",
-        Some(Item::Envelopes) => "backup.envelope",
-        Some(Item::Sticks) => "backup.sticks",
-        None => "backup",
+    match n {
+        Item::Templates => "backup.blank",
+        Item::Copy(_) => "backup.copy",
+        Item::Codex32(_) => "backup.codex32",
+        Item::Passphrase(_) => "backup.passphrase",
+        Item::KefCode(_) => "backup.kef",
+        Item::Vault(_) => "backup.vault",
+        Item::SeedFiles => "backup.files",
+        Item::Sheets => "backup.sheets",
+        Item::PublicFiles => "backup.public",
+        Item::ShowDescriptor => "backup.show",
+        Item::Envelopes => "backup.envelope",
+        Item::Sticks => "backup.sticks",
     }
 }
 

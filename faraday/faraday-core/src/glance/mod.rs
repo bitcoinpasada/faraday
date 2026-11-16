@@ -97,7 +97,7 @@ pub(crate) trait Reads {
     /// ([`Faraday::wallet_stick_rows_now`]).
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow>;
     /// The backup's checklist ([`Faraday::backup_items_now`]).
-    fn backup_items(&self) -> Vec<u8>;
+    fn backup_items(&self) -> Vec<crate::plan::Item>;
     /// Wallet `w`'s seeds ([`Faraday::backup_seed_list_now`]).
     fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)>;
     /// An address of `wl` as the screen shows it
@@ -191,7 +191,7 @@ impl Reads for Now<'_> {
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow> {
         self.app.wallet_stick_rows_now(self.c)
     }
-    fn backup_items(&self) -> Vec<u8> {
+    fn backup_items(&self) -> Vec<crate::plan::Item> {
         self.app.backup_items_now(self.c)
     }
     fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {

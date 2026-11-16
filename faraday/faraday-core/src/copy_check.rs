@@ -255,7 +255,8 @@ pub(crate) fn seedqr_side(words: u8, compact: bool) -> usize {
 /// Whether `key` moves the copy grid's mark on backup `b`: on a copy
 /// item, Up and Down always, Left and Right only block by block.
 pub(crate) fn copy_key(b: &BackupState, key: KeyIn) -> bool {
-    b.open.is_some_and(crate::bstep::is_copy) && (matches!(key, KeyIn::Up | KeyIn::Down) || !b.rows)
+    matches!(b.open, Some(crate::plan::Item::Copy(_)))
+        && (matches!(key, KeyIn::Up | KeyIn::Down) || !b.rows)
 }
 
 /// Backup `b`'s grid mark kept on a SeedQR of side `n`: at most its last

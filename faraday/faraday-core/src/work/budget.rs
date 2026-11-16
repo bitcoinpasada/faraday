@@ -42,7 +42,7 @@ use crate::backup_flow::{BackupFlow, Kind, Plan, Step, Written};
 use crate::create::NewKind;
 use crate::keygen::Way;
 use crate::vault::VaultAction as V;
-use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit};
+use crate::{Action, Faraday, Screen, Sheet, StorageEvent, cstep, testkit};
 
 /// A sheet stands on the page under it, frosted once when it opens and
 /// kept: each frame puts that copy back (`Ui::backdrop`), one copy of the
@@ -367,8 +367,11 @@ pub(crate) fn walk_on(
     assert_eq!(app.screen, Screen::Backup);
     stop(&mut app, "Backup board");
     app.press(Action::BChecklist);
-    if app.backup_items_now(c).contains(&bstep::BLANK) {
-        app.press(Action::BNext(bstep::BLANK));
+    if app
+        .backup_items_now(c)
+        .contains(&crate::plan::Item::Templates)
+    {
+        app.press(Action::BNext(crate::plan::Item::Templates));
     }
     stop(&mut app, "Backup checklist");
 

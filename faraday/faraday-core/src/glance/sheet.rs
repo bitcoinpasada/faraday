@@ -31,7 +31,7 @@ use crate::plan::{self, At, Item, Mark, What};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
-use crate::{Action, Faraday, Screen, Sheet, bstep};
+use crate::{Action, Faraday, Screen, Sheet};
 use faraday_draw::tokens::{BODY_L, BODY_S, FIELD_GAP, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M};
 
 /// What on the chart a sheet is for.
@@ -74,14 +74,14 @@ pub enum Step {
     KeyQr(u8),
     /// The account key of slot k as a file, For the stick.
     KeyFile(u8),
-    /// The backup's checklist, at item n by [`bstep`].
-    Item(u8),
+    /// The backup's checklist, at item n.
+    Item(Item),
     /// Scan a copy of the seed with this fingerprint, and back to the
     /// chart.
     Scan([u8; 4], Option<At>),
     /// Type the words of a copy of the seed with this fingerprint, at the
-    /// checklist's copy item by [`bstep`], with the check open.
-    Type([u8; 4], u8, Option<At>),
+    /// checklist's copy item, with the check open.
+    Type([u8; 4], Item, Option<At>),
     /// The backup's plan questions, with the plan the chart shows.
     Plan,
     /// Type a new name for place p: the plan's Places question.
@@ -264,7 +264,7 @@ impl Ctx<'_> {
     fn item(&self, it: Item) -> Option<Action> {
         self.items
             .contains(&it)
-            .then(|| self.doing(Step::Item(bstep::of(it))))
+            .then(|| self.doing(Step::Item(it)))
             .flatten()
     }
 
@@ -295,7 +295,7 @@ impl Ctx<'_> {
             rows.push((EN.glance_sheet_scan_my, self.doing(Step::Scan(fp, at))));
         }
         if checks.typed && self.items.contains(&Item::Copy(s)) {
-            let n = bstep::of(Item::Copy(s));
+            let n = Item::Copy(s);
             rows.push((EN.glance_sheet_type_my, self.doing(Step::Type(fp, n, at))));
         }
         rows

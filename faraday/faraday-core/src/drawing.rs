@@ -58,7 +58,7 @@ pub type StickRow = (
 #[derive(Default)]
 pub(crate) struct Drawing {
     /// What `backup_items` returned.
-    pub items: OnceCell<Vec<u8>>,
+    pub items: OnceCell<Vec<crate::plan::Item>>,
     /// What `backup_item_done` returned for each item asked.
     pub done: RefCell<Vec<(plan::Item, bool)>>,
     /// `plan_shape` per wallet.

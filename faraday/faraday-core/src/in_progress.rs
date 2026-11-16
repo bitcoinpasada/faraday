@@ -23,7 +23,7 @@ use crate::glance::{Now, Reads};
 use crate::plan::At;
 use crate::spend_backup::{CardId, Open};
 use crate::strings::EN;
-use crate::{BStage, Faraday, Screen, bstep};
+use crate::{BStage, Faraday, Screen};
 use faraday_draw::tokens::BODY_M;
 
 /// A flow that can be in progress.
@@ -786,7 +786,7 @@ impl Faraday {
         let n = b.open.or_else(|| {
             self.backup_items_now(c)
                 .into_iter()
-                .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it)))
+                .find(|&it| !self.backup_item_done_now(c, it))
         });
         Some(match n {
             Some(n) => crate::screens::item_title_now(c, self, n).0,
@@ -951,7 +951,6 @@ fn backup_finished_on(r: &impl Reads) -> bool {
         b.stage == BStage::Checklist
             && r.backup_items()
                 .into_iter()
-                .filter_map(bstep::item)
                 .all(|it| r.backup_item_done(it))
     })
 }

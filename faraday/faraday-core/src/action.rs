@@ -419,11 +419,11 @@ pub enum Action {
     /// Open or close the list of loaded wallets under the backup's
     /// wallet chip.
     BWallets,
-    /// Open or close an item of the backup's checklist, by [`bstep`].
-    BStep(u8),
+    /// Open or close an item of the backup's checklist.
+    BStep(crate::plan::Item),
     /// Open the checklist item after this one; on the envelopes, close
     /// them as done.
-    BNext(u8),
+    BNext(crate::plan::Item),
     /// Open or close a question of the backup's plan, by [`qstep`].
     BQ(u8),
     /// Open the plan's question after this one.

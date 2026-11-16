@@ -11,7 +11,7 @@ use crate::convert::{ConvertAction, ROWS};
 use crate::plan::{self, At, Tag, What};
 use crate::vault::VaultAction as V;
 use crate::work::{Counts, KINDS, PIXELS, Work, since, snapshot};
-use crate::{Action, Faraday, Screen, bstep, testkit};
+use crate::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::App;
 use faraday_text::Text;
 
@@ -31,8 +31,11 @@ fn copy_page() -> Faraday {
         }
         answers.set_map(map);
     });
-    app.press(Action::BStep(bstep::COPY));
-    assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::COPY));
+    app.press(Action::BStep(crate::plan::Item::Copy(0)));
+    assert_eq!(
+        app.backup().and_then(|b| b.open),
+        Some(crate::plan::Item::Copy(0))
+    );
     app.settle();
     let _ = app.frame();
     app

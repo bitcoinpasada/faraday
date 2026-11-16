@@ -1106,7 +1106,7 @@ impl crate::glance::Reads for View<'_> {
     fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         View::wallet_stick_rows(self)
     }
-    fn backup_items(&self) -> Vec<u8> {
+    fn backup_items(&self) -> Vec<crate::plan::Item> {
         View::backup_items(self)
     }
     fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {

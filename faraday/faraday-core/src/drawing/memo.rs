@@ -179,10 +179,10 @@ impl View<'_> {
 
     /// The first checklist item not done ([`crate::Faraday::backup_waiting`]),
     /// from the memo's [`View::backup_items`] and [`View::backup_item_done`].
-    pub fn backup_waiting(&self) -> Option<u8> {
+    pub fn backup_waiting(&self) -> Option<crate::plan::Item> {
         self.backup_items()
             .into_iter()
-            .find(|&i| crate::bstep::item(i).is_some_and(|it| !self.backup_item_done(it)))
+            .find(|&it| !self.backup_item_done(it))
     }
 
     /// Whether Make a new wallet holds the idle lock
@@ -244,7 +244,7 @@ impl View<'_> {
 
     /// The backup's checklist ([`crate::Faraday::backup_items_now`]), once a
     /// frame.
-    pub fn backup_items(&self) -> Vec<u8> {
+    pub fn backup_items(&self) -> Vec<crate::plan::Item> {
         self.drawing
             .items
             .get_or_init(|| self.filled(|c| self.app.backup_items_now(c)))

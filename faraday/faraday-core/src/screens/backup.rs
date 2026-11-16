@@ -5,6 +5,7 @@ use super::parts::{
     never_real_seed, next_button, side_panel_w, ticked, typed_cells, word_keys,
 };
 use crate::drawing::{Scrolled, View};
+use crate::plan::Item;
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -29,19 +30,18 @@ pub(crate) const SOFTWARE_ROWS: [&str; 5] = [
 
 /// A checklist item's title and the line shown while it is closed:
 /// drawing's form, through the memo and the kept values.
-pub(crate) fn item_title(app: &View, n: u8) -> (String, String) {
+pub(crate) fn item_title(app: &View, n: crate::plan::Item) -> (String, String) {
     item_title_on(app, n)
 }
 
 /// Costs what the backup's answers cost to work out: [`item_title`] for
 /// a decision, from the state as it is.
-pub(crate) fn item_title_now(c: &Compute, app: &Faraday, n: u8) -> (String, String) {
+pub(crate) fn item_title_now(c: &Compute, app: &Faraday, n: crate::plan::Item) -> (String, String) {
     item_title_on(&crate::glance::Now { app, c }, n)
 }
 
 /// [`item_title`] through `reads`.
-fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
-    use crate::plan::Item;
+fn item_title_on(reads: &impl crate::glance::Reads, item: crate::plan::Item) -> (String, String) {
     let app = reads.app();
     let Some(b) = app.backup() else {
         return (String::new(), String::new());
@@ -52,7 +52,6 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     let shape = reads.plan_shape(b.wallet);
     let a = &b.answers;
     let (_, keys_n) = Session::quorum_keys(wallet);
-    let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
     let done = reads.backup_item_done(item);
     match item {
         Item::Templates => {
@@ -282,8 +281,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let checklist = b.stage == BStage::Checklist;
-    let steps = if checklist {
+    let items = if checklist {
         app.backup_items()
+    } else {
+        Vec::new()
+    };
+    let questions = if checklist {
+        Vec::new()
     } else {
         app.backup_questions()
     };
@@ -300,10 +304,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // before it done), in one pass (`Faraday::backup_reachable`, for a
     // press, asks the same of one item).
     let marks: Vec<bool> = if checklist {
-        steps
-            .iter()
-            .map(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)))
-            .collect()
+        items.iter().map(|&it| app.backup_item_done(it)).collect()
     } else {
         Vec::new()
     };
@@ -316,11 +317,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             r
         })
         .collect();
-    let cards: Vec<flow::Card> = steps
-        .iter()
-        .enumerate()
-        .map(|(i, &k)| {
-            if checklist {
+    let cards: Vec<flow::Card> = if checklist {
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, &k)| {
                 let (title, summary) = item_title(app, k);
                 let summary = match (&waiting_title, waiting) {
                     (Some(t), Some(n)) if n != k && !reachable[i] && !marks[i] => {
@@ -338,24 +339,27 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     toggle: Action::BStep(k),
                     lead: None,
                 }
-            } else {
-                flow::Card {
-                    title: ctx.as_ref().map_or_else(String::new, |c| {
-                        String::from(crate::plan::cards::title(c, k))
-                    }),
-                    summary: ctx.as_ref().map_or_else(String::new, |c| {
-                        String::from(&*crate::plan::cards::summary(c, k))
-                    }),
-                    mono: false,
-                    done: false,
-                    open: b.q == Some(k),
-                    default: false,
-                    toggle: Action::BQ(k),
-                    lead: None,
-                }
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        questions
+            .iter()
+            .map(|&k| flow::Card {
+                title: ctx.as_ref().map_or_else(String::new, |c| {
+                    String::from(crate::plan::cards::title(c, k))
+                }),
+                summary: ctx.as_ref().map_or_else(String::new, |c| {
+                    String::from(&*crate::plan::cards::summary(c, k))
+                }),
+                mono: false,
+                done: false,
+                open: b.q == Some(k),
+                default: false,
+                toggle: Action::BQ(k),
+                lead: None,
+            })
+            .collect()
+    };
     // With more than one wallet loaded, the one backed up is a chip that
     // opens the list of them.
     let many = app.session.wallets.len() > 1;
@@ -404,9 +408,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             if checklist {
-                backup_body(app_ref, ui, steps[i], x, y, w)
+                backup_body(app_ref, ui, items[i], x, y, w)
             } else {
-                plan_body(app_ref, ui, ctx.as_ref(), steps[i], x, y, w)
+                plan_body(app_ref, ui, ctx.as_ref(), questions[i], x, y, w)
             }
         };
         let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
@@ -520,10 +524,10 @@ fn plan_body(
 pub(crate) fn held_item(
     at: crate::plan::At,
     what: crate::plan::What,
-    items: &[u8],
+    items: &[crate::plan::Item],
 ) -> Option<crate::plan::Item> {
-    use crate::plan::{At, Item, What};
-    let has = |it: Item| items.contains(&crate::bstep::of(it));
+    use crate::plan::{At, What};
+    let has = |it: Item| items.contains(&it);
     let item = match (at, what) {
         (At::Away, _) | (_, What::VaultStick(_)) => return None,
         (At::Place(_), What::Passphrase(i)) => Item::Passphrase(i),
@@ -786,8 +790,9 @@ pub(crate) fn shares_table(
     clippy::cognitive_complexity,
     reason = "one match over the backup flow's steps, each arm drawing that step's body"
 )]
-fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f32 {
     use crate::bstep;
+    let n = bstep::of(item);
     let b = app.backup().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
     let mut cy = y;
@@ -861,14 +866,14 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
             let line = clauses.join("; ");
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 16.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
         bstep::STICKS => {
             cy += sticks_item(app, ui, x, cy, w);
             cy += 8.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -887,7 +892,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 if ui.compact {
                     cy += kept_rows(app, ui, x, cy, w);
                 }
-                let drawn = item_next(app, ui, x, cy, w, n);
+                let drawn = item_next(app, ui, x, cy, w, item);
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
             }
             let key = &app.session.keys[b.key];
@@ -980,19 +985,19 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 8.0;
                 cy += kept_rows(app, ui, x, cy, w);
             }
-            cy += copy_foot(app, ui, x, cy, w, n);
+            cy += copy_foot(app, ui, x, cy, w, item);
         }
         n if bstep::is_codex32(n) => {
             let i = usize::from(n - bstep::CODEX32);
             let (h, foot) = crate::codex32_backup::screen::item(app, ui, x, cy, w, i);
             cy += h;
-            if foot && item_next(app, ui, x, cy, w, n) {
+            if foot && item_next(app, ui, x, cy, w, item) {
                 cy += T::TOUCH;
             }
         }
         n if bstep::is_passphrase(n) => {
             cy += passphrase_item(app, ui, x, cy, w);
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -1030,7 +1035,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + T::GAP;
             }
             if app.backup_item_done(crate::plan::Item::KefCode(i))
-                && item_next(app, ui, x, cy, w, n)
+                && item_next(app, ui, x, cy, w, item)
             {
                 cy += T::TOUCH;
             }
@@ -1038,21 +1043,21 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         bstep::PUBLIC => {
             cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
             cy += 12.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
         n if n >= bstep::VAULT => {
             cy += vault_item(app, ui, x, cy, w, usize::from(n - bstep::VAULT));
             cy += 8.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
         bstep::FILES => {
             cy += seed_files(app, ui, x, cy, w);
             cy += 8.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -1073,7 +1078,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 shown,
             );
             cy += 50.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -1099,7 +1104,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 &[],
             );
             cy += 12.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -1128,7 +1133,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 &[],
             );
             cy += 12.0;
-            if item_next(app, ui, x, cy, w, n) {
+            if item_next(app, ui, x, cy, w, item) {
                 cy += 48.0;
             }
         }
@@ -1181,7 +1186,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Style::Secondary,
                     Action::OpenWallet(b.wallet),
                 )],
-                Some((EN.backup_done, Action::BNext(n))),
+                Some((EN.backup_done, Action::BNext(item))),
             );
         }
     }
@@ -1230,7 +1235,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let mut cy = y;
-    let pass = b.open.is_some_and(crate::bstep::is_passphrase);
+    let pass = matches!(b.open, Some(Item::Passphrase(_)));
     if let Some(found) = b.scanned.as_ref().filter(|_| !pass) {
         let c = if *found == crate::wallet_backup::CopyCheck::Matches {
             Role::Ok
@@ -1243,11 +1248,10 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // A SeedQR copy kept as the words instead (§14.7 item 3): what stays
     // of the grid, then Keep the words only, or the scans without a match
     // once it has moved to the foot.
-    if let Some(i) = b
-        .open
-        .filter(|&n| crate::bstep::is_copy(n))
-        .map(|n| usize::from(n - crate::bstep::COPY))
-    {
+    if let Some(i) = b.open.and_then(|n| match n {
+        Item::Copy(i) => Some(i),
+        _ => None,
+    }) {
         if b.answers.part.iter().any(|&(_, s)| s == i) {
             let line = fill(EN.copy_check_drawn_in_part, &[&key.fingerprint.to_string()]);
             cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, &line) + 12.0;
@@ -1544,10 +1548,8 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// A checklist item's next action (`docs/WALLETS.md` §13): its own
 /// until it is done, then Continue. A vault item: Make a vault (or the
 /// way to one), then Save into the open vault, then Continue.
-fn item_action(app: &View, n: u8) -> (String, Action) {
-    use crate::bstep;
-    use crate::plan::Item;
-    let item = bstep::item(n).unwrap_or(Item::Envelopes);
+fn item_action(app: &View, n: Item) -> (String, Action) {
+    let item = n;
     let next = (EN.item_action_continue.to_string(), Action::BNext(n));
     if item == Item::Envelopes || app.backup_item_done(item) {
         return next;
@@ -1669,8 +1671,8 @@ fn keep_words_offered(app: &View, i: usize) -> bool {
 /// A copy item's foot: its next action, and after three scans without a
 /// match Keep the words only beside it (`docs/WALLETS.md` §13).
 /// Returns the height used in the column.
-fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
-    let i = usize::from(n - crate::bstep::COPY);
+fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: Item) -> f32 {
+    let i = usize::from(crate::bstep::of(n) - crate::bstep::COPY);
     let missed = app.backup().is_some_and(|b| {
         app.session
             .keys
@@ -1703,7 +1705,7 @@ fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
 
 /// The item's next action as its foot button. Returns whether it was
 /// drawn in the column (on a small panel it is pinned instead).
-fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
+fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: Item) -> bool {
     let (label, action) = item_action(app, n);
     // While the typed check is open it compares on the last word: the
     // foot's Check my copy would do nothing, so it is not drawn.

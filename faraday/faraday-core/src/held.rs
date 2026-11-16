@@ -16,7 +16,7 @@ use faraday_vault::records::{self, Record, field, kind};
 
 use crate::glance::{Now, Reads};
 use crate::wallet::{self, fp_text};
-use crate::{Action, BStage, Faraday, Screen, bstep, plan};
+use crate::{Action, BStage, Faraday, Screen, plan};
 
 /// Costs what `words_id` and `record_words_id` cost. Whether vault key
 /// record `r` holds the words of session key `key`, from whichever
@@ -370,12 +370,12 @@ impl Faraday {
         // hold on a key kept in a vault moves to the flow there.
         let all = items
             .iter()
-            .filter(|&&n| n != bstep::STICKS)
-            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)));
+            .filter(|&&n| n != plan::Item::Sticks)
+            .all(|&it| self.backup_item_done_now(&c, it));
         if !all {
             return;
         }
-        let writes = items.contains(&bstep::STICKS);
+        let writes = items.contains(&plan::Item::Sticks);
         let shape = self.plan_shape_now(w);
         let list = self.backup_seed_list_now(w);
         let mapped = self.kept.plan_mapped(&c, &shape, &b.answers);
@@ -638,21 +638,21 @@ impl Faraday {
     /// Costs what `backup_items_now` and `backup_item_done_now` cost.
     /// Whether checklist item `n` may open: it is on the checklist and
     /// every item before it is done.
-    pub(crate) fn backup_reachable(&self, c: &Compute, n: u8) -> bool {
+    pub(crate) fn backup_reachable(&self, c: &Compute, n: plan::Item) -> bool {
         let items = self.backup_items_now(c);
         items.contains(&n)
             && items
                 .iter()
                 .take_while(|&&i| i != n)
-                .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done_now(c, it)))
+                .all(|&it| self.backup_item_done_now(c, it))
     }
 
     /// Costs what `backup_items_now` and `backup_item_done_now` cost. The
     /// first item not done, which the later items wait for.
-    pub fn backup_waiting(&self, c: &Compute) -> Option<u8> {
+    pub fn backup_waiting(&self, c: &Compute) -> Option<plan::Item> {
         self.backup_items_now(c)
             .into_iter()
-            .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done_now(c, it)))
+            .find(|&it| !self.backup_item_done_now(c, it))
     }
 
     /// The vault item's **Load at unlock** (F62): turned off or on for

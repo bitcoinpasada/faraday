@@ -70,10 +70,7 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
         assert!(app.backup().is_some(), "the backup is open");
         app.backup.set_answers(answers.clone());
         let _ = app.frame();
-        let want: Vec<u8> = crate::plan::checklist(&c, &shape, &answers)
-            .into_iter()
-            .map(crate::bstep::of)
-            .collect();
+        let want = crate::plan::checklist(&c, &shape, &answers);
         assert_eq!(
             app.backup_items_now(&c),
             want,

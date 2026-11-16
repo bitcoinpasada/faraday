@@ -2002,10 +2002,10 @@ pub fn type_words(app: &mut crate::Faraday, words: &str) {
 /// person with a right copy does: its item opened, Check my copy, the
 /// key's own passphrase typed back and Enter (`docs/WALLETS.md` §13).
 pub fn type_passphrases(app: &mut crate::Faraday) {
-    use crate::{Action, bstep};
+    use crate::{Action, plan::Item};
     use faraday_shell_api::{App, Event, Key};
     for n in app.backup_items_now(&compute()) {
-        if !bstep::is_passphrase(n) {
+        if !matches!(n, Item::Passphrase(_)) {
             continue;
         }
         if app.backup().and_then(|b| b.open) != Some(n) {

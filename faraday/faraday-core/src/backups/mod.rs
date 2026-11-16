@@ -3220,9 +3220,7 @@ impl Faraday {
         let Some(n) = b.open else {
             return self.backup.set_seen(None);
         };
-        let Some(item) = crate::bstep::item(n) else {
-            return;
-        };
+        let item = n;
         let moves = !matches!(
             item,
             plan::Item::Templates | plan::Item::Envelopes | plan::Item::Sticks
@@ -3241,9 +3239,7 @@ impl Faraday {
         if moves && done && was == Some(false) {
             self.backup_act(Action::BNext(n), c);
             let open = self.backup.state().and_then(|b| b.open);
-            let now = open
-                .and_then(crate::bstep::item)
-                .is_some_and(|it| self.backup_item_done_now(c, it));
+            let now = open.is_some_and(|it| self.backup_item_done_now(c, it));
             self.backup.set_seen(open.map(|m| (m, now)));
         }
     }

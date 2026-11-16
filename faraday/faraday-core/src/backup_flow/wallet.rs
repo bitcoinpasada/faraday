@@ -16,7 +16,7 @@ use crate::plan;
 use crate::strings::EN;
 use crate::vault::VaultAction as V;
 use crate::wallet::fp_text;
-use crate::{BStage, Faraday, Screen, bstep, cstep, file_stem};
+use crate::{BStage, Faraday, Screen, cstep, file_stem};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_text::{Text, text};
@@ -853,13 +853,13 @@ impl Faraday {
         }
         let w = b.wallet;
         let items = self.backup_items_now(&c);
-        if !items.contains(&bstep::STICKS) {
+        if !items.contains(&plan::Item::Sticks) {
             return;
         }
         let others_done = items
             .iter()
-            .filter(|&&n| n != bstep::STICKS)
-            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)));
+            .filter(|&&n| n != plan::Item::Sticks)
+            .all(|&it| self.backup_item_done_now(&c, it));
         if !others_done {
             return;
         }

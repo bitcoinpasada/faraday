@@ -20,9 +20,7 @@ use crate::public_files;
 use crate::strings::{EN, fill};
 use crate::wallet::{self, Origin, Session, Wallet, fp_text};
 use crate::worker::Job;
-use crate::{
-    Faraday, Screen, Sheet, bstep, file_stem, picture, plan, qr_view, restore, wallet_backup,
-};
+use crate::{Faraday, Screen, Sheet, file_stem, picture, plan, qr_view, restore, wallet_backup};
 
 /// What a wallet's files are made from, owned: its name and policy, the
 /// network, the fingerprints its sheet lists and the slider's setting.
@@ -653,11 +651,7 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
         .wallets
         .get(w)
         .is_some_and(|wl| b.answers.split && wallet_backup::splits(wl));
-    let items: Vec<plan::Item> = app
-        .backup_items_now(&c)
-        .into_iter()
-        .filter_map(bstep::item)
-        .collect();
+    let items = app.backup_items_now(&c);
     let mut parts = Vec::new();
     for item in items {
         match item {
@@ -721,7 +715,7 @@ fn checklist_opened(app: &mut Faraday) {
     let first = app.backup.then_item_take().or_else(|| {
         app.backup_items_now(&c)
             .into_iter()
-            .find(|&n| bstep::item(n).is_some_and(|it| !app.backup_item_done_now(&c, it)))
+            .find(|&it| !app.backup_item_done_now(&c, it))
     });
     app.backup.checklist();
     app.backup_item_open(first);

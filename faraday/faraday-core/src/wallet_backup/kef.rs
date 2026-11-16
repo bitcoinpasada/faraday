@@ -14,7 +14,7 @@ use crate::kef_tool::KefToolAction;
 use crate::receipt::sha256_of;
 use crate::strings::EN;
 use crate::worker::kef_make::{self, IdChoice, Options, Saved};
-use crate::{Action, Faraday, Screen, Sheet, bstep, plan};
+use crate::{Action, Faraday, Screen, Sheet, plan};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
 use faraday_text::Text;
@@ -37,7 +37,7 @@ impl WalletBackupArea {
         if b.stage != crate::BStage::Checklist {
             return None;
         }
-        match bstep::item(b.open?)? {
+        match b.open? {
             plan::Item::KefCode(i) => Some(i),
             _ => None,
         }
@@ -411,7 +411,13 @@ fn not_on_paper(app: &mut Faraday) {
     let items = app.backup_items_now(&c);
     if !items.contains(&n) {
         with_form(app, i, |f, app| f.close(app));
-        let next = items.iter().copied().find(|&j| j > n);
+        // The items the code's number sorted before: a later seed's
+        // code, or a vault.
+        let next = items.iter().copied().find(|&j| match (n, j) {
+            (plan::Item::KefCode(a), plan::Item::KefCode(z)) => z > a,
+            (_, plan::Item::Vault(_)) => true,
+            _ => false,
+        });
         app.backup_item_open(next);
     }
 }
