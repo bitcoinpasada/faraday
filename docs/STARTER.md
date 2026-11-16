@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system, with the sum in the Pi card's image list (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
 Decided by the owner (`docs/DECISIONS.md` F11; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -151,8 +151,7 @@ files, `IMAGES` among them, in the folder that is uploaded. `IMAGES` is
 plain text: a first line `# Faraday X.Y.Z images, commit <full hash>`,
 then one line per image, its nine fields separated by one tab
 (`docs/IMAGES.md` §4). The reader refuses a stick image's line without
-its boot partition's sum or with one that is not 64 lowercase hex digits,
-and another line with one. The Starter's build embeds the file named by
+its boot partition's sum or with one that is not 64 lowercase hex digits. The Starter's build embeds the file named by
 `FARADAY_STARTER_IMAGES` (`out/release/VERSION/IMAGES`, for the Linux
 Starter and the Windows one alike), after checking that it parses; a
 Starter built without it finds no image of a release and offers only
@@ -2204,8 +2203,7 @@ required, and nothing in the app that nudges or warns:
 The guide suggests a second plain stick or QR codes for anyone who
 wants the boot stick kept offline (`docs/guide/start/replace-faraday.md`).
 
-**Open:** the check is not built, on any system, nor the boot sum in the
-Pi card's image list; the guide for own-key signing (§7.7).
+**Open:** the check is not built, on any system; the guide for own-key signing (§7.7).
 
 ## 11. Tests
 

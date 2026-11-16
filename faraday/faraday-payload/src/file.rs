@@ -6,9 +6,6 @@
 
 use crate::Sha256Sum;
 
-/// What a stick image's payload name starts with.
-pub(crate) const STICK_PREFIX: &str = "faraday-stick-";
-
 /// One payload file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PayloadFile {
@@ -24,7 +21,7 @@ pub struct PayloadFile {
     pub inner_size: u64,
     /// The build ID the image or binary carries.
     pub build_id: String,
-    /// The SHA-256 of the boot partition of a stick image (the
+    /// The SHA-256 of the boot partition of an image (the
     /// `-boot.vfat` value `SHA256SUMS` lists); `None` for any other file.
     pub boot_sha256: Option<Sha256Sum>,
 }

@@ -409,8 +409,8 @@ unmounts it before the app starts.
      Pi Zero 2 W`);
   7. the `.img`'s size in bytes;
   8. the build ID the image carries;
-  9. for a stick image, the SHA-256 of its boot partition (the
-     `-boot.vfat` value of `SHA256SUMS`); `-` for the Pi image.
+  9. the SHA-256 of its boot partition (the `-boot.vfat` value of
+     `SHA256SUMS`), for a stick image and for the Pi image.
 
   Fields 2, 3, 7, 8 and 9 are what writing a file needs beyond its
   name; a list with fewer fields is refused with its line.

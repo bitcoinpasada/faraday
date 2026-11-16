@@ -7,6 +7,7 @@ use faraday_payload::{ImageList, ImageListError, ImageListFault, NameClass, sha2
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 const SUM_A: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f";
 const BOOT: &str = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
+const PI_BOOT: &str = "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b";
 const SUM_B: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
 
 fn header() -> String {
@@ -15,7 +16,7 @@ fn header() -> String {
 
 fn pi_line() -> String {
     format!(
-        "faraday-pi-0.3.0.img.xz\t{SUM_A}\t{SUM_B}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\t4096\t0.3.0\t-\n"
+        "faraday-pi-0.3.0.img.xz\t{SUM_A}\t{SUM_B}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\t4096\t0.3.0\t{PI_BOOT}\n"
     )
 }
 
@@ -46,9 +47,10 @@ fn a_release_list_is_read() {
     assert_eq!((pi.board.as_str(), pi.panel.as_str()), ("pi3", "any"));
     assert_eq!(pi.starts, ["Pi 3B", "Pi 3B+", "Pi Zero 2 W"]);
     assert_eq!(pi.xz_sha256.to_string(), SUM_A);
+    assert_eq!((pi.inner_size, pi.build_id.as_str()), (4096, "0.3.0"));
     assert_eq!(
-        (pi.inner_size, pi.build_id.as_str(), pi.boot_sha256),
-        (4096, "0.3.0", None)
+        pi.boot_sha256.map(|s| s.to_string()).as_deref(),
+        Some(PI_BOOT)
     );
     let stick = &list.images()[0];
     assert_eq!(stick.inner_size, 8192);
@@ -87,9 +89,9 @@ fn a_bad_size_build_or_boot_sum_is_refused_on_its_line() {
         at(pi.replace("\t0.3.0\t", "\t\t")),
         (3, ImageListFault::BuildId)
     );
-    // A Pi image has no boot sum; a stick image must have one.
+    // Every image, a Pi's too, must have a boot sum.
     assert_eq!(
-        at(pi.replace("\t-\n", &format!("\t{BOOT}\n"))),
+        at(pi.replace(&format!("\t{PI_BOOT}\n"), "\t-\n")),
         (3, ImageListFault::Sum)
     );
     let e = refused(&format!("{}{}", header(), stick_line().replace(BOOT, "-")));

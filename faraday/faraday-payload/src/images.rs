@@ -21,7 +21,7 @@ use std::io::{self, Read};
 
 use sha2::{Digest, Sha256};
 
-use crate::file::{STICK_PREFIX, parse_size};
+use crate::file::parse_size;
 use crate::{PayloadFile, Sha256Sum};
 
 const HEADER_PREFIX: &str = "# Faraday ";
@@ -55,8 +55,8 @@ pub struct ListedImage {
     pub inner_size: u64,
     /// The build ID the image carries.
     pub build_id: String,
-    /// The SHA-256 of a stick image's boot partition; `None` for a Pi
-    /// image.
+    /// The SHA-256 of the image's boot partition; every listed image
+    /// has one.
     pub boot_sha256: Option<Sha256Sum>,
 }
 
@@ -280,15 +280,8 @@ impl ListedImage {
         if !text_ok(build_id) {
             return Err(ImageListFault::BuildId);
         }
-        // A stick image's line carries its boot partition's sum; no
-        // other line does.
-        let boot_sha256 = if file.starts_with(STICK_PREFIX) {
-            Some(Sha256Sum::from_hex(boot).ok_or(ImageListFault::Sum)?)
-        } else if boot == "-" {
-            None
-        } else {
-            return Err(ImageListFault::Sum);
-        };
+        // Every line carries its boot partition's sum, a Pi card's too.
+        let boot_sha256 = Some(Sha256Sum::from_hex(boot).ok_or(ImageListFault::Sum)?);
         Ok(Self {
             file: file.to_owned(),
             xz_sha256,

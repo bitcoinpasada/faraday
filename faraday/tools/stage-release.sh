@@ -56,8 +56,8 @@
 # then one line per image, in builds.toml's order, its fields separated by
 # one tab: the .img.xz, its SHA-256, the .img's SHA-256, the platform (the
 # entry's board), the screen (its panel), the boards it starts (its
-# starts, joined by ", "), the .img's size, the build ID it carries and,
-# for a stick image, its boot partition's SHA-256 (- for any other).
+# starts, joined by ", "), the .img's size, the build ID it carries
+# and its boot partition's SHA-256.
 #
 # The cross-check's record (`just crosscheck --fresh` writes
 # out/crosscheck-record.txt; --crosscheck FILE names another) is staged
@@ -266,11 +266,9 @@ PY
     {
         echo "# Faraday $version images, commit $commit"
         for k in "${!ids[@]}"; do
-            boot="-"
-            case "${img[k]}" in faraday-stick-*) boot="${boot_sum[k]}" ;; esac
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" \
                 "${img_sum[k]}" "${board[k]}" "${panel[k]}" "${starts[k]}" \
-                "$(stat -c %s "${src[k]}")" "$build" "$boot"
+                "$(stat -c %s "${src[k]}")" "$build" "${boot_sum[k]}"
         done
     } > "$out/IMAGES"
     {
