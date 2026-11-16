@@ -201,8 +201,13 @@ fn unlock_start(app: &mut Faraday) -> bool {
     // chip stays for another.
     // A vault just made unlocks at once with the key file it was made with.
     let made = app.vaults.state.store.take_made_parts();
-    let Ok(components) = made.map_or_else(|| super::unlock_keys::parts(app), Ok) else {
-        return false;
+    let components = match made.map_or_else(|| super::unlock_keys::parts(app), Ok) {
+        Ok(c) => c,
+        Err(super::unlock_keys::Bad::KeyFile(e)) => {
+            app.vaults.state.unlock_error = Some(Text::of(&e));
+            app.vaults.unlock_follow.set(true);
+            return false;
+        }
     };
     app.vaults.state.unlock_tried = components.has_key_file();
     let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
@@ -573,6 +578,8 @@ fn created(
                     app.screen = Screen::Unlock;
                     defer(app, Work::Unlock);
                 } else {
+                    // The key file it was made with is held for that unlock.
+                    app.vaults.set_made_parts(parts.take());
                     app.vault_act(VaultAction::Open(i));
                 }
             }

@@ -1529,7 +1529,7 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 }
 
 #[test]
-fn a_vault_made_with_a_key_file_made_at_create_opens_with_the_keyx_from_the_outbox() {
+fn a_vault_made_with_a_made_key_file_opens_at_once_and_its_keyx_stays_in_the_outbox() {
     let mut app = create_form(Vec::new());
     app.press(Action::Vault(V::CKeyAsk));
     app.press(Action::Vault(V::CKeyMake));
@@ -1543,13 +1543,7 @@ fn a_vault_made_with_a_key_file_made_at_create_opens_with_the_keyx_from_the_outb
     let names = outbox_names(&app);
     assert!(names.contains(&"vault.kdbx".to_string()), "{names:?}");
     assert!(names.contains(&"vault.keyx".to_string()), "{names:?}");
-    // The person carries the key file to Files; the vault is picked at Unlock.
-    faraday_core::testkit::outbox_to_files(
-        &mut app,
-        &["vault.keyx".to_string(), "vault.kdbx".to_string()],
-    );
-    app.press(Action::Vault(V::KeyFileAsk));
-    app.press(Action::Vault(V::KeyFileChoose));
+    // The vault opens at once; the key file stays in the outbox.
     attempt(&mut app, PHRASE);
     assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
 }
@@ -1577,7 +1571,10 @@ fn a_vault_made_with_a_chosen_file_opens_with_it_and_the_file_leaves_files_at_cr
         .expect("the vault was not made")
         .bytes
         .to_vec();
-    // The same bytes brought back as a file open the vault.
+    // The vault opens at once with the key file it was made with.
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    // The same bytes brought back as a file open the vault with that file.
     let mut again = process_at(
         800,
         1200,
@@ -1587,15 +1584,11 @@ fn a_vault_made_with_a_chosen_file_opens_with_it_and_the_file_leaves_files_at_cr
         ],
     );
     open_unlock(&mut again);
-    choose_key_file_at(&mut again, 0);
+    again.press(Action::Vault(V::KeyFileAsk));
+    again.press(Action::Vault(V::KeyFilePick(0)));
+    again.press(Action::Vault(V::KeyFileChoose));
     attempt(&mut again, PHRASE);
     assert_eq!(again.vaults().open.len(), 1, "{}", page(&mut again));
-}
-
-fn choose_key_file_at(app: &mut Faraday, n: usize) {
-    app.press(Action::Vault(V::KeyFileAsk));
-    app.press(Action::Vault(V::KeyFilePick(n)));
-    app.press(Action::Vault(V::KeyFileChoose));
 }
 
 #[test]
