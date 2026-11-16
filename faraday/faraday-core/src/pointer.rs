@@ -748,7 +748,9 @@ impl Faraday {
         }
         self.shown_tidy();
         self.tool_tidy();
-        self.tools.tidy(self.screen);
+        let (screen, wallet) = (self.screen, self.wallets.wallet());
+        self.tools
+            .tidy(screen, |i| screen == Screen::Wallets && wallet == i);
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist.clear();
         }

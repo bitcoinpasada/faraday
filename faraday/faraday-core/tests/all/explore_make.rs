@@ -79,6 +79,22 @@ fn a_wallet_made_from_a_child_seeds_account_shows_its_notice_once_after_the_dial
 }
 
 #[test]
+fn back_from_the_opened_wallet_returns_to_the_path_page() {
+    let mut app = exploring();
+    assert!(offered(&mut app));
+    app.press(Action::X(XAction::Make));
+    app.press(Action::X(XAction::MadeOpen));
+    assert_eq!(app.screen, Screen::Wallets);
+    let _ = app.frame();
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Explore);
+    assert!(
+        offered(&mut app),
+        "the same path, offering the wallet it made"
+    );
+}
+
+#[test]
 fn a_multisig_path_offers_no_wallet() {
     let mut app = exploring();
     app.press(Action::XPreset(4));

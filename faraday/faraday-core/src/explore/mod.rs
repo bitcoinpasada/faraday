@@ -128,9 +128,28 @@ pub(crate) struct ExploreArea {
     /// The key of a wallet just made that is recorded as a BIP-85 child
     /// seed, until its notice has been shown (F166).
     child: Option<[u8; 4]>,
+    /// The place of a wallet opened from the made wallet's dialog: the
+    /// page stays while that wallet's card is on show, so its Back
+    /// returns here.
+    held_for: Option<usize>,
 }
 
 impl ExploreArea {
+    /// Keeps the page while wallet `i`'s card is on show.
+    pub(crate) fn hold_for(&mut self, i: usize) {
+        self.held_for = Some(i);
+    }
+
+    /// Lets the page go with the card.
+    pub(crate) fn release(&mut self) {
+        self.held_for = None;
+    }
+
+    /// The wallet whose card keeps the page, if any.
+    pub(crate) fn held_for(&self) -> Option<usize> {
+        self.held_for
+    }
+
     /// Explore's state, while it is open.
     pub(crate) fn state(&self) -> Option<&ExploreState> {
         self.state.as_ref()
@@ -384,7 +403,11 @@ impl Faraday {
                         .state()
                         .is_some_and(|k| k.back == Screen::Convert))
                 || (self.screen == Screen::Lightning && self.lightning.for_convert()));
-        if self.screen != Screen::Explore && !away {
+        let held = self.explore.held_for().is_some_and(|i| self.card_open(i));
+        if !held {
+            self.explore.release();
+        }
+        if self.screen != Screen::Explore && !away && !held {
             self.explore.clear();
         }
     }
@@ -533,11 +556,24 @@ impl Faraday {
         }
     }
 
+    /// Whether wallet `i`'s card is on show.
+    pub(crate) fn card_open(&self, i: usize) -> bool {
+        self.screen == Screen::Wallets && self.wallets.wallet() == i
+    }
+
     /// **Open the wallet** on the made wallet's dialog.
     pub(crate) fn explore_made_open(&mut self) {
         let made = self.made_place();
+        let from = self.screen;
         self.explore_made_done();
         if let Some(i) = made {
+            // Back from the card returns to the page it was made on.
+            match from {
+                Screen::Explore => self.explore.hold_for(i),
+                Screen::CheckAddress => self.tools.address_check.hold_for(i),
+                _ => {}
+            }
+            self.trail.set_returning();
             self.act(Action::OpenWallet(i));
         }
     }

@@ -164,9 +164,28 @@ impl AddressCheckState {
 #[derive(Default)]
 pub(crate) struct AddressCheckArea {
     state: Option<AddressCheckState>,
+    /// The place of a wallet opened from the made wallet's dialog: the
+    /// page stays while that wallet's card is on show, so its Back
+    /// returns here.
+    held_for: Option<usize>,
 }
 
 impl AddressCheckArea {
+    /// Keeps the page while wallet `i`'s card is on show.
+    pub(crate) fn hold_for(&mut self, i: usize) {
+        self.held_for = Some(i);
+    }
+
+    /// Lets the page go with the card.
+    pub(crate) fn release(&mut self) {
+        self.held_for = None;
+    }
+
+    /// The wallet whose card keeps the page, if any.
+    pub(crate) fn held_for(&self) -> Option<usize> {
+        self.held_for
+    }
+
     /// The page's state, while it is open.
     pub(crate) fn state(&self) -> Option<&AddressCheckState> {
         self.state.as_ref()

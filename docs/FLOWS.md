@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Open the wallet's way back to the page Make a wallet was pressed on (Make a wallet at the path); the codex32 mark's line on New key's Key card (Add a key)
+**Open:** the codex32 mark's line on New key's Key card (Add a key)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1133,8 +1133,6 @@ row that opens its code when pressed (the value as printed, whole under
 the code, no PNG) → **Wallets**.
 
 ### Make a wallet at the path
-
-Built but for Open the wallet's way back to the page it was pressed on (step 3): Back from the wallet's card goes to Wallets.
 
 Finding a person's address at a path of their key means a
 wallet is there, so Faraday makes that wallet from where the person

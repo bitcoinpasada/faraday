@@ -248,14 +248,18 @@ impl ToolsArea {
 
     /// Drops what a screen left behind: Tools' calculator unless Tools is
     /// on screen, an invoice's text unless its screen is.
-    pub(crate) fn tidy(&mut self, screen: Screen) {
+    pub(crate) fn tidy(&mut self, screen: Screen, card_open: impl Fn(usize) -> bool) {
         if screen != Screen::Tools {
             self.tools = None;
         }
         if screen != Screen::Invoice {
             self.invoice.clear();
         }
-        if screen != Screen::CheckAddress {
+        let held = self.address_check.held_for().is_some_and(card_open);
+        if !held {
+            self.address_check.release();
+        }
+        if screen != Screen::CheckAddress && !held {
             self.address_check.clear();
         }
     }

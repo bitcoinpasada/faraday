@@ -443,6 +443,22 @@ fn the_made_wallets_dialog_opens_the_wallet() {
 }
 
 #[test]
+fn back_from_the_opened_wallet_returns_to_the_address_check() {
+    let mut app = with_key();
+    testkit::keep_published(&mut app);
+    read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+    let card = said(&app);
+    app.press(way(1));
+    let _ = app.frame();
+    app.press(Action::X(XAction::MadeOpen));
+    assert_eq!(app.screen, Screen::Wallets);
+    let _ = app.frame();
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::CheckAddress);
+    assert_eq!(said(&app), card);
+}
+
+#[test]
 fn a_find_among_a_files_several_addresses_offers_no_wallet() {
     let mut app = with_key();
     testkit::keep_published(&mut app);

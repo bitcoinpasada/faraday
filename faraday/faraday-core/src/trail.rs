@@ -52,6 +52,10 @@ pub(crate) struct Trail {
     /// The input being handled went back: the screen it left is not
     /// put on the trail.
     backing: bool,
+    /// The input being handled leaves its screen to come back to it: the
+    /// screen it left goes on the trail even where the screen it opens
+    /// is already on it.
+    returning: bool,
     /// Screens left by the mouse's back button, the last left last.
     forward: Vec<Screen>,
     /// The screen the last back or forward button landed on.
@@ -88,6 +92,7 @@ impl Trail {
     /// trail where it was; Home empties it.
     fn note_done(&mut self, screen: Screen) {
         let backing = std::mem::take(&mut self.backing);
+        let returning = std::mem::take(&mut self.returning);
         let Some(before) = self.entered.take() else {
             return;
         };
@@ -98,7 +103,9 @@ impl Trail {
             self.trail.clear();
             return;
         }
-        if let Some(i) = self.trail.iter().position(|s| s.screen == screen) {
+        if let Some(i) = self.trail.iter().position(|s| s.screen == screen)
+            && !returning
+        {
             self.trail.truncate(i);
             return;
         }
@@ -153,6 +160,14 @@ impl Trail {
             self.trail.truncate(i);
         }
         self.backing = true;
+    }
+
+    /// Marks the input being handled as one that opens a screen whose
+    /// Back returns to the screen it leaves, though that screen opens
+    /// again one already on the trail: **Open the wallet** on the made
+    /// wallet's dialog.
+    pub(crate) fn set_returning(&mut self) {
+        self.returning = true;
     }
 
     /// Marks the input being handled as a way back.
