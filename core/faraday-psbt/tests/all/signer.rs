@@ -6,7 +6,7 @@ use bitcoin::bip32::{ChildNumber, DerivationPath, Fingerprint};
 use bitcoin::hashes::{Hash, hash160, ripemd160, sha256, sha256d};
 use bitcoin::psbt::raw;
 use bitcoin::secp256k1::{Message, PublicKey, Scalar, Secp256k1, SecretKey};
-use bitcoin::sighash::{EcdsaSighashType, SighashCache};
+use bitcoin::sighash::{EcdsaSighashType, SighashCache, TapSighashType};
 use bitcoin::taproot::{TapLeafHash, TapNodeHash};
 use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness, ecdsa};
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
@@ -3374,4 +3374,127 @@ fn a_signature_that_cannot_be_filed_under_a_loaded_key_is_s6u_not_not_loaded() {
     let recomputed = folded.facts.recomputed.expect("stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (0, 1));
     assert!(recomputed.not_loaded.is_empty());
+}
+
+/// The modifiable byte of the file a person gets back after `signed_`'s
+/// signatures are merged into a version 2 file of `base` (the input
+/// `sighash_type` stated first where given), read back from its bytes,
+/// and the findings the returned-file check makes about that byte.
+fn modifiable_after_signing(
+    base: &Psbt,
+    signed_: &Psbt,
+    wallets: &[WalletPolicy],
+    before: u8,
+    sighash_type: Option<u32>,
+) -> (Option<u8>, Vec<&'static str>) {
+    let c = Compute::unchecked();
+    let mut sent = v2_of(base, None);
+    sent.global.set(vec![0x06], vec![before]);
+    if let Some(t) = sighash_type {
+        sent.inputs[0].set(vec![0x03], t.to_le_bytes().to_vec());
+    }
+    let mut returned = sent.clone();
+    returned
+        .merge_signed(signed_)
+        .expect("the same transaction");
+    let bytes = returned.to_bytes();
+    let back = PsbtV2::parse_bytes(&c, &bytes).unwrap();
+    let report = run_files(
+        &sent.to_v0(&c).unwrap(),
+        &sent.to_bytes(),
+        &back.to_v0(&c).unwrap(),
+        &bytes,
+        wallets,
+    );
+    let byte = back.global.get_type(0x06).map(|b| b[0]);
+    (byte, flag_findings(&report))
+}
+
+#[test]
+fn an_ecdsa_signature_returns_the_modifiable_flags_its_sighash_type_leaves() {
+    let base = demo();
+    let sign = |kind| signed(&base, 0, &abandon(), kind, Nonce::Rfc6979);
+    let case = |kind, before: u8| modifiable_after_signing(&base, &sign(kind), &[], before, None);
+    // ALL|ANYONECANPAY: inputs stay modifiable (bit 0), outputs are fixed.
+    assert_eq!(
+        case(EcdsaSighashType::AllPlusAnyoneCanPay, 0b011),
+        (Some(0b001), vec![])
+    );
+    // NONE: outputs stay modifiable (bit 1), inputs are fixed.
+    assert_eq!(case(EcdsaSighashType::None, 0b011), (Some(0b010), vec![]));
+    // SINGLE: bit 2 is set, the other two are fixed.
+    assert_eq!(case(EcdsaSighashType::Single, 0b011), (Some(0b100), vec![]));
+    assert_eq!(case(EcdsaSighashType::Single, 0b000), (Some(0b100), vec![]));
+    // ALL leaves what a SINGLE signature set before it.
+    assert_eq!(case(EcdsaSighashType::All, 0b111), (Some(0b100), vec![]));
+    // The ALL|ANYONECANPAY file is clean under the whole check, the input
+    // having asked for that type.
+    let c = Compute::unchecked();
+    let mut sent = v2_of(&base, None);
+    sent.global.set(vec![0x06], vec![0b011]);
+    sent.inputs[0].set(vec![0x03], 0x81u32.to_le_bytes().to_vec());
+    let mut returned = sent.clone();
+    returned
+        .merge_signed(&sign(EcdsaSighashType::AllPlusAnyoneCanPay))
+        .unwrap();
+    let back = PsbtV2::parse_bytes(&c, &returned.to_bytes()).unwrap();
+    assert_clean(&run_v2(&sent, &back), 0, false);
+}
+
+#[test]
+fn a_taproot_key_path_signature_returns_the_modifiable_flags_its_sighash_type_leaves() {
+    let (sent, signed_) = taproot_pair();
+    // 64 bytes: SIGHASH_DEFAULT, which commits like ALL.
+    assert_eq!(
+        signed_.inner().inputs[0]
+            .tap_key_sig
+            .unwrap()
+            .to_vec()
+            .len(),
+        64
+    );
+    assert_eq!(
+        modifiable_after_signing(&sent, &signed_, &[], 0b011, None),
+        (Some(0b000), vec![])
+    );
+    // 65 bytes, with the sighash byte written (the signature itself is the
+    // one made for DEFAULT, so only the file's flags are looked at).
+    let with = |kind: TapSighashType| {
+        let mut out = signed_.clone();
+        let sig = out.inner().inputs[0].tap_key_sig.unwrap();
+        out.inner_mut().inputs[0].tap_key_sig = Some(bitcoin::taproot::Signature {
+            signature: sig.signature,
+            sighash_type: kind,
+        });
+        assert_eq!(
+            out.inner().inputs[0].tap_key_sig.unwrap().to_vec().len(),
+            65
+        );
+        modifiable_after_signing(&sent, &out, &[], 0b011, None).0
+    };
+    assert_eq!(with(TapSighashType::All), Some(0b000));
+    assert_eq!(with(TapSighashType::AllPlusAnyoneCanPay), Some(0b001));
+    assert_eq!(with(TapSighashType::None), Some(0b010));
+    assert_eq!(with(TapSighashType::Single), Some(0b100));
+}
+
+#[test]
+fn a_musig_partial_signature_returns_the_flags_of_the_inputs_sighash_type() {
+    let policy = musig_policy();
+    let first = read("wallet-musig-core-first.psbt");
+    let both = read("wallet-musig-core-first-signed.psbt");
+    let wallets = std::slice::from_ref(&policy);
+    // No sighash type on the input: ALL.
+    assert_eq!(
+        modifiable_after_signing(&first, &both, wallets, 0b011, None),
+        (Some(0b000), vec![])
+    );
+    // The input's own type decides (BIP-373 gives the signature no byte).
+    for (ty, want) in [(0x81u32, 0b001u8), (0x02, 0b010), (0x03, 0b100)] {
+        assert_eq!(
+            modifiable_after_signing(&first, &both, wallets, 0b011, Some(ty)).0,
+            Some(want),
+            "{ty:#x}"
+        );
+    }
 }
