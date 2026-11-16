@@ -691,16 +691,17 @@ pub(crate) fn address_press(
 }
 
 /// Where a file a flow made stands: For the stick, with its place in
-/// the list for Remove; or written, by the receipt. `None` when neither.
+/// the list for Remove; or written, by the receipt or the flow. `None` when neither.
 pub(super) fn made_place(app: &View, file: &str) -> Option<(Text, Option<usize>)> {
     if let Some(k) = app.outbox.iter().position(|i| i.name == file) {
         return Some((Text::of(app.medium.for_box()), Some(k)));
     }
-    app.visit
-        .receipt()
-        .as_ref()
-        .filter(|r| r.wrote(file))
-        .map(|r| (Text::fill(EN.made_place_written, &[&r.label]), None))
+    if let Some(r) = app.visit.receipt().as_ref().filter(|r| r.wrote(file)) {
+        return Some((Text::fill(EN.made_place_written, &[&r.label]), None));
+    }
+    // The same answer as the checklist's: written by the flow.
+    app.wallet_written_to(file)
+        .map(|label| (Text::fill(EN.made_place_written, &[&label]), None))
 }
 
 /// A made file's row state and its button: For the stick with Remove;

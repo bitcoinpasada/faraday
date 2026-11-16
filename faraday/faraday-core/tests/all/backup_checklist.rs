@@ -868,3 +868,68 @@ fn a_split_backups_sheets_are_done_only_while_every_shares_file_is_there() {
         "the Sheets step offers Make them while a share's file is gone"
     );
 }
+
+/// Whether `want` is drawn anywhere down the page.
+fn shown_anywhere(app: &mut Faraday, want: &str) -> bool {
+    let mut seen = false;
+    for _ in 0..20 {
+        app.settle();
+        seen |= crate::common::has(app, want);
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    seen
+}
+
+#[test]
+fn a_sheet_the_backup_flow_wrote_shows_done_in_the_checklist_and_written_in_its_row() {
+    use faraday_core::backup_flow::{BackupFlow, Written};
+    let c = testkit::compute();
+    let mut app = device(vec![vault_file()]);
+    let w = one_key(&mut app);
+    unlock(&mut app);
+    app.press(Action::Backup(w));
+    testkit::backup_as(&mut app, plan::Preset::PaperVault);
+    press_offered(&mut app, Action::BChecklist);
+    if app.backup_items_now(&c).contains(&Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
+    }
+    // The items before the sheet: the copy typed back, the vault.
+    app.press(Action::BReveal);
+    app.storage(StorageEvent::Cameras(Vec::new()));
+    press_offered(&mut app, Action::BCheck);
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    press_offered(&mut app, Action::BStep(Item::Vault(0)));
+    press_offered(&mut app, Action::BVaultSave(0));
+    let stem = faraday_core::file_stem(&app.session.wallets[w].name);
+    let file = format!("{}-backup.pdf", stem.as_str());
+    let (shape, answers) = app.board_plan().expect("the plan");
+    let mut f = BackupFlow::new_wallet(&c, shape, answers, "w");
+    f.wallet.as_mut().unwrap().checksum =
+        Some(faraday_text::Text::of(app.session.wallets[w].checksum()));
+    f.slots[0].written = Some(Written {
+        stick: faraday_text::Text::of("id"),
+        label: faraday_text::Text::of("S1"),
+        serial: None,
+        time: None,
+        files: vec![(faraday_text::Text::of(&file), [0; 32])],
+    });
+    testkit::flow_push(&mut app, f);
+    // Made on the stick by the checklist; taken off it, the flow's write
+    // is the only place the sheet is.
+    while let Some(k) = app.outbox.iter().position(|i| i.name.as_str() == file) {
+        app.press(Action::OutboxRemove(k));
+    }
+    assert!(!app.outbox.iter().any(|i| i.name.as_str() == file));
+    assert!(done(&app, Item::Sheets), "the checklist counts it made");
+    if app.backup().and_then(|b| b.open) != Some(Item::Sheets) {
+        app.press(Action::BStep(Item::Sheets));
+    }
+    assert!(
+        shown_anywhere(&mut app, "Make again"),
+        "its row shows it made"
+    );
+}
