@@ -51,9 +51,6 @@ struct CopyCtx<'a> {
     c: &'a Compute,
     wf: &'a super::WalletFlow,
     cs: &'a str,
-    /// The `wallet::same_wallet` of the wallet as a holder's record keeps
-    /// it, which a record of the wallet in the other key order shares.
-    same: Option<Text>,
     holders: Vec<usize>,
 }
 
@@ -63,20 +60,6 @@ impl CopyCtx<'_> {
         crate::wallet::read_wallet(self.c, t)
             .ok()
             .is_some_and(|p| p.checksum() == self.cs)
-    }
-}
-
-impl CopyCtx<'_> {
-    /// Costs reading the wallet description `t` (`read_wallet`): whether it
-    /// is this wallet's in either key order (`wallet::same_wallet`).
-    fn same_wallet(&self, t: &str) -> bool {
-        crate::wallet::read_wallet(self.c, t).ok().is_some_and(|p| {
-            p.checksum() == self.cs
-                || self
-                    .same
-                    .as_ref()
-                    .is_some_and(|s| **s == *crate::wallet::same_wallet(&p))
-        })
     }
 }
 
@@ -1295,37 +1278,6 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs reading a holder's plan records (`read_wallet`). The
-    /// `wallet::same_wallet` of the wallet `cs`, from the first holder's
-    /// plan record of it: the flow's own description, whether or not the
-    /// wallet is loaded, and in whatever key order it is.
-    fn copy_same(&self, c: &Compute, cs: &str, holders: &[usize]) -> Option<Text> {
-        use faraday_vault::records::{field, kind as rkind};
-        holders.iter().find_map(|&h| {
-            self.vaults
-                .records(self.vaults.open[h].id)
-                .of(rkind::PLAN)
-                .filter_map(|(_, r)| r.public_text(field::PLAN_WALLET))
-                .find_map(|t| {
-                    crate::wallet::read_wallet(c, t)
-                        .ok()
-                        .filter(|p| p.checksum() == cs)
-                        .map(|p| crate::wallet::same_wallet(&p))
-                })
-        })
-    }
-
-    /// Costs `copy_same`'s reads. Whether open vault `o` keeps a record of
-    /// the wallet in the other key order that this wallet's save is
-    /// refused over (or the wallet is not loaded to say): the copy then
-    /// writes nothing into it.
-    fn copy_plan_refused(&self, cx: &CopyCtx<'_>, o: usize) -> bool {
-        let Some(w) = self.session.wallets.iter().find(|w| w.checksum() == cx.cs) else {
-            return true;
-        };
-        self.vaults.plan_refused(cx.c, o, w)
-    }
-
     /// The copy of the keys a vault added after the keys were made takes
     /// from one that holds them (§4.8): each seed the plan puts in it, and
     /// the wallet description where the plan puts it. Everything is gathered
@@ -1358,7 +1310,6 @@ impl Faraday {
             c: &c,
             wf: &wf,
             cs: &cs,
-            same: self.copy_same(&c, &cs, &holders),
             holders,
         };
         let work = match self.wallet_copy_gather(&cx, &added) {
@@ -1769,47 +1720,60 @@ impl Faraday {
         w: &mut CopyWork,
     ) -> Result<(), CopyStop> {
         use faraday_keys::vault::Staged;
-        use faraday_vault::records::{field, kind as rkind};
+        use faraday_vault::records::kind as rkind;
         let c = cx.c;
         let wf = cx.wf;
         let holders = cx.holders.as_slice();
-        let of_wallet = |t: &str| cx.of_wallet(t);
-        // A record of this wallet in either key order.
-        let same_wallet = |t: &str| cx.same_wallet(t);
         // Exactly the plan's codex32 strings, of its set (`docs/CODEX32.md` §9.5).
         let both = (&mut w.add, &mut w.out);
         if let Err(want) = self.c32_round_records(c, (&wf.shape, &wf.answers), v, o, both) {
             return Err(CopyStop::Wanted(Box::new(want)));
         }
         // The plan record goes with them, so the next backup finds it:
-        // this wallet's, and nothing else of the holder's.
-        let has_plan = self
-            .vaults
-            .records(self.vaults.open[o].id)
-            .of(rkind::PLAN)
-            .any(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&same_wallet));
-        // A record of the wallet in the other key order is replaced by the
-        // current plan after the copy (`wallet_copy_plans`); one that
-        // cannot be replaced stops the copy before anything is written.
-        let other_order = self
-            .vaults
-            .records(self.vaults.open[o].id)
-            .of(rkind::PLAN)
-            .any(|(_, r)| {
-                r.public_text(field::PLAN_WALLET)
-                    .is_some_and(|t| same_wallet(t) && !of_wallet(t))
-            });
-        if other_order && self.copy_plan_refused(cx, o) {
+        // this wallet's, and nothing else of the holder's. A record of the
+        // wallet in this key order is the vault's own; one in the other
+        // order is replaced by the holder's, whether or not the wallet is
+        // loaded (`docs/BACKUP-FLOW.md` §15.7), unless its shares hold
+        // keys the holder's record does not read.
+        let holder = holders.iter().find_map(|&h| {
+            self.vaults
+                .described_of(c, self.vaults.open[h].id, rkind::PLAN)
+                .find(|(_, _, d)| *d.checksum == *cx.cs)
+                .and_then(|(_, r, d)| Some((r.to_public()?, d.policy.clone())))
+        });
+        // Each record of the wallet in the vault, and whether it is in the
+        // other key order and its shares are not read for the holder's.
+        let mut kept: Vec<usize> = Vec::new();
+        let (mut other_order, mut refused) = (false, false);
+        if let Some((_, hp)) = &holder {
+            let want = crate::wallet::same_wallet(hp);
+            for (k, r, d) in self
+                .vaults
+                .described_of(c, self.vaults.open[o].id, rkind::PLAN)
+            {
+                if *d.same != *want {
+                    continue;
+                }
+                kept.push(k);
+                if *d.checksum != *cx.cs {
+                    other_order = true;
+                    refused |= !crate::vault::plan_store::same_keys(d, hp)
+                        && !crate::vault::plan_store::reads_for(d, r, hp);
+                }
+            }
+        }
+        if refused {
             return Err(CopyStop::Say(Text::of(EN.plan_store_other_key_order)));
         }
-        if !has_plan
-            && let Some(r) = holders.iter().find_map(|&h| {
-                self.vaults
-                    .records(self.vaults.open[h].id)
-                    .of(rkind::PLAN)
-                    .find(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet))
-                    .and_then(|(_, r)| r.to_public())
-            })
+        // With one in the other order, the vault's records of the wallet
+        // all go and the holder's takes their place.
+        let stale: Vec<usize> = if other_order {
+            kept.clone()
+        } else {
+            Vec::new()
+        };
+        if (kept.is_empty() || other_order)
+            && let Some((r, _)) = holder
         {
             w.add.push(Staged::Made(r));
         }
@@ -1824,6 +1788,7 @@ impl Faraday {
             let key = r.kind() == rkind::KEY;
             !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
         });
+        w.out.extend(stale);
         let adds: Vec<&Staged> = w.add.iter().collect();
         let vid = self.vaults.open[o].id;
         if let Some(why) = self.vault_refuses(c, vid, &w.out, &adds) {
@@ -1948,57 +1913,6 @@ impl Faraday {
         }
     }
 
-    /// Costs `plan_store`'s. In each added vault that keeps a record of
-    /// the wallet in the other key order, the current plan replaces it
-    /// (its notes renumbered), so every vault holds the plan once
-    /// (`docs/BACKUP-FLOW.md` §15.7). The place names are the first
-    /// holder's record's.
-    fn wallet_copy_replace_other_order(&mut self, cx: &CopyCtx<'_>, added: &[usize]) {
-        use faraday_vault::records::{field, kind as rkind};
-        let Some(wi) = self
-            .session
-            .wallets
-            .iter()
-            .position(|w| w.checksum() == cx.cs)
-        else {
-            return;
-        };
-        let names: Vec<Text> = cx
-            .holders
-            .iter()
-            .find_map(|&h| {
-                self.vaults
-                    .records(self.vaults.open[h].id)
-                    .of(rkind::PLAN)
-                    .find(|(_, r)| {
-                        r.public_text(field::PLAN_WALLET)
-                            .is_some_and(|t| cx.of_wallet(t))
-                    })
-                    .map(|(_, r)| {
-                        r.public_all(field::PLAN_PLACE)
-                            .map(Text::from_utf8_lossy)
-                            .collect()
-                    })
-            })
-            .unwrap_or_default();
-        for &v in added {
-            let Some(o) = self.flow_open_index(cx.i, v) else {
-                continue;
-            };
-            let other = self
-                .vaults
-                .records(self.vaults.open[o].id)
-                .of(rkind::PLAN)
-                .any(|(_, r)| {
-                    r.public_text(field::PLAN_WALLET)
-                        .is_some_and(|t| cx.same_wallet(t) && !cx.of_wallet(t))
-                });
-            if other {
-                self.plan_store(o, wi, &cx.wf.answers, &names, &[], None);
-            }
-        }
-    }
-
     /// Costs a plan record write and a seal (`seals_write`) per vault of the wallet: after the writes, the plan record of every vault of the wallet says
     /// the plan as it is now, and the added vaults are sealed and made.
     fn wallet_copy_plans(&mut self, cx: &CopyCtx<'_>, added: Vec<usize>) {
@@ -2010,7 +1924,6 @@ impl Faraday {
         // The plan record of every vault of the wallet says the plan as it
         // is now.
         let text = wf.answers.to_text();
-        self.wallet_copy_replace_other_order(cx, &added);
         for v in self.flows[i].plan.used_vaults() {
             let Some(o) = self.flow_open_index(i, v) else {
                 continue;

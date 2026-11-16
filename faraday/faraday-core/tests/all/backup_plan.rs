@@ -2343,14 +2343,30 @@ fn pressing_checklist_with_the_refusing_record_in_another_vault_of_the_flow_writ
 
 #[test]
 fn saving_a_vault_item_into_a_vault_that_keeps_a_shares_plan_of_the_other_order_writes_nothing() {
+    use faraday_core::testkit;
     let mut shell = crate::common::Shell::new();
-    let (mut app, other, w) = flow_with_two_vaults(&mut shell);
+    let (mut app, _, w) = flow_with_two_vaults(&mut shell);
     app.press(faraday_core::Action::BChecklist);
-    let v = other as u8;
-    // The plan the checklist saved is in both; Vault `other` then keeps a
-    // shares plan for the wallet's keys in the other order, and is the
-    // one this item writes into.
-    plant_other_order_plan(&mut app, other, w, true);
+    // The refusing record is in the second open vault, which the item
+    // writes into as the current one, while the flow does not count it
+    // among its open vaults (its plan vault is not set up there) and the
+    // first open vault keeps the plan.
+    let target = 1;
+    let salt = app.vaults().open[target].vault_id();
+    let mut plan_vault = None;
+    testkit::change_flows(&mut app, |all| {
+        for f in all {
+            for (k, v) in f.plan.vaults.iter_mut().enumerate() {
+                if v.salt == Some(salt) {
+                    v.salt = None;
+                    plan_vault = Some(k);
+                }
+            }
+        }
+    });
+    let v = plan_vault.expect("the second vault is a plan vault") as u8;
+    testkit::vault_current(&mut app, target);
+    plant_other_order_plan(&mut app, target, w, true);
     let before = every_record(&app);
     crate::backup_keep::save(&mut app, v);
     assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));

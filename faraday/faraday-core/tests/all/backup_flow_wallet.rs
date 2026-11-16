@@ -1232,8 +1232,38 @@ fn copy_with_other_order_plan_in_the_added_vault(shares: bool) -> Faraday {
     shell.flow(&mut app, F::Continue);
     open_vault(&mut shell, &mut app, 0, PHRASE);
     open_vault(&mut shell, &mut app, 1, PHRASE_2);
-    // The wallet is not loaded after the restart: load it from the
-    // description Vault 1 keeps with its plan.
+    // The holder's plan record keeps extras and a note, which the copy
+    // takes whole.
+    {
+        use faraday_vault::records::field;
+        let id = app.vaults().open[0].id;
+        let (k, mut holds) = contents(&app, 0)
+            .of(kind::PLAN)
+            .map(|(k, r)| {
+                let r = faraday_keys::vault::RecordView::of(r);
+                let holds: Vec<Vec<u8>> = r
+                    .public_all(field::PLAN_HOLDS)
+                    .map(<[u8]>::to_vec)
+                    .collect();
+                (k, holds)
+            })
+            .next()
+            .expect("a holder keeps the plan");
+        holds.push(b"Dropped work: a seed kept elsewhere".to_vec());
+        let holds: Vec<&[u8]> = holds.iter().map(Vec::as_slice).collect();
+        testkit::vault_edit(&mut app, id, |s| {
+            s.set_public_all(id, k, field::PLAN_HOLDS, &holds);
+            s.set_public_all(
+                id,
+                k,
+                field::PLAN_NOTE,
+                &[b"A note of the holder".as_slice()],
+            );
+        });
+    }
+    // The record of the other order is made from the wallet's keys, which
+    // the session has only for this: the round after the lock has no
+    // wallet loaded, and the copy must not need one.
     let text = contents(&app, 0)
         .of(kind::PLAN)
         .find_map(|(_, r)| {
@@ -1253,6 +1283,8 @@ fn copy_with_other_order_plan_in_the_added_vault(shares: bool) -> Faraday {
         )
         .unwrap();
     crate::backup_plan::plant_other_order_plan(&mut app, 1, w, shares);
+    app.session.wallets.pop();
+    assert!(app.session.wallets.is_empty(), "no wallet is loaded");
     shell.flow(&mut app, F::CopyKey);
     app
 }
@@ -1262,7 +1294,6 @@ fn copying_the_keys_to_a_vault_with_an_older_plan_for_the_other_key_order_leaves
 {
     use faraday_vault::records::field;
     let app = copy_with_other_order_plan_in_the_added_vault(false);
-    let wallet = &app.session.wallets[0];
     let plans: Vec<String> = contents(&app, 1)
         .of(kind::PLAN)
         .filter_map(|(_, r)| {
@@ -1272,11 +1303,27 @@ fn copying_the_keys_to_a_vault_with_an_older_plan_for_the_other_key_order_leaves
         })
         .collect();
     assert_eq!(plans.len(), 1, "the one record of the wallet: {plans:?}");
-    assert_eq!(
-        faraday_core::wallet::read_wallet(&faraday_core::testkit::compute(), &plans[0])
-            .unwrap()
-            .checksum(),
-        wallet.checksum()
+    // The record is the holder's: its wallet, places, map lines with the
+    // extra one, and note (the answers carry each vault's own seal marks).
+    let fields = |o: usize| -> Vec<Vec<Vec<u8>>> {
+        let r = contents(&app, o)
+            .of(kind::PLAN)
+            .next()
+            .map(|(_, r)| faraday_keys::vault::RecordView::of(r))
+            .expect("a plan record");
+        [
+            field::PLAN_WALLET,
+            field::PLAN_PLACE,
+            field::PLAN_HOLDS,
+            field::PLAN_NOTE,
+        ]
+        .map(|n| r.public_all(n).map(<[u8]>::to_vec).collect())
+        .to_vec()
+    };
+    assert_eq!(fields(1), fields(0), "the holder's record, whole");
+    assert!(
+        fields(1)[3].contains(&b"A note of the holder".to_vec()),
+        "its note is kept"
     );
 }
 
