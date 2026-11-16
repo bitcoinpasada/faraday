@@ -597,7 +597,18 @@ impl Faraday {
         clippy::disallowed_types,
         reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
     )]
-    pub fn kef_take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
+    pub(crate) fn kef_take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
+        self.worker.kef_take_opened()
+    }
+
+    /// Takes the last open's answer, leaving none, for the integration
+    /// tests; what it holds wipes when dropped.
+    #[cfg(feature = "testkit")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
+    pub fn kef_take_opened_for_test(&mut self) -> Option<Result<Opened, OpenError>> {
         self.worker.kef_take_opened()
     }
 

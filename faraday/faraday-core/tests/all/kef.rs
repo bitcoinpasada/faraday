@@ -73,13 +73,13 @@ fn a_12_and_a_24_word_seed_sealed_on_the_worker_open_to_the_same_entropy() {
         assert_eq!(envelope.count, COUNT);
         app.kef_open(pass(), envelope.clone(), LINE);
         testkit::settle(&mut app);
-        let opened = app.kef_take_opened().unwrap().expect("opens");
+        let opened = app.kef_take_opened_for_test().unwrap().expect("opens");
         assert_eq!(&opened.plaintext[..], &entropy[..]);
         // The wrong passphrase gives nothing.
         app.kef_open(Zeroizing::new(b"another".to_vec()), envelope, LINE);
         testkit::settle(&mut app);
         assert_eq!(
-            app.kef_take_opened().unwrap().err(),
+            app.kef_take_opened_for_test().unwrap().err(),
             Some(OpenError::Failed)
         );
     }
@@ -140,5 +140,5 @@ fn a_job_at_100_million_rounds_stops_on_cancel_and_the_next_job_runs() {
         began.elapsed()
     );
     // A stopped job leaves no answer behind.
-    assert!(app.kef_take_opened().is_none());
+    assert!(app.kef_take_opened_for_test().is_none());
 }

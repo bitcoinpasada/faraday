@@ -75,13 +75,13 @@ fn a_seeds_code_made_through_the_form_opens_to_its_entropy() {
     app.kef_open(pass(), envelope.clone(), "Working");
     testkit::settle(&mut app);
     assert_eq!(
-        &app.kef_take_opened().unwrap().unwrap().plaintext[..],
+        &app.kef_take_opened_for_test().unwrap().unwrap().plaintext[..],
         &entropy[..]
     );
     app.kef_open(Zeroizing::new(b"another".to_vec()), envelope, "Working");
     testkit::settle(&mut app);
     assert_eq!(
-        app.kef_take_opened().unwrap().err(),
+        app.kef_take_opened_for_test().unwrap().err(),
         Some(OpenError::Failed)
     );
 }
