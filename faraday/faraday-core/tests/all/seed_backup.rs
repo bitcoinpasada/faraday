@@ -446,7 +446,7 @@ fn add_key(app: &mut Faraday, n: usize) -> usize {
 fn savings_backup(app: &mut Faraday) {
     let c = faraday_core::testkit::compute();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),
@@ -605,7 +605,7 @@ fn a_seed_past_the_checklists_numbers_is_said_in_place_of_the_checklist() {
     keys.push(format!("{}/<0;1>/*", testkit::key(SEED, "m/48'/1'/0'/2'")));
     let descriptor = format!("tr({nums},multi_a(2,{}))", keys.join(","));
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Many",
             &descriptor,

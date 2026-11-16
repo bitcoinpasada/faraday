@@ -111,7 +111,8 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
         frames += 1;
     }
     assert!(frames > 1, "frames were drawn while the pictures were read");
-    // The code's wallet came in; the photograph held none.
+    // The code's wallet came in, confirmed on its sheet; the photograph held none.
+    testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1, "the code's wallet is loaded");
     assert!(app.import().is_none(), "the import is not over");
 }

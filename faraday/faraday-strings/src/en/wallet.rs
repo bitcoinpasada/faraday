@@ -69,9 +69,9 @@ macro_rules! words_wallet {
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.
     wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's",
-    /// Text in `text`: a wallet a key not of its own spends alone, not
-    /// added until its sheet is confirmed (F132).
-    wallet_key_path_unconfirmed: "Not added yet: its key path is to be confirmed",
+    /// Text in `text`: a wallet of several keys, or one a key not of its
+    /// own spends alone, not added until its sheet is confirmed (F254).
+    wallet_confirm_unconfirmed: "Not added yet: waiting for its confirmation",
     /// A `tr()` wallet's key path line, the NUMS point (F132).
     wallet_key_path_none: "Key path: none (unspendable)",
     /// A `tr()` wallet's key path line, a key of the wallet. `{}`: the key's fingerprint and label.
@@ -80,16 +80,20 @@ macro_rules! words_wallet {
     wallet_key_n: "key {}",
     /// A `tr()` wallet's danger line, a key that is not one of the wallet's (F132). `{}`: the key, in groups of four.
     wallet_key_path_other: "A key that is not one of this wallet's keys can spend everything alone, without the other signatures: {}",
-    /// The key path sheet's title (F132).
-    wallet_key_path_head: "Another key spends this wallet alone",
-    /// The key path sheet's hold (F132).
-    wallet_key_path_hold: "Hold to add this wallet",
-    /// The key path sheet's line, over the key (F132). `{}`: the wallet's name.
-    wallet_key_path_sheet_line: "{}: this key is not one of its keys and can spend everything alone, without the other signatures",
-    /// The key path sheet's dismissive action.
-    wallet_key_path_cancel: "Cancel",
-    /// Toast once the wallet is added from the key path sheet. `{}`: its name.
-    wallet_key_path_added: "{} added",
+    /// The wallet confirmation sheet's title (F254).
+    wallet_confirm_head: "Add this wallet",
+    /// The title when several wallets wait one after another (F254). `{}`: which one, from 1; `{}`: how many.
+    wallet_confirm_head_of: "Add this wallet · {} of {}",
+    /// The wallet confirmation sheet's name row (F254).
+    wallet_confirm_name: "Name",
+    /// The line under the keys of the wallet confirmation sheet (F254).
+    wallet_confirm_compare: "Compare every key with the one on its own device",
+    /// The wallet confirmation sheet's hold (F254).
+    wallet_confirm_hold: "Hold to add this wallet",
+    /// The wallet confirmation sheet's dismissive action.
+    wallet_confirm_cancel: "Cancel",
+    /// Toast once the wallet is added from the wallet confirmation sheet. `{}`: its name.
+    wallet_confirm_added: "{} added",
     /// The published-words sheet's title: a key whose words are published, on Mainnet.
     published_head: "Published words",
     /// The published-words sheet's line.

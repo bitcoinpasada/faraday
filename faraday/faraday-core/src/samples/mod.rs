@@ -813,8 +813,15 @@ impl Faraday {
             let name = label(w.name, "", 0).unwrap_or_default();
             let before = self.session.wallets.len();
             let added = policy.map(|p| {
-                self.session
-                    .add_policy(&c, &name, p, EN.samples_source, Origin::Statement)
+                // Public test data in the binary: no sheet (F254).
+                self.session.add_kept(
+                    &c,
+                    &name,
+                    p,
+                    EN.samples_source,
+                    Origin::Statement,
+                    &Default::default(),
+                )
             });
             wallets += usize::from(
                 added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before,

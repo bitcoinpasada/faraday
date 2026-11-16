@@ -22,7 +22,7 @@ fn session(panel: Panel) -> (Faraday, usize) {
     );
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &testkit::compute(),
             "Inherit",
             &descriptor,

@@ -31,7 +31,7 @@ fn checking(descriptors: &[String], key: bool) -> Faraday {
     }
     for (i, d) in descriptors.iter().enumerate() {
         app.session
-            .add_wallet(&c, &format!("Wallet {i}"), d, "test", Origin::Named)
+            .add_wallet_confirmed(&c, &format!("Wallet {i}"), d, "test", Origin::Named)
             .unwrap();
     }
     app.press(Action::ScanFor(Ask::Address));

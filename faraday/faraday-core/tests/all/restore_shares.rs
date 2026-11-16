@@ -30,7 +30,7 @@ fn sheets(name: &str, descriptor: &str) -> (Vec<String>, String) {
     let c = testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet(&c, name, descriptor, "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, name, descriptor, "Test wallet", Origin::Named)
         .expect("reads");
     let w = &s.wallets[i];
     let (m, n) = Session::quorum(w);

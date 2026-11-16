@@ -84,7 +84,8 @@ fn a_part_signed_psbt_replaces_its_own_transaction_and_keeps_another() {
             )]),
             kept: Vec::new(),
         });
-        app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+        let wallet_at = at(&app, "savings-wallet.txt");
+        testkit::load_wallet(&mut app, wallet_at);
         add_key(&mut app, "zebra");
         app.press(Action::StartSpend(at(&app, "spend.psbt")));
         testkit::steps_before_sign_done(&mut app);
@@ -131,7 +132,8 @@ fn a_second_spends_remove_takes_off_its_own_file() {
         ]),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     testkit::steps_before_sign_done(&mut app);
@@ -160,7 +162,8 @@ fn spending_finished() -> Faraday {
         ("spend.psbt".to_string(), psbt.to_bytes()),
         ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
     ]);
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     testkit::steps_before_sign_done(&mut app);
@@ -199,7 +202,8 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
             k.descriptor.clone().into_bytes(),
         ),
     ]);
-    a.press(Action::LoadWallet(at(&a, "savings-wallet.txt")));
+    let wallet_at = at(&a, "savings-wallet.txt");
+    testkit::load_wallet(&mut a, wallet_at);
     add_key(&mut a, "zebra");
     a.press(Action::StartSpend(at(&a, "spend.psbt")));
     testkit::steps_before_sign_done(&mut a);
@@ -212,7 +216,8 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
         ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
         ("from-a.psbt".to_string(), from_a),
     ]);
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);
@@ -339,7 +344,8 @@ fn spending_offered(kept: Vec<(String, Vec<u8>)>) -> Faraday {
         outbox: Vec::new(),
         kept: faraday_core::kept_from(kept),
     });
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     assert_eq!(app.screen, Screen::Spend);
@@ -532,7 +538,8 @@ fn a_cosigners_signature_under_another_sighash_is_refused() {
             signed_by_zebra_under(EcdsaSighashType::All),
         ),
     ]);
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);
@@ -576,7 +583,8 @@ fn a_cosigner_writing_sighash_all_where_none_is_written_is_taken() {
         ),
         ("from-a.psbt".to_string(), written.to_bytes()),
     ]);
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);
@@ -719,7 +727,8 @@ fn the_sign_button_with_three_keys_here_reads_whole() {
         ("spend.psbt".to_string(), psbt.to_bytes()),
         ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
     ]);
-    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    let wallet_at = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     for seed in ["bacon", "zebra", "summer"] {
         add_key(&mut app, seed);
     }
@@ -852,14 +861,16 @@ fn two_devices_signed() -> (Vec<u8>, Vec<u8>, Vec<u8>, Faraday) {
         v
     };
     let mut a = with_inbox(files(Vec::new()));
-    a.press(Action::LoadWallet(at(&a, "savings-wallet.txt")));
+    let wallet_at = at(&a, "savings-wallet.txt");
+    testkit::load_wallet(&mut a, wallet_at);
     add_key(&mut a, "zebra");
     a.press(Action::StartSpend(at(&a, "spend.psbt")));
     testkit::steps_before_sign_done(&mut a);
     a.press(Action::SignHere);
     let from_a = a.spend().unwrap().spend.psbt.to_bytes();
     let mut b = with_inbox(files(vec![("from-a.psbt".to_string(), from_a.clone())]));
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);
@@ -888,7 +899,8 @@ fn a_psbt_signed_elsewhere_waits_for_review_before_the_outbox() {
         ("full.psbt".to_string(), full),
         ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
     ]);
-    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    let wallet_at = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     app.press(Action::StartSpend(at(&app, "full.psbt")));
     assert!(app.spend().unwrap().spend.finished.is_some());
     assert!(results_waiting(&app).is_empty());
@@ -922,7 +934,8 @@ fn a_collect_answer_needs_review_again_before_the_outbox() {
         ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
         ("from-a.psbt".to_string(), from_a),
     ]);
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);

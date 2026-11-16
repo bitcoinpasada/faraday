@@ -488,7 +488,7 @@ fn spend_of_t(kit: &Kit) -> Result<(Psbt, Option<(Text, Psbt)>), Text> {
         .add_words(&c, &test_words(word), label, None)
         .map_err(|e| Text::of(&e.text()))?;
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,
@@ -535,7 +535,7 @@ fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
                 .to_vec(),
         ));
         let mut one = session();
-        one.add_wallet(
+        one.add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,
@@ -599,7 +599,7 @@ fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
     out.push((Text::of("SHA256SUMS.asc"), TEST_RELEASE_SIGNATURE.to_vec()));
     // Savings split between its signers, one key left off each share.
     let mut one = session();
-    one.add_wallet(
+    one.add_wallet_confirmed(
         &c,
         "Savings",
         &savings(),
@@ -687,7 +687,7 @@ fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
         .find(|k| k.id == "spending")
         .ok_or_else(|| Text::of("no Spending kit"))?;
     let i = one
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             spending.name,
             &spending.descriptor,
@@ -933,7 +933,7 @@ pub fn musig_rounds_at(
         .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| Text::of(&e.text()))?;
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -1077,7 +1077,7 @@ pub fn musig_forged(forged: &[usize]) -> Result<Psbt, KitError> {
     let mut psbt = musig_unsigned()?;
     let mut session = session();
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &Text::of(&musig_policy()?.to_descriptor_checksummed()),
@@ -1258,7 +1258,7 @@ pub fn musig_two_inputs() -> Result<(Psbt, Psbt), KitError> {
         .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| Text::of(&e.text()))?;
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -1398,7 +1398,7 @@ fn public_files_t(name: &str, descriptor: &str) -> Result<Vec<(Text, Vec<u8>)>, 
     app.session = session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             name,
             descriptor,
@@ -2136,6 +2136,23 @@ pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::cre
 /// Chooses wallet `i` on the Wallets tab.
 pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
     app.wallets.set_wallet(i);
+}
+
+/// Holds the wallet confirmation sheet while one is open: a test whose
+/// subject is not the sheet has its wallet confirmed (F254).
+pub fn confirm_wallets(app: &mut crate::Faraday) {
+    // A wallet that came in by an event asks on the next tick: the sheet
+    // opens here, with no time passing.
+    app.wallet_sheet_open();
+    while app.sheet == Some(crate::Sheet::WalletConfirm) {
+        app.press(crate::Action::WalletHold);
+    }
+}
+
+/// Files' load of the wallet at `at`, confirmed on its sheet if it asks.
+pub fn load_wallet(app: &mut crate::Faraday, at: usize) {
+    app.press(crate::Action::LoadWallet(at));
+    confirm_wallets(app);
 }
 
 /// How many files' texts the signing page holds (broken lines and files

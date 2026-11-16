@@ -81,7 +81,7 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     let ours = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 3));
     app.press(Action::Scan);
     scan(&mut app, &format!("bitcoin:{ours}?amount=0.001"));
@@ -105,7 +105,7 @@ fn a_payment_link_the_device_cannot_read_is_named() {
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     let ours = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 3));
     for (link, want) in [
         (format!("bitcoin:{ours}?req-x=1"), "needs something"),
@@ -130,7 +130,7 @@ fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     let ours = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0));
     // The same address with its last character changed: a bech32
     // checksum catches any one wrong character.

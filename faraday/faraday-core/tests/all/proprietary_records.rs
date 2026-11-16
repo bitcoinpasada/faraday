@@ -46,7 +46,7 @@ fn a_psbt_with_another_programs_proprietary_records_is_signed() {
             .add_words(&c, &testkit::test_words(word), label, None)
             .expect("the key");
         app.session
-            .add_wallet(&c, kit.name, &kit.descriptor, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, kit.name, &kit.descriptor, "Test wallet", Origin::Named)
             .expect("the wallet");
         app.press(Action::StartSpend(0));
         assert_eq!(app.screen, Screen::Spend);

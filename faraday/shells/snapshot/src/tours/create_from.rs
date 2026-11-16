@@ -100,7 +100,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     let i = t
         .app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Shared",
             &NewKind::Multi.descriptor(2, &keys),

@@ -650,7 +650,7 @@ fn held(n: usize, kit: Option<&faraday_core::testkit::Kit>) -> Session {
         .unwrap();
     if let Some(kit) = kit {
         session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 kit.name,
                 &kit.descriptor,
@@ -713,7 +713,7 @@ fn a_fake_key_path_signature_on_a_musig_spend_counts_nobody() {
     let policy = faraday_core::testkit::musig_policy().unwrap();
     let mut session = faraday_core::testkit::session();
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -826,7 +826,7 @@ fn musig_rounds_count_a_participant_from_its_partial_signature_and_not_its_nonce
     let policy = faraday_core::testkit::musig_policy().unwrap();
     let mut session = faraday_core::testkit::session();
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -929,7 +929,7 @@ fn each_input_is_judged_by_the_wallet_it_spends_from() {
             None,
         )
         .unwrap();
-    both.add_wallet(
+    both.add_wallet_confirmed(
         &c,
         k1.name,
         &k1.descriptor,
@@ -977,7 +977,7 @@ fn each_input_is_judged_by_the_wallet_it_spends_from() {
     // A device that holds only master 0 sees wallet 1's true signature.
     let mut only0 = held(0, Some(&k0));
     only0
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             k1.name,
             &k1.descriptor,
@@ -1020,7 +1020,7 @@ fn a_signature_on_another_owners_input_signs_nothing_for_a_musig_wallet() {
     let policy = faraday_core::testkit::musig_policy().unwrap();
     let mut session = faraday_core::testkit::session();
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -1333,7 +1333,7 @@ fn musig_beside(hold: bool, spk1: ScriptBuf, sign: bool) -> (Session, Inner, Vec
             .unwrap();
     }
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
@@ -1434,7 +1434,7 @@ fn musig_beside_a_wpkh_of_a_held_seed() -> (Session, Inner, Fingerprint) {
     let wspk = wp.script_at(&c, false, 0).unwrap();
     let (mut session, mut inner, _) = musig_beside(true, wspk.clone(), false);
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,
@@ -1785,7 +1785,7 @@ mod musig_partials {
         let c = faraday_core::testkit::compute();
         let mut session = Session::on(Network::Regtest);
         session
-            .add_policy(
+            .add_policy_confirmed(
                 &c,
                 "Core",
                 WalletPolicy::parse(&c, POLICY).unwrap(),
@@ -1977,7 +1977,7 @@ mod musig_partials {
             .unwrap();
         let policy = faraday_core::testkit::musig_policy().unwrap();
         session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 "MuSig2",
                 &policy.to_descriptor_checksummed(),
@@ -2037,7 +2037,7 @@ mod musig_partials {
         let policy = faraday_core::testkit::musig_policy().unwrap();
         let mut session = faraday_core::testkit::session();
         session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 "MuSig2",
                 &policy.to_descriptor_checksummed(),
@@ -2124,7 +2124,7 @@ mod musig_partials {
                 .unwrap();
         }
         session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 "MuSig2",
                 &faraday_core::testkit::musig_policy()
@@ -2488,7 +2488,8 @@ mod musig_partials {
         ]);
         app.press(Action::StartSpend(inbox_at(&app, "all.psbt")));
         assert!(!app.spend().unwrap().complete, "no wallet, no aggregate");
-        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        let wallet_at = inbox_at(&app, "wallet.txt");
+        faraday_core::testkit::load_wallet(&mut app, wallet_at);
         let s = app.spend().unwrap();
         assert!(s.complete, "aggregated once the wallet is known");
         assert_eq!(
@@ -2505,7 +2506,8 @@ mod musig_partials {
             ("two.psbt".to_string(), forged.to_bytes()),
             wallet_file(),
         ]);
-        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        let wallet_at = inbox_at(&app, "wallet.txt");
+        faraday_core::testkit::load_wallet(&mut app, wallet_at);
         crate::common::add_key(&mut app, "bacon");
         app.press(Action::StartSpend(inbox_at(&app, "two.psbt")));
         for n in [1u8, 2, 3] {
@@ -2533,7 +2535,8 @@ mod musig_partials {
             ("full.psbt".to_string(), full.to_bytes()),
             wallet_file(),
         ]);
-        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        let wallet_at = inbox_at(&app, "wallet.txt");
+        faraday_core::testkit::load_wallet(&mut app, wallet_at);
         app.press(Action::StartSpend(inbox_at(&app, "bare.psbt")));
         assert!(!app.spend().unwrap().complete);
         app.press(Action::Collect(inbox_at(&app, "full.psbt")));

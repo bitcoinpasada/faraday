@@ -22,7 +22,7 @@ fn load(descriptor: &str) -> (Session, usize) {
     let c = testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet(&c, "Test", descriptor, "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, "Test", descriptor, "Test wallet", Origin::Named)
         .expect("reads");
     (s, i)
 }
@@ -217,7 +217,7 @@ fn the_board_says_why_partial_descriptions_are_not_offered_for_a_multisig_that_d
         let mut app = crate::common::device(Vec::new());
         let i = app
             .session
-            .add_wallet(&c, "Test", &d, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, "Test", &d, "Test wallet", Origin::Named)
             .expect("reads");
         app.press(Action::Backup(i));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -259,7 +259,7 @@ fn a_plan_of_a_wallet_whose_keys_must_all_sign_does_not_say_one_place_can_be_los
         let mut app = crate::common::device(Vec::new());
         let i = app
             .session
-            .add_wallet(&c, "Test", d, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, "Test", d, "Test wallet", Origin::Named)
             .expect("reads");
         let mut shape = app.plan_shape_now(i);
         shape.seeds.iter_mut().for_each(|s| s.here = true);
@@ -298,7 +298,7 @@ fn a_plan_does_not_count_a_way_that_needs_a_preimage_as_spendable_from_seeds() {
         let mut app = crate::common::device(Vec::new());
         let i = app
             .session
-            .add_wallet(&c, "Test", &d, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, "Test", &d, "Test wallet", Origin::Named)
             .unwrap_or_else(|e| panic!("{d}: {e:?}"));
         let mut shape = app.plan_shape_now(i);
         shape.seeds.iter_mut().for_each(|s| s.here = true);
@@ -364,7 +364,7 @@ fn a_place_the_plan_says_sees_the_balance_is_one_restore_rebuilds() {
         let mut app = crate::common::device(Vec::new());
         let wi = app
             .session
-            .add_wallet(&c, "Test", &kit(id), "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, "Test", &kit(id), "Test wallet", Origin::Named)
             .expect("reads");
         let mut shape = app.plan_shape_now(wi);
         shape.seeds.iter_mut().for_each(|s| s.here = true);

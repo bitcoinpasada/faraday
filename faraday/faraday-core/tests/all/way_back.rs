@@ -55,7 +55,7 @@ fn with(wallets: usize, width: u16, height: u16) -> Faraday {
             .unwrap();
         let d = format!("wpkh({}/<0;1>/*)", &*text);
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 &format!("Wallet {a}"),
                 &d,

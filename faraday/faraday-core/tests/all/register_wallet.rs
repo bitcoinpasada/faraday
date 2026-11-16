@@ -148,6 +148,7 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
     // The hold held to its end, as a person holds it.
     app.press(Action::RegisterOpen);
     hold(&mut app, Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
     let wallet = &app.session.wallets[0];
@@ -193,6 +194,7 @@ fn the_name_typed_is_the_wallet_name() {
     assert_eq!(app.sheet, Some(Sheet::Register));
     assert!(app.session.wallets.is_empty());
     app.press(Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.wallets[0].name, "Family");
 }
@@ -219,6 +221,7 @@ fn global_xpubs_that_do_not_give_the_input_are_refused_by_name() {
     assert!(app.spend().unwrap().inspection.register.is_some());
     app.press(Action::RegisterOpen);
     app.press(Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.session.wallets.is_empty(), "nothing is registered");
     assert_eq!(app.sheet, Some(Sheet::Register), "the sheet stays with why");
     let shown = screen(&mut app);
@@ -236,7 +239,7 @@ fn a_registered_wallet_spend_opens_on_the_wallet_as_before() {
     app.press(Action::Nav(Screen::Wallets));
     let c = testkit::compute();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &kit.descriptor,
@@ -280,6 +283,7 @@ fn a_key_under_your_fingerprint_that_is_not_yours_is_refused_by_name() {
     assert!(blocked(&app));
     app.press(Action::RegisterOpen);
     hold(&mut app, Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.session.wallets.is_empty(), "nothing is registered");
     assert_eq!(app.sheet, Some(Sheet::Register));
     let shown = screen(&mut app);
@@ -357,6 +361,7 @@ fn where_the_spend_cannot_tell_sorted_from_listed_the_person_chooses() {
         "{shown}"
     );
     hold(&mut app, Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     let registered = app.session.wallets[0].policy();
     for i in 0..4 {
@@ -390,7 +395,7 @@ fn add(loaded: &[&str], text: &str) -> (Faraday, Result<usize, faraday_core::wal
     for w in loaded {
         crate::common::add_key(&mut app, w);
     }
-    let added = app.session.add_wallet(
+    let added = app.session.add_wallet_confirmed(
         &c,
         "Musig",
         text,

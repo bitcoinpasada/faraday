@@ -108,7 +108,8 @@ fn signed_from(bytes: Vec<u8>) -> (Faraday, Vec<u8>) {
         kept: Vec::new(),
     });
     let at = |app: &Faraday, name: &str| app.inbox().iter().position(|i| i.name == name).unwrap();
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     testkit::steps_before_sign_done(&mut app);

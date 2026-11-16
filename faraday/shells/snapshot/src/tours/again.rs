@@ -19,6 +19,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         .position(|it| it.name == "savings-wallet.txt")
         .ok_or("savings-wallet.txt is not in Files")?;
     t.press(Action::LoadWallet(savings));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::Backup(0));
     t.shot("again-watch-only")?;
     let every = [
@@ -63,6 +64,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         .fingerprint;
     t.press(Action::KeyWallet(fp.0, 1));
     t.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
     to_checklist(t, faraday_core::plan::Preset::PaperVault, &[]);

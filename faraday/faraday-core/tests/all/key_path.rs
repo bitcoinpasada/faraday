@@ -82,6 +82,13 @@ fn add_key(app: &mut Faraday, n: usize) {
     app.press(Action::EntryAdd);
 }
 
+/// The three keys of the kit's wallet, loaded.
+fn all_keys(app: &mut Faraday) {
+    for n in 0..3 {
+        add_key(app, n);
+    }
+}
+
 /// Everything the frame draws, as one line: a wrapped line reads whole.
 fn screen(app: &mut Faraday) -> String {
     texts(app).join(" ")
@@ -96,35 +103,39 @@ fn danger() -> String {
 fn a_wallet_another_key_spends_alone_is_added_only_after_the_hold() {
     let mut app = with_files(&kit(OTHER));
     app.press(Action::LoadWallet(0));
-    assert_eq!(app.sheet, Some(Sheet::KeyPath));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
     assert!(app.session.wallets.is_empty(), "not added before the hold");
     let shown = screen(&mut app);
     assert!(
-        shown.contains("Shared: this key is not one of its keys"),
+        shown.contains("Shared"),
         "the sheet names the wallet: {shown}"
     );
     assert!(
         shown.contains("79be 667e") && shown.contains("16f8 1798"),
         "the sheet names the key: {shown}"
     );
+    assert!(
+        shown.contains("can spend everything alone"),
+        "the sheet keeps the danger line: {shown}"
+    );
     assert!(shown.contains("Hold to add this wallet"), "{shown}");
 
     // Cancel: nothing is added, and nothing waits.
-    app.press(Action::KeyPathCancel);
+    app.press(Action::WalletCancel);
     assert_eq!(app.sheet, None);
     assert!(app.session.wallets.is_empty());
-    assert!(app.session.key_path_asked().is_none());
+    assert!(app.session.wallet_asked().is_none());
 
     // Asked again, the hold adds it, and Files' load goes on as it would
     // have: to the wallet's card.
     app.press(Action::Nav(Screen::Files));
     app.press(Action::LoadWallet(0));
-    assert_eq!(app.sheet, Some(Sheet::KeyPath));
-    app.press(Action::KeyPathHold);
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.press(Action::WalletHold);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.screen, Screen::Wallets);
-    assert!(app.session.key_path_asked().is_none());
+    assert!(app.session.wallet_asked().is_none());
 }
 
 #[test]
@@ -132,9 +143,9 @@ fn restore_goes_on_from_the_description_once_the_hold_adds_it() {
     let mut app = with_files(&kit(OTHER));
     app.press(Action::RestoreWallet);
     app.press(Action::RUse(0));
-    assert_eq!(app.sheet, Some(Sheet::KeyPath));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
     assert_eq!(app.restore().unwrap().wallet, None);
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     assert_eq!(app.sheet, None);
     let r = app.restore().unwrap();
     assert_eq!(r.wallet, Some(0), "restore has the wallet");
@@ -147,7 +158,7 @@ fn with_its_keys_here_the_card_counts_the_script_and_never_reads_can_spend() {
     let mut app = with_files(&kit(OTHER));
     add_key(&mut app, 0);
     app.press(Action::LoadWallet(0));
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     app.press(Action::Nav(Screen::Wallets));
     let shown = screen(&mut app);
     assert!(shown.contains("1 of 2 signatures"), "{shown}");
@@ -163,7 +174,7 @@ fn with_its_keys_here_the_card_counts_the_script_and_never_reads_can_spend() {
 fn the_card_keeps_the_danger_line_and_shows_no_quorum() {
     let mut app = with_files(&kit(OTHER));
     app.press(Action::LoadWallet(0));
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     app.press(Action::Nav(Screen::Wallets));
     let shown = screen(&mut app);
     assert!(shown.contains(&danger()), "{shown}");
@@ -176,7 +187,7 @@ fn a_spend_from_it_repeats_the_line_as_a_caution() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     app.press(Action::LoadWallet(0));
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     assert!(app.spend().is_some());
@@ -189,7 +200,12 @@ fn a_spend_from_it_repeats_the_line_as_a_caution() {
 fn a_nums_wallet_reads_two_of_three_with_no_warning() {
     let mut app = with_files(&kit(NUMS));
     app.press(Action::LoadWallet(0));
-    assert_eq!(app.sheet, None);
+    // Three keys from outside: the sheet's rows, with no danger line.
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    let sheet = screen(&mut app);
+    assert!(sheet.contains("Key path: none (unspendable)"), "{sheet}");
+    assert!(!sheet.contains("can spend everything alone"), "{sheet}");
+    app.press(Action::WalletHold);
     assert_eq!(app.session.wallets.len(), 1);
     app.press(Action::Nav(Screen::Wallets));
     let shown = screen(&mut app);
@@ -203,7 +219,7 @@ fn a_wallet_key_on_the_key_path_is_named_and_not_two_of_three() {
     let own = format!("{}/<0;1>/*", testkit::key(0, "m/48'/1'/0'/3'"));
     let mut app = with_files(&kit(&own));
     app.press(Action::LoadWallet(0));
-    assert_eq!(app.sheet, None, "a key of the wallet needs no hold");
+    faraday_core::testkit::confirm_wallets(&mut app);
     app.press(Action::Nav(Screen::Wallets));
     let shown = screen(&mut app);
     assert!(shown.contains("Key path: "), "{shown}");
@@ -218,7 +234,7 @@ fn the_timelocked_tree_sample_names_its_key_path_holder() {
         .find(|k| k.id == "tree")
         .unwrap();
     let mut app = with_files(&tree);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
     app.press(Action::Nav(Screen::Wallets));
     let shown = screen(&mut app);
@@ -234,15 +250,17 @@ fn files(app: &Faraday) -> Vec<String> {
 #[test]
 fn files_load_after_cancel_then_hold_ends_as_a_load_with_no_question() {
     let mut plain = with_files(&kit(NUMS));
+    all_keys(&mut plain);
     plain.press(Action::Nav(Screen::Files));
     plain.press(Action::LoadWallet(0));
     let mut app = with_files(&kit(OTHER));
+    all_keys(&mut app);
     let before = files(&app);
     app.press(Action::Nav(Screen::Files));
     app.press(Action::LoadWallet(0));
-    app.press(Action::KeyPathCancel);
+    app.press(Action::WalletCancel);
     app.press(Action::LoadWallet(0));
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     assert_eq!(app.session.wallets.len(), 1, "added once");
     assert_eq!(files(&app), before, "no file moved or lost");
     assert_eq!(app.screen, plain.screen);
@@ -252,13 +270,15 @@ fn files_load_after_cancel_then_hold_ends_as_a_load_with_no_question() {
 #[test]
 fn restore_after_the_hold_stands_where_a_restore_with_no_question_does() {
     let mut plain = with_files(&kit(NUMS));
+    all_keys(&mut plain);
     plain.press(Action::RestoreWallet);
     plain.press(Action::RUse(0));
     let mut app = with_files(&kit(OTHER));
+    all_keys(&mut app);
     let before = files(&app);
     app.press(Action::RestoreWallet);
     app.press(Action::RUse(0));
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     let (r, p) = (app.restore().unwrap(), plain.restore().unwrap());
     assert_eq!((r.open, r.done, r.wallet), (p.open, p.done, p.wallet));
     assert_eq!(files(&app), before);
@@ -268,14 +288,16 @@ fn restore_after_the_hold_stands_where_a_restore_with_no_question_does() {
 #[test]
 fn spend_from_a_backup_after_the_hold_has_the_wallet_as_with_no_question() {
     let mut plain = with_files(&kit(NUMS));
+    all_keys(&mut plain);
     plain.press(Action::Nav(Screen::SpendBackup));
     plain.press(Action::SpendBackup(F::UseWallet(0)));
     let mut app = with_files(&kit(OTHER));
+    all_keys(&mut app);
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::SpendBackup(F::UseWallet(0)));
-    assert_eq!(app.sheet, Some(Sheet::KeyPath));
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
     assert_eq!(app.spend_backup().wallet, None);
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     assert_eq!(app.spend_backup().wallet, plain.spend_backup().wallet);
     assert_eq!(
         app.spend_backup().came,
@@ -287,7 +309,7 @@ fn spend_from_a_backup_after_the_hold_has_the_wallet_as_with_no_question() {
 }
 
 #[test]
-fn a_bulk_load_is_not_run_again_and_the_hold_adds_the_one_wallet() {
+fn a_bulk_load_asks_about_each_wallet_and_the_holds_add_them() {
     let nums = kit(NUMS);
     let mut app = with_more(
         &kit(OTHER),
@@ -295,16 +317,14 @@ fn a_bulk_load_is_not_run_again_and_the_hold_adds_the_one_wallet() {
     );
     let before = files(&app);
     app.press(Action::InboxLoad);
-    assert_eq!(app.sheet, Some(Sheet::KeyPath));
-    assert_eq!(
-        app.session.wallets.len(),
-        1,
-        "the other wallet loads at once"
-    );
-    app.press(Action::KeyPathHold);
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::WalletHold);
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm), "the second is asked");
+    app.press(Action::WalletHold);
     assert_eq!(app.session.wallets.len(), 2);
     assert_eq!(files(&app), before);
-    assert!(screen(&mut app).contains("Shared added"));
+    assert!(screen(&mut app).contains(" added"));
 }
 
 #[test]
@@ -312,7 +332,7 @@ fn with_files_changed_under_the_sheet_the_hold_adds_the_wallet_itself() {
     let mut app = with_files(&kit(OTHER));
     app.press(Action::LoadWallet(0));
     testkit::inbox_retain(&mut app, |i| i.name != "shared-unsigned.psbt");
-    app.press(Action::KeyPathHold);
+    app.press(Action::WalletHold);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.wallets[0].name, "Shared");
 }

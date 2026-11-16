@@ -459,7 +459,7 @@ fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
     app.session = faraday_core::testkit::session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Test",
             descriptor,
@@ -587,7 +587,7 @@ fn sparrows_specter_diy_export_loads_from_files_as_sparrow_multisig() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(faraday_core::Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     let [loaded] = &app.session.wallets[..] else {
         panic!("{} wallets", app.session.wallets.len())
     };
@@ -1010,7 +1010,7 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
             )
             .unwrap();
         session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 "Spending",
                 &format!("wpkh({rooted}/<0;1>/*)"),

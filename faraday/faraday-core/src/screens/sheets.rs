@@ -2569,52 +2569,80 @@ fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secre
     );
 }
 
-/// A wallet a key not of its own can spend alone, waiting to be added
-/// (F132): one line naming the wallet, the key in groups of four in the
-/// mono face, and a hold that adds it, the confirmation DESIGN §4.13
-/// gives an act that can lose everything; Cancel is the dialog's action.
-/// Short enough that the hold shows without scrolling on the Pi panel.
-pub(super) fn key_path_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(ask) = app.session.key_path_asked() else {
+/// A wallet waiting to be added (F254): the DESIGN §4.13 dialog with the
+/// wallet's name, the rows of its keys as Check a multisig setup shows
+/// them (read from the ask, worked out when the wallet was held back),
+/// the line to compare them by, and a hold that adds it; Cancel is the
+/// dialog's action. When a key not of the wallet can spend it alone the
+/// head, that line and the hold are in the error tone. The body scrolls,
+/// so the hold is reached after the keys. Reads the ask.
+pub(super) fn wallet_confirm_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_ui::sheet::kv;
+    let Some(ask) = app.session.wallet_asked() else {
         return;
     };
-    let Some(faraday_bip::policy::KeyPath::Other(key)) = ask.policy.key_path() else {
-        return;
+    let (at, of) = app.session.wallet_asked_place();
+    let danger = ask.rows.danger();
+    let title = if of > 1 {
+        Text::fill(
+            EN.wallet_confirm_head_of,
+            &[&Text::num(at as u64), &Text::num(of as u64)],
+        )
+    } else {
+        Text::of(EN.wallet_confirm_head)
     };
-    let line = Text::fill(EN.wallet_key_path_sheet_line, &[&ask.name]);
-    let key = faraday_ui::grouped(key);
+    let (icon, tone, hold_tone) = if danger {
+        (Icon::Error, Role::Error, faraday_ui::hold::HoldTone::Error)
+    } else {
+        (
+            Icon::Keys,
+            Role::Primary,
+            faraday_ui::hold::HoldTone::Primary,
+        )
+    };
     crate::compact::dialog(
         ui,
         (w, h, T::DIALOG_MAX),
-        (
-            Icon::Error.into(),
-            Role::Error.paint(),
-            EN.wallet_key_path_head,
-        ),
+        (icon.into(), tone.paint(), &title),
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, &line) + T::GAP_SMALL;
-            cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, &key) + T::GAP;
+            cy += kv(
+                ui,
+                x,
+                cy,
+                iw,
+                EN.wallet_confirm_name,
+                &ask.name,
+                Role::OnSurface,
+            );
+            cy += T::GAP_SMALL;
+            cy += crate::wallet::draw_rows(&ask.rows, &[], ui, (x, cy, iw));
+            cy += ui.wrap_as(
+                (x, cy, iw),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.wallet_confirm_compare,
+            ) + T::GAP;
             crate::vault::screen::hold_button_in(
                 app,
                 ui,
                 x,
                 cy,
                 iw,
-                EN.wallet_key_path_hold,
-                Action::KeyPathHold,
-                faraday_ui::hold::HoldTone::Error,
+                EN.wallet_confirm_hold,
+                Action::WalletHold,
+                hold_tone,
             );
             cy += ui
-                .hold_button_height(iw, EN.wallet_key_path_hold)
+                .hold_button_height(iw, EN.wallet_confirm_hold)
                 .max(T::CHIP_LINE)
                 + T::GAP_SMALL;
             cy - y
         },
         &[(
-            EN.wallet_key_path_cancel,
+            EN.wallet_confirm_cancel,
             Style::Secondary,
-            Action::KeyPathCancel,
+            Action::WalletCancel,
         )],
     );
 }

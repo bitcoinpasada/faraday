@@ -195,7 +195,7 @@ fn ticking_savings_and_loading_it_loads_the_wallet_and_its_three_keys() {
     assert_eq!(app.session.keys.len(), 3);
     // Its first receive address is the testkit's Savings wallet's.
     let mut kit = Session::on(Network::Testnet);
-    kit.add_wallet(&c, "Savings", &testkit::savings(), "t", Origin::Named)
+    kit.add_wallet_confirmed(&c, "Savings", &testkit::savings(), "t", Origin::Named)
         .expect("the testkit's wallet");
     let want = kit.wallets[0].address_on(&c, Network::Testnet, false, 0);
     let got = app.session.wallets[0].address_on(&c, Network::Testnet, false, 0);
@@ -269,7 +269,7 @@ fn what_is_loaded_is_ticked_and_dimmed_when_the_sheet_comes_back() {
     let mut other = demo_app();
     other
         .session
-        .add_wallet(&c, "Mine", &testkit::savings(), "t", Origin::Named)
+        .add_wallet_confirmed(&c, "Mine", &testkit::savings(), "t", Origin::Named)
         .expect("the wallet");
     open(&mut other);
     assert!(!other.offers(Action::SampleTick(savings)));

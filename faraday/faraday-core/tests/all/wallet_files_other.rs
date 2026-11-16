@@ -77,7 +77,7 @@ fn a_caravan_wallet_loaded_is_seen_as_loaded_when_its_coldcard_setup_file_comes_
         let mut app = Faraday::new();
         faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
         app.session
-            .add_policy(
+            .add_policy_confirmed(
                 &c,
                 "Caravan",
                 wallet(&caravan_path),

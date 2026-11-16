@@ -321,7 +321,7 @@ fn a_record_read_from_files_is_a_wallet_whose_address_needs_no_key() {
     let address = keyed.silent_address(&c).unwrap();
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
     app.press(Action::SWallet(0));
@@ -437,7 +437,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
         .iter()
         .position(|i| i.name == "silent-1.txt")
         .unwrap();
-    app.press(Action::LoadWallet(file));
+    faraday_core::testkit::load_wallet(&mut app, file);
     let w = app.wallet_index();
     assert_eq!(Kind::of(app.session.wallets[w].policy()), Kind::Silent);
     app.press(Action::Vault(V::SaveWallet(w)));
@@ -482,7 +482,7 @@ fn a_record_with_the_keys_spend_key_and_another_scan_key_is_refused_while_the_ke
     let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
     let mut app = with_key();
     files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert!(app.session.wallets.is_empty());
     let toast = app.toast_text().unwrap_or_default();
     assert!(
@@ -500,7 +500,7 @@ fn a_record_loaded_before_its_key_shows_no_address_once_the_key_says_it_is_not_i
     let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     // Without its key the card shows the record's address, not checked.
     app.press(Action::Nav(Screen::Wallets));
@@ -550,7 +550,7 @@ fn a_record_at_another_account_than_its_points_is_refused_and_one_at_its_own_acc
         &mut app,
         &[("silent-1.txt", record_of(1, 0, None).to_text().into_bytes())],
     );
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert!(app.session.wallets.is_empty());
     assert!(
         app.toast_text()
@@ -563,7 +563,7 @@ fn a_record_at_another_account_than_its_points_is_refused_and_one_at_its_own_acc
         &mut app,
         &[("silent-1.txt", record_of(1, 1, None).to_text().into_bytes())],
     );
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     app.press(Action::SWallet(0));
     let secp = Secp256k1::new();
@@ -585,7 +585,7 @@ fn the_keys_own_record_with_the_key_loaded_shows_the_address_the_key_gives_unmar
         &mut app,
         &[("silent-1.txt", record_of(0, 0, None).to_text().into_bytes())],
     );
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     let secp = Secp256k1::new();
     let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
@@ -608,7 +608,7 @@ fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
     let fp = faraday_core::wallet::fp_text(honest.fingerprint).to_string();
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("silent-1.txt", honest.to_text().into_bytes())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     app.press(Action::SWallet(0));
     assert_eq!(
         app.silent_address(&c).as_deref(),
@@ -689,7 +689,7 @@ fn an_sp_descriptor_with_no_key_loaded_offers_nothing_out() {
     let record = keyed.silent_record(&c).unwrap();
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     app.press(Action::SDescriptorOut(0));
     assert_ne!(app.sheet, Some(Sheet::SecretOut));
     assert!(app.outbox.is_empty());
@@ -705,7 +705,7 @@ fn an_sp_descriptor_from_files_loads_as_its_wallet_and_one_whose_keys_are_not_th
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("sp.txt", text.clone().into_bytes())]);
     assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Wallet);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
     // With the key loaded, a descriptor at its origin over another scan
@@ -719,7 +719,7 @@ fn an_sp_descriptor_from_files_loads_as_its_wallet_and_one_whose_keys_are_not_th
     let bad = format!("sp({origin}{})\n", other.scan_key_text().unwrap().as_str());
     let mut app = with_key();
     files(&mut app, &[("sp.txt", bad.into_bytes())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert!(app.session.wallets.is_empty());
     let toast = app.toast_text().unwrap_or_default();
     assert!(toast.contains("does not match key"), "{toast}");
@@ -727,7 +727,7 @@ fn an_sp_descriptor_from_files_loads_as_its_wallet_and_one_whose_keys_are_not_th
     let mut app = faraday_core::testkit::started();
     let bare = format!("sp({})\n", other.scan_key_text().unwrap().as_str());
     files(&mut app, &[("sp.txt", bare.into_bytes())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert!(app.session.wallets.is_empty());
     let toast = app.toast_text().unwrap_or_default();
     assert!(toast.contains("names no key origin"), "{toast}");
@@ -741,7 +741,7 @@ const CC_SP: &str = include_str!("../vectors/interop/sparrow/cc-singlesig-sp-key
 fn coldcard_asked() -> Faraday {
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("cc.json", CC_SP.as_bytes().to_vec())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
     assert!(app.session.wallets.is_empty(), "loaded before a choice");
     let shown = drawn(&mut app);
@@ -786,7 +786,7 @@ fn a_silent_payments_wallets_backup_sheet_names_its_key_and_address_and_lists_no
     let record = app.silent_record(&c).unwrap();
     let mut app = with_key();
     files(&mut app, &[("silent-1.txt", record.as_bytes().to_vec())]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     let w = &app.session.wallets[0];
     let sheet = String::from(&*faraday_core::wallet_backup::sheet_wallet(
         &c,

@@ -30,6 +30,7 @@ fn restore_quorum(descriptor: &str) -> (usize, usize) {
         crate::common::device(vec![("w.txt".to_string(), descriptor.as_bytes().to_vec())]);
     app.press(Action::RestoreWallet);
     app.press(Action::RUse(0));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let r = app.restore().expect("restoring");
     assert!(r.wallet.is_some(), "{descriptor}: {:?}", r.error);
     let s = r.seeds.as_ref().expect("the seeds step");
@@ -50,7 +51,7 @@ fn the_seeds_a_spend_needs_are_all_of_them_for_a_wallet_whose_keys_must_all_sign
         let mut app = crate::common::device(Vec::new());
         let i = app
             .session
-            .add_wallet(&c, "Test", &d, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, "Test", &d, "Test wallet", Origin::Named)
             .expect("reads");
         assert_eq!(Session::quorum(&app.session.wallets[i]), (all, all), "{d}");
     }
@@ -68,7 +69,7 @@ fn ordinary_multisig_and_single_key_wallets_read_as_they_did() {
             .descriptor;
         let i = app
             .session
-            .add_wallet(&c, id, &d, "Test wallet", Origin::Named)
+            .add_wallet_confirmed(&c, id, &d, "Test wallet", Origin::Named)
             .expect("reads");
         assert_eq!(Session::quorum(&app.session.wallets[i]), want, "{id}");
     }
@@ -88,7 +89,7 @@ fn a_policy(body: impl Fn(&str, &str, &str, &str) -> String) -> String {
 fn added(app: &mut faraday_core::Faraday, d: &str) -> usize {
     let c = testkit::compute();
     app.session
-        .add_wallet(&c, "Test", d, "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, "Test", d, "Test wallet", Origin::Named)
         .expect("reads")
 }
 
@@ -144,7 +145,7 @@ fn a_musig_wallet_needs_every_seed_before_it_reads_as_ready() {
     let mut app = crate::common::device(Vec::new());
     let i = app
         .session
-        .add_wallet(&c, "Test", &musig(), "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, "Test", &musig(), "Test wallet", Origin::Named)
         .expect("reads");
     assert_eq!(faraday_core::wallet::needed(&app.session.wallets[i]), 3);
     for seed in [0, 1] {

@@ -99,7 +99,7 @@ pub(crate) fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -
         }
     };
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &descriptor,
@@ -116,7 +116,7 @@ fn two_of_three(app: &mut Faraday) -> usize {
     add_key(app, 0);
     add_key(app, 1);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),
@@ -2156,7 +2156,7 @@ fn checklist_past_a_lock(other: bool, unloaded: bool) -> Faraday {
             outbox: Vec::new(),
             kept: Vec::new(),
         });
-        app.press(Action::LoadWallet(0));
+        testkit::load_wallet(&mut app, 0);
         assert_eq!(app.session.wallets.len(), 2);
         at = 1;
         app.press(Action::Backup(0));

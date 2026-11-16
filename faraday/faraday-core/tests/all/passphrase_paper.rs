@@ -57,7 +57,7 @@ fn backing_up(passphrase: &str) -> Faraday {
         .unwrap();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),

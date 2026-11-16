@@ -76,9 +76,9 @@ fn round(app: &mut Faraday, n: usize) {
         app.press(Action::RemoveWallet(last));
     }
     for kit in testkit::kits() {
-        let _ = app
-            .session
-            .add_wallet(&c, kit.name, &kit.descriptor, "test", Origin::Named);
+        let _ =
+            app.session
+                .add_wallet_confirmed(&c, kit.name, &kit.descriptor, "test", Origin::Named);
     }
     // Files in under new names, and out again.
     let mut inbox = testkit::files().expect("the test stick's files");

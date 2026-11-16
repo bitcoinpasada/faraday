@@ -98,7 +98,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     type_and_unlock(&mut app);
     assert!(app.session.keys.is_empty(), "unlocking loads nothing");
     let w = find(&app, "spending-wallet.txt");
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     assert_eq!(app.screen, Screen::Wallets);
     let _ = app.frame();
     let fp = app.session.slots(&app.session.wallets[0])[0]
@@ -117,7 +117,7 @@ fn a_locked_vault_is_offered_from_the_wallet_card_and_unlocking_comes_back() {
         kit_file("vault.kdbx"),
     ]);
     let w = find(&app, "spending-wallet.txt");
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     let _ = app.frame();
     let unlock = Action::Vault(V::OpenFrom(0, Screen::Wallets));
     assert!(app.offers(unlock), "the locked vault is not offered");
@@ -138,7 +138,7 @@ fn a_key_the_quorum_does_not_need_is_not_asked_for() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     let w = find(&app, "savings-wallet.txt");
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let slots = app.session.slots(&app.session.wallets[0]);
@@ -152,7 +152,7 @@ fn a_key_the_quorum_needs_is_asked_for() {
     let mut app = device(vec![kit_file("savings-wallet.txt")]);
     add_key(&mut app, 0);
     let w = find(&app, "savings-wallet.txt");
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     // One Scan a key takes whichever missing key comes,

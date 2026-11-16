@@ -802,7 +802,8 @@ fn wallet_files_with_no_key_here_still_load_as_wallets() {
         .into_iter()
         .filter(|(n, _)| n == "savings-wallet.txt" || n == "spending-wallet.txt")
         .collect();
-    let app = imported_with(&files);
+    let mut app = imported_with(&files);
+    faraday_core::testkit::confirm_wallets(&mut app);
     for name in ["Savings", "Spending"] {
         assert!(
             app.session.wallets.iter().any(|w| w.name == name),

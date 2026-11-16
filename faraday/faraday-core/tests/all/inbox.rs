@@ -200,13 +200,14 @@ fn files_restores_a_wallet_from_its_shares() {
         "Files does not offer the restore"
     );
     app.press(Action::RestoreShares);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(
         app.session.address(&c, &app.session.wallets[0], false, 0),
         {
             let mut s = faraday_core::wallet::Session::on(testkit::NET);
-            s.add_wallet(
+            s.add_wallet_confirmed(
                 &c,
                 "Savings",
                 &testkit::savings(),
@@ -367,7 +368,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         .iter()
         .position(|i| i.name == "spending-wallet.txt")
         .unwrap();
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     for screen in SCREENS {
         app.screen = screen;
         texts_at(&mut app, &format!("{screen:?}"), &mut all);

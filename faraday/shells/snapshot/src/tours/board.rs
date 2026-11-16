@@ -175,7 +175,7 @@ pub(crate) fn board_unsorted_tour(c: &Compute, t: &mut Tour) -> Result<(), Strin
     let w = t
         .app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Unsorted",
             &unsorted,

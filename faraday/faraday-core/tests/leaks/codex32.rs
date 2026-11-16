@@ -81,7 +81,7 @@ fn at_the_item() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Backup(0));
     app.press(Action::BChecklist);
     let n = Item::Codex32(0);

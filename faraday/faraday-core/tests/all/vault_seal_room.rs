@@ -139,7 +139,7 @@ fn saving_a_wallet_into_a_vault_that_cannot_be_written_says_so() {
         .unwrap();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),

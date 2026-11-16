@@ -78,6 +78,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("boot-import")?;
     // A wrong passphrase stays on the sheet and says so. A tap on the
     // field first, which on a small panel brings the keyboard up.
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, "not the passphrase");
     t.press(Action::Import(I::Submit));

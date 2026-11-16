@@ -181,7 +181,7 @@ fn sheets() -> Vec<Sheet> {
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SignerSeed, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,
         ChildRecord, GpgTile, ChildNotice,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, WalletConfirm, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,
         Sweep, KeyFile, OutboxDelete, Published, MadeWallet, CheckBackups, AddressFiles);
     // A compact bar's overflow menu, holding every tool it can.
@@ -1151,9 +1151,9 @@ fn nothing_is_cut_off_where_a_wallet_states_another_key_spends_it_alone() {
     let w = at(&rig, "shared-wallet.txt");
     rig.press(Action::LoadWallet(w));
     rig.settle();
-    assert_eq!(rig.sheet, Some(Sheet::KeyPath));
+    assert_eq!(rig.sheet, Some(Sheet::WalletConfirm));
     let mut found = check(&mut rig, "the key path sheet").0;
-    rig.press(Action::KeyPathHold);
+    rig.press(Action::WalletHold);
     add_key(&mut rig, testkit::TEST_SEEDS[0].0);
     add_key(&mut rig, testkit::TEST_SEEDS[1].0);
     rig.press(Action::Nav(Screen::Wallets));
@@ -1221,6 +1221,7 @@ fn nothing_is_cut_off_where_a_wallet_is_registered_from_its_spend() {
     rig.settle();
     found.extend(check(&mut rig, "the register sheet, its name typed").0);
     rig.press(Action::RegisterHold);
+    faraday_core::testkit::confirm_wallets(&mut rig);
     rig.settle();
     assert_eq!(rig.session.wallets.len(), 1);
     found.extend(check(&mut rig, "the spend, registered").0);
@@ -1809,6 +1810,7 @@ fn on_the_small_panel_restore_names_a_key_that_is_not_here_whole_beside_change()
     rig.press(Action::RUse(0));
     rig.press(Action::RVaults(false));
     rig.press(Action::RNext(rstep::WHERE));
+    faraday_core::testkit::confirm_wallets(&mut rig);
     let w = rig
         .restore()
         .and_then(|r| r.wallet)
@@ -1849,7 +1851,7 @@ fn on_the_small_panel_a_typed_messages_count_and_continue_do_not_share_a_line() 
         )
         .expect("the key");
     rig.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,
@@ -2142,6 +2144,7 @@ fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
         .position(|i| i.name == "savings-wallet.txt")
         .unwrap();
     rig.press(Action::LoadWallet(w));
+    faraday_core::testkit::confirm_wallets(&mut rig);
     rig.press(Action::Nav(Screen::Wallets));
     rig.settle();
     let drawn = scrolled_to(&mut rig, &["Unlock", "Spend from this wallet"]);

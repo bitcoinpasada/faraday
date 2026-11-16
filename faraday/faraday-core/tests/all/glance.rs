@@ -79,7 +79,7 @@ fn one_key(app: &mut Faraday) -> usize {
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),
@@ -96,7 +96,7 @@ fn two_of_three(app: &mut Faraday) -> usize {
     add_key(app, 0);
     add_key(app, 1);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

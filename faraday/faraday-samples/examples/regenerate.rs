@@ -502,7 +502,7 @@ fn signed_message(c: &Compute) -> (String, String) {
         .find(|k| k.id == "spending")
         .expect("spending");
     let w = s
-        .add_wallet(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
+        .add_wallet_confirmed(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
         .expect("wallet");
     let address = String::from(&*s.address(c, &s.wallets[w], false, 0));
     let message = "Faraday sample message";
@@ -532,7 +532,7 @@ fn signer_pair(c: &Compute) {
         .into_iter()
         .find(|k| k.id == "spending")
         .expect("spending");
-    s.add_wallet(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
+    s.add_wallet_confirmed(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
         .expect("wallet");
     let sent = testkit::unsigned(&kit).expect("a spend");
     let mut returned = sent.clone();

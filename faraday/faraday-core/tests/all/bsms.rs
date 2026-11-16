@@ -39,7 +39,7 @@ fn the_bips_descriptor_record_loads_as_its_wallet() {
     let c = faraday_core::testkit::compute();
     let mut app = with_inbox(vec![("savings-bsms.txt", DESCRIPTOR.to_string())]);
     assert_eq!(app.inbox()[0].kind, FileKind::Wallet);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
     assert_eq!(

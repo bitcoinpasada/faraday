@@ -55,7 +55,7 @@ fn app() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Nav(Screen::Home));
     app
 }

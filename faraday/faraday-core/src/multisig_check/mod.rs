@@ -11,10 +11,8 @@
 //! drawing is `screen.rs`.
 
 use crate::strings::EN;
-use crate::wallet::{Origin, Session, Wallet};
+use crate::wallet::{Origin, Rows, Session, Wallet};
 use crate::{Action, Faraday, Screen, flow};
-use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
-use faraday_bip::keys::Fingerprint;
 use faraday_bip::policy::WalletPolicy;
 use faraday_bip::spend::Lock;
 use faraday_crypto::work::Compute;
@@ -55,18 +53,6 @@ pub enum MsAction {
     CheckSeed,
 }
 
-/// What a cosigner's row says of the keys loaded here.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Mark {
-    /// No key loaded here is it.
-    None,
-    /// A loaded key's extended key at the path; `true` at a single-key
-    /// account's path.
-    Yours(bool),
-    /// The fingerprint is a loaded key's, the key at the path is not.
-    Wrong(Text),
-}
-
 /// What the seed given to Check a seed against it is to the setup.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum SeedAnswer {
@@ -82,27 +68,12 @@ pub(crate) enum SeedAnswer {
     Changed(Text),
 }
 
-/// One cosigner's row.
-pub(crate) struct KeyRow {
-    pub(crate) number: Text,
-    pub(crate) fingerprint: Text,
-    pub(crate) path: Text,
-    /// The extended public key whole, in groups of four.
-    pub(crate) xpub: Text,
-    pub(crate) mark: Mark,
-}
-
 /// The Result card's rows, worked out once.
 pub(crate) struct Shown {
     /// The wallet read, for the seed given against it.
     pub(crate) policy: WalletPolicy,
-    pub(crate) shape: Text,
-    pub(crate) keys: Vec<KeyRow>,
-    /// Keys the descriptor uses twice, as lines.
-    pub(crate) repeats: Vec<Text>,
-    pub(crate) checksum: Text,
-    /// The key path line of a script tree, and whether it is a danger.
-    pub(crate) key_path: Option<(Text, bool)>,
+    /// The confirmation sheet's rows (F254), as it shows them.
+    pub(crate) rows: Rows,
     /// "{m} of {n} seeds", where the shape does not state a quorum.
     pub(crate) quorum: Option<Text>,
     pub(crate) ways: Vec<Text>,
@@ -311,55 +282,11 @@ pub(crate) fn check_policy(
     Ok(shown(app, c, policy.clone(), true))
 }
 
-fn path_is_single_account(path: &DerivationPath) -> bool {
-    let steps: Vec<&ChildNumber> = path.into_iter().collect();
-    steps.len() == 3
-        && matches!(
-            steps[0],
-            ChildNumber::Hardened {
-                index: 44 | 49 | 84 | 86
-            }
-        )
-}
-
 /// Costs what [`check_text`] costs after the read.
 fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown {
     let session = &app.session;
     let wallet = Wallet::new("", policy.clone(), "", Origin::Named);
-    let shape = Session::shape(&wallet);
-    let keys = policy
-        .keys()
-        .iter()
-        .enumerate()
-        .map(|(i, k)| {
-            let fp = k.fingerprint();
-            let path = k.path();
-            let mark = match (fp, path) {
-                (Some(fp), Some(path)) => mark_of(session, c, k.xpub(), fp, path),
-                _ => Mark::None,
-            };
-            KeyRow {
-                number: Text::fill(EN.mscheck_key, &[&Text::num(i as u64 + 1)]),
-                fingerprint: fp.map(crate::wallet::fp_text).unwrap_or_default(),
-                path: path
-                    .map(|p| Text::of(&crate::register::path_text(p)))
-                    .unwrap_or_default(),
-                xpub: groups_of_four(&k.xpub().to_string()),
-                mark,
-            }
-        })
-        .collect();
-    let repeats = faraday_bip::descriptor::checksum_facts(c, &policy.to_descriptor())
-        .map(|f| f.repeated)
-        .unwrap_or_default()
-        .iter()
-        .map(|(a, b)| {
-            Text::fill(
-                EN.tools_key_same_as,
-                &[&Text::num(*b as u64 + 1), &Text::num(*a as u64 + 1)],
-            )
-        })
-        .collect();
+    let rows = Rows::of(session, c, &policy, given);
     let stated = Session::stated_quorum(&wallet).is_some();
     let (m, n) = Session::quorum(&wallet);
     let quorum = (!stated).then(|| {
@@ -375,12 +302,6 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
     };
     let ways_too_many = !stated && paths.is_empty();
     let ways = paths.iter().map(way).collect();
-    let checksum = if given {
-        Text::fill(EN.mscheck_checksum_holds, &[policy.checksum()])
-    } else {
-        Text::fill(EN.mscheck_checksum_worked_out, &[policy.checksum()])
-    };
-    let key_path = session.key_path_line(&policy).map(|l| (l.text, l.danger));
     let network = policy
         .keys()
         .first()
@@ -392,40 +313,11 @@ fn shown(app: &Faraday, c: &Compute, policy: WalletPolicy, given: bool) -> Shown
         .map(|a| Text::of(&a.to_string()));
     Shown {
         policy,
-        shape,
-        keys,
-        repeats,
-        checksum,
-        key_path,
+        rows,
         quorum,
         ways,
         ways_too_many,
         first,
-    }
-}
-
-/// Costs a key derivation: whether a key loaded here is this cosigner.
-fn mark_of(
-    session: &Session,
-    c: &Compute,
-    cosigner: &faraday_bip::bitcoin::bip32::Xpub,
-    fp: Fingerprint,
-    path: &DerivationPath,
-) -> Mark {
-    let Some(i) = session.keys.position(fp) else {
-        return Mark::None;
-    };
-    match session.keys.xpub_at(c, i, path) {
-        Some(x) if x.public_key == cosigner.public_key && x.chain_code == cosigner.chain_code => {
-            Mark::Yours(path_is_single_account(path))
-        }
-        _ => Mark::Wrong(Text::fill(
-            EN.mscheck_wrong_key,
-            &[
-                &crate::wallet::fp_text(fp),
-                &crate::register::path_text(path),
-            ],
-        )),
     }
 }
 
@@ -461,13 +353,6 @@ fn way(p: &faraday_bip::spend::SpendPath) -> Text {
         .map(|t| String::from(&*t))
         .collect();
     Text::fill(EN.mscheck_way_wait, &[&keys, &waits.join(" · ")])
-}
-
-/// `text` in groups of four characters.
-fn groups_of_four(text: &str) -> Text {
-    let chars: Vec<char> = text.chars().collect();
-    let groups: Vec<String> = chars.chunks(4).map(|g| g.iter().collect()).collect();
-    Text::of(&groups.join(" "))
 }
 
 /// The text of a file of Files.

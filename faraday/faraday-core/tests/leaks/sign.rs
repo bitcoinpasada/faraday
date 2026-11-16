@@ -57,7 +57,7 @@ fn a_psbt_signed_with_the_seed_leaves_no_copy_after_lock() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(&mut app, 1);
     app.press(Action::Entry(None));
     type_text(&mut app, PHRASE);
     app.press(Action::EntryAdd);

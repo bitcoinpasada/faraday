@@ -186,7 +186,7 @@ fn a_wallets_missing_key_pasted_loads_at_once() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::ScanKey(0));
     assert!(app.scan_pastes(), "the wallet's key scanner has no Paste");
     paste(&mut app, &testkit::test_words("zebra"), false);

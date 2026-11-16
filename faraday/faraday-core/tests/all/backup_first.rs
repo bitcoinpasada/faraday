@@ -223,7 +223,8 @@ fn a_restored_key_signs_at_once() {
         768,
     );
     let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
@@ -406,7 +407,7 @@ fn a_restored_key_shows_its_addresses_at_once() {
         vec![("spending-wallet.txt".to_string(), k.descriptor.into_bytes())],
         2400,
     );
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);

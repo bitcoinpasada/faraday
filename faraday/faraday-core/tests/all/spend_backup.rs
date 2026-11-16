@@ -157,7 +157,7 @@ fn kit_address(id: &str) -> String {
     let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "kit",
             &kit(id).descriptor,
@@ -493,6 +493,7 @@ fn split_sheets_scanned_in_any_order_rebuild_the_wallet() {
     assert!(app.spend_backup_wallet().is_none());
     assert!(note(&app).contains("2 of 3 keys in hand"), "{}", note(&app));
     scan(&mut app, sheet(1));
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(
         app.spend_backup_wallet().is_some(),
         "two sheets did not rebuild it"
@@ -528,6 +529,7 @@ fn a_description_in_files_is_offered_on_the_card_and_opens_the_wallet() {
     let k = inbox_at(&app, "savings-wallet.txt");
     assert!(app.offers(Action::SpendBackup(F::UseWallet(k))));
     app.press(Action::SpendBackup(F::UseWallet(k)));
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(chosen_address(&app), kit_address("savings"));
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
@@ -608,6 +610,7 @@ fn two_seeds_then_the_description_open_the_wallet_with_both_keys_here() {
     assert!(text.contains("Scan the description"), "{text}");
     assert!(!text.contains("Scan what you have"), "{text}");
     scan(&mut app, testkit::savings().into_bytes());
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(note(&app), "Wallet description read");
     let w = app
         .spend_backup_wallet()
@@ -629,11 +632,13 @@ fn a_seed_of_another_wallet_after_the_description_is_not_one_of_its_keys() {
     let mut app = shown();
     on_intake(&mut app);
     scan(&mut app, testkit::savings().into_bytes());
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = app
         .spend_backup_wallet()
         .expect("the description did not open");
     let name = app.session.wallets[w].name.as_str().to_string();
-    // A seed of no key of the wallet, on the same camera.
+    // A seed of no key of the wallet, on the camera the sheet covered.
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera did not come back");
     let other = ["abandon"; 11].join(" ") + " about";
     scan(&mut app, seedqr(&other));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
@@ -686,6 +691,7 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     assert_eq!(note(&app), "A transaction to sign · kept for later");
     assert!(app.spend().is_none(), "the spend started before the wallet");
     scan(&mut app, testkit::savings().into_bytes());
+    faraday_core::testkit::confirm_wallets(&mut app);
     app.press(Action::Cancel);
     assert!(app.spend_backup_ready());
     assert!(app.spend().is_none(), "the spend started before Bring");
@@ -848,6 +854,7 @@ fn a_described_wallets_check_has_no_no_money_shows() {
     let mut app = shown_at(2000);
     on_intake(&mut app);
     scan(&mut app, testkit::savings().into_bytes());
+    faraday_core::testkit::confirm_wallets(&mut app);
     app.press(Action::Cancel);
     assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     let text = drawn(&mut app);

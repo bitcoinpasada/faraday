@@ -84,7 +84,7 @@ fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             name,
             descriptor,
@@ -193,7 +193,7 @@ fn holding_mixed(p0: &str, p1: &str) -> (Faraday, usize) {
     );
     let w = app
         .session
-        .add_wallet(&c, "Mixed", &d, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet_confirmed(&c, "Mixed", &d, "test", faraday_core::wallet::Origin::Named)
         .expect("a wallet");
     (app, w)
 }
@@ -368,7 +368,7 @@ fn a_signed_message_reads_back_from_its_code_and_its_picture() {
         .find(|k| k.id == "spending")
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             spending.name,
             &spending.descriptor,
@@ -422,7 +422,7 @@ fn a_second_message_from_one_address_goes_beside_the_first() {
         .find(|k| k.id == "spending")
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             spending.name,
             &spending.descriptor,

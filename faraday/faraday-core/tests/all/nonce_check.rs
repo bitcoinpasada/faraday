@@ -347,7 +347,8 @@ fn finished_savings() -> (String, Vec<u8>) {
         ("from-a.psbt", signed_elsewhere(How::LowR).to_bytes()),
     ]);
     let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
-    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    let wallet_at = at(&b, "savings-wallet.txt");
+    testkit::load_wallet(&mut b, wallet_at);
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     testkit::steps_before_sign_done(&mut b);
@@ -471,7 +472,7 @@ fn signed_by_seeds(id: &str) -> (Kit, Vec<u8>) {
             .add_words(&c, &testkit::test_words(w), l, None)
             .unwrap();
     }
-    s.add_wallet(
+    s.add_wallet_confirmed(
         &c,
         "W",
         &k.descriptor,
@@ -520,7 +521,8 @@ fn the_finish_cards_nonce_line_follows_a_key_loaded_while_it_is_drawn() {
             ("w.txt", k.descriptor.as_bytes().to_vec()),
         ]);
         let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
-        app.press(Action::LoadWallet(at(&app, "w.txt")));
+        let wallet_at = at(&app, "w.txt");
+        testkit::load_wallet(&mut app, wallet_at);
         app.press(Action::StartSpend(at(&app, "spend.psbt")));
         app.press(Action::Step(faraday_core::wallet::step::FINISH));
         assert_eq!(
@@ -553,7 +555,8 @@ fn a_collect_that_brings_a_changed_signature_shows_its_verdict_in_the_check() {
         ("from-b.psbt", signed_elsewhere(How::OwnNonce).to_bytes()),
     ]);
     let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
-    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    let wallet_at = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     testkit::steps_before_sign_done(&mut app);
@@ -3284,7 +3287,7 @@ fn a_finalized_recovery_spend_is_a_true_spend_and_a_forged_one_is_not() {
             .unwrap();
     }
     session
-        .add_wallet(&c, kit.name, &kit.descriptor, "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, kit.name, &kit.descriptor, "Test wallet", Origin::Named)
         .map_err(|e| e.text())
         .unwrap();
     let mut signed = testkit::recovery(&kit).unwrap();

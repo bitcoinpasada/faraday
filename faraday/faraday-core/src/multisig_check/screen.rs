@@ -1,7 +1,7 @@
 //! Check a multisig setup's screen: the step-card column over
 //! [`crate::multisig_check`].
 
-use super::{Mark, MsAction as M, MsState, SeedAnswer, Shown, mstep, state};
+use super::{MsAction as M, MsState, SeedAnswer, Shown, mstep, state};
 use crate::Action;
 use crate::drawing::{Scrolled, View};
 use crate::flow;
@@ -61,7 +61,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn summary(s: &MsState, step: u8) -> String {
     match (step, &s.shown) {
         (mstep::SETUP, Some(_)) => s.source.as_ref().map(|t| String::from(&**t)),
-        (_, Some(r)) => Some(String::from(&*r.shape)),
+        (_, Some(r)) => Some(String::from(&*r.rows.shape)),
         _ => None,
     }
     .unwrap_or_default()
@@ -205,50 +205,11 @@ fn result(app: &View, s: &MsState, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
 /// The Result's rows: the confirmation sheet's, then the page's own.
 fn rows(r: &Shown, seed: Option<&SeedAnswer>, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     use faraday_ui::sheet::kv;
-    let mut cy = ui.wrap_as((x, y, w), BODY_M, Role::OnSurface, &r.shape) + GAP;
-    for line in &r.repeats {
-        cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line) + GAP;
-    }
-    for (i, k) in r.keys.iter().enumerate() {
-        let head = format!("{} · {}", &*k.fingerprint, &*k.path);
-        cy += kv(ui, x, y + cy, w, &k.number, &head, Role::OnSurface);
-        cy += ui.wrap_as((x, y + cy, w), BODY_M.mono(), Role::OnSurface, &k.xpub);
-        match &k.mark {
-            Mark::None => {}
-            Mark::Yours(single) => {
-                let line = if *single {
-                    EN.mscheck_yours_single
-                } else {
-                    EN.mscheck_yours
-                };
-                cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Ok, line);
-            }
-            Mark::Wrong(line) => {
-                cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Error, line);
-            }
-        }
-        if matches!(seed, Some(SeedAnswer::Key(ours, _)) if ours.contains(&i)) {
-            cy += ui.wrap_as((x, y + cy, w), BODY_M, Role::Ok, EN.mscheck_this_seed);
-        }
-        cy += GAP;
-    }
-    cy += kv(
-        ui,
-        x,
-        y + cy,
-        w,
-        EN.mscheck_checksum,
-        &r.checksum,
-        Role::OnSurface,
-    );
-    if let Some((line, danger)) = &r.key_path {
-        let tone = if *danger {
-            Role::Error
-        } else {
-            Role::OnSurface
-        };
-        cy += ui.wrap_as((x, y + cy, w), BODY_M, tone, line) + GAP;
-    }
+    let ours: &[usize] = match seed {
+        Some(SeedAnswer::Key(ours, _)) => ours,
+        _ => &[],
+    };
+    let mut cy = crate::wallet::draw_rows(&r.rows, ours, ui, (x, y, w));
     if let Some(q) = &r.quorum {
         cy += kv(ui, x, y + cy, w, EN.mscheck_quorum, q, Role::OnSurface);
     }

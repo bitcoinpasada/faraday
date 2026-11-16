@@ -342,7 +342,7 @@ fn a_step_card_grows_open_and_comes_to_rest() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Backup(0));
     let _ = frames(&mut app, 1_016, 2_000);
     app.press(Action::BQ(faraday_core::qstep::BOARD));

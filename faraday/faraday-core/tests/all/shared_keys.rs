@@ -44,8 +44,10 @@ fn both() -> Faraday {
             testkit::spend_of(&kit("savings")).unwrap().0.to_bytes(),
         ),
     ]);
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
-    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
+    let wallet_at = at(&app, "savings-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app
 }

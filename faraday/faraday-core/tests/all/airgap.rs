@@ -50,7 +50,7 @@ fn load_wallet(app: &mut Faraday, text: &str) {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(app, 0);
 }
 
 #[test]

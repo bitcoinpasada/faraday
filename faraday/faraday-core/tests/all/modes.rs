@@ -35,7 +35,7 @@ fn choosing_a_mode_with_keys_and_wallets_loaded_leaves_a_fresh_session_in_it() {
     let kit = testkit::kits().into_iter().next().unwrap();
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "w",
             &kit.descriptor,
@@ -173,7 +173,7 @@ fn demo_addresses_are_testnet_addresses_a_testnet_wallet_sits_beside() {
     // A real testnet wallet from elsewhere loads in the same session.
     let kit = testkit::kits().into_iter().next().unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "t",
             &kit.descriptor,
@@ -219,7 +219,7 @@ fn a_testnet_wallet_moves_an_empty_stick_session_to_testnet_and_a_loaded_key_sto
     testkit::move_to(&mut empty.session, Network::Mainnet).unwrap();
     empty
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "t",
             &kit.descriptor,
@@ -233,7 +233,7 @@ fn a_testnet_wallet_moves_an_empty_stick_session_to_testnet_and_a_loaded_key_sto
     testkit::move_to(&mut keyed.session, Network::Mainnet).unwrap();
     keyed.session.keys.add_words(&c, ABANDON, "", None).unwrap();
     faraday_core::testkit::keep_published(&mut keyed);
-    let refused = keyed.session.add_wallet(
+    let refused = keyed.session.add_wallet_confirmed(
         &c,
         "t",
         &kit.descriptor,

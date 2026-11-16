@@ -449,6 +449,7 @@ impl Tour {
                 .position(|it| it.name.as_str() == name.as_str())
                 .ok_or(format!("{name} is not in Files"))?;
             self.press(Action::LoadWallet(i));
+            testkit::confirm_wallets(&mut self.app);
         }
         let keys = &self.app.session.keys;
         if !(0..keys.len()).any(|i| testkit::has_test_words(keys, i, 0)) {

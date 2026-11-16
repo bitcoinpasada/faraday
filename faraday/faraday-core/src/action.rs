@@ -223,10 +223,10 @@ pub enum Action {
     /// The sheet's hold that deletes a file For the stick no stick holds
     /// ([`Action::OutboxRemove`] asks first).
     OutboxDeleteHold,
-    /// The key path sheet's hold: the waiting wallet is added (F132).
-    KeyPathHold,
-    /// The key path sheet's Cancel: the waiting wallet is not added.
-    KeyPathCancel,
+    /// The wallet confirmation sheet's hold: the waiting wallet is added (F254).
+    WalletHold,
+    /// The wallet confirmation sheet's Cancel: the waiting wallet is not added, and the next one waits.
+    WalletCancel,
     /// The published-words sheet's **Remove**: the key is dropped.
     PublishedRemove,
     /// The published-words sheet's **Keep for testing**: the key stays.
@@ -1002,7 +1002,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldRestart
             | Action::RemoveKeysHold
             | Action::SecretHold
-            | Action::KeyPathHold
+            | Action::WalletHold
             | Action::OutboxDeleteHold
             | Action::Sweep(seeds::sweep::SweepAction::Hold)
             | Action::RegisterHold
@@ -1050,7 +1050,7 @@ impl Faraday {
         if !self.taken_synced(action) || self.seed_gate(action) {
             return;
         }
-        let asked = self.session.key_path_asked().is_some();
+        let asked = self.session.wallet_asked().is_some();
         let account_asked = self.session.account_asked().is_some();
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
@@ -1065,7 +1065,7 @@ impl Faraday {
         self.sweep_tidy();
         self.read_carried_tidy();
         self.seed_carried_tidy();
-        self.key_path_after(asked, action);
+        self.wallet_after(asked, action);
         self.published_sheet_open();
         self.account_after(account_asked, action);
         self.osk_after(action);
@@ -1106,6 +1106,11 @@ impl Faraday {
                 self.load_sheet_act(vault::VaultAction::LoadNotNow);
             }
             // Sign with {key}'s Cancel: nothing is signed (F63).
+            // Escape on the wallet confirmation sheet is its Cancel: that
+            // wallet is dropped and nothing else is torn down under it.
+            Action::Cancel if self.sheet == Some(Sheet::WalletConfirm) => {
+                self.confirm_act(Action::WalletCancel);
+            }
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
@@ -1496,7 +1501,7 @@ impl Faraday {
             | Action::HoldRestart
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
-            a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
+            a @ (Action::WalletHold | Action::WalletCancel) => self.confirm_act(a),
             a @ (Action::PublishedRemove | Action::PublishedKeep) => self.published_act(a),
             Action::LoadAccount(a) => self.account_act(a),
             a @ (Action::RegisterOpen

@@ -94,7 +94,7 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),

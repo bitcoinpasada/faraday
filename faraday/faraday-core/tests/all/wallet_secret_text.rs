@@ -352,6 +352,7 @@ fn restore_takes_a_wallet_file_with_a_seed_comment_as_it_takes_a_wallet_file() {
     crate::common::texts(&mut app);
     assert!(app.offers(faraday_core::Action::RFromFiles));
     app.press(faraday_core::Action::RFromFiles);
+    faraday_core::testkit::confirm_wallets(&mut app);
     let r = app.restore().expect("restoring");
     assert!(r.wallet.is_some(), "{:?}", r.error);
 }
@@ -369,6 +370,7 @@ fn spend_offers_a_wallet_file_with_a_seed_comment_and_opens_its_wallet() {
     );
     assert!(app.offers(faraday_core::Action::SpendBackup(F::UseWallet(0))));
     app.press(faraday_core::Action::SpendBackup(F::UseWallet(0)));
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.spend_backup_wallet().is_some());
 }
 
@@ -390,6 +392,7 @@ fn only_wallet_name(app: &faraday_core::Faraday) -> String {
 fn a_multisig_config_named_by_seed_words_is_not_named_so_when_loaded_from_files() {
     let mut app = crate::common::device(named_by_words());
     app.press(faraday_core::Action::LoadWallet(0));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let name = only_wallet_name(&app);
     assert!(!name.contains("abandon"), "{name}");
 }
@@ -399,6 +402,7 @@ fn a_multisig_config_named_by_seed_words_is_not_named_so_when_restored() {
     let mut app = crate::common::device(named_by_words());
     app.press(faraday_core::Action::RestoreWallet);
     app.press(faraday_core::Action::RUse(0));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let name = only_wallet_name(&app);
     assert!(!name.contains("abandon"), "{name}");
 }
@@ -410,6 +414,7 @@ fn a_multisig_config_named_by_seed_words_is_not_named_so_when_spend_opens_it() {
     app.press(faraday_core::Action::Nav(faraday_core::Screen::SpendBackup));
     app.press(faraday_core::Action::SpendBackup(F::Next(page::MAP)));
     app.press(faraday_core::Action::SpendBackup(F::UseWallet(0)));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let name = only_wallet_name(&app);
     assert!(!name.contains("abandon"), "{name}");
 }

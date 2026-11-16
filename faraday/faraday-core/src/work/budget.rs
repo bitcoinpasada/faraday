@@ -388,7 +388,7 @@ pub(crate) fn walk_on(
     app.press(Action::Vault(V::LoadTicked));
     // Every test wallet loaded beside the 2-of-3, as Load would.
     for kit in testkit::kits() {
-        let _ = app.session.add_wallet(
+        let _ = app.session.add_wallet_confirmed(
             c,
             kit.name,
             &kit.descriptor,

@@ -75,7 +75,7 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     )?;
     t.app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Spending",
             &format!("wpkh({text}/<0;1>/*)"),
@@ -149,6 +149,7 @@ pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
     let fp = t.app.session.keys.last().ok_or("no key")?.fingerprint.0;
     t.press(Action::KeyWallet(fp, 1));
     t.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
     testkit::backup_as(&mut t.app, Preset::Paper);

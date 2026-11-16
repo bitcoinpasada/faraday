@@ -1127,7 +1127,7 @@ impl Faraday {
             return;
         };
         let source = open.name.clone();
-        self.restore_wallet(&name, &text, &source, wallet::Origin::Vault);
+        self.restore_wallet_in(&name, &text, &source, wallet::Origin::Vault, false);
         let Some(w) = self
             .restore
             .state()
@@ -1269,59 +1269,82 @@ impl Faraday {
         source: &str,
         origin: wallet::Origin,
     ) {
+        self.restore_wallet_in(name, text, source, origin, true);
+    }
+
+    /// Costs what `restore_wallet` costs; `confirm` false is a vault's
+    /// wallet, the person's own record, added with no sheet (F254).
+    fn restore_wallet_in(
+        &mut self,
+        name: &str,
+        text: &str,
+        source: &str,
+        origin: wallet::Origin,
+        confirm: bool,
+    ) {
         let c = self.compute();
-        match self.session.add_wallet(&c, name, text, source, origin) {
-            Ok(i) => {
-                self.wallets.set_wallet(i);
-                let w = &self.session.wallets[i];
-                let kind = create::NewKind::of(w.policy());
-                let (m, n) = Session::quorum(w);
-                // The flow that decided where the seeds go knows the wallet
-                // once it is made from them.
-                if let Some(owner) = self
-                    .restore
-                    .state()
-                    .filter(|r| r.into_vaults())
-                    .map(|r| r.owner)
-                {
-                    self.wallet_flow_attach(i, owner);
-                }
-                if let Some(r) = self.restore.state.as_mut() {
-                    r.wallet = Some(i);
-                    r.described = true;
-                    r.absent.clear();
-                    r.error = None;
-                    if let Some(s) = r.seeds.as_mut() {
-                        s.fix(kind.unwrap_or(s.kind));
-                        // A description's keys are matched to the seeds
-                        // from none; a wallet made from the seeds keeps
-                        // them, its keys.
-                        if origin != wallet::Origin::TypedSeeds {
-                            s.keys.clear();
-                        }
-                        s.set_n(n);
-                        s.set_m(m);
-                    }
-                    for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {
-                        r.done[k as usize] = true;
-                    }
-                    r.done[rstep::SEEDS as usize] = false;
-                    r.done[rstep::CHECK as usize] = false;
-                    // On to the next card not done: the question of vaults
-                    // when it is not answered yet, before the seeds.
-                    r.next(rstep::DESCRIPTION);
-                }
-                if origin != wallet::Origin::TypedSeeds
-                    && let Some(then) = self.restore.state().and_then(|r| r.then)
-                {
-                    self.restore_return(then);
-                }
-            }
+        let added = if confirm {
+            self.session.add_wallet(&c, name, text, source, origin)
+        } else {
+            self.session.add_wallet_kept(&c, name, text, source, origin)
+        };
+        match added {
+            Ok(i) => self.restore_added(i, origin),
+            Err(wallet::Refusal::Unconfirmed) => self.session.wallet_for_restore(),
             Err(e) => {
                 if let Some(r) = self.restore.state.as_mut() {
                     r.error = Some(e.text());
                 }
             }
+        }
+    }
+
+    /// Costs what `restore_wallet` costs. Restore goes on from the wallet
+    /// `i`, added now or once its sheet was confirmed.
+    pub(crate) fn restore_added(&mut self, i: usize, origin: wallet::Origin) {
+        self.wallets.set_wallet(i);
+        let w = &self.session.wallets[i];
+        let kind = create::NewKind::of(w.policy());
+        let (m, n) = Session::quorum(w);
+        // The flow that decided where the seeds go knows the wallet
+        // once it is made from them.
+        if let Some(owner) = self
+            .restore
+            .state()
+            .filter(|r| r.into_vaults())
+            .map(|r| r.owner)
+        {
+            self.wallet_flow_attach(i, owner);
+        }
+        if let Some(r) = self.restore.state.as_mut() {
+            r.wallet = Some(i);
+            r.described = true;
+            r.absent.clear();
+            r.error = None;
+            if let Some(s) = r.seeds.as_mut() {
+                s.fix(kind.unwrap_or(s.kind));
+                // A description's keys are matched to the seeds
+                // from none; a wallet made from the seeds keeps
+                // them, its keys.
+                if origin != wallet::Origin::TypedSeeds {
+                    s.keys.clear();
+                }
+                s.set_n(n);
+                s.set_m(m);
+            }
+            for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {
+                r.done[k as usize] = true;
+            }
+            r.done[rstep::SEEDS as usize] = false;
+            r.done[rstep::CHECK as usize] = false;
+            // On to the next card not done: the question of vaults
+            // when it is not answered yet, before the seeds.
+            r.next(rstep::DESCRIPTION);
+        }
+        if origin != wallet::Origin::TypedSeeds
+            && let Some(then) = self.restore.state().and_then(|r| r.then)
+        {
+            self.restore_return(then);
         }
     }
 
@@ -1370,7 +1393,7 @@ mod tests {
         for (d, splits) in [(&*twice, false), (&*savings, true)] {
             let i = app
                 .session
-                .add_wallet(&c, "Test", d, "Test", wallet::Origin::Named)
+                .add_wallet_confirmed(&c, "Test", d, "Test", wallet::Origin::Named)
                 .expect("reads");
             let w = &app.session.wallets[i];
             assert_eq!(crate::wallet_backup::splits(w), splits, "{d}");

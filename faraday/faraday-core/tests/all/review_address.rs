@@ -61,7 +61,7 @@ fn reviewing(psbt: &Psbt, size: (u16, u16, u16)) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     add_key(&mut app, "bacon");
     let at = app.inbox().iter().position(|i| i.name == "spend.psbt");
     app.press(Action::StartSpend(at.unwrap()));

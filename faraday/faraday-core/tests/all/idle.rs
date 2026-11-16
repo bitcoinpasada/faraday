@@ -24,7 +24,7 @@ fn with_wallet() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app
 }
 
@@ -333,7 +333,7 @@ fn the_idle_warning_comes_over_the_code_sheet_and_takes_the_code_off_the_screen(
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

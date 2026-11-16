@@ -71,7 +71,7 @@ fn the_checklists_pictures_are_made_on_the_worker() {
     app.press(Action::EntryAdd);
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Big",
             &descriptor,

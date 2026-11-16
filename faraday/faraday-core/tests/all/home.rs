@@ -752,7 +752,7 @@ fn with_a_wallet() -> Faraday {
         .find(|(n, _)| n == "spending-wallet.txt")
         .unwrap();
     let mut app = with_inbox(vec![("spending-wallet.txt", wallet.1)]);
-    app.press(Action::LoadWallet(0));
+    faraday_core::testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();

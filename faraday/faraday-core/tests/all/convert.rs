@@ -232,7 +232,7 @@ fn the_paths_fact_names_the_wallets_that_hold_the_key() {
         .unwrap();
     let descriptor = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'"));
     app.session
-        .add_wallet(&c, "Spending", &descriptor, "Test wallet", Origin::Named)
+        .add_wallet_confirmed(&c, "Spending", &descriptor, "Test wallet", Origin::Named)
         .unwrap();
     open(&mut app);
     assert!(make(&mut app, "xprv").is_some());
@@ -1008,7 +1008,7 @@ fn the_idle_warning_closes_the_eye_of_the_result() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     let mut app = opened(app, ABOUT);
     assert!(make(&mut app, "Hex entropy").is_some());
     assert!(convert::shown(&app).is_some());

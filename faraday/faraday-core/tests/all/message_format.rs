@@ -23,7 +23,7 @@ fn with_wallets(ids: &[&str]) -> faraday_core::Faraday {
     for id in ids {
         let kit = testkit::kits().into_iter().find(|k| k.id == *id).unwrap();
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 kit.name,
                 &kit.descriptor,

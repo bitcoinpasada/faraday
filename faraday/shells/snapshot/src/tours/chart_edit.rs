@@ -30,7 +30,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         let text = crate::tour::key_text_of(c, &t.app.session.keys, 0, NewKind::NativeSegwit)?;
         t.app
             .session
-            .add_wallet(
+            .add_wallet_confirmed(
                 c,
                 "Spending",
                 &format!("wpkh({text}/<0;1>/*)"),
@@ -142,7 +142,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let two = t
         .app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Savings",
             &NewKind::Multi.descriptor(2, &keys),

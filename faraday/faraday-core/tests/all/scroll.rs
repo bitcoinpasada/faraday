@@ -29,7 +29,7 @@ fn a_notch_moves_the_page_by_its_pixels_in_the_direction_asked() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Backup(0));
     assert_eq!(app.screen, Screen::Backup);
     // Content up: the page scrolls down by the notch.

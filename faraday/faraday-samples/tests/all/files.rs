@@ -63,7 +63,7 @@ fn spending() -> (Session, usize) {
         .find(|w| w.name == "sample_spending")
         .expect("spending");
     session
-        .add_wallet(&c, "Spending", spending.text, "Sample", Origin::Statement)
+        .add_wallet_confirmed(&c, "Spending", spending.text, "Sample", Origin::Statement)
         .expect("wallet");
     (session, 0)
 }

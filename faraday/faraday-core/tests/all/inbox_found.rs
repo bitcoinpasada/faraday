@@ -65,6 +65,7 @@ fn a_wallet_in_several_files_is_one_wallet() {
     assert_eq!(savings.len(), 1, "one Savings, however many files");
     assert_eq!(savings[0].files.len(), wallet_files);
     app.press(Action::InboxLoad);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
 }
 
@@ -91,6 +92,7 @@ fn a_seed_its_wallet_names_loads_with_it_and_is_no_potential_wallet() {
     assert_eq!(found.to_load().len(), 1);
     assert_eq!(found.to_load()[0].seeds_here, 1);
     app.press(Action::InboxLoad);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.keys.len(), 1);
 }

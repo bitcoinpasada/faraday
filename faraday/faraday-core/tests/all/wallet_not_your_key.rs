@@ -34,7 +34,7 @@ fn add(
     session: &mut faraday_core::wallet::Session,
     descriptor: &str,
 ) -> Result<usize, faraday_core::wallet::Refusal> {
-    session.add_wallet(
+    session.add_wallet_confirmed(
         &testkit::compute(),
         "Other",
         descriptor,
@@ -105,7 +105,7 @@ fn a_forged_wallet_added_before_its_key_is_taken_out_when_the_key_loads() {
     let real = format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/1'"));
     for (name, d) in [("Forged", &forged_d), ("Real", &real)] {
         app.session
-            .add_wallet(&c, name, d, "test", Origin::Named)
+            .add_wallet_confirmed(&c, name, d, "test", Origin::Named)
             .expect("no key is loaded: not checked");
     }
     assert_eq!(app.session.wallets.len(), 2);

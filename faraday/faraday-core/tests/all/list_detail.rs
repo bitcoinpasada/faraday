@@ -45,7 +45,7 @@ fn with_wallets(width: u16, height: u16, dpi: u16) -> Faraday {
             .iter()
             .position(|it| it.name.as_str() == n.as_str())
             .expect("the wallet's file");
-        app.press(Action::LoadWallet(i));
+        testkit::load_wallet(&mut app, i);
     }
     assert!(app.session.wallets.len() >= 3, "three wallets loaded");
     app
@@ -217,7 +217,7 @@ fn the_list_pane_scrolls_on_its_own() {
             .iter()
             .position(|it| it.name.ends_with("-wallet.txt"))
         {
-            app.press(Action::LoadWallet(i));
+            testkit::load_wallet(&mut app, i);
         }
     }
     app.press(Action::Nav(Screen::Wallets));

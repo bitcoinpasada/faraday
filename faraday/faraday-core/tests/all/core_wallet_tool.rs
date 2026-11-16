@@ -392,7 +392,7 @@ fn a_multisig_active_in_the_segwit_slot_is_named_a_script_and_taken_as_the_multi
     let mut session = Session::on(Network::Regtest);
     let c = testkit::compute();
     session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "multisig",
             &multisig.texts.join("\n"),

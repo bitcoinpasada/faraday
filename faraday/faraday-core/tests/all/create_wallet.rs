@@ -606,7 +606,7 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     let keys: Vec<String> = (0..3).map(|n| testkit::key(n, "m/48'/1'/0'/2'")).collect();
     let i = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Shared",
             &NewKind::Multi.descriptor(2, &keys),
@@ -1177,7 +1177,7 @@ fn shared_at(app: &mut Faraday, path: &str) -> (usize, usize) {
     let keys: Vec<String> = (0..3).map(|n| testkit::key(n, path)).collect();
     let i = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Shared",
             &NewKind::Multi.descriptor(2, &keys),

@@ -69,7 +69,7 @@ fn a_ready_wallet_goes_straight_to_its_next_page() {
     let mut app = with_files(vec![savings()]);
     add_key(&mut app, 0);
     add_key(&mut app, 1);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Nav(Screen::SpendBackup));
     assert!(
         app.spend_backup_overview(),
@@ -92,7 +92,7 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
     let mut app = with_files(vec![savings(), savings_psbt()]);
     add_key(&mut app, 0);
     add_key(&mut app, 1);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::SpendBackup(F::SpendFrom(0)));
     assert!(
@@ -114,7 +114,7 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &kit("savings").descriptor,
@@ -140,7 +140,7 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
 fn a_wallet_short_of_keys_is_opened_rather_than_spent() {
     let mut app = with_files(vec![savings()]);
     add_key(&mut app, 0);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Nav(Screen::SpendBackup));
     let _ = app.frame();
     assert!(!app.offers(Action::SpendBackup(F::SpendFrom(0))));
@@ -194,7 +194,7 @@ fn spending_review(claimed: bool) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(&mut app, 1);
     add_key(&mut app, 0);
     app.press(Action::StartSpend(0));
     app
@@ -252,7 +252,7 @@ fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i3
         memory_mib: None,
     }));
     add_key(&mut app, 0);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::TextSize(size));
     app.press(Action::Nav(Screen::SpendBackup));
     let lines: Vec<_> = app
@@ -345,7 +345,7 @@ fn spending_from_a_backup_counts_its_steps_without_a_total() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &kit("savings").descriptor,

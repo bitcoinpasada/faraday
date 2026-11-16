@@ -99,7 +99,7 @@ fn wallet_and_backup(app: &mut Faraday) {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(app, 0);
     app.press(Action::Backup(0));
 }
 
@@ -312,7 +312,7 @@ fn words_key() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Entry(None));
     typed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
@@ -952,7 +952,7 @@ fn with_two_seeds() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Backup(0));
     app
 }

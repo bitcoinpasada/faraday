@@ -52,7 +52,7 @@ fn backing_up_with(enter: impl FnOnce(&mut Faraday)) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Entry(None));
     enter(&mut app);
     app.press(Action::EntryAdd);

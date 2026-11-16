@@ -236,6 +236,7 @@ mod vault_tabs;
 mod vault_trim;
 mod vault_way;
 mod visit;
+mod wallet_confirm;
 mod wallet_files_other;
 mod wallet_names;
 mod wallet_not_your_key;

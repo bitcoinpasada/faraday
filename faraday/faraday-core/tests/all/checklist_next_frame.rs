@@ -23,7 +23,7 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
         app.press(Action::EntryAdd);
     }
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &faraday_core::testkit::savings(),

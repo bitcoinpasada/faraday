@@ -26,7 +26,7 @@ fn first_address(text: &str) -> String {
     let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet_confirmed(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .unwrap();
     String::from(&*s.address(&c, &s.wallets[i], false, 0))
 }
@@ -174,7 +174,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         .iter()
         .position(|i| i.name == "taproot-multisig-descriptor.txt")
         .unwrap();
-    app.press(Action::LoadWallet(at));
+    testkit::load_wallet(&mut app, at);
     let w = &app.session.wallets[0];
     assert!(app.session.slots(w).iter().all(|s| s.held_by.is_some()));
 }

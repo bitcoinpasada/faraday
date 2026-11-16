@@ -110,7 +110,7 @@ fn with_vault(files: &[&faraday_psbt::Psbt]) -> Faraday {
 /// `signed` signs under (no key of it is held here).
 fn register_savings(app: &mut Faraday) {
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &testkit::compute(),
             "Savings",
             &kit("savings").descriptor,
@@ -411,7 +411,7 @@ fn musig_round() -> (
     let psbt = faraday_psbt::Psbt::parse_base64(&c, text.trim()).unwrap();
     let mut session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Regtest);
     session
-        .add_policy(
+        .add_policy_confirmed(
             &c,
             "Core",
             WalletPolicy::parse(&c, policy).unwrap(),
@@ -540,7 +540,7 @@ fn the_decode_screen_offers_no_hex_and_no_code_once_the_check_refuses() {
     let (unsigned, _) = testkit::spend_of(&k).unwrap();
     let mut app = with_vault(&[&unsigned]);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &testkit::compute(),
             "Spending",
             &k.descriptor,
@@ -973,7 +973,7 @@ fn a_spend_stays_held_when_keys_or_wallets_change_collect_or_sign_here_runs() {
         let _ = app.frame();
         assert_still_held(&mut app);
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &testkit::compute(),
                 "Taproot",
                 &kit("taproot").descriptor,
@@ -1113,7 +1113,7 @@ fn a_musig_partial_signature_in_a_spend_is_recorded_and_compared() {
     let mut app = with_named_vault(&[&psbt]);
     let policy = include_str!("../../../../../tools/vectors/psbt/wallet-musig-regtest.policy");
     app.session
-        .add_policy(
+        .add_policy_confirmed(
             &testkit::compute(),
             "Core",
             WalletPolicy::parse(&testkit::compute(), policy).unwrap(),

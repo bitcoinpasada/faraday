@@ -383,14 +383,14 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     let other = kits.iter().find(|k| k.id == "spending").expect("Spending");
     let w = app
         .session
-        .add_wallet(&c, other.name, &other.descriptor, "test", Origin::Named)
+        .add_wallet_confirmed(&c, other.name, &other.descriptor, "test", Origin::Named)
         .expect("Spending loads");
     app.press(Action::Nav(Screen::Wallets));
     let _ = app.frame();
     assert_eq!(app.psbt_for(&c, w), None, "the PSBT is not Spending's");
     let w = app
         .session
-        .add_wallet(&c, savings.name, &savings.descriptor, "test", Origin::Named)
+        .add_wallet_confirmed(&c, savings.name, &savings.descriptor, "test", Origin::Named)
         .expect("Savings loads");
     let _ = app.frame();
     assert_eq!(app.psbt_for(&c, w), Some(0), "the PSBT is Savings'");
@@ -410,7 +410,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
     let mut app = testkit::started();
     let _ = testkit::move_to(&mut app.session, testkit::NET);
     app.session
-        .add_wallet(&c, savings.name, &savings.descriptor, "test", Origin::Named)
+        .add_wallet_confirmed(&c, savings.name, &savings.descriptor, "test", Origin::Named)
         .expect("Savings loads");
     let psbt = testkit::unsigned(savings).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
@@ -554,7 +554,7 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
 
     // The session's wallets: loaded, renamed, its policy changed.
     app.session
-        .add_wallet(&c, one.name, &one.descriptor, "test", Origin::Named)
+        .add_wallet_confirmed(&c, one.name, &one.descriptor, "test", Origin::Named)
         .expect("the wallet loads");
     step(&mut app, "the file's wallet loaded", true);
     assert!(kept_found(&app).wallets.iter().all(|w| w.loaded));

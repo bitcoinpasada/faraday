@@ -189,7 +189,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         .unwrap();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),

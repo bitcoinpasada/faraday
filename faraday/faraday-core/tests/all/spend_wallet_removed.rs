@@ -35,7 +35,8 @@ fn open_spend_of_the_middle_wallet() -> Faraday {
     });
     for id in WALLETS {
         let file = testkit::wallet_file(&kit(id)).0;
-        app.press(Action::LoadWallet(at(&app, &file)));
+        let wallet_at = at(&app, &file);
+        testkit::load_wallet(&mut app, wallet_at);
     }
     assert_eq!(app.session.wallets.len(), 3);
     app.press(Action::StartSpend(at(&app, "spending.psbt")));

@@ -115,7 +115,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_closes_the_code_on_show_at_once() {
     testkit::move_to(&mut app.session, testkit::net()).expect("the test network");
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

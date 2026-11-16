@@ -336,8 +336,10 @@ pub(crate) fn wallet_share_record(
                 )
                 .find(|t| of_wallet(t))?;
             let mut s = crate::wallet::Session::on(app.session.network());
+            // A throwaway session that only reads the description back:
+            // no sheet (F254).
             let k = s
-                .add_wallet(c, &wf.name, desc.trim(), "", crate::wallet::Origin::Named)
+                .add_wallet_kept(c, &wf.name, desc.trim(), "", crate::wallet::Origin::Named)
                 .ok()?;
             text(&s.wallets[k])
         }

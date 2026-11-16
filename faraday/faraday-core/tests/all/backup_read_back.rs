@@ -250,6 +250,7 @@ fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
 fn described_wallet(app: &mut Faraday) -> String {
     let c = faraday_core::testkit::compute();
     app.press(Action::InboxLoad);
+    faraday_core::testkit::confirm_wallets(app);
     assert_eq!(app.session.wallets.len(), 1, "one wallet");
     String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0))
 }
@@ -430,6 +431,7 @@ fn shares_restore(f: usize) {
     back.press(Action::Nav(Screen::Files));
     let _ = back.frame();
     back.press(Action::RestoreShares);
+    faraday_core::testkit::confirm_wallets(&mut back);
     assert_eq!(back.session.wallets.len(), 1, "{:?}", back.toast_text());
     assert_eq!(
         back.session.address(&c, &back.session.wallets[0], false, 0),

@@ -30,7 +30,7 @@ fn offer(app: &mut Faraday, psbt: &faraday_psbt::Psbt, kept: Vec<(String, Vec<u8
         outbox: Vec::new(),
         kept: faraday_core::kept_from(kept),
     });
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(app, 1);
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -181,7 +181,7 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
         .iter()
         .position(|i| i.name == "spending-wallet.txt")
         .unwrap();
-    app.press(Action::LoadWallet(w));
+    testkit::load_wallet(&mut app, w);
     assert_eq!(app.session.wallets.len(), 1);
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {

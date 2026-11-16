@@ -90,6 +90,7 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
     let mut app = restore_from_seeds(false);
     add_seed(&mut app, "bacon");
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let restored = restored(&app);
     assert_eq!(restored, desc(&kit("spending")));
 
@@ -132,6 +133,7 @@ fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(&mut app, &testkit::key(2, MULTI_PATH));
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = app.spend_backup_wallet().expect("no wallet made");
     assert_eq!(
         desc(&app.session.wallets[w].policy().to_descriptor()),

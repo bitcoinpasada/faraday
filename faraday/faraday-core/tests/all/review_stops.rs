@@ -38,7 +38,7 @@ fn reviewing_with(psbt: &Psbt, key: bool) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     if key {
         add_key(&mut app, "bacon");
     }
@@ -221,6 +221,7 @@ fn reviewing_wallets(psbt: &Psbt, wallets: &[&testkit::Kit]) -> Faraday {
     });
     for i in 0..wallets.len() {
         app.press(Action::LoadWallet(i));
+        testkit::confirm_wallets(&mut app);
     }
     add_key(&mut app, "bacon");
     let at = app.inbox().iter().position(|i| i.name == "spend.psbt");

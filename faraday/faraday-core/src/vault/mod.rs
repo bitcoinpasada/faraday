@@ -1633,7 +1633,7 @@ impl Faraday {
         Some((job, descs))
     }
 
-    /// Costs what `add_policy_with` costs for each wallet: a derivation at
+    /// Costs what `add_kept` costs for each wallet: a derivation at
     /// the origin path of each of its keys the session holds that the
     /// load's job did not derive (`derived`). The back half of
     /// a load: the wallets `descs` hold are added to the session, after
@@ -1647,9 +1647,9 @@ impl Faraday {
         let before = self.session.wallets.len();
         for (policy, name) in descs {
             let to = crate::wallet::Origin::Vault;
-            let added =
-                self.session
-                    .add_policy_with(c, &name, policy, EN.vaults_vault, to, derived);
+            let added = self
+                .session
+                .add_kept(c, &name, policy, EN.vaults_vault, to, derived);
             // A kept MuSig2 wallet two of whose keys are one seed's, or a
             // wallet with a loaded key's fingerprint and another xpub, is
             // left out; the load's toast says why.
@@ -1731,7 +1731,8 @@ impl Faraday {
             kind::WALLET => {
                 let text = Text::of(r.public_text(field::WALLET).unwrap_or(""));
                 let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
-                match self.session.add_wallet(
+                // The person's own record, sealed by them: no sheet (F254).
+                match self.session.add_wallet_kept(
                     &c,
                     &name,
                     &text,

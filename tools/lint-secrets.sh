@@ -202,6 +202,8 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 #       a setup's public descriptor text, its cosigners' fingerprints, paths and keys, and refusals; a private key is refused before it is read
 #   faraday/faraday-core/src/multisig_check/screen.rs
 #       a setup's public rows and the seed check's answer lines
+#   faraday/faraday-core/src/wallet/confirm.rs
+#       a wallet's public keys, fingerprints and paths on the confirmation sheet and Check a multisig setup
 #   faraday/faraday-core/src/wallet/nonce.rs
 #       the nonce check's counts and headlines
 #   faraday/faraday-core/src/wallet/account.rs
@@ -290,6 +292,7 @@ faraday/faraday-core/src/create_from.rs
 faraday/faraday-core/src/decode/check_screen.rs
 faraday/faraday-core/src/multisig_check/mod.rs
 faraday/faraday-core/src/multisig_check/screen.rs
+faraday/faraday-core/src/wallet/confirm.rs
 faraday/faraday-core/src/wallet/nonce.rs
 faraday/faraday-core/src/wallet/account.rs
 faraday/faraday-core/src/wallet/own_name.rs

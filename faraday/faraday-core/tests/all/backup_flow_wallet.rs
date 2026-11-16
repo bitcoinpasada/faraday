@@ -1743,6 +1743,7 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
     );
     app.press(Action::CSlotHere(2, k3));
     app.press(Action::CNext(cstep::KEYS));
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(
         app.create().unwrap().built.is_some(),
         "{:?}",

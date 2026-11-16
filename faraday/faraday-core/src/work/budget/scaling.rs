@@ -45,7 +45,7 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
     kits.sort_by_key(|k| k.id != "savings");
     for kit in kits.iter().take(wallets) {
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 kit.name,
                 &kit.descriptor,

@@ -659,7 +659,7 @@ fn each_seed_is_checked_by_its_own_forms() {
         app.press(Action::EntryAdd);
     }
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

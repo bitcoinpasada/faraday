@@ -1738,7 +1738,7 @@ impl Faraday {
                     self.sheet = Some(Sheet::Power);
                 }
             }
-            Action::KeyPathHold => self.key_path_act(action),
+            Action::WalletHold => self.confirm_act(action),
             Action::PowerOff | Action::HoldPowerOff => {
                 self.sheet = None;
                 self.exit_forgetting();

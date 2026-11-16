@@ -1278,7 +1278,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     app.session = testkit::session();
     key_in(&mut app, 0);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

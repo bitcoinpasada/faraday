@@ -62,7 +62,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let five = t
         .app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             c,
             "Five",
             &testkit::three_of_five(),

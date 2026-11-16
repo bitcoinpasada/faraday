@@ -75,7 +75,7 @@ pub enum Refusal {
     NotYourKey(Text),
     /// A key that is not one of the wallet's spends it alone by the key
     /// path, and the person has not confirmed it yet (F132).
-    KeyPathUnconfirmed,
+    Unconfirmed,
     /// A Coldcard export holding a single-sig account and a silent
     /// payments account, and the person has not chosen which loads yet.
     AccountUnchosen,
@@ -109,7 +109,7 @@ impl Refusal {
             Refusal::StickAttached(noun) => Text::fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => Text::fill(EN.wallet_silent_differs, &[fp]),
             Refusal::NotYourKey(fp) => Text::fill(EN.wallet_not_your_key, &[fp]),
-            Refusal::KeyPathUnconfirmed => Text::of(EN.wallet_key_path_unconfirmed),
+            Refusal::Unconfirmed => Text::of(EN.wallet_confirm_unconfirmed),
             Refusal::AccountUnchosen => Text::of(EN.wallet_account_unchosen),
             Refusal::MuSigOneSeed => Text::of(EN.wallet_musig_one_seed),
         }

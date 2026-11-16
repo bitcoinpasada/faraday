@@ -1588,6 +1588,7 @@ impl Faraday {
             .or_else(|| crate::wallet::carried_name(&text))
             .unwrap_or_else(|| Text::of(&crate::file_stem(&item.name)));
         let source = item.name.clone();
+        let asked = self.session.wallet_asked().is_some();
         match self
             .session
             .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
@@ -1598,6 +1599,15 @@ impl Faraday {
                 self.spend_backup_described_in();
                 self.refresh_spend();
                 self.spend_backup_opened();
+            }
+            // Held for its sheet: the hold runs this again.
+            Err(crate::wallet::Refusal::Unconfirmed) => {
+                if !asked {
+                    self.session.wallet_replay(
+                        crate::Action::SpendBackup(SpendBackupAction::UseWallet(index)),
+                        self.inbox_print(),
+                    );
+                }
             }
             Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
@@ -1643,6 +1653,7 @@ impl Faraday {
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| Text::of(EN.spend_backup_restored_wallet));
+                    let asked = self.session.wallet_asked().is_some();
                     match self.session.add_wallet(
                         &c,
                         &name,
@@ -1657,6 +1668,14 @@ impl Faraday {
                             self.spend_backup_described_in();
                             self.refresh_spend();
                             self.spend_backup_opened();
+                        }
+                        Err(crate::wallet::Refusal::Unconfirmed) => {
+                            if !asked {
+                                self.session.wallet_replay(
+                                    crate::Action::SpendBackup(SpendBackupAction::Rebuild),
+                                    self.inbox_print(),
+                                );
+                            }
                         }
                         Err(e) => self.spend_backup.state.error = Some(e.text()),
                     }

@@ -528,7 +528,8 @@ mod signing {
 
     /// The wallet and test key 1 loaded, the spend opened, nothing signed.
     fn open(app: &mut Faraday, key: bool) {
-        app.press(Action::LoadWallet(at(app, "spending-wallet.txt")));
+        let wallet_at = at(app, "spending-wallet.txt");
+        testkit::load_wallet(app, wallet_at);
         if key {
             add_key(app, "bacon");
         }
@@ -736,7 +737,8 @@ mod signing {
 
         fn loaded() -> Faraday {
             let mut app = inbox_of();
-            app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+            let wallet_at = at(&app, "spending-wallet.txt");
+            testkit::load_wallet(&mut app, wallet_at);
             add_key(&mut app, "bacon");
             app
         }
@@ -856,7 +858,7 @@ mod signing {
                     outbox: Vec::new(),
                     kept: Vec::new(),
                 });
-                app.press(Action::LoadWallet(1));
+                testkit::load_wallet(&mut app, 1);
                 app
             };
             let mut inline = make();
@@ -927,7 +929,8 @@ mod signing {
         #[test]
         fn a_stick_put_in_during_the_read_keeps_the_visit_and_opens_nothing() {
             let mut app = inbox_of();
-            app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+            let wallet_at = at(&app, "spending-wallet.txt");
+            testkit::load_wallet(&mut app, wallet_at);
             testkit::hold_worker();
             go(&mut app);
             app.storage(a_stick());
@@ -1199,7 +1202,8 @@ mod signing {
                         outbox: Vec::new(),
                         kept: Vec::new(),
                     });
-                    a.press(Action::LoadWallet(at(&a, "musig-wallet.txt")));
+                    let wallet_at = at(&a, "musig-wallet.txt");
+                    testkit::load_wallet(&mut a, wallet_at);
                     a
                 };
                 let c = testkit::compute();
@@ -1365,7 +1369,8 @@ mod signing {
                 outbox: Vec::new(),
                 kept: Vec::new(),
             });
-            app.press(Action::LoadWallet(at(&app, "musig-wallet.txt")));
+            let wallet_at = at(&app, "musig-wallet.txt");
+            testkit::load_wallet(&mut app, wallet_at);
             app.press(Action::Entry(None));
             for c in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
                 app.event(Event::Key(faraday_shell_api::Key::Char(c)));
@@ -1785,7 +1790,8 @@ mod collect {
             outbox: Vec::new(),
             kept: Vec::new(),
         });
-        app.press(Action::LoadWallet(at(&app, "wallet.txt")));
+        let wallet_at = at(&app, "wallet.txt");
+        testkit::load_wallet(&mut app, wallet_at);
         add_key(&mut app, "bacon");
         app.press(Action::StartSpend(at(&app, "spend.psbt")));
         if signed {

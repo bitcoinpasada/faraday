@@ -155,8 +155,8 @@ file = "faraday/faraday-core/src/address_find/accounts.rs"
 reason = "Check an address's unmade accounts: asks faraday-keys for each loaded key's standard account key and faraday-bip to parse its policy, which the stamp covers; it derives nothing itself."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/multisig_check/mod.rs"
-reason = "Check a multisig setup: reads a descriptor with faraday-bip and asks faraday-keys for the loaded key's xpub at a cosigner's path to compare, which the stamp covers; it derives nothing itself and holds no secret."
+file = "faraday/faraday-core/src/wallet/confirm.rs"
+reason = "The wallet confirmation sheet's rows, shared with Check a multisig setup: reads a descriptor with faraday-bip and asks faraday-keys for the loaded key's xpub at a cosigner's path to compare, which the stamp covers; it derives nothing itself and holds no secret."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/scan_key.rs"
@@ -235,10 +235,6 @@ file = "faraday/faraday-core/src/address_find/accounts.rs"
 reason = "Names a loaded key's standard accounts for the address search; the keys and addresses at them are derived by faraday-keys and faraday-bip, which the stamp covers. Computes nothing cryptographic."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/multisig_check/mod.rs"
-reason = "Check a multisig setup: reads a descriptor's cosigners and compares them with a loaded key's fingerprint and path; the policy is parsed by faraday-bip, which the stamp covers. Computes nothing cryptographic."
-
-[[uncovered]]
 file = "faraday/faraday-core/src/scan_key.rs"
 reason = "The scanner's read cards; the address check's hand-over reads a scanned address and passes it to the search, whose addresses are derived by faraday-bip, which the stamp covers. Computes nothing cryptographic."
 
@@ -301,9 +297,9 @@ case = "Hold to sign, the Sweep sheet: a WIF key's coins signed to an output no 
 
 [[hold]]
 where = "app"
-hold = "Action::KeyPathHold"
-decision = "F132"
-case = "Hold to add this wallet: a tr() wallet whose key path another key spends"
+hold = "Action::WalletHold"
+decision = "F254"
+case = "Hold to add this wallet: a wallet of several keys, one of which no loaded key gives, or a tr() wallet whose key path another key spends"
 
 [[hold]]
 where = "app"

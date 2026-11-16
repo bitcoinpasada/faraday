@@ -663,6 +663,7 @@ fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spe
         assert_eq!(kind, "A wallet description");
         assert_eq!(ways.len(), 1, "{ways:?}");
         app.press(Action::ReadGo(0));
+        faraday_core::testkit::confirm_wallets(&mut app);
         assert_eq!(app.inbox().len(), 1);
         assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     }

@@ -1,6 +1,6 @@
 //! The key path tour (F132): a taproot multisig wallet whose key path a
-//! key not of the wallet spends, from Files to its sheet, its card and
-//! its spend's check; then the same wallet over the NUMS point.
+//! key not of the wallet spends, from Files to its confirmation sheet, its
+//! card and its spend's check; then the same wallet over the NUMS point.
 
 use crate::tour::Tour;
 use faraday_core::testkit::{self, Kit};
@@ -51,8 +51,8 @@ pub(crate) fn key_path_tour(t: &mut Tour) -> Result<(), String> {
     };
     t.press(Action::Nav(Screen::Files));
     t.press(Action::LoadWallet(at(t, "shared-wallet.txt")?));
-    t.shot("keypath-sheet")?;
-    t.press(Action::KeyPathHold);
+    t.shot("keypath-confirm")?;
+    t.press(Action::WalletHold);
     for n in 0..2 {
         t.press(Action::Entry(None));
         t.type_key(n);

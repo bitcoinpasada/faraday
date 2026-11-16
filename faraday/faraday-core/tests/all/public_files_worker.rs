@@ -16,7 +16,7 @@ fn holding() -> (Faraday, usize) {
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

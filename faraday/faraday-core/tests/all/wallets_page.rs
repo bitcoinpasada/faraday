@@ -38,7 +38,7 @@ fn with_single_key_wallet() -> Faraday {
         .unwrap();
     let d = format!("wpkh({}/<0;1>/*)", &*text);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Wallet",
             &d,
@@ -63,7 +63,7 @@ fn with_watch_only_wallet() -> Faraday {
         .unwrap();
     let d = format!("wpkh({}/<0;1>/*)", &*text);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Watch-only",
             &d,

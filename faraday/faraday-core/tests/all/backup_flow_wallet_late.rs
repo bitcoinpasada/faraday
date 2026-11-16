@@ -303,6 +303,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         .unwrap();
     r.press(Action::RShare(i));
     r.press(Action::RRebuild);
+    faraday_core::testkit::confirm_wallets(&mut r);
     let rw = r
         .restore()
         .and_then(|x| x.wallet)
@@ -530,7 +531,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
         .collect();
     let b = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             &name,
             &NewKind::TapMulti.descriptor(2, &keys),
@@ -929,6 +930,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
         r.press(Action::RShare(i));
     }
     r.press(Action::RRebuild);
+    faraday_core::testkit::confirm_wallets(&mut r);
     let rw = r.restore().and_then(|x| x.wallet).expect("rebuilt");
     assert_eq!(
         r.session.wallets[rw].policy().to_descriptor_checksummed(),
@@ -981,7 +983,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
     keep_time(&mut app);
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &desc,
@@ -1116,7 +1118,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
         .unwrap();
     let b = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Other",
             &format!("tr({}/<0;1>/*)", &*text),

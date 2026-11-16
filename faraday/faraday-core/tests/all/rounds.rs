@@ -39,7 +39,8 @@ fn device_with(entropy: Option<u8>, extra: Vec<(String, Vec<u8>)>) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(at(&app, "musig-wallet.txt")));
+    let wallet_at = at(&app, "musig-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));

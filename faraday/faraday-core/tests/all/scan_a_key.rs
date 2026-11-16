@@ -152,7 +152,7 @@ fn savings_only() -> (Faraday, usize) {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     let _ = app.frame();
     (app, 0)
 }

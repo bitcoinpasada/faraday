@@ -756,7 +756,7 @@ impl Faraday {
                 let name = self.session.wallets[i].name.clone();
                 self.wallets.set_wallet(i);
                 self.refresh_spend();
-                self.toast(&Text::fill(EN.wallet_key_path_added, &[&name]));
+                self.toast(&Text::fill(EN.wallet_confirm_added, &[&name]));
             }
             Err(e) => self.toast(&e.text()),
         }

@@ -321,7 +321,7 @@ fn a_wallet_s_missing_key_scanner_loads_the_matching_samples_and_the_wallet_sign
     let c = testkit::compute();
     let savings = &SAMPLES.wallets[0];
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             savings.text,
@@ -354,6 +354,7 @@ fn restore_by_file_loads_the_next_sample_wallet() {
     let _ = app.frame();
     assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert!(app.restore().is_some_and(|r| r.described));
     assert_eq!(app.session.wallets.len(), 1, "Savings, the first sample");
 }

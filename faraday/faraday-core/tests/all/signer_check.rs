@@ -532,7 +532,7 @@ fn change_reads_verified_only_with_change_on_the_change_chain_of_a_wallet_loaded
     let text = String::from_utf8(vector("wallet-2of3.txt")).unwrap();
     let c = faraday_core::testkit::compute();
     app.session
-        .add_wallet(&c, "w", &text, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet_confirmed(&c, "w", &text, "test", faraday_core::wallet::Origin::Named)
         .unwrap();
     app.session
         .keys
@@ -766,7 +766,7 @@ fn spending_pair(returned: impl Fn(&mut faraday_psbt::Psbt)) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     crate::common::add_key(&mut app, "bacon");
     open(&mut app);
     app.press(Action::SignerCheck(SignerPress::Pick(Slot::Sent, 0)));

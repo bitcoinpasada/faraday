@@ -61,7 +61,7 @@ fn first_address(text: &str) -> String {
     let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet_confirmed(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .expect("a wallet");
     String::from(&*s.address(&c, &s.wallets[i], false, 0))
 }
@@ -82,7 +82,7 @@ fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             name,
             descriptor,
@@ -225,6 +225,7 @@ fn shares_rebuild(id: &str) {
         assert_eq!(shares, 2, "{pair:?}: {:?}", app.visit().log);
         app.storage(StorageEvent::Sticks(Vec::new()));
         app.press(Action::RestoreShares);
+        faraday_core::testkit::confirm_wallets(&mut app);
         assert!(
             app.session
                 .wallets
@@ -271,7 +272,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
     app.press(Action::EntryAdd);
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             name,
             descriptor,

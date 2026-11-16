@@ -25,7 +25,7 @@ fn app() -> Faraday {
         .find(|k| k.id == "spending")
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,

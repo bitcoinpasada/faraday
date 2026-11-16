@@ -249,7 +249,7 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
     use faraday_core::testkit::KindText;
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Spending",
             &format!("wpkh({}/<0;1>/*)", &*text),
@@ -468,7 +468,7 @@ pub(crate) fn two_of_three_two_here(app: &mut Faraday) -> usize {
     }
     assert_eq!(app.session.keys.len(), 2);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),

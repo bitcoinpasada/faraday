@@ -212,6 +212,7 @@ fn three_typed_seeds_one_with_a_passphrase_make_the_wallet_sparrow_makes() {
     type_seed(&mut app, &testkit::test_words("zebra"));
     type_seed_with(&mut app, &testkit::test_words("summer"), "TREZOR");
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
@@ -237,6 +238,7 @@ fn a_seedqr_with_its_passphrase_on_the_sheet_makes_the_wallet_sparrow_makes() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Restore);
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
@@ -267,6 +269,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::SeedRead(Choice::WithPass));
     assert_eq!(app.sheet, None);
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
@@ -314,6 +317,7 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
+    faraday_core::testkit::confirm_wallets(&mut app);
     let r = app.restore().unwrap();
     assert_eq!(r.open, Some(WHERE), "the question of vaults is next");
     assert!(r.done[KIND as usize] && r.done[QUORUM as usize] && r.done[DESCRIPTION as usize]);
@@ -364,6 +368,7 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
         }
     }
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
 }
@@ -380,6 +385,7 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     type_text(&mut app, &testkit::key(2, MULTI_PATH));
     app.event(Event::Key(Key::Enter));
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
     assert!(
@@ -405,6 +411,7 @@ fn keys_reads_every_slot_filled_once_the_wallet_is_made_from_typed_seeds() {
         type_seed(&mut app, &testkit::test_words(word));
     }
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
     assert!(
@@ -433,6 +440,7 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
+    faraday_core::testkit::confirm_wallets(&mut app);
     assert_eq!(app.restore().unwrap().open, Some(WHERE));
     // The seeds wait for the answer.
     app.press(Action::RStep(SEEDS));
@@ -453,6 +461,7 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
         app.press(Action::RAbsent(k));
     }
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     made(&app);
     app.press(Action::RNext(CHECK));
     let r = app.restore().unwrap();
@@ -500,6 +509,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
+    faraday_core::testkit::confirm_wallets(&mut app);
     app.press(Action::RVaults(true));
     app.press(Action::RNext(WHERE));
     app.press(Action::RVaultN(1));
@@ -523,6 +533,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
         app.press(Action::RAbsent(k));
     }
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     made(&app);
     app.press(Action::RNext(CHECK));
     shell.pump(&mut app);
@@ -551,6 +562,7 @@ fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     type_seed(&mut app, &testkit::test_words("zebra"));
     type_seed(&mut app, &testkit::test_words("summer"));
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     app.press(Action::RNext(CHECK));
     assert_eq!(app.restore().unwrap().open, Some(DONE));
@@ -712,6 +724,7 @@ fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Farad
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
     let w = made(&app);
     (app, w)
 }
@@ -834,6 +847,7 @@ fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
     app.event(Event::Scanned {
         bytes: description.into_bytes(),
     });
+    faraday_core::testkit::confirm_wallets(&mut app);
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
@@ -896,6 +910,7 @@ fn a_codex32_secret_read_at_restores_scan_goes_into_its_slot() {
     app.event(Event::Scanned {
         bytes: b"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw".to_vec(),
     });
+    faraday_core::testkit::confirm_wallets(&mut app);
     let _ = app.frame();
     assert!(app.scan().is_none(), "the scanner is still open");
     assert_eq!(app.screen, Screen::Restore, "Restore was left");

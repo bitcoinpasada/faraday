@@ -32,7 +32,7 @@ pub(crate) fn with(miniscript: &str) -> Faraday {
         .replace("@B", &format!("{}/<0;1>/*", testkit::key(1, p)));
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &testkit::compute(),
             "Inherit",
             &descriptor,

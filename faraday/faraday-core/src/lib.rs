@@ -538,8 +538,8 @@ pub enum Sheet {
     /// What is attached that can capture the screen or the keys, each named
     /// with what it can do, and before a secret the reminders (`devices`).
     Devices,
-    /// A wallet a key not of its own can spend alone by the key path, waiting to be added: the danger line, Cancel, and a hold (F132).
-    KeyPath,
+    /// A wallet of several keys, or one a key not of its own can spend alone, waiting to be added: its rows, Cancel and a hold (F254).
+    WalletConfirm,
     /// A file For the stick no stick holds, asked about before it is deleted: what is lost, a hold and Cancel (`visit_taken`).
     OutboxDelete,
     /// **Which account to load?**: a Coldcard export of a single-sig and a silent payments account.
@@ -1323,7 +1323,7 @@ impl App for Faraday {
                     | self.explore_tick(now_ms)
                     | address_check::tick(self, now_ms)
                     | self.chart_side_tick(now_ms)
-                    | self.key_path_sheet_open()
+                    | self.wallet_sheet_open()
                     | self.published_sheet_open()
                     | self.boot_notice_tick(now_ms)
                 {

@@ -28,7 +28,7 @@ fn the_sign_card_opened_from_its_header_signs_nothing_until_the_steps_before_it_
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(&mut app, 1);
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));

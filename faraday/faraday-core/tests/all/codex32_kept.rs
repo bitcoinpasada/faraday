@@ -98,7 +98,7 @@ pub(crate) fn wallet_and_backup(app: &mut Faraday) {
         kept: Vec::new(),
     });
     let w = app.session.wallets.len();
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(app, 0);
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
 }
@@ -722,7 +722,7 @@ fn backups_says_a_stick_with_a_string_let_out_is_unprotected() {
         app.outbox.iter().map(|i| &i.name).collect::<Vec<_>>()
     );
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             &name,
             &descriptor,

@@ -53,7 +53,7 @@ fn a_wallet_file_whose_label_runs_over_lines_loads_under_a_one_line_name_and_its
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
     assert!(one_line(&w.name), "{:?}", w.name);
@@ -75,7 +75,7 @@ fn a_share_sheet_holds_only_the_shares_lines_whatever_the_wallet_is_called() {
     let own: Vec<&str> = share.lines().collect();
     let mut s = Session::on(testkit::net());
     let i = s
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings\nline: ms12other\u{2028}line: ms12other",
             &testkit::savings(),
@@ -103,7 +103,7 @@ fn a_sheet_naming_its_descriptor_twice_is_refused() {
     let c = testkit::compute();
     let mut s = Session::on(testkit::net());
     let i = s
-        .add_wallet(&c, "Savings", &testkit::savings(), "test", Origin::Named)
+        .add_wallet_confirmed(&c, "Savings", &testkit::savings(), "test", Origin::Named)
         .unwrap();
     let sheet = String::from(&*sheet_wallet(&c, &s, &s.wallets[i]));
     assert!(pdf::sheet(&c, &sheet).is_ok());

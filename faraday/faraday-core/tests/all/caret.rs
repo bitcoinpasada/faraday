@@ -75,7 +75,7 @@ fn renaming(name: &str) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Rename);
     let renamed = app.renaming().unwrap().chars().count();
     for _ in 0..renamed {

@@ -30,6 +30,7 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     // The question of vaults, in its turn before the seeds.
     t.press(Action::RVaults(false));
     t.press(Action::RNext(rstep::WHERE));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::RSlotWords);
     t.type_key(0);
     t.shot("restore-seeds-matched")?;
@@ -59,6 +60,7 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.shot("restore-seeds-filled")?;
     t.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.shot("restore-check")?;
     t.press(Action::RNext(rstep::CHECK));
     t.shot("restore-done")?;

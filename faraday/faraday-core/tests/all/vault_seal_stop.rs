@@ -199,7 +199,7 @@ fn the_lost_changes_warning_shows_once_and_not_after_a_lock_that_lost_none() {
     assert!(w, "the warning did not show");
 
     // That process locks for idleness again with nothing to lose.
-    second.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut second, 0);
     second.event(Event::Tick { now_ms: 0 });
     second.event(Event::Tick { now_ms: MIN });
     testkit::settle(&mut second);

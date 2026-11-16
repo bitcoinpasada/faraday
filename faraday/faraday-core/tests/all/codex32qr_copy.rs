@@ -98,7 +98,7 @@ fn drawn_plan() -> (Faraday, usize) {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Backup(0));
     let c = testkit::compute();
     let (shape, a) = app.board_plan().expect("the board");

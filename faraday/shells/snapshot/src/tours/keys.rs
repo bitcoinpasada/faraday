@@ -49,6 +49,7 @@ pub(crate) fn keys_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("wallets-two-keys")?;
     t.press(Action::KeyWallet(fp, 1));
     t.press(Action::Seeds(S::Make));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-one-wallet-one-key")?;
     // The small panel's wallet list, where the loose key has its row.

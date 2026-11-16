@@ -39,13 +39,13 @@ fn a_testnet_wallet_moves_the_session_to_testnet_and_a_mainnet_one_is_then_refus
         ("main-wallet.txt", MAINNET_WALLET.as_bytes().to_vec()),
     ]);
     assert_eq!(app.session.network(), Network::Mainnet);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.network(), Network::Testnet);
     assert_eq!(app.session.wallets.len(), 1);
     let first = String::from(&*app.session.address(&c, &app.session.wallets[0], false, 0));
     assert!(first.starts_with("tb1q"), "{first}");
 
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(&mut app, 1);
     assert_eq!(
         app.session.wallets.len(),
         1,
@@ -72,7 +72,7 @@ fn a_testnet_wallet_is_refused_once_a_key_is_loaded() {
             None,
         )
         .unwrap();
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert!(
         app.session.wallets.is_empty(),
         "the testnet wallet was loaded"
@@ -88,7 +88,7 @@ fn a_signet_wallet_loads_on_testnet_where_keys_are_written_alike() {
         kit("spending").descriptor.into_bytes(),
     )]);
     testkit::move_to(&mut app.session, Network::Signet).unwrap();
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.network(), Network::Signet);
 }
@@ -120,7 +120,7 @@ fn a_mainnet_psbt_is_refused_while_testnet_wallets_are_loaded() {
             kit("spending").descriptor.into_bytes(),
         ),
     ]);
-    app.press(Action::LoadWallet(1));
+    testkit::load_wallet(&mut app, 1);
     app.press(Action::StartSpend(0));
     assert!(app.spend().is_none(), "a mainnet PSBT was opened");
     assert_eq!(app.session.network(), Network::Testnet);
@@ -145,7 +145,7 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
     let mut seen = 0;
     for (id, descriptor) in &wallets {
         let mut want = Session::default();
-        want.add_wallet(
+        want.add_wallet_confirmed(
             &c,
             id,
             descriptor,
@@ -168,7 +168,7 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
             };
             assert_eq!(classify(&c, &name, bytes), FileKind::Wallet, "{name}");
             let mut s = Session::default();
-            s.add_wallet(
+            s.add_wallet_confirmed(
                 &c,
                 id,
                 &String::from_utf8_lossy(bytes),

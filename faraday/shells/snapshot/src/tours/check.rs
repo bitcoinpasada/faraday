@@ -40,7 +40,7 @@ fn address_found(t: &mut Tour) -> Result<(), String> {
         .ok_or("no spending wallet")?;
     t.app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             kit.name,
             &kit.descriptor,

@@ -68,7 +68,7 @@ fn with_a_wallet() -> Faraday {
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Wallet",
             &format!("wpkh({}/<0;1>/*)", &*text),
@@ -300,7 +300,8 @@ fn sign_a_transaction_steps_back_and_once_signed_leaves() {
         kept: Vec::new(),
     });
     let at = |app: &Faraday, name: &str| app.inbox().iter().position(|i| i.name == name).unwrap();
-    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    let wallet_at = at(&app, "spending-wallet.txt");
+    testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::StartSpend(at(&app, "spend.psbt")));

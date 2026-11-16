@@ -552,7 +552,7 @@ fn places_of(name: &str) -> faraday_core::Faraday {
     let mut app = testkit::started();
     app.session = testkit::session();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Savings",
             &testkit::savings(),
@@ -561,7 +561,7 @@ fn places_of(name: &str) -> faraday_core::Faraday {
         )
         .unwrap();
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Five",
             &testkit::three_of_five(),

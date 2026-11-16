@@ -68,7 +68,7 @@ fn load(app: &mut Faraday, name: &str) -> usize {
         .position(|it| it.name == name)
         .unwrap_or_else(|| panic!("{name} is not in Files"));
     let before = app.session.wallets.len();
-    app.press(Action::LoadWallet(i));
+    testkit::load_wallet(app, i);
     assert_eq!(app.session.wallets.len(), before + 1, "{name} did not load");
     before
 }

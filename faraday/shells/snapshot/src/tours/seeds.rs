@@ -41,6 +41,7 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("restore-seeds-shape")?;
     t.press(Action::Seeds(S::Make));
     t.shot("restore-seeds-check")?;
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     if t.app.restore().and_then(|r| r.wallet).is_none() {
         return Err("the seeds made no wallet".into());
     }
@@ -75,6 +76,7 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Seeds(S::Make));
     t.shot("spend-words-made")?;
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     if t.app.spend_backup_wallet().is_none() {
         return Err("the Spend tab's seeds made no wallet".into());
     }

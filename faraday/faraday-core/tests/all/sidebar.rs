@@ -56,7 +56,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
             .unwrap();
         let d = format!("wpkh({}/<0;1>/*)", &*text);
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 &format!("Wallet {a}"),
                 &d,
@@ -371,7 +371,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     for a in 0..12u32 {
         let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 1, a));
         app.session
-            .add_wallet(
+            .add_wallet_confirmed(
                 &c,
                 &format!("Watched {a}"),
                 &d,
@@ -382,7 +382,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     }
     let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 0, 0));
     app.session
-        .add_wallet(&c, "Ready", &d, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet_confirmed(&c, "Ready", &d, "test", faraday_core::wallet::Origin::Named)
         .unwrap();
     // The second seed leaves: its twelve wallets are watch-only now.
     app.session.keys.remove(1);

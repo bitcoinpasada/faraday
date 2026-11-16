@@ -50,6 +50,7 @@ fn load_loads_only_the_wallets_left_ticked() {
         let left_keys = found.to_load()[1 - unticked].keys.len();
         app.press(Action::InboxChoose(unticked));
         app.press(Action::InboxLoad);
+        faraday_core::testkit::confirm_wallets(&mut app);
         assert_eq!(app.session.wallets.len(), 1, "unticked {unticked}");
         assert_eq!(
             app.session.wallets[0].policy().keys().len(),

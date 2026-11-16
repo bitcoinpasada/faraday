@@ -91,7 +91,7 @@ fn a_session_loads_every_sample_wallet_and_the_spends_read_as_psbts() {
     let mut session = Session::on(faraday_bip::keys::Network::Testnet);
     for w in SAMPLES.wallets {
         session
-            .add_wallet(&c, w.name, w.text, "Sample", Origin::Statement)
+            .add_wallet_confirmed(&c, w.name, w.text, "Sample", Origin::Statement)
             .unwrap_or_else(|e| panic!("{}: {e:?}", w.name));
         if !w.spend.is_empty() {
             faraday_psbt::Psbt::parse_bytes(&c, w.spend)

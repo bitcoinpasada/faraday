@@ -318,7 +318,7 @@ fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
     app.session
-        .add_wallet(
+        .add_wallet_confirmed(
             &c,
             "Summer",
             &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/84'/1'/0'")),
@@ -916,4 +916,18 @@ fn a_seed_with_two_passphrases_offers_each_by_its_key_and_loads_the_one_chosen()
         let loaded: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
         assert_eq!(loaded, [*want]);
     }
+}
+
+/// A wallet of several keys that a vault holds is the person's own
+/// record: it loads from the open vault with no confirmation sheet, even
+/// with a key here loaded for only one of its seeds.
+#[test]
+fn a_multisig_of_a_vault_loads_with_no_confirmation_sheet() {
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_ne!(app.sheet, Some(Sheet::WalletConfirm));
+    assert!(wallet_names(&app).contains(&"Savings".to_string()));
+    assert!(app.session.wallet_asked().is_none());
 }

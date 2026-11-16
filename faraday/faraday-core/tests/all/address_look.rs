@@ -28,7 +28,7 @@ fn checking(descriptors: &[String]) -> Faraday {
             outbox: Vec::new(),
             kept: Vec::new(),
         });
-        app.press(Action::LoadWallet(0));
+        testkit::load_wallet(&mut app, 0);
     }
     assert_eq!(app.session.wallets.len(), descriptors.len());
     app.press(Action::ScanFor(Ask::Address));
@@ -311,7 +311,7 @@ fn an_account_with_a_wallet_is_not_searched_twice() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert_eq!(app.session.wallets.len(), 1);
     // BIP-84: m/84'/0'/0'/0/0
     read(&mut app, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
@@ -338,7 +338,7 @@ fn load_from_file(app: &mut Faraday, descriptor: &str) {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(app, 0);
     assert_eq!(app.session.wallets.len(), 1);
 }
 

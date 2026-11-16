@@ -2053,7 +2053,10 @@ more than one key comes in through (F254). With a key loaded here, or a
 seed given to the check, it says which cosigner that key is. The person
 holds the rows against every other signer's device and the coordinator.
 Nothing is added to the session unless the person asks, and then only
-through that sheet. Built, but for the rows said in this page's **Open:** line. Its screen is
+through that sheet. The sheet is skipped for a wallet whose every key is
+a key loaded here at its path, for a wallet of the person's own vault
+and for Load samples (`docs/WALLETS.md` §3.5); several held at once get
+one sheet each, "{i} of {n}", and Cancel drops only the wallet shown. Built, but for the rows said in this page's **Open:** line. Its screen is
 `docs/DESIGN.md` §5, A multisig setup.
 
 | From | What opens it |

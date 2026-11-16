@@ -265,13 +265,27 @@ key path, its internal key alone (F132): "Key path: none
 (unspendable)" for the NUMS point or an extended key over it; "Key
 path: <the key> alone" for one of the wallet's keys; and for any other
 key the danger line naming that key in groups of four. Only the first
-reads as "k of n". The third is added only after a hold on a sheet
-that names the key, after which the flow that asked goes on; it keeps
+reads as "k of n". The third is added only after a hold on the wallet
+confirmation sheet (F254), whose rows and key path line name the key,
+after which the flow that asked goes on; it keeps
 the danger line on its card, counts its signatures against its leaf's
 own quorum, reads "Another key can spend" in the error tone where a
 wallet reads "Can spend", and a spend from it repeats the line as a
 caution at the head of the review's warnings. None is refused for its
 key path.
+
+### 3.5 A wallet of several keys is added through one sheet
+
+A wallet of more than one key (a multisig wallet, a MuSig2 `tr()`) is
+added only after the person holds the wallet confirmation sheet (F254),
+which shows each key whole, however the wallet comes in. Not held back:
+a wallet whose every key is a loaded key's own at its path (the public
+key and chain code a loaded key gives there, never the fingerprint
+alone), since nothing in it came from outside; a wallet the person's own
+vault holds (loaded at unlock, loaded later from the open vault or
+restored from it); and the public samples Load samples adds. Several
+held at once are asked one after another, "{i} of {n}", and Cancel
+drops only the wallet on the sheet.
 
 ## 4. Spending
 

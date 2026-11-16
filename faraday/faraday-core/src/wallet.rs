@@ -39,6 +39,9 @@ pub use v2::{is_silent_payment_psbt, read_psbt, read_psbt_kept};
 mod account;
 mod own_name;
 pub use account::{Account, AccountAsk};
+mod confirm;
+pub use confirm::Rows;
+pub(crate) use confirm::draw_rows;
 mod state;
 pub use state::SpendState;
 pub(crate) use state::{SPEND_STEPS, SpendSteps, WalletsArea};
@@ -573,6 +576,8 @@ pub fn replays(action: Action) -> bool {
             | Action::RUse(_)
             | Action::RRebuild
             | Action::RestoreShares
+            | Action::Seeds(crate::seeds::SeedsAction::Make)
+            | Action::CNext(crate::cstep::KEYS)
             | Action::SpendBackup(F::UseWallet(_) | F::Rebuild)
     )
 }
@@ -598,15 +603,21 @@ pub struct Session {
     /// beside the key's fingerprint wherever it is shown. Never taken
     /// away.
     pub key_marks: crate::codex32_correct::KeyMarks,
-    /// A wallet whose key path a key not of the wallet spends, waiting
-    /// for the person to confirm it before it is added (F132): what
-    /// [`Session::add_policy`] was asked to add. `None` while nothing
-    /// waits.
-    key_path_asked: Option<Box<KeyPathAsk>>,
-    /// The descriptors of the wallets of that kind the person confirmed
-    /// in this session, which [`Session::add_policy`] adds without asking
-    /// again.
-    key_path_confirmed: Vec<Text>,
+    /// The wallets waiting for the person to confirm them before they
+    /// are added (F254, F132): what [`Session::add_policy`] was asked to
+    /// add and held back, in the order found, one sheet each. Empty while
+    /// nothing waits.
+    wallet_asked: std::collections::VecDeque<WalletAsk>,
+    /// How many wallets of the run now waiting were confirmed or
+    /// cancelled already: the sheet's "{i} of {n}". Zero once none waits.
+    wallet_asked_past: usize,
+    /// Where in `wallet_asked` the last wallet refused as unconfirmed
+    /// waits: the one just pushed, or the one already waiting for the
+    /// same descriptor.
+    wallet_asked_last: usize,
+    /// The descriptors of the wallets the person confirmed in this
+    /// session, which [`Session::add_policy`] adds without asking again.
+    wallet_confirmed: Vec<Text>,
     /// A Coldcard export of two accounts waiting for one to be chosen, and the choices made.
     accounts: account::Accounts,
     /// The extended public keys worked out from loaded keys at the paths
@@ -619,9 +630,11 @@ pub struct Session {
     pub(crate) key_xpubs: std::cell::RefCell<Vec<crate::register::KeyXpub>>,
 }
 
-/// A wallet waiting for its key path to be confirmed: what
-/// [`Session::add_policy`] was called with.
-pub struct KeyPathAsk {
+/// A wallet waiting to be confirmed: what [`Session::add_policy`] was
+/// called with, and the rows its sheet shows.
+pub struct WalletAsk {
+    /// The sheet's rows, worked out when the wallet was held back.
+    pub rows: Rows,
     /// The name it is added under.
     pub name: Text,
     /// The wallet, read.
@@ -637,6 +650,9 @@ pub struct KeyPathAsk {
     /// without a press, or by one that does not run twice the same
     /// ([`replays`]); that wallet is added by the hold itself.
     pub replay: Option<(Action, u64)>,
+    /// The wallet was asked for by Restore, which goes on from the wallet
+    /// once the hold adds it ([`Session::wallet_for_restore`]).
+    pub restore: bool,
 }
 
 /// How a `tr()` wallet's key path line reads (F132): its text, and
@@ -655,8 +671,10 @@ impl Default for Session {
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
-            key_path_asked: None,
-            key_path_confirmed: Vec::new(),
+            wallet_asked: std::collections::VecDeque::new(),
+            wallet_asked_past: 0,
+            wallet_asked_last: 0,
+            wallet_confirmed: Vec::new(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
@@ -728,8 +746,10 @@ impl Session {
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
-            key_path_asked: None,
-            key_path_confirmed: Vec::new(),
+            wallet_asked: std::collections::VecDeque::new(),
+            wallet_asked_past: 0,
+            wallet_asked_last: 0,
+            wallet_confirmed: Vec::new(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
@@ -782,10 +802,45 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
+        self.add_wallet_in(c, name, text, source, origin, true)
+    }
+
+    /// Costs what [`Session::add_wallet`] costs, and no confirmation
+    /// sheet: [`Session::add_kept`] for a description read here, a vault's
+    /// wallet loaded from the open vault or restored from it (F254).
+    pub fn add_wallet_kept(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        text: &str,
+        source: &str,
+        origin: Origin,
+    ) -> Result<usize, Refusal> {
+        self.add_wallet_in(c, name, text, source, origin, false)
+    }
+
+    /// Costs what `add_wallet` costs; `confirm` as in `add_checked`.
+    fn add_wallet_in(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        text: &str,
+        source: &str,
+        origin: Origin,
+        confirm: bool,
+    ) -> Result<usize, Refusal> {
         let name = safe_name(c, name);
         let read = read_wallet(c, text)?;
         let policy = self.account_of(c, text, read, (name, source, origin))?;
-        self.add_policy(c, name, policy, source, origin)
+        self.add_checked(
+            c,
+            name,
+            policy,
+            source,
+            origin,
+            &Default::default(),
+            confirm,
+        )
     }
 
     /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
@@ -866,14 +921,20 @@ impl Session {
     /// Costs two key derivations per loaded key with a silent payments
     /// wallet's fingerprint, and a key derivation (of at most
     /// `MAX_PATH_STEPS` steps) per key of any other wallet that is under a
-    /// loaded fingerprint.
+    /// loaded fingerprint, and, for a wallet held back for its sheet, a
+    /// key derivation per key under a loaded fingerprint and the
+    /// descriptor's checksum, worked out once here, never while drawing.
     /// [`Session::add_wallet`] of a description read before (a vault's
     /// kept records): no parse. A silent payments wallet whose scan key or
     /// spend key is not what a loaded key with its fingerprint gives at
     /// its account is refused, and so is a MuSig2 wallet two of whose keys
     /// have one master fingerprint, loaded or not: the MuSig2 check
     /// matches one participant to each master fingerprint, so a second
-    /// account of one seed never signs.
+    /// account of one seed never signs. A wallet of several keys of which
+    /// one is no loaded key's own at its path, or one a key not of its
+    /// own spends alone, is held back with [`Refusal::Unconfirmed`] until
+    /// its sheet is confirmed (F254); [`Session::add_kept`] is the one
+    /// way past it.
     pub fn add_policy(
         &mut self,
         c: &Compute,
@@ -882,14 +943,18 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
-        self.add_policy_with(c, name, policy, source, origin, &Default::default())
+        self.add_checked(c, name, policy, source, origin, &Default::default(), true)
     }
 
-    /// Costs what `add_policy` costs, less the derivations in `derived`.
-    /// [`Session::add_policy`] for a wallet whose keys under the
-    /// fingerprints of keys a load added were derived at their origin
-    /// paths in that load's job: those are not derived again.
-    pub fn add_policy_with(
+    /// Costs what `add_policy` costs, less the derivations in `derived`,
+    /// and no confirmation sheet: the one named way a wallet is added
+    /// without the person confirming it (F254), for wallets that are the
+    /// person's own records, a vault's at unlock or loaded from the open
+    /// vault, and the public samples. [`Session::add_policy`] for a
+    /// wallet whose keys under the fingerprints of keys a load added were
+    /// derived at their origin paths in that load's job: those are not
+    /// derived again. Every other way in goes through `add_policy`.
+    pub fn add_kept(
         &mut self,
         c: &Compute,
         name: &str,
@@ -897,6 +962,54 @@ impl Session {
         source: &str,
         origin: Origin,
         derived: &faraday_keys::job::Derived,
+    ) -> Result<usize, Refusal> {
+        self.add_checked(c, name, policy, source, origin, derived, false)
+    }
+
+    /// Costs what [`Session::add_wallet`] costs, for a test's wallet
+    /// already confirmed: no sheet (`testkit` only).
+    #[cfg(feature = "testkit")]
+    pub fn add_wallet_confirmed(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        text: &str,
+        source: &str,
+        origin: Origin,
+    ) -> Result<usize, Refusal> {
+        self.add_wallet_kept(c, name, text, source, origin)
+    }
+
+    /// Costs what [`Session::add_policy`] costs, for a test's wallet
+    /// already confirmed: no sheet (`testkit` only).
+    #[cfg(feature = "testkit")]
+    pub fn add_policy_confirmed(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        policy: WalletPolicy,
+        source: &str,
+        origin: Origin,
+    ) -> Result<usize, Refusal> {
+        self.add_kept(c, name, policy, source, origin, &Default::default())
+    }
+
+    /// Costs what `add_policy` costs; `confirm`: a wallet of several keys
+    /// of which one is no loaded key's own, or one a key not of its own
+    /// spends alone, is held back until its sheet is confirmed.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the checked add is one function of the wallet and how it came"
+    )]
+    fn add_checked(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        policy: WalletPolicy,
+        source: &str,
+        origin: Origin,
+        derived: &faraday_keys::job::Derived,
+        confirm: bool,
     ) -> Result<usize, Refusal> {
         let name = safe_name(c, name);
         if let Some(w) = policy.silent()
@@ -921,22 +1034,35 @@ impl Session {
         {
             return Ok(i);
         }
-        // A wallet a key not of its own can spend alone is added only
-        // once the person has confirmed it (F132): it waits, and the
-        // sheet that asks reads it from here.
-        if matches!(policy.key_path(), Some(KeyPath::Other(_)))
-            && !self.key_path_confirmed.contains(&descriptor)
-        {
-            if self.key_path_asked.is_none() {
-                self.key_path_asked = Some(Box::new(KeyPathAsk {
+        // A wallet of several keys, or one a key not of its own can spend
+        // alone, is added only once the person has confirmed it (F254,
+        // F132): it waits, and the sheet that asks reads its rows from
+        // here. A wallet whose every key is a loaded key's own at its
+        // path (no key under a loaded fingerprint is forged, above) came
+        // from nothing outside and is not held back.
+        let outside = policy.keys().len() > 1 && !confirm::all_keys_loaded(self, &policy);
+        let other = matches!(policy.key_path(), Some(KeyPath::Other(_)));
+        if confirm && (outside || other) && !self.wallet_confirmed.contains(&descriptor) {
+            if let Some(at) = self
+                .wallet_asked
+                .iter()
+                .position(|a| same_wallet(&a.policy) == descriptor)
+            {
+                self.wallet_asked_last = at;
+            } else {
+                let rows = Rows::of(self, c, &policy, false);
+                self.wallet_asked.push_back(WalletAsk {
+                    rows,
                     name: Text::of(name),
                     policy,
                     source: Text::of(source),
                     origin,
                     replay: None,
-                }));
+                    restore: false,
+                });
+                self.wallet_asked_last = self.wallet_asked.len() - 1;
             }
-            return Err(Refusal::KeyPathUnconfirmed);
+            return Err(Refusal::Unconfirmed);
         }
         self.follow(policy_network(&policy, self.network()))?;
         let mut wallet = Wallet::new(name, policy, source, origin);
@@ -945,33 +1071,62 @@ impl Session {
         Ok(self.wallets.len() - 1)
     }
 
-    /// The wallet waiting for its key path to be confirmed, if one is.
-    pub fn key_path_asked(&self) -> Option<&KeyPathAsk> {
-        self.key_path_asked.as_deref()
+    /// The wallet whose sheet is next, if one waits.
+    pub fn wallet_asked(&self) -> Option<&WalletAsk> {
+        self.wallet_asked.front()
     }
 
-    /// The press `action` asked for the waiting wallet, if one waits and
-    /// no press is noted for it yet.
-    pub(crate) fn key_path_replay(&mut self, action: Action, inbox: u64) {
-        if let Some(ask) = self.key_path_asked.as_mut() {
+    /// Which wallet of the run now waiting the next sheet is, from 1, and
+    /// how many there are: "{i} of {n}".
+    pub fn wallet_asked_place(&self) -> (usize, usize) {
+        (
+            self.wallet_asked_past + 1,
+            self.wallet_asked_past + self.wallet_asked.len(),
+        )
+    }
+
+    /// Notes that Restore asked for the wallet it was just told is held
+    /// back, so it goes on from the wallet once the hold adds it.
+    pub(crate) fn wallet_for_restore(&mut self) {
+        if let Some(ask) = self.wallet_asked.get_mut(self.wallet_asked_last) {
+            ask.restore = true;
+        }
+    }
+
+    /// The press `action` asked for the wallet waiting first, if one
+    /// waits and no press is noted for it yet.
+    pub(crate) fn wallet_replay(&mut self, action: Action, inbox: u64) {
+        if let Some(ask) = self.wallet_asked.front_mut() {
             ask.replay.get_or_insert((action, inbox));
         }
     }
 
-    /// Writes the descriptor out. The person confirmed the waiting
-    /// wallet's key path: the same wallet is added without asking again
-    /// in this session, and the waiting wallet is handed back for its
-    /// press to run again or, with none, to be added. `None` when none
-    /// waits.
-    pub(crate) fn key_path_confirm(&mut self) -> Option<KeyPathAsk> {
-        let ask = self.key_path_asked.take()?;
-        self.key_path_confirmed.push(same_wallet(&ask.policy));
-        Some(*ask)
+    /// Writes the descriptor out. The person confirmed the wallet waiting
+    /// first: the same wallet is added without asking again in this
+    /// session, and it is handed back for its press to run again or, with
+    /// none, to be added. `None` when none waits.
+    pub(crate) fn wallet_confirm(&mut self) -> Option<WalletAsk> {
+        let ask = self.wallet_asked.pop_front()?;
+        self.wallet_confirmed.push(same_wallet(&ask.policy));
+        self.wallet_asked_next();
+        Some(ask)
     }
 
-    /// The waiting wallet is not added.
-    pub(crate) fn key_path_drop(&mut self) {
-        self.key_path_asked = None;
+    /// The wallet waiting first is not added; the next one waits.
+    pub(crate) fn wallet_drop(&mut self) {
+        if self.wallet_asked.pop_front().is_some() {
+            self.wallet_asked_next();
+        }
+    }
+
+    /// One wallet of the run is done: counted, and the count reset once
+    /// none waits.
+    fn wallet_asked_next(&mut self) {
+        self.wallet_asked_past = if self.wallet_asked.is_empty() {
+            0
+        } else {
+            self.wallet_asked_past + 1
+        };
     }
 
     /// Who can spend `policy` by its key path, as a line (F132): `None`
@@ -1020,6 +1175,10 @@ impl Session {
     pub fn wipe(&mut self) {
         self.keys.clear();
         self.wallets.clear();
+        self.wallet_asked.clear();
+        self.wallet_asked_past = 0;
+        self.wallet_asked_last = 0;
+        self.wallet_confirmed.clear();
         self.key_xpubs.borrow_mut().clear();
     }
 
@@ -3644,13 +3803,14 @@ pub struct OutNames {
 impl Faraday {
     /// After a press: the press that asked for a waiting wallet is noted
     /// for the hold to run again, where it [`replays`] (`asked` is
-    /// whether one waited before it), and the key path sheet opens.
-    pub(crate) fn key_path_after(&mut self, asked: bool, action: Action) {
+    /// whether one waited before it), and the wallet confirmation sheet
+    /// opens.
+    pub(crate) fn wallet_after(&mut self, asked: bool, action: Action) {
         if !asked && replays(action) {
             let inbox = self.inbox_print();
-            self.session.key_path_replay(action, inbox);
+            self.session.wallet_replay(action, inbox);
         }
-        self.key_path_sheet_open();
+        self.wallet_sheet_open();
     }
 
     /// The Inbox's file names and sizes, as one number: a press that
@@ -3702,61 +3862,79 @@ impl Faraday {
         self.refresh_spend();
     }
 
-    /// Opens the key path sheet over what is on screen while a wallet
-    /// waits for its key path to be confirmed (F132). Whether it opened.
-    pub(crate) fn key_path_sheet_open(&mut self) -> bool {
-        if self.session.key_path_asked().is_some() && self.sheet != Some(Sheet::KeyPath) {
-            self.sheet = Some(Sheet::KeyPath);
+    /// Opens the wallet confirmation sheet over what is on screen while a
+    /// wallet waits to be confirmed (F254). Whether it opened.
+    pub(crate) fn wallet_sheet_open(&mut self) -> bool {
+        if self.session.wallet_asked().is_some() && self.sheet != Some(Sheet::WalletConfirm) {
+            self.sheet = Some(Sheet::WalletConfirm);
             return true;
         }
         false
     }
 
-    /// Costs what `add_policy` costs: handles the key path sheet's
-    /// actions (`KeyPathHold`, `KeyPathCancel`).
-    pub(crate) fn key_path_act(&mut self, action: Action) {
+    /// Costs what `add_policy` costs: handles the wallet confirmation
+    /// sheet's actions (`WalletHold`, `WalletCancel`), then opens the sheet
+    /// of the next wallet that waits.
+    pub(crate) fn confirm_act(&mut self, action: Action) {
+        self.sheet = None;
         match action {
-            Action::KeyPathHold => {
-                self.sheet = None;
-                let Some(ask) = self.session.key_path_confirm() else {
-                    return;
-                };
-                // The press that asked runs again and goes on as it would
-                // have, while Files holds what it held; a wallet that came
-                // in any other way is added here, and the toast says so.
-                let descriptor = same_wallet(&ask.policy);
-                if let Some((press, inbox)) = ask.replay
-                    && inbox == self.inbox_print()
-                {
-                    self.act(press);
-                    if self
-                        .session
-                        .wallets
-                        .iter()
-                        .any(|w| same_wallet(&w.policy) == descriptor)
-                    {
-                        return;
-                    }
-                }
-                let c = self.compute();
-                match self
-                    .session
-                    .add_policy(&c, &ask.name, ask.policy, &ask.source, ask.origin)
-                {
-                    Ok(i) => {
-                        let name = self.session.wallets[i].name.clone();
-                        self.wallets.set_wallet(i);
-                        self.refresh_spend();
-                        self.toast(&Text::fill(EN.wallet_key_path_added, &[&name]));
-                    }
-                    Err(e) => self.toast(&e.text()),
-                }
-            }
-            Action::KeyPathCancel => {
-                self.session.key_path_drop();
-                self.sheet = None;
-            }
+            Action::WalletHold => self.confirm_held(),
+            Action::WalletCancel => self.session.wallet_drop(),
             _ => {}
+        }
+        if !self.wallet_sheet_open()
+            && self.screen == Screen::SpendBackup
+            && self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == crate::qr_view::ScanPurpose::Intake)
+        {
+            // The intake scanner the sheet covered is still on.
+            self.sheet = Some(Sheet::Scan);
+        } else if self.sheet.is_none() && self.import.state().is_some() {
+            // The import's passphrase sheet the sheet covered is still asked.
+            self.sheet = Some(Sheet::Import);
+        }
+    }
+
+    /// Costs what `add_policy` and the replayed press cost: the hold, where
+    /// the wallet waiting first is confirmed and added.
+    fn confirm_held(&mut self) {
+        let Some(ask) = self.session.wallet_confirm() else {
+            return;
+        };
+        // The press that asked runs again and goes on as it would
+        // have, while Files holds what it held; a wallet that came
+        // in any other way is added here, and the toast says so.
+        let descriptor = same_wallet(&ask.policy);
+        if let Some((press, inbox)) = ask.replay
+            && inbox == self.inbox_print()
+        {
+            self.act(press);
+            if self
+                .session
+                .wallets
+                .iter()
+                .any(|w| same_wallet(&w.policy) == descriptor)
+            {
+                return;
+            }
+        }
+        let c = self.compute();
+        match self
+            .session
+            .add_policy(&c, &ask.name, ask.policy, &ask.source, ask.origin)
+        {
+            Ok(i) if ask.restore && self.restore.state().is_some() => {
+                self.restore_added(i, ask.origin);
+            }
+            Ok(i) => {
+                let name = self.session.wallets[i].name.clone();
+                self.wallets.set_wallet(i);
+                self.refresh_spend();
+                self.toast(&Text::fill(EN.wallet_confirm_added, &[&name]));
+            }
+            Err(e) => self.toast(&e.text()),
         }
     }
 
@@ -3798,13 +3976,18 @@ impl Faraday {
                         keys.xpub_at(&c, keys.position(fp)?, path)
                     };
                 let added = faraday_psbt::register(&c, &psbt, &offer, reading, &yours)
-                    .map_err(|r| Text::of(&crate::register::refusal_text(r, &offer)))
+                    .map_err(|r| (Text::of(&crate::register::refusal_text(r, &offer)), false))
                     .and_then(|policy| {
                         self.session
                             .add_policy(&c, &name, policy, &source, Origin::Named)
-                            .map_err(|e| e.text())
+                            .map_err(|e| (e.text(), e == Refusal::Unconfirmed))
                     });
                 match added {
+                    // Held for its own sheet, which opens next.
+                    Err((_, true)) => {
+                        self.wallets.close_register();
+                        self.sheet = None;
+                    }
                     Ok(i) => {
                         self.wallets.close_register();
                         self.sheet = None;
@@ -3812,7 +3995,7 @@ impl Faraday {
                         self.refresh_spend();
                         self.toast(&Text::fill(EN.register_added, &[&name]));
                     }
-                    Err(why) => {
+                    Err((why, _)) => {
                         self.wallets.register_refused(why);
                     }
                 }

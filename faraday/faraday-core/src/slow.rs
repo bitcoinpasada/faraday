@@ -83,6 +83,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::Import(boot_import::ImportAction::Go)
             | Action::TextSeed(boot_import::TextSeedAnswer::Load)
             | Action::InboxLoad
+            | Action::WalletHold
             | Action::KefRead(crate::seeds::kef::KefAct::ReadAsSeed)
             | Action::KLock
             | Action::KNext

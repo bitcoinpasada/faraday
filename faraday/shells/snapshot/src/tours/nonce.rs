@@ -35,6 +35,7 @@ fn finished_hex(
     app.press(Action::LoadWallet(
         at(&app, "wallet.txt").ok_or("no wallet")?,
     ));
+    testkit::confirm_wallets(&mut app);
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
         app.event(Event::Key(Key::Char(c)));

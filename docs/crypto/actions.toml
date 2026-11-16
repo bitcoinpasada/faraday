@@ -2274,8 +2274,8 @@ screens = [
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse",
-  "faraday/faraday-core/src/multisig_check/mod.rs::mark_of",
-  "faraday/faraday-core/src/multisig_check/mod.rs::path_is_single_account",
+  "faraday/faraday-core/src/wallet/confirm.rs::mark_of",
+  "faraday/faraday-core/src/wallet/confirm.rs::path_is_single_account",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_parts",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_descriptor",
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse_any",

@@ -668,6 +668,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The question of vaults, in its turn before the seeds.
     t.press(Action::RVaults(false));
     t.press(Action::RNext(faraday_core::rstep::WHERE));
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     let fp = t
         .app
         .session
@@ -966,6 +967,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Keys' Continue makes the wallet and opens Check.
     t.press(Action::CNext(2));
     t.shot("create-made")?;
+    faraday_core::testkit::confirm_wallets(&mut t.app);
     t.press(Action::OpenWallet(0));
     t.press(Action::QrWallet(0));
     t.shot("qr-wallet")?;

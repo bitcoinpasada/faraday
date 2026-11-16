@@ -122,7 +122,7 @@ fn two_clicks_far_apart_in_time_select_nothing() {
 #[test]
 fn a_wallets_name_is_selected_and_typed_over() {
     let mut app = device(vec![kit_file("spending-wallet.txt")]);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     assert_eq!(app.screen, Screen::Wallets);
     app.press(Action::Rename);
     let _ = app.frame();
@@ -139,7 +139,7 @@ fn a_wallets_name_is_selected_and_typed_over() {
 /// Wallets, with the loaded wallet's new name typed as `name`.
 fn renamed(name: &str) -> Faraday {
     let mut app = device(vec![kit_file("spending-wallet.txt")]);
-    app.press(Action::LoadWallet(0));
+    testkit::load_wallet(&mut app, 0);
     app.press(Action::Rename);
     let _ = app.frame();
     let at = app.where_offered(Action::Rename).expect("the name field");
