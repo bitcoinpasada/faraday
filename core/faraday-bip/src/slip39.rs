@@ -397,17 +397,15 @@ impl Points {
     }
 
     /// The polynomial's value at `x`, Lagrange interpolation over
-    /// GF(256).
-    fn at(&self, x: u8) -> SecretBytes {
-        // Worked in the result's own buffer, so no plain copy is moved in.
-        let mut out = SecretBytes {
-            buf: [0u8; MAX_STRENGTH_BYTES],
-            len: self.len as u8,
-        };
+    /// GF(256). Written into `out`, which the caller owns, so no secret
+    /// is returned by value and left in a frame moved out of.
+    fn at(&self, x: u8, out: &mut SecretBytes) {
+        out.buf = [0u8; MAX_STRENGTH_BYTES];
+        out.len = self.len as u8;
         for i in 0..self.n {
             if self.x[i] == x {
                 out.buf.copy_from_slice(&self.y[i]);
-                return out;
+                return;
             }
         }
         // The basis polynomial of each point at `x`: the product over the
@@ -425,7 +423,6 @@ impl Points {
                 *byte ^= gf_mul(self.y[i][k], basis);
             }
         }
-        out
     }
 }
 
@@ -462,8 +459,10 @@ fn recover_secret(threshold: u8, points: &Points) -> Result<SecretBytes, Error> 
             len: points.len as u8,
         });
     }
-    let shared = points.at(SECRET_INDEX);
-    let digest_share = points.at(DIGEST_INDEX);
+    let mut shared = SecretBytes::default();
+    points.at(SECRET_INDEX, &mut shared);
+    let mut digest_share = SecretBytes::default();
+    points.at(DIGEST_INDEX, &mut digest_share);
     let (digest, random_part) = digest_share.as_bytes().split_at(DIGEST_LENGTH);
     if !bool::from(digest_of(random_part, shared.as_bytes()).ct_eq(digest)) {
         return Err(Error::BadDigest);
@@ -1256,6 +1255,8 @@ pub fn derive_member(shares: &[Share], member_index: u8) -> Result<Share, Error>
         return Err(Error::MemberIndexTaken);
     }
     recover_secret(threshold, &members)?;
+    let mut share_value = SecretBytes::default();
+    members.at(member_index, &mut share_value);
     Ok(Share::build(
         first.identifier,
         first.extendable,
@@ -1265,7 +1266,7 @@ pub fn derive_member(shares: &[Share], member_index: u8) -> Result<Share, Error>
         first.group_count,
         member_index,
         threshold,
-        &members.at(member_index),
+        &share_value,
     ))
 }
 
@@ -1520,7 +1521,7 @@ fn split_secret(
         .take(count as usize)
         .skip(random_shares)
     {
-        *slot = Some(base.at(i as u8));
+        base.at(i as u8, slot.insert(SecretBytes::default()));
     }
     digest_share.zeroize();
 }
