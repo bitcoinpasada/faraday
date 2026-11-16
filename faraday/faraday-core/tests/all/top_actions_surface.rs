@@ -44,7 +44,7 @@ fn nothing_but_the_bar_is_drawn_under_the_actions_of_a_long_wide_page() {
     let first = app.frame().rgba.to_vec();
     let mut under: Option<Vec<u8>> = None;
     let mut seen = 0;
-    for _ in 0..40 {
+    for stop in 0..40 {
         app.event(Event::Scroll {
             x: 450,
             y: 250,
@@ -54,8 +54,13 @@ fn nothing_but_the_bar_is_drawn_under_the_actions_of_a_long_wide_page() {
         for _ in 0..12 {
             tick(&mut app);
         }
-        // At every stop of the scroll the corner is what it was at the
-        // first: the bar in its scrolled-under colour and its actions.
+        // The bar's colour comes in over the first units scrolled; from
+        // there on, at every stop of the scroll the corner is what it was
+        // at the first: the bar in its scrolled-under colour and its
+        // actions.
+        if stop < 6 {
+            continue;
+        }
         let now = corner(&mut app, 1280);
         match &under {
             None => under = Some(now),

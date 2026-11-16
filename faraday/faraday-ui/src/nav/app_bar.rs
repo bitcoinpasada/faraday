@@ -33,8 +33,16 @@ pub struct AppBar<'s, A> {
 /// surface-container once the page is scrolled under it
 /// ([`app_bar_fill`]); no rule under it (Material's top app bar).
 pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, right: f32) {
-    let fill = app_bar_fill(ui.offset > 0.0 && !ui.in_sheet);
-    ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, fill);
+    let scrolled = ui.offset > 0.0 && !ui.in_sheet;
+    if ui.theme.is_high_contrast() {
+        ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, app_bar_fill(scrolled));
+    } else {
+        // The scrolled fill comes in with the page's first units under
+        // the bar, and the page's top edge fades into it.
+        let tone = ui.bar_tone(if scrolled { ui.offset } else { 0.0 });
+        ui.wash(0.0, 0.0, w, APP_BAR_H, 0.0, crate::pal::Paint::Fixed(tone));
+        ui.under_bar = !ui.in_sheet;
+    }
     let mut x = MARGIN_COMPACT;
     let room = |x: f32| (right - x).max(0.0);
     if let Some((label, action)) = bar.back {

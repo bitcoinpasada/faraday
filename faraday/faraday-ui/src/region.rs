@@ -443,7 +443,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
             self.stretch_view(view, ground);
         }
-        self.edge_fades(view, max, offset, region.fade.unwrap_or(ground));
+        // A page under the top app bar fades into the bar's fill.
+        let under_bar = slot == Slot::Page
+            && region.fade.is_none()
+            && !self.in_sheet
+            && (self.under_bar || self.head.is_some());
+        let top_into = under_bar.then(|| self.bar_tone(offset));
+        let into = region.fade.unwrap_or(ground);
+        self.edge_fades(view, (max, offset), into, top_into);
         // A small panel draws no scrollbar: the edge fades say the page
         // goes on.
         if let Some((alpha, bar_offset)) = self.bar

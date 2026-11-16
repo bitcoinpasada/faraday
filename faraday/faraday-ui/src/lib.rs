@@ -504,6 +504,9 @@ pub struct Ui<'a, A> {
     /// where it lands, and the press), handed over by the page for the
     /// top app bar the frame draws over it (`docs/LAYOUT.md` §3).
     pub head: Option<(Text, Option<(Text, A)>)>,
+    /// Whether the page is under a top app bar drawn this frame, whose
+    /// fill its top edge fades into.
+    pub under_bar: bool,
     /// On a small panel, which walk-through is shown on this screen: a
     /// step's place, or the app's own number for its About.
     pub about_open: Option<u8>,
@@ -670,6 +673,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             frost: None,
             dice_shown: 1.0,
             head: None,
+            under_bar: false,
             about_open: None,
             pinning: false,
             page_view: None,
@@ -793,7 +797,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// 24 units scrolled. At High contrast a scheme draws none: a fade
     /// lowers the contrast of what is under it, and the scrollbar says
     /// the page goes on.
-    fn edge_fades(&mut self, view: Rect, max: f32, offset: f32, ground: Role) {
+    /// The top app bar's fill with the page `offset` units under it:
+    /// surface, and surface-container once the page is an edge fade's
+    /// depth under it, mixed between the two on the way.
+    pub fn bar_tone(&self, offset: f32) -> Color {
+        use faraday_draw::tokens::{EDGE_FADE, EDGE_FADE_COMPACT};
+        let depth = if self.compact {
+            EDGE_FADE_COMPACT
+        } else {
+            EDGE_FADE
+        };
+        let rest = self.col(Role::Surface);
+        rest.mix(self.col(Role::SurfaceContainer), offset / depth)
+    }
+
+    fn edge_fades(
+        &mut self,
+        view: Rect,
+        (max, offset): (f32, f32),
+        ground: Role,
+        top_into: Option<Color>,
+    ) {
         use faraday_draw::tokens::{
             EDGE_FADE, EDGE_FADE_ALPHA, EDGE_FADE_COMPACT, EDGE_FADE_LOW_COMPACT,
         };
@@ -819,13 +843,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let page = self.col(ground);
         let reach = band as f32 / self.f;
         let top = (offset / reach).clamp(0.0, 1.0);
+        let above = top_into.unwrap_or(page);
         let bottom = ((max - offset) / (low as f32 / self.f)).clamp(0.0, 1.0);
         for i in 0..band {
             let k = 1.0 - (i as f32 + 0.5) / band as f32;
             let a = k * k * EDGE_FADE_ALPHA;
             if top > 0.0 {
                 let row = Rect::new(view.x, view.y + i, view.w, 1);
-                self.c.fill_rect(row, page.with_alpha((a * top) as u8));
+                self.c.fill_rect(row, above.with_alpha((a * top) as u8));
             }
         }
         for i in 0..low {
