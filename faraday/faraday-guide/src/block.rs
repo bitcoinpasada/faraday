@@ -111,4 +111,10 @@ pub struct Block {
     /// (`starter:write`, `starter:confirm`, `starter:writing`,
     /// `starter:done`, `starter:start`).
     pub screens: &'static [&'static str],
+    /// For a screen that is a flow of steps: the step, by the flow's own
+    /// number, from which the action is offered there, as `(screen, step)`.
+    /// The block is shown on that step and on those after it, and is the
+    /// first block on that step; a screen with no entry offers it on every
+    /// step (`docs/CRYPTO-LEARN.md` §8.1).
+    pub from_step: &'static [(&'static str, u8)],
 }

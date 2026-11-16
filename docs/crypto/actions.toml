@@ -2159,6 +2159,7 @@ screens = [
   "MultisigCheck",
   "CheckAddress",
 ]
+from_step = [{ screen = "Spend", step = 1 }]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at_with",
@@ -3000,6 +3001,7 @@ screens = [
   "Tools",
   "CheckAddress",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-bip/src/address.rs::is_bech32_prefix",
   "core/faraday-bip/src/address.rs::is_address_prefix",
@@ -3649,6 +3651,7 @@ screens = [
   "CreateVault",
   "Spend",
 ]
+from_step = [{ screen = "Spend", step = 5 }]
 functions = [
   "faraday/faraday-core/src/fresh.rs::Seed::draw",
   "faraday/faraday-core/src/fresh.rs::reseed",
@@ -4972,6 +4975,7 @@ screens = [
   "SignerCheck",
   "SpendBackup",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes",
   "faraday/faraday-core/src/signing.rs::unsigned_tx_of",
@@ -5051,6 +5055,7 @@ screens = [
   "Decode",
   "SpendBackup",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-psbt/src/v2.rs::PsbtV2::parse_bytes",
   "core/faraday-psbt/src/v2.rs::PsbtV2::parse_base64",
@@ -5126,6 +5131,7 @@ standards = [
   "BIP 350",
 ]
 screens = ["Spend", "SpendBackup", "MultisigCheck"]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-psbt/src/inspect.rs::inspect",
   "core/faraday-psbt/src/inspect.rs::Inspection::dangers",
@@ -5238,6 +5244,7 @@ standards = [
   "BIP 342",
 ]
 screens = ["Spend", "SpendBackup"]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-psbt/src/inspect.rs::sighash_kind",
   "core/faraday-psbt/src/inspect.rs::SighashKind::is_default",
@@ -5429,6 +5436,7 @@ standards = [
   "RFC 6979",
 ]
 screens = ["Spend", "SpendBackup"]
+from_step = [{ screen = "Spend", step = 5 }]
 functions = [
   "core/faraday-psbt/src/sign.rs::sign",
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
@@ -5511,6 +5519,7 @@ standards = [
   "BIP 342",
 ]
 screens = ["Spend", "SpendBackup"]
+from_step = [{ screen = "Spend", step = 5 }]
 functions = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
 code = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
 
@@ -5574,6 +5583,7 @@ standards = [
   "BIP 341",
 ]
 screens = ["Spend"]
+from_step = [{ screen = "Spend", step = 9 }]
 functions = [
   "core/faraday-psbt/src/sign.rs::sign_musig",
   "core/faraday-bip/src/musig.rs::nonce_gen",
@@ -5688,6 +5698,7 @@ standards = [
   "BIP 373",
 ]
 screens = ["Spend", "NonceCheck", "SignerCheck", "Decode"]
+from_step = [{ screen = "Spend", step = 6 }]
 functions = [
   "core/faraday-psbt/src/verify.rs::compare",
   "core/faraday-psbt/src/verify.rs::count_signatures",
@@ -5802,6 +5813,7 @@ action = "Compares two PSBTs side by side and says whether a replacement only ra
 row = "fee-bump"
 standards = ["BIP 174", "BIP 125"]
 screens = ["SignerCheck", "Spend", "Files", "Decode"]
+from_step = [{ screen = "Spend", step = 7 }]
 functions = [
   "core/faraday-psbt/src/bump.rs::fee_of",
   "core/faraday-psbt/src/bump.rs::fill_amounts",
@@ -5863,6 +5875,7 @@ action = "Builds the final scriptSig and witness from the partial signatures and
 row = "psbt-v0"
 standards = ["BIP 174"]
 screens = ["Spend", "SpendBackup"]
+from_step = [{ screen = "Spend", step = 7 }]
 functions = [
   "core/faraday-psbt/src/finalize.rs::finalize",
   "faraday/faraday-core/src/wallet.rs::Spend::finished_hex",
@@ -6134,6 +6147,7 @@ screens = [
   "Tools",
   "Convert",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-codec/src/qr.rs::encode",
   "core/faraday-codec/src/qr.rs::encode_bounded",
@@ -6217,6 +6231,7 @@ screens = [
   "Create",
   "Tools",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "core/faraday-codec/src/ur/mod.rs::encode_single",
   "core/faraday-codec/src/ur/mod.rs::encode_psbt",
@@ -6340,6 +6355,7 @@ screens = [
   "Create",
   "Tools",
 ]
+from_step = [{ screen = "Spend", step = 2 }]
 functions = [
   "faraday/faraday-qr/src/send.rs::frames",
   "faraday/faraday-qr/src/send.rs::parts_frames",

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`
-**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
+**Open:** the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -112,6 +112,7 @@ standards = ["BIP 143", "RFC 6979"]
 name = "Sign with ECDSA"     # the block's heading: 2 to 6 words, plain
 screens_not = [{ screen = "Vaults", reason = "…" }]   # a screen whose code calls a root and does not offer it (§9.2)
 screens = ["Spend", "SpendBackup"]   # Screen variants, or "starter:<page>" (write, confirm, writing, done, start)
+from_step = [{ screen = "Spend", step = 5 }]   # optional: on a screen that is a flow of steps, the step (the flow's own number) the action is offered from (§8.1)
 functions = [                # the roots this entry covers (§4.4)
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
   "faraday/faraday-keys/src/psbt.rs::sign",
@@ -510,7 +511,9 @@ is; it is not a `Glyph` drawn in code. Its tooltip is plain: "How
 Faraday does it". It has no selected state, as the ? has none. Where a
 flow offers an action on one step only, the button shows on that step
 and the steps after it that the action's result is on (a signed PSBT's
-step), not before.
+step), not before. The manifest's `from_step` names that step for the
+action on a screen (Spend's, today); the Cryptography tab then leaves the
+action out on the steps before it and puts its block first on that step.
 
 The bar's tools then read, from the start of the trailing group: Cancel,
 the eye (Make codex32 shares' sheets), the keyboard button, Load samples
@@ -741,10 +744,11 @@ fails `just lint-release` until `just crosscheck` runs again, before a
 release (F197, F259); the tip between releases is not kept cross-checked.
 It is the only check `just lint-release` runs.
 
-- The stamp's `FILES` and `VECTORS` come from the manifest: the files
-  holding any covered function outside the stamp's whole crates (today
-  `fresh.rs`, the rollers and `picture.rs`, written by hand), and every
-  vector folder an action with an area names. Its `CRATES`, hashed
+- The stamp's `FILES` and `VECTORS` are read from the manifest by
+  `stamp.py`: the files holding a function of an action with an area
+  outside the stamp's whole crates, less the files
+  `tools/lint-standards.toml` lists as `[[uncovered]]`, and every vector
+  folder such an action names. Its `CRATES`, hashed
   whole, stay as they are: coarser than the manifest, so a change
   outside every closure in a crypto crate still forces a rerun.
 

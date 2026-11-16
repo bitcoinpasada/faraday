@@ -590,20 +590,60 @@ impl Faraday {
     }
 
     /// The blocks of the actions the screen on show offers, in the order
-    /// the manifest lists them (`docs/CRYPTO-LEARN.md` §8.2, §9.2); none
-    /// in a held app, whose holder has its own. A lookup.
+    /// the manifest lists them, those whose step is the open one first
+    /// (`docs/CRYPTO-LEARN.md` §8.2, §8.5, §9.2); none in a held app, whose
+    /// holder has its own. On a flow of steps, an action offered from a
+    /// step on is left out before it. A lookup.
     pub fn how_blocks(&self) -> Vec<&'static Block> {
         if self.held {
             return Vec::new();
         }
-        faraday_guide::how::for_screen(self.how_screen_name().as_str())
+        let name = self.how_screen_name();
+        let mut blocks = faraday_guide::how::for_screen(name.as_str());
+        let Some((open, order)) = self.how_step() else {
+            return blocks;
+        };
+        let from = |b: &Block| {
+            b.from_step
+                .iter()
+                .find(|(s, _)| *s == name.as_str())
+                .map(|&(_, step)| step)
+        };
+        let place = |step: u8| order.iter().position(|&k| k == step);
+        let at = place(open);
+        blocks.retain(|b| match from(b) {
+            None => true,
+            Some(step) => matches!((place(step), at), (Some(f), Some(o)) if f <= o),
+        });
+        // Stable: the open step's blocks first, each group in manifest order.
+        blocks.sort_by_key(|b| from(b) != Some(open));
+        blocks
     }
 
-    /// Whether the screen on show offers an action with a block: the bar
-    /// then carries **How Faraday does it** and the guide a How tab. A
-    /// lookup.
+    /// The open step of the flow on show and the flow's steps in order,
+    /// for the screens whose blocks are offered from a step on. A lookup.
+    fn how_step(&self) -> Option<(u8, Vec<u8>)> {
+        use crate::trail::StepFlow;
+        match self.screen {
+            Screen::Spend => {
+                let s = crate::wallet::SPEND_STEPS.steps(self)?;
+                Some((s.open?, s.order))
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether the screen on show offers an action with a block at its
+    /// step: the bar then carries **How Faraday does it** and the guide a
+    /// How tab. A lookup.
     pub fn how_offered(&self) -> bool {
-        !self.held && faraday_guide::how::offered(self.how_screen_name().as_str())
+        if self.held {
+            return false;
+        }
+        if self.how_step().is_none() {
+            return faraday_guide::how::offered(self.how_screen_name().as_str());
+        }
+        !self.how_blocks().is_empty()
     }
 
     /// The guide's scroll was set by a press, not by a person scrolling:

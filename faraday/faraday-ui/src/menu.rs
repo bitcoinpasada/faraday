@@ -26,6 +26,9 @@ pub enum MenuLine<'s, A> {
     /// An item: what it reads, the press it is, and whether it is the
     /// one chosen now.
     Item(&'s str, A, bool),
+    /// An item with its icon at its start (Material's menu item with a
+    /// leading icon): the icon, what it reads and the press it is.
+    Icon(Icon, &'s str, A),
     /// A divider between groups of items (Material's menu divider).
     Divider,
     /// An item that is not available: what it reads and, under it, why.
@@ -93,6 +96,10 @@ pub(crate) fn menu_width<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>) -> f32 {
             MenuLine::Item(label, ..) => {
                 widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + TICK);
             }
+            MenuLine::Icon(_, label, _) => {
+                let lead = ICON_GLYPH_BUTTON + ICON_GAP;
+                widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + lead + TICK);
+            }
             MenuLine::Off(label, why) => {
                 widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + TICK);
                 widest = widest.max(ui.measure_as(LABEL_M, why) + under + TICK);
@@ -113,7 +120,7 @@ fn content_h<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>, titled: bool) -> f32 
         .iter()
         .map(|l| match l {
             MenuLine::Head(_) => hh,
-            MenuLine::Item(..) => ih,
+            MenuLine::Item(..) | MenuLine::Icon(..) => ih,
             MenuLine::Off(..) => off_h(ui),
             MenuLine::Divider => divider_h(),
         })
@@ -142,7 +149,18 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
                 item(
                     ui,
                     (x, cy, w, ih),
-                    (label, a, chosen, Role::OnSurface),
+                    (label, a, chosen, Role::OnSurface, None),
+                    under,
+                    m.at == Some(k),
+                );
+                cy += ih;
+                k += 1;
+            }
+            MenuLine::Icon(icon, label, a) => {
+                item(
+                    ui,
+                    (x, cy, w, ih),
+                    (label, a, false, Role::OnSurface, Some(icon)),
                     under,
                     m.at == Some(k),
                 );
@@ -171,7 +189,7 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
 fn item<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w, h): (f32, f32, f32, f32),
-    (label, a, chosen, tone): (&str, A, bool, Role),
+    (label, a, chosen, tone, icon): (&str, A, bool, Role, Option<Icon>),
     under: f32,
     keys: bool,
 ) {
@@ -194,7 +212,12 @@ fn item<A: Copy + PartialEq>(
             ui.c.stroke_rounded_rect(rect, SHAPE_XS * ui.f, FOCUS_RING * ui.f, color);
         }
     });
-    let ix = x + MENU_ITEM_PAD + under;
+    let mut ix = x + MENU_ITEM_PAD + under;
+    if let Some(icon) = icon {
+        let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
+        ui.icon(ix, iy, ICON_GLYPH_BUTTON, icon, ICON_GLYPH_BUTTON, fg);
+        ix += ICON_GLYPH_BUTTON + ICON_GAP;
+    }
     let room = (x + w - MENU_ITEM_PAD - TICK - ix).max(0.0);
     ui.text_fit_as((ix, y, h, room), LABEL_L.regular(), fg, label);
     if chosen {

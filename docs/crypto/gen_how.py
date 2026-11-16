@@ -382,6 +382,8 @@ def block_text(data, a, versions):
     else:
         cc = f"CrossCheck::Not({rs('not cross-checked: ' + chk['not_crosschecked'].rstrip('.'))})"
     screens = "&[" + ", ".join(rs(s) for s in as_list(a.get("screens"))) + "]"
+    from_step = "&[" + ", ".join(
+        f"({rs(f['screen'])}, {f['step']})" for f in as_list(a.get("from_step"))) + "]"
     return (
         "    Block {\n"
         f"        id: {rs(a['id'])},\n"
@@ -397,6 +399,7 @@ def block_text(data, a, versions):
         f"        limits: {lines([('plain', sentence(t)) for t in a['limits']['lines']])},\n"
         f"        own_calls: {lines(own_lines(a))},\n"
         f"        screens: {screens},\n"
+        f"        from_step: {from_step},\n"
         "    },\n"
     )
 

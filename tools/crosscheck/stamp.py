@@ -58,15 +58,34 @@ CRATES = [
     "third_party/rqrr",
     "tools/crosscheck",
 ]
+def _manifest():
+    """The files outside CRATES that hold a function of an action with a
+    cross-check area, and the vector folders those actions name, read from
+    the manifest (`docs/CRYPTO-LEARN.md` §10.2). A file
+    `tools/lint-standards.toml` lists as [[uncovered]] is glue the
+    cross-check does not check."""
+    actions = tomllib.loads((ROOT / "docs" / "crypto" / "actions.toml").read_text())["action"]
+    skip = {u["file"] for u in tomllib.loads(
+        (ROOT / "tools" / "lint-standards.toml").read_text()).get("uncovered", []) if "file" in u}
+    files, vectors = set(), set()
+    for a in actions:
+        checked = a.get("checked", {})
+        if not checked.get("crosscheck"):
+            continue
+        vectors.update(d for d in checked.get("vectors", [])
+                       if (ROOT / "tools" / "vectors" / d).is_dir())
+        for fn in a.get("functions", []):
+            path = fn.split("::")[0]
+            if not any(path.startswith(c + "/") for c in CRATES) and path not in skip:
+                files.add(path)
+    return sorted(files), sorted(vectors)
+
+
 # Single files of crates too large to hash whole, whose results an area
-# checks: the picture a Codex32QR is written as (`seedqr`), and Decode's
-# txid, wtxid and output addresses (`tx`).
-FILES = ["faraday/faraday-core/src/picture.rs", "faraday/faraday-core/src/decode/mod.rs"]
-# The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip39", "bip85", "bip93",
-           "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
-           "kdf", "message", "miniscript", "opentimestamps", "psbt", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
-           "vault-primitives", "wallet-files", "xor"]
+# checks (the picture a Codex32QR is written as, Decode's txid, wtxid and
+# output addresses), and the published vectors the cross-check reads
+# (tools/vectors/<name>/): both read from the manifest.
+FILES, VECTORS = _manifest()
 # Other wallets' files from their test suites, which the `import` area reads.
 FOLDERS = ["faraday/faraday-core/tests/vectors/interop"]
 # Everything under tools/crosscheck/ that is the harness, not its output.

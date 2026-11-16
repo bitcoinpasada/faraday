@@ -102,6 +102,7 @@ mod home_scan;
 mod hover;
 mod how_block;
 mod how_reach;
+mod how_steps;
 mod icon_tooltips;
 mod idle;
 mod import;

@@ -96,7 +96,7 @@ ROW_KEYS = {"id", "section", "what", "completeness", "standard_note", "uses", "n
 ROW_TEXTS = ("standard", "verified", "own")
 STARTER_PAGES = {"write", "confirm", "writing", "done", "start"}
 ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "screens", "functions", "code",
-               "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label"}
+               "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label", "from_step"}
 IMPL_KEYS = {"crate", "libraries", "through", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
                 "fuzz_none", "other", "independence", "against"}
@@ -578,6 +578,17 @@ def schema_action(c, a, i):
         unknown(e, f"action {i}.screens_not", n, {"screen", "reason"}, i)
         if not str_ok(n.get("screen")) or not str_ok(n.get("reason")):
             bad("screens_not: `screen` and `reason` are required")
+    fs = a.get("from_step", [])
+    if not isinstance(fs, list):
+        bad("`from_step` is not an array of tables")
+        fs = []
+    for f in fs:
+        unknown(e, f"action {i}.from_step", f, {"screen", "step"}, i)
+        if (not str_ok(f.get("screen")) or not isinstance(f.get("step"), int)
+                or isinstance(f.get("step"), bool) or not 0 <= f["step"] <= 255):
+            bad("from_step: `screen` and a `step` from 0 to 255 are required")
+        elif f["screen"] not in as_list(a.get("screens")):
+            bad(f"from_step: {f['screen']} is not in `screens`")
     for k in ("standards", "screens", "functions", "code"):
         if not isinstance(a.get(k), list) or not all(str_ok(x) for x in a[k]):
             bad(f"`{k}` is not a list of strings")

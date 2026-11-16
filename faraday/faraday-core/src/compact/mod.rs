@@ -391,7 +391,11 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         lines.push(item(EN.own_add_randomness, BarTool::Own));
     }
     if held.how {
-        lines.push(item(EN.bar_menu_how, BarTool::How));
+        lines.push(crate::menu::Line::Tool(
+            Icon::Method,
+            EN.bar_menu_how.into(),
+            Action::NavMenu(MenuPress::Tool(BarTool::How)),
+        ));
     }
     if held.help {
         lines.push(item(EN.bar_menu_guide, BarTool::Help));
