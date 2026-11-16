@@ -107,6 +107,7 @@ disallowed-types = [
     { path = "faraday_sb::Keys", reason = "key boundary (docs/KEYS.md): Secure Boot keys, which faraday-keys makes and uses" },
     { path = "faraday_sb::x509::Pair", reason = "key boundary (docs/KEYS.md): Secure Boot keys, which faraday-keys makes and uses" },
     { path = "faraday_vault::file::Opened", reason = "key boundary (docs/KEYS.md): a vault opened, which faraday-keys does" },
+    { path = "faraday_kef::Opened", reason = "key boundary (docs/KEYS.md): a KEF code opened, which holds its plaintext; faraday-keys does it" },
 ]
 
 # A function over this cognitive complexity carries an expect with its reason

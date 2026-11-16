@@ -328,6 +328,10 @@ impl Worker {
     }
 
     /// Takes the open's answer, once.
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     pub(crate) fn kef_take_opened(
         &mut self,
     ) -> Option<Result<faraday_keys::kef::Opened, faraday_keys::kef::OpenError>> {

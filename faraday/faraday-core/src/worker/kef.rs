@@ -12,6 +12,10 @@ use std::time::Instant;
 use zeroize::Zeroizing;
 
 use faraday_crypto::work::Compute;
+#[expect(
+    clippy::disallowed_types,
+    reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+)]
 use faraday_keys::kef::{OpenError, OpenJob, Opened, Progress, SealError, SealJob};
 
 /// A code to seal, to run on the worker.
@@ -40,6 +44,10 @@ pub(crate) struct OpenWork {
 
 /// An open's answer: the contents or why there are none.
 pub(crate) struct OpenDone {
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     opened: Result<Opened, OpenError>,
 }
 
@@ -115,6 +123,10 @@ pub enum KefStart {
 pub(crate) struct KefArea {
     progress: Option<Arc<Progress>>,
     sealed: Option<Result<Zeroizing<Vec<u8>>, SealError>>,
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     opened: Option<Result<Opened, OpenError>>,
     /// The timed run's stop, while one is out.
     timing: Option<Arc<AtomicBool>>,
@@ -183,6 +195,10 @@ impl KefArea {
     }
 
     #[cfg(feature = "testkit")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     pub(crate) fn opened(&self) -> Option<&Result<Opened, OpenError>> {
         self.opened.as_ref()
     }
@@ -191,6 +207,10 @@ impl KefArea {
         self.sealed.take()
     }
 
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     pub(crate) fn take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
         self.opened.take()
     }

@@ -13,6 +13,10 @@ use crate::worker::kef::{KefId, KefStart};
 use crate::worker::kef_make;
 use crate::worker::{Answer, Busy, Done, Job};
 use crate::{Action, Command, Faraday, Later, motion};
+#[expect(
+    clippy::disallowed_types,
+    reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+)]
 use faraday_keys::kef::{Envelope, OpenError, OpenJob, Opened, Progress, SealError, SealJob};
 use faraday_text::Text;
 use std::sync::Arc;
@@ -574,6 +578,10 @@ impl Faraday {
 
     /// The last open's answer, if one has come.
     #[cfg(feature = "testkit")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     pub fn kef_opened(&self) -> Option<&Result<Opened, OpenError>> {
         self.worker.kef().opened()
     }
@@ -585,6 +593,10 @@ impl Faraday {
 
     /// Takes the last open's answer, leaving none; what it holds wipes
     /// when dropped.
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the open job's answer, held until a screen takes it and wiped when dropped (docs/KEYS.md)"
+    )]
     pub fn kef_take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
         self.worker.kef_take_opened()
     }
