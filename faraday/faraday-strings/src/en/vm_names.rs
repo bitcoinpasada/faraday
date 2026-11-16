@@ -350,7 +350,7 @@ macro_rules! words_vm_names {
     /// Toast: the key is made into open vaults.
     backup_flow_unlock_first: "Unlock every vault first",
     /// Toast: the vault keeps the wallet's shares plan for another key order that the copy would drop.
-    backup_flow_copy_plan_kept: "The vault keeps a shares plan for the wallet with its keys in another order, or its answers are damaged or missing, and the copy would drop its shares. Copy into another vault, or load the wallet with its keys in that order first",
+    backup_flow_copy_plan_kept: "The vault keeps a shares plan for the wallet with its keys in another order, or its answers are damaged or missing, and the copy would drop its shares. Copy into another vault",
     /// Toast: the vault set up for a plan vault holds a key only another is to hold.
     backup_flow_set_up_holds_other: "{} was set up for this vault and holds a key the plan puts in another. Change the plan",
     /// Toast: the setup's question or count while one of its vaults is open.

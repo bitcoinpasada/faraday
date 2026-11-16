@@ -1334,6 +1334,15 @@ impl Faraday {
         cx: &CopyCtx<'_>,
         added: &[usize],
     ) -> Result<Vec<CopyWork>, CopyStop> {
+        // A vault that keeps shares the copy would drop refuses before any
+        // vault asks for a string: nothing is written.
+        for &v in added {
+            if let Some(o) = self.flow_open_index(cx.i, v)
+                && self.wallet_copy_plan_refused(cx, o)
+            {
+                return Err(CopyStop::Say(Text::of(EN.backup_flow_copy_plan_kept)));
+            }
+        }
         let mut work: Vec<CopyWork> = Vec::new();
         for &v in added {
             work.push(self.wallet_copy_vault(cx, v)?);
@@ -1786,7 +1795,7 @@ impl Faraday {
         });
         // Each record of the wallet in the vault, and whether one is in the
         // other key order (its shares were checked before the copy asked
-        // for anything, `wallet_copy_plan_refused`).
+        // for anything, `wallet_copy_plan_refused` over every added vault).
         let mut kept: Vec<usize> = Vec::new();
         let mut other_order = false;
         if let Some((_, hp)) = &holder {
@@ -1868,9 +1877,6 @@ impl Faraday {
             typed: Vec::new(),
             out: Vec::new(),
         };
-        if self.wallet_copy_plan_refused(cx, o) {
-            return Err(CopyStop::Say(Text::of(EN.backup_flow_copy_plan_kept)));
-        }
         self.wallet_copy_seeds(cx, v, o, &before, &mut w)?;
         self.wallet_copy_description(cx, v, o, &mut w)?;
         self.wallet_copy_gone(cx, v, o, &mut w)?;
