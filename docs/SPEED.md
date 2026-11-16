@@ -547,7 +547,9 @@ Nothing a person waits on blocks a frame. What holds:
    The key budget test (§8.3) holds every field to it. Since F184
    (owner, 2026-11-02) this holds for short work alone: a press whose
    work takes longer than a tenth of a second on a Raspberry Pi 3B+ is
-   a job on the core's worker instead (`docs/WORKERS.md` §2.1).
+   a job on the core's worker instead (`docs/WORKERS.md` §2.1), and
+   F273 (owner, 2026-11-16) is to run the short work in the press
+   itself, with no frame drawn first.
 3. **Rows out of sight are not drawn.** A line of text wholly outside
    the clip, or under a clip with no room (a pass that only measures),
    is measured from its advances, not drawn

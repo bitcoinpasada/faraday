@@ -1,8 +1,8 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work drawn first is F184.
-**Open:** the list of §2.1 confirmed on a Pi 3B+
+**Status:** Partly built: the worker, the shells' wake, the busy screen and the jobs listed in §9 run; the rest are open. The owner's answers are in §10, the line between a job and work drawn first is F184, amended by F273.
+**Open:** the list of §2.1 confirmed on a Pi 3B+, and the presses drawn first run in the press or as jobs instead, with the drawn-first path taken out (F273)
 
 Touch and drawing run on each shell's own thread, the main thread. Work
 that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
@@ -85,6 +85,15 @@ its full clock (1400 MHz); shorter work is drawn first and done on the
 tick after. A vault's key stretch is a job whatever it measures. Work
 that grows with what it is given is judged at a large ordinary case: a
 2-of-3 spend of 50 inputs, a multisig of fifteen keys.
+
+**In the press, not drawn first** (owner, 2026-11-16; F273, not
+built). Work under the line is to run in the press itself, with no frame
+drawn first and no working toast: the frame after the press shows its
+result. The drawn-first side of the table below then becomes the presses
+run in the press; until a Pi times them, the stand-in places each, and a
+press whose timings fall either side of the stand-in's line is a job.
+`Later::Vault` and the debug guard stay; `drawn_first`, `Later::Press`
+and `working_text` go.
 
 **Until a Pi measures it.** No Pi has timed these presses yet, so a
 release build on a desktop PC stands in, at a tenth of the line (10 ms):

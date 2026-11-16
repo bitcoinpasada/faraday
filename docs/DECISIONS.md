@@ -200,7 +200,7 @@ Read this table, then only the decision you need.
 | [F181](decisions/F181.md) | Memory work follows the security model: no wiping allocator, no batch for copies the lock already bounds, none for Faraday Demo and the Starter | 2026-10-31 | Active | crypto |
 | [F182](decisions/F182.md) | A stick Windows leaves whole: the image's first usable sector and boot FAT, a stick the Starter makes for its size, the boot partition kept as released | 2026-10-31 | Active | stick |
 | [F183](decisions/F183.md) | The check runs on GitHub Actions: `just` on every push to main and every pull request, read-only, building nothing for release | 2026-10-31 | Active | repository |
-| [F184](decisions/F184.md) | Work over a tenth of a second on a Pi 3B+ runs on one worker in the core; shorter work is drawn first and done on the next tick | 2026-11-02 | Active | speed |
+| [F184](decisions/F184.md) | Work over a tenth of a second on a Pi 3B+ runs on one worker in the core; shorter work is drawn first and done on the next tick | 2026-11-02 | Amended by F273 | speed |
 | [F185](decisions/F185.md) | One build on every platform: the PC stick with `efi=disable_early_pci_dma`, the Pi with what Compatible carried | 2026-10-31 | Amended by F186 | release |
 | [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187, F198 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
@@ -285,3 +285,4 @@ Read this table, then only the decision you need.
 | [F269](decisions/F269.md) | costs-lint no longer holds the Costs doc line or its table of mint sites; clippy holds the mints (narrows F69) | 2026-11-14 | Active | speed |
 | [F270](decisions/F270.md) | Check a signer takes in Compare two PSBTs: one tile and one Result for two PSBTs or finished transactions | 2026-11-15 | Active, built | signing |
 | [F272](decisions/F272.md) | An area's glue lives in that area's folder; lib.rs holds none | 2026-11-15 | Active | repository |
+| [F273](decisions/F273.md) | A costly press runs in the press or as a job on the worker; nothing is drawn first | 2026-11-16 | Active | speed |
