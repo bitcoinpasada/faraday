@@ -373,6 +373,7 @@ impl crate::Starter {
                 serial: key.1.clone(),
                 size: key.2,
                 sha256: key.3.clone(),
+                want: key.4.clone(),
                 source: image.source.clone(),
             });
             self.boot_judging.push(key);

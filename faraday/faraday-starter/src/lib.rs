@@ -801,6 +801,12 @@ pub struct Starter {
     pub version_reading: Option<String>,
     /// Why the last such read did not happen.
     pub version_failed: Option<Reason>,
+    /// Why the last Check this stick press did not judge, and the disk it
+    /// was pressed for.
+    check_failed: Option<(String, Reason)>,
+    /// The sticks Check this stick could not judge, against which release
+    /// (disk, serial, size, the release's boot sum): not offered again.
+    boot_unjudged: Vec<(String, String, u64, String)>,
     /// A developer's image, in place of a found one.
     pub dev: Option<DevImage>,
     /// What is installed.
@@ -965,6 +971,8 @@ impl Starter {
             version_stale: None,
             version_reading: None,
             version_failed: None,
+            check_failed: None,
+            boot_unjudged: Vec::new(),
             dev: None,
             installed: None,
             no_writer: false,
@@ -1355,6 +1363,29 @@ impl Starter {
                 .image(Target::Stick)
                 .is_some_and(|i| i.boot_sha256.is_some())
             && self.boot_check().is_none()
+            && !self.check_unjudged()
+    }
+
+    /// Check this stick already found it cannot judge this stick against
+    /// this release.
+    fn check_unjudged(&self) -> bool {
+        let facts = self.facts();
+        let (Some(d), Some(want)) = (
+            facts.stick(),
+            self.image(Target::Stick).and_then(|i| i.boot_sha256),
+        ) else {
+            return false;
+        };
+        self.boot_unjudged.iter().any(|(id, serial, size, w)| {
+            *id == d.id && *serial == d.serial && *size == d.size && *w == want
+        })
+    }
+
+    /// Why Check this stick did not judge the stick attached, when the
+    /// press that failed was for it. A lookup.
+    pub fn check_failure(&self) -> Option<&Reason> {
+        let (disk, why) = self.check_failed.as_ref()?;
+        (self.facts().stick()?.id == *disk).then_some(why)
     }
 
     /// Check this stick: the elevated copy reads the first Faraday
@@ -1369,7 +1400,7 @@ impl Starter {
             return;
         };
         let key = (d.id.clone(), d.serial.clone(), d.size);
-        self.version_failed = None;
+        self.check_failed = None;
         self.ask_version(key, true);
     }
 
@@ -1557,6 +1588,11 @@ impl Starter {
                 }
                 self.shell_disks = d;
                 self.apply_versions();
+                if let Some((gone, _)) = &self.check_failed
+                    && !self.disks.iter().any(|d| d.id == *gone)
+                {
+                    self.check_failed = None;
+                }
                 self.judge_boots();
                 // A disk pulled out before Confirm is no longer chosen.
                 if let Some(m) = self.making.as_mut()
@@ -1577,15 +1613,13 @@ impl Starter {
                 serial,
                 size,
                 sha256,
+                want,
                 signed,
             } => {
-                // Kept against the release it was asked for.
-                if let Some(key) = self
-                    .boot_judging
-                    .iter()
-                    .find(|k| (&k.0, &k.1, k.2, &k.3) == (&disk, &serial, size, &sha256))
-                    .cloned()
-                {
+                // Kept under the whole key, the release it was asked for
+                // included; an answer whose key no longer pends is dropped.
+                let key = (disk, serial, size, sha256, want);
+                if self.boot_judging.contains(&key) {
                     self.boot_judging.retain(|k| *k != key);
                     self.boot_judged.retain(|(k, _)| *k != key);
                     self.boot_judged.push((key, signed));
@@ -1743,6 +1777,7 @@ impl Starter {
                 match result {
                     Ok(read) => {
                         self.version_failed = None;
+                        self.check_failed = None;
                         if let (Some(signed), Some(sum), Some(want)) =
                             (signed, read.1.clone(), self.version_judging.take())
                         {
@@ -1755,7 +1790,16 @@ impl Starter {
                         self.versions.push((key, read));
                         self.apply_versions();
                     }
-                    Err(why) => self.version_failed = Some(why),
+                    Err(why) => match self.version_judging.take() {
+                        // A Check this stick press: said on its card.
+                        Some(want) => {
+                            if why == Reason::NotJudged {
+                                self.boot_unjudged.push((disk.clone(), serial, size, want));
+                            }
+                            self.check_failed = Some((disk, why));
+                        }
+                        None => self.version_failed = Some(why),
+                    },
                 }
                 // Keep data stays ticked only on a stick whose version is
                 // read and allows it.

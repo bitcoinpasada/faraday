@@ -737,6 +737,8 @@ macro_rules! words_starter {
     starter_why_key_folder: "No folder that only you can open could be made for the sheet. Nothing was written.",
     /// Reason: a signed boot file of another program.
     starter_why_boot_file_other: "This is not this release's boot file",
+    /// Reason: Check this stick could not compare the stick with the release.
+    starter_why_not_judged: "This stick could not be checked against this release.",
     /// Reason: the release's boot file, or another, with no signature that holds.
     starter_why_boot_file_unsigned: "This boot file is not signed",
     /// Reason: a signature that does not hold over the file.

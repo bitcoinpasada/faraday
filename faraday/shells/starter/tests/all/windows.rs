@@ -887,6 +887,7 @@ fn every_reason() -> Vec<Reason> {
         Reason::Declined,
         Reason::Unsupported,
         Reason::BootFileOther,
+        Reason::NotJudged,
         Reason::BootFileUnsigned,
         Reason::BootFileBroken,
         Reason::BootFileNotRead,

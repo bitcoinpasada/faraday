@@ -147,6 +147,7 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::NoRecoveryKey => ("NoRecoveryKey", vec![]),
         Reason::KeyFolder => ("KeyFolder", vec![]),
         Reason::BootFileOther => ("BootFileOther", vec![]),
+        Reason::NotJudged => ("NotJudged", vec![]),
         Reason::BootFileUnsigned => ("BootFileUnsigned", vec![]),
         Reason::BootFileBroken => ("BootFileBroken", vec![]),
         Reason::BootFileNotRead => ("BootFileNotRead", vec![]),
@@ -355,7 +356,7 @@ fn code(n: u64) -> Result<u32, String> {
 }
 
 /// The reasons that carry nothing, by their names.
-const BARE: [(&str, Reason); 27] = [
+const BARE: [(&str, Reason); 28] = [
     ("NoWriter", Reason::NoWriter),
     ("NotCarried", Reason::NotCarried),
     ("InUseSwap", Reason::InUse(InUse::Swap)),
@@ -379,6 +380,7 @@ const BARE: [(&str, Reason); 27] = [
     ("NoRecoveryKey", Reason::NoRecoveryKey),
     ("KeyFolder", Reason::KeyFolder),
     ("BootFileOther", Reason::BootFileOther),
+    ("NotJudged", Reason::NotJudged),
     ("BootFileUnsigned", Reason::BootFileUnsigned),
     ("BootFileBroken", Reason::BootFileBroken),
     ("BootFileNotRead", Reason::BootFileNotRead),

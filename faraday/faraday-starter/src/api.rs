@@ -621,6 +621,9 @@ pub enum Reason {
     /// release's program: its image hash is not the release's
     /// `BOOTX64.EFI`'s, or it is no EFI program (§4.5, F133).
     BootFileOther,
+    /// Check this stick could not judge the stick against this release (the
+    /// elevated copy has no way to read the release's boot partition).
+    NotJudged,
     /// A boot file chosen as one the person signed carries no signature.
     BootFileUnsigned,
     /// Its signature does not hold over it.
@@ -837,6 +840,8 @@ pub enum StarterEvent {
         size: u64,
         /// The SHA-256 of the partition, hex, as the command named it.
         sha256: String,
+        /// The release's boot partition SHA-256, as the command named it.
+        want: String,
         /// The read partition is the named one and the release's with a
         /// signed boot file.
         signed: bool,
@@ -1118,6 +1123,9 @@ pub enum StarterCommand {
         size: u64,
         /// The SHA-256 of its boot partition as listed, hex.
         sha256: String,
+        /// The SHA-256 of the release's boot partition, hex: answered back
+        /// so the answer is filed against this release.
+        want: String,
         /// The release the stick is compared with.
         source: Source,
     },

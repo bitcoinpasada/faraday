@@ -762,6 +762,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NoRecoveryKey => S.starter_why_no_recovery_key.to_string(),
         Reason::KeyFolder => S.starter_why_key_folder.to_string(),
         Reason::BootFileOther => S.starter_why_boot_file_other.to_string(),
+        Reason::NotJudged => S.starter_why_not_judged.to_string(),
         Reason::BootFileUnsigned => S.starter_why_boot_file_unsigned.to_string(),
         Reason::BootFileBroken => S.starter_why_boot_file_broken.to_string(),
         Reason::BootFileNotRead => S.starter_why_boot_file_not_read.to_string(),

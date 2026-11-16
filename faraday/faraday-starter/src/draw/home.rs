@@ -500,7 +500,7 @@ fn stick_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             StarterAction::CheckStick,
         );
     }
-    if let Some(why) = &starter.version_failed {
+    if let Some(why) = starter.check_failure() {
         y += GAP;
         y += card_line(ui, (x, y, w), &super::reason_text(why), Role::Error);
     }

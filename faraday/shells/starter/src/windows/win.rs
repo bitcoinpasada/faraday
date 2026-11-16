@@ -855,6 +855,12 @@ fn read_listed(r: &ReadVersion) -> Result<StickRead, Reason> {
         .source
         .as_ref()
         .and_then(|(s, size)| job_of(s, *size).ok());
+    // Asked to judge against a release this copy cannot work the boot sum
+    // of (its source does not open, or is not a boot partition's): said so,
+    // never answered as a mismatch.
+    if r.source.is_some() && job.as_ref().is_none_or(|j| expected(j).1.is_none()) {
+        return Err(Reason::NotJudged);
+    }
     let mut keep = job.is_some().then(Vec::new);
     let (release, sum) = read_release(&mut device, &now.device, keep.as_mut())?;
     // A stick of another release than this one cannot be this release with

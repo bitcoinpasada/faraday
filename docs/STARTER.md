@@ -2214,7 +2214,10 @@ required, and nothing in the app that nudges or warns:
   never leave it, so there is no second prompt. A judgement belongs to the
   release it was made against: another release in its place shows no line
   until the stick is judged again. A check the person declines or the disk
-  refuses says why on Make's stick card. Malware on the same computer can defeat the check too.
+  refuses says why on Make's stick card, for that stick only; a release the
+  elevated copy cannot judge a stick against (a developer's full image) says
+  so there, reads as no match, and the button is not offered again for that
+  stick and release. Malware on the same computer can defeat the check too.
 - **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
   may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
   Secure Boot off from the release's unsigned boot file, and no key is

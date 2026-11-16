@@ -81,6 +81,7 @@ fn a_boot_partition_with_one_byte_changed_shows_the_mismatch_line_and_offers_the
         serial,
         size,
         sha256,
+        want,
         source: Source::Found { .. },
     }) = asked
         .into_iter()
@@ -98,6 +99,7 @@ fn a_boot_partition_with_one_byte_changed_shows_the_mismatch_line_and_offers_the
         serial,
         size,
         sha256,
+        want,
         signed: false,
     });
     assert!(shows(&mut s, EN.starter_stick_boot_differs));
@@ -123,6 +125,7 @@ fn a_boot_partition_with_the_boot_file_the_person_signed_reads_as_expected() {
         serial: "SN-sdb".into(),
         size: 16 * GB,
         sha256: "8".repeat(64),
+        want: BOOT_SUM.repeat(64),
         signed: true,
     });
     assert!(shows(&mut s, EN.starter_stick_boot_signed));
@@ -141,6 +144,7 @@ fn a_judgement_of_a_partition_the_stick_no_longer_has_says_nothing() {
         serial: "SN-sdb".into(),
         size: 16 * GB,
         sha256: "7".repeat(64),
+        want: BOOT_SUM.repeat(64),
         signed: true,
     });
     assert!(!shows(&mut s, EN.starter_stick_boot_signed));
@@ -362,6 +366,7 @@ fn a_linux_judgement_made_against_one_release_is_asked_again_for_another() {
         serial: "SN-sdb".into(),
         size: 16 * GB,
         sha256: "8".repeat(64),
+        want: BOOT_SUM.repeat(64),
         signed: true,
     });
     assert!(shows(&mut s, EN.starter_stick_boot_signed));
@@ -373,6 +378,28 @@ fn a_linux_judgement_made_against_one_release_is_asked_again_for_another() {
             .iter()
             .any(|c| matches!(c, StarterCommand::JudgeBoot { .. }))
     );
+}
+
+/// A long line wraps on the card: its first words are what is looked for.
+fn first_words(text: &str) -> String {
+    text.split(' ').take(3).collect::<Vec<_>>().join(" ")
+}
+
+/// A press of Check this stick that the elevated copy answers with `why`.
+fn check_failed(s: &mut Starter, why: faraday_starter::api::Reason) {
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = checked(s)
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Err(why),
+        signed: None,
+    });
 }
 
 #[test]
@@ -393,7 +420,96 @@ fn a_declined_check_says_so_on_the_card_where_it_was_pressed() {
         result: Err(faraday_starter::api::Reason::Declined),
         signed: None,
     });
-    // The card wraps a long line: its first words are what is looked for.
-    assert!(shows(&mut s, "Administrator permission"));
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
     assert!(shows(&mut s, EN.starter_stick_check));
+}
+
+#[test]
+fn two_judgements_of_one_partition_answered_in_reverse_order_each_show_under_their_own_release() {
+    let mut s = starter_with(
+        linux(true),
+        stick_with(Some(&"8".repeat(64))),
+        images("0.2.0"),
+    );
+    let judge = |s: &mut Starter| {
+        commands(s)
+            .into_iter()
+            .find_map(|c| match c {
+                StarterCommand::JudgeBoot {
+                    disk,
+                    serial,
+                    size,
+                    sha256,
+                    want,
+                    ..
+                } => Some((disk, serial, size, sha256, want)),
+                _ => None,
+            })
+            .expect("the shell is asked to judge the partition")
+    };
+    let a = judge(&mut s);
+    s.starter_event(StarterEvent::ImagesFound(another_release()));
+    let b = judge(&mut s);
+    assert_ne!(a.4, b.4);
+    let answer = |s: &mut Starter, k: (String, String, u64, String, String), signed| {
+        s.starter_event(StarterEvent::BootJudged {
+            disk: k.0,
+            serial: k.1,
+            size: k.2,
+            sha256: k.3,
+            want: k.4,
+            signed,
+        });
+    };
+    answer(&mut s, b, false);
+    answer(&mut s, a, true);
+    assert!(shows(&mut s, EN.starter_stick_boot_differs));
+    assert!(!shows(&mut s, EN.starter_stick_boot_signed));
+    s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
+    assert!(shows(&mut s, EN.starter_stick_boot_signed));
+    assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+}
+
+#[test]
+fn a_stick_the_elevated_copy_cannot_judge_says_so_and_is_not_offered_the_check_again() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    check_failed(&mut s, faraday_starter::api::Reason::NotJudged);
+    assert!(shows(&mut s, &first_words(EN.starter_why_not_judged)));
+    assert!(!shows(&mut s, EN.starter_stick_check));
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(!shows(&mut s, EN.starter_stick_boot_signed));
+    assert!(!s.offers_action(StarterAction::CheckStick));
+    // Another release is a new question.
+    s.starter_event(StarterEvent::ImagesFound(another_release()));
+    assert!(shows(&mut s, EN.starter_stick_check));
+}
+
+#[test]
+fn a_failed_check_shows_on_the_card_for_that_stick_only() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    // A read nobody pressed Check this stick for (keep data's) says
+    // nothing on the card.
+    s.starter_event(StarterEvent::VersionRead {
+        disk: r"\\.\PhysicalDrive2".into(),
+        serial: "SN-sdb".into(),
+        size: 16 * GB,
+        result: Err(faraday_starter::api::Reason::Declined),
+        signed: None,
+    });
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+    check_failed(&mut s, faraday_starter::api::Reason::Declined);
+    assert!(shows(&mut s, &first_words(EN.starter_why_declined)));
+    // Another stick first in the list: the line is not about it.
+    let mut other = unread_windows_stick();
+    other.id = r"\\.\PhysicalDrive1".into();
+    s.starter_event(StarterEvent::Disks(vec![other, unread_windows_stick()]));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
+    // The stick pulled out: the line is gone when it comes back.
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick()]));
+    check_failed(&mut s, faraday_starter::api::Reason::Declined);
+    s.starter_event(StarterEvent::Disks(Vec::new()));
+    s.starter_event(StarterEvent::Disks(vec![unread_windows_stick()]));
+    assert!(!shows(&mut s, &first_words(EN.starter_why_declined)));
 }

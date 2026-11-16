@@ -505,6 +505,7 @@ impl Shell {
                 serial,
                 size,
                 sha256,
+                want,
                 source,
             } => {
                 let (system, tx) = self.threaded();
@@ -526,6 +527,7 @@ impl Shell {
                         serial,
                         size,
                         sha256,
+                        want,
                         signed,
                     });
                 });
