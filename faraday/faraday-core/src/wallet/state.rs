@@ -96,7 +96,9 @@ pub struct SpendState {
     pub(crate) others_stale: bool,
     /// The PSBT this device's Review (and Check, where the wallet is
     /// known) was gone through for: what the Outbox waits for. A PSBT that
-    /// is any other is not vouched for (`SpendState::review_lapse`).
+    /// is any other is not vouched for (`SpendState::review_lapse`), nor is
+    /// one whose inspection came out with other holdable dangers
+    /// (`SpendState::review_lapse_for`).
     reviewed: Option<Psbt>,
     /// [`SpendState::review_owed`] as it was last worked out, for drawing
     /// to read (`SpendState::review_owed_shown`). Worked out by
@@ -139,6 +141,23 @@ impl SpendState {
         {
             self.reviewed = None;
         }
+        self.settle_owed();
+    }
+
+    /// Review is needed again where the inspection was made again and its
+    /// holdable dangers are not those `before` it, which Review was passed
+    /// with: the new ones were never shown on Review and the hold given
+    /// there does not cover them. Review's step is not done, nothing is
+    /// held and the PSBT is no longer reviewed. A danger set that is the
+    /// same leaves Review as it was.
+    pub(crate) fn review_lapse_for(&mut self, before: &[faraday_psbt::WarningKind]) {
+        let now = self.inspection.holdable();
+        if now.iter().all(|k| before.contains(k)) && before.iter().all(|k| now.contains(k)) {
+            return;
+        }
+        self.reviewed = None;
+        self.done[step::TRANSACTION as usize] = false;
+        self.held.clear();
         self.settle_owed();
     }
 
@@ -849,10 +868,12 @@ impl WalletsArea {
         let inputs = session.inspect_inputs();
         let view = s.musig.as_ref().map(|m| m.view());
         if !s.inspected_for(&inputs) {
+            let before = s.inspection.holdable();
             let fresh =
                 crate::signing::fresh::worked_out(c, session, &mut s.spend, view.as_ref(), true);
             s.take(fresh);
             s.others_stale = true;
+            s.review_lapse_for(&before);
         }
         // The wallets the outputs go to, named once here for every draw.
         s.own_names = s

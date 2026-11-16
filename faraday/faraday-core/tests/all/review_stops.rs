@@ -205,6 +205,12 @@ fn odd_wallet(id: &'static str, name: &'static str, script: &str) -> testkit::Ki
 /// `psbt` open on Review with the wallets `first` then `second` (when
 /// there is one) loaded in that order, and the spending key loaded.
 fn reviewing_wallets(psbt: &Psbt, wallets: &[&testkit::Kit]) -> Faraday {
+    reviewing_wallets_loaded(psbt, wallets, wallets.len())
+}
+
+/// As [`reviewing_wallets`], with only the first `load` of the wallets
+/// loaded; the others wait in the Inbox.
+fn reviewing_wallets_loaded(psbt: &Psbt, wallets: &[&testkit::Kit], load: usize) -> Faraday {
     let mut files: Vec<(faraday_text::Text, Vec<u8>)> = wallets
         .iter()
         .map(|k| {
@@ -219,7 +225,7 @@ fn reviewing_wallets(psbt: &Psbt, wallets: &[&testkit::Kit]) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    for i in 0..wallets.len() {
+    for i in 0..load {
         app.press(Action::LoadWallet(i));
         testkit::confirm_wallets(&mut app);
     }
@@ -431,4 +437,28 @@ fn a_taproot_leaf_without_its_wallet_is_named_and_left_unsigned() {
     let inputs = &spend.psbt.inner().inputs;
     assert!(!inputs[0].partial_sigs.is_empty());
     assert!(inputs[1].tap_script_sigs.is_empty());
+}
+
+/// Loading another wallet that adds no danger leaves Review done and the
+/// hold given on it: the person is not asked to review the same dangers
+/// again.
+#[test]
+fn a_wallet_loaded_that_adds_no_danger_leaves_review_done() {
+    let psbt = high_fee_psbt();
+    let odd = odd_wallet("odd", "Odd", "sh(wpkh");
+    let mut app = reviewing_wallets_loaded(&psbt, &[&kit("spending"), &odd], 1);
+    hold(&mut app, Action::ReviewHold);
+    let before = app.spend().unwrap().held.clone();
+    assert!(!before.is_empty());
+    app.press(Action::LoadWallet(1));
+    let s = app.spend().unwrap();
+    assert!(s.done[step::TRANSACTION as usize]);
+    assert_eq!(s.held, before);
+}
+
+fn high_fee_psbt() -> Psbt {
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    psbt.inner_mut().unsigned_tx.output[1].value -=
+        faraday_psbt::bitcoin::Amount::from_sat(3_000_000);
+    psbt
 }
