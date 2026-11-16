@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`
-**Open:** the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
+**Open:** the website's rendering of the blocks (§11) and of §18's constructions (§18.7; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
