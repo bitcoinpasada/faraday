@@ -1241,17 +1241,25 @@ impl Vaults {
     }
 
     /// Costs a read of each record put (through `fits`) and, only where
-    /// they do not fit, a document write (through `used`). Why `records`
-    /// do not fit open vault `id`: the bytes they take and the room left
-    /// under the ceiling; None when they fit.
+    /// they do not fit, a document write (through `counted`). Why `records`
+    /// do not fit open vault `id`: that it cannot be written, or the bytes
+    /// they take and the room left under the ceiling; None when they fit.
     pub(crate) fn no_room(&self, c: &Compute, id: VaultId, records: &[Record]) -> Option<Text> {
         let refs: Vec<&Record> = records.iter().collect();
         match self.store.fit(c, id, &[], &refs) {
             Room::Fits => return None,
             Room::Short(len) => return Some(self.short_text(id, len)),
+            Room::Full if self.store.read_only(id).is_some() => {
+                return Some(Text::of(EN.vaults_cannot_write));
+            }
             Room::Full => {}
         }
-        let room = self.slot_limit(id).saturating_sub(self.records(id).used(c));
+        let used = match self.records(id).counted(c) {
+            Some(usize::MAX) => return Some(Text::of(EN.vaults_cannot_write)),
+            Some(n) => n,
+            None => return Some(self.short_text(id, self.store.held(id).map_or(0, |h| h.0))),
+        };
+        let room = self.slot_limit(id).saturating_sub(used);
         let need = Text::num(records.iter().map(|r| r.size()).sum::<usize>() as u64);
         Some(Text::fill(
             EN.vaults_those_entries,

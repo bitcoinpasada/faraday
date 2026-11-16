@@ -114,7 +114,10 @@ pub fn parse(text: &str) -> Vec<Record> {
         fn get(f: &[(u8, Text)], n: u8) -> Option<&str> {
             f.iter().find(|(k, _)| *k == n).map(|(_, v)| v.as_str())
         }
-        let mut title = get(fields, field::TITLE).map(Text::of);
+        // An empty title calls the block by nothing.
+        let mut title = get(fields, field::TITLE)
+            .filter(|t| !t.trim().is_empty())
+            .map(Text::of);
         let mut user = get(fields, field::USERNAME).map(Text::of);
         if let Some(t) = get(fields, field::TOTP)
             && let Some((name, account)) = otpauth_names(t)
@@ -251,5 +254,16 @@ mod tests {
         assert_eq!(e[0].text(field::USERNAME), Some("octo"));
         assert!(e[0].text(field::TOTP).is_some());
         assert_eq!(e[0].text(field::NOTES), None);
+    }
+
+    /// A block whose title is empty is called by nothing and left out,
+    /// unless its code names it.
+    #[test]
+    fn a_block_with_an_empty_title_is_left_out() {
+        assert!(parse("title:\n").is_empty());
+        assert!(parse("title:   \npassword: x\n").is_empty());
+        let e = parse("title:\notpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP\n");
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text(field::TITLE), Some("GitHub"));
     }
 }

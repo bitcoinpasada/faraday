@@ -940,6 +940,9 @@ impl Faraday {
         }
         if faraday_codec::classify::looks_like_entries(t) {
             let records = fv::entries::parse(t);
+            if records.is_empty() {
+                return Err(Text::of(EN.vaults_not_a_totp_setup));
+            }
             if let Some(id) = self.vaults.current_id() {
                 let n = records.len();
                 let c = self.compute();

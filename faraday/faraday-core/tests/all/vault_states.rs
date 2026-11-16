@@ -2104,3 +2104,39 @@ fn a_size_keeps_its_number_and_its_unit_together() {
     }
     assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
 }
+
+#[test]
+fn importing_entries_into_a_read_only_vault_says_it_cannot_be_written() {
+    for (name, file, _) in read_only_files() {
+        let entries = testkit::ENTRIES_FILE.as_bytes().to_vec();
+        let mut app = process(vec![("ro.kdbx".into(), file), ("e.txt".into(), entries)]);
+        try_unlock(&mut app, PHRASE);
+        let k = app
+            .inbox()
+            .iter()
+            .position(|i| i.name.as_str() == "e.txt")
+            .unwrap();
+        app.press(Action::Vault(V::ImportEntries(k)));
+        assert_eq!(
+            app.toast_text(),
+            Some(EN.vaults_cannot_write),
+            "{name}: the toast"
+        );
+    }
+}
+
+#[test]
+fn a_scanned_entry_list_with_no_entry_in_it_adds_nothing_and_says_so() {
+    let mut app = open_vault();
+    app.press(Action::Vault(V::ScanEntry));
+    app.event(Event::Scanned {
+        bytes: b"otpauth://nonsense\n".to_vec(),
+    });
+    let _ = app.frame();
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vaults_not_a_totp_setup), "{texts}");
+    assert!(app.toast_text().is_none_or(|t| !t.contains("Added")));
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(saved_outbox(&mut app).is_empty(), "a seal wrote");
+}
