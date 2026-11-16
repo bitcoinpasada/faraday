@@ -5,13 +5,13 @@
 **Screen:** `Check`
 **Key:** check
 
-What to hold up against a hardware wallet, one row for each thing to check, in groups. A row opens the tool that does it, and **Back** returns to Check; each tool is also on the Tools page.
+Check lists what you can check a hardware wallet against, one row for each thing, in groups. A row opens the tool that does it, and **Back** returns to Check; each tool is also on the Tools page.
 
 ## The wallet and signing
 
 **Key:** check.signing
 
-**An address on its screen** opens Check an address. **A transaction before signing** opens Decode a transaction. **What it signed** opens Check a signer, which compares the PSBT sent and the one returned. **Its signatures hide nothing** opens Nonce check.
+**An address on its screen** opens Check an address. **A transaction before signing** opens Decode a transaction. **What it signed** opens Check a signer, which compares the PSBT you sent with the one that came back. **Its signatures hide nothing** opens Nonce check.
 
 ## Setup and backups
 
@@ -29,4 +29,4 @@ What to hold up against a hardware wallet, one row for each thing to check, in g
 
 **Key:** check.seed
 
-A row marked **Seed**, **A seed made from dice rolls** and **A backup in another form** take a seed, its shares or its code into this device, to hold what it makes against a hardware wallet. That puts the seed on a second device. It is safe within Faraday's design: Faraday is offline, used in a secure place and powered off after use, and the seed is dropped by **Done**, Cancel, leaving the screen, the idle lock and a lock, unless **Keep this key** is pressed. Type a seed that holds money only on an offline Faraday; Faraday Demo and the Starter run online and are for test seeds. A match does not show that either device is honest.
+A row marked **Seed**, **A seed made from dice rolls** and **A backup in another form** take a seed, its shares or its code into this device, to compare what it makes with what the hardware wallet shows. That puts the seed on a second device. It is safe within Faraday's design: Faraday is offline, used in a secure place and powered off after use, and the seed is dropped by **Done**, Cancel, leaving the screen, the idle lock and a lock, unless you press **Keep this key**. Type a seed that holds money only on an offline Faraday; Faraday Demo and the Starter run online and are for test seeds. A match does not show that either device is honest.

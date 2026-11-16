@@ -5,28 +5,28 @@
 **Screen:** `Unlock`
 **Key:** unlock
 
-Opens one locked vault from Files with its passphrase. It opens from a locked vault's row in Vaults and from the flows that need a vault open.
+Unlock opens one locked vault in Files with its passphrase. You reach it from a locked vault's row in Vaults, and from any flow that needs a vault open.
 
 ## The vault
 
 **Key:** unlock.vault
 
-One row per locked vault: its file name, where it is and its size, the unlock cost it was made with and, beside it, the time that cost takes here. The row chosen is the one unlocked. With none locked the screen reads **No locked vault in Files** and offers **Create a vault**.
+One row per locked vault: its file name, where it is and its size, the unlock cost it was made with and, beside that, how long that cost takes on this computer. The row you choose is the one unlocked. With no locked vault the screen reads **No locked vault in Files** and offers **Create a vault**.
 
-A vault just made is chosen already and asks for its passphrase once more.
+A vault you have just made is already chosen, and asks for its passphrase once more.
 
 ## Passphrase
 
 **Key:** unlock.passphrase
 
-**Passphrase** is typed once and can be shown or hidden. With a stick attached the passphrase cannot be typed: the screen asks for the stick to be removed first, and the field opens once it is out.
+Type the **Passphrase** once; it can be shown or hidden. It cannot be typed while a stick is attached: the screen asks you to remove the stick first, and the field opens once it is out.
 
-**Unlock** runs the unlock; while it runs the screen says so, with the time it takes here. Beside it the memory free on this computer is shown, or **This computer: memory not reported**. A refused passphrase or key shows its reason under the field.
+**Unlock** runs the unlock, and while it runs the screen says so, with the time it takes here. Beside it is the memory free on this computer, or **This computer: memory not reported**. If the passphrase or key is refused, the reason shows under the field.
 
 ## Key file
 
 **Key:** unlock.keys
 
-A vault made with a key file needs it as well as the passphrase.
+A vault made with a key file needs that file as well as the passphrase.
 
 **Add a key file** opens **Choose a key file**, a list of the files in Files that are not vaults; with none, it reads **Files holds no file that is not a vault**.
