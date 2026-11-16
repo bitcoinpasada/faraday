@@ -54,6 +54,10 @@ pub enum QrFit {
     /// A note too long by this many characters: the fewest, each one a
     /// Unicode scalar value, taken off its end to make it fit.
     NoteTooLong(usize),
+    /// A seed or codex32 share marked as written on an online computer: a
+    /// QR vault has nowhere to carry the mark, so it is not copied into
+    /// one.
+    MadeOnline,
     /// The item is one the contents refuse for another reason (text that
     /// is not UTF-8).
     Unwritable,
@@ -464,6 +468,9 @@ impl OpenVaults {
         let Some(item) = item_record(&held) else {
             return QrFit::NotOffered;
         };
+        if records::is_made_online(&held) {
+            return QrFit::MadeOnline;
+        }
         match item.kind {
             kind::KEY => {
                 let words = self.word_count(c, id, i);
@@ -490,6 +497,12 @@ impl OpenVaults {
                 Err(_) => QrFit::Unwritable,
             },
         }
+    }
+
+    /// Whether item `i` of open vault `id` is a seed. A lookup.
+    pub fn qr_item_is_seed(&self, id: VaultId, i: usize) -> bool {
+        self.copy_out(id, i, &[])
+            .is_some_and(|h| h.kind == kind::KEY)
     }
 
     /// Costs what `qr_fit` costs. Item `i` of open vault `id` (a seed, a

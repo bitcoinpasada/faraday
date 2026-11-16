@@ -400,3 +400,31 @@ fn an_empty_note_seals_nothing() {
 fn gone_start() -> &'static str {
     EN.qr_tool_item_gone.split_once(". ").unwrap().0
 }
+
+#[test]
+fn a_seed_marked_as_made_on_an_online_computer_is_not_saved_in_a_qr_vault() {
+    let mut marked = seed(ZOO);
+    faraday_vault::records::mark_made_online(&mut marked);
+    let mut app = opened(vec![marked]);
+    let texts = dialog(&mut app, KEYS);
+    assert!(texts.contains(EN.vault_qr_online_no), "{texts}");
+    assert!(qr_tool::state(&app).is_none());
+}
+
+#[test]
+fn a_share_marked_as_made_on_an_online_computer_is_not_saved_in_a_qr_vault() {
+    let mut marked = share();
+    faraday_vault::records::mark_made_online(&mut marked);
+    let mut app = opened(vec![marked]);
+    let texts = dialog(&mut app, KEYS);
+    assert!(texts.contains(EN.vault_qr_online_no), "{texts}");
+}
+
+#[test]
+fn the_desktop_app_does_not_seal_a_seed_into_a_qr_vault() {
+    let mut app = opened(vec![seed(ZOO)]);
+    app.online = true;
+    let texts = dialog(&mut app, KEYS);
+    assert!(texts.contains(EN.vault_qr_online_no), "{texts}");
+    assert!(qr_tool::state(&app).is_none());
+}

@@ -421,6 +421,12 @@ pub struct Keys {
     kept_published: Vec<Fingerprint>,
     /// Keys derived from a published one (`Keys::note_child`).
     published_children: Vec<Fingerprint>,
+    /// Keys a vault says were written by Faraday Demo on an online
+    /// computer ([`Keys::note_made_online`]): public fingerprints.
+    made_online: Vec<Fingerprint>,
+    /// Keys loaded from a vault ([`Keys::note_from_vault`]): public
+    /// fingerprints.
+    from_vault: Vec<Fingerprint>,
 }
 
 impl Default for Keys {
@@ -445,6 +451,8 @@ impl Keys {
             qr_item: None,
             kept_published: Vec::new(),
             published_children: Vec::new(),
+            made_online: Vec::new(),
+            from_vault: Vec::new(),
         }
     }
 
@@ -735,10 +743,44 @@ impl Keys {
         if self.demo() || self.network != Network::Mainnet {
             return None;
         }
-        self.entries
-            .iter()
-            .map(|e| e.info.fingerprint)
-            .find(|fp| self.is_published(*fp) && !self.kept_published.contains(fp))
+        self.entries.iter().map(|e| e.info.fingerprint).find(|fp| {
+            self.is_sample(*fp)
+                || ((self.is_published(*fp) || self.made_online.contains(fp))
+                    && !self.kept_published.contains(fp))
+        })
+    }
+
+    /// Whether key `fp` came from a vault and is one of Faraday's public
+    /// samples: on Mainnet it is refused, with no way to keep it. A sample
+    /// typed in stays a test key the person may keep.
+    pub fn is_sample(&self, fp: Fingerprint) -> bool {
+        crate::published::is_sample(fp.0) && self.from_vault.contains(&fp)
+    }
+
+    /// Notes that key `fp` was loaded from a vault.
+    pub fn note_from_vault(&mut self, fp: Fingerprint) {
+        if !self.from_vault.contains(&fp) {
+            // `extend`, not `push`: see `keep_published`.
+            self.from_vault.extend([fp]);
+        }
+    }
+
+    /// Whether a vault said key `fp` was written on an online computer, or
+    /// it came from a key that was ([`Keys::note_child`]). It stays true for
+    /// the session once the person has held the key: the caution is
+    /// [`Keys::published_pending`], which a hold clears, and the key is
+    /// saved to a vault with the mark again.
+    pub fn made_online(&self, fp: Fingerprint) -> bool {
+        self.made_online.contains(&fp)
+    }
+
+    /// Notes that the vault the key `fp` was loaded from says it was
+    /// written by Faraday Demo on an online computer.
+    pub fn note_made_online(&mut self, fp: Fingerprint) {
+        if !self.made_online.contains(&fp) {
+            // `extend`, not `push`: see `keep_published`.
+            self.made_online.extend([fp]);
+        }
     }
 
     /// Whether the key `fp` has published words: its master fingerprint is
@@ -750,11 +792,15 @@ impl Keys {
     /// Notes that the key `child` was derived from the key `parent` (a
     /// BIP-85 child's words loaded as a key): anyone who has the parent's
     /// words has the child, so a published parent, kept for testing or not,
-    /// makes the child published too.
+    /// makes the child published too, and a parent written on an online
+    /// computer makes the child written there too.
     pub fn note_child(&mut self, parent: Fingerprint, child: Fingerprint) {
         if self.is_published(parent) && !self.published_children.contains(&child) {
             // `extend`, not `push`: see `keep_published`.
             self.published_children.extend([child]);
+        }
+        if self.made_online(parent) {
+            self.note_made_online(child);
         }
     }
 
@@ -960,6 +1006,10 @@ impl Keys {
             if item.slip39.is_some() {
                 self.set_slip39(at, item.slip39);
             }
+            self.note_from_vault(fp);
+            if item.online {
+                self.note_made_online(fp);
+            }
             out.push(fp);
         }
         (out, crate::job::Derived(derived), refused)
@@ -1043,6 +1093,8 @@ impl Keys {
         self.qr_item = None;
         self.kept_published.clear();
         self.published_children.clear();
+        self.made_online.clear();
+        self.from_vault.clear();
     }
 
     /// Sets key `i`'s label.
@@ -1623,6 +1675,7 @@ impl Keys {
         &self,
         i: usize,
         index: u8,
+        online: bool,
         why: Reveal,
     ) -> Option<Held<faraday_vault::Record>> {
         use faraday_vault::records::{field, kind};
@@ -1635,11 +1688,15 @@ impl Keys {
             .codex32
             .iter()
             .find(|s| s.as_bytes().get(8) == Some(&index))?;
-        Some(Held(
-            faraday_vault::Record::new(kind::CODEX32_SHARE)
-                .with(field::CODEX32_STRING, s.as_bytes())
-                .with(field::CODEX32_KEY, &e.info.fingerprint.0),
-        ))
+        let mut r = faraday_vault::Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, s.as_bytes())
+            .with(field::CODEX32_KEY, &e.info.fingerprint.0);
+        // Written on an online computer, or from a key that was: the
+        // share says so, as the key's record does.
+        if online || self.made_online(e.info.fingerprint) {
+            faraday_vault::records::mark_made_online(&mut r);
+        }
+        Some(Held(r))
     }
 
     // ---- shown on Explore, each behind its eye ----

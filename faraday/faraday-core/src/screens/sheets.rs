@@ -2749,20 +2749,49 @@ pub(super) fn published_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let key = fp_text(fp);
+    // A public sample is only removed; a key written on an online computer
+    // is kept by a hold; any other published key by a press.
+    let sample = app.session.keys.is_sample(fp);
+    let online = !sample && app.session.keys.made_online(fp);
+    let (head, line) = if sample {
+        (EN.published_sample_head, EN.published_sample_line)
+    } else if online {
+        (EN.published_online_head, EN.published_online_line)
+    } else {
+        (EN.published_head, EN.published_line)
+    };
+    let remove = (EN.published_remove, Style::Primary, Action::PublishedRemove);
+    let keep = (EN.published_keep, Style::Secondary, Action::PublishedKeep);
+    let mut actions = vec![remove];
+    if !sample && !online {
+        actions.insert(0, keep);
+    }
     crate::compact::dialog(
         ui,
         (w, h, T::DIALOG_MAX),
-        (Icon::Error.into(), Role::Error.paint(), EN.published_head),
+        (Icon::Error.into(), Role::Error.paint(), head),
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy +=
-                ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, EN.published_line) + T::GAP_SMALL;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, line) + T::GAP_SMALL;
             cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurfaceVariant, &key) + T::GAP;
+            if online {
+                crate::vault::screen::hold_button_in(
+                    app,
+                    ui,
+                    x,
+                    cy,
+                    iw,
+                    EN.published_online_hold,
+                    Action::PublishedHold,
+                    faraday_ui::hold::HoldTone::Error,
+                );
+                cy += ui
+                    .hold_button_height(iw, EN.published_online_hold)
+                    .max(T::CHIP_LINE)
+                    + T::GAP_SMALL;
+            }
             cy - y
         },
-        &[
-            (EN.published_keep, Style::Secondary, Action::PublishedKeep),
-            (EN.published_remove, Style::Primary, Action::PublishedRemove),
-        ],
+        &actions,
     );
 }

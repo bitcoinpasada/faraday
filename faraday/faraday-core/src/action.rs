@@ -236,6 +236,9 @@ pub enum Action {
     PublishedRemove,
     /// The published-words sheet's **Keep for testing**: the key stays.
     PublishedKeep,
+    /// The published-words sheet's hold, for a key written on an online
+    /// computer: the key stays.
+    PublishedHold,
     /// The account dialog's choice for a Coldcard export of two accounts,
     /// or its Cancel (`None`): the waiting export is not added.
     LoadAccount(Option<crate::wallet::Account>),
@@ -1044,6 +1047,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::RemoveKeysHold
             | Action::SecretHold
             | Action::WalletHold
+            | Action::PublishedHold
             | Action::OutboxDeleteHold
             | Action::Sweep(seeds::sweep::SweepAction::Hold)
             | Action::RegisterHold
@@ -1580,7 +1584,9 @@ impl Faraday {
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::WalletHold | Action::WalletCancel) => self.confirm_act(a),
-            a @ (Action::PublishedRemove | Action::PublishedKeep) => self.published_act(a),
+            a @ (Action::PublishedRemove | Action::PublishedKeep | Action::PublishedHold) => {
+                self.published_act(a)
+            }
             Action::LoadAccount(a) => self.account_act(a),
             a @ (Action::RegisterOpen
             | Action::RegisterField

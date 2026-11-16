@@ -961,6 +961,8 @@ macro_rules! words_vault {
     vault_qr_save: "Save as a QR vault",
     /// Dialog of that button, a seed that is not 12 or 24 words of the English list.
     vault_qr_seed_no: "This key does not fit in a QR vault. A QR vault holds 12 or 24 English words.",
+    /// The same, a seed made on an online computer.
+    vault_qr_online_no: "A key made on an online computer is not saved in a QR vault.",
     /// The same, a passphrase over the limit.
     vault_qr_pass_no: "This passphrase is too long for a QR vault.",
     /// The same, a note too long. `{}`, `{}`: the characters over, twice.

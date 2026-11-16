@@ -473,6 +473,26 @@ fn damaged() -> Vec<(Entry, &'static str, Fault)> {
         ),
         (
             bad(
+                90,
+                Some("seed"),
+                &[("Password", WORDS, true)],
+                &[("faraday.online", "maybe")],
+            ),
+            "faraday.online",
+            Fault::Value,
+        ),
+        (
+            bad(
+                91,
+                Some("share"),
+                &[("Password", SHARE_A, true), ("for", "73c5da0a", false)],
+                &[("faraday.online", "1")],
+            ),
+            "faraday.online",
+            Fault::Value,
+        ),
+        (
+            bad(
                 67,
                 Some("seed"),
                 &[("Password", WORDS, true)],
@@ -1663,4 +1683,26 @@ fn a_faraday_key_twice_in_the_meta_makes_every_item_of_it_unreadable() {
             .iter()
             .all(|u| u.what.fault == Fault::Ambiguous)
     );
+}
+
+#[test]
+fn a_codex32_share_written_online_reads_back_marked() {
+    let c = compute();
+    let share = || {
+        Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, SHARE_A.as_bytes())
+            .with(field::CODEX32_KEY, &FP)
+    };
+    let mut marked = share();
+    faraday_vault::records::mark_made_online(&mut marked);
+    let mut doc = Document::new([0xee; 16], "Vault");
+    let put = |doc: &mut Document, n: u8, r: Record| {
+        items::put(&c, doc, &place(n, "Codex32", "Share A"), &Body::Record(r)).unwrap();
+    };
+    put(&mut doc, 1, share());
+    put(&mut doc, 2, marked);
+    let read = read(&doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    assert!(!faraday_vault::records::is_made_online(record_of(&read, 1)));
+    assert!(faraday_vault::records::is_made_online(record_of(&read, 2)));
 }

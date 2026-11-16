@@ -240,3 +240,18 @@ fn a_fresh_key_is_not_in_the_table() {
     let seed = [0x42u8; 32];
     assert!(!is_published(fingerprint_of_seed(&seed)));
 }
+
+/// The device refuses the samples on Mainnet from its own short list: it
+/// must be exactly the fingerprints the samples hold.
+#[test]
+fn the_devices_list_of_samples_is_every_fingerprint_the_samples_hold() {
+    let mut held: Vec<[u8; 4]> = SAMPLES
+        .keys
+        .iter()
+        .flat_map(|k| [k.plain, k.with_passphrase])
+        .flatten()
+        .collect();
+    held.sort_unstable();
+    held.dedup();
+    assert_eq!(faraday_keys::published::samples(), held.as_slice());
+}

@@ -65,7 +65,7 @@ use faraday_crypto::work::Compute;
 use faraday_text::Text;
 
 use super::xml::{Document, Entry, Group};
-use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
+use crate::records::{self, BACKUP_PENDING, MADE_ONLINE, NO_LOAD_AT_UNLOCK, Record, field, kind};
 use crate::totp::{self, NotTotp, Totp};
 use crate::{child, codex32, contents, slip39, xor};
 
@@ -140,12 +140,14 @@ fn named_custom(k: u8) -> &'static [&'static str] {
         kind::KEY => &[
             "faraday.load",
             "faraday.held",
+            "faraday.online",
             "faraday.codex32",
             "faraday.child",
             "faraday.xor",
             "faraday.slip39",
         ],
         kind::WALLET => &["faraday.load"],
+        kind::CODEX32_SHARE => &["faraday.online"],
         _ => &[],
     }
 }
@@ -300,6 +302,9 @@ fn read_seed(c: &Compute, e: &Entry, f: &mut Fields<'_>) -> Result<Body, Damage>
     }
     if flag(e, "faraday.held")? == Some(true) {
         flags |= BACKUP_PENDING;
+    }
+    if flag(e, "faraday.online")? == Some(true) {
+        flags |= MADE_ONLINE;
     }
     if flags != 0 {
         r.push(field::KEY_FLAGS, &[flags]);
@@ -579,11 +584,13 @@ fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
             }
             let of =
                 forms::fingerprint(f.need("for")?).ok_or_else(|| damage("for", Fault::Value))?;
-            checked(
-                Record::new(kind::CODEX32_SHARE)
-                    .with(field::CODEX32_STRING, s.as_bytes())
-                    .with(field::CODEX32_KEY, &of),
-            )?
+            let mut share = Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, s.as_bytes())
+                .with(field::CODEX32_KEY, &of);
+            if flag(e, "faraday.online")? == Some(true) {
+                share.push(field::CODEX32_FLAGS, &[MADE_ONLINE]);
+            }
+            checked(share)?
         }
         _ => return Err(damage("faraday.kind", Fault::UnknownKind)),
     };

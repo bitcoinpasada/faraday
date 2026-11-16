@@ -148,10 +148,14 @@ impl OpenVaults {
         }
         let label = Text::of(r.text(field::KEY_LABEL).unwrap_or(""));
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
-        if loaded.is_ok() {
+        if let Ok(fp) = &loaded {
             keys.set_child_of(keys.len() - 1, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
+            keys.note_from_vault(*fp);
+            if faraday_vault::records::is_made_online(r) {
+                keys.note_made_online(*fp);
+            }
         }
         Some(KeyLoad::Done(loaded))
     }
@@ -559,6 +563,7 @@ impl OpenVaults {
                     child: child_of_of(r),
                     xor: xor_of_record(r),
                     slip39: slip39_of_record(r),
+                    online: faraday_vault::records::is_made_online(r),
                 });
             } else if let Some(seed) = seed_of(r) {
                 job.seeds.push(SeedToLoad {
@@ -567,6 +572,7 @@ impl OpenVaults {
                     codex32,
                     xor: xor_of_record(r),
                     slip39: slip39_of_record(r),
+                    online: faraday_vault::records::is_made_online(r),
                 });
             }
         }
@@ -617,11 +623,15 @@ impl OpenVaults {
             }
             None => seed_of(r).map(|seed| keys.add_seed(c, &seed, &label)),
         };
-        if matches!(loaded, Some(Ok(_))) {
+        if let Some(Ok(fp)) = &loaded {
             keys.set_codex32(keys.len() - 1, codex32_set_of(r));
             keys.set_child_of(keys.len() - 1, child_of_of(r));
             keys.set_xor(keys.len() - 1, xor_of_record(r));
             keys.set_slip39(keys.len() - 1, slip39_of_record(r));
+            keys.note_from_vault(*fp);
+            if faraday_vault::records::is_made_online(r) {
+                keys.note_made_online(*fp);
+            }
         }
         loaded
     }
@@ -644,7 +654,7 @@ impl OpenVaults {
         // identifier: its strings, one per index, and the other strings
         // of an index it has more than one of.
         type Strings = Vec<(Codex32, Text)>;
-        type Set = ([u8; 4], Strings, Strings);
+        type Set = ([u8; 4], Strings, Strings, bool);
         let mut sets: Vec<Set> = Vec::new();
         for slot in &self.slots {
             for r in slot
@@ -662,7 +672,7 @@ impl OpenVaults {
                 let Ok(share) = Codex32::parse(text) else {
                     continue;
                 };
-                let at = match sets.iter().position(|(f, list, _)| {
+                let at = match sets.iter().position(|(f, list, _, _)| {
                     *f == fp
                         && list
                             .first()
@@ -670,11 +680,13 @@ impl OpenVaults {
                 }) {
                     Some(at) => at,
                     None => {
-                        sets.push((fp, Vec::new(), Vec::new()));
+                        sets.push((fp, Vec::new(), Vec::new(), false));
                         sets.len() - 1
                     }
                 };
-                let (_, list, others) = &mut sets[at];
+                let (_, list, others, online) = &mut sets[at];
+                // Any share written on an online computer marks the key.
+                *online |= faraday_vault::records::is_made_online(r);
                 let text = crate::texts::wiped(text);
                 let same = |(x, t): &(Codex32, Text)| {
                     x.share_index() == share.share_index() && t.eq_ignore_ascii_case(&text)
@@ -693,7 +705,7 @@ impl OpenVaults {
             }
         }
         let mut loaded = Vec::new();
-        for (fp, list, others) in sets {
+        for (fp, list, others, online) in sets {
             if let Some(k) = keys.position_of(fp) {
                 let texts: Vec<&str> = list
                     .iter()
@@ -729,6 +741,9 @@ impl OpenVaults {
             };
             keys.set_codex32(at, Some(facts));
             keys.keep_codex32(c, at, &texts);
+            if online {
+                keys.note_made_online(got);
+            }
             loaded.push(got);
         }
         loaded

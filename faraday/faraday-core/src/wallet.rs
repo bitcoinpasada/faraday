@@ -3918,6 +3918,11 @@ impl Faraday {
                     // "Key … added" said of the key just removed.
                     self.out.toast = None;
                 }
+                // A public sample seed has no keeping on Mainnet.
+                _ if self.session.keys.is_sample(fp) => return,
+                // A key written on an online computer is kept only by the
+                // hold; a plain press of Keep is not that.
+                Action::PublishedKeep if self.session.keys.made_online(fp) => return,
                 _ => self.session.keys.keep_published(fp),
             }
         }

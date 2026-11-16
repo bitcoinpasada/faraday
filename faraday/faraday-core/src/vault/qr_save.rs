@@ -25,13 +25,28 @@ pub struct QrNo {
     pub fit: QrFit,
 }
 
+/// Costs what `qr_fit` costs. Whether item `at` of vault `id` fits a QR
+/// vault: Faraday Demo, on an online computer, puts no seed in one.
+pub(crate) fn fit(
+    app: &Faraday,
+    c: &faraday_crypto::work::Compute,
+    id: VaultId,
+    at: usize,
+) -> QrFit {
+    let store = app.vaults.store();
+    match store.qr_fit(c, id, at) {
+        QrFit::Fits if app.online && store.qr_item_is_seed(id, at) => QrFit::MadeOnline,
+        other => other,
+    }
+}
+
 /// **Save as a QR vault**: the tool, or the dialog.
 pub(crate) fn press(app: &mut Faraday) {
     let (Some(at), Some(id)) = (app.vault_selected_index(), app.vaults.current_id()) else {
         return;
     };
     let c = app.compute();
-    match app.vaults.store().qr_fit(&c, id, at) {
+    match fit(app, &c, id, at) {
         QrFit::Fits => crate::qr_tool::open_item(app, id, at),
         QrFit::NotOffered => {}
         fit => {
@@ -66,6 +81,7 @@ pub(crate) fn settle(app: &mut Faraday) -> bool {
 fn line(fit: QrFit) -> String {
     match fit {
         QrFit::SeedNotQr => EN.vault_qr_seed_no.to_string(),
+        QrFit::MadeOnline => EN.vault_qr_online_no.to_string(),
         QrFit::PassphraseTooLong => EN.vault_qr_pass_no.to_string(),
         QrFit::NoteTooLong(1) => EN.vault_qr_note_no_one.to_string(),
         QrFit::NoteTooLong(n) => fill(EN.vault_qr_note_no, &[&n.to_string(), &n.to_string()]),

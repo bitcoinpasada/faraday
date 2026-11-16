@@ -7975,6 +7975,7 @@ functions = [
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key_job",
   "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_seal_item_job",
   "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_fit",
+  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_item_is_seed",
   "faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run",
 ]
 code = ["faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run"]

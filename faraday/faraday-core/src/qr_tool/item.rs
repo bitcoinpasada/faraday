@@ -97,6 +97,9 @@ pub(super) fn job(
     if gone(app) {
         return Err(QrError::NoItem);
     }
+    if crate::vault::qr_save::fit(app, c, src.id, src.at) == faraday_keys::QrFit::MadeOnline {
+        return Err(QrError::NotFit(faraday_keys::QrFit::MadeOnline));
+    }
     app.vaults
         .store()
         .qr_seal_item_job(c, src.id, src.at, passphrase, exponent, random)

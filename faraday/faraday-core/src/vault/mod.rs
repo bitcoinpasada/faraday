@@ -2048,9 +2048,11 @@ impl Faraday {
                     return;
                 };
                 (
-                    Record::new(kind::KEY)
-                        .with(field::KEY, &records::words_payload(&m))
-                        .with(field::KEY_LABEL, stem.as_bytes()),
+                    self.marked_online(
+                        Record::new(kind::KEY)
+                            .with(field::KEY, &records::words_payload(&m))
+                            .with(field::KEY_LABEL, stem.as_bytes()),
+                    ),
                     Text::fill(EN.vaults_file_added_as_key, &[&it.name]),
                     0,
                 )
@@ -2100,6 +2102,11 @@ impl Faraday {
         let pending = self
             .key_held_stored(&c, key.fingerprint)
             .then_some(records::BACKUP_PENDING);
+        // Written on an online computer: the vault says so, for good.
+        let pending = match (pending, self.written_online(Some(key.fingerprint))) {
+            (p, true) => Some(p.unwrap_or(0) | records::MADE_ONLINE),
+            (p, false) => p,
+        };
         let label = key.label.clone();
         // A BIP-39 passphrase is stored only when the person asks
         // (`docs/WALLETS.md`).
@@ -2134,6 +2141,23 @@ impl Faraday {
             .with(field::WALLET_NAME, w.name.as_bytes());
         let name = w.name.clone();
         self.vault_push(record, &Text::fill(EN.vaults_is_in_the_vault, &[&name]));
+    }
+
+    /// Whether a key record written now says it was made on an online
+    /// computer: this is the desktop app, or the key (`fp`) came from one
+    /// that was. Every key and codex32 share record that goes into a vault
+    /// takes its mark from here (`docs/VAULT.md`, `faraday.online`).
+    pub(crate) fn written_online(&self, fp: Option<Fingerprint>) -> bool {
+        self.online || fp.is_some_and(|f| self.session.keys.made_online(f))
+    }
+
+    /// `record` with the online mark when [`Faraday::written_online`] says
+    /// so for it; any record but a key or a codex32 share is as it was.
+    pub(crate) fn marked_online(&self, mut record: Record) -> Record {
+        if self.written_online(None) {
+            records::mark_made_online(&mut record);
+        }
+        record
     }
 
     pub(crate) fn vault_push(&mut self, record: impl IntoRecord, said: &str) {

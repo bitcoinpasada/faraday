@@ -12,7 +12,7 @@ use crate::wallet::FileKind;
 use crate::{Action, Faraday, QrFormat, QrSource, QrView, Screen, flow};
 use faraday_crypto::work::Compute;
 use faraday_keys::{
-    QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, QrHolds, qr_note_over, qr_seal_note_job,
+    QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, qr_note_over, qr_seal_note_job,
 };
 use faraday_shell_api::Key;
 use faraday_text::{Text, text};
@@ -547,6 +547,7 @@ fn refusal_line(e: &QrError) -> Text {
     match e {
         QrError::Memory(mib) => Text::fill(EN.qr_tool_no_memory, &[&Text::num(u64::from(*mib))]),
         QrError::NoItem => Text::of(EN.qr_tool_item_gone),
+        QrError::NotFit(QrFit::MadeOnline) => Text::of(EN.vault_qr_online_no),
         _ => Text::of(EN.qr_tool_not_made),
     }
 }
@@ -600,6 +601,13 @@ fn make(app: &mut Faraday) {
     let c = app.compute();
     let job = match (pick, key) {
         (Pick::Note, _) => Ok(qr_seal_note_job(&note, &pass, exponent, random)),
+        (Pick::Key, k)
+            if app.online
+                || k.and_then(|i| app.session.keys.info(i))
+                    .is_some_and(|k| app.session.keys.made_online(k.fingerprint)) =>
+        {
+            Err(QrError::NotFit(QrFit::MadeOnline))
+        }
         (Pick::Key, Some(i)) => app
             .session
             .keys

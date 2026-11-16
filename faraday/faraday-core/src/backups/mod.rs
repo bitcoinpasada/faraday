@@ -3508,6 +3508,7 @@ impl Faraday {
                         .codex32_share_record(
                             k,
                             index,
+                            self.online,
                             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Codex32),
                         )
                         .map(Staged::Held)

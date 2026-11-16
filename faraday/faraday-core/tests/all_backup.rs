@@ -85,6 +85,8 @@ mod keygen;
 mod keygen_steps;
 #[path = "all/lightning.rs"]
 mod lightning;
+#[path = "all/made_online.rs"]
+mod made_online;
 #[path = "all/own_randomness.rs"]
 mod own_randomness;
 #[path = "all/paper.rs"]

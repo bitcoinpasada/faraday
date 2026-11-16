@@ -586,7 +586,7 @@ impl Faraday {
                     return;
                 };
                 let r = Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m));
-                match self
+                let r = match self
                     .bip85
                     .child_of()
                     .filter(|_| record)
@@ -594,7 +594,8 @@ impl Faraday {
                 {
                     Some(of) => r.with(field::KEY_CHILD, &of),
                     None => r,
-                }
+                };
+                self.marked_online(r)
             }
             _ => {
                 let note = text!("{}\n{}\n{}", title.as_str(), path.as_str(), value.as_str());

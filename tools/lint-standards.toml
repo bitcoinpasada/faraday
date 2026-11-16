@@ -303,6 +303,12 @@ case = "Hold to add this wallet: a wallet of several keys, one of which no loade
 
 [[hold]]
 where = "app"
+hold = "Action::PublishedHold"
+decision = "F136"
+case = "Hold to keep this key: a seed Faraday Demo wrote on an online computer, on Mainnet"
+
+[[hold]]
+where = "app"
 hold = "Action::OutboxDeleteHold"
 decision = "F136"
 case = "Delete a vault or an unprotected secret no stick holds: the person's own destructive act"

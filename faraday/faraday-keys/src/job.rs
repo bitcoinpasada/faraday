@@ -629,6 +629,8 @@ pub(crate) struct WordsToLoad {
     pub(crate) child: Option<fv::child::ChildOf>,
     pub(crate) xor: Option<fv::xor::XorFacts>,
     pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
+    /// The record says Faraday Demo wrote it on an online computer.
+    pub(crate) online: bool,
 }
 
 /// A key record of a master seed to load.
@@ -638,6 +640,8 @@ pub(crate) struct SeedToLoad {
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) xor: Option<fv::xor::XorFacts>,
     pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
+    /// The record says Faraday Demo wrote it on an online computer.
+    pub(crate) online: bool,
 }
 
 /// The costly part of loading the key records of open vaults into the
@@ -692,6 +696,7 @@ pub(crate) struct LoadedKey {
     pub(crate) child: Option<fv::child::ChildOf>,
     pub(crate) xor: Option<fv::xor::XorFacts>,
     pub(crate) slip39: Option<fv::slip39::Slip39Facts>,
+    pub(crate) online: bool,
 }
 
 /// The text a held byte string stands for: what was stored as text, so it
@@ -794,6 +799,7 @@ impl KeysJob {
                 child: w.child,
                 xor: w.xor.clone(),
                 slip39: w.slip39.clone(),
+                online: w.online,
             });
         }
         for s in &self.seeds {
@@ -816,6 +822,7 @@ impl KeysJob {
                 child: None,
                 xor: s.xor.clone(),
                 slip39: s.slip39.clone(),
+                online: s.online,
             });
         }
         KeysLoaded {

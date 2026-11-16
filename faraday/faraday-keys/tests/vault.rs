@@ -2263,3 +2263,77 @@ fn a_load_worked_out_on_another_network_adds_no_key() {
     assert!(keys.adopt_loaded(&c, job.run(&c)).is_empty());
     assert!(keys.is_empty());
 }
+
+#[test]
+fn every_loader_notes_a_key_a_vault_says_was_written_online() {
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).expect("words");
+    let mut flagged =
+        Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m));
+    faraday_vault::records::mark_made_online(&mut flagged);
+    let plain = Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let marked = store.insert(id, flagged).expect("kept");
+    let unmarked = store.insert(id, plain).expect("kept");
+    for (at, want) in [(marked, true), (unmarked, false)] {
+        let mut keys = Keys::on(Network::Mainnet);
+        let fp = store
+            .load_key_record(&c, &mut keys, id, at)
+            .expect("a key record")
+            .expect("loads");
+        assert_eq!(keys.made_online(fp), want, "load_key_record at {at}");
+        let mut keys = Keys::on(Network::Mainnet);
+        let Some(vault::KeyLoad::Done(Ok(fp))) =
+            store.load_key_with_passphrase(&c, &mut keys, (id, at), "", None)
+        else {
+            panic!("loads with a passphrase");
+        };
+        assert_eq!(keys.made_online(fp), want, "with a passphrase at {at}");
+    }
+}
+
+#[test]
+fn a_set_of_shares_written_online_loads_its_key_marked() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut owner = Keys::on(Network::Mainnet);
+    owner.add_seed(&c, &seed, "").expect("a key");
+    let fp = owner.info(0).expect("info").fingerprint.0;
+    let need = faraday_bip::codex32::symbols_for(16);
+    let mut bytes = vec![3u8; need + 4];
+    bytes[need..].fill(7);
+    let shares = owner
+        .codex32_shares(0, 2, 3, &bytes, Reveal::PaperForm)
+        .expect("shares");
+    for online in [true, false] {
+        let mut store = store();
+        let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+        for s in &shares[..2] {
+            let mut r = Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, s.as_str().as_bytes())
+                .with(field::CODEX32_KEY, &fp);
+            if online {
+                faraday_vault::records::mark_made_online(&mut r);
+            }
+            store.insert(id, r).expect("kept");
+        }
+        let mut keys = Keys::on(Network::Mainnet);
+        assert_eq!(store.gather_codex32(&c, &mut keys).len(), 1);
+        assert_eq!(keys.made_online(faraday_bip::keys::Fingerprint(fp)), online);
+    }
+}
+
+#[test]
+fn a_child_of_a_key_written_online_is_written_online_too() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut keys = Keys::on(Network::Mainnet);
+    let parent = keys.add_seed(&c, &seed, "").expect("a key");
+    let child = keys.add_seed(&c, &[9; 16], "").expect("a key");
+    keys.note_child(parent, child);
+    assert!(!keys.made_online(child));
+    keys.note_made_online(parent);
+    keys.note_child(parent, child);
+    assert!(keys.made_online(child));
+}

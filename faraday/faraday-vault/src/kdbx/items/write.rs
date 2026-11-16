@@ -13,7 +13,7 @@ use super::{
     count_uuid, custom_record, find_mut, forms, has_same_field, named, named_custom, text,
 };
 use crate::kdbx::xml::{Document, Entry, Group};
-use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
+use crate::records::{self, BACKUP_PENDING, MADE_ONLINE, NO_LOAD_AT_UNLOCK, Record, field, kind};
 use crate::{child, codex32, contents, slip39, xor};
 
 /// Why a change was not applied.
@@ -96,6 +96,9 @@ fn seed_fields(r: &Record, title: &str, fl: &mut Pairs, cd: &mut Pairs) -> Resul
     }
     if flags & BACKUP_PENDING != 0 {
         cd.push(("faraday.held", z("true"), false));
+    }
+    if flags & MADE_ONLINE != 0 {
+        cd.push(("faraday.online", z("true"), false));
     }
     if let Some(b) = r.field(field::KEY_CODEX32) {
         let facts = codex32::set_of(b).ok_or(Unwritable::Value("faraday.codex32"))?;
@@ -234,6 +237,9 @@ fn fields_for(c: &Compute, body: &Body, title: &str) -> Result<(Pairs, Pairs), U
                 forms::hex(r.field(field::CODEX32_KEY).unwrap_or(&[])),
                 false,
             ));
+            if records::is_made_online(r) {
+                cd.push(("faraday.online", z("true"), false));
+            }
         }
         k => return Err(Unwritable::Record(k)),
     }

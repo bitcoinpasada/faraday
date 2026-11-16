@@ -98,6 +98,16 @@ macro_rules! words_wallet {
     published_head: "Published words",
     /// The published-words sheet's line.
     published_line: "These words are published. Anyone can spend from a wallet made of them.",
+    /// The published-words sheet's title for a key a vault says was written on an online computer.
+    published_online_head: "Made on an online computer",
+    /// The published-words sheet's line for such a key.
+    published_online_line: "This key was written by Faraday Demo on an online computer. Anyone who had access to that computer may have its seed.",
+    /// The hold that keeps such a key.
+    published_online_hold: "Hold to keep this key",
+    /// The published-words sheet's title for one of Faraday's public samples.
+    published_sample_head: "Public sample seed",
+    /// The published-words sheet's line for one.
+    published_sample_line: "This seed is a public sample. Its coins can be taken by anyone, so it is not kept on Mainnet.",
     /// The published-words sheet's primary action: the key is dropped.
     published_remove: "Remove",
     /// The published-words sheet's other action: the key stays, for testing.

@@ -170,6 +170,8 @@ pub mod field {
     pub const CODEX32_STRING: u8 = 1;
     /// Codex32 share: the fingerprint of the key its set makes (4 bytes).
     pub const CODEX32_KEY: u8 = 2;
+    /// Codex32 share: flags, one byte (optional); bit 2 is [`super::MADE_ONLINE`].
+    pub const CODEX32_FLAGS: u8 = 3;
 }
 
 /// Bit 0 of a key's or a wallet's flags: the Load sheet an unlock
@@ -180,6 +182,11 @@ pub const NO_LOAD_AT_UNLOCK: u8 = 1;
 /// Bit 1 of a key's flags: the key was made in Faraday and its backup is
 /// not done; it signs nothing until it is. Never a secret.
 pub const BACKUP_PENDING: u8 = 2;
+
+/// Bit 2 of a key's flags: the key was written by Faraday Demo on an
+/// online computer (`faraday.online` in a vault file). The device never
+/// clears it. Never a secret.
+pub const MADE_ONLINE: u8 = 4;
 
 /// Why a record was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -314,6 +321,7 @@ const PASSPHRASE_RULES: &[Rule] = &[
 const CODEX32_SHARE_RULES: &[Rule] = &[
     rule(1, true, false, Shape::Text(127)),
     rule(2, true, false, Shape::Exact(4)),
+    rule(3, false, false, Shape::Exact(1)),
 ];
 
 /// The fields of each record type (§7).
@@ -525,6 +533,35 @@ fn flags_field(record: &Record) -> Option<u8> {
         kind::WALLET => Some(field::WALLET_FLAGS),
         _ => None,
     }
+}
+
+/// Marks a key or codex32 share record as written by Faraday Demo on an
+/// online computer ([`MADE_ONLINE`]), keeping its other flags. Any other
+/// record is left as it is.
+pub fn mark_made_online(record: &mut Record) {
+    let f = match record.kind {
+        kind::KEY => field::KEY_FLAGS,
+        kind::CODEX32_SHARE => field::CODEX32_FLAGS,
+        _ => return,
+    };
+    let old = record
+        .field(f)
+        .and_then(|b| b.first().copied())
+        .unwrap_or(0);
+    record.set(f, &[old | MADE_ONLINE]);
+}
+
+/// Whether a key or codex32 share record carries [`MADE_ONLINE`].
+pub fn is_made_online(record: &Record) -> bool {
+    let f = match record.kind {
+        kind::KEY => field::KEY_FLAGS,
+        kind::CODEX32_SHARE => field::CODEX32_FLAGS,
+        _ => return false,
+    };
+    record
+        .field(f)
+        .and_then(|b| b.first())
+        .is_some_and(|b| b & MADE_ONLINE != 0)
 }
 
 /// Whether a key or wallet record starts ticked on the Load sheet an
