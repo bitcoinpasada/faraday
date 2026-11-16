@@ -2,7 +2,8 @@
 //! holds and the Result worked out. Private to this folder; the rest of
 //! the crate reads it through [`SeedArea`]'s accessors. The seed itself is
 //! held by `faraday-keys` ([`faraday_keys::Keys::check_read`]), the typed
-//! words here only until the passphrase card has read them.
+//! words here only until the passphrase card has read them; the passphrase
+//! is taken again through [`faraday_keys::Keys::check_reread`].
 
 use super::compare::Compare;
 use super::{Account, Made, Source};
@@ -47,6 +48,9 @@ pub(crate) struct SeedState {
     /// The words typed, kept from the Seed card until the passphrase has
     /// been chosen; empty for words read from a SeedQR.
     pub(super) words: SecretText,
+    /// The Seed card took typed words (held here until read, then only by
+    /// `faraday-keys`): the passphrase can be taken again.
+    pub(super) typed: bool,
     /// Add a passphrase was pressed: the fields show.
     pub(super) adding: bool,
     pub(super) pass: SecretText,
@@ -89,6 +93,7 @@ impl SeedState {
             back,
             typing: false,
             words: SecretText::new(),
+            typed: false,
             adding: false,
             pass: SecretText::new(),
             pass2: SecretText::new(),
@@ -111,7 +116,7 @@ impl SeedState {
     /// Whether the card is filled.
     pub(crate) fn done(&self, k: u8) -> bool {
         match k {
-            step::SEED => !self.words.is_empty() || self.source.is_some(),
+            step::SEED => self.typed || self.source.is_some(),
             step::PASSPHRASE => self.facts.is_some(),
             step::ACCOUNT => self.picked.is_some(),
             _ => self.made.is_some(),

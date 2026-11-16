@@ -617,6 +617,30 @@ fn with_a_stick_in_add_a_passphrase_is_refused_and_no_field_opens() {
 }
 
 #[test]
+fn the_passphrase_card_taken_twice_after_the_key_is_read_keeps_the_key() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::Step(1)));
+    app.press(Action::SeedCheck(S::Step(1)));
+    app.press(Action::SeedCheck(S::NoPass));
+    assert!(app.session.keys.check_facts().is_some(), "the key is read");
+    assert!(!faraday_core::testkit::secret_typed(&app), "no words held");
+}
+
+#[test]
+fn a_refused_press_with_a_stick_in_keeps_the_passphrase_card_once_the_key_is_read() {
+    let mut app = with_words(ABOUT);
+    app.press(Action::SeedCheck(S::NoPass));
+    app.press(Action::SeedCheck(S::Step(1)));
+    assert!(shows(&mut app, "Addapassphrase"), "the card opens");
+    stick_in(&mut app);
+    app.press(Action::SeedCheck(S::AddPass));
+    assert!(
+        !shows(&mut app, "Continue") && !shows(&mut app, "12words"),
+        "the Seed card does not take its place"
+    );
+}
+
+#[test]
 fn back_to_passphrase_for_a_loaded_key_opens_seed() {
     let mut app = with_words_on(testkit::net(), ABOUT);
     app.press(Action::SeedCheck(S::NoPass));

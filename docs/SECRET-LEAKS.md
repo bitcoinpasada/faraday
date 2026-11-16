@@ -100,7 +100,8 @@ Each runs in the core's headless test harness (`testkit`), armed from
 the planting of the secret to the end of the flow:
 
 - **Seed load:** a seed typed, scanned, loaded from a vault and from the
-  unlock's Load sheet; the unlock's passphrase.
+  unlock's Load sheet; the unlock's passphrase; the words of My seed
+  makes my wallet, typed and read.
 - **Sign:** a PSBT reviewed and signed with a single key, a multisig key
   and a MuSig2 key.
 - **Show and hide:** a seed's words, its SeedQR, a BIP-85 child, a vault

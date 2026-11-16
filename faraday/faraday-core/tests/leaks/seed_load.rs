@@ -1,6 +1,7 @@
 //! Loading a seed: typed into Add a key, pasted into the scanner and
 //! loaded with a passphrase, and loaded from a vault by the unlock's Load
-//! sheet (the unlock's passphrase typed on the way), each ended by Lock.
+//! sheet (the unlock's passphrase typed on the way), and My seed makes my
+//! wallet's words typed and read, each ended by Lock.
 
 #![expect(
     clippy::disallowed_methods,
@@ -363,4 +364,50 @@ fn words_typed_in_add_a_key_and_new_key_are_gone_once_new_key_is_left() {
         );
         finish_left(&format!("new key left by {way}"), armed, &[]);
     }
+}
+
+/// The device app with My seed makes my wallet's words typed and taken.
+fn check_with_words() -> Faraday {
+    use faraday_core::seed_check::SeedAction as S;
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "My seed makes my wallet")
+        .expect("the tile");
+    app.press(Action::Catalog(tile as u8));
+    app.press(Action::SeedCheck(S::Type));
+    type_text(&mut app, PHRASE);
+    app.press(Action::SeedCheck(S::Words));
+    app
+}
+
+#[test]
+fn a_seed_checked_and_its_passphrase_taken_again_leaves_no_copy_after_lock() {
+    use faraday_core::seed_check::SeedAction as S;
+    let forms = seed_forms(PASSPHRASE);
+    let armed = arm(&forms);
+    let mut app = check_with_words();
+    app.press(Action::SeedCheck(S::NoPass));
+    // The passphrase taken again without the words typed again.
+    app.press(Action::SeedCheck(S::Step(1)));
+    app.press(Action::SeedCheck(S::AddPass));
+    app.press(Action::SeedCheck(S::PassField(0)));
+    type_text(&mut app, PASSPHRASE);
+    app.press(Action::SeedCheck(S::PassField(1)));
+    type_text(&mut app, PASSPHRASE);
+    // The passphrase is read once seen (the eye), as a person does.
+    app.press(Action::PassEye);
+    app.press(Action::SeedCheck(S::UsePass));
+    testkit::settle(&mut app);
+    assert!(
+        app.session
+            .keys
+            .check_facts()
+            .and_then(|f| f.without)
+            .is_some(),
+        "no key read"
+    );
+    lock(&mut app);
+    finish("seed checked", armed, true);
 }

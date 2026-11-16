@@ -111,12 +111,19 @@ fn drop_all(app: &mut Faraday) {
 /// The cards from `from` on are to be taken again: what they gave is
 /// dropped, and the key too from Passphrase back.
 fn reset_from(app: &mut Faraday, from: u8) {
-    if from <= step::PASSPHRASE {
+    reset_cards(app, from, true);
+}
+
+/// [`reset_from`], the key kept where `forget` is false: the passphrase
+/// taken again from the words `faraday-keys` holds.
+fn reset_cards(app: &mut Faraday, from: u8, forget: bool) {
+    if from <= step::PASSPHRASE && forget {
         app.session.keys.check_forget();
     }
     let Some(s) = st(app) else { return };
     if from == step::SEED {
         s.words = SecretText::new();
+        s.typed = false;
         s.source = None;
         s.typing = false;
     }
@@ -248,7 +255,7 @@ fn open_card(app: &mut Faraday, k: u8) {
     if let Some(s) = st(app) {
         // A key that is not typed words has no passphrase to take again
         // without its seed, as `step_to` knows.
-        s.open = Some(if k == step::PASSPHRASE && s.words.is_empty() {
+        s.open = Some(if k == step::PASSPHRASE && !s.typed {
             step::SEED
         } else {
             k
@@ -277,7 +284,7 @@ fn step_to(app: &mut Faraday, k: u8) {
     }
     // A key that is not typed words (a SeedQR read, a key loaded) has no
     // passphrase to take again without its seed: Seed takes it.
-    let from = if k == step::PASSPHRASE && s.words.is_empty() {
+    let from = if k == step::PASSPHRASE && !s.typed {
         step::SEED
     } else {
         k
@@ -286,7 +293,10 @@ fn step_to(app: &mut Faraday, k: u8) {
         s.open = Some(k);
         return;
     }
-    reset_from(app, from);
+    // Typed words already read are held by `faraday-keys` alone: the
+    // passphrase is taken again from them, the key kept until it is.
+    let reread = from == step::PASSPHRASE && s.typed && s.words.is_empty();
+    reset_cards(app, from, !reread);
     if let Some(s) = st(app) {
         s.open = Some(from);
     }
@@ -307,6 +317,7 @@ fn words(app: &mut Faraday) {
     reset_from(app, step::PASSPHRASE);
     if let Some(s) = st(app) {
         s.words = SecretText::of(&text);
+        s.typed = true;
         s.typing = false;
         s.error = None;
         s.open = Some(step::PASSPHRASE);
@@ -321,15 +332,21 @@ fn read(app: &mut Faraday, with: bool) {
     if with && !crate::screens::pass_pair::ready(s.pass.as_str(), s.pass2.as_str()) {
         return;
     }
-    let (words, pass) = (
-        s.words.clone(),
-        if with {
-            s.pass.clone()
-        } else {
-            SecretText::new()
-        },
-    );
-    let got = app.session.keys.check_read(&c, &words, &pass);
+    let pass = if with {
+        s.pass.clone()
+    } else {
+        SecretText::new()
+    };
+    if !s.typed {
+        return;
+    }
+    // Words already read are held by `faraday-keys` alone.
+    let words = s.words.clone();
+    let got = if words.is_empty() {
+        app.session.keys.check_reread(&c, &pass)
+    } else {
+        app.session.keys.check_read(&c, &words, &pass)
+    };
     let ok = got.is_ok();
     if got.is_ok() {
         reset_from(app, step::ACCOUNT);
@@ -344,6 +361,7 @@ fn read(app: &mut Faraday, with: bool) {
                 words: Some(f.words),
             });
             s.source = Some(Source::Held);
+            s.words = SecretText::new();
             s.pass = SecretText::new();
             s.pass2 = SecretText::new();
             s.adding = false;
@@ -381,6 +399,7 @@ pub(crate) fn scanned(app: &mut Faraday, words: &str, pass: &str) {
             s.adding = false;
             s.focus = None;
             s.words = SecretText::new();
+            s.typed = false;
             s.facts = Some(Facts {
                 fingerprint: f.fingerprint,
                 with_pass: !pass.is_empty(),
@@ -422,6 +441,7 @@ fn loaded(app: &mut Faraday, i: usize) {
     reset_from(app, step::PASSPHRASE);
     let Some(s) = st(app) else { return };
     s.words = SecretText::new();
+    s.typed = false;
     s.facts = Some(facts);
     s.source = Some(Source::Loaded(i));
     s.error = None;
@@ -561,6 +581,15 @@ pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
     if let Some(s) = st(app) {
         s.focus = None;
         if wipe {
+            if !s.words.is_empty() {
+                // Words typed and not yet read are gone, so Passphrase has
+                // nothing to take; once read, `faraday-keys` holds them.
+                s.words.clear();
+                s.typed = false;
+                if s.open == Some(step::PASSPHRASE) {
+                    s.open = Some(step::SEED);
+                }
+            }
             s.pass.clear();
             s.pass2.clear();
         }
@@ -728,7 +757,7 @@ impl crate::trail::StepFlow for SeedSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = app.tools.seed_check.state()?;
         // A key with no words has no passphrase card to go through.
-        let no_pass = s.words.is_empty() && s.facts.is_some();
+        let no_pass = !s.typed && s.facts.is_some();
         Some(crate::trail::Steps::new(
             (0..step::COUNT as u8)
                 .filter(|&k| !(no_pass && k == step::PASSPHRASE))
@@ -770,6 +799,7 @@ pub(crate) fn put_sample_words(app: &mut Faraday, words: &str) {
     reset_from(app, step::PASSPHRASE);
     if let Some(s) = st(app) {
         s.words = SecretText::of(words);
+        s.typed = true;
         s.typing = false;
         s.error = None;
         s.open = Some(step::PASSPHRASE);

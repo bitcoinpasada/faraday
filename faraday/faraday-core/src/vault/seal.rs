@@ -903,6 +903,7 @@ fn lock_finish(app: &mut Faraday) {
     app.wordlist.clear();
     app.bip85.clear();
     app.tools.convert.clear();
+    app.tools.seed_check.clear();
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();

@@ -1200,6 +1200,7 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::fingerprint_with",
   "faraday/faraday-keys/src/identity.rs::fp_text",
   "faraday/faraday-keys/src/seed_check.rs::Keys::check_read",
+  "faraday/faraday-keys/src/seed_check.rs::Keys::check_reread",
   "faraday/faraday-keys/src/seed_check.rs::Keys::check_keep",
 ]
 code = [

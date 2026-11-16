@@ -93,6 +93,23 @@ impl Keys {
         Ok(facts)
     }
 
+    /// Costs what `check_read` costs. The words the check holds are read
+    /// again with `passphrase` in place of the one given before, so that
+    /// the passphrase is taken again without the words coming out; refused
+    /// when the check holds none. The check keeps its key when this
+    /// refuses.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the words held, copied for the read and wiped as the copy drops"
+    )]
+    pub fn check_reread(&mut self, c: &Compute, passphrase: &str) -> Result<CheckFacts, Refusal> {
+        let Some(h) = self.check.as_ref() else {
+            return Err(Refusal::Words(Text::default()));
+        };
+        let words = h.words.clone();
+        self.check_read(c, &words, passphrase)
+    }
+
     /// What the check shows of the key it holds; `None` when it holds none.
     /// A lookup.
     pub fn check_facts(&self) -> Option<CheckFacts> {
