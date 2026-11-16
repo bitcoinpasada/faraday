@@ -251,6 +251,18 @@ impl Text {
         self.buf = bigger;
     }
 
+    /// The length in bytes, read from the buffer: the text is always
+    /// whole characters, so no pass over it is needed (the `str` one it
+    /// would otherwise reach through `Deref` checks every byte).
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Whether it holds no text, in constant time.
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
+    }
+
     /// Adds a character at the end.
     pub fn push(&mut self, c: char) {
         let mut one = [0u8; 4];

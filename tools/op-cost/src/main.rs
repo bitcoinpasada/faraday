@@ -39,13 +39,28 @@ const ABANDON: &str =
 const PSBT: &str = include_str!("psbt.txt");
 
 /// The operations, by name.
-const OPERATIONS: [(&str, fn()); 5] = [
+const OPERATIONS: [(&str, fn()); 6] = [
     ("mnemonic-parse-24", mnemonic_parse),
     ("mnemonic-to-seed", mnemonic_to_seed),
     ("seed-xor-combine", seed_xor_combine),
     ("psbt-read", psbt_read),
     ("psbt-sign", psbt_sign),
+    ("text-file-words-1mib", text_file_words),
 ];
+
+/// A sentence of plain English, repeated to about 1 MiB: what a note on a
+/// stick looks like to the readers of a text file.
+const SENTENCE: &str = "The quick brown fox jumps over the lazy dog while the weather stays mild and the notes pile up on the desk. ";
+
+fn text_file_words() {
+    let text = SENTENCE.repeat((1 << 20) / SENTENCE.len());
+    let words = faraday_intake::file_words(&text);
+    assert_eq!(
+        words.split_whitespace().count(),
+        text.split_whitespace().count()
+    );
+    black_box(words);
+}
 
 fn mnemonic_parse() {
     let c = Compute::unchecked();
