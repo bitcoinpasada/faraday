@@ -5,21 +5,21 @@
 **Screen:** `Backups`
 **Key:** backups
 
-Every wallet known and where its backup is. A wallet is listed once, whether it is loaded, in an open vault, or only remembered from a vault now locked.
+This page lists every wallet the device knows and where its backup is. A wallet is listed once, whether it is loaded, in an open vault, or only remembered from a vault that is now locked.
 
 ## Wallets
 
 **Key:** backups.wallets
 
-One row per wallet, with its name and shape; choosing a row shows its card. With no wallet the page reads **No wallet**. On a small panel one wallet is shown at a time, counted **Wallet 1 of 3** (the numbers vary), and **Previous** and **Next** move between them.
+Each row is a wallet, with its name and shape; choose a row to see its card. With no wallet the page reads **No wallet**. On a small panel one wallet is shown at a time, counted **Wallet 1 of 3** (the numbers vary), and **Previous** and **Next** move between them.
 
 ## The card
 
 **Key:** backups.card
 
-The card names the wallet and its shape, then lists where its backup is, one line per place. **Back up** opens the backup of a loaded wallet, and reads **Continue the backup** for one left part way. A wallet with no plan reads **No backup plan**. A wallet of a locked vault shows only its plan, with the vault's name and that it is locked.
+The card names the wallet and its shape, then lists where its backup is, one line per place. **Back up** opens the backup of a loaded wallet, and reads **Continue the backup** when one was left part way. A wallet with no plan reads **No backup plan**. A wallet of a locked vault shows only its plan, with the vault's name and that it is locked.
 
-A line gives the place, what it holds (or **Nothing**), a tag and what was seen of it. The tag is secret, sealed or public: secret holds the key as it is, sealed holds it under a vault's passphrase, public holds nothing that spends.
+A line gives the place, what it holds (or **Nothing**), a tag and what was seen of it. The tag is secret, sealed or public: secret means the place holds the key as it is, sealed means it holds the key under a vault's passphrase, and public means it holds nothing that spends.
 
 ## What was seen
 

@@ -5,17 +5,17 @@
 **Screen:** `CheckAddress`
 **Key:** check-address
 
-Says whether an address belongs to a loaded wallet or to a loaded key's standard accounts. Nothing is signed, paid or kept.
+This page says whether an address belongs to a loaded wallet or to a loaded key's standard accounts. Nothing is signed, paid or kept.
 
 ## The address
 
 **Key:** check-address.field
 
-The address goes in the **Address** box, typed or pasted, or **Scan** takes it from a QR code. Enter or Done checks what is typed; pasted or scanned text is checked at once. A `bitcoin:` link is read to its address. **From a file** is there when Files holds a text file: a press on one reads it.
+Put the address in the **Address** box, typed or pasted, or use **Scan** to read it from a QR code. Enter or Done checks what you typed; pasted or scanned text is checked at once. A `bitcoin:` link is read down to its address. **From a file** appears when Files holds a text file, and pressing a file reads it.
 
-A file with one address is checked as if typed. A file with several lists each, at most 100, with its answer; a press on a row shows that result, and Back returns. An empty, oversize (over 64 KiB) or non-text file reads **Not a text file**; a wallet description is named, not read.
+A file with one address is checked as if typed. A file with several lists each, at most 100, with its answer; press a row to see that result, and Back returns. An empty, oversize (over 64 KiB) or non-text file reads **Not a text file**; a wallet description is named, not read.
 
-Text that is no address, an address of another network and a link this device does not read are named under the box. A seed or private key is refused and the box emptied.
+Under the box, the page names text that is not an address, an address of another network, and a link this device does not read. A seed or private key is refused and the box emptied.
 
 ## The result
 
