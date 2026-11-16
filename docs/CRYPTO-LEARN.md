@@ -1,8 +1,7 @@
 # How Faraday does it: one manifest for every cryptographic action
 
-**Kind:** Spec
-**Status:** Specified (F148); the manifest, its inventory lint and the generator built and held by `just lint`
-**Open:** the website's rendering of the blocks (§11) and of §18's constructions (§18.7; the manifest, check.py, gen.py and Learn's drawing of them are built, F190)
+**Kind:** Reference
+**Status:** Built (F148, F190): the manifest, its inventory lint, the generators and check.py held by `just lint`; Learn's blocks and §18's constructions in the app; the website's /cryptography page with the constructions (§11.1, §18.7). Learn's blocks are not on the website (owner, 2026-11-16); the vault-slot and vault-plain tables are not specified.
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -17,8 +16,8 @@ the code by a mechanical rule, and fails when one has no entry, or when
 its code changed since its entry was last reviewed. The owner's choices
 are F148.
 
-`docs/STANDARDS.md` already says it is the source for these blocks and
-their manifest. Neither exists yet; this spec builds them.
+`docs/STANDARDS.md` says it is the source for these blocks and their
+manifest.
 
 ## 1. The block
 
@@ -829,9 +828,9 @@ The standards page lists the actions that are in the repository and not
 in the app (an entry with no screens) under their own heading, "In the
 repository, not in the app", with their blocks (owner, 2026-10-28).
 
-To be done there, later: render the blocks on the Learn pages from the
-pinned manifest. The standards page and /cryptography are rendered from
-it, each records the manifest's hash, and the publish step
+The blocks are not rendered on the Learn pages of the website (owner,
+2026-11-16). The standards page and /cryptography are rendered from
+the manifest, each records the manifest's hash, and the publish step
 (tools/publish-pages.sh) refuses a page whose hash is not the pin's.
 
 ### 11.1 The page /cryptography
@@ -1117,111 +1116,7 @@ checked, or named for review.
 | `docs/deps/` | A primitive crate's page: `**Cryptography:** computes` | Checked (§4.1) |
 | `SECURITY.md`, `docs/AUDIT-SUBMISSIONS.md` | The scope an audit is asked to cover | Named for review |
 | Release notes | What changed in the cryptography since the last release | `git diff --stat <tag>` over `core`, `faraday/faraday-keys`, `tools/crosscheck` (§3.3) |
-| The website | Learn blocks, the standards page | Rendered from the pin (§11) |
-
-## 14. Rule lines for CLAUDE.md
-
-Added when the lint enters `just lint`, beside the Learn
-exception and the structure rules:
-
-- Every cryptographic function is covered by an action of
-  docs/crypto/actions.toml (F148): what the inventory finds by its rules
-  (the compute token in the crates that hold keys, a reveal, a primitive
-  crate named, a public function that reaches one) and no action covers
-  fails `just lint`; a change to a crypto crate since the last passing
-  cross-check fails `just lint-release` (F197, F259). A function the rules find that computes nothing on a secret
-  or signed data is a `[[not_crypto]]` entry with its reason; their count
-  only falls.
-- The "How Faraday does it" blocks, `docs/STANDARDS.md` §1 to §7 and §10 and
-  `docs/AUDIT.md` §3 are generated from the manifest and never edited by
-  hand; the blocks' values are a third exception to the one strings
-  file, beside the Learn pages and the self-test's check names.
-- A screen that offers an action of the manifest carries **How Faraday
-  does it** in its top app bar, and the reachability test holds it.
-
-## 15. Order of building
-
-The lint enters `just lint` only when the manifest covers every
-function it finds, with no transitional exemptions. What comes before
-what:
-
-1. The inventory (`crypto-inventory` in `tools/costs-lint`, the walker
-   shared with the costs lint: rules 1 to 4 of §4.2, closures, test
-   functions, call sites in `faraday-core`, JSON lines out)
-   comes first. A self-test over a fixture crate, as
-   `tools/lint-guide.py --self-test` has, shows each rule.
-2. The schema of §2.2 and the checker (docs/crypto/check.py: `check`,
-   `review <id>`, `changes <tag>`) come next, with the `**Cryptography:**`
-   line on the primitive crates' `docs/deps/` pages. The entries follow,
-   one area of §12's groups at a time. Each is filled from the code, every
-   fact checked there: the roots exist, the tests exist and run, the
-   vectors and areas are the ones named, the libraries' versions are the
-   lock's, a status is STANDARDS' as read on its date. Every function the
-   inventory reports uncovered is added to an action or to
-   `[[not_crypto]]` with its reason, and each entry is stamped with the
-   recipe.
-3. The cross-check's facts as attributes (§10.1), moved from the README's
-   table word for word, come before the generators, so the Cross-check
-   field has its source: the README's table and differences generated,
-   the stamp recording each area's case count, and
-   `tools/crosscheck/stamp.py` reading `FILES` and `VECTORS` from the
-   manifest and naming the changed actions (§10.2).
-4. The generators and the lint come after the entries: docs/crypto/gen.py
-   for §3.1, STANDARDS and AUDIT §3 regenerated, the checks of §3.2, the
-   ratchet file, and `just lint` running the inventory, `check.py check`
-   and `gen.py check`, with CLAUDE.md's lines (§14) and
-   `docs/DEVELOPING.md` and `tools/README.md` for the recipes. The
-   generated STANDARDS and AUDIT §3 are read against the earlier text,
-   each difference settled against the code, and the `[[not_crypto]]`
-   list is read entry by entry.
-5. The screens are designed before they are built (§8): the icon, the
-   bar's order, the Learn tab and the block's drawing at every size and
-   the Pi, the Starter's sheet; the strings (§8.6); the two new Learn
-   pages (Secure Boot keys, Checking what is written); DESIGN §4.1 and §4.12 and
-   LAYOUT §8 point to §8; the guide's pages. The code follows: the
-   icon baked, the strings, the pages registered (`secure-boot-keys` in
-   `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
-   `OWN` and `LearnId`), `keys_kept_page()` added to Explore's pages and
-   `&EN.tools` to Bip85's (`faraday/faraday-core/src/guide.rs`), the
-   guide's pages drawn again, the reachability test (§9.1), the screens
-   check (§9.2), one tour rendered per size.
-6. The website comes later, in its own repository (§11).
-
-The change that builds the last of this spec's open work removes its plan
-(§12's seed table, §14, §15, §16) and makes it a Reference.
-
-## 16. Questions for the owner
-
-1. **The bar's action.** Settled (owner, 2026-10-28): the bar carries
-   **Cryptography** beside the ?, in the ⋮ first on the Pi (§8).
-2. **An action another action uses.** Settled (owner, 2026-10-28): a
-   change is a change to every action that uses it (§4.4); no
-   fingerprint records it now (§5).
-3. **A local variable renamed** counts as a change. Settled (owner,
-   2026-10-28); with no fingerprints (§5) it changes the diff only.
-4. **The Starter's BitLocker sheet.** Settled (owner, 2026-10-28): the
-   recovery key carries a block, starter-recovery-key (§8.4).
-5. **Two new Learn pages.** Settled (owner, 2026-10-28): Secure Boot
-   keys, and the Starter's Checking what is written.
-6. **Actions not in the app.** Settled (owner, 2026-10-28): the
-   website's standards page lists them as "In the repository, not in the
-   app" (§11).
-7. **The repository's address.** Settled (owner, 2026-10-28):
-   `github.com/bitcoinpasada/faraday`, as text in every block's Code
-   field; the website links it to the release's tag.
-8. **What the cross-check does.** Settled (owner, 2026-10-28): each block
-   carries a Cross-check field saying what the F79 cross-check does for
-   the action, read from its area (§1, §10.1).
-9. **A list item taller than three lines.** Settled (owner, 2026-10-28;
-   F148): a block's field is drawn whole, the item growing by its lines
-   (§8.5), where Material's list item stops at three lines and truncates
-   its supporting text; Faraday cuts no fact.
-
-10. **The name on screen and the website's page.** Settled (owner,
-    2026-10-28): the bar's button keeps `Icon::Method` (`fact_check`),
-    and its tooltip, its ⋮ row, the Learn tab and the Starter's sheet
-    read "Cryptography"; the website shows every block on one page,
-    /cryptography (§11.1).
+| The website | The standards page, /cryptography | Rendered from the pin (§11) |
 
 ## 17. What this does not catch
 
@@ -1652,17 +1547,3 @@ What changes in §11.1:
   the Source field does.
 - **The schema:** the website reads `schema = 2`; a build of it that
   knows only 1 stops, as §11 has it.
-
-### 18.8 Order of building
-
-The two constructions are built together: the schema of §18.2 in
-check.py (`TOP_KEYS` gains `construction` and `name_with_digits`;
-`schema = 2`; `--self-test` covers a placeholder that does not resolve,
-a typed digit, a planned item no Open line names), gen.py's tables and
-placeholders, the two constructions in docs/crypto/actions.toml with
-§18.3's and §18.4's text, `CONSTRUCTIONS` in
-`faraday/faraday-guide/src/how.rs`, the Learn page's drawing of them, and
-Faraday's Vaults Learn page's "Passphrase strength" section removed.
-They may come before or after the rename of the vault hardening document
-(§2), its sentences marked. Each later change of that document rewrites
-its planned paragraphs (§18.6).
