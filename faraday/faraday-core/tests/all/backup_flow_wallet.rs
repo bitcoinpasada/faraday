@@ -1218,6 +1218,78 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     no_visit(&shell);
 }
 
+/// The change-the-plan round of the test below, up to the copy: Vault 2
+/// takes seed 2 as well, both vaults open; Vault 2 then keeps, besides its
+/// own plan, a plan of the wallet with its keys in the other order (with
+/// shares when `shares`), and the copy is pressed. Returns the app.
+fn copy_with_other_order_plan_in_the_added_vault(shares: bool) -> Faraday {
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready(&mut shell, false);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    flow_vault_add(&mut shell, &mut app, 1, 0);
+    shell.flow(&mut app, F::Continue);
+    open_vault(&mut shell, &mut app, 0, PHRASE);
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
+    // The wallet is not loaded after the restart: load it from the
+    // description Vault 1 keeps with its plan.
+    let text = contents(&app, 0)
+        .of(kind::PLAN)
+        .find_map(|(_, r)| {
+            faraday_keys::vault::RecordView::of(r)
+                .public_text(faraday_vault::records::field::PLAN_WALLET)
+                .map(str::to_string)
+        })
+        .expect("a holder keeps the plan");
+    let w = app
+        .session
+        .add_wallet(
+            &testkit::compute(),
+            "Wallet",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    crate::backup_plan::plant_other_order_plan(&mut app, 1, w, shares);
+    shell.flow(&mut app, F::CopyKey);
+    app
+}
+
+#[test]
+fn copying_the_keys_to_a_vault_with_an_older_plan_for_the_other_key_order_leaves_one_current_plan()
+{
+    use faraday_vault::records::field;
+    let app = copy_with_other_order_plan_in_the_added_vault(false);
+    let wallet = &app.session.wallets[0];
+    let plans: Vec<String> = contents(&app, 1)
+        .of(kind::PLAN)
+        .filter_map(|(_, r)| {
+            faraday_keys::vault::RecordView::of(r)
+                .public_text(field::PLAN_WALLET)
+                .map(str::to_string)
+        })
+        .collect();
+    assert_eq!(plans.len(), 1, "the one record of the wallet: {plans:?}");
+    assert_eq!(
+        faraday_core::wallet::read_wallet(&faraday_core::testkit::compute(), &plans[0])
+            .unwrap()
+            .checksum(),
+        wallet.checksum()
+    );
+}
+
+#[test]
+fn copying_the_keys_to_a_vault_with_shares_for_the_other_key_order_copies_nothing() {
+    let app = copy_with_other_order_plan_in_the_added_vault(true);
+    assert_eq!(
+        app.toast_text(),
+        Some(crate::backup_plan::OTHER_ORDER_TOAST)
+    );
+    assert_eq!(contents(&app, 1).of(kind::KEY).count(), 1, "no seed copied");
+}
+
 #[test]
 fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() {
     let mut shell = Shell::new();

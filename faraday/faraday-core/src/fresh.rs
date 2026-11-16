@@ -870,7 +870,7 @@ impl Faraday {
     /// 13). A press that draws nothing in the state it is pressed in is
     /// not one: Next before the Enter step, Sign here without a MuSig2
     /// round.
-    fn draws_system_randomness(&self, action: Action) -> bool {
+    fn draws_system_randomness(&self, c: &faraday_crypto::work::Compute, action: Action) -> bool {
         use crate::keygen::kstep;
         match action {
             Action::KNext => self
@@ -906,7 +906,7 @@ impl Faraday {
             }
             Action::BC32(crate::codex32_backup::Press::Set(
                 crate::codex32_backup::SetPress::MakeNew,
-            )) => self.c32_make_new_draws(),
+            )) => self.c32_make_new_draws(c),
             Action::QrTool(crate::qr_tool::QrToolAction::Make) => crate::qr_tool::make_draws(self),
             _ => false,
         }
@@ -917,7 +917,8 @@ impl Faraday {
     /// can never be served), so nothing else is done with it.
     pub(crate) fn seed_gate(&mut self, action: Action) -> bool {
         self.fresh.wait_cancel();
-        if self.seeded() || !self.draws_system_randomness(action) {
+        let c = self.compute();
+        if self.seeded() || !self.draws_system_randomness(&c, action) {
             return false;
         }
         if self.randomness_gives_none() {

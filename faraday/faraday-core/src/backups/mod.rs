@@ -2550,9 +2550,6 @@ impl Faraday {
         list: Vec<(usize, zeroize::Zeroizing<Text>)>,
     ) {
         use faraday_vault::codex32::{SetFacts, State};
-        if self.plan_refuses() {
-            return;
-        }
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -3001,6 +2998,11 @@ impl Faraday {
         if let Some(line) = self.c32_lock_refusal(key) {
             return Err(Some(line));
         }
+        // A plan kept for the other key order is not written over: refused
+        // with its toast before a string is derived or drawn, the step kept.
+        if self.plan_refuses(self.vaults.current, &[]) {
+            return Err(None);
+        }
         match set {
             SetStep::Typing { index } => {
                 let j = index.map(usize::from).ok_or(None)?;
@@ -3136,7 +3138,7 @@ impl Faraday {
     /// Whether Make the new set, pressed now, goes on to draw the system's
     /// randomness: the codex32 item is open on its Scheme step and the
     /// rotation is not refused.
-    pub(crate) fn c32_make_new_draws(&self) -> bool {
+    pub(crate) fn c32_make_new_draws(&self, c: &Compute) -> bool {
         let Some(b) = self.backup.state() else {
             return false;
         };
@@ -3152,6 +3154,7 @@ impl Faraday {
         };
         matches!(st.set, crate::codex32_backup::SetStep::Scheme(..))
             && self.c32_rotation_refusal(i, key, form, &st.typed).is_ok()
+            && !self.plan_save_refused(c, self.vaults.current, &[])
     }
 
     /// Codex32 string `s` at index `j`, derived for seed
@@ -3173,9 +3176,6 @@ impl Faraday {
         }
         answers.set_c32(&shape, i, Some(form));
         let wallet_i = b.wallet;
-        if self.plan_refuses() {
-            return;
-        }
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
         // The plan record is saved with the share added, so that the record

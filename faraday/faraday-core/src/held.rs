@@ -720,6 +720,12 @@ impl Faraday {
         if self.backup_vault_taken(&c, v, cur) {
             return;
         }
+        // A plan kept for the other key order is not written over, in the
+        // vault written here or in any other of the flow, and nothing is
+        // written beside it: refused before any question is asked.
+        if self.plan_refuses(cur, &[cur]) {
+            return;
+        }
         // A seed about to be saved with a codex32 set or a BIP-85 origin
         // asks first; Save comes back here (`docs/VAULT.md` §7).
         let (own, _) = self.backup_vault_seeds(v);
@@ -733,11 +739,6 @@ impl Faraday {
             return;
         }
         self.vaults.set_current(cur);
-        // A plan kept for the other key order is not written over, and
-        // nothing is written beside it.
-        if self.plan_refuses() {
-            return;
-        }
         // What the vault held before this backup first saved into it.
         let salt = self.vaults.open[cur].vault_id();
         if self

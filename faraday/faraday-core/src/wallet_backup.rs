@@ -1841,7 +1841,7 @@ impl Faraday {
                 {
                     return;
                 }
-                if self.plan_refuses() {
+                if self.plan_refuses(self.vaults.current, &[]) {
                     return;
                 }
                 self.backup_extras();
@@ -2247,7 +2247,7 @@ impl Faraday {
     /// done; the item now asks for typed words, and with those already
     /// checked it is done at once and the checklist moves on.
     pub(crate) fn keep_words_only(&mut self) {
-        if self.plan_refuses() {
+        if self.plan_refuses(self.vaults.current, &[]) {
             return;
         }
         let c = self.compute();
@@ -3464,21 +3464,25 @@ impl Faraday {
     /// refuses the whole save: a toast, nothing written in any vault, the
     /// board's note edits kept.
     pub(crate) fn plan_save(&mut self) -> bool {
+        self.plan_save_with(&[])
+    }
+
+    /// Costs what `plan_save` costs. `plan_save` for a caller that writes
+    /// into open vaults `extra` as well: a refusal in one of them refuses
+    /// the save too.
+    pub(crate) fn plan_save_with(&mut self, extra: &[usize]) -> bool {
         let c = self.compute();
-        if self.plan_save_refused(&c) {
+        if self.plan_save_refused(&c, self.vaults.current, extra) {
             self.toast(EN.plan_store_other_key_order);
             return false;
         }
         let Some(b) = self.backup.state() else {
             return false;
         };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
+        let vaults = self.plan_save_vaults(&c, self.vaults.current);
+        let Some((&v, others)) = vaults.split_first() else {
             return false;
         };
-        let v = self
-            .plan_vault_of(&c, w)
-            .filter(|_| self.vaults.open.get(self.vaults.current).is_some())
-            .unwrap_or(self.vaults.current);
         let (wi, answers, names, extras) = (
             b.wallet,
             b.answers.clone(),
@@ -3506,32 +3510,28 @@ impl Faraday {
         // And in each other open vault the wallet's flow keeps, so that
         // every vault holds the plan with its places' names
         // (`docs/BACKUP-FLOW.md` §15.7).
-        if let Some(i) = self.wallet_flow_of_backup() {
-            let others: Vec<usize> = (0..self.flows[i].plan.vaults.len())
-                .filter_map(|pv| self.flow_open_index(i, pv))
-                .filter(|&o| o != v)
-                .collect();
-            for o in others {
-                let notes = notes_in(self, o);
-                self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
-            }
+        for &o in others {
+            let notes = notes_in(self, o);
+            self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
         }
         true
     }
 
-    /// Costs what `plan_refused` costs, for each vault `plan_save` writes.
-    /// Whether a save of this flow's plan would be refused in any of them.
-    pub(crate) fn plan_save_refused(&self, c: &Compute) -> bool {
+    /// Costs what `plan_vault_of` costs. The open vaults a save of this
+    /// flow's plan writes, `current` being the current vault: the one that
+    /// keeps the plan, else `current`, first, then each other open vault
+    /// of the wallet's flow. Empty without a backup and its wallet.
+    pub(crate) fn plan_save_vaults(&self, c: &Compute, current: usize) -> Vec<usize> {
         let Some(b) = self.backup.state() else {
-            return false;
+            return Vec::new();
         };
         let Some(w) = self.session.wallets.get(b.wallet) else {
-            return false;
+            return Vec::new();
         };
         let v = self
             .plan_vault_of(c, w)
-            .filter(|_| self.vaults.open.get(self.vaults.current).is_some())
-            .unwrap_or(self.vaults.current);
+            .filter(|_| self.vaults.open.get(current).is_some())
+            .unwrap_or(current);
         let mut vaults = vec![v];
         if let Some(i) = self.wallet_flow_of_backup() {
             vaults.extend(
@@ -3541,16 +3541,33 @@ impl Faraday {
             );
         }
         vaults
+    }
+
+    /// Costs what `plan_refused` costs, for each vault `plan_save_vaults`
+    /// names and the open vaults `extra` that the caller writes into.
+    /// Whether a save of this flow's plan would be refused in any of them.
+    pub(crate) fn plan_save_refused(&self, c: &Compute, current: usize, extra: &[usize]) -> bool {
+        let Some(w) = self
+            .backup
+            .state()
+            .and_then(|b| self.session.wallets.get(b.wallet))
+        else {
+            return false;
+        };
+        let mut vaults = self.plan_save_vaults(c, current);
+        vaults.extend_from_slice(extra);
+        vaults
             .into_iter()
             .any(|o| self.vaults.plan_refused(c, o, w))
     }
 
     /// Costs what `plan_save_refused` costs. For a caller that writes
-    /// before it saves the plan: whether the save would be refused, said
-    /// with the toast, before anything is written.
-    pub(crate) fn plan_refuses(&mut self) -> bool {
+    /// before it saves the plan, into the open vaults `extra` too, with
+    /// `current` the current vault it writes in: whether the save would
+    /// be refused, said with the toast, before anything is written.
+    pub(crate) fn plan_refuses(&mut self, current: usize, extra: &[usize]) -> bool {
         let c = self.compute();
-        let refused = self.plan_save_refused(&c);
+        let refused = self.plan_save_refused(&c, current, extra);
         if refused {
             self.toast(EN.plan_store_other_key_order);
         }
