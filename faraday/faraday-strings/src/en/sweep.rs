@@ -518,6 +518,10 @@ macro_rules! words_sweep {
     mscheck_loaded: "A wallet loaded here",
     /// Check a multisig setup: the name of a setup read from a code.
     mscheck_scanned: "Scanned",
+    /// The source of a setup taken from Paste.
+    mscheck_pasted: "Pasted",
+    /// Faraday Demo's Paste on the Setup card.
+    mscheck_paste: "Paste",
     /// Check a multisig setup: a file of one key, listed dimmed.
     mscheck_one_key: "One key",
     /// Check a multisig setup: the line for a wallet of one key.

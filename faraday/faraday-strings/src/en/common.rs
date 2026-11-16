@@ -837,6 +837,14 @@ macro_rules! words_common {
     /// The mark on a Check row that works from the seed.
     check_seed: "Seed",
     /// A Check row.
+    check_row_seed: "My seed makes my wallet",
+    /// A Check row's line.
+    check_seed_line: "Its words, its passphrase and the wallet app",
+    /// A Check row.
+    check_row_multisig: "A multisig setup",
+    /// A Check row's line.
+    check_multisig_line: "The wallet's descriptor or setup file",
+    /// A Check row.
     check_row_address: "An address on its screen",
     /// A Check row's line.
     check_address_line: "The address and the wallet loaded here",

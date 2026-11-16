@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Home's Check tile in place of Vaults (F255), My seed makes my wallet's Check row and its Practice sample for the Seed card, Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in, Check a multisig setup (its row on the Check place and its Tools tile, and Faraday Demo's Paste)
+**Open:** Home's Check tile in place of Vaults (F255), Make a wallet at a path from an address check's find, and the BIP-85 child seed notice after a wallet made from Explore (Explore, Make a wallet at the path), a wallet of several keys confirmed on one sheet showing its keys however it comes in
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1799,13 +1799,12 @@ shows the fingerprints, the account's xpub and its first receive and
 change addresses, each whole. The person holds them against what the
 wallet app and the hardware wallet show. Nothing has to be typed or
 scanned from the wallet app to get a result. At the end the person drops
-the seed or keeps it loaded. Built but for the Check row (it opens from
-Tools now). Its screen
+the seed or keeps it loaded. Its screen
 is `docs/DESIGN.md` §5, My seed makes my wallet.
 
 | From | What opens it |
 |---|---|
-| Check | its first row, **My seed makes my wallet**: the Seed card open (not built: the Check screen is not) |
+| Check | its first row, **My seed makes my wallet**: the Seed card open |
 | Tools | the tile **My seed makes my wallet** in Keys and seeds, after **Explore a key**, its line "Seed words to its xpub and addresses", tags BIP-32, BIP-39, BIP-84: the same. Tools stays the list of every flow; Check is a second way in |
 
 It opens with nothing needed first, no key and no wallet. The screen is a

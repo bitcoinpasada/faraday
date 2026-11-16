@@ -906,6 +906,7 @@ impl Faraday {
         if self.entry_pasted(&text)
             || self.explore_pasted(&text)
             || crate::address_check::pasted(self, &text)
+            || crate::multisig_check::pasted(self, &text)
             || (!self.scan_pastes() && self.transfer_took(&text))
             || !self.scan_pastes()
         {

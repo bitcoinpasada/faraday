@@ -39,6 +39,8 @@ pub enum MsAction {
     Step(u8),
     /// The scanner.
     Scan,
+    /// Paste, on Faraday Demo: the clipboard's text is the setup.
+    Paste,
     /// This file of the Inbox, read as the setup.
     Inbox(usize),
     /// This wallet of the session, read as the setup.
@@ -431,6 +433,15 @@ pub(crate) fn act(app: &mut Faraday, action: MsAction) {
                 .commands
                 .push_back(faraday_shell_api::Command::CameraOn);
         }
+        MsAction::Paste => {
+            if paste_shown(app) {
+                app.out
+                    .commands
+                    .push_back(faraday_shell_api::Command::RequestClipboard {
+                        kind: faraday_shell_api::FileKind::Text,
+                    });
+            }
+        }
         MsAction::Inbox(k) => from_file(app, false, k),
         MsAction::FromFile(out, k) => {
             if app.screen != Screen::MultisigCheck {
@@ -522,6 +533,31 @@ pub(crate) fn scanned(app: &mut Faraday, bytes: &[u8]) -> bool {
         }
         Err(why) => app.scan_say(&why),
     }
+    true
+}
+
+/// Whether the Setup card hands out Paste: where the shell has a
+/// clipboard (Faraday Demo), with no sheet over the card. A lookup.
+pub(crate) fn paste_shown(app: &Faraday) -> bool {
+    app.clipboard
+        && app.sheet.is_none()
+        && app.screen == Screen::MultisigCheck
+        && state(app).is_some_and(|s| s.open == Some(mstep::SETUP))
+}
+
+/// Costs what [`check_text`] costs. The clipboard's text asked for by
+/// Paste on the Setup card, where no scanner asked: taken as the setup,
+/// or the line why it is not. Returns whether it was for the card.
+pub(crate) fn pasted(app: &mut Faraday, text: &str) -> bool {
+    if app.camera.scan().is_some() || !paste_shown(app) {
+        return false;
+    }
+    if text.trim().is_empty() {
+        return true;
+    }
+    let c = app.compute();
+    let result = check_text(app, &c, text);
+    take(app, Text::of(EN.mscheck_pasted), result);
     true
 }
 

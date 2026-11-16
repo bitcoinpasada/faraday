@@ -46,6 +46,8 @@ fn home_opens_check() {
 #[test]
 fn a_row_opens_its_tool_and_back_returns_to_check() {
     for (row, screen) in [
+        (Row::SeedCheck, Screen::SeedCheck),
+        (Row::Multisig, Screen::MultisigCheck),
         (Row::Signed, Screen::SignerCheck),
         (Row::Child, Screen::Check),
         (Row::Dice, Screen::KeyGen),
@@ -82,22 +84,34 @@ fn a_backup_in_another_form_offers_its_forms() {
     assert_eq!(app.screen, Screen::Check);
 }
 
-/// The list shows the rows whose tools are built, and none for a tool
-/// that is not.
+/// The list shows its rows in order, My seed makes my wallet first and
+/// A multisig setup the seventh.
 #[test]
-fn the_list_draws_built_rows_only() {
-    let mut app = shown_at(1400);
+fn the_list_draws_its_rows_in_order() {
+    let mut app = shown_at(1800);
     app.press(Action::Nav(Screen::Check));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    for want in [
+    let at = |want: &str| {
+        texts
+            .iter()
+            .position(|t| t == want)
+            .unwrap_or_else(|| panic!("{want}: {texts:?}"))
+    };
+    let order = [
+        "My seed makes my wallet",
         "An address on its screen",
+        "A transaction before signing",
+        "What it signed",
+        "Its signatures hide nothing",
+        "A seed made from dice rolls",
+        "A multisig setup",
         "A backup in another form",
+        "A signed message",
+        "Child seeds",
         "An xpub's other spellings",
-    ] {
-        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
-    }
-    for not in ["A multisig setup", "My seed makes my wallet"] {
-        assert!(!texts.iter().any(|t| t == not), "{not} is not built");
+    ];
+    for w in order.windows(2) {
+        assert!(at(w[0]) < at(w[1]), "{} before {}", w[0], w[1]);
     }
 }

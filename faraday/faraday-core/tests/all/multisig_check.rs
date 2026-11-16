@@ -31,6 +31,51 @@ fn scanned(text: &str) -> Faraday {
     app
 }
 
+/// Paste on the Setup card, the clipboard holding `text`; with no
+/// clipboard, whether the card offers it.
+fn pasted(text: &str) -> Faraday {
+    let mut app = testkit::started();
+    app.clipboard = true;
+    app.press(Action::MultisigCheck(M::Open));
+    app.press(Action::MultisigCheck(M::Paste));
+    let asked = std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, faraday_shell_api::Command::RequestClipboard { .. }));
+    assert!(asked, "Paste did not ask for the clipboard");
+    app.event(Event::Clipboard {
+        kind: faraday_shell_api::FileKind::Text,
+        text: faraday_text::Text::of(text),
+    });
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn on_faraday_demo_pasting_a_descriptor_shows_it_as_a_scanned_one_is() {
+    let d = kit("savings");
+    let mut app = pasted(d.split('#').next().unwrap());
+    assert!(has_part(&mut app, "2 of 3 · native SegWit multisig"));
+    assert!(has_part(&mut app, "Pasted"));
+    assert!(app.session.wallets.is_empty());
+}
+
+#[test]
+fn on_faraday_demo_pasting_a_wallet_of_one_key_is_refused_on_the_card() {
+    let mut app = pasted("not a wallet");
+    assert!(has_part(&mut app, "Setup"));
+    assert!(!has_part(&mut app, "Descriptor checksum"));
+}
+
+#[test]
+fn without_a_clipboard_the_setup_card_has_no_paste() {
+    let mut app = testkit::started();
+    app.press(Action::MultisigCheck(M::Open));
+    app.press(Action::MultisigCheck(M::Paste));
+    assert!(
+        std::iter::from_fn(|| app.poll_command())
+            .all(|c| !matches!(c, faraday_shell_api::Command::RequestClipboard { .. }))
+    );
+}
+
 fn checksummed(descriptor: &str) -> String {
     let c = testkit::compute();
     WalletPolicy::parse_any(&c, descriptor)

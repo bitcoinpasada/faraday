@@ -80,6 +80,9 @@ fn setup(app: &View, s: &MsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
     if super::sample_shown(app) {
         crate::samples::put::offer(ui, Action::UseSample);
     }
+    if super::paste_shown(app) {
+        ui.demo_offer(EN.mscheck_paste, Action::MultisigCheck(M::Paste));
+    }
     ui.button(
         x,
         y,

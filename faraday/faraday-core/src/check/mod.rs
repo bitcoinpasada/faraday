@@ -12,6 +12,10 @@ use crate::{Action, Faraday, Sheet};
 /// A row of the list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Row {
+    /// A seed against the wallet app: My seed makes my wallet.
+    SeedCheck,
+    /// A multisig wallet's setup: Check a multisig setup.
+    Multisig,
     /// An address on its screen: Check an address.
     Address,
     /// A transaction before signing: Decode a transaction.
@@ -79,16 +83,24 @@ pub(crate) struct Item {
 }
 
 /// The groups in order, each with its rows. A row whose tool is not built
-/// is not here: the seed check and the multisig setup check.
+/// is not here.
 pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
     (
         EN.check_group_wallet,
-        &[Item {
-            label: EN.check_row_address,
-            line: EN.check_address_line,
-            seed: false,
-            row: Row::Address,
-        }],
+        &[
+            Item {
+                label: EN.check_row_seed,
+                line: EN.check_seed_line,
+                seed: true,
+                row: Row::SeedCheck,
+            },
+            Item {
+                label: EN.check_row_address,
+                line: EN.check_address_line,
+                seed: false,
+                row: Row::Address,
+            },
+        ],
     ),
     (
         EN.check_group_signing,
@@ -121,6 +133,12 @@ pub(crate) const GROUPS: [(&str, &[Item]); 4] = [
                 line: EN.check_dice_line,
                 seed: true,
                 row: Row::Dice,
+            },
+            Item {
+                label: EN.check_row_multisig,
+                line: EN.check_multisig_line,
+                seed: false,
+                row: Row::Multisig,
             },
             Item {
                 label: EN.check_backup,
@@ -163,6 +181,8 @@ pub(crate) fn press(app: &mut Faraday, p: Press) {
         Press::Row(r) => tile(
             app,
             match r {
+                Row::SeedCheck => Go::SeedCheck,
+                Row::Multisig => Go::MultisigCheck,
                 Row::Address => Go::CheckAddress,
                 Row::Transaction => Go::Decode,
                 Row::Signed => Go::SignerCheck,
