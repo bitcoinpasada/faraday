@@ -5,7 +5,7 @@
 **Starter page:** `Appearance`
 **Key:** starter-appearance
 
-The scheme the Starter's pages are drawn in, and Faraday Demo with them. It opens in Cobalt at Standard contrast, Light or Dark as this computer is set, and a choice lasts until the Starter closes.
+Appearance sets the scheme the Starter's pages are drawn in, and Faraday Demo with them. It opens in Cobalt at Standard contrast, in Light or Dark as this computer is set, and your choice lasts until the Starter closes.
 
 ## Appearance
 

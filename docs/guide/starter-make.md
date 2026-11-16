@@ -5,7 +5,7 @@
 **Starter page:** `Make`
 **Key:** starter-make
 
-Make writes a Faraday image onto a disk, in two cards: a Faraday stick and a Pi card. Each button opens the disks.
+Make writes a Faraday image onto a disk, and has two cards: a Faraday stick and a Pi card. Each button opens the disks.
 
 ## Faraday stick
 

@@ -5,7 +5,7 @@
 **Starter page:** `Templates`, `TemplateWords`, `TemplateCopy`, `TemplatePlaces`, `TemplateForm`, `TemplateLength`, `TemplateWorksheets`, `TemplateSize`
 **Key:** starter-templates
 
-A sheet to copy a seed onto by hand, made with no wallet, key or seed. Each row opens the page of its choices, which goes back with **Continue**.
+A blank template is a sheet you copy a seed onto by hand, made with no wallet, key or seed. Each row opens the page of its choices, and **Continue** goes back.
 
 ## Blank templates
 
@@ -23,7 +23,7 @@ The rows depend on **Form**. **Print** opens the sheet as a PDF in this computer
 
 **Key:** starter-templates.template-words
 
-The number of words of the seed, **12** or **24**, 24 at first.
+The number of words of the seed, **12** or **24**, it starts at 24.
 
 ## Copy
 
@@ -53,4 +53,4 @@ The Krux code's side in squares: **25 × 25**, **29 × 29**, **33 × 33** or **3
 
 **Key:** starter-templates.template-places
 
-How many places the sheet has to write in, 2 at first. **Fewer** and **More** change it between 1 and 13.
+How many places the sheet has to write in, it starts at 2. **Fewer** and **More** change it between 1 and 13.
