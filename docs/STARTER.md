@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a Pi card (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a Pi card (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
 Decided by the owner (`docs/DECISIONS.md` F11; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -2215,19 +2215,21 @@ required, and nothing in the app that nudges or warns:
   release it was made against: another release in its place shows no line
   until the stick is judged again. A check the person declines or the disk
   refuses says why on Make's stick card, for that stick only; a release the
-  elevated copy cannot judge a stick against (a developer's full image) says
-  so there, reads as no match, and the button is not offered again for that
-  stick and release. Malware on the same computer can defeat the check too.
+  elevated copy cannot judge a stick against (one whose boot sum it cannot
+  work out from its arguments) says so there, reads as no match, and the
+  button is not offered again for that stick and release. Malware on the same computer can defeat the check too.
 - **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
   may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
   Secure Boot off from the release's unsigned boot file, and no key is
-  required.
+  required. The way to do it is the one §4.5 calls "One I signed" and
+  `docs/guide/secure-boot-keys.md` walks through; a guide per maker for
+  adding a key beside Microsoft's is keeping Secure Boot on (§7.7).
 
 The guide suggests a second plain stick or QR codes for anyone who
 wants the boot stick kept offline (`docs/guide/start/replace-faraday.md`).
 
 **Open:** the check of a Pi card, whose line in the image list carries
-its sum; the guide for own-key signing (§7.7).
+its sum.
 
 ## 11. Tests
 
