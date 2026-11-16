@@ -15,11 +15,11 @@ On Linux, have the disk's passphrase or recovery key ready if it is unlocked by 
 
 3. When the Lenovo or ThinkPad logo appears, tap F1 repeatedly.
 
-If it doesn't open: press Enter at the logo, then F1 in the Startup Interrupt Menu, or use Faraday Starter's Restart into the BIOS.
+If it doesn't open, press Enter at the logo, then F1 in the Startup Interrupt Menu, or use Faraday Starter's Restart into the BIOS.
 
 4. Look for the menu named Security in the list, then the page named Secure Boot, and set Secure Boot to Disabled (Off on some models). Press F10 and choose Yes to save and restart; Restart → Exit Saving Changes does the same.
 
-If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+If you cannot find the Secure Boot setting, exit the BIOS without saving changes. Windows starts as before.
 
 ## The Secure Boot page
 
@@ -45,11 +45,11 @@ If Secure Boot shows Disabled and cannot be changed: Secure Boot Mode is Setup M
 
 ## If something is different
 
-The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+Windows asks for the BitLocker recovery key if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
 
 ## If the stick is not listed
 
-Stick not in the F12 list: Lenovo's ThinkPad articles do not describe a setting that hides USB disks from the boot menu.
+If the stick is not in the F12 list: Lenovo's ThinkPad articles do not describe a setting that hides USB disks from the boot menu.
 
 Menu names differ between models and BIOS versions. The menu named Startup holds the boot settings; Secure Boot is under Security.
 

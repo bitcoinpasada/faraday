@@ -21,7 +21,7 @@ On an HP desktop, F10 at power-on opens Computer Setup directly. Faraday Starter
 
 Business notebooks and workstations: look for the tab named Security, then Secure Boot Configuration, and clear the Secure Boot box. Then, on the Main tab, choose Save Changes and Exit.
 
-If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+If you cannot find the Secure Boot setting, exit the BIOS without saving changes. Windows starts as before.
 
 ## Older models and desktops
 
@@ -45,7 +45,7 @@ Business computers show it on a page titled Secure boot.
 
 Pressing F9 repeatedly at power-on also opens Boot Device Options.
 
-If the stick is not listed: see "If the stick is not listed" below.
+If the stick is not listed, see "If the stick is not listed" below.
 
 ## Afterwards
 
@@ -57,11 +57,11 @@ If Secure Boot does not stay on, on business computers: Security → Secure Boot
 
 ## If something is different
 
-The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+Windows asks for the BitLocker recovery key if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Before the restart, Faraday Starter's Temporarily suspend BitLocker suspends it for the next 3 starts, after which Windows turns it back on by itself. You can find the key at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off, turn the computer off and turn Secure Boot back on; Windows then starts without the key.
 
 ## If the stick is not listed
 
-Stick not in the F9 list: on consumer notebooks, look for USB Boot on the Boot Options tab and set it to Enabled. On business computers, look for USB Storage Boot under Advanced → Boot Options and tick it; the Fast Boot box beside it can stay as it is. HP's documents do not describe a Fast Boot setting that hides USB disks.
+If the stick is not in the F9 list, then on consumer notebooks look for USB Boot on the Boot Options tab and set it to Enabled. On business computers, look for USB Storage Boot under Advanced → Boot Options and tick it; the Fast Boot box beside it can stay as it is. HP's documents do not describe a Fast Boot setting that hides USB disks.
 
 Clear All Secure Boot Keys, on the same tab as Secure Boot on consumer notebooks: do not use it. The stick needs Secure Boot off, not its keys removed.
 
