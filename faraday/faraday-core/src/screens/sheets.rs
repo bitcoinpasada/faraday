@@ -760,6 +760,16 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// The scanner's samples go in the "Demo only" card (`docs/DEMO.md` §14).
+fn scan_demo_offers(app: &View, ui: &mut Ui) {
+    if app.scan_sample_offered() {
+        ui.demo_offer(app.scan_sample_label(), Action::ScanSample);
+    }
+    if app.scan_sample_elsewhere_offered() {
+        ui.demo_offer(EN.scan_sample_signed_elsewhere, Action::ScanSampleElsewhere);
+    }
+}
+
 pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(sc) = app.scan() else { return };
     let pad = if ui.compact { 16.0 } else { 32.0 };
@@ -835,14 +845,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h + never_h;
     let typing = for_wallet.is_some() || (intake && app.may_load_keys());
     let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
-    // The scanner's sample goes in the "Demo only" card (`docs/DEMO.md`
-    // §14).
-    if app.scan_sample_offered() {
-        ui.demo_offer(app.scan_sample_label(), Action::ScanSample);
-    }
-    if app.scan_sample_elsewhere_offered() {
-        ui.demo_offer(EN.scan_sample_signed_elsewhere, Action::ScanSampleElsewhere);
-    }
+    scan_demo_offers(app, ui);
     let extra = rows + keys_h + type_row;
     // The title, then the picture: the state line is inside it.
     let top = 56.0;
