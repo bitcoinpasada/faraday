@@ -203,6 +203,34 @@ pub fn read_chosen(file: &BootFile) -> Result<Vec<u8>, Reason> {
     Ok(signed)
 }
 
+/// Costs a decompression of the whole image `job` holds, a read of its
+/// boot file and of `stick`'s, and [`build`]: whether `stick`, a boot
+/// partition read from a stick, is the release's own with only its boot
+/// file replaced by one signed for this release, as a keep data write
+/// of a signed boot file leaves it (`prepare`). `false` for anything else,
+/// or when the release's partition cannot be read.
+pub fn is_release_signed(job: &Job, stick: &[u8]) -> bool {
+    let Ok((_, partition)) = writer::boot_partition(&job.source()) else {
+        return false;
+    };
+    let Ok(program) = release_file(&partition) else {
+        return false;
+    };
+    let Ok(mut on_stick) = faraday_fat::Volume::open(stick.to_vec()) else {
+        return false;
+    };
+    let Ok(signed) = on_stick.read_in(&BOOT_PATH, MAX_BOOT_FILE as u32) else {
+        return false;
+    };
+    let Ok((built, _)) = build(&program, &signed) else {
+        return false;
+    };
+    let Ok(mut release) = faraday_fat::Volume::open(partition) else {
+        return false;
+    };
+    release.rewrite_in(&BOOT_PATH, &built).is_ok() && release.into_disk() == stick
+}
+
 /// Costs a SHA-256 of `signed`, a decompression of the whole source,
 /// its SHA-256 and [`build`]: the writer's own check of the boot file's
 /// bytes the order names (`file.sha256`), made before the disk is touched, and the boot partition

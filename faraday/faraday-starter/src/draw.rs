@@ -926,6 +926,26 @@ fn item_label(starter: &Starter, item: Item) -> &'static str {
     }
 }
 
+/// What the stick's boot partition is against the release, in a line.
+pub(crate) fn boot_text(check: crate::decide::BootCheck) -> &'static str {
+    use crate::decide::BootCheck;
+    match check {
+        BootCheck::Matches => S.starter_stick_boot_matches,
+        BootCheck::MatchesSigned => S.starter_stick_boot_signed,
+        BootCheck::Differs => S.starter_stick_boot_differs,
+    }
+}
+
+/// The tone of [`boot_text`]: a boot partition that is not the release's
+/// is a warning.
+pub(crate) fn boot_tone(check: crate::decide::BootCheck) -> Role {
+    if check == crate::decide::BootCheck::Differs {
+        Role::Warning
+    } else {
+        Role::OnSurfaceVariant
+    }
+}
+
 /// What a state reads as.
 fn state_text(state: &State) -> String {
     match state {

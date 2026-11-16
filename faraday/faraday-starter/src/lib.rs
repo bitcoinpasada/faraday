@@ -707,6 +707,10 @@ pub struct Image {
 /// string, and the SHA-256 of the partition, when each could be read.
 type VersionRead = (Option<String>, Option<String>);
 
+/// A stick's boot partition as the shell read it: disk id, serial, size
+/// and SHA-256.
+type BootKey = (String, String, u64, String);
+
 /// The Starter.
 pub struct Starter {
     canvas: Option<Canvas>,
@@ -777,6 +781,12 @@ pub struct Starter {
     /// The window was asked to close during the write: the shell holds
     /// the close until the write ends, and the Writing page says so.
     close_held: bool,
+    /// What the shell judged of boot partitions that differ from the
+    /// release's (§10.4), by disk id, serial, size and the partition's
+    /// SHA-256: whether each is the release's with a signed boot file.
+    boot_judged: Vec<(BootKey, bool)>,
+    /// The boot partitions whose judgement is asked and not yet answered.
+    boot_judging: Vec<BootKey>,
     /// A version read asked before the write, still to arrive: what it
     /// reads is the stick before the write, so it is dropped.
     version_stale: Option<String>,
@@ -942,6 +952,8 @@ impl Starter {
             versions: Vec::new(),
             writing: false,
             close_held: false,
+            boot_judged: Vec::new(),
+            boot_judging: Vec::new(),
             version_stale: None,
             version_reading: None,
             version_failed: None,
@@ -1486,6 +1498,7 @@ impl Starter {
                 }
                 self.shell_disks = d;
                 self.apply_versions();
+                self.judge_boots();
                 // A disk pulled out before Confirm is no longer chosen.
                 if let Some(m) = self.making.as_mut()
                     && m.confirmed.is_none()
@@ -1499,6 +1512,19 @@ impl Starter {
                         self.page = Page::Disks;
                     }
                 }
+            }
+            StarterEvent::BootJudged {
+                disk,
+                serial,
+                size,
+                sha256,
+                signed,
+            } => {
+                let key = (disk, serial, size, sha256);
+                self.boot_judging.retain(|k| *k != key);
+                self.boot_judged.retain(|(k, _)| *k != key);
+                self.boot_judged.push((key, signed));
+                self.dirty = true;
             }
             StarterEvent::DevImage(d) => self.dev = Some(d),
             StarterEvent::ImagesWanted(n) => self.images_wanted(n),

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick each time it is seen, on every system (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); the boot-partition check of a stick on Windows and of a Pi card (§10.4); signing with the person's own key as an option (§10.4); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4)
 
 Decided by the owner (`docs/DECISIONS.md` F11; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -2184,17 +2184,25 @@ malware on an online computer it was plugged into (`docs/SECURITY-MODEL.md`,
 "What this does not defend against"). Two protections, neither
 required, and nothing in the app that nudges or warns:
 
-- **The check.** Each time the Starter sees a Faraday stick it compares
-  the boot partition with the release it carries and shows a match line
-  or a mismatch line with the rewrite offered. On Windows the partition
-  is an EFI system partition with no letter, so the sum is read by the
-  elevated copy behind a **Check this stick** button, one administrator
-  prompt. A Pi card needs its boot partition's sum in the image list.
-  The read runs in a worker thread, so the start stays instant, and the
-  data partition is never read. A boot file the person signed reads
-  "matches, except the boot file you signed" (§4.5), and a stick after an
-  interrupted keep-data write is judged as §4.4 says. Malware on the
-  same computer can defeat the check too.
+- **The check.** Each time the Starter sees a Faraday stick on Linux it
+  compares the boot partition with the release it carries and shows, on
+  Home's Make a Faraday stick row and on Make's stick card, a match line
+  or a mismatch line that names the rewrite (Replace Faraday, keep
+  data). The boot partition is read while the disks are listed, in the
+  worker thread, so the start stays instant, and the data partition is
+  never mounted or read. A stick whose partition differs is read once
+  more in a thread of its own and judged as §4.5 writes it
+  (`faraday/shells/starter/src/signed.rs`, `is_release_signed`): a
+  partition that is the release's with only a boot file signed for this
+  release in its place reads "matches, except the boot file you signed"; any other difference, an interrupted keep-data write
+  included (§4.4), is the mismatch line. The decision takes the listed
+  image's boot sum as an option for every image kind
+  (`faraday-starter/src/decide.rs`, `boot_check`): with none listed,
+  no line is shown. On Windows the partition is an EFI system partition
+  with no letter, so the sum is read by the elevated copy behind a
+  **Check this stick** button, one administrator prompt, and shows no
+  line until that is built. Malware on the same computer can defeat the
+  check too.
 - **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
   may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
   Secure Boot off from the release's unsigned boot file, and no key is
@@ -2203,7 +2211,9 @@ required, and nothing in the app that nudges or warns:
 The guide suggests a second plain stick or QR codes for anyone who
 wants the boot stick kept offline (`docs/guide/start/replace-faraday.md`).
 
-**Open:** the check is not built, on any system; the guide for own-key signing (§7.7).
+**Open:** the check on Windows (the **Check this stick** button) and of
+a Pi card, whose line in the image list carries its sum; the guide for
+own-key signing (§7.7).
 
 ## 11. Tests
 
@@ -2223,7 +2233,9 @@ drawing Home and the held Transfer larger, kept by an installed
 Starter and opened at again, and written by no run without an install
 (`faraday/faraday-starter/tests/all/text_size.rs`); the firmware steps closed by another encryption product
 until its rescue is confirmed; F33's and F49's tests; the
-guide chosen for a maker string; an image that does not match
+guide chosen for a maker string; a stick's boot partition against the
+release each time it is seen (the match line, the mismatch line, a boot
+file the person signed, no line without a listed sum); an image that does not match
 its line in the list refused; the stick's power-off line for each Secure Boot
 byte.
 

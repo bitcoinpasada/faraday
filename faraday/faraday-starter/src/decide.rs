@@ -203,6 +203,44 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>, boot_sha256: Option<
     }
 }
 
+/// What the boot partition of a Faraday stick is, against the release the
+/// Starter carries (§10.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootCheck {
+    /// Exactly the release's boot partition.
+    Matches,
+    /// The release's, except the boot file the person signed (§4.5).
+    MatchesSigned,
+    /// Not the release's: an older or changed boot partition, or one left
+    /// by a write that did not end (§4.4).
+    Differs,
+}
+
+/// Judges `stick`'s boot partition against the listed image's boot sum
+/// `want`, whatever the image's kind. `None` when nothing can be said:
+/// no sum listed (a Pi card's line has none), the stick's partition not
+/// read, or it differs and `signed` (whether it is the release's with a
+/// signed boot file, [`crate::api::StarterEvent::BootJudged`]) is not
+/// answered yet.
+pub fn boot_check(
+    stick: &FaradayStick,
+    want: Option<&str>,
+    signed: Option<bool>,
+) -> Option<BootCheck> {
+    if boot_is(stick, want) {
+        return Some(BootCheck::Matches);
+    }
+    want?;
+    stick.boot_sha256.as_ref()?;
+    signed.map(|s| {
+        if s {
+            BootCheck::MatchesSigned
+        } else {
+            BootCheck::Differs
+        }
+    })
+}
+
 /// Whether the boot partition read from `stick` is the one with SHA-256
 /// `want`: both known and equal.
 fn boot_is(stick: &FaradayStick, want: Option<&str>) -> bool {
@@ -254,6 +292,78 @@ impl crate::Starter {
             .is_some_and(|stick| {
                 keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref()) == Fit::Newer
             })
+    }
+}
+
+impl crate::Starter {
+    /// The first Faraday stick's boot partition against the release this
+    /// Starter would write (§10.4); on Linux only, where it is read while
+    /// listing the disks. A lookup.
+    pub fn boot_check(&self) -> Option<BootCheck> {
+        if self.computer.os != Os::Linux {
+            return None;
+        }
+        let facts = self.facts();
+        let disk = facts.stick()?;
+        let f = disk.faraday.as_ref()?;
+        let image = self.image(Target::Stick)?;
+        let signed = f
+            .boot_sha256
+            .as_ref()
+            .and_then(|sum| self.boot_judgement(disk, sum));
+        boot_check(f, image.boot_sha256.as_deref(), signed)
+    }
+
+    /// What the shell judged of `disk`'s boot partition with SHA-256 `sum`.
+    fn boot_judgement(&self, disk: &Disk, sum: &str) -> Option<bool> {
+        self.boot_judged
+            .iter()
+            .find(|((id, serial, size, s), _)| {
+                *id == disk.id && *serial == disk.serial && *size == disk.size && s == sum
+            })
+            .map(|(_, signed)| *signed)
+    }
+
+    /// Asks the shell, once per boot partition read, whether each Faraday
+    /// stick whose boot partition is not the release's is the release's
+    /// with a boot file the person signed (§10.4). The shell reads it in
+    /// a thread of its own; the data partition is never read.
+    pub(crate) fn judge_boots(&mut self) {
+        if self.computer.os != Os::Linux {
+            return;
+        }
+        let Some(image) = self.image(Target::Stick) else {
+            return;
+        };
+        let Some(want) = image.boot_sha256.as_deref() else {
+            return;
+        };
+        let mut asks = Vec::new();
+        for d in &self.disks {
+            let Some(f) = d.faraday.as_ref() else {
+                continue;
+            };
+            let Some(sum) = f.boot_sha256.as_deref() else {
+                continue;
+            };
+            if boot_is(f, Some(want)) || self.boot_judgement(d, sum).is_some() {
+                continue;
+            }
+            let key = (d.id.clone(), d.serial.clone(), d.size, sum.to_string());
+            if !self.boot_judging.contains(&key) {
+                asks.push(key);
+            }
+        }
+        for key in asks {
+            self.out.push_back(crate::api::StarterCommand::JudgeBoot {
+                disk: key.0.clone(),
+                serial: key.1.clone(),
+                size: key.2,
+                sha256: key.3.clone(),
+                source: image.source.clone(),
+            });
+            self.boot_judging.push(key);
+        }
     }
 }
 

@@ -818,6 +818,23 @@ pub enum StarterEvent {
         /// The files.
         files: Vec<String>,
     },
+    /// [`StarterCommand::JudgeBoot`] answered: whether the boot partition
+    /// the shell read from the stick is the one the command named and the
+    /// release's with only the boot file the person signed in its place
+    /// (§4.5, §10.4); `false` when it could not be read or is another.
+    BootJudged {
+        /// The disk, as the command named it.
+        disk: String,
+        /// Its serial, as the command named it.
+        serial: String,
+        /// Its size, as the command named it.
+        size: u64,
+        /// The SHA-256 of the partition, hex, as the command named it.
+        sha256: String,
+        /// The read partition is the named one and the release's with a
+        /// signed boot file.
+        signed: bool,
+    },
     /// [`StarterCommand::CheckBootFile`] answered: the file as the order
     /// names it and who signed it, or why it is refused (§4.5, F133).
     BootFileChecked {
@@ -1076,6 +1093,22 @@ pub enum StarterCommand {
     /// write's "One I signed" (§4.5); answered by
     /// [`StarterEvent::BootFiles`].
     ListBootFiles,
+    /// Read the boot partition of the Faraday stick `disk` again and say
+    /// whether it is `source`'s release with a signed boot file (§10.4,
+    /// §4.5). Asked only for a stick whose boot partition differs from the
+    /// release's; answered by [`StarterEvent::BootJudged`].
+    JudgeBoot {
+        /// The disk, as listed.
+        disk: String,
+        /// Its serial.
+        serial: String,
+        /// Its size.
+        size: u64,
+        /// The SHA-256 of its boot partition as listed, hex.
+        sha256: String,
+        /// The release the stick is compared with.
+        source: Source,
+    },
     /// Check the file at `path` against the boot file `source` carries
     /// (§4.5, F133): the release's own program, signed. Answered by
     /// [`StarterEvent::BootFileChecked`].

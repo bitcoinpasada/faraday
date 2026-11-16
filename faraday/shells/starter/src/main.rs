@@ -482,6 +482,36 @@ impl Shell {
                     let _ = tx.send(StarterEvent::ImagesFound(finder.answer(&folder, &dropped)));
                 });
             }
+            StarterCommand::JudgeBoot {
+                disk,
+                serial,
+                size,
+                sha256,
+                source,
+            } => {
+                let (system, tx) = self.threaded();
+                let job = self.job(&source);
+                std::thread::spawn(move || {
+                    // A partition not read, or changed since it was
+                    // listed, is answered as not signed: the listed one
+                    // already differs from the release's.
+                    let read = system.read_boot_partition(&disk, &serial, size);
+                    let signed = match (read, job) {
+                        (Some(bytes), Some(job)) => {
+                            signed::sha256(&bytes) == sha256
+                                && signed::is_release_signed(&job, &bytes)
+                        }
+                        _ => false,
+                    };
+                    let _ = tx.send(StarterEvent::BootJudged {
+                        disk,
+                        serial,
+                        size,
+                        sha256,
+                        signed,
+                    });
+                });
+            }
             StarterCommand::CheckBootFile { path, source } => {
                 let (tx, job) = (self.tx.clone(), self.job(&source));
                 std::thread::spawn(move || {

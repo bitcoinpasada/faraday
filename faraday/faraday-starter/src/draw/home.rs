@@ -411,8 +411,21 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
         y += ROW_H;
+        let under = w - 44.0;
+        if row.item == Item::MakeStick
+            && let Some(check) = starter.boot_check()
+        {
+            y += super::line(
+                ui,
+                tx,
+                y,
+                under,
+                super::boot_text(check),
+                super::boot_tone(check),
+            );
+        }
         if row.item == Item::SecureBootOn {
-            y += link(ui, tx, y, w - 44.0, StartGuide::SecureBootBitLocker);
+            y += link(ui, tx, y, under, StartGuide::SecureBootBitLocker);
         }
         ui.rule(x, y, w, Role::OutlineVariant);
     }
@@ -454,6 +467,14 @@ fn stick_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let attached = row.is_some_and(|r| r.done);
     let mut y = y0;
     y += card_line(ui, (x, y, w), &line, Role::OnSurfaceVariant);
+    if let Some(check) = starter.boot_check() {
+        y += card_line(
+            ui,
+            (x, y, w),
+            super::boot_text(check),
+            super::boot_tone(check),
+        );
+    }
     y += GAP;
     let style = if attached {
         Style::Secondary

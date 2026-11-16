@@ -113,6 +113,16 @@ pub trait Platform: Send + Sync {
         Err(Reason::Unsupported)
     }
 
+    /// The boot partition of the Faraday stick `disk` (serial `serial`,
+    /// `size` bytes, as listed), read as it is now, read-only, for the
+    /// check of it against the release (Linux). `None` when it cannot be
+    /// read. The data partition is never opened. Windows reads it through
+    /// the elevated copy instead.
+    fn read_boot_partition(&self, disk: &str, serial: &str, size: u64) -> Option<Vec<u8>> {
+        let _ = (disk, serial, size);
+        None
+    }
+
     /// The Starter is exiting: on Windows an uninstall run from the
     /// installed copy leaves its last step for now (§5.4).
     fn exiting(&self) {}

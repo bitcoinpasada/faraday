@@ -206,6 +206,7 @@ impl Starter {
     pub(crate) fn images_event(&mut self, event: StarterEvent) {
         if let StarterEvent::ImagesFound(findings) = event {
             self.found.findings = findings;
+            self.judge_boots();
             self.dirty = true;
         }
     }

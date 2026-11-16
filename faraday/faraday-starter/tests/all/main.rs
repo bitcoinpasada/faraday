@@ -2,6 +2,7 @@
 
 mod appearance;
 mod bitlocker;
+mod boot_check;
 mod boot_file;
 mod budget;
 mod clear_first;

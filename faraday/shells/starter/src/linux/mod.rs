@@ -85,6 +85,17 @@ impl Platform for Linux {
         });
     }
 
+    fn read_boot_partition(&self, disk: &str, serial: &str, size: u64) -> Option<Vec<u8>> {
+        let mut bus = bus::Bus::connect().ok()?;
+        let objects = bus.objects().ok()?;
+        let boot = objects
+            .disks()
+            .into_iter()
+            .find(|f| f.disk.id == disk && f.disk.serial == serial && f.disk.size == size)?
+            .boot?;
+        boot_bytes(&mut bus, &boot)
+    }
+
     fn restart_into_firmware(&self) -> Result<(), Reason> {
         let out = std::process::Command::new("systemctl")
             .args(["reboot", "--firmware-setup"])
@@ -286,6 +297,19 @@ fn boot_sum<U: Udisks + ?Sized>(bus: &mut U, boot: &udisks::BootPart) -> Option<
         }
     }
     Some(faraday_payload::Sha256Sum(sum.finalize().into()).to_string())
+}
+
+/// Costs a read of the whole boot partition, at most
+/// `faraday_boot::MAX_PARTITION` bytes: the partition's block opened
+/// read-only. `None` when it could not be read or is larger.
+fn boot_bytes<U: Udisks + ?Sized>(bus: &mut U, boot: &udisks::BootPart) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let f = bus.open(&boot.object, Open::Read).ok()?;
+    let mut bytes = Vec::new();
+    f.take(faraday_boot::MAX_PARTITION + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    (bytes.len() as u64 <= faraday_boot::MAX_PARTITION).then_some(bytes)
 }
 
 fn read_version<U: Udisks + ?Sized>(bus: &mut U, boot: &udisks::BootPart) -> Option<String> {

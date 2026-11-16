@@ -607,3 +607,40 @@ fn keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unle
     let order = keep_data(&disk, source, Some(chosen));
     assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
 }
+
+/// What the Starter says of a stick it sees (`docs/STARTER.md` §10.4): a
+/// boot partition written with a boot file the person signed is the
+/// release's except that file; the release's own, one with a byte changed
+/// and one with another program signed are not.
+#[test]
+fn a_stick_written_with_a_signed_boot_file_is_judged_the_releases_except_that_file() {
+    let release_efi = release_program();
+    let (job, source) = release(&release_efi);
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let path = file("judged.efi", &signed);
+    let (chosen, _) = signed::choose(&path, &job).expect("taken");
+    let (stick, _) = old_stick("judged");
+    let mut disk = FileDisk::new(&stick);
+    let order = keep_data(&disk, source, Some(chosen));
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let (from, to) = boot_range();
+    let written = read(&stick, from as u64, to - from);
+    assert!(signed::is_release_signed(&job, &written));
+
+    // The release's own partition has no signed file in it.
+    let image = release_image(&release_efi);
+    let release_boot = image.bytes(from as u64, to - from);
+    assert!(!signed::is_release_signed(&job, &release_boot));
+
+    // One byte changed beside the boot file.
+    let mut changed = written.clone();
+    let last = changed.len() - 1;
+    changed[last] ^= 1;
+    assert!(!signed::is_release_signed(&job, &changed));
+
+    // Another program signed in the release's place.
+    let (other, _) = signed_by_test_key(&program(9, 20_000));
+    let mut v = Volume::open(release_boot).expect("a FAT32 boot partition");
+    v.rewrite_in(&BOOT_PATH, &other).expect("written");
+    assert!(!signed::is_release_signed(&job, &v.into_disk()));
+}

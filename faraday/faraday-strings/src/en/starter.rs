@@ -124,6 +124,13 @@ macro_rules! words_starter {
     starter_state_no_stick: "No Faraday stick attached",
     /// Make a Faraday stick's state: `{}` the version.
     starter_state_stick: "Faraday stick attached · {}",
+    /// The attached stick's boot partition is the release's.
+    starter_stick_boot_matches: "Boot partition matches this release",
+    /// The attached stick's boot partition is the release's except the
+    /// boot file the person signed (§4.5).
+    starter_stick_boot_signed: "Boot partition matches this release, except the boot file you signed",
+    /// The attached stick's boot partition is not the release's.
+    starter_stick_boot_differs: "Boot partition is not this release's. Write it again with Replace Faraday, keep data",
     /// Home row.
     starter_row_pi: "Make a Pi card",
     /// Home row.
