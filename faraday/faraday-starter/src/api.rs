@@ -809,6 +809,12 @@ pub enum StarterEvent {
         size: u64,
         /// What was read, or why not.
         result: Result<(Option<String>, Option<String>), Reason>,
+        /// Asked with a release (`source` of the command), the elevated
+        /// copy's judgement of a partition that is not that release's:
+        /// whether it is the release's with a boot file the person signed
+        /// (§4.5, §10.4), as [`StarterEvent::BootJudged`] says it. `None`
+        /// when the partition is the release's or was not judged.
+        signed: Option<bool>,
     },
     /// [`StarterCommand::ListBootFiles`] answered: the `.efi` files in
     /// `folder`, as full paths, newest first (§4.5).
@@ -1080,7 +1086,8 @@ pub enum StarterCommand {
     /// Read a Faraday stick's version through the elevated copy
     /// (Windows), for keep data's rules; answered by
     /// [`StarterEvent::VersionRead`]. The elevated copy refuses a disk
-    /// whose serial or size is not these.
+    /// whose serial or size is not these. It is also the Check this stick
+    /// button's read (§10.4), the one administrator prompt.
     ReadVersion {
         /// The disk's handle, from [`Disk::id`].
         disk: String,
@@ -1088,6 +1095,11 @@ pub enum StarterCommand {
         serial: String,
         /// Its size in bytes.
         size: u64,
+        /// The release the stick's boot partition is compared with: when it
+        /// is not that release's, the same read judges it as a boot file
+        /// the person signed (§4.5), and the partition's bytes stay in the
+        /// elevated copy.
+        source: Option<Source>,
     },
     /// List the `.efi` files in the Downloads folder, for What to
     /// write's "One I signed" (§4.5); answered by

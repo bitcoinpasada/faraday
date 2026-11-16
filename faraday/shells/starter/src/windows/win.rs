@@ -50,6 +50,7 @@ use super::sys::{self, Elevation};
 use crate::finder::found_job;
 use crate::image::Image;
 use crate::platform::Platform;
+use crate::platform::StickRead;
 use crate::signed;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
@@ -164,8 +165,9 @@ impl Platform for Windows {
         disk: &str,
         serial: &str,
         size: u64,
-    ) -> Result<(Option<String>, Option<String>), Reason> {
-        elevate_read_version(disk, serial, size)
+        judge: Option<(Source, Option<u64>)>,
+    ) -> Result<StickRead, Reason> {
+        elevate_read_version(disk, serial, size, judge)
     }
 
     fn watch(&self, out: Sender<StarterEvent>, forget: Receiver<String>) {
@@ -568,7 +570,7 @@ fn elevate_write(
                 let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
             }
             Message::Done(r) => result = Some(r),
-            Message::Release(..) => {}
+            Message::Release(..) | Message::Signed(_) => {}
         }
     }
     while !child.ended(Duration::from_millis(200)) {}
@@ -586,12 +588,20 @@ fn elevate_read_version(
     disk: &str,
     serial: &str,
     size: u64,
-) -> Result<(Option<String>, Option<String>), Reason> {
+    mut judge: Option<(Source, Option<u64>)>,
+) -> Result<StickRead, Reason> {
     let device = disk_number(disk).map_or_else(|| disk.to_string(), disk_device);
     let fail = |detail: String| Reason::Device {
         device: device.clone(),
         detail,
     };
+    // The elevated copy starts in the system folder: a developer's image
+    // given as a relative path is passed as a full one.
+    if let Some((Source::Image { path, .. } | Source::Found { path, .. }, _)) = &mut judge
+        && let Ok(full) = std::path::absolute(&*path)
+    {
+        *path = full.display().to_string();
+    }
     let name = pipe_name();
     let pipe = sys::pipe(&name).map_err(|e| fail(e.to_string()))?;
     let args = ReadVersion {
@@ -599,6 +609,7 @@ fn elevate_read_version(
         disk: disk.to_string(),
         serial: serial.to_string(),
         size,
+        source: judge,
     }
     .args();
     let child = match sys::run_elevated(&running()?, &elevated::command_line(&args)) {
@@ -630,17 +641,18 @@ fn elevate_read_version(
         )));
     }
     let mut reader = BufReader::new(pipe);
-    let (mut release, mut result) = (None, None);
+    let (mut release, mut signed, mut result) = (None, None, None);
     while let Some(m) = pipe::next(&mut reader) {
         match m.map_err(fail)? {
             Message::Release(r, sum) => release = Some((r, sum)),
+            Message::Signed(s) => signed = Some(s),
             Message::Done(r) => result = Some(r),
             Message::Progress { .. } => {}
         }
     }
     while !child.ended(Duration::from_millis(200)) {}
     match (result, release) {
-        (Some(Ok(())), Some(r)) => Ok(r),
+        (Some(Ok(())), Some((release, sum))) => Ok((release, sum, signed)),
         (Some(Err(why)), _) => Err(why),
         _ => Err(ended(&child)),
     }
@@ -811,8 +823,11 @@ fn elevated_read_version(args: &[String]) -> ExitCode {
         let _ = pipe.write_all(m.encode().as_bytes());
     };
     match read_listed(&r) {
-        Ok((release, sum)) => {
+        Ok((release, sum, signed)) => {
             send(Message::Release(release, sum));
+            if let Some(signed) = signed {
+                send(Message::Signed(signed));
+            }
             send(Message::Done(Ok(())));
             ExitCode::SUCCESS
         }
@@ -823,10 +838,13 @@ fn elevated_read_version(args: &[String]) -> ExitCode {
     }
 }
 
-/// The release string on the disk `r` names, once it is checked to be
-/// the one the window listed: the same serial and size, a disk the
-/// Starter offers.
-fn read_listed(r: &ReadVersion) -> Result<(Option<String>, Option<String>), Reason> {
+/// The release string and boot partition's sum on the disk `r` names,
+/// once it is checked to be the one the window listed: the same serial and
+/// size, a disk the Starter offers; and, when `r` names a release and the
+/// partition is not that release's, whether it is the release's with a
+/// boot file the person signed (§4.5, `signed::is_release_signed`). The
+/// partition's bytes stay here.
+fn read_listed(r: &ReadVersion) -> Result<StickRead, Reason> {
     let n = disk_number(&r.disk).ok_or(Reason::Gone)?;
     let mut device = PhysicalDrive {
         n,
@@ -840,7 +858,23 @@ fn read_listed(r: &ReadVersion) -> Result<(Option<String>, Option<String>), Reas
             size: now.size,
         });
     }
-    release_of(&mut device, &now.device)
+    let job = r
+        .source
+        .as_ref()
+        .and_then(|(s, size)| job_of(s, *size).ok());
+    let mut keep = job.is_some().then(Vec::new);
+    let (release, sum) = read_release(&mut device, &now.device, keep.as_mut())?;
+    let want = job.as_ref().and_then(|job| match job {
+        Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
+        Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
+    });
+    let signed = match (&sum, want, job, keep) {
+        (Some(got), Some(want), Some(job), Some(bytes)) if !got.eq_ignore_ascii_case(&want) => {
+            Some(signed::is_release_signed(&job, &bytes))
+        }
+        _ => None,
+    };
+    Ok((release, sum, signed))
 }
 
 /// Opens the disk read-only and reads its partition table and up to
@@ -850,19 +884,33 @@ fn release_of(
     device: &mut PhysicalDrive,
     name: &str,
 ) -> Result<(Option<String>, Option<String>), Reason> {
+    read_release(device, name, None)
+}
+
+/// [`release_of`], with the partition's bytes kept in `keep`.
+fn read_release(
+    device: &mut PhysicalDrive,
+    name: &str,
+    keep: Option<&mut Vec<u8>>,
+) -> Result<(Option<String>, Option<String>), Reason> {
     let mut f = device.open_read()?;
     let len = device.length(&mut f).map_err(|e| Reason::Device {
         device: name.to_string(),
         detail: e.to_string(),
     })?;
-    writer::release_on_stick(&mut f, len, name)
+    writer::release_on_stick_keeping(&mut f, len, name, keep)
 }
 
 /// What the elevated copy writes: the release image found, held to its
 /// line in the list built in, or the developer's image held to
 /// the sum Confirm showed.
 fn job(e: &Elevated) -> Result<Job, Reason> {
-    match &e.order.source {
+    job_of(&e.order.source, e.image_size)
+}
+
+/// [`job`] for a source and a developer's image's size.
+fn job_of(source: &Source, image_size: Option<u64>) -> Result<Job, Reason> {
+    match source {
         Source::Found {
             path,
             xz_sha256,
@@ -879,7 +927,7 @@ fn job(e: &Elevated) -> Result<Job, Reason> {
                 kind: ImageKind::of_name(&name),
                 sum: ImageSum {
                     sha256,
-                    size: e.image_size.ok_or(Reason::NotCarried)?,
+                    size: image_size.ok_or(Reason::NotCarried)?,
                 },
                 boot_only: name.ends_with("-boot.vfat"),
                 build_id: None,

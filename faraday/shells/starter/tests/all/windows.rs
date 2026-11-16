@@ -452,11 +452,42 @@ fn the_elevated_version_read_reads_back_the_disk_it_was_started_with() {
         disk: r"\\.\PhysicalDrive2".into(),
         serial: "AAA 111 \"x\\\"".into(),
         size: 8_004_304_896,
+        source: None,
     };
     assert_eq!(
         ReadVersion::parse(&split(&command_line(&r.args()))),
         Ok(r.clone())
     );
+    // With the release to judge the stick by, found or a developer's.
+    for source in [
+        (
+            Source::Found {
+                path: r"D:\Downloads\faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+                xz_sha256: SUM.into(),
+                img_sha256: SUM.into(),
+            },
+            None,
+        ),
+        (
+            Source::Image {
+                path: r"D:\build\faraday.img".into(),
+                sha256: SUM.into(),
+            },
+            Some(1 << 30),
+        ),
+    ] {
+        let judged = ReadVersion {
+            source: Some(source),
+            ..r.clone()
+        };
+        assert_eq!(
+            ReadVersion::parse(&split(&command_line(&judged.args()))),
+            Ok(judged.clone())
+        );
+        let mut half = judged.args();
+        half.truncate(half.len() - 2);
+        assert!(ReadVersion::parse(&half).is_err(), "{half:?} was taken");
+    }
     let good = r.args();
     let with = |key: &str, value: &str| {
         let mut a = good.clone();
@@ -894,6 +925,8 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
             Some("ab".repeat(32)),
         ),
         Message::Release(None, None),
+        Message::Signed(true),
+        Message::Signed(false),
     ];
     sent.extend(every_reason().into_iter().map(|r| Message::Done(Err(r))));
     let bytes: String = sent.iter().map(Message::encode).collect();

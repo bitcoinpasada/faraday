@@ -297,12 +297,10 @@ impl crate::Starter {
 
 impl crate::Starter {
     /// The first Faraday stick's boot partition against the release this
-    /// Starter would write (§10.4); on Linux only, where it is read while
-    /// listing the disks. A lookup.
+    /// Starter would write (§10.4): read while listing the disks on Linux,
+    /// behind Check this stick on Windows, where no line shows before.
+    /// A lookup.
     pub fn boot_check(&self) -> Option<BootCheck> {
-        if self.computer.os != Os::Linux {
-            return None;
-        }
         let facts = self.facts();
         let disk = facts.stick()?;
         let f = disk.faraday.as_ref()?;
@@ -327,7 +325,9 @@ impl crate::Starter {
     /// Asks the shell, once per boot partition read, whether each Faraday
     /// stick whose boot partition is not the release's is the release's
     /// with a boot file the person signed (§10.4). The shell reads it in
-    /// a thread of its own; the data partition is never read.
+    /// a thread of its own; the data partition is never read. On Linux only:
+    /// Windows' elevated read answers the judgement with the sum
+    /// ([`crate::api::StarterEvent::VersionRead`]).
     pub(crate) fn judge_boots(&mut self) {
         if self.computer.os != Os::Linux {
             return;

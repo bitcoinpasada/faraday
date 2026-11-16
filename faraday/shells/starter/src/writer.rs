@@ -1023,6 +1023,19 @@ pub fn release_on_stick<R: Read + Seek>(
     len: u64,
     device: &str,
 ) -> Result<(Option<String>, Option<String>), Reason> {
+    release_on_stick_keeping(disk, len, device, None)
+}
+
+/// [`release_on_stick`], with the boot partition's bytes put in `keep`
+/// when one is given and the partition is no longer than
+/// `faraday_boot::MAX_PARTITION`: the elevated copy's judgement of a boot
+/// file the person signed reads them, and they never leave it.
+pub fn release_on_stick_keeping<R: Read + Seek>(
+    disk: &mut R,
+    len: u64,
+    device: &str,
+    mut keep: Option<&mut Vec<u8>>,
+) -> Result<(Option<String>, Option<String>), Reason> {
     let not_stick = |fault| Reason::NotStick {
         device: device.to_string(),
         fault,
@@ -1061,6 +1074,11 @@ pub fn release_on_stick<R: Read + Seek>(
         }
         let bytes = &raw[skip..skip + n];
         sum.update(bytes);
+        if let Some(keep) = keep.as_deref_mut()
+            && boot.len <= faraday_boot::MAX_PARTITION
+        {
+            keep.extend_from_slice(bytes);
+        }
         if release.is_none() && at < search_end {
             hay.extend_from_slice(bytes);
             release = faraday_boot::find_release(&hay);

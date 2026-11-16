@@ -124,6 +124,9 @@ macro_rules! words_starter {
     starter_state_no_stick: "No Faraday stick attached",
     /// Make a Faraday stick's state: `{}` the version.
     starter_state_stick: "Faraday stick attached · {}",
+    /// Make's stick card, Windows: reads the attached stick's boot partition
+    /// through the elevated copy and compares it with the release.
+    starter_stick_check: "Check this stick",
     /// The attached stick's boot partition is the release's.
     starter_stick_boot_matches: "Boot partition matches this release",
     /// The attached stick's boot partition is the release's except the

@@ -9,11 +9,17 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, Computer, Concern, Installed, Reason, RecoveryKey, StarterEvent,
-    WriteOrder,
+    BitLocker, BitLockerStep, Computer, Concern, Installed, Reason, RecoveryKey, Source,
+    StarterEvent, WriteOrder,
 };
 
 use crate::writer::Job;
+
+/// What the elevated copy read of a stick: the release string on its boot
+/// partition, the SHA-256 of that partition, and, when asked and the
+/// partition is not the release's, whether it is the release's with a
+/// boot file the person signed (`docs/STARTER.md` §10.4).
+pub type StickRead = (Option<String>, Option<String>, Option<bool>);
 
 /// What the Starter asks of the operating system.
 pub trait Platform: Send + Sync {
@@ -101,15 +107,19 @@ pub trait Platform: Send + Sync {
     /// The release string on the Faraday stick `disk` (serial `serial`,
     /// `size` bytes, as listed), read through the elevated copy for keep
     /// data (Windows): `None` for a stick made before
-    /// Faraday put one there. Other systems read it while listing the
+    /// Faraday put one there. With `judge`, the release to compare the
+    /// boot partition with (a source and a developer's image's size), the
+    /// same elevated read also judges a partition that is not the
+    /// release's (§10.4). Other systems read it while listing the
     /// disks and never ask.
     fn read_version(
         &self,
         disk: &str,
         serial: &str,
         size: u64,
-    ) -> Result<(Option<String>, Option<String>), Reason> {
-        let _ = (disk, serial, size);
+        judge: Option<(Source, Option<u64>)>,
+    ) -> Result<StickRead, Reason> {
+        let _ = (disk, serial, size, judge);
         Err(Reason::Unsupported)
     }
 

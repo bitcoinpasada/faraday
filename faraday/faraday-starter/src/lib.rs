@@ -421,6 +421,9 @@ pub enum StarterAction {
     GuidePage(u8),
     /// Keep data's link: the guide's section about replacing Faraday.
     KeepDataGuide,
+    /// Home and Make's Check this stick (Windows, §10.4): the elevated
+    /// copy reads the attached stick's boot partition and judges it.
+    CheckStick,
     /// Include the BitLocker recovery key on the sheet, ticked or not
     /// (F49).
     IncludeKey,
@@ -540,6 +543,7 @@ impl StarterAction {
             StarterAction::Guide => (73, 0),
             StarterAction::GuidePage(n) => (74, u32::from(n)),
             StarterAction::KeepDataGuide => (75, 0),
+            StarterAction::CheckStick => (77, 0),
             StarterAction::Close => (76, 0),
         };
         (kind << 16) | arg
@@ -641,6 +645,7 @@ impl StarterAction {
             73 => StarterAction::Guide,
             74 => StarterAction::GuidePage(u8::try_from(arg).ok()?),
             75 => StarterAction::KeepDataGuide,
+            77 => StarterAction::CheckStick,
             76 => StarterAction::Close,
             _ => return None,
         })
@@ -1327,10 +1332,56 @@ impl Starter {
         let Some(d) = self.chosen_disk() else {
             return;
         };
-        let (disk, serial, size) = (d.id.clone(), d.serial.clone(), d.size);
+        let key = (d.id.clone(), d.serial.clone(), d.size);
+        self.ask_version(key);
+    }
+
+    /// Whether Check this stick is offered (§10.4): on Windows, a Faraday
+    /// stick attached whose boot partition is not read yet, against a
+    /// release that lists its sum. A lookup.
+    pub fn can_check_stick(&self) -> bool {
+        self.computer.os == Os::Windows
+            && self.version_reading.is_none()
+            && self
+                .facts()
+                .stick()
+                .and_then(|d| d.faraday.as_ref())
+                .is_some_and(|f| !f.read)
+            && self
+                .image(Target::Stick)
+                .is_some_and(|i| i.boot_sha256.is_some())
+    }
+
+    /// Check this stick: the elevated copy reads the first Faraday
+    /// stick's boot partition, one administrator prompt, and judges it
+    /// against the release (§10.4).
+    fn check_stick(&mut self) {
+        if !self.can_check_stick() {
+            return;
+        }
+        let facts = self.facts();
+        let Some(d) = facts.stick() else {
+            return;
+        };
+        let key = (d.id.clone(), d.serial.clone(), d.size);
+        self.version_failed = None;
+        self.ask_version(key);
+    }
+
+    /// Asks the elevated copy to read the stick `(disk, serial, size)`,
+    /// once while a read is under way, with the release to judge it by.
+    fn ask_version(&mut self, (disk, serial, size): (String, String, u64)) {
+        if self.version_reading.is_some() {
+            return;
+        }
         self.version_reading = Some(disk.clone());
-        self.out
-            .push_back(StarterCommand::ReadVersion { disk, serial, size });
+        let source = self.image(Target::Stick).map(|i| i.source);
+        self.out.push_back(StarterCommand::ReadVersion {
+            disk,
+            serial,
+            size,
+            source,
+        });
     }
 
     /// Whether `mode` can be chosen for the disk tapped, and why not.
@@ -1669,6 +1720,7 @@ impl Starter {
                 serial,
                 size,
                 result,
+                signed,
             } => {
                 if self.version_reading.as_ref() == Some(&disk) {
                     self.version_reading = None;
@@ -1676,6 +1728,11 @@ impl Starter {
                 match result {
                     Ok(read) => {
                         self.version_failed = None;
+                        if let (Some(signed), Some(sum)) = (signed, read.1.clone()) {
+                            let judged = (disk.clone(), serial.clone(), size, sum);
+                            self.boot_judged.retain(|(k, _)| *k != judged);
+                            self.boot_judged.push((judged, signed));
+                        }
                         let key = (disk, serial, size);
                         self.versions.retain(|(k, _)| *k != key);
                         self.versions.push((key, read));
@@ -2152,6 +2209,7 @@ impl Starter {
                 }
             }
             StarterAction::KeepDataGuide => self.guide_open(guide::KEEP_DATA),
+            StarterAction::CheckStick => self.check_stick(),
             StarterAction::About => self.go(Page::About),
             StarterAction::How => self.how_press(),
             StarterAction::Templates => {

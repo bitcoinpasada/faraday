@@ -173,19 +173,111 @@ fn a_stick_whose_boot_partition_was_not_read_shows_no_line() {
     assert!(!shows(&mut s, EN.starter_stick_boot_differs));
 }
 
+/// A Faraday stick as Windows lists it without elevation: its boot
+/// partition not read.
+fn unread_windows_stick() -> Disk {
+    let mut d = stick_with(None);
+    d.id = r"\\.\PhysicalDrive2".into();
+    let f = d.faraday.as_mut().expect("a stick");
+    f.read = false;
+    f.release = None;
+    d
+}
+
+/// The press of Check this stick, and the one read it asks the elevated
+/// copy for, as the shell is told it.
+fn checked(s: &mut Starter) -> StarterCommand {
+    let _ = s.drawn_texts();
+    assert!(s.offers_action(StarterAction::CheckStick));
+    s.press(StarterAction::CheckStick);
+    let asked = commands(s);
+    assert_eq!(asked.len(), 1, "one read, one administrator prompt");
+    asked.into_iter().next().expect("one command")
+}
+
+fn answered(s: &mut Starter, asked: StarterCommand, sum: &str, signed: Option<bool>) {
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = asked
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Ok((Some("6.6.84-faraday-0.2.0".into()), Some(sum.into()))),
+        signed,
+    });
+}
+
 #[test]
-fn a_windows_stick_shows_no_line() {
-    let mut s = starter_with(
-        windows(true),
-        stick_with(Some(&"8".repeat(64))),
-        images("0.2.0"),
-    );
+fn a_windows_stick_shows_no_line_before_the_button_and_the_match_line_after_it() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    assert!(shows(&mut s, EN.starter_stick_check));
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
     assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+    // Nothing is asked of the shell before the press.
+    assert!(commands(&mut s).is_empty());
+    let asked = checked(&mut s);
+    assert!(matches!(
+        asked,
+        StarterCommand::ReadVersion {
+            source: Some(Source::Found { .. }),
+            ..
+        }
+    ));
+    answered(&mut s, asked, &BOOT_SUM.repeat(64), None);
+    assert!(shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(!shows(&mut s, EN.starter_stick_check));
     assert!(
         commands(&mut s)
             .iter()
             .all(|c| !matches!(c, StarterCommand::JudgeBoot { .. }))
     );
+}
+
+#[test]
+fn a_windows_stick_with_one_byte_changed_shows_the_mismatch_line_and_offers_the_rewrite() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &"8".repeat(64), Some(false));
+    s.press(StarterAction::Home);
+    assert!(shows(&mut s, EN.starter_stick_boot_differs));
+    assert!(!shows(&mut s, EN.starter_stick_boot_matches));
+    assert!(s.offers_action(StarterAction::Item(
+        faraday_starter::decide::Item::MakeStick
+    )));
+    // The read judged it: the shell is not asked a second time.
+    assert!(
+        commands(&mut s)
+            .iter()
+            .all(|c| !matches!(c, StarterCommand::JudgeBoot { .. }))
+    );
+}
+
+#[test]
+fn a_windows_stick_with_the_boot_file_the_person_signed_reads_as_expected() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &"8".repeat(64), Some(true));
+    s.press(StarterAction::Home);
+    assert!(shows(&mut s, EN.starter_stick_boot_signed));
+    assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+}
+
+#[test]
+fn a_linux_stick_is_not_offered_the_button() {
+    let mut s = starter_with(
+        linux(true),
+        stick_with(Some(&BOOT_SUM.repeat(64))),
+        images("0.2.0"),
+    );
+    s.press(StarterAction::MakePage);
+    assert!(!shows(&mut s, EN.starter_stick_check));
 }
 
 #[test]

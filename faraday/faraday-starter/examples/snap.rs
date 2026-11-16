@@ -758,6 +758,7 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
         serial: d.serial,
         size: d.size,
         result: Err(Reason::Declined),
+        signed: None,
     });
     s.shot(&mut h, "stick-2-what-windows-declined")?;
 

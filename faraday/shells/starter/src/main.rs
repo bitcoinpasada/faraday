@@ -445,15 +445,33 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BitLocker(now));
                 });
             }
-            StarterCommand::ReadVersion { disk, serial, size } => {
+            StarterCommand::ReadVersion {
+                disk,
+                serial,
+                size,
+                source,
+            } => {
                 let (system, tx) = self.threaded();
+                // The release to judge the partition by, with the size of a
+                // developer's image the elevated copy cannot work out.
+                let judge = source.and_then(|source| {
+                    let size = match self.job(&source)? {
+                        Job::Image(i) => Some(i.sum.size),
+                        Job::Found { .. } => None,
+                    };
+                    Some((source, size))
+                });
                 std::thread::spawn(move || {
-                    let result = system.read_version(&disk, &serial, size);
+                    let (result, signed) = match system.read_version(&disk, &serial, size, judge) {
+                        Ok((release, sum, signed)) => (Ok((release, sum)), signed),
+                        Err(why) => (Err(why), None),
+                    };
                     let _ = tx.send(StarterEvent::VersionRead {
                         disk,
                         serial,
                         size,
                         result,
+                        signed,
                     });
                 });
             }

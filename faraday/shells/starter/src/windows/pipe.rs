@@ -13,7 +13,8 @@
 //! The elevated copy's `--read-version` answers on the
 //! same kind of pipe: `release` and the release string found on the
 //! stick's boot partition, then the SHA-256 of that partition when it
-//! was read, or `release` alone for none, then `ok`; or
+//! was read, or `release` alone for none, then `signed yes` or `signed
+//! no` when a release was named and the partition is not its own, then `ok`; or
 //! `failed` and the reason.
 
 use std::io::BufRead;
@@ -41,6 +42,11 @@ pub enum Message {
     /// `--read-version`: the release string on the stick's boot
     /// partition, or `None` for a stick made before Faraday put one there.
     Release(Option<String>, Option<String>),
+    /// `--read-version` with a release named, after `release`: whether the
+    /// boot partition read is the release's with only a boot file the
+    /// person signed in its place (`docs/STARTER.md` §10.4). Sent only for
+    /// a partition that is not the release's own.
+    Signed(bool),
 }
 
 pub(crate) fn escape(s: &str) -> String {
@@ -498,6 +504,7 @@ impl Message {
                 .chain(r.clone())
                 .chain(r.as_ref().and(sum.clone()))
                 .collect(),
+            Message::Signed(s) => vec!["signed".into(), if *s { "yes" } else { "no" }.into()],
             Message::Done(Err(r)) => {
                 let (name, rest) = reason_fields(r);
                 let mut f = vec!["failed".to_string(), name.to_string()];
@@ -545,6 +552,11 @@ impl Message {
                     (fields.len() > 2).then(|| f.s()).transpose()?,
                 )
             }
+            "signed" => Message::Signed(match f.s()?.as_str() {
+                "yes" => true,
+                "no" => false,
+                other => return Err(format!("{other}: not yes or no")),
+            }),
             "failed" => {
                 let name = f.s()?;
                 Message::Done(Err(reason(&name, &mut f)?))

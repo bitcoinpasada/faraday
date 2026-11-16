@@ -80,25 +80,7 @@ impl Elevated {
             }
             .into(),
         ];
-        match &o.source {
-            Source::Found {
-                path,
-                xz_sha256,
-                img_sha256,
-            } => {
-                a.extend(["--found".into(), path.clone()]);
-                a.extend(["--sha256".into(), xz_sha256.clone()]);
-                a.extend(["--img-sha256".into(), img_sha256.clone()]);
-            }
-            Source::Image { path, sha256 } => {
-                a.extend(["--image".into(), path.clone()]);
-                a.extend([
-                    "--image-size".into(),
-                    self.image_size.unwrap_or(0).to_string(),
-                ]);
-                a.extend(["--sha256".into(), sha256.clone()]);
-            }
-        }
+        a.extend(source_args(&o.source, self.image_size));
         if let Some(f) = &o.boot_file {
             a.extend(["--boot-file-sha256".into(), f.sha256.clone()]);
         }
@@ -188,44 +170,7 @@ impl Elevated {
             Some("yes") if mode == Mode::Whole => true,
             Some(c) => return Err(format!("--clear-first {c}: not asked for here")),
         };
-        let (source, image_size) = match (got[6], got[7]) {
-            (None, None) if got[12].is_some() => {
-                let (path, img) = (got[12].unwrap_or_default(), got[13].unwrap_or_default());
-                if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
-                    return Err(String::from("--found: not a full path"));
-                }
-                if !hex_sum(img) {
-                    return Err(String::from("--img-sha256: not a SHA-256"));
-                }
-                (
-                    Source::Found {
-                        path: path.to_string(),
-                        xz_sha256: sha256.to_string(),
-                        img_sha256: img.to_string(),
-                    },
-                    None,
-                )
-            }
-            _ if got[12].is_some() || got[13].is_some() => {
-                return Err(String::from("--found stands alone, with --img-sha256"));
-            }
-            (Some(path), Some(len)) => {
-                if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
-                    return Err(String::from("--image: not a full path"));
-                }
-                let len = number(len).ok_or("--image-size: not a size")?;
-                (
-                    Source::Image {
-                        path: path.to_string(),
-                        sha256: sha256.to_string(),
-                    },
-                    Some(len),
-                )
-            }
-            _ => {
-                return Err(String::from("one of --found or --image with --image-size"));
-            }
-        };
+        let (source, image_size) = source_of(sha256, [got[6], got[7], got[12], got[13]])?;
         Ok(Elevated {
             pipe: pipe.to_string(),
             order: WriteOrder {
@@ -244,6 +189,71 @@ impl Elevated {
     }
 }
 
+/// The arguments that name a release image: a found one by its path and
+/// both sums, a developer's by its path, size and sum.
+fn source_args(source: &Source, image_size: Option<u64>) -> Vec<String> {
+    let mut a: Vec<String> = Vec::new();
+    match source {
+        Source::Found {
+            path,
+            xz_sha256,
+            img_sha256,
+        } => {
+            a.extend(["--found".into(), path.clone()]);
+            a.extend(["--sha256".into(), xz_sha256.clone()]);
+            a.extend(["--img-sha256".into(), img_sha256.clone()]);
+        }
+        Source::Image { path, sha256 } => {
+            a.extend(["--image".into(), path.clone()]);
+            a.extend(["--image-size".into(), image_size.unwrap_or(0).to_string()]);
+            a.extend(["--sha256".into(), sha256.clone()]);
+        }
+    }
+    a
+}
+
+/// The image the arguments `--image`, `--image-size`, `--found` and
+/// `--img-sha256` (in that order in `got`) name, with the `--sha256`
+/// `sha256` already checked, or what is wrong with them.
+fn source_of(sha256: &str, got: [Option<&str>; 4]) -> Result<(Source, Option<u64>), String> {
+    match (got[0], got[1]) {
+        (None, None) if got[2].is_some() => {
+            let (path, img) = (got[2].unwrap_or_default(), got[3].unwrap_or_default());
+            if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
+                return Err(String::from("--found: not a full path"));
+            }
+            if !hex_sum(img) {
+                return Err(String::from("--img-sha256: not a SHA-256"));
+            }
+            Ok((
+                Source::Found {
+                    path: path.to_string(),
+                    xz_sha256: sha256.to_string(),
+                    img_sha256: img.to_string(),
+                },
+                None,
+            ))
+        }
+        _ if got[2].is_some() || got[3].is_some() => {
+            Err(String::from("--found stands alone, with --img-sha256"))
+        }
+        (Some(path), Some(len)) => {
+            if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
+                return Err(String::from("--image: not a full path"));
+            }
+            let len = number(len).ok_or("--image-size: not a size")?;
+            Ok((
+                Source::Image {
+                    path: path.to_string(),
+                    sha256: sha256.to_string(),
+                },
+                Some(len),
+            ))
+        }
+        _ => Err(String::from("one of --found or --image with --image-size")),
+    }
+}
+
 /// A stick's version to read, as the elevated copy is given it: the
 /// disk the window listed, by its serial and size as listed then.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,12 +266,17 @@ pub struct ReadVersion {
     pub serial: String,
     /// Its size in bytes as listed: the elevated copy refuses another.
     pub size: u64,
+    /// The release the stick is compared with: when its boot partition is
+    /// not that release's, the elevated copy also says whether it is the
+    /// release's with a boot file the person signed (`docs/STARTER.md`
+    /// §10.4). With a developer's image, its size.
+    pub source: Option<(Source, Option<u64>)>,
 }
 
 impl ReadVersion {
     /// The arguments, `--read-version` first.
     pub fn args(&self) -> Vec<String> {
-        vec![
+        let mut a = vec![
             READ_VERSION.into(),
             "--pipe".into(),
             self.pipe.clone(),
@@ -271,7 +286,11 @@ impl ReadVersion {
             self.serial.clone(),
             "--size".into(),
             self.size.to_string(),
-        ]
+        ];
+        if let Some((source, image_size)) = &self.source {
+            a.extend(source_args(source, *image_size));
+        }
+        a
     }
 
     /// Reads the arguments after the program's name, `--read-version`
@@ -284,8 +303,18 @@ impl ReadVersion {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 4] = ["--pipe", "--disk", "--serial", "--size"];
-        let mut got: [Option<&str>; 4] = [None; 4];
+        const KEYS: [&str; 9] = [
+            "--pipe",
+            "--disk",
+            "--serial",
+            "--size",
+            "--image",
+            "--image-size",
+            "--sha256",
+            "--found",
+            "--img-sha256",
+        ];
+        let mut got: [Option<&str>; 9] = [None; 9];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -303,11 +332,21 @@ impl ReadVersion {
         let serial = need(2)?;
         check_serial(serial)?;
         let size = number(need(3)?).ok_or("--size: not a size")?;
+        let source = if got[4..].iter().all(Option::is_none) {
+            None
+        } else {
+            let sha256 = got[6].ok_or("--sha256 missing")?;
+            if !hex_sum(sha256) {
+                return Err(String::from("--sha256: not a SHA-256"));
+            }
+            Some(source_of(sha256, [got[4], got[5], got[7], got[8]])?)
+        };
         Ok(ReadVersion {
             pipe: pipe.to_string(),
             disk: disk.to_string(),
             serial: serial.to_string(),
             size,
+            source,
         })
     }
 }

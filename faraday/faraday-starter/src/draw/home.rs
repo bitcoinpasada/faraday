@@ -489,6 +489,17 @@ fn stick_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         style,
         StarterAction::Make(Target::Stick),
     );
+    if starter.can_check_stick() {
+        y += GAP;
+        y += card_button(
+            starter,
+            ui,
+            (x, y, w),
+            S.starter_stick_check,
+            Style::Secondary,
+            StarterAction::CheckStick,
+        );
+    }
     y - y0
 }
 
