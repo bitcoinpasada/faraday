@@ -92,3 +92,38 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"new flow");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_save_with_one_bad_name_keeps_every_earlier_file_and_writes_the_good_ones() {
+    let dir = std::env::temp_dir().join(format!("faraday-boxes-bad-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let mut boxes = Boxes::Dir(dir.clone());
+    let t = faraday_text::Text::of;
+    boxes
+        .save(
+            vec![
+                (t("a"), b"a1".to_vec().into()),
+                (t("b"), b"b1".to_vec().into()),
+            ],
+            vec![(t("c"), b"c1".to_vec().into())],
+            Vec::new(),
+        )
+        .unwrap();
+    // One name cannot be written; the files before and after it are.
+    let failed = boxes.save(
+        vec![
+            (t("a"), b"a2".to_vec().into()),
+            (t("bad/name"), b"x".to_vec().into()),
+            (t("new"), b"n".to_vec().into()),
+        ],
+        vec![(t("c"), b"c2".to_vec().into())],
+        Vec::new(),
+    );
+    assert!(failed.is_err());
+    assert_eq!(fs::read(dir.join("inbox/a")).unwrap(), b"a2");
+    assert_eq!(fs::read(dir.join("inbox/new")).unwrap(), b"n");
+    assert_eq!(fs::read(dir.join("outbox/c")).unwrap(), b"c2");
+    // A file no longer listed is removed.
+    assert!(!dir.join("inbox/b").exists());
+    let _ = fs::remove_dir_all(&dir);
+}

@@ -4,14 +4,15 @@
 //! folder on a desktop. Each shell finds its sticks its own way and hands
 //! the directories here; this crate lists them, reads a file the app asked
 //! for, writes one as `docs/SECURITY-MODEL.md` "When root is used" says (a new file, read back and
-//! compared, then renamed into place, never over a file already there),
+//! compared, then renamed into place; a vault or a stick's own file already
+//! there is replaced by the rename, never written over in place),
 //! and keeps the Inbox and Outbox where the next process finds them.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
-use faraday_files::{Dir, checked};
+use faraday_files::{Dir, checked, checked_for_write};
 use faraday_strings::EN;
 use faraday_text::{Text, text};
 
@@ -424,9 +425,41 @@ pub fn memory_available_mib() -> Option<u32> {
     #[cfg(not(windows))]
     {
         let info = fs::read_to_string("/proc/meminfo").ok()?;
-        let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
-        let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-        u32::try_from(kib / 1024).ok()
+        let available = meminfo_available_mib(&info)?;
+        // A control group's limit (a container, a service) holds the
+        // process below what the machine has free.
+        let limit = fs::read_to_string("/sys/fs/cgroup/memory.max")
+            .ok()
+            .and_then(|t| cgroup_limit_mib(&t));
+        Some(limit.map_or(available, |l| l.min(available)))
+    }
+}
+
+/// `MemAvailable` of a `/proc/meminfo` text, in MiB.
+#[cfg(not(windows))]
+fn meminfo_available_mib(info: &str) -> Option<u32> {
+    let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
+    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    u32::try_from(kib / 1024).ok()
+}
+
+/// The limit of a cgroup v2 `memory.max` text, in MiB: `None` for `max`
+/// (no limit) or text that is not a number.
+#[cfg(not(windows))]
+fn cgroup_limit_mib(text: &str) -> Option<u32> {
+    let bytes: u64 = text.trim().parse().ok()?;
+    Some(u32::try_from(bytes / (1024 * 1024)).unwrap_or(u32::MAX))
+}
+
+#[cfg(all(test, not(windows)))]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    fn a_cgroup_limit_reads_in_mib_and_no_limit_reads_as_none() {
+        assert_eq!(cgroup_limit_mib("536870912\n"), Some(512));
+        assert_eq!(cgroup_limit_mib("max\n"), None);
+        assert_eq!(cgroup_limit_mib(""), None);
     }
 }
 
@@ -489,6 +522,17 @@ mod windows_memory {
 /// rename), so that a save cut part way never leaves one half written.
 const ATOMIC: [&str; 2] = ["backup-gate", "backup-flow"];
 
+/// Writes `bytes` as `name` in `dir` through a temporary file and a
+/// rename, so that a file already there is whole until the new one is.
+fn write_replacing(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), Text> {
+    let tmp = dir.join(&*text!(".{}.tmp", name));
+    let wrote = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, dir.join(name)));
+    if wrote.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    wrote.map_err(|e| text!("{e}"))
+}
+
 /// Where the Inbox and Outbox wait between processes: a RAM directory on
 /// the device, memory alone on a desktop.
 pub enum Boxes {
@@ -506,11 +550,13 @@ pub enum Boxes {
 }
 
 impl Boxes {
-    /// Keeps the Inbox, the Outbox and what the app keeps. The kept
-    /// `backup-gate` and `backup-flow` go first and atomically (a
-    /// temporary file, then a rename), so that a save that fails part way
-    /// still leaves the keys that wait for their backup and a flow that
-    /// reads.
+    /// Keeps the Inbox, the Outbox and what the app keeps. Every file is
+    /// written through a temporary file and a rename, the kept
+    /// `backup-gate` and `backup-flow` first, and only the files no longer
+    /// listed are removed. A file that cannot be written (a bad name, a
+    /// full disk) does not stop the others; the first error is returned at
+    /// the end, so that a save that fails still leaves the keys that wait
+    /// for their backup, a flow that reads and every other file.
     pub fn save(
         &mut self,
         inbox: faraday_core::Files,
@@ -529,41 +575,35 @@ impl Boxes {
                 Ok(())
             }
             Boxes::Dir(dir) => {
+                let mut first_error: Option<Text> = None;
                 for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
                     fs::create_dir_all(&d).map_err(|e| text!("{e}"))?;
-                    let mut kept_names: Vec<&str> = Vec::new();
-                    for atomic in ATOMIC {
-                        let Some(at) = files.iter().position(|(n, _)| n == atomic) else {
-                            continue;
-                        };
-                        let (name, mut bytes) = files.remove(at);
-                        let tmp = d.join(&*text!(".{}.tmp", &*name));
+                    // The names listed stay on disk, written or not: an
+                    // older file under a name that fails keeps its place.
+                    let mut listed: Vec<Text> = Vec::new();
+                    // The kept `backup-gate` and `backup-flow` go first.
+                    files.sort_by_key(|(n, _)| !ATOMIC.contains(&&**n));
+                    for (name, mut bytes) in files {
                         let wrote =
-                            fs::write(&tmp, &bytes).and_then(|()| fs::rename(&tmp, d.join(&*name)));
+                            checked_for_write(&name).and_then(|n| write_replacing(&d, n, &bytes));
+                        // The shell's copy goes; the app keeps its own.
                         zeroize::Zeroize::zeroize(&mut bytes);
-                        if wrote.is_err() {
-                            let _ = fs::remove_file(&tmp);
+                        if let Err(e) = wrote {
+                            first_error.get_or_insert(e);
                         }
-                        wrote.map_err(|e| text!("{e}"))?;
-                        kept_names.push(atomic);
+                        listed.push(name);
                     }
+                    // Only what is no longer listed goes (a temporary file
+                    // left by a cut-off save too).
                     for e in fs::read_dir(&d).map_err(|e| text!("{e}"))?.flatten() {
-                        // What was just written stays; one no longer needed
-                        // goes.
-                        if kept_names.iter().any(|n| e.file_name() == *n) {
+                        if listed.iter().any(|n| e.file_name() == **n) {
                             continue;
                         }
                         let _ = fs::remove_file(e.path());
                     }
-                    for (name, mut bytes) in files {
-                        let wrote = fs::write(d.join(checked(&name)?), &bytes);
-                        // The shell's copy goes; the app keeps its own.
-                        zeroize::Zeroize::zeroize(&mut bytes);
-                        wrote.map_err(|e| text!("{e}"))?;
-                    }
                 }
-                Ok(())
+                first_error.map_or(Ok(()), Err)
             }
         }
     }
