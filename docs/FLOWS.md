@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** Open the wallet's way back to the page Make a wallet was pressed on (Make a wallet at the path); and Add a key's codex32 entry's Make the rest, Add a share, a checksum worksheet's final row and the mark's line on Wallets and New key's Key card, as its paragraph lists them
+**Open:** Open the wallet's way back to the page Make a wallet was pressed on (Make a wallet at the path)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -386,9 +386,10 @@ paper, taken only on an exact match; "Repaired, not checked" under a
 repaired string; and the key's mark ("Share entry corrected", "Share
 repairs unchecked") kept by fingerprint for the session. **Scan a
 SeedQR** takes a Codex32QR code and opens the codex32 form with it in
-(§10.1). Not built: **Make the rest** and **Add a share** (§8.1 step 2,
-§8.2), a checksum worksheet's final row on Check a string, and the
-mark's line beside the fingerprint on Wallets and New key's Key card.
+(§10.1). Once a string of a split set is in, the form offers **Make the
+rest** and **Add a share** (§8.1 step 2, §8.2); **Check a string** shows
+its checksum worksheet's final row; and the mark's line stands beside the
+fingerprint on Wallets and New key's Key card.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
 first card is **Start**, open with no choice ticked (owner, 2026-10-29):
