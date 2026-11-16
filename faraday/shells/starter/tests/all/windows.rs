@@ -945,6 +945,9 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
         "failed\tWriteFailed\tbad \\x escape\n",
         "ok\textra\n",
         "release\ta\tb\tc\n",
+        "signed\tmaybe\n",
+        "signed\n",
+        "signed\tyes\textra\n",
         "ok",
     ] {
         let mut r = Cursor::new(bad.as_bytes().to_vec());

@@ -2202,14 +2202,19 @@ required, and nothing in the app that nudges or warns:
   no line is shown. On Windows the partition is an EFI system partition
   with no letter, so it is read by the elevated copy behind the **Check
   this stick** button on Make's stick card, one administrator prompt,
-  and no line shows before the press. That one read is the one keep data
-  asks for (§4.4): the elevated copy opens the disk read-only after
-  checking its serial and size are the listed ones, reads the boot
-  partition and never the data partition, and when its sum is not the
-  release's judges it as §4.5 writes it (`is_release_signed`, from the
-  release named in its arguments). It answers the sum and the judgement
-  over the pipe; the partition's bytes never leave it, so there is no
-  second prompt. Malware on the same computer can defeat the check too.
+  and no line shows before the press. It is the read keep data asks for
+  (§4.4), with the release named in its arguments: the elevated copy opens
+  the disk read-only after checking its serial and size are the listed
+  ones, reads the boot partition and never the data partition, and when
+  its sum is not the release's, and its release string is this release's,
+  judges it as §4.5 writes it (`is_release_signed`); a stick of another
+  release reads as differing without that work. Keep data's own read names
+  no release and judges nothing, so the button stays for that stick. It
+  answers the sum and the judgement over the pipe; the partition's bytes
+  never leave it, so there is no second prompt. A judgement belongs to the
+  release it was made against: another release in its place shows no line
+  until the stick is judged again. A check the person declines or the disk
+  refuses says why on Make's stick card. Malware on the same computer can defeat the check too.
 - **Own-key signing** (§7.7, §4.5). The person's own Secure Boot key
   may sign `BOOTX64.EFI`. It is an option: Faraday keeps starting with
   Secure Boot off from the release's unsigned boot file, and no key is

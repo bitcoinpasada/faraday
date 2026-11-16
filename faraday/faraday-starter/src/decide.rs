@@ -305,19 +305,26 @@ impl crate::Starter {
         let disk = facts.stick()?;
         let f = disk.faraday.as_ref()?;
         let image = self.image(Target::Stick)?;
+        let want = image.boot_sha256.as_deref();
         let signed = f
             .boot_sha256
             .as_ref()
-            .and_then(|sum| self.boot_judgement(disk, sum));
-        boot_check(f, image.boot_sha256.as_deref(), signed)
+            .zip(want)
+            .and_then(|(sum, want)| self.boot_judgement(disk, sum, want));
+        boot_check(f, want, signed)
     }
 
-    /// What the shell judged of `disk`'s boot partition with SHA-256 `sum`.
-    fn boot_judgement(&self, disk: &Disk, sum: &str) -> Option<bool> {
+    /// What the shell judged of `disk`'s boot partition with SHA-256 `sum`
+    /// against the release whose boot partition has SHA-256 `want`.
+    fn boot_judgement(&self, disk: &Disk, sum: &str, want: &str) -> Option<bool> {
         self.boot_judged
             .iter()
-            .find(|((id, serial, size, s), _)| {
-                *id == disk.id && *serial == disk.serial && *size == disk.size && s == sum
+            .find(|((id, serial, size, s, w), _)| {
+                *id == disk.id
+                    && *serial == disk.serial
+                    && *size == disk.size
+                    && s == sum
+                    && w == want
             })
             .map(|(_, signed)| *signed)
     }
@@ -346,10 +353,16 @@ impl crate::Starter {
             let Some(sum) = f.boot_sha256.as_deref() else {
                 continue;
             };
-            if boot_is(f, Some(want)) || self.boot_judgement(d, sum).is_some() {
+            if boot_is(f, Some(want)) || self.boot_judgement(d, sum, want).is_some() {
                 continue;
             }
-            let key = (d.id.clone(), d.serial.clone(), d.size, sum.to_string());
+            let key = (
+                d.id.clone(),
+                d.serial.clone(),
+                d.size,
+                sum.to_string(),
+                want.to_string(),
+            );
             if !self.boot_judging.contains(&key) {
                 asks.push(key);
             }

@@ -766,14 +766,7 @@ fn elevated_write(args: &[String]) -> ExitCode {
             // read the stick's version without elevation, so this copy reads
             // it again and refuses the same build.
             if e.order.mode == Mode::KeepData {
-                let build = match &job {
-                    Job::Found { file, .. } => Some(file.build_id.as_str()),
-                    Job::Image(i) => i.build_id.as_deref(),
-                };
-                let want = match &job {
-                    Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
-                    Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
-                };
+                let (build, want) = expected(&job);
                 let (on_stick, got) = release_of(&mut device, &e.order.device)?;
                 writer::refuse_same_build(
                     on_stick.as_deref(),
@@ -864,17 +857,38 @@ fn read_listed(r: &ReadVersion) -> Result<StickRead, Reason> {
         .and_then(|(s, size)| job_of(s, *size).ok());
     let mut keep = job.is_some().then(Vec::new);
     let (release, sum) = read_release(&mut device, &now.device, keep.as_mut())?;
-    let want = job.as_ref().and_then(|job| match job {
-        Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
-        Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
-    });
-    let signed = match (&sum, want, job, keep) {
-        (Some(got), Some(want), Some(job), Some(bytes)) if !got.eq_ignore_ascii_case(&want) => {
-            Some(signed::is_release_signed(&job, &bytes))
+    // A stick of another release than this one cannot be this release with
+    // a boot file the person signed: it is judged to differ, without the
+    // decompression.
+    let signed = match (&sum, job.as_ref().map(expected)) {
+        (Some(got), Some((build, Some(want)))) if !got.eq_ignore_ascii_case(&want) => {
+            let same = build.is_none_or(|b| {
+                faraday_paper::build::compare(
+                    release.as_deref().and_then(faraday_paper::build::build_id),
+                    b,
+                ) == faraday_paper::build::Fit::Same
+            });
+            Some(
+                same && matches!((&job, &keep), (Some(job), Some(bytes)) if signed::is_release_signed(job, bytes)),
+            )
         }
         _ => None,
     };
     Ok((release, sum, signed))
+}
+
+/// The build ID and the boot partition's SHA-256 `job` is the release of.
+fn expected(job: &Job) -> (Option<&str>, Option<String>) {
+    match job {
+        Job::Found { file, .. } => (
+            Some(file.build_id.as_str()),
+            file.boot_sha256.map(|s| s.to_string()),
+        ),
+        Job::Image(i) => (
+            i.build_id.as_deref(),
+            i.boot_only.then(|| i.sum.sha256.to_string()),
+        ),
+    }
 }
 
 /// Opens the disk read-only and reads its partition table and up to

@@ -421,7 +421,7 @@ pub enum StarterAction {
     GuidePage(u8),
     /// Keep data's link: the guide's section about replacing Faraday.
     KeepDataGuide,
-    /// Home and Make's Check this stick (Windows, §10.4): the elevated
+    /// Make's Check this stick (Windows, §10.4): the elevated
     /// copy reads the attached stick's boot partition and judges it.
     CheckStick,
     /// Include the BitLocker recovery key on the sheet, ticked or not
@@ -714,7 +714,7 @@ type VersionRead = (Option<String>, Option<String>);
 
 /// A stick's boot partition as the shell read it: disk id, serial, size
 /// and SHA-256.
-type BootKey = (String, String, u64, String);
+type BootKey = (String, String, u64, String, String);
 
 /// The Starter.
 pub struct Starter {
@@ -792,6 +792,8 @@ pub struct Starter {
     boot_judged: Vec<(BootKey, bool)>,
     /// The boot partitions whose judgement is asked and not yet answered.
     boot_judging: Vec<BootKey>,
+    /// The release's boot sum a Check this stick read is judged against.
+    version_judging: Option<String>,
     /// A version read asked before the write, still to arrive: what it
     /// reads is the stick before the write, so it is dropped.
     version_stale: Option<String>,
@@ -959,6 +961,7 @@ impl Starter {
             close_held: false,
             boot_judged: Vec::new(),
             boot_judging: Vec::new(),
+            version_judging: None,
             version_stale: None,
             version_reading: None,
             version_failed: None,
@@ -1333,12 +1336,13 @@ impl Starter {
             return;
         };
         let key = (d.id.clone(), d.serial.clone(), d.size);
-        self.ask_version(key);
+        self.ask_version(key, false);
     }
 
     /// Whether Check this stick is offered (§10.4): on Windows, a Faraday
-    /// stick attached whose boot partition is not read yet, against a
-    /// release that lists its sum. A lookup.
+    /// stick attached that has no line against the release yet (its boot
+    /// partition not read, or read and not judged), against a release that
+    /// lists its sum. A lookup.
     pub fn can_check_stick(&self) -> bool {
         self.computer.os == Os::Windows
             && self.version_reading.is_none()
@@ -1346,10 +1350,11 @@ impl Starter {
                 .facts()
                 .stick()
                 .and_then(|d| d.faraday.as_ref())
-                .is_some_and(|f| !f.read)
+                .is_some_and(|f| !f.read || f.boot_sha256.is_some())
             && self
                 .image(Target::Stick)
                 .is_some_and(|i| i.boot_sha256.is_some())
+            && self.boot_check().is_none()
     }
 
     /// Check this stick: the elevated copy reads the first Faraday
@@ -1365,17 +1370,20 @@ impl Starter {
         };
         let key = (d.id.clone(), d.serial.clone(), d.size);
         self.version_failed = None;
-        self.ask_version(key);
+        self.ask_version(key, true);
     }
 
     /// Asks the elevated copy to read the stick `(disk, serial, size)`,
-    /// once while a read is under way, with the release to judge it by.
-    fn ask_version(&mut self, (disk, serial, size): (String, String, u64)) {
+    /// once while a read is under way; with `judge`, with the release to
+    /// judge it by (Check this stick only: Keep data's read never judges).
+    fn ask_version(&mut self, (disk, serial, size): (String, String, u64), judge: bool) {
         if self.version_reading.is_some() {
             return;
         }
         self.version_reading = Some(disk.clone());
-        let source = self.image(Target::Stick).map(|i| i.source);
+        let image = self.image(Target::Stick).filter(|_| judge);
+        self.version_judging = image.as_ref().and_then(|i| i.boot_sha256.clone());
+        let source = image.map(|i| i.source);
         self.out.push_back(StarterCommand::ReadVersion {
             disk,
             serial,
@@ -1571,11 +1579,18 @@ impl Starter {
                 sha256,
                 signed,
             } => {
-                let key = (disk, serial, size, sha256);
-                self.boot_judging.retain(|k| *k != key);
-                self.boot_judged.retain(|(k, _)| *k != key);
-                self.boot_judged.push((key, signed));
-                self.dirty = true;
+                // Kept against the release it was asked for.
+                if let Some(key) = self
+                    .boot_judging
+                    .iter()
+                    .find(|k| (&k.0, &k.1, k.2, &k.3) == (&disk, &serial, size, &sha256))
+                    .cloned()
+                {
+                    self.boot_judging.retain(|k| *k != key);
+                    self.boot_judged.retain(|(k, _)| *k != key);
+                    self.boot_judged.push((key, signed));
+                    self.dirty = true;
+                }
             }
             StarterEvent::DevImage(d) => self.dev = Some(d),
             StarterEvent::ImagesWanted(n) => self.images_wanted(n),
@@ -1728,8 +1743,10 @@ impl Starter {
                 match result {
                     Ok(read) => {
                         self.version_failed = None;
-                        if let (Some(signed), Some(sum)) = (signed, read.1.clone()) {
-                            let judged = (disk.clone(), serial.clone(), size, sum);
+                        if let (Some(signed), Some(sum), Some(want)) =
+                            (signed, read.1.clone(), self.version_judging.take())
+                        {
+                            let judged = (disk.clone(), serial.clone(), size, sum, want);
                             self.boot_judged.retain(|(k, _)| *k != judged);
                             self.boot_judged.push((judged, signed));
                         }

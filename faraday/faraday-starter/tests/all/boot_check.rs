@@ -295,3 +295,105 @@ fn the_decision_tells_match_signed_and_differing_apart() {
         Some(BootCheck::Differs)
     );
 }
+
+fn another_release() -> Vec<ImageFinding> {
+    images("0.2.0")
+        .into_iter()
+        .map(|f| match f {
+            ImageFinding::Found(i) => ImageFinding::Found(FoundImage {
+                boot_sha256: Some("5".repeat(64)),
+                ..i
+            }),
+            other => other,
+        })
+        .collect()
+}
+
+#[test]
+fn keep_datas_read_judges_nothing_and_the_button_stays_for_the_stick_it_read() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::Make(faraday_starter::decide::Target::Stick));
+    let n = StarterAction::Disk(s.disk_number(r"\\.\PhysicalDrive2"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::KeepData));
+    let asked = commands(&mut s);
+    assert!(
+        matches!(
+            asked.as_slice(),
+            [StarterCommand::ReadVersion { source: None, .. }]
+        ),
+        "keep data's read waits for nothing but the boot partition"
+    );
+    answered(
+        &mut s,
+        asked.into_iter().next().expect("one command"),
+        &"8".repeat(64),
+        None,
+    );
+    s.press(StarterAction::Home);
+    s.press(StarterAction::MakePage);
+    assert!(shows(&mut s, EN.starter_stick_check));
+    assert!(!shows(&mut s, EN.starter_stick_boot_differs));
+}
+
+#[test]
+fn a_windows_judgement_made_against_one_release_shows_nothing_for_another() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    answered(&mut s, asked, &"8".repeat(64), Some(true));
+    assert!(!shows(&mut s, EN.starter_stick_check));
+    s.starter_event(StarterEvent::ImagesFound(another_release()));
+    assert!(shows(&mut s, EN.starter_stick_check));
+    assert!(!shows(&mut s, EN.starter_stick_boot_signed));
+    s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
+    assert!(!shows(&mut s, EN.starter_stick_check));
+}
+
+#[test]
+fn a_linux_judgement_made_against_one_release_is_asked_again_for_another() {
+    let mut s = starter_with(
+        linux(true),
+        stick_with(Some(&"8".repeat(64))),
+        images("0.2.0"),
+    );
+    s.starter_event(StarterEvent::BootJudged {
+        disk: "sdb".into(),
+        serial: "SN-sdb".into(),
+        size: 16 * GB,
+        sha256: "8".repeat(64),
+        signed: true,
+    });
+    assert!(shows(&mut s, EN.starter_stick_boot_signed));
+    let _ = commands(&mut s);
+    s.starter_event(StarterEvent::ImagesFound(another_release()));
+    assert!(!shows(&mut s, EN.starter_stick_boot_signed));
+    assert!(
+        commands(&mut s)
+            .iter()
+            .any(|c| matches!(c, StarterCommand::JudgeBoot { .. }))
+    );
+}
+
+#[test]
+fn a_declined_check_says_so_on_the_card_where_it_was_pressed() {
+    let mut s = starter_with(windows(true), unread_windows_stick(), images("0.2.0"));
+    s.press(StarterAction::MakePage);
+    let asked = checked(&mut s);
+    let StarterCommand::ReadVersion {
+        disk, serial, size, ..
+    } = asked
+    else {
+        panic!("the shell is not asked to read the stick");
+    };
+    s.starter_event(StarterEvent::VersionRead {
+        disk,
+        serial,
+        size,
+        result: Err(faraday_starter::api::Reason::Declined),
+        signed: None,
+    });
+    // The card wraps a long line: its first words are what is looked for.
+    assert!(shows(&mut s, "Administrator permission"));
+    assert!(shows(&mut s, EN.starter_stick_check));
+}

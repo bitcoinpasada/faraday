@@ -144,9 +144,7 @@ fn keep_data_asks_for_the_elevated_read_once_then_refuses_the_same_build() {
             disk: r"\\.\PhysicalDrive2".into(),
             serial: "AAA111".into(),
             size: 16 * GB,
-            source: s
-                .image(faraday_starter::decide::Target::Stick)
-                .map(|i| i.source),
+            source: None,
         }]
     );
     assert!(shows(&mut s, EN.starter_mode_reading));
