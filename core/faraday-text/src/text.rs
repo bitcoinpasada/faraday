@@ -311,17 +311,6 @@ impl Text {
         self.buf.capacity()
     }
 
-    /// The length in bytes, with no pass over the text (the `str` one
-    /// checks it all is UTF-8 first).
-    pub fn len(&self) -> usize {
-        self.buf.len()
-    }
-
-    /// Whether it holds nothing, with no pass over the text.
-    pub fn is_empty(&self) -> bool {
-        self.buf.is_empty()
-    }
-
     /// The text.
     pub fn as_str(&self) -> &str {
         core::str::from_utf8(&self.buf).unwrap_or("")
