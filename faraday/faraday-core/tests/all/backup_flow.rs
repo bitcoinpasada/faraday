@@ -3092,7 +3092,10 @@ fn a_file_changed_since_it_was_shown_is_not_overwritten_and_the_card_says_so() {
     assert_eq!(shell.disk("U").file("main.kdbx"), Some(&changed));
     assert_eq!(count(&shell, "note.pdf"), 0);
     assert_eq!(step(&app), Step::Write, "the stick does not count");
-    expect(&mut app, "The copy did not check on OTHER. Nothing counted");
+    expect(
+        &mut app,
+        "The copy on OTHER failed its check. Nothing was counted",
+    );
 }
 
 /// Back opens the card before the open one, as the arrow or the mouse's

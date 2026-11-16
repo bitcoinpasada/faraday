@@ -1127,7 +1127,7 @@ fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     settle_n(&mut app, 1, 2);
     // A single key, no passphrase: both lines, under the checks.
-    expect_part(&mut app, "A passphrase kept at another place than");
+    expect_part(&mut app, "Keeping the passphrase in a different place from");
     expect_part(&mut app, "the seed is recommended");
     assert!(offered(&mut app, Action::PlanAddPass));
     shell.press(&mut app, Action::PlanAddPass);

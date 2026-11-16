@@ -114,7 +114,7 @@ fn a_checksum_that_fails_is_refused_and_no_key_is_shown() {
     let last = if sum.ends_with('q') { 'p' } else { 'q' };
     let bad = format!("{body}#{}{last}", &sum[..sum.len() - 1]);
     let mut app = scanned(&bad);
-    assert!(has_part(&mut app, "The descriptor checksum does not hold"));
+    assert!(has_part(&mut app, "The descriptor checksum is wrong"));
     assert!(!has_part(&mut app, "Key 1"));
 }
 
@@ -126,10 +126,10 @@ const CORE_EXAMPLE: &str = "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDM
 fn a_checksum_from_bitcoin_core_is_accepted_and_a_changed_one_refused() {
     // Its keys have no origin, so it is refused, but not for its checksum.
     let mut app = scanned(&format!("{CORE_EXAMPLE}#t2zpj2eu"));
-    assert!(!has_part(&mut app, "The descriptor checksum does not hold"));
+    assert!(!has_part(&mut app, "The descriptor checksum is wrong"));
     assert!(!has_part(&mut app, "Key 1"));
     let mut app = scanned(&format!("{CORE_EXAMPLE}#t2zpj2ev"));
-    assert!(has_part(&mut app, "The descriptor checksum does not hold"));
+    assert!(has_part(&mut app, "The descriptor checksum is wrong"));
 }
 
 #[test]
