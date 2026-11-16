@@ -389,6 +389,9 @@ fn sync_paper(app: &mut Faraday, i: usize) {
 /// (`docs/KEF.md` §15.1). The item goes with it where no stick holds the
 /// code either. The drawn copy's scan stays marked: one scan per seed.
 fn not_on_paper(app: &mut Faraday) {
+    if app.plan_refuses() {
+        return;
+    }
     let Some(i) = app.backup.kef_open() else {
         return;
     };

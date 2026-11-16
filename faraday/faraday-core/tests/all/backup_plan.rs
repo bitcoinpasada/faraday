@@ -3,6 +3,7 @@
 //! gives, the checklist lists only what the plan needs, and the answers
 //! read back as the vault keeps them.
 
+use crate::backup_flow_wallet::{save_vaults, two_of_three_with_setup};
 use crate::common::{
     board, files_at, no_paper_description, pass_off_at, put, take_off, vault_at, vault_made,
     vault_stick, words_off_at,
@@ -2186,4 +2187,153 @@ fn saving_the_backup_flow_with_the_keys_swapped_replaces_a_standard_plan_and_kee
     let after = kept_plans(&app, id);
     assert_eq!(after.len(), 1, "the one record is replaced");
     assert_eq!(after[0].2.len(), 1, "its note is kept");
+}
+
+const OTHER_ORDER_TOAST: &str = "The shares plan kept for this wallet has its keys in another order. \
+     Load the wallet with its keys in that order to change the plan.";
+
+/// Every record of every open vault, as they are, to compare.
+fn every_record(app: &Faraday) -> Vec<String> {
+    (0..app.vaults().open.len())
+        .map(|o| format!("{:?}", crate::common::contents(app, o)))
+        .collect()
+}
+
+/// Loads the pair's wallet with its keys `y` then `x`, opens its backup and
+/// chooses the Standard plan, not yet saved.
+fn open_swapped_standard(app: &mut Faraday, x: &str, y: &str) -> usize {
+    use faraday_core::testkit;
+    let c = testkit::compute();
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(faraday_core::Action::Backup(w));
+    let shape = app.plan_shape_now(w);
+    testkit::set_backup_answers(app, Answers::preset(&shape, Preset::Standard));
+    w
+}
+
+#[test]
+fn pressing_checklist_with_the_keys_swapped_over_a_shares_plan_of_the_other_order_writes_nothing() {
+    use faraday_core::plan::Mark;
+    use faraday_core::testkit;
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let notes = [Note::Marked(At::Place(0), What::Share(0), Mark::Lost)];
+    let (mut app, _) = shares_plan_kept(&[0, 1], &x, &y, &notes);
+    let before = every_record(&app);
+    open_swapped_standard(&mut app, &x, &y);
+    app.press(faraday_core::Action::BChecklist);
+    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_ne!(
+        app.backup().map(|b| b.stage),
+        Some(faraday_core::BStage::Checklist),
+        "the checklist did not open"
+    );
+    assert_eq!(every_record(&app), before);
+}
+
+#[test]
+fn pressing_checklist_with_two_vaults_open_writes_into_neither_when_one_refuses() {
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let (mut app, _) = shares_plan_kept(&[0, 1], &x, &y, &[]);
+    // A second vault, opened after the first, is the current one.
+    crate::common::top_up(&mut app);
+    app.press(faraday_core::Action::Nav(faraday_core::Screen::Vaults));
+    app.press(faraday_core::Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(faraday_core::Action::Vault(V::CFocus(0, second)));
+        crate::common::type_text(&mut app, "other phrase");
+    }
+    app.press(faraday_core::Action::Vault(V::CGo));
+    crate::common::settle(&mut app, 10);
+    crate::common::settle(&mut app, 40);
+    if app.screen == faraday_core::Screen::Unlock {
+        crate::common::unlock(&mut app, "other phrase");
+    }
+    assert_eq!(app.vaults().open.len(), 2, "the second vault opened");
+    let before = every_record(&app);
+    open_swapped_standard(&mut app, &x, &y);
+    app.press(faraday_core::Action::BChecklist);
+    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(every_record(&app), before);
+}
+
+/// Puts into open vault `o` a plan with shares kept for the wallet `w` with
+/// its keys in the other order.
+fn plant_other_order_plan(app: &mut Faraday, o: usize, w: usize) {
+    use faraday_core::plan::Tag;
+    use faraday_core::testkit;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let descriptor = app.session.wallets[w].policy().to_descriptor();
+    let descriptor = descriptor.split('#').next().unwrap_or_default().to_string();
+    let open = "sortedmulti(";
+    let at = descriptor.find(open).expect("a sortedmulti wallet") + open.len();
+    let end = at + descriptor[at..].find(')').unwrap();
+    let mut parts: Vec<&str> = descriptor[at..end].split(',').collect();
+    let keys = parts.split_off(1);
+    let swapped: Vec<&str> = keys.into_iter().rev().collect();
+    let text = format!(
+        "{}{},{}{}",
+        &descriptor[..at],
+        parts[0],
+        swapped.join(","),
+        &descriptor[end..]
+    );
+    let shape = app.plan_shape_now(w);
+    let mut answers = Answers::preset(&shape, Preset::Standard);
+    answers.places = 2;
+    answers.split = true;
+    answers.custom = true;
+    answers.map = Some(vec![
+        Spot {
+            at: At::Place(0),
+            holds: vec![(What::Share(0), Tag::Secret)],
+        },
+        Spot {
+            at: At::Place(1),
+            holds: vec![(What::Share(1), Tag::Secret)],
+        },
+    ]);
+    let record = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, text.as_bytes())
+        .with(field::PLAN_ANSWERS, answers.to_text().as_bytes());
+    let id = app.vaults().open[o].id;
+    testkit::vault_edit(app, id, |s| s.insert(id, record));
+}
+
+#[test]
+fn the_lock_with_a_shares_plan_kept_for_the_other_key_order_in_a_vault_starts_nothing() {
+    use crate::common::{Shell, no_words, vault_off};
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    use faraday_core::bstep;
+    let mut shell = Shell::new();
+    let mut app = two_of_three_with_setup(&mut shell, 2);
+    no_words(&mut app);
+    vault_off(&mut app, 2);
+    app.press(faraday_core::Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(faraday_core::Action::BNext(bstep::ENVELOPE));
+    let w = app.backup().unwrap().wallet;
+    plant_other_order_plan(&mut app, 1, w);
+    let before = every_record(&app);
+    let flows = app.backup_flows().len();
+    shell.flow(&mut app, F::WalletLock);
+    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(app.backup_flows().len(), flows, "no flow started");
+    assert!(!app.restart_requested(), "the lock did not come");
+    assert_eq!(every_record(&app), before);
 }

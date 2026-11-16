@@ -122,6 +122,19 @@ pub(crate) struct PlanRecord {
 }
 
 impl VaultArea {
+    /// Costs what `described_of` costs. Whether open vault `v` keeps a plan
+    /// record of `w` for the other key order that `w` does not read (its
+    /// shares hold the other order's keys): nothing is written over it.
+    pub(crate) fn plan_refused(&self, c: &Compute, v: usize, w: &crate::wallet::Wallet) -> bool {
+        let Some(open) = self.open.get(v) else {
+            return false;
+        };
+        let same = wallet::same_wallet(w.policy());
+        self.described_of(c, open.id, kind::PLAN).any(|(_, r, d)| {
+            *d.same == *same && !same_keys(d, w.policy()) && !reads_for(d, r, w.policy())
+        })
+    }
+
     /// Costs what `described_of` costs. The plan record for the wallet
     /// `src` in open vault `v` (record type 11), over the one it kept for
     /// the wallet; None when `v` is not open or the one kept is the same.
@@ -137,17 +150,12 @@ impl VaultArea {
         for fp in &src.held {
             text.push_str(&format!("held {}\n", &*fp_text(*fp)));
         }
-        let mut refused = false;
-        let mut ours: Vec<usize> = Vec::new();
-        for (i, r, d) in self.described_of(c, open.id, kind::PLAN) {
-            if *d.same != *wallet::same_wallet(w.policy()) {
-                continue;
-            }
-            // A record for the other key order that this wallet does not
-            // read (its shares hold the other order's keys) is not replaced.
-            refused |= !same_keys(d, w.policy()) && !reads_for(d, r, w.policy());
-            ours.push(i);
-        }
+        let refused = self.plan_refused(c, v, w);
+        let ours: Vec<usize> = self
+            .described_of(c, open.id, kind::PLAN)
+            .filter(|(_, _, d)| *d.same == *wallet::same_wallet(w.policy()))
+            .map(|(i, _, _)| i)
+            .collect();
         let text = plan::text::with_seals(&text, &self.plan_seals_kept(open.id, &ours));
         let mut record = Record::new(kind::PLAN)
             .with(

@@ -733,6 +733,11 @@ impl Faraday {
             return;
         }
         self.vaults.set_current(cur);
+        // A plan kept for the other key order is not written over, and
+        // nothing is written beside it.
+        if self.plan_refuses() {
+            return;
+        }
         // What the vault held before this backup first saved into it.
         let salt = self.vaults.open[cur].vault_id();
         if self

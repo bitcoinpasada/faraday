@@ -2550,6 +2550,9 @@ impl Faraday {
         list: Vec<(usize, zeroize::Zeroizing<Text>)>,
     ) {
         use faraday_vault::codex32::{SetFacts, State};
+        if self.plan_refuses() {
+            return;
+        }
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -3170,6 +3173,9 @@ impl Faraday {
         }
         answers.set_c32(&shape, i, Some(form));
         let wallet_i = b.wallet;
+        if self.plan_refuses() {
+            return;
+        }
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
         // The plan record is saved with the share added, so that the record

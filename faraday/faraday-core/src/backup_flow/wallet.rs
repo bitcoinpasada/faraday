@@ -51,6 +51,9 @@ struct CopyCtx<'a> {
     c: &'a Compute,
     wf: &'a super::WalletFlow,
     cs: &'a str,
+    /// The loaded wallet's `wallet::same_wallet`, which a record of the
+    /// wallet in the other key order shares.
+    same: Option<Text>,
     holders: Vec<usize>,
 }
 
@@ -60,6 +63,20 @@ impl CopyCtx<'_> {
         crate::wallet::read_wallet(self.c, t)
             .ok()
             .is_some_and(|p| p.checksum() == self.cs)
+    }
+}
+
+impl CopyCtx<'_> {
+    /// Costs reading the wallet description `t` (`read_wallet`): whether it
+    /// is this wallet's in either key order (`wallet::same_wallet`).
+    fn same_wallet(&self, t: &str) -> bool {
+        crate::wallet::read_wallet(self.c, t).ok().is_some_and(|p| {
+            p.checksum() == self.cs
+                || self
+                    .same
+                    .as_ref()
+                    .is_some_and(|s| **s == *crate::wallet::same_wallet(&p))
+        })
     }
 }
 
@@ -902,7 +919,9 @@ impl Faraday {
             };
             opens.push((v, o));
         }
-        self.plan_save();
+        if !self.plan_save() {
+            return;
+        }
         // The flow of this wallet's backup under way; a flow that is done
         // is replaced, and a new backup writes everything its plan names.
         let mut carry: Vec<Text> = Vec::new();
@@ -1307,6 +1326,12 @@ impl Faraday {
             c: &c,
             wf: &wf,
             cs: &cs,
+            same: self
+                .session
+                .wallets
+                .iter()
+                .find(|w| w.checksum() == &*cs)
+                .map(|w| Text::of(w.same())),
             holders,
         };
         let work = match self.wallet_copy_gather(&cx, &added) {
@@ -1722,6 +1747,8 @@ impl Faraday {
         let wf = cx.wf;
         let holders = cx.holders.as_slice();
         let of_wallet = |t: &str| cx.of_wallet(t);
+        // A record of this wallet in either key order.
+        let same_wallet = |t: &str| cx.same_wallet(t);
         // Exactly the plan's codex32 strings, of its set (`docs/CODEX32.md` §9.5).
         let both = (&mut w.add, &mut w.out);
         if let Err(want) = self.c32_round_records(c, (&wf.shape, &wf.answers), v, o, both) {
@@ -1733,7 +1760,7 @@ impl Faraday {
             .vaults
             .records(self.vaults.open[o].id)
             .of(rkind::PLAN)
-            .any(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet));
+            .any(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&same_wallet));
         if !has_plan
             && let Some(r) = holders.iter().find_map(|&h| {
                 self.vaults
