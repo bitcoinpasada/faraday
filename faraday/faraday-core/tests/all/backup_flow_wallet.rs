@@ -1274,7 +1274,7 @@ fn copy_with_other_order_plan_in_the_added_vault(shares: bool) -> Faraday {
         .expect("a holder keeps the plan");
     let w = app
         .session
-        .add_wallet(
+        .add_wallet_confirmed(
             &testkit::compute(),
             "Wallet",
             &text,
