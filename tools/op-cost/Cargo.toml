@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-codec = { path = "../../core/faraday-codec" }
+faraday-core = { path = "../../faraday/faraday-core" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-intake = { path = "../../faraday/faraday-intake" }
 faraday-files = { path = "../../faraday/faraday-files" }

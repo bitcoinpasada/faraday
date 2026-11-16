@@ -39,13 +39,14 @@ const ABANDON: &str =
 const PSBT: &str = include_str!("psbt.txt");
 
 /// The operations, by name.
-const OPERATIONS: [(&str, fn()); 7] = [
+const OPERATIONS: [(&str, fn()); 8] = [
     ("mnemonic-parse-24", mnemonic_parse),
     ("mnemonic-to-seed", mnemonic_to_seed),
     ("seed-xor-combine", seed_xor_combine),
     ("psbt-read", psbt_read),
     ("psbt-sign", psbt_sign),
     ("text-file-words-1mib", text_file_words),
+    ("classify-short-lines-32kib", classify_short_lines),
     ("qr-in-png-limit", qr_in_png_limit),
 ];
 
@@ -61,6 +62,22 @@ fn text_file_words() {
         text.split_whitespace().count()
     );
     black_box(words);
+}
+
+/// A public key with its origin, the first line of a key file.
+const KEY_LINE: &str = "[086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe";
+/// Short words, one to a line, each too short to be a secret.
+const SHORT_LINES: &str = "cat\ndog\nfox\nhen\nowl\nbee\nant\nelk\n";
+
+/// A key file followed by about 32 KiB of short lines: every line is
+/// checked for a secret beside the key.
+fn classify_short_lines() {
+    let c = Compute::unchecked();
+    let mut file = format!("{KEY_LINE}\n");
+    file.push_str(&SHORT_LINES.repeat((1 << 15) / SHORT_LINES.len()));
+    let read = faraday_core::wallet::classify_read(&c, "key.txt", file.as_bytes());
+    assert_eq!(read.kind, faraday_core::wallet::FileKind::Key);
+    black_box(read);
 }
 
 fn mnemonic_parse() {

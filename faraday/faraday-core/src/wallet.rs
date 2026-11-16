@@ -2288,7 +2288,8 @@ fn sorted_outpoints(tx: &Transaction) -> Vec<OutPoint> {
 /// Costs what [`classify`] costs, and for text, a few passes over it and
 /// a check of each line, each linear in the file's length (a file of
 /// many short lines or of one line of many short tokens costs by its
-/// length). [`classify`], keeping what it read to
+/// length, held by the operation `classify-short-lines-32kib` of
+/// `tools/op-cost`). [`classify`], keeping what it read to
 /// tell: a PSBT is parsed once and a wallet file read once when a file
 /// comes in.
 pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {

@@ -2238,6 +2238,7 @@ version = "0.1.0"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
+ "faraday-core",
  "faraday-crypto",
  "faraday-entropy",
  "faraday-files",
