@@ -28,6 +28,7 @@ mod stick_visit;
 mod storage_events;
 mod ur_message;
 mod vault_names;
+mod wallet_files;
 
 use faraday_leak_scan::{Armed, Form};
 
