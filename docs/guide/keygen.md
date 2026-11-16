@@ -5,57 +5,59 @@
 **Screen:** `KeyGen`
 **Key:** keygen
 
-One card per step, from how the key comes in to its backup quiz. A key is made from randomness or taken in from words, shares or strings already held, and the same cards, headed Add a key, take a key in for a wallet.
+New key makes a key from randomness, or takes in one you already hold as words, shares or strings. It is one card per step, from how the key comes in to the quiz on its backup; headed Add a key, the same cards take a key in for a wallet.
 
 ## Start
 
 **Key:** keygen.start
 
-The choice is how the key comes in. Under **Make a new key**, the device makes it; under **Add a key you have**, a key already written down is typed or scanned. **Other forms** opens three more.
+First choose how the key comes in. Under **Make a new key** the device makes one; under **Add a key you have** you type or scan a key that is already written down. **Other forms** opens three more.
 
-**BIP-39 words** makes 12 to 24 words. **Codex32** makes codex32 strings by hand, on its own cards. **Type the words**, **Scan a SeedQR** and **Type codex32 strings** take a key held on paper or in a code. **Make SLIP-39 shares** makes shares, **Type SLIP-39 shares** takes them and **Type Seed XOR parts** takes the parts of a Seed XOR key.
+**BIP-39 words** makes a key of 12 to 24 words. **Codex32** makes codex32 strings worked out by hand, on its own cards. **Type the words**, **Scan a SeedQR** and **Type codex32 strings** take in a key you hold on paper or in a code. **Make SLIP-39 shares** makes shares, **Type SLIP-39 shares** takes them in, and **Type Seed XOR parts** takes in the parts of a Seed XOR key.
 
 ## Length
 
 **Key:** keygen.length
 
-The choice is how many words the key has. Each length adds a checksum to its bits.
+Choose how many words the key has. **12 words** and **24 words** are shown, and **Other** opens 15, 18 and 21 words. Twelve words carry 128 bits and 24 carry 256: either is beyond guessing, and most wallets and signers read every length. Each length ends in a checksum, which catches a word copied wrongly.
 
-**12 words** and **24 words** are shown; **Other** opens 15, 18 and 21 words. For SLIP-39 the choice is a share of 20 or 33 words, with **Shares needed** and **Shares dealt** as steppers: that many shares rebuild the key, and fewer reveal nothing of it. Shares restore only in software that reads SLIP-39. 12 words carry 128 bits and 24 words 256; either is beyond guessing, and most wallets and signers read every length.
+For SLIP-39 you choose shares of 20 or 33 words instead, and set **Shares needed** and **Shares dealt**: that many shares rebuild the key, and fewer reveal nothing of it. Shares restore only in software that reads SLIP-39.
 
 ## Randomness
 
 **Key:** keygen.source
 
-The choice is where the key's randomness comes from. Each source asks for trust in something different, and nothing can show afterwards that a source was faulty.
+Choose where the key's randomness comes from. Each source asks you to trust something different, and nothing can show afterwards that a source was faulty.
 
-**Your own entropy, words verifiable by hand** lists **Dice · Words chosen by the dice**, **Dice · Flip mode** and **Coin flips**. Six rolls name a word, a 5 or 6 in the first five rolled again; in flip mode 1 to 3 is 0 and 4 to 6 is 1. **Your entropy, computer generates words** lists **Dice · Hashed (Coldcard, SeedSigner)**, **Dice · Six as zero, hashed (Keystone)**, **Hex entropy**, **Playing cards** and **Mixed sources**. The same rolls make a different key under each hashing. **Made by this device** lists **This device**.
+Under **Your own entropy, words verifiable by hand**, your rolls or flips choose the words directly, so the result can be checked on paper: **Dice · Words chosen by the dice**, **Dice · Flip mode** and **Coin flips**. Six rolls name a word, and a 5 or 6 among the first five is rolled again; in flip mode 1 to 3 is 0 and 4 to 6 is 1.
+
+Under **Your entropy, computer generates words**, your entries are hashed into the words: **Dice · Hashed (Coldcard, SeedSigner)**, **Dice · Six as zero, hashed (Keystone)**, **Hex entropy**, **Playing cards** and **Mixed sources**. The same rolls make a different key under each hashing. Under **Made by this device** there is one source, **This device**.
 
 ## Entries
 
 **Key:** keygen.enter
 
-The entries for the source chosen, counted against the number the length needs. Dice and coin flips are **Typed** or pressed as **Buttons**.
+Enter what you rolled, flipped or drew; the count shows how many entries the length still needs. Dice and coin flips are **Typed** or pressed as **Buttons**.
 
-**Dice** takes faces 1 to 6. **Coin flips** takes heads or tails, or a die as **Coin** or **Die**. **Playing cards** takes a rank, then a suit, and refuses a card already drawn. **Hex entropy** takes hex digits already random. Use a real die; never pick numbers in the head. A card cannot come up twice from one deck: past 52, shuffle again. **Mixed sources** takes two or more in turn. **This device** reads the system's generator once.
+**Dice** takes faces 1 to 6. **Coin flips** takes heads or tails, or a die read as **Coin** or **Die**. **Playing cards** takes a rank, then a suit, and refuses a card already drawn: past 52, shuffle again. **Hex entropy** takes hex digits that are already random. **Mixed sources** takes two or more sources in turn. **This device** reads the system's generator once. Use a real die, and never pick numbers in your head.
 
-**Undo** takes back the last entry, **Clear** all of them. After the last entry, a **Randomness check** shows the counts; **Roll again** restarts. **Make the words** follows the last entry, or **Continue** where the words showed as entered; for SLIP-39 it deals the shares.
+**Undo** takes back the last entry and **Clear** all of them. After the last entry a **Randomness check** shows the counts, and **Roll again** starts over. **Make the words** comes next, or **Continue** where the words showed as you entered them; for SLIP-39 it deals the shares.
 
 ## Check
 
 **Key:** keygen.check
 
-For SLIP-39 shares only: the counts of the entries behind the shares made.
+For SLIP-39 shares only: the counts of the entries behind the shares just made.
 
-**Rolls** and **Faces** count what came up, **Longest run** is the longest repeat, and cautions name a long run, a count far from even or a run counting up or down. The counts catch a biased die or entries typed instead of rolled. A caution does not block **Continue**, which opens the shares. **Roll again** starts the entries over. The check cannot turn a poor entry into a good one.
+**Rolls** and **Faces** count what came up, and **Longest run** is the longest repeat. The counts catch a biased die, or entries typed rather than rolled: a caution names a long run, a count far from even, or a run counting up or down. A caution does not stop you. **Continue** opens the shares, and **Roll again** starts the entries over. The check cannot turn poor entries into good ones.
 
 ## Key
 
 **Key:** keygen.key
 
-Shows the key the entries made, and **Lock in** adds it to the keys loaded. The fingerprint shows once it is locked in.
+Shows the key your entries made. **Lock in** adds it to the loaded keys, and its fingerprint shows once it is locked in.
 
-**Show words** and **Hide words** toggle the words. For a key typed or made for a wallet's key slot, **Passphrase** and **Passphrase again** take a BIP-39 passphrase: with one, the words make a different key, and both are needed to spend. Left empty, there is none. A key made on its own has no passphrase.
+**Show words** and **Hide words** show and hide the words. For a key typed in, or made for a wallet's key slot, **Passphrase** and **Passphrase again** take a BIP-39 passphrase. With a passphrase the same words make a different key, and you need both to spend; left empty, there is none. A key made on its own has no passphrase.
 
 The eye of a passphrase field shows what is typed. Once a hardware keyboard has typed one, **Keys are read as a US keyboard. Caps Lock is ignored.** shows and **Lock in** waits until the eye has been opened.
 
@@ -63,17 +65,17 @@ The eye of a passphrase field shows what is typed. Once a hardware keyboard has 
 
 **Key:** keygen.words
 
-The words of the key, numbered, to write down. A key made for a wallet has its words shown at its backup instead of here.
+The key's words, numbered, for you to write down. A key made for a wallet shows its words at its backup instead of here.
 
-**Show words** and **Hide words** toggle them. **I wrote them down** opens the quiz. For SLIP-39, one share is shown at a time, with **Next share**, and each share is written down before the next.
+**Show words** and **Hide words** show and hide them. **I wrote them down** opens the quiz. SLIP-39 shows one share at a time: write each down before pressing **Next share**.
 
 ## Quiz
 
 **Key:** keygen.quiz
 
-The quiz asks each word's position, in a random order, with four words to pick from; it passes once every word is right.
+The quiz checks your written copy. It asks for the word at each position, in a random order, with four words to pick from, and passes once every word is right.
 
-**Ask it again** repeats a missed word. **Show the words** goes back to the words. **Done** ends the quiz for BIP-39 words, whose key **Lock in** added. SLIP-39 shares are quizzed one share at a time, and **Use this key** or **Add key** adds the key once the quiz passes. **Skip the quiz** adds it without the check; a word copied wrongly then shows only when the backup is needed.
+**Ask it again** repeats a missed word. **Show the words** goes back to the words. For BIP-39 words **Done** ends the quiz; **Lock in** has already added the key. SLIP-39 shares are quizzed one share at a time, and **Use this key** or **Add key** adds the key once the quiz passes. **Skip the quiz** adds the key unchecked, and a word copied wrongly then shows only when you need the backup.
 
 ## Codex32
 

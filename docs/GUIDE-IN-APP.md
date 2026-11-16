@@ -112,11 +112,14 @@ changes, never while drawing.
 is at most 150 words, and one choice at most 40; a place whose section
 would need more splits it into parts. The lint holds the bound.
 
-**The text rule.** Plain statement of fact, in an encyclopedia's voice:
-no metaphor, no flourish, no second person beyond the imperative of a
-direction. The guide is the one place a working screen's explanation
-lives; a working screen still carries labels, values and actions only
-(DESIGN §2; F112's tooltip is the one short exception on a screen).
+**The text rule.** Plain statement of fact, with no metaphor and no
+flourish. A section speaks to the reader where that is the plain way to
+say what to do ("Choose how many words the key has", "write each share
+down before the next"), and states a fact as a fact everywhere else. It
+says what the step is for before it lists the step's buttons. The guide
+is the one place a working screen's explanation lives; a working screen
+still carries labels, values and actions only (DESIGN §2; F112's tooltip
+is the one short exception on a screen).
 
 The rule line in CLAUDE.md:
 

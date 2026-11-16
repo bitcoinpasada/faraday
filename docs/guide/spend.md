@@ -5,27 +5,29 @@
 **Screen:** `Spend`
 **Key:** spend
 
-One card per step, from the wallet a transaction spends from to the signed result. The transaction is written in the online wallet and brought here as a PSBT; nothing is signed until Sign.
+Signing is one card per step, from the wallet a transaction spends from to the signed result. You make the transaction in your online wallet and bring it here as a PSBT; nothing is signed until the Sign card.
 
 ## Wallet
 
 **Key:** spend.wallet
 
-The wallet is the loaded one whose script the transaction's first input spends. Its name, shape and source are shown. If it is not the wallet meant, stop here.
+Shows which loaded wallet the transaction spends from: the one whose script its first input spends, with its name, shape and source. If that is not the wallet you meant, stop here.
 
-**Continue** goes on. With no loaded wallet matching, the card says so, and change cannot be verified until the wallet is loaded.
+**Continue** goes to the next card. If no loaded wallet matches, the card says so, and change cannot be verified until the wallet is loaded.
 
 ## Path
 
 **Key:** spend.path
 
-Shown only for a wallet with several ways to spend. Each path lists its keys, tagged as held here or not, and either **No wait** or the wait each coin must have sat for. A line says whether this transaction's sequence allows that path. Whether the wait has passed is known to the network only. **Continue** goes on.
+Shown only for a wallet with several ways to spend. Each path lists its keys, marked as held here or not, and either **No wait** or how long each coin must have sat before that path can spend it. A line says whether this transaction's sequence allows the path. Only the network knows whether the wait has passed. **Continue** goes to the next card.
 
 ## Transaction
 
 **Key:** spend.transaction
 
-The transaction as rows, to be checked against what was meant to be sent; nothing is signed yet, and if anything differs, stop. **Sends** gives each recipient and amount; **Change** is shown only for an output derived from the loaded wallet, marked **Verified**. **Fee** gives the amount and its rate. **Spends** gives the total and the number of inputs, with **Amount unchecked** where an input's amount is not stated. **Txid** gives the id, **Unchanged by signing**, when every input is native SegWit or Taproot, and **Not known until signed** otherwise.
+The transaction, row by row. Check it against what you meant to send; nothing is signed yet, and if anything differs, stop.
+
+**Sends** gives each recipient and amount. **Change** is shown only for an output derived from the loaded wallet, marked **Verified**. **Fee** gives the amount and its rate. **Spends** gives the total and the number of inputs, with **Amount unchecked** where an input's amount is not stated. **Txid** gives the id: **Unchanged by signing** when every input is native SegWit or Taproot, **Not known until signed** otherwise.
 
 **Show the table** and **Hide the table** list each input and output. **No warnings** appears when none apply. **Register this wallet** appears for a wallet not yet registered. **Compare** opens Check a signer with this transaction as the first, to set a fee-bump copy beside it. **Continue** is absent while the review stops the spend.
 
@@ -33,29 +35,29 @@ The transaction as rows, to be checked against what was meant to be sent; nothin
 
 **Key:** spend.check
 
-The wallet's addresses **Receive 0/0**, **Receive 0/1** and **Change 1/0**, to compare with the software that made the transaction. Matching addresses mean both read the same wallet. **Continue** goes on.
+The wallet's addresses **Receive 0/0**, **Receive 0/1** and **Change 1/0**, for you to compare with the software that made the transaction. If they match, both are reading the same wallet. **Continue** goes to the next card.
 
 ## Signers
 
 **Key:** spend.signers
 
-Shown for a wallet of several keys. Each key is listed with its fingerprint and marked **Signs here** when loaded on this device, or **Not here**. The count says how many keys are here against how many must sign.
+Shown for a wallet of several keys. Each key is listed with its fingerprint and marked **Signs here** when it is loaded on this device, or **Not here**. The count says how many keys are here against how many must sign.
 
-**Load from vault** loads a key an open vault holds. **Load with a passphrase** does so for a seed kept without the passphrase this wallet uses. When the keys here are short, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached. **Continue** goes on.
+**Load from vault** loads a key that an open vault holds. **Load with a passphrase** loads a seed kept without the passphrase this wallet uses. When too few keys are here, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached. **Continue** goes to the next card.
 
 ## Nonces
 
 **Key:** spend.nonces
 
-Shown for an **All keys · MuSig2** wallet. Each key adds a one-time nonce before anyone signs; its row reads **Nonce here** or **Waiting**, and **This device** marks the keys held here.
+Shown for an **All keys · MuSig2** wallet. Every key adds a one-time nonce before anyone signs; each row reads **Nonce here** or **Waiting**, and **This device** marks the keys held here.
 
-An Add from button for each file in Files brings in another signer's copy. **Show as QR** shows this device's copy. **Go first: share this device's nonce** goes to Sign. **Continue** goes on. Keep the session unlocked until the signatures return: locking forgets the nonce.
+An Add from button for each file in Files brings in another signer's copy. **Show as QR** shows this device's copy. **Go first: share this device's nonce** goes to Sign. **Continue** goes to the next card. Keep the session unlocked until the signatures come back: locking forgets the nonce.
 
 ## Sign
 
 **Key:** spend.sign
 
-**Sign with** a list of fingerprints signs with every key of the wallet loaded here, and each signature is checked before it is kept. Afterwards the card reads Signed with those keys. With no key of the session able to sign, the card says so. A multisig needs further signatures before the transaction is finished.
+**Sign with**, followed by the fingerprints, signs with every key of the wallet that is loaded here, and each signature is checked before it is kept. Afterwards the card reads Signed with those keys. If no loaded key can sign, the card says so. A multisig needs further signatures before the transaction is finished.
 
 ## Signatures for this transaction
 
@@ -63,12 +65,12 @@ An Add from button for each file in Files brings in another signer's copy. **Sho
 
 Shown for a wallet of several keys. Each key reads **Signed here**, **Verified**, **Waiting**, **In file, unconfirmed**, **Does not verify** or, once enough have signed, **Not needed**.
 
-An Add from button for each file in Files adds the signatures of a copy of this transaction; a copy of another transaction is not offered. **Show as QR** and **Scan a copy** pass the PSBT to a cosigner and back. **Continue** appears once the signatures suffice.
+An Add from button for each file in Files adds the signatures from a copy of this transaction; a copy of a different transaction is not offered. **Show as QR** and **Scan a copy** pass the PSBT to a cosigner and back. **Continue** appears once there are enough signatures.
 
 ## Finish
 
 **Key:** spend.finish
 
-Before enough keys have signed, the card reads Needs and the count still missing.
+Until enough keys have signed, the card reads Needs and the number still missing.
 
-Two results follow. **Signed PSBT** goes back to the wallet that made the transaction, which finalises and broadcasts it. **Finished transaction** is ready to broadcast as it is. Each has **Make again**, or **Remove** while it waits for a stick, and the PSBT has **Show as QR**. **Decode it** takes the transaction apart. **Show the raw hex** and **Hide the raw hex** toggle its bytes.
+Then there are two results. **Signed PSBT** goes back to the wallet that made the transaction, which finalises and broadcasts it. **Finished transaction** is ready to broadcast as it is. Each has **Make again**, or **Remove** while it waits for a stick, and the PSBT has **Show as QR**. **Decode it** takes the transaction apart. **Show the raw hex** and **Hide the raw hex** show and hide its bytes.
