@@ -18,7 +18,7 @@
 use alloc::vec::Vec;
 
 /// The most groups, and the most members of a group (SLIP-39).
-pub const MAX: u8 = 16;
+pub const MAX: u8 = faraday_bip::slip39::MAX_COUNT as u8;
 
 /// One group of a set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

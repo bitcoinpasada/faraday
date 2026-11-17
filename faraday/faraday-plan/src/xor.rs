@@ -50,7 +50,7 @@ impl Xor {
             .split(',')
             .map(text::fp_read)
             .collect::<Option<Vec<[u8; 4]>>>()?;
-        (2..=MAX_PARTS)
+        (faraday_entropy::MIN_XOR_PARTS..=MAX_PARTS)
             .contains(&parts.len())
             .then_some(Xor { seed, parts })
     }

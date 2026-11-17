@@ -947,7 +947,7 @@ pub fn read_slip39_facts(bytes: &[u8]) -> Result<Slip39Facts, Refusal> {
         )?
         .ok_or_else(|| v.err(Why::Missing, "exponent"))?;
     let threshold = v
-        .small("threshold", 16)?
+        .small("threshold", u32::from(slip39::MAX))?
         .ok_or_else(|| v.err(Why::Missing, "threshold"))?;
     let items = v
         .array("groups")?
@@ -963,10 +963,10 @@ pub fn read_slip39_facts(bytes: &[u8]) -> Result<Slip39Facts, Refusal> {
             prefix: "groups",
         };
         let threshold = g
-            .small("threshold", 16)?
+            .small("threshold", u32::from(slip39::MAX))?
             .ok_or_else(|| g.err(Why::Missing, "threshold"))?;
         let count = g
-            .small("count", 16)?
+            .small("count", u32::from(slip39::MAX))?
             .ok_or_else(|| g.err(Why::Missing, "count"))?;
         let made = g
             .array("made")?

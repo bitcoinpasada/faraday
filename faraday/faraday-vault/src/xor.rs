@@ -15,7 +15,7 @@
 use alloc::vec::Vec;
 
 /// The fewest parts a set has.
-pub const MIN_PARTS: usize = 2;
+pub const MIN_PARTS: usize = faraday_entropy::MIN_XOR_PARTS;
 
 /// The most parts a set has.
 pub const MAX_PARTS: usize = faraday_entropy::MAX_XOR_PARTS;

@@ -10,7 +10,7 @@ use super::*;
 use faraday_text::{Text, text};
 
 /// The most groups a set has, and the most members of a group.
-pub const MAX: usize = 16;
+pub const MAX: usize = faraday_bip::slip39::MAX_COUNT;
 
 /// One group of a set.
 #[derive(Debug, Clone, PartialEq, Eq)]

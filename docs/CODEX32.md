@@ -1653,13 +1653,12 @@ same seed, and the plan would not know about the first.
 This follows F31 (decide where a key is kept, then make it): the set
 exists before the plan, so the plan places it rather than making one.
 
-A Seed XOR set and a SLIP-39 set made by Convert a seed are counted the
-same way (F276): the plan holds the set's public facts as a form of the
-key and places its parts on paper, and the checks count them as they count
-these strings. Their set actions stay in Convert, never here; only a
-codex32 set's are this section's. Not built yet: a set made in Tools is
-not recorded on the key and the plan is not offered its form; the plan
-counts such a set only when read from a saved plan that holds it.
+A Seed XOR set and a SLIP-39 set are counted by the plan the same way
+(F276): the plan holds the set's public facts, read from a saved plan or a
+vault record, and places its parts on paper, and the checks count them as
+they count these strings. A set made by Convert a seed is not recorded on
+the key. Their set actions stay in Convert, never here; only a codex32
+set's are this section's.
 
 ### 9.5 Shares on the backup board (owner, 2026-10-22)
 

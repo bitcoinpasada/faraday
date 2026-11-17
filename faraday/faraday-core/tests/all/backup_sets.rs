@@ -152,8 +152,42 @@ fn a_slip39_share_that_was_never_made_is_not_counted_or_read_back() {
             vec![What::Slip39Share(0, 0, 2)],
         ],
     );
-    assert_ne!(lost_of(&a), Lost::Yes);
+    assert_eq!(lost_of(&a), Lost::No);
     assert!(Answers::from_text(&shape(), &a.to_text()).is_none());
+}
+
+/// A set whose shares were all placed is replaced by one that made only
+/// the first: the places of the shares never made leave the plan.
+#[test]
+fn replacing_a_slip39_set_drops_the_places_of_shares_never_made() {
+    let mut a = plan_of(
+        slip_2_of_3,
+        [
+            vec![What::Slip39Share(0, 0, 0)],
+            vec![What::Slip39Share(0, 0, 1)],
+            vec![What::Slip39Share(0, 0, 2)],
+        ],
+    );
+    a.set_slip39(
+        &shape(),
+        0,
+        Some(Slip39 {
+            seed: 0,
+            identifier: 12345,
+            exponent: 1,
+            group_threshold: 1,
+            groups: vec![Group {
+                threshold: 2,
+                count: 3,
+                made: vec![0],
+            }],
+        }),
+    );
+    let held: Vec<What> = plan::stored_map(&shape(), &a)
+        .into_iter()
+        .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
+        .collect();
+    assert_eq!(held, vec![What::Slip39Share(0, 0, 0)]);
 }
 
 #[test]

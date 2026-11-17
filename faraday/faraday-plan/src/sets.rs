@@ -78,6 +78,7 @@ impl Rule {
             }
             Rule::Xor(i, n) => {
                 let mut js: Vec<usize> = xor::parts_of(ws, *i);
+                js.retain(|j| j < n);
                 js.sort_unstable();
                 js.dedup();
                 js.len() >= *n
@@ -103,5 +104,19 @@ impl Answers {
                 .chain(self.slip39.iter().map(|s| Rule::Slip39(s.seed, s.clone())))
                 .collect(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seed_xor_parts_past_the_set_do_not_rebuild_it() {
+        let needs = Needs(vec![Rule::Xor(0, 2)]);
+        let seen = [What::XorPart(0, 0), What::XorPart(0, 7)];
+        assert!(needs.rebuilt(&seen).is_empty());
+        let both = [What::XorPart(0, 0), What::XorPart(0, 1)];
+        assert_eq!(needs.rebuilt(&both), vec![0]);
     }
 }
