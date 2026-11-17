@@ -25,6 +25,10 @@ pub(crate) struct Panes {
     /// The Settings section open as its own page on a compact window: an
     /// index into `screens::settings`' sections; none shows the list.
     settings: Option<u8>,
+    /// The Settings section a window with every section on one page is to
+    /// scroll to, once drawn: the next frame takes it
+    /// ([`Panes::take_goal`]).
+    goal: std::cell::Cell<Option<u8>>,
 }
 
 impl Panes {
@@ -53,6 +57,17 @@ impl Panes {
     /// again.
     pub(crate) fn choose_settings(&mut self, k: Option<u8>) {
         self.settings = k;
+    }
+
+    /// Settings' section `k` to be scrolled to by the next frame.
+    pub(crate) fn set_goal(&self, k: Option<u8>) {
+        self.goal.set(k);
+    }
+
+    /// The section to scroll to, taken: the frame that scrolls to it
+    /// clears it.
+    pub(crate) fn take_goal(&self) -> Option<u8> {
+        self.goal.take()
     }
 }
 

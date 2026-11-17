@@ -8,6 +8,7 @@
 //! nothing.
 
 pub(crate) mod screen;
+pub(crate) mod search;
 
 use crate::strings::EN;
 use crate::wallet::KeyTexts;

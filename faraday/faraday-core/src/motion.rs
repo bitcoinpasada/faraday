@@ -841,6 +841,23 @@ impl Faraday {
         self.scroll.panes.choose_settings(k);
     }
 
+    /// Settings opened at row `k` of its table of rows: from compact the
+    /// row's section as its own page (Mode's, its sheet), from medium up
+    /// the page scrolled to the section's card by the next frame.
+    pub(crate) fn setting_at(&mut self, k: u8) {
+        let Some(row) = crate::screens::catalog::ROWS.get(usize::from(k)) else {
+            return;
+        };
+        self.act(crate::Action::Nav(Screen::Settings));
+        if !crate::panes::settings_listed(self.window()) {
+            self.scroll.panes().set_goal(Some(row.part));
+        } else if row.is_mode() {
+            self.act(crate::Action::ModeSheet);
+        } else {
+            self.settings_section(Some(row.part));
+        }
+    }
+
     /// A key a scrolled region takes: an arrow on the codex32 worksheet
     /// the pointer went to, which pans it; or any key while the word-list
     /// sheet is open ([`wordlist::WordListArea::key`]), and the glide it
@@ -1485,7 +1502,7 @@ impl Faraday {
 
     /// The motion belongs to the region that scrolls now: what moved
     /// another screen, sheet or region is stopped.
-    fn own_motion(&mut self) {
+    pub(crate) fn own_motion(&mut self) {
         let key = (self.region_key(), self.slot());
         self.scroll.own(key);
     }

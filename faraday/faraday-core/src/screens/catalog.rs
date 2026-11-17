@@ -14,6 +14,8 @@ use faraday_draw::tokens::{
 };
 use faraday_ui::parts::section_label;
 
+pub(crate) use super::settings::rows::{ROWS, Row};
+
 /// Tools: every flow by group, as many tiles to a row as fit and at
 /// least three, each with its standards; Find a tool narrows them as it is typed.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -79,6 +81,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         y += g.height(tiles.len()) + 16.0;
     }
+    // The rows of Settings the same words find, under Settings' name.
+    let settings: Vec<u8> = crate::tools::search::hits(app.tools.find())
+        .into_iter()
+        .filter_map(|h| match h {
+            crate::tools::search::Hit::Setting(i) => Some(i),
+            crate::tools::search::Hit::Tile(_) => None,
+        })
+        .collect();
+    if !settings.is_empty() {
+        any = true;
+        section_label(ui, x, y, EN.settings_settings);
+        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
+        for i in settings {
+            y += setting_hit(ui, (x, y, tw3), i);
+        }
+    }
     if !any {
         ui.text_as(
             x,
@@ -91,6 +109,23 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     app.scroll.content_h().set(y - top + 40.0);
     ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// A setting found by [`crate::tools::search::hits`], drawn from (x, y),
+/// `w` wide, as Material's list item: its label and the section it is in,
+/// a press of which opens Settings at it. Returns its height. Tools' Find
+/// and Home's search both draw it.
+pub(crate) fn setting_hit(ui: &mut Ui, at: (f32, f32, f32), i: u8) -> f32 {
+    let Some(row) = crate::tools::search::row(i) else {
+        return 0.0;
+    };
+    let item = crate::panes::screen::Item {
+        headline: row.label,
+        supporting: row.section(),
+        trailing: None,
+        action: Action::SettingAt(i),
+    };
+    crate::panes::screen::list_item(ui, at, &item, false)
 }
 
 /// A search field at (x, y), `w` wide: Material's search field, in

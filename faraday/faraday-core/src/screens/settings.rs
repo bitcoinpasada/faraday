@@ -15,6 +15,8 @@ use faraday_shell_api::Orientation;
 use faraday_ui::parts::wrap_buttons;
 use std::sync::OnceLock;
 
+pub(super) mod rows;
+
 /// The panic key, beside Power off on Settings: the stick shell powers
 /// off at once when Super and S are held this long (`keyboard.rs`).
 const PANIC_KEY: &str = EN.app_panic_key_hint;
@@ -492,7 +494,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.moving_page_begin((x0, cw, h), app.list_offset);
     let top = PANE_TOP_BAR;
     let (mut left, mut right) = (top, top);
+    // A section Find a tool asked for: the page follows to its card.
+    let goal = app.scroll.panes().take_goal();
     for p in parts() {
+        if goal == Some(p as u8) {
+            let at = if two && (p as u8) >= (Part::Appearance as u8) {
+                right
+            } else {
+                left
+            };
+            ui.follow_to = Some((at - top).max(0.0));
+        }
         if two && (p as u8) >= (Part::Appearance as u8) {
             right += part(app, ui, p, (x + col_w + SPACER, right, col_w));
         } else {

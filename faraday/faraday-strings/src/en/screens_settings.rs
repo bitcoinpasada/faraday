@@ -156,6 +156,43 @@ macro_rules! words_screens_settings {
     settings_medium_reader_note: "{} are read by an unprivileged disk process; the kernel mounts none",
     /// Text in `settings`.
     settings_not_run: "not run",
+    // ----- Find a tool's words for Settings' rows (faraday-core/src/screens/settings/rows.rs) -----
+    /// Everyday search words for the mode row of Settings.
+    settings_find_mode: "network mainnet testnet signet regtest practice",
+    /// Everyday search words for the lock row of Settings.
+    settings_find_lock: "timeout sleep idle keys",
+    /// Everyday search words for the lock after row of Settings.
+    settings_find_lock_after: "timeout sleep idle minutes",
+    /// Everyday search words for the power off after row of Settings.
+    settings_find_power_off_after: "timeout idle shutdown minutes",
+    /// Everyday search words for the power off row of Settings.
+    settings_find_power_off: "shutdown turn off quit",
+    /// Everyday search words for the remove keys row of Settings.
+    settings_find_remove_keys: "forget clear wipe erase",
+    /// Everyday search words for the time row of Settings.
+    settings_find_time: "clock date now",
+    /// Everyday search words for the time zone row of Settings.
+    settings_find_time_zone: "timezone utc offset clock",
+    /// Everyday search words for the randomness row of Settings.
+    settings_find_randomness: "dice entropy random coins",
+    /// Everyday search words for the theme row of Settings.
+    settings_find_theme: "dark light colour color mode palette",
+    /// Everyday search words for the contrast row of Settings.
+    settings_find_contrast: "high contrast colour color",
+    /// Everyday search words for the text size row of Settings.
+    settings_find_text_size: "font bigger smaller larger zoom",
+    /// Everyday search words for the reduce motion row of Settings.
+    settings_find_reduce_motion: "animation animations movement",
+    /// Everyday search words for the rotation row of Settings.
+    settings_find_rotation: "rotate portrait landscape orientation turn",
+    /// Everyday search words for the scale row of Settings.
+    settings_find_scale: "zoom size dpi bigger smaller",
+    /// Everyday search words for the amounts row of Settings.
+    settings_find_amounts: "remember history signed",
+    /// Everyday search words for the signatures row of Settings.
+    settings_find_signatures: "remember history nonce",
+    /// Everyday search words for the about row of Settings.
+    settings_find_about: "version help licence license self test",
     // ----- institute_note (faraday-core/src/screens/settings.rs) -----
     /// Text in `institute_note`. `{}`: `SITE`.
     institute_note_visit: "Visit {} to learn about Bitcoin’s history, economics, and technology. Not affiliated.",

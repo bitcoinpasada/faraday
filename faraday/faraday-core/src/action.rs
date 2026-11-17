@@ -327,6 +327,10 @@ pub enum Action {
     /// sections on a compact window, or none: back to the list
     /// (`docs/LAYOUT.md` §17).
     SettingsSection(Option<u8>),
+    /// Settings opened at row `k` of its table (Find a tool found it): on a
+    /// compact window the row's section as its own page, otherwise the
+    /// page scrolled to the section's card.
+    SettingAt(u8),
     /// Draw in this scheme: a theme, mode and contrast (`docs/THEMES.md` §12).
     Theme(ui::Theme),
     /// Draw text at this size (Settings › Appearance, `docs/TEXT-SIZE.md`
@@ -1743,6 +1747,7 @@ impl Faraday {
             | Action::ReduceMotion(_)
             | Action::Theme(_)) => self.appearance_act(a),
             Action::SettingsSection(k) => self.settings_section(k),
+            Action::SettingAt(k) => self.setting_at(k),
             // Acted on before (`act_inner`), or never pressed (a mark).
             Action::StickPill(_) | Action::Mark(..) => {}
         }

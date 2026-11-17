@@ -42,6 +42,13 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KLock);
     t.shot("addkey-tools-result")?;
     t.press(Action::KMadeDone);
+    // Find a tool also finds the rows of Settings.
+    t.press(Action::Nav(Screen::Catalog));
+    type_text(t, "theme");
+    t.shot("addkey-tools-find-setting")?;
+    t.app.event(faraday_shell_api::Event::Key(
+        faraday_shell_api::Key::Escape,
+    ));
     let codex32 = faraday_core::catalog::TILES
         .iter()
         .position(|tile| tile.name == "Restore from codex32 shares")
