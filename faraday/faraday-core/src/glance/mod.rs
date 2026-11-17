@@ -1410,8 +1410,10 @@ pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
 /// The three rows of nodes: the wallet, its keys, its backup. Each node
 /// pressed opens its sheet (`docs/WALLETS.md` §12); on the wide chart
 /// each line of what a backup node holds opens that line's, and a key's
-/// way in is its own line's press.
-fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
+/// way in is its own line's press. `lines_open` is false where the lines
+/// are too close to press one by one (a node's sheet lists them, each a
+/// touch target tall).
+fn rows(g: &Glance, compact: bool, lines_open: bool) -> [Vec<Node>; 3] {
     use crate::glance::sheet::{ChartAction as C, Target};
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
     let mut wallet_lines = vec![Line::new(
@@ -1495,7 +1497,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                         .iter()
                         .enumerate()
                         .map(|(j, h)| {
-                            let line = (j < n.whats.len())
+                            let line = (lines_open && j < n.whats.len())
                                 .then(|| open(Target::Line(i as u8, j as u8)))
                                 .flatten();
                             match n.marks.get(j).copied().flatten() {
@@ -1861,11 +1863,13 @@ pub(crate) fn draw(
     y: f32,
     width: f32,
 ) -> f32 {
-    draw_with(ui, g, direction, x, y, width, true)
+    draw_with(ui, g, direction, x, y, width, (true, true))
 }
 
 /// [`draw`], with the check strip only when `check`: the end of the
-/// backup draws its own strip above the done card.
+/// backup draws its own strip above the done card; the last argument is
+/// (`check`, `lines_open`), `lines_open` saying whether each line a
+/// backup node holds is pressed on its own.
 pub(crate) fn draw_with(
     ui: &mut Ui,
     g: &Glance,
@@ -1873,9 +1877,9 @@ pub(crate) fn draw_with(
     x: f32,
     y: f32,
     width: f32,
-    check: bool,
+    (check, lines_open): (bool, bool),
 ) -> f32 {
-    let rows = rows(g, false);
+    let rows = rows(g, false, lines_open);
     let mut top = y;
     // The check leads, read either way (`docs/WALLETS.md` §13).
     if check && let Backup::Plan { check, .. } = &g.backup {
@@ -2276,7 +2280,7 @@ pub(crate) fn draw_column_with(
     width: f32,
     with_check: bool,
 ) -> f32 {
-    let [wallet, keys, backup] = rows(g, true);
+    let [wallet, keys, backup] = rows(g, true, true);
     let mut cy = y;
     let check = match &g.backup {
         Backup::Plan { check, .. } if with_check => Some(*check),

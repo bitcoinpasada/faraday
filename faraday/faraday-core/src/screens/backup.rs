@@ -699,7 +699,7 @@ pub(crate) fn wallet_done(
         cy += if ui.compact {
             glance::draw_column_with(ui, &g, Direction::WalletFirst, x, cy, w, false)
         } else {
-            glance::draw_with(ui, &g, Direction::WalletFirst, x, cy, w, false)
+            glance::draw_with(ui, &g, Direction::WalletFirst, x, cy, w, (false, false))
         };
         cy += 16.0;
     }
