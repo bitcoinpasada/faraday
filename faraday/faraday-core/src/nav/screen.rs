@@ -440,36 +440,65 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         });
     }
     let line_h = ui.row_height(LOADED_LINE, ui.line_as(LABEL_L), GAP_SMALL);
-    let h = lines.len() as f32 * line_h + 2.0 * GAP_SMALL;
+    let room = w - 2.0 * PAD;
+    // Each line's width, then the rows they fill left to right; a line
+    // wider than the row has a row of its own.
+    let mut at: Vec<(f32, usize)> = Vec::with_capacity(lines.len());
+    let (mut cx, mut row) = (0.0_f32, 0_usize);
+    for l in &lines {
+        let mut lw = ui.measure_as(LABEL_L, &l.head);
+        if l.icon.is_some() {
+            lw += ICON_SMALL + GRID;
+        }
+        if !l.tail.is_empty() {
+            lw += GRID + ui.measure_as(BODY_S, &l.tail);
+        }
+        let lw = lw.min(room);
+        if cx > 0.0 && cx + lw > room {
+            cx = 0.0;
+            row += 1;
+        }
+        at.push((cx, row));
+        cx += lw + PAD;
+    }
+    let rows = row + 1;
+    let h = rows as f32 * line_h + 2.0 * GAP_SMALL;
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
-    let mut ly = y + GAP_SMALL;
-    for l in &lines {
+    for (i, l) in lines.iter().enumerate() {
+        let (ox, r) = at[i];
+        let lx = x + PAD + ox;
+        let ly = y + GAP_SMALL + r as f32 * line_h;
+        let next = at
+            .get(i + 1)
+            .filter(|n| n.1 == r)
+            .map_or(room, |n| n.0 - PAD);
+        let lw = (next - ox).min(room - ox);
         if let Some(a) = l.action {
             ui.press(
-                Shape::new(x + GAP_SMALL, ly, w - 2.0 * GAP_SMALL, line_h, SHAPE_XS),
+                Shape::new(lx - GAP_SMALL, ly, lw + 2.0 * GAP_SMALL, line_h, SHAPE_XS),
                 Role::OnSurface.paint(),
                 a,
             );
         }
-        let mut tx = x + PAD;
-        if let Some(i) = l.icon {
+        let mut tx = lx;
+        if let Some(ic) = l.icon {
             let iy = ly + (line_h - ICON_SMALL) / 2.0;
             ui.icon(
                 tx,
                 iy,
                 ICON_SMALL,
-                i,
+                ic,
                 NAV_ICON - GAP_SMALL,
                 Role::OnSurfaceVariant,
             );
             tx += ICON_SMALL + GRID;
         }
-        let room = x + w - PAD - tx;
-        let head = ui.fit_as(LABEL_L, &l.head, room);
+        let avail = lx + lw - tx;
+        let head = ui.fit_as(LABEL_L, &l.head, avail);
         let used = ui.text_mid_as((tx, ly, line_h), LABEL_L, Role::OnSurface, &head);
         if !l.tail.is_empty() {
-            let tail = ui.fit_as(BODY_S, &l.tail, (room - used - GRID).max(0.0));
+            let tail = ui.fit_as(BODY_S, &l.tail, (avail - used - GRID).max(0.0));
             ui.text_mid_as(
                 (tx + used + GRID, ly, line_h),
                 BODY_S,
@@ -477,7 +506,6 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
                 &tail,
             );
         }
-        ly += line_h;
     }
     h
 }
