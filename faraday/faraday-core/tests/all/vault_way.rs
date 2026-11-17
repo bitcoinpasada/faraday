@@ -91,8 +91,8 @@ fn add_key(app: &mut Faraday, n: usize) {
     faraday_core::testkit::keep_published(app);
 }
 
-/// On Create a vault: the default size, one passphrase, Create. Lands on
-/// Unlock with the new vault picked.
+/// On Create a vault: the default size, the passphrase twice, Create. The
+/// vault opens at once with what was typed.
 fn make_the_vault(app: &mut Faraday) {
     assert_eq!(
         app.screen,
@@ -103,22 +103,15 @@ fn make_the_vault(app: &mut Faraday) {
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, NEW_PHRASE);
     app.press(Action::Vault(V::CGo));
-    settle(app, |a| a.screen != Screen::CreateVault);
-    assert_eq!(
-        app.screen,
-        Screen::Unlock,
-        "a vault made for another flow goes straight to Unlock"
-    );
-    let made = app
-        .vaults()
-        .just_made
-        .clone()
-        .expect("the vault was not made");
-    assert_eq!(
-        app.vault_files()[app.vaults().pick].name,
-        made,
-        "Unlock has the new vault picked"
-    );
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+}
+
+/// The session locked: every open vault sealed and closed.
+fn lock_it(app: &mut Faraday) {
+    app.press(Action::Lock);
+    settle(app, |a| a.vaults().open.is_empty());
+    assert!(app.vaults().open.is_empty(), "the vault did not lock");
 }
 
 /// On Unlock: the passphrase, Unlock, and the wait.
@@ -168,7 +161,6 @@ fn a_vault_tile_with_no_vault_says_make_one_and_makes_it_then_opens_its_category
         );
         app.press(Action::Catalog(i));
         make_the_vault(&mut app);
-        unlock_with(&mut app, NEW_PHRASE);
         assert_eq!(app.screen, Screen::VaultContents, "{name}");
         assert_eq!(app.vaults().category, category, "{name}");
         let made = app.vaults().just_made.clone();
@@ -236,14 +228,12 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::CGo));
-    settle(&mut app, |a| a.screen != Screen::CreateVault);
+    settle(&mut app, |a| !a.vaults().open.is_empty());
     assert_eq!(
         app.screen,
-        Screen::Unlock,
-        "made from Vaults, it goes to Unlock with the new vault picked"
+        Screen::VaultContents,
+        "made from Vaults, it opens with the passphrase typed twice"
     );
-    app.press(Action::Vault(V::Open(0)));
-    unlock_with(&mut app, NEW_PHRASE);
     assert!(
         !(app.screen == Screen::VaultContents && app.vaults().category == 2),
         "an unlock from Vaults does not open the KeePass export"
@@ -260,7 +250,6 @@ fn bip85_makes_a_vault_and_comes_back_to_save_the_value() {
     app.press(Action::PNext);
     press_make(&mut app, Screen::Bip85);
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Bip85);
     let _ = app.frame();
     assert!(app.offers(Action::PVault), "Save into the vault is live");
@@ -283,7 +272,6 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
     app.press(Action::LKey(fp));
     press_make(&mut app, Screen::Lightning);
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Lightning);
     let _ = app.frame();
     assert!(app.offers(Action::LVault), "Save into the vault is live");
@@ -310,7 +298,6 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
     app.press(Action::SStep(faraday_core::silent::sstep::SCAN));
     press_make(&mut app, Screen::Silent);
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Silent);
     let _ = app.frame();
     assert!(
@@ -360,7 +347,6 @@ fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     assert_eq!(step, Some(faraday_core::plan::Item::Vault(0)));
     press_make(&mut app, Screen::Backup);
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup().unwrap().open, step, "the same step");
     assert!(
@@ -380,7 +366,6 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
     assert!(testkit::secret_out(&app).is_some(), "its secret is kept");
     make_the_vault(&mut app);
     assert!(testkit::secret_out(&app).is_some(), "its secret is kept");
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.sheet, Some(Sheet::SecretOut), "the sheet is back");
     let _ = app.frame();
@@ -445,7 +430,6 @@ fn an_entries_file_in_files_offers_import_once_a_vault_is_open() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     app.press(Action::Nav(Screen::Files));
     assert!(
         offered(&mut app, Action::Vault(V::ImportEntries(k))),
@@ -454,7 +438,7 @@ fn an_entries_file_in_files_offers_import_once_a_vault_is_open() {
 }
 
 // ---------------------------------------------------------------------
-// §3.3: after creation, once more to open it; an
+// §3.3: after creation, the vault is open; an
 // empty vault's next steps.
 // ---------------------------------------------------------------------
 
@@ -464,6 +448,7 @@ fn leaving_unlock_drops_a_half_typed_passphrase() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
+    lock_it(&mut app);
     for way_out in [Action::Nav(Screen::Vaults), Action::Nav(Screen::Home)] {
         app.press(Action::Nav(Screen::Vaults));
         app.press(Action::Vault(V::Open(0)));
@@ -487,6 +472,7 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
+    lock_it(&mut app);
     // The default's 256 MiB, twice the file and 100 MiB for the app.
     const MIB: usize = 1024 * 1024;
     let file = app
@@ -499,6 +485,7 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     app.storage(StorageEvent::Memory {
         available_mib: need - 1,
     });
+    app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| !a.vaults().open.is_empty());
@@ -519,17 +506,34 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
 }
 
 #[test]
-fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
+fn create_a_vault_opens_it_without_the_passphrase_typed_a_third_time() {
     let mut app = device(Vec::new());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
-    make_the_vault(&mut app);
-    assert!(
-        app.drawn_texts()
-            .iter()
-            .any(|t| t == "Type the passphrase once more to open it"),
-        "Unlock says to type the passphrase once more"
-    );
+    type_text(&mut app, NEW_PHRASE);
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, NEW_PHRASE);
+    // As a person presses it: the make and the open each run on the worker,
+    // with frames drawn between them.
+    testkit::press_on_worker(&mut app, Action::Vault(V::CGo));
+    // Each time the worker's answer is applied, what is drawn never asks
+    // for the passphrase again, on Unlock or anywhere else.
+    for t in 1..60u64 {
+        testkit::settle(&mut app);
+        assert!(
+            !app.drawn_texts()
+                .iter()
+                .any(|t| t == "Type the passphrase once more to open it"),
+            "no passphrase is asked for again while the vault opens"
+        );
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+    }
+    assert!(!app.vaults().open.is_empty(), "the new vault is open");
+    assert_eq!(app.screen, Screen::VaultContents);
 }
 
 #[test]
@@ -538,7 +542,6 @@ fn an_empty_open_vault_offers_every_add_and_a_stick() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(
         app.screen,
         Screen::VaultContents,
@@ -564,11 +567,12 @@ fn an_empty_open_vault_offers_every_add_and_a_stick() {
     for k in 0..faraday_core::vault::CATEGORIES.len() {
         assert!(app.offers(Action::Vault(V::AddKind(k))), "add kind {k}");
     }
-    assert!(
-        app.offers(Action::Vault(V::WriteOut)),
-        "Write it to a stick"
-    );
+    assert!(app.offers(Action::WriteAsk), "Write it to a stick");
     assert!(texts.iter().any(|t| t == "Write it to a stick"));
-    app.press(Action::Vault(V::WriteOut));
-    assert_eq!(app.screen, Screen::Files);
+    app.press(Action::WriteAsk);
+    assert_eq!(
+        app.sheet,
+        Some(faraday_core::Sheet::WriteOut),
+        "the write asks to lock first, as an open vault holds a secret"
+    );
 }

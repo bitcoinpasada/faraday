@@ -89,56 +89,22 @@ fn make_a_vault(app: &mut Faraday) {
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
-    settle(app, 1);
-    assert_eq!(app.screen, Screen::Unlock);
-    let name = app
-        .vaults()
-        .just_made
-        .clone()
-        .expect("the vault was not made");
-    assert_eq!(app.vault_files()[app.vaults().pick].name, name);
+    settle(app, 30);
+    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
 }
 
 #[test]
-fn going_back_from_unlock_leaves_the_new_vault_locked_and_returns_to_the_backup() {
+fn a_vault_made_from_the_backup_opens_with_the_passphrase_typed_twice_and_returns_to_it() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
-    app.press(Action::Vault(V::Back));
     assert_eq!(
         app.screen,
         Screen::Backup,
-        "the way back should return to the backup still under way"
-    );
-    assert!(app.vaults().open.is_empty(), "the new vault stays locked");
-}
-
-#[test]
-fn opening_a_just_made_vault_needs_its_passphrase_typed_again() {
-    let mut app = create_to_vault_step();
-    make_a_vault(&mut app);
-    settle(&mut app, 30);
-    assert_eq!(
-        app.screen,
-        Screen::Unlock,
-        "nothing typed while making the vault should open it on its own"
+        "the vault just made returns to the backup still under way"
     );
     assert!(
         app.vaults().passphrase.text.is_empty(),
-        "the passphrase must not be filled in for the person"
-    );
-}
-
-#[test]
-fn opening_a_just_made_vault_with_its_passphrase_returns_to_the_backup() {
-    let mut app = create_to_vault_step();
-    make_a_vault(&mut app);
-    type_text(&mut app, "test phrase");
-    app.press(Action::Vault(V::Unlock));
-    settle(&mut app, 30);
-    assert_eq!(
-        app.screen,
-        Screen::Backup,
-        "unlocking the vault just made should return to the backup still under way"
+        "no passphrase is left typed"
     );
 }
 
@@ -257,9 +223,9 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
-    settle(app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    let made = app.vaults().just_made.clone().expect("the vault was made");
+    settle(app, 30);
+    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+    let made = app.vaults().open[0].name.clone();
     let f = app
         .vault_files()
         .into_iter()
@@ -298,11 +264,8 @@ fn a_new_vault_goes_by_the_vaults_name() {
     type_text(&mut app, "first phrase");
     app.press(Action::Vault(V::CGo));
     settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    type_text(&mut app, "first phrase");
-    app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
-    assert_eq!(app.vaults().open.len(), 1, "it unlocked");
+    assert_eq!(app.vaults().open.len(), 1, "it opened with no third typing");
     assert_eq!(app.vaults().open[0].label(app.vaults().store()), "Savings");
 }
 
@@ -361,6 +324,12 @@ fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let text = app.drawn_texts();
+    assert!(
+        !text.iter().any(|t| t == "Unlock memory"),
+        "the default's figures stay behind Customize: {text:?}"
+    );
+    app.press(Action::Vault(V::CCustomise));
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "Unlock memory"), "{text:?}");
     assert!(text.iter().any(|t| t == "256 MiB"), "{text:?}");

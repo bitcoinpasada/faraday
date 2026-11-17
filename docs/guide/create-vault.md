@@ -5,7 +5,7 @@
 **Screen:** `CreateVault`
 **Key:** create-vault
 
-A vault is one encrypted file for a stick, opened with its passphrase. Two cards make it, Opens on and Name and passphrase; **Customise** replaces Opens on with Where will you open it? and Unlock cost.
+A vault is one encrypted file for a stick, opened with its passphrase. Two cards make it, Opens on and Name and passphrase; **Customize** replaces Opens on with Where will you open it? and Unlock cost.
 
 ## Opens on
 
@@ -13,7 +13,7 @@ A vault is one encrypted file for a stick, opened with its passphrase. Two cards
 
 This step sets the unlock cost from the machines the vault must open on. The cost is the memory and passes of each guess at the passphrase. Pressing a row chooses it and moves on.
 
-**PCs only** is 512 MiB and 3 passes. **PCs and a Raspberry Pi** is 256 MiB and 3 passes and opens on a Raspberry Pi 3 as well; it is chosen at first. A Pi Zero 2 W opens only a vault of 64 or 128 MiB: tick it under **Where will you open it?** or choose **Light** under **Customise**. Each row's line gives the unlock time on this computer. **Customise** opens the two cards below on the chosen row's values.
+**PCs only** is 512 MiB and 3 passes. **PCs and a Raspberry Pi** is 256 MiB and 3 passes and opens on a Raspberry Pi 3 as well; it is chosen at first. A Pi Zero 2 W opens only a vault of 64 or 128 MiB: tick it under **Where will you open it?** or choose **Light** under **Customize**. The rows name the sizes only; a row says how much memory this computer has free only when it has too little. **Customize** opens the two cards below on the chosen row's values, and with them the summary's unlock memory, unlock time and unlock cost.
 
 ## Where will you open it?
 

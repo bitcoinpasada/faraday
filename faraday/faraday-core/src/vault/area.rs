@@ -484,10 +484,16 @@ impl VaultArea {
     /// Vault `at` chosen to unlock with `passphrase`, returning to
     /// `back`: the caller defers the unlock ([`Faraday::vault_defer`]).
     pub(crate) fn unlock_with(&mut self, at: usize, passphrase: &str, back: Screen) {
+        self.unlock_picked(at, passphrase);
+        self.state.back_to = Some(back);
+    }
+
+    /// Vault `at` chosen to unlock with `passphrase`, its way back as it
+    /// stands: the caller defers the unlock ([`Faraday::vault_defer`]).
+    pub(crate) fn unlock_picked(&mut self, at: usize, passphrase: &str) {
         self.state.pick = at;
         self.state.passphrase.set(passphrase);
         self.state.unlock_error = None;
-        self.state.back_to = Some(back);
     }
 
     /// Work waiting for its frame: done once a frame is drawn.
@@ -3626,8 +3632,6 @@ pub enum VaultAction {
     Add,
     /// Add an item of kind n: the contents' row for that kind.
     AddKind(usize),
-    /// An empty vault's Write it to a stick: Files.
-    WriteOut,
     /// Save session key n into the vault.
     SaveKey(usize),
     /// Save session wallet n into the vault.

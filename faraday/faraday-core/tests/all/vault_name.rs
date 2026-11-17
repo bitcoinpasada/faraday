@@ -39,7 +39,7 @@ fn make(app: &mut Faraday, name: &str) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    assert_ne!(app.screen, Screen::CreateVault, "the vault was made");
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {
@@ -82,10 +82,6 @@ fn a_vault_is_not_offered_as_a_qr_code() {
 fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
     let mut app = started();
     make(&mut app, "home");
-    app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, "test phrase");
-    app.press(Action::Vault(V::Unlock));
-    settle(&mut app);
     assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Nav(Screen::Vaults));
     let _ = app.frame();

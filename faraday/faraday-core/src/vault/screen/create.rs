@@ -65,7 +65,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
     y += ui.advance_as(LABEL_L, 26.0);
     let cost = vault::cost_bits(mem, passes);
     let strength = c.weakest_text(cost, app.demo_passphrase());
-    let facts = [
+    let mut facts = vec![
         (
             EN.vault_file,
             format!("{}.kdbx", &*vault::vault_stem(&c.name.text)),
@@ -74,18 +74,26 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
             EN.vault_size,
             file_text(vault::new_file_len()).as_str().into(),
         ),
-        (EN.vault_unlock_memory, mib_text(mem).as_str().into()),
-        (
-            EN.vault_unlock_here,
-            app.vaults.time_text(mem, passes).as_str().into(),
-        ),
-        (
-            EN.vault_unlock_cost_adds,
-            fill(EN.vault_bits, &[&format!("{cost:.1}")]),
-        ),
         (EN.vault_strength, strength),
         (EN.vault_goes_to_label, app.medium.for_box().to_string()),
     ];
+    // The unlock cost's figures are Customize's: the default is not
+    // measured out on the way to Create vault.
+    if c.customise {
+        let at = facts.len() - 2;
+        let figures = [
+            (EN.vault_unlock_memory, mib_text(mem).as_str().into()),
+            (
+                EN.vault_unlock_here,
+                app.vaults.time_text(mem, passes).as_str().into(),
+            ),
+            (
+                EN.vault_unlock_cost_adds,
+                fill(EN.vault_bits, &[&format!("{cost:.1}")]),
+            ),
+        ];
+        facts.splice(at..at, figures);
+    }
     for (k, v) in facts.iter().filter(|(_, v)| !v.is_empty()) {
         ui.text_mid_as((x, y, 30.0), BODY_S, muted, k);
         ui.text_right_as((x + w, y, 30.0), BODY_S, ink, v);

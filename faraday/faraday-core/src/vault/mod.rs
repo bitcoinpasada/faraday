@@ -691,7 +691,6 @@ impl Faraday {
                 self.vault_act(V::Category(k));
                 self.vault_act(V::Add);
             }
-            V::WriteOut => self.screen = Screen::Files,
             V::Add => {
                 let kinds = CATEGORIES[self.vaults.category].1;
                 // A key that cannot be made again from seed words is made

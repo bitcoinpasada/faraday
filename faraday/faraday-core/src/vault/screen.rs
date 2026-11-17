@@ -557,11 +557,13 @@ const ONCE_MORE: &str = EN.vault_type_the_passphrase;
 
 /// Whether Unlock has the vault just made picked.
 fn just_made_picked(app: &View) -> bool {
-    app.vaults.just_made.as_ref().is_some_and(|n| {
-        app.vault_files()
-            .get(app.vaults.pick)
-            .is_some_and(|f| &f.name == n)
-    })
+    // While the open with the passphrase typed twice runs, nothing is asked.
+    app.vaults.working != Some(vault::Work::Unlock)
+        && app.vaults.just_made.as_ref().is_some_and(|n| {
+            app.vault_files()
+                .get(app.vaults.pick)
+                .is_some_and(|f| &f.name == n)
+        })
 }
 
 /// Where Unlock's way back goes: the boot import's sheet when it was
@@ -1177,67 +1179,32 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
         }
         vstep::PRESET => {
-            // Two presets, each with its unlock time here and the memory
-            // it needs; Customise opens the two cards they stand for.
+            // Two presets, named only; the figures are behind Customise.
+            // Short of memory here: what this computer has free.
             let chosen = app.vaults.size_row();
             let free = app.vaults.memory_free_mib;
             let len = vault::new_file_len();
-            let row_h = if ui.compact { 70.0 } else { 56.0 };
+            let row_h = if ui.compact { 56.0 } else { 48.0 };
             for (r, (label, preset, _)) in SIZES.iter().enumerate() {
-                let (_, mem, passes) = PRESETS[*preset];
+                let (_, mem, _) = PRESETS[*preset];
                 let on = chosen == Some(r);
-                let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
-                let warn = on_selected(on, warn);
+                let (ink, warn) = (on_selected(on, ink), on_selected(on, warn));
                 ui.fill(x, cy, w, row_h, 8.0, selected_or(on, inset));
                 let edge = selected_or(on, Role::OutlineVariant);
                 ui.stroke(x, cy, w, row_h, 8.0, edge);
-                let cost = Text::fill(
-                    EN.vault_passes,
-                    &[&mib_text(mem), &Text::num(u64::from(passes))],
-                );
-                let time = match app.vaults.seconds(mem, passes) {
-                    Some(_) => Text::fill(
-                        EN.vault_unlocks_in_here,
-                        &[&app.vaults.time_text(mem, passes)],
-                    ),
-                    None => Text::of(EN.vault_unlock_time_unmeasured),
-                };
-                // Short of memory here: what this computer has free, in
-                // place of the time.
                 let short = free.filter(|f| vault::vault_need_mib(mem, len) > *f);
-                if ui.compact {
-                    // Three lines: the name, the cost and its time here,
-                    // the memory it needs.
-                    let name = ui.fit_as(LABEL_L, label, w - 28.0);
-                    ui.text_as(x + 14.0, cy + 6.0, LABEL_L, ink, &name);
-                    let here = match app.vaults.seconds(mem, passes) {
-                        Some(_) => {
-                            Text::fill(EN.vault_here, &[&cost, &app.vaults.time_text(mem, passes)])
-                        }
-                        None => cost.clone(),
-                    };
-                    let here = ui.fit_as(BODY_S, &here, w - 28.0);
-                    ui.text_as(x + 14.0, cy + 26.0, BODY_S, muted, &here);
-                    if let Some(f) = short {
+                match short {
+                    Some(f) => {
+                        let name = ui.fit_as(LABEL_L, label, w - 28.0);
+                        ui.text_as(x + 14.0, cy + 6.0, LABEL_L, ink, &name);
                         let has = Text::fill(EN.vault_this_computer_has, &[&mib_text(f)]);
                         let has = ui.fit_as(BODY_S, &has, w - 28.0);
-                        ui.text_as(x + 14.0, cy + 46.0, BODY_S, warn, &has);
+                        ui.text_as(x + 14.0, cy + 28.0, BODY_S, warn, &has);
                     }
-                } else {
-                    ui.text_as(x + 14.0, cy + 8.0, LABEL_L, ink, label);
-                    ui.text_right_as((x + w - 14.0, cy + 5.0, 24.0), LABEL_L, ink, &cost);
-                    let line = match short {
-                        Some(f) => Text::fill(EN.vault_this_computer_has, &[&mib_text(f)]),
-                        None => time,
-                    };
-                    let line = ui.fit_as(BODY_S, &line, w - 28.0);
-                    ui.text_as(
-                        x + 14.0,
-                        cy + 31.0,
-                        BODY_S,
-                        if short.is_some() { warn } else { muted },
-                        &line,
-                    );
+                    None => {
+                        let name = ui.fit_as(LABEL_L, label, w - 28.0);
+                        ui.text_as(x + 14.0, cy + (row_h - 24.0) / 2.0, LABEL_L, ink, &name);
+                    }
                 }
                 ui.press_box(x, cy, w, row_h, va(V::CSizeRow(r)));
                 cy += row_h + 6.0;
@@ -1247,7 +1214,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 cy,
                 None,
                 BUTTON_H,
-                EN.vault_customise,
+                EN.vault_customize,
                 Style::Ghost,
                 va(V::CCustomise),
             );
@@ -1947,15 +1914,19 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += 30.0;
     // Not beside what is being written, as on a small panel.
-    if v.read_only().is_none() && !writing(app) {
+    if !writing(app) {
         // The seal's passphrase and memory step: changed here, written
-        // at the next seal.
+        // at the next seal. Every open vault says how it reaches a stick.
         let mut bx = x;
-        for (label, a) in [
-            (EN.vault_change_passphrase, V::ChangePassphrase),
-            (EN.vault_memory, V::MemoryAsk),
-        ] {
-            bx += ui.button(bx, y, None, BUTTON_H, label, Style::Ghost, va(a)) + tokens::GAP_SMALL;
+        let write = Text::fill(EN.vault_write_to_medium, &[app.medium.a()]);
+        let mut row: Vec<(&str, Action)> = Vec::new();
+        if v.read_only().is_none() {
+            row.push((EN.vault_change_passphrase, va(V::ChangePassphrase)));
+            row.push((EN.vault_memory, va(V::MemoryAsk)));
+        }
+        row.push((&write, Action::WriteAsk));
+        for (label, a) in row {
+            bx += ui.button(bx, y, None, BUTTON_H, label, Style::Ghost, a) + tokens::GAP_SMALL;
         }
         y += BUTTON_H + tokens::GAP;
     }
@@ -2175,7 +2146,7 @@ fn empty_buttons(app: &View) -> Vec<(Text, Style, Action)> {
     out.push((
         Text::fill(EN.vault_write_to_medium, &[app.medium.a()]),
         Style::Secondary,
-        va(V::WriteOut),
+        Action::WriteAsk,
     ));
     out
 }
@@ -2360,17 +2331,21 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::LockAsk,
     );
     y += 52.0;
-    if editable {
+    {
         // Each as wide as its label, wrapping, as a half of the row
-        // is narrower than "Change passphrase" on a small panel.
-        let items = [
-            (
+        // is narrower than "Change passphrase" on a small panel. Every
+        // open vault says how it reaches a stick.
+        let write = Text::fill(EN.vault_write_to_medium, &[app.medium.a()]);
+        let mut items: Vec<(&str, Style, Action)> = Vec::new();
+        if editable {
+            items.push((
                 EN.vault_change_passphrase,
                 Style::Secondary,
                 va(V::ChangePassphrase),
-            ),
-            (EN.vault_memory, Style::Secondary, va(V::MemoryAsk)),
-        ];
+            ));
+            items.push((EN.vault_memory, Style::Secondary, va(V::MemoryAsk)));
+        }
+        items.push((&write, Style::Secondary, Action::WriteAsk));
         y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
     }
     if app.vaults.open.len() > 1 {

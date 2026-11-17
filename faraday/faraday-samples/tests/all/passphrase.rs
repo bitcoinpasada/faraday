@@ -222,15 +222,7 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
     }
     app.press(Action::Vault(V::CGo));
     settle(&mut app);
-    assert_eq!(
-        app.screen,
-        Screen::Unlock,
-        "the vault was made: {:?}",
-        app.vaults().create.as_ref().map(|c| c.error.clone())
-    );
-    app.press(Action::PassChip(PassField::Unlock));
-    app.press(Action::Vault(V::Unlock));
-    settle(&mut app);
+    // The vault opens at once with faraday, typed twice.
     assert_eq!(
         app.vaults().open.len(),
         1,

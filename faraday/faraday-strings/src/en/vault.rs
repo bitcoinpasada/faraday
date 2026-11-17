@@ -128,18 +128,14 @@ macro_rules! words_vault {
     vault_memory_limit: "{}: up to {}",
     /// Text in `create_body`. `{}`: `vault::cost_bits(mem, passes)`.
     vault_cost_bits: "Each guess costs about as much as 2^{} plain hashes",
-    /// Text in `create_body`. `{}`: `mib_text(mem)`, `passes`.
-    vault_passes: "{} · {} passes",
     /// Text in `create_body`. `{}`: `app.vaults.time_text(mem, passes)`.
     vault_unlocks_in_here: "Unlocks in {} here",
-    /// Text in `create_body`.
-    vault_unlock_time_unmeasured: "Unlock time not measured yet",
     /// Text in `create_body`. `{}`: `cost`, `app.vaults.time_text(mem, passes)`.
     vault_here: "{} · {} here",
     /// Text in `create_body`. `{}`: `mib_text(f)`.
     vault_this_computer_has: "This computer has {} free",
     /// Button in `create_body`.
-    vault_customise: "Customise",
+    vault_customize: "Customize",
     /// Button in `create_body`.
     vault_continue: "Continue",
     /// Line in `create_body`.

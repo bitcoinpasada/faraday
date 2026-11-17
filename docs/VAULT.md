@@ -432,8 +432,9 @@ allocate as "failed: no memory". Faraday runs the lanes on one core
   a warning naming that machine.
 - An unlock time above 10 seconds on the slowest chosen machine, by the
   reference table, is a warning.
-- The summary panel always shows the unlock memory and the unlock time
-  here. A window too low to hold the panel whole has the summary and
+- The summary panel shows the unlock memory, the unlock time here and
+  the unlock cost only once Customize is open; the default's figures
+  are on its Size row. A window too low to hold the panel whole has the summary and
   Create vault in the page after the last step instead.
 
 **When a vault does not fit.** Opening a vault whose memory this machine

@@ -1429,6 +1429,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Scrolled to the page's end, where the Randomness row clears the pinned Create vault.
     scroll_to(t, Action::Own(faraday_core::fresh::page::Act::Open));
     t.shot("create-vault-phrase")?;
+    let before = t.app.vaults().open.len();
     t.press(Action::Vault(V::CGo));
     t.tick();
     let made = t
@@ -1444,32 +1445,24 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
             )
         })?;
     faraday_vault::file::open(c, &made, &dice_phrase).map_err(|e| format!("{e:?}"))?;
-    // Made: Unlock, the new vault picked, its passphrase asked once more.
-    t.shot("create-vault-unlock")?;
-    println!("a vault made here opens with its passphrase");
-    let before = t.app.vaults().open.len();
-    let row = t
-        .app
-        .vault_files()
-        .iter()
-        .position(|f| Some(&f.name) == t.app.vaults().just_made.as_ref())
-        .ok_or("the vault just made is not listed")?;
-    t.press(Action::Vault(V::Open(row)));
-    // Opening it now is the same Unlock screen as any other vault: its
-    // passphrase typed again, not carried over from making it.
-    type_text(t, &dice_phrase);
-    t.press(Action::Vault(V::Unlock));
-    t.tick();
+    // Made: opened at once with the passphrase typed twice, never typed again.
+    for _ in 0..30 {
+        if t.app.vaults().open.len() > before {
+            break;
+        }
+        t.tick();
+    }
     if t.app.vaults().open.len() != before + 1 {
         return Err(format!(
-            "the vault just made did not open on its own passphrase: {:?}",
+            "the vault just made did not open on its own: {:?}",
             t.app.vaults().unlock_error
         ));
     }
+    println!("a vault made here opens with its passphrase");
     t.shot("vault-kept-open")?;
     t.press(Action::Nav(Screen::Files));
     t.shot("files-outbox-vault-open")?;
-    println!("the vault just made opens on its first passphrase typed again");
+    println!("the vault just made opens on the passphrase typed twice");
     seeds_tour(t)?;
     boot_tour(c, t)?;
     spend_tour(t)?;

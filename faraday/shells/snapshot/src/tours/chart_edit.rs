@@ -46,15 +46,8 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         type_text(t, "chart phrase");
     }
     t.press(Action::Vault(V::CGo));
-    for _ in 0..10 {
-        if t.app.screen == Screen::Unlock {
-            break;
-        }
-        t.tick();
-    }
-    type_text(t, "chart phrase");
-    t.press(Action::Vault(V::Unlock));
-    for _ in 0..10 {
+    // The vault opens with the passphrase just typed twice.
+    for _ in 0..30 {
         if !t.app.vaults().open.is_empty() {
             break;
         }

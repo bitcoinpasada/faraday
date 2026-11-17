@@ -13,7 +13,7 @@ Unlock opens one locked vault in Files with its passphrase. You reach it from a 
 
 One row per locked vault: its file name, where it is and its size, the unlock cost it was made with and, beside that, how long that cost takes on this computer. The row you choose is the one unlocked. With no locked vault the screen reads **No locked vault in Files** and offers **Create a vault**.
 
-A vault you have just made is already chosen, and asks for its passphrase once more.
+A vault you have just made opens at once with the passphrase you typed twice when you made it. With a stick in, or if that open fails, it is already chosen here and asks for its passphrase.
 
 ## Passphrase
 

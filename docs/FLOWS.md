@@ -68,9 +68,9 @@ is **Make a vault** when no vault file is in Files, **Unlock {name}**
 when one is, and **Unlock a vault** (the Vaults list) when several are;
 never a disabled button or a line to go to Vaults. Create a vault,
 opened this way, carries a chip at its head, "Then: {flow}", and its way
-back returns to the flow. Making the vault goes straight to Unlock with
-it picked: the passphrase is typed once more, which shows the person has
-it. Unlocking needs the stick out: with one in, the Pull sheet asks first
+back returns to the flow. Making the vault opens it at once with the
+passphrase just typed twice (the first and its confirmation), and nothing is
+typed a third time. Unlocking needs the stick out: with one in, the Pull sheet asks first
 ("Pull the stick to unlock"). Once unlocked, the flow is back on the step
 it was on, with the vault's button live. The places: Tools' **GPG key**,
 **Secure Boot keys** and **KeePass export**
@@ -846,12 +846,12 @@ nothing remembered, "Unlock to see what it holds".
   the flow, on the step it was on; the way back returns to it.
 
 **Create a vault** (step cards: Size, then Name and passphrase;
-**Customise** puts where it opens, unlock cost and space per passphrase
-in Size's place) → **Create vault** → Unlock with the new
-vault picked, "Type the passphrase once more to open it", sealed copy
-For the stick → **Unlock** → Vault contents, "Nothing in it yet", a
-button per add action and **Write it to a stick** (Files) (decision
-22). Opened from a flow that needs a vault (decision 10), it shows
+**Customize** puts where it opens, unlock cost and space per passphrase
+in Size's place) → **Create vault** → sealed copy For the stick, opened
+at once with the passphrase typed twice → Vault contents, "Nothing in
+it yet", a button per add action (decision 22). Every open vault's page
+has **Write it to a stick**, which asks to lock first (the lock seals
+the vault into For the stick) and then waits for a stick. Opened from a flow that needs a vault (decision 10), it shows
 "Then: {flow}" by its title, and the unlock goes back to the flow.
 
 **Generate with dice** (a passphrase's card on Name and passphrase): the

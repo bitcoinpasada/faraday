@@ -720,12 +720,21 @@ fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     let _ = crate::common::texts(app);
     app.press(Action::Vault(V::CGo));
     crate::common::settle(app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    crate::common::settle_n(app, 21, 30);
+    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+}
+
+/// The session locked: every open vault sealed and closed.
+fn lock_it(app: &mut Faraday) {
+    app.press(Action::Lock);
+    crate::common::settle(app, 100);
+    assert!(app.vaults().open.is_empty(), "the vault did not lock");
 }
 
 /// Unlock with `phrase`. Returns whether the vault opened.
 fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
     let before = app.vaults().open.len();
+    app.press(Action::Vault(V::Open(0)));
     crate::common::unlock(app, phrase);
     app.vaults().open.len() > before
 }
@@ -734,6 +743,7 @@ fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
 fn in_the_demo_a_vault_takes_a_typed_passphrase_and_opens_with_it() {
     let mut app = app_on(true);
     make_vault(&mut app, Some("harbour lantern"));
+    lock_it(&mut app);
     assert!(!opens_with(&mut app, demo::PASSPHRASE));
     assert!(opens_with(&mut app, "harbour lantern"));
     assert_eq!(app.vaults().open.len(), 1);
@@ -798,7 +808,6 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
     // A vault with a typed passphrase, made and unlocked; an entry with
     // its TOTP code; the public seed saved into it.
     make_vault(&mut app, Some("harbour lantern"));
-    assert!(opens_with(&mut app, "harbour lantern"));
     app.press(Action::OpenCodes);
     app.press(Action::CodesAdd);
     app.press(Action::Vault(V::FocusField(0)));

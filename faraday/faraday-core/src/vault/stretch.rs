@@ -36,8 +36,8 @@ pub(crate) enum Plan {
         for_import: bool,
     },
     /// The vault the Create form describes, named `typed`; `first` is the
-    /// first passphrase, kept for a backup flow that unlocks the vault it
-    /// made at once. Wiped as it drops.
+    /// first passphrase, kept to unlock the vault just made at once (Create
+    /// and a backup flow). Wiped as it drops.
     Create {
         typed: Text,
         first: Text,
@@ -562,11 +562,19 @@ fn created(
             app.vaults.state.focus = None;
             app.screen = Screen::Vaults;
             app.toast(EN.vaults_vault_created);
-            // Unlock, the new vault picked (FLOWS decision 10): its
-            // passphrase is typed once more, then the flow it was made
-            // for goes on, or its contents open.
+            // Unlock, the new vault picked, with the passphrase just typed
+            // twice: opening the file it was written to is the check that
+            // it opens, and nothing is typed a third time. With a stick in
+            // nothing is unlocked, and Unlock asks once the stick is out.
             if let Some(i) = app.vault_files().iter().position(|f| f.name == name) {
-                app.vault_act(VaultAction::Open(i));
+                if app.may_load_keys() {
+                    app.vaults.unlock_picked(i, first);
+                    app.vaults.set_made_parts(parts.take());
+                    app.screen = Screen::Unlock;
+                    defer(app, Work::Unlock);
+                } else {
+                    app.vault_act(VaultAction::Open(i));
+                }
             }
         }
         Err(e) => {

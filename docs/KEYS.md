@@ -137,7 +137,7 @@ boundary is.
   hands it out once (a second call gives none until another key is made)
   and not while the vault seals, and `OpenVaults::unmake_key_file` takes a
   made key back where its document was not kept. The parts of a vault
-  just made, which a copy or backup flow unlocks at once, wait in
+  just made, which Create a vault and a copy or backup flow unlock at once, wait in
   `OpenVaults` (`hold_made_parts`) as an opaque `UnlockParts`, taken once
   by the unlock (`take_made_parts`) and wiped by `clear_made_parts` or
   `OpenVaults::clear` at a lock; the screens keep none. A

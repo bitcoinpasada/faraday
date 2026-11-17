@@ -41,7 +41,7 @@ faraday/faraday-core/src/spend_backup/screen.rs 323
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
 faraday/faraday-core/src/vanity/screen.rs 44
-faraday/faraday-core/src/vault/screen.rs 392
+faraday/faraday-core/src/vault/screen.rs 384
 faraday/faraday-core/src/wordlist/screen.rs 27
 faraday/faraday-starter/src/draw/boot_file.rs 3
 faraday/faraday-starter/src/draw/clear_first.rs 2

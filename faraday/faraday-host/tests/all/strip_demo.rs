@@ -133,7 +133,11 @@ fn make_vault(app: &mut Faraday, typed: Option<&str>) {
     let _ = crate::common::texts(app);
     app.press(Action::Vault(V::CGo));
     crate::common::settle(app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    crate::common::settle_n(app, 21, 30);
+    assert_eq!(app.vaults().open.len(), 1, "the vault was made and opened");
+    app.press(Action::Lock);
+    crate::common::settle(app, 100);
+    assert!(app.vaults().open.is_empty(), "the vault did not lock");
 }
 
 /// Unlock with `phrase`. Returns whether the vault opened.
@@ -293,13 +297,18 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
     assert!(!crate::common::has_part(&mut app, "bits from dice"));
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    assert!(opens_with(&mut app, demo::PASSPHRASE));
+    crate::common::settle_n(&mut app, 21, 30);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the vault opened with faraday, typed twice"
+    );
     assert_ne!(rolled, demo::PASSPHRASE);
 
     // On the stick the rolled words are the passphrase.
     let mut app = app_on(false);
     make_vault(&mut app, None);
+    app.press(Action::Vault(V::Open(0)));
     assert!(opens_with(&mut app, &rolled));
 }
 
@@ -328,6 +337,10 @@ fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_an
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    assert!(opens_with(&mut app, demo::PASSPHRASE));
+    crate::common::settle_n(&mut app, 21, 30);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the vault opened with faraday, typed twice"
+    );
 }

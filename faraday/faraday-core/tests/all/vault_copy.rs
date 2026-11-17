@@ -984,6 +984,14 @@ fn made_plain_opens(app: &mut Faraday) -> bool {
     app.vaults().open.len() > before || app.sheet.is_some()
 }
 
+/// The ordinary Create finished with a passphrase typed twice: whether an
+/// item came into the vault it made, which opens at once.
+fn made_plain_takes_an_item(app: &mut Faraday) -> bool {
+    let opened = made_plain_opens(app);
+    let last = app.vaults().open.len().checked_sub(1);
+    app.sheet.is_some() || (opened && last.is_some_and(|o| !held(app, o).is_empty()))
+}
+
 /// The open vault's label and what each file in `written` holds.
 fn read_back(written: Files) -> Vec<(String, Vec<Held>)> {
     written
@@ -1038,7 +1046,7 @@ fn backing_out_of_create_makes_no_vault_and_nothing_waits() {
     // A vault made by the ordinary Create takes no item.
     app.press(Action::Vault(V::Create));
     assert!(
-        !made_plain_opens(&mut app),
+        !made_plain_takes_an_item(&mut app),
         "an item came into an ordinary vault"
     );
 }
@@ -1106,7 +1114,7 @@ fn leaving_the_unlock_or_create_by_the_bar_drops_the_item_for_good() {
         app.press(Action::Resume(Going::Vault));
         assert_eq!(app.screen, Screen::CreateVault);
         assert!(
-            !made_plain_opens(&mut app),
+            !made_plain_takes_an_item(&mut app),
             "an item came after leaving for {away:?}"
         );
     }
