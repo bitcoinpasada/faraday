@@ -489,6 +489,7 @@ pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
         QrToolAction::Png => png(app),
         QrToolAction::File => file(app),
         QrToolAction::Another => {
+            app.session.keys.qr_forget();
             if let Some(s) = st(app) {
                 let back = s.back;
                 let scroll = s.scroll;

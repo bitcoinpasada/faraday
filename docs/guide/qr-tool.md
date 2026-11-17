@@ -27,7 +27,7 @@ The passphrase seals the code and is the only thing that opens it, so a lost pas
 
 **Key:** qr-tool.code
 
-**Show as QR** shows the code. **PNG to the Outbox** and **To the Outbox** save the picture and the .pgp file. **Make another** returns to the first card.
+**Show as QR** shows the code. **PNG to the Outbox** and **To the Outbox** save the picture and the .pgp file. **Another** returns to the first card, empty. **Done** goes back to where the tool was opened.
 
 The code is a standard OpenPGP message under the passphrase, so software that reads one opens it without Faraday.
 
@@ -37,4 +37,4 @@ The code is a standard OpenPGP message under the passphrase, so software that re
 
 A scanned QR vault or a .pgp file opens the tool here, with its size in bytes. Type the passphrase in **Passphrase** and press **Open** to decrypt it; a wrong passphrase, a damaged code or a message that is not a QR vault is named.
 
-The tool names what the code holds. A seed of 12 or 24 words offers **Load as a key**. A codex32 share names its key and offers **Add the share**. A passphrase names its key and shows it, with **Add to key** where that key is loaded and its words were loaded without a passphrase. A note is shown and offers **Save as a note** into the open vault, or says **Open a vault first**.
+The tool names what the code holds. A seed of 12 or 24 words offers **Load as a key**. A codex32 share names its key and offers **Add the share**. A passphrase names its key and shows it, with **Add to key** where that key is loaded and its words were loaded without a passphrase. A note is shown and offers **Save as a note** into the open vault, or says **Open a vault first**. **Another** opens the tool again, empty, and **Done** goes back to where it was opened.

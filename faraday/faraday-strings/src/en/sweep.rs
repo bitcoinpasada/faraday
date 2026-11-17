@@ -919,7 +919,9 @@ macro_rules! words_sweep {
     /// Code: the `.pgp` file to the Outbox.
     qr_tool_file: "To the Outbox",
     /// Code: starts again.
-    qr_tool_another: "Make another",
+    qr_tool_another: "Another",
+    /// Code and Open: back to where the tool was opened.
+    qr_tool_done: "Done",
     /// A toast. `{}`: the file's name.
     qr_tool_saved: "{} is in the Outbox",
     /// The code's sheet title and the picture's first line.

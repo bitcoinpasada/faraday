@@ -259,6 +259,30 @@ fn make_another_empties_the_flow() {
 }
 
 #[test]
+fn a_made_code_ends_with_another_and_done_back_to_tools() {
+    let mut app = started();
+    open(&mut app);
+    make_note(&mut app, "a note", "pass", "Name");
+    assert!(offered(&mut app, Action::QrTool(Q::Another)));
+    assert!(offered(&mut app, Action::Nav(Screen::Catalog)));
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(qr_tool::state(&app).is_none());
+}
+
+#[test]
+fn an_opened_code_ends_with_another_and_done_and_another_starts_empty() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "pass phrase");
+    assert!(offered(&mut app, Action::QrTool(Q::Another)));
+    app.press(Action::QrTool(Q::Another));
+    let s = qr_tool::state(&app).unwrap();
+    assert!(s.code_to_open().is_none());
+    assert_eq!(app.session.keys.qr_holds(), None);
+}
+
+#[test]
 fn leaving_wipes_what_was_typed() {
     let mut app = started();
     open(&mut app);

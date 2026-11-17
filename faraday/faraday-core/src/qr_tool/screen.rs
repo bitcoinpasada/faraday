@@ -309,9 +309,22 @@ fn code(s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         (EN.qr_tool_show, Style::Primary, Q::Show),
         (EN.qr_tool_png, Style::Tonal, Q::Png),
         (EN.qr_tool_file, Style::Tonal, Q::File),
-        (EN.qr_tool_another, Style::Secondary, Q::Another),
     ] {
         ui.button(x, cy, Some(w), BUTTON_H, label, style, act(a));
+        cy += BUTTON_H + GAP;
+    }
+    cy - y + ends(s, ui, (x, cy, w))
+}
+
+/// The result's last two buttons: Another, empty, and Done, back to where
+/// the tool was opened. Their height.
+fn ends(s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    for (label, a) in [
+        (EN.qr_tool_another, act(Q::Another)),
+        (EN.qr_tool_done, Action::Nav(s.back)),
+    ] {
+        ui.button(x, cy, Some(w), BUTTON_H, label, Style::Secondary, a);
         cy += BUTTON_H + GAP;
     }
     cy - GAP - y
@@ -362,6 +375,20 @@ fn open_card(
         cy += BUTTON_H;
         return cy - y;
     };
+    cy += open_holds(app, s, ui, holds, (x, cy, w)) + GAP;
+    cy += ends(s, ui, (x, cy, w));
+    cy - y
+}
+
+/// What the opened code holds and its next step. Its height.
+fn open_holds(
+    app: &View,
+    s: &QrToolState,
+    ui: &mut Ui,
+    holds: QrHolds,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let mut cy = y;
     let keys = &app.session.keys;
     let line =
         |ui: &mut Ui, cy: f32, text: &str| ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, text);
