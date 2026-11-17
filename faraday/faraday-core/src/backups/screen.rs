@@ -9,7 +9,9 @@ use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet_backup::Tone;
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, GAP_SMALL, GRID, LABEL_L, LABEL_M, PAD, TITLE_M,
+};
 use faraday_text::{Text, text};
 
 /// A line's state colour.
@@ -79,6 +81,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::OnSurfaceVariant,
             EN.backups_no_wallet,
         );
+        let y = p.top + ui.line_as(BODY_M) + PAD;
+        no_wallet_buttons(ui, dx, y, p.reading());
         return;
     };
     // The map's rows, its Back up and its name read together: the card
@@ -101,18 +105,18 @@ fn wide_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), e: &Entry) -> 
     let ix = x + 20.0;
     let iw = w - 40.0;
     let mut bw = 0.0;
-    if let Some(i) = e.wallet {
-        let label = back_up_label(app, i);
-        bw = ui.measure_as(LABEL_L, label) + 36.0;
+    for (label, style, action) in head_buttons(app, e).into_iter().rev() {
+        let b = ui.measure_as(LABEL_L, &label) + (2.0 * PAD + GAP_SMALL);
         ui.button(
-            ix + iw - bw,
+            ix + iw - bw - b,
             y + 16.0,
-            Some(bw),
+            Some(b),
             BUTTON_H,
-            label,
-            Style::Secondary,
-            Action::Backup(i),
+            &label,
+            style,
+            action,
         );
+        bw += b + GRID;
     }
     let name = ui.fit_as(TITLE_M, &e.name, iw - bw - 16.0);
     ui.text_as(ix, y + 16.0, TITLE_M, Role::OnSurface, &name);
@@ -130,12 +134,65 @@ fn wide_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), e: &Entry) -> 
         }
         Some(lines) => {
             for l in lines {
-                wide_row(ui, ix, ry, iw, l);
+                wide_row(ui, ix, ry, iw, l, e.wallet);
                 ry += ROW;
             }
         }
     }
     ch
+}
+
+/// With no wallet known: Make a new wallet and Restore, from (x, y) `w`
+/// wide. Returns the height.
+fn no_wallet_buttons(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut h = 0.0;
+    for (label, style, action) in [
+        (
+            EN.start_make_a_new_wallet,
+            Style::Primary,
+            Action::CreateWallet,
+        ),
+        (
+            EN.start_restore_an_existing,
+            Style::Secondary,
+            Action::RestoreWallet,
+        ),
+    ] {
+        let bw = (ui.measure_as(LABEL_L, label) + (2.0 * PAD + GAP_SMALL)).min(w);
+        ui.button(x, y + h, Some(bw), BUTTON_H, label, style, action);
+        h += faraday_draw::tokens::ROW;
+    }
+    h
+}
+
+/// A wallet card's buttons, left to right: Open the wallet and Back up
+/// for a loaded wallet, Unlock for one in a locked vault.
+fn head_buttons(app: &View, e: &Entry) -> Vec<(Text, Style, Action)> {
+    let mut out = Vec::new();
+    if let Some(i) = e.wallet {
+        out.push((
+            Text::of(EN.backups_open_wallet),
+            Style::Secondary,
+            Action::OpenWallet(i),
+        ));
+        out.push((
+            Text::of(back_up_label(app, i)),
+            Style::Secondary,
+            Action::Backup(i),
+        ));
+    }
+    if let Some((label, action)) = &e.unlock {
+        out.push((label.clone(), Style::Primary, *action));
+    }
+    out
+}
+
+/// A place row opens its item of the wallet's checklist, for a loaded
+/// wallet with a plan.
+fn place_press(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), l: &Line, wallet: Option<usize>) {
+    if let (Some(i), Some(at)) = (wallet, l.at) {
+        ui.press_box(x, y, w, h, Action::BackupsPlace(i, at));
+    }
 }
 
 /// A wallet's Back up, or Continue the backup for one left part way.
@@ -149,7 +206,8 @@ fn back_up_label(app: &View, i: usize) -> &'static str {
 
 /// One place on the wide list: where, what it holds, its tag, and what
 /// was seen of it.
-fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
+fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line, wallet: Option<usize>) {
+    place_press(ui, (x, y, w, ROW), l, wallet);
     ui.fill(x, y + ROW - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
     let place_w = 170.0;
     let tag_w = 64.0;
@@ -180,6 +238,7 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
 /// The small panel: one wallet a page, the pages turned at the foot
 /// (`pages`); beside the list pane, the one chosen, with no pages to turn.
 fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Entry], pages: bool) {
+    let h_page = h;
     use crate::compact::M;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     ui.moving_page_begin((x0, cw, h), app.list_offset);
@@ -188,6 +247,9 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
     let n = entries.len();
     let Some(e) = entries.get(app.backups_area.at().min(n.saturating_sub(1))) else {
         ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, EN.backups_no_wallet);
+        y += ui.line_as(BODY_M) + PAD;
+        let h = no_wallet_buttons(ui, x, y, w);
+        crate::compact::screen::finish(app, ui, h_page, y + h + PAD - top);
         return;
     };
     let at = app.backups_area.at().min(n - 1);
@@ -200,22 +262,14 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
         }
         Some(lines) => {
             for l in lines {
-                y += compact_row(ui, x, y, w, l);
+                y += compact_row(ui, x, y, w, l, e.wallet);
             }
             y += 6.0;
         }
     }
-    if let Some(i) = e.wallet {
-        ui.button(
-            x,
-            y,
-            Some(w),
-            BUTTON_H,
-            back_up_label(app, i),
-            Style::Secondary,
-            Action::Backup(i),
-        );
-        y += 56.0;
+    for (label, style, action) in head_buttons(app, e) {
+        ui.button(x, y, Some(w), BUTTON_H, &label, style, action);
+        y += faraday_draw::tokens::ROW;
     }
     if n > 1 && pages {
         let half = (w - 8.0) / 2.0;
@@ -259,7 +313,7 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
 
 /// One place on the small panel: where and what was seen of it on one
 /// line, what it holds and its tag under it. Returns the height it took.
-fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) -> f32 {
+fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line, wallet: Option<usize>) -> f32 {
     let pw = ui.measure_as(LABEL_L, &l.place);
     let sw = ui.measure_as(LABEL_M, &l.state);
     let mut cy = y;
@@ -283,5 +337,6 @@ fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) -> f32 {
     }
     cy += 10.0;
     ui.fill(x, cy - 5.0, w, 1.0, 0.0, Role::OutlineVariant);
+    place_press(ui, (x, y, w, cy - y - GAP_SMALL), l, wallet);
     cy - y
 }

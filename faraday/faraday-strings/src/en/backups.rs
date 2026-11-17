@@ -8,6 +8,8 @@ macro_rules! words_backups {
     // ----- backups (faraday-core/src/backups/mod.rs) -----
     /// Text in `backups`.
     backups_wallet: "Wallet",
+    /// Text in `backups/screen.rs`: a loaded wallet's card.
+    backups_open_wallet: "Open the wallet",
     /// Text in `backups`.
     backups_plan: "Plan",
     /// Text in `backups`. `{}`: `s.name`.

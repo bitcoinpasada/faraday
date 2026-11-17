@@ -158,6 +158,9 @@ pub struct Entry {
     pub wallet: Option<usize>,
     /// Its map, a line per place; `None` when it has no plan.
     pub lines: Option<Vec<Line>>,
+    /// For a wallet seen in a locked vault, the way to unlock it and
+    /// its label.
+    pub unlock: Option<(Text, crate::Action)>,
 }
 
 /// One place of a wallet's map on the Backups screen.
@@ -1903,6 +1906,7 @@ impl Faraday {
                 name: Text::of(&w.name),
                 shape: Text::of(&Session::shape(w)),
                 wallet: Some(i),
+                unlock: None,
             });
         }
         for v in &self.vaults.open {
@@ -1923,6 +1927,7 @@ impl Faraday {
                     shape: Text::of(&Session::shape(&w)),
                     name: Text::of(&w.name),
                     wallet: None,
+                    unlock: None,
                 });
             }
         }
@@ -1953,6 +1958,7 @@ impl Faraday {
                     shape: Text::of(shape.as_str()),
                     wallet: None,
                     lines,
+                    unlock: Some(self.locked_unlock(s)),
                 });
             }
         }
@@ -2400,9 +2406,47 @@ fn lower_first(s: &str) -> Text {
     Text::first_lowercase(s)
 }
 
+/// The checklist item that makes what place `at` of the map keeps, of the
+/// `items` the plan has: the first of its paper copies for a place, its
+/// vault's item, the seeds' or the files' sticks, the software's files or
+/// descriptor. None for seeds on their own devices.
+fn checklist_item(at: At, items: &[plan::Item]) -> Option<plan::Item> {
+    use plan::Item;
+    let first = |f: &dyn Fn(&Item) -> bool| items.iter().copied().find(|i| f(i));
+    match at {
+        At::Place(_) => first(&|i| matches!(i, Item::Copy(_) | Item::Codex32(_)))
+            .or_else(|| first(&|i| matches!(i, Item::Passphrase(_) | Item::Sheets))),
+        At::Vault(v) => first(&|i| *i == Item::Vault(v)),
+        At::Files | At::Stick(..) => first(&|i| matches!(i, Item::SeedFiles | Item::Sticks)),
+        At::Software => first(&|i| matches!(i, Item::PublicFiles | Item::ShowDescriptor)),
+        At::Away => None,
+    }
+}
+
+impl Faraday {
+    /// The way to unlock the locked vault whose summary is `s`, and its
+    /// label: the vault itself when its file is on a stick read, else the
+    /// list.
+    fn locked_unlock(&self, s: &crate::vault::VaultSummary) -> (Text, crate::Action) {
+        let back = Screen::Backups;
+        let at = self
+            .vault_files()
+            .iter()
+            .position(|f| f.open.is_none() && f.sha.is_some_and(|d| s.copies.contains(&d)));
+        let a = at.map_or(crate::vault::VaultAction::ListFrom(back), |k| {
+            crate::vault::VaultAction::OpenFrom(k, back)
+        });
+        (
+            Text::fill(EN.vaults_unlock, &[&s.name]),
+            crate::Action::Vault(a),
+        )
+    }
+}
+
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
-    /// it: handles the Backups screen's actions (`BackupsOf`, `BackupsPage`).
+    /// it: handles the Backups screen's actions (`BackupsOf`, `BackupsPage`,
+    /// `BackupsPlace`).
     pub(crate) fn backups_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::BackupsOf(i) => {
@@ -2418,6 +2462,15 @@ impl Faraday {
             Action::BackupsPage(i) => {
                 self.backups_area.set_at(i);
                 self.list_offset = 0.0;
+            }
+            Action::BackupsPlace(w, at) => {
+                if self.chart_checklist(w, false) {
+                    let item = checklist_item(at, &self.backup_items_now(c));
+                    self.backup_item_open(item);
+                    self.screen = Screen::Backup;
+                } else {
+                    self.act(Action::Backup(w));
+                }
             }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

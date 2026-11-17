@@ -54,6 +54,9 @@ pub enum Action {
     Flow(backup_flow::steps::FlowAction),
     /// Show the Backups screen's wallet `i`, a page each on a small panel.
     BackupsPage(usize),
+    /// A place row of wallet `i`'s map on the Backups screen: that
+    /// place's item of the backup's checklist.
+    BackupsPlace(usize, crate::plan::At),
     /// A vault screen's action.
     Vault(vault::VaultAction),
     /// Open seed entry, for a slot's fingerprint or for any key.
@@ -1419,7 +1422,9 @@ impl Faraday {
                         .push_back(StorageCommand::OpenInstitute);
                 }
             }
-            a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
+            a @ (Action::BackupsOf(..) | Action::BackupsPage(..) | Action::BackupsPlace(..)) => {
+                self.backups_act(a, &c)
+            }
             Action::Nav(s) => {
                 self.glance.set_focus(None);
                 self.panes_nav(s);

@@ -987,6 +987,11 @@ public) and its state:
   was shown in the backup.
 - the seeds on their own devices: "Not here".
 
+A loaded wallet's card offers **Open the wallet** and **Back up**
+(**Continue** for a backup left part way); a place row opens its item of
+the wallet's checklist (the chart's lines do the same); a wallet seen in a
+locked vault offers **Unlock {vault}**. With no wallet known, Backups
+offers **Make a new wallet** and **Restore an existing wallet**.
 A wallet with no plan reads **No backup plan** with **Back up** (on a
 loaded wallet). A locked vault's wallet with a plan in that vault and no
 record here reads "Plan · In {vault} · locked". What a plan holds is

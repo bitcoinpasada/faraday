@@ -25,6 +25,8 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
         .ok_or("no native SegWit")? as u8;
+    t.press(Action::Nav(Screen::Backups));
+    t.shot("first-backups-empty")?;
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind));
     t.press(Action::CBackupForm(
@@ -38,6 +40,9 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .ok_or("the wallet was not made")?;
     t.press(Action::OpenWallet(w));
     t.shot("first-card-held")?;
+    t.press(Action::BackupsOf(w));
+    t.shot("first-backups-loaded")?;
+    t.press(Action::OpenWallet(w));
     // The plan: Paper and vault; Vault 1's stick unticked on Places.
     t.press(Action::BackupFirst(w));
     t.backup_as(Preset::PaperVault);
@@ -103,6 +108,8 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     scroll_to(t, Action::BPlan);
     t.shot("first-done-foot")?;
+    t.press(Action::BackupsOf(w));
+    t.shot("first-backups")?;
     Ok(())
 }
 

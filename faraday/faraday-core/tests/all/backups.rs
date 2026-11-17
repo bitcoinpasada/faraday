@@ -332,6 +332,63 @@ fn a_wallet_with_no_plan_offers_back_up() {
 }
 
 #[test]
+fn a_wallet_card_opens_the_wallet() {
+    let mut app = with_a_wallet();
+    app.press(Action::Nav(Screen::Backups));
+    tap(&mut app, Action::OpenWallet(0));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+#[test]
+fn a_place_row_opens_its_item_of_the_checklist() {
+    let mut app = backed_up(2);
+    app.press(Action::Nav(Screen::Backups));
+    let at = {
+        let c = testkit::compute();
+        let all = app.backups_now(&c);
+        all[0]
+            .lines
+            .as_ref()
+            .and_then(|l| l.iter().find(|l| l.paper))
+            .and_then(|l| l.at)
+            .expect("a paper place")
+    };
+    tap(&mut app, Action::BackupsPlace(0, at));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(
+        app.backup().and_then(|b| b.open),
+        Some(faraday_core::plan::Item::Copy(0))
+    );
+}
+
+#[test]
+fn with_no_wallet_backups_offers_make_and_restore() {
+    let mut app = shown(Vec::new(), Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Backups));
+    let _ = app.frame();
+    assert!(app.offers(Action::CreateWallet));
+    assert!(app.offers(Action::RestoreWallet));
+    tap(&mut app, Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+}
+
+#[test]
+fn a_wallet_in_a_locked_vault_offers_unlock() {
+    let mut app = with_a_wallet();
+    open_a_vault(&mut app);
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(0)));
+    crate::common::lock(&mut app);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut app = shown(inbox, outbox, kept);
+    app.press(Action::Nav(Screen::Backups));
+    let c = testkit::compute();
+    let (_, unlock) = app.backups_now(&c)[0].unlock.clone().expect("an unlock");
+    tap(&mut app, unlock);
+    assert_eq!(app.screen, Screen::Unlock);
+}
+
+#[test]
 fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
     let mut app = with_a_wallet();
     let name = app.session.wallets[0].name.as_str().to_string();

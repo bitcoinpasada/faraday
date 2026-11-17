@@ -17,7 +17,7 @@ Each row is a wallet, with its name and shape; choose a row to see its card. Wit
 
 **Key:** backups.card
 
-The card names the wallet and its shape, then lists where its backup is, one line per place. **Back up** opens the backup of a loaded wallet, and reads **Continue the backup** when one was left part way. A wallet with no plan reads **No backup plan**. A wallet of a locked vault shows only its plan, with the vault's name and that it is locked.
+The card names the wallet and its shape, then lists where its backup is, one line per place. **Back up** opens the backup of a loaded wallet, and reads **Continue the backup** when one was left part way. A wallet with no plan reads **No backup plan**. **Open the wallet** goes to it; a place's line opens its checklist step. A wallet of a locked vault shows only its plan, with the vault's name, and offers to unlock it. With no wallet, the page offers **Make a new wallet** and **Restore an existing wallet**.
 
 A line gives the place, what it holds (or **Nothing**), a tag and what was seen of it. The tag is secret, sealed or public: secret means the place holds the key as it is, sealed means it holds the key under a vault's passphrase, and public means it holds nothing that spends.
 
