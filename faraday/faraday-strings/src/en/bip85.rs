@@ -410,6 +410,8 @@ macro_rules! words_bip85 {
     bip85_type_the_digits: "Type the digits · Enter continues",
     /// Button in `card`.
     bip85_continue: "Continue",
+    /// The value card's button: start again on the same key.
+    bip85_another: "Another",
     /// Line in `card`.
     bip85_path: "Path",
     /// Text in `card`.

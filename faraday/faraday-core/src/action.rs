@@ -660,6 +660,8 @@ pub enum Action {
     PNext,
     /// Show or hide the value.
     PShow,
+    /// Start BIP-85 again on the same key.
+    PAnother,
     /// The value into the open vault.
     PVault,
     /// Child words as a key of this session.
@@ -1270,6 +1272,7 @@ impl Faraday {
             | Action::PIndex(_)
             | Action::PNext
             | Action::PShow
+            | Action::PAnother
             | Action::PVault
             | Action::PLoad
             | Action::PRecord(_)

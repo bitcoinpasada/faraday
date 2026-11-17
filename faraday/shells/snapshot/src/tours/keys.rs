@@ -68,6 +68,7 @@ fn child_seed(t: &mut Tour, fp: [u8; 4]) -> Result<(), String> {
     t.press(Action::PApp(0));
     t.press(Action::PNext);
     t.press(Action::PNext);
+    t.shot("bip85-result")?;
     t.press(Action::PLoad);
     t.shot("bip85-record")?;
     let before = t.app.session.keys.len();

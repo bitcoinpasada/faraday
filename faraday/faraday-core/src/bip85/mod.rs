@@ -253,6 +253,16 @@ impl Bip85Area {
             .filter(|_| self.state.as_ref().is_some_and(|b| b.shown))
     }
 
+    /// The index card counts as done while it is open on an index that
+    /// reads (it has a default), so the value shows beside it at once.
+    fn settle(&mut self) {
+        if let Some(b) = self.state.as_mut()
+            && b.open == Some(pstep::INDEX)
+        {
+            b.done[usize::from(pstep::INDEX)] = b.index().is_some();
+        }
+    }
+
     /// Drops the held child unless the value is on screen.
     fn tidy(&mut self) {
         if !self.state.as_ref().is_some_and(|b| b.shown) {
@@ -374,6 +384,7 @@ impl Bip85Area {
     /// A press that changes only this flow.
     pub(crate) fn act(&mut self, action: crate::Action) {
         self.act_on(action);
+        self.settle();
         self.tidy();
     }
 
@@ -444,6 +455,7 @@ impl Bip85Area {
     /// was taken.
     pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         let taken = self.key_on(key, screen);
+        self.settle();
         self.tidy();
         taken
     }
@@ -700,6 +712,11 @@ impl Faraday {
         use crate::Action as A;
         match action {
             A::Bip85 => self.bip85_open(),
+            A::PAnother => {
+                if let Some((key, back)) = self.bip85.state().map(|b| (b.key, b.back)) {
+                    self.bip85.open(key, back);
+                }
+            }
             A::PVault => self.bip85_to_vault(),
             A::PLoad => self.bip85_load(),
             A::PRecord(record) => self.bip85_record(record),

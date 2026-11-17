@@ -25,7 +25,7 @@ Choose what the value is. **Words** is a child seed, 12 to 24 words, a key of it
 
 **Key:** bip85.index
 
-The index numbers the values of one application: 0 is the first, each other number gives another. Type it as digits, or step it with **-** and **+**, from 0 to 2147483647. With the key, the index is all you need to make the value again.
+The index numbers the values of one application: 0 is the first, each other number gives another. Type it as digits, or step it with **-** and **+**, from 0 to 2147483647. The value shows under the index at once. With the key, the index is all you need to make the value again.
 
 ## Value
 
@@ -33,4 +33,4 @@ The index numbers the values of one application: 0 is the first, each other numb
 
 **Path** is the derivation path of the value, and the line below it is the value, hidden until you press **Show**; **Hide** covers it again. The value is a secret.
 
-The Save into button, followed by the open vault's name, saves the value in that vault: a password as an entry, child words as a key, any other value as a note. With no vault open, **Make a vault** or **Unlock a vault** takes its place. **Load as a key** is offered for Words and loads the child seed as a key of this session. For child words, either asks whether to record them as a child seed of the parent key: **Record** keeps the parent's fingerprint and index, **Don't record** keeps an ordinary seed. **Out unprotected…** writes the value to a file after a warning.
+The Save into button, followed by the open vault's name, saves the value in that vault: a password as an entry, child words as a key, any other value as a note. With no vault open, **Make a vault** or **Unlock a vault** takes its place. **Load as a key** is offered for Words and loads the child seed as a key of this session. For child words, either asks whether to record them as a child seed of the parent key: **Record** keeps the parent's fingerprint and index, **Don't record** keeps an ordinary seed. **Out unprotected…** writes the value to a file after a warning. **Another** starts again on the same key, and **Done** goes back to where BIP-85 was opened from.

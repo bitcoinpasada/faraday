@@ -30,7 +30,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             summary: summary(app, b, s),
             mono: s == pstep::KEY || s == pstep::INDEX,
             done: b.done[usize::from(s)],
-            open: b.open == Some(s),
+            open: b.open == Some(s)
+                || (s == pstep::RESULT && b.open == Some(pstep::INDEX) && b.index().is_some()),
             default: false,
             toggle: Action::PStep(s),
             lead: None,
@@ -240,9 +241,6 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 EN.bip85_type_the_digits,
             );
             cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
-            if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
-                cy += 48.0;
-            }
         }
         _ => {
             // On a small panel each value goes under its name.
@@ -305,6 +303,16 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 EN.bip85_out_unprotected.to_string(),
                 Style::Ghost,
                 Action::POut,
+            ));
+            row.push((
+                EN.bip85_another.to_string(),
+                Style::Secondary,
+                Action::PAnother,
+            ));
+            row.push((
+                EN.convert_done.to_string(),
+                Style::Ghost,
+                Action::Nav(b.back),
             ));
             cy += button_rows(ui, x, cy, w, &row);
         }

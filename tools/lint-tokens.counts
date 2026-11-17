@@ -3,7 +3,7 @@
 # only falls; tools/lint-tokens.sh --write lowers it.
 faraday/faraday-core/src/backup_flow/screen.rs 96
 faraday/faraday-core/src/backups/screen.rs 36
-faraday/faraday-core/src/bip85/screen.rs 37
+faraday/faraday-core/src/bip85/screen.rs 36
 faraday/faraday-core/src/board/screen.rs 7
 faraday/faraday-core/src/boot_import/screen.rs 41
 faraday/faraday-core/src/codes/screen.rs 51
