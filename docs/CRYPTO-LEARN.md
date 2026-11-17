@@ -1415,9 +1415,9 @@ writing what it reads. The one subtle risk is in writing: a reused
 nonce would leave a file that opens everywhere, so the cross-check would
 not notice; the guard is that every seal draws its bytes from one call
 for the session's randomness, which the specification counts. The
-library trade, key commitment (planned for the QR vault, where OCB does
-not commit) and, as later work, wiping freed memory and Argon2id's
-cache timing follow.
+library trade and key commitment (planned for the QR vault, where OCB
+does not commit) follow, then wiping freed memory and Argon2id's cache
+timing, which are outside the Security scope.
 
 **Opening it elsewhere**
 

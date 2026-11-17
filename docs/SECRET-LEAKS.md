@@ -225,12 +225,12 @@ entry is made only in a commit that says why, and passes review.
   register leaves bytes on the stack that no allocator sees. A test that
   paints the stack and looks afterwards is not proposed: its result
   depends on the compiler and the target, and what it finds is gone at
-  the next call. A change to how a secret is handled locally is read for
-  it (the checklist in `docs/KEYS.md`, §10).
+  the next call. It is outside the Security scope, as timing is, and
+  no review looks for it.
 - **Timing, and loads indexed by a secret.** Under the Security scope
   (`docs/SECURITY-MODEL.md`, "What this does not defend against") these
-  are worth having and later work, recorded as open work and done when
-  the app is mature. No test here claims to find one.
+  are outside what Faraday defends against: not recorded and not fixed.
+  No test here claims to find one.
 - **Memory seen from outside the process** (cold boot, the kernel, the
   management engines) is out of scope, as there.
 - **Faraday Demo and the Starter** run on an online computer and hold

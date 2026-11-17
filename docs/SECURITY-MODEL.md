@@ -437,12 +437,18 @@ file goes wrong are absent by construction, not patched after the fact.
   can see it, but it can type or click blind. The owner accepts this (F202).
   A device with a storage interface gets no keyboard interface authorised,
   so that kind of stick still types nothing.
-- Timing and memory side channels on the device, in part. Some of the
-  arithmetic that secrets pass through takes no branch on them and the
-  secrets Faraday's own types hold are wiped, but neither is complete:
-  an attack of this kind needs someone measuring the offline computer
-  while it runs, or its memory after use, which the device's use (in a
-  secure place, powered off afterwards) and cold boot's place above put
-  outside this model. The rest is worth doing and comes later.
+- Timing and memory side channels on the device. An attack of this kind
+  needs someone measuring the offline computer while it runs, or reading
+  its memory after use, which the device's use (in a secure place,
+  powered off afterwards) and cold boot's place above put outside this
+  model. What Faraday does is bounded: its own secret types wipe what
+  they hold, a secret leaves the application's state when the screen
+  that needed it is done, the application restarts at every lock and the
+  kernel zeroes freed memory, signing goes through a constant-time
+  library, and a comparison that decides access is constant-time. Beyond
+  that, a copy of a secret left in freed memory, on the stack or in a
+  library's own buffer, and code whose time depends on a secret, are not
+  looked for and not fixed (`docs/KEYS.md`, "What wiping does not
+  reach").
 - Secrets in Faraday Demo and the Starter. They run on an online computer
   and are for trying Faraday with test data, not for keys that hold money.

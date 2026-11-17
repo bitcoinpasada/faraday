@@ -661,7 +661,6 @@ Read by whoever makes or reviews a change in this area; no script holds these.
 
 - A file that starts to hold secrets names a secret type, and lint-secrets holds it; one that cannot is added to its NAMELESS, with why.
 - An entry in tools/leak-entries.toml, or a form the leak tests look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry.
-- A change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see.
 - That a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password.
 - A kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open.
 - A GPG key's paperkey reaches a code only as one static code of its base16 lines on the QR sheet marked Secret: no format choice, no parts, no picture, no file, made at the press through the existing reveal.

@@ -1375,8 +1375,8 @@ shows that a vault needs one.
 **Not done.** The first half of Argon2id's first pass reads memory
 independently of the passphrase; the rest reads it at places the
 passphrase decides, a cache-timing side channel on the computer that
-unlocks. It is later work under the Security scope, as wiping freed
-copies is.
+unlocks. It is outside the Security scope, as copies in freed memory
+are.
 
 ## 10. Reading one by hand
 

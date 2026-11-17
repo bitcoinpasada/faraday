@@ -360,9 +360,9 @@ set, anything drawing reads. The worker sees only what one job was given.
 **How it is wiped.** Every secret a job holds is a faraday-keys type or
 a `Zeroizing`, wiped as it drops: at the job's end on the worker, at a
 stale answer's arrival on the main thread, or on the worker when its
-app has gone. A power off wipes nothing more than today. Wiping copies
-that freed memory still holds is the Security scope's later work, not
-this spec's.
+app has gone. A power off wipes nothing more than today. Copies that
+freed memory still holds are outside the Security scope, and not this
+spec's.
 
 ## 7. The shells
 

@@ -109,10 +109,15 @@ plan <paths>` lists the ones a change touches.
   from the online side is untrusted (the host or coordinator, a PSBT, a
   file, a QR code) and the device verifies it; its cryptography is right
   against published vectors. A bug there is fixed now. Timing and memory
-  side channels on the offline device (constant-time arithmetic, wiping
-  copies in freed memory) are strictly outside this scope, but Faraday
-  covers them as far as it can: each one found is recorded as open work
-  and done when the app is mature, not fixed now. A malicious
+  side channels on the offline device (code whose time depends on a
+  secret; a copy of a secret left in freed memory, on the stack or in a
+  library's own buffer) are outside this scope: they are not looked for,
+  not reported, not recorded as open work and not fixed. Four things stay
+  in scope as ordinary bugs: a secret still reachable in the app's own
+  state after the screen that needed it is done, or after a lock; one of
+  Faraday's own secret types that does not wipe what it holds;
+  secret-key arithmetic done outside a constant-time library; and a
+  comparison that decides access. A malicious
   Faraday binary, firmware and the management engines, cold-boot attacks
   and a weak passphrase are out of scope, and so is a USB device that shows
   only as a keyboard or mouse and is plugged in at boot (trusted; a notice
