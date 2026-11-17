@@ -51,14 +51,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return crate::vault::screen::create(app, ui, x0, cw, h);
     }
     let steps = steps_of(f);
-    let mut cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
-    // A restore's head card: the public key it is for (`gpg_restore_screen.rs`).
-    let head = f
-        .restore
-        .as_ref()
-        .map(|r| super::gpg_restore_screen::head_card(f, r));
-    let off = usize::from(head.is_some());
-    cards.splice(0..0, head);
+    let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
     let named = super::gpg_restore_screen::heading(f);
     // While the plan card's board is shown on `wide`, its list is a
     // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
@@ -101,10 +94,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let f = app_ref.flow().unwrap();
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match i.checked_sub(off) {
-                Some(k) => body(app_ref, f, ui, steps[k], x, y, w),
-                None => super::gpg_restore_screen::head_body(app_ref, f, ui, x, y, w),
-            }
+            body(app_ref, f, ui, steps[i], x, y, w)
         };
         flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
     };
@@ -279,6 +269,10 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         return crate::backup_flow::wallet_screen::where_body(app, f, ui, x, y, w);
     }
     let mut cy = y;
+    // A restore's plan card starts with the public key it is for.
+    if f.restore.is_some() && !f.made {
+        cy += super::gpg_restore_screen::head_body(app, f, ui, x, cy, w);
+    }
     let min = f.kind.min_places();
     let sticks = f.plan.stick_places().len();
     for (p, vs) in f.plan.places.iter().enumerate() {
@@ -1231,17 +1225,6 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
                 Role::OnSurface.paint(),
             );
         }
-        cy += btn(
-            ui,
-            x,
-            cy,
-            None,
-            BUTTON_H,
-            FEN.backup_flow_continue_make,
-            Style::Primary,
-            fa(F::MadeContinue),
-            52.0,
-        );
         return cy - y;
     }
     if f.adding {
@@ -1409,8 +1392,23 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str, mono: bool
 
 // ---- 5: lock ----
 
-fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn lock_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
+    // The key just made or restored and where it is kept.
+    if !f.kind.is_wallet()
+        && let Some(s) = f.subject.as_ref()
+    {
+        let vaults: Vec<String> = f
+            .made_in
+            .iter()
+            .map(|&v| String::from(&*BackupFlow::vault_name(v)))
+            .collect();
+        let text = fill(
+            FEN.backup_flow_key_in_vaults,
+            &[&s.name, &vaults.join(", ")],
+        );
+        cy += line(ui, x, cy, w, &text, Role::OnSurface.paint());
+    }
     let kw = app.kept_wiped(false);
     for (title, lines) in [
         (
@@ -1502,8 +1500,14 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     // Unlock the first of the plan's vaults; its key's page follows, or a
     // wallet's checklist.
     if let Some(v) = f.plan.used_vaults().first().copied() {
+        // A Secure Boot set's key page holds the enrolment files.
+        let label = if f.kind == crate::backup_flow::Kind::SecureBoot {
+            FEN.backup_flow_unlock_for_enrolment
+        } else {
+            FEN.backup_flow_unlock_vault
+        };
         items.push((
-            fill(FEN.backup_flow_unlock_vault, &[&BackupFlow::vault_name(v)]),
+            fill(label, &[&BackupFlow::vault_name(v)]),
             Style::Primary,
             fa(F::UnlockDone(v)),
         ));

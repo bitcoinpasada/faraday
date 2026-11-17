@@ -340,6 +340,13 @@ macro_rules! words_screens_backup {
     /// Text in `public_rows_for`: the ghost button the files few people
     /// need are under (F64).
     public_rows_for_more_options: "More options",
+    // ----- backup flow cards (faraday-core/src/backup_flow/screen.rs) -----
+    /// The Lock card's line for the key just made or restored. `{}`: the
+    /// key's name; the vaults it is in.
+    backup_flow_key_in_vaults: "{} · in {}",
+    /// Done's button for a Secure Boot set: it opens the item that holds
+    /// the enrolment files. `{}`: the vault.
+    backup_flow_unlock_for_enrolment: "Unlock {} for the enrolment files",
         }
     };
 }

@@ -1072,13 +1072,15 @@ before the key's last signature.
 fingerprint, one not restored here dimmed with why, and **Scan the
 public key**, whose code is filed in Files as `{name}-{fp8}.asc`; a
 public key's ⋮ in Files offers **Restore from its paperkey**. A row
-pressed → the backup flow, titled Restore a GPG key: the public key and
-the bytes line 1 of its paperkey must read, then Make's steps 1 to 3,
+pressed → the backup flow, titled Restore a GPG key, opening on its plan
+card, which starts with the public key and the bytes line 1 of its
+paperkey must read, then Make's steps 1 to 3,
 then **Type the paperkey**, each line checked by its CRC-24 as it ends,
 or **Scan the paperkey** (paperkey's lines or its raw form) while no
 line is checked → **Restore the key**, which makes every signature of
 the key again and saves the record into every vault of the plan; it
-signs at once. Then Make's lock, writes and Done.
+signs at once, and the Lock card opens by itself with the key and its
+vault and **Lock and write**. Then Make's writes and Done.
 
 **Move a key to a vault on another machine** (F215;
 `docs/GPG-PAPERKEY.md` §12) is this restore, with only a camera between
@@ -1096,7 +1098,7 @@ keys** tile leads into Create a vault or Unlock and back, as GPG's does;
 
 **Make keys** → the backup flow (decision 59): two places or more,
 their sticks, their vaults → PK, KEK, db generated into every vault the
-plan keeps them in → lock, the sticks written by place → Secure Boot
+plan keeps them in → the Lock card, which opens by itself, the sticks written by place → Secure Boot
 screen, with the **Backup** row until every place is written. **Signing
 waits for the backup** (F31): keys made in the flow cannot be made again
 from seed words, so until every place is written, **Enrolment

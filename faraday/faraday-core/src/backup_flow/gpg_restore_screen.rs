@@ -12,14 +12,14 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 
-use super::gpg_restore::{HEAD, RestoreFrom, RestoreLive};
+use super::BackupFlow;
+use super::gpg_restore::RestoreLive;
 use super::steps::{FlowAction as F, RestorePress as R};
-use super::{BackupFlow, Step};
+use crate::Action;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Paint, Style, Ui};
-use crate::{Action, flow};
 
 fn ra(p: R) -> Action {
     Action::Flow(F::Restore(p))
@@ -53,24 +53,9 @@ pub(crate) fn heading(f: &BackupFlow) -> Option<(&'static str, &str)> {
     Some((EN.gpg_restore_title, r.chip.as_str()))
 }
 
-/// The head card: the public key the flow restores against, closed to a
-/// line once read (§4.2, step 0).
-pub(crate) fn head_card(f: &BackupFlow, r: &RestoreFrom) -> flow::Card {
-    flow::Card {
-        title: EN.gpg_restore_public_key.to_string(),
-        summary: format!("{} · {}", &*r.user_id, &*r.fingerprint_text),
-        mono: false,
-        done: true,
-        open: f.live.open == Some(HEAD),
-        default: false,
-        toggle: ra(R::Head),
-        lead: None,
-    }
-}
-
-/// The head card's body: the user ID, the fingerprints, the dates and a
-/// revocation by the key, then the bytes line 1 of its paperkey must
-/// read, and Continue while the plan is not made.
+/// The head of the plan card of a restore: the user ID, the fingerprints, the dates
+/// and a revocation by the key, then the bytes line 1 of its paperkey must
+/// read.
 pub(crate) fn head_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(r) = f.restore.as_ref() else {
         return 0.0;
@@ -113,16 +98,6 @@ pub(crate) fn head_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
     );
     cy += ui.line_as(BODY_S) + GAP_SMALL;
     cy += code_lines(ui, (x, cy, w), &r.line_one);
-    if f.step == Step::Where && !f.made {
-        let go = ra(R::HeadContinue);
-        cy += button(
-            ui,
-            (x, cy),
-            EN.backup_flow_continue_make,
-            Style::Primary,
-            go,
-        );
-    }
     cy - y
 }
 
@@ -291,14 +266,6 @@ fn result(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         let text = fill(EN.gpg_restore_set_aside, &[&aside.to_string()]);
         cy += line(ui, (x, cy, w), &text, Role::OnSurfaceVariant.paint());
     }
-    let go = Action::Flow(F::MadeContinue);
-    cy += button(
-        ui,
-        (x, cy),
-        EN.backup_flow_continue_make,
-        Style::Primary,
-        go,
-    );
     cy - y
 }
 

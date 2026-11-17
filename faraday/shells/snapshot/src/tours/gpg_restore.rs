@@ -66,9 +66,10 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     f.step = Step::Make;
     let i = faraday_core::testkit::flow_push(&mut t.app, f);
     t.press(Action::Flow(F::Show(i)));
-    t.press(Action::Flow(F::Restore(R::Head)));
+    // The plan card starts with the public key and line 1's bytes.
+    t.press(Action::Flow(F::Open(Step::Where.n())));
     t.shot("gpg-restore-2-head")?;
-    t.press(Action::Flow(F::Restore(R::Head)));
+    t.press(Action::Flow(F::Open(Step::Make.n())));
     // Step 4 with no line typed: Next line and Scan the paperkey.
     t.shot("gpg-restore-2-step-four")?;
     let lines: Vec<&str> = PAPER

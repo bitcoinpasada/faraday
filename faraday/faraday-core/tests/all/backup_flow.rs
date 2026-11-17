@@ -664,9 +664,12 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
         "Back up first opens the flow"
     );
     app.press(Action::Vault(V::GpgRenew));
-    assert!(offered(&mut app, Action::Flow(F::MadeContinue)));
-    shell.flow(&mut app, F::MadeContinue);
-    let mut app = shell.lock(&mut app);
+    // The key made, the Lock card opens by itself: one press locks and
+    // writes, with no Continue in between.
+    assert!(!offered(&mut app, Action::Flow(F::MadeContinue)));
+    assert!(offered(&mut app, Action::Flow(F::LockWrite)));
+    assert!(has_part(&mut app, "· in "), "{:?}", texts(&mut app));
+    let mut app = shell.lock_by(&mut app, Action::Flow(F::LockWrite), true);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     assert!(app.backup_pending().is_some());
     write_all(&mut shell, &mut app, &[("S2", true)]);

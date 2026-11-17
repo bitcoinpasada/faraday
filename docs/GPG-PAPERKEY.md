@@ -206,14 +206,14 @@ The backup flow (`Screen::BackupFlow`, DESIGN §5, step flow), titled
 The certificate is chosen before it opens, so its steps are Make's
 seven:
 
-0. **The public key**, as the flow's head card, closed to a line once
-   read: user ID, fingerprint, signing subkey, created, expires
+0. **The public key**, at the top of the plan card the flow opens on,
+   with no step of its own: user ID, fingerprint, signing subkey, created, expires
    (DESIGN §4.11, Fact), and "Revoked on {date}" where the certificate
    carries a revocation by the key; then **Line 1 of its paperkey**,
    the 22 bytes that line must read (`00 04` and the fingerprint) as a
    code box (§4.3), so the person can tell at a glance that the paper
    in hand is this key's. A certificate refused (§4.4) shows the reason
-   as an error line and has no **Continue**; the flow opens only on a
+   as an error line; the flow opens only on a
    certificate that reads.
 1. **Where it will be kept**, 2. **Bring in the sticks**, 3. **Vaults**:
    Make's (`docs/BACKUP-FLOW.md` §4.1 to §4.3), two places or more.
@@ -222,7 +222,8 @@ seven:
 4. **Type the paperkey** in place of the name and expiry form (§4.5).
    With every line checked, **Restore the key** (Primary): §4.3's
    checks, then the record saved into every vault the plan keeps it in,
-   in one action; the Result reads "Restored into Vault 1", a row per
+   in one action, and the Lock card opens by itself with "{key} · in
+   {vault}" and **Lock and write**; the Make card keeps the Result, "Restored into Vault 1", a row per
    vault, and "{n} signatures by other keys are not kept" where §4.3
    set any aside. A key already in an open vault is refused here:
    "This key is in {vault}", with the vault's button; nothing is saved.
@@ -595,7 +596,7 @@ tools themselves fail where they are missing, as
 reader with the restore over arbitrary entries (`fuzz/README.md`).
 
 **Snapshots:** a tour, gpg-restore, of the sheet and its scanner, the
-head card with line 1, step 4 before a line with **Scan the paperkey**,
+plan card with the public key and line 1, step 4 before a line with **Scan the paperkey**,
 with a line checked, one typed and one in error, and a refusal, at the
 sizes `docs/LAYOUT.md` names. The scanners' routing is fuzzed by
 `faraday/fuzz`'s `app_scanned`, which opens each scan purpose.
@@ -630,7 +631,7 @@ vault's copy of an item is the way, and this section does not apply.
    panel's camera can read, the sheet's **BBQr** or **Parts** shows it
    animated, which this scanner gathers (§3).
 3. **The new vault's machine**: the backup flow opens on the certificate.
-   The head card shows line 1's bytes; the plan, the sticks and the vaults
+   The plan card shows line 1's bytes; the plan, the sticks and the vaults
    are §4.2's. An existing vault is given to a place as for any key.
 4. **Step 4**: **Scan the paperkey**, with no stick in.
 5. **The old vault's machine**: the key's page, **Show as QR** under the

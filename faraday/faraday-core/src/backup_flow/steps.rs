@@ -2269,6 +2269,14 @@ impl Faraday {
         if kind_ == Kind::Gpg && !self.flows[i].public.is_empty() {
             self.toast_waits(FEN.vaults_made_the_certificate, &[]);
         }
+        // The key made, the next card opens by itself: the Lock card, or
+        // Done for a plan with no stick.
+        let next = if self.flows[i].slots.is_empty() {
+            Step::Done
+        } else {
+            Step::Lock
+        };
+        self.flow_goto(i, next);
         self.out.redraw();
     }
 
@@ -2363,13 +2371,12 @@ impl Faraday {
         self.out.redraw();
     }
 
-    /// The restore flow on Inbox file `k`, its own or a new one, on its head card.
+    /// The restore flow on Inbox file `k`, its own or a new one, on its plan card.
     pub(crate) fn gpg_restore_from(&mut self, k: usize) {
         let c = self.compute();
         if let Some(i) = self.flows.restore_flow(&c, self.inbox.get(k)) {
             self.sheet = None;
             self.flow_show(i);
-            self.flows.restore_press(i, RestorePress::Head);
         }
     }
 

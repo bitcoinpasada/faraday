@@ -88,9 +88,7 @@ macro_rules! words_gpg {
     /// The paperkey scanner, on a code with a line after the whole data's
     /// CRC.
     gpg_restore_after: "Line {} comes after the CRC of secret",
-    /// The flow's head card.
-    gpg_restore_public_key: "The public key",
-    /// The head card's code box of line 1.
+    /// The code box of line 1 at the top of the plan card.
     gpg_restore_line_one: "Line 1 of its paperkey",
     /// Step 4's card title.
     gpg_restore_card: "Type the paperkey",

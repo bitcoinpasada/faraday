@@ -719,8 +719,14 @@ impl Shell {
     }
 
     fn lock_with(&mut self, app: &mut Faraday, seen: bool) -> Faraday {
+        self.lock_by(app, Action::Lock, seen)
+    }
+
+    /// As [`Shell::lock`], with `press` as the press that locks: the flow's
+    /// **Lock and write**, for one.
+    pub fn lock_by(&mut self, app: &mut Faraday, press: Action, seen: bool) -> Faraday {
         top_up(app);
-        app.press(Action::Lock);
+        app.press(press);
         // The seals run on the worker; each answer is taken before the
         // next vault's seal starts.
         faraday_core::testkit::settle(app);

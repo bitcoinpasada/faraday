@@ -487,38 +487,19 @@ impl BackupFlowArea {
             .map(Box::new);
     }
 
-    /// The head card's presses, and step 4's that need nothing but the
-    /// lines: the field, Next line, Type line n again. The hex keyboard's
-    /// keys come as keys typed ([`Self::restore_key`]).
+    /// Step 4's presses that need nothing but the lines: the field, Next
+    /// line, Type line n again. The hex keyboard's keys come as keys typed
+    /// ([`Self::restore_key`]).
     pub(crate) fn restore_press(&mut self, i: usize, p: RestorePress) {
         use RestorePress as R;
+        let Some(r) = self.restoring_mut(i) else {
+            return;
+        };
         match p {
-            R::Head => {
-                let Some(f) = self.all.get_mut(i) else {
-                    return;
-                };
-                f.live.open = if f.live.open == Some(HEAD) {
-                    Some(f.step.n())
-                } else {
-                    Some(HEAD)
-                };
-            }
-            R::HeadContinue => {
-                if let Some(f) = self.all.get_mut(i) {
-                    f.live.open = Some(f.step.n());
-                }
-            }
-            _ => {
-                let Some(r) = self.restoring_mut(i) else {
-                    return;
-                };
-                match p {
-                    R::Field => r.focused = true,
-                    R::Next => r.hand_in(false),
-                    R::Again(n) => r.again(n),
-                    _ => {}
-                }
-            }
+            R::Field => r.focused = true,
+            R::Next => r.hand_in(false),
+            R::Again(n) => r.again(n),
+            _ => {}
         }
     }
 

@@ -21,7 +21,7 @@ The sheet lists each public key in Files that Faraday can restore, by user ID an
 
 This step shows the key the paperkey is restored against: user ID, fingerprint, signing subkey and dates, and a revocation date when the key has been revoked. A key is restored only if it is an Ed25519 key with one Ed25519 signing subkey, version 4, and a user ID.
 
-**Line 1 of its paperkey** gives the bytes that line must read, so the paper in hand can be matched to this key. **Continue** goes on to the plan.
+**Line 1 of its paperkey** gives the bytes that line must read, so the paper in hand can be matched to this key. Both are shown at the top of the plan card, which the flow opens on.
 
 ## Where it will be kept
 
@@ -55,7 +55,7 @@ A paperkey for another key, one protected by a passphrase, or a secret that does
 
 **Key:** gpg-restore.lock
 
-As in the backup flow: the lock seals every vault with the key in it and wipes every key from memory.
+As in the backup flow, and the card opens by itself once the key is restored: the lock seals every vault with the key in it and wipes every key from memory.
 
 ## Write the sticks
 

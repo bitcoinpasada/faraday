@@ -29,7 +29,7 @@ As in the backup flow, you make or unlock each vault here so the keys can be sav
 
 **Key:** secure-boot-keys.make
 
-**Owner name** names the certificates: the name followed by PK, KEK or db, or Faraday PK, Faraday KEK and Faraday db when the field is empty. The three keys are listed under one owner GUID, made with them. The keys are drawn from the system's randomness and the certificates carry the time they were made, so Faraday asks for the time first. **Make the key** saves the keys into each vault of the plan.
+**Owner name** names the certificates: the name followed by PK, KEK or db, or Faraday PK, Faraday KEK and Faraday db when the field is empty. The three keys are listed under one owner GUID, made with them. The keys are drawn from the system's randomness and the certificates carry the time they were made, so Faraday asks for the time first. **Make the key** saves the keys into each vault of the plan, and the Lock card opens by itself.
 
 ## Lock
 
@@ -47,7 +47,7 @@ As in the backup flow, each stick is written in turn, read back and compared.
 
 **Key:** secure-boot-keys.done
 
-As in the backup flow, each stick written is listed with its place and its files. You use the keys from the vault's Secure Boot item, which has **Hold for enrolment files** and **Sign or check an image**.
+As in the backup flow, each stick written is listed with its place and its files. **Unlock Vault 1 for the enrolment files** opens the vault on its Secure Boot item. You use the keys from that item, which has **Hold for enrolment files** and **Sign or check an image**.
 
 ## Enrolment files
 

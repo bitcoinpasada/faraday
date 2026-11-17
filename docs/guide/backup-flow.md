@@ -37,13 +37,13 @@ Each vault is made or unlocked in this step, so that the key can be saved into i
 
 This step makes the key the flow is for. A wallet's keys are made on Make a new wallet's Keys card instead, so for a wallet this card only sends you back there.
 
-A GPG key takes **Name**, **Email** and **Expires**. Secure Boot keys take **Owner name**. Once made, the key is saved into each vault of the plan.
+A GPG key takes **Name**, **Email** and **Expires**. Secure Boot keys take **Owner name**. Once made, the key is saved into each vault of the plan and the Lock card opens by itself.
 
 ## Lock
 
 **Key:** backup-flow.lock
 
-Locking seals every vault that has the key in it and wipes every key from memory. **Kept** lists what is kept and where, and **Wiped from memory** lists what is wiped. A key kept nowhere else is shown in the error tone. **Lock and write** locks once.
+Locking seals every vault that has the key in it and wipes every key from memory. **Kept** lists what is kept and where, and **Wiped from memory** lists what is wiped. A key kept nowhere else is shown in the error tone. The card names the key and its vault. **Lock and write** locks once.
 
 ## Write the sticks
 
@@ -57,4 +57,4 @@ A stick pulled before the check does not count, and you plug it in again. **Use 
 
 **Key:** backup-flow.done
 
-This lists each stick written, with its place, label and time, and the files on it. **Unlock Vault 1** opens the vault with its passphrase. A wallet with no vault has **Home**.
+This lists each stick written, with its place, label and time, and the files on it. **Unlock Vault 1** opens the vault with its passphrase; for Secure Boot keys it reads **Unlock Vault 1 for the enrolment files**. A wallet with no vault has **Home**.

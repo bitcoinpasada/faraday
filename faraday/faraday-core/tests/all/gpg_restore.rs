@@ -112,7 +112,7 @@ fn machine(shell: &mut Shell, k: &Key) -> Faraday {
 }
 
 /// Files' ⋮ on the certificate offers **Restore from its paperkey**; it
-/// opens the flow on its head card.
+/// opens the flow on its plan card, which starts with the public key.
 fn from_files(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Files));
     let at = app.inbox().iter().position(|i| i.name == CERT).unwrap();
@@ -137,11 +137,10 @@ fn from_files(app: &mut Faraday) {
     assert_eq!(app.screen, Screen::BackupFlow);
 }
 
-/// From Files to step 4: the head card's Continue, the plan as it is,
+/// From Files to step 4: the plan as it is,
 /// both sticks brought in, the vault made.
 fn to_lines(shell: &mut Shell, app: &mut Faraday) {
     from_files(app);
-    shell.flow(app, F::Restore(R::HeadContinue));
     shell.flow(app, F::Continue);
     assert_eq!(step(app), Step::Sticks);
     for (disk, hold) in [("S1", false), ("S2", true)] {
@@ -175,7 +174,7 @@ fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
     let mut shell = Shell::new();
     let mut app = machine(&mut shell, &k);
     from_files(&mut app);
-    // The head card: the public key, and the bytes line 1 must read.
+    // The plan card starts with the public key, and the bytes line 1 must read.
     assert!(has_part(&mut app, "Test Person <test@example.com>"));
     assert!(has(&mut app, "Line 1 of its paperkey"));
     assert!(has_part(&mut app, "00 04"));
@@ -209,11 +208,12 @@ fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
     let toast = app.toast_text().map(str::to_string);
     assert!(made, "{toast:?} {:?}", texts(&mut app));
     assert_eq!(app.flow().unwrap().made_in, [0]);
-    assert!(
-        has(&mut app, "Restored into Vault 1"),
-        "{:?}",
-        texts(&mut app)
-    );
+    // The Lock card opens by itself, with the key and its vault and no
+    // Continue in between.
+    assert_eq!(step(&app), Step::Lock);
+    assert!(has_part(&mut app, "· in Vault 1"), "{:?}", texts(&mut app));
+    assert!(!offered(&mut app, Action::Flow(F::MadeContinue)));
+    assert!(offered(&mut app, Action::Flow(F::LockWrite)));
     let records = gpg_records(&app);
     assert_eq!(records.len(), 1);
     let kept = gpg_key_of(&records[0]).expect("a key");
@@ -613,9 +613,7 @@ fn nothing_of_a_restore_is_cut_off_on_the_pi_panel() {
     app.press(Action::Cancel);
     let from = RestoreFrom::read(&cert_file(&k).1).unwrap();
     restore_at_make(&mut app, from);
-    app.press(Action::Flow(F::Restore(R::Head)));
-    found.extend(cut_off(&mut app, "the head card"));
-    app.press(Action::Flow(F::Restore(R::Head)));
+    found.extend(cut_off(&mut app, "the plan card"));
     let ls = printed();
     type_line(&mut app, &ls[0]);
     type_line(&mut app, &ls[1].replacen(": 00 ", ": 01 ", 1));
