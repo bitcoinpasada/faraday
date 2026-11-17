@@ -111,7 +111,14 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                         &[&item.name, app.medium.noun()],
                     )
                 });
+                let sign = item.kind == FileKind::Psbt
+                    && app.visit.sign_stick().is_some_and(|n| **n == *item.name);
                 app.inbox.push(item);
+                if sign {
+                    // "Import and sign": the review, not a trip through Files.
+                    let k = app.inbox.len().saturating_sub(1);
+                    app.act(crate::Action::StartSpend(k));
+                }
                 if let Some(line) = line {
                     app.visit.log_push((line, true));
                 }
@@ -501,6 +508,15 @@ pub(crate) fn stick_arrived(app: &mut Faraday) {
             }
             app.screen = Screen::Files;
             app.visit.set_tab_stick(true);
+        }
+        // "Lock and write" was pressed before the lock: the files For the
+        // stick are written to the stick that came, and read back.
+        if app.visit.write_waiting() {
+            app.visit.set_write_waiting(false);
+            if !app.visit.out.is_empty() {
+                app.visit.set_signed_end(true);
+                app.visit_write_ask();
+            }
         }
         if first_look
             && app.import.state().is_none()

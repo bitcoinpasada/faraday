@@ -1121,6 +1121,16 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
     }
 }
 
+/// Whether the last write's files all went and were read back.
+pub(super) fn written_and_checked(app: &View) -> bool {
+    app.visit.out.is_empty()
+        && app
+            .visit
+            .receipt()
+            .as_ref()
+            .is_some_and(|r| !r.files.is_empty() && r.files.iter().all(|f| f.verified))
+}
+
 /// What pulling the stick does next: the keys an Import and load copied
 /// in load, or the vault it brought asks for its passphrase.
 pub(super) fn pull_line(app: &View) -> Text {
@@ -1140,6 +1150,7 @@ pub(super) fn pull_line(app: &View) -> Text {
         (0, Some(v)) if !app.holds_secret() => {
             Text::fill(EN.pull_line_remove_to_unlock, &[noun, &v])
         }
+        (0, _) if written_and_checked(app) => Text::fill(EN.pull_line_written_checked, &[noun]),
         (0, _) => Text::fill(EN.pull_line_remove_when_done, &[noun]),
         (1, _) => Text::fill(EN.pull_line_1_key_copied, &[noun]),
         (n, _) => Text::fill(EN.pull_line_keys_copied, &[&Text::num(n as u64), noun]),

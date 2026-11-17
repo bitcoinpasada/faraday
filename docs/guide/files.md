@@ -13,7 +13,7 @@ Files shows the files copied in from the stick and the files waiting to be writt
 
 The top line gives the state of the stick. **Scan a QR code** reads a code in place of a file.
 
-With no stick attached, the line says it is waiting for one. With a stick attached while a secret is held, it says the stick is attached and that you must lock to use it; pressing the line locks. Otherwise the line is the stick's label.
+With no stick attached, the line says it is waiting for one. With a stick attached while a secret is held, it says the stick is attached and that you must lock to use it; pressing the line locks; the button names how many keys leave memory. A stick holding one PSBT offers **Import and sign** that file, which lands on its review. Otherwise the line is the stick's label.
 
 ## Formatting a stick
 

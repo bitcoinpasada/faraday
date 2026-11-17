@@ -279,6 +279,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         )
     };
     let compact = ui.compact;
+    let sequence = sequence_line(app);
     let col = flow::Column {
         area_x: x0,
         area_w: if compact { cw } else { cw - panel_w },
@@ -289,7 +290,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: EN.spend_sign_a_transaction,
         wrap_closed: false,
         total_fixed: false,
-        note: None,
+        note: sequence.as_deref(),
         chip: None,
         chip_tap: None,
         moves: crate::ui::Moves::Yes,
@@ -312,6 +313,72 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         spend_panel(app, ui, x0 + cw - panel_w, panel_w, h, wallet_idx, needed);
     }
+}
+
+/// Where a signing that came from a stick stands: its step of four, by
+/// name. None for a spend that did not.
+fn sequence_line(app: &View) -> Option<Text> {
+    app.visit.sign_stick()?;
+    let s = app.wallets.spend()?;
+    let noun = app.medium.noun();
+    let key_here = s
+        .inspection
+        .participating_keys
+        .iter()
+        .any(|fp| app.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
+    let (n, name) = if s.spend.finished.is_some() {
+        (4, Text::fill(EN.seq_write, &[noun]))
+    } else if key_here || s.complete {
+        (3, Text::of(EN.seq_sign))
+    } else if app.stick.is_empty() {
+        (2, Text::of(EN.seq_load))
+    } else {
+        (1, Text::fill(EN.seq_pull, &[noun]))
+    };
+    Some(Text::fill(EN.seq_step, &[&Text::num(n), &name]))
+}
+
+/// The end of a signing: what waits for the stick, and what to do next:
+/// another transaction, lock, power off. Returns its height.
+pub(super) fn end_card(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    signed: bool,
+    tx: bool,
+) -> f32 {
+    let waits = usize::from(signed) + usize::from(tx);
+    let mut cy = y + GAP_SMALL;
+    if waits > 0 {
+        let noun = app.medium.noun();
+        let line = if waits == 1 {
+            Text::fill(EN.end_one_waits, &[noun])
+        } else {
+            Text::fill(EN.end_files_wait, &[&text!("{}", waits), noun])
+        };
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line) + faraday_draw::tokens::GAP;
+    }
+    cy += wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        BUTTON_H,
+        &[
+            (
+                EN.spend_status_sign_another,
+                Style::Secondary,
+                Action::Nav(Screen::Files),
+            ),
+            (EN.spend_backup_lock, Style::Secondary, Action::LockAsk),
+            (
+                EN.spend_backup_power_off,
+                Style::Secondary,
+                Action::PowerAsk,
+            ),
+        ],
+    );
+    cy - y
 }
 
 /// Whether the spend has no Signers and no Signatures step (one key signs)
@@ -453,11 +520,12 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, 
         // Review comes first, also for a PSBT signed elsewhere.
         Text::of(EN.wallets_review)
     } else if s.spend.finished.is_some() {
-        // Both went For the stick at Finish: the next step is writing.
-        if app.stick.is_empty() {
-            Text::fill(EN.spend_status_insert, &[app.medium.a()])
+        // Files wait For the stick: one press locks and writes them when
+        // it is in. Nothing waits: the next transaction.
+        if s.out_signed || s.out_tx {
+            Text::fill(EN.spend_status_lock_write, &[app.medium.noun()])
         } else {
-            Text::of(EN.spend_status_open_files)
+            Text::of(EN.spend_status_sign_another)
         }
     } else if missing == 0 {
         Text::of(EN.spend_status_finish)
@@ -1893,7 +1961,7 @@ impl StepView<'_> {
                 // Where the buttons go: in a row when they fit.
                 let lw = ui.measure_as(LABEL_L, label) + 32.0;
                 let qw = ui.measure_as(LABEL_L, EN.step_show_as_qr) + 32.0;
-                let stacked = k == 0 && lw + 8.0 + qw > half - 28.0;
+                let stacked = lw + 8.0 + qw > half - 28.0;
                 let by = if compact { cy + 92.0 } else { cy + 112.0 };
                 let card_h = if stacked {
                     by - cy + 36.0 + 8.0 + 36.0 + 16.0
@@ -1958,7 +2026,7 @@ impl StepView<'_> {
                 } else {
                     bx + 14.0 + ui.button(bx + 14.0, by, Some(lw), BUTTON_H, label, style, action)
                 };
-                if k == 0 {
+                {
                     let (qx, qy) = if stacked {
                         (bx + 14.0, by + 44.0)
                     } else {
@@ -1971,7 +2039,11 @@ impl StepView<'_> {
                         BUTTON_H,
                         EN.step_show_as_qr,
                         Style::Secondary,
-                        Action::QrSigned,
+                        if k == 0 {
+                            Action::QrSigned
+                        } else {
+                            Action::QrTx
+                        },
                     );
                 }
                 if let Some((t, _)) = &place {
@@ -2018,6 +2090,7 @@ impl StepView<'_> {
                 ui.stroke(x, cy, w, th + 20.0, 8.0, Role::OutlineVariant);
                 cy += th + 32.0;
             }
+            cy += end_card(app, ui, (x, cy, w), s.out_signed, s.out_tx);
         }
         cy
     }

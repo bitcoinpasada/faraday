@@ -169,6 +169,8 @@ pub enum Action {
     /// Copy the chosen stick files, and load as keys any that are once
     /// the stick is pulled.
     VisitCopyAndLoad,
+    /// Copy the one PSBT on the stick, and open it to sign.
+    VisitCopyAndSign,
     /// Load the key an Inbox file's words spell.
     LoadKey(usize),
     /// Scan a SeedQR into Add a key.
@@ -361,6 +363,8 @@ pub enum Action {
     QrSigned,
     /// Show the spend's PSBT as it stands, for a cosigner.
     QrPart,
+    /// Show the spend's finished transaction as a QR code.
+    QrTx,
     /// Show a wallet's descriptor as a QR code.
     QrWallet(usize),
     /// Show an Outbox file as a QR code.
@@ -1149,6 +1153,8 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
+                // A lock cancelled writes nothing by itself later.
+                self.visit.set_lock_to_write(false);
                 self.read_again_cancel();
                 self.vault_rekey_cancel();
                 self.visit.clear_pull();
@@ -1528,6 +1534,7 @@ impl Faraday {
             | Action::NameTakenOverwrite
             | Action::VisitCopy
             | Action::VisitCopyAndLoad
+            | Action::VisitCopyAndSign
             | Action::VisitFrom(..)) => self.visit_act(a),
             a @ (Action::Lock
             | Action::LockUnsealed
@@ -1702,6 +1709,7 @@ impl Faraday {
             | Action::PdfOutbox(..)
             | Action::QrSigned
             | Action::QrPart
+            | Action::QrTx
             | Action::QrWallet(..)
             | Action::ShowCode(..)
             | Action::CodePng(..)

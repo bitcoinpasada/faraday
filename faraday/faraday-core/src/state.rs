@@ -1802,6 +1802,7 @@ impl Faraday {
             Action::LockUnsealed => self.lock_now(true),
             Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
+                self.visit.set_lock_to_write(false);
                 self.next_mode.clear();
                 self.sheet = None;
                 self.stick.set_not_now(true);

@@ -176,6 +176,18 @@ pub(crate) struct VisitArea {
     /// The file For the stick that [`Sheet::OutboxDelete`] asks about, and
     /// what deleting it loses.
     outbox_delete: Option<(Text, crate::vault::more::Loss)>,
+    /// The PSBT a stick's "Import and sign" brought in: its Spend shows the
+    /// signing sequence.
+    sign_stick: Option<Text>,
+    /// A press of "Lock and write" is on its way to the lock: the files
+    /// For the stick are written when it comes back.
+    lock_to_write: bool,
+    /// The lock was "Lock and write": the next stick to arrive is written
+    /// to at once, and the files checked.
+    write_waiting: bool,
+    /// The files For the stick were written by "Lock and write": the page
+    /// ends on the card Finish has.
+    signed_end: bool,
 }
 
 impl std::ops::Deref for VisitArea {
@@ -186,6 +198,46 @@ impl std::ops::Deref for VisitArea {
 }
 
 impl VisitArea {
+    /// The PSBT brought in by "Import and sign".
+    pub(crate) fn sign_stick(&self) -> Option<&Text> {
+        self.sign_stick.as_ref()
+    }
+
+    /// "Import and sign" brings `name` in to sign.
+    pub(crate) fn set_sign_stick(&mut self, name: Option<Text>) {
+        self.sign_stick = name;
+    }
+
+    /// Whether the lock now coming is "Lock and write".
+    pub(crate) fn lock_to_write(&self) -> bool {
+        self.lock_to_write
+    }
+
+    /// "Lock and write" was pressed (or given up).
+    pub(crate) fn set_lock_to_write(&mut self, on: bool) {
+        self.lock_to_write = on;
+    }
+
+    /// Whether the files For the stick are written when a stick arrives.
+    pub(crate) fn write_waiting(&self) -> bool {
+        self.write_waiting
+    }
+
+    /// The files For the stick are written when a stick arrives, or not.
+    pub(crate) fn set_write_waiting(&mut self, on: bool) {
+        self.write_waiting = on;
+    }
+
+    /// Whether the page shows the end card after a "Lock and write".
+    pub(crate) fn signed_end(&self) -> bool {
+        self.signed_end
+    }
+
+    /// The page shows the end card, or not.
+    pub(crate) fn set_signed_end(&mut self, on: bool) {
+        self.signed_end = on;
+    }
+
     /// What was pressed with a stick attached, done when it is pulled.
     pub(crate) fn pull(&self) -> &Option<Action> {
         &self.pull
@@ -1578,6 +1630,10 @@ impl Faraday {
                 // pull loads them from there.
                 self.act(Action::Nav(Screen::Files));
             }
+            Action::VisitCopyAndSign => {
+                self.visit.set_sign_stick(self.visit_sign_file());
+                self.visit_copy();
+            }
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {
                     self.visit.set_after_visit(back);
@@ -1759,6 +1815,21 @@ impl Faraday {
             }
         }
         out
+    }
+
+    /// The one PSBT on the stick on show, when it is ticked to come in
+    /// and the stick holds no other: "Import and sign" names it.
+    pub(crate) fn visit_sign_file(&self) -> Option<Text> {
+        let stick = self.stick.get(self.visit.stick)?;
+        let mut psbts = stick
+            .files
+            .iter()
+            .filter(|(n, _)| Text::ascii_lowercase(n).ends_with(".psbt"));
+        let (name, _) = psbts.next()?;
+        if psbts.next().is_some() || !self.visit.inn.contains(&**name) {
+            return None;
+        }
+        Some(Text::of(name))
     }
 
     /// Reads every chosen stick file into the Inbox.

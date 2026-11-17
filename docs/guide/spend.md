@@ -45,7 +45,7 @@ The wallet's addresses **Receive 0/0**, **Receive 0/1** and **Change 1/0**, for 
 
 Shown for a wallet of several keys. Each key is listed with its fingerprint and marked **Signs here** when it is loaded on this device, or **Not here**. The count says how many keys are here against how many must sign.
 
-**Load from vault** loads a key that an open vault holds. **Load with a passphrase** loads a seed kept without the passphrase this wallet uses. When too few keys are here, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached. **Continue** goes to the next card.
+**Load from vault** loads a key that an open vault holds. **Load with a passphrase** loads a seed kept without the passphrase this wallet uses. When too few keys are here, **Scan a key**, **Unlock** with a vault's name, and **Collect a signature** are offered. Keys cannot be loaded while a stick is attached: the routes read **Pull the stick to load a key**. A spend that came from a stick says which of its four steps it is at. **Continue** goes to the next card.
 
 ## Nonces
 
@@ -75,4 +75,4 @@ An Add from button for each file in Files adds the signatures from a copy of thi
 
 Until enough keys have signed, the card reads Needs and the number still missing.
 
-Then there are two results. **Signed PSBT** goes back to the wallet that made the transaction, which finalises and broadcasts it. **Finished transaction** is ready to broadcast as it is. Each has **Make again**, or **Remove** while it waits for a stick, and the PSBT has **Show as QR**. **Decode it** takes the transaction apart. **Show the raw hex** and **Hide the raw hex** show and hide its bytes.
+Then there are two results. **Signed PSBT** goes back to the wallet that made the transaction, which finalises and broadcasts it. **Finished transaction** is ready to broadcast as it is. Each has **Make again**, or **Remove** while it waits for a stick, and both have **Show as QR**. The button at the foot, **Lock and write to the stick**, locks, so the keys leave memory, and when the stick comes back it writes the waiting files and checks them, with no trip through Files; it then offers **Sign another**, **Lock** and **Power off**. **Decode it** takes the transaction apart. **Show the raw hex** and **Hide the raw hex** show and hide its bytes.

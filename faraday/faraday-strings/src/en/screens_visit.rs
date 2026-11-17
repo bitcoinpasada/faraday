@@ -79,6 +79,8 @@ macro_rules! words_screens_visit {
     unprotected_delete: "Delete unprotected secrets",
     /// Text in `visit`.
     visit_import_and_load: "Import and load",
+    /// Button on a stick visit that holds one PSBT. `{}`: its name.
+    visit_import_and_sign: "Import and sign {}",
     /// Text in `visit`. `{}`: `nin`, `if nin == 1 { EN.visit_file } else { …`.
     visit_import: "Import {} {}",
     /// Text in `visit`.

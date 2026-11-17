@@ -57,6 +57,12 @@ macro_rules! words_screens_sheets {
     lock_is_attached: "{} is attached",
     /// Text in `lock_sheet`. `{}`: `app.medium.noun()`.
     lock_lock_and_use: "Lock and use {}",
+    /// Button in `lock_sheet` with one key loaded. `{}`: `app.medium.noun()`.
+    lock_lock_and_use_one_key: "Lock and use {} · 1 key leaves memory",
+    /// Button in `lock_sheet`. `{}`: `app.medium.noun()`, the number of keys.
+    lock_lock_and_use_keys: "Lock and use {} · {} keys leave memory",
+    /// Button in `lock_sheet` where a camera is present.
+    lock_scan_instead: "Scan it as a QR code instead",
     /// Text in `lock_sheet`. `{}`: `label`.
     lock_nothing_has_been: "{} · nothing has been read from it",
     /// Text in `lock_sheet`.

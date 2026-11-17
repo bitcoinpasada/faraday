@@ -1086,8 +1086,14 @@ impl Faraday {
             .iter()
             .any(|fp| self.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
         if s.spend.finished.is_some() && s.reviewed_now() {
-            // Both files went For the stick at Finish: Files writes them.
-            self.screen = Screen::Files;
+            if s.out_signed || s.out_tx {
+                // Files wait For the stick at Finish: the lock keeps them,
+                // and the stick, when it is in, is written and checked.
+                self.visit.set_lock_to_write(true);
+                self.lock_ask(false);
+            } else {
+                self.screen = Screen::Files;
+            }
         } else if complete {
             self.wallets.open_finish();
         } else if can_sign_here {

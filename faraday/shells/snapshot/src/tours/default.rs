@@ -452,9 +452,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::QrSigned);
     t.shot("qr-signed-psbt")?;
     t.press(Action::Cancel);
-    // Finish put both files For the stick; the primary opens Files.
+    // Finish put both files For the stick; the primary locks to write them
+    // when the stick comes back, so the tour goes to Files itself.
     t.shot("spend-in-outbox")?;
-    t.press(Action::Primary);
+    t.press(Action::Nav(Screen::Files));
     t.shot("files-outbox")?;
     // A file For the stick: its ⋮ and the Rename popup (`docs/FLOWS.md`
     // decision 61).

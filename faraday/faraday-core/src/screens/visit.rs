@@ -2,7 +2,7 @@
 //! own lists from expanded windows up, and below that Material's primary
 //! tabs In Faraday and On the stick.
 
-use super::parts::{kind_line, pull_line, size_text};
+use super::parts::{kind_line, pull_line, size_text, written_and_checked};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Region;
@@ -93,6 +93,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // What is left to do: pull the stick, and where the copied files went.
     y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
+    if signed_end(app) {
+        y += super::spend::end_card(app, ui, (x, y, w), false, false) + GAP_SMALL;
+    }
     if let Some((line, _)) = app.visit.unprotected_of(&stick.id) {
         y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GAP_SMALL;
         y += wrap_buttons(
@@ -238,6 +241,14 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ],
     );
     y += 6.0;
+    let sign = app.visit_sign_file();
+    let sign_label = sign
+        .as_ref()
+        .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
+    let (primary_label, primary_action) = match &sign_label {
+        Some(l) => (l.as_str(), Action::VisitCopyAndSign),
+        None => (EN.visit_import_and_load, Action::VisitCopyAndLoad),
+    };
     y += wrap_buttons(
         ui,
         x,
@@ -254,11 +265,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 },
                 Action::VisitCopy,
             ),
-            (
-                EN.visit_import_and_load,
-                Style::Primary.when(enabled),
-                Action::VisitCopyAndLoad,
-            ),
+            (primary_label, Style::Primary.when(enabled), primary_action),
         ],
     ) + 12.0;
     finish(app, ui, h, y - top + 16.0);
@@ -562,7 +569,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         0.0
     };
-    let colh = h - y - 32.0 - 108.0 - notice_h;
+    let end_h = end_room(app);
+    let colh = h - y - 32.0 - 108.0 - notice_h - end_h;
     // Rows between the heading and the buttons at the card's foot, and
     // over the stick's buttons a row for zeroing it.
     let list_top = y + 62.0;
@@ -926,17 +934,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let nin = app.visit.inn.len();
     let enabled = nin > 0;
-    let load_label = EN.visit_import_and_load;
-    let load_bw = ui.measure_as(TITLE_S, load_label) + 36.0;
-    ui.button(
-        ix + colw - 20.0 - load_bw,
-        y + colh - 62.0,
-        Some(load_bw),
-        BUTTON_H,
-        load_label,
-        Style::Primary.when(enabled),
-        Action::VisitCopyAndLoad,
-    );
+    let load_bw = import_primary(app, ui, (ix + colw, y + colh - 62.0), colw, enabled);
     let label = Text::fill(
         EN.visit_import,
         &[
@@ -986,6 +984,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // What is left to do: pull the stick, and where the copied files went.
     let ay = h - 32.0 - 44.0 - 44.0;
+    end_row(app, ui, (x, ay - end_h, width));
     ui.fill(
         x,
         ay,
@@ -1047,6 +1046,56 @@ fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(Text, Style,
 }
 
 /// A file's kind and its size, as a visit's row says them.
+/// Whether the files written by "Lock and write" are on the stick and
+/// checked: the page ends on the card Finish has.
+fn signed_end(app: &View) -> bool {
+    app.visit.signed_end() && written_and_checked(app)
+}
+
+/// The wide page's filled button, Import and load or, with one PSBT on the
+/// stick, Import and sign it, right-aligned at `(right, y)`. Returns its
+/// width.
+fn import_primary(app: &View, ui: &mut Ui, (right, y): (f32, f32), colw: f32, on: bool) -> f32 {
+    let sign = app.visit_sign_file();
+    let sign_label = sign
+        .as_ref()
+        .map(|n| Text::fill(EN.visit_import_and_sign, &[n]));
+    let load_label = sign_label.as_deref().unwrap_or(EN.visit_import_and_load);
+    let pad = 36.0;
+    let load_bw = (ui.measure_as(TITLE_S, load_label) + pad).min(colw / 2.0);
+    let load_label = ui.fit_as(TITLE_S, load_label, load_bw - pad);
+    ui.button(
+        right - 20.0 - load_bw,
+        y,
+        Some(load_bw),
+        BUTTON_H,
+        &load_label,
+        Style::Primary.when(on),
+        if sign.is_some() {
+            Action::VisitCopyAndSign
+        } else {
+            Action::VisitCopyAndLoad
+        },
+    );
+    load_bw
+}
+
+/// The room the end card takes over the wide page's lists.
+fn end_room(app: &View) -> f32 {
+    if signed_end(app) {
+        BUTTON_H + faraday_draw::tokens::GAP
+    } else {
+        0.0
+    }
+}
+
+/// The end card's buttons on the wide page, once the files are written.
+fn end_row(app: &View, ui: &mut Ui, at: (f32, f32, f32)) {
+    if signed_end(app) {
+        super::spend::end_card(app, ui, at, false, false);
+    }
+}
+
 fn kind_and_size(kind: &str, size: u64) -> Text {
     let mut out = Text::of(kind);
     out.push_str(" · ");

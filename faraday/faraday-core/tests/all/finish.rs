@@ -411,7 +411,8 @@ fn a_checked_wallet_has_check_closed_on_its_next_spend_and_after_a_lock() {
 /// Finishing a spend puts both results For the stick with no further
 /// press: the signed PSBT and the finished
 /// transaction. Each card offers Remove in their place, and the primary
-/// opens Files, where the visit writes them.
+/// is "Lock and write to the stick", which locks, and writes them to the
+/// stick that comes back.
 #[test]
 fn finishing_a_spend_puts_both_files_for_the_stick() {
     let mut app = spending_finished();
@@ -427,11 +428,11 @@ fn finishing_a_spend_puts_both_files_for_the_stick() {
     assert!(app.offers(Action::OutboxRemove(signed)));
     let texts = app.drawn_texts();
     assert!(
-        texts.iter().any(|t| t == "Insert a stick to write it"),
-        "with no stick the primary asks for one: {texts:?}"
+        texts.iter().any(|t| t == "Lock and write to the stick"),
+        "the primary locks and writes: {texts:?}"
     );
     app.press(Action::Primary);
-    assert_eq!(app.screen, Screen::Files);
+    assert_ne!(app.screen, Screen::Files, "no trip through Files");
 }
 
 /// The amounts going in come from a PSBT of exactly this transaction,
@@ -952,4 +953,134 @@ fn a_collect_answer_needs_review_again_before_the_outbox() {
         results_waiting(&b),
         ["spend-signed.psbt", "spend-final.txn"]
     );
+}
+
+fn a_stick(files: Vec<(&str, Vec<u8>)>) -> faraday_core::StickInfo {
+    faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("T"),
+        label: faraday_text::Text::of("SIGNSTICK"),
+        boot: false,
+        files: files
+            .iter()
+            .map(|(n, b)| (faraday_text::Text::of(n), b.len() as u64))
+            .collect(),
+        vaults: Vec::new(),
+    }
+}
+
+/// Answers every read the app asks of the stick from `files`.
+fn answer_reads(app: &mut Faraday, files: &[(&str, Vec<u8>)]) {
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            let bytes = files.iter().find(|(n, _)| **n == *name).unwrap().1.clone();
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.into(),
+            });
+        }
+    }
+}
+
+/// One PSBT on the stick: "Import and sign {file}" brings it in and lands on
+/// the review, with no trip through Files.
+#[test]
+fn one_psbt_on_a_stick_imports_and_signs_on_its_review() {
+    let k = kit("spending");
+    let files = vec![("spend.psbt", testkit::unsigned(&k).unwrap().to_bytes())];
+    let mut app = with_inbox(vec![(
+        "spending-wallet.txt".to_string(),
+        k.descriptor.clone().into_bytes(),
+    )]);
+    testkit::load_wallet(&mut app, 0);
+    app.storage(StorageEvent::Sticks(vec![a_stick(files.clone())]));
+    assert_eq!(app.screen, Screen::Files);
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Import and sign spend.psbt"),
+        "{texts:?}"
+    );
+    assert!(app.offers(Action::VisitCopyAndSign));
+    app.press(Action::VisitCopyAndSign);
+    answer_reads(&mut app, &files);
+    testkit::settle(&mut app);
+    assert_eq!(app.screen, Screen::Spend);
+}
+
+/// Finish offers Show as QR for the signed PSBT and for the finished
+/// transaction, and its filled button says the keys go with the lock.
+#[test]
+fn finish_offers_a_qr_of_each_result_and_lock_and_write() {
+    let mut app = spending_finished();
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::QrSigned),
+        "Show as QR for the signed PSBT"
+    );
+    assert!(app.offers(Action::QrTx), "Show as QR for the transaction");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Lock and write to the stick"),
+        "{texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t == "Open Files"),
+        "Finish does not open Files: {texts:?}"
+    );
+    // The end card.
+    for want in ["Sign another", "Lock", "Power off"] {
+        assert!(texts.iter().any(|t| t == want), "{want}: {texts:?}");
+    }
+}
+
+/// "Lock and write": the lock keeps the signed files, and the stick that
+/// comes back to the next process is written and read back, with no visit
+/// to Files; the page then ends on the end card.
+#[test]
+fn lock_and_write_writes_the_signed_files_when_the_stick_returns() {
+    let mut app = spending_finished();
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = faraday_core::testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    next.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    let mut wrote = Vec::new();
+    while let Some(c) = next.poll_storage() {
+        if let StorageCommand::Write { name, .. } = c {
+            wrote.push(name.to_string());
+        }
+    }
+    assert!(wrote.iter().any(|n| n == "spend-signed.psbt"), "{wrote:?}");
+    assert!(wrote.iter().any(|n| n == "spend-final.txn"), "{wrote:?}");
+}
+
+/// A lock cancelled writes nothing by itself when a later lock comes.
+#[test]
+fn a_cancelled_lock_and_write_does_not_write_at_a_later_lock() {
+    let mut app = spending_finished();
+    app.press(Action::Primary);
+    app.press(Action::Cancel);
+    app.press(Action::Lock);
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = faraday_core::testkit::plain_kept(k);
+        }
+    }
+    assert!(kept.iter().all(|(n, _)| n != "write-waiting"), "{kept:?}");
 }

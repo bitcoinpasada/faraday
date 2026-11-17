@@ -592,8 +592,26 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let label = app.stick.first().map_or("", |s| s.label.as_str());
     let then = Text::fill(EN.lock_a_fresh_start, &[app.medium.noun()]);
     let attached = Text::fill(EN.lock_is_attached, &[app.medium.a_cap()]);
-    let use_it = Text::fill(EN.lock_lock_and_use, &[app.medium.noun()]);
+    // The cost is named on the button: the keys that leave memory.
+    let keys = app.session.keys.all().count();
+    let use_it = match keys {
+        0 => Text::fill(EN.lock_lock_and_use, &[app.medium.noun()]),
+        1 => Text::fill(EN.lock_lock_and_use_one_key, &[app.medium.noun()]),
+        n => Text::fill(
+            EN.lock_lock_and_use_keys,
+            &[app.medium.noun(), &Text::num(n as u64)],
+        ),
+    };
     let line = Text::fill(EN.lock_nothing_has_been, &[label]);
+    let mut actions = vec![(EN.lock_not_now, Style::Secondary, Action::NotNow)];
+    if !app.cameras().is_empty() {
+        actions.push((
+            EN.lock_scan_instead,
+            Style::Secondary,
+            Action::ScanFor(crate::Ask::SpendPsbt),
+        ));
+    }
+    actions.push((&use_it, Style::Primary, Action::Lock));
     kept_sheet(
         app,
         ui,
@@ -601,10 +619,7 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (app.medium.icon(), Role::Warning.paint(), &attached),
         (&line, Role::OnSurfaceVariant.paint(), None, None),
         &kept_sections(app, false, false, then),
-        &[
-            (EN.lock_not_now, Style::Secondary, Action::NotNow),
-            (&use_it, Style::Primary, Action::Lock),
-        ],
+        &actions,
     );
 }
 

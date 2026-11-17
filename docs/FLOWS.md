@@ -243,7 +243,7 @@ count or the shares change), a GPG public key or signature (a revocation
 certificate is a secret and goes through the secret sheet, F32), a
 signed message, a sealed vault at lock. No button puts a file out: the
 row reads "For the stick" with **Remove** in its ⋮, and after a Remove
-the flow's button makes it again. The secret sheet stays the one way a
+the flow's button makes it again. Finish's button is **Lock and write to the stick** while a file waits: the lock keeps the files, the stick that comes back is written and read back with no trip through Files, and the page ends on **Sign another**, **Lock** and **Power off**. A stick holding one PSBT offers **Import and sign** it, which lands on the review. The secret sheet stays the one way a
 secret goes For the stick.
 
 **A write leaves a receipt** (decision 25). When a write to the stick is
@@ -694,7 +694,7 @@ below use the PC's words.
 **A stick or card inserted while unlocked** → **Lock to use this stick**
 (what is kept, then what is wiped from memory and where else it is,
 then what happens; decision 28) →
-- **Lock and use stick** → lock → Files on the stick;
+- **Lock and use stick**, naming the keys that leave memory → lock → Files on the stick;
 - **Not now** → nothing is handed out; a banner says "Remove the stick to
   keep working" until it goes.
 

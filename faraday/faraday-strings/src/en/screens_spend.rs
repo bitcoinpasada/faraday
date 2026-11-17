@@ -5,6 +5,23 @@ macro_rules! words_screens_spend {
         $next! {
             [$($rest)*]
             $($acc)*
+    // ----- the signing sequence and Finish's end (faraday-core/src/screens/spend.rs) -----
+    /// Line at the head of a signing that came from a stick. `{}`: the step's number, its name.
+    seq_step: "Step {} of 4 · {}",
+    /// Step of a signing that came from a stick. `{}`: `app.medium.noun()`.
+    seq_pull: "Pull the {}",
+    /// Step of a signing that came from a stick.
+    seq_load: "Load the key",
+    /// Step of a signing that came from a stick.
+    seq_sign: "Sign",
+    /// Step of a signing that came from a stick. `{}`: `app.medium.noun()`.
+    seq_write: "Write to the {}",
+    /// Line at Finish. `{}`: `app.medium.noun()`.
+    end_one_waits: "1 file waits for the {}",
+    /// Line at Finish. `{}`: the count, `app.medium.noun()`.
+    end_files_wait: "{} files wait for the {}",
+    /// Title of the finished transaction's QR view.
+    act_finished_tx: "Finished transaction",
     // ----- nonce_check (faraday-core/src/screens/spend.rs) -----
     /// Text in `nonce_check`. `{}`: `check.rows.len()`, `if check.rows.len() == 1 { EN.nonce_c…`, `here`.
     nonce_check_nonce_check_valid: "Nonce check · {} {} valid · {} recomputed here",
@@ -90,10 +107,10 @@ macro_rules! words_screens_spend {
     spend_status_sign_and_collect: "Sign here and collect {} more",
     /// Text in `spend_status`.
     spend_status_sign_here: "Sign here",
-    /// Text in `spend_status`. `{}`: `app.medium.a()`.
-    spend_status_insert: "Insert {} to write it",
-    /// Text in `spend_status`.
-    spend_status_open_files: "Open Files",
+    /// Button in `spend_status` while files wait for the stick. `{}`: `app.medium.noun()`.
+    spend_status_lock_write: "Lock and write to the {}",
+    /// Button in `spend_status` when nothing waits for the stick.
+    spend_status_sign_another: "Sign another",
     /// Text in `spend_status`.
     spend_status_finish: "Finish",
     /// Text in `spend_status`. `{}`: `can_sign_here` joined by ", ".

@@ -442,6 +442,10 @@ impl Faraday {
                 .collect();
             out.push(("renamed".to_string(), names.join("\n").into_bytes()));
         }
+        // "Lock and write": the next stick is written to when it arrives.
+        if self.visit.write_waiting() || self.visit.lock_to_write() {
+            out.push(("write-waiting".to_string(), b"1".to_vec()));
+        }
         // What each picture in the Inbox holds: the next process does not
         // decode it, and only the disk process could.
         let pictures: Vec<String> = self
@@ -581,6 +585,7 @@ impl Faraday {
                             .collect::<Vec<String>>(),
                     );
                 }
+                "write-waiting" => self.visit.set_write_waiting(true),
                 "backup-flow" => self.flow_restore(bytes),
                 "backup-gate" => gate = Some(bytes),
                 "backups" => self.backups_area.set_records(crate::backups::decode(bytes)),

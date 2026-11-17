@@ -897,6 +897,11 @@ impl Faraday {
                     }
                 }
             }
+            Action::QrTx => {
+                if let Some(hex) = self.wallets.spend().and_then(|s| s.spend.finished_hex()) {
+                    self.open_qr(QrView::text(c, EN.act_finished_tx, &hex));
+                }
+            }
             Action::QrWallet(i) => {
                 if self.screen == Screen::Backup && self.backup.shown(i) {
                     self.backups_shown();
