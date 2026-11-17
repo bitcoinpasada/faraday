@@ -1187,8 +1187,18 @@ fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
 
 #[test]
 fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
+    restore_makes_a_vault_and_the_key_signs_at_once(Shell::light());
+}
+
+/// The same flow with the machine saying its free memory: the vault is
+/// made, sealed and opened at the strong cost, the file vault's whole way.
+#[test]
+fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once_at_strong_cost() {
+    restore_makes_a_vault_and_the_key_signs_at_once(Shell::new());
+}
+
+fn restore_makes_a_vault_and_the_key_signs_at_once(mut shell: Shell) {
     let c = testkit::compute();
-    let mut shell = Shell::light();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);

@@ -39,6 +39,15 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 }
 
 fn device(inbox: Vec<(String, Vec<u8>)>, height: u16) -> Faraday {
+    device_with_memory(inbox, height, None)
+}
+
+/// As [`device`], the machine saying its free memory when `free_mib` is set.
+fn device_with_memory(
+    inbox: Vec<(String, Vec<u8>)>,
+    height: u16,
+    free_mib: Option<u32>,
+) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -57,6 +66,9 @@ fn device(inbox: Vec<(String, Vec<u8>)>, height: u16) -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
+    if let Some(available_mib) = free_mib {
+        app.storage(StorageEvent::Memory { available_mib });
+    }
     // The system's randomness, which a new vault draws on.
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
@@ -272,8 +284,19 @@ fn unlock(app: &mut Faraday) {
 
 #[test]
 fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
+    held_key_after_a_lock_and_an_unlock(None);
+}
+
+/// The same flow on a machine that says its free memory: the KeePass-format
+/// vault is sealed and opened again at the strong cost.
+#[test]
+fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held_at_strong_cost() {
+    held_key_after_a_lock_and_an_unlock(Some(15_000));
+}
+
+fn held_key_after_a_lock_and_an_unlock(free_mib: Option<u32>) {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.kdbx")], 768);
+    let mut app = device_with_memory(vec![kit_file("vault.kdbx")], 768, free_mib);
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
@@ -292,7 +315,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
         .filter(|(n, _)| n == "vault.kdbx")
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not sealed");
-    let mut next = device(vault, 768);
+    let mut next = device_with_memory(vault, 768, free_mib);
     unlock(&mut next);
     next.press(Action::Vault(V::LoadChosen(0)));
     assert!(
