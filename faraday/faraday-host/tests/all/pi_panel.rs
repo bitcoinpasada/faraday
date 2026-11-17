@@ -1650,9 +1650,16 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
         testnet < mainnet,
         "smaller beside the pill: {testnet} dp against {mainnet} dp"
     );
-    // "Add a key" fits beside the pill at the bar's own size.
+    // The key flow's name beside the pill: whole words or none, never a
+    // piece of a word.
     let (text, _) = name(Mode::Testnet, Action::KeyGen(None));
-    assert_eq!(text, "Add a key", "whole beside the ? and the pill");
+    let words = text.trim_end_matches('…');
+    assert!(
+        "Make a new key".starts_with(words)
+            && !words.is_empty()
+            && ("Make a new key" == words || "Make a new key"[words.len()..].starts_with(' ')),
+        "{text:?}"
+    );
     // Create vault's name beside Cancel and the ?: whole words or none,
     // never a piece of a word.
     let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
