@@ -56,6 +56,12 @@ impl Drop for Scratch {
 /// and says what the line did at the end: `reboot`, `poweroff` or
 /// nothing.
 fn run(inittab: &str, codes: &[u8]) -> String {
+    run_in(inittab, codes, "")
+}
+
+/// [`run`] with `trace` added to the stub app's body, which runs before
+/// its exit; the scratch directory is the `D` variable.
+fn run_in(inittab: &str, codes: &[u8], trace: &str) -> String {
     let scratch = Scratch::new();
     let dir = &scratch.0;
     let queue = dir.join("codes");
@@ -75,7 +81,8 @@ fn run(inittab: &str, codes: &[u8]) -> String {
     let app = stub(
         "app",
         &format!(
-            "n=$(head -n 1 {q}); sed -i 1d {q}; exit $n",
+            "D={d}; {trace}\nn=$(head -n 1 {q}); sed -i 1d {q}; exit $n",
+            d = dir.display(),
             q = queue.display()
         ),
     );
@@ -153,6 +160,40 @@ fn check(inittab: &str) {
 #[test]
 fn the_release_inittab_restarts_on_restarts_status_and_powers_off_otherwise() {
     check(&image("common/rootfs-overlay/etc/inittab"));
+}
+
+/// A lock starts the app again as a new process that holds nothing the
+/// old one held (`docs/SECURITY-MODEL.md`, Stateless): each run of the
+/// app, standing for a session with a vault open, notes its process id and
+/// whether a variable the earlier run set in its memory is there; after
+/// each lock the next run has a new id and finds none.
+fn check_new_process(inittab: &str) {
+    let trace = "echo pid $$ >> $D/log; \
+                 [ -n \"$OPEN_VAULT\" ] && echo old-state >> $D/log; \
+                 OPEN_VAULT=seed; export OPEN_VAULT";
+    let lock = RESTART_CODE;
+    let log = run_in(inittab, &[lock, lock, lock, 0], trace);
+    let pids: Vec<&str> = log.lines().filter_map(|l| l.strip_prefix("pid ")).collect();
+    assert_eq!(pids.len(), 4, "the app ran after each lock: {log}");
+    let mut unique = pids.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), 4, "a new process each time: {log}");
+    assert!(
+        !log.contains("old-state"),
+        "state carried over a lock: {log}"
+    );
+    assert!(log.ends_with("poweroff -f\n"), "{log}");
+}
+
+#[test]
+fn a_lock_starts_the_app_again_as_a_new_process_with_none_of_the_old_state() {
+    for file in [
+        "common/rootfs-overlay/etc/inittab",
+        "variants/dev/inittab.in",
+    ] {
+        check_new_process(&image(file));
+    }
 }
 
 #[test]
