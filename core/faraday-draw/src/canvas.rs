@@ -55,7 +55,7 @@ pub struct Canvas {
     /// panel.
     cut: Vec<faraday_text::Text>,
     /// Where each string and icon drawn since the last [`Canvas::clear`]
-    /// left its ink, while [`Canvas::record_ink`] has it on: what the
+    /// or [`Canvas::restore`] left its ink, while [`Canvas::record_ink`] has it on: what the
     /// snapshot tool's audit reads. Off on a device.
     ink: Option<Vec<Ink>>,
     /// Lines of text drawn, ever: what a test compares to say a frame
@@ -376,8 +376,9 @@ impl Canvas {
         self.ink.is_some()
     }
 
-    /// What was drawn since the last [`Canvas::clear`] and where, while
-    /// recording is on; empty otherwise.
+    /// What was drawn since the last [`Canvas::clear`] or
+    /// [`Canvas::restore`] and where, while recording is on; empty
+    /// otherwise.
     pub fn ink(&self) -> &[Ink] {
         self.ink.as_deref().unwrap_or(&[])
     }
@@ -689,6 +690,13 @@ impl Canvas {
         (self.counter)(Work::FullCanvas);
         if pixels.len() != self.visible().len() {
             return;
+        }
+        // The frame drawn over the snapshot starts again here, so the
+        // ink recorded for the one before it is not counted twice.
+        if !self.replaying()
+            && let Some(ink) = &mut self.ink
+        {
+            ink.clear();
         }
         let id = (pixels.as_ptr() as usize, pixels.len());
         if self.kept == Some(id) {
