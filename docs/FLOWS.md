@@ -155,7 +155,7 @@ Seed XOR parts (English words only); for a key of seed bytes the SLIP-39 1 of 1 
 bytes dimmed) and codex32. Seed XOR, SLIP-39 k of n and codex32 open a Settings card between To
 and Result (Parts; k and n, or SLIP-39's groups, groups needed and each group's shares needed and made, a plus that would need more randomness than one press can be given disabled and doing nothing; Make; with no randomness ready a toast says so), a codex32 set of 2 or more taking a new identifier on each Make,
 and their Result is a set: one eye, the parts numbered, Check my copy against
-every part (a SLIP-39 set of groups says which group), Save as a file with every part one per line; Practice dims Seed XOR
+every part (a SLIP-39 set of groups says which group), Save all shares, one file each, with one warning for the set and every part its own file named for its number and the count (`-1-of-3`), never into a vault; Practice dims Seed XOR
 and SLIP-39 k of n and goes from codex32's secret straight to Result;
 SeedQR and CompactSeedQR for 12 or 24 words only; a key on another list is
 offered the words, entropy and numbers, with a **Word list** fact on the last

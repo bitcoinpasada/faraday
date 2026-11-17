@@ -256,7 +256,7 @@ card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is 
 Previous share and Next share under it (a set of one string, the codex32 secret,
 unnumbered, has neither); Check my copy compares
 one typed string with every part and says which part matched or that it
-differs; Save as a file writes the part on show, one file a part; all are dropped
+differs; Save as a file (**Save all shares, one file each…**) takes one warning for the set and then writes every part as its own file, named for its number and the count (`…-1-of-3.txt`), so that whoever holds one file has one part, and a part already in the Outbox is replaced by its file, never saved twice; a set goes only to the Outbox, never into a vault as one file; all are dropped
 when Result is left. In Practice Seed XOR and SLIP-39, k of n are dimmed and
 codex32's secret goes straight to Result. The codex32 length setting of item 3
 below is left out: a loaded key's seed fixes it. 
@@ -269,7 +269,8 @@ over one group or one share and never above its count. The result of one
 group is numbered "1:", "2:"; of several, "Group 1, share 2:", and Check my
 copy says "Your copy matches group 1, share 2". Standard: "SLIP-39, 2 of 3
 shares", or for groups "SLIP-39, 2 of 3 groups: 2 of 3, 3 of 5, 1 of 1". The
-file Save writes is the share on show, named for its place in the set; it carries
+files Save writes are one a share, each named for its place in the set
+(`…-1-of-6.txt`); a file carries
 no group, since a reader of plain share lines would not take one. The
 identifier and shares come from the randomness drawn, the passphrase is
 empty, and the set is read back: every share is parsed, then a first and a

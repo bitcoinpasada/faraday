@@ -1398,9 +1398,9 @@ fn a_small_panel_shows_which_part_a_copy_matched() {
 }
 
 /// Check my copy takes one part and says which it matched, or that it
-/// differs; Save writes the part on show; leaving drops them all.
+/// differs; Save writes every part, a file each; leaving drops them all.
 #[test]
-fn a_set_is_checked_part_by_part_saved_one_part_a_file_and_dropped_on_leaving() {
+fn a_set_is_checked_part_by_part_saved_a_file_a_part_and_dropped_on_leaving() {
     let mut app = opened(mainnet(), LEGAL);
     feed(&mut app);
     let set = make_set(&mut app, "Seed XOR parts").unwrap();
@@ -1431,8 +1431,11 @@ fn a_set_is_checked_part_by_part_saved_one_part_a_file_and_dropped_on_leaving() 
     assert!(opened_up(&mut app).iter().any(|t| t == "Your copy differs"));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("seed-xor-1.txt"), "{}", &*out.name);
+    assert!(out.name.ends_with("seed-xor-1-of-2.txt"), "{}", &*out.name);
     assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
+    assert_eq!(out.also.len(), 1, "the other part is its own file");
+    assert!(out.also[0].0.ends_with("seed-xor-2-of-2.txt"));
+    assert_eq!(out.also[0].1.to_vec(), (set[1].clone() + "\n").into_bytes());
     app.press(Action::Convert(C::Step(cstep::TO)));
     app.press(Action::Convert(C::Show));
     assert_eq!(convert::shown_parts(&app), None);
@@ -1775,9 +1778,9 @@ fn a_slip39_set_with_a_group_of_one_share_recovers() {
 }
 
 /// Check my copy takes one share of a set of groups and says its group and
-/// place; Save writes the share on show, one file a share.
+/// place; Save writes every share, one file a share.
 #[test]
-fn a_slip39_copy_is_checked_by_group_and_the_file_has_one_share() {
+fn a_slip39_copy_is_checked_by_group_and_every_file_has_one_share() {
     let mut app = slip_opened(&unhex(SEED_1));
     app.press(Action::Convert(C::To(place(SLIP_SET))));
     app.press(Action::Convert(C::SlipGroups(1)));
@@ -1808,16 +1811,21 @@ fn a_slip39_copy_is_checked_by_group_and_the_file_has_one_share() {
     );
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert!(out.name.ends_with("slip39-set-1.txt"), "{}", &*out.name);
+    assert!(
+        out.name.ends_with("slip39-set-1-of-6.txt"),
+        "{}",
+        &*out.name
+    );
     assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
+    assert_eq!(out.also.len(), set.len() - 1);
 }
 
 /// A 2 of 3 SLIP-39 result shows one share at a time, however it is
 /// stepped: what shows at any moment parses as exactly one share, Save
-/// writes that share alone, and Check my copy still takes any share of
+/// writes every share, a file each, and Check my copy still takes any share of
 /// the whole set.
 #[test]
-fn a_slip39_result_shows_and_saves_one_share_at_a_time() {
+fn a_slip39_result_shows_one_share_at_a_time_and_saves_every_share() {
     let mut app = slip_opened(&unhex(SEED_1));
     app.press(Action::Convert(C::To(place(SLIP_SET))));
     app.press(Action::Convert(C::Make));
@@ -1854,7 +1862,50 @@ fn a_slip39_result_shows_and_saves_one_share_at_a_time() {
     assert_eq!(convert::found_part(&app), Some(3));
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert_eq!(out.bytes.to_vec(), (set[1].clone() + "\n").into_bytes());
+    // Every share is saved, whichever shows: a file each.
+    assert_eq!(out.bytes.to_vec(), (set[0].clone() + "\n").into_bytes());
+    let rest: Vec<Vec<u8>> = out.also.iter().map(|(_, b)| b.to_vec()).collect();
+    assert_eq!(
+        rest,
+        vec![
+            (set[1].clone() + "\n").into_bytes(),
+            (set[2].clone() + "\n").into_bytes()
+        ]
+    );
+}
+
+/// One Save for a set of shares: one warning, then every share is a file of
+/// its own in the Outbox, named by its number of the set; a second Save does
+/// not leave a share there twice.
+#[test]
+fn one_save_makes_every_share_of_a_set_its_own_file() {
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set: Vec<String> = convert::shown_parts(&app)
+        .unwrap()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(set.len(), 3);
+    let waiting = app.outbox.len();
+    for pass in 0..2 {
+        save(&mut app);
+        let before = if pass == 0 { waiting } else { waiting + 3 };
+        assert_eq!(app.outbox.len(), before, "nothing before the hold");
+        app.press(Action::SecretUnprotected);
+        app.press(Action::SecretHold);
+        let kept: Vec<_> = app.outbox.iter().skip(waiting).collect();
+        assert_eq!(kept.len(), 3, "a file a share, none twice");
+        for (i, item) in kept.iter().enumerate() {
+            let text = item.name.as_str();
+            assert!(text.ends_with(&format!("-{}-of-3.txt", i + 1)), "{text}");
+            assert_eq!(item.bytes.to_vec(), (set[i].clone() + "\n").into_bytes());
+        }
+    }
 }
 
 /// With no randomness answered, no SLIP-39 set is made and the card stays;
@@ -2651,7 +2702,10 @@ fn a_rotated_sets_file_is_named_for_the_new_set() {
     assert_ne!(old, new);
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
-    assert_eq!(&*out.name, format!("{new:04x}-slip39-set-share-1.txt"));
+    assert_eq!(
+        &*out.name,
+        format!("{new:04x}-slip39-set-share-1-of-{}.txt", lines.len())
+    );
 }
 
 /// Another source chosen wipes the share being typed.
@@ -3004,7 +3058,8 @@ fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
     save(&mut app);
     let out = testkit::secret_out(&app).unwrap();
     assert!(
-        out.name.ends_with("slip39-set-share-1.txt"),
+        out.name
+            .ends_with(&format!("slip39-set-share-1-of-{}.txt", lines.len())),
         "{}",
         &*out.name
     );

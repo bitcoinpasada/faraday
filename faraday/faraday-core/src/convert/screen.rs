@@ -474,10 +474,11 @@ fn part_buttons(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     button_rows(ui, x, y, w, &items) + GAP
 }
 
-/// Save's label: one share's file for a result of several, else the file.
+/// Save's label: every share, one file each, for a result of several, else
+/// the file.
 fn save_label(app: &View) -> &'static str {
     if app.convert_part().is_some() {
-        EN.convert_save_share
+        EN.convert_save_shares
     } else {
         EN.convert_save
     }

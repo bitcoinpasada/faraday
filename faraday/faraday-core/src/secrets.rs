@@ -107,6 +107,9 @@ pub struct SecretOut {
     /// An Inbox file a stick visit would write to another stick: past the
     /// warning it is ticked on the visit, and goes nowhere else.
     pub to_visit: bool,
+    /// Further files that go out with `name` and `bytes`, one file each: the
+    /// other shares of a set, which never share a file. Empty for one file.
+    pub also: Vec<(Text, zeroize::Zeroizing<Vec<u8>>)>,
 }
 
 /// What a secret becomes in a vault.
@@ -168,7 +171,19 @@ impl SecretOut {
             form: 0,
             ack: Ack::Any,
             to_visit: false,
+            also: Vec::new(),
         }
+    }
+
+    /// The names of every file that goes out, as the sheet's File line
+    /// says them.
+    pub fn names(&self) -> Text {
+        if self.also.is_empty() {
+            return self.name.clone();
+        }
+        let mut names = vec![self.name.clone()];
+        names.extend(self.also.iter().map(|(n, _)| n.clone()));
+        Text::joined(&names, ", ")
     }
 }
 
@@ -384,6 +399,7 @@ impl Faraday {
             form: 0,
             ack: Ack::Seed,
             to_visit: false,
+            also: Vec::new(),
         };
         self.offer_secret(out);
     }
@@ -473,7 +489,7 @@ impl Faraday {
         };
         let noun = self.medium.noun();
         let plain = Plain {
-            name: out.name.clone(),
+            name: out.names(),
             on: Text::of(noun),
             keep: Text::of(noun),
             then: PlainThen::Secret,
@@ -677,14 +693,28 @@ impl Faraday {
             return;
         }
         let name = out.name.clone();
-        self.outbox.retain(|i| i.name != *name);
-        let item = crate::Item::new(&c, &name, out.bytes.to_vec());
-        self.outbox_secret(OutReason::Unprotected, item);
+        // A file with a name the Outbox holds replaces it: a share saved
+        // before is not there twice.
+        let files =
+            std::iter::once((&out.name, &out.bytes)).chain(out.also.iter().map(|(n, b)| (n, b)));
+        for (n, bytes) in files {
+            self.outbox.retain(|i| i.name != **n);
+            let item = crate::Item::new(&c, n, bytes.to_vec());
+            self.outbox_secret(OutReason::Unprotected, item);
+        }
         self.save_boxes();
-        self.toast(&Text::fill(
-            EN.secrets_waits_unprotected,
-            &[&name, self.medium.for_the()],
-        ));
+        if out.also.is_empty() {
+            self.toast(&Text::fill(
+                EN.secrets_waits_unprotected,
+                &[&name, self.medium.for_the()],
+            ));
+        } else {
+            let n = Text::num(out.also.len() as u64 + 1);
+            self.toast(&Text::fill(
+                EN.convert_shares_wait,
+                &[&n, self.medium.for_the()],
+            ));
+        }
     }
 
     /// Nothing chosen: the secret is dropped, its bytes wiped. A plan's

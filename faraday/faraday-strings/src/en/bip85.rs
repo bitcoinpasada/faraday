@@ -104,9 +104,12 @@ macro_rules! words_bip85 {
     convert_scan_is_compact: "This is a CompactSeedQR, not a SeedQR",
     /// Result's button.
     convert_save: "Save as a file…",
-    /// Result's button, for a result of several shares, which shows and
-    /// saves one at a time.
-    convert_save_share: "Save this share as a file…",
+    /// Result's button, for a result of several shares: one file each, all
+    /// saved at once.
+    convert_save_shares: "Save all shares, one file each…",
+    /// Toast in `secret_unprotected_now`, for a set. `{}`: how many shares,
+    /// the medium's `for_the()`.
+    convert_shares_wait: "{} shares wait {}, one file each, unprotected",
     /// Result's button, over a result of several shares.
     convert_previous_share: "Previous share",
     /// Result's button, over a result of several shares.

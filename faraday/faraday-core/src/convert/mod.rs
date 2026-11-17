@@ -1478,22 +1478,33 @@ fn save(app: &mut Faraday) {
     );
     let fp = fp_text(Fingerprint(fp));
     let lower = Text::lowercase(&fp);
+    let mut also = Vec::new();
     let (name, bytes, keep) = match held {
         Value::Set(parts) => {
-            // One file for the share on show, never the whole set.
-            let at = s.part.min(parts.len().saturating_sub(1));
-            let size = parts.iter().map(|p| p.len() + 1).sum();
-            let mut one = Zeroizing::new(Vec::with_capacity(size));
-            if let Some(part) = parts.get(at) {
+            // One file for each share, never the whole set in one.
+            let n = parts.len();
+            let mut files = parts.iter().enumerate().map(|(i, part)| {
+                let mut one = Zeroizing::new(Vec::with_capacity(part.len() + 1));
                 one.extend_from_slice(part.as_bytes());
                 one.push(b'\n');
-            }
-            let name = if parts.len() > 1 {
-                text!("{}-{}-{}.txt", &*lower, &*target.file_for(lang), at + 1)
-            } else {
-                text!("{}-{}.txt", &*lower, &*target.file_for(lang))
+                let name = if n > 1 {
+                    text!(
+                        "{}-{}-{}-of-{}.txt",
+                        &*lower,
+                        &*target.file_for(lang),
+                        i + 1,
+                        n
+                    )
+                } else {
+                    text!("{}-{}.txt", &*lower, &*target.file_for(lang))
+                };
+                (name, one)
+            });
+            let Some((name, first)) = files.next() else {
+                return;
             };
-            (name, one, Keep::Note)
+            also = files.collect();
+            (name, first, Keep::Note)
         }
         Value::Text(text) => (
             text!("{}-{}.txt", &*lower, &*target.file_for(lang)),
@@ -1512,7 +1523,8 @@ fn save(app: &mut Faraday) {
         EN.convert_secret_gives
     };
     let mut out = SecretOut::new(name, bytes, target.secret(), gives);
-    out.keep = keep;
+    out.keep = if also.is_empty() { keep } else { Keep::None };
+    out.also = also;
     app.offer_secret(out);
 }
 

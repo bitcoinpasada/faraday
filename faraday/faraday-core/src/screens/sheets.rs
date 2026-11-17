@@ -2363,9 +2363,12 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The label and value rows of the secret sheet's head.
-fn secret_rows(out: &crate::secrets::SecretOut) -> [(&'static str, &str); 3] {
+fn secret_rows<'a>(
+    out: &'a crate::secrets::SecretOut,
+    names: &'a str,
+) -> [(&'static str, &'a str); 3] {
     [
-        (EN.secret_out_file, out.name.as_str()),
+        (EN.secret_out_file, names),
         (EN.secret_out_what_label, out.what.as_str()),
         (EN.secret_out_who_can, out.gives.as_str()),
     ]
@@ -2420,13 +2423,14 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Text::fill(EN.secret_out_unprotected, &[app.medium.for_the()])
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
+    let names = out.names();
     crate::compact::dialog(
         ui,
         (w, h, T::DIALOG_MAX),
         (Icon::Lock.into(), Role::Warning.paint(), head),
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            for (label, value) in secret_rows(out) {
+            for (label, value) in secret_rows(out, &names) {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
             }
             cy += 4.0;

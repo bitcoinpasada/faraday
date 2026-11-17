@@ -503,37 +503,53 @@ pub(crate) fn save(app: &mut Faraday) {
         return;
     };
     let Some(x) = s.set.as_ref() else { return };
-    let mut bytes = Zeroizing::new(Vec::new());
-    match held {
-        Value::Set(parts) => {
-            // One file for the share on show, never the whole set.
-            let at = s.part.min(parts.len().saturating_sub(1));
-            if let Some(p) = parts.get(at) {
+    let n = held.count();
+    // One file for each share, never the whole set in one: each takes its
+    // own set identifier's name and its number of the set.
+    let files: Vec<(Text, Zeroizing<Vec<u8>>)> = match held {
+        Value::Set(parts) => parts
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let mut bytes = Zeroizing::new(Vec::with_capacity(p.len() + 1));
                 bytes.extend_from_slice(p.as_bytes());
                 bytes.push(b'\n');
-            }
-        }
-        Value::Text(t) => bytes.extend_from_slice(t.as_str().as_bytes()),
+                let id = faraday_bip::slip39::Share::parse(p.as_str())
+                    .ok()
+                    .map_or(f.identifier, |sh| sh.identifier());
+                let mut name = file(id, x);
+                if n > 1 {
+                    name = text!(
+                        "{}-share-{}-of-{}.txt",
+                        name.trim_end_matches(".txt"),
+                        i + 1,
+                        n
+                    );
+                }
+                (name, bytes)
+            })
+            .collect(),
+        Value::Text(t) => vec![(
+            file(f.identifier, x),
+            Zeroizing::new(t.as_str().as_bytes().to_vec()),
+        )],
         Value::Code(..) => return,
-    }
-    let at = s.part.min(held.count().saturating_sub(1));
-    let id = match held {
-        Value::Set(parts) => parts
-            .get(at)
-            .and_then(|p| faraday_bip::slip39::Share::parse(p.as_str()).ok())
-            .map_or(f.identifier, |sh| sh.identifier()),
-        _ => f.identifier,
     };
-    let mut name = file(id, x);
-    if held.count() > 1 {
-        name = text!("{}-share-{}.txt", name.trim_end_matches(".txt"), at + 1);
-    }
+    let mut files = files.into_iter();
+    let Some((name, bytes)) = files.next() else {
+        return;
+    };
     let mut out = crate::secrets::SecretOut::new(
         name,
         bytes,
         EN.convert_secret_slip39,
         EN.convert_secret_gives,
     );
-    out.keep = crate::secrets::Keep::Note;
+    out.also = files.collect();
+    out.keep = if out.also.is_empty() {
+        crate::secrets::Keep::Note
+    } else {
+        crate::secrets::Keep::None
+    };
     app.offer_secret(out);
 }

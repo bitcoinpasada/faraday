@@ -116,6 +116,13 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, &part);
     t.press(Action::Convert(C::Compare));
     t.shot("convert-set-matches")?;
+    // Save: one sheet for the whole set, every share its own file.
+    t.press(Action::Convert(C::Save));
+    t.tick();
+    t.shot("convert-set-save")?;
+    t.press(Action::SecretUnprotected);
+    t.shot("convert-set-save-warning")?;
+    t.press(Action::Cancel);
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::Convert(C::Done));
     t.press(Action::Explore);
