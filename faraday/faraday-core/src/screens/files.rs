@@ -576,10 +576,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         Style::Primary,
                         Action::NonceCheck(crate::decode::CheckPress::Inbox(k)),
                     )
-                } else if item.kind == FileKind::Psbt {
-                    (EN.files_sign, Style::Tonal, Action::StartSpend(k))
                 } else {
-                    (EN.files_decode, Style::Primary, Action::DecodeInbox(k))
+                    (EN.files_sign, Style::Tonal, Action::StartSpend(k))
                 };
                 bx += ui.button(bx, iy + 64.0, None, BUTTON_H, label, style, action) + 8.0;
             }

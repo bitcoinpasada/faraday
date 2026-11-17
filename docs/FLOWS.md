@@ -274,13 +274,19 @@ menu.
    vault** (where it is not the visible one), **Show as QR**, **Make
    PDF** (For the stick), **Check a signer** (a PSBT's row and a
    finished transaction's row, after **Show as QR** where it has one;
-   `docs/SIGNER-CHECK.md` §11.2), **Check this setup** (a wallet
+   `docs/SIGNER-CHECK.md` §11.2) and **Decode** (the same rows, in both
+   halves: the transaction the file holds), **Sign this message** (a text
+   file, while a single-key wallet is loaded) and **Check an address** (a
+   text file), **Check this setup** (a wallet
    file of more than one key, after **Show as QR** where it has one;
    `Screen::MultisigCheck`, Check a multisig setup), **Rename** (For the stick only),
    **Details**, **Remove**. There is no visible **Remove** button. A row with no main
    action shows only the ⋮. A vault action (Add to vault, Import, Sign
    with key) is not shown, as a button or in the ⋮, while no vault is
    open; the vault's own row keeps its Unlock (F60).
+   A PSBT that is refused when **Sign** reads it (not a PSBT, silent
+   payments, another network) is not a toast: the row's Details sheet
+   opens and names the refusal under **Not opened**.
 2. **Rename, For the stick.** A popup, "Rename {name}": a field holding
    the name before its extension, the extension shown fixed after it
    (`.kdbx` for a vault; every file keeps its own), and **Rename** and

@@ -73,6 +73,12 @@ macro_rules! words_screens_files {
     files_load_the_wallet: "Load the wallet",
     /// Button in `files`.
     files_decode: "Decode",
+    /// Choice in a text file's ⋮: the file as the message to sign.
+    files_sign_this_message: "Sign this message",
+    /// Choice in a text file's ⋮: the file read by Check an address.
+    files_check_an_address: "Check an address",
+    /// Row in the Details sheet of a PSBT Faraday did not open: why.
+    details_refused: "Not opened",
     /// Button in `files`: a signed PSBT or finished transaction to check rather than sign.
     files_nonce_check: "Nonce check",
     /// Button in `files`.

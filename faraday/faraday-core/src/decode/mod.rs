@@ -852,6 +852,47 @@ impl Faraday {
         }
     }
 
+    /// Costs a PSBT read or a transaction's decode. Opens the Decode page
+    /// on a file's transaction: a finished one as it is, a PSBT as the
+    /// transaction it carries with the amounts it states. A file that is
+    /// neither, or a PSBT that is refused, opens nothing.
+    pub(crate) fn decode_file(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        bytes: &[u8],
+        kind: wallet::FileKind,
+    ) {
+        let (tx, prevouts, from) = match kind {
+            wallet::FileKind::Psbt => {
+                let Some(p) = wallet::read_psbt(c, bytes) else {
+                    return;
+                };
+                let prevouts = decode::prevouts_of(&p);
+                (
+                    p.unsigned_tx().clone(),
+                    prevouts,
+                    AmountsFrom::Psbt(Text::of(name)),
+                )
+            }
+            _ => {
+                let Some(tx) = faraday_psbt::transaction::read_raw(bytes) else {
+                    return;
+                };
+                let (prevouts, from) = self.amounts_in(c, &tx);
+                (tx, prevouts, from)
+            }
+        };
+        match decode::decode(c, &tx, &prevouts, &self.session, name) {
+            Ok(mut decoded) => {
+                decoded.amounts_from = from;
+                self.decode.show(decoded, &mut self.screen);
+                self.list_offset = 0.0;
+            }
+            Err(line) => self.toast(line),
+        }
+    }
+
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Decode screen's actions (`DecodeFinished`, `DecodeInbox`, `QrDecoded`, `DecodeHex`, `SpendHex`).
     pub(crate) fn decode_act(&mut self, action: Action, c: &Compute) {
@@ -874,18 +915,9 @@ impl Faraday {
                 }
             }
             Action::DecodeInbox(k) => {
-                if let Some(item) = self.inbox.get(k)
-                    && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
-                {
-                    let (prevouts, from) = self.amounts_in(c, &tx);
-                    match decode::decode(c, &tx, &prevouts, &self.session, &item.name) {
-                        Ok(mut decoded) => {
-                            decoded.amounts_from = from;
-                            self.decode.show(decoded, &mut self.screen);
-                            self.list_offset = 0.0;
-                        }
-                        Err(line) => self.toast(line),
-                    }
+                if let Some(item) = self.inbox.get(k) {
+                    let (name, bytes, kind) = (item.name.clone(), item.bytes.clone(), item.kind);
+                    self.decode_file(c, &name, &bytes, kind);
                 }
             }
             Action::DecodeAnother => {

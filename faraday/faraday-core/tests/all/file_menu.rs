@@ -403,7 +403,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     assert!(app.drawn_texts().iter().any(|t| t == "Sign"));
     assert_eq!(
         menu_of(&mut app, Row::In(0)),
-        ["Check a signer", "Details", "Remove"]
+        ["Check a signer", "Decode", "Details", "Remove"]
     );
     choose(&mut app, "Remove");
     assert_eq!(app.sheet, None, "a choice closes the menu");
@@ -613,4 +613,55 @@ fn a_vaults_key_file_deleted_from_the_stick_takes_a_hold() {
             .any(|t| t == "Hold to delete a vault's key file"),
         "{texts:?}"
     );
+}
+
+#[test]
+fn decode_is_offered_on_a_psbt_and_a_finished_transaction_in_both_halves_of_files() {
+    let psbt = std::fs::read(format!(
+        "{}/../../tools/vectors/psbt/bump-core-original.psbt",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            ("spend.psbt".to_string(), psbt.clone()),
+            ("notes.txt".to_string(), b"hello".to_vec()),
+        ]),
+        outbox: faraday_core::files_from(vec![("sent.psbt".to_string(), psbt)]),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    assert!(menu_of(&mut app, Row::In(0)).contains(&"Decode".to_string()));
+    choose(&mut app, "Decode");
+    assert_eq!(app.sheet, None, "a choice closes the menu");
+    assert_eq!(app.screen, Screen::Decode);
+    assert!(app.decode().is_some(), "the PSBT's transaction is shown");
+
+    app.press(Action::Nav(Screen::Files));
+    assert!(menu_of(&mut app, Row::Out(0)).contains(&"Decode".to_string()));
+    choose(&mut app, "Decode");
+    assert_eq!(app.screen, Screen::Decode);
+
+    app.press(Action::Nav(Screen::Files));
+    let text = menu_of(&mut app, Row::In(1));
+    assert!(!text.contains(&"Decode".to_string()), "{text:?}");
+}
+
+#[test]
+fn a_text_file_offers_check_an_address_and_opens_the_check_on_it() {
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "notes.txt".to_string(),
+            b"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq".to_vec(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    assert!(menu_of(&mut app, Row::In(0)).contains(&"Check an address".to_string()));
+    choose(&mut app, "Check an address");
+    assert_eq!(app.sheet, None, "a choice closes the menu");
+    assert_eq!(app.screen, Screen::CheckAddress);
 }

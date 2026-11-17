@@ -63,6 +63,15 @@ pub enum FilePress {
     RenameGo,
     /// **Details**: its sheet.
     Details(Row),
+    /// **Decode**: the Decode page on the transaction in this PSBT or
+    /// finished transaction.
+    Decode(Row),
+    /// **Sign this message**: the text file at this place of the Inbox
+    /// as the message to sign.
+    SignMessage(usize),
+    /// **Check an address**: the text file at this place of the Inbox
+    /// read by the address check.
+    CheckAddress(usize),
     /// **Delete from the stick**: the Delete files sheet with this file
     /// on the stick alone chosen.
     StickDelete(usize),
@@ -140,6 +149,8 @@ pub struct Details {
     pub sha: Option<Result<[u8; 32], String>>,
     /// The stick it is on, for a file on the stick.
     pub stick: Option<String>,
+    /// Why Faraday did not open the file, for a PSBT it refused.
+    pub why: Option<String>,
 }
 
 /// What the file rows' ⋮s hold between presses.
@@ -242,7 +253,7 @@ impl Faraday {
 
     /// The row's ⋮ menu's choices, in decision 61's order and only those
     /// the row has (a map read): From the stick, Add to vault where it is
-    /// not the row's button, Check a signer on a PSBT or a finished transaction, Details and Remove;
+    /// not the row's button, Check a signer and Decode on a PSBT or a finished transaction, Details and Remove;
     /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT or a finished transaction, Rename, Details and Remove; on the stick, Rename,
     /// Delete from the stick and Details.
     pub(crate) fn file_menu_lines(&mut self, row: Row) -> Vec<(String, Action)> {
@@ -279,6 +290,24 @@ impl Faraday {
                         EN.catalog_check_a_signer.to_string(),
                         Action::SignerCheck(crate::decode::check::SignerPress::File(false, k)),
                     ));
+                    out.push((
+                        EN.files_decode.to_string(),
+                        Action::File(FilePress::Decode(row)),
+                    ));
+                }
+                if item.kind == FileKind::Text {
+                    if !self.session.message_wallets().is_empty()
+                        && std::str::from_utf8(&item.bytes).is_ok()
+                    {
+                        out.push((
+                            EN.files_sign_this_message.to_string(),
+                            Action::File(FilePress::SignMessage(k)),
+                        ));
+                    }
+                    out.push((
+                        EN.files_check_an_address.to_string(),
+                        Action::File(FilePress::CheckAddress(k)),
+                    ));
                 }
                 out.extend(crate::multisig_check::menu_line(item.wallet(), false, k));
                 out.push(details);
@@ -301,6 +330,10 @@ impl Faraday {
                     out.push((
                         EN.catalog_check_a_signer.to_string(),
                         Action::SignerCheck(crate::decode::check::SignerPress::File(true, k)),
+                    ));
+                    out.push((
+                        EN.files_decode.to_string(),
+                        Action::File(FilePress::Decode(row)),
                     ));
                 }
                 out.extend(crate::multisig_check::menu_line(item.wallet(), true, k));
@@ -403,35 +436,30 @@ impl Faraday {
                 self.scroll.reset_sheet();
             }
             FilePress::RenameGo => self.file_rename_go(),
-            FilePress::Details(row) => {
-                let Some((name, size, kind)) = self.file_row(row) else {
-                    return;
+            FilePress::Details(row) => self.details_open(row, None),
+            FilePress::Decode(row) => {
+                self.file_menu_close();
+                let item = match row {
+                    Row::In(k) => self.inbox.get(k),
+                    Row::Out(k) => self.outbox.get(k),
+                    Row::Stick(_) => return,
                 };
-                // Faraday's own copies are hashed here; a file on the
-                // stick is read for it by the shell.
-                let (sha, stick) = match row {
-                    Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
-                    Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
-                    Row::Stick(_) => {
-                        let id = self.stick.get(self.visit.stick).map(|s| s.id.clone());
-                        if let Some(id) = &id {
-                            self.out.storage_out.push_back(StorageCommand::Hash {
-                                stick: id.clone(),
-                                name: faraday_text::Text::of(&name),
-                            });
-                        }
-                        (None, id.map(|i| String::from(&*i)))
-                    }
-                };
-                self.visit.set_details(Details {
-                    name,
-                    kind,
-                    size,
-                    sha,
-                    stick,
-                });
-                self.sheet = Some(Sheet::Details);
-                self.scroll.reset_sheet();
+                if let Some(item) = item {
+                    let (name, bytes, kind) = (item.name.clone(), item.bytes.clone(), item.kind);
+                    self.decode_file(&c, &name, &bytes, kind);
+                }
+            }
+            FilePress::SignMessage(k) => {
+                self.file_menu_close();
+                if let Some(item) = self.inbox.get(k) {
+                    let bytes = item.bytes.clone();
+                    self.message_open_with(&bytes);
+                }
+            }
+            FilePress::CheckAddress(k) => {
+                self.file_menu_close();
+                crate::address_check::open(self);
+                crate::address_check::file::read(self, &c, k);
             }
             FilePress::StickDelete(k) => {
                 let Some((name, _)) = self.stick_file(k) else {
@@ -441,6 +469,49 @@ impl Faraday {
                 self.stick.choose_delete(vec![name]);
             }
         }
+    }
+
+    /// The ⋮ menu left, its sheet closed.
+    fn file_menu_close(&mut self) {
+        self.visit.file_menu_leave();
+        if self.sheet == Some(Sheet::FileMenu) {
+            self.sheet = None;
+        }
+    }
+
+    /// Costs a SHA-256 of a file of Faraday's own. The Details sheet of
+    /// `row`; `why` names what Faraday refused of the file.
+    pub(crate) fn details_open(&mut self, row: Row, why: Option<&str>) {
+        let c = self.compute();
+        let Some((name, size, kind)) = self.file_row(row) else {
+            return;
+        };
+        // Faraday's own copies are hashed here; a file on the stick is
+        // read for it by the shell.
+        let (sha, stick) = match row {
+            Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
+            Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
+            Row::Stick(_) => {
+                let id = self.stick.get(self.visit.stick).map(|s| s.id.clone());
+                if let Some(id) = &id {
+                    self.out.storage_out.push_back(StorageCommand::Hash {
+                        stick: id.clone(),
+                        name: faraday_text::Text::of(&name),
+                    });
+                }
+                (None, id.map(|i| String::from(&*i)))
+            }
+        };
+        self.visit.set_details(Details {
+            name,
+            kind,
+            size,
+            sha,
+            stick,
+            why: why.map(String::from),
+        });
+        self.sheet = Some(Sheet::Details);
+        self.scroll.reset_sheet();
     }
 
     /// A choice in an open ⋮ menu closes the menu before it acts.
@@ -880,16 +951,19 @@ pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None => vec![EN.details_reading.to_string()],
     };
     let size = fill(EN.details_bytes, &[&d.size.to_string()]);
-    let rows: [(&str, &str); 3] = [
+    let mut rows: Vec<(&str, &str)> = vec![
         (EN.details_name, &d.name),
         (EN.details_kind, &d.kind),
         (EN.details_size, &size),
     ];
+    if let Some(why) = &d.why {
+        rows.push((EN.details_refused, why));
+    }
     let (place, margin, pad) = place(ui, w, 560.0);
     scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         cy += head(ui, x, cy, iw, EN.file_menu_details);
-        for (label, value) in rows {
+        for (label, value) in &rows {
             ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, label);
             cy += ui.advance_as(LABEL_M, 18.0);
             cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, value) + tokens::GAP;

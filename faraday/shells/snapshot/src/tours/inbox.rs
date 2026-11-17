@@ -1,6 +1,7 @@
 //! The inbox tour.
 
 use crate::tour::{Tour, scroll};
+use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
@@ -63,5 +64,12 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("inbox-words-sheet")?;
     t.press(Action::Cancel);
     t.shot("inbox-chosen")?;
+    // The ⋮ of a PSBT (Decode) and of a text file (Check an address).
+    t.press(Action::File(FilePress::Menu(Row::Out(0))));
+    t.shot("inbox-psbt-menu")?;
+    t.press(Action::Cancel);
+    t.press(Action::File(FilePress::Menu(Row::In(4))));
+    t.shot("inbox-text-menu")?;
+    t.press(Action::Cancel);
     Ok(())
 }

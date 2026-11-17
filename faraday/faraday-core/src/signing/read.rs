@@ -135,6 +135,16 @@ pub(crate) fn start_spend(app: &mut Faraday, index: usize, then: Then) {
     app.start(Job::SpendRead(Box::new(work)), EN.working_reading_psbt);
 }
 
+/// A refused PSBT said where the person pressed: on Files, the Details
+/// sheet of its row names the refusal; elsewhere a toast.
+fn refused(app: &mut Faraday, at: usize, why: &str) {
+    if app.screen == Screen::Files && app.inbox.get(at).is_some() {
+        app.details_open(crate::file_menu::Row::In(at), Some(why));
+    } else {
+        app.toast(why);
+    }
+}
+
 /// Costs what [`spend_opened`] costs. A read's answer: opens the spend,
 /// or says why not. Dropped where
 /// the Inbox no longer holds the file the job was given or the person is
@@ -153,7 +163,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     if !held || (app.screen, app.sheet) != (from.screen, from.sheet) {
         return;
     }
-    let opened = spend_opened(app, read, silent);
+    let opened = spend_opened(app, read, silent, from.index);
     match from.then {
         Then::Spend if opened => app.screen = Screen::Spend,
         Then::Spend => {}
@@ -165,22 +175,26 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
 /// the job's (the network it took, the keys, the wallets). Opens the spend
 /// the job read, a MuSig2 file holding every partial signature aggregated at
 /// once. Whether it opened.
-fn spend_opened(app: &mut Faraday, read: Option<Read>, silent: bool) -> bool {
+fn spend_opened(app: &mut Faraday, read: Option<Read>, silent: bool, at: usize) -> bool {
     let Some(Read {
         spend,
         fresh,
         wallets,
     }) = read
     else {
-        app.toast(if silent {
-            EN.start_spend_silent_payments
-        } else {
-            EN.start_spend_not_a_psbt
-        });
+        refused(
+            app,
+            at,
+            if silent {
+                EN.start_spend_silent_payments
+            } else {
+                EN.start_spend_not_a_psbt
+            },
+        );
         return false;
     };
     if let Err(e) = app.session.follow_psbt(&spend.psbt) {
-        app.toast(&e.text());
+        refused(app, at, &e.text());
         return false;
     }
     for (kept, theirs) in app.session.wallets.iter().zip(wallets) {

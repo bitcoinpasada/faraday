@@ -80,7 +80,7 @@ Each card's button depends on the kind of file.
 
 **Key:** files.inbox-menu
 
-The card's menu holds the choices that apply to the file: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Check a signer** for a PSBT, **Details** and **Remove**.
+The card's menu holds the choices that apply to the file: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Decode** and **Check a signer** for a PSBT or a finished transaction, **Sign this message** and **Check an address** for a text file, **Details** and **Remove**. A PSBT that Sign refuses opens its Details, which say why under **Not opened**.
 
 ## For the stick
 
