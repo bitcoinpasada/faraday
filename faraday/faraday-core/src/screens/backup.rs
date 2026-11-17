@@ -687,20 +687,23 @@ pub(crate) fn wallet_done(
         };
         cy += 16.0;
     }
-    let mut items: Vec<(&str, Style, Action)> = Vec::new();
-    if backed {
-        items.push((
-            EN.wallets_show_wallet,
-            Style::Primary,
-            Action::QrWallet(wallet),
-        ));
+    let primary = if backed {
+        (EN.wallets_show_wallet, Action::QrWallet(wallet))
     } else {
         let action = if from == From::Create {
             Action::CBackup
         } else {
             Action::Backup(wallet)
         };
-        items.push((EN.wallet_done_back_up_now, Style::Primary, action));
+        (EN.wallet_done_back_up_now, action)
+    };
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    // On a small panel the filled button is pinned at the foot, where it
+    // stays in view whatever the page holds above it.
+    if ui.pinning {
+        ui.pin = Some((faraday_text::Text::of(primary.0), Style::Primary, primary.1));
+    } else {
+        items.push((primary.0, Style::Primary, primary.1));
     }
     items.push((
         EN.backup_done_open_wallet,
