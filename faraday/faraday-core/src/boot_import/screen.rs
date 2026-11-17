@@ -118,9 +118,10 @@ fn picker(
             EN.visit_select_all
         };
         let tw = ui.measure_as(LABEL_L, t);
-        ui.text_mid_as((x, cy - 6.0, 30.0), LABEL_L, Role::Primary, t);
-        ui.press_box(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
-        cy += 30.0;
+        let row = ui.touch;
+        ui.text_mid_as((x, cy - 6.0, row), LABEL_L, Role::Primary, t);
+        ui.press_box(x - 6.0, cy - 6.0, tw + 12.0, row, ia(I::All));
+        cy += row;
     }
     cy += files(ui, x, cy, w, v);
     cy += buttons(

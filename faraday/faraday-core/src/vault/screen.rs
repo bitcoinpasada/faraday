@@ -1962,21 +1962,22 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let empty = shows_empty(app, v);
     for (k, label, count) in listed_kinds(app, v) {
         let on = k == app.vaults.category;
+        let row = ui.touch;
         if on {
-            ui.fill(x, ky, kinds_w, tokens::TOUCH, 8.0, Role::SecondaryContainer);
+            ui.fill(x, ky, kinds_w, row, 8.0, Role::SecondaryContainer);
         }
         let tone = on_selected(on, muted);
-        ui.text_mid_as((x + 12.0, ky, tokens::TOUCH), LABEL_L, tone, label);
+        ui.text_mid_as((x + 12.0, ky, row), LABEL_L, tone, label);
         let n = Text::num(count as u64);
-        ui.text_right_as((x + kinds_w - 12.0, ky, tokens::TOUCH), BODY_S, tone, &n);
-        ui.press_box(x, ky, kinds_w, tokens::TOUCH, va(V::Category(k)));
-        ky += tokens::TOUCH + 4.0;
+        ui.text_right_as((x + kinds_w - 12.0, ky, row), BODY_S, tone, &n);
+        ui.press_box(x, ky, kinds_w, row, va(V::Category(k)));
+        ky += row + 4.0;
     }
     if !empty {
         if ky > top {
             ky += 8.0;
         }
-        add_rows(ui, x, ky, kinds_w, tokens::TOUCH);
+        add_rows(ui, x, ky, kinds_w, ui.touch);
     }
 
     let ix = x + kinds_w + 16.0;
@@ -2381,10 +2382,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     let empty = shows_empty(app, v);
     if !kind_items.is_empty() {
-        y += wrap_buttons(ui, x, y, w, tokens::TOUCH, &kind_items) + tokens::GAP_SMALL;
+        y += wrap_buttons(ui, x, y, w, ui.touch, &kind_items) + tokens::GAP_SMALL;
     }
     if !empty {
-        y += add_rows(ui, x, y, w, tokens::TOUCH) + tokens::GAP_SMALL;
+        y += add_rows(ui, x, y, w, ui.touch) + tokens::GAP_SMALL;
     }
     ui.rule(x, y, w, Role::OutlineVariant);
     y += 14.0;

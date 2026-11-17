@@ -340,7 +340,7 @@ impl Flowing {
     /// The height the rows take, from where they began at `top`.
     fn height(&self, top: f32) -> f32 {
         if self.any {
-            self.y - top + STATUS_CHIP_H + GAP
+            self.y - top + STATUS_CHIP_H + 2.0 * GAP
         } else {
             0.0
         }
@@ -444,10 +444,23 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             action: Some(crate::boot_import::OPEN),
         });
     }
-    let line_h = ui.row_height(LOADED_LINE, ui.line_as(LABEL_L), GAP_SMALL);
     let room = w - 2.0 * PAD;
+    // A key's line keeps its short height here; every other line is a
+    // touch target tall.
+    let heights: Vec<f32> = lines
+        .iter()
+        .map(|l| {
+            let token = if matches!(l.action, Some(Action::ExploreKey(_))) {
+                LOADED_LINE
+            } else {
+                ui.touch
+            };
+            ui.row_height(token, ui.line_as(LABEL_L), GAP_SMALL)
+        })
+        .collect();
     // Each line's width, then the rows they fill left to right; a line
-    // wider than the row has a row of its own.
+    // wider than the row has a row of its own. A row is as tall as its
+    // tallest line.
     let mut at: Vec<(f32, usize)> = Vec::with_capacity(lines.len());
     let (mut cx, mut row) = (0.0_f32, 0_usize);
     for l in &lines {
@@ -466,14 +479,18 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
         at.push((cx, row));
         cx += lw + PAD;
     }
-    let rows = row + 1;
-    let h = rows as f32 * line_h + 2.0 * GAP_SMALL;
+    let mut row_h = vec![0.0_f32; row + 1];
+    for (i, &(_, r)) in at.iter().enumerate() {
+        row_h[r] = row_h[r].max(heights[i]);
+    }
+    let h = row_h.iter().sum::<f32>() + 2.0 * GAP_SMALL;
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
     for (i, l) in lines.iter().enumerate() {
         let (ox, r) = at[i];
+        let line_h = row_h[r];
         let lx = x + PAD + ox;
-        let ly = y + GAP_SMALL + r as f32 * line_h;
+        let ly = y + GAP_SMALL + row_h[..r].iter().sum::<f32>();
         let next = at
             .get(i + 1)
             .filter(|n| n.1 == r)
