@@ -25,6 +25,7 @@ use crate::wallet::fp_text;
 use crate::{Action, flow};
 use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
+use faraday_ui::parts::button_rows;
 
 pub(super) const TITLES: [&str; kstep::COUNT] = [
     EN.keygen_start,
@@ -96,6 +97,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(k) = app.keygen.state() else {
         return;
     };
+    if let Some(m) = &k.made {
+        return made(app, k, m, ui, (x0, cw, h));
+    }
     let steps = k.steps();
     let mut cards: Vec<flow::Card> = steps
         .iter()
@@ -205,6 +209,75 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// whole worksheet (`docs/LAYOUT.md` §16.1); and the input panel, beside
 /// the sheets at the page's start, at the window's foot, or in the page
 /// (§16.3). Arithmetic.
+/// The result card of a key made from Tools: what was made, then Make a
+/// wallet with it (filled), Another and Done back to Tools.
+fn made(app: &View, k: &KeyGen, m: &super::Made, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
+    let fp = fp_text(faraday_bip::keys::Fingerprint(m.fingerprint));
+    let title = if m.typed {
+        EN.keygen_result_added
+    } else {
+        EN.keygen_result_made
+    };
+    let cards = [flow::Card {
+        title: title.into(),
+        summary: fp.as_str().into(),
+        mono: true,
+        done: true,
+        open: true,
+        default: false,
+        toggle: Action::KStep(kstep::START),
+        lead: None,
+    }];
+    let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
+    let col = flow::Column {
+        area_x: x0,
+        area_w: cw,
+        x: x0 + inset,
+        w: (cw - inset - inset).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
+        h,
+        back: Some(app.named_back((EN.keygen_tools, Action::KMadeDone))),
+        heading: title,
+        wrap_closed: false,
+        total_fixed: true,
+        note: None,
+        chip: None,
+        chip_tap: None,
+        moves: crate::ui::Moves::No,
+    };
+    let scroll = k.scroll;
+    let (next, again) = {
+        let mut body = |ui: &mut Ui, _: usize, x: f32, y: f32, w: f32| -> f32 {
+            let mut cy = y;
+            if let Some(n) = &m.name {
+                cy = stat(ui, x, cy, EN.keygen_key, n, Role::OnSurface.paint());
+            }
+            cy = stat(
+                ui,
+                x,
+                cy,
+                EN.keygen_fingerprint,
+                &fp,
+                Role::OnSurface.paint(),
+            );
+            cy += faraday_draw::tokens::GAP_SMALL;
+            cy += button_rows(
+                ui,
+                x,
+                cy,
+                w,
+                &[
+                    (EN.keygen_result_wallet, Style::Primary, Action::KMadeWallet),
+                    (EN.bip85_another, Style::Secondary, Action::KMadeAnother),
+                    (EN.keygen_done, Style::Secondary, Action::KMadeDone),
+                ],
+            );
+            cy - y
+        };
+        flow::column(ui, &col, &cards, scroll, &mut body)
+    };
+    app.scroll(Scrolled::KeyGen, next, again);
+}
+
 fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt) {
     let Some(m) = k.codex32.as_ref() else {
         return (false, PanelAt::Page);

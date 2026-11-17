@@ -421,7 +421,11 @@ key, which opens with Start closed on it. The Add a key screen (Home,
 below) stays for a key asked for by name: a slot's fingerprint, a
 wallet's missing key, Restore's seed slots, and a seed scanned from Home
 or the Spend tab. New key keeps nothing when its screen is left, so it
-has no sidebar row (Flows in progress).
+has no sidebar row (Flows in progress). Opened from Tools, a key made, typed
+or scanned in ends on a result card, not a toast: the key's name and
+fingerprint, **Make a wallet with this key** (filled), **Another** (New key
+again, from Start) and **Done** (back to Tools); none of the key's secret is on
+it. Opened from Make a new wallet or Add a key it returns there as before.
 
 **Make a new key** (decisions 34 and 38, F103). Once Start has a
 choice, Length opens, no count chosen; pressing a count takes it and opens

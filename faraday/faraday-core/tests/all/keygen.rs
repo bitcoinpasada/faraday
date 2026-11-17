@@ -1058,6 +1058,75 @@ fn a_multisig_slots_lock_in_goes_back_to_keys_with_the_slot_filled_and_no_addres
     assert!(!shown.contains("tb1") && !shown.contains("bc1"));
 }
 
+/// New key opened from Tools, a key on its own made and backed up.
+fn from_tools() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::KStart(Start::Make.index()));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip(i % 3 != 1));
+    }
+    app.press(Action::KNext);
+    finish(&mut app);
+    app
+}
+
+#[test]
+fn a_key_made_from_tools_ends_on_a_result_card_and_done_returns_to_tools() {
+    let mut app = from_tools();
+    assert_eq!(app.screen, Screen::KeyGen);
+    let shown = texts(&mut app);
+    for want in [
+        "New key made",
+        "Fingerprint",
+        "Make a wallet with this key",
+        "Another",
+        "Done",
+    ] {
+        assert!(shown.contains(want), "{want} on the result card: {shown}");
+    }
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::KMadeDone);
+    assert!(app.keygen().is_none());
+    assert_eq!(app.screen, Screen::Catalog);
+    assert_eq!(app.session.keys.len(), 1, "the key stays added");
+}
+
+#[test]
+fn another_on_the_result_card_starts_a_new_key_from_the_start_and_done_still_returns_to_tools() {
+    let mut app = from_tools();
+    app.press(Action::KMadeAnother);
+    let k = app.keygen().expect("a new key flow");
+    assert!(k.made.is_none());
+    assert_eq!(k.open, Some(faraday_core::keygen::kstep::START));
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::Nav(Screen::Catalog));
+    assert_eq!(app.screen, Screen::Catalog);
+}
+
+#[test]
+fn make_a_wallet_on_the_result_card_opens_make_a_new_wallet() {
+    let mut app = from_tools();
+    app.press(Action::KMadeWallet);
+    assert!(app.keygen().is_none());
+    assert_eq!(app.screen, Screen::Create);
+}
+
+#[test]
+fn a_key_made_for_make_a_new_wallet_still_returns_to_that_flow_with_no_result_card() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    assert!(app.keygen().is_none());
+    assert_eq!(app.screen, Screen::Create);
+}
+
 #[test]
 fn new_key_on_its_own_asks_for_no_passphrase_and_adds_the_key_without_one() {
     let c = faraday_core::testkit::compute();

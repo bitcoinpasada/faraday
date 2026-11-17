@@ -981,6 +981,12 @@ pub enum Action {
     Mark(crate::board::Chip, MarkTip),
     /// Start the Lightning node key again, with nothing chosen.
     LAnother,
+    /// The result card of a key made from Tools: make a wallet with it.
+    KMadeWallet,
+    /// The result card: another key, from the start.
+    KMadeAnother,
+    /// The result card: back to where New key was opened.
+    KMadeDone,
 }
 
 /// Which mark of a backup board chip a tooltip names.
@@ -1363,7 +1369,10 @@ impl Faraday {
             | Action::KSlipM(_)
             | Action::KSlipN(_)
             | Action::KShare(_)
-            | Action::KeyGenSlip39 => self.keygen_act(action),
+            | Action::KeyGenSlip39
+            | Action::KMadeWallet
+            | Action::KMadeAnother
+            | Action::KMadeDone => self.keygen_act(action),
             Action::Codex32(p) => self.keygen_codex32(p),
             #[cfg(feature = "demo")]
             Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),

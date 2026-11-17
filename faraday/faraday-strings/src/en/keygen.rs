@@ -52,6 +52,12 @@ macro_rules! words_keygen {
     keygen_new_key_n: "New key {}",
     /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(faraday_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
     keygen_key_added_back: "Key {} added; back up its {} before you rely on it",
+    /// Title of the result card of a key made from Tools.
+    keygen_result_made: "New key made",
+    /// Title of the result card of a key typed or scanned in from Tools.
+    keygen_result_added: "Key added",
+    /// The result card's next step.
+    keygen_result_wallet: "Make a wallet with this key",
     /// Text in `keygen_done`.
     keygen_shares_inline: "shares",
     /// Text in `keygen_done`.

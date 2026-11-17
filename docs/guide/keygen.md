@@ -75,7 +75,7 @@ The key's words, numbered, for you to write down. A key made for a wallet shows 
 
 The quiz checks your written copy. It asks for the word at each position, in a random order, with four words to pick from, and passes once every word is right.
 
-**Ask it again** repeats a missed word. **Show the words** goes back to the words. For BIP-39 words **Done** ends the quiz; **Lock in** has already added the key. SLIP-39 shares are quizzed one share at a time, and **Use this key** or **Add key** adds the key once the quiz passes. **Skip the quiz** adds the key unchecked, and a word copied wrongly then shows only when you need the backup.
+**Ask it again** repeats a missed word. **Show the words** goes back to the words. For BIP-39 words **Done** ends the quiz; **Lock in** has already added the key. Opened from Tools, a finished key ends on a card with its name and fingerprint: **Make a wallet with this key**, **Another** for a new key from the start, or **Done** back to Tools. SLIP-39 shares are quizzed one share at a time, and **Use this key** or **Add key** adds the key once the quiz passes. **Skip the quiz** adds the key unchecked, and a word copied wrongly then shows only when you need the backup.
 
 ## Codex32
 

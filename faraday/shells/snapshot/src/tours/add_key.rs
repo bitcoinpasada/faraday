@@ -32,7 +32,16 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KLock);
     // Lock in leaves the flow by itself.
     t.shot("addkey-key-locked")?;
+    // Opened from Tools, a key typed in ends on its result card.
     t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStart(Start::Words.index()));
+    let other = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    type_text(t, &other);
+    t.press(Action::KNext);
+    t.press(Action::KLock);
+    t.shot("addkey-tools-result")?;
+    t.press(Action::KMadeDone);
     let codex32 = faraday_core::catalog::TILES
         .iter()
         .position(|tile| tile.name == "Restore from codex32 shares")

@@ -201,6 +201,17 @@ pub(crate) use area::KeyGenArea;
 pub(crate) mod steps;
 pub use start::{STARTS, Start};
 
+/// What the result card of a key made from Tools shows: no secret.
+#[derive(Clone)]
+pub struct Made {
+    /// The key's fingerprint.
+    pub fingerprint: [u8; 4],
+    /// The key's name, for a key made here.
+    pub name: Option<Text>,
+    /// Typed or scanned in, not made here.
+    pub typed: bool,
+}
+
 /// A new key being made. See the module documentation.
 pub struct KeyGen {
     /// The open card.
@@ -306,6 +317,9 @@ pub struct KeyGen {
     pub entered: crate::secret_text::SecretText,
     /// Where the flow returns to.
     pub back: Screen,
+    /// Opened from Tools, the key made: the flow is over and its result
+    /// card shows in place of the cards. Nothing of the key is kept.
+    pub made: Option<Made>,
     /// The passphrase typed on the Key card, for a Create slot.
     pub passphrase: crate::secret_text::SecretText,
     /// The same passphrase typed again.
@@ -415,6 +429,7 @@ impl KeyGen {
             note: None,
             slot,
             back,
+            made: None,
             slip39: false,
             slip_m: 2,
             slip_n: 3,
@@ -1483,6 +1498,13 @@ impl crate::Faraday {
             self.keygen_open(slot);
             return;
         }
+        // The result card takes only its own presses.
+        if self.keygen.state().is_some_and(|k| k.made.is_some()) {
+            if matches!(action, A::KMadeWallet | A::KMadeAnother | A::KMadeDone) {
+                self.keygen_made_act(action);
+            }
+            return;
+        }
         // In the demo SLIP-39's sources and its deal do nothing
         // (`docs/DEMO.md` §4), however the press arrives. What Pointer
         // and keys took goes into the key first, which then waits for
@@ -1890,6 +1912,27 @@ impl crate::Faraday {
         let Some(k) = self.keygen_drop() else {
             return;
         };
+        // Opened from Tools it ends on a result card, not a toast.
+        if k.slot.is_none()
+            && k.back == Screen::Catalog
+            && let Some(fingerprint) = k.fingerprint
+        {
+            let mut r = KeyGen::new(None, k.back);
+            r.locked = true;
+            r.open = None;
+            r.made = Some(Made {
+                fingerprint,
+                name: (!k.typed()).then(|| {
+                    Text::fill(
+                        EN.keygen_new_key_n,
+                        &[&Text::num(self.keygen.new_keys as u64)],
+                    )
+                }),
+                typed: k.typed(),
+            });
+            self.keygen.state = Some(r);
+            return;
+        }
         self.return_back(k.back);
         if k.slot.is_some() {
             self.create.open_card_unbuilt(Some(crate::cstep::KEYS));
@@ -1912,6 +1955,26 @@ impl crate::Faraday {
                     }),
                 ],
             ));
+        }
+    }
+
+    /// A press on the result card of a key made from Tools: Make a
+    /// wallet with it, Another key from the start, or Done back to Tools.
+    fn keygen_made_act(&mut self, action: crate::Action) {
+        use crate::Action as A;
+        let Some(k) = self.keygen_drop() else {
+            return;
+        };
+        match action {
+            A::KMadeAnother => {
+                self.screen = k.back;
+                self.keygen_open(None);
+            }
+            A::KMadeWallet => {
+                self.return_back(k.back);
+                self.act(A::CreateWallet);
+            }
+            _ => self.return_back(k.back),
         }
     }
 
