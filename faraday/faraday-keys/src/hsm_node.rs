@@ -79,7 +79,29 @@ impl crate::Keys {
             .find(|l| Mnemonic::parse(c, *l, words).is_ok())
             .unwrap_or(Language::English);
         let node = node_from_words(c, language, words, passphrase).map_err(NodeRefusal::Words)?;
+        if self.words_are_a_sample(c, language, words) {
+            return Err(NodeRefusal::Demo(Text::of(
+                faraday_strings::EN.published_sample_node,
+            )));
+        }
         self.refuse_unless_public(node)
+    }
+
+    /// Costs two PBKDF2 and two elliptic-curve multiplications on Mainnet
+    /// with no demo, nothing elsewhere. Whether the BIP-39 `words` are a
+    /// public sample's, whatever passphrase was typed: their seed with no
+    /// passphrase or with the "faraday" one the samples list has a
+    /// sample's fingerprint.
+    fn words_are_a_sample(&self, c: &Compute, language: Language, words: &str) -> bool {
+        if self.demo() || self.network() != faraday_bip::keys::Network::Mainnet {
+            return false;
+        }
+        let Ok(m) = Mnemonic::parse(c, language, words) else {
+            return false;
+        };
+        ["", "faraday"].into_iter().any(|p| {
+            crate::identity::fingerprint_of_mnemonic(c, &m, p).is_ok_and(|fp| self.is_sample(fp))
+        })
     }
 
     /// Costs what [`node_from_words`] costs. Core Lightning's node from

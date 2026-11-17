@@ -163,3 +163,36 @@ fn core_lightnings_sample_files_are_refused_on_mainnet_and_taken_on_testnet() {
         assert_eq!(node.public(), &SAMPLES.inputs.hsm[n].node, "file {n}");
     }
 }
+
+#[test]
+fn a_sample_keys_words_typed_as_core_lightning_words_are_refused_on_mainnet_and_read_on_testnet() {
+    use faraday_bip::keys::Network;
+    let typed = |network: Network, words: &str| {
+        let mut app = testkit::started();
+        testkit::move_to(&mut app.session, network).unwrap();
+        app.press(Action::Lightning);
+        app.press(Action::LCln(None));
+        let _ = app.frame();
+        for ch in words.chars() {
+            app.event(Event::Key(Key::Char(ch)));
+        }
+        app.event(Event::Key(Key::Enter));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        testkit::settle(&mut app);
+        app
+    };
+    let words = SAMPLES.keys[1].parts[0];
+    let app = typed(Network::Mainnet, words);
+    let l = app.lightning().unwrap();
+    assert!(l.node.is_none(), "Mainnet holds the node");
+    assert_eq!(
+        l.error.as_deref(),
+        Some(faraday_core::strings::EN.published_sample_node)
+    );
+    let app = typed(Network::Testnet, words);
+    let l = app.lightning().unwrap();
+    let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
+    assert!(SAMPLES.inputs.hsm_words_nodes.contains(n.public()));
+}
