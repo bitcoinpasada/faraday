@@ -1,4 +1,4 @@
-# One targeted check on GitHub's Linux runners (docs/decisions/F243.md),
+# One targeted check on GitHub's Linux runners (docs/decisions/F243.md, F284 for the split),
 # started by hand on any branch: one crate's tests, one of the justfile's
 # lint recipes, or the format check, clippy or cargo check of some crates. It does not replace `just`, the check. It reads only: no
 # secrets, the checkout's token not kept, GitHub's own actions pinned by
@@ -28,6 +28,9 @@ on:
       crates:
         description: The workspace crates the tool checks, separated by spaces
         default: ""
+      partitions:
+        description: The runners the crate tests are split over (1 to 14, nextest's hash partition; 1 for a lint or a tool)
+        default: "1"
 
 permissions:
   contents: read
@@ -45,15 +48,27 @@ jobs:
     name: inputs
     runs-on: ubuntu-26.04
     timeout-minutes: 10
+    outputs:
+      shards: ${{ steps.check.outputs.shards }}
     steps:
       - name: Check the inputs
+        id: check
         env:
           CRATE: ${{ inputs.crate }}
           FILTER: ${{ inputs.filter }}
           LINT: ${{ inputs.lint }}
           TOOL: ${{ inputs.tool }}
           CRATES: ${{ inputs.crates }}
+          PARTITIONS: ${{ inputs.partitions }}
         run: |
+          printf '%s' "$PARTITIONS" | grep -Eq '^([1-9]|1[0-4])$' \
+            || { echo "The partitions are a number from 1 to 14." >&2; exit 1; }
+          if [ "$PARTITIONS" != 1 ] && { [ -z "$CRATE" ] || [ "$LINT" != none ] || [ "$TOOL" != none ]; }; then
+            echo "Partitions split crate tests only." >&2
+            exit 1
+          fi
+          # One matrix entry per runner: the job's own `if` cannot read the matrix.
+          printf 'shards=%s\n' "$(seq -s, 1 "$PARTITIONS" | sed 's/^/[/;s/$/]/')" >> "$GITHUB_OUTPUT"
           if [ -z "$CRATE" ] && [ "$LINT" = none ] && [ "$TOOL" = none ]; then
             echo "Nothing to run: give a crate, a lint recipe or a tool." >&2
             exit 1
@@ -74,10 +89,14 @@ jobs:
             || { echo "The filter has a character a filter does not use." >&2; exit 1; }
 
   targeted:
-    name: targeted
+    name: ${{ inputs.partitions == '1' && 'targeted' || format('targeted {0}/{1}', matrix.shard, inputs.partitions) }}
     needs: validate
     runs-on: ubuntu-26.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.validate.outputs.shards) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,9 +125,12 @@ jobs:
         env:
           CRATE: ${{ inputs.crate }}
           FILTER: ${{ inputs.filter }}
+          PARTITIONS: ${{ inputs.partitions }}
+          SHARD: ${{ matrix.shard }}
         run: |
           args=()
           for c in $CRATE; do args+=(-p "$c"); done
+          if [ "$PARTITIONS" != 1 ]; then args+=(--partition "hash:${SHARD}/${PARTITIONS}"); fi
           cargo nextest run --locked --no-fail-fast "${args[@]}" -E "${FILTER:-all()}"
       - name: The lint recipe
         if: inputs.lint != 'none'

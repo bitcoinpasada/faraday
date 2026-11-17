@@ -61,7 +61,7 @@ plan <paths>` lists the ones a change touches.
   feature, an output path) changes it in the same commit, and every
   command it shows runs as written. GitHub Actions runs the check (F183):
   `just` on every push to main and pull request, and, started by hand, the
-  fuzz run before a release (F210) and one crate's tests or one lint recipe
+  fuzz run before a release (F210) and crate tests (split over runners, F284) or one lint recipe
   (F243), nothing else; read-only, no secrets, actions pinned by commit, no
   metered services.
 - The tree stays clean (`tools/lint-tree.sh`): top-level entries only as

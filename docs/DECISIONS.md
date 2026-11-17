@@ -294,3 +294,4 @@ Read this table, then only the decision you need.
 | [F280](decisions/F280.md) | Unlocking a vault from the Vaults list lands in the vault | 2026-11-17 | Active | vault |
 | [F281](decisions/F281.md) | Timing and memory side channels on the offline device are outside the security model: not looked for, not recorded, not fixed | 2026-11-17 | Active | crypto |
 | [F282](decisions/F282.md) | A wallet's key is made on Make a new wallet's Keys card, from dice by default | 2026-11-17 | Active | wallets |
+| [F284](decisions/F284.md) | A hand-started run's tests may be split over several runners | 2026-11-17 | Active | repository |

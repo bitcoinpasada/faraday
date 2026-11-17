@@ -8,7 +8,7 @@ and try it on your own hardware. Each section names the document that
 says more. Everything here runs on your own machine; GitHub Actions runs
 the check (§2) on every push to main and every pull request and, started
 by hand, the fuzz run before a release (§8) and one crate's tests or one lint
-recipe (F243), nothing else.
+recipe (F243, F284), nothing else.
 
 ## 1. What you need
 
@@ -184,6 +184,14 @@ lint-clippy` runs it; `check` is `cargo check --locked --all-targets`):
 
 ```
 gh workflow run targeted.yml --ref <branch> -f tool=clippy -f crates='faraday-core faraday-draw'
+```
+
+`partitions` (1 to 14, default 1; F284) splits a run of crate tests over that
+many runners, each running its share by nextest's hash partition (a lint or
+a tool runs on one runner):
+
+```
+gh workflow run targeted.yml --ref <branch> -f crate='faraday-core faraday-host' -f partitions=4
 ```
 
 `just` stays the check; this is for a change that touches one crate.
