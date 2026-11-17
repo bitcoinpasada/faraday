@@ -266,7 +266,7 @@ Read this table, then only the decision you need.
 | [F247](decisions/F247.md) | The in-app guide replaces Learn | 2026-11-11 | Active | design |
 | [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Amended by F253 | repository |
 | [F249](history/decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Replaced by F264 | standards |
-| [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
+| [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Amended by F281 | keys |
 | [F251](history/decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; the `lint-macos` recipe stays, run by hand | 2026-11-12 | Superseded by F257 | repository |
 | [F252](history/decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Superseded by F268 | platforms |
 | [F253](decisions/F253.md) | A function has no line limit; a cognitive-complexity ceiling and a review keep it to one job | 2026-11-14 | Active | repository |
@@ -290,3 +290,4 @@ Read this table, then only the decision you need.
 | [F276](decisions/F276.md) | A Seed XOR set and a SLIP-39 set made on the device are counted on a wallet's backup plan | 2026-11-16 | Active | backup |
 | [F277](decisions/F277.md) | The Check screen shows its checks as tiles in the grid Tools uses | 2026-11-16 | Active | design |
 | [F278](decisions/F278.md) | The sidebar no longer holds a session strip | 2026-11-16 | Active | design |
+| [F281](decisions/F281.md) | Timing and memory side channels on the offline device are outside the security model: not looked for, not recorded, not fixed | 2026-11-17 | Active | crypto |
