@@ -129,7 +129,12 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
     if app.holds_secret() {
         foot.push(dest(app, Icon::Lock, EN.sidebar_lock, Action::LockAsk));
     }
-    foot.push(dest(app, Icon::Power, EN.nav_power_off, Action::PowerAsk));
+    foot.push(dest(
+        app,
+        Icon::Power,
+        crate::screens::leave_label(app),
+        Action::PowerAsk,
+    ));
     faraday_ui::nav::rail(
         ui,
         h,
@@ -512,13 +517,16 @@ pub(crate) fn loaded_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 
 /// The ⋮ menu of the top app bar on the bar's windows: Settings and
 /// Power off, as a sheet.
-pub(crate) fn menu_sheet(ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let lines = [
         crate::menu::Line::Item(
             EN.sidebar_settings.to_string(),
             Action::NavMenu(MenuPress::Go(Screen::Settings)),
         ),
-        crate::menu::Line::Item(EN.nav_power_off.to_string(), Action::PowerAsk),
+        crate::menu::Line::Item(
+            crate::screens::leave_label(app).to_string(),
+            Action::PowerAsk,
+        ),
     ];
     crate::menu::draw(
         ui,

@@ -78,7 +78,7 @@ use sheets::{
     remove_keys_sheet, scan_sheet, secret_out_sheet, wallet_confirm_sheet, write_out_sheet,
 };
 use sidebar::sidebar;
-pub(crate) use sidebar::{lock_held_pill, name_suffix};
+pub(crate) use sidebar::{leave_label, lock_held_pill, name_suffix};
 pub(crate) use spend::{
     STEPS as SPEND_TITLES, signers_count, single_key_unloaded, step_body, step_summary,
 };
@@ -506,7 +506,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
-            Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(ui, w, h),
+            Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(app, ui, w, h),
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),
             Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),
             Sheet::AddressFiles => crate::address_check::screen::files_menu(app, ui, w, h),

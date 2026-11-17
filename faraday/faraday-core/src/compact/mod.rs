@@ -432,7 +432,7 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         if app.holds_secret() {
             lines.push(item(EN.compact_lock, BarTool::Lock));
         }
-        lines.push(item(EN.nav_power_off, BarTool::Power));
+        lines.push(item(crate::screens::leave_label(app), BarTool::Power));
     }
     crate::menu::draw(
         ui,
@@ -980,7 +980,7 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
         y,
         Some(pw),
         BUTTON_H,
-        EN.nav_power_off,
+        crate::screens::leave_label(app),
         Style::Secondary,
         Action::PowerAsk,
     );

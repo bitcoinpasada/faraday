@@ -50,6 +50,9 @@ macro_rules! words_screens_sidebar {
     sidebar_attached: "{} attached",
     /// Button in `sidebar`.
     sidebar_lock: "Lock",
+    /// Button in `sidebar`, the rail and the bar's menu on the online
+    /// desktop build, where Power off reads Quit.
+    sidebar_quit: "Quit",
     /// A flow in progress's name, in `sidebar` and the small Home
     /// (`in_progress`).
     sidebar_flow_create: "Make a new wallet",

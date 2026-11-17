@@ -395,6 +395,16 @@ fn stick_row(app: &View, ui: &mut Ui, fy: f32) {
     ui.text_right_as((SIDEBAR_W - 24.0, fy, TOUCH), BODY_S, tone, &sticks);
 }
 
+/// What the power button reads: Quit on the online desktop build, which
+/// closes the window, Power off on a device.
+pub(crate) fn leave_label(app: &View) -> &'static str {
+    if app.online {
+        EN.sidebar_quit
+    } else {
+        EN.nav_power_off
+    }
+}
+
 /// Lock and Power off at `fy`, and under them the pill while the idle
 /// lock is `held`.
 fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
@@ -417,7 +427,7 @@ fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
             fy,
             Some(half),
             BUTTON_H,
-            EN.nav_power_off,
+            leave_label(app),
             Style::Secondary,
             Action::PowerAsk,
         );
@@ -427,7 +437,7 @@ fn foot_buttons(app: &View, ui: &mut Ui, fy: f32, held: bool) {
             fy,
             Some(w),
             BUTTON_H,
-            EN.nav_power_off,
+            leave_label(app),
             Style::Secondary,
             Action::PowerAsk,
         );
