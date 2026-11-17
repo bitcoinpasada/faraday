@@ -107,7 +107,7 @@ Read this table, then only the decision you need.
 | [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | security |
 | [F89](history/decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Replaced by F257 | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Amended by F155 | crypto |
-| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108, F113, F247 | design |
+| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108, F113, F247, F278 | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Amended by F121, F247, F260 | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
@@ -289,3 +289,4 @@ Read this table, then only the decision you need.
 | [F275](decisions/F275.md) | Home's Check tile only where the navigation has no Check | 2026-11-16 | Active | design |
 | [F276](decisions/F276.md) | A Seed XOR set and a SLIP-39 set made on the device are counted on a wallet's backup plan | 2026-11-16 | Active | backup |
 | [F277](decisions/F277.md) | The Check screen shows its checks as tiles in the grid Tools uses | 2026-11-16 | Active | design |
+| [F278](decisions/F278.md) | The sidebar no longer holds a session strip | 2026-11-16 | Active | design |
