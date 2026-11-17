@@ -2147,8 +2147,10 @@ impl Faraday {
     /// Whether a key record written now says it was made on an online
     /// computer: this is the desktop app, or the key (`fp`) came from one
     /// that was. A record made new that goes into a vault takes its mark
-    /// from here; a copy of a record takes it from `stage` and `copy_record`
-    /// (`docs/VAULT.md`, `faraday.online`).
+    /// from here, except a codex32 share record, which
+    /// `Keys::codex32_share_record` marks by the same rule itself; a copy of
+    /// a record takes it from `stage` and `copy_record` (`docs/VAULT.md`,
+    /// `faraday.online`).
     pub(crate) fn written_online(&self, fp: Option<Fingerprint>) -> bool {
         self.online || fp.is_some_and(|f| self.session.keys.made_online(f))
     }

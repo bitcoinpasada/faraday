@@ -652,37 +652,71 @@ impl OpenVaults {
         loaded
     }
 
-    /// Costs a parse of the words and a PBKDF2 for each key record of an
-    /// open vault that says it was written on an online computer, while
-    /// `keys` holds a key. A key the session already holds that such a
-    /// record is of takes its mark, as one already held does from a share
-    /// record in [`Self::gather_codex32`]. Nothing is loaded.
+    /// Costs a parse of the words for each key record of an open vault that
+    /// says it was written on an online computer or names a parent, times
+    /// the keys held (a master key for a seed record); no PBKDF2. A held
+    /// key a marked codex32 share record names takes its mark too. Every key
+    /// the session holds that such a record is of takes its mark, for any
+    /// passphrase of marked words (as [`Keys::add_with_passphrase`] does),
+    /// and a held key takes the record's parent link where it has none,
+    /// with the parent's mark. A key already held takes these here, as one
+    /// does from a share record in [`Self::gather_codex32`]. Nothing is
+    /// loaded.
     pub fn note_made_online_keys(&self, c: &Compute, keys: &mut Keys) {
         if keys.is_empty() {
             return;
         }
         for slot in &self.slots {
-            for r in slot
-                .records
-                .iter()
-                .filter(|r| r.kind == kind::KEY && faraday_vault::records::is_made_online(r))
-            {
-                let fp = match record_words(c, r) {
-                    Some(m) => {
-                        let p = match r.text(field::KEY_PASSPHRASE) {
-                            Some(p) => crate::texts::wiped(p),
-                            None => self.passphrase_kept_for(c, keys, &m, 0).unwrap_or_default(),
-                        };
-                        fingerprint(c, Material::Words(&m), &p, keys.network())
-                    }
-                    None => seed_of(r)
-                        .and_then(|s| fingerprint(c, Material::Seed(&s), "", keys.network())),
-                };
-                if let Some(fp) = fp
-                    && keys.position(fp).is_some()
+            // A share record names its key: one already held takes the mark.
+            for r in slot.records.iter().filter(|r| {
+                r.kind == kind::CODEX32_SHARE && faraday_vault::records::is_made_online(r)
+            }) {
+                if let Some(fp) = r
+                    .field(field::CODEX32_KEY)
+                    .and_then(|b| <[u8; 4]>::try_from(b).ok())
+                    && keys.position_of(fp).is_some()
                 {
-                    keys.take_child_of(fp, child_of_of(r));
-                    keys.note_made_online(fp);
+                    keys.note_made_online(Fingerprint(fp));
+                }
+            }
+            for r in slot.records.iter().filter(|r| r.kind == kind::KEY) {
+                let online = faraday_vault::records::is_made_online(r);
+                let of = child_of_of(r);
+                if !online && of.is_none() {
+                    continue;
+                }
+                // The held keys the record is of, and of them the one it
+                // is exactly (its own passphrase, stored or none).
+                let mut hits: Vec<(Fingerprint, bool)> = Vec::new();
+                if let Some(s) = seed_of(r) {
+                    if let Some(fp) = fingerprint(c, Material::Seed(&s), "", keys.network())
+                        && keys.position(fp).is_some()
+                    {
+                        hits.push((fp, true));
+                    }
+                } else if let Some(held) = r.field(field::KEY) {
+                    let stored = r.text(field::KEY_PASSPHRASE);
+                    for i in 0..keys.len() {
+                        if !keys.words_payload_among(c, i, &[held]) {
+                            continue;
+                        }
+                        let Some(info) = keys.info(i) else {
+                            continue;
+                        };
+                        let exact = match stored {
+                            Some(p) => keys.passphrase_matches(i, p),
+                            None => !info.has_passphrase,
+                        };
+                        hits.push((info.fingerprint, exact));
+                    }
+                }
+                for (fp, exact) in hits {
+                    if exact {
+                        keys.take_child_of(fp, of);
+                    }
+                    if online {
+                        keys.note_made_online(fp);
+                    }
                 }
             }
         }

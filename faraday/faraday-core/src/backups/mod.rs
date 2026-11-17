@@ -4082,7 +4082,9 @@ impl Faraday {
         true
     }
 
-    /// Costs what `gather_codex32` costs. The codex32 share records of
+    /// Costs what `gather_codex32` costs, and what `note_made_online_keys`
+    /// costs: a parse of the words of each marked key record or one naming
+    /// a parent, for each key held. The codex32 share records of
     /// every open vault gathered towards their keys (`docs/CODEX32.md`
     /// §9.5): a key held keeps its strings, and a key `k` strings of one
     /// set make across the open vaults loads, its fingerprint said. Only
@@ -4090,7 +4092,8 @@ impl Faraday {
     pub(crate) fn vault_gather_codex32(&mut self) {
         let c = self.compute();
         // A mark noted only makes the key held more careful, so it is noted
-        // wherever keys may not load too.
+        // wherever keys may not load too: from key records and from share
+        // records of a key already held.
         self.vaults
             .store()
             .note_made_online_keys(&c, &mut self.session.keys);

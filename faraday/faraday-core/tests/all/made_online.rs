@@ -729,8 +729,10 @@ fn a_child_seed_loaded_with_a_passphrase_after_its_online_parent_is_held() {
     );
 }
 
-#[test]
-fn words_typed_before_their_vault_records_parent_loads_are_held_when_the_parent_is_marked() {
+/// The child's words typed, then two plain unlocks, the vault with its
+/// record naming the parent and the vault with the marked parent's shares,
+/// in either order: nothing is loaded by hand.
+fn words_typed_then_plain_unlocks(child_vault_first: bool) {
     use crate::codex32_kept::vault_of;
     let (child, marked) = child_and_marked_shares();
     // The child's own words, typed on the device before any vault opens.
@@ -760,18 +762,16 @@ fn words_typed_before_their_vault_records_parent_loads_are_held_when_the_parent_
     ]);
     typed(&mut app, &words);
     assert_eq!(app.session.keys.len(), 1);
-    // The record naming the parent loads first, then the marked parent.
-    unlock_loading(&mut app, "child.kdbx", "child phrase");
-    // The unlock offers nothing, as the key is held; the person loads the
-    // vault's record of it from the vault's contents.
-    app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::Category(0)));
-    app.press(Action::Vault(V::Item(0)));
-    testkit::press_on_worker(&mut app, Action::Vault(V::Load));
-    settle(&mut app, |a| {
-        a.session.keys.info(0).is_some_and(|i| i.child_of.is_some())
-    });
-    unlock_loading(&mut app, "bank.kdbx", "bank phrase");
+    // The key is held, so each unlock offers nothing to load.
+    let child = ("child.kdbx", "child phrase");
+    let bank = ("bank.kdbx", "bank phrase");
+    let (first, second) = if child_vault_first {
+        (child, bank)
+    } else {
+        (bank, child)
+    };
+    unlock_loading(&mut app, first.0, first.1);
+    unlock_loading(&mut app, second.0, second.1);
     caution(&mut app);
     assert_eq!(
         app.sheet,
@@ -784,6 +784,89 @@ fn words_typed_before_their_vault_records_parent_loads_are_held_when_the_parent_
         app.sheet,
         Some(Sheet::Published),
         "the child is held as its parent is, so a second key waits on a hold"
+    );
+}
+
+fn typed_with(app: &mut Faraday, words: &str, passphrase: &str) {
+    app.press(Action::Entry(None));
+    type_text(app, words);
+    app.press(Action::EntryPassphrase);
+    type_text(app, passphrase);
+    app.press(Action::EntryPassphraseAgain);
+    type_text(app, passphrase);
+    app.press(Action::PassEye);
+    app.press(Action::EntryAdd);
+}
+
+#[test]
+fn words_typed_before_a_vault_record_naming_their_parent_are_held_when_the_parent_is_marked() {
+    words_typed_then_plain_unlocks(true);
+}
+
+#[test]
+fn words_typed_after_the_marked_parent_loads_are_held_when_a_vault_record_names_it() {
+    words_typed_then_plain_unlocks(false);
+}
+
+#[test]
+fn a_held_key_is_held_whatever_passphrase_it_was_typed_with_when_a_vault_marks_its_words() {
+    let words = fresh();
+    let file = testkit::kdbx_vault(
+        "Made",
+        PHRASE,
+        7,
+        vec![key_record(&words, Some(MADE_ONLINE))],
+    )
+    .unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    typed_with(&mut app, &words, "a passphrase");
+    assert_eq!(app.session.keys.len(), 1);
+    // A plain unlock: nothing is loaded from the vault by hand.
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
+    );
+}
+
+#[test]
+fn a_key_typed_after_the_unlock_is_held_when_its_marked_record_loads_with_the_same_passphrase() {
+    let words = fresh();
+    let file = testkit::kdbx_vault(
+        "Made",
+        PHRASE,
+        7,
+        vec![key_record(&words, Some(MADE_ONLINE))],
+    )
+    .unwrap();
+    let mut app = process(vec![("made.kdbx".into(), file)], Network::Mainnet);
+    // The vault is unlocked with nothing loaded; then the words are typed.
+    unlock_without_loading(&mut app, "made.kdbx", PHRASE);
+    typed_with(&mut app, &words, "a passphrase");
+    assert_eq!(app.session.keys.len(), 1);
+    caution(&mut app);
+    assert_eq!(app.sheet, None, "nothing marks the typed key yet");
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::LoadWithPassphrase));
+    type_text(&mut app, "a passphrase");
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_text(&mut app, "a passphrase");
+    app.press(Action::Vault(V::PromptGo));
+    assert_eq!(app.session.keys.len(), 1, "the key is held already");
+    app.press(Action::Nav(Screen::Spend));
+    caution(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedKeep);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Published),
+        "a press does not keep it"
     );
 }
 

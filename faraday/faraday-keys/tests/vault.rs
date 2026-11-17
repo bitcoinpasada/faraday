@@ -2325,6 +2325,31 @@ fn a_set_of_shares_written_online_loads_its_key_marked() {
 }
 
 #[test]
+fn a_key_held_already_takes_the_mark_of_a_share_record_without_any_share_gathered() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut keys = Keys::on(Network::Mainnet);
+    let fp = keys.add_seed(&c, &seed, "").expect("a key");
+    for online in [false, true] {
+        let mut store = store();
+        let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+        // One share of a set that needs more: nothing could load or gather.
+        let mut r = Record::new(kind::CODEX32_SHARE)
+            .with(
+                field::CODEX32_STRING,
+                b"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw",
+            )
+            .with(field::CODEX32_KEY, &fp.0);
+        if online {
+            faraday_vault::records::mark_made_online(&mut r);
+        }
+        store.insert(id, r).expect("kept");
+        store.note_made_online_keys(&c, &mut keys);
+        assert_eq!(keys.made_online(fp), online);
+    }
+}
+
+#[test]
 fn a_child_of_a_key_written_online_is_written_online_too() {
     let c = compute();
     let seed: Vec<u8> = (1..=16).collect();
