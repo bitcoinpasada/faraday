@@ -3250,6 +3250,7 @@ fn one_seed_shape() -> faraday_core::plan::Shape {
         }],
         splits: false,
         vaults: 0,
+        seed_alone_fails: false,
     }
 }
 

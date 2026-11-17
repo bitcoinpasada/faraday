@@ -353,8 +353,7 @@ fn slot_with_passphrase_fields() -> (Faraday, [u8; 4]) {
     let first = key_made_on_its_own(&mut app);
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 0);
-    app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     app.press(Action::CSlotHere(0, first));
     let _ = app.frame();
     app.press(Action::CPassOpen(0));
