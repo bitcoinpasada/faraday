@@ -45,6 +45,24 @@ fn a_stick_with_no_vault_is_not_made_into_one_before_the_keys() {
     );
 }
 
+/// The setup has no counts and no Check it later: a waiting stick is asked
+/// for and nothing is put off, and a stick read says how many are in.
+#[test]
+fn the_setup_shows_no_counts_and_offers_no_check_it_later() {
+    let mut shell = Shell::new();
+    shell.add(Disk::empty("S1", "KEYSTICK"));
+    let mut app = on_the_sticks();
+    app.press(Action::Flow(F::LaterAsk(0)));
+    assert_eq!(app.sheet, None::<Sheet>, "nothing is put off");
+    let shown = texts(&mut app).join("\n");
+    assert!(!shown.contains("Check it later"), "{shown}");
+    assert!(!shown.contains(" of 1 "), "{shown}");
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    let shown = texts(&mut app).join("\n");
+    assert!(!shown.contains(" of 1 "), "{shown}");
+}
+
 /// A stick that is not FAT32 shows its problem on its figure and is not
 /// bound.
 #[test]

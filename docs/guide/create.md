@@ -37,7 +37,7 @@ For a kind with several keys. A quorum of m keys out of n must sign to spend; **
 
 One row per key, **Key 1**, **Key 2** and so on. Fill each with one of the choices below; **Make the wallet** is offered once every row is filled.
 
-**Use a vault I already have on a stick** is a row at the head of Keys, off until pressed, and shown only before any key exists. On, it brings in that one stick and unlocks its vault, so a key can be saved into it.
+**Use a vault I already have on a stick** is a row at the head of Keys, off until pressed, shown only before any key exists. On, it brings in that one stick and unlocks its vault for the keys. It has no counts and no **Check it later**.
 
 **Make a new key** makes a key for the row. A key already loaded, or a key in an open vault, can fill it too. **Scan its xpub**, or a cosigner's xpub file, fills a row of a multisig with a key from another signer. **Someone else adds it later** leaves the row waiting for that file. **Add a passphrase** adds one to a key from BIP-39 words. Hardware keyboard keys are read as US; **Lock in** then waits for the eye. **Clear** empties the row. **Show xpub QR** shows the key's xpub for the cosigners.
 

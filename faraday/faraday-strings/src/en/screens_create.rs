@@ -114,6 +114,8 @@ macro_rules! words_screens_create {
     create_use_existing_vault: "Use a vault I already have on a stick",
     /// The Keys card's line while the vault's stick is still to be brought in and unlocked.
     create_vault_to_unlock: "Its vault is to be unlocked before the keys",
+    /// Bring in's summary in Make a new wallet's setup. `{}`: the sticks inserted.
+    create_sticks_inserted: "{} inserted",
     /// A stick read for a vault the person already has, holding no vault.
     create_no_vault_on_stick: "No vault on this stick. A new vault is added on the backup plan",
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.

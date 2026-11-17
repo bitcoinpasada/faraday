@@ -107,7 +107,10 @@ impl BackupFlow {
 
     /// Slot `k` waits, with nothing being read, and may be put off.
     pub(crate) fn can_put_off(&self, k: usize) -> bool {
+        // A vault already on a stick is read now: nothing is put off in
+        // the setup before the keys.
         self.step == Step::Sticks
+            && !self.is_setup()
             && self.live.reading.is_none()
             && self.slots.get(k).is_some_and(|s| s.bound.is_none())
             && !self.is_later(k)

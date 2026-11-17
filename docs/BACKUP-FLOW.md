@@ -203,7 +203,8 @@ no vault the key goes into.
   there takes another stick that passes. Putting a stick off keeps
   what it holds: a stick that holds vaults gets the new vault beside
   them. A figure with a vault already on a stick does not offer it:
-  that vault is read only before the keys.
+  that vault is read only before the keys. Make a new wallet's setup offers
+  it on no figure.
 - **Already read this session.** The boot stick, in the machine already,
   is offered by every waiting figure and in its ⋮: **Use the boot
   stick**, with no insertion, for one stick of the plan at most; it then

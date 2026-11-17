@@ -166,6 +166,13 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
                 &f.plan.used_vaults().len().to_string(),
             ],
         ),
+        Step::Sticks if f.is_setup() => {
+            // The sticks inserted are the count: no total to reach.
+            match f.slots.iter().filter(|x| x.bound.is_some()).count() {
+                0 => String::new(),
+                n => fill(FEN.create_sticks_inserted, &[&n.to_string()]),
+            }
+        }
         Step::Sticks => {
             let bound = f.slots.iter().filter(|x| x.bound.is_some()).count();
             // Passed with sticks not read: they hold only new vaults, read
@@ -188,6 +195,18 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
             1 => FEN.backup_flow_vaults_one.to_string(),
             n => fill(FEN.backup_flow_vaults_n, &[&n.to_string()]),
         },
+        Step::Vaults if f.is_setup() => {
+            let open = f.plan.used_vaults().iter().any(|&v| {
+                f.plan.vaults[v]
+                    .salt
+                    .is_some_and(|s| app.vaults.open.iter().any(|o| o.vault_id() == s))
+            });
+            if open {
+                FEN.backup_flow_unlocked.to_string()
+            } else {
+                String::new()
+            }
+        }
         Step::Vaults => {
             let open_n = f
                 .plan

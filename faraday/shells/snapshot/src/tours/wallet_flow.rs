@@ -58,12 +58,9 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("wallet-flow-1-create-keys-row")?;
     t.press(Action::CExistingVault(true));
     t.shot("wallet-flow-3-insert")?;
-    // A figure's ⋮ menu, and Check it later's dialog; Cancel leaves both.
+    // A figure's ⋮ menu; Cancel leaves it.
     t.press(Action::Flow(F::FigMenu(0)));
     t.shot("wallet-flow-3b-figure-menu")?;
-    t.press(Action::Cancel);
-    t.press(Action::Flow(F::LaterAsk(0)));
-    t.shot("wallet-flow-3c-check-later")?;
     t.press(Action::Cancel);
     // The vault on the stick: the person picks which, then the stick's sheet.
     let first = t.stick();
