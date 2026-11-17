@@ -1000,8 +1000,9 @@ fn visit_with_picture(name: &str) -> Faraday {
 fn visit_copy_answered(app: &mut Faraday, payload: Vec<u8>) {
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
-        if let StorageCommand::ReadQr { name, .. } = c {
+        if let StorageCommand::ReadQr { stick, name } = c {
             app.storage(StorageEvent::QrRead {
+                stick,
                 name,
                 bytes: (Vec::new()).into(),
                 payloads: (vec![payload.clone()]).into(),
