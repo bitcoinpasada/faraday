@@ -13,6 +13,8 @@ publish = false
 faraday-crypto = { path = "../../core/faraday-crypto" }
 # codex32's character set and values.
 faraday-bip = { path = "../../core/faraday-bip" }
+# The Seed XOR part limit (`MAX_XOR_PARTS`), one limit for every layer.
+faraday-entropy = { path = "../../core/faraday-entropy" }
 # The wording the plan's text forms and labels use.
 faraday-strings = { path = "../faraday-strings" }
 # Heap text that wipes itself, for the plan's lines and labels.

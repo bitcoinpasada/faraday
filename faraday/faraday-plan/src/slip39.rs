@@ -39,6 +39,14 @@ pub struct Slip39 {
 }
 
 impl Slip39 {
+    /// Whether member `m` of group `g` was made: only a made share exists,
+    /// so only it counts or may be placed.
+    pub fn has_member(&self, g: usize, m: usize) -> bool {
+        self.groups
+            .get(g)
+            .is_some_and(|grp| u8::try_from(m).is_ok_and(|m| grp.made.contains(&m)))
+    }
+
     /// Whether the shares `got`, as (group, member), rebuild the seed:
     /// enough members of enough groups.
     pub(crate) fn rebuilt_by(&self, got: &[(usize, usize)]) -> bool {
@@ -49,7 +57,7 @@ impl Slip39 {
             .filter(|&(g, grp)| {
                 let members = got
                     .iter()
-                    .filter(|&&(x, m)| x == g && m < usize::from(grp.count))
+                    .filter(|&&(x, m)| x == g && self.has_member(g, m))
                     .count();
                 members >= usize::from(grp.threshold)
             })
@@ -61,12 +69,13 @@ impl Slip39 {
     fn is_sound(&self) -> bool {
         let gt = usize::from(self.group_threshold);
         self.identifier < 1 << 15
-            && self.exponent < 16
+            && self.exponent <= faraday_bip::slip39::MAX_ITERATION_EXPONENT
             && (1..=MAX).contains(&self.groups.len())
             && (1..=self.groups.len()).contains(&gt)
             && self.groups.iter().all(|g| {
                 (1..=MAX).contains(&usize::from(g.count))
                     && (1..=g.count).contains(&g.threshold)
+                    && (g.threshold > 1 || g.count == 1)
                     && g.made.iter().all(|&m| m < g.count)
                     && g.made.windows(2).all(|w| w[0] < w[1])
             })
@@ -183,12 +192,7 @@ impl Answers {
         for s in &mut m {
             s.holds.retain(|(w, _)| {
                 share_of(*w).is_none_or(|(x, g, n)| {
-                    x != i
-                        || keep.as_ref().is_some_and(|k| {
-                            k.groups
-                                .get(g)
-                                .is_some_and(|grp| n < usize::from(grp.count))
-                        })
+                    x != i || keep.as_ref().is_some_and(|k| k.has_member(g, n))
                 })
             });
         }

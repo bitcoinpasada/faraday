@@ -11,6 +11,8 @@ publish = false
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+# The Seed XOR part limit (`MAX_XOR_PARTS`), one limit for every layer.
+faraday-entropy = { path = "../../core/faraday-entropy" }
 zeroize = { workspace = true, features = ["alloc"] }
 # Heap text that wipes itself, for an entry's text.
 faraday-text = { path = "../../core/faraday-text" }

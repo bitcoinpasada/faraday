@@ -708,12 +708,7 @@ fn read_map(a: &mut Answers, shape: &Shape, lines: Vec<(At, Vec<&str>)>) -> Opti
                     matches!(s.at, At::Place(_)) && a.xor(i).is_some_and(|x| j < x.n())
                 }
                 What::Slip39Share(i, g, m) => {
-                    matches!(s.at, At::Place(_))
-                        && a.slip39(i).is_some_and(|z| {
-                            z.groups
-                                .get(g)
-                                .is_some_and(|grp| m < usize::from(grp.count))
-                        })
+                    matches!(s.at, At::Place(_)) && a.slip39(i).is_some_and(|z| z.has_member(g, m))
                 }
                 _ => true,
             })

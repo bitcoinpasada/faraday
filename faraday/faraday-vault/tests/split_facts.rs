@@ -37,7 +37,7 @@ fn two_groups() -> Slip39Facts {
                 made: 0b101,
             },
             Group {
-                threshold: 1,
+                threshold: 2,
                 count: 16,
                 made: 0x8000,
             },
@@ -59,7 +59,7 @@ fn a_slip39_set_is_kept_as_its_public_facts_and_nothing_else() {
     let payload = slip39::payload(&two_groups()).unwrap();
     assert_eq!(
         payload,
-        b"\xbc\x7a\x03\x02\x02\x02\x03\x05\x00\x01\x10\x00\x80"
+        b"\xbc\x7a\x03\x02\x02\x02\x03\x05\x00\x02\x10\x00\x80"
     );
     let r = key().with(field::KEY_SLIP39, &payload);
     assert_eq!(r.check(), Ok(()));
@@ -80,7 +80,7 @@ fn a_key_record_without_the_sets_reads_as_before_and_has_none() {
 fn what_is_not_a_set_is_not_written_and_a_record_holding_it_is_refused() {
     let xor_bad = |parts: Vec<[u8; 4]>| XorFacts { parts };
     assert_eq!(xor::payload(&xor_bad(vec![[1; 4]])), None, "one part");
-    assert_eq!(xor::payload(&xor_bad(vec![[1; 4]; 17])), None, "17 parts");
+    assert_eq!(xor::payload(&xor_bad(vec![[1; 4]; 5])), None, "5 parts");
     let bad = |f: &dyn Fn(&mut Slip39Facts)| {
         let mut s = two_groups();
         f(&mut s);
@@ -88,7 +88,14 @@ fn what_is_not_a_set_is_not_written_and_a_record_holding_it_is_refused() {
     };
     for facts in [
         bad(&|s| s.identifier = 0x8000),
-        bad(&|s| s.exponent = 32),
+        bad(&|s| s.exponent = 16),
+        bad(&|s| {
+            s.groups[0] = Group {
+                threshold: 1,
+                count: 3,
+                made: 0b101,
+            }
+        }),
         bad(&|s| s.threshold = 3),
         bad(&|s| s.threshold = 0),
         bad(&|s| s.groups[0].threshold = 4),
@@ -119,7 +126,7 @@ fn a_set_is_written_in_a_file_vaults_custom_data_and_read_back() {
     assert_eq!(
         std::str::from_utf8(&text).unwrap(),
         "{id = 31420, exponent = 3, threshold = 2, groups = [{threshold = 2, count = 3, \
-         made = [0, 2]}, {threshold = 1, count = 16, made = [15]}]}"
+         made = [0, 2]}, {threshold = 2, count = 16, made = [15]}]}"
     );
     assert_eq!(read_slip39_facts(&text).unwrap(), two_groups());
 }
@@ -145,23 +152,23 @@ fn custom_data_that_is_not_a_set_is_refused_naming_the_key() {
         (r.why, r.key)
     };
     let ok =
-        "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 1, count = 2, made = [0]}]}";
+        "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [0]}]}";
     assert_eq!(read_slip39_facts(ok.as_bytes()).unwrap().groups[0].made, 1);
     assert_eq!(
         slip(
-            "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 1, count = 2, made = [2]}]}"
+            "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [2]}]}"
         ),
         (Why::Range, "groups.made".into())
     );
     assert_eq!(
         slip(
-            "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 1, count = 2, made = [0, 0]}]}"
+            "{id = 1, exponent = 0, threshold = 1, groups = [{threshold = 2, count = 2, made = [0, 0]}]}"
         ),
         (Why::BadSplit, "groups.made".into())
     );
     assert_eq!(
         slip(
-            "{id = 1, exponent = 0, threshold = 2, groups = [{threshold = 1, count = 2, made = []}]}"
+            "{id = 1, exponent = 0, threshold = 2, groups = [{threshold = 2, count = 2, made = []}]}"
         ),
         (Why::BadSplit, "".into())
     );

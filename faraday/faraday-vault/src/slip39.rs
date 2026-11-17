@@ -8,7 +8,7 @@
 //! | At | Bytes | What |
 //! |---|---|---|
 //! | 0 | 2 | the identifier, 15 bits, `u16` little-endian |
-//! | 2 | 1 | the iteration exponent: 0 to 31 |
+//! | 2 | 1 | the iteration exponent: 0 to 15 |
 //! | 3 | 1 | the group threshold: 1 to the number of groups |
 //! | 4 | 1 | how many groups: 1 to 16 |
 //! | 5 | 4 each | per group: its member threshold (1 to its count), its member count (1 to 16), then the member indices made as a `u16` little-endian mask, bit i for index i, only bits below the count |
@@ -37,7 +37,7 @@ pub struct Group {
 pub struct Slip39Facts {
     /// The set's identifier, 15 bits.
     pub identifier: u16,
-    /// The iteration exponent, 0 to 31.
+    /// The iteration exponent, 0 to 15.
     pub exponent: u8,
     /// How many groups recover the secret.
     pub threshold: u8,
@@ -50,12 +50,13 @@ impl Slip39Facts {
     pub fn is_sound(&self) -> bool {
         let n = self.groups.len();
         self.identifier < 0x8000
-            && self.exponent < 32
+            && self.exponent <= faraday_bip::slip39::MAX_ITERATION_EXPONENT
             && (1..=usize::from(MAX)).contains(&n)
             && (1..=n).contains(&usize::from(self.threshold))
             && self.groups.iter().all(|g| {
                 (1..=MAX).contains(&g.count)
                     && (1..=g.count).contains(&g.threshold)
+                    && (g.threshold > 1 || g.count == 1)
                     && u32::from(g.made) < 1u32 << g.count
             })
     }

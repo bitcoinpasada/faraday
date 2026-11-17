@@ -60,7 +60,10 @@ standard it is and which software restores it.
    stay here. The tool's "codex32 set → a new codex32 set" always makes a
    fresh set with its own identifier, which never combines with the key's
    own set or a plan's (§6); a plan's set keeps its upkeep in the
-   backup's set actions.
+   backup's set actions. Not built yet: a set made here is not recorded
+   on the key and not offered for the plan; today the facts reach a key
+   only from a vault record that holds them, and a plan holds them only
+   from a saved plan that already does.
 
 ## 2. What is built today
 

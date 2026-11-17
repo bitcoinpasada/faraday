@@ -910,11 +910,12 @@ and numbers. A seed held as `hex` takes none.
 A seed's `faraday.xor` is the plain facts of the one Seed XOR set it was
 split into, as one TOML inline table: `parts`, an array of each part's
 master fingerprint, eight lower-case hex digits, in the order of the
-parts, two to 16 of them. A seed's `faraday.slip39` is the plain facts of
+parts, two to four of them (Seed XOR makes at most four). A seed's `faraday.slip39` is the plain facts of
 the one SLIP-39 set it was split into, as one TOML inline table: `id`, the
 set's identifier (0 to 32767); `exponent`, the iteration exponent (0 to
-31); `threshold`, how many groups recover the seed; `groups`, an array of
-one to 16 inline tables, `threshold` (1 to its `count`), `count` (1 to 16)
+15, the four bits the share holds); `threshold`, how many groups recover the seed; `groups`, an array of
+one to 16 inline tables, `threshold` (1 to its `count`; a group of one
+member needs `count` 1, as SLIP-39 itself requires), `count` (1 to 16)
 and `made`, the member indices made (0 up to one below `count`, each once).
 Neither holds a part or a share: only numbers and fingerprints, public.
 A key has at most one set of each kind; a second is refused. In the binary

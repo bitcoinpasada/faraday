@@ -941,7 +941,10 @@ pub fn read_slip39_facts(bytes: &[u8]) -> Result<Slip39Facts, Refusal> {
         .small("id", 0x7fff)?
         .ok_or_else(|| v.err(Why::Missing, "id"))?;
     let exponent = v
-        .small("exponent", 31)?
+        .small(
+            "exponent",
+            faraday_bip::slip39::MAX_ITERATION_EXPONENT.into(),
+        )?
         .ok_or_else(|| v.err(Why::Missing, "exponent"))?;
     let threshold = v
         .small("threshold", 16)?

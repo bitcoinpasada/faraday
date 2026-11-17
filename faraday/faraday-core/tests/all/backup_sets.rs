@@ -121,6 +121,40 @@ fn a_two_of_three_slip39_group_survives_one_lost_place() {
     assert_eq!(lost_of(&a), Lost::Yes);
 }
 
+/// One group of 2 of 3 of which only share 1 was made: a plan that places
+/// the other two as well does not make the key rebuildable, and reading it
+/// back refuses the places of shares that do not exist.
+#[test]
+fn a_slip39_share_that_was_never_made_is_not_counted_or_read_back() {
+    let only_first = |a: &mut Answers, shape: &Shape| {
+        a.set_slip39(
+            shape,
+            0,
+            Some(Slip39 {
+                seed: 0,
+                identifier: 12345,
+                exponent: 1,
+                group_threshold: 1,
+                groups: vec![Group {
+                    threshold: 2,
+                    count: 3,
+                    made: vec![0],
+                }],
+            }),
+        );
+    };
+    let a = plan_of(
+        only_first,
+        [
+            vec![What::Slip39Share(0, 0, 0)],
+            vec![What::Slip39Share(0, 0, 1)],
+            vec![What::Slip39Share(0, 0, 2)],
+        ],
+    );
+    assert_ne!(lost_of(&a), Lost::Yes);
+    assert!(Answers::from_text(&shape(), &a.to_text()).is_none());
+}
+
 #[test]
 fn two_slip39_shares_at_one_place_are_lost_with_it() {
     let a = plan_of(

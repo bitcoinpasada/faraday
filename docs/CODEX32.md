@@ -1657,7 +1657,9 @@ A Seed XOR set and a SLIP-39 set made by Convert a seed are counted the
 same way (F276): the plan holds the set's public facts as a form of the
 key and places its parts on paper, and the checks count them as they count
 these strings. Their set actions stay in Convert, never here; only a
-codex32 set's are this section's.
+codex32 set's are this section's. Not built yet: a set made in Tools is
+not recorded on the key and the plan is not offered its form; the plan
+counts such a set only when read from a saved plan that holds it.
 
 ### 9.5 Shares on the backup board (owner, 2026-10-22)
 

@@ -1134,6 +1134,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
+ "faraday-entropy",
  "faraday-strings",
  "faraday-text",
  "faraday-vault",
@@ -1409,6 +1410,7 @@ dependencies = [
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
+ "faraday-entropy",
  "faraday-intake",
  "faraday-pgp",
  "faraday-text",

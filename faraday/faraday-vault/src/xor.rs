@@ -7,7 +7,7 @@
 //!
 //! | At | Bytes | What |
 //! |---|---|---|
-//! | 0 | 1 | how many parts, n: 2 to 16 |
+//! | 0 | 1 | how many parts, n: 2 to 4 |
 //! | 1 | 4 each | per part, in order: its master fingerprint |
 //!
 //! Anything else is not this layout and [`xor_of`] gives `None`.
@@ -18,7 +18,7 @@ use alloc::vec::Vec;
 pub const MIN_PARTS: usize = 2;
 
 /// The most parts a set has.
-pub const MAX_PARTS: usize = 16;
+pub const MAX_PARTS: usize = faraday_entropy::MAX_XOR_PARTS;
 
 /// A Seed XOR set's plain facts: the master fingerprint of each of its
 /// parts, every one needed to rebuild the seed. No part.
@@ -30,7 +30,7 @@ pub struct XorFacts {
 }
 
 impl XorFacts {
-    /// Whether the layout holds it: 2 to 16 parts.
+    /// Whether the layout holds it: 2 to 4 parts.
     pub fn is_sound(&self) -> bool {
         (MIN_PARTS..=MAX_PARTS).contains(&self.parts.len())
     }

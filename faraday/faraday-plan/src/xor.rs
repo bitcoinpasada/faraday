@@ -10,7 +10,7 @@ use super::*;
 use faraday_text::{Text, text};
 
 /// The most parts a set has.
-pub const MAX_PARTS: usize = 9;
+pub const MAX_PARTS: usize = faraday_entropy::MAX_XOR_PARTS;
 
 /// A seed's Seed XOR set on the plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
