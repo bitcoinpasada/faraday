@@ -3408,6 +3408,11 @@ fn a_set_saved_for_one_key_records_nothing_on_another() {
     assert!(app.session.keys[0].slip39.is_none() && app.session.keys[1].slip39.is_none());
 }
 
+/// The secret is a published SLIP-39 vector's; the published vectors hold
+/// no identifier or exponent for a set Convert makes (its identifier is
+/// new each time), so the recorded identifier and exponent are checked
+/// against what the made share's own words say, and the groups against
+/// the 2 of 3 asked for.
 #[test]
 fn a_slip39_set_of_a_published_secret_is_recorded_with_its_own_facts() {
     let v: serde_json::Value = serde_json::from_str(SLIP39).unwrap();
